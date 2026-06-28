@@ -8,6 +8,7 @@ import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
 import { GamepadReader } from './utils/GamepadReader.js';
 import { INPUT_ACTION_EVENT } from './utils/InputActions.js';
+import { dispatchInputAction } from './utils/inputFocus.js';
 import {
   getStartupTelemetry,
   initStartupTelemetry,
@@ -431,6 +432,10 @@ function bootGame(user) {
       window[GAME_INSTANCE_KEY].events.emit(INPUT_ACTION_EVENT, action, payload),
   });
   window[GAME_INSTANCE_KEY].events.on('step', (time) => gamepadReader.poll(time));
+  // Bridge the bus to the LIFO input-focus stack: only the topmost scope (active
+  // scene, or an overlay above it) receives each action. Scenes/overlays register
+  // scopes via pushInputScope/popInputScope rather than subscribing here directly.
+  window[GAME_INSTANCE_KEY].events.on(INPUT_ACTION_EVENT, dispatchInputAction);
 
   if (startupFlags.isMobile) {
     new MobileControls(window[GAME_INSTANCE_KEY]).show();

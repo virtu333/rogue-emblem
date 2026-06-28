@@ -226,7 +226,8 @@ import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
-import { INPUT_ACTION_EVENT, InputAction } from '../utils/InputActions.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -497,10 +498,10 @@ export class BattleScene extends Phaser.Scene {
       this._mobileHandlers = null;
     }
 
-    // Gamepad action-bus teardown: the global reader keeps emitting on game.events
-    // across scenes, so this scene MUST unsubscribe or it would act on a dead scene.
+    // Gamepad action-bus teardown: the global reader keeps emitting across scenes,
+    // so this scene MUST release its input-focus scope or it would act on a dead scene.
     if (this._onInputActionBound) {
-      this.game?.events?.off?.(INPUT_ACTION_EVENT, this._onInputActionBound);
+      popInputScope(this);
       this._onInputActionBound = null;
     }
     if (this._gridCursor) {
@@ -524,12 +525,11 @@ export class BattleScene extends Phaser.Scene {
   _setupGamepadInput() {
     this._gridCursor = new GridCursorController(this);
     this._menuFocus = new MenuFocusController(this);
-    // Stable bound ref so shutdown can unsubscribe this exact listener from the
-    // global (cross-scene) action bus. Guarded for partial test scenes.
-    const events = this.game?.events;
-    if (!events?.on) return;
+    // Register a scope on the LIFO input-focus stack. While this scene is the
+    // topmost scope it receives action-bus events; an overlay opened later pushes
+    // above it and captures the pad until it closes. Popped in shutdown cleanup.
     this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
-    events.on(INPUT_ACTION_EVENT, this._onInputActionBound);
+    pushInputScope(this, this._onInputActionBound);
   }
 
   // Route device-independent input actions (from the global gamepad reader) into

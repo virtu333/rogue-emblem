@@ -6,6 +6,8 @@ import { resolveStartingLordDefs } from '../engine/Commander.js';
 import { DIFFICULTY_IDS, generateModifierSummary } from '../engine/DifficultyEngine.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 export class DifficultySelectScene extends Phaser.Scene {
   constructor() {
@@ -53,6 +55,8 @@ export class DifficultySelectScene extends Phaser.Scene {
         keyboard.off('keydown-M', this._onKeyM);
       }
       if (this.input) this.input.off('wheel', this._onWheel);
+      popInputScope(this);
+      this._onInputActionBound = null;
       this._onKeyLeft = null;
       this._onKeyRight = null;
       this._onKeyEnter = null;
@@ -78,7 +82,30 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-M', this._onKeyM);
     this.input.on('wheel', this._onWheel);
 
+    // Gamepad: route the action bus into the SAME methods the keyboard uses.
+    // Cards are a horizontal row, so NAVIGATE.dx browses; X (DANGER) mirrors the
+    // 'M' meta-upgrades toggle. Released on shutdown via popInputScope.
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+
     this._draw();
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (payload?.dx) this._navigate(payload.dx);
+        break;
+      case InputAction.CONFIRM:
+        this._confirm();
+        break;
+      case InputAction.CANCEL:
+        this._back();
+        break;
+      case InputAction.DANGER:
+        this._toggleMetaMode();
+        break;
+    }
   }
 
   _buildModes() {
