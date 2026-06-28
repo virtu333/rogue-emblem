@@ -222,8 +222,11 @@ import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
+import { GridCursorController } from '../ui/GridCursorController.js';
+import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
-import { hasOpenOverlay } from '../utils/overlayStack.js';
+import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
+import { INPUT_ACTION_EVENT, InputAction } from '../utils/InputActions.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -362,6 +365,7 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this._registerSceneShutdownCleanup();
+    this._setupGamepadInput();
 
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
@@ -492,6 +496,22 @@ export class BattleScene extends Phaser.Scene {
       }
       this._mobileHandlers = null;
     }
+
+    // Gamepad action-bus teardown: the global reader keeps emitting on game.events
+    // across scenes, so this scene MUST unsubscribe or it would act on a dead scene.
+    if (this._onInputActionBound) {
+      this.game?.events?.off?.(INPUT_ACTION_EVENT, this._onInputActionBound);
+      this._onInputActionBound = null;
+    }
+    if (this._gridCursor) {
+      this._gridCursor.destroy();
+      this._gridCursor = null;
+    }
+    if (this._menuFocus) {
+      this._menuFocus.destroy();
+      this._menuFocus = null;
+    }
+
     // Always reset mobile context on shutdown to prevent stale buttons surviving scene transition
     if (this.isMobileInput) {
       const ge = this.game?.events;
@@ -499,6 +519,49 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this._teardownBattleCameraSystem();
+  }
+
+  _setupGamepadInput() {
+    this._gridCursor = new GridCursorController(this);
+    this._menuFocus = new MenuFocusController(this);
+    // Stable bound ref so shutdown can unsubscribe this exact listener from the
+    // global (cross-scene) action bus. Guarded for partial test scenes.
+    const events = this.game?.events;
+    if (!events?.on) return;
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    events.on(INPUT_ACTION_EVENT, this._onInputActionBound);
+  }
+
+  // Route device-independent input actions (from the global gamepad reader) into
+  // the SAME methods mouse/keyboard use. NAVIGATE/CONFIRM are context-sensitive:
+  // they drive the action-menu focus while it is open, else the grid cursor.
+  _onInputAction(action, payload) {
+    if (this.isStoryInputLocked()) return;
+    const inMenu = this.battleState === 'UNIT_ACTION_MENU';
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (inMenu) {
+          if (payload?.dy) this._menuFocus?.move(payload.dy);
+        } else {
+          this._gridCursor?.move(payload?.dx || 0, payload?.dy || 0);
+        }
+        break;
+      case InputAction.CONFIRM:
+        if (inMenu) this._menuFocus?.activate();
+        else this._gridCursor?.confirm();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        routeCancel(this);
+        break;
+      case InputAction.DANGER:
+        this._onDangerClick();
+        break;
+      case InputAction.ROSTER:
+        this._onRosterClick();
+        break;
+      // PREV_UNIT / NEXT_UNIT / INSPECT wired in Phase 2.
+    }
   }
 
   _isSceneActiveForAsync() {
@@ -3926,6 +3989,7 @@ export class BattleScene extends Phaser.Scene {
       this._getCostModifier(unit),
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
+    this._gridCursor?.snapTo(unit.col, unit.row);
 
     if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
       this._setTutorialGuideHighlight('fort');
@@ -5275,6 +5339,9 @@ export class BattleScene extends Phaser.Scene {
         onClick();
       });
     }
+    // Expose the activation callback so controller/keyboard menu focus can invoke
+    // the same action the pointer does, without a synthetic pointer event.
+    text._action = onClick;
     return text;
   }
 
@@ -5610,9 +5677,21 @@ export class BattleScene extends Phaser.Scene {
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
+    // Hand the focusable buttons (not the bg rect) to the controller/keyboard
+    // focus model so a gamepad can navigate + activate the same menu actions.
+    const focusItems = this.actionMenu
+      .filter((o) => typeof o?._action === 'function')
+      .map((button) => ({
+        label: button.text,
+        button,
+        onActivate: button._action,
+        color: '#e0e0e0',
+      }));
+    this._menuFocus?.setItems(focusItems);
   }
 
   hideActionMenu() {
+    this._menuFocus?.clear();
     this._hideMenuTooltip();
     this._hideWeaponDetailTooltip();
     this._weaponPreviewedItem = null;

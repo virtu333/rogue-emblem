@@ -111,6 +111,21 @@ export function cancelTopOverlay(scene, event = null) {
   }
 }
 
+/**
+ * Device-independent "back/cancel" router. Use this for cancel sources that have
+ * no DOM keyboard event to arbitrate (gamepad B, mobile back): if a stacked
+ * overlay is open, cancel only the topmost one; otherwise fall through to the
+ * scene's normal requestCancel() chain. This mirrors the keyboard ESC handler's
+ * intent (overlay owns "back" while open) without relying on per-overlay keydown
+ * listeners, so one press closes exactly one overlay. Returns true if handled.
+ */
+export function routeCancel(scene) {
+  if (!scene || typeof scene !== 'object') return false;
+  if (typeof scene.isStoryInputLocked === 'function' && scene.isStoryInputLocked()) return false;
+  if (hasOpenOverlay(scene)) return cancelTopOverlay(scene);
+  return typeof scene.requestCancel === 'function' ? Boolean(scene.requestCancel()) : false;
+}
+
 /** Drop every entry for the scene (scene teardown). */
 export function clearOverlayStack(scene) {
   const state = scene && typeof scene === 'object' ? SCENE_OVERLAY_STATE.get(scene) : null;
