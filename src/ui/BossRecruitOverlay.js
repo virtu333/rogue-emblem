@@ -6,6 +6,9 @@
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { applyTextResolution } from '../utils/uiStyles.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -24,6 +27,11 @@ export class BossRecruitOverlay {
     this.gameData = gameData;
     /** @type {object[]} Phaser display objects for lootGroup tracking */
     this.displayObjects = [];
+    // Gamepad focus: a ring over the candidate cards + skip card.
+    this._focusCards = [];
+    this._focus = null;
+    this._onInputActionBound = null;
+    this._resolveSelection = null;
   }
 
   /**
@@ -54,6 +62,8 @@ export class BossRecruitOverlay {
       this._cleanup();
       onComplete(unit);
     };
+    this._resolveSelection = resolve;
+    this._focusCards = [];
 
     const audio = scene.registry.get('audio');
     const recruitGroup = this.displayObjects;
@@ -115,6 +125,7 @@ export class BossRecruitOverlay {
         .setDepth(701)
         .setInteractive({ useHandCursor: true });
       recruitGroup.push(card);
+      this._focusCards.push(card);
 
       let yOff = cardY - cardH / 2 + 12;
 
@@ -308,6 +319,7 @@ export class BossRecruitOverlay {
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
     recruitGroup.push(skipCard);
+    this._focusCards.push(skipCard);
 
     const skipIcon = applyTextResolution(
       scene.add
@@ -382,6 +394,38 @@ export class BossRecruitOverlay {
 
     if (typeof scene._pinToScreen === 'function') {
       scene._pinToScreen(recruitGroup);
+    }
+
+    this._setupInputFocus();
+  }
+
+  // Claim the input-focus stack so the pad drives this forced choice. The ring
+  // tracks the candidate cards + skip card; pinned to the screen like the cards
+  // (the battle camera may be scrolled at boss-recruit time). Released in _cleanup.
+  _setupInputFocus() {
+    const scene = this.scene;
+    this._focus = new BoundingFocusController(scene, 705);
+    this._focus.setObjects(this._focusCards, true);
+    if (this._focus.ring && typeof scene._pinToScreen === 'function') {
+      scene._pinToScreen(this._focus.ring);
+    }
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        // Cards sit in a horizontal row.
+        this._focus?.move(payload?.dx || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._focus?.activate(); // -> the card's pointerdown -> resolve
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        this._resolveSelection?.(null); // = Skip
+        break;
     }
   }
 
@@ -485,6 +529,15 @@ export class BossRecruitOverlay {
 
   _cleanup() {
     const scene = this.scene;
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._focusCards = [];
     if (typeof scene._hideMenuTooltip === 'function') scene._hideMenuTooltip();
     if (typeof scene.hideLootRoster === 'function') scene.hideLootRoster();
     for (const obj of this.displayObjects) {

@@ -6,6 +6,9 @@ import { STAT_COLORS, UI_COLORS } from '../utils/uiStyles.js';
 import { getClassInnateSkills } from '../engine/UnitManager.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const DEPTH_DIM = 850;
 const DEPTH_PANEL = 851;
@@ -31,6 +34,10 @@ export class PromotionChoicePanel {
     this.skillsData = skillsData;
     this.objects = [];
     this._scenePromotionChoiceGuardRegistered = false;
+    // Gamepad focus: a ring over the two "Select" buttons.
+    this._selectButtons = [];
+    this._focus = null;
+    this._onInputActionBound = null;
   }
 
   /**
@@ -150,6 +157,7 @@ export class PromotionChoicePanel {
         .setStrokeStyle(1, 0x6688cc)
         .setInteractive({ useHandCursor: true });
       this.objects.push(btnBg);
+      this._selectButtons.push(btnBg);
 
       this._text(
         btnCx,
@@ -211,6 +219,34 @@ export class PromotionChoicePanel {
         this._resolve(null);
       }
     });
+
+    this._setupInputFocus();
+  }
+
+  // Claim the input-focus stack so the pad drives this forced choice (and not the
+  // scene behind it). The ring tracks the two Select buttons; released in destroy().
+  _setupInputFocus() {
+    this._focus = new BoundingFocusController(this.scene, DEPTH_TEXT + 5);
+    this._focus.setObjects(this._selectButtons, true);
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        // Columns sit side by side — left/right picks between them.
+        this._focus?.move(payload?.dx || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._focus?.activate(); // -> the button's pointerdown -> resolve(cls)
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        this.destroy();
+        this._resolve?.(null);
+        break;
+    }
   }
 
   /**
@@ -347,6 +383,15 @@ export class PromotionChoicePanel {
       this.scene?.input?.keyboard?.off?.('keydown-ESC', this._escHandler);
       this._escHandler = null;
     }
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._selectButtons = [];
     removeOverlay(this.scene, this._overlayToken);
     this._overlayToken = null;
     this._unregisterScenePromotionChoiceGuard();
