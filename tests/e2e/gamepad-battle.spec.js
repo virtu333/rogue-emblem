@@ -14,6 +14,7 @@ const BTN = {
   L1: 4,
   R1: 5,
   INSPECT: 6,
+  PAUSE: 9,
   UP: 12,
   DOWN: 13,
   LEFT: 14,
@@ -345,5 +346,39 @@ test.describe('Gamepad battle loop', () => {
       null,
       { timeout: 6_000 },
     );
+  });
+
+  test('Start opens the pause menu, which captures the pad (no leak to the grid)', async ({
+    page,
+  }) => {
+    await setupBattle(page);
+    const before = await getCursor(page);
+
+    await tap(page, BTN.PAUSE);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
+      null,
+      { timeout: 6_000 },
+    );
+
+    const focusIndex = () =>
+      page.evaluate(
+        () => window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?._focus?.index,
+      );
+    expect(await focusIndex()).toBe(0); // Resume focused
+
+    // DOWN moves the pause ring, NOT the grid cursor behind it.
+    await tap(page, BTN.DOWN);
+    expect(await focusIndex()).toBe(1);
+    expect(await getCursor(page)).toEqual(before); // grid cursor unchanged -> no leak
+
+    // CANCEL (B) resumes: the overlay is nulled and we return to PLAYER_IDLE.
+    await tap(page, BTN.CANCEL);
+    await page.waitForFunction(
+      () => !window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay,
+      null,
+      { timeout: 6_000 },
+    );
+    expect(await getBattleState(page)).toBe('PLAYER_IDLE');
   });
 });

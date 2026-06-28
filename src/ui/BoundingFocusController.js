@@ -31,13 +31,20 @@ export class BoundingFocusController {
     return this.objects.length > 0 && this.index >= 0;
   }
 
-  /** Adopt a freshly ordered object list, keeping the focus index in range. */
-  setObjects(objects) {
+  /**
+   * Adopt a freshly ordered object list. By default the focus index is kept in
+   * range; pass resetIndex=true to snap focus back to the first item (used when
+   * swapping to a different menu, e.g. a confirm modal, rather than redrawing the
+   * same one).
+   */
+  setObjects(objects, resetIndex = false) {
     this.objects = Array.isArray(objects) ? objects.filter(Boolean) : [];
     if (this.ring && this.ring.scene == null) this.ring = null; // wiped by a redraw
-    this.index = this.objects.length
-      ? Math.min(Math.max(this.index, 0), this.objects.length - 1)
-      : -1;
+    if (resetIndex) this.index = this.objects.length ? 0 : -1;
+    else
+      this.index = this.objects.length
+        ? Math.min(Math.max(this.index, 0), this.objects.length - 1)
+        : -1;
     this._render();
   }
 
