@@ -78,4 +78,38 @@ test.describe('Gamepad menu navigation', () => {
     await tap(page, BTN.CANCEL);
     await waitForScene(page, 'DifficultySelect');
   });
+
+  test('Title menu focus moves with the pad and CONFIRM activates a button', async ({ page }) => {
+    await page.goto('/?devScene=title&gamepadSim=1');
+    await waitForGame(page);
+    await waitForScene(page, 'Title');
+    await installSimPad(page);
+
+    const focus = () =>
+      page.evaluate(() => {
+        const t = window.__emblemRogueGame.scene.getScene('Title');
+        return { index: t?._menuFocus?.index, len: t?._menuFocus?.items?.length };
+      });
+
+    const start = await focus();
+    expect(start.len).toBeGreaterThan(0);
+    expect(start.index).toBe(0); // NEW GAME focused by default
+
+    await tap(page, BTN.DOWN);
+    expect((await focus()).index).toBe(1);
+    await tap(page, BTN.UP);
+    expect((await focus()).index).toBe(0);
+
+    // MORE INFO is always second-to-last in the main column (COMPENDIUM is last);
+    // confirming it opens the Help overlay — a contained way to prove CONFIRM acts.
+    const moreInfoIndex = start.len - 2;
+    for (let i = 0; i < moreInfoIndex; i++) await tap(page, BTN.DOWN);
+    expect((await focus()).index).toBe(moreInfoIndex);
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Title')?.helpOverlay),
+      null,
+      { timeout: 8_000 },
+    );
+  });
 });

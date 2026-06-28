@@ -16,6 +16,9 @@ import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
+import { MenuFocusController } from '../ui/MenuFocusController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -59,6 +62,16 @@ export class SlotPickerScene extends Phaser.Scene {
       this._onEsc = null;
       this._onPointerDown = null;
       this._onPointerUp = null;
+      popInputScope(this);
+      this._onInputActionBound = null;
+      if (this._slotFocus) {
+        this._slotFocus.destroy();
+        this._slotFocus = null;
+      }
+      if (this._dialogFocus) {
+        this._dialogFocus.destroy();
+        this._dialogFocus = null;
+      }
     });
 
     this.input.keyboard.on('keydown-ESC', this._onEsc);
@@ -91,6 +104,64 @@ export class SlotPickerScene extends Phaser.Scene {
         ),
       );
     });
+
+    // Gamepad: focus over each slot's Select button + Back. Built after drawSlots
+    // and Back exist; rebuilt whenever the slot list redraws.
+    this._backBtn = backBtn;
+    this._slotFocus = new MenuFocusController(this);
+    this._refreshSlotFocus();
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  // Reuse a button's own pointer hover/press visuals for controller focus.
+  // Optional chaining guards against a button destroyed by a list redraw.
+  _focusItem(button, slot = null) {
+    return {
+      button,
+      slot,
+      onFocus: () => button?.emit?.('pointerover'),
+      onBlur: () => button?.emit?.('pointerout'),
+      onActivate: () => button?.emit?.('pointerdown'),
+    };
+  }
+
+  _refreshSlotFocus() {
+    if (!this._slotFocus) return;
+    const items = (this._slotFocusEntries || []).map((e) => this._focusItem(e.selectBtn, e.slot));
+    if (this._backBtn) items.push(this._focusItem(this._backBtn));
+    this._slotFocus.setItems(items);
+  }
+
+  _onInputAction(action, payload) {
+    // A modal (delete confirm / suspended-battle choice) owns input while open.
+    const dialogOpen = Boolean(this.confirmDialog);
+    if (!dialogOpen && this._dialogFocus) {
+      this._dialogFocus.destroy();
+      this._dialogFocus = null;
+      this._refreshSlotFocus(); // restore the base-list highlight
+    }
+    const focus = dialogOpen ? this._dialogFocus : this._slotFocus;
+    switch (action) {
+      case InputAction.NAVIGATE: {
+        const d = payload?.dx || payload?.dy;
+        if (d) focus?.move(d);
+        break;
+      }
+      case InputAction.CONFIRM:
+        focus?.activate();
+        break;
+      case InputAction.CANCEL:
+        this.requestCancel({ allowExit: !dialogOpen });
+        break;
+      case InputAction.DANGER: {
+        // X deletes the focused slot (no-op on Back or while a modal is open).
+        if (dialogOpen || !this._slotFocus?.isActive) break;
+        const item = this._slotFocus.items[this._slotFocus.index];
+        if (item?.slot != null) this.confirmDelete(item.slot);
+        break;
+      }
+    }
   }
 
   onPointerUp(pointer) {
@@ -147,6 +218,7 @@ export class SlotPickerScene extends Phaser.Scene {
     // Clear previous slot cards if redrawing
     if (this.slotCards) this.slotCards.forEach((o) => o.destroy());
     this.slotCards = [];
+    this._slotFocusEntries = [];
 
     const cx = this.cameras.main.centerX;
     const cardW = 160;
@@ -160,6 +232,7 @@ export class SlotPickerScene extends Phaser.Scene {
       const x = startX + (i - 1) * (cardW + gap);
       this.drawSlotCard(i, x, cardY, cardW, cardH);
     }
+    this._refreshSlotFocus();
   }
 
   drawSlotCard(slot, x, y, w, h) {
@@ -286,6 +359,9 @@ export class SlotPickerScene extends Phaser.Scene {
       deleteBtn.on('pointerout', () => deleteBtn.setColor('#cc5555'));
       deleteBtn.on('pointerdown', () => this.confirmDelete(slot));
       this.slotCards.push(deleteBtn);
+
+      // Register the slot's Select as a controller focus target (X deletes it).
+      this._slotFocusEntries.push({ slot, summary, selectBtn, deleteBtn });
     }
   }
   async selectSlot(slot, summary) {
@@ -438,6 +514,7 @@ export class SlotPickerScene extends Phaser.Scene {
         .setDepth(502),
     );
 
+    const focusButtons = [];
     const makeButton = (x, label, color, handler) => {
       const btn = this.add
         .text(x, cy + 52, label, {
@@ -457,6 +534,7 @@ export class SlotPickerScene extends Phaser.Scene {
         handler();
       });
       objects.push(btn);
+      focusButtons.push(btn);
     };
     makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
       this._continueSuspendedRun(slot, rm, 'battle'),
@@ -466,6 +544,17 @@ export class SlotPickerScene extends Phaser.Scene {
     );
 
     this.confirmDialog = objects;
+    this._setDialogFocus(focusButtons);
+  }
+
+  // Give the gamepad focus to a modal's buttons while it is open; the base slot
+  // list is restored when the modal closes (reconciled in _onInputAction).
+  _setDialogFocus(buttons) {
+    if (!this._slotFocus) return; // gamepad path not active (e.g. headless test)
+    this._slotFocus.clear(); // drop the base highlight behind the modal
+    if (this._dialogFocus) this._dialogFocus.destroy();
+    this._dialogFocus = new MenuFocusController(this);
+    this._dialogFocus.setItems(buttons.filter(Boolean).map((b) => this._focusItem(b)));
   }
 
   async _continueSuspendedRun(slot, rm, mode) {
@@ -639,5 +728,8 @@ export class SlotPickerScene extends Phaser.Scene {
       this.confirmDialog = null;
     });
     this.confirmDialog.push(noBtn);
+
+    // Focus Cancel by default (the safe choice) for controller users.
+    this._setDialogFocus([noBtn, yesBtn]);
   }
 }

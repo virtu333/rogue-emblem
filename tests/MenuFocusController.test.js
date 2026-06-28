@@ -73,4 +73,22 @@ describe('MenuFocusController', () => {
     c.move(1);
     expect(c.activate()).toBe(false);
   });
+
+  it('uses onFocus/onBlur callbacks instead of setColor when provided', () => {
+    const c = new MenuFocusController({});
+    const mk = () => ({ onFocus: vi.fn(), onBlur: vi.fn(), onActivate: vi.fn(), button: {} });
+    const items = [mk(), mk(), mk()];
+    c.setItems(items);
+    // index 0 focused, others blurred
+    expect(items[0].onFocus).toHaveBeenCalledTimes(1);
+    expect(items[0].onBlur).not.toHaveBeenCalled();
+    expect(items[1].onBlur).toHaveBeenCalledTimes(1);
+
+    c.move(1); // focus -> 1: blur 0, focus 1
+    expect(items[0].onBlur).toHaveBeenCalledTimes(1);
+    expect(items[1].onFocus).toHaveBeenCalledTimes(1);
+
+    c.clear(); // blur all
+    expect(items[1].onBlur).toHaveBeenCalled();
+  });
 });

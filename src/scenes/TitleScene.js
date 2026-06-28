@@ -27,6 +27,9 @@ import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
+import { MenuFocusController } from '../ui/MenuFocusController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 // --- Constants ---
 const W = 640,
@@ -477,6 +480,9 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     delay: delay,
   });
 
+  // Expose the hit zone so gamepad focus can reuse the exact pointer hover/press
+  // visuals (emit 'pointerover'/'pointerout'/'pointerdown') instead of duplicating them.
+  container._hitZone = hitZone;
   return container;
 }
 
@@ -540,6 +546,12 @@ export class TitleScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
+      popInputScope(this);
+      this._onInputActionBound = null;
+      if (this._menuFocus) {
+        this._menuFocus.destroy();
+        this._menuFocus = null;
+      }
       this._cleanupTitleOverlaysForShutdown();
       if (this.cloudSyncStatusText) {
         this.cloudSyncStatusText.destroy();
@@ -717,13 +729,19 @@ export class TitleScene extends Phaser.Scene {
     const btnGap = 42;
     const hasSlots = getSlotCount() > 0;
 
-    createMenuButton(
-      this,
-      cx,
-      menuY,
-      'NEW GAME',
-      () => this.runMenuTransition(() => this.handleNewGame()),
-      btnDelay,
+    // Main vertical menu column, collected in display order so the gamepad can
+    // drive a focus highlight over them (corner Settings/Log Out stay pointer-only).
+    this._menuButtons = [];
+
+    this._menuButtons.push(
+      createMenuButton(
+        this,
+        cx,
+        menuY,
+        'NEW GAME',
+        () => this.runMenuTransition(() => this.handleNewGame()),
+        btnDelay,
+      ),
     );
     menuY += btnGap;
 
@@ -731,21 +749,23 @@ export class TitleScene extends Phaser.Scene {
 
     // CONTINUE button (if slots exist)
     if (hasSlots) {
-      createMenuButton(
-        this,
-        cx,
-        menuY,
-        'CONTINUE',
-        () =>
-          this.runMenuTransition(() =>
-            transitionToScene(
-              this,
-              'SlotPicker',
-              { gameData: this.gameData },
-              { reason: TRANSITION_REASONS.CONTINUE },
+      this._menuButtons.push(
+        createMenuButton(
+          this,
+          cx,
+          menuY,
+          'CONTINUE',
+          () =>
+            this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
             ),
-          ),
-        btnDelay + delayIdx * 150,
+          btnDelay + delayIdx * 150,
+        ),
       );
       menuY += btnGap;
       delayIdx++;
@@ -769,6 +789,7 @@ export class TitleScene extends Phaser.Scene {
       },
       btnDelay + delayIdx * 150,
     );
+    this._menuButtons.push(htpBtn);
     menuY += btnGap;
     delayIdx++;
 
@@ -800,22 +821,25 @@ export class TitleScene extends Phaser.Scene {
         }),
       btnDelay + delayIdx * 150,
     );
+    this._menuButtons.push(tutBtn);
     menuY += btnGap;
     delayIdx++;
 
-    createMenuButton(
-      this,
-      cx,
-      menuY,
-      'MORE INFO',
-      () => {
-        if (this.helpOverlay?.visible) return;
-        this.helpOverlay = new HelpOverlay(this, () => {
-          this.helpOverlay = null;
-        });
-        this.helpOverlay.show();
-      },
-      btnDelay + delayIdx * 150,
+    this._menuButtons.push(
+      createMenuButton(
+        this,
+        cx,
+        menuY,
+        'MORE INFO',
+        () => {
+          if (this.helpOverlay?.visible) return;
+          this.helpOverlay = new HelpOverlay(this, () => {
+            this.helpOverlay = null;
+          });
+          this.helpOverlay.show();
+        },
+        btnDelay + delayIdx * 150,
+      ),
     );
     menuY += btnGap;
     delayIdx++;
@@ -866,19 +890,21 @@ export class TitleScene extends Phaser.Scene {
       }
     } catch (_) {}
 
-    createMenuButton(
-      this,
-      cx,
-      menuY,
-      'COMPENDIUM',
-      () => {
-        if (this.compendiumOverlay?.visible) return;
-        this.compendiumOverlay = new CompendiumOverlay(this, this.gameData, () => {
-          this.compendiumOverlay = null;
-        });
-        this.compendiumOverlay.show();
-      },
-      btnDelay + delayIdx * 150,
+    this._menuButtons.push(
+      createMenuButton(
+        this,
+        cx,
+        menuY,
+        'COMPENDIUM',
+        () => {
+          if (this.compendiumOverlay?.visible) return;
+          this.compendiumOverlay = new CompendiumOverlay(this, this.gameData, () => {
+            this.compendiumOverlay = null;
+          });
+          this.compendiumOverlay.show();
+        },
+        btnDelay + delayIdx * 150,
+      ),
     );
     menuY += btnGap;
     delayIdx++;
@@ -922,6 +948,7 @@ export class TitleScene extends Phaser.Scene {
         .setDepth(30);
     }
     this._refreshCloudSyncStatusNotice();
+    this._setupMenuGamepadFocus();
 
     // --- Footer ---
     this.add
@@ -960,6 +987,47 @@ export class TitleScene extends Phaser.Scene {
         window.open(MORE_INFO_URL, '_blank', 'noopener,noreferrer');
       } catch (_) {}
     });
+  }
+
+  // Gamepad: drive a focus highlight over the main menu column, reusing each
+  // button's pointer hover/press visuals. Registered as the scene's input-focus
+  // scope; released on shutdown.
+  _setupMenuGamepadFocus() {
+    this._menuFocus = new MenuFocusController(this);
+    this._menuFocus.setItems(
+      (this._menuButtons || []).filter(Boolean).map((container) => ({
+        button: container,
+        onFocus: () => container._hitZone?.emit('pointerover'),
+        onBlur: () => container._hitZone?.emit('pointerout'),
+        onActivate: () => container._hitZone?.emit('pointerdown'),
+      })),
+    );
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  _titleOverlayOpen() {
+    return Boolean(
+      this.settingsOverlay?.visible ||
+      this.howToPlayOverlay?.visible ||
+      this.helpOverlay?.visible ||
+      this.compendiumOverlay?.visible,
+    );
+  }
+
+  _onInputAction(action, payload) {
+    if (this.isTransitioning) return;
+    // Title overlays aren't gamepad-wired yet (Phase 2D); while one is open, don't
+    // drive the menu hidden behind it.
+    if (this._titleOverlayOpen()) return;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (payload?.dy) this._menuFocus?.move(payload.dy);
+        break;
+      case InputAction.CONFIRM:
+        this._menuFocus?.activate();
+        break;
+    }
   }
 
   _cleanupTitleOverlaysForShutdown() {

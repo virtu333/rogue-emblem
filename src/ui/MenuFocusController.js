@@ -1,7 +1,15 @@
 // Keyboard/gamepad focus for a flat list of menu buttons (the in-battle action
 // menu in PR 1; other lists in later phases). The buttons are the existing Phaser
-// text objects — we just drive a focus highlight over them and invoke the focused
+// objects — we just drive a focus highlight over them and invoke the focused
 // item's callback on confirm, so no selection logic is duplicated.
+//
+// Each item is { button, onActivate, color?, onFocus?, onBlur? }:
+//  - Simple buttons rely on the default setColor highlight (FOCUS_COLOR when
+//    focused, the item's `color` — or DEFAULT_COLOR — otherwise).
+//  - Buttons with a richer hover (a redrawn background, a cursor arrow, a scale
+//    tween) pass onFocus/onBlur to reuse their EXACT pointer visuals, typically
+//    `() => hitZone.emit('pointerover')` / `'pointerout'`, so mouse hover and
+//    controller focus are indistinguishable.
 //
 // FOCUS_COLOR intentionally matches the buttons' pointer-hover color, so mouse
 // hover and controller focus look identical and never visibly fight.
@@ -59,13 +67,22 @@ export class MenuFocusController {
 
   _render() {
     for (let i = 0; i < this.items.length; i++) {
-      const it = this.items[i];
-      const color = i === this.index ? FOCUS_COLOR : it.color || DEFAULT_COLOR;
-      it.button?.setColor?.(color);
+      if (i === this.index) this._focus(this.items[i]);
+      else this._blur(this.items[i]);
     }
   }
 
   _restoreColors() {
-    for (const it of this.items) it.button?.setColor?.(it.color || DEFAULT_COLOR);
+    for (const it of this.items) this._blur(it);
+  }
+
+  _focus(it) {
+    if (typeof it.onFocus === 'function') it.onFocus(it.button);
+    else it.button?.setColor?.(FOCUS_COLOR);
+  }
+
+  _blur(it) {
+    if (typeof it.onBlur === 'function') it.onBlur(it.button);
+    else it.button?.setColor?.(it.color || DEFAULT_COLOR);
   }
 }
