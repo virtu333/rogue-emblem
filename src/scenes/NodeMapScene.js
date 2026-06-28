@@ -30,6 +30,9 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import {
   trackSceneTimer,
   clearTrackedSceneTimer,
@@ -175,6 +178,11 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     this._bindInputHandlers();
+    // Gamepad: a cursor over the available nodes, registered on the input-focus
+    // stack. Refreshed by drawMap (which wipes children each redraw).
+    this._nodeCursor = new NodeMapCursorController(this);
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
     this.events.once('shutdown', () => this._onSceneShutdown());
 
     // Auto-save on every node map entry
@@ -351,6 +359,12 @@ export class NodeMapScene extends Phaser.Scene {
       this._shopController = null;
     }
     this._unbindInputHandlers();
+    popInputScope(this);
+    this._onInputActionBound = null;
+    if (this._nodeCursor) {
+      this._nodeCursor.destroy();
+      this._nodeCursor = null;
+    }
     if (this.isMobileInput && this._mobileHandlers) {
       const ge = this.game.events;
       for (const [action, handler] of Object.entries(this._mobileHandlers)) {
@@ -1300,6 +1314,48 @@ export class NodeMapScene extends Phaser.Scene {
         color: '#888888',
       })
       .setOrigin(0.5);
+
+    // Refresh the gamepad cursor over this frame's available nodes (the marker was
+    // wiped by children.removeAll at the top of drawMap).
+    this._nodeCursor?.setNodes(availableNodes, nodePositions);
+  }
+
+  // Device-independent input from the global reader (top of the input-focus stack).
+  // Overlays (shop/church/roster/pause) aren't gamepad-wired yet (Phase 2D); while
+  // one is open the map cursor stays inert, but CANCEL still cascades through
+  // requestCancel to close it.
+  _onInputAction(action, payload) {
+    if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
+      this.requestCancel();
+      return;
+    }
+    if (!this.isSceneReady || this.isTransitioning || this.battleLaunchInFlight) return;
+    if (this._nodeMapOverlayOpen()) return;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        this._nodeCursor?.move(payload?.dx || 0, payload?.dy || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._nodeCursor?.confirm();
+        break;
+      case InputAction.ROSTER:
+        this._openRoster();
+        break;
+    }
+  }
+
+  _nodeMapOverlayOpen() {
+    return Boolean(
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.colosseumOverlay?.visible ||
+      this._colosseumLoading ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible ||
+      this._storyDialogueActive ||
+      this.dialogueOverlay?.visible,
+    );
   }
 
   _openRoster() {

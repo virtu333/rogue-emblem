@@ -112,4 +112,57 @@ test.describe('Gamepad menu navigation', () => {
       { timeout: 8_000 },
     );
   });
+
+  test('NodeMap cursor navigates available nodes and CONFIRM selects via onNodeClick', async ({
+    page,
+  }) => {
+    await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
+    await waitForGame(page);
+    await waitForScene(page, 'NodeMap');
+    // The cursor is built synchronously in create()/drawMap(); wait for it. (The
+    // isSceneReady flag is gated behind an awaited act-intro dialogue that needs
+    // clicks to advance — its gating is covered by unit tests, so we neutralize it
+    // below rather than drive the dialogue here.)
+    await page.waitForFunction(
+      () =>
+        (window.__emblemRogueGame.scene.getScene('NodeMap')?._nodeCursor?.nodes?.length || 0) > 0,
+      null,
+      { timeout: 12_000 },
+    );
+    await installSimPad(page);
+
+    // Spy on onNodeClick so CONFIRM records the node WITHOUT launching a battle /
+    // overlay; dismiss the intro dialogue and open the input gate so the bus reaches
+    // the cursor.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      window.__nodeClicks = [];
+      s.onNodeClick = (node) => window.__nodeClicks.push(node?.id);
+      if (s.dialogueOverlay?.hide) s.dialogueOverlay.hide();
+      s._storyDialogueActive = false;
+      s.isSceneReady = true;
+    });
+
+    const cur = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+        return { id: s._nodeCursor?.current()?.id, count: s._nodeCursor?.nodes?.length || 0 };
+      });
+
+    const before = await cur();
+    expect(before.count).toBeGreaterThan(0);
+
+    // If there's more than one choice, the cursor must move between them.
+    if (before.count > 1) {
+      await tap(page, BTN.RIGHT);
+      expect((await cur()).id).not.toBe(before.id);
+    }
+
+    const focusedId = (await cur()).id;
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(() => (window.__nodeClicks || []).length > 0, null, {
+      timeout: 8_000,
+    });
+    expect(await page.evaluate(() => window.__nodeClicks)).toContain(focusedId);
+  });
 });
