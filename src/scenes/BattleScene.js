@@ -560,8 +560,52 @@ export class BattleScene extends Phaser.Scene {
       case InputAction.ROSTER:
         this._onRosterClick();
         break;
-      // PREV_UNIT / NEXT_UNIT / INSPECT wired in Phase 2.
+      case InputAction.PREV_UNIT:
+        this._cycleCursorToUnit(-1);
+        break;
+      case InputAction.NEXT_UNIT:
+        this._cycleCursorToUnit(1);
+        break;
+      case InputAction.INSPECT:
+        this._inspectAtCursor();
+        break;
     }
+  }
+
+  // Gamepad L1/R1: step the grid cursor through living, un-acted player units,
+  // the classic "next unit" affordance. Only while the player can freely move
+  // the cursor (PLAYER_IDLE); cursor snap pans the camera + highlights the tile.
+  _cycleCursorToUnit(dir) {
+    if (this.isStoryInputLocked()) return;
+    if (this.battleState !== 'PLAYER_IDLE') return;
+    const cursor = this._gridCursor;
+    if (!cursor) return;
+    const units = (this.playerUnits || [])
+      .filter((u) => u && u.currentHP > 0 && !u.hasActed && !isSleeping(u))
+      .sort((a, b) => a.row - b.row || a.col - b.col);
+    if (units.length === 0) return;
+    // Anchor on the unit already under the cursor so cycling is relative to it.
+    const anchor = units.findIndex((u) => u.col === cursor.cursorCol && u.row === cursor.cursorRow);
+    const start = anchor === -1 ? (dir > 0 ? -1 : 0) : anchor;
+    const next = (((start + dir) % units.length) + units.length) % units.length;
+    cursor.snapTo(units[next].col, units[next].row);
+  }
+
+  // Gamepad L2: the right-click "inspect" affordance, anchored to the grid cursor
+  // instead of the pointer. Toggles the inspection panel + enemy/ballista range.
+  _inspectAtCursor() {
+    if (this.isStoryInputLocked()) return;
+    if (this.battleState === 'BATTLE_END') return;
+    const ic = (this._inputController ||= new InputController(this));
+    if (this.inspectionPanel?.visible || ic._ballistaRangeShown) {
+      this.clearInspectionVisuals();
+      return;
+    }
+    const cursor = this._gridCursor;
+    if (!cursor || !this.grid) return;
+    const world = this.grid.gridToPixel(cursor.cursorCol, cursor.cursorRow);
+    if (!world) return;
+    this._showInspectionAtPixel(world.x, world.y);
   }
 
   _isSceneActiveForAsync() {

@@ -8,7 +8,17 @@
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
 
-const BTN = { CONFIRM: 0, CANCEL: 1, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+const BTN = {
+  CONFIRM: 0,
+  CANCEL: 1,
+  L1: 4,
+  R1: 5,
+  INSPECT: 6,
+  UP: 12,
+  DOWN: 13,
+  LEFT: 14,
+  RIGHT: 15,
+};
 
 // Install a single connected, standard-mapped fake pad. The reader only reads it
 // because the URL carries ?gamepadSim.
@@ -279,5 +289,61 @@ test.describe('Gamepad battle loop', () => {
     });
     expect(result.anyActed).toBe(true);
     expect(result.state).not.toBe('SHOWING_FORECAST');
+  });
+
+  test('L1/R1 cycle the cursor through un-acted player units', async ({ page }) => {
+    await setupBattle(page);
+
+    // The same eligibility filter + reading-order sort the scene uses.
+    const order = await page.evaluate(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const sleeping = (u) =>
+        Array.isArray(u._conditions) && u._conditions.some((c) => c.id === 'sleep');
+      return b.playerUnits
+        .filter((u) => u && u.currentHP > 0 && !u.hasActed && !sleeping(u))
+        .sort((a, b) => a.row - b.row || a.col - b.col)
+        .map((u) => ({ col: u.col, row: u.row }));
+    });
+    expect(order.length).toBeGreaterThan(1); // need >1 to prove cycling
+
+    // NEXT from an off-unit cursor snaps to the first un-acted unit.
+    await tap(page, BTN.R1);
+    expect(await getCursor(page)).toEqual(order[0]);
+
+    // NEXT again advances to the second.
+    await tap(page, BTN.R1);
+    expect(await getCursor(page)).toEqual(order[1]);
+
+    // PREV steps back to the first.
+    await tap(page, BTN.L1);
+    expect(await getCursor(page)).toEqual(order[0]);
+  });
+
+  test('INSPECT toggles the inspection panel at the cursor', async ({ page }) => {
+    await setupBattle(page);
+    const unit = await firstUnitPos(page);
+    expect(unit).not.toBeNull();
+
+    const panelVisible = () =>
+      page.evaluate(() =>
+        Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.inspectionPanel?.visible),
+      );
+
+    await moveCursorTo(page, unit.col, unit.row);
+    expect(await panelVisible()).toBe(false);
+
+    await tap(page, BTN.INSPECT); // show
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.inspectionPanel?.visible),
+      null,
+      { timeout: 6_000 },
+    );
+
+    await tap(page, BTN.INSPECT); // hide
+    await page.waitForFunction(
+      () => !window.__emblemRogueGame.scene.getScene('Battle')?.inspectionPanel?.visible,
+      null,
+      { timeout: 6_000 },
+    );
   });
 });
