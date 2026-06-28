@@ -7,6 +7,9 @@ import {
 } from '../engine/ForgeSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { FORGE_MAX_LEVEL, FORGE_STAT_CAP } from '../utils/constants.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
@@ -121,10 +124,45 @@ export class LootFlowController {
     }
   }
 
+  // Gamepad/keyboard focus for the forge sub-pickers (which build flat button
+  // lists, not the scrolling roster pickers). A ring tracks the selectable buttons
+  // + Back; pushing a scope auto-hides the loot-card ring beneath (onTopChange).
+  // Returns an idempotent teardown to call on every exit path.
+  _attachForgePickerFocus(focusButtons, backBtn) {
+    const targets = [...focusButtons, backBtn].filter(Boolean);
+    if (targets.length === 0) return () => {};
+    const ring = new BoundingFocusController(this.scene, 715);
+    ring.setObjects(targets, true);
+    const owner = {};
+    pushInputScope(owner, (action, payload) => {
+      switch (action) {
+        case InputAction.NAVIGATE:
+          ring.move(payload?.dy || 0);
+          break;
+        case InputAction.CONFIRM:
+          ring.activate();
+          break;
+        case InputAction.CANCEL:
+        case InputAction.PAUSE:
+          backBtn?.emit('pointerdown', { button: 0 });
+          break;
+      }
+    });
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      popInputScope(owner);
+      ring.destroy();
+    };
+  }
+
   showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx) {
     const scene = this.scene;
     const pickerGroup = [];
     const cam = scene.cameras.main;
+    let teardownFocus = () => {};
+    const focusButtons = [];
 
     const bg = scene.add
       .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
@@ -165,6 +203,7 @@ export class LootFlowController {
         .setDepth(711)
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
+      focusButtons.push(btn);
 
       const label = scene.add
         .text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
@@ -194,6 +233,7 @@ export class LootFlowController {
       btn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         try {
+          teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
           if (whetstone.forgeStat === 'choice') {
             // Silver Whetstone: pick stat
@@ -249,15 +289,20 @@ export class LootFlowController {
 
     backBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
+      teardownFocus();
       for (const obj of pickerGroup) obj.destroy();
       scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
+
+    teardownFocus = this._attachForgePickerFocus(focusButtons, backBtn);
   }
 
   showForgeStatPickerLoot(whetstone, weapon, lootGroup, cardIdx) {
     const scene = this.scene;
     const pickerGroup = [];
     const cam = scene.cameras.main;
+    let teardownFocus = () => {};
+    const focusButtons = [];
 
     const bg = scene.add
       .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
@@ -311,11 +356,13 @@ export class LootFlowController {
 
       if (!atStatCap) {
         btn.setInteractive({ useHandCursor: true });
+        focusButtons.push(btn);
         btn.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
           applyForge(weapon, stat.key);
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
+          teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
           this.finalizeLootPick(lootGroup, cardIdx);
         });
@@ -338,9 +385,12 @@ export class LootFlowController {
 
     backBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
+      teardownFocus();
       for (const obj of pickerGroup) obj.destroy();
       scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
+
+    teardownFocus = this._attachForgePickerFocus(focusButtons, backBtn);
   }
 
   showLootRoster() {
@@ -456,6 +506,7 @@ export class LootFlowController {
     this._hideLootTooltip();
     if (scene._lootCleanedUp) return;
     scene._lootCleanedUp = true;
+    scene._lootController?._teardownInputFocus?.();
     this.hideLootRoster();
     if (scene.lootSettingsOverlay) {
       scene.lootSettingsOverlay.hide();

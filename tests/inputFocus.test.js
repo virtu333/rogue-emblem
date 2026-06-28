@@ -93,4 +93,44 @@ describe('inputFocus (LIFO input-focus stack)', () => {
     expect(activeInputOwner()).toBeNull();
     expect(() => dispatchInputAction('input:confirm')).not.toThrow();
   });
+
+  describe('onTopChange notifications', () => {
+    it('notifies a scope when it is covered and re-exposed', () => {
+      const baseTop = vi.fn();
+      const base = {};
+      const over = {};
+      pushInputScope(base, vi.fn(), baseTop);
+      expect(baseTop).toHaveBeenLastCalledWith(true); // gained top on initial push
+
+      pushInputScope(over, vi.fn());
+      expect(baseTop).toHaveBeenLastCalledWith(false); // covered
+
+      popInputScope(over);
+      expect(baseTop).toHaveBeenLastCalledWith(true); // re-exposed
+    });
+
+    it('does not fire when a covered (non-top) scope is removed', () => {
+      const baseTop = vi.fn();
+      const base = {};
+      const mid = {};
+      const top = {};
+      pushInputScope(base, vi.fn(), baseTop);
+      pushInputScope(mid, vi.fn());
+      pushInputScope(top, vi.fn());
+      baseTop.mockClear();
+
+      popInputScope(mid); // base is still covered by top -> no change for base
+      expect(baseTop).not.toHaveBeenCalled();
+    });
+
+    it('replacing a handler keeps the existing onTopChange when none is passed', () => {
+      const baseTop = vi.fn();
+      const base = {};
+      pushInputScope(base, vi.fn(), baseTop);
+      baseTop.mockClear();
+      pushInputScope(base, vi.fn()); // re-render swaps handler only
+      pushInputScope({}, vi.fn()); // cover base
+      expect(baseTop).toHaveBeenCalledWith(false); // original callback still wired
+    });
+  });
 });

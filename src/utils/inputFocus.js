@@ -17,7 +17,20 @@
 //   game.events.on(INPUT_ACTION_EVENT, dispatchInputAction)
 // so this module stays Phaser-free and exhaustively unit-testable.
 
-const _stack = []; // [{ owner, handler }] — last element is the active scope
+const _stack = []; // [{ owner, handler, onTopChange }] — last element is the active scope
+
+function _top() {
+  return _stack.length ? _stack[_stack.length - 1] : null;
+}
+
+// Fire onTopChange(false) on the scope losing the top, then onTopChange(true) on
+// the one gaining it. Lets a covered scope dim/hide its focus ring and restore it
+// when re-exposed, without each pusher knowing what it covered.
+function _notifyTopChange(prevEntry, nextEntry) {
+  if (prevEntry === nextEntry) return;
+  if (prevEntry?.onTopChange) prevEntry.onTopChange(false);
+  if (nextEntry?.onTopChange) nextEntry.onTopChange(true);
+}
 
 /**
  * Deliver an action to the topmost scope only. No-op if the stack is empty.
@@ -34,15 +47,21 @@ export function dispatchInputAction(action, payload) {
  * place (so a re-render can swap the closure without re-ordering the stack).
  * @param {*} owner  a stable identity (the scene or overlay instance)
  * @param {(action: string, payload?: object) => void} handler
+ * @param {(isTop: boolean) => void} [onTopChange]  notified when this scope is
+ *   covered (false) or re-exposed (true) on the stack.
  */
-export function pushInputScope(owner, handler) {
+export function pushInputScope(owner, handler, onTopChange = null) {
   if (typeof handler !== 'function') return;
   const existing = _stack.find((s) => s.owner === owner);
   if (existing) {
     existing.handler = handler;
+    if (onTopChange !== null) existing.onTopChange = onTopChange;
     return;
   }
-  _stack.push({ owner, handler });
+  const prev = _top();
+  const entry = { owner, handler, onTopChange: onTopChange || null };
+  _stack.push(entry);
+  _notifyTopChange(prev, entry);
 }
 
 /**
@@ -51,7 +70,11 @@ export function pushInputScope(owner, handler) {
  */
 export function popInputScope(owner) {
   const idx = _stack.findIndex((s) => s.owner === owner);
-  if (idx !== -1) _stack.splice(idx, 1);
+  if (idx === -1) return;
+  const wasTop = idx === _stack.length - 1;
+  const removed = _stack[idx];
+  _stack.splice(idx, 1);
+  if (wasTop) _notifyTopChange(removed, _top());
 }
 
 /** The owner of the active (topmost) scope, or null. */

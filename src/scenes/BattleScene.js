@@ -213,6 +213,7 @@ import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
+import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
@@ -10014,6 +10015,7 @@ export class BattleScene extends Phaser.Scene {
     listLeft,
     listRight,
     onBack = null,
+    extraFocusTargets = [],
   }) {
     const setVisibleSafe = (obj, visible) => {
       if (!obj) return;
@@ -10159,6 +10161,67 @@ export class BattleScene extends Phaser.Scene {
     }
 
     applyLayout();
+
+    // --- Gamepad/keyboard focus over selectable rows + extra buttons ----------
+    // A ring tracks the selectable row targets (scroll follows it) plus any extra
+    // buttons (Convoy / Back). The loot-card ring beneath auto-hides while this
+    // picker scope is on top (inputFocus onTopChange). Torn down with the picker.
+    const focusEntries = [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i]?.selectable && rows[i]?.inputTarget) {
+        focusEntries.push({ target: rows[i].inputTarget, rowIndex: i });
+      }
+    }
+    for (const extra of extraFocusTargets) {
+      if (extra) focusEntries.push({ target: extra, rowIndex: -1 });
+    }
+
+    if (focusEntries.length > 0) {
+      const pickerFocus = new BoundingFocusController(this, 715);
+      pickerFocus.setObjects(
+        focusEntries.map((e) => e.target),
+        true,
+      );
+
+      const ensureRowVisible = (rowIdx) => {
+        if (rowIdx < 0) return;
+        if (rowIdx < scrollOffset) setScrollOffset(rowIdx);
+        else if (rowIdx >= scrollOffset + maxVisibleRows) {
+          setScrollOffset(rowIdx - maxVisibleRows + 1);
+        }
+      };
+
+      const moveFocus = (delta) => {
+        if (!delta) return;
+        pickerFocus.move(delta);
+        const entry = focusEntries[pickerFocus.index];
+        if (entry) {
+          ensureRowVisible(entry.rowIndex);
+          pickerFocus.refresh();
+        }
+      };
+
+      const scopeOwner = {}; // unique identity for this picker instance
+      const handler = (action, payload) => {
+        switch (action) {
+          case InputAction.NAVIGATE:
+            moveFocus(payload?.dy || 0);
+            break;
+          case InputAction.CONFIRM:
+            pickerFocus.activate(); // -> the row/convoy/back button's pointerdown
+            break;
+          case InputAction.CANCEL:
+          case InputAction.PAUSE:
+            if (typeof onBack === 'function') onBack();
+            break;
+        }
+      };
+      pushInputScope(scopeOwner, handler);
+      detachHandlers.push(() => {
+        popInputScope(scopeOwner);
+        pickerFocus.destroy();
+      });
+    }
 
     return () => {
       for (const detach of detachHandlers) detach();

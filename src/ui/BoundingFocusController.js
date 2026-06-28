@@ -67,6 +67,12 @@ export class BoundingFocusController {
     this._render();
   }
 
+  /** Show (re-render) or hide the ring without discarding the object list. */
+  setRingVisible(visible) {
+    if (visible) this._render();
+    else if (this.ring?.setVisible) this.ring.setVisible(false);
+  }
+
   /** Activate the focused object by re-emitting its own pointerdown. */
   activate() {
     const o = this.objects[this.index];
