@@ -142,6 +142,44 @@ export class BattleCameraController {
     cam.setScroll(nextX, nextY);
   }
 
+  // Pan the camera the minimum amount so a world-space point sits at least
+  // `margin` world-units inside the visible rect, then clamp to bounds. Used by
+  // the gamepad grid cursor to keep itself on-screen as it moves. Returns true if
+  // it scrolled. Accounts for zoom: at zoom > 1 the visible edge is scroll + off,
+  // not scroll (see _zoomOffsets), so the cursor doesn't slip under the bezel.
+  ensureWorldVisible(worldX, worldY, margin = 0) {
+    const cam = this.camera;
+    if (!cam || !Number.isFinite(worldX) || !Number.isFinite(worldY)) return false;
+    const zoom = Number(cam.zoom) || 1;
+    const off = this._zoomOffsets(zoom);
+    const viewWidth = (Number(cam.width) || 0) / zoom;
+    const viewHeight = (Number(cam.height) || 0) / zoom;
+    // Don't let the margin exceed half the view, or the left/right (and top/bottom)
+    // conditions would contradict each other.
+    const mx = Math.max(0, Math.min(margin, viewWidth / 2 - 1));
+    const my = Math.max(0, Math.min(margin, viewHeight / 2 - 1));
+
+    const startX = Number(cam.scrollX) || 0;
+    const startY = Number(cam.scrollY) || 0;
+    let scrollX = startX;
+    let scrollY = startY;
+    const visibleLeft = startX + off.x;
+    const visibleTop = startY + off.y;
+    const visibleRight = visibleLeft + viewWidth;
+    const visibleBottom = visibleTop + viewHeight;
+
+    if (worldX < visibleLeft + mx) scrollX += worldX - (visibleLeft + mx);
+    else if (worldX > visibleRight - mx) scrollX += worldX - (visibleRight - mx);
+    if (worldY < visibleTop + my) scrollY += worldY - (visibleTop + my);
+    else if (worldY > visibleBottom - my) scrollY += worldY - (visibleBottom - my);
+
+    if (scrollX === startX && scrollY === startY) return false;
+    cam.setScroll(scrollX, scrollY);
+    this.clampToBounds();
+    this._emitViewChanged();
+    return true;
+  }
+
   handlePointerDown(pointer, allowed = true) {
     if (!isTouchPointer(pointer))
       return { consumed: false, beganGesture: false, touchCount: this._touches.size };
