@@ -8,6 +8,9 @@ import { findCommander } from '../engine/Commander.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { showImportantHint } from '../ui/HintDisplay.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 export class DeployScreenOverlay {
   /**
@@ -23,6 +26,9 @@ export class DeployScreenOverlay {
     this.displayObjects = [];
     this._closed = false;
     this._detachInputHandlers = null;
+    // Gamepad focus: a ring over the rows + footer buttons; scroll follows it.
+    this._focus = null;
+    this._onInputActionBound = null;
   }
 
   /**
@@ -460,11 +466,66 @@ export class DeployScreenOverlay {
         'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
       );
     }
+
+    // --- Gamepad/keyboard focus -------------------------------------------------
+    // A gold ring over the unit rows + footer buttons (Confirm / Back / Roster).
+    // NAVIGATE drives it; when it lands on a row, the list scrolls that row into
+    // view. CONFIRM toggles a row (the commander row has no handler, so it's a
+    // safe no-op) or presses a footer button. The ring is pinned to the screen
+    // like the rest of the deploy UI. Released in _cleanup().
+    const footerButtons = [confirmBg, backText, rosterText];
+    this._focus = new BoundingFocusController(scene, 705);
+    this._focus.setObjects([...rowObjects.map((ro) => ro.rowBg), ...footerButtons], true);
+    if (this._focus.ring && typeof scene._pinToScreen === 'function') {
+      scene._pinToScreen(this._focus.ring);
+    }
+
+    const ensureRowVisible = (rowIdx) => {
+      if (rowIdx < scrollOffset) setScrollOffset(rowIdx);
+      else if (rowIdx >= scrollOffset + maxVisibleRows)
+        setScrollOffset(rowIdx - maxVisibleRows + 1);
+    };
+
+    const moveFocus = (delta) => {
+      if (!delta || !this._focus) return;
+      this._focus.move(delta);
+      const idx = this._focus.index;
+      if (idx >= 0 && idx < rowObjects.length) {
+        ensureRowVisible(idx); // scroll the focused row into view ...
+        this._focus.refresh(); // ... then reposition the ring on its new y
+      }
+    };
+
+    this._onInputActionBound = (action, payload) => {
+      switch (action) {
+        case InputAction.NAVIGATE:
+          moveFocus(payload?.dy || 0);
+          break;
+        case InputAction.CONFIRM:
+          this._focus?.activate(); // toggle row / press footer button
+          break;
+        case InputAction.CANCEL:
+          backText.emit('pointerdown', { button: 0 }); // BACK to NodeMap
+          break;
+        case InputAction.ROSTER:
+          rosterText.emit('pointerdown', { button: 0 }); // open Roster
+          break;
+      }
+    };
+    pushInputScope(this, this._onInputActionBound);
   }
 
   _cleanup() {
     if (this._closed) return;
     this._closed = true;
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
     // Clear stale reference on the owning scene.
     if (this.scene?._deployOverlay === this) this.scene._deployOverlay = null;
     if (typeof this._detachInputHandlers === 'function') {

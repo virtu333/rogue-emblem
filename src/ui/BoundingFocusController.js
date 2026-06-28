@@ -62,6 +62,11 @@ export class BoundingFocusController {
     this._render();
   }
 
+  /** Re-render the ring at the current index (e.g. after the focused object moved). */
+  refresh() {
+    this._render();
+  }
+
   /** Activate the focused object by re-emitting its own pointerdown. */
   activate() {
     const o = this.objects[this.index];
