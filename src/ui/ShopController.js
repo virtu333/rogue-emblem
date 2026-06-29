@@ -83,6 +83,7 @@ export class ShopController {
     this._renderingShopFocus = false;
     this._forgePickerTeardown = null;
     this._unitPickerTeardown = null;
+    this._unitPickerRefocus = null;
   }
 
   handleShop(node, options = {}) {
@@ -435,15 +436,16 @@ export class ShopController {
   _onShopInput(action, payload) {
     const scene = this.scene;
     if (!Array.isArray(scene.shopOverlay)) return;
-    // Map-view peek: any of confirm/cancel returns to the shop.
+    // Map-view peek: any of confirm/cancel returns to the shop. requestCancel
+    // clears _shopViewingMap then re-shows the ring (via _setShopOverlayVisibility),
+    // so the pointer and pad exit paths are symmetric — no follow-up render needed.
     if (scene._shopViewingMap) {
       if (
         action === InputAction.CANCEL ||
         action === InputAction.PAUSE ||
         action === InputAction.CONFIRM
       ) {
-        scene.requestCancel(); // clears _shopViewingMap
-        this._renderShopFocus(true); // re-show the ring now the flag is down
+        scene.requestCancel();
       }
       return;
     }
@@ -520,6 +522,11 @@ export class ShopController {
   }
 
   _activateShopFocus() {
+    // A non-pad redraw (mouse wheel / mouse tab-click) since the last NAVIGATE may
+    // have culled the focused content row, leaving the ring hidden and its button
+    // un-rendered. Re-render WITH scroll so the focused row is on-screen before we
+    // resolve its button — otherwise CONFIRM would silently resolve to null.
+    this._renderShopFocus(true);
     const slot = this._buildShopSlots()[this._shopFocusIndex];
     if (!slot) return;
     const target = slot.kind === 'fixed' ? slot.btn : this._renderedShopButtonFor(slot.key);
@@ -639,7 +646,10 @@ export class ShopController {
     const ring = new BoundingFocusController(scene, 410);
     const rosterLen = scene.runManager?.roster?.length || 0;
     let idx = 0; // 0..rosterLen-1 = units; rosterLen = Cancel
-    const render = () => {
+    // scroll=true brings the focused row into view (gamepad NAVIGATE); scroll=false
+    // just re-resolves the ring against freshly rendered rows (the renderUnitPicker
+    // hook, after a mouse-wheel / touch-drag scroll redraw) without fighting it.
+    const render = (scroll = true) => {
       if (!scene.unitPickerState) {
         ring.setObjects([]);
         return;
@@ -648,7 +658,7 @@ export class ShopController {
         ring.setObjects(scene._unitPickerCancelBtn ? [scene._unitPickerCancelBtn] : [], true);
         return;
       }
-      this._scrollUnitIntoView(idx);
+      if (scroll) this._scrollUnitIntoView(idx);
       const btn = (scene.unitPicker || []).find((o) => o && o._unitPickerIndex === idx);
       ring.setObjects(btn ? [btn] : [], true);
     };
@@ -678,10 +688,13 @@ export class ShopController {
       }
     });
     render();
+    // renderUnitPicker (called by wheel/drag scroll) re-resolves the ring through this.
+    this._unitPickerRefocus = () => render(false);
     let done = false;
     return () => {
       if (done) return;
       done = true;
+      this._unitPickerRefocus = null;
       popInputScope(owner);
       ring.destroy();
     };
@@ -2011,6 +2024,9 @@ export class ShopController {
     });
     scene._unitPickerCancelBtn = cancelBtn;
     scene.unitPicker.push(cancelBtn);
+    // Rows were just destroyed + recreated; re-point the focus ring at the row it
+    // tracks (no-op when no gamepad focus is attached).
+    this._unitPickerRefocus?.();
   }
 
   closeUnitPicker() {

@@ -1638,3 +1638,110 @@ describe('pointerupoutside lifecycle', () => {
     expect(scene.requestCancel).not.toHaveBeenCalled();
   });
 });
+
+// Exercises the gamepad focus-entry generation INSIDE the real draw fns (the
+// regression-prone half the synthetic ShopControllerGamepad tests inject around):
+// which rows are registered as focusable, that off-screen rows still register, and
+// that only rendered rows carry the _shopFocusKey tag the ring resolves against.
+describe('NodeMap shop gamepad focus entries (real draw fns)', () => {
+  it('buy list: one focus entry per row incl. off-screen; only rendered rows are tagged', () => {
+    const items = Array.from({ length: 16 }, (_v, i) => ({
+      type: 'weapon',
+      price: 100,
+      item: {
+        name: `Blade ${i}`,
+        type: 'Sword',
+        might: 5,
+        hit: 70,
+        crit: 0,
+        weight: 5,
+        range: '1',
+      },
+    }));
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry: items[0] });
+    scene.shopBuyItems = items;
+
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    // every item registers a focus entry (incl. rows culled below the fold)...
+    expect(scene._shopFocusEntries).toHaveLength(16);
+    expect(scene._shopFocusEntries.map((e) => e.key)).toEqual([...Array(16).keys()]);
+    // ...but only on-screen rows are rendered + tagged
+    const tagged = createdTexts.filter((t) => t._shopFocusKey !== undefined);
+    expect(tagged.length).toBeGreaterThan(0);
+    expect(tagged.length).toBeLessThan(16);
+    tagged.forEach((t) => expect(t._shopFocusKey).toBeLessThan(16));
+  });
+
+  it('sell list: unit header rows are not focusable; sellable item rows are', () => {
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', price: 150, uses: 3 };
+    const unit = {
+      name: 'Iris',
+      proficiencies: [],
+      inventory: [],
+      consumables: [vulnerary],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    expect(scene._shopFocusEntries).toHaveLength(1); // only the consumable
+    expect(createdTexts.find((t) => t.text === 'Iris:')._shopFocusKey).toBeUndefined();
+    const row = createdTexts.find(
+      (t) => typeof t.text === 'string' && t.text.includes('Vulnerary'),
+    );
+    expect(row._shopFocusKey).toBe(0);
+  });
+
+  it('sell list: a locked last-weapon row is not focusable', () => {
+    const sword = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      price: 500,
+      range: '1',
+    };
+    const unit = {
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    expect(scene._shopFocusEntries).toHaveLength(0); // last weapon is locked
+    const row = createdTexts.find(
+      (t) => typeof t.text === 'string' && t.text.includes('Iron Sword'),
+    );
+    expect(row._shopFocusKey).toBeUndefined();
+  });
+
+  it('forge list: only the actionable [ Forge ] button is focusable, not the labels', () => {
+    const sword = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      might: 5,
+      hit: 80,
+      crit: 0,
+      weight: 5,
+      range: '1',
+    };
+    const unit = { name: 'Edric', inventory: [sword], weapon: sword };
+    const { scene, createdTexts } = makeForgeListScene({ unit });
+
+    NodeMapScene.prototype.drawShopForgeList.call(scene);
+
+    expect(scene._shopFocusEntries).toHaveLength(1); // the forgeable weapon's button
+    expect(createdTexts.find((t) => t.text === '[ Forge ]')._shopFocusKey).toBe(0);
+    // the weapon-name label and the 'Edric:' unit header are NOT focusable
+    const nameRow = createdTexts.find(
+      (t) => typeof t.text === 'string' && t.text.includes('Iron Sword'),
+    );
+    expect(nameRow._shopFocusKey).toBeUndefined();
+    expect(createdTexts.find((t) => t.text === 'Edric:')._shopFocusKey).toBeUndefined();
+  });
+});

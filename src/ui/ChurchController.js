@@ -300,7 +300,9 @@ export class ChurchController {
   _onChurchInput(action, payload) {
     const scene = this.scene;
     if (!Array.isArray(scene.churchOverlay)) return;
-    // Map-view peek: any of confirm/cancel returns to the church.
+    // Map-view peek: any of confirm/cancel returns to the church. _exitChurchMapView
+    // clears _churchViewingMap then re-shows the ring (via _setChurchOverlayVisibility),
+    // so the pointer and pad exit paths are symmetric — no follow-up render needed.
     if (scene._churchViewingMap) {
       if (
         action === InputAction.CANCEL ||
@@ -308,7 +310,6 @@ export class ChurchController {
         action === InputAction.CONFIRM
       ) {
         scene._exitChurchMapView();
-        this._renderChurchFocus();
       }
       return;
     }

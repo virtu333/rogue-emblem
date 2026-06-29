@@ -45,7 +45,9 @@ function button(fired, name) {
 
 function makeScene(over = {}) {
   return {
-    add: { rectangle: () => makeObj({ kind: 'ring' }) },
+    // ring carries a truthy `scene` so BoundingFocusController's "wiped by a redraw"
+    // guard (this.ring.scene == null) doesn't null a live ring, as real Phaser rings do.
+    add: { rectangle: () => makeObj({ kind: 'ring', scene: {} }) },
     shopOverlay: [{}],
     shopContentGroup: [],
     shopTabObjects: [],
@@ -214,8 +216,10 @@ describe('ShopController gamepad focus', () => {
     const mt = button(fired, 'mt');
     const crit = button(fired, 'crit');
     const cancel = button(fired, 'cancel');
+    expect(ctrl._shopFocus.ring.visible).toBe(true); // shop ring shown before the modal
     const teardown = ctrl._attachModalFocus([mt, crit], cancel, 460);
     expect(activeInputOwner()).not.toBe(ctrl); // modal scope on top
+    expect(ctrl._shopFocus.ring.visible).toBe(false); // shop ring auto-hidden under the modal
 
     dispatchInputAction(InputAction.CONFIRM); // first button (mt)
     expect(fired).toEqual(['mt']);
@@ -227,6 +231,7 @@ describe('ShopController gamepad focus', () => {
 
     teardown();
     expect(activeInputOwner()).toBe(ctrl); // shop scope restored
+    expect(ctrl._shopFocus.ring.visible).toBe(true); // shop ring restored when re-exposed
   });
 
   it('unit-picker modal: walks roster rows then Cancel; CONFIRM fires the focused row', () => {
@@ -281,5 +286,77 @@ describe('ShopController gamepad focus', () => {
     dispatchInputAction(InputAction.CONFIRM);
     expect(fired).toEqual(['pickerCancel']);
     teardown();
+  });
+
+  it('unit-picker installs a refocus hook (re-resolves rows after a non-pad scroll redraw)', () => {
+    const fired = [];
+    const roster = [{ name: 'A' }, { name: 'B' }, { name: 'C' }];
+    const scene = makeScene({
+      runManager: { roster },
+      unitPickerState: { offset: 0, maxOffset: 0, viewportTop: 120, viewportBottom: 400 },
+    });
+    const ctrl = setupController(scene, fired);
+    const makeRows = () => {
+      scene.unitPicker = roster.map((u, i) => {
+        const b = button(fired, `unit${i}`);
+        b._unitPickerIndex = i;
+        return b;
+      });
+      scene._unitPickerCancelBtn = button(fired, 'pickerCancel');
+    };
+    makeRows();
+
+    expect(ctrl._unitPickerRefocus).toBe(null);
+    const teardown = ctrl._attachUnitPickerFocus();
+    expect(typeof ctrl._unitPickerRefocus).toBe('function'); // hook installed by attach
+
+    dispatchInputAction(InputAction.NAVIGATE, { dy: 1 }); // focus unit 1
+
+    // Simulate a mouse-wheel / touch-drag scroll: rows destroyed + recreated, then
+    // renderUnitPicker invokes the hook. It must re-resolve without throwing...
+    makeRows();
+    expect(() => ctrl._unitPickerRefocus()).not.toThrow();
+
+    // ...and CONFIRM still hits the freshly-rendered unit 1 (selection stays correct).
+    dispatchInputAction(InputAction.CONFIRM);
+    expect(fired).toContain('unit1');
+
+    teardown();
+    expect(ctrl._unitPickerRefocus).toBe(null); // hook cleared on teardown
+  });
+
+  it('_setShopRingVisible(true) restores the ring only once the map/roster sub-view flag is cleared', () => {
+    // Guards the NodeMapScene requestCancel ordering fix: _setShopOverlayVisibility(true)
+    // must run AFTER _shopViewingMap is cleared, else the ring render self-suppresses.
+    const scene = makeScene();
+    const ctrl = setupController(scene, []);
+    ctrl._setShopRingVisible(false);
+    expect(ctrl._shopFocus.ring.visible).toBe(false);
+
+    scene._shopViewingMap = true; // still in map view -> restore is suppressed
+    ctrl._setShopRingVisible(true);
+    expect(ctrl._shopFocus.ring.visible).toBe(false);
+
+    scene._shopViewingMap = false; // flag cleared first -> ring restores
+    ctrl._setShopRingVisible(true);
+    expect(ctrl._shopFocus.ring.visible).toBe(true);
+  });
+
+  it('destroy() with a modal scope still open drains the whole input stack', () => {
+    const fired = [];
+    const scene = makeScene();
+    const ctrl = setupController(scene, fired);
+    // Simulate an open forge-stat modal (as showForgeStatPicker would leave it).
+    ctrl._forgePickerTeardown = ctrl._attachModalFocus(
+      [button(fired, 'mt')],
+      button(fired, 'cancel'),
+      460,
+    );
+    expect(activeInputOwner()).not.toBe(ctrl); // modal scope on top
+
+    ctrl.destroy();
+    expect(activeInputOwner()).toBe(null); // both the modal AND shop scopes popped
+    expect(ctrl._forgePickerTeardown).toBe(null);
+    expect(ctrl._shopFocus).toBe(null);
   });
 });

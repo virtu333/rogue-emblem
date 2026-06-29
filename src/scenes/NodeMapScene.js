@@ -842,8 +842,10 @@ export class NodeMapScene extends Phaser.Scene {
       this._churchReturnBtn.destroy();
       this._churchReturnBtn = null;
     }
-    this._setChurchOverlayVisibility(true);
+    // Clear the flag BEFORE restoring visibility so the visibility hook's ring
+    // render isn't self-suppressed (the ring guard checks _churchViewingMap).
     this._churchViewingMap = false;
+    this._setChurchOverlayVisibility(true);
   }
 
   requestCancel({ allowPause = true } = {}) {
@@ -878,8 +880,10 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (this.shopOverlay) {
       if (this._shopViewingMap) {
-        this._setShopOverlayVisibility(true);
+        // Clear the flag BEFORE restoring visibility so the visibility hook's ring
+        // render isn't self-suppressed (the ring guard checks _shopViewingMap).
         this._shopViewingMap = false;
+        this._setShopOverlayVisibility(true);
         return true;
       }
       // ESC closes shop without marking node complete — player can re-enter
