@@ -578,9 +578,14 @@ export class RosterOverlay {
     const btns = this._collectModalButtons();
     if (!btns.length) return;
     const idx = this._clamp(this._modalFocusIndex, 0, btns.length - 1);
+    const prevCount = btns.length;
     btns[idx]?.emit?.('pointerdown', { button: 0 });
     // The activation may rebuild the modal (paging / trade redraw) or close it.
     if (this.tradeObjects.length > 0) {
+      // A paging redraw (Prev/Next) rebuilds the modal with a different button
+      // count: land the ring back on the first item instead of letting the stale
+      // index clamp onto Cancel/Prev (a reflexive A there would cancel the picker).
+      if (this._collectModalButtons().length !== prevCount) this._modalFocusIndex = 0;
       this._renderModalFocus();
     } else {
       this._modalWasOpen = false;
@@ -953,6 +958,13 @@ export class RosterOverlay {
       .setDepth(DEPTH_PANEL)
       .setStrokeStyle(1, 0x444444);
     this.detailObjects.push(detailBg);
+
+    // Any normal-detail redraw (unit cycle, tab switch, keyboard arrows, mouse
+    // select) leaves the in-pane reclass picker. _showReclassClassPicker bypasses
+    // this method (manual _destroyDetails + draw), so it still ends with the flag
+    // set; clearing it here at the single chokepoint means CANCEL closes and
+    // tab-switch works once the player cycles away from the picker.
+    this._inReclassPicker = false;
 
     if (this.selection.kind === 'unit') {
       this._drawUnitDetail();

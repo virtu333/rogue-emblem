@@ -182,6 +182,10 @@ describe('ShopController gamepad focus', () => {
   });
 
   it('roster sub-view: only CANCEL acts (closes via requestCancel)', () => {
+    // Defensive-guard test: since RosterOverlay now pushes its own scope on top
+    // (see RosterOverlayGamepad "nested over a parent scope"), the dispatched bus
+    // no longer reaches this arm while the roster is open — it covers the guard's
+    // behavior if the LIFO ordering were ever bypassed, not the live nesting path.
     const fired = [];
     const scene = makeScene({ _shopViewingRoster: true });
     const ctrl = setupController(scene, fired);

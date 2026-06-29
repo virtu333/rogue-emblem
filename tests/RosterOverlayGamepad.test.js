@@ -8,6 +8,8 @@ import { InputAction } from '../src/utils/InputActions.js';
 import {
   activeInputOwner,
   dispatchInputAction,
+  pushInputScope,
+  popInputScope,
   _resetInputFocus,
 } from '../src/utils/inputFocus.js';
 
@@ -198,13 +200,16 @@ describe('RosterOverlay gamepad focus — scope + base navigation', () => {
     expect(ringed._rosterAction).toBe(true);
   });
 
-  it('CONFIRM on the focused [Trade] button opens the trade picker (modal mode)', () => {
+  it('CONFIRM on the focused [Trade] button opens the trade picker and paints the modal ring', () => {
     const { overlay } = makeOverlay({ rosterCount: 3 });
     overlay.show();
     expect(overlay.tradeObjects.length).toBe(0);
     dispatchInputAction(InputAction.CONFIRM); // Stats tab: only action is [Trade]
     expect(overlay.tradeObjects.length).toBeGreaterThan(0); // picker opened
     expect(overlay._modalWasOpen).toBe(true);
+    // The post-action re-check renders the modal ring immediately on open: it must
+    // already point at a live picker button (not stay on the base detail button).
+    expect(overlay._collectModalButtons()).toContain(overlay._rosterFocus.objects[0]);
   });
 
   it('CANCEL closes the overlay from base mode', () => {
@@ -233,28 +238,52 @@ describe('RosterOverlay gamepad focus — scope + base navigation', () => {
 });
 
 describe('RosterOverlay gamepad focus — modal mode', () => {
-  it('a base action that opens a picker switches to modal mode; CANCEL closes it and restores the base ring', () => {
-    const { overlay } = makeOverlay({ rosterCount: 3, accessories: true });
+  it('opening the accessory picker from the Gear tab switches to modal mode; CANCEL closes it and restores the base ring', () => {
+    const { overlay, rm } = makeOverlay({ rosterCount: 3, accessories: true });
+    const unit = rm.roster[0];
+    unit.inventory = []; // no weapon [Equip]/[Store] -> the only [Equip] is the accessory one
+    unit.consumables = [];
+    unit.accessory = null; // -> the Gear tab shows the accessory [Equip]
     overlay.show();
-    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 }); // Gear tab
-    // Focus the accessory [Equip] button (first gear action) and activate it.
-    overlay._detailFocusIndex = 0;
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 }); // -> Gear tab
+
+    // Focus the accessory [Equip] slot deterministically (no ambiguity now).
+    const idx = overlay._detailSlots.findIndex((s) => s.btn && /Equip/.test(s.btn.text));
+    expect(idx).toBeGreaterThanOrEqual(0);
+    overlay._detailFocusIndex = idx;
     overlay._renderRosterFocus();
-    const firstBtn = overlay._detailSlots[0].btn;
-    dispatchInputAction(InputAction.CONFIRM);
-    // If the first action opened the accessory picker we're in modal mode now.
-    if (overlay.tradeObjects.length > 0) {
-      expect(overlay._modalWasOpen).toBe(true);
-      const ringed = overlay._rosterFocus.objects[0];
-      expect(overlay._collectModalButtons()).toContain(ringed);
-      dispatchInputAction(InputAction.CANCEL); // close the picker
-      expect(overlay.tradeObjects.length).toBe(0);
-      expect(overlay._modalWasOpen).toBe(false);
-      expect(overlay.visible).toBe(true); // overlay itself stays open
-    } else {
-      // first action wasn't a picker — at least confirm it fired without error
-      expect(firstBtn._rosterAction).toBe(true);
-    }
+
+    dispatchInputAction(InputAction.CONFIRM); // opens _showAccessoryPicker
+    expect(overlay.tradeObjects.length).toBeGreaterThan(0);
+    expect(overlay._modalWasOpen).toBe(true);
+    expect(overlay._collectModalButtons()).toContain(overlay._rosterFocus.objects[0]);
+
+    dispatchInputAction(InputAction.CANCEL); // close the picker
+    expect(overlay.tradeObjects.length).toBe(0);
+    expect(overlay._modalWasOpen).toBe(false);
+    expect(overlay.visible).toBe(true); // overlay itself stays open
+  });
+
+  it('paging a picker (Next/Prev) resets the modal ring to the first item, not Cancel', () => {
+    const { overlay, rm } = makeOverlay({ rosterCount: 3 });
+    // 9 accessories at ACCESSORY_PICKER_MAX_ROWS=8 -> 2 pages (page 0 has a Next btn).
+    rm.accessories = gameData.accessories.slice(0, 9).map((a) => structuredClone(a));
+    overlay.show();
+    overlay._showAccessoryPicker(rm.roster[0]);
+    dispatchInputAction(InputAction.NAVIGATE, { dy: 0 }); // enter modal mode
+
+    const page0 = overlay._collectModalButtons();
+    const nextIdx = page0.findIndex((b) => b.text === 'Next');
+    expect(nextIdx).toBeGreaterThan(0); // [8 items..., Next, Cancel]
+    for (let i = 0; i < nextIdx; i++) dispatchInputAction(InputAction.NAVIGATE, { dy: 1 });
+    expect(overlay._modalFocusIndex).toBe(nextIdx); // ring on Next
+
+    dispatchInputAction(InputAction.CONFIRM); // page -> 2; rebuilds with fewer buttons
+    // The stale index would clamp onto Cancel/Prev; the fix snaps it back to item 0.
+    expect(overlay._modalFocusIndex).toBe(0);
+    const ringed = overlay._rosterFocus.objects[0];
+    expect(overlay._collectModalButtons()).toContain(ringed);
+    expect(['Cancel', 'Prev', 'Next']).not.toContain(ringed.text); // a real item, not nav/cancel
   });
 
   it('while a picker is open, L1 does NOT cycle units (modal mode owns input)', () => {
@@ -359,6 +388,18 @@ describe('RosterOverlay gamepad focus — convoy + reclass + teardown', () => {
     expect(overlay._inReclassPicker).toBe(false); // refresh() cleared it
   });
 
+  it('cycling units clears a stale reclass-picker flag so CANCEL still closes the overlay', () => {
+    // Regression: leaving the in-pane reclass picker via L1/R1 (or any select())
+    // must clear _inReclassPicker, else the next CANCEL refreshes instead of closing.
+    const { overlay } = makeOverlay({ rosterCount: 3 });
+    overlay.show();
+    overlay._inReclassPicker = true; // as if the picker were open on this unit
+    dispatchInputAction(InputAction.NEXT_UNIT); // cycle -> drawUnitDetails clears the flag
+    expect(overlay._inReclassPicker).toBe(false);
+    dispatchInputAction(InputAction.CANCEL); // now genuinely closes (not a no-op refresh)
+    expect(overlay.visible).toBe(false);
+  });
+
   it('_teardownRosterFocus is idempotent and the shutdown hook drains the scope', () => {
     const { overlay, scene } = makeOverlay();
     overlay.show();
@@ -368,5 +409,33 @@ describe('RosterOverlay gamepad focus — convoy + reclass + teardown', () => {
     expect(activeInputOwner()).toBe(null);
     expect(overlay._rosterFocus).toBe(null);
     expect(() => overlay._teardownRosterFocus()).not.toThrow(); // idempotent
+  });
+});
+
+describe('RosterOverlay gamepad focus — nested over a parent scope (church/shop sub-view)', () => {
+  it('opening over a parent covers it (onTopChange false) and closing re-exposes it exactly once', () => {
+    // The load-bearing pattern every opener reuses: church/shop push a scope whose
+    // onTopChange hides/restores their ring; RosterOverlay.show() must nest ON TOP
+    // and hide()/CANCEL must pop back, firing the parent's onTopChange exactly once
+    // each way. (ShopController/ChurchController register exactly this shape.)
+    const cover = [];
+    const parent = {};
+    pushInputScope(
+      parent,
+      () => {},
+      (isTop) => cover.push(isTop),
+    );
+    expect(activeInputOwner()).toBe(parent);
+    cover.length = 0; // ignore the parent's own gain-top (true) notification
+
+    const { overlay } = makeOverlay({ rosterCount: 2 });
+    overlay.show(); // roster scope pushed above the parent
+    expect(activeInputOwner()).toBe(overlay);
+    expect(cover).toEqual([false]); // parent covered -> its ring would hide
+
+    dispatchInputAction(InputAction.CANCEL); // roster CANCEL -> hide() -> pop
+    expect(activeInputOwner()).toBe(parent); // control restored to the parent
+    expect(cover).toEqual([false, true]); // re-exposed exactly once -> ring restores
+    popInputScope(parent);
   });
 });
