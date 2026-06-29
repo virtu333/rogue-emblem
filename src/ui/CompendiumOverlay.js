@@ -4,6 +4,9 @@
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const DEPTH_BG = 870;
 const DEPTH_PANEL = 871;
@@ -60,6 +63,14 @@ export class CompendiumOverlay {
     this.searchIndex = [];
     this.searchInputActive = false;
     this._keyboardSearchHandler = null;
+
+    // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
+    // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
+    // top of the pause menu that opened it. L1/R1 cycle tabs; d-pad up/down cycle the
+    // sub-filter; d-pad left/right page; B/Start close (B first exits search).
+    this._focus = null;
+    this._onInputBound = null;
+    this._activeTabObj = null;
   }
 
   show() {
@@ -71,6 +82,7 @@ export class CompendiumOverlay {
     this.searchInputActive = false;
     this._buildSearchIndex();
     this._draw();
+    this._setupFocus();
 
     this._overlayToken = pushOverlay(this.scene, {
       name: 'compendium',
@@ -416,6 +428,94 @@ export class CompendiumOverlay {
     if (totalPages > 1) {
       this._drawPageNav(left, top, panelW, panelH, totalPages);
     }
+
+    // _draw() rebuilds this.objects (including the active tab), so re-point the
+    // gamepad ring at the freshly created active-tab object after every redraw.
+    if (this._focus) this._renderFocus();
+  }
+
+  // --- Gamepad/keyboard focus ---
+
+  _setupFocus() {
+    this._focus = new BoundingFocusController(this.scene, DEPTH_UI + 3);
+    if (!this._onInputBound) {
+      this._onInputBound = (action, payload) => this._onInput(action, payload);
+    }
+    pushInputScope(this, this._onInputBound);
+    this._renderFocus();
+  }
+
+  _teardownFocus() {
+    if (this._onInputBound) {
+      popInputScope(this);
+      this._onInputBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._activeTabObj = null;
+  }
+
+  _renderFocus() {
+    if (!this._focus) return;
+    this._focus.setObjects(this._activeTabObj ? [this._activeTabObj] : [], true);
+  }
+
+  _onInput(action, payload) {
+    if (!this.visible) return;
+    switch (action) {
+      case InputAction.PREV_UNIT:
+        this._cycleTab(-1);
+        break;
+      case InputAction.NEXT_UNIT:
+        this._cycleTab(1);
+        break;
+      case InputAction.NAVIGATE:
+        // up/down cycle the sub-filter (no-op on filter-less tabs); left/right page.
+        if (payload?.dy) this._cycleFilter(payload.dy > 0 ? 1 : -1);
+        else if (payload?.dx) this._cyclePage(payload.dx > 0 ? 1 : -1);
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        if (this.searchInputActive) {
+          this.searchInputActive = false;
+          this._draw();
+        } else {
+          this.hide();
+        }
+        break;
+    }
+  }
+
+  // Cycle tabs with wraparound; reset the sub-filter and page.
+  _cycleTab(dir) {
+    const n = TAB_DEFS.length;
+    if (n <= 1) return;
+    this.activeTabIndex = (this.activeTabIndex + dir + n) % n;
+    this.activeFilterIndex = 0;
+    this.currentPage = 0;
+    this._draw();
+  }
+
+  // Cycle the active tab's sub-filter with wraparound; reset to the first page.
+  // No-op on tabs without filters (Lords, Terrain).
+  _cycleFilter(dir) {
+    const filters = TAB_DEFS[this.activeTabIndex]?.filters;
+    if (!filters || filters.length <= 1) return;
+    this.activeFilterIndex = (this.activeFilterIndex + dir + filters.length) % filters.length;
+    this.currentPage = 0;
+    this._draw();
+  }
+
+  // Step pages within the filtered list, clamped at the ends.
+  _cyclePage(dir) {
+    const items = this._getFilteredItems();
+    const totalPages = Math.max(1, Math.ceil(items.length / this._itemsPerPage()));
+    const next = Math.max(0, Math.min(totalPages - 1, this.currentPage + dir));
+    if (next === this.currentPage) return;
+    this.currentPage = next;
+    this._draw();
   }
 
   _drawSearch(left, top, panelW) {
@@ -512,6 +612,7 @@ export class CompendiumOverlay {
       this.objects.push(tabText);
 
       if (isActive) {
+        this._activeTabObj = tabText; // gamepad focus ring target
         const underline = this.scene.add.graphics().setDepth(DEPTH_UI);
         underline.lineStyle(2, 0xffdd44);
         underline.beginPath();
@@ -837,6 +938,7 @@ export class CompendiumOverlay {
   }
 
   hide() {
+    this._teardownFocus();
     const game = this.scene?.game;
     if (game?.events) {
       if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);

@@ -38,6 +38,7 @@ export class PauseOverlay {
     this._confirmButtons = [];
     this._focus = null;
     this._onInputActionBound = null;
+    this._onTopChangeBound = null;
   }
 
   /** Returns true if any child overlay (Help, Settings, Compendium, CampaignMap) is open. */
@@ -246,15 +247,22 @@ export class PauseOverlay {
     if (!this._onInputActionBound) {
       this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
     }
-    pushInputScope(this, this._onInputActionBound);
+    // When a sub-overlay (Settings/Help/Compendium/Campaign Map) pushes its own scope
+    // on top, hide the pause ring so it doesn't float over the sub-overlay (the
+    // Campaign Map panel sits BELOW the ring's depth); restore it when re-exposed.
+    if (!this._onTopChangeBound) {
+      this._onTopChangeBound = (isTop) => this._focus?.setRingVisible(isTop);
+    }
+    pushInputScope(this, this._onInputActionBound, this._onTopChangeBound);
   }
 
   // Route device-independent input actions while the pause menu owns the stack.
   _onInputAction(action, payload) {
     if (!this.visible) return;
-    // A sub-overlay (Settings / More Info / Compendium / Campaign Map) is drawn on
-    // top and owns the screen; until those get their own focus scope, confine the
-    // pad to backing out of them.
+    // Each sub-overlay (Settings / More Info / Compendium / Campaign Map) now pushes
+    // its own input-focus scope, so while one is open the LIFO bus routes actions to
+    // it directly and this handler isn't reached. This block is a defensive fallback
+    // (e.g. mid-transition) that confines the pad to backing out of the sub-overlay.
     if (this.hasActiveSubOverlay()) {
       if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
         this.closeActiveSubOverlay();
@@ -389,6 +397,7 @@ export class PauseOverlay {
       popInputScope(this);
       this._onInputActionBound = null;
     }
+    this._onTopChangeBound = null;
     if (this._focus) {
       this._focus.destroy();
       this._focus = null;

@@ -424,4 +424,103 @@ test.describe('Gamepad battle loop', () => {
       { timeout: 6_000 },
     );
   });
+
+  test('Pause -> More Info: the pad cycles Help tabs as a nested scope, B returns to pause', async ({
+    page,
+  }) => {
+    await setupBattle(page);
+    await tap(page, BTN.PAUSE);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
+      null,
+      { timeout: 6_000 },
+    );
+
+    // Pause order: Resume(0), Settings(1), More Info(2). Two DOWN -> More Info; CONFIRM
+    // opens the Help overlay as a nested input-focus scope above the pause scope.
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.helpOverlay?.visible,
+        ),
+      null,
+      { timeout: 6_000 },
+    );
+
+    const helpTab = () =>
+      page.evaluate(
+        () =>
+          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.helpOverlay
+            ?.activeTabIndex,
+      );
+    expect(await helpTab()).toBe(0);
+
+    // R1 cycles to the next tab (proves Help owns the pad, not the pause menu / grid).
+    await tap(page, BTN.R1);
+    expect(await helpTab()).toBe(1);
+    await tap(page, BTN.L1); // and back
+    expect(await helpTab()).toBe(0);
+
+    // CANCEL closes Help (pops its scope, nulls the overlay) and returns to pause.
+    await tap(page, BTN.CANCEL);
+    await page.waitForFunction(
+      () => {
+        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
+        return Boolean(p?.visible) && !p?.helpOverlay;
+      },
+      null,
+      { timeout: 6_000 },
+    );
+  });
+
+  test('Pause -> Compendium: the pad cycles tabs as a nested scope, B returns to pause', async ({
+    page,
+  }) => {
+    await setupBattle(page);
+    await tap(page, BTN.PAUSE);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
+      null,
+      { timeout: 6_000 },
+    );
+
+    // Pause order: Resume(0), Settings(1), More Info(2), Compendium(3). Three DOWN ->
+    // Compendium; CONFIRM opens it as a nested scope.
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.compendiumOverlay
+            ?.visible,
+        ),
+      null,
+      { timeout: 6_000 },
+    );
+
+    const tab = () =>
+      page.evaluate(
+        () =>
+          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.compendiumOverlay
+            ?.activeTabIndex,
+      );
+    expect(await tab()).toBe(0);
+    await tap(page, BTN.R1);
+    expect(await tab()).toBe(1);
+
+    await tap(page, BTN.CANCEL);
+    await page.waitForFunction(
+      () => {
+        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
+        return Boolean(p?.visible) && !p?.compendiumOverlay;
+      },
+      null,
+      { timeout: 6_000 },
+    );
+  });
 });

@@ -4,6 +4,9 @@
 import { ACT_CONFIG, NODE_TYPES } from '../utils/constants.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const DEPTH_BG = 830;
 const DEPTH_PANEL = 831;
@@ -84,6 +87,14 @@ export class CampaignMapOverlay {
     this.objects = [];
     this.visible = false;
     this.escKey = null;
+
+    // Gamepad/keyboard focus: this is a read-only viewer, so the only focusable
+    // target is the [X] close button. The overlay pushes one input-focus scope
+    // (LIFO) on show and pops it on hide, so the pad drives it on top of the pause
+    // menu that opened it. A activates Close; B/Start close; navigation is a no-op.
+    this._focus = null;
+    this._closeBtn = null;
+    this._onInputBound = null;
   }
 
   show() {
@@ -100,6 +111,7 @@ export class CampaignMapOverlay {
     });
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
+    this._setupFocus();
   }
 
   _draw() {
@@ -157,6 +169,7 @@ export class CampaignMapOverlay {
     closeBtn.on('pointerout', () => closeBtn.setColor('#cc5555'));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
+    this._closeBtn = closeBtn;
 
     if (nodes.length === 0) return;
 
@@ -306,7 +319,43 @@ export class CampaignMapOverlay {
     this.hide();
   }
 
+  // --- Gamepad/keyboard focus ---
+
+  _setupFocus() {
+    this._focus = new BoundingFocusController(this.scene, DEPTH_UI + 5);
+    this._focus.setObjects(this._closeBtn ? [this._closeBtn] : [], true);
+    if (!this._onInputBound) {
+      this._onInputBound = (action) => this._onInput(action);
+    }
+    pushInputScope(this, this._onInputBound);
+  }
+
+  _teardownFocus() {
+    if (this._onInputBound) {
+      popInputScope(this);
+      this._onInputBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._closeBtn = null;
+  }
+
+  _onInput(action) {
+    if (!this.visible) return;
+    switch (action) {
+      case InputAction.CONFIRM:
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        this.hide();
+        break;
+      // NAVIGATE has nowhere to go in a read-only viewer.
+    }
+  }
+
   hide() {
+    this._teardownFocus();
     if (this.escKey) {
       this.escKey.off('down', this._onEsc, this);
       this.escKey = null;
