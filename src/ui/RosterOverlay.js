@@ -58,6 +58,9 @@ import {
 } from './WeaponArtVisibility.js';
 import { RosterTradeController } from './RosterTradeController.js';
 import { DEPTH_PICKER, DETAIL_X, DETAIL_WIDTH } from './rosterOverlayShared.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -128,6 +131,24 @@ export class RosterOverlay {
     this._tooltipPressStart = null;
     this._sceneCleanupBound = false;
     this._listenersRegistered = false;
+
+    // Gamepad/keyboard focus. The overlay pushes ONE input-focus scope (LIFO) in
+    // show() and pops it in hide(); modal-vs-base mode is keyed off
+    // tradeObjects.length so the many pickers share that single scope. A single
+    // BoundingFocusController is re-pointed: base mode rings the focused detail
+    // action button (units + convoy); modal mode rings the active picker button.
+    // L1/R1 cycle the selected unit/convoy; d-pad left/right switch Stats/Gear;
+    // d-pad up/down move the ring; A activates; B/Start close (modal first).
+    this._rosterFocus = null;
+    this._onRosterInputBound = null;
+    this._detailSlots = []; // [{ btn } | { convoyKey, y }] in reading order
+    this._detailFocusIndex = 0;
+    this._convoyFocusRows = []; // all withdrawable convoy rows (incl. off-screen)
+    this._convoyViewTop = 0;
+    this._convoyViewH = 0;
+    this._modalFocusIndex = 0;
+    this._modalWasOpen = false;
+    this._inReclassPicker = false; // in-pane reclass picker is up (CANCEL = back)
   }
 
   show() {
@@ -176,10 +197,12 @@ export class RosterOverlay {
     this._bindSceneCleanup();
     this.drawUnitList();
     this.drawUnitDetails();
+    this._setupRosterFocus();
   }
 
   hide() {
     if (!this.visible) return;
+    this._teardownRosterFocus();
     this._clearTooltipTimers();
     this._unregisterListeners();
     this._rosterDragStart = null;
@@ -320,6 +343,7 @@ export class RosterOverlay {
   }
 
   select(kind, index = 0) {
+    this._detailFocusIndex = 0; // new unit/convoy -> ring starts at the first action
     if (kind === 'unit') {
       const rosterCount = this.runManager.roster.length;
       if (rosterCount <= 0) {
@@ -338,6 +362,230 @@ export class RosterOverlay {
     }
     this.drawUnitList();
     this.drawUnitDetails();
+  }
+
+  // --- Gamepad/keyboard focus ---
+
+  // Claim the input-focus stack (LIFO) so the pad drives this overlay while it sits
+  // on top, restoring the scene/church/shop scope below on hide(). Released in hide()
+  // and defensively on scene shutdown.
+  _setupRosterFocus() {
+    this._rosterFocus = new BoundingFocusController(this.scene, DEPTH_PICKER + 5);
+    this._detailFocusIndex = 0;
+    this._modalFocusIndex = 0;
+    this._modalWasOpen = this.tradeObjects.length > 0;
+    if (!this._onRosterInputBound) {
+      this._onRosterInputBound = (action, payload) => this._onRosterInput(action, payload);
+    }
+    pushInputScope(this, this._onRosterInputBound);
+    this._afterDetailRender(); // build slots from the just-drawn detail + show the ring
+  }
+
+  _teardownRosterFocus() {
+    if (this._onRosterInputBound) {
+      popInputScope(this);
+      this._onRosterInputBound = null;
+    }
+    if (this._rosterFocus) {
+      this._rosterFocus.destroy();
+      this._rosterFocus = null;
+    }
+    this._detailSlots = [];
+    this._convoyFocusRows = [];
+    this._modalWasOpen = false;
+    this._inReclassPicker = false;
+  }
+
+  _onRosterInput(action, payload) {
+    if (!this.visible) return;
+    // A picker/trade screen is up (anything in tradeObjects) -> drive that instead.
+    if (this.tradeObjects.length > 0) {
+      if (!this._modalWasOpen) {
+        this._modalFocusIndex = 0;
+        this._modalWasOpen = true;
+      }
+      this._onModalInput(action, payload);
+      return;
+    }
+    this._modalWasOpen = false;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (payload?.dx) this._switchTab();
+        else if (payload?.dy) this._moveDetailFocus(payload.dy);
+        break;
+      case InputAction.CONFIRM:
+        this._activateDetailFocus();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        if (this._inReclassPicker)
+          this.refresh(); // in-pane sub-picker: back to unit detail, don't close
+        else this.hide();
+        break;
+      case InputAction.PREV_UNIT:
+        this._cycleSelection(-1); // L1: previous unit/convoy (select() resets the ring)
+        break;
+      case InputAction.NEXT_UNIT:
+        this._cycleSelection(1); // R1: next unit/convoy
+        break;
+    }
+    // A base action (e.g. [Swap] accessory) may have just opened a picker.
+    if (this.tradeObjects.length > 0) {
+      this._modalWasOpen = true;
+      this._modalFocusIndex = 0;
+      this._renderModalFocus();
+    }
+  }
+
+  _switchTab() {
+    if (this.selection.kind !== 'unit' || this._inReclassPicker) return;
+    this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
+    this._detailFocusIndex = 0;
+    this.drawUnitDetails(); // ends in _afterDetailRender -> rebuilds slots + re-rings
+  }
+
+  _moveDetailFocus(delta) {
+    const n = this._detailSlots.length;
+    if (!n || !delta) return;
+    const dir = delta > 0 ? 1 : -1;
+    const next = this._clamp(this._detailFocusIndex + dir, 0, n - 1);
+    if (next === this._detailFocusIndex) return;
+    this._detailFocusIndex = next;
+    const slot = this._detailSlots[next];
+    if (slot?.convoyKey && this._scrollConvoyRowIntoView(slot)) {
+      this.drawUnitDetails(); // brings the row on-screen; _afterDetailRender re-rings
+    } else {
+      this._renderRosterFocus();
+    }
+  }
+
+  _activateDetailFocus() {
+    const slot = this._detailSlots[this._detailFocusIndex];
+    if (!slot) return;
+    if (slot.btn) {
+      slot.btn.emit?.('pointerdown', { button: 0 });
+      return;
+    }
+    if (slot.convoyKey) {
+      if (this._scrollConvoyRowIntoView(slot)) this.drawUnitDetails();
+      this._renderedConvoyButtonFor(slot.convoyKey)?.emit?.('pointerdown', { button: 0 });
+    }
+  }
+
+  // Called at the end of every detail (re)draw: rebuild the slot list from the fresh
+  // detail objects, clamp the index, and re-point the ring. No-op until focus is set.
+  _afterDetailRender() {
+    if (!this._rosterFocus) return;
+    this._rebuildDetailSlots();
+    const n = this._detailSlots.length;
+    if (this._detailFocusIndex >= n) this._detailFocusIndex = Math.max(0, n - 1);
+    this._renderRosterFocus();
+  }
+
+  _rebuildDetailSlots() {
+    if (this.selection.kind === 'convoy') {
+      // [Change] first, then every withdrawable convoy row (incl. off-screen ones).
+      const slots = [];
+      const change = this.detailObjects.find((o) => o && o._convoyChange);
+      if (change) slots.push({ btn: change });
+      for (const row of this._convoyFocusRows) slots.push({ convoyKey: row.key, y: row.y });
+      this._detailSlots = slots;
+    } else {
+      // Every tagged action button in reading order (Equip/Store/Use/.../Trade,
+      // or the reclass picker's Select/Back). Tabs + nav arrows are excluded.
+      this._detailSlots = this.detailObjects
+        .filter((o) => o && o._rosterAction)
+        .map((btn) => ({ btn }));
+    }
+  }
+
+  _renderRosterFocus() {
+    const focus = this._rosterFocus;
+    if (!focus) return;
+    if (this.tradeObjects.length > 0) {
+      this._renderModalFocus();
+      return;
+    }
+    const slot = this._detailSlots[this._detailFocusIndex];
+    let target = null;
+    if (slot?.btn) target = slot.btn;
+    else if (slot?.convoyKey) target = this._renderedConvoyButtonFor(slot.convoyKey);
+    focus.setObjects(target ? [target] : [], true);
+  }
+
+  _renderedConvoyButtonFor(key) {
+    return this.detailObjects.find((o) => o && o._convoyRowKey === key) || null;
+  }
+
+  // Adjust the convoy scroll so the given logical row fits the withdraw viewport.
+  // Returns whether the offset changed (caller redraws when it does).
+  _scrollConvoyRowIntoView(slot) {
+    if (this.selection.kind !== 'convoy' || !slot || slot.y == null) return false;
+    const viewH = this._convoyViewH || 0;
+    if (viewH <= 0) return false;
+    const itemH = 18;
+    let offset = this._convoyScrollOffset || 0;
+    if (slot.y < offset) offset = slot.y;
+    else if (slot.y + itemH > offset + viewH) offset = slot.y + itemH - viewH;
+    offset = this._clamp(offset, 0, this._convoyScrollMax || 0);
+    if (offset === this._convoyScrollOffset) return false;
+    this._convoyScrollOffset = offset;
+    return true;
+  }
+
+  // --- Modal/picker focus (accessory/scroll/weapon/trade pickers, trade screen) ---
+
+  _onModalInput(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        this._moveModalFocus(payload?.dy || payload?.dx || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._activateModalFocus();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        this._destroyTrade();
+        this._modalWasOpen = false;
+        this._renderRosterFocus(); // restore the base detail ring
+        break;
+    }
+  }
+
+  // Interactive picker buttons, re-collected each input so paging / trade redraws
+  // (which rebuild tradeObjects) stay covered without per-modal hooks.
+  _collectModalButtons() {
+    return this.tradeObjects.filter((o) => o && o.input);
+  }
+
+  _moveModalFocus(delta) {
+    const btns = this._collectModalButtons();
+    if (!btns.length || !delta) return;
+    const dir = delta > 0 ? 1 : -1;
+    this._modalFocusIndex = this._clamp(this._modalFocusIndex + dir, 0, btns.length - 1);
+    this._renderModalFocus(btns);
+  }
+
+  _renderModalFocus(btns) {
+    if (!this._rosterFocus) return;
+    const list = btns || this._collectModalButtons();
+    if (this._modalFocusIndex >= list.length) this._modalFocusIndex = Math.max(0, list.length - 1);
+    const target = list[this._modalFocusIndex] || null;
+    this._rosterFocus.setObjects(target ? [target] : [], true);
+  }
+
+  _activateModalFocus() {
+    const btns = this._collectModalButtons();
+    if (!btns.length) return;
+    const idx = this._clamp(this._modalFocusIndex, 0, btns.length - 1);
+    btns[idx]?.emit?.('pointerdown', { button: 0 });
+    // The activation may rebuild the modal (paging / trade redraw) or close it.
+    if (this.tradeObjects.length > 0) {
+      this._renderModalFocus();
+    } else {
+      this._modalWasOpen = false;
+      this._renderRosterFocus();
+    }
   }
 
   // --- Left panel: unit list ---
@@ -711,6 +959,7 @@ export class RosterOverlay {
     } else {
       this._drawConvoyDetail();
     }
+    this._afterDetailRender();
   }
 
   _drawUnitDetail() {
@@ -1293,6 +1542,9 @@ export class RosterOverlay {
   _drawConvoyDetail() {
     let y = 50;
     const x = DETAIL_X + 12;
+    // Rebuilt every draw: the logical withdraw rows (on-screen AND culled) so the
+    // gamepad ring can scroll an off-screen row into view before resolving it.
+    this._convoyFocusRows = [];
 
     this._text(x, y, 'Convoy Management', '#ffdd44', '14px');
     y += 24;
@@ -1323,12 +1575,13 @@ export class RosterOverlay {
     const targetUnit = roster[this._targetUnitIndex];
     this._text(x, y, `Withdrawing to: ${targetUnit.name}`, '#aaaaaa', '10px');
     if (roster.length > 1) {
-      this._actionBtn(x + 250, y, '[ Change ]', () => {
+      const changeBtn = this._actionBtn(x + 250, y, '[ Change ]', () => {
         this.showUnitPicker((idx) => {
           this._targetUnitIndex = idx;
           this.drawUnitDetails();
         });
       });
+      changeBtn._convoyChange = true; // ring's first convoy slot
     }
     y += 20;
 
@@ -1342,28 +1595,34 @@ export class RosterOverlay {
     const visibleH = PANEL_BOTTOM - y - 40;
     this._convoyScrollMax = Math.max(0, totalItems * itemH - visibleH);
     this._convoyScrollOffset = this._clamp(this._convoyScrollOffset, 0, this._convoyScrollMax);
+    this._convoyViewTop = startY;
+    this._convoyViewH = visibleH;
 
     let rowY = startY - this._convoyScrollOffset;
 
     const drawItem = (item, type, idx) => {
+      // Logical y (offset-independent) so a culled row can still be scrolled in.
+      const logicalY = rowY - startY + this._convoyScrollOffset;
+      const isFull =
+        type === 'weapon'
+          ? targetUnit.inventory.length >= INVENTORY_MAX
+          : targetUnit.consumables.length >= CONSUMABLE_MAX;
+      if (!isFull) this._convoyFocusRows.push({ key: `${type}:${idx}`, y: logicalY });
       if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) {
         const color = type === 'weapon' ? (isForged(item) ? '#44ff88' : '#aaccff') : '#88ffcc';
         this._text(x + 8, rowY, item.name, color, '10px');
 
-        const isFull =
-          type === 'weapon'
-            ? targetUnit.inventory.length >= INVENTORY_MAX
-            : targetUnit.consumables.length >= CONSUMABLE_MAX;
         if (isFull) {
           this._text(x + 250, rowY, '(unit full)', '#666666', '10px');
         } else {
-          this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
+          const withdrawBtn = this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
             const pulled = this.runManager.takeFromConvoy(type, idx);
             if (!pulled) return;
             if (type === 'weapon') addToInventory(targetUnit, pulled);
             else addToConsumables(targetUnit, pulled);
             this.drawUnitDetails();
           });
+          withdrawBtn._convoyRowKey = `${type}:${idx}`;
         }
       }
       rowY += itemH;
@@ -1520,6 +1779,12 @@ export class RosterOverlay {
     // Back button
     y += 8;
     this._actionBtn(x + 8, y, '[Back]', () => this.refresh());
+
+    // In-pane sub-picker (drawn over the detail pane, not a tradeObjects modal):
+    // route the ring over its [Select]/[Back] buttons and let CANCEL go back.
+    this._inReclassPicker = true;
+    this._detailFocusIndex = 0;
+    this._afterDetailRender();
   }
 
   _useReclass(unit, sealItem, newClassData) {
@@ -2451,6 +2716,7 @@ export class RosterOverlay {
   // --- Helpers ---
 
   refresh() {
+    this._inReclassPicker = false; // leaving any in-pane sub-picker
     this.drawUnitList();
     this.drawUnitDetails();
   }
@@ -2556,6 +2822,7 @@ export class RosterOverlay {
     btn.on('pointerover', () => btn.setColor('#ffdd44'));
     btn.on('pointerout', () => btn.setColor('#e0e0e0'));
     btn.on('pointerdown', onClick);
+    btn._rosterAction = true; // collected into the detail focus ring (gamepad)
     this.detailObjects.push(btn);
     return btn;
   }
@@ -2595,6 +2862,7 @@ export class RosterOverlay {
     if (!this.scene?.events?.on) return;
     this._sceneCleanupBound = true;
     this.scene.events.on('shutdown', () => {
+      this._teardownRosterFocus(); // never leak the input-focus scope on hard shutdown
       this._clearTooltipTimers();
       this._hideSkillTooltip();
       this._hideWeaponSpecialTooltip();

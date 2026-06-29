@@ -8,7 +8,17 @@
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
 
-const BTN = { CONFIRM: 0, CANCEL: 1, L1: 4, R1: 5, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+const BTN = {
+  CONFIRM: 0,
+  CANCEL: 1,
+  ROSTER: 3,
+  L1: 4,
+  R1: 5,
+  UP: 12,
+  DOWN: 13,
+  LEFT: 14,
+  RIGHT: 15,
+};
 
 async function installSimPad(page) {
   await page.evaluate(() => {
@@ -204,5 +214,65 @@ test.describe('Gamepad menu navigation', () => {
     expect((await home()).tab).toBe('economy');
     await tap(page, BTN.L1);
     expect((await home()).tab).toBe('lord_bonuses');
+  });
+
+  test('NodeMap: ROSTER opens the roster, the pad drives it, CANCEL closes it', async ({
+    page,
+  }) => {
+    await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
+    await waitForGame(page);
+    await waitForScene(page, 'NodeMap');
+    await page.waitForFunction(
+      () =>
+        (window.__emblemRogueGame.scene.getScene('NodeMap')?._nodeCursor?.nodes?.length || 0) > 0,
+      null,
+      { timeout: 12_000 },
+    );
+    await installSimPad(page);
+
+    // Open the input gate so the bus reaches the node-cursor scope (see the NodeMap
+    // cursor test above for why the intro dialogue is neutralized rather than driven).
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      if (s.dialogueOverlay?.hide) s.dialogueOverlay.hide();
+      s._storyDialogueActive = false;
+      s.isSceneReady = true;
+    });
+
+    const roster = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+        const r = s.rosterOverlay;
+        return {
+          open: Boolean(r?.visible),
+          selection: r?.selection,
+          slots: r?._detailSlots?.length ?? -1,
+          hasRing: Boolean(r?._rosterFocus),
+        };
+      });
+
+    // Y / north opens the roster, which claims the pad (its detail ring is built).
+    await tap(page, BTN.ROSTER);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('NodeMap')?.rosterOverlay?.visible),
+      null,
+      { timeout: 8_000 },
+    );
+    const opened = await roster();
+    expect(opened.selection).toEqual({ kind: 'unit', index: 0 });
+    expect(opened.hasRing).toBe(true);
+
+    // R1 cycles the selected unit/convoy off the first unit (wraps to convoy with a
+    // lone lord), proving the roster — not the node cursor — now owns the pad.
+    await tap(page, BTN.R1);
+    expect(JSON.stringify((await roster()).selection)).not.toBe(JSON.stringify(opened.selection));
+
+    // CANCEL (B) closes the roster and pops its scope (overlay is torn down -> null).
+    await tap(page, BTN.CANCEL);
+    await page.waitForFunction(
+      () => !window.__emblemRogueGame.scene.getScene('NodeMap')?.rosterOverlay,
+      null,
+      { timeout: 8_000 },
+    );
   });
 });
