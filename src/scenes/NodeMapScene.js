@@ -792,6 +792,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._setOverlayVisibility(this.shopTabObjects, visible);
     this._setOverlayVisibility(this.unitPicker, visible);
     this._setOverlayVisibility(this.forgePicker, visible);
+    this._shopController?._setShopRingVisible?.(visible);
   }
 
   _setChurchOverlayVisibility(visible) {

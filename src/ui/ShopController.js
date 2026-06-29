@@ -49,6 +49,9 @@ import {
   SHOP_LIST_TOP_Y,
   SHOP_LIST_BOTTOM_Y,
 } from './nodeMapOverlayLayout.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 function getWeaponArtCatalogForScene(scene) {
   if (scene && typeof scene._getWeaponArtCatalog === 'function') {
@@ -70,6 +73,16 @@ function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
 export class ShopController {
   constructor(scene) {
     this.scene = scene;
+    // Gamepad/keyboard focus (Phase 2D). The shop scope drives the tabs +
+    // scrolling content + fixed buttons; the forge-stat and unit-picker modals
+    // push their own scopes on top (auto-hiding the shop ring via onTopChange).
+    this._shopFocus = null;
+    this._shopFocusIndex = 0;
+    this._shopFixed = null;
+    this._onShopInputBound = null;
+    this._renderingShopFocus = false;
+    this._forgePickerTeardown = null;
+    this._unitPickerTeardown = null;
   }
 
   handleShop(node, options = {}) {
@@ -286,6 +299,9 @@ export class ShopController {
     });
     scene.shopOverlay.push(leaveBtn);
 
+    this._shopFixed = { viewMap: viewMapBtn, roster: shopRosterBtn, leave: leaveBtn };
+    this._setupShopFocus();
+
     // Shop entry flavor
     try {
       const shopAct = scene.runManager?.currentAct || 'act1';
@@ -351,6 +367,7 @@ export class ShopController {
         if (pointer?.button !== 0) return;
         if (scene.activeShopTab === tab.key) return;
         scene.activeShopTab = tab.key;
+        this._shopFocusIndex = 0; // new tab → focus its first row
         scene.drawShopTabs();
         scene.drawActiveTabContent();
       });
@@ -368,6 +385,10 @@ export class ShopController {
     scene._hideShopItemTooltip();
     if (scene.shopContentGroup) scene.shopContentGroup.forEach((o) => o.destroy());
     scene.shopContentGroup = [];
+    // Rebuilt below by the draw fns: focusable content rows (incl. off-screen)
+    // + the affordable reroll button. Read by the gamepad focus ring.
+    scene._shopFocusEntries = [];
+    scene._shopRerollBtn = null;
 
     if (scene.activeShopTab === 'buy') {
       scene.drawShopBuyList();
@@ -379,6 +400,9 @@ export class ShopController {
     }
 
     scene.drawShopScrollHint();
+    // Re-resolve the ring against the freshly drawn objects (no scroll — that
+    // would fight a mouse-wheel scroll; gamepad nav re-renders with scroll=true).
+    if (this._shopFocus) this._renderShopFocus(false);
   }
 
   _getWeaponArtCatalog() {
@@ -386,8 +410,303 @@ export class ShopController {
     return scene.gameData?.weaponArts?.arts || [];
   }
 
+  // ── Gamepad/keyboard focus ────────────────────────────────────
+  //
+  // The shop scope drives the active tab's scrolling content (Buy/Sell/Forge
+  // rows), the affordable reroll button, and the fixed View Map / Roster / Leave
+  // buttons. A gold ring walks a logical slot list = [content rows..., reroll?,
+  // viewMap, roster, leave]; content rows scroll into view as focus reaches them
+  // (the draw fns tag each rendered selectable with `_shopFocusKey` and record an
+  // entry per selectable row in `_shopFocusEntries`, on-screen or not). L1/R1 (or
+  // d-pad left/right) cycle tabs. The forge-stat and unit-picker modals push their
+  // own scopes on top, so the shop ring auto-hides (onTopChange). Released in
+  // closeShopOverlay via _teardownShopFocus().
+  _setupShopFocus() {
+    const scene = this.scene;
+    this._shopFocusIndex = 0;
+    this._shopFocus = new BoundingFocusController(scene, OVERLAY_CONTENT_DEPTH + 5);
+    if (!this._onShopInputBound) {
+      this._onShopInputBound = (action, payload) => this._onShopInput(action, payload);
+    }
+    pushInputScope(this, this._onShopInputBound, (isTop) => this._setShopRingVisible(isTop));
+    this._renderShopFocus(true);
+  }
+
+  _onShopInput(action, payload) {
+    const scene = this.scene;
+    if (!Array.isArray(scene.shopOverlay)) return;
+    // Map-view peek: any of confirm/cancel returns to the shop.
+    if (scene._shopViewingMap) {
+      if (
+        action === InputAction.CANCEL ||
+        action === InputAction.PAUSE ||
+        action === InputAction.CONFIRM
+      ) {
+        scene.requestCancel(); // clears _shopViewingMap
+        this._renderShopFocus(true); // re-show the ring now the flag is down
+      }
+      return;
+    }
+    // Roster sub-view (RosterOverlay not yet controller-driven): only back out.
+    if (scene._shopViewingRoster) {
+      if (action === InputAction.CANCEL || action === InputAction.PAUSE) scene.requestCancel();
+      return;
+    }
+    switch (action) {
+      case InputAction.NAVIGATE: {
+        const dy = payload?.dy || 0;
+        const dx = payload?.dx || 0;
+        if (dy) this._moveShopFocus(dy);
+        else if (dx) this._switchShopTab(dx > 0 ? 1 : -1);
+        break;
+      }
+      case InputAction.CONFIRM:
+        this._activateShopFocus();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        scene.requestCancel(); // closes the shop (or open modal) via the cascade
+        break;
+      case InputAction.PREV_UNIT:
+        this._switchShopTab(-1);
+        break;
+      case InputAction.NEXT_UNIT:
+        this._switchShopTab(1);
+        break;
+      case InputAction.ROSTER:
+        this._shopFixed?.roster?.emit?.('pointerdown', { button: 0 });
+        break;
+    }
+  }
+
+  _switchShopTab(dir) {
+    const scene = this.scene;
+    if (!dir || scene._shopViewingMap || scene._shopViewingRoster) return;
+    if (scene.forgePicker || scene.unitPicker) return;
+    const order = ['buy', 'sell', 'forge'];
+    const cur = order.indexOf(scene.activeShopTab);
+    if (cur === -1) return;
+    const next = (cur + dir + order.length) % order.length;
+    if (next === cur) return;
+    scene.activeShopTab = order[next];
+    this._shopFocusIndex = 0;
+    scene.drawShopTabs();
+    scene.drawActiveTabContent();
+    this._renderShopFocus(true); // scroll the new tab's first row into view
+  }
+
+  _moveShopFocus(dy) {
+    if (!dy) return;
+    const slots = this._buildShopSlots();
+    if (!slots.length) return;
+    const dir = dy > 0 ? 1 : -1;
+    this._shopFocusIndex = Math.max(0, Math.min(slots.length - 1, this._shopFocusIndex + dir));
+    this._renderShopFocus(true);
+  }
+
+  _buildShopSlots() {
+    const scene = this.scene;
+    const slots = (scene._shopFocusEntries || []).map((e) => ({
+      kind: 'content',
+      key: e.key,
+      y: e.y,
+      h: e.h,
+    }));
+    if (scene._shopRerollBtn) slots.push({ kind: 'fixed', btn: scene._shopRerollBtn });
+    if (this._shopFixed?.viewMap) slots.push({ kind: 'fixed', btn: this._shopFixed.viewMap });
+    if (this._shopFixed?.roster) slots.push({ kind: 'fixed', btn: this._shopFixed.roster });
+    if (this._shopFixed?.leave) slots.push({ kind: 'fixed', btn: this._shopFixed.leave });
+    return slots;
+  }
+
+  _activateShopFocus() {
+    const slot = this._buildShopSlots()[this._shopFocusIndex];
+    if (!slot) return;
+    const target = slot.kind === 'fixed' ? slot.btn : this._renderedShopButtonFor(slot.key);
+    target?.emit?.('pointerdown', { button: 0 });
+  }
+
+  _renderShopFocus(scroll = true) {
+    const scene = this.scene;
+    if (!this._shopFocus || this._renderingShopFocus) return;
+    if (!Array.isArray(scene.shopOverlay) || scene._shopViewingMap || scene._shopViewingRoster) {
+      this._shopFocus.setObjects([]); // ring hidden in the sub-views
+      return;
+    }
+    this._renderingShopFocus = true;
+    try {
+      const slots = this._buildShopSlots();
+      if (!slots.length) {
+        this._shopFocus.setObjects([]);
+        return;
+      }
+      this._shopFocusIndex = Math.max(0, Math.min(slots.length - 1, this._shopFocusIndex));
+      const slot = slots[this._shopFocusIndex];
+      let target = null;
+      if (slot.kind === 'fixed') {
+        target = slot.btn;
+      } else {
+        if (scroll) this._scrollShopRowIntoView(slot); // re-enters drawActiveTabContent (guarded)
+        target = this._renderedShopButtonFor(slot.key);
+      }
+      this._shopFocus.setObjects(target ? [target] : [], true);
+    } finally {
+      this._renderingShopFocus = false;
+    }
+  }
+
+  // Adjust the active tab's scroll offset so the given content row is on-screen,
+  // then redraw. Called only from _renderShopFocus (which holds the reentrancy
+  // guard, so the redraw's own focus hook is a no-op).
+  _scrollShopRowIntoView(slot) {
+    const scene = this.scene;
+    const tab = scene.activeShopTab;
+    if (!tab || !scene.shopScrollOffsets) return;
+    const cur = scene.shopScrollOffsets[tab] || 0;
+    let offset = cur;
+    const top = slot.y;
+    const bottom = slot.y + (slot.h || 0);
+    if (top - offset < SHOP_LIST_TOP_Y) offset = top - SHOP_LIST_TOP_Y;
+    else if (bottom - offset > SHOP_LIST_BOTTOM_Y) offset = bottom - SHOP_LIST_BOTTOM_Y;
+    offset = Phaser.Math.Clamp(offset, 0, scene.shopScrollMax || 0);
+    if (offset !== cur) {
+      scene.shopScrollOffsets[tab] = offset;
+      scene.drawActiveTabContent();
+    }
+  }
+
+  _renderedShopButtonFor(key) {
+    return (this.scene.shopContentGroup || []).find((o) => o && o._shopFocusKey === key) || null;
+  }
+
+  // Called by NodeMapScene._setShopOverlayVisibility (map/roster sub-views) and by
+  // the onTopChange callback (a modal covering/uncovering the shop scope).
+  _setShopRingVisible(visible) {
+    if (!this._shopFocus) return;
+    if (visible) this._renderShopFocus(true);
+    else this._shopFocus.setRingVisible(false);
+  }
+
+  _teardownShopFocus() {
+    if (this._onShopInputBound) {
+      popInputScope(this);
+      this._onShopInputBound = null;
+    }
+    if (this._shopFocus) {
+      this._shopFocus.destroy();
+      this._shopFocus = null;
+    }
+    this._shopFixed = null;
+  }
+
+  // Flat-list modal focus (forge-stat picker): a ring over the actionable buttons
+  // + Cancel, pushed on a scope above the shop. Returns an idempotent teardown.
+  _attachModalFocus(focusButtons, cancelBtn, depth) {
+    const targets = [...(focusButtons || []), cancelBtn].filter(Boolean);
+    if (targets.length === 0) return () => {};
+    const ring = new BoundingFocusController(this.scene, depth);
+    ring.setObjects(targets, true);
+    const owner = {};
+    pushInputScope(owner, (action, payload) => {
+      switch (action) {
+        case InputAction.NAVIGATE:
+          ring.move(payload?.dy || 0);
+          break;
+        case InputAction.CONFIRM:
+          ring.activate();
+          break;
+        case InputAction.CANCEL:
+        case InputAction.PAUSE:
+          cancelBtn?.emit?.('pointerdown', { button: 0 });
+          break;
+      }
+    });
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      popInputScope(owner);
+      ring.destroy();
+    };
+  }
+
+  // Scrolling modal focus (unit picker): the ring walks roster rows (scrolling
+  // each into view) then a final Cancel slot. The rendered rows are culled +
+  // recreated on scroll, so the ring re-resolves each row by its `_unitPickerIndex`
+  // tag after every renderUnitPicker. Pushed above the shop scope.
+  _attachUnitPickerFocus() {
+    const scene = this.scene;
+    const ring = new BoundingFocusController(scene, 410);
+    const rosterLen = scene.runManager?.roster?.length || 0;
+    let idx = 0; // 0..rosterLen-1 = units; rosterLen = Cancel
+    const render = () => {
+      if (!scene.unitPickerState) {
+        ring.setObjects([]);
+        return;
+      }
+      if (idx >= rosterLen) {
+        ring.setObjects(scene._unitPickerCancelBtn ? [scene._unitPickerCancelBtn] : [], true);
+        return;
+      }
+      this._scrollUnitIntoView(idx);
+      const btn = (scene.unitPicker || []).find((o) => o && o._unitPickerIndex === idx);
+      ring.setObjects(btn ? [btn] : [], true);
+    };
+    const owner = {};
+    pushInputScope(owner, (action, payload) => {
+      switch (action) {
+        case InputAction.NAVIGATE: {
+          const dy = payload?.dy || 0;
+          if (!dy) break;
+          idx = Math.max(0, Math.min(rosterLen, idx + (dy > 0 ? 1 : -1)));
+          render();
+          break;
+        }
+        case InputAction.CONFIRM: {
+          if (idx >= rosterLen) {
+            scene._unitPickerCancelBtn?.emit?.('pointerdown', { button: 0 });
+          } else {
+            const btn = (scene.unitPicker || []).find((o) => o && o._unitPickerIndex === idx);
+            btn?.emit?.('pointerdown', { button: 0 });
+          }
+          break;
+        }
+        case InputAction.CANCEL:
+        case InputAction.PAUSE:
+          scene._unitPickerCancelBtn?.emit?.('pointerdown', { button: 0 });
+          break;
+      }
+    });
+    render();
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      popInputScope(owner);
+      ring.destroy();
+    };
+  }
+
+  _scrollUnitIntoView(i) {
+    const scene = this.scene;
+    const st = scene.unitPickerState;
+    if (!st) return;
+    const rowTop = i * 30;
+    const rowBottom = rowTop + 30;
+    const viewH = st.viewportBottom - st.viewportTop;
+    let offset = st.offset || 0;
+    if (rowTop < offset) offset = rowTop;
+    else if (rowBottom > offset + viewH) offset = rowBottom - viewH;
+    offset = Math.max(0, Math.min(st.maxOffset || 0, offset));
+    if (offset !== (st.offset || 0)) {
+      st.offset = offset;
+      scene.renderUnitPicker();
+    }
+  }
+
   drawShopBuyList() {
     const scene = this.scene;
+    if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     const startY = 105;
     const lineH = 24;
     scene.shopScrollMax = Math.max(
@@ -403,7 +722,10 @@ export class ShopController {
     const offset = scene.shopScrollOffsets.buy;
 
     scene.shopBuyItems.forEach((entry, i) => {
-      const y = startY + i * lineH - offset;
+      const contentY = startY + i * lineH;
+      const focusKey = scene._shopFocusEntries.length;
+      scene._shopFocusEntries.push({ key: focusKey, y: contentY, h: lineH });
+      const y = contentY - offset;
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
       const affordable = scene.runManager.gold >= entry.price;
       const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
@@ -474,6 +796,7 @@ export class ShopController {
         });
       }
 
+      text._shopFocusKey = focusKey;
       scene.shopContentGroup.push(text);
       scene.shopOverlay.push(text);
     });
@@ -587,6 +910,7 @@ export class ShopController {
 
   drawShopSellList() {
     const scene = this.scene;
+    if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     const startY = 105;
     const lineH = 22;
     const rm = scene.runManager;
@@ -643,7 +967,19 @@ export class ShopController {
 
     for (let row = 0; row < rowModel.length; row++) {
       const rowData = rowModel[row];
-      const y = startY + row * lineH - offset;
+      const contentY = startY + row * lineH;
+      const y = contentY - offset;
+      // Register focusable rows (incl. off-screen) before culling render.
+      let focusKey = -1;
+      const rowSelectable =
+        (rowData.kind === 'inventory' && !isLastCombatWeapon(rowData.unit, rowData.item)) ||
+        rowData.kind === 'consumable' ||
+        rowData.kind === 'convoy_weapon' ||
+        rowData.kind === 'convoy_consumable';
+      if (rowSelectable) {
+        focusKey = scene._shopFocusEntries.length;
+        scene._shopFocusEntries.push({ key: focusKey, y: contentY, h: lineH });
+      }
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) continue;
 
       if (rowData.kind === 'unit') {
@@ -682,6 +1018,7 @@ export class ShopController {
           .setDepth(OVERLAY_CONTENT_DEPTH);
 
         if (!locked) {
+          text._shopFocusKey = focusKey;
           text.setInteractive({ useHandCursor: true });
           text.on('pointerover', () => text.setColor('#ffdd44'));
           text.on('pointerout', () => text.setColor(wpnColor));
@@ -716,6 +1053,7 @@ export class ShopController {
             color: baseColor,
           })
           .setDepth(OVERLAY_CONTENT_DEPTH);
+        text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(baseColor));
@@ -762,6 +1100,7 @@ export class ShopController {
             color: wpnColor,
           })
           .setDepth(OVERLAY_CONTENT_DEPTH);
+        text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(wpnColor));
@@ -794,6 +1133,7 @@ export class ShopController {
             color: baseColor,
           })
           .setDepth(OVERLAY_CONTENT_DEPTH);
+        text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(baseColor));
@@ -815,6 +1155,7 @@ export class ShopController {
 
   drawShopForgeList() {
     const scene = this.scene;
+    if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     scene._hideForgeTooltip();
     const startY = 105;
     const lineH = 20;
@@ -875,8 +1216,15 @@ export class ShopController {
       row++;
 
       for (const wpn of forgeableWeapons) {
-        const y = startY + row * lineH - offset;
+        const contentY = startY + row * lineH;
+        const y = contentY - offset;
         const level = wpn._forgeLevel || 0;
+        const wpnSelectable = level < FORGE_MAX_LEVEL && !limitReached;
+        let forgeFocusKey = -1;
+        if (wpnSelectable) {
+          forgeFocusKey = scene._shopFocusEntries.length;
+          scene._shopFocusEntries.push({ key: forgeFocusKey, y: contentY, h: lineH });
+        }
         const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
         const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
         const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
@@ -943,6 +1291,7 @@ export class ShopController {
             if (pointer?.button !== 0) return;
             scene.showForgeStatPicker(wpn);
           });
+          forgeBtn._shopFocusKey = forgeFocusKey;
           scene.shopContentGroup.push(forgeBtn);
           scene.shopOverlay.push(forgeBtn);
         }
@@ -968,8 +1317,15 @@ export class ShopController {
       row++;
 
       for (const wpn of convoyForgeWeapons) {
-        const y = startY + row * lineH - offset;
+        const contentY = startY + row * lineH;
+        const y = contentY - offset;
         const level = wpn._forgeLevel || 0;
+        const wpnSelectable = level < FORGE_MAX_LEVEL && !limitReached;
+        let forgeFocusKey = -1;
+        if (wpnSelectable) {
+          forgeFocusKey = scene._shopFocusEntries.length;
+          scene._shopFocusEntries.push({ key: forgeFocusKey, y: contentY, h: lineH });
+        }
         const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
         const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
         const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
@@ -1035,6 +1391,7 @@ export class ShopController {
             if (pointer?.button !== 0) return;
             scene.showForgeStatPicker(wpn);
           });
+          forgeBtn._shopFocusKey = forgeFocusKey;
           scene.shopContentGroup.push(forgeBtn);
           scene.shopOverlay.push(forgeBtn);
         }
@@ -1179,6 +1536,10 @@ export class ShopController {
 
   showForgeStatPicker(weapon) {
     const scene = this.scene;
+    if (this._forgePickerTeardown) {
+      this._forgePickerTeardown();
+      this._forgePickerTeardown = null;
+    }
     if (scene.forgePicker) scene.forgePicker.forEach((o) => o.destroy());
     scene.forgePicker = [];
 
@@ -1212,6 +1573,7 @@ export class ShopController {
 
     const btnStartY = cy - 50;
     const btnH = 32;
+    const forgeStatButtons = []; // interactive stat buttons, for gamepad focus
     const blessingDiscountRaw = scene.runManager?.getForgeCostDiscount?.() || 0;
     const blessingDiscount = Math.max(0, Math.min(0.95, blessingDiscountRaw));
     const ambushDiscount = scene._currentShopHasAmbushDiscount
@@ -1243,6 +1605,7 @@ export class ShopController {
         .setDepth(451);
 
       if (affordable && !atStatCap) {
+        forgeStatButtons.push(btn);
         btn.setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor(color));
@@ -1283,10 +1646,16 @@ export class ShopController {
       scene.closeForgeStatPicker();
     });
     scene.forgePicker.push(cancelBtn);
+
+    this._forgePickerTeardown = this._attachModalFocus(forgeStatButtons, cancelBtn, 460);
   }
 
   closeForgeStatPicker() {
     const scene = this.scene;
+    if (this._forgePickerTeardown) {
+      this._forgePickerTeardown();
+      this._forgePickerTeardown = null;
+    }
     if (scene.forgePicker) {
       scene.forgePicker.forEach((o) => o.destroy());
       scene.forgePicker = null;
@@ -1405,6 +1774,7 @@ export class ShopController {
     scene.shopOverlay.push(rerollBtn);
 
     if (affordable) {
+      scene._shopRerollBtn = rerollBtn; // focusable fixed slot (Buy tab only)
       rerollBtn.setInteractive({ useHandCursor: true });
       rerollBtn.on('pointerover', () => rerollBtn.setColor('#ffdd44'));
       rerollBtn.on('pointerout', () => rerollBtn.setColor(color));
@@ -1519,6 +1889,7 @@ export class ShopController {
       viewportBottom: 120 + viewportHeight,
     };
     scene.renderUnitPicker();
+    this._unitPickerTeardown = this._attachUnitPickerFocus();
   }
 
   renderUnitPicker() {
@@ -1604,6 +1975,7 @@ export class ShopController {
         cb(i);
       });
 
+      btn._unitPickerIndex = i; // gamepad focus re-resolves the rendered row by index
       scene.unitPicker.push(btn);
     });
 
@@ -1637,16 +2009,22 @@ export class ShopController {
       if (pointer?.button !== 0) return;
       scene.closeUnitPicker();
     });
+    scene._unitPickerCancelBtn = cancelBtn;
     scene.unitPicker.push(cancelBtn);
   }
 
   closeUnitPicker() {
     const scene = this.scene;
+    if (this._unitPickerTeardown) {
+      this._unitPickerTeardown();
+      this._unitPickerTeardown = null;
+    }
     if (scene.unitPicker) {
       scene.unitPicker.forEach((o) => o.destroy());
       scene.unitPicker = null;
     }
     scene.unitPickerState = null;
+    scene._unitPickerCancelBtn = null;
   }
 
   showShopBanner(msg, color) {
@@ -1706,6 +2084,7 @@ export class ShopController {
     const scene = this.scene;
     scene._shopViewingRoster = false;
     scene._touchPreviewedShopEntry = null;
+    this._teardownShopFocus();
     scene.closeForgeStatPicker();
     scene._hideForgeTooltip();
     scene._hideShopItemTooltip();
@@ -1730,6 +2109,17 @@ export class ShopController {
     scene._currentShopHasAmbushDiscount = false;
   }
   destroy() {
+    // Release any input scopes still on the stack (scene shutdown with the shop
+    // or a modal open) so they don't leak onto the next scene.
+    if (this._forgePickerTeardown) {
+      this._forgePickerTeardown();
+      this._forgePickerTeardown = null;
+    }
+    if (this._unitPickerTeardown) {
+      this._unitPickerTeardown();
+      this._unitPickerTeardown = null;
+    }
+    this._teardownShopFocus();
     this.scene = null;
   }
 }
