@@ -381,4 +381,47 @@ test.describe('Gamepad battle loop', () => {
     );
     expect(await getBattleState(page)).toBe('PLAYER_IDLE');
   });
+
+  test('Pause -> Settings: the pad drives the settings panel and B returns to pause', async ({
+    page,
+  }) => {
+    await setupBattle(page);
+    await tap(page, BTN.PAUSE);
+    await page.waitForFunction(
+      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
+      null,
+      { timeout: 6_000 },
+    );
+
+    // Pause order is Resume(0), Settings(1), ...: DOWN focuses Settings, CONFIRM opens
+    // the settings panel as a nested input-focus scope above the pause scope.
+    await tap(page, BTN.DOWN);
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.settingsOverlay?.visible,
+        ),
+      null,
+      { timeout: 6_000 },
+    );
+
+    // The settings ring starts on Music; LEFT/RIGHT adjust the focused volume row.
+    const musicVol = () =>
+      page.evaluate(() => window.__emblemRogueGame.registry.get('settings').getMusicVolume());
+    const v0 = await musicVol();
+    await tap(page, v0 > 0 ? BTN.LEFT : BTN.RIGHT);
+    expect(Math.abs((await musicVol()) - v0)).toBeGreaterThan(0.05);
+
+    // CANCEL closes settings (pops its scope) and hands the pad back to the pause menu.
+    await tap(page, BTN.CANCEL);
+    await page.waitForFunction(
+      () => {
+        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
+        return Boolean(p?.visible) && !p?.settingsOverlay?.visible;
+      },
+      null,
+      { timeout: 6_000 },
+    );
+  });
 });
