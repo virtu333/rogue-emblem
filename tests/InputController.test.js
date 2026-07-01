@@ -435,6 +435,177 @@ describe('InputController', () => {
   });
 });
 
+describe('tile info + path preview (shared by mouse hover and the gamepad cursor)', () => {
+  function makeInfoScene(extra = {}) {
+    return makeScene({
+      infoText: {
+        text: '',
+        y: 10,
+        height: 20,
+        setText(t) {
+          this.text = t;
+        },
+      },
+      turnCounterText: { height: 8, setY: vi.fn() },
+      grid: {
+        getTerrainAt: vi.fn(() => ({
+          name: 'Forest',
+          moveCost: { Infantry: '2', Cavalry: '3' },
+          avoidBonus: '20',
+          defBonus: '1',
+          special: '',
+        })),
+        isVisible: vi.fn(() => true),
+      },
+      getUnitAt: vi.fn(() => null),
+      ...extra,
+    });
+  }
+
+  it('refreshTileInfo writes the terrain summary and stacks the HUD below it', () => {
+    const scene = makeInfoScene();
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+
+    expect(scene.grid.getTerrainAt).toHaveBeenCalledWith(2, 3);
+    expect(scene.infoText.text).toBe('Forest | Move: 2 | Avo +20 | Def +1');
+    expect(scene.turnCounterText.setY).toHaveBeenCalled(); // updateTopLeftHudLayout ran
+  });
+
+  it('refreshTileInfo appends the unit line (weapon + XP) for a visible unit', () => {
+    const unit = {
+      name: 'Edric',
+      className: 'Lord',
+      level: 4,
+      moveType: 'Cavalry',
+      currentHP: 18,
+      stats: { HP: 22 },
+      weapon: { name: 'Iron Sword' },
+      faction: 'player',
+      xp: 55,
+    };
+    const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+
+    // Move cost uses the hovered unit's move type (Cavalry: 3), matching mouse hover.
+    expect(scene.infoText.text).toContain('| Move: 3');
+    expect(scene.infoText.text).toContain('Edric Lv4 Lord | HP 18/22 | Iron Sword | XP 55/100');
+  });
+
+  it('refreshTileInfo omits the unit line on fog-hidden tiles', () => {
+    const unit = { name: 'Bandit', moveType: 'Infantry', currentHP: 9, stats: { HP: 9 } };
+    const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    scene.grid.isVisible = vi.fn(() => false);
+    const controller = new InputController(scene);
+    controller.refreshTileInfo(2, 3);
+    expect(scene.infoText.text).not.toContain('Bandit');
+  });
+
+  it('refreshTileInfo is a safe no-op before the info panel exists', () => {
+    const scene = makeInfoScene({ infoText: null });
+    const controller = new InputController(scene);
+    expect(() => controller.refreshTileInfo(0, 0)).not.toThrow();
+  });
+
+  function makePathScene(extra = {}) {
+    const selectedUnit = { col: 0, row: 0, moveType: 'Infantry', faction: 'player' };
+    return makeScene({
+      battleState: 'UNIT_SELECTED',
+      selectedUnit,
+      movementRange: new Map([
+        ['0,0', { stoppable: true }],
+        ['1,0', { stoppable: true }],
+        ['1,1', { stoppable: false }],
+      ]),
+      unitPositions: new Map(),
+      _getCostModifier: vi.fn(() => 0),
+      buildOccupiedSet: vi.fn(() => new Set()),
+      _lastPathPreviewKey: null,
+      grid: {
+        cols: 3,
+        rows: 3,
+        mapLayout: [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+        ],
+        terrainData: [{ name: 'Plain', moveCost: { Infantry: '1' } }],
+        reconstructIcePath: vi.fn(() => null),
+        findPath: vi.fn(() => [
+          { col: 0, row: 0 },
+          { col: 1, row: 0 },
+        ]),
+        showPath: vi.fn(),
+        showSlidePath: vi.fn(),
+        clearPath: vi.fn(),
+      },
+      ...extra,
+    });
+  }
+
+  it('updatePathPreview shows the path to a stoppable tile and memoizes by key', () => {
+    const scene = makePathScene();
+    const controller = new InputController(scene);
+
+    controller.updatePathPreview(1, 0);
+    expect(scene.grid.findPath).toHaveBeenCalledTimes(1);
+    expect(scene.grid.showPath).toHaveBeenCalledWith([
+      { col: 0, row: 0 },
+      { col: 1, row: 0 },
+    ]);
+    expect(scene._lastPathPreviewKey).toBe('1,0');
+
+    // Same tile again (held d-pad repeat / hover jitter) -> memoized, no recompute.
+    controller.updatePathPreview(1, 0);
+    expect(scene.grid.findPath).toHaveBeenCalledTimes(1);
+  });
+
+  it("updatePathPreview clears the preview on the unit's own tile and non-stoppable tiles", () => {
+    const scene = makePathScene({ _lastPathPreviewKey: '1,0' });
+    const controller = new InputController(scene);
+
+    controller.updatePathPreview(0, 0); // own tile
+    expect(scene.grid.clearPath).toHaveBeenCalledTimes(1);
+    expect(scene._lastPathPreviewKey).toBe(null);
+
+    controller.updatePathPreview(1, 1); // stoppable === false (pass-through only)
+    expect(scene.grid.clearPath).toHaveBeenCalledTimes(2);
+    expect(scene.grid.showPath).not.toHaveBeenCalled();
+  });
+
+  it('updatePathPreview is inert outside UNIT_SELECTED', () => {
+    const scene = makePathScene({ battleState: 'PLAYER_IDLE' });
+    const controller = new InputController(scene);
+    controller.updatePathPreview(1, 0);
+    expect(scene.grid.findPath).not.toHaveBeenCalled();
+    expect(scene.grid.clearPath).not.toHaveBeenCalled();
+  });
+
+  it('onPointerMove routes through the shared helpers with the hovered tile', () => {
+    const scene = makeInfoScene({
+      cursorHighlight: {
+        setPosition() {
+          return this;
+        },
+        setVisible() {
+          return this;
+        },
+      },
+    });
+    scene.grid.pixelToGrid = vi.fn(() => ({ col: 1, row: 1 }));
+    scene.grid.gridToPixel = vi.fn(() => ({ x: 48, y: 48 }));
+    const controller = new InputController(scene);
+    const infoSpy = vi.spyOn(controller, 'refreshTileInfo');
+    const pathSpy = vi.spyOn(controller, 'updatePathPreview');
+
+    controller.onPointerMove({ x: 48, y: 48 });
+
+    expect(infoSpy).toHaveBeenCalledWith(1, 1);
+    expect(pathSpy).toHaveBeenCalledWith(1, 1);
+  });
+});
+
 describe('mobile idle tap on non-player units', () => {
   function makeMobileScene(extra = {}) {
     return makeScene({

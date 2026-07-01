@@ -147,3 +147,29 @@ describe('BattleScene _onInputAction routes the global verbs', () => {
     expect(scene._inspectAtCursor).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('BattleScene _onGridCursorMoved refreshes cursor-anchored UI', () => {
+  function movedScene(overrides = {}) {
+    return {
+      battleState: 'PLAYER_IDLE',
+      // Pre-seeded so the ||= lazy init doesn't construct a real InputController.
+      _inputController: { refreshTileInfo: vi.fn(), updatePathPreview: vi.fn() },
+      ...overrides,
+    };
+  }
+  const moved = (scene, col, row) => BattleScene.prototype._onGridCursorMoved.call(scene, col, row);
+
+  it('delegates the landed tile to refreshTileInfo and updatePathPreview', () => {
+    const scene = movedScene();
+    moved(scene, 4, 2);
+    expect(scene._inputController.refreshTileInfo).toHaveBeenCalledWith(4, 2);
+    expect(scene._inputController.updatePathPreview).toHaveBeenCalledWith(4, 2);
+  });
+
+  it('is inert during BATTLE_END (mirrors the mouse-hover clear path)', () => {
+    const scene = movedScene({ battleState: 'BATTLE_END' });
+    moved(scene, 4, 2);
+    expect(scene._inputController.refreshTileInfo).not.toHaveBeenCalled();
+    expect(scene._inputController.updatePathPreview).not.toHaveBeenCalled();
+  });
+});

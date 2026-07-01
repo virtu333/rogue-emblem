@@ -609,6 +609,16 @@ export class BattleScene extends Phaser.Scene {
     this._showInspectionAtPixel(world.x, world.y);
   }
 
+  // Gamepad cursor analogue of a mouse hover: whenever the grid cursor lands on a
+  // tile (d-pad move, L1/R1 snap, select snap), refresh the top-left terrain/unit
+  // info panel and — while a unit is selected — the movement path preview.
+  _onGridCursorMoved(col, row) {
+    if (this.battleState === 'BATTLE_END') return;
+    const ic = (this._inputController ||= new InputController(this));
+    ic.refreshTileInfo(col, row);
+    ic.updatePathPreview(col, row);
+  }
+
   _isSceneActiveForAsync() {
     return Boolean(this.scene?.isActive?.());
   }

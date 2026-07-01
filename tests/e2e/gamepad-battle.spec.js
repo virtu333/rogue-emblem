@@ -348,6 +348,33 @@ test.describe('Gamepad battle loop', () => {
     );
   });
 
+  test('d-pad cursor movement drives the terrain/unit info panel (hover analogue)', async ({
+    page,
+  }) => {
+    await setupBattle(page);
+    const unit = await firstUnitPos(page);
+    expect(unit).not.toBeNull();
+
+    const infoText = () =>
+      page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle')?.infoText?.text ?? '');
+
+    // Any cursor move fills the panel with the tile's terrain summary.
+    await tap(page, BTN.RIGHT);
+    expect(await infoText()).toContain('| Move:');
+
+    // Parking the cursor on a player unit appends the unit line.
+    await moveCursorTo(page, unit.col, unit.row);
+    const unitName = await page.evaluate(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = b.playerUnits.find(
+        (x) => x.col === b._gridCursor.cursorCol && x.row === b._gridCursor.cursorRow,
+      );
+      return u?.name ?? null;
+    });
+    expect(unitName).toBeTruthy();
+    expect(await infoText()).toContain(unitName);
+  });
+
   test('Start opens the pause menu, which captures the pad (no leak to the grid)', async ({
     page,
   }) => {

@@ -43,10 +43,19 @@ export class InputController {
 
     const { x, y } = scene.grid.gridToPixel(gp.col, gp.row);
     scene.cursorHighlight.setPosition(x, y).setVisible(true);
+    this.refreshTileInfo(gp.col, gp.row);
+    this.updatePathPreview(gp.col, gp.row);
+  }
 
-    const terrain = scene.grid.getTerrainAt(gp.col, gp.row);
+  // Build and display the terrain/unit summary for a tile in the top-left info
+  // panel. Shared by mouse hover (onPointerMove) and the gamepad grid cursor
+  // (BattleScene._onGridCursorMoved).
+  refreshTileInfo(col, row) {
+    const scene = this.scene;
+    if (!scene.grid || !scene.infoText) return;
+    const terrain = scene.grid.getTerrainAt(col, row);
     let info = terrain.name;
-    const hovered = scene.getUnitAt(gp.col, gp.row);
+    const hovered = scene.getUnitAt(col, row);
     const moveType = hovered ? hovered.moveType : 'Infantry';
     const moveCost = terrain.moveCost[moveType];
     info += ` | Move: ${moveCost}`;
@@ -56,7 +65,7 @@ export class InputController {
     const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
     if (specialText) info += `\n${specialText}`;
 
-    if (hovered && scene.grid.isVisible(gp.col, gp.row)) {
+    if (hovered && scene.grid.isVisible(col, row)) {
       const lvl = getDisplayLevel(hovered);
       const cls = hovered.className || '';
       info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}`;
@@ -67,9 +76,15 @@ export class InputController {
     }
     scene.infoText.setText(info);
     this.updateTopLeftHudLayout();
+  }
 
+  // While a unit is selected, preview the movement path to (col,row) — or clear it
+  // when the tile isn't a stoppable destination. Shared by mouse hover and the
+  // gamepad grid cursor. Memoized on _lastPathPreviewKey to skip recomputes.
+  updatePathPreview(col, row) {
+    const scene = this.scene;
     if (scene.battleState === 'UNIT_SELECTED' && scene.selectedUnit && scene.movementRange) {
-      const key = `${gp.col},${gp.row}`;
+      const key = `${col},${row}`;
       const previewEntry = scene.movementRange.get(key);
       if (
         previewEntry &&
@@ -81,16 +96,16 @@ export class InputController {
           scene.movementRange,
           scene.selectedUnit.col,
           scene.selectedUnit.row,
-          gp.col,
-          gp.row,
+          col,
+          row,
         );
         const path =
           icePath ||
           scene.grid.findPath(
             scene.selectedUnit.col,
             scene.selectedUnit.row,
-            gp.col,
-            gp.row,
+            col,
+            row,
             scene.selectedUnit.moveType,
             scene.unitPositions,
             scene.selectedUnit.faction,

@@ -95,6 +95,29 @@ describe('GridCursorController — confirm routes through the world->screen seam
   });
 });
 
+describe('GridCursorController — cursor-move notification', () => {
+  it('notifies scene._onGridCursorMoved with the landed tile on move and snapTo', () => {
+    const { scene } = makeScene();
+    const moved = [];
+    scene._onGridCursorMoved = (col, row) => moved.push([col, row]);
+    const cursor = new GridCursorController(scene);
+
+    cursor.move(2, 1);
+    expect(moved.at(-1)).toEqual([2, 1]);
+    cursor.snapTo(5, 4);
+    expect(moved.at(-1)).toEqual([5, 4]);
+    // Clamped moves still notify with the (clamped) landing tile.
+    cursor.move(-20, 0);
+    expect(moved.at(-1)).toEqual([0, 4]);
+  });
+
+  it('tolerates scenes without the hook (mock scenes, tests)', () => {
+    const { scene } = makeScene(); // no _onGridCursorMoved defined
+    const cursor = new GridCursorController(scene);
+    expect(() => cursor.move(1, 1)).not.toThrow();
+  });
+});
+
 describe('GridCursorController — hide', () => {
   it('hides the highlight and deactivates', () => {
     const { scene } = makeScene();

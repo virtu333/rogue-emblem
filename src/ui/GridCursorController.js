@@ -91,5 +91,8 @@ export class GridCursorController {
     if (scene._battleCamera?.ensureWorldVisible) {
       scene._battleCamera.ensureWorldVisible(x, y, FOLLOW_MARGIN);
     }
+    // Notify the scene so cursor-anchored UI (terrain/unit info panel, movement
+    // path preview) refreshes — the gamepad analogue of a mouse-hover update.
+    scene._onGridCursorMoved?.(this.cursorCol, this.cursorRow);
   }
 }
