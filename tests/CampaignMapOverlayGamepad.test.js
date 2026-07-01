@@ -69,6 +69,18 @@ function makeScene() {
     },
     tweens: { add: vi.fn() },
     input: { keyboard: { addKey: () => ({ on: vi.fn(), off: vi.fn() }) } },
+    events: {
+      handlers: {},
+      on(ev, cb) {
+        (this.handlers[ev] ||= []).push(cb);
+      },
+      once(ev, cb) {
+        (this.handlers[ev] ||= []).push(cb);
+      },
+      emitLocal(ev) {
+        (this.handlers[ev] || []).forEach((cb) => cb());
+      },
+    },
   };
 }
 
@@ -154,5 +166,15 @@ describe('CampaignMapOverlay gamepad focus', () => {
     overlay.hide();
     expect(activeInputOwner()).toBe(null);
     expect(() => overlay._teardownFocus()).not.toThrow();
+  });
+
+  it('scene shutdown while open releases the input scope (no leak to the next scene)', () => {
+    const { overlay, scene } = makeOverlay();
+    overlay.show();
+    expect(activeInputOwner()).toBe(overlay);
+    scene.events.emitLocal('shutdown'); // hard shutdown, host never called hide()
+    expect(activeInputOwner()).toBe(null);
+    expect(overlay._focus).toBe(null);
+    expect(() => overlay.hide()).not.toThrow(); // later host-driven hide stays safe
   });
 });

@@ -493,13 +493,16 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     expect(scene.infoText.text).toContain('Edric Lv4 Lord | HP 18/22 | Iron Sword | XP 55/100');
   });
 
-  it('refreshTileInfo omits the unit line on fog-hidden tiles', () => {
-    const unit = { name: 'Bandit', moveType: 'Infantry', currentHP: 9, stats: { HP: 9 } };
+  it('refreshTileInfo omits the unit line AND moveType on fog-hidden tiles (no leak)', () => {
+    // A hidden Cavalry unit must not leak through the Move-cost line: fogged
+    // tiles always show the Infantry cost (Forest: Inf 2 vs Cav 3).
+    const unit = { name: 'Bandit', moveType: 'Cavalry', currentHP: 9, stats: { HP: 9 } };
     const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
     scene.grid.isVisible = vi.fn(() => false);
     const controller = new InputController(scene);
     controller.refreshTileInfo(2, 3);
     expect(scene.infoText.text).not.toContain('Bandit');
+    expect(scene.infoText.text).toContain('| Move: 2'); // Infantry cost, not Cavalry's 3
   });
 
   it('refreshTileInfo is a safe no-op before the info panel exists', () => {
@@ -580,6 +583,51 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     controller.updatePathPreview(1, 0);
     expect(scene.grid.findPath).not.toHaveBeenCalled();
     expect(scene.grid.clearPath).not.toHaveBeenCalled();
+  });
+
+  it('updatePathPreview prefers the reconstructed ice path over findPath', () => {
+    const scene = makePathScene();
+    const icePath = [
+      { col: 0, row: 0 },
+      { col: 1, row: 0 },
+    ];
+    scene.grid.reconstructIcePath = vi.fn(() => icePath);
+    const controller = new InputController(scene);
+
+    controller.updatePathPreview(1, 0);
+    expect(scene.grid.findPath).not.toHaveBeenCalled(); // ice path wins
+    expect(scene.grid.showPath).toHaveBeenCalledWith(icePath);
+  });
+
+  it('updatePathPreview renders slide segments when the path crosses Ice', () => {
+    const scene = makePathScene();
+    // (1,0) is Ice: walking right onto it slides through to (2,0) Plain.
+    scene.grid.mapLayout = [
+      [0, 1, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
+    scene.grid.terrainData = [
+      { name: 'Plain', moveCost: { Infantry: '1' } },
+      { name: 'Ice', moveCost: { Infantry: '1' } },
+    ];
+    scene.movementRange.set('2,0', { stoppable: true });
+    scene.grid.findPath = vi.fn(() => [
+      { col: 0, row: 0 },
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ]);
+    const controller = new InputController(scene);
+
+    controller.updatePathPreview(2, 0);
+    // Real computeEffectivePath detects the Ice step and emits a slide segment
+    // ending at the landing tile past the ice.
+    expect(scene.grid.showSlidePath).toHaveBeenCalledTimes(1);
+    const slidePath = scene.grid.showSlidePath.mock.calls[0][0];
+    expect(slidePath.at(-1)).toEqual({ col: 2, row: 0 });
+    expect(scene.grid.showPath).toHaveBeenCalledTimes(1);
+    const effectivePath = scene.grid.showPath.mock.calls[0][0];
+    expect(effectivePath.at(-1)).toEqual({ col: 2, row: 0 }); // preview reaches the landing
   });
 
   it('onPointerMove routes through the shared helpers with the hovered tile', () => {

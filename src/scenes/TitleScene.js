@@ -1017,8 +1017,10 @@ export class TitleScene extends Phaser.Scene {
 
   _onInputAction(action, payload) {
     if (this.isTransitioning) return;
-    // Title overlays aren't gamepad-wired yet (Phase 2D); while one is open, don't
-    // drive the menu hidden behind it.
+    // Settings/Help/Compendium now push their own input-focus scopes, so while one
+    // is open the LIFO bus routes actions to it and this handler isn't reached.
+    // This guard is a defensive fallback (and still load-bearing for
+    // HowToPlayOverlay, which has no scope of its own yet).
     if (this._titleOverlayOpen()) return;
     switch (action) {
       case InputAction.NAVIGATE:

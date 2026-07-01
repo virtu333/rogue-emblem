@@ -539,17 +539,21 @@ export class BattleScene extends Phaser.Scene {
   _onInputAction(action, payload) {
     if (this.isStoryInputLocked()) return;
     const inMenu = this.battleState === 'UNIT_ACTION_MENU';
+    // The battle is over: the mouse path hides the cursor/info at BATTLE_END
+    // (onPointerMove), so don't let the pad re-show the tile highlight or pan
+    // the camera under the victory/defeat banner either.
+    const battleOver = this.battleState === 'BATTLE_END';
     switch (action) {
       case InputAction.NAVIGATE:
         if (inMenu) {
           if (payload?.dy) this._menuFocus?.move(payload.dy);
-        } else {
+        } else if (!battleOver) {
           this._gridCursor?.move(payload?.dx || 0, payload?.dy || 0);
         }
         break;
       case InputAction.CONFIRM:
         if (inMenu) this._menuFocus?.activate();
-        else this._gridCursor?.confirm();
+        else if (!battleOver) this._gridCursor?.confirm();
         break;
       case InputAction.CANCEL:
       case InputAction.PAUSE:

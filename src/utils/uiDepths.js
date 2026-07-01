@@ -19,11 +19,20 @@ export const UI_DEPTHS = {
   ROSTER: 700, // RosterOverlay
   LOOT_DISPLAY: 701, // BattleScene loot
   PAUSE_MENU: 800, // PauseOverlay
+  CAMPAIGN_MAP_BG: 830, // CampaignMapOverlay background
+  CAMPAIGN_MAP_PANEL: 831, // CampaignMapOverlay panel
+  CAMPAIGN_MAP_UI: 832, // CampaignMapOverlay nodes/legend/close
+  CAMPAIGN_MAP_FOCUS_RING: 835, // CampaignMapOverlay gamepad ring (UI + 3)
   CONFIRM_DIALOG: 850, // Confirmation prompts
-  HELP_BG: 860, // HelpOverlay background
+  HELP_BG: 860, // HelpOverlay background (== pause focus ring 860, hidden while covered)
   HELP_PANEL: 861, // HelpOverlay panel
   HELP_UI: 862, // HelpOverlay interactive elements
-  SETTINGS: 900, // SettingsOverlay
+  HELP_FOCUS_RING: 865, // HelpOverlay gamepad ring (UI + 3)
+  COMPENDIUM_BG: 870, // CompendiumOverlay background
+  COMPENDIUM_PANEL: 871, // CompendiumOverlay panel
+  COMPENDIUM_UI: 872, // CompendiumOverlay interactive elements
+  COMPENDIUM_FOCUS_RING: 875, // CompendiumOverlay gamepad ring (UI + 3)
+  SETTINGS: 900, // SettingsOverlay (gamepad ring at 905)
   LEVEL_UP_DIM: 900, // LevelUpPopup dim background
   LEVEL_UP_PANEL: 901, // LevelUpPopup panel
   LEVEL_UP_TEXT: 902, // LevelUpPopup text

@@ -112,6 +112,15 @@ export class CampaignMapOverlay {
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
     this._setupFocus();
+
+    // Never leak the input-focus scope on hard scene shutdown — the stack is a
+    // module-level global that outlives the scene, so a missed pop would swallow
+    // all pad input in the next scene. Idempotent, so the normal host-driven
+    // hide() path is unaffected.
+    if (!this._shutdownBound && this.scene?.events?.on) {
+      this._shutdownBound = true;
+      this.scene.events.on('shutdown', () => this._teardownFocus());
+    }
   }
 
   _draw() {
@@ -322,7 +331,8 @@ export class CampaignMapOverlay {
   // --- Gamepad/keyboard focus ---
 
   _setupFocus() {
-    this._focus = new BoundingFocusController(this.scene, DEPTH_UI + 5);
+    // +3 above content, matching the Help/Compendium ring offset convention.
+    this._focus = new BoundingFocusController(this.scene, DEPTH_UI + 3);
     this._focus.setObjects(this._closeBtn ? [this._closeBtn] : [], true);
     if (!this._onInputBound) {
       this._onInputBound = (action) => this._onInput(action);

@@ -56,7 +56,10 @@ export class InputController {
     const terrain = scene.grid.getTerrainAt(col, row);
     let info = terrain.name;
     const hovered = scene.getUnitAt(col, row);
-    const moveType = hovered ? hovered.moveType : 'Infantry';
+    // Fog gate BEFORE any per-unit info: a hidden enemy's moveType must not leak
+    // through the Move-cost line (e.g. a fogged flier showing Forest "Move: 1").
+    const hoveredVisible = Boolean(hovered && scene.grid.isVisible(col, row));
+    const moveType = hoveredVisible ? hovered.moveType : 'Infantry';
     const moveCost = terrain.moveCost[moveType];
     info += ` | Move: ${moveCost}`;
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
@@ -65,7 +68,7 @@ export class InputController {
     const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
     if (specialText) info += `\n${specialText}`;
 
-    if (hovered && scene.grid.isVisible(col, row)) {
+    if (hoveredVisible) {
       const lvl = getDisplayLevel(hovered);
       const cls = hovered.className || '';
       info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}`;

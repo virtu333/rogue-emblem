@@ -12,7 +12,8 @@ const DEPTH_BG = 870;
 const DEPTH_PANEL = 871;
 const DEPTH_UI = 872;
 
-const TAB_DEFS = [
+// Exported for tests (tab labels/filters drive the gamepad cycling contracts).
+export const TAB_DEFS = [
   {
     label: 'Arms',
     key: 'weapons',
@@ -116,6 +117,11 @@ export class CompendiumOverlay {
     if (!this._shutdownBound && this.scene?.events?.on) {
       this._shutdownBound = true;
       this.scene.events.on('shutdown', () => {
+        // Never leak the input-focus scope on hard shutdown — the stack is a
+        // module-level global that outlives the scene, so a missed pop would
+        // swallow all pad input in the next scene. Idempotent, so the normal
+        // host-driven hide() path is unaffected.
+        this._teardownFocus();
         const g = this.scene?.game;
         if (g?.events) {
           if (this._mobilePrev) g.events.off('mobile:prevTab', this._mobilePrev);
@@ -464,6 +470,12 @@ export class CompendiumOverlay {
 
   _onInput(action, payload) {
     if (!this.visible) return;
+    // While keyboard search-input mode is active, only backing out acts on the
+    // pad — tab/filter/page cycling would silently abandon the tab/page the
+    // search jumped to while the box still shows the query and result counter.
+    if (this.searchInputActive && action !== InputAction.CANCEL && action !== InputAction.PAUSE) {
+      return;
+    }
     switch (action) {
       case InputAction.PREV_UNIT:
         this._cycleTab(-1);
@@ -475,6 +487,12 @@ export class CompendiumOverlay {
         // up/down cycle the sub-filter (no-op on filter-less tabs); left/right page.
         if (payload?.dy) this._cycleFilter(payload.dy > 0 ? 1 : -1);
         else if (payload?.dx) this._cyclePage(payload.dx > 0 ? 1 : -1);
+        break;
+      case InputAction.CONFIRM:
+        // A advances in reading order (next page, then next tab) — same
+        // affordance as the mobile next-tab button, so the focus ring's
+        // console-standard "A does something" promise holds.
+        this._mobileNextAction();
         break;
       case InputAction.CANCEL:
       case InputAction.PAUSE:

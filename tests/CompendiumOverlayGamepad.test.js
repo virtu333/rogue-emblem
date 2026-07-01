@@ -14,22 +14,12 @@ import { loadGameData } from './testData.js';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
-import { CompendiumOverlay } from '../src/ui/CompendiumOverlay.js';
+import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
 
 const gameData = loadGameData();
 
-// Mirrors TAB_DEFS order in CompendiumOverlay.js (Lords/Terrain have no sub-filters).
-const TAB_LABELS = [
-  'Arms',
-  'Skills',
-  'Arts',
-  'Class',
-  'Items',
-  'Lords',
-  'Bless',
-  'Terrain',
-  'Affixes',
-];
+// Derived from the source TAB_DEFS so tab renames/reorders can't silently drift.
+const TAB_LABELS = TAB_DEFS.map((d) => d.label);
 const LORDS_TAB = TAB_LABELS.indexOf('Lords'); // filter-less
 
 beforeEach(() => _resetInputFocus());
@@ -84,7 +74,18 @@ function makeScene() {
       keyboard: { addKey: () => ({ on: vi.fn(), off: vi.fn() }), on: vi.fn(), off: vi.fn() },
     },
     game: { events: { emit: vi.fn(), on: vi.fn(), off: vi.fn() } },
-    events: { on: vi.fn(), once: vi.fn() },
+    events: {
+      handlers: {},
+      on(ev, cb) {
+        (this.handlers[ev] ||= []).push(cb);
+      },
+      once(ev, cb) {
+        (this.handlers[ev] ||= []).push(cb);
+      },
+      emitLocal(ev) {
+        (this.handlers[ev] || []).forEach((cb) => cb());
+      },
+    },
   };
 }
 
@@ -193,5 +194,44 @@ describe('CompendiumOverlay gamepad focus', () => {
     dispatchInputAction(InputAction.NEXT_UNIT);
     expect(sceneSpy).not.toHaveBeenCalled();
     expect(overlay.activeTabIndex).toBe(1);
+  });
+
+  it('CONFIRM advances in reading order: next page, then next tab', () => {
+    const { overlay } = makeOverlay();
+    overlay.show(); // Arms/All — many weapons, multiple pages
+    const totalPages = Math.ceil(overlay._getFilteredItems().length / overlay._itemsPerPage());
+    expect(totalPages).toBeGreaterThan(1);
+
+    dispatchInputAction(InputAction.CONFIRM);
+    expect(overlay.currentPage).toBe(1);
+    // From page 1, exactly totalPages-1 more presses walk to the last page and
+    // roll into the next tab at page 0.
+    for (let i = 0; i < totalPages - 1; i++) dispatchInputAction(InputAction.CONFIRM);
+    expect(overlay.activeTabIndex).toBe(1);
+    expect(overlay.currentPage).toBe(0);
+  });
+
+  it('pad tab/filter/page/CONFIRM are gated while keyboard search-input mode is active', () => {
+    const { overlay } = makeOverlay();
+    overlay.show();
+    overlay.searchInputActive = true;
+    dispatchInputAction(InputAction.NEXT_UNIT);
+    dispatchInputAction(InputAction.NAVIGATE, { dy: 1 });
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 });
+    dispatchInputAction(InputAction.CONFIRM);
+    expect(overlay.activeTabIndex).toBe(0);
+    expect(overlay.activeFilterIndex).toBe(0);
+    expect(overlay.currentPage).toBe(0);
+    expect(overlay.visible).toBe(true);
+  });
+
+  it('scene shutdown while open releases the input scope (no leak to the next scene)', () => {
+    const { overlay, scene } = makeOverlay();
+    overlay.show();
+    expect(activeInputOwner()).toBe(overlay);
+    scene.events.emitLocal('shutdown'); // hard shutdown, host never called hide()
+    expect(activeInputOwner()).toBe(null);
+    expect(overlay._focus).toBe(null);
+    expect(() => overlay.hide()).not.toThrow(); // later host-driven hide stays safe
   });
 });

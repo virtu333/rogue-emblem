@@ -57,6 +57,8 @@ function makeGraphics() {
 }
 
 function makeScene() {
+  const sceneEvents = {}; // captured scene lifecycle handlers (e.g. 'shutdown')
+  const keyHandlers = {}; // captured scene.input.keyboard handlers (e.g. 'keydown')
   return {
     cameras: { main: { centerX: 320, centerY: 240 } },
     add: {
@@ -65,10 +67,19 @@ function makeScene() {
       graphics: () => makeGraphics(),
     },
     input: {
-      keyboard: { addKey: () => ({ on: vi.fn(), off: vi.fn() }), on: vi.fn(), off: vi.fn() },
+      keyboard: {
+        addKey: () => ({ on: vi.fn(), off: vi.fn() }),
+        on: (ev, cb) => (keyHandlers[ev] = cb),
+        off: vi.fn(),
+      },
     },
     game: { events: { emit: vi.fn(), on: vi.fn(), off: vi.fn() } },
-    events: { on: vi.fn(), once: vi.fn() },
+    events: {
+      on: (ev, cb) => (sceneEvents[ev] ||= []).push(cb),
+      once: (ev, cb) => (sceneEvents[ev] ||= []).push(cb),
+    },
+    _emitSceneEvent: (ev) => (sceneEvents[ev] || []).forEach((cb) => cb()),
+    _keyHandlers: keyHandlers,
   };
 }
 
@@ -174,5 +185,78 @@ describe('HelpOverlay gamepad focus', () => {
     dispatchInputAction(InputAction.NEXT_UNIT);
     expect(sceneSpy).not.toHaveBeenCalled();
     expect(overlay.activeTabIndex).toBe(1);
+  });
+
+  it('CONFIRM advances in reading order: next page, then next tab', () => {
+    const { overlay } = makeOverlay();
+    overlay.show();
+    // Jump to a multi-page tab, then A steps through its pages...
+    for (let i = 0; i < MULTI_PAGE_TAB; i++) dispatchInputAction(InputAction.NEXT_UNIT);
+    dispatchInputAction(InputAction.CONFIRM);
+    expect(overlay.currentPage).toBe(1);
+    for (let i = 0; i < MULTI_PAGE_COUNT + 2; i++) dispatchInputAction(InputAction.CONFIRM);
+    // ...and past the last page A rolls into the next tab at page 0.
+    expect(overlay.activeTabIndex).toBeGreaterThan(MULTI_PAGE_TAB);
+    expect(overlay.currentPage).toBeLessThan(MULTI_PAGE_COUNT - 1);
+  });
+
+  it("'/' enters search mode via the real keyboard path; pad nav is gated until CANCEL exits", () => {
+    const { overlay, scene } = makeOverlay();
+    overlay.show();
+    // Real keydown path: '/' arms search-input mode, typed keys build the query.
+    scene._keyHandlers.keydown({ key: '/' });
+    expect(overlay.searchInputActive).toBe(true);
+    scene._keyHandlers.keydown({ key: 'f' });
+    scene._keyHandlers.keydown({ key: 'e' });
+    expect(overlay.searchQuery).toBe('fe');
+
+    // While typing, tab/page/CONFIRM pad actions must not clobber the search jump.
+    const tabAtSearch = overlay.activeTabIndex;
+    const pageAtSearch = overlay.currentPage;
+    dispatchInputAction(InputAction.NEXT_UNIT);
+    dispatchInputAction(InputAction.NAVIGATE, { dy: 1 });
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 });
+    dispatchInputAction(InputAction.CONFIRM);
+    expect(overlay.activeTabIndex).toBe(tabAtSearch);
+    expect(overlay.currentPage).toBe(pageAtSearch);
+
+    // CANCEL exits search mode first; the next CANCEL closes as usual.
+    dispatchInputAction(InputAction.CANCEL);
+    expect(overlay.searchInputActive).toBe(false);
+    expect(overlay.visible).toBe(true);
+    dispatchInputAction(InputAction.NEXT_UNIT); // pad nav live again
+    expect(overlay.activeTabIndex).not.toBe(tabAtSearch);
+  });
+
+  it('scene shutdown while open releases the input scope (no leak to the next scene)', () => {
+    const { overlay, scene } = makeOverlay();
+    overlay.show();
+    expect(activeInputOwner()).toBe(overlay);
+    scene._emitSceneEvent('shutdown'); // hard shutdown, host never called hide()
+    expect(activeInputOwner()).toBe(null);
+    expect(overlay._focus).toBe(null);
+    expect(() => overlay.hide()).not.toThrow(); // later host-driven hide stays safe
+  });
+});
+
+describe('composed pause -> help teardown (real overlays, real scopes)', () => {
+  it('PauseOverlay.hideForTransition drains both scopes while Help covers the pause menu', async () => {
+    const { PauseOverlay } = await import('../src/ui/PauseOverlay.js');
+    const scene = makeScene();
+    const pause = new PauseOverlay(scene, { onResume: vi.fn() });
+    // Minimal live pause state without running show(): one menu button + real focus.
+    pause.visible = true;
+    pause._menuButtons = [makeObj({ kind: 'text', text: 'Resume' })];
+    pause._setupFocus(); // real BoundingFocusController + real pushInputScope
+
+    const help = new HelpOverlay(scene, null);
+    help.show(); // pushes its scope above pause (covers it)
+    pause.helpOverlay = help;
+    expect(activeInputOwner()).toBe(help);
+
+    // The battle-scene shutdown path: hideForTransition must unwind BOTH scopes.
+    pause.hideForTransition();
+    expect(help.visible).toBe(false);
+    expect(activeInputOwner()).toBe(null);
   });
 });

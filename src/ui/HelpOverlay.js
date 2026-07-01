@@ -83,6 +83,11 @@ export class HelpOverlay {
     if (!this._shutdownBound && this.scene?.events?.on) {
       this._shutdownBound = true;
       this.scene.events.on('shutdown', () => {
+        // Never leak the input-focus scope on hard shutdown — the stack is a
+        // module-level global that outlives the scene, so a missed pop would
+        // swallow all pad input in the next scene. Idempotent, so the normal
+        // host-driven hide() path is unaffected.
+        this._teardownFocus();
         const g = this.scene?.game;
         if (g?.events) {
           if (this._mobilePrev) g.events.off('mobile:prevTab', this._mobilePrev);
@@ -549,6 +554,12 @@ export class HelpOverlay {
 
   _onInput(action, payload) {
     if (!this.visible) return;
+    // While keyboard search-input mode is active, only backing out acts on the
+    // pad — tab/page cycling would silently abandon the tab/page the search
+    // jumped to while the box still shows the query and result counter.
+    if (this.searchInputActive && action !== InputAction.CANCEL && action !== InputAction.PAUSE) {
+      return;
+    }
     switch (action) {
       case InputAction.PREV_UNIT:
         this._cycleTab(-1);
@@ -561,6 +572,12 @@ export class HelpOverlay {
         // access); left/right page within the current tab.
         if (payload?.dy) this._cycleTab(payload.dy > 0 ? 1 : -1);
         else if (payload?.dx) this._cyclePage(payload.dx > 0 ? 1 : -1);
+        break;
+      case InputAction.CONFIRM:
+        // A advances in reading order (next page, then next tab) — same
+        // affordance as the mobile next-tab button, so the focus ring's
+        // console-standard "A does something" promise holds.
+        this._mobileNextAction();
         break;
       case InputAction.CANCEL:
       case InputAction.PAUSE:

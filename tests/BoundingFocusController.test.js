@@ -90,10 +90,47 @@ describe('BoundingFocusController', () => {
     c.setObjects([makeObj('a', 10)]);
     expect(scene.add.rectangle).toHaveBeenCalledTimes(1);
     scene._ring.scene = null; // simulate children.removeAll destroying the ring
-    const scene2Ring = makeRing();
-    scene.add.rectangle.mockReturnvalueOnce?.(scene2Ring);
+    const freshRing = makeRing();
+    scene.add.rectangle.mockReturnValueOnce(freshRing);
     c.setObjects([makeObj('a', 10), makeObj('b', 20)]);
     expect(scene.add.rectangle).toHaveBeenCalledTimes(2); // a fresh ring was made
+    expect(c.ring).toBe(freshRing); // ...and adopted (not the stale wiped one)
+  });
+
+  it('setRingVisible(false) hides the ring but keeps the object list', () => {
+    const scene = makeScene();
+    const c = new BoundingFocusController(scene);
+    c.setObjects([makeObj('a', 10), makeObj('b', 20)]);
+    c.setRingVisible(false);
+    expect(scene._ring.setVisible).toHaveBeenCalledWith(false);
+    expect(c.objects.length).toBe(2); // list retained, unlike clear()
+    expect(c.current().id).toBe('a');
+  });
+
+  it('setRingVisible(true) re-renders at the current focus (restore after cover)', () => {
+    const scene = makeScene();
+    const c = new BoundingFocusController(scene);
+    c.setObjects([makeObj('a', 10), makeObj('b', 20)]);
+    c.move(1); // focus 'b'
+    c.setRingVisible(false);
+    scene._ring.setPosition.mockClear();
+    c.setRingVisible(true);
+    // _render repositions the existing ring at the focused object's bounds.
+    expect(scene._ring.setPosition).toHaveBeenCalledWith(5, 20);
+    expect(scene._ring.setVisible).toHaveBeenLastCalledWith(true);
+  });
+
+  it('setRingVisible(true) recreates a ring that a redraw wiped while covered', () => {
+    const scene = makeScene();
+    const c = new BoundingFocusController(scene);
+    c.setObjects([makeObj('a', 10)]);
+    c.setRingVisible(false);
+    scene._ring.scene = null; // redraw wiped the ring while hidden
+    const freshRing = makeRing();
+    scene.add.rectangle.mockReturnValueOnce(freshRing);
+    c.setRingVisible(true);
+    expect(scene.add.rectangle).toHaveBeenCalledTimes(2);
+    expect(c.ring).toBe(freshRing);
   });
 
   it('is inert and hides the ring with no objects', () => {

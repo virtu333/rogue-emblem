@@ -146,6 +146,17 @@ describe('BattleScene _onInputAction routes the global verbs', () => {
     route(scene, InputAction.INSPECT);
     expect(scene._inspectAtCursor).toHaveBeenCalledTimes(1);
   });
+
+  it('NAVIGATE/CONFIRM do not drive the grid cursor during BATTLE_END', () => {
+    // The mouse path hides the cursor/info at battle end (onPointerMove); the pad
+    // must not re-show the tile highlight or pan the camera under the banner.
+    const scene = routeScene();
+    scene.battleState = 'BATTLE_END';
+    route(scene, InputAction.NAVIGATE, { dx: 1, dy: 0 });
+    route(scene, InputAction.CONFIRM);
+    expect(scene._gridCursor.move).not.toHaveBeenCalled();
+    expect(scene._gridCursor.confirm).not.toHaveBeenCalled();
+  });
 });
 
 describe('BattleScene _onGridCursorMoved refreshes cursor-anchored UI', () => {
@@ -171,5 +182,30 @@ describe('BattleScene _onGridCursorMoved refreshes cursor-anchored UI', () => {
     moved(scene, 4, 2);
     expect(scene._inputController.refreshTileInfo).not.toHaveBeenCalled();
     expect(scene._inputController.updatePathPreview).not.toHaveBeenCalled();
+  });
+
+  it('lazily constructs the real InputController when none exists (pad-first play)', () => {
+    // Gamepad-only play can move the grid cursor before any pointer event ever
+    // constructs the controller — exercise the ||= seam with the real class.
+    const scene = {
+      battleState: 'PLAYER_IDLE',
+      grid: {
+        getTerrainAt: vi.fn(() => ({ name: 'Plain', moveCost: { Infantry: '1' } })),
+        isVisible: vi.fn(() => true),
+      },
+      getUnitAt: vi.fn(() => null),
+      infoText: {
+        text: '',
+        y: 10,
+        height: 20,
+        setText(t) {
+          this.text = t;
+        },
+      },
+    };
+    moved(scene, 1, 2);
+    expect(scene._inputController).toBeTruthy(); // constructed via the ||= seam
+    expect(scene.grid.getTerrainAt).toHaveBeenCalledWith(1, 2);
+    expect(scene.infoText.text).toContain('Plain | Move: 1'); // real refresh ran
   });
 });
