@@ -222,6 +222,7 @@ import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
+import { CombatFxController } from '../ui/CombatFxController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
 import {
@@ -7951,13 +7952,15 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
+    const fx = (this._combatFx ||= new CombatFxController(this));
     const audio = this.registry.get('audio');
     if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
     if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
-    await this._awaitSceneDelay(reduced ? 70 : 120, { label: 'animate_strike_attacker_flash' });
+    await fx.lungeForward(striker, target);
     if (striker.graphic?.clearTint) striker.graphic.clearTint();
 
     if (event.miss) {
+      fx.dodge(target, striker);
       const pos = this.grid.gridToPixel(target.col, target.row);
       const missText = this.add
         .text(pos.x, pos.y - 16, 'MISS', {
@@ -7976,11 +7979,14 @@ export class BattleScene extends Phaser.Scene {
         onComplete: () => missText.destroy(),
       });
       await this._awaitSceneDelay(reduced ? 200 : 300, { label: 'animate_strike_miss_hold' });
+      await fx.lungeBack(striker, target);
       return;
     }
 
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+    fx.recoil(target, striker);
+    if (event.isCrit) fx.critImpact(striker);
     const pos = this.grid.gridToPixel(target.col, target.row);
     const dmgText = this.add
       .text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
@@ -8054,6 +8060,7 @@ export class BattleScene extends Phaser.Scene {
 
     await this._awaitSceneDelay(reduced ? 80 : 150, { label: 'animate_strike_hit_hold' });
     if (target.graphic?.clearTint) target.graphic.clearTint();
+    await fx.lungeBack(striker, target);
 
     if (event.warpRange > 0 && target.currentHP > 0) {
       await this.executeWarp(target, event.warpRange, striker);
@@ -8324,6 +8331,7 @@ export class BattleScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_death');
+    await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
     this.removeUnitGraphic(unit);
     // Splice in-place so TurnManager's reference stays valid
     if (unit.faction === 'player') {
