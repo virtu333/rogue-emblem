@@ -8,10 +8,12 @@ export default defineConfig({
     VitePWA({
       // 'prompt' (not 'autoUpdate') so a freshly deployed worker does NOT skipWaiting and
       // take over a page still running the old code-split build. It stays in the waiting
-      // state and activates on the next cold start — once no old client (whose lazy chunks
-      // cleanupOutdatedCaches has since purged) is around — avoiding a mid-run dynamic-import
-      // failure. No update UI is wired (nothing imported into src/); the update simply
-      // applies on the next full app restart.
+      // state, avoiding a mid-run dynamic-import failure (cleanupOutdatedCaches purges the
+      // old lazy chunks the live page still needs). src/main.js imports registerSW from
+      // 'virtual:pwa-register' and, on onNeedRefresh, shows a passive DOM update toast; the
+      // user's RESTART tap calls updateSW(true) to skipWaiting + reload THIS client only.
+      // With injectRegister:'auto' that in-bundle import means the plugin no longer injects
+      // its own registerSW.js — registration happens exactly once, from main.js.
       registerType: 'prompt',
       injectRegister: 'auto',
       // Keep the existing hand-written public/manifest.webmanifest (+ its <link> in
@@ -49,7 +51,12 @@ export default defineConfig({
             options: {
               cacheName: 'er-image-assets',
               expiration: {
-                maxEntries: 800,
+                // ~630 image files today under assets/{sprites,sprites-v1,portraits};
+                // the set grew ~95/month during recent sprite upgrades. 1200 leaves
+                // headroom through the roster/FX roadmap so LRU eviction never
+                // silently drops sprites from the offline cache. purgeOnQuotaError
+                // below is the real safety valve if disk quota is actually hit.
+                maxEntries: 1200,
                 maxAgeSeconds: 60 * 24 * 60 * 60,
                 purgeOnQuotaError: true,
               },
@@ -88,7 +95,9 @@ export default defineConfig({
             options: {
               cacheName: 'er-audio-assets',
               expiration: {
-                maxEntries: 80,
+                // 57 audio files today (music + SFX); 120 leaves matching headroom
+                // for new tracks. purgeOnQuotaError is the real safety valve.
+                maxEntries: 120,
                 maxAgeSeconds: 60 * 24 * 60 * 60,
                 purgeOnQuotaError: true,
               },
