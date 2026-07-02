@@ -25,7 +25,7 @@ import path from 'path';
 import sharp from 'sharp';
 
 function parseArgs(argv) {
-  const args = { size: 48, bottomPad: 8, tolerance: 24 };
+  const args = { size: 48, bottomPad: 8, tolerance: 24, kernel: 'nearest' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--input-dir') args.inputDir = path.resolve(argv[++i]);
@@ -33,6 +33,8 @@ function parseArgs(argv) {
     else if (a === '--size') args.size = Number(argv[++i]);
     else if (a === '--bottom-pad') args.bottomPad = Number(argv[++i]);
     else if (a === '--tolerance') args.tolerance = Number(argv[++i]);
+    else if (a === '--kernel')
+      args.kernel = argv[++i]; // nearest for flat art, lanczos3 for painterly raws
     else if (a === '--help') args.help = true;
   }
   return args;
@@ -126,7 +128,7 @@ function contentBounds(data, width, height, channels) {
   return { minX, minY, maxX, maxY };
 }
 
-async function processOne(rawFile, outFile, size, bottomPad, tolerance) {
+async function processOne(rawFile, outFile, size, bottomPad, tolerance, kernel) {
   const { data, info } = await sharp(await fs.readFile(rawFile))
     .ensureAlpha()
     .raw()
@@ -156,7 +158,7 @@ async function processOne(rawFile, outFile, size, bottomPad, tolerance) {
   const h = Math.max(1, Math.round(cropH * scale));
 
   let figure = await cropped
-    .resize(w, h, { kernel: sharp.kernel.nearest, fit: 'fill' })
+    .resize(w, h, { kernel: sharp.kernel[kernel] || sharp.kernel.nearest, fit: 'fill' })
     .png()
     .toBuffer();
 
@@ -196,6 +198,7 @@ async function main() {
       args.size,
       args.bottomPad,
       args.tolerance,
+      args.kernel,
     );
     if (ok) done++;
   }
