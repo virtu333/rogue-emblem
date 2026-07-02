@@ -272,15 +272,19 @@ export class CombatFxController {
     });
   }
 
-  /** Register the 4-frame play-once animation for an effect key (idempotent). */
+  /** Register the play-once animation for an effect key (idempotent).
+   *  Frame count comes from the spritesheet (4-frame strips play ~250ms at
+   *  16fps, 8-frame signature strips ~500ms). */
   _ensureAnim(key) {
     const anims = this.scene.anims;
     if (!anims?.exists) return false; // headless/stub scene: overlays are a no-op
     if (anims.exists(`${key}_anim`)) return true;
     if (!this.scene.textures.exists(key)) return false;
+    // frameTotal includes Phaser's __BASE frame; sheet frames are 0..n-1
+    const frames = Math.max(1, (this.scene.textures.get(key).frameTotal || 2) - 1);
     anims.create({
       key: `${key}_anim`,
-      frames: anims.generateFrameNumbers(key, { start: 0, end: 3 }),
+      frames: anims.generateFrameNumbers(key, { start: 0, end: frames - 1 }),
       frameRate: FX_FRAME_RATE,
       repeat: 0,
     });
@@ -315,14 +319,22 @@ export class CombatFxController {
   /**
    * Weapon-type effect at the point of contact, plus a starburst on crits.
    * opts.emphasis (weapon-art strikes) plays the weapon overlay larger.
+   * opts.signatureKey (Legendary art strikes) replaces the weapon overlay
+   * with the 8-frame signature effect for the art's weapon type.
    */
   playImpact(event, striker, target, opts = {}) {
     const tg = target?.graphic;
     if (!tg) return;
-    const fxDef = WEAPON_FX[striker?.weapon?.type] || WEAPON_FX.Sword;
     const { nx, ny } = this._dir(striker?.graphic, tg);
-    const rotation = fxDef.directional ? Math.atan2(ny, nx) : 0;
-    this.playOverlay(fxDef.key, tg.x, tg.y, { rotation, scale: opts.emphasis ? 1.3 : 1 });
+    if (opts.signatureKey && this.scene.textures?.exists?.(opts.signatureKey)) {
+      // Only the lance charge is drawn directional (pointing right in source art)
+      const rotation = opts.signatureKey === 'fx_sig_lance' ? Math.atan2(ny, nx) : 0;
+      this.playOverlay(opts.signatureKey, tg.x, tg.y, { rotation, scale: 1.2 });
+    } else {
+      const fxDef = WEAPON_FX[striker?.weapon?.type] || WEAPON_FX.Sword;
+      const rotation = fxDef.directional ? Math.atan2(ny, nx) : 0;
+      this.playOverlay(fxDef.key, tg.x, tg.y, { rotation, scale: opts.emphasis ? 1.3 : 1 });
+    }
     if (event?.isCrit) this.playOverlay('fx_crit', tg.x, tg.y, { scale: 1.25 });
   }
 

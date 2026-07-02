@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * process-fx.js — turn Imagen 2x2-grid effect images into game spritesheets.
+ * process-fx.js — turn Imagen grid effect images into game spritesheets.
  *
- * Each raw image holds 4 animation frames in a 2x2 grid (reading order).
- * For every raw variant this slices the quadrants, trims outer grid margins,
+ * Each raw image holds cols*rows animation frames in a grid (reading order
+ * left-to-right, top-to-bottom; default 2x2 = 4 frames, 4x2 at 16:9 = 8).
+ * For every raw variant this slices the cells, trims outer grid margins,
  * resizes each frame to targetSize (nearest-neighbor), and assembles a
- * horizontal strip (4*targetSize x targetSize) suitable for
+ * horizontal strip (cols*rows*targetSize x targetSize) suitable for
  * Phaser this.load.spritesheet(). Backgrounds stay black — the game renders
  * these with additive blending, so black pixels are invisible.
  *
@@ -13,7 +14,9 @@
  *   --input-dir <path>   Raw input root (default: References/imagen-output/combat-fx/raw)
  *   --out-dir <path>     Strip output root (default: References/imagen-output/combat-fx/strips)
  *   --target-size <n>    Frame size in px (default: 48)
- *   --inset <pct>        Percent inset per quadrant edge to crop grid margins (default: 4)
+ *   --inset <pct>        Percent inset per cell edge to crop grid margins (default: 4)
+ *   --cols <n>           Grid columns in the raw image (default: 2)
+ *   --rows <n>           Grid rows in the raw image (default: 2)
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -23,13 +26,22 @@ const DEFAULT_IN = path.resolve('References/imagen-output/combat-fx/raw');
 const DEFAULT_OUT = path.resolve('References/imagen-output/combat-fx/strips');
 
 function parseArgs(argv) {
-  const args = { inputDir: DEFAULT_IN, outDir: DEFAULT_OUT, targetSize: 48, inset: 4 };
+  const args = {
+    inputDir: DEFAULT_IN,
+    outDir: DEFAULT_OUT,
+    targetSize: 48,
+    inset: 4,
+    cols: 2,
+    rows: 2,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--input-dir') args.inputDir = path.resolve(argv[++i]);
     else if (a === '--out-dir') args.outDir = path.resolve(argv[++i]);
     else if (a === '--target-size') args.targetSize = Number(argv[++i]);
     else if (a === '--inset') args.inset = Number(argv[++i]);
+    else if (a === '--cols') args.cols = Number(argv[++i]);
+    else if (a === '--rows') args.rows = Number(argv[++i]);
   }
   return args;
 }
@@ -152,30 +164,30 @@ function crushBlacks(data, channels, threshold = 16) {
   }
 }
 
-async function processOne(rawFile, outFile, targetSize, insetPct) {
+async function processOne(rawFile, outFile, targetSize, insetPct, cols, rows) {
   const rawBuffer = await fs.readFile(rawFile);
   const meta = await sharp(rawBuffer).metadata();
-  const halfW = Math.floor(meta.width / 2);
-  const halfH = Math.floor(meta.height / 2);
-  const insetX = Math.floor((halfW * insetPct) / 100);
-  const insetY = Math.floor((halfH * insetPct) / 100);
+  const cellW = Math.floor(meta.width / cols);
+  const cellH = Math.floor(meta.height / rows);
+  const insetX = Math.floor((cellW * insetPct) / 100);
+  const insetY = Math.floor((cellH * insetPct) / 100);
 
-  const quadrants = [
-    { left: 0, top: 0 },
-    { left: halfW, top: 0 },
-    { left: 0, top: halfH },
-    { left: halfW, top: halfH },
-  ];
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      cells.push({ left: c * cellW, top: r * cellH });
+    }
+  }
 
-  // Pass 1: clean each quadrant and measure its content bounding box.
+  // Pass 1: clean each cell and measure its content bounding box.
   const cleaned = [];
-  for (const q of quadrants) {
+  for (const q of cells) {
     const { data, info } = await sharp(rawBuffer)
       .extract({
         left: q.left + insetX,
         top: q.top + insetY,
-        width: halfW - insetX * 2,
-        height: halfH - insetY * 2,
+        width: cellW - insetX * 2,
+        height: cellH - insetY * 2,
       })
       .ensureAlpha()
       .raw()
@@ -230,7 +242,7 @@ async function processOne(rawFile, outFile, targetSize, insetPct) {
 
   const strip = sharp({
     create: {
-      width: targetSize * 4,
+      width: targetSize * frames.length,
       height: targetSize,
       channels: 4,
       background: { r: 0, g: 0, b: 0, alpha: 1 },
@@ -249,7 +261,7 @@ async function main() {
   }
   for (const rawFile of rawFiles) {
     const outFile = path.join(args.outDir, path.basename(rawFile));
-    await processOne(rawFile, outFile, args.targetSize, args.inset);
+    await processOne(rawFile, outFile, args.targetSize, args.inset, args.cols, args.rows);
     console.log(`[process-fx] wrote ${outFile}`);
   }
   console.log(`[process-fx] done (${rawFiles.length} strips)`);

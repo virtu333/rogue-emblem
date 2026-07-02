@@ -153,3 +153,18 @@ export function artBurstsForTier(tierAffinity) {
   if (tierAffinity === 'Silver') return 2;
   return 1;
 }
+
+/**
+ * Signature 8-frame effect for a Legendary weapon-art strike, keyed by the
+ * art's weapon type. Tome (and anything unmapped) uses the magic signature.
+ */
+const SIG_FX_BY_WEAPON_TYPE = {
+  Sword: 'fx_sig_sword',
+  Lance: 'fx_sig_lance',
+  Axe: 'fx_sig_axe',
+  Bow: 'fx_sig_bow',
+};
+
+export function sigFxForWeaponType(weaponType) {
+  return SIG_FX_BY_WEAPON_TYPE[weaponType] || 'fx_sig_magic';
+}

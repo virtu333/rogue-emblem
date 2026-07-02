@@ -431,6 +431,15 @@ export class BootScene extends Phaser.Scene {
       'fx_buff',
       'fx_status',
       'fx_ring',
+      // Signature 8-frame effects (384x48 strips): Legendary arts by weapon
+      // type, Entity splash, boss enrage
+      'fx_sig_sword',
+      'fx_sig_lance',
+      'fx_sig_axe',
+      'fx_sig_bow',
+      'fx_sig_magic',
+      'fx_sig_entity',
+      'fx_sig_enrage',
     ];
     for (const name of combatFx) {
       this.load.spritesheet(name, `assets/sprites/fx/${name}.png`, {
