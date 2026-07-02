@@ -1,0 +1,26 @@
+{
+  "globalStyle": "SNES 16-bit pixel art app icon, limited color palette, chunky clean pixels, bold shapes with strong dark outlines, retro tactical RPG style",
+  "categories": {
+    "pwa_icon": {
+      "targetSize": 512,
+      "aspectRatio": "1:1",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "square mobile app icon, single centered emblem, bold silhouette that stays readable at very small sizes, flat very dark navy blue background filling the entire square, generous margin around the emblem, no text, no letters, no watermark, no rounded-corner frame, no border",
+      "assets": [
+        {
+          "name": "icon_swords",
+          "prompt": "ornate golden crossed swords over a small royal blue kite shield, gleaming blade highlights, tiny red gem in the shield center, heroic fantasy heraldic emblem"
+        },
+        {
+          "name": "icon_lord",
+          "prompt": "heroic young lord knight bust portrait facing forward, blue and silver armor with gold trim, determined eyes, dark teal cape, brown hair, classic 16-bit fire emblem style character portrait"
+        },
+        {
+          "name": "icon_emblem",
+          "prompt": "glowing golden royal crest emblem, a winged sword pointing upward inside a diamond shape, small flame accents at the wing tips, regal fantasy sigil"
+        }
+      ]
+    }
+  }
+}
