@@ -113,8 +113,20 @@ describe('dialogue.json content', () => {
     const scanLines = (entries) => {
       for (const e of entries) expect(e.line).not.toMatch(/Edric/);
     };
-    for (const entries of Object.values(dialogue.actTransitions)) scanLines(entries);
-    for (const entries of Object.values(dialogue.runComplete)) scanLines(entries);
+    // Sections may be a plain entry array or { base, variants } (see
+    // NarrativeDirector). Scan every pool either way.
+    const scanSection = (value) => {
+      if (Array.isArray(value)) {
+        scanLines(value);
+        return;
+      }
+      if (Array.isArray(value?.base)) scanLines(value.base);
+      for (const variant of value?.variants || []) {
+        if (Array.isArray(variant?.entries)) scanLines(variant.entries);
+      }
+    };
+    for (const value of Object.values(dialogue.actTransitions)) scanSection(value);
+    for (const value of Object.values(dialogue.runComplete)) scanSection(value);
     for (const pool of Object.values(dialogue.lordFarewell)) {
       for (const line of pool) expect(line).not.toMatch(/Edric/);
     }

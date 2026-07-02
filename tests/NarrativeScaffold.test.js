@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import fs from 'node:fs';
 import { RunManager, getActTransitionKey } from '../src/engine/RunManager.js';
+import {
+  KNOWN_WHEN_KEYS,
+  buildNarrativeContext,
+  selectDialogueEntries,
+} from '../src/engine/NarrativeDirector.js';
 import { loadGameData } from './testData.js';
 
 vi.mock('phaser', () => ({
@@ -56,6 +61,58 @@ describe('Narrative scaffold helpers', () => {
 });
 
 describe('Narrative data', () => {
+  const lordNames = JSON.parse(fs.readFileSync('data/lords.json', 'utf8')).map((l) => l.name);
+
+  /**
+   * Validate a story-section value in either shape (plain entry array, or
+   * { base, variants: [{ when, entries }] }) and return every entry array it
+   * contains so entries can be checked uniformly.
+   */
+  function validateSection(value, label) {
+    const pools = [];
+    if (Array.isArray(value)) {
+      pools.push({ entries: value, label });
+    } else {
+      expect(value, `${label} must be an array or object`).toBeTypeOf('object');
+      if (value.base !== undefined) {
+        expect(Array.isArray(value.base), `${label}.base must be an array`).toBe(true);
+        pools.push({ entries: value.base, label: `${label}.base` });
+      }
+      const variants = value.variants ?? [];
+      expect(Array.isArray(variants), `${label}.variants must be an array`).toBe(true);
+      variants.forEach((variant, i) => {
+        const vLabel = `${label}.variants[${i}]`;
+        expect(variant?.when, `${vLabel}.when must be an object`).toBeTypeOf('object');
+        for (const key of Object.keys(variant.when)) {
+          expect(KNOWN_WHEN_KEYS.has(key), `${vLabel} uses unknown when key "${key}"`).toBe(true);
+        }
+        if (typeof variant.when.commander === 'string') {
+          expect(
+            lordNames.includes(variant.when.commander),
+            `${vLabel} references unknown commander "${variant.when.commander}"`,
+          ).toBe(true);
+        }
+        expect(
+          Array.isArray(variant.entries) && variant.entries.length > 0,
+          `${vLabel}.entries must be a non-empty array`,
+        ).toBe(true);
+        pools.push({ entries: variant.entries, label: vLabel });
+      });
+      expect(pools.length, `${label} has neither base nor variants`).toBeGreaterThan(0);
+    }
+    for (const pool of pools) {
+      for (const entry of pool.entries) {
+        expect(entry, `${pool.label} entry`).toBeTypeOf('object');
+        expect(entry.line, `${pool.label} entry line`).toBeTypeOf('string');
+        expect(
+          entry.speaker === null || typeof entry.speaker === 'string',
+          `${pool.label} entry speaker`,
+        ).toBe(true);
+      }
+    }
+    return pools;
+  }
+
   it('keeps data/public dialogue in sync and structurally valid', () => {
     const dialogueRaw = fs.readFileSync('data/dialogue.json', 'utf8');
     const publicDialogueRaw = fs.readFileSync('public/data/dialogue.json', 'utf8');
@@ -68,24 +125,120 @@ describe('Narrative data', () => {
       for (const line of lines) expect(typeof line).toBe('string');
     }
 
-    for (const entries of Object.values(dialogue.actTransitions || {})) {
-      expect(Array.isArray(entries)).toBe(true);
-      for (const entry of entries) {
-        expect(entry).toBeTypeOf('object');
-        expect(entry.line).toBeTypeOf('string');
-        expect(entry.speaker === null || typeof entry.speaker === 'string').toBe(true);
+    for (const [key, value] of Object.entries(dialogue.actTransitions || {})) {
+      validateSection(value, `actTransitions.${key}`);
+    }
+
+    for (const [name, boss] of Object.entries(dialogue.bossEncounters || {})) {
+      validateSection(boss.preBattle, `bossEncounters.${name}.preBattle`);
+      validateSection(boss.defeat, `bossEncounters.${name}.defeat`);
+    }
+
+    for (const key of ['victory_normal', 'victory_hard', 'victory_lunatic', 'defeat']) {
+      expect(dialogue.runComplete?.[key], `runComplete.${key}`).toBeTruthy();
+      validateSection(dialogue.runComplete[key], `runComplete.${key}`);
+    }
+  });
+
+  it('narrative depth checklist: commander voices and boss memory variants exist', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+
+    // Every lord has a commander-voice variant on the required beats.
+    const commanderBeats = [
+      ['actTransitions', 'runStartCommander'],
+      ['actTransitions', 'act1_to_act2'],
+      ['actTransitions', 'act2_to_act3'],
+      ['actTransitions', 'act3_to_finalBoss_normal'],
+      ['runComplete', 'victory_normal'],
+      ['runComplete', 'defeat'],
+    ];
+    for (const [section, key] of commanderBeats) {
+      const variants = dialogue[section]?.[key]?.variants || [];
+      for (const lord of lordNames) {
+        expect(
+          variants.some((v) => v?.when?.commander === lord),
+          `${section}.${key} missing {commander: "${lord}"} variant`,
+        ).toBe(true);
       }
     }
 
-    for (const boss of Object.values(dialogue.bossEncounters || {})) {
-      expect(Array.isArray(boss.preBattle)).toBe(true);
-      expect(Array.isArray(boss.defeat)).toBe(true);
-    }
+    // Run-start seer vision reacts to how the last run ended.
+    const runStartVariants = dialogue.actTransitions?.runStart?.variants || [];
+    expect(
+      runStartVariants.some(
+        (v) => v?.when?.lastRunResult === 'defeat' && v?.when?.lastRunDefeatedByKnown === true,
+      ),
+    ).toBe(true);
+    expect(runStartVariants.some((v) => v?.when?.lastRunResult === 'defeat')).toBe(true);
+    expect(runStartVariants.some((v) => v?.when?.lastRunResult === 'victory')).toBe(true);
 
-    expect(Array.isArray(dialogue.runComplete?.victory_normal)).toBe(true);
-    expect(Array.isArray(dialogue.runComplete?.victory_hard)).toBe(true);
-    expect(Array.isArray(dialogue.runComplete?.victory_lunatic)).toBe(true);
-    expect(Array.isArray(dialogue.runComplete?.defeat)).toBe(true);
+    // First full clear gets its own victory beat, ahead of commander variants.
+    expect(dialogue.runComplete?.victory_normal?.variants?.[0]?.when?.firstClear).toBe(true);
+
+    // Every boss remembers: gloat when it has killed you, unease on a rematch,
+    // and a distinct repeat-defeat line.
+    for (const [name, boss] of Object.entries(dialogue.bossEncounters || {})) {
+      const pre = boss.preBattle?.variants || [];
+      expect(
+        pre.some((v) => v?.when?.bossKilledYouBefore === true),
+        `${name} missing preBattle bossKilledYouBefore variant`,
+      ).toBe(true);
+      expect(
+        pre.some((v) => v?.when?.bossSlainBefore === true),
+        `${name} missing preBattle bossSlainBefore variant`,
+      ).toBe(true);
+      const post = boss.defeat?.variants || [];
+      expect(
+        post.some((v) => v?.when?.bossSlainBefore === true),
+        `${name} missing defeat bossSlainBefore variant`,
+      ).toBe(true);
+    }
+  });
+
+  it('boss memory variants select correctly against real data', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    const preBattle = dialogue.bossEncounters['Iron Captain'].preBattle;
+    const makeMeta = (slain, killedYou) => ({
+      runsCompleted: 1,
+      getStoryFlags: () => ({ lastRun: null }),
+      getBossSlainCount: () => slain,
+      getDefeatedByCount: () => killedYou,
+    });
+
+    const fresh = selectDialogueEntries(
+      preBattle,
+      buildNarrativeContext({ meta: makeMeta(0, 0), bossName: 'Iron Captain' }),
+    );
+    expect(fresh).toEqual(preBattle.base);
+
+    const gloat = selectDialogueEntries(
+      preBattle,
+      buildNarrativeContext({ meta: makeMeta(1, 2), bossName: 'Iron Captain' }),
+    );
+    expect(gloat[0].line).toContain('broken you once');
+
+    const rematch = selectDialogueEntries(
+      preBattle,
+      buildNarrativeContext({ meta: makeMeta(1, 0), bossName: 'Iron Captain' }),
+    );
+    expect(rematch[0].line).toContain('dream where I died');
+  });
+
+  it('run-start seer vision names the boss that ended the last run', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    const meta = {
+      runsCompleted: 2,
+      getStoryFlags: () => ({
+        lastRun: { result: 'defeat', defeatedBy: 'Warchief', endedAt: 1 },
+      }),
+      getBossSlainCount: () => 0,
+      getDefeatedByCount: () => 0,
+    };
+    const entries = selectDialogueEntries(
+      dialogue.actTransitions.runStart,
+      buildNarrativeContext({ meta }),
+    );
+    expect(entries[0].line).toContain('Warchief');
   });
 
   it('keeps data/public enemies in sync and uses The Lieutenant final boss', () => {
@@ -152,6 +305,7 @@ describe('Scene wiring', () => {
       ensureAudioUnlocked: vi.fn(async () => {}),
       sys: { isActive: () => true },
       input: { enabled: false },
+      registry: { get: () => null },
       runManager: {
         hasShownDialogue: vi.fn(() => false),
         markDialogueShown: vi.fn((key) => order.push(`mark:${key}`)),
@@ -185,6 +339,7 @@ describe('Scene wiring', () => {
 
   it('run-complete dialogue key derivation follows result and difficulty', () => {
     const base = {
+      registry: { get: () => null },
       gameData: {
         dialogue: {
           runComplete: {
@@ -207,6 +362,146 @@ describe('Scene wiring', () => {
     expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('h');
     base.runManager.difficultyId = 'lunatic';
     expect(RunCompleteScene.prototype._getRunCompleteDialogue.call(base)?.[0]?.line).toBe('l');
+  });
+
+  it('NodeMap runStart composes seer vision + commander voice into one sequence', async () => {
+    const shown = [];
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      registry: { get: () => null },
+      runManager: {
+        hasShownDialogue: vi.fn(() => false),
+        markDialogueShown: vi.fn(),
+        getStartingLordNames: () => ['Kira', 'Voss'],
+      },
+      gameData: {
+        dialogue: {
+          actTransitions: {
+            runStart: { base: [{ speaker: 'Sera', line: 'vision', portrait: null }] },
+            runStartCommander: {
+              base: [{ speaker: 'Edric', line: 'generic', portrait: null }],
+              variants: [
+                {
+                  when: { commander: 'Kira' },
+                  entries: [{ speaker: 'Kira', line: 'kira voice', portrait: null }],
+                },
+              ],
+            },
+          },
+        },
+      },
+      dialogueOverlay: {
+        showSequence: vi.fn(async (entries) => {
+          shown.push(...entries);
+        }),
+      },
+      persistRunSave: vi.fn(),
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _storyDialogueActive: false,
+      isSceneReady: false,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(shown.map((e) => e.line)).toEqual(['vision', 'kira voice']);
+  });
+
+  it('onVictory records boss slain AFTER selecting dialogue, BEFORE showing it', async () => {
+    const order = [];
+    const pending = [];
+    const meta = {
+      runsCompleted: 1,
+      getStoryFlags: () => ({ lastRun: null }),
+      getBossSlainCount: () => 1, // prior kill: rematch defeat variant should fire
+      getDefeatedByCount: () => 0,
+      recordBossSlain: vi.fn(() => order.push('record')),
+    };
+    let shownEntries = null;
+    const scene = {
+      battleState: 'PLAYER_IDLE',
+      battleParams: { tutorialMode: false, act: 'act1' },
+      scene: { isActive: () => true },
+      cameras: { main: { centerX: 320, centerY: 240 } },
+      add: {
+        text: vi.fn(() => ({
+          setOrigin() {
+            return this;
+          },
+          setDepth() {
+            return this;
+          },
+          destroy: vi.fn(),
+        })),
+      },
+      _pinToScreen: vi.fn(),
+      time: {
+        delayedCall: vi.fn((_ms, cb) => {
+          pending.push(cb());
+        }),
+      },
+      registry: {
+        get: vi.fn((key) => (key === 'meta' ? meta : { playMusic: vi.fn() })),
+      },
+      clearBattleScopedDeltas: vi.fn(),
+      playerUnits: [{ name: 'Edric', stats: { HP: 20 } }],
+      nonDeployedUnits: [],
+      getTurnPressureState: vi.fn(() => ({ goldMultiplier: 1 })),
+      goldEarned: 0,
+      nodeId: 'node-1',
+      isBoss: true,
+      isElite: false,
+      _bossName: 'Iron Captain',
+      _resolveBossDialogueName: (name) => name,
+      _showStoryDialogueOnce: vi.fn(async (_key, entries) => {
+        order.push('show');
+        shownEntries = entries;
+      }),
+      gameData: {
+        dialogue: JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8')),
+      },
+      runManager: {
+        completeBattle: vi.fn(() => true),
+        isRunComplete: vi.fn(() => false),
+        shouldTriggerThirdLord: vi.fn(() => false),
+        getStartingLordNames: () => ['Edric', 'Sera'],
+      },
+      _persistBattleRunState: vi.fn(),
+      dialogueOverlay: { show: vi.fn(async () => {}) },
+      showLootScreen: vi.fn(),
+      showBossRecruitScreen: vi.fn(),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(order).toEqual(['record', 'show']);
+    expect(meta.recordBossSlain).toHaveBeenCalledWith('Iron Captain');
+    // Selection happened before the record: the rematch defeat variant fired.
+    expect(shownEntries[0].line).toContain('Again');
+  });
+
+  it('_getRunCompleteDialogue picks the firstClear variant when stamped on rewards', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    const base = {
+      registry: { get: () => null },
+      gameData: { dialogue },
+      runManager: {
+        difficultyId: 'normal',
+        endRunRewards: { firstClear: true },
+        getStartingLordNames: () => ['Edric', 'Sera'],
+      },
+      result: 'victory',
+    };
+    const entries = RunCompleteScene.prototype._getRunCompleteDialogue.call(base);
+    expect(entries.length).toBeGreaterThan(1);
+    expect(entries[0].line).toContain("It's done");
+
+    base.runManager.endRunRewards.firstClear = false;
+    const repeat = RunCompleteScene.prototype._getRunCompleteDialogue.call(base);
+    expect(repeat[0].line).not.toContain("It's done");
   });
 
   it('maps Dark Champion alias to The Lieutenant for boss dialogue lookup', () => {

@@ -1504,3 +1504,187 @@ describe('masterOfArms meta effect', () => {
     expect(upgrade.effects[0].masterOfArms).toBe(true);
   });
 });
+
+describe('storyFlags (run-aware narrative memory)', () => {
+  beforeEach(() => {
+    clearStore();
+  });
+
+  it('defaults to empty memory on a fresh save', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getStoryFlags()).toEqual({
+      bossSlain: {},
+      defeatedBy: {},
+      lordFalls: {},
+      lastRun: null,
+    });
+    expect(meta.getBossSlainCount('Iron Captain')).toBe(0);
+    expect(meta.getDefeatedByCount('Iron Captain')).toBe(0);
+  });
+
+  it('legacy payload without storyFlags migrates to defaults', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 100,
+      totalSupply: 100,
+      purchasedUpgrades: {},
+      milestones: ['beatGame'],
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getStoryFlags()).toEqual({
+      bossSlain: {},
+      defeatedBy: {},
+      lordFalls: {},
+      lastRun: null,
+    });
+  });
+
+  it('recordBossSlain increments and persists; garbage names ignored', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordBossSlain('Iron Captain');
+    meta.recordBossSlain('Iron Captain');
+    meta.recordBossSlain('  ');
+    meta.recordBossSlain(null);
+    expect(meta.getBossSlainCount('Iron Captain')).toBe(2);
+    const saved = JSON.parse(store['emblem_rogue_meta_save']);
+    expect(saved.storyFlags.bossSlain['Iron Captain']).toBe(2);
+  });
+
+  it('recordRunEnd sets lastRun and counts boss defeats + lord falls', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordRunEnd({
+      result: 'defeat',
+      act: 'act2',
+      difficultyId: 'hard',
+      defeatedBy: 'Warchief',
+      wasBossDefeat: true,
+      lordFalls: ['Kira', 'Voss', 'Kira'],
+    });
+    const flags = meta.getStoryFlags();
+    expect(flags.lastRun.result).toBe('defeat');
+    expect(flags.lastRun.act).toBe('act2');
+    expect(flags.lastRun.difficultyId).toBe('hard');
+    expect(flags.lastRun.defeatedBy).toBe('Warchief');
+    expect(flags.lastRun.endedAt).toBeGreaterThan(0);
+    expect(meta.getDefeatedByCount('Warchief')).toBe(1);
+    expect(flags.lordFalls).toEqual({ Kira: 2, Voss: 1 });
+  });
+
+  it('recordRunEnd without wasBossDefeat does not touch defeatedBy', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordRunEnd({ result: 'defeat', defeatedBy: 'Warchief', wasBossDefeat: false });
+    expect(meta.getDefeatedByCount('Warchief')).toBe(0);
+    expect(meta.getStoryFlags().lastRun.defeatedBy).toBe('Warchief');
+  });
+
+  it('recordRunEnd on victory records lastRun only', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordRunEnd({ result: 'victory', act: 'finalBoss', difficultyId: 'normal' });
+    const flags = meta.getStoryFlags();
+    expect(flags.lastRun.result).toBe('victory');
+    expect(flags.defeatedBy).toEqual({});
+  });
+
+  it('recordRunEnd ignores invalid results', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordRunEnd({ result: 'abandoned' });
+    meta.recordRunEnd();
+    expect(meta.getStoryFlags().lastRun).toBeNull();
+  });
+
+  it('round-trips through localStorage', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordBossSlain('The Emperor');
+    meta.recordRunEnd({ result: 'victory', act: 'finalBoss', difficultyId: 'hard' });
+    const reloaded = new MetaProgressionManager(upgradesData);
+    expect(reloaded.getBossSlainCount('The Emperor')).toBe(1);
+    expect(reloaded.getStoryFlags().lastRun.result).toBe('victory');
+  });
+
+  it('sanitizes malformed persisted storyFlags on load', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      storyFlags: {
+        bossSlain: { Warchief: -3, Archmage: 'two', 'Iron Wall': 2.9 },
+        defeatedBy: 'nope',
+        lordFalls: null,
+        lastRun: { result: 'weird' },
+      },
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getStoryFlags()).toEqual({
+      bossSlain: { 'Iron Wall': 2 },
+      defeatedBy: {},
+      lordFalls: {},
+      lastRun: null,
+    });
+  });
+
+  it('adopt-merge takes per-name max counters and later lastRun from disk', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordBossSlain('Warchief'); // local: 1, also bumps savedAt
+    meta.storyFlags.defeatedBy['Iron Captain'] = 5;
+    meta.storyFlags.lastRun = {
+      result: 'defeat',
+      act: 'act1',
+      difficultyId: 'normal',
+      defeatedBy: 'Iron Captain',
+      endedAt: 1000,
+    };
+    // Simulate a newer foreign payload on disk (cloud fetch from another device)
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 0,
+      totalSupply: 0,
+      purchasedUpgrades: {},
+      milestones: [],
+      storyFlags: {
+        bossSlain: { Warchief: 3 },
+        defeatedBy: { 'Iron Captain': 2 },
+        lordFalls: { Rowan: 1 },
+        lastRun: {
+          result: 'victory',
+          act: 'finalBoss',
+          difficultyId: 'normal',
+          defeatedBy: null,
+          endedAt: 2000,
+        },
+      },
+      savedAt: meta.savedAt + 100000,
+    });
+    meta.addValor(10); // triggers _save → _adoptForeignDiskStateIfNewer
+    expect(meta.getBossSlainCount('Warchief')).toBe(3); // disk higher wins
+    expect(meta.getDefeatedByCount('Iron Captain')).toBe(5); // local higher wins
+    expect(meta.getStoryFlags().lordFalls.Rowan).toBe(1); // disk-only adopted
+    expect(meta.getStoryFlags().lastRun.result).toBe('victory'); // later endedAt wins
+  });
+
+  it('adopt-merge keeps local lastRun when it is newer', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.storyFlags.lastRun = {
+      result: 'defeat',
+      act: 'act3',
+      difficultyId: 'hard',
+      defeatedBy: 'Blade Lord',
+      endedAt: 9000,
+    };
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      storyFlags: {
+        lastRun: { result: 'victory', endedAt: 100 },
+      },
+      savedAt: meta.savedAt + 100000,
+    });
+    meta.addValor(10);
+    expect(meta.getStoryFlags().lastRun.defeatedBy).toBe('Blade Lord');
+  });
+
+  it('reset clears storyFlags', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordBossSlain('Warchief');
+    meta.recordRunEnd({ result: 'defeat', defeatedBy: 'Warchief', wasBossDefeat: true });
+    meta.reset();
+    expect(meta.getStoryFlags()).toEqual({
+      bossSlain: {},
+      defeatedBy: {},
+      lordFalls: {},
+      lastRun: null,
+    });
+  });
+});

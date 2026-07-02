@@ -1073,6 +1073,147 @@ describe('RunManager', () => {
       rm.failRun();
       expect(rm.status).toBe('defeat');
     });
+
+    it('captures defeat context for narrative memory', () => {
+      rm.startRun();
+      rm.failRun({ defeatedBy: 'Iron Captain', wasBoss: true });
+      expect(rm.defeatContext).toEqual({ defeatedBy: 'Iron Captain', wasBoss: true });
+    });
+
+    it('clears defeat context when called without one (abandon/retreat)', () => {
+      rm.startRun();
+      rm.failRun({ defeatedBy: 'Iron Captain', wasBoss: true });
+      rm.failRun();
+      expect(rm.defeatContext).toBeNull();
+    });
+
+    it('sanitizes malformed context', () => {
+      rm.startRun();
+      rm.failRun({ defeatedBy: 42, wasBoss: 'yes' });
+      expect(rm.defeatContext).toEqual({ defeatedBy: null, wasBoss: false });
+    });
+  });
+
+  describe('narrative memory (storyFlags capture/flush)', () => {
+    const makeMeta = (extra = {}) => ({
+      addValor: vi.fn(),
+      addSupply: vi.fn(),
+      incrementRunsCompleted: vi.fn(),
+      recordMilestone: vi.fn(),
+      hasMilestone: vi.fn(() => false),
+      recordRunEnd: vi.fn(),
+      ...extra,
+    });
+
+    it('completeBattle records non-commander lord falls', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      const roster = rm.getRoster();
+      const partner = roster.find((u) => u.isLord && !u.isCommander);
+      expect(partner).toBeTruthy();
+      const survivors = roster.filter((u) => u.name !== partner.name);
+      rm.completeBattle(survivors, startNode.id);
+      expect(rm.runLordFalls).toEqual([partner.name]);
+    });
+
+    it('completeBattle ignores fallen non-lords and commanders', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.roster.push({
+        ...serializeUnit(rm.roster[0]),
+        name: 'Test Recruit',
+        isLord: false,
+        isCommander: false,
+      });
+      const survivors = rm.getRoster().filter((u) => u.name !== 'Test Recruit');
+      rm.completeBattle(survivors, startNode.id);
+      expect(rm.runLordFalls).toEqual([]);
+    });
+
+    it('flushes recordRunEnd exactly once with defeat context and lord falls', () => {
+      rm.startRun();
+      rm.runLordFalls = ['Sera'];
+      rm.failRun({ defeatedBy: 'Warchief', wasBoss: true });
+      rm.actIndex = 1;
+      rm.completedBattles = 3;
+      const meta = makeMeta();
+      rm.settleEndRunRewards(meta, 'defeat');
+      rm.settleEndRunRewards(meta, 'defeat');
+      expect(meta.recordRunEnd).toHaveBeenCalledTimes(1);
+      expect(meta.recordRunEnd).toHaveBeenCalledWith({
+        result: 'defeat',
+        act: rm.currentAct,
+        difficultyId: 'normal',
+        defeatedBy: 'Warchief',
+        wasBossDefeat: true,
+        lordFalls: ['Sera'],
+      });
+      expect(rm.endRunRewards.firstClear).toBe(false);
+    });
+
+    it('stamps firstClear only on a first full victory', () => {
+      rm.startRun();
+      rm.actIndex = 3;
+      const freshMeta = makeMeta();
+      const summary = rm.settleEndRunRewards(freshMeta, 'victory');
+      expect(summary.firstClear).toBe(true);
+      expect(freshMeta.recordMilestone).toHaveBeenCalledWith('beatGame');
+
+      const rm2 = new RunManager(gameData);
+      rm2.startRun();
+      rm2.actIndex = 3;
+      const veteranMeta = makeMeta({ hasMilestone: vi.fn((m) => m === 'beatGame') });
+      const summary2 = rm2.settleEndRunRewards(veteranMeta, 'victory');
+      expect(summary2.firstClear).toBe(false);
+    });
+
+    it('does not stamp firstClear on defeat or partial runs', () => {
+      rm.startRun();
+      rm.actIndex = 2;
+      const summary = rm.settleEndRunRewards(makeMeta(), 'victory');
+      expect(summary.firstClear).toBe(false);
+    });
+
+    it('tolerates a minimal meta without recordRunEnd/hasMilestone', () => {
+      rm.startRun();
+      rm.failRun();
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      expect(() => rm.settleEndRunRewards(meta, 'defeat')).not.toThrow();
+      expect(rm.endRunRewards.firstClear).toBe(false);
+    });
+
+    it('round-trips defeatContext and runLordFalls through toJSON/fromJSON', () => {
+      rm.startRun();
+      rm.runLordFalls = ['Sera', 'Kira'];
+      rm.failRun({ defeatedBy: 'Iron Captain', wasBoss: true });
+      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(restored.defeatContext).toEqual({ defeatedBy: 'Iron Captain', wasBoss: true });
+      expect(restored.runLordFalls).toEqual(['Sera', 'Kira']);
+    });
+
+    it('legacy saves without narrative fields default cleanly', () => {
+      rm.startRun();
+      const saved = rm.toJSON();
+      delete saved.defeatContext;
+      delete saved.runLordFalls;
+      const restored = RunManager.fromJSON(saved, gameData);
+      expect(restored.defeatContext).toBeNull();
+      expect(restored.runLordFalls).toEqual([]);
+    });
+
+    it('startRun resets narrative capture state', () => {
+      rm.startRun();
+      rm.runLordFalls = ['Sera'];
+      rm.failRun({ defeatedBy: 'Warchief', wasBoss: true });
+      rm.startRun();
+      expect(rm.defeatContext).toBeNull();
+      expect(rm.runLordFalls).toEqual([]);
+    });
   });
 
   describe('convoy', () => {

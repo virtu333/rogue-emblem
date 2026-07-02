@@ -32,6 +32,43 @@ function normalizeLordSelection(raw) {
   return { commander, partner };
 }
 
+function defaultStoryFlags() {
+  return { bossSlain: {}, defeatedBy: {}, lordFalls: {}, lastRun: null };
+}
+
+function normalizeStoryCountMap(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [name, value] of Object.entries(raw)) {
+    const count = Math.max(0, Math.floor(Number(value) || 0));
+    if (count > 0) out[name] = count;
+  }
+  return out;
+}
+
+function normalizeLastRun(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const result = raw.result === 'victory' || raw.result === 'defeat' ? raw.result : null;
+  if (!result) return null;
+  return {
+    result,
+    act: typeof raw.act === 'string' ? raw.act : null,
+    difficultyId: typeof raw.difficultyId === 'string' ? raw.difficultyId : 'normal',
+    defeatedBy: typeof raw.defeatedBy === 'string' ? raw.defeatedBy : null,
+    endedAt: Number.isFinite(raw.endedAt) ? raw.endedAt : 0,
+  };
+}
+
+function normalizeStoryFlags(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return defaultStoryFlags();
+  return {
+    bossSlain: normalizeStoryCountMap(raw.bossSlain),
+    defeatedBy: normalizeStoryCountMap(raw.defeatedBy),
+    lordFalls: normalizeStoryCountMap(raw.lordFalls),
+    lastRun: normalizeLastRun(raw.lastRun),
+  };
+}
+
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
 const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
@@ -84,6 +121,7 @@ export class MetaProgressionManager {
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
+    this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
 
     try {
       const raw = localStorage.getItem(this.storageKey);
@@ -120,6 +158,8 @@ export class MetaProgressionManager {
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
         // Migration: old saves without milestones default to empty
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
+        // Migration: old saves without storyFlags default to empty memory
+        if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
       }
     } catch (_) {
       /* incognito / quota exceeded */
@@ -246,6 +286,62 @@ export class MetaProgressionManager {
 
   getMilestones() {
     return [...this.milestones];
+  }
+
+  // --- Story flag methods (run-aware narrative memory) ---
+
+  getStoryFlags() {
+    return this.storyFlags;
+  }
+
+  getBossSlainCount(name) {
+    return Math.max(0, Math.floor(Number(this.storyFlags?.bossSlain?.[name]) || 0));
+  }
+
+  getDefeatedByCount(name) {
+    return Math.max(0, Math.floor(Number(this.storyFlags?.defeatedBy?.[name]) || 0));
+  }
+
+  recordBossSlain(name) {
+    if (typeof name !== 'string' || !name.trim()) return;
+    const key = name.trim();
+    this.storyFlags.bossSlain[key] = this.getBossSlainCount(key) + 1;
+    this._save();
+  }
+
+  /**
+   * Record how a run ended. Called exactly once per run, from
+   * RunManager._applySettledRewardsToMeta (under its appliedToMeta guard).
+   * defeatedBy is only counted when the fatal battle was a boss fight.
+   */
+  recordRunEnd({
+    result,
+    act = null,
+    difficultyId = 'normal',
+    defeatedBy = null,
+    wasBossDefeat = false,
+    lordFalls = [],
+  } = {}) {
+    if (result !== 'victory' && result !== 'defeat') return;
+    const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
+    this.storyFlags.lastRun = {
+      result,
+      act: typeof act === 'string' ? act : null,
+      difficultyId: typeof difficultyId === 'string' ? difficultyId : 'normal',
+      defeatedBy: foe,
+      endedAt: Date.now(),
+    };
+    if (result === 'defeat' && wasBossDefeat && foe) {
+      this.storyFlags.defeatedBy[foe] = this.getDefeatedByCount(foe) + 1;
+    }
+    if (Array.isArray(lordFalls)) {
+      for (const lordName of lordFalls) {
+        if (typeof lordName !== 'string' || !lordName) continue;
+        const current = Math.max(0, Math.floor(Number(this.storyFlags.lordFalls[lordName]) || 0));
+        this.storyFlags.lordFalls[lordName] = current + 1;
+      }
+    }
+    this._save();
   }
 
   // --- Prerequisite methods ---
@@ -782,6 +878,7 @@ export class MetaProgressionManager {
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.milestones = new Set();
+    this.storyFlags = defaultStoryFlags();
     this._save();
   }
 
@@ -850,6 +947,22 @@ export class MetaProgressionManager {
     ) {
       this.lordSelection = normalizeLordSelection(disk.lordSelection);
     }
+    if (disk.storyFlags && typeof disk.storyFlags === 'object') {
+      const diskFlags = normalizeStoryFlags(disk.storyFlags);
+      // Counters are monotonic, so per-name max can only over-remember —
+      // it can never resurrect a reverted event.
+      for (const mapKey of ['bossSlain', 'defeatedBy', 'lordFalls']) {
+        for (const [name, count] of Object.entries(diskFlags[mapKey])) {
+          const local = Math.max(0, Math.floor(Number(this.storyFlags[mapKey][name]) || 0));
+          this.storyFlags[mapKey][name] = Math.max(local, count);
+        }
+      }
+      const diskEndedAt = Number(diskFlags.lastRun?.endedAt) || 0;
+      const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
+      if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
+        this.storyFlags.lastRun = diskFlags.lastRun;
+      }
+    }
     this.savedAt = diskSavedAt;
   }
 
@@ -866,6 +979,7 @@ export class MetaProgressionManager {
       skillAssignments: this.skillAssignments,
       lordSelection: this.lordSelection,
       milestones: [...this.milestones],
+      storyFlags: this.storyFlags,
       savedAt: this.savedAt,
     };
     let localOk = false;

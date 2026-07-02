@@ -187,6 +187,7 @@ import {
   adaptDialogueLine,
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
+import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -340,6 +341,7 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialLordRewindPromptPending = null;
     this._storyDialogueActive = false;
     this._bossName = null;
+    this._commanderKillerName = null;
     this._postLootTransitionStarted = false;
     this._postLootTransitionCompleted = false;
     this._postLootTransitionStartedAt = 0;
@@ -1828,7 +1830,14 @@ export class BattleScene extends Phaser.Scene {
       if (this.isBoss && this._bossName && this.runManager) {
         const bossName = this._resolveBossDialogueName(this._bossName);
         const dialogueKey = `boss_pre_${bossName}`;
-        const entries = this.gameData?.dialogue?.bossEncounters?.[bossName]?.preBattle;
+        const entries = selectDialogueEntries(
+          this.gameData?.dialogue?.bossEncounters?.[bossName]?.preBattle,
+          buildNarrativeContext({
+            meta: this.registry.get('meta'),
+            runManager: this.runManager,
+            bossName,
+          }),
+        );
         try {
           await this._showStoryDialogueOnce(dialogueKey, entries);
         } catch (err) {
@@ -8485,6 +8494,12 @@ export class BattleScene extends Phaser.Scene {
   async removeUnit(unit, options = {}) {
     if (!unit || unit._removing) return;
     const killer = options?.killer || null;
+    // Narrative memory: remember who felled the commander so onDefeat can
+    // attribute the run's end. Ephemeral scene state — a Vision rewind simply
+    // orphans it, and any later fatal death overwrites it before it is read.
+    if (unit.isCommander && unit.faction === 'player') {
+      this._commanderKillerName = typeof killer?.name === 'string' ? killer.name : null;
+    }
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
