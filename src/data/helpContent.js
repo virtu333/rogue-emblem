@@ -405,6 +405,46 @@ const STATIC_HELP_TABS = [
       },
     ],
   },
+  {
+    label: 'Input',
+    tags: ['controls', 'gamepad', 'controller', 'keyboard', 'mouse', 'buttons', 'hotkeys'],
+    pages: [
+      {
+        title: 'Gamepad Controls',
+        lines: [
+          { text: 'D-Pad/Stick  Move cursor & menu focus', color: GOLD },
+          { text: 'A            Confirm / select', color: GREEN },
+          { text: 'B            Cancel / back', color: RED },
+          { text: 'X            Toggle danger zones', color: CYAN },
+          { text: 'Y            Roster', color: CYAN },
+          { text: 'LB / RB      Cycle units (battle),', color: CYAN },
+          { text: '             cycle tabs (menus)' },
+          { text: 'LT           Inspect unit / tile', color: CYAN },
+          { text: 'Start        Pause menu', color: CYAN },
+          { text: '' },
+          { text: 'Xbox-style names shown. Nintendo pads', color: GRAY },
+          { text: 'swap the A/B button positions.', color: GRAY },
+        ],
+      },
+      {
+        title: 'Keyboard & Mouse',
+        lines: [
+          { text: 'Left click   Select / move / menus', color: GOLD },
+          { text: 'Right click  Inspect unit / tile', color: GOLD },
+          { text: 'ESC          Cancel / pause', color: RED },
+          { text: 'E            End turn', color: CYAN },
+          { text: 'D            Toggle danger zones', color: CYAN },
+          { text: 'O            Roster', color: CYAN },
+          { text: 'V            Unit details (inspected)', color: CYAN },
+          { text: 'W            Wait (end move early)', color: CYAN },
+          { text: 'R            Vision rewind viewer', color: CYAN },
+          { text: 'Left/Right   Swap weapon in forecast', color: CYAN },
+          { text: '' },
+          { text: 'Press / in this overlay to search.', color: GRAY },
+        ],
+      },
+    ],
+  },
 ];
 
 export const HELP_TABS = [...STATIC_HELP_TABS, ...GENERATED_HELP_TABS];
