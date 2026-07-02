@@ -1,4 +1,5 @@
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
+import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
 import {
@@ -141,7 +142,16 @@ export class PostCombatController {
           if (scene.isBoss && scene._bossName && scene.runManager) {
             const bossName = scene._resolveBossDialogueName(scene._bossName);
             const dialogueKey = `boss_defeat_${bossName}`;
-            const entries = scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat;
+            const meta = scene.registry.get('meta');
+            // Select BEFORE recording so a first kill doesn't see its own
+            // flag; record BEFORE showing so skipping/refreshing mid-dialogue
+            // can't lose the memory. The battle is already persisted as won
+            // at this point, so the flag can never be a phantom.
+            const entries = selectDialogueEntries(
+              scene.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat,
+              buildNarrativeContext({ meta, runManager: scene.runManager, bossName }),
+            );
+            meta?.recordBossSlain?.(bossName);
             await scene._showStoryDialogueOnce(dialogueKey, entries);
           }
         } catch (err) {
@@ -226,7 +236,13 @@ export class PostCombatController {
           scene.runManager.advanceAct();
           const toAct = scene.runManager.currentAct;
           const transKey = getActTransitionKey(fromAct, toAct);
-          const entries = scene.gameData?.dialogue?.actTransitions?.[transKey];
+          const entries = selectDialogueEntries(
+            scene.gameData?.dialogue?.actTransitions?.[transKey],
+            buildNarrativeContext({
+              meta: scene.registry.get('meta'),
+              runManager: scene.runManager,
+            }),
+          );
           try {
             await scene._showStoryDialogueOnce(transKey, entries);
           } catch (err) {
@@ -485,7 +501,16 @@ export class PostCombatController {
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
-      scene.runManager.failRun();
+      // Narrative memory: attribute the run's end. A defeat inside a boss
+      // battle is credited to the boss; otherwise to whoever felled the
+      // commander (may be null for e.g. field-empty losses).
+      const defeatBossName = scene.isBoss
+        ? scene._resolveBossDialogueName?.(scene._bossName)
+        : null;
+      scene.runManager.failRun({
+        defeatedBy: defeatBossName || scene._commanderKillerName || null,
+        wasBoss: Boolean(defeatBossName),
+      });
       // Persist the defeat (status + cleared suspend flag) immediately:
       // refreshing during the banner must not rewind to the pre-fatal
       // checkpoint — the reload routes to the game-over flow instead.

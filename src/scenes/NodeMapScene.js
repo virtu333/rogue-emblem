@@ -30,6 +30,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -386,7 +387,20 @@ export class NodeMapScene extends Phaser.Scene {
     try {
       if (this.sys?.isActive?.() !== false) {
         if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
-          const entries = this.gameData?.dialogue?.actTransitions?.runStart;
+          // Two composed beats: the seer's vision (varies by how the last
+          // run ended) followed by the commander's voice line.
+          const ctx = buildNarrativeContext({
+            meta: this.registry.get('meta'),
+            runManager: this.runManager,
+          });
+          const visionEntries =
+            selectDialogueEntries(this.gameData?.dialogue?.actTransitions?.runStart, ctx) || [];
+          const voiceEntries =
+            selectDialogueEntries(
+              this.gameData?.dialogue?.actTransitions?.runStartCommander,
+              ctx,
+            ) || [];
+          const entries = [...visionEntries, ...voiceEntries];
           if (
             Array.isArray(entries) &&
             entries.length > 0 &&

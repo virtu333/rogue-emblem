@@ -77,7 +77,9 @@ export default defineConfig({
     }),
   ],
   test: {
-    exclude: ['tests/e2e/**', 'node_modules/**'],
+    // .claude/** holds per-session git worktrees — their duplicated test
+    // trees must not run (or fail) as part of this repo's own suite.
+    exclude: ['tests/e2e/**', 'node_modules/**', '.claude/**'],
     coverage: {
       thresholds: {
         lines: 70,

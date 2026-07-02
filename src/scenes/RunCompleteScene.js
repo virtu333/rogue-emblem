@@ -8,6 +8,7 @@ import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -280,7 +281,16 @@ export class RunCompleteScene extends Phaser.Scene {
     if (!dialogue) return null;
     const key =
       this.result === 'victory' ? `victory_${this.runManager?.difficultyId || 'normal'}` : 'defeat';
-    const entries = dialogue[key];
+    // Settle has already run on both paths, so ctx.lastRunResult refers to
+    // THIS run — runComplete variants should gate on firstClear / commander /
+    // minRunsCompleted, never lastRunResult.
+    const entries = selectDialogueEntries(
+      dialogue[key],
+      buildNarrativeContext({
+        meta: this.registry.get('meta'),
+        runManager: this.runManager,
+      }),
+    );
     if (!Array.isArray(entries) || entries.length <= 0) return null;
     return adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.());
   }

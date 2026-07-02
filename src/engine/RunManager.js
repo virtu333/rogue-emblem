@@ -345,6 +345,12 @@ export class RunManager {
     this.maxWinStreak = 0;
     this.noMetaMode = false;
     this.shownDialogueKeys = [];
+    // Run-aware narrative capture: how this run ended (set by failRun) and
+    // which non-commander lords fell in completed battles. Flushed to meta
+    // story flags exactly once at settle time — never written mid-battle, so
+    // a battle reverted via Continue-from-Map leaves no phantom memory.
+    this.defeatContext = null; // { defeatedBy: string|null, wasBoss: boolean }
+    this.runLordFalls = [];
     this._churchPromotionTracker = null; // { nodeId: string, count: number }
     this.thirdLordJoined = false;
     this.thirdLordRerolled = false;
@@ -464,6 +470,8 @@ export class RunManager {
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
     this.shownDialogueKeys = [];
+    this.defeatContext = null;
+    this.runLordFalls = [];
     this._syncMetaWeaponArtUnlocks();
     this._syncActWeaponArtUnlocksForCurrentAct();
     this.blessingHistory = [];
@@ -2775,6 +2783,12 @@ export class RunManager {
         const serializedFallen = serializeUnit(fallen);
         this._transferFallenUnitItems(serializedFallen);
         this.fallenUnits.push(serializedFallen);
+        // Narrative memory: lords who fell in a battle that actually
+        // completed (a reverted battle never reaches this point).
+        if (fallen.isLord && !fallen.isCommander) {
+          if (!Array.isArray(this.runLordFalls)) this.runLordFalls = [];
+          this.runLordFalls.push(fallen.name);
+        }
       }
     }
 
@@ -3082,11 +3096,23 @@ export class RunManager {
     return Object.keys(scaled).length > 0 ? scaled : null;
   }
 
-  /** Mark the run as a defeat. */
-  failRun() {
+  /**
+   * Mark the run as a defeat.
+   * @param {{defeatedBy?: string|null, wasBoss?: boolean}|null} context - who
+   *   ended the run (for narrative memory). Abandon/retreat callers pass
+   *   nothing: retreating is not "slain by".
+   */
+  failRun(context = null) {
     this.status = 'defeat';
     this.winStreak = 0;
     this.battleInProgress = null;
+    this.defeatContext =
+      context && typeof context === 'object'
+        ? {
+            defeatedBy: typeof context.defeatedBy === 'string' ? context.defeatedBy : null,
+            wasBoss: context.wasBoss === true,
+          }
+        : null;
   }
 
   _applySettledRewardsToMeta(meta, summary) {
@@ -3094,6 +3120,12 @@ export class RunManager {
     meta.addValor(summary.valor);
     meta.addSupply(summary.supply);
     meta.incrementRunsCompleted();
+    // Stamp first-clear BEFORE beatGame is recorded — RunComplete dialogue
+    // reads it off endRunRewards after the milestone already exists.
+    summary.firstClear =
+      summary.result === 'victory' &&
+      this.actIndex >= 3 &&
+      (typeof meta.hasMilestone === 'function' ? !meta.hasMilestone('beatGame') : false);
     if (this.actIndex >= 1) meta.recordMilestone('beatAct1');
     if (this.actIndex >= 2) meta.recordMilestone('beatAct2');
     if (this.actIndex >= 3) meta.recordMilestone('beatAct3');
@@ -3102,6 +3134,15 @@ export class RunManager {
       meta.recordMilestone('beatHard');
     if (summary.result === 'victory' && this.difficultyId === 'lunatic')
       meta.recordMilestone('beatLunatic');
+    // Narrative memory flush — exactly-once under this guard, like currencies.
+    meta.recordRunEnd?.({
+      result: summary.result,
+      act: this.currentAct,
+      difficultyId: this.difficultyId || 'normal',
+      defeatedBy: this.defeatContext?.defeatedBy || null,
+      wasBossDefeat: this.defeatContext?.wasBoss === true,
+      lordFalls: Array.isArray(this.runLordFalls) ? this.runLordFalls : [],
+    });
     summary.appliedToMeta = true;
   }
 
@@ -3184,6 +3225,8 @@ export class RunManager {
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
       unlockedWeaponArts: this.unlockedWeaponArts || [],
       shownDialogueKeys: this.shownDialogueKeys || [],
+      defeatContext: this.defeatContext || null,
+      runLordFalls: this.runLordFalls || [],
       churchPromotionTracker: this._churchPromotionTracker || null,
       noMetaMode: this.noMetaMode || false,
       thirdLordJoined: this.thirdLordJoined || false,
@@ -3690,6 +3733,19 @@ export class RunManager {
     }
     rm.shownDialogueKeys = Array.isArray(saved.shownDialogueKeys)
       ? [...new Set(saved.shownDialogueKeys.filter((key) => typeof key === 'string' && key))]
+      : [];
+    rm.defeatContext =
+      saved.defeatContext && typeof saved.defeatContext === 'object'
+        ? {
+            defeatedBy:
+              typeof saved.defeatContext.defeatedBy === 'string'
+                ? saved.defeatContext.defeatedBy
+                : null,
+            wasBoss: saved.defeatContext.wasBoss === true,
+          }
+        : null;
+    rm.runLordFalls = Array.isArray(saved.runLordFalls)
+      ? saved.runLordFalls.filter((name) => typeof name === 'string' && name)
       : [];
     const rawTracker = saved.churchPromotionTracker;
     rm._churchPromotionTracker =

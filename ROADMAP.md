@@ -30,7 +30,7 @@ Organized by impact and logical sequencing:
 14. ~~**P0 Hardening + Playtest Fixes**~~ - Abandon Run freeze, Colosseum overlay flow, class innate protection, UI overflow fixes
 
 ### Now (Current Sprint)
-_Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part B+), content tuning, or further BattleScene decomposition._
+**Narrative Depth Phase 1 (B+A)** — run-aware narrative flags + lord voice expansion. See "Narrative Depth Workstream" below.
 
 ### Next (1-3 Months)
 9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency. Natural follow-on after Act 4 extends the run length.
@@ -50,6 +50,27 @@ _Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part
 21. **Additional biomes** (coastal, desert, cave, castle per act - See `docs/gdd/gdd_biomes_maps.md`)
 22. **Campaign system**
 23. **Endless mode + Lunatic+** - Post-Lunatic content (See `docs/specs/difficulty_spec.md` section 12.3)
+
+---
+
+## Narrative Depth Workstream (Jul 2026)
+
+Goal: make the story hold up across repeated runs. The light story scaffold (`docs/specs/light_story_scaffold_spec.md`) shipped the skeleton (act transitions, boss lines, run-complete, node flavor); this workstream adds depth on top of it. All content stays data-driven in `dialogue.json`-style JSON; delivery reuses the existing DialogueOverlay.
+
+**Canon decision:** the story canonically acknowledges the roguelike loop. Sera's visions frame each run as another timeline she is steering; the imperial conflict, the ritual/summoning, and the Entity are all tied to the loop itself. Boss "memory" of prior runs is diegetic, not a wink.
+
+**Phase 1 (now) — Run-aware narrative + lord voice (B+A):**
+- Persistent story flags in meta progression (runs completed, defeats by boss, bosses slain, first clears, lord deaths) drive dialogue variant selection with fallback to base keys (missing variant = show base line, never blocks).
+- Bosses react to rematches/prior kills; Sera's run-start vision references how the last run ended; run-complete lines evolve.
+- Every lord gets a voice: per-lord variants for act transitions and run-complete, weighted toward the chosen commander; lords other than Sera/Edric get real dialogue presence.
+
+**Phase 2 (next) — Mid-battle story beats (E):**
+- Boss lines at HP thresholds, commander/lord combat quips, named-boss vs named-lord exchanges. Touches BattleScene — must land as an extracted controller per decomposition rules.
+
+**Phase 3 (later) — Item/enemy lore flavor text (D, Elden Ring-style):**
+- Short lore descriptions for weapons, scrolls, potions/consumables, accessories, and enemies/bosses — worldbuilding through item text rather than exposition. Surfaced in inspection/detail overlays and/or a Compendium/Help lore tab.
+
+**Rejected:** camp/rest conversations (Support Bonds-style pair scenes) — not the direction for this game.
 
 ---
 
