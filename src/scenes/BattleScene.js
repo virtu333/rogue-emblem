@@ -7985,6 +7985,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+    fx.playImpact(event, striker, target);
     fx.recoil(target, striker);
     if (event.isCrit) fx.critImpact(striker);
     const pos = this.grid.gridToPixel(target.col, target.row);

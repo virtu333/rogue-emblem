@@ -1,0 +1,46 @@
+{
+  "globalStyle": "SNES 16-bit pixel art combat effect animation, limited color palette, chunky clean pixels, retro tactical RPG visual effect, glowing energy on a solid pure black background",
+  "categories": {
+    "combat_fx": {
+      "targetSize": 48,
+      "aspectRatio": "1:1",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "sprite sheet of exactly 4 animation frames arranged in a 2x2 grid, each frame centered in its quadrant, frames read left-to-right top-to-bottom showing the effect appear, peak, and dissipate, solid pure black background, no grid lines, no borders, no text",
+      "assets": [
+        {
+          "name": "fx_slash",
+          "prompt": "curved sword slash arc, bright white and cyan crescent blade trail sweeping from left to right, thin trailing sparks, elegant fast cut"
+        },
+        {
+          "name": "fx_chop",
+          "prompt": "heavy axe chop impact arc, thick orange and yellow crescent slash with jagged edges and metallic sparks, brutal downward-diagonal strike oriented left to right"
+        },
+        {
+          "name": "fx_thrust",
+          "prompt": "lance thrust streak, narrow horizontal spear pierce line with bright white-blue glowing tip and speed lines, pointing to the right"
+        },
+        {
+          "name": "fx_arrow",
+          "prompt": "arrow strike impact, small arrow with glowing yellow motion trail flying to the right ending in a sharp impact flash with tiny debris sparks"
+        },
+        {
+          "name": "fx_magic",
+          "prompt": "arcane fire magic burst, swirling red-orange and purple explosion of mystic energy expanding outward from center with small runic embers"
+        },
+        {
+          "name": "fx_light",
+          "prompt": "holy light magic burst, radiant golden-white column and rays of divine light shining down at center, soft glowing motes rising"
+        },
+        {
+          "name": "fx_heal",
+          "prompt": "healing sparkle effect, gentle green and white plus-shaped sparkles and rising glittering motes of restorative light at center"
+        },
+        {
+          "name": "fx_crit",
+          "prompt": "critical hit starburst, dramatic yellow-white star-shaped impact flash with radial shock lines exploding outward from center"
+        }
+      ]
+    }
+  }
+}

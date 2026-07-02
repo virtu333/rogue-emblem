@@ -11,9 +11,29 @@
  * Reduced-effects mode shortens durations and skips camera shake.
  */
 
+import Phaser from 'phaser';
+
 const LUNGE_PX = 10;
 const DODGE_PX = 8;
 const RECOIL_PX = 4;
+
+// Effect overlay depth: above units (10), below floating damage text (300).
+const FX_DEPTH = 250;
+const FX_FRAME_RATE = 16; // 4 frames -> ~250ms per burst
+
+/** Weapon type -> effect spritesheet key. Directional effects are drawn
+ *  pointing right in the source art and get rotated toward the target. */
+const WEAPON_FX = {
+  Sword: { key: 'fx_slash', directional: true },
+  Axe: { key: 'fx_chop', directional: true },
+  Lance: { key: 'fx_thrust', directional: true },
+  Bow: { key: 'fx_arrow', directional: true },
+  Tome: { key: 'fx_magic', directional: false },
+  Breath: { key: 'fx_magic', directional: false },
+  Scroll: { key: 'fx_magic', directional: false },
+  Light: { key: 'fx_light', directional: false },
+  Staff: { key: 'fx_heal', directional: false },
+};
 
 export class CombatFxController {
   constructor(scene) {
@@ -184,6 +204,54 @@ export class CombatFxController {
         }
       },
     });
+  }
+
+  /** Register the 4-frame play-once animation for an effect key (idempotent). */
+  _ensureAnim(key) {
+    const anims = this.scene.anims;
+    if (anims.exists(`${key}_anim`)) return true;
+    if (!this.scene.textures.exists(key)) return false;
+    anims.create({
+      key: `${key}_anim`,
+      frames: anims.generateFrameNumbers(key, { start: 0, end: 3 }),
+      frameRate: FX_FRAME_RATE,
+      repeat: 0,
+    });
+    return true;
+  }
+
+  /**
+   * Play a one-shot effect overlay at (x, y). Additive blending makes the
+   * black spritesheet background invisible. Fire-and-forget; the sprite
+   * destroys itself when the animation ends. Skipped in reduced-effects mode.
+   */
+  playOverlay(key, x, y, { rotation = 0, scale = 1 } = {}) {
+    if (this._reduced()) return;
+    if (!this._ensureAnim(key)) return;
+    const sprite = this.scene.add
+      .sprite(x, y, key, 0)
+      .setDepth(FX_DEPTH)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setRotation(rotation)
+      .setScale(scale);
+    sprite.once('animationcomplete', () => sprite.destroy());
+    sprite.play(`${key}_anim`);
+  }
+
+  /** Weapon-type effect at the point of contact, plus a starburst on crits. */
+  playImpact(event, striker, target) {
+    const tg = target?.graphic;
+    if (!tg) return;
+    const fxDef = WEAPON_FX[striker?.weapon?.type] || WEAPON_FX.Sword;
+    const { nx, ny } = this._dir(striker?.graphic, tg);
+    const rotation = fxDef.directional ? Math.atan2(ny, nx) : 0;
+    this.playOverlay(fxDef.key, tg.x, tg.y, { rotation });
+    if (event?.isCrit) this.playOverlay('fx_crit', tg.x, tg.y, { scale: 1.25 });
+  }
+
+  /** Heal sparkle on the healed unit (staff heals, cures, fountains). */
+  playHeal(x, y) {
+    this.playOverlay('fx_heal', x, y);
   }
 
   /** Flicker + fade a dying unit's visuals before they are destroyed. */
