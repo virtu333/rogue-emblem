@@ -306,7 +306,15 @@ function installAudioRecovery() {
   if (audioRecoveryInstalled || !sharedAudioContext) return;
   audioRecoveryInstalled = true;
   try {
-    sharedAudioContext.addEventListener('statechange', resumeSharedAudio);
+    // Only auto-resume state changes while the page is foregrounded: Phaser itself
+    // suspends this shared context on window blur (pause-on-blur muting), and an
+    // unconditional resume here would immediately undo that, leaving music playing
+    // when the player alt-tabs or backgrounds the app. Foreground returns are
+    // already covered by the visibilitychange/pageshow/focus handlers below.
+    sharedAudioContext.addEventListener('statechange', () => {
+      if (document.hidden || !document.hasFocus()) return;
+      resumeSharedAudio();
+    });
   } catch (_) {}
   const reactivate = () => {
     configureAudioSessionForPlayback();
