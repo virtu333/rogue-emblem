@@ -133,10 +133,10 @@ export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
-  act1: { name: 'Border Skirmishes', rows: 7 },
-  act2: { name: 'Occupied Territory', rows: 8 },
-  act3: { name: 'Enemy Stronghold', rows: 8 },
-  act4: { name: 'Ashen Summit', rows: 8 },
+  act1: { name: 'Border Skirmishes', rows: 8 },
+  act2: { name: 'Occupied Territory', rows: 9 },
+  act3: { name: 'Enemy Stronghold', rows: 9 },
+  act4: { name: 'Ashen Summit', rows: 9 },
   finalBoss: { name: 'Final Battle', rows: 2 },
 };
 
@@ -144,6 +144,7 @@ export const NODE_TYPES = {
   BATTLE: 'battle',
   BOSS: 'boss',
   SHOP: 'shop',
+  RUINS: 'ruins',
   RECRUIT: 'recruit',
   CHURCH: 'church',
   COLOSSEUM: 'colosseum',
@@ -156,6 +157,7 @@ export const NODE_GOLD_MULTIPLIER = {
   boss: 1.5, // Already has GOLD_BOSS_BONUS; this stacks on kill gold
   church: 0, // No combat
   shop: 0, // No combat
+  ruins: 0, // No combat
   colosseum: 0, // No standard combat
 };
 export const ROSTER_CAP = 12;
@@ -196,6 +198,9 @@ export const ESCAPE_EVAC_GOLD_BY_ACT = {
   finalBoss: 50,
 };
 export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
+export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
+export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
+export const RUINS_SHOP_MARKUP = 1.25;
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array
 export const CONVOY_WEAPON_CAPACITY = 20;

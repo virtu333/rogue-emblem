@@ -67,7 +67,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   // Step 1: Assign column lanes to each row
   const rowCols = [];
   for (let r = 0; r < rows; r++) {
-    if (r === 0 || r === rows - 1) {
+    if (r === 0 || r === rows - 1 || r === rows - 2) {
       rowCols.push([CENTER_COL]);
     } else {
       const count = 2 + Math.floor(Math.random() * 3); // 2, 3, or 4
@@ -212,8 +212,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
   // Post-process: mark a subset of remaining shops as village ambush encounters.
   // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
-  // finalBoss act is exempt — the pre-boss shop is the player's last chance to prepare.
-  if (villageAmbushChance > 0 && actId !== 'finalBoss') {
+  // The mandatory pre-boss RUINS is structurally exempt because this pass only considers SHOP.
+  if (villageAmbushChance > 0) {
     const scaling = ACT_LEVEL_SCALING[actId];
     for (const node of nodes) {
       if (node.type !== NODE_TYPES.SHOP) continue;
@@ -312,9 +312,9 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
  * Acts 2+: 60% battle, 25% shop, 15% church.
  */
 function pickNodeType(row, totalRows, actId) {
-  if (actId === 'finalBoss' && row === 0) return NODE_TYPES.SHOP;
-  if (row === 0) return NODE_TYPES.BATTLE;
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
+  if (row === totalRows - 2) return NODE_TYPES.RUINS;
+  if (row === 0) return NODE_TYPES.BATTLE;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
   if (actId === 'act1') {
@@ -358,7 +358,7 @@ function buildBattleParams(actId, type, row, totalRows) {
   if (type === NODE_TYPES.BOSS) {
     return { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
   }
-  if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH) {
+  if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH || type === NODE_TYPES.RUINS) {
     return null; // Non-combat nodes
   }
 

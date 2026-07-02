@@ -94,6 +94,14 @@ function setupController(scene, fired, { entries = [], reroll = false } = {}) {
 }
 
 describe('ShopController gamepad focus', () => {
+  it('applies the exact 25% ruins markup', () => {
+    const ctrl = new ShopController(makeScene());
+    expect(ctrl.applyRuinsMarkup([{ price: 100 }, { price: 99 }])).toEqual([
+      { price: 125 },
+      { price: 123 },
+    ]);
+  });
+
   it('claims the input stack and builds [content..., reroll?, viewMap, roster, leave] slots', () => {
     const scene = makeScene();
     const ctrl = setupController(scene, [], {
@@ -151,6 +159,23 @@ describe('ShopController gamepad focus', () => {
     ctrl._onShopInput(InputAction.NAVIGATE, { dx: 1 }); // forge -> buy (wrap)
     expect(scene.activeShopTab).toBe('buy');
     expect(scene.drawShopTabs).toHaveBeenCalled();
+  });
+
+  it('ruins mode exposes Buy/Sell only and gamepad cycling never targets Forge', () => {
+    const scene = makeScene({
+      _currentShopIsRuins: true,
+      shopScrollOffsets: { buy: 0, sell: 0 },
+    });
+    const ctrl = setupController(scene, []);
+    expect(ctrl._getShopTabs().map((tab) => tab.key)).toEqual(['buy', 'sell']);
+    expect(scene.shopScrollOffsets).not.toHaveProperty('forge');
+
+    ctrl._onShopInput(InputAction.NEXT_UNIT);
+    expect(scene.activeShopTab).toBe('sell');
+    ctrl._onShopInput(InputAction.NEXT_UNIT);
+    expect(scene.activeShopTab).toBe('buy');
+    ctrl._onShopInput(InputAction.PREV_UNIT);
+    expect(scene.activeShopTab).toBe('sell');
   });
 
   it('switching tabs resets focus to the first row', () => {

@@ -205,7 +205,7 @@ export class DebugOverlay {
       },
       {
         label: 'Jump to Final Boss',
-        onClick: () => this._jumpToAct(3),
+        onClick: () => this._jumpToAct(scene.runManager.actSequence.indexOf('finalBoss')),
       },
       {
         label: 'Complete Next Node',

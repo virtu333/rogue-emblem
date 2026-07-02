@@ -44,18 +44,27 @@ export class ChurchController {
     this._onInputActionBound = null;
   }
 
-  handleChurch(node) {
+  handleChurch(node, options = {}) {
     const scene = this.scene;
+    const ruinsMode = options?.ruinsMode === true;
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(pickTrack(MUSIC.rest), scene, 300); // Peaceful music
 
-    scene._churchPromotionsThisVisit = scene.runManager.getChurchPromotionCount(node.id);
+    scene._churchPromotionsThisVisit = ruinsMode
+      ? 0
+      : scene.runManager.getChurchPromotionCount(node.id);
     scene._currentChurchNodeId = node.id;
-    scene.showChurchOverlay(node);
+    scene.showChurchOverlay(node, { ruinsMode });
   }
 
-  showChurchOverlay(node) {
+  handleRuins(node) {
+    this.handleChurch(node, { ruinsMode: true });
+  }
+
+  showChurchOverlay(node, options = {}) {
     const scene = this.scene;
+    const ruinsMode = options?.ruinsMode === true;
+    scene._churchRuinsMode = ruinsMode;
     scene.churchOverlay = [];
     scene.churchContentGroup = [];
     scene._churchNode = node;
@@ -66,7 +75,7 @@ export class ChurchController {
 
     // Tutorial hint for church
     const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('nodemap_church')) {
+    if (!ruinsMode && hints?.shouldShow('nodemap_church')) {
       showMinorHint(scene, 'Heal, revive fallen allies, or promote units.');
     }
 
@@ -84,7 +93,7 @@ export class ChurchController {
 
     // Title
     const title = scene.add
-      .text(320, 40, 'Church', {
+      .text(320, 40, ruinsMode ? 'Ruins' : 'Church', {
         fontFamily: 'monospace',
         fontSize: '22px',
         color: '#cccccc',
@@ -93,9 +102,21 @@ export class ChurchController {
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.churchOverlay.push(title);
 
+    if (ruinsMode) {
+      const flavor = scene.add
+        .text(320, 64, "Whoever kept this place kept it stocked. The prices are the empire's.", {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#aabbcc',
+        })
+        .setOrigin(0.5)
+        .setDepth(OVERLAY_CONTENT_DEPTH);
+      scene.churchOverlay.push(flavor);
+    }
+
     // Gold display
     scene.churchGoldText = scene.add
-      .text(320, 70, `Gold: ${scene.runManager.gold}G`, {
+      .text(320, ruinsMode ? 82 : 70, `Gold: ${scene.runManager.gold}G`, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ffdd44',
@@ -130,6 +151,29 @@ export class ChurchController {
       scene.showChurchMessage('All units healed!', '#44ff44');
     });
     scene.churchOverlay.push(healBtn);
+
+    let browseBtn = null;
+    if (ruinsMode) {
+      browseBtn = scene.add
+        .text(320, 140, '[ Browse Wares ]', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#d6c28f',
+          backgroundColor: '#333022',
+          padding: { x: 12, y: 5 },
+        })
+        .setOrigin(0.5)
+        .setDepth(OVERLAY_CONTENT_DEPTH)
+        .setInteractive({ useHandCursor: true });
+      browseBtn.on('pointerover', () => browseBtn.setColor('#ffdd44'));
+      browseBtn.on('pointerout', () => browseBtn.setColor('#d6c28f'));
+      browseBtn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        scene.closeChurchOverlay();
+        scene.handleShop(node, { ruins: true });
+      });
+      scene.churchOverlay.push(browseBtn);
+    }
 
     // View Map button — fixed
     const viewMapBtn = scene.add
@@ -188,7 +232,7 @@ export class ChurchController {
 
     // Leave button — fixed
     const leaveBtn = scene.add
-      .text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
+      .text(320, SAFE_BOTTOM_Y, ruinsMode ? '[ Leave Ruins ]' : '[ Leave Church ]', {
         fontFamily: 'monospace',
         fontSize: '16px',
         color: '#e0e0e0',
@@ -226,30 +270,32 @@ export class ChurchController {
       localY += 10;
     }
 
-    // Service 3: Promote Unit
-    const promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
-    const promoRemaining =
-      promoLimit >= 0 ? promoLimit - (scene._churchPromotionsThisVisit || 0) : -1;
-    const promoLimitText = promoRemaining >= 0 ? ` [${promoRemaining} left]` : '';
-    items.push({
-      type: 'label',
-      text: `Promote Unit (${CHURCH_PROMOTE_COST}G):${promoLimitText}`,
-      color: '#cccccc',
-      y: localY,
-    });
-    localY += 25;
+    // Service 3: Promote Unit (church only)
+    if (!ruinsMode) {
+      const promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
+      const promoRemaining =
+        promoLimit >= 0 ? promoLimit - (scene._churchPromotionsThisVisit || 0) : -1;
+      const promoLimitText = promoRemaining >= 0 ? ` [${promoRemaining} left]` : '';
+      items.push({
+        type: 'label',
+        text: `Promote Unit (${CHURCH_PROMOTE_COST}G):${promoLimitText}`,
+        color: '#cccccc',
+        y: localY,
+      });
+      localY += 25;
 
-    const eligibleUnits = rm.roster.filter((u) => canPromote(u));
-    if (promoRemaining === 0) {
-      items.push({ type: 'none', text: '(Promotion limit reached)', y: localY });
-      localY += CHURCH_ITEM_HEIGHT;
-    } else if (eligibleUnits.length === 0) {
-      items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
-      localY += CHURCH_ITEM_HEIGHT;
-    } else {
-      for (const unit of eligibleUnits) {
-        items.push({ type: 'promote', unit, y: localY });
+      const eligibleUnits = rm.roster.filter((u) => canPromote(u));
+      if (promoRemaining === 0) {
+        items.push({ type: 'none', text: '(Promotion limit reached)', y: localY });
         localY += CHURCH_ITEM_HEIGHT;
+      } else if (eligibleUnits.length === 0) {
+        items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
+        localY += CHURCH_ITEM_HEIGHT;
+      } else {
+        for (const unit of eligibleUnits) {
+          items.push({ type: 'promote', unit, y: localY });
+          localY += CHURCH_ITEM_HEIGHT;
+        }
       }
     }
 
@@ -262,6 +308,7 @@ export class ChurchController {
 
     this._churchFixed = {
       heal: healBtn,
+      browse: browseBtn,
       viewMap: viewMapBtn,
       roster: rosterBtn,
       leave: leaveBtn,
@@ -278,6 +325,7 @@ export class ChurchController {
   _setupChurchFocus() {
     const scene = this.scene;
     const slots = [{ kind: 'fixed', btn: this._churchFixed.heal }];
+    if (this._churchFixed.browse) slots.push({ kind: 'fixed', btn: this._churchFixed.browse });
     const items = scene._churchScrollItems || [];
     for (let i = 0; i < items.length; i++) {
       if (items[i].type === 'revive' || items[i].type === 'promote') {
@@ -714,8 +762,9 @@ export class ChurchController {
 
   refreshChurchOverlay(node) {
     const scene = this.scene;
+    const ruinsMode = scene._churchRuinsMode === true;
     scene.closeChurchOverlay();
-    scene.showChurchOverlay(node);
+    scene.showChurchOverlay(node, { ruinsMode });
   }
 
   closeChurchOverlay() {
@@ -749,6 +798,7 @@ export class ChurchController {
     scene.churchScrollOffset = 0;
     scene.churchScrollMax = 0;
     scene._churchScrollItems = null;
+    scene._churchRuinsMode = false;
     scene._touchScrollDrag = null;
   }
 

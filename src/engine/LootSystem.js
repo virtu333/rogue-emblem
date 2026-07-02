@@ -995,12 +995,24 @@ export function generateShopInventory(
   weaponArtSpawnConfig = null,
   generateOptions = {},
 ) {
-  const table = lootTables[actId] || lootTables.act3;
+  // finalBoss battle loot is intentionally gold-only; its pre-boss shop uses
+  // the last standard act's merchandise pool instead.
+  const table =
+    actId === 'finalBoss'
+      ? lootTables.act4 || lootTables.act3
+      : lootTables[actId] || lootTables.act3;
   const { pools } = buildLootTablesFromAct(table, allWeapons, consumables);
   const bonusItems = Math.trunc(generateOptions?.itemCountBonus || 0);
+  const requestedRange = generateOptions?.itemCountRange;
+  const itemCountRange =
+    Number.isInteger(requestedRange?.min) &&
+    Number.isInteger(requestedRange?.max) &&
+    requestedRange.min >= 1 &&
+    requestedRange.max >= requestedRange.min
+      ? requestedRange
+      : SHOP_ITEM_COUNT;
   const baseCount =
-    SHOP_ITEM_COUNT.min +
-    Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
+    itemCountRange.min + Math.floor(Math.random() * (itemCountRange.max - itemCountRange.min + 1));
   const itemCount = Math.max(1, baseCount + bonusItems);
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 

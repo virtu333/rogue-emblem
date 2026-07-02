@@ -48,7 +48,8 @@ describe('NodeMapScene controller shims', () => {
 
     it.each([
       ['handleChurch', [{ id: 'church1' }]],
-      ['showChurchOverlay', [{ id: 'church1' }]],
+      ['handleRuins', [{ id: 'ruins1' }]],
+      ['showChurchOverlay', [{ id: 'church1' }, {}]],
       ['drawChurchScrollContent', []],
       ['leaveChurchNode', []],
       ['_showChurchSuccessMessage', [{ id: 'n' }, 'msg', '#44ff44', 'revival']],
@@ -87,6 +88,7 @@ describe('NodeMapScene controller shims', () => {
       ['handleShop', [{ id: 'n' }, { ambushDiscount: true }]],
       ['applyDifficultyShopPricing', [[{ price: 100 }]]],
       ['applyAmbushDiscount', [[{ price: 100 }]]],
+      ['applyRuinsMarkup', [[{ price: 100 }]]],
       ['showShopOverlay', [{ id: 'n' }, [{ price: 100 }], { ambushDiscount: false }]],
       ['leaveShopNode', []],
       ['drawShopTabs', []],
