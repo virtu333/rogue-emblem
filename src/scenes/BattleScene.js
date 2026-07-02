@@ -2880,11 +2880,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.textures.exists(spriteKey)) {
       unit.graphic = this.add.image(pos.x, pos.y, spriteKey);
       const src = this.textures.get(spriteKey).getSourceImage();
-      if (src && src.width > TILE_SIZE) {
+      if (src && src.width > TILE_SIZE && src.width <= TILE_SIZE * 1.5) {
         // Hi-res overhang sprite (48px art on 32px tiles). The anchor is
         // baked into the texture — feet sit 8px above the bottom edge — so
         // centering on the tile keeps feet at the tile bottom while the head
         // overhangs the tile above. Tile-center positioning stays valid.
+        // Textures beyond 1.5x tile (e.g. unprocessed hi-res art) fall back
+        // to the classic tile fit rather than covering the map.
         unit.graphic.setDisplaySize(src.width, src.height);
       } else {
         unit.graphic.setDisplaySize(TILE_SIZE - 2, TILE_SIZE - 2);
