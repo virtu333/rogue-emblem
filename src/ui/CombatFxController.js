@@ -16,6 +16,7 @@ import Phaser from 'phaser';
 const LUNGE_PX = 10;
 const DODGE_PX = 8;
 const RECOIL_PX = 4;
+const WINDUP_PX = 4;
 
 // Effect overlay depth: above units (10), below floating damage text (300).
 const FX_DEPTH = 250;
@@ -84,8 +85,12 @@ export class CombatFxController {
    * Move the striker's sprite toward the target ("contact" point).
    * Awaits the forward motion; call lungeBack() after impact effects.
    * With no graphic, waits the legacy flash delay so pacing is unchanged.
+   *
+   * opts.windUp: brief pull-back before the lunge (offensive procs / arts).
+   * opts.tempo 'followup': shorter, faster lunge for consecutive strikes by
+   * the same unit (Astra flurries, brave doubles, Adept bonus strikes).
    */
-  async lungeForward(striker, target) {
+  async lungeForward(striker, target, opts = {}) {
     const g = striker?.graphic;
     const reduced = this._reduced();
     if (!g) {
@@ -95,12 +100,26 @@ export class CombatFxController {
     this.settle(striker);
     if (target?.graphic) this.settle(target);
     const { nx, ny } = this._dir(g, target?.graphic);
+    const followUp = opts.tempo === 'followup';
+    if (opts.windUp && !reduced && !followUp) {
+      await this.scene._awaitSceneTween(
+        {
+          targets: g,
+          x: g._fxHomeX - nx * WINDUP_PX,
+          y: g._fxHomeY - ny * WINDUP_PX,
+          duration: 70,
+          ease: 'Quad.easeOut',
+        },
+        { label: 'combat_fx_windup' },
+      );
+    }
+    const dist = followUp ? LUNGE_PX * 0.7 : LUNGE_PX;
     await this.scene._awaitSceneTween(
       {
         targets: g,
-        x: g._fxHomeX + nx * LUNGE_PX,
-        y: g._fxHomeY + ny * LUNGE_PX,
-        duration: reduced ? 50 : 90,
+        x: g._fxHomeX + nx * dist,
+        y: g._fxHomeY + ny * dist,
+        duration: reduced ? (followUp ? 35 : 50) : followUp ? 55 : 90,
         ease: 'Quad.easeOut',
       },
       { label: 'combat_fx_lunge_forward' },
@@ -181,6 +200,52 @@ export class CombatFxController {
           g.y = g._fxHomeY;
         }
       },
+    });
+  }
+
+  /**
+   * Defensive-proc reaction (Pavise, Aegis, Miracle, Shielded): the target
+   * holds ground and braces -- a squash instead of the usual knockback.
+   * Fire-and-forget (yoyo restores scale).
+   */
+  brace(target) {
+    const g = target?.graphic;
+    if (!g || g._fxHomeScaleX === undefined) return;
+    const reduced = this._reduced();
+    this.scene.tweens.add({
+      targets: g,
+      scaleX: g._fxHomeScaleX * 1.08,
+      scaleY: g._fxHomeScaleY * 0.86,
+      duration: reduced ? 35 : 60,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (g._fxHomeScaleX !== undefined) {
+          g.scaleX = g._fxHomeScaleX;
+          g.scaleY = g._fxHomeScaleY;
+        }
+      },
+    });
+  }
+
+  /**
+   * Camera zoom pulse for crit / Legendary-art impacts. Desktop only: the
+   * mobile pinch camera owns zoom state, so it is skipped there, and it only
+   * pulses when the camera is at rest to avoid fighting any other zoom.
+   */
+  zoomPunch() {
+    if (this._reduced()) return;
+    const scene = this.scene;
+    const cam = scene.cameras?.main;
+    if (!cam || scene._battleCamera) return;
+    if (Math.abs(cam.zoom - 1) > 0.001) return;
+    scene.tweens.add({
+      targets: cam,
+      zoom: 1.06,
+      duration: 70,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => cam.setZoom(1),
     });
   }
 

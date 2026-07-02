@@ -227,6 +227,13 @@ import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
+import { ProcBannerController } from '../ui/ProcBannerController.js';
+import {
+  splitStrikeActivations,
+  dominantCategory,
+  findLegendaryArtActivation,
+  PROC_CATEGORY,
+} from '../ui/ProcVisualTheme.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -456,6 +463,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._weaponArtController) {
       this._weaponArtController.destroy();
       this._weaponArtController = null;
+    }
+    if (this._procBanner) {
+      this._procBanner.destroy();
+      this._procBanner = null;
     }
     if (this._healController) {
       this._healController.destroy();
@@ -7336,12 +7347,17 @@ export class BattleScene extends Phaser.Scene {
       skillCtx,
     );
 
-    // Animate events
+    // Animate events. Consecutive strikes by the same side (Astra flurries,
+    // brave doubles, Adept bonus strikes) animate at follow-up tempo.
+    let prevStrikeSide = null;
     for (const event of result.events) {
       if (event.type === 'skill') {
+        prevStrikeSide = null;
         await this.animateSkillActivation(event);
       } else {
-        await this.animateStrike(event, attacker, defender);
+        const followUp = event.attackerSide != null && event.attackerSide === prevStrikeSide;
+        prevStrikeSide = event.attackerSide ?? null;
+        await this.animateStrike(event, attacker, defender, { followUp });
         if (!event.miss && attacker.faction === 'player' && defender.faction === 'enemy') {
           defender._hitByPlayerThisPhase = true;
         }
@@ -8090,7 +8106,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async animateStrike(event, attacker, defender) {
+  async animateStrike(event, attacker, defender, opts = {}) {
     const reduced = this._isReducedEffects();
     const strikerIsAttacker =
       event.attackerSide === 'attacker' || event.attackerSide === 'defender'
@@ -8099,32 +8115,40 @@ export class BattleScene extends Phaser.Scene {
     const striker = strikerIsAttacker ? attacker : defender;
     const target = strikerIsAttacker ? defender : attacker;
 
-    if (event.skillActivations?.length) {
-      const names = event.skillActivations.map((s) => s.name).join(', ');
-      const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const skillText = this.add
-        .text(sPos.x, sPos.y - 24, names, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#88ffff',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(301);
-      this.tweens.add({
-        targets: skillText,
-        y: sPos.y - 40,
-        alpha: 0,
-        duration: reduced ? 260 : 700,
-        onComplete: () => skillText.destroy(),
-      });
+    // Category-annotated procs: striker-side (arts/offense) vs target-side (defense)
+    const split = splitStrikeActivations(event.skillActivations, this.gameData.skills || []);
+    const banners = (this._procBanner ||= new ProcBannerController(this));
+    banners.showStrikeProcChips(split, striker, target);
+
+    // Portrait cut-in for crits and Legendary weapon arts (throttled inside;
+    // skipped for follow-up strikes so flurries can't chain cut-ins).
+    if (!event.miss && !opts.followUp) {
+      const legendaryArt = findLegendaryArtActivation(
+        event.skillActivations,
+        this._getWeaponArtCatalog(),
+      );
+      if (event.isCrit || legendaryArt) {
+        await banners.showCutIn({
+          unitName: striker.name,
+          portraitKey: this._getPortraitKey(striker),
+          label: legendaryArt ? legendaryArt.name : 'CRITICAL HIT',
+          category: legendaryArt ? 'art' : 'offense',
+          side: striker.faction === 'player' ? 'left' : 'right',
+        });
+      }
     }
 
     const fx = (this._combatFx ||= new CombatFxController(this));
     const audio = this.registry.get('audio');
     if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
     if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
-    await fx.lungeForward(striker, target);
+    const strikerCat = dominantCategory(split.striker);
+    const windUp =
+      !opts.followUp && (strikerCat === PROC_CATEGORY.ART || strikerCat === PROC_CATEGORY.OFFENSE);
+    await fx.lungeForward(striker, target, {
+      windUp,
+      tempo: opts.followUp ? 'followup' : 'normal',
+    });
     if (striker.graphic?.clearTint) striker.graphic.clearTint();
 
     if (event.miss) {
@@ -8154,8 +8178,13 @@ export class BattleScene extends Phaser.Scene {
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     fx.playImpact(event, striker, target);
-    fx.recoil(target, striker);
-    if (event.isCrit) fx.critImpact(striker);
+    // Defensive proc: the target braces in place instead of getting knocked back
+    if (split.target.length > 0) fx.brace(target);
+    else fx.recoil(target, striker);
+    if (event.isCrit) {
+      fx.critImpact(striker);
+      fx.zoomPunch();
+    }
     const pos = this.grid.gridToPixel(target.col, target.row);
     const dmgText = this.add
       .text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
@@ -8227,7 +8256,10 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
-    await this._awaitSceneDelay(reduced ? 80 : 150, { label: 'animate_strike_hit_hold' });
+    // Crits hold the impact frame a beat longer for weight
+    await this._awaitSceneDelay(reduced ? 80 : event.isCrit ? 240 : 150, {
+      label: 'animate_strike_hit_hold',
+    });
     if (target.graphic?.clearTint) target.graphic.clearTint();
     await fx.lungeBack(striker, target);
 
@@ -8272,41 +8304,11 @@ export class BattleScene extends Phaser.Scene {
       { label: 'execute_warp_fade_in' },
     );
   }
-  /** Animate a skill activation event (Vantage, Astra banner) */
+  /** Animate a pre-combat skill activation event (Vantage, Astra, Desperation). */
   async animateSkillActivation(event) {
-    const text = this.add
-      .text(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY - 40,
-        `${event.unit} -- ${event.name}!`,
-        {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color: '#88ffff',
-          backgroundColor: '#000000cc',
-          padding: { x: 10, y: 4 },
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(500)
-      .setAlpha(0);
-    this._pinToScreen(text);
-
-    await this._awaitSceneTween(
-      {
-        targets: text,
-        alpha: 1,
-        duration: 150,
-        yoyo: true,
-        hold: 400,
-        onComplete: () => {
-          text.destroy();
-        },
-      },
-      {
-        label: 'animate_skill_activation',
-        onCancel: () => text.destroy(),
-      },
+    await (this._procBanner ||= new ProcBannerController(this)).showSkillBanner(
+      event,
+      this.gameData.skills || [],
     );
   }
 
