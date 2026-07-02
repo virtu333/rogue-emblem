@@ -12,6 +12,7 @@
  */
 
 import Phaser from 'phaser';
+import { fxForActivation, findArtByName, artBurstsForTier, PROC_THEME } from './ProcVisualTheme.js';
 
 const LUNGE_PX = 10;
 const DODGE_PX = 8;
@@ -274,6 +275,7 @@ export class CombatFxController {
   /** Register the 4-frame play-once animation for an effect key (idempotent). */
   _ensureAnim(key) {
     const anims = this.scene.anims;
+    if (!anims?.exists) return false; // headless/stub scene: overlays are a no-op
     if (anims.exists(`${key}_anim`)) return true;
     if (!this.scene.textures.exists(key)) return false;
     anims.create({
@@ -289,34 +291,99 @@ export class CombatFxController {
    * Play a one-shot effect overlay at (x, y). Additive blending makes the
    * black spritesheet background invisible. Fire-and-forget; the sprite
    * destroys itself when the animation ends. Skipped in reduced-effects mode.
+   * tint colors the (white/light) art; delay staggers stacked bursts.
    */
-  playOverlay(key, x, y, { rotation = 0, scale = 1 } = {}) {
+  playOverlay(key, x, y, { rotation = 0, scale = 1, tint = null, delay = 0 } = {}) {
     if (this._reduced()) return;
     if (!this._ensureAnim(key)) return;
-    const sprite = this.scene.add
-      .sprite(x, y, key, 0)
-      .setDepth(FX_DEPTH)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setRotation(rotation)
-      .setScale(scale);
-    sprite.once('animationcomplete', () => sprite.destroy());
-    sprite.play(`${key}_anim`);
+    const spawn = () => {
+      if (!this.scene.sys || !this.scene.sys.isActive()) return;
+      const sprite = this.scene.add
+        .sprite(x, y, key, 0)
+        .setDepth(FX_DEPTH)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setRotation(rotation)
+        .setScale(scale);
+      if (tint !== null) sprite.setTint(tint);
+      sprite.once('animationcomplete', () => sprite.destroy());
+      sprite.play(`${key}_anim`);
+    };
+    if (delay > 0) this.scene.time.delayedCall(delay, spawn);
+    else spawn();
   }
 
-  /** Weapon-type effect at the point of contact, plus a starburst on crits. */
-  playImpact(event, striker, target) {
+  /**
+   * Weapon-type effect at the point of contact, plus a starburst on crits.
+   * opts.emphasis (weapon-art strikes) plays the weapon overlay larger.
+   */
+  playImpact(event, striker, target, opts = {}) {
     const tg = target?.graphic;
     if (!tg) return;
     const fxDef = WEAPON_FX[striker?.weapon?.type] || WEAPON_FX.Sword;
     const { nx, ny } = this._dir(striker?.graphic, tg);
     const rotation = fxDef.directional ? Math.atan2(ny, nx) : 0;
-    this.playOverlay(fxDef.key, tg.x, tg.y, { rotation });
+    this.playOverlay(fxDef.key, tg.x, tg.y, { rotation, scale: opts.emphasis ? 1.3 : 1 });
     if (event?.isCrit) this.playOverlay('fx_crit', tg.x, tg.y, { scale: 1.25 });
+  }
+
+  /**
+   * Category effect overlays for a strike's procs (split comes from
+   * splitStrikeActivations). Each proc's effect plays on the unit it
+   * belongs to (drain on the striker, shield on the defender, ...).
+   * Deduplicated per key+position; capped at 2 per strike to avoid clutter.
+   */
+  playProcOverlays(split, striker, target) {
+    if (this._reduced()) return;
+    const seen = new Set();
+    let played = 0;
+    for (const entry of [...(split?.striker || []), ...(split?.target || [])]) {
+      if (entry.id === 'weapon_art') continue; // arts get the ring burst
+      const fx = fxForActivation(entry);
+      if (!fx) continue;
+      const dedupe = `${fx.key}@${fx.at}`;
+      if (seen.has(dedupe)) continue;
+      seen.add(dedupe);
+      const g = (fx.at === 'striker' ? striker : target)?.graphic;
+      if (!g) continue;
+      this.playOverlay(fx.key, g.x, g.y);
+      if (++played >= 2) break;
+    }
+  }
+
+  /**
+   * Amber ring burst under a weapon-art strike. Higher-tier arts stack
+   * extra, larger bursts (Iron/Steel 1, Silver 2, Legendary 3).
+   */
+  playArtBurst(split, target, artCatalog) {
+    if (this._reduced()) return;
+    const tg = target?.graphic;
+    if (!tg) return;
+    const artEntry = (split?.striker || []).find((e) => e.id === 'weapon_art');
+    if (!artEntry) return;
+    const art = findArtByName(artEntry.name, artCatalog);
+    const bursts = artBurstsForTier(art?.tierAffinity);
+    for (let i = 0; i < bursts; i++) {
+      this.playOverlay('fx_ring', tg.x, tg.y, {
+        tint: PROC_THEME.art.accent,
+        scale: 1 + i * 0.3,
+        delay: i * 90,
+      });
+    }
   }
 
   /** Heal sparkle on the healed unit (staff heals, cures, fountains). */
   playHeal(x, y) {
     this.playOverlay('fx_heal', x, y);
+  }
+
+  /** Ailment swirl when a status condition lands or ticks. */
+  playStatus(x, y) {
+    this.playOverlay('fx_status', x, y);
+  }
+
+  /** Rising golden sparkles for buffs and action refreshes (Dance). */
+  playBuff(x, y) {
+    this.playOverlay('fx_buff', x, y);
   }
 
   /** Flicker + fade a dying unit's visuals before they are destroyed. */

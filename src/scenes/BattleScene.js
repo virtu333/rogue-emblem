@@ -5079,6 +5079,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Visual feedback: brief sparkle/glow on target
     const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
+    (this._combatFx ||= new CombatFxController(this)).playBuff(pos.x, pos.y);
     const sparkle = this.add
       .circle(pos.x, pos.y, 20, 0x44ff88, this._isReducedEffects() ? 0.4 : 0.6)
       .setDepth(200);
@@ -5528,7 +5529,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _isReducedEffects() {
-    const settings = this.registry.get('settings');
+    const settings = this.registry?.get?.('settings');
     return !!settings?.getReducedEffects?.();
   }
 
@@ -7645,6 +7646,7 @@ export class BattleScene extends Phaser.Scene {
               break;
             }
             this._addConditionIcon(targetUnit, step.status);
+            (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
             const statusLabels = {
               root: 'Rooted!',
               silence: 'Silenced!',
@@ -8177,7 +8179,10 @@ export class BattleScene extends Phaser.Scene {
 
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
-    fx.playImpact(event, striker, target);
+    const artStrike = split.striker.some((e) => e.id === 'weapon_art');
+    fx.playImpact(event, striker, target, { emphasis: artStrike });
+    fx.playProcOverlays(split, striker, target);
+    if (artStrike) fx.playArtBurst(split, target, this._getWeaponArtCatalog());
     // Defensive proc: the target braces in place instead of getting knocked back
     if (split.target.length > 0) fx.brace(target);
     else fx.recoil(target, striker);
@@ -8341,6 +8346,7 @@ export class BattleScene extends Phaser.Scene {
     const reduced = this._isReducedEffects();
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
+    (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
     const text = this.add
       .text(pos.x, pos.y - 16, `Poison -${damage}`, {
         fontFamily: 'monospace',
@@ -9300,6 +9306,10 @@ export class BattleScene extends Phaser.Scene {
         continue;
       }
       this._addConditionIcon(unit, 'acid');
+      {
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+      }
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
     }
   }
@@ -9518,6 +9528,10 @@ export class BattleScene extends Phaser.Scene {
         '#ff6666',
       );
       this._addConditionIcon(target, result.conditionId);
+      {
+        const pos = this.grid.gridToPixel(target.col, target.row);
+        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+      }
     } else {
       await this.showBriefBanner(`${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`, '#aaaaaa');
     }
