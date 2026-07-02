@@ -57,6 +57,29 @@ export default defineConfig({
             },
           },
           {
+            // Google Fonts stylesheet ('Press Start 2P' — the game's only font). Without
+            // this rule an offline cold start past the CSS's 24h HTTP max-age falls back
+            // to a system font and misaligns every text layout budgeted for this face.
+            // StaleWhileRevalidate: the css2 URL is stable but its payload varies by UA.
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'er-google-fonts-css',
+              expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // The font binaries themselves are immutable (hashed URLs) — CacheFirst.
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'er-google-fonts-webfonts',
+              expiration: { maxEntries: 8, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // Music + SFX — same stable-filename reasoning as images: StaleWhileRevalidate
             // serves from cache instantly/offline and refreshes a replaced track in the
             // background.
