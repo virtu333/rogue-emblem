@@ -1594,6 +1594,7 @@
       "id": "castle_assault",
       "name": "Castle Assault",
       "fogChance": 0.0,
+      "acts": ["act1", "act2", "act3", "act4", "postAct"],
       "zones": [
         {
           "rect": [
@@ -2054,6 +2055,7 @@
       "id": "hilltop_fortress",
       "name": "Hilltop Fortress",
       "fogChance": 0.1,
+      "acts": ["act1", "act2", "act3", "act4", "postAct"],
       "zones": [
         {
           "rect": [

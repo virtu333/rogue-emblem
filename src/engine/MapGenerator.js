@@ -1705,6 +1705,12 @@ function generateEnemies(
         name: bossDef.name,
       });
     } else {
+      if (bossDef.isEntity) {
+        console.warn(
+          `[MapGenerator] Entity boss "${bossDef.name}" placed without entitySpawn ` +
+            `(template lacks it) — 3x3 form lost`,
+        );
+      }
       // Standard boss placement on or adjacent to throne
       let bossPos = thronePos;
       if (bossPos) {
