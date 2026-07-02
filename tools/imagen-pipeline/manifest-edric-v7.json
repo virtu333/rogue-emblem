@@ -1,0 +1,38 @@
+{
+  "globalStyle": "SNES 16-bit pixel art, top-down tactical RPG style, limited color palette, clean pixel edges, fantasy medieval setting",
+  "categories": {
+    "lord_sprites_chibi": {
+      "targetSize": 32,
+      "aspectRatio": "1:1",
+      "removeBg": true,
+      "sampleCount": 4,
+      "stylePrefix": "32x32 pixel art character sprite, top-down 3/4 view, Fire Emblem GBA-inspired tactical map sprite, single full-body character centered on a plain solid light background, head about one quarter to one third of total height, bold dark outline, high contrast readable silhouette, chunky clean pixels",
+      "assets": [
+        {
+          "name": "edric_hero_base",
+          "prompt": "young lord swordsman with short teal-green hair, blue tunic with silver breastplate, small green scarf at neck, short green cape, holding a sword point-down at his side, confident heroic stance, bright saturated colors"
+        },
+        {
+          "name": "edric_hero_promoted",
+          "prompt": "the same young lord swordsman with short teal-green hair now promoted, silver armor with gold trim, thin gold circlet on brow, flowing green cape, green scarf, holding a longer ornate sword point-down at his side, regal commanding stance, bright saturated colors, no shield"
+        },
+        {
+          "name": "edric_action_base",
+          "prompt": "young lord swordsman with short teal-green hair, blue tunic with light silver shoulder guard, green scarf, short green cape swept to one side, gripping a sword raised diagonally in a ready battle stance, legs apart, dynamic energetic pose, bright saturated colors"
+        },
+        {
+          "name": "edric_action_promoted",
+          "prompt": "the same young lord swordsman with short teal-green hair now promoted, silver and gold armor, thin gold circlet, large flowing green cape mid-motion, gripping an ornate blade raised diagonally in a ready battle stance, legs apart, dynamic heroic pose, bright saturated colors, no shield"
+        },
+        {
+          "name": "edric_clean_base",
+          "prompt": "young lord swordsman with short teal-green hair, simple bright blue tunic, green scarf, minimal armor with one small silver pauldron, sheathed sword at hip with hand on hilt, relaxed adventurer stance, very simple bold shapes, maximum readability at small size"
+        },
+        {
+          "name": "edric_clean_promoted",
+          "prompt": "the same young lord swordsman with short teal-green hair now promoted, bright blue and silver light armor with subtle gold trim, thin gold circlet, medium green cape, sheathed ornate sword at hip with hand on hilt, calm commander stance, very simple bold shapes, maximum readability at small size, no shield"
+        }
+      ]
+    }
+  }
+}
