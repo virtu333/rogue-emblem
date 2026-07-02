@@ -132,6 +132,21 @@ describe('Narrative data', () => {
     for (const [name, boss] of Object.entries(dialogue.bossEncounters || {})) {
       validateSection(boss.preBattle, `bossEncounters.${name}.preBattle`);
       validateSection(boss.defeat, `bossEncounters.${name}.defeat`);
+      validateSection(boss.halfHealth, `bossEncounters.${name}.halfHealth`);
+      if (boss.preBattleReply) {
+        validateSection(boss.preBattleReply, `bossEncounters.${name}.preBattleReply`);
+      }
+    }
+
+    // lordQuips: plain string pools per lord (recruitLines-style)
+    for (const poolKey of ['onCrit', 'onKill']) {
+      const pools = dialogue.lordQuips?.[poolKey];
+      expect(pools, `lordQuips.${poolKey}`).toBeTypeOf('object');
+      for (const [lord, lines] of Object.entries(pools || {})) {
+        expect(lordNames.includes(lord), `lordQuips.${poolKey} unknown lord "${lord}"`).toBe(true);
+        expect(Array.isArray(lines), `lordQuips.${poolKey}.${lord}`).toBe(true);
+        for (const line of lines) expect(typeof line).toBe('string');
+      }
     }
 
     for (const key of ['victory_normal', 'victory_hard', 'victory_lunatic', 'defeat']) {
@@ -192,6 +207,34 @@ describe('Narrative data', () => {
         post.some((v) => v?.when?.bossSlainBefore === true),
         `${name} missing defeat bossSlainBefore variant`,
       ).toBe(true);
+    }
+
+    // Mid-battle beats: every boss has a half-health line...
+    for (const [name, boss] of Object.entries(dialogue.bossEncounters || {})) {
+      expect(
+        Array.isArray(boss.halfHealth?.base) && boss.halfHealth.base.length > 0,
+        `${name} missing halfHealth base`,
+      ).toBe(true);
+    }
+    // ...the loop-aware bosses have a commander reply for every lord...
+    for (const awareBoss of ['The Lieutenant', 'The Emperor', 'The Entity']) {
+      const variants = dialogue.bossEncounters?.[awareBoss]?.preBattleReply?.variants || [];
+      for (const lord of lordNames) {
+        expect(
+          variants.some((v) => v?.when?.commander === lord),
+          `${awareBoss} preBattleReply missing {commander: "${lord}"} variant`,
+        ).toBe(true);
+      }
+    }
+    // ...and every lord has combat quip pools for both triggers.
+    for (const poolKey of ['onCrit', 'onKill']) {
+      for (const lord of lordNames) {
+        const pool = dialogue.lordQuips?.[poolKey]?.[lord];
+        expect(
+          Array.isArray(pool) && pool.length >= 2,
+          `lordQuips.${poolKey}.${lord} needs >= 2 lines`,
+        ).toBe(true);
+      }
     }
   });
 

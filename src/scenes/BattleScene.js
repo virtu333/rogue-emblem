@@ -187,7 +187,7 @@ import {
   adaptDialogueLine,
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
-import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
+import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -467,6 +467,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._procBanner) {
       this._procBanner.destroy();
       this._procBanner = null;
+    }
+    if (this._battleBeats) {
+      this._battleBeats.destroy();
+      this._battleBeats = null;
     }
     if (this._healController) {
       this._healController.destroy();
@@ -1841,14 +1845,10 @@ export class BattleScene extends Phaser.Scene {
       if (this.isBoss && this._bossName && this.runManager) {
         const bossName = this._resolveBossDialogueName(this._bossName);
         const dialogueKey = `boss_pre_${bossName}`;
-        const entries = selectDialogueEntries(
-          this.gameData?.dialogue?.bossEncounters?.[bossName]?.preBattle,
-          buildNarrativeContext({
-            meta: this.registry.get('meta'),
-            runManager: this.runManager,
-            bossName,
-          }),
-        );
+        // preBattle entries + the commander's reply (loop-aware bosses only)
+        const entries = (this._battleBeats ||= new BattleBeatsController(
+          this,
+        )).getBossPreBattleEntries(bossName);
         try {
           await this._showStoryDialogueOnce(dialogueKey, entries);
         } catch (err) {
@@ -7443,6 +7443,8 @@ export class BattleScene extends Phaser.Scene {
         await this.removeUnit(attacker, { killer: defender });
       }
 
+      await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
+
       if (this.checkBattleEnd()) {
         return;
       }
@@ -8184,6 +8186,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.isCrit) {
       fx.critImpact(striker);
       fx.zoomPunch();
+      (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
     }
     const pos = this.grid.gridToPixel(target.col, target.row);
     const dmgText = this.add
@@ -8550,6 +8553,7 @@ export class BattleScene extends Phaser.Scene {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       this._applyKillRewards(unit, killer);
+      (this._battleBeats ||= new BattleBeatsController(this)).onKill(unit, killer);
       // Zombie revival: create tombstone if killed by non-Light weapon
       if (ZOMBIE_CLASSES.has(unit.className) && !unit._revived && !unit.isBoss) {
         const killerWeaponType = killer?.weapon?.type;
@@ -9609,6 +9613,8 @@ export class BattleScene extends Phaser.Scene {
       if (isEntity(enemy) && enemy.currentHP > 0) {
         await this._applyEntitySplash(enemy, target);
       }
+
+      await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
       this.checkBattleEnd();
     } catch (err) {
