@@ -1,0 +1,30 @@
+{
+  "globalStyle": "SNES 16-bit pixel art, top-down tactical RPG style, limited color palette, clean pixel edges, fantasy medieval setting",
+  "categories": {
+    "lord_sprites_chibi": {
+      "targetSize": 48,
+      "aspectRatio": "1:1",
+      "removeBg": true,
+      "sampleCount": 4,
+      "stylePrefix": "32x32 pixel art character sprite, top-down 3/4 view, Fire Emblem GBA-inspired tactical map sprite, single full-body character centered on a plain solid light background, head about one quarter of total height with adult heroic proportions, not chibi, bold dark outline, high contrast readable silhouette, chunky clean pixels",
+      "assets": [
+        {
+          "name": "edric_heropro_shoulder",
+          "prompt": "young lord swordsman with short teal-green hair in promoted regalia, silver armor with gold trim, thin gold circlet on brow, flowing green cape, green scarf, ornate longsword resting angled across his shoulder, confident commanding stance, bright saturated colors, no shield"
+        },
+        {
+          "name": "edric_heropro_guard",
+          "prompt": "young lord swordsman with short teal-green hair in promoted regalia, silver armor with gold trim, thin gold circlet on brow, flowing green cape, green scarf, ornate longsword held diagonally forward in a poised guard stance pointing outward, weight on back foot, dynamic regal pose, bright saturated colors, no shield"
+        },
+        {
+          "name": "edric_clean_base2",
+          "prompt": "young lord swordsman with short teal-green hair and small head on a lean adult frame, simple bright blue tunic, green scarf, minimal armor with one small silver pauldron, sword drawn and held angled low to his side pointing outward and down at forty-five degrees, alert adventurer stance, very simple bold shapes, maximum readability at small size"
+        },
+        {
+          "name": "edric_clean_promoted2",
+          "prompt": "young lord swordsman with short teal-green hair and small head on a lean adult frame, promoted, bright blue and silver light armor with subtle gold trim, thin gold circlet, medium green cape, ornate sword held angled outward at forty-five degrees in a ready stance, calm commander bearing, very simple bold shapes, maximum readability at small size, no shield"
+        }
+      ]
+    }
+  }
+}

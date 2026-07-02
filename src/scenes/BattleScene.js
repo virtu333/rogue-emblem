@@ -2879,7 +2879,16 @@ export class BattleScene extends Phaser.Scene {
     const spriteKey = this.getSpriteKey(unit);
     if (this.textures.exists(spriteKey)) {
       unit.graphic = this.add.image(pos.x, pos.y, spriteKey);
-      unit.graphic.setDisplaySize(TILE_SIZE - 2, TILE_SIZE - 2);
+      const src = this.textures.get(spriteKey).getSourceImage();
+      if (src && src.width > TILE_SIZE) {
+        // Hi-res overhang sprite (48px art on 32px tiles). The anchor is
+        // baked into the texture — feet sit 8px above the bottom edge — so
+        // centering on the tile keeps feet at the tile bottom while the head
+        // overhangs the tile above. Tile-center positioning stays valid.
+        unit.graphic.setDisplaySize(src.width, src.height);
+      } else {
+        unit.graphic.setDisplaySize(TILE_SIZE - 2, TILE_SIZE - 2);
+      }
       unit.label = null;
     } else {
       unit.graphic = this.add.rectangle(pos.x, pos.y, TILE_SIZE - 4, TILE_SIZE - 4, color);
@@ -2892,7 +2901,7 @@ export class BattleScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(11);
     }
-    unit.graphic.setDepth(10);
+    unit.graphic.setDepth(this._unitGraphicDepth(unit));
 
     // Faction indicator ring (blue=player, red=enemy, green=npc)
     const ringY = pos.y + 6;
@@ -2953,9 +2962,19 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Units lower on the map draw over units above them so 48px overhang
+   * sprites overlap naturally. Stays within [10, 11) — below labels (11)
+   * and HP bars (12/13).
+   */
+  _unitGraphicDepth(unit) {
+    return 10 + Math.min(unit.row ?? 0, 90) * 0.01;
+  }
+
   updateUnitPosition(unit) {
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     unit.graphic.setPosition(pos.x, pos.y);
+    unit.graphic.setDepth(this._unitGraphicDepth(unit));
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
     if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + 6);
     this.updateHPBar(unit);
