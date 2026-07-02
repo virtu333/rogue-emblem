@@ -51,8 +51,8 @@ const LORD_ITEMS_PER_PAGE = 6;
 
 // Tabs whose rows carry a lore line get taller rows and fewer per page.
 // Content area is ~290px: 3-line rows (gap 44) fit 6, 4-line rows (gap 58) fit 5.
-const PER_PAGE_BY_KEY = { lords: LORD_ITEMS_PER_PAGE, weapons: 6, items: 6, foes: 5 };
-const LINES_BY_KEY = { lords: 3, weapons: 3, items: 3, foes: 4 };
+const PER_PAGE_BY_KEY = { lords: LORD_ITEMS_PER_PAGE, weapons: 6, items: 6, blessings: 6, foes: 5 };
+const LINES_BY_KEY = { lords: 3, weapons: 3, items: 3, blessings: 3, foes: 4 };
 
 export class CompendiumOverlay {
   constructor(scene, gameData, onClose) {
@@ -947,6 +947,7 @@ export class CompendiumOverlay {
     this._text(left + 25, y, item.name, nameColor);
     this._text(rightX, y, `Tier ${item.tier || '?'}`, '#888888', 1);
     this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+    this._renderLoreLine(item, y + 28, left);
   }
 
   _renderTerrain(item, y, left, rightX) {

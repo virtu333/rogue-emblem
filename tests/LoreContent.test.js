@@ -49,6 +49,18 @@ describe('lore content contract', () => {
     }
   });
 
+  it('every blessing has lore distinct from its mechanical description', () => {
+    const blessings = gameData.blessings.blessings;
+    expect(blessings.length).toBeGreaterThan(0);
+    for (const blessing of blessings) {
+      expectValidLore(blessing, ITEM_BUDGET, `blessing "${blessing.name}"`);
+      expect(
+        blessing.lore,
+        `blessing "${blessing.name}": lore must not repeat description`,
+      ).not.toBe(blessing.description);
+    }
+  });
+
   it('every class has lore distinct from its mechanical description', () => {
     expect(gameData.classes.length).toBeGreaterThan(0);
     for (const klass of gameData.classes) {

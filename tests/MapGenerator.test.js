@@ -82,6 +82,31 @@ describe('MapGenerator', () => {
       );
     });
 
+    describe('finalBoss difficulty gating', () => {
+      const finalBossFor = (difficultyId, seed) =>
+        withSeed(seed, () =>
+          generateBattle({ act: 'finalBoss', objective: 'seize', difficultyId }, data),
+        ).enemySpawns.find((e) => e.isBoss);
+
+      it('hard always faces The Lieutenant, never The Entity', () => {
+        for (let seed = 1; seed <= 15; seed++) {
+          const boss = finalBossFor('hard', seed);
+          expect(boss.name, `seed ${seed}`).toBe('The Lieutenant');
+          expect(boss.isEntity, `seed ${seed}`).toBeFalsy();
+        }
+      });
+
+      it('normal faces The Lieutenant; lunatic faces The Entity', () => {
+        for (let seed = 1; seed <= 5; seed++) {
+          expect(finalBossFor('normal', seed).name, `seed ${seed}`).toBe('The Lieutenant');
+          // Identity only: isEntity is set by the entitySpawn placement path, which
+          // depends on the rolled template (non-entitySpawn templates fall back to
+          // 1-tile placement — pre-existing behavior outside this contract).
+          expect(finalBossFor('lunatic', seed).name, `seed ${seed}`).toBe('The Entity');
+        }
+      });
+    });
+
     it('throws a clear error for seize when seize pool is empty', () => {
       const deps = {
         ...data,

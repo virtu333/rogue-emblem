@@ -41,7 +41,8 @@
             "type": "array",
             "items": { "$ref": "#/$defs/costEntry" }
           },
-          "excludes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          "excludes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "lore": { "type": "string", "minLength": 1 }
         },
         "required": ["id", "name", "tier", "description", "weight", "boons", "costs"],
         "additionalProperties": false

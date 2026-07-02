@@ -1,7 +1,7 @@
 [
   {
     "name": "Vulnerary",
-    "lore": "Bitter herbs sealed in wax. The border's whole medical doctrine in one pouch.",
+    "lore": "Bitter herbs sealed in wax. The whole of the border's field medicine in one pouch.",
     "type": "Consumable",
     "effect": "heal",
     "value": 10,

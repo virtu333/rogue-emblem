@@ -15,7 +15,7 @@
   },
   {
     "name": "Steel Sword",
-    "lore": "War quickened the forges; steel that once took a season now ships by the cart.",
+    "lore": "War quickened the forges. Varen's standard was the first thing they dropped.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -375,7 +375,7 @@
   },
   {
     "name": "Axereaver",
-    "lore": "Balanced against every rule of axework; it wins arguments axes are meant to lose.",
+    "lore": "Balanced backward on purpose. It wins the fights axes are supposed to lose.",
     "type": "Axe",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -779,7 +779,7 @@
   },
   {
     "name": "Restore",
-    "lore": "Cut from a warded grove. Sleep, silence, and poison do not argue with it.",
+    "lore": "Cut from a warded grove. Sleep, silence, and venom lose their grip at its touch.",
     "type": "Staff",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -978,7 +978,7 @@
   },
   {
     "name": "Venin Blade",
-    "lore": "Quenched in the corrupted fens. The cut closes; the argument continues.",
+    "lore": "Quenched in fens that drain the sacred ground. The cut closes; the sickness stays.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -1111,7 +1111,7 @@
   },
   {
     "name": "Guard Scroll",
-    "lore": "Shield doctrine from the old kingdom's wall-years.",
+    "lore": "Shield drills from the old kingdom's wall-years.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1595,7 +1595,7 @@
   },
   {
     "name": "Fire Breath",
-    "lore": "The oldest argument dragons make.",
+    "lore": "The oldest word in the dragon tongue.",
     "type": "Breath",
     "tier": "Iron",
     "rankRequired": "Prof",

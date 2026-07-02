@@ -3,6 +3,7 @@
   "blessings": [
     {
       "id": "steady_hands",
+      "lore": "A steadying of the wrist, asked at shrines since before the shrines had a roof.",
       "name": "Steady Hands",
       "tier": 1,
       "description": "+3 Hit for all units in every act.",
@@ -17,6 +18,7 @@
     },
     {
       "id": "coin_of_fate",
+      "lore": "Pilgrims leave a coin at the shrine. Sometimes the shrine gives one back.",
       "name": "Coin of Fate",
       "tier": 1,
       "description": "+500 gold at run start.",
@@ -31,6 +33,7 @@
     },
     {
       "id": "blessed_vigor",
+      "lore": "The old blessing for departing levies: come back heavier than you left.",
       "name": "Blessed Vigor",
       "tier": 1,
       "description": "At run start, lords gain +2 max HP.",
@@ -45,6 +48,7 @@
     },
     {
       "id": "swift_instinct",
+      "lore": "Prayed for by couriers and deserters alike. The goddess does not distinguish.",
       "name": "Swift Instinct",
       "tier": 1,
       "description": "Lords gain +1 SPD at run start.",
@@ -59,6 +63,7 @@
     },
     {
       "id": "field_medic",
+      "lore": "The shrine keeps its own stores. No one restocks them; they are stocked.",
       "name": "Field Medic",
       "tier": 1,
       "description": "All units start with a Vulnerary.",
@@ -73,6 +78,7 @@
     },
     {
       "id": "iron_oath",
+      "lore": "Sworn at the shrine with a hand on cold iron. The iron remembers the terms.",
       "name": "Iron Oath",
       "tier": 2,
       "description": "+2 DEF to lords.",
@@ -87,6 +93,7 @@
     },
     {
       "id": "scout_blessing",
+      "lore": "The old faith walked its borders yearly. The habit of seeing far survives it.",
       "name": "Scout Blessing",
       "tier": 2,
       "description": "Deploy +1 unit.",
@@ -102,6 +109,7 @@
     },
     {
       "id": "scholar_vow",
+      "lore": "A vow of the seer order's lay students: learn quickly, for the term is short.",
       "name": "Scholar's Vow",
       "tier": 2,
       "description": "All growths +5%.",
@@ -116,6 +124,7 @@
     },
     {
       "id": "rally_cry",
+      "lore": "The old war-blessing, shouted rather than whispered. The goddess hears both.",
       "name": "Rally Cry",
       "tier": 2,
       "description": "+2 STR to all units in Act 1.",
@@ -130,6 +139,7 @@
     },
     {
       "id": "war_veteran",
+      "lore": "Some shrines prefer scarred hands. Offerings from smooth ones go unanswered.",
       "name": "War Veteran",
       "tier": 2,
       "description": "+15% XP gain from combat.",
@@ -144,6 +154,7 @@
     },
     {
       "id": "frugal_smith",
+      "lore": "A smith-saint's discount, honored at forges that keep the old mark by the door.",
       "name": "Frugal Smith",
       "tier": 2,
       "description": "Forge costs reduced by 30%, +1 forge per shop.",
@@ -163,6 +174,7 @@
     },
     {
       "id": "arsenal_pact",
+      "lore": "Old kings armed pilgrims for the worst roads. Something still honors the custom.",
       "name": "Arsenal Pact",
       "tier": 4,
       "description": "Start with a silver weapon.",
@@ -177,6 +189,7 @@
     },
     {
       "id": "pilgrim_coin",
+      "lore": "The pilgrim roads pay their walkers. No one has ever met the paymaster.",
       "name": "Pilgrim Coin",
       "tier": 3,
       "description": "Shops stock +1 item at 15% discount.",
@@ -195,6 +208,7 @@
     },
     {
       "id": "merchant_bane",
+      "lore": "A curse-blessing. The old faith was not entirely gentle.",
       "name": "Merchant Bane",
       "tier": 3,
       "description": "+15% battle gold.",
@@ -210,6 +224,7 @@
     },
     {
       "id": "nomad_pact",
+      "lore": "Sworn with the roads themselves. The old faith held that roads keep count.",
       "name": "Nomad's Pact",
       "tier": 3,
       "description": "Recruited units join +1 level higher.",
@@ -225,6 +240,7 @@
     },
     {
       "id": "terrain_mastery",
+      "lore": "The land remembers who kept its shrines and softens underfoot for them.",
       "name": "Terrain Mastery",
       "tier": 3,
       "description": "+5 avoid and +1 DEF on Forest/Fort tiles.",
@@ -239,6 +255,7 @@
     },
     {
       "id": "quartermaster_cache",
+      "lore": "A tithe barn's blessing, returned with interest. The barns are long burned.",
       "name": "Quartermaster Cache",
       "tier": 3,
       "description": "Lords gain +1 Elixir at run start.",
@@ -253,6 +270,7 @@
     },
     {
       "id": "forbidden_tome",
+      "lore": "Shelved in the temple crypts for a reason. Borrowed from them for a better one.",
       "name": "Forbidden Tome",
       "tier": 4,
       "description": "All growths +15%.",
@@ -267,6 +285,7 @@
     },
     {
       "id": "blood_forge",
+      "lore": "The forge-rite the smith-saints refused. It works. That was never the objection.",
       "name": "Blood Forge",
       "tier": 4,
       "description": "All lord weapons gain +2 forge levels.",
@@ -281,6 +300,7 @@
     },
     {
       "id": "war_tutelage",
+      "lore": "The war colleges tithed their best lessons to the shrines. The shrines kept them.",
       "name": "War Tutelage",
       "tier": 4,
       "description": "Each lord learns one random skill at run start.",
@@ -295,6 +315,7 @@
     },
     {
       "id": "armory_stash",
+      "lore": "Shrine cellars were the old kingdom's arsenals of last resort. Some still are.",
       "name": "Armory Stash",
       "tier": 4,
       "description": "Gain 2 random whetstones at run start.",
@@ -309,6 +330,7 @@
     },
     {
       "id": "scroll_archive",
+      "lore": "The seer order copies everything twice. One copy goes where the empire cannot read.",
       "name": "Scroll Archive",
       "tier": 4,
       "description": "Gain 2 random weapon-art scrolls at run start.",
@@ -323,6 +345,7 @@
     },
     {
       "id": "focused_curriculum",
+      "lore": "A teaching-blessing: one lesson, learned all the way down.",
       "name": "Focused Curriculum",
       "tier": 4,
       "description": "Lords gain +12% SPD and SKL growths.",

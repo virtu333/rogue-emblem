@@ -224,7 +224,7 @@ describe('CompendiumOverlay', () => {
 
     it('per-page counts: lore-bearing tabs shrink, others stay at 10', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const expectByTab = { 0: 6, 1: 10, 4: 6, 5: 6, 9: 5 }; // Arms, Skills, Items, Lords, Foes
+      const expectByTab = { 0: 6, 1: 10, 4: 6, 5: 6, 6: 6, 9: 5 }; // Arms, Skills, Items, Lords, Bless, Foes
       for (const [tabIndex, expected] of Object.entries(expectByTab)) {
         overlay.activeTabIndex = Number(tabIndex);
         expect(overlay._itemsPerPage(), `tab ${tabIndex}`).toBe(expected);
@@ -382,6 +382,23 @@ describe('CompendiumOverlay', () => {
       const overlay2 = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay2._renderWeapon({ name: 'Bare Sword', type: 'Sword' }, 100, 20, 500);
       expect(overlay2.objects.some((o) => o.text?.startsWith?.('"'))).toBe(false);
+    });
+
+    it('blessing rows show the parchment lore line at the third row', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const blessing = {
+        id: 'test_bless',
+        name: 'Test Blessing',
+        tier: 1,
+        description: '+3 Hit for all units.',
+        lore: 'The shrine answers whether or not you say the name right.',
+      };
+      overlay._renderBlessing(blessing, 100, 20, 500);
+      const loreObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('"') && o.y === 128,
+      );
+      expect(loreObj).toBeTruthy();
+      expect(loreObj.style.color).toBe('#c8b878');
     });
 
     it('item rows show the lore line and ellipsize past the row budget', () => {

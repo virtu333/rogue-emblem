@@ -5,7 +5,7 @@
   { "name": "Shield Ring", "type": "Accessory", "effects": { "DEF": 2 }, "price": 1500, "lore": "Cast from a melted shield-boss that outlived three bearers." },
   { "name": "Barrier Ring", "type": "Accessory", "effects": { "RES": 2 }, "price": 1500, "lore": "A ward-ring against sorcery, etched with a seer's patient script." },
   { "name": "Skill Ring", "type": "Accessory", "effects": { "SKL": 3 }, "price": 1500, "lore": "A drillmaster's retirement gift, passed down and never retired." },
-  { "name": "Goddess Icon", "type": "Accessory", "effects": { "LCK": 8 }, "price": 1000, "lore": "A thumb-worn pocket shrine. No one recalls the goddess by name; luck answers anyway." },
+  { "name": "Goddess Icon", "type": "Accessory", "effects": { "LCK": 8 }, "price": 1000, "lore": "A thumb-worn pocket shrine. The goddess's name was not forgotten; it was spent." },
   { "name": "Seraph Robe", "type": "Accessory", "effects": { "HP": 5 }, "price": 2000, "lore": "Temple weave that sits heavy as a hand on the shoulder. The body takes heart." },
   { "name": "Boots", "type": "Accessory", "effects": { "MOV": 1 }, "price": 3000, "lore": "A dead courier's boots. They know shortcuts their owner never taught anyone." },
   { "name": "Delphi Shield", "type": "Accessory", "effects": { "DEF": 1, "RES": 1 }, "combatEffects": { "negateFlierWeakness": true }, "price": 2500, "lore": "A sky-knight's talisman: the arrow's argument, refused." },

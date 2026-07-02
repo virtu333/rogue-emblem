@@ -62,7 +62,7 @@
       { "className": "General", "level": 20, "name": "The Emperor", "lore": "He traded the empire's future for the ritual's promise and believes the arithmetic favors him. Every timeline the seers have walked ends with him on this floor, certain, mid-sentence." }
     ],
     "finalBoss": [
-      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal"], "lore": "The ritual's first success, or its first casualty; the court circle's records use both words. He has seen every future the seers have seen, from the other side of the glass." },
+      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal", "hard"], "lore": "The ritual's first success, or its first casualty; the court circle's records use both words. He has seen every future the seers have seen, from the other side of the glass. The emperor calls him lieutenant; the records never say of what." },
       { "className": "Entity", "level": 20, "name": "The Entity", "isEntity": true, "difficultyFilter": ["lunatic"], "lore": "It was old when the sacred ground was consecrated to keep it asleep. The ritual fed it too much, and the war is the sound of it turning over. It does not hate. It does not need to." }
     ]
   },
