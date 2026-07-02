@@ -232,6 +232,7 @@ import {
   splitStrikeActivations,
   dominantCategory,
   findLegendaryArtActivation,
+  sigFxForWeaponType,
   PROC_CATEGORY,
 } from '../ui/ProcVisualTheme.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
@@ -2734,8 +2735,24 @@ export class BattleScene extends Phaser.Scene {
     const shouldAggro =
       this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS || turnEnrageActive;
     this.antiTurtleState.aggressiveMode = shouldAggro;
+    const becameEnraged = turnEnrageActive && !this.antiTurtleState.turnEnrageActive;
     this.antiTurtleState.turnEnrageActive = turnEnrageActive;
     this.aiController?.setAggressiveMode?.(shouldAggro);
+    if (becameEnraged) this._playBossEnrageFx();
+  }
+
+  /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
+  _playBossEnrageFx() {
+    const fx = (this._combatFx ||= new CombatFxController(this));
+    for (const boss of this.enemyUnits) {
+      if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
+      const pos = this.grid.gridToPixel(boss.col, boss.row);
+      fx.playOverlay('fx_sig_enrage', pos.x, pos.y - 6, { scale: 1.4 });
+    }
+    // Headless/stub scenes (tests) have no display list -- fx above no-ops too
+    if (this.add?.text) {
+      this.showBriefBanner('The boss is enraged!', '#ff5544').catch(() => {});
+    }
   }
 
   createEnemyPhaseAiStats() {
@@ -8122,22 +8139,21 @@ export class BattleScene extends Phaser.Scene {
     const banners = (this._procBanner ||= new ProcBannerController(this));
     banners.showStrikeProcChips(split, striker, target);
 
+    const legendaryArt = findLegendaryArtActivation(
+      event.skillActivations,
+      this._getWeaponArtCatalog(),
+    );
+
     // Portrait cut-in for crits and Legendary weapon arts (throttled inside;
     // skipped for follow-up strikes so flurries can't chain cut-ins).
-    if (!event.miss && !opts.followUp) {
-      const legendaryArt = findLegendaryArtActivation(
-        event.skillActivations,
-        this._getWeaponArtCatalog(),
-      );
-      if (event.isCrit || legendaryArt) {
-        await banners.showCutIn({
-          unitName: striker.name,
-          portraitKey: this._getPortraitKey(striker),
-          label: legendaryArt ? legendaryArt.name : 'CRITICAL HIT',
-          category: legendaryArt ? 'art' : 'offense',
-          side: striker.faction === 'player' ? 'left' : 'right',
-        });
-      }
+    if (!event.miss && !opts.followUp && (event.isCrit || legendaryArt)) {
+      await banners.showCutIn({
+        unitName: striker.name,
+        portraitKey: this._getPortraitKey(striker),
+        label: legendaryArt ? legendaryArt.name : 'CRITICAL HIT',
+        category: legendaryArt ? 'art' : 'offense',
+        side: striker.faction === 'player' ? 'left' : 'right',
+      });
     }
 
     const fx = (this._combatFx ||= new CombatFxController(this));
@@ -8180,7 +8196,10 @@ export class BattleScene extends Phaser.Scene {
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     const artStrike = split.striker.some((e) => e.id === 'weapon_art');
-    fx.playImpact(event, striker, target, { emphasis: artStrike });
+    fx.playImpact(event, striker, target, {
+      emphasis: artStrike,
+      signatureKey: legendaryArt ? sigFxForWeaponType(legendaryArt.weaponType) : null,
+    });
     fx.playProcOverlays(split, striker, target);
     if (artStrike) fx.playArtBurst(split, target, this._getWeaponArtCatalog());
     // Defensive proc: the target braces in place instead of getting knocked back
@@ -9657,6 +9676,7 @@ export class BattleScene extends Phaser.Scene {
       victim.currentHP = Math.max(0, victim.currentHP - dmg);
       this.updateHPBar(victim);
       const pos = this.grid.gridToPixel(tile.col, tile.row);
+      (this._combatFx ||= new CombatFxController(this)).playOverlay('fx_sig_entity', pos.x, pos.y);
       this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, '#cc66ff');
       await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
       if (victim.currentHP <= 0) {

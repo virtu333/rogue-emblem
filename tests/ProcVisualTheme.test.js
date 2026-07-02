@@ -11,6 +11,7 @@ import {
   findLegendaryArtActivation,
   fxForActivation,
   artBurstsForTier,
+  sigFxForWeaponType,
 } from '../src/ui/ProcVisualTheme.js';
 import { loadGameData } from './testData.js';
 
@@ -186,6 +187,23 @@ describe('artBurstsForTier', () => {
       const bursts = artBurstsForTier(art.tierAffinity);
       expect(bursts).toBeGreaterThanOrEqual(1);
       expect(bursts).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+describe('sigFxForWeaponType', () => {
+  it('maps each art weapon type to a signature sheet with magic fallback', () => {
+    expect(sigFxForWeaponType('Sword')).toBe('fx_sig_sword');
+    expect(sigFxForWeaponType('Lance')).toBe('fx_sig_lance');
+    expect(sigFxForWeaponType('Axe')).toBe('fx_sig_axe');
+    expect(sigFxForWeaponType('Bow')).toBe('fx_sig_bow');
+    expect(sigFxForWeaponType('Tome')).toBe('fx_sig_magic');
+    expect(sigFxForWeaponType(undefined)).toBe('fx_sig_magic');
+  });
+
+  it('covers every weaponType present in weaponArts.json', () => {
+    for (const art of arts) {
+      expect(sigFxForWeaponType(art.weaponType)).toMatch(/^fx_sig_/);
     }
   });
 });

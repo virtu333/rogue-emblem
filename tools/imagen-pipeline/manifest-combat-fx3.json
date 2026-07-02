@@ -1,0 +1,42 @@
+{
+  "globalStyle": "SNES 16-bit pixel art combat effect animation, limited color palette, chunky clean pixels, retro tactical RPG visual effect, glowing energy on a solid pure black background",
+  "categories": {
+    "combat_fx_sig": {
+      "targetSize": 48,
+      "aspectRatio": "16:9",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "sprite sheet of exactly 8 animation frames arranged in a 4x2 grid with 4 columns and 2 rows, frames read left-to-right top-to-bottom showing the effect build up, reach maximum intensity, and dissipate, each frame centered in its cell, solid pure black background, no grid lines, no borders, no text",
+      "assets": [
+        {
+          "name": "fx_sig_sword",
+          "prompt": "legendary sword technique, enormous crossing crescent blade arcs of brilliant cyan and white energy multiplying into a storm of slashes with trailing sparks"
+        },
+        {
+          "name": "fx_sig_lance",
+          "prompt": "legendary lance charge, a blazing blue-white spear of light thrusting toward the right wrapped in a spiraling drill of energy with speed lines and a piercing shockwave"
+        },
+        {
+          "name": "fx_sig_axe",
+          "prompt": "legendary axe cataclysm, a colossal orange-red overhead smash creating a cracking ground shockwave with erupting embers and jagged fissure lines"
+        },
+        {
+          "name": "fx_sig_bow",
+          "prompt": "legendary arrow volley, a rain of golden glowing arrows streaking down from above ending in radiant star-shaped impacts"
+        },
+        {
+          "name": "fx_sig_magic",
+          "prompt": "legendary arcane cataclysm, a swirling vortex of violet and crimson mystic energy collapsing inward then detonating in a runic explosion"
+        },
+        {
+          "name": "fx_sig_entity",
+          "prompt": "eldritch shockwave of an ancient horror, bright magenta and violet energy tendrils whipping outward from a dark central rift with small glowing embers"
+        },
+        {
+          "name": "fx_sig_enrage",
+          "prompt": "furious enrage aura, crimson and orange flames erupting upward in a ring with rising fury embers and heat shimmer streaks"
+        }
+      ]
+    }
+  }
+}
