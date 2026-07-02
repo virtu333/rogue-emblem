@@ -423,6 +423,14 @@ export class BootScene extends Phaser.Scene {
       'fx_light',
       'fx_heal',
       'fx_crit',
+      // Category proc overlays + weapon-art ring (tinted at runtime)
+      'fx_pierce',
+      'fx_drain',
+      'fx_shield',
+      'fx_flurry',
+      'fx_buff',
+      'fx_status',
+      'fx_ring',
     ];
     for (const name of combatFx) {
       this.load.spritesheet(name, `assets/sprites/fx/${name}.png`, {

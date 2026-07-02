@@ -7,7 +7,10 @@ import {
   dominantCategory,
   themeFor,
   classifySkillEventName,
+  findArtByName,
   findLegendaryArtActivation,
+  fxForActivation,
+  artBurstsForTier,
 } from '../src/ui/ProcVisualTheme.js';
 import { loadGameData } from './testData.js';
 
@@ -130,5 +133,68 @@ describe('findLegendaryArtActivation', () => {
     expect(findLegendaryArtActivation([{ id: 'luna', name: legendary.name }], arts)).toBeNull();
     expect(findLegendaryArtActivation([], arts)).toBeNull();
     expect(findLegendaryArtActivation(undefined, arts)).toBeNull();
+  });
+});
+
+describe('fxForActivation', () => {
+  it('maps every on-attack and on-defend skill in skills.json to an effect', () => {
+    for (const skill of skills.filter(
+      (s) => s.trigger === 'on-attack' || s.trigger === 'on-defend',
+    )) {
+      const entry = { id: skill.id, category: classifyActivation({ id: skill.id }, skills) };
+      const fx = fxForActivation(entry);
+      expect(fx, `skill ${skill.id} should map to an effect`).toBeTruthy();
+      expect(['striker', 'target']).toContain(fx.at);
+      expect(fx.key).toMatch(/^fx_/);
+    }
+  });
+
+  it('puts drain effects on the striker and pierce/shield effects correctly', () => {
+    expect(fxForActivation({ id: 'sol' })).toEqual({ key: 'fx_drain', at: 'striker' });
+    expect(fxForActivation({ id: 'luna' })).toEqual({ key: 'fx_pierce', at: 'target' });
+    expect(fxForActivation({ id: 'pavise' })).toEqual({ key: 'fx_shield', at: 'target' });
+    expect(fxForActivation({ id: 'thorns' })).toEqual({ key: 'fx_pierce', at: 'striker' });
+    expect(fxForActivation({ id: 'intimidate' })).toEqual({ key: 'fx_status', at: 'striker' });
+  });
+
+  it('falls back by category for unmapped ids and returns null for neutral/art', () => {
+    expect(fxForActivation({ id: 'future_defend_skill', category: 'defense' })).toEqual({
+      key: 'fx_shield',
+      at: 'target',
+    });
+    expect(fxForActivation({ id: 'future_attack_skill', category: 'offense' })).toEqual({
+      key: 'fx_pierce',
+      at: 'target',
+    });
+    expect(fxForActivation({ id: 'weapon_art', category: 'art' })).toBeNull();
+    expect(fxForActivation({ id: 'vantage', category: 'neutral' })).toBeNull();
+    expect(fxForActivation(null)).toBeNull();
+  });
+});
+
+describe('artBurstsForTier', () => {
+  it('scales ring bursts by tier', () => {
+    expect(artBurstsForTier('Legendary')).toBe(3);
+    expect(artBurstsForTier('Silver')).toBe(2);
+    expect(artBurstsForTier('Steel')).toBe(1);
+    expect(artBurstsForTier('Iron')).toBe(1);
+    expect(artBurstsForTier(undefined)).toBe(1);
+  });
+
+  it('covers every tierAffinity present in weaponArts.json', () => {
+    for (const art of arts) {
+      const bursts = artBurstsForTier(art.tierAffinity);
+      expect(bursts).toBeGreaterThanOrEqual(1);
+      expect(bursts).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+describe('findArtByName', () => {
+  it('finds arts by display name and returns null otherwise', () => {
+    const iron2 = arts.find((a) => a.tierAffinity === 'Iron');
+    expect(findArtByName(iron2.name, arts)).toBe(iron2);
+    expect(findArtByName('No Such Art', arts)).toBeNull();
+    expect(findArtByName(iron2.name, null)).toBeNull();
   });
 });

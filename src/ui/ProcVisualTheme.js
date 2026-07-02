@@ -88,6 +88,11 @@ export function classifySkillEventName(name, skillsData) {
   return PROC_CATEGORY.NEUTRAL;
 }
 
+/** Find a weapon-art catalog entry by activation display name. */
+export function findArtByName(name, artCatalog) {
+  return (artCatalog || []).find((a) => a.name === name) || null;
+}
+
 /**
  * If the activation list contains a Legendary-tier weapon art, return its
  * catalog entry (activation entries only carry the display name).
@@ -95,8 +100,56 @@ export function classifySkillEventName(name, skillsData) {
 export function findLegendaryArtActivation(activations, artCatalog) {
   for (const act of activations || []) {
     if (act.id !== 'weapon_art') continue;
-    const art = (artCatalog || []).find((a) => a.name === act.name);
+    const art = findArtByName(act.name, artCatalog);
     if (art?.tierAffinity === 'Legendary') return art;
   }
   return null;
+}
+
+/**
+ * Effect overlay for a proc activation: which spritesheet plays and on whom
+ * ('striker' or 'target', relative to the strike). Drain effects sit on the
+ * striker (the healed side); reflected/debuff-the-attacker procs (Thorns,
+ * Intimidate) also land on the striker. Unmapped ids fall back by category.
+ */
+const ACTIVATION_FX = {
+  // offense
+  luna: { key: 'fx_pierce', at: 'target' },
+  lethality: { key: 'fx_pierce', at: 'target' },
+  flare: { key: 'fx_pierce', at: 'target' },
+  astra: { key: 'fx_flurry', at: 'target' },
+  adept: { key: 'fx_flurry', at: 'target' },
+  sol: { key: 'fx_drain', at: 'striker' },
+  aether: { key: 'fx_drain', at: 'striker' },
+  drain: { key: 'fx_drain', at: 'striker' },
+  zombie_drain: { key: 'fx_drain', at: 'striker' },
+  seraph_strike: { key: 'fx_light', at: 'target' },
+  divine_charge: { key: 'fx_light', at: 'target' },
+  commanders_gambit: { key: 'fx_buff', at: 'striker' },
+  // defense (played on the defending unit == strike target)
+  pavise: { key: 'fx_shield', at: 'target' },
+  aegis: { key: 'fx_shield', at: 'target' },
+  miracle: { key: 'fx_shield', at: 'target' },
+  cancel: { key: 'fx_shield', at: 'target' },
+  dragon_scale: { key: 'fx_shield', at: 'target' },
+  shielded: { key: 'fx_shield', at: 'target' },
+  teleporter: { key: 'fx_shield', at: 'target' },
+  intimidate: { key: 'fx_status', at: 'striker' },
+  thorns: { key: 'fx_pierce', at: 'striker' },
+};
+
+export function fxForActivation(entry) {
+  if (!entry) return null;
+  const mapped = ACTIVATION_FX[entry.id];
+  if (mapped) return mapped;
+  if (entry.category === PROC_CATEGORY.DEFENSE) return { key: 'fx_shield', at: 'target' };
+  if (entry.category === PROC_CATEGORY.OFFENSE) return { key: 'fx_pierce', at: 'target' };
+  return null; // arts get the ring burst; neutral stances get no overlay
+}
+
+/** Ring bursts for a weapon-art strike, scaling with the art's tier. */
+export function artBurstsForTier(tierAffinity) {
+  if (tierAffinity === 'Legendary') return 3;
+  if (tierAffinity === 'Silver') return 2;
+  return 1;
 }
