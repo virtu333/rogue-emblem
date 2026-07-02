@@ -4,6 +4,9 @@
 import { HELP_TABS } from '../data/helpContent.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 const DEPTH_BG = 860;
 const DEPTH_PANEL = 861;
@@ -25,6 +28,14 @@ export class HelpOverlay {
     this.searchIndex = [];
     this.searchInputActive = false;
     this._keyboardSearchHandler = null;
+
+    // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
+    // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
+    // top of the pause menu that opened it. L1/R1 (and d-pad up/down) cycle tabs;
+    // d-pad left/right page within a tab; B/Start close (B first exits search).
+    this._focus = null;
+    this._onInputBound = null;
+    this._activeTabObj = null;
   }
 
   show() {
@@ -36,6 +47,7 @@ export class HelpOverlay {
     this.searchInputActive = false;
     this._buildSearchIndex();
     this._draw();
+    this._setupFocus();
 
     // ESC to close (only acts while top of the scene's overlay stack)
     this._overlayToken = pushOverlay(this.scene, {
@@ -71,6 +83,11 @@ export class HelpOverlay {
     if (!this._shutdownBound && this.scene?.events?.on) {
       this._shutdownBound = true;
       this.scene.events.on('shutdown', () => {
+        // Never leak the input-focus scope on hard shutdown — the stack is a
+        // module-level global that outlives the scene, so a missed pop would
+        // swallow all pad input in the next scene. Idempotent, so the normal
+        // host-driven hide() path is unaffected.
+        this._teardownFocus();
         const g = this.scene?.game;
         if (g?.events) {
           if (this._mobilePrev) g.events.off('mobile:prevTab', this._mobilePrev);
@@ -382,6 +399,7 @@ export class HelpOverlay {
 
       // Underline for active tab
       if (isActive) {
+        this._activeTabObj = tabText; // gamepad focus ring target
         const underline = this.scene.add.graphics().setDepth(DEPTH_UI);
         underline.lineStyle(2, 0xffdd44);
         underline.beginPath();
@@ -500,9 +518,99 @@ export class HelpOverlay {
         this.objects.push(nextBtn);
       }
     }
+
+    // _draw() rebuilds this.objects (including the active tab), so re-point the
+    // gamepad ring at the freshly created active-tab object after every redraw.
+    if (this._focus) this._renderFocus();
+  }
+
+  // --- Gamepad/keyboard focus ---
+
+  _setupFocus() {
+    this._focus = new BoundingFocusController(this.scene, DEPTH_UI + 3);
+    if (!this._onInputBound) {
+      this._onInputBound = (action, payload) => this._onInput(action, payload);
+    }
+    pushInputScope(this, this._onInputBound);
+    this._renderFocus();
+  }
+
+  _teardownFocus() {
+    if (this._onInputBound) {
+      popInputScope(this);
+      this._onInputBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._activeTabObj = null;
+  }
+
+  _renderFocus() {
+    if (!this._focus) return;
+    this._focus.setObjects(this._activeTabObj ? [this._activeTabObj] : [], true);
+  }
+
+  _onInput(action, payload) {
+    if (!this.visible) return;
+    // While keyboard search-input mode is active, only backing out acts on the
+    // pad — tab/page cycling would silently abandon the tab/page the search
+    // jumped to while the box still shows the query and result counter.
+    if (this.searchInputActive && action !== InputAction.CANCEL && action !== InputAction.PAUSE) {
+      return;
+    }
+    switch (action) {
+      case InputAction.PREV_UNIT:
+        this._cycleTab(-1);
+        break;
+      case InputAction.NEXT_UNIT:
+        this._cycleTab(1);
+        break;
+      case InputAction.NAVIGATE:
+        // Help has no sub-filters, so up/down doubles as a tab cycler (d-pad-only
+        // access); left/right page within the current tab.
+        if (payload?.dy) this._cycleTab(payload.dy > 0 ? 1 : -1);
+        else if (payload?.dx) this._cyclePage(payload.dx > 0 ? 1 : -1);
+        break;
+      case InputAction.CONFIRM:
+        // A advances in reading order (next page, then next tab) — same
+        // affordance as the mobile next-tab button, so the focus ring's
+        // console-standard "A does something" promise holds.
+        this._mobileNextAction();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        if (this.searchInputActive) {
+          this.searchInputActive = false;
+          this._draw();
+        } else {
+          this.hide();
+        }
+        break;
+    }
+  }
+
+  // Cycle tabs with wraparound; reset to the tab's first page.
+  _cycleTab(dir) {
+    const n = HELP_TABS.length;
+    if (n <= 1) return;
+    this.activeTabIndex = (this.activeTabIndex + dir + n) % n;
+    this.currentPage = 0;
+    this._draw();
+  }
+
+  // Step pages within the active tab, clamped at the ends.
+  _cyclePage(dir) {
+    const pageCount = HELP_TABS[this.activeTabIndex]?.pages?.length || 1;
+    const next = Math.max(0, Math.min(pageCount - 1, this.currentPage + dir));
+    if (next === this.currentPage) return;
+    this.currentPage = next;
+    this._draw();
   }
 
   hide() {
+    this._teardownFocus();
     const wasVisible = this.visible;
     const game = this.scene?.game;
     if (game?.events) {

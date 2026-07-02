@@ -8,6 +8,9 @@ import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { MenuFocusController } from '../ui/MenuFocusController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -57,6 +60,12 @@ export class RunCompleteScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
+      popInputScope(this);
+      this._onInputActionBound = null;
+      if (this._menuFocus) {
+        this._menuFocus.destroy();
+        this._menuFocus = null;
+      }
     });
 
     // Title
@@ -184,6 +193,39 @@ export class RunCompleteScene extends Phaser.Scene {
     titleBtn.on('pointerdown', () => {
       void this._attemptSceneTransition('Title', TRANSITION_REASONS.RETURN_TITLE);
     });
+
+    // Gamepad: drive a focus highlight over the two buttons (reusing their pointer
+    // onClick callbacks) and claim the input-focus scope. Built last, after the
+    // optional dialogue await, so the buttons exist.
+    this._menuFocus = new MenuFocusController(this);
+    this._menuFocus.setItems([
+      {
+        button: homeBtn,
+        color: '#88ccff',
+        onActivate: () => this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME),
+      },
+      {
+        button: titleBtn,
+        color: '#e0e0e0',
+        onActivate: () => this._attemptSceneTransition('Title', TRANSITION_REASONS.RETURN_TITLE),
+      },
+    ]);
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE: {
+        // Two buttons sit side by side; left/right or up/down both cycle focus.
+        const d = payload?.dx || payload?.dy;
+        if (d) this._menuFocus?.move(d);
+        break;
+      }
+      case InputAction.CONFIRM:
+        this._menuFocus?.activate();
+        break;
+    }
   }
 
   async _attemptSceneTransition(targetScene, reason) {

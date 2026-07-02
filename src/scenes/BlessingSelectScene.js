@@ -6,6 +6,8 @@ import { RunManager, clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 const TIER_COLORS = {
   1: { label: '#88ffbb', border: 0x2c7a4a, bg: 0x14281f },
@@ -46,6 +48,8 @@ export class BlessingSelectScene extends Phaser.Scene {
         keyboard.off('keydown-ENTER', this._onKeyEnter);
         keyboard.off('keydown-ESC', this._onKeyEsc);
       }
+      popInputScope(this);
+      this._onInputActionBound = null;
       this._onKeyUp = null;
       this._onKeyDown = null;
       this._onKeyEnter = null;
@@ -62,7 +66,26 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
     this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
 
+    // Gamepad: blessings are a vertical list, so NAVIGATE.dy browses; route into
+    // the SAME _navigate/_confirm/_back the keyboard uses. Released on shutdown.
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+
     this._draw();
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (payload?.dy) this._navigate(payload.dy);
+        break;
+      case InputAction.CONFIRM:
+        this._confirm();
+        break;
+      case InputAction.CANCEL:
+        this._back();
+        break;
+    }
   }
 
   _rebuildRunManager() {

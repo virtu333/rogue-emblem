@@ -28,10 +28,20 @@ import {
   CHURCH_VIEW_MAP_Y,
   CHURCH_LIST_BOTTOM_Y,
 } from './nodeMapOverlayLayout.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 export class ChurchController {
   constructor(scene) {
     this.scene = scene;
+    // Gamepad focus: a ring over the church services (a logical slot list — fixed
+    // buttons + scrollable revive/promote rows — with scroll-follow).
+    this._churchFocus = null;
+    this._churchSlots = null;
+    this._churchFocusIndex = 0;
+    this._churchFixed = null;
+    this._onInputActionBound = null;
   }
 
   handleChurch(node) {
@@ -249,6 +259,161 @@ export class ChurchController {
     scene.churchScrollOffset = 0;
 
     scene.drawChurchScrollContent();
+
+    this._churchFixed = {
+      heal: healBtn,
+      viewMap: viewMapBtn,
+      roster: rosterBtn,
+      leave: leaveBtn,
+    };
+    this._setupChurchFocus();
+  }
+
+  // ── Gamepad/keyboard focus ────────────────────────────────────
+
+  // Build the logical slot list (Heal, the revive/promote rows, View Map, Roster,
+  // Leave) and claim the input-focus stack. The ring follows the rows by scrolling
+  // them into view; the NodeMapScene visibility toggle hides it during the map /
+  // roster sub-views. Released in closeChurchOverlay().
+  _setupChurchFocus() {
+    const scene = this.scene;
+    const slots = [{ kind: 'fixed', btn: this._churchFixed.heal }];
+    const items = scene._churchScrollItems || [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type === 'revive' || items[i].type === 'promote') {
+        slots.push({ kind: 'content', itemIndex: i });
+      }
+    }
+    slots.push({ kind: 'fixed', btn: this._churchFixed.viewMap });
+    slots.push({ kind: 'fixed', btn: this._churchFixed.roster });
+    slots.push({ kind: 'fixed', btn: this._churchFixed.leave });
+    this._churchSlots = slots;
+    this._churchFocusIndex = 0;
+    this._churchFocus = new BoundingFocusController(scene, OVERLAY_CONTENT_DEPTH + 5);
+    if (!this._onInputActionBound) {
+      this._onInputActionBound = (action, payload) => this._onChurchInput(action, payload);
+    }
+    pushInputScope(this, this._onInputActionBound);
+    this._renderChurchFocus();
+  }
+
+  _onChurchInput(action, payload) {
+    const scene = this.scene;
+    if (!Array.isArray(scene.churchOverlay)) return;
+    // Map-view peek: any of confirm/cancel returns to the church. _exitChurchMapView
+    // clears _churchViewingMap then re-shows the ring (via _setChurchOverlayVisibility),
+    // so the pointer and pad exit paths are symmetric — no follow-up render needed.
+    if (scene._churchViewingMap) {
+      if (
+        action === InputAction.CANCEL ||
+        action === InputAction.PAUSE ||
+        action === InputAction.CONFIRM
+      ) {
+        scene._exitChurchMapView();
+      }
+      return;
+    }
+    // Roster sub-view (RosterOverlay not yet controller-driven): only back out.
+    if (scene._churchViewingRoster) {
+      if (action === InputAction.CANCEL || action === InputAction.PAUSE) scene.requestCancel();
+      return;
+    }
+    switch (action) {
+      case InputAction.NAVIGATE:
+        this._moveChurchFocus(payload?.dy || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._activateChurchFocus();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        scene.requestCancel(); // closes the church (or any open modal) via the cascade
+        break;
+      case InputAction.ROSTER:
+        this._churchFixed?.roster?.emit?.('pointerdown', { button: 0 });
+        break;
+    }
+  }
+
+  _moveChurchFocus(delta) {
+    if (!delta || !this._churchSlots?.length) return;
+    const n = this._churchSlots.length;
+    const dir = delta > 0 ? 1 : -1;
+    this._churchFocusIndex = Math.max(0, Math.min(n - 1, this._churchFocusIndex + dir));
+    this._renderChurchFocus();
+  }
+
+  _activateChurchFocus() {
+    const slot = this._churchSlots?.[this._churchFocusIndex];
+    if (!slot) return;
+    const target = slot.kind === 'fixed' ? slot.btn : this._renderedChurchButtonFor(slot.itemIndex);
+    target?.emit?.('pointerdown', { button: 0 });
+  }
+
+  _renderChurchFocus() {
+    const scene = this.scene;
+    if (!this._churchFocus) return;
+    if (
+      !Array.isArray(scene.churchOverlay) ||
+      scene._churchViewingMap ||
+      scene._churchViewingRoster
+    ) {
+      this._churchFocus.setObjects([]); // ring hidden in the sub-views
+      return;
+    }
+    const slot = this._churchSlots?.[this._churchFocusIndex];
+    let target = null;
+    if (slot?.kind === 'fixed') {
+      target = slot.btn;
+    } else if (slot?.kind === 'content') {
+      this._scrollChurchItemIntoView(slot.itemIndex);
+      target = this._renderedChurchButtonFor(slot.itemIndex);
+    }
+    this._churchFocus.setObjects(target ? [target] : [], true);
+  }
+
+  // Scroll the church list so the given logical item is on-screen, then redraw.
+  _scrollChurchItemIntoView(itemIndex) {
+    const scene = this.scene;
+    const item = (scene._churchScrollItems || [])[itemIndex];
+    if (!item) return;
+    const viewH = CHURCH_LIST_BOTTOM_Y - CHURCH_LIST_TOP_Y;
+    let offset = scene.churchScrollOffset || 0;
+    if (item.y < offset) offset = item.y;
+    else if (item.y + CHURCH_ITEM_HEIGHT > offset + viewH) {
+      offset = item.y + CHURCH_ITEM_HEIGHT - viewH;
+    }
+    offset = Math.max(0, Math.min(scene.churchScrollMax || 0, offset));
+    if (offset !== scene.churchScrollOffset) {
+      scene.churchScrollOffset = offset;
+      scene.drawChurchScrollContent();
+    }
+  }
+
+  _renderedChurchButtonFor(itemIndex) {
+    const group = this.scene.churchContentGroup || [];
+    return group.find((o) => o && o._churchItemIndex === itemIndex) || null;
+  }
+
+  // Called by NodeMapScene._setChurchOverlayVisibility so the ring tracks the
+  // overlay through the map / roster sub-views.
+  _setChurchRingVisible(visible) {
+    if (!this._churchFocus) return;
+    if (visible) this._renderChurchFocus();
+    else this._churchFocus.setRingVisible(false);
+  }
+
+  _teardownChurchFocus() {
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._churchFocus) {
+      this._churchFocus.destroy();
+      this._churchFocus = null;
+    }
+    this._churchSlots = null;
+    this._churchFixed = null;
   }
 
   drawChurchScrollContent() {
@@ -337,6 +502,7 @@ export class ChurchController {
             scene.showChurchMessage('Not enough gold or roster full!', '#ff4444');
           }
         });
+        unitBtn._churchItemIndex = items.indexOf(item);
         scene.churchContentGroup.push(unitBtn);
       } else if (item.type === 'promote') {
         const unit = item.unit;
@@ -447,6 +613,7 @@ export class ChurchController {
             'promotion',
           );
         });
+        unitBtn._churchItemIndex = items.indexOf(item);
         scene.churchContentGroup.push(unitBtn);
       }
     }
@@ -553,6 +720,7 @@ export class ChurchController {
 
   closeChurchOverlay() {
     const scene = this.scene;
+    this._teardownChurchFocus();
     scene._churchViewingRoster = false;
     clearTrackedSceneTimer(scene, scene._churchMessageTimer);
     scene._churchMessageTimer = null;

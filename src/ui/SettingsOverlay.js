@@ -1,12 +1,26 @@
 // SettingsOverlay — Reusable SNES-style settings panel (volume controls)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
+
 export class SettingsOverlay {
   constructor(scene, onClose) {
     this.scene = scene;
     this.onClose = onClose;
     this.objects = [];
     this.visible = false;
+
+    // Gamepad/keyboard focus: a ring over the rows (Music / SFX / Reduced Effects /
+    // Close). The overlay pushes one input-focus scope (LIFO) on show and pops it on
+    // hide, so the pad drives it on top of whatever opened it (Pause/Title/NodeMap/
+    // loot). d-pad up/down move the ring; left/right adjust the focused control; A
+    // activates (flip a toggle / press Close); B/Start close.
+    this._focus = null;
+    this._focusIndex = 0;
+    this._rows = []; // [{ focus, adjust(dir), activate() }] in reading order
+    this._onInputBound = null;
   }
 
   show() {
@@ -44,29 +58,37 @@ export class SettingsOverlay {
     const settings = this.scene.registry.get('settings');
     const audio = this.scene.registry.get('audio');
 
+    this._rows = [];
+
     // Music volume row
-    this._addVolumeRow(cx, cy - 46, 'Music', settings.getMusicVolume(), (val) => {
-      settings.setMusicVolume(val);
-      if (audio) audio.setMusicVolume(val);
-    });
+    this._rows.push(
+      this._addVolumeRow(cx, cy - 46, 'Music', settings.getMusicVolume(), (val) => {
+        settings.setMusicVolume(val);
+        if (audio) audio.setMusicVolume(val);
+      }),
+    );
 
     // SFX volume row
-    this._addVolumeRow(cx, cy + 4, 'SFX', settings.getSFXVolume(), (val) => {
-      settings.setSFXVolume(val);
-      if (audio) {
-        audio.setSFXVolume(val);
-        audio.playSFX('sfx_confirm');
-      }
-    });
+    this._rows.push(
+      this._addVolumeRow(cx, cy + 4, 'SFX', settings.getSFXVolume(), (val) => {
+        settings.setSFXVolume(val);
+        if (audio) {
+          audio.setSFXVolume(val);
+          audio.playSFX('sfx_confirm');
+        }
+      }),
+    );
 
-    this._addToggleRow(
-      cx,
-      cy + 54,
-      'Reduced Effects',
-      settings.getReducedEffects?.() ?? false,
-      (enabled) => {
-        if (settings?.setReducedEffects) settings.setReducedEffects(enabled);
-      },
+    this._rows.push(
+      this._addToggleRow(
+        cx,
+        cy + 54,
+        'Reduced Effects',
+        settings.getReducedEffects?.() ?? false,
+        (enabled) => {
+          if (settings?.setReducedEffects) settings.setReducedEffects(enabled);
+        },
+      ),
     );
 
     // Close button
@@ -85,10 +107,80 @@ export class SettingsOverlay {
     closeBtn.on('pointerout', () => closeBtn.setColor('#e0e0e0'));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
+    this._rows.push({
+      focus: closeBtn,
+      adjust: () => {},
+      activate: () => closeBtn.emit('pointerdown', { button: 0 }),
+    });
+
+    this._setupFocus();
+  }
+
+  // --- Gamepad/keyboard focus ---
+
+  _setupFocus() {
+    this._focus = new BoundingFocusController(this.scene, 905); // above content (902)
+    this._focusIndex = 0;
+    if (!this._onInputBound) {
+      this._onInputBound = (action, payload) => this._onSettingsInput(action, payload);
+    }
+    pushInputScope(this, this._onInputBound);
+    this._renderFocus();
+  }
+
+  _teardownFocus() {
+    if (this._onInputBound) {
+      popInputScope(this);
+      this._onInputBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._rows = [];
+  }
+
+  _onSettingsInput(action, payload) {
+    if (!this.visible) return;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (payload?.dy) this._moveFocus(payload.dy);
+        else if (payload?.dx) this._adjustFocused(payload.dx); // ramps while held
+        break;
+      case InputAction.CONFIRM:
+        this._rows[this._focusIndex]?.activate?.();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        this.hide();
+        break;
+    }
+  }
+
+  _moveFocus(delta) {
+    const n = this._rows.length;
+    if (!n || !delta) return;
+    const dir = delta > 0 ? 1 : -1;
+    this._focusIndex = Math.max(0, Math.min(n - 1, this._focusIndex + dir));
+    this._renderFocus();
+  }
+
+  _adjustFocused(dx) {
+    this._rows[this._focusIndex]?.adjust?.(dx);
+  }
+
+  _renderFocus() {
+    if (!this._focus) return;
+    const target = this._rows[this._focusIndex]?.focus || null;
+    this._focus.setObjects(target ? [target] : [], true);
   }
 
   _addVolumeRow(cx, y, label, initialValue, onChange) {
     let value = Math.round(initialValue * 100);
+
+    // Invisible full-row span so the gamepad ring highlights the whole control.
+    const rowRect = this.scene.add.rectangle(cx, y, 250, 26, 0x000000, 0).setDepth(902);
+    this.objects.push(rowRect);
 
     const labelText = this.scene.add
       .text(cx - 100, y, label, {
@@ -145,10 +237,17 @@ export class SettingsOverlay {
     rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
     rightBtn.on('pointerdown', () => update(10));
     this.objects.push(rightBtn);
+
+    // d-pad left/right step the slider; A is a no-op (nothing to "press").
+    return { focus: rowRect, adjust: (dir) => update(dir > 0 ? 10 : -10), activate: () => {} };
   }
 
   _addToggleRow(cx, y, label, initialValue, onChange) {
     let value = !!initialValue;
+
+    // Invisible full-row span so the gamepad ring highlights the whole control.
+    const rowRect = this.scene.add.rectangle(cx, y, 250, 26, 0x000000, 0).setDepth(902);
+    this.objects.push(rowRect);
 
     const labelText = this.scene.add
       .text(cx - 102, y, label, {
@@ -204,10 +303,14 @@ export class SettingsOverlay {
     rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
     rightBtn.on('pointerdown', () => update(1));
     this.objects.push(rightBtn);
+
+    // d-pad left/right force OFF/ON; A flips the current value.
+    return { focus: rowRect, adjust: (dir) => update(dir), activate: () => update(0) };
   }
 
   hide() {
     const wasVisible = this.visible;
+    this._teardownFocus();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     this.visible = false;

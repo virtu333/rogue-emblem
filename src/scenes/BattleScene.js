@@ -213,6 +213,7 @@ import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
+import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
@@ -222,9 +223,13 @@ import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
+import { GridCursorController } from '../ui/GridCursorController.js';
+import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
-import { hasOpenOverlay } from '../utils/overlayStack.js';
+import { hasOpenOverlay, routeCancel } from '../utils/overlayStack.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -363,6 +368,7 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this._registerSceneShutdownCleanup();
+    this._setupGamepadInput();
 
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
@@ -493,6 +499,22 @@ export class BattleScene extends Phaser.Scene {
       }
       this._mobileHandlers = null;
     }
+
+    // Gamepad action-bus teardown: the global reader keeps emitting across scenes,
+    // so this scene MUST release its input-focus scope or it would act on a dead scene.
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._gridCursor) {
+      this._gridCursor.destroy();
+      this._gridCursor = null;
+    }
+    if (this._menuFocus) {
+      this._menuFocus.destroy();
+      this._menuFocus = null;
+    }
+
     // Always reset mobile context on shutdown to prevent stale buttons surviving scene transition
     if (this.isMobileInput) {
       const ge = this.game?.events;
@@ -500,6 +522,106 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this._teardownBattleCameraSystem();
+  }
+
+  _setupGamepadInput() {
+    this._gridCursor = new GridCursorController(this);
+    this._menuFocus = new MenuFocusController(this);
+    // Register a scope on the LIFO input-focus stack. While this scene is the
+    // topmost scope it receives action-bus events; an overlay opened later pushes
+    // above it and captures the pad until it closes. Popped in shutdown cleanup.
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+  }
+
+  // Route device-independent input actions (from the global gamepad reader) into
+  // the SAME methods mouse/keyboard use. NAVIGATE/CONFIRM are context-sensitive:
+  // they drive the action-menu focus while it is open, else the grid cursor.
+  _onInputAction(action, payload) {
+    if (this.isStoryInputLocked()) return;
+    const inMenu = this.battleState === 'UNIT_ACTION_MENU';
+    // The battle is over: the mouse path hides the cursor/info at BATTLE_END
+    // (onPointerMove), so don't let the pad re-show the tile highlight or pan
+    // the camera under the victory/defeat banner either.
+    const battleOver = this.battleState === 'BATTLE_END';
+    switch (action) {
+      case InputAction.NAVIGATE:
+        if (inMenu) {
+          if (payload?.dy) this._menuFocus?.move(payload.dy);
+        } else if (!battleOver) {
+          this._gridCursor?.move(payload?.dx || 0, payload?.dy || 0);
+        }
+        break;
+      case InputAction.CONFIRM:
+        if (inMenu) this._menuFocus?.activate();
+        else if (!battleOver) this._gridCursor?.confirm();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        routeCancel(this);
+        break;
+      case InputAction.DANGER:
+        this._onDangerClick();
+        break;
+      case InputAction.ROSTER:
+        this._onRosterClick();
+        break;
+      case InputAction.PREV_UNIT:
+        this._cycleCursorToUnit(-1);
+        break;
+      case InputAction.NEXT_UNIT:
+        this._cycleCursorToUnit(1);
+        break;
+      case InputAction.INSPECT:
+        this._inspectAtCursor();
+        break;
+    }
+  }
+
+  // Gamepad L1/R1: step the grid cursor through living, un-acted player units,
+  // the classic "next unit" affordance. Only while the player can freely move
+  // the cursor (PLAYER_IDLE); cursor snap pans the camera + highlights the tile.
+  _cycleCursorToUnit(dir) {
+    if (this.isStoryInputLocked()) return;
+    if (this.battleState !== 'PLAYER_IDLE') return;
+    const cursor = this._gridCursor;
+    if (!cursor) return;
+    const units = (this.playerUnits || [])
+      .filter((u) => u && u.currentHP > 0 && !u.hasActed && !isSleeping(u))
+      .sort((a, b) => a.row - b.row || a.col - b.col);
+    if (units.length === 0) return;
+    // Anchor on the unit already under the cursor so cycling is relative to it.
+    const anchor = units.findIndex((u) => u.col === cursor.cursorCol && u.row === cursor.cursorRow);
+    const start = anchor === -1 ? (dir > 0 ? -1 : 0) : anchor;
+    const next = (((start + dir) % units.length) + units.length) % units.length;
+    cursor.snapTo(units[next].col, units[next].row);
+  }
+
+  // Gamepad L2: the right-click "inspect" affordance, anchored to the grid cursor
+  // instead of the pointer. Toggles the inspection panel + enemy/ballista range.
+  _inspectAtCursor() {
+    if (this.isStoryInputLocked()) return;
+    if (this.battleState === 'BATTLE_END') return;
+    const ic = (this._inputController ||= new InputController(this));
+    if (this.inspectionPanel?.visible || ic._ballistaRangeShown) {
+      this.clearInspectionVisuals();
+      return;
+    }
+    const cursor = this._gridCursor;
+    if (!cursor || !this.grid) return;
+    const world = this.grid.gridToPixel(cursor.cursorCol, cursor.cursorRow);
+    if (!world) return;
+    this._showInspectionAtPixel(world.x, world.y);
+  }
+
+  // Gamepad cursor analogue of a mouse hover: whenever the grid cursor lands on a
+  // tile (d-pad move, L1/R1 snap, select snap), refresh the top-left terrain/unit
+  // info panel and — while a unit is selected — the movement path preview.
+  _onGridCursorMoved(col, row) {
+    if (this.battleState === 'BATTLE_END') return;
+    const ic = (this._inputController ||= new InputController(this));
+    ic.refreshTileInfo(col, row);
+    ic.updatePathPreview(col, row);
   }
 
   _isSceneActiveForAsync() {
@@ -3927,6 +4049,7 @@ export class BattleScene extends Phaser.Scene {
       this._getCostModifier(unit),
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
+    this._gridCursor?.snapTo(unit.col, unit.row);
 
     if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
       this._setTutorialGuideHighlight('fort');
@@ -5276,6 +5399,9 @@ export class BattleScene extends Phaser.Scene {
         onClick();
       });
     }
+    // Expose the activation callback so controller/keyboard menu focus can invoke
+    // the same action the pointer does, without a synthetic pointer event.
+    text._action = onClick;
     return text;
   }
 
@@ -5611,9 +5737,21 @@ export class BattleScene extends Phaser.Scene {
       this.actionMenu.push(text);
     });
     this._pinToScreen(this.actionMenu);
+    // Hand the focusable buttons (not the bg rect) to the controller/keyboard
+    // focus model so a gamepad can navigate + activate the same menu actions.
+    const focusItems = this.actionMenu
+      .filter((o) => typeof o?._action === 'function')
+      .map((button) => ({
+        label: button.text,
+        button,
+        onActivate: button._action,
+        color: '#e0e0e0',
+      }));
+    this._menuFocus?.setItems(focusItems);
   }
 
   hideActionMenu() {
+    this._menuFocus?.clear();
     this._hideMenuTooltip();
     this._hideWeaponDetailTooltip();
     this._weaponPreviewedItem = null;
@@ -9900,6 +10038,7 @@ export class BattleScene extends Phaser.Scene {
     listLeft,
     listRight,
     onBack = null,
+    extraFocusTargets = [],
   }) {
     const setVisibleSafe = (obj, visible) => {
       if (!obj) return;
@@ -10045,6 +10184,67 @@ export class BattleScene extends Phaser.Scene {
     }
 
     applyLayout();
+
+    // --- Gamepad/keyboard focus over selectable rows + extra buttons ----------
+    // A ring tracks the selectable row targets (scroll follows it) plus any extra
+    // buttons (Convoy / Back). The loot-card ring beneath auto-hides while this
+    // picker scope is on top (inputFocus onTopChange). Torn down with the picker.
+    const focusEntries = [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i]?.selectable && rows[i]?.inputTarget) {
+        focusEntries.push({ target: rows[i].inputTarget, rowIndex: i });
+      }
+    }
+    for (const extra of extraFocusTargets) {
+      if (extra) focusEntries.push({ target: extra, rowIndex: -1 });
+    }
+
+    if (focusEntries.length > 0) {
+      const pickerFocus = new BoundingFocusController(this, 715);
+      pickerFocus.setObjects(
+        focusEntries.map((e) => e.target),
+        true,
+      );
+
+      const ensureRowVisible = (rowIdx) => {
+        if (rowIdx < 0) return;
+        if (rowIdx < scrollOffset) setScrollOffset(rowIdx);
+        else if (rowIdx >= scrollOffset + maxVisibleRows) {
+          setScrollOffset(rowIdx - maxVisibleRows + 1);
+        }
+      };
+
+      const moveFocus = (delta) => {
+        if (!delta) return;
+        pickerFocus.move(delta);
+        const entry = focusEntries[pickerFocus.index];
+        if (entry) {
+          ensureRowVisible(entry.rowIndex);
+          pickerFocus.refresh();
+        }
+      };
+
+      const scopeOwner = {}; // unique identity for this picker instance
+      const handler = (action, payload) => {
+        switch (action) {
+          case InputAction.NAVIGATE:
+            moveFocus(payload?.dy || 0);
+            break;
+          case InputAction.CONFIRM:
+            pickerFocus.activate(); // -> the row/convoy/back button's pointerdown
+            break;
+          case InputAction.CANCEL:
+          case InputAction.PAUSE:
+            if (typeof onBack === 'function') onBack();
+            break;
+        }
+      };
+      pushInputScope(scopeOwner, handler);
+      detachHandlers.push(() => {
+        popInputScope(scopeOwner);
+        pickerFocus.destroy();
+      });
+    }
 
     return () => {
       for (const detach of detachHandlers) detach();

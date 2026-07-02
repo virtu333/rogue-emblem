@@ -30,6 +30,9 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import {
   trackSceneTimer,
   clearTrackedSceneTimer,
@@ -175,6 +178,11 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     this._bindInputHandlers();
+    // Gamepad: a cursor over the available nodes, registered on the input-focus
+    // stack. Refreshed by drawMap (which wipes children each redraw).
+    this._nodeCursor = new NodeMapCursorController(this);
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
     this.events.once('shutdown', () => this._onSceneShutdown());
 
     // Auto-save on every node map entry
@@ -351,6 +359,12 @@ export class NodeMapScene extends Phaser.Scene {
       this._shopController = null;
     }
     this._unbindInputHandlers();
+    popInputScope(this);
+    this._onInputActionBound = null;
+    if (this._nodeCursor) {
+      this._nodeCursor.destroy();
+      this._nodeCursor = null;
+    }
     if (this.isMobileInput && this._mobileHandlers) {
       const ge = this.game.events;
       for (const [action, handler] of Object.entries(this._mobileHandlers)) {
@@ -778,11 +792,13 @@ export class NodeMapScene extends Phaser.Scene {
     this._setOverlayVisibility(this.shopTabObjects, visible);
     this._setOverlayVisibility(this.unitPicker, visible);
     this._setOverlayVisibility(this.forgePicker, visible);
+    this._shopController?._setShopRingVisible?.(visible);
   }
 
   _setChurchOverlayVisibility(visible) {
     this._setOverlayVisibility(this.churchOverlay, visible);
     this._setOverlayVisibility(this.churchContentGroup, visible);
+    this._churchController?._setChurchRingVisible?.(visible);
   }
 
   _enterShopMapView() {
@@ -826,8 +842,10 @@ export class NodeMapScene extends Phaser.Scene {
       this._churchReturnBtn.destroy();
       this._churchReturnBtn = null;
     }
-    this._setChurchOverlayVisibility(true);
+    // Clear the flag BEFORE restoring visibility so the visibility hook's ring
+    // render isn't self-suppressed (the ring guard checks _churchViewingMap).
     this._churchViewingMap = false;
+    this._setChurchOverlayVisibility(true);
   }
 
   requestCancel({ allowPause = true } = {}) {
@@ -862,8 +880,10 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (this.shopOverlay) {
       if (this._shopViewingMap) {
-        this._setShopOverlayVisibility(true);
+        // Clear the flag BEFORE restoring visibility so the visibility hook's ring
+        // render isn't self-suppressed (the ring guard checks _shopViewingMap).
         this._shopViewingMap = false;
+        this._setShopOverlayVisibility(true);
         return true;
       }
       // ESC closes shop without marking node complete — player can re-enter
@@ -1300,6 +1320,48 @@ export class NodeMapScene extends Phaser.Scene {
         color: '#888888',
       })
       .setOrigin(0.5);
+
+    // Refresh the gamepad cursor over this frame's available nodes (the marker was
+    // wiped by children.removeAll at the top of drawMap).
+    this._nodeCursor?.setNodes(availableNodes, nodePositions);
+  }
+
+  // Device-independent input from the global reader (top of the input-focus stack).
+  // Overlays (shop/church/roster/pause) aren't gamepad-wired yet (Phase 2D); while
+  // one is open the map cursor stays inert, but CANCEL still cascades through
+  // requestCancel to close it.
+  _onInputAction(action, payload) {
+    if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
+      this.requestCancel();
+      return;
+    }
+    if (!this.isSceneReady || this.isTransitioning || this.battleLaunchInFlight) return;
+    if (this._nodeMapOverlayOpen()) return;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        this._nodeCursor?.move(payload?.dx || 0, payload?.dy || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._nodeCursor?.confirm();
+        break;
+      case InputAction.ROSTER:
+        this._openRoster();
+        break;
+    }
+  }
+
+  _nodeMapOverlayOpen() {
+    return Boolean(
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.colosseumOverlay?.visible ||
+      this._colosseumLoading ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible ||
+      this._storyDialogueActive ||
+      this.dialogueOverlay?.visible,
+    );
   }
 
   _openRoster() {

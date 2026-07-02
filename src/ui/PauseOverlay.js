@@ -5,6 +5,9 @@ import { SettingsOverlay } from './SettingsOverlay.js';
 import { HelpOverlay } from './HelpOverlay.js';
 import { CampaignMapOverlay } from './CampaignMapOverlay.js';
 import { CompendiumOverlay } from './CompendiumOverlay.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 export class PauseOverlay {
   /**
@@ -29,6 +32,13 @@ export class PauseOverlay {
     this.campaignMapOverlay = null;
     this.compendiumOverlay = null;
     this.confirmObjects = [];
+    // Gamepad/keyboard focus: a gold ring over the menu buttons (or the active
+    // confirm modal). _menuButtons/_confirmButtons are the live focus targets.
+    this._menuButtons = [];
+    this._confirmButtons = [];
+    this._focus = null;
+    this._onInputActionBound = null;
+    this._onTopChangeBound = null;
   }
 
   /** Returns true if any child overlay (Help, Settings, Compendium, CampaignMap) is open. */
@@ -71,6 +81,7 @@ export class PauseOverlay {
     this._hideConfirm();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
+    this._menuButtons = [];
     this.visible = true;
 
     const cx = this.scene.cameras.main.centerX;
@@ -224,6 +235,57 @@ export class PauseOverlay {
         '#cc5555',
       );
     }
+
+    this._setupFocus();
+  }
+
+  // Build the focus ring over the menu buttons and claim the input-focus stack so
+  // the pad drives the pause menu instead of the scene behind it. Popped in hide().
+  _setupFocus() {
+    if (!this._focus) this._focus = new BoundingFocusController(this.scene, 860);
+    this._focus.setObjects(this._menuButtons, true);
+    if (!this._onInputActionBound) {
+      this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    }
+    // When a sub-overlay (Settings/Help/Compendium/Campaign Map) pushes its own scope
+    // on top, hide the pause ring so it doesn't float over the sub-overlay (the
+    // Campaign Map panel sits BELOW the ring's depth); restore it when re-exposed.
+    if (!this._onTopChangeBound) {
+      this._onTopChangeBound = (isTop) => this._focus?.setRingVisible(isTop);
+    }
+    pushInputScope(this, this._onInputActionBound, this._onTopChangeBound);
+  }
+
+  // Route device-independent input actions while the pause menu owns the stack.
+  _onInputAction(action, payload) {
+    if (!this.visible) return;
+    // Each sub-overlay (Settings / More Info / Compendium / Campaign Map) now pushes
+    // its own input-focus scope, so while one is open the LIFO bus routes actions to
+    // it directly and this handler isn't reached. This block is a defensive fallback
+    // (e.g. mid-transition) that confines the pad to backing out of the sub-overlay.
+    if (this.hasActiveSubOverlay()) {
+      if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
+        this.closeActiveSubOverlay();
+      }
+      return;
+    }
+    const onConfirm = this._confirmButtons.length > 0;
+    switch (action) {
+      case InputAction.NAVIGATE:
+        // Main menu is a vertical list (dy); the confirm modal is Yes/Cancel side
+        // by side (dx).
+        this._focus?.move(onConfirm ? payload?.dx || 0 : payload?.dy || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._focus?.activate();
+        break;
+      case InputAction.CANCEL:
+      case InputAction.PAUSE:
+        // Back out of a confirm; otherwise Resume (Start un-pauses too).
+        if (onConfirm) this._hideConfirm();
+        else this.hide();
+        break;
+    }
   }
 
   _addButton(x, y, label, onClick, color = '#e0e0e0') {
@@ -242,6 +304,7 @@ export class PauseOverlay {
     btn.on('pointerout', () => btn.setColor(color));
     btn.on('pointerdown', onClick);
     this.objects.push(btn);
+    this._menuButtons.push(btn);
   }
 
   _showConfirm(message, onConfirm, confirmColor = '#cc5555') {
@@ -298,11 +361,21 @@ export class PauseOverlay {
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#e0e0e0'));
     cancelBtn.on('pointerdown', () => this._hideConfirm());
     this.confirmObjects.push(cancelBtn);
+
+    // Hand the focus ring to the modal (Yes first).
+    this._confirmButtons = [yesBtn, cancelBtn];
+    this._focus?.setObjects(this._confirmButtons, true);
   }
 
   _hideConfirm() {
+    const hadConfirm = this._confirmButtons.length > 0;
+    this._confirmButtons = [];
+    // Drop the ring's reference to the modal buttons BEFORE destroying them.
+    if (hadConfirm && this._focus) this._focus.clear();
     for (const obj of this.confirmObjects) obj.destroy();
     this.confirmObjects = [];
+    // Return focus to the main menu (unless we're tearing the whole overlay down).
+    if (hadConfirm && this.visible) this._focus?.setObjects(this._menuButtons, true);
   }
 
   hide() {
@@ -311,10 +384,25 @@ export class PauseOverlay {
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
     if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
     this._hideConfirm();
+    this._teardownFocus();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
+    this._menuButtons = [];
     this.visible = false;
     if (this.onResume) this.onResume();
+  }
+
+  _teardownFocus() {
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    this._onTopChangeBound = null;
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._confirmButtons = [];
   }
 
   /** Like hide(), but skips onResume — used before destructive transitions (Save & Exit, Abandon). */
@@ -324,8 +412,10 @@ export class PauseOverlay {
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
     if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
     this._hideConfirm();
+    this._teardownFocus();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
+    this._menuButtons = [];
     this.visible = false;
   }
 }

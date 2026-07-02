@@ -12,6 +12,7 @@ import {
   getTopOverlayName,
   cancelTopOverlay,
   clearOverlayStack,
+  routeCancel,
 } from '../src/utils/overlayStack.js';
 import { HelpOverlay } from '../src/ui/HelpOverlay.js';
 import { CampaignMapOverlay } from '../src/ui/CampaignMapOverlay.js';
@@ -235,5 +236,56 @@ describe('overlay ESC routing via the stack', () => {
     expect(hasOpenOverlay(scene)).toBe(true);
     help.hide();
     expect(hasOpenOverlay(scene)).toBe(false);
+  });
+});
+
+describe('routeCancel (device-independent back: gamepad B / mobile back)', () => {
+  function makeCancelScene() {
+    return { requestCancel: vi.fn(() => true), isStoryInputLocked: () => false };
+  }
+
+  it('closes only the topmost overlay per press, then falls through to requestCancel', () => {
+    const scene = makeCancelScene();
+    const closed = [];
+    const tokenA = pushOverlay(scene, {
+      name: 'a',
+      onCancel: () => {
+        closed.push('a');
+        removeOverlay(scene, tokenA);
+      },
+    });
+    const tokenB = pushOverlay(scene, {
+      name: 'b',
+      onCancel: () => {
+        closed.push('b');
+        removeOverlay(scene, tokenB);
+      },
+    });
+
+    // First B: closes only the top overlay (b), not a, and does NOT requestCancel.
+    expect(routeCancel(scene)).toBe(true);
+    expect(closed).toEqual(['b']);
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+
+    // Second B: closes a.
+    expect(routeCancel(scene)).toBe(true);
+    expect(closed).toEqual(['b', 'a']);
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+
+    // Third B: no overlays left -> normal cancel chain.
+    expect(routeCancel(scene)).toBe(true);
+    expect(scene.requestCancel).toHaveBeenCalledTimes(1);
+    clearOverlayStack(scene);
+  });
+
+  it('does nothing while story input is locked', () => {
+    const scene = { requestCancel: vi.fn(() => true), isStoryInputLocked: () => true };
+    expect(routeCancel(scene)).toBe(false);
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+  });
+
+  it('is safe with a minimal scene that has no requestCancel', () => {
+    expect(routeCancel({})).toBe(false);
+    expect(routeCancel(null)).toBe(false);
   });
 });

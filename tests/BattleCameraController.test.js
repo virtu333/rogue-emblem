@@ -218,3 +218,44 @@ describe('BattleCameraController clamp and pinch behavior', () => {
     expect(camera.scrollY).toBe(0);
   });
 });
+
+describe('BattleCameraController.ensureWorldVisible (gamepad cursor follow)', () => {
+  it('does not scroll when the point is already comfortably on-screen', () => {
+    const camera = createCamera(); // 640x480, zoom 1, scroll 0
+    const controller = new BattleCameraController(camera);
+    const moved = controller.ensureWorldVisible(320, 240, 32);
+    expect(moved).toBe(false);
+    expect(camera.scrollX).toBe(0);
+    expect(camera.scrollY).toBe(0);
+  });
+
+  it('pans the minimum amount to bring an off-screen point inside the margin (zoom 1)', () => {
+    const camera = createCamera(); // visible world rect [0,640] x [0,480]
+    const controller = new BattleCameraController(camera);
+    const moved = controller.ensureWorldVisible(1000, 800, 32);
+    expect(moved).toBe(true);
+    // right edge: scrollX + 640 must reach 1000 + 32 => scrollX = 392
+    expect(camera.scrollX).toBe(392);
+    // bottom edge: scrollY + 480 must reach 800 + 32 => scrollY = 352
+    expect(camera.scrollY).toBe(352);
+  });
+
+  it('accounts for the zoom offset (visible edge is scroll + off, not scroll)', () => {
+    const camera = createCamera();
+    camera.zoom = 2; // view 320x240; off = (160, 120)
+    const controller = new BattleCameraController(camera);
+    // scroll 0 => visible rect [160,480] x [120,360]
+    // point (500, 100): right of (480 - 16), above (120 + 16)
+    const moved = controller.ensureWorldVisible(500, 100, 16);
+    expect(moved).toBe(true);
+    expect(camera.scrollX).toBe(36); // 500 - (480 - 16)
+    expect(camera.scrollY).toBe(-36); // 100 - (120 + 16)
+  });
+
+  it('returns false for non-finite input and leaves scroll untouched', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera);
+    expect(controller.ensureWorldVisible(NaN, 10, 8)).toBe(false);
+    expect(camera.scrollX).toBe(0);
+  });
+});

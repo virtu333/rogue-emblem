@@ -6,6 +6,9 @@ import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js'
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
+import { GamepadReader } from './utils/GamepadReader.js';
+import { INPUT_ACTION_EVENT } from './utils/InputActions.js';
+import { dispatchInputAction } from './utils/inputFocus.js';
 import {
   getStartupTelemetry,
   initStartupTelemetry,
@@ -412,6 +415,28 @@ function bootGame(user) {
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
   startupViewportGuard.reconcileNow('phaser_boot_complete');
+
+  // Global gamepad reader: polls each game step and broadcasts device-independent
+  // input actions on game.events; scenes subscribe regardless of input device.
+  // `?gamepadSim` lets e2e/dev inject a scripted fake pad via window.__gamepadSim.
+  const gamepadSimEnabled =
+    typeof location !== 'undefined' && new URLSearchParams(location.search).has('gamepadSim');
+  const gamepadReader = new GamepadReader({
+    getPads: () => {
+      if (gamepadSimEnabled && window.__gamepadSim?.pads) return window.__gamepadSim.pads;
+      return typeof navigator !== 'undefined' && navigator.getGamepads
+        ? navigator.getGamepads()
+        : [];
+    },
+    dispatch: (action, payload) =>
+      window[GAME_INSTANCE_KEY].events.emit(INPUT_ACTION_EVENT, action, payload),
+  });
+  window[GAME_INSTANCE_KEY].events.on('step', (time) => gamepadReader.poll(time));
+  // Bridge the bus to the LIFO input-focus stack: only the topmost scope (active
+  // scene, or an overlay above it) receives each action. Scenes/overlays register
+  // scopes via pushInputScope/popInputScope rather than subscribing here directly.
+  window[GAME_INSTANCE_KEY].events.on(INPUT_ACTION_EVENT, dispatchInputAction);
+
   if (startupFlags.isMobile) {
     new MobileControls(window[GAME_INSTANCE_KEY]).show();
   }

@@ -31,6 +31,9 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
+import { BoundingFocusController } from './BoundingFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 
 export class LootScreenController {
   /**
@@ -46,6 +49,11 @@ export class LootScreenController {
     this.ctx = ctx;
     /** @type {object[]} Phaser display objects exposed to BattleScene for lootGroup */
     this.lootGroup = [];
+    // Gamepad focus: a ring over the reward cards + skip card. Auto-hides while a
+    // sub-picker is open (via the input-focus stack's onTopChange).
+    this._focus = null;
+    this._focusCards = [];
+    this._onInputActionBound = null;
   }
 
   /**
@@ -221,6 +229,7 @@ export class LootScreenController {
     };
 
     scene._lootCards = [];
+    this._focusCards = [];
 
     for (let i = 0; i < choices.length; i++) {
       const choice = choices[i];
@@ -238,6 +247,7 @@ export class LootScreenController {
       lootGroup.push(card);
 
       scene._lootCards.push({ bg: card });
+      this._focusCards.push(card);
 
       // Type icon
       const displayType = lootTypeDisplayMap[choice.type] || choice.type;
@@ -454,6 +464,7 @@ export class LootScreenController {
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
     lootGroup.push(skipCard);
+    this._focusCards.push(skipCard);
 
     const skipIcon = scene.add
       .text(skipX, cardY - 55, '$', {
@@ -525,6 +536,50 @@ export class LootScreenController {
     if (typeof scene._pinToScreen === 'function') {
       scene._pinToScreen(lootGroup);
     }
+
+    this._setupInputFocus();
+  }
+
+  // Claim the input-focus stack so the pad drives the reward cards. The ring is
+  // pinned like the cards; it auto-hides whenever a sub-picker pushes a scope on
+  // top (onTopChange) and restores when that picker pops. Torn down in
+  // _teardownInputFocus(), called from BattleScene's loot cleanup.
+  _setupInputFocus() {
+    const scene = this.scene;
+    if (this._focus) this._teardownInputFocus(); // defensive: re-render shouldn't stack
+    this._focus = new BoundingFocusController(scene, 705);
+    this._focus.setObjects(this._focusCards, true);
+    if (this._focus.ring && typeof scene._pinToScreen === 'function') {
+      scene._pinToScreen(this._focus.ring);
+    }
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound, (isTop) => this._focus?.setRingVisible(isTop));
+  }
+
+  _onInputAction(action, payload) {
+    switch (action) {
+      case InputAction.NAVIGATE:
+        // Cards sit in a horizontal row.
+        this._focus?.move(payload?.dx || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._focus?.activate(); // -> the card's pointerdown (gold/skip finalize, others open a picker)
+        break;
+      // CANCEL is intentionally inert: declining loot must be a deliberate move
+      // onto the Skip card, never an accidental B press that forfeits the reward.
+    }
+  }
+
+  _teardownInputFocus() {
+    if (this._onInputActionBound) {
+      popInputScope(this);
+      this._onInputActionBound = null;
+    }
+    if (this._focus) {
+      this._focus.destroy();
+      this._focus = null;
+    }
+    this._focusCards = [];
   }
 
   // ── Static rendering methods ─────────────────────────────────
@@ -704,6 +759,7 @@ export class LootScreenController {
         listLeft: cam.centerX - btnW / 2,
         listRight: cam.centerX + btnW / 2,
         onBack: handleBack,
+        extraFocusTargets: convoyCanStore ? [convoyBtn, backBtn] : [backBtn],
       });
     }
   }
@@ -882,6 +938,7 @@ export class LootScreenController {
         listLeft: cam.centerX - btnW / 2,
         listRight: cam.centerX + btnW / 2,
         onBack: handleBack,
+        extraFocusTargets: convoyCanStore ? [convoyBtn, backBtn] : [backBtn],
       });
     }
   }
@@ -1025,6 +1082,7 @@ export class LootScreenController {
         listLeft: cam.centerX - btnW / 2,
         listRight: cam.centerX + btnW / 2,
         onBack: handleBack,
+        extraFocusTargets: [backBtn],
       });
     }
   }
@@ -1208,6 +1266,7 @@ export class LootScreenController {
         listLeft: cam.centerX - btnW / 2,
         listRight: cam.centerX + btnW / 2,
         onBack: handleBack,
+        extraFocusTargets: [backBtn],
       });
     }
   }

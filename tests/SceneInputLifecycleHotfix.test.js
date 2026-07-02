@@ -273,7 +273,9 @@ describe('Menu scene keyboard listener lifecycle', () => {
     const keyboard = createKeyboardEmitter();
     const inputEmitter = createEmitter();
     let shutdownHandler = null;
-    const scene = {
+    // Real instance so create() can call prototype methods (e.g. gamepad focus
+    // setup via _refreshSlotFocus); drawSlots stays mocked to skip card rendering.
+    const scene = Object.assign(new SlotPickerScene(), {
       cameras: { main: { centerX: 320 } },
       add: {
         text: vi.fn(() => createDisplayObject()),
@@ -293,7 +295,7 @@ describe('Menu scene keyboard listener lifecycle', () => {
       drawSlots: vi.fn(),
       runTransition: vi.fn(),
       gameData: {},
-    };
+    });
 
     SlotPickerScene.prototype.create.call(scene);
     expect(keyboard.listenerCount('keydown-ESC')).toBe(1);

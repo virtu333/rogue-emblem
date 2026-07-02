@@ -16,6 +16,9 @@ import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
+import { BoundingFocusController } from '../ui/BoundingFocusController.js';
+import { InputAction } from '../utils/InputActions.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats', label: 'Recruits' },
@@ -202,6 +205,12 @@ export class HomeBaseScene extends Phaser.Scene {
       }
     }
 
+    // Gamepad: a bounding-ring cursor over the actionable (hand-cursor) buttons,
+    // registered on the input-focus stack. Rebuilt at the end of each drawUI.
+    this._homeFocus = new BoundingFocusController(this, 912);
+    this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
+    pushInputScope(this, this._onInputActionBound);
+
     this.drawUI();
 
     // Tutorial hints for home base
@@ -216,6 +225,15 @@ export class HomeBaseScene extends Phaser.Scene {
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
     this.isTransitioning = false;
+
+    // Release the gamepad focus scope before the picker teardown below (whose
+    // _refreshHomeFocus calls then no-op once _homeFocus is gone).
+    popInputScope(this);
+    this._onInputActionBound = null;
+    if (this._homeFocus) {
+      this._homeFocus.destroy();
+      this._homeFocus = null;
+    }
 
     clearAllSceneTimers(this);
     this._transientMessageTimer = null;
@@ -306,6 +324,65 @@ export class HomeBaseScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 0)
         .setDepth(911);
+    }
+
+    this._refreshHomeFocus?.();
+  }
+
+  // Collect the actionable buttons for gamepad focus. Hand-cursor + a pointerdown
+  // listener selects exactly the clickable controls (tabs, affordable cost
+  // buttons, scroll arrows, bottom buttons) and skips info-only labels. While a
+  // picker modal is open, focus is restricted to its live objects.
+  _refreshHomeFocus() {
+    if (!this._homeFocus || this._sceneShuttingDown) return;
+    const live = (arr) => Array.isArray(arr) && arr.some((o) => o?.scene);
+    let pool;
+    if (live(this._commanderPickerObjects)) pool = this._commanderPickerObjects;
+    else if (live(this._skillPickerObjects)) pool = this._skillPickerObjects;
+    else pool = this.children.list;
+    const focusables = pool
+      .filter(
+        (o) =>
+          o?.input?.enabled &&
+          o.input?.cursor === 'pointer' &&
+          typeof o.listenerCount === 'function' &&
+          o.listenerCount('pointerdown') > 0,
+      )
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    this._homeFocus.setObjects(focusables);
+  }
+
+  _cycleTab(dir) {
+    const keys = CATEGORIES.map((c) => c.key);
+    const i = keys.indexOf(this.activeTab);
+    const next = keys[(((i + dir) % keys.length) + keys.length) % keys.length];
+    if (next === this.activeTab) return;
+    this._hideMetaTooltips();
+    this.activeTab = next;
+    if (this.tabScrollOffsets[this.activeTab] === undefined)
+      this.tabScrollOffsets[this.activeTab] = 0;
+    this.drawUI();
+  }
+
+  _onInputAction(action, payload) {
+    if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
+      if (!hasOpenOverlay(this)) this.requestCancel({ allowExit: true });
+      return;
+    }
+    const pickerOpen = Boolean(this._skillPickerObjects || this._commanderPickerObjects);
+    switch (action) {
+      case InputAction.NAVIGATE:
+        this._homeFocus?.move(payload?.dy || payload?.dx || 0);
+        break;
+      case InputAction.CONFIRM:
+        this._homeFocus?.activate();
+        break;
+      case InputAction.PREV_UNIT: // L1: previous tab (not while a picker is open)
+        if (!pickerOpen) this._cycleTab(-1);
+        break;
+      case InputAction.NEXT_UNIT: // R1: next tab
+        if (!pickerOpen) this._cycleTab(1);
+        break;
     }
   }
 
@@ -1433,12 +1510,14 @@ export class HomeBaseScene extends Phaser.Scene {
     objects.push(cancel);
 
     this._skillPickerObjects = objects;
+    this._refreshHomeFocus?.(); // move gamepad focus into the picker
   }
 
   _destroySkillPicker() {
     if (this._skillPickerObjects) {
       this._skillPickerObjects.forEach((o) => o.destroy());
       this._skillPickerObjects = null;
+      this._refreshHomeFocus?.(); // return focus to the base buttons
     }
   }
 
@@ -1656,12 +1735,14 @@ export class HomeBaseScene extends Phaser.Scene {
     objects.push(closeBtn);
 
     this._commanderPickerObjects = objects;
+    this._refreshHomeFocus?.(); // move gamepad focus into the picker
   }
 
   _destroyCommanderPicker() {
     if (this._commanderPickerObjects) {
       this._commanderPickerObjects.forEach((o) => o.destroy());
       this._commanderPickerObjects = null;
+      this._refreshHomeFocus?.(); // return focus to the base buttons
     }
   }
 
