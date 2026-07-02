@@ -45,25 +45,25 @@
   },
   "bosses": {
     "act1": [
-      { "className": "Cavalier", "level": 3, "name": "Iron Captain" },
-      { "className": "Fighter", "level": 3, "name": "Warchief" }
+      { "className": "Cavalier", "level": 3, "name": "Iron Captain", "lore": "Twenty years on the border with orders that never changed and relief that never came. He holds the line because the line is all the empire ever gave him to hold." },
+      { "className": "Fighter", "level": 3, "name": "Warchief", "lore": "The border clans buried the old kingdom's treaties with the old kingdom. The empire's new terms arrived by herald; the warchief sent back the herald's boots." }
     ],
     "act2": [
-      { "className": "Paladin", "level": 12, "name": "Knight Commander" },
-      { "className": "Sage", "level": 12, "name": "Archmage" },
-      { "className": "Dark Knight", "level": 12, "name": "Dark Rider" }
+      { "className": "Paladin", "level": 12, "name": "Knight Commander", "lore": "First lance of the imperial second push. He wrote the cavalry doctrine the war colleges still teach, and he has read the casualty tables it bought. He no longer looks at them." },
+      { "className": "Sage", "level": 12, "name": "Archmage", "lore": "First of the court circle, keeper of the ritual's middle pages. He believes the summoning can be steered, and has believed it precisely as long as it has been too late to stop." },
+      { "className": "Dark Knight", "level": 12, "name": "Dark Rider", "lore": "The court circle's errand made flesh: he carries sealed orders between the ritual sites, and the roads empty ahead of him. The horse was black when this began. The rider was not." }
     ],
     "act3": [
-      { "className": "Swordmaster", "level": 17, "name": "Blade Lord" },
-      { "className": "General", "level": 17, "name": "Iron Wall" },
-      { "className": "Berserker", "level": 17, "name": "Berserker King" }
+      { "className": "Swordmaster", "level": 17, "name": "Blade Lord", "lore": "The dueling halls' perfect product, retained by the empire the way one retains a proof. He has never been touched in formal combat. The sacred ground is not formal." },
+      { "className": "General", "level": 17, "name": "Iron Wall", "lore": "He held the breach at the old capital until the order to fall back rotted unread in a courier's bag. The empire calls the resulting doctrine a triumph. He calls it a posting." },
+      { "className": "Berserker", "level": 17, "name": "Berserker King", "lore": "The berserk school's founder and its cautionary tale, crowned by the acclaim of everyone too frightened to object. The corruption did not change him. That is the frightening part." }
     ],
     "act4": [
-      { "className": "General", "level": 20, "name": "The Emperor" }
+      { "className": "General", "level": 20, "name": "The Emperor", "lore": "He traded the empire's future for the ritual's promise and believes the arithmetic favors him. Every timeline the seers have walked ends with him on this floor, certain, mid-sentence." }
     ],
     "finalBoss": [
-      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal"] },
-      { "className": "Entity", "level": 20, "name": "The Entity", "isEntity": true, "difficultyFilter": ["lunatic"] }
+      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal"], "lore": "The ritual's first success, or its first casualty; the court circle's records use both words. He has seen every future the seers have seen, from the other side of the glass." },
+      { "className": "Entity", "level": 20, "name": "The Entity", "isEntity": true, "difficultyFilter": ["lunatic"], "lore": "It was old when the sacred ground was consecrated to keep it asleep. The ritual fed it too much, and the war is the sound of it turning over. It does not hate. It does not need to." }
     ]
   },
   "enemyCountByTiles": {

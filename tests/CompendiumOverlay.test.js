@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { CompendiumOverlay } from '../src/ui/CompendiumOverlay.js';
+import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
 import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { loadGameData } from './testData.js';
 
@@ -97,7 +97,7 @@ describe('CompendiumOverlay', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('has 9 category tabs', () => {
+  it('has 10 category tabs', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
     overlay.show();
     // Tab labels should appear in rendered objects
@@ -111,6 +111,7 @@ describe('CompendiumOverlay', () => {
       'Bless',
       'Terrain',
       'Affixes',
+      'Foes',
     ];
     for (const label of labels) {
       const found = overlay.objects.find((o) => o.text === label);
@@ -211,19 +212,193 @@ describe('CompendiumOverlay', () => {
   });
 
   describe('pagination', () => {
-    it('pages Arms correctly at 10 items per page', () => {
+    it('pages Arms correctly at its per-page count', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.activeTabIndex = 0;
+      const perPage = overlay._itemsPerPage();
       const total = gameData.weapons.length;
-      const expectedPages = Math.ceil(total / 10);
+      const expectedPages = Math.ceil(total / perPage);
       // Verify page count by checking filtered items vs per-page
-      expect(Math.ceil(overlay._getFilteredItems().length / 10)).toBe(expectedPages);
+      expect(Math.ceil(overlay._getFilteredItems().length / perPage)).toBe(expectedPages);
     });
 
-    it('Lords page at 6 items per page', () => {
+    it('per-page counts: lore-bearing tabs shrink, others stay at 10', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      overlay.activeTabIndex = 5;
-      expect(overlay._itemsPerPage()).toBe(6);
+      const expectByTab = { 0: 6, 1: 10, 4: 6, 5: 6, 9: 5 }; // Arms, Skills, Items, Lords, Foes
+      for (const [tabIndex, expected] of Object.entries(expectByTab)) {
+        overlay.activeTabIndex = Number(tabIndex);
+        expect(overlay._itemsPerPage(), `tab ${tabIndex}`).toBe(expected);
+      }
+    });
+  });
+
+  describe('Foes tab (bestiary)', () => {
+    const bossCount = Object.values(gameData.enemies.bosses).reduce((n, arr) => n + arr.length, 0);
+
+    it('TAB_DEFS[9] is the Foes tab with All/Bosses/Classes filters', () => {
+      expect(TAB_DEFS[9]).toEqual({
+        label: 'Foes',
+        key: 'foes',
+        filters: ['All', 'Bosses', 'Classes'],
+      });
+    });
+
+    it('returns all bosses (act-flattened) followed by all classes', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const items = overlay._getItemsForTab(9);
+      expect(bossCount).toBe(11);
+      expect(items.length).toBe(bossCount + gameData.classes.length);
+      expect(items.slice(0, bossCount).every((i) => i._kind === 'boss')).toBe(true);
+      expect(items.slice(bossCount).every((i) => i._kind === 'class')).toBe(true);
+      expect(items[0]._actLabel).toBe('Act 1');
+      // Memoized: identities stable across calls (search index depends on this)
+      expect(overlay._getItemsForTab(9)).toBe(items);
+    });
+
+    it('Bosses/Classes filters split the list', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      overlay.activeTabIndex = 9;
+      overlay.activeFilterIndex = 1; // Bosses
+      expect(overlay._getFilteredItems().length).toBe(bossCount);
+      overlay.activeFilterIndex = 2; // Classes
+      expect(overlay._getFilteredItems().length).toBe(gameData.classes.length);
+    });
+
+    it('renders a boss row with act/class/level meta and wrapped lore', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const boss = {
+        name: 'Iron Captain',
+        className: 'Cavalier',
+        level: 3,
+        _kind: 'boss',
+        _actLabel: 'Act 1',
+        lore: 'He held the border for twenty years. No order ever came to relieve him.',
+      };
+      overlay._renderFoe(boss, 100, 20, 500);
+      const nameObj = overlay.objects.find((o) => o.text === 'Iron Captain');
+      expect(nameObj).toBeTruthy();
+      expect(nameObj.style.color).toBe('#ff8866');
+      const metaObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('Act 1') && o.text.includes('Lv3'),
+      );
+      expect(metaObj).toBeTruthy();
+      const loreObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('held the border'),
+      );
+      expect(loreObj).toBeTruthy();
+      expect(loreObj.style.color).toBe('#c8b878');
+    });
+
+    it('renders finalBoss difficulty tag and class rows without one', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const entity = {
+        name: 'The Entity',
+        className: 'Entity',
+        level: 20,
+        difficultyFilter: ['lunatic'],
+        _kind: 'boss',
+        _actLabel: 'Final',
+        lore: 'It was here before the ritual. The ritual only taught it our names.',
+      };
+      overlay._renderFoe(entity, 100, 20, 500);
+      const metaObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('[lunatic]'),
+      );
+      expect(metaObj).toBeTruthy();
+
+      const overlay2 = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const klass = {
+        name: 'Myrmidon',
+        tier: 'base',
+        moveType: 'Infantry',
+        _kind: 'class',
+        lore: 'Sword schools of the frontier teach speed first; armor is for the wealthy.',
+      };
+      overlay2._renderFoe(klass, 100, 20, 500);
+      const classNameObj = overlay2.objects.find((o) => o.text === 'Myrmidon');
+      expect(classNameObj.style.color).toBe('#e0e0e0');
+      const classMeta = overlay2.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('Class') && o.text.includes('base'),
+      );
+      expect(classMeta).toBeTruthy();
+      expect(overlay2.objects.some((o) => o.text?.includes?.('['))).toBe(false);
+    });
+
+    it('_wrapLore wraps, caps at maxLines with ellipsis, and handles empty', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(overlay._wrapLore('', 20, 2)).toEqual([]);
+      expect(overlay._wrapLore(null, 20, 2)).toEqual([]);
+      expect(overlay._wrapLore('short line', 20, 2)).toEqual(['short line']);
+
+      const wrapped = overlay._wrapLore('one two three four five six seven', 10, 5);
+      expect(wrapped.length).toBeGreaterThan(1);
+      expect(wrapped.every((l) => l.length <= 10)).toBe(true);
+
+      const capped = overlay._wrapLore('one two three four five six seven eight nine', 10, 2);
+      expect(capped.length).toBe(2);
+      expect(capped[1].endsWith('…')).toBe(true);
+    });
+
+    it('lore is searchable and boss hits jump to the Foes tab', () => {
+      const data = { ...gameData, enemies: structuredClone(gameData.enemies) };
+      data.enemies.bosses.act1[0].lore = 'He held the xyzzy pass alone.';
+      const overlay = new CompendiumOverlay(makeScene(), data, vi.fn());
+      overlay.show();
+      overlay.searchInputActive = true;
+      overlay._setSearchQuery('xyzzy');
+      expect(overlay.searchResults.length).toBe(1);
+      expect(overlay.activeTabIndex).toBe(9);
+      overlay.hide();
+    });
+
+    it('class names index once (Class tab), not again under Foes', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      overlay.show();
+      overlay.searchInputActive = true;
+      overlay._setSearchQuery('Myrmidon');
+      expect(overlay.searchResults.length).toBeGreaterThan(0);
+      expect(overlay.searchResults.every((r) => r.tabIndex !== 9)).toBe(true);
+      overlay.hide();
+    });
+  });
+
+  describe('lore row rendering (Arms/Items)', () => {
+    it('weapon rows show a quoted parchment lore line when lore exists, none otherwise', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const sword = {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 95,
+        lore: 'Issued by the crate to the border levies.',
+      };
+      overlay._renderWeapon(sword, 100, 20, 500);
+      const loreObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('"') && o.y === 128,
+      );
+      expect(loreObj).toBeTruthy();
+      expect(loreObj.style.color).toBe('#c8b878');
+
+      const overlay2 = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      overlay2._renderWeapon({ name: 'Bare Sword', type: 'Sword' }, 100, 20, 500);
+      expect(overlay2.objects.some((o) => o.text?.startsWith?.('"'))).toBe(false);
+    });
+
+    it('item rows show the lore line and ellipsize past the row budget', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const longLore = 'x'.repeat(120);
+      overlay._renderItem(
+        { name: 'Test Ring', type: 'Accessory', effects: { STR: 1 }, lore: longLore },
+        100,
+        20,
+        500,
+      );
+      const loreObj = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('"') && o.y === 128,
+      );
+      expect(loreObj).toBeTruthy();
+      expect(loreObj.text.length).toBeLessThanOrEqual(84);
+      expect(loreObj.text.endsWith('…')).toBe(true);
     });
   });
 

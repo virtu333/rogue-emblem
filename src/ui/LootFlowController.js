@@ -6,7 +6,7 @@ import {
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
-import { FORGE_MAX_LEVEL, FORGE_STAT_CAP } from '../utils/constants.js';
+import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/constants.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -87,8 +87,26 @@ export class LootFlowController {
       })
       .setDepth(761);
 
-    const boxW = Math.min(Math.max(detailText.width + padX * 2, 120), 240);
-    const boxH = detailText.height + padY * 2;
+    // Lore as its own stacked object (single-color Phaser text; the tooltip
+    // text builder stays untouched so its exact-string tests hold).
+    const loreGap = 6;
+    const loreText = item?.lore
+      ? scene.add
+          .text(0, 0, `"${item.lore}"`, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            fontStyle: 'italic',
+            color: LORE_TEXT_COLOR,
+            lineSpacing: 3,
+            wordWrap: { width: maxTextW },
+          })
+          .setDepth(761)
+      : null;
+
+    const contentW = Math.max(detailText.width, loreText ? loreText.width : 0);
+    const contentH = detailText.height + (loreText ? loreGap + loreText.height : 0);
+    const boxW = Math.min(Math.max(contentW + padX * 2, 120), 240);
+    const boxH = contentH + padY * 2;
 
     // Position above card with 6px gap, clamped to viewport
     let tx = cx - boxW / 2;
@@ -102,8 +120,11 @@ export class LootFlowController {
       .setDepth(760)
       .setStrokeStyle(1, 0x336666);
     detailText.setPosition(tx + padX, ty + padY);
+    if (loreText) loreText.setPosition(tx + padX, ty + padY + detailText.height + loreGap);
 
-    scene._lootTooltip = scene.add.container(0, 0, [bg, detailText]).setDepth(760);
+    scene._lootTooltip = scene.add
+      .container(0, 0, loreText ? [bg, detailText, loreText] : [bg, detailText])
+      .setDepth(760);
     scene._pinToScreen(scene._lootTooltip);
   }
 

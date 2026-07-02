@@ -47,7 +47,8 @@
       "weaponArtIds": { "type": "array", "items": { "type": "string" } },
       "weaponArtSources": { "type": "array", "items": { "type": "string" } },
       "teachesWeaponArtId": { "type": "string" },
-      "allowedWeaponTypes": { "type": "array", "items": { "type": "string" } }
+      "allowedWeaponTypes": { "type": "array", "items": { "type": "string" } },
+      "lore": { "type": "string", "minLength": 1 }
     },
     "required": [
       "name",

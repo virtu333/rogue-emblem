@@ -5,7 +5,7 @@
 // pickers reuse the same trade layer; cross-cutting seams are invoked via the
 // overlay's delegating wrappers so tests can intercept them as before.
 
-import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { INVENTORY_MAX, CONSUMABLE_MAX, LORE_TEXT_COLOR } from '../utils/constants.js';
 import {
   addToInventory,
   removeFromInventory,
@@ -66,6 +66,15 @@ export class RosterTradeController {
       return;
     }
 
+    // Single truncated flavor line at the pane's bottom edge (56px pane; the
+    // deepest content line sits at +36/+32, so +46 clears it with 9px text).
+    const addLoreLine = (y) => {
+      if (!item.lore) return;
+      const budget = 70; // ~390px pane text width at 9px monospace
+      const lore = item.lore.length <= budget ? item.lore : `${item.lore.slice(0, budget - 1)}…`;
+      addText(paneX, y, `"${lore}"`, LORE_TEXT_COLOR, '9px');
+    };
+
     // --- Consumable detail ---
     if (item.type === 'Consumable') {
       addText(
@@ -78,6 +87,7 @@ export class RosterTradeController {
       const effectLabel = getConsumableDescription(item) || item.effect || '';
       addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
       if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');
+      addLoreLine(paneY + 46);
       return;
     }
 
@@ -140,6 +150,7 @@ export class RosterTradeController {
         recipientUnit && !hasProficiency(recipientUnit, item) ? '#cc8844' : '#aaaaaa';
       addText(paneX, line3Y, parts.join('  |  '), specialColor);
     }
+    addLoreLine(paneY + 44);
   }
 
   _showTradePicker(sourceUnit) {

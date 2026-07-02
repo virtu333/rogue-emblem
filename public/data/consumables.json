@@ -1,6 +1,7 @@
 [
   {
     "name": "Vulnerary",
+    "lore": "Bitter herbs sealed in wax. The border's whole medical doctrine in one pouch.",
     "type": "Consumable",
     "effect": "heal",
     "value": 10,
@@ -9,6 +10,7 @@
   },
   {
     "name": "Elixir",
+    "lore": "Old-kingdom apothecary work. The recipe survives; the apothecaries did not.",
     "type": "Consumable",
     "effect": "healFull",
     "value": 0,
@@ -17,6 +19,7 @@
   },
   {
     "name": "Master Seal",
+    "lore": "An imperial commission, blank where the name goes. The war signs quickly.",
     "type": "Consumable",
     "effect": "promote",
     "value": 0,
@@ -25,6 +28,7 @@
   },
   {
     "name": "Energy Drop",
+    "lore": "Tastes of iron and intent. Old training-yard alchemy, one dose to a career.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "STR",
@@ -34,6 +38,7 @@
   },
   {
     "name": "Spirit Dust",
+    "lore": "Ground from a ruined ward-stone. It settles in the blood and listens.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MAG",
@@ -43,6 +48,7 @@
   },
   {
     "name": "Secret Book",
+    "lore": "A master's annotated footwork, sold by an estate that did not read it.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SKL",
@@ -52,6 +58,7 @@
   },
   {
     "name": "Speedwing",
+    "lore": "Feathers from a pegasus that outflew its own rider's orders.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SPD",
@@ -61,6 +68,7 @@
   },
   {
     "name": "Dracoshield",
+    "lore": "A scale shed by something patient. Armorers ask no questions.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "DEF",
@@ -70,6 +78,7 @@
   },
   {
     "name": "Talisman",
+    "lore": "A seer's knot worn against sorcery. It arrives already worn smooth.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "RES",
@@ -79,6 +88,7 @@
   },
   {
     "name": "Angelic Robe",
+    "lore": "Woven in a temple the empire unroofed. The cloth still keeps its promises.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "HP",
@@ -88,6 +98,7 @@
   },
   {
     "name": "Swiftsoles",
+    "lore": "A courier's boots, resoled past counting. The roads are in them now.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MOV",
@@ -97,6 +108,7 @@
   },
   {
     "name": "Infantry Seal",
+    "lore": "Reassignment papers, stamped by a clerk who no longer asks why.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "infantry",
@@ -106,6 +118,7 @@
   },
   {
     "name": "Mounted Seal",
+    "lore": "Stable requisition and rank in one seal. The horse is somehow always ready.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "mounted",
@@ -115,6 +128,7 @@
   },
   {
     "name": "Herb",
+    "lore": "Fen-picked and honest. Chew, grimace, continue.",
     "type": "Consumable",
     "effect": "cure",
     "value": 0,
@@ -123,6 +137,7 @@
   },
   {
     "name": "Remedy",
+    "lore": "A field surgeon's kit in a tin: antidote, splint, and one strong opinion.",
     "type": "Consumable",
     "effect": "cureHeal",
     "value": 10,

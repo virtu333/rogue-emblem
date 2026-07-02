@@ -83,6 +83,9 @@ export const FACTION_COLORS = {
 export const ATTACK_RANGE_COLOR = 0xcc3333;
 export const ATTACK_RANGE_ALPHA = 0.4;
 
+// Lore flavor text (item/enemy blurbs) — parchment tone shared by all lore surfaces
+export const LORE_TEXT_COLOR = '#c8b878';
+
 // Terrain heal per turn (forts, thrones)
 export const TERRAIN_HEAL_PERCENT = 0.1;
 export const FORT_HEAL_DECAY_MULTIPLIERS = [1, 0.67, 0.34, 0.17, 0];

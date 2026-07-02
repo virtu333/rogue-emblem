@@ -1,7 +1,8 @@
 // CompendiumOverlay — Encyclopedia data browser for game content
-// 9 tabs with sub-filters, pagination, and search. Depth 870-872.
+// 10 tabs with sub-filters, pagination, and search. Depth 870-872.
 
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -31,6 +32,8 @@ export const TAB_DEFS = [
   { label: 'Bless', key: 'blessings', filters: ['All', 'T1', 'T2', 'T3', 'T4'] },
   { label: 'Terrain', key: 'terrain', filters: null },
   { label: 'Affixes', key: 'affixes', filters: ['All', 'T1', 'T2'] },
+  // Appended last so existing tab indices (and index-based tests) stay stable.
+  { label: 'Foes', key: 'foes', filters: ['All', 'Bosses', 'Classes'] },
 ];
 
 const SKILL_FILTER_MAP = {
@@ -45,6 +48,11 @@ const SKILL_FILTER_MAP = {
 
 const ITEMS_PER_PAGE = 10;
 const LORD_ITEMS_PER_PAGE = 6;
+
+// Tabs whose rows carry a lore line get taller rows and fewer per page.
+// Content area is ~290px: 3-line rows (gap 44) fit 6, 4-line rows (gap 58) fit 5.
+const PER_PAGE_BY_KEY = { lords: LORD_ITEMS_PER_PAGE, weapons: 6, items: 6, foes: 5 };
+const LINES_BY_KEY = { lords: 3, weapons: 3, items: 3, foes: 4 };
 
 export class CompendiumOverlay {
   constructor(scene, gameData, onClose) {
@@ -179,7 +187,7 @@ export class CompendiumOverlay {
   }
 
   _itemsPerPage() {
-    return TAB_DEFS[this.activeTabIndex].key === 'lords' ? LORD_ITEMS_PER_PAGE : ITEMS_PER_PAGE;
+    return PER_PAGE_BY_KEY[TAB_DEFS[this.activeTabIndex].key] ?? ITEMS_PER_PAGE;
   }
 
   _getItemsForTab(tabIndex) {
@@ -206,9 +214,34 @@ export class CompendiumOverlay {
         return gd.terrain || [];
       case 'affixes':
         return gd.affixes?.affixes || [];
+      case 'foes':
+        return this._getFoesItems();
       default:
         return [];
     }
+  }
+
+  // Bestiary entries: all named bosses (act-labelled) followed by every class.
+  // Memoized so item identities stay stable across redraws and the search index.
+  _getFoesItems() {
+    if (this._foesItems) return this._foesItems;
+    const gd = this.gameData;
+    const bossActs = [
+      ['act1', 'Act 1'],
+      ['act2', 'Act 2'],
+      ['act3', 'Act 3'],
+      ['act4', 'Act 4'],
+      ['finalBoss', 'Final'],
+    ];
+    const bosses = [];
+    for (const [actKey, actLabel] of bossActs) {
+      for (const boss of gd?.enemies?.bosses?.[actKey] || []) {
+        bosses.push({ ...boss, _kind: 'boss', _actLabel: actLabel });
+      }
+    }
+    const classes = (gd?.classes || []).map((c) => ({ ...c, _kind: 'class' }));
+    this._foesItems = [...bosses, ...classes];
+    return this._foesItems;
   }
 
   _getFilteredItems() {
@@ -237,6 +270,10 @@ export class CompendiumOverlay {
         const tier = parseInt(filterLabel.replace('T', ''), 10);
         return items.filter((i) => i.tier === tier);
       }
+      case 'foes':
+        return items.filter((i) =>
+          filterLabel === 'Bosses' ? i._kind === 'boss' : i._kind === 'class',
+        );
       default:
         return items;
     }
@@ -248,6 +285,9 @@ export class CompendiumOverlay {
       const items = this._getItemsForTab(tabIndex);
       for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
         const item = items[itemIndex];
+        // Classes already index under the Class tab — skip their Foes-tab copies
+        // so a class-name search jumps there instead of bouncing to the bestiary.
+        if (TAB_DEFS[tabIndex].key === 'foes' && item._kind === 'class') continue;
         const parts = [
           item.name || '',
           item.description || '',
@@ -255,6 +295,7 @@ export class CompendiumOverlay {
           item.trigger || '',
           item.special || '',
           item.weaponType || '',
+          item.lore || '',
           item.tier != null ? String(item.tier) : '',
         ];
         this.searchIndex.push({
@@ -691,7 +732,7 @@ export class CompendiumOverlay {
 
   _renderItems(items, startY, left, panelW) {
     const def = TAB_DEFS[this.activeTabIndex];
-    const linesPerItem = def.key === 'lords' ? 3 : 2;
+    const linesPerItem = LINES_BY_KEY[def.key] ?? 2;
     const lineH = 14;
     // Keep final row clear of page-nav controls in filtered tabs.
     const itemGap = linesPerItem * lineH + 2;
@@ -728,6 +769,9 @@ export class CompendiumOverlay {
         case 'affixes':
           this._renderAffix(item, y, left, rightX);
           break;
+        case 'foes':
+          this._renderFoe(item, y, left, rightX);
+          break;
       }
     }
   }
@@ -755,6 +799,7 @@ export class CompendiumOverlay {
       this._text(left + 25, y + 14, stats, '#aaaaaa');
       this._text(rightX, y + 14, `${item.price || 0}g`, '#aaaaaa', 1);
     }
+    this._renderLoreLine(item, y + 28, left);
   }
 
   _renderSkill(item, y, left, rightX) {
@@ -834,6 +879,49 @@ export class CompendiumOverlay {
       desc = `Forge: ${item.forgeStat}`;
     }
     this._text(left + 25, y + 14, desc, '#aaaaaa');
+    this._renderLoreLine(item, y + 28, left);
+  }
+
+  /** Third row line on lore-bearing tabs: quoted, ellipsized to one line. */
+  _renderLoreLine(item, y, left) {
+    if (!item.lore) return;
+    this._text(left + 25, y, this._ellipsize(`"${item.lore}"`, 84), LORE_TEXT_COLOR);
+  }
+
+  _ellipsize(text, maxChars) {
+    const value = String(text || '');
+    return value.length <= maxChars ? value : `${value.slice(0, maxChars - 1)}…`;
+  }
+
+  /**
+   * Greedy word-wrap for lore text, char-budget based so it is testable without
+   * Phaser text measurement. Overflow past maxLines ellipsizes the last line.
+   */
+  _wrapLore(text, maxChars, maxLines) {
+    const value = String(text || '').trim();
+    if (!value) return [];
+    const words = value.split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      if (line.length === 0) {
+        line = word;
+      } else if (line.length + word.length + 1 > maxChars) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = `${line} ${word}`;
+      }
+    }
+    if (line) lines.push(line);
+    if (lines.length > maxLines) {
+      const kept = lines.slice(0, maxLines);
+      // Appending the marker first guarantees the cut is visible even when the
+      // kept line already sits exactly at the char budget.
+      kept[maxLines - 1] = this._ellipsize(`${kept[maxLines - 1]} …`, maxChars);
+      return kept;
+    }
+    return lines;
   }
 
   _renderLord(item, y, left, rightX) {
@@ -881,6 +969,29 @@ export class CompendiumOverlay {
     this._text(left + 25, y, item.name, nameColor);
     this._text(rightX, y, `Tier ${item.tier || '?'}  ${item.trigger || ''}`, '#888888', 1);
     this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+  }
+
+  _renderFoe(item, y, left, rightX) {
+    const isBoss = item._kind === 'boss';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : isBoss ? '#ff8866' : '#e0e0e0';
+    this._text(left + 25, y, item.name, nameColor);
+
+    let meta;
+    if (isBoss) {
+      // finalBoss entries are difficulty-gated variants — tag which mode meets them.
+      const modeTag = Array.isArray(item.difficultyFilter)
+        ? `  [${item.difficultyFilter.join('/')}]`
+        : '';
+      meta = `${item._actLabel || ''}  ${item.className || ''}  Lv${item.level ?? '?'}${modeTag}`;
+    } else {
+      meta = `Class  ${item.tier || ''}  ${item.moveType || ''}`;
+    }
+    this._text(rightX, y, meta, '#888888', 1);
+
+    const loreLines = this._wrapLore(item.lore, 84, isBoss ? 3 : 2);
+    for (let i = 0; i < loreLines.length; i++) {
+      this._text(left + 25, y + 14 * (i + 1), loreLines[i], LORE_TEXT_COLOR);
+    }
   }
 
   /** Helper: create a text object, optionally right-aligned (originX=1). */
