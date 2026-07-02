@@ -85,25 +85,47 @@ describe('MapGenerator', () => {
     describe('finalBoss difficulty gating', () => {
       const finalBossFor = (difficultyId, seed) =>
         withSeed(seed, () =>
-          generateBattle({ act: 'finalBoss', objective: 'seize', difficultyId }, data),
-        ).enemySpawns.find((e) => e.isBoss);
+          generateBattle(
+            { act: 'finalBoss', objective: 'seize', difficultyId, isBoss: true },
+            data,
+          ),
+        );
 
       it('hard always faces The Lieutenant, never The Entity', () => {
         for (let seed = 1; seed <= 15; seed++) {
-          const boss = finalBossFor('hard', seed);
+          const boss = finalBossFor('hard', seed).enemySpawns.find((e) => e.isBoss);
           expect(boss.name, `seed ${seed}`).toBe('The Lieutenant');
           expect(boss.isEntity, `seed ${seed}`).toBeFalsy();
         }
       });
 
       it('normal faces The Lieutenant; lunatic faces The Entity', () => {
-        for (let seed = 1; seed <= 5; seed++) {
-          expect(finalBossFor('normal', seed).name, `seed ${seed}`).toBe('The Lieutenant');
-          // Identity only: isEntity is set by the entitySpawn placement path, which
-          // depends on the rolled template (non-entitySpawn templates fall back to
-          // 1-tile placement — pre-existing behavior outside this contract).
-          expect(finalBossFor('lunatic', seed).name, `seed ${seed}`).toBe('The Entity');
+        for (let seed = 1; seed <= 15; seed++) {
+          const normalBoss = finalBossFor('normal', seed).enemySpawns.find((e) => e.isBoss);
+          expect(normalBoss.name, `normal seed ${seed}`).toBe('The Lieutenant');
+
+          const lunaticConfig = finalBossFor('lunatic', seed);
+          const lunaticBoss = lunaticConfig.enemySpawns.find((e) => e.isBoss);
+          expect(lunaticBoss.name, `lunatic seed ${seed}`).toBe('The Entity');
+          expect(lunaticBoss.isEntity, `lunatic seed ${seed}`).toBe(true);
+          expect(lunaticConfig.templateId, `lunatic seed ${seed}`).toBe('eldritch_sanctum');
         }
+      });
+
+      it.each(['normal', 'hard'])('%s final boss fights in eldritch_sanctum', (difficultyId) => {
+        for (let seed = 1; seed <= 15; seed++) {
+          expect(finalBossFor(difficultyId, seed).templateId, `seed ${seed}`).toBe(
+            'eldritch_sanctum',
+          );
+        }
+      });
+
+      it('fails loudly when finalBoss generation is not marked as a boss battle', () => {
+        expect(() =>
+          withSeed(1, () =>
+            generateBattle({ act: 'finalBoss', objective: 'seize', difficultyId: 'lunatic' }, data),
+          ),
+        ).toThrow('No valid map template found');
       });
     });
 
@@ -568,7 +590,7 @@ describe('MapGenerator', () => {
     for (const act of ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss']) {
       for (const objective of ['rout', 'seize']) {
         it(`${act} / ${objective}`, () => {
-          const config = generateBattle({ act, objective }, data);
+          const config = generateBattle({ act, objective, isBoss: act === 'finalBoss' }, data);
           expect(config.mapLayout.length).toBe(config.rows);
           expect(config.enemySpawns.length).toBeGreaterThan(0);
           expect(config.playerSpawns.length).toBeGreaterThanOrEqual(2);
