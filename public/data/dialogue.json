@@ -579,6 +579,15 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Iron Captain",
+            "portrait": "portrait_boss_iron_captain",
+            "line": "Half my guard, gone... Hold the border! Fall back and REFORM!"
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -630,6 +639,15 @@
                 "line": "You! I dreamed an army of fools cut me down. Dreams lie. Axes don't."
               }
             ]
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Warchief",
+            "portrait": "portrait_boss_warchief",
+            "line": "HAH! Now the blood flows! MORE! GIVE ME MORE!"
           }
         ]
       },
@@ -687,6 +705,15 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Knight Commander",
+            "portrait": "portrait_boss_knight_commander",
+            "line": "My armor cracks... but my faith holds. The emperor is watching!"
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -738,6 +765,15 @@
                 "line": "So the rifts do loop. I kept notes on your last visit... and on how you die in this one."
               }
             ]
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Archmage",
+            "portrait": "portrait_boss_archmage",
+            "line": "Half integrity lost... recalculating. You are outpacing my models."
           }
         ]
       },
@@ -795,6 +831,15 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Blade Lord",
+            "portrait": "portrait_boss_blade_lord",
+            "line": "Bleeding... the lieutenant never showed me this thread. No matter. I cut my own."
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -846,6 +891,15 @@
                 "line": "I have felt these walls fall before — in a dream that tasted of your steel."
               }
             ]
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Iron Wall",
+            "portrait": "portrait_boss_iron_wall",
+            "line": "The walls crack... then I am the wall. Come and break against ME."
           }
         ]
       },
@@ -903,6 +957,89 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "The Lieutenant",
+            "portrait": "portrait_boss_the_lieutenant",
+            "line": "You cut deeper than the visions promised. Enough. I stop holding back the future."
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": { "commander": "Edric" },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Then look again. This army writes its own future."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Kira" },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Every future? Then you already know the move I haven't made yet. Liar."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Voss" },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Seen me fall, have you? Watch me get up. It's what I do."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Sera" },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Your sight ends where mine begins. Shall we compare visions?"
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Rowan" },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Fate's a coin toss, friend. My lance calls heads."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Astrid" },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "You've never seen a future from as high as I have."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Cael" },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Then you've seen my shield too. Tell me — did you find a way through it?"
+              }
+            ]
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -952,6 +1089,89 @@
                 "speaker": "The Emperor",
                 "portrait": "portrait_boss_the_emperor",
                 "line": "You. The regicide echoes through the rift — I have felt this death before. Never again."
+              }
+            ]
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "The Emperor",
+            "portrait": "portrait_boss_the_emperor",
+            "line": "You DARE wound me? I held the dark back for decades — behold what I kept for myself!"
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": { "commander": "Edric" },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Power stolen from a sleeping god. We're here to return it."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Kira" },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Power without sight is just a bigger target."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Voss" },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Power, huh. Had that once. Outlived it."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Sera" },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Your seer is gone, emperor. I am the only one left who knows how this ends."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Rowan" },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Blessings beat borrowed power. Care to test it?"
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Astrid" },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "All that power, and you still never saw us coming."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Cael" },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Then throw it at me first. I insist."
               }
             ]
           }
@@ -1021,6 +1241,89 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": null,
+            "portrait": null,
+            "line": "The stillness shudders. Something vast turns its attention fully upon you."
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": { "commander": "Edric" },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "It doesn't speak. It doesn't need to. Steel yourselves — we end the cycle here."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Kira" },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "No taunts. No tells. Finally, an honest opponent."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Voss" },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Quiet one, eh. Good. I'm done listening."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Sera" },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "I hear it. Beneath the silence — every timeline screaming at once. Fight on."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Rowan" },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Not much for conversation? My lance speaks fluent silence."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Astrid" },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "The air itself won't carry me near it... then we walk. Together."
+              }
+            ]
+          },
+          {
+            "when": { "commander": "Cael" },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "It can stare all it wants. The wall doesn't blink."
+              }
+            ]
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -1075,6 +1378,15 @@
           }
         ]
       },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Dark Rider",
+            "portrait": "portrait_boss_dark_rider",
+            "line": "My blood on the wind... the shadows howl for yours in kind."
+          }
+        ]
+      },
       "defeat": {
         "base": [
           {
@@ -1126,6 +1438,15 @@
                 "line": "I know you! The worthy death from my dreams! COME! Give it to me again!"
               }
             ]
+          }
+        ]
+      },
+      "halfHealth": {
+        "base": [
+          {
+            "speaker": "Berserker King",
+            "portrait": "portrait_boss_berserker_king",
+            "line": "YES! Half dead and twice alive! THIS is a fight worth my crown!"
           }
         ]
       },
@@ -1586,6 +1907,26 @@
       "I said I'd hold. And I did. Now go.",
       "Every wall falls eventually. Build a better one."
     ]
+  },
+  "lordQuips": {
+    "onCrit": {
+      "Edric": ["For the banner!", "Stay down!", "This ends here!"],
+      "Kira": ["Right where I wanted you.", "Checkmate.", "Saw that coming."],
+      "Voss": ["Still standing. You're not.", "Felt that one myself.", "Next."],
+      "Sera": ["I saw this strike land.", "The threads align.", "Fate favors us."],
+      "Rowan": ["Blessed — told you!", "Clean hit. Mostly skill.", "Fate pays up."],
+      "Astrid": ["Death from above!", "Never saw the sky coming.", "The wind strikes true."],
+      "Cael": ["The wall pushes BACK.", "Felt that? Good.", "Shield arm's still strong."]
+    },
+    "onKill": {
+      "Edric": ["Rest now. It's over.", "One step closer.", "The banner marches on."],
+      "Kira": ["The line was always mine.", "Piece taken.", "That's the game."],
+      "Voss": ["Buried tougher.", "Still here. You're not.", "One more for the ledger."],
+      "Sera": ["This thread ends here.", "I foresaw your fall.", "The vision holds."],
+      "Rowan": ["Fate called it.", "The lance decides.", "Skill. Definitely skill."],
+      "Astrid": ["Grounded. For good.", "The sky keeps its word.", "Clear skies ahead."],
+      "Cael": ["You broke first.", "The line holds. Always.", "Down and staying down."]
+    }
   },
   "churchFlavor": {
     "revival": {
