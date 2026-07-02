@@ -413,6 +413,24 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);
     }
 
+    // Combat effect overlays (4-frame 48x48 strips, additive-blended in battle)
+    const combatFx = [
+      'fx_slash',
+      'fx_chop',
+      'fx_thrust',
+      'fx_arrow',
+      'fx_magic',
+      'fx_light',
+      'fx_heal',
+      'fx_crit',
+    ];
+    for (const name of combatFx) {
+      this.load.spritesheet(name, `assets/sprites/fx/${name}.png`, {
+        frameWidth: 48,
+        frameHeight: 48,
+      });
+    }
+
     // SFX (18 effects)
     const essentialSfx = ['sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold'];
     const combatSfx = [

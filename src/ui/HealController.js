@@ -17,6 +17,7 @@ import {
 import { equipWeapon, canEquip, hasStaff, getCombatWeapons } from '../engine/UnitManager.js';
 import { isCureStaff, clearAllConditions } from '../engine/StatusConditionSystem.js';
 import { showMinorHint } from './HintDisplay.js';
+import { CombatFxController } from './CombatFxController.js';
 
 export class HealController {
   constructor(scene) {
@@ -277,6 +278,7 @@ export class HealController {
     if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
+    (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
     const cureText = scene.add
       .text(pos.x, pos.y - 16, 'Cured!', {
         fontFamily: 'monospace',
@@ -309,6 +311,7 @@ export class HealController {
     if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
+    (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
     const healText = scene.add
       .text(pos.x, pos.y - 16, `+${healAmount}`, {
         fontFamily: 'monospace',
