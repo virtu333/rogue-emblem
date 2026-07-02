@@ -765,6 +765,47 @@ describe('NodeMap shop hover details', () => {
     expect(bg.height).toBe(expectedH);
   });
 
+  it('tooltip appends a stacked italic lore text when the item has lore', () => {
+    const scene = {
+      shopItemTooltip: null,
+      _hideShopItemTooltip: NodeMapScene.prototype._hideShopItemTooltip,
+      _getShopItemDetailText: NodeMapScene.prototype._getShopItemDetailText,
+      gameData: { skills: [] },
+      add: {
+        text: (_x, _y, _text, style) =>
+          makeDisplayObject({ x: _x, y: _y, text: _text, style, width: 200, height: 40 }),
+        rectangle: (x, y, w, h, color, alpha) =>
+          makeDisplayObject({ x, y, width: w, height: h, color, alpha }),
+      },
+    };
+
+    const entry = {
+      type: 'weapon',
+      item: {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        range: '1',
+        lore: 'Issued by the crate to the border levies.',
+      },
+    };
+
+    NodeMapScene.prototype._showShopItemTooltip.call(scene, entry, 100, 100);
+
+    expect(scene.shopItemTooltip).toHaveLength(3);
+    const [bg, detailText, loreText] = scene.shopItemTooltip;
+    expect(loreText.text).toBe('"Issued by the crate to the border levies."');
+    expect(loreText.style.color).toBe('#c8b878');
+    expect(loreText.style.fontStyle).toBe('italic');
+    expect(loreText.style.wordWrap).toEqual({ width: 304 });
+    // Box grows by lore height + 6px gap; lore sits below the detail block
+    expect(bg.height).toBe(40 + 6 + 40 + 12);
+    expect(loreText.y).toBe(detailText.y + 40 + 6);
+  });
+
   it('forge tooltip includes weapon art line and grows with extra lines', () => {
     const makeScene = () => ({
       forgeTooltip: null,

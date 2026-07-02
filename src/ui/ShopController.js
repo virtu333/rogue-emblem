@@ -17,6 +17,7 @@ import {
   FORGE_STAT_CAP,
   AMBUSH_SHOP_DISCOUNT,
   SAFE_BOTTOM_Y,
+  LORE_TEXT_COLOR,
 } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
@@ -1520,8 +1521,27 @@ export class ShopController {
       })
       .setDepth(311);
 
-    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 150, 320);
-    const boxH = detailText.height + padY * 2;
+    // Lore rides below the mechanical detail as its own object — Phaser text is
+    // single-color, and keeping the detail builder untouched preserves its tests.
+    const lore = entry?.item?.lore;
+    const loreGap = 6;
+    const loreText = lore
+      ? scene.add
+          .text(0, 0, `"${lore}"`, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            fontStyle: 'italic',
+            color: LORE_TEXT_COLOR,
+            lineSpacing: 4,
+            wordWrap: { width: maxTextW },
+          })
+          .setDepth(311)
+      : null;
+
+    const contentW = Math.max(detailText.width, loreText ? loreText.width : 0);
+    const contentH = detailText.height + (loreText ? loreGap + loreText.height : 0);
+    const boxW = Phaser.Math.Clamp(contentW + padX * 2, 150, 320);
+    const boxH = contentH + padY * 2;
 
     let tx = anchorX;
     let ty = anchorY;
@@ -1537,6 +1557,10 @@ export class ShopController {
     detailText.setPosition(tx + padX, ty + padY);
 
     scene.shopItemTooltip.push(bg, detailText);
+    if (loreText) {
+      loreText.setPosition(tx + padX, ty + padY + detailText.height + loreGap);
+      scene.shopItemTooltip.push(loreText);
+    }
   }
 
   _hideShopItemTooltip() {

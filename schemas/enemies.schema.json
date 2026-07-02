@@ -41,7 +41,8 @@
                 "type": "array",
                 "items": { "type": "string", "enum": ["normal", "hard", "lunatic"] }
               },
-              "isEntity": { "type": "boolean" }
+              "isEntity": { "type": "boolean" },
+              "lore": { "type": "string", "minLength": 1 }
             },
             "required": ["className", "level", "name"],
             "additionalProperties": false

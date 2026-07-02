@@ -1,7 +1,7 @@
 [
-  { "name": "Silver Whetstone", "type": "Whetstone", "forgeStat": "choice", "price": 800 },
-  { "name": "Might Whetstone",  "type": "Whetstone", "forgeStat": "might",  "price": 500 },
-  { "name": "Crit Whetstone",   "type": "Whetstone", "forgeStat": "crit",   "price": 400 },
-  { "name": "Hit Whetstone",    "type": "Whetstone", "forgeStat": "hit",    "price": 350 },
-  { "name": "Weight Whetstone", "type": "Whetstone", "forgeStat": "weight", "price": 350 }
+  { "name": "Silver Whetstone", "type": "Whetstone", "forgeStat": "choice", "price": 800, "lore": "Old-kingdom grit in a silver case. The edge chooses what it becomes." },
+  { "name": "Might Whetstone",  "type": "Whetstone", "forgeStat": "might",  "price": 500, "lore": "Coarse stone from the border quarries. The edge it leaves wants using." },
+  { "name": "Crit Whetstone",   "type": "Whetstone", "forgeStat": "crit",   "price": 400, "lore": "Fine-grained and patient. The edge it leaves finds seams by itself." },
+  { "name": "Hit Whetstone",    "type": "Whetstone", "forgeStat": "hit",    "price": 350, "lore": "It trues the blade's line. Steadier steel, steadier hands." },
+  { "name": "Weight Whetstone", "type": "Whetstone", "forgeStat": "weight", "price": 350, "lore": "It takes off metal the smith swore was necessary. It was not." }
 ]

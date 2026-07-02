@@ -1,6 +1,7 @@
 [
   {
     "name": "Iron Sword",
+    "lore": "Stamped with Varen's mark, as every iron blade has been for two hundred years.",
     "type": "Sword",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -14,6 +15,7 @@
   },
   {
     "name": "Steel Sword",
+    "lore": "War quickened the forges. Varen's standard was the first thing they dropped.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -27,6 +29,7 @@
   },
   {
     "name": "Rapier",
+    "lore": "A noble's dueling blade. Most of its owners never expected to use it.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -40,6 +43,7 @@
   },
   {
     "name": "Silver Sword",
+    "lore": "Old-kingdom silverwork. The empire never learned the tempering, only the taking.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -53,6 +57,7 @@
   },
   {
     "name": "Killing Edge",
+    "lore": "Its edge finds the seam in any guard. Duelists call that mercy; no one else does.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -66,6 +71,7 @@
   },
   {
     "name": "Wo Dao",
+    "lore": "A curved blade from across the sea, older than the empire and better made.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -79,6 +85,7 @@
   },
   {
     "name": "Wind Sword",
+    "lore": "Forged thin as a banner in wind; it leaves the hand as easily as it is drawn.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -92,6 +99,7 @@
   },
   {
     "name": "Tempest Blade",
+    "lore": "Storm-tempered silver. Thrown, it sounds like weather arriving.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -105,6 +113,7 @@
   },
   {
     "name": "Lancereaver",
+    "lore": "Its crossguard is a trap. Lancers learn this exactly once.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -118,6 +127,7 @@
   },
   {
     "name": "Brave Sword",
+    "lore": "A champion's relic. It remembers the second blow before the first has landed.",
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -133,6 +143,7 @@
   },
   {
     "name": "Levin Sword",
+    "lore": "A sword in shape only; the court circle bound a storm where the fuller should be.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -146,6 +157,7 @@
   },
   {
     "name": "Gemini",
+    "lore": "Twin blades folded into one. The smith swore he forged it only once.",
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -161,6 +173,7 @@
   },
   {
     "name": "Iron Lance",
+    "lore": "The border levy's first issue. Most are returned unused; the levies are not.",
     "type": "Lance",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -174,6 +187,7 @@
   },
   {
     "name": "Steel Lance",
+    "lore": "Standard issue for the empire's second push, when the first was not spoken of.",
     "type": "Lance",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -187,6 +201,7 @@
   },
   {
     "name": "Silver Lance",
+    "lore": "Old-kingdom ceremony demanded silver at the gate. The war made ceremony a weapon.",
     "type": "Lance",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -200,6 +215,7 @@
   },
   {
     "name": "Javelin",
+    "lore": "Thrown by the third rank over the shields of the first two. Doctrine, not valor.",
     "type": "Lance",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -213,6 +229,7 @@
   },
   {
     "name": "Swordreaver",
+    "lore": "Curved to catch a swordsman's rhythm and end it.",
     "type": "Lance",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -226,6 +243,7 @@
   },
   {
     "name": "Brave Lance",
+    "lore": "Carried at the old kingdom's last charge. It struck twice for every rider lost.",
     "type": "Lance",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -241,6 +259,7 @@
   },
   {
     "name": "Doomblade",
+    "lore": "A lance the chronicles refuse to name twice.",
     "type": "Lance",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -256,6 +275,7 @@
   },
   {
     "name": "Gae Bolg",
+    "lore": "Named for a hero who never started a fight and never lost one.",
     "type": "Lance",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -271,6 +291,7 @@
   },
   {
     "name": "Iron Axe",
+    "lore": "A woodsman's tool with the bark still on the haft. The war did not wait for varnish.",
     "type": "Axe",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -284,6 +305,7 @@
   },
   {
     "name": "Steel Axe",
+    "lore": "The war economy's honest product: heavy, cheap, and always in stock.",
     "type": "Axe",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -297,6 +319,7 @@
   },
   {
     "name": "Silver Axe",
+    "lore": "Old-kingdom halls hung these above the hearth. The empire took the halls.",
     "type": "Axe",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -310,6 +333,7 @@
   },
   {
     "name": "Short Axe",
+    "lore": "Made to be thrown away and picked back up. Like the men who carry them.",
     "type": "Axe",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -323,6 +347,7 @@
   },
   {
     "name": "Killer Axe",
+    "lore": "Its bit is ground past regulation thinness. The armorers stopped objecting.",
     "type": "Axe",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -336,6 +361,7 @@
   },
   {
     "name": "Hammer",
+    "lore": "Not forged for war but for undoing it: armor opens like a tin at the third blow.",
     "type": "Axe",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -349,6 +375,7 @@
   },
   {
     "name": "Axereaver",
+    "lore": "Balanced backward on purpose. It wins the fights axes are supposed to lose.",
     "type": "Axe",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -362,6 +389,7 @@
   },
   {
     "name": "Brave Axe",
+    "lore": "Taken from a barrow the chronicle lists as empty. It swings as if two hands held it.",
     "type": "Axe",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -377,6 +405,7 @@
   },
   {
     "name": "Stormbreaker",
+    "lore": "The mountain clans' war-relic. Weather turns aside around whoever bears it.",
     "type": "Axe",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -392,6 +421,7 @@
   },
   {
     "name": "Ruin",
+    "lore": "Whatever it was named at forging, only this name survived.",
     "type": "Axe",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -407,6 +437,7 @@
   },
   {
     "name": "Iron Bow",
+    "lore": "Yew from the border woods. The fletchers left before the war; the bows remain.",
     "type": "Bow",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -420,6 +451,7 @@
   },
   {
     "name": "Steel Bow",
+    "lore": "Steel-backed limbs, an armory answer to the archers the empire kept losing.",
     "type": "Bow",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -433,6 +465,7 @@
   },
   {
     "name": "Silver Bow",
+    "lore": "Old-kingdom hunting craft turned to other game.",
     "type": "Bow",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -446,6 +479,7 @@
   },
   {
     "name": "Killer Bow",
+    "lore": "Strung for the heart-shot. Its arrows are counted before and after.",
     "type": "Bow",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -459,6 +493,7 @@
   },
   {
     "name": "Longbow",
+    "lore": "Outranges the answer. The border garrisons called it the last word.",
     "type": "Bow",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -472,6 +507,7 @@
   },
   {
     "name": "Brave Bow",
+    "lore": "A relic bow. Between the loosing and the landing, it is somehow drawn again.",
     "type": "Bow",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -487,6 +523,7 @@
   },
   {
     "name": "Starfall",
+    "lore": "Seer-blessed. The arrow falls from where no wall was built to look.",
     "type": "Bow",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -502,6 +539,7 @@
   },
   {
     "name": "Fire",
+    "lore": "The first page every mage learns and the last many turn.",
     "type": "Tome",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -515,6 +553,7 @@
   },
   {
     "name": "Elfire",
+    "lore": "The academy's second lesson: fire that no longer needs kindling.",
     "type": "Tome",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -528,6 +567,7 @@
   },
   {
     "name": "Bolganone",
+    "lore": "Old-kingdom deep-fire. The empire's copies burn; the originals hunger.",
     "type": "Tome",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -541,6 +581,7 @@
   },
   {
     "name": "Witchfire",
+    "lore": "Fire from before the academies, kept alive in places the empire never mapped.",
     "type": "Tome",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -554,6 +595,7 @@
   },
   {
     "name": "Excalibur",
+    "lore": "A seer's wind, written down. The sky is not safe from a turned page.",
     "type": "Tome",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -569,6 +611,7 @@
   },
   {
     "name": "Bolting",
+    "lore": "Siege thunder bound in vellum. The court circle wrote three; two are missing.",
     "type": "Tome",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -586,6 +629,7 @@
   },
   {
     "name": "Lightning",
+    "lore": "The seers' first prayer, the only one taught to soldiers.",
     "type": "Light",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -599,6 +643,7 @@
   },
   {
     "name": "Shine",
+    "lore": "Light drawn through a temple lens. It reads better in ruins.",
     "type": "Light",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -612,6 +657,7 @@
   },
   {
     "name": "Aura",
+    "lore": "The old liturgy entire. Few voices survive the whole recitation.",
     "type": "Light",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -625,6 +671,7 @@
   },
   {
     "name": "Sunflare",
+    "lore": "Noon, bound and resentful. Handle by the cover.",
     "type": "Light",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -638,6 +685,7 @@
   },
   {
     "name": "Luce",
+    "lore": "The seers wrote it to end something specific. They never said what.",
     "type": "Light",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -653,6 +701,7 @@
   },
   {
     "name": "Heal",
+    "lore": "Cut from riverside willow. The knots are worn smooth by worried thumbs.",
     "type": "Staff",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -669,6 +718,7 @@
   },
   {
     "name": "Mend",
+    "lore": "A healer's second staff, issued when the first has seen too much.",
     "type": "Staff",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -685,6 +735,7 @@
   },
   {
     "name": "Physic",
+    "lore": "Reaches across the field. Healers learn it after their first arrived-too-late.",
     "type": "Staff",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -711,6 +762,7 @@
   },
   {
     "name": "Recover",
+    "lore": "Old-kingdom mercy-craft. It restores everything except what was seen.",
     "type": "Staff",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -727,6 +779,7 @@
   },
   {
     "name": "Restore",
+    "lore": "Cut from a warded grove. Sleep, silence, and venom lose their grip at its touch.",
     "type": "Staff",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -743,6 +796,7 @@
   },
   {
     "name": "Fortify",
+    "lore": "The last page of the healing liturgy: everyone, at once, regardless of cost.",
     "type": "Staff",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -760,6 +814,7 @@
   },
   {
     "name": "Sleep Staff",
+    "lore": "A lullaby the court circle should not have written down.",
     "type": "Staff",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -776,6 +831,7 @@
   },
   {
     "name": "Silence Staff",
+    "lore": "It does not still the tongue; it convinces the world not to listen.",
     "type": "Staff",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -792,6 +848,7 @@
   },
   {
     "name": "Armorslayer",
+    "lore": "Forged in the first siege, when the empire's plate was the problem to solve.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -805,6 +862,7 @@
   },
   {
     "name": "Horseslayer",
+    "lore": "The levies' answer to cavalry: a long haft and no illusions.",
     "type": "Lance",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -818,6 +876,7 @@
   },
   {
     "name": "Killer Lance",
+    "lore": "Weighted for the gap below the helm. Its makers were paid not to sign it.",
     "type": "Lance",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -831,6 +890,7 @@
   },
   {
     "name": "Hand Axe",
+    "lore": "First thing thrown in most battles, first thing looted after.",
     "type": "Axe",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -844,6 +904,7 @@
   },
   {
     "name": "Short Spear",
+    "lore": "Balanced for the throw the manuals call a last resort and veterans call first.",
     "type": "Lance",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -857,6 +918,7 @@
   },
   {
     "name": "Tomahawk",
+    "lore": "A chieftain's throwing axe, silver-edged. Its return is a matter of pride.",
     "type": "Axe",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -870,6 +932,7 @@
   },
   {
     "name": "Spear",
+    "lore": "Silver-shafted and thrown like an oath: once, and meant.",
     "type": "Lance",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -883,6 +946,7 @@
   },
   {
     "name": "Ragnarok",
+    "lore": "The old kingdom's gate-ward lance. It has outlasted every wall it guarded.",
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -898,6 +962,7 @@
   },
   {
     "name": "Soulreaver",
+    "lore": "It gives back what it takes, to the wrong side of the exchange.",
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -913,6 +978,7 @@
   },
   {
     "name": "Venin Blade",
+    "lore": "Quenched in fens that drain the sacred ground. The cut closes; the sickness stays.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -926,6 +992,7 @@
   },
   {
     "name": "Venin Bow",
+    "lore": "Its arrows are dressed in bog-tar from the corrupted fens. Wounds remember it.",
     "type": "Bow",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -939,6 +1006,7 @@
   },
   {
     "name": "Sol Scroll",
+    "lore": "A page of the dawn-litany: strike, and be mended by the striking.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -953,6 +1021,7 @@
   },
   {
     "name": "Luna Scroll",
+    "lore": "Moon-school fencing: the guard is a suggestion. Decline it.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -967,6 +1036,7 @@
   },
   {
     "name": "Astra Scroll",
+    "lore": "Five cuts in the space of one. The margin notes just say: breathe.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -981,6 +1051,7 @@
   },
   {
     "name": "Vantage Scroll",
+    "lore": "A duelist's heresy: the wounded strike first, because they must.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -995,6 +1066,7 @@
   },
   {
     "name": "Wrath Scroll",
+    "lore": "Written in a shaking hand. The technique requires it.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1009,6 +1081,7 @@
   },
   {
     "name": "Adept Scroll",
+    "lore": "The drill-yard's secret: the second strike is a habit, not a decision.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1023,6 +1096,7 @@
   },
   {
     "name": "Miracle Scroll",
+    "lore": "A seer's page. It promises one impossibility, once, and keeps count.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1037,6 +1111,7 @@
   },
   {
     "name": "Guard Scroll",
+    "lore": "Shield drills from the old kingdom's wall-years.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1051,6 +1126,7 @@
   },
   {
     "name": "Cancel Scroll",
+    "lore": "The counter-fencer's page: the blow that never arrives.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1065,6 +1141,7 @@
   },
   {
     "name": "Desperation Scroll",
+    "lore": "Recovered from a last stand that, by the tally, should not have been survived.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1079,6 +1156,7 @@
   },
   {
     "name": "Quick Riposte Scroll",
+    "lore": "The answer, rehearsed until it outruns the question.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1093,6 +1171,7 @@
   },
   {
     "name": "Death Blow Scroll",
+    "lore": "First-strike doctrine, banned in three duelling halls and one war.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1107,6 +1186,7 @@
   },
   {
     "name": "Darting Blow Scroll",
+    "lore": "Footwork notes from a dancer who took up the sword.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1121,6 +1201,7 @@
   },
   {
     "name": "Shove Scroll",
+    "lore": "Drill-yard basics: sometimes the tactic is eight feet of room.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1135,6 +1216,7 @@
   },
   {
     "name": "Pull Scroll",
+    "lore": "Grappler's notes: where the enemy stands is negotiable.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1149,6 +1231,7 @@
   },
   {
     "name": "Windsweep Scroll",
+    "lore": "A cut so committed the body forgets to answer back.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1160,6 +1243,7 @@
   },
   {
     "name": "Lunge Scroll",
+    "lore": "Step and strike as one motion; arrive where the enemy was sure you were not.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1171,6 +1255,7 @@
   },
   {
     "name": "Grounder Scroll",
+    "lore": "A rising cut for things that believe height is safety.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1182,6 +1267,7 @@
   },
   {
     "name": "Hexblade Scroll",
+    "lore": "Court fencing with a whispered word folded into the draw.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1193,6 +1279,7 @@
   },
   {
     "name": "Dragonhaze Scroll",
+    "lore": "A form invented in one afternoon, against one dragon, by the one survivor.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1204,6 +1291,7 @@
   },
   {
     "name": "Knightkneeler Scroll",
+    "lore": "The lance-form that ended the age of the mounted charge, briefly.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1215,6 +1303,7 @@
   },
   {
     "name": "Vengeance Scroll",
+    "lore": "Every wound, paid forward. The ink is rust-brown.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1226,6 +1315,7 @@
   },
   {
     "name": "Longearche Scroll",
+    "lore": "Reach drills for the third rank: touch what cannot touch back.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1237,6 +1327,7 @@
   },
   {
     "name": "Glowing Ember Scroll",
+    "lore": "Lance-work taught beside a forge: heat is a kind of patience.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1248,6 +1339,7 @@
   },
   {
     "name": "Helm Splitter Scroll",
+    "lore": "Exactly what it says. The author was not a subtle man.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1259,6 +1351,7 @@
   },
   {
     "name": "Wild Abandon Scroll",
+    "lore": "The berserk school's one page. Most of it is a warning.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1270,6 +1363,7 @@
   },
   {
     "name": "Rushing Blow Scroll",
+    "lore": "Momentum doctrine: the axe is heavy, so bring it up to speed.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1281,6 +1375,7 @@
   },
   {
     "name": "Armored Strike Scroll",
+    "lore": "Wall-breaker form from the castle sieges. Slow, and sufficient.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1292,6 +1387,7 @@
   },
   {
     "name": "Encloser Scroll",
+    "lore": "A warden's shot: pin the runner where the running ends.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1303,6 +1399,7 @@
   },
   {
     "name": "Ward Arrow Scroll",
+    "lore": "Fletching against sorcery: the arrow that asks the mage to stop.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1314,6 +1411,7 @@
   },
   {
     "name": "Deadeye Scroll",
+    "lore": "One breath, one shot. The rest of the page is blank.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1325,6 +1423,7 @@
   },
   {
     "name": "Hunter's Volley Scroll",
+    "lore": "Twice from the same draw. Hunters call it insurance.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1336,6 +1435,7 @@
   },
   {
     "name": "Burning Quake Scroll",
+    "lore": "The academy expelled its author. The ground still remembers the lesson.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1347,6 +1447,7 @@
   },
   {
     "name": "Nosferatu Scroll",
+    "lore": "Older than the light schools, and hungrier. Copied more than it is admitted.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1358,6 +1459,7 @@
   },
   {
     "name": "Silence Strike Scroll",
+    "lore": "A spell for unsaying. The court circle used it on witnesses first.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1369,6 +1471,7 @@
   },
   {
     "name": "Healing Light Scroll",
+    "lore": "A battle-caster's compromise: harm with one hand, mend with it too.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1380,6 +1483,7 @@
   },
   {
     "name": "Seraphim Scroll",
+    "lore": "The seers' war-page: light that takes the corrupted personally.",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1391,6 +1495,7 @@
   },
   {
     "name": "Sunder Sword",
+    "lore": "Forge-bitten and jagged. Armor opens around it like a bad promise.",
     "type": "Sword",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1404,6 +1509,7 @@
   },
   {
     "name": "Sunder Lance",
+    "lore": "Its point was made to find the man behind the plate.",
     "type": "Lance",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1417,6 +1523,7 @@
   },
   {
     "name": "Sunder Axe",
+    "lore": "It does not cut armor so much as convince it to quit.",
     "type": "Axe",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1430,6 +1537,7 @@
   },
   {
     "name": "Sunder Bow",
+    "lore": "Its arrows shed their heads inside the plate. Smiths curse the design; it works.",
     "type": "Bow",
     "tier": "Rare",
     "rankRequired": "Prof",
@@ -1443,6 +1551,7 @@
   },
   {
     "name": "Shortbow",
+    "lore": "Cut down for corridor work. Scouts swear by it; drillmasters swear at it.",
     "type": "Bow",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -1456,6 +1565,7 @@
   },
   {
     "name": "Recurve Bow",
+    "lore": "Old-kingdom horn and sinew, curved twice to hit hard at bad distances.",
     "type": "Bow",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -1469,6 +1579,7 @@
   },
   {
     "name": "Doublebow",
+    "lore": "A relic of the lone watchtowers. It is strongest where no ally can see it used.",
     "type": "Bow",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -1484,6 +1595,7 @@
   },
   {
     "name": "Fire Breath",
+    "lore": "The oldest word in the dragon tongue.",
     "type": "Breath",
     "tier": "Iron",
     "rankRequired": "Prof",
@@ -1497,6 +1609,7 @@
   },
   {
     "name": "Toxic Breath",
+    "lore": "Breath soured by the corruption. What it touches keeps burning wrong.",
     "type": "Breath",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -1510,6 +1623,7 @@
   },
   {
     "name": "Ancient Breath",
+    "lore": "Older than the old kingdom. The chronicles do not go back far enough to name it.",
     "type": "Breath",
     "tier": "Silver",
     "rankRequired": "Mast",
@@ -1523,6 +1637,7 @@
   },
   {
     "name": "Eldritch Grasp",
+    "lore": "Not a weapon. A reach. The Entity does not distinguish holding from ending.",
     "type": "Sword",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -1536,6 +1651,7 @@
   },
   {
     "name": "Twisting Vortex",
+    "lore": "The stillness, moving. Geometry declines to describe it.",
     "type": "Tome",
     "tier": "Legend",
     "rankRequired": "Mast",

@@ -18,7 +18,8 @@
       },
       "value": { "type": "integer" },
       "uses": { "type": "integer", "minimum": 1 },
-      "price": { "type": "integer", "minimum": 0 }
+      "price": { "type": "integer", "minimum": 0 },
+      "lore": { "type": "string", "minLength": 1 }
     },
     "required": ["name", "type", "effect", "value", "uses", "price"],
     "additionalProperties": false

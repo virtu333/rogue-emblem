@@ -16,7 +16,8 @@
       },
       "combatEffects": { "type": "object" },
       "turnStartEffects": { "type": "object" },
-      "price": { "type": "integer", "minimum": 0 }
+      "price": { "type": "integer", "minimum": 0 },
+      "lore": { "type": "string", "minLength": 1 }
     },
     "required": ["name", "type", "effects", "price"],
     "additionalProperties": false

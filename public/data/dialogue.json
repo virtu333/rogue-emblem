@@ -1747,31 +1747,40 @@
         "The air tastes of iron here.",
         "Scouts spotted movement ahead.",
         "Something stirs beyond the treeline.",
-        "The ground is scarred from old battles."
+        "The ground is scarred from old battles.",
+        "The quarry roads are empty. The levies took even the picks to war.",
+        "Half the blades dug from this ground still carry Varen's mark."
       ],
       "act2": [
         "Imperial banners hang in tatters.",
         "The corruption has touched this place.",
         "Smoke rises from the far ridge.",
-        "Old fortifications, hastily rebuilt."
+        "Old fortifications, hastily rebuilt.",
+        "The old kingdom's roads run straight and true. The tolls are the empire's.",
+        "This province feeds the war economy a cartload at a time."
       ],
       "act3": [
         "The sky darkens without clouds.",
         "Reality bends at the edges here.",
         "The earth hums with a low, wrong note.",
-        "Even the wind sounds uncertain."
+        "Even the wind sounds uncertain.",
+        "The fens drain from the sacred ground. They always have.",
+        "The seers' liturgy names this place. The last pages are about it."
       ],
       "act4": [
         "The air itself resists each step.",
         "Shadows move against the light.",
         "This land remembers what was done to it.",
-        "The corruption runs deep here. Deeper than roots."
+        "The corruption runs deep here. Deeper than roots.",
+        "The court circle's seals are on every door.",
+        "These walls were raised to keep something in."
       ],
       "finalBoss": [
         "The end of the path. One way or another.",
         "Everything converges here.",
         "No more detours. No more preparation.",
-        "The world holds its breath."
+        "The world holds its breath.",
+        "Every timeline the seers have walked passes through this floor."
       ]
     },
     "elite": {

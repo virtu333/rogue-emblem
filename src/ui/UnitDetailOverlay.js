@@ -1069,6 +1069,8 @@ export class UnitDetailOverlay {
         lines.push(`Weapon Art: ${art.name}${detail}`);
       }
     }
+    // Lore-only weapons now get a tooltip too — the flavor line is the point.
+    if (weapon.lore) lines.push(`"${weapon.lore}"`);
     if (lines.length <= 0) return;
 
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);

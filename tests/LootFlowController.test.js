@@ -358,4 +358,28 @@ describe('LootFlowController', () => {
     controller._hideLootTooltip();
     expect(scene._lootTooltip).toBeNull();
   });
+
+  it('loot tooltip stacks a quoted lore text under the detail when the item has lore', () => {
+    const scene = makeScene();
+    const controller = new LootFlowController(scene);
+
+    controller._showLootTooltip(
+      { type: 'weapon' },
+      { name: 'Iron Sword', lore: 'Issued by the crate to the border levies.' },
+      320,
+      300,
+      40,
+    );
+    expect(scene._lootTooltip.list).toHaveLength(3);
+    const [, detailText, loreText] = scene._lootTooltip.list;
+    expect(loreText.text).toBe('"Issued by the crate to the border levies."');
+    expect(loreText.y).toBe(detailText.y + detailText.height + 6);
+
+    controller._hideLootTooltip();
+
+    // Lore-less item keeps the two-object tooltip
+    controller._showLootTooltip({ type: 'weapon' }, { name: 'Iron Sword' }, 320, 300, 40);
+    expect(scene._lootTooltip.list).toHaveLength(2);
+    controller._hideLootTooltip();
+  });
 });
