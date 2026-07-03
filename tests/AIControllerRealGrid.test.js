@@ -122,6 +122,12 @@ describe('AIController vs real Grid — candidate generation', () => {
     const decision = ai._decideAction(e, [e, ally], [p], []);
     const tile = decision.detail?.attackTile || lastTile(decision.path, { col: e.col, row: e.row });
     expect(`${tile.col},${tile.row}`).not.toBe('1,0'); // never lands on the ally
+    // Positive assertion: with mov 5 and the target at col 5, the only tile
+    // adjacent to the target within range is (4,0) — the enemy must actually
+    // move there (not stand still at its start tile) and attack.
+    expect(decision.reason).toBe('attack_in_range');
+    expect(tile).toEqual({ col: 4, row: 0 });
+    expect(decision.path.length).toBeGreaterThan(1);
   });
 });
 
@@ -161,6 +167,12 @@ describe('AIController vs real Grid — ice-diverted movement', () => {
     expect(range.has(`${tile.col},${tile.row}`)).toBe(true);
     expect(`${tile.col},${tile.row}`).not.toBe('1,0');
     expect(`${tile.col},${tile.row}`).not.toBe('2,0');
+    // Positive assertion: the slide over (1,0)/(2,0) deterministically lands at
+    // (3,0), adjacent to the player at (4,0) — the enemy must actually reach and
+    // attack from there, not stay put at its start tile.
+    expect(decision.reason).toBe('attack_in_range');
+    expect(tile).toEqual({ col: 3, row: 0 });
+    expect(decision.path.length).toBeGreaterThan(1);
   });
 });
 
@@ -181,5 +193,10 @@ describe('AIController vs real Grid — acidic-tile avoidance', () => {
     const tile = decision.detail?.attackTile || lastTile(decision.path, { col: e.col, row: e.row });
     const idx = grid.mapLayout[tile.row][tile.col];
     expect(gameData.terrain[idx].name).not.toBe('Acidic Swamp');
+    // Positive assertion: the enemy must actually move to and attack from the
+    // safe alternative (2,1) — not merely avoid the acidic tile by standing still.
+    expect(decision.reason).toBe('attack_in_range');
+    expect(tile).toEqual({ col: 2, row: 1 });
+    expect(decision.path.length).toBeGreaterThan(1);
   });
 });

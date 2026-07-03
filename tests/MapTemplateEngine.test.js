@@ -85,6 +85,28 @@ describe('MapTemplateEngine', () => {
     ).toBe(true);
   });
 
+  it('accepts a positive weight, and passes when weight is absent', () => {
+    const ok = JSON.parse(JSON.stringify(mapTemplates));
+    ok.rout[0].weight = 2;
+    let result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+
+    delete ok.rout[0].weight;
+    result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects non-positive or non-number weight values', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+
+    for (const invalidWeight of [0, -1, NaN, '2']) {
+      bad.rout[0].weight = invalidWeight;
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((error) => error.includes('weight'))).toBe(true);
+    }
+  });
+
   it('rejects templates that define reinforcement version without reinforcements object', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     delete bad.rout[0].reinforcements;

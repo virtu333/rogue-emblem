@@ -3671,7 +3671,11 @@ export class RunManager {
     rm.blessingRuntimeModifiers.weaponArtHpCostDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.weaponArtHpCostDelta) || 0,
     );
-    rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
+    // Legacy saves predate runSeed and store it as null/undefined. Falling back to
+    // 0 here (via the general Number.isFinite guard elsewhere) would make every
+    // legacy player's node-map generation seed from the same base — fall back to
+    // Date.now() instead so each legacy load gets a distinct seed.
+    rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : Date.now();
     rm.rngSeed = Number.isFinite(saved.rngSeed)
       ? Number(saved.rngSeed) >>> 0
       : Number.isFinite(rm.runSeed)
