@@ -147,6 +147,9 @@ export class NodeMapScene extends Phaser.Scene {
     this.isSceneReady = false;
     this.battleLaunchInFlight = false;
     this._pendingNodeSelection = null;
+    // Set only when the first-run fast path routed here (skipping Home Base /
+    // Difficulty / Blessing). Used to show the one-time onboarding hint below.
+    this._isFirstRunFastPath = data.firstRun === true;
     const selectedDifficulty =
       data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
@@ -217,6 +220,8 @@ export class NodeMapScene extends Phaser.Scene {
 
     const hints = this.registry.get('hints');
     this._pendingNodeMapHints = {
+      // First-run onboarding: only when the fast path routed here, told once.
+      showFirstRun: Boolean(this._isFirstRunFastPath && hints?.shouldShow('firstrun_onboarding')),
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
       showHpPersist: Boolean(
         hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1,
@@ -454,6 +459,20 @@ export class NodeMapScene extends Phaser.Scene {
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
+    if (pending.showFirstRun) {
+      this._storyDialogueActive = true;
+      try {
+        await showImportantHint(
+          this,
+          'Your first run begins here. Home Base upgrades, difficulty,\nand blessings unlock once this run ends — win or lose.',
+        );
+      } finally {
+        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
+          this._storyDialogueActive = false;
+        }
+      }
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+    }
     if (pending.showIntro) {
       this._storyDialogueActive = true;
       try {

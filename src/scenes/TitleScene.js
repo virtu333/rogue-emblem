@@ -23,6 +23,8 @@ import {
 } from '../engine/SlotManager.js';
 import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
+import { HintManager } from '../engine/HintManager.js';
+import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -1158,13 +1160,19 @@ export class TitleScene extends Phaser.Scene {
     }
 
     const prevMeta = this.registry.get('meta');
+    const prevHints = this.registry.get('hints');
     const prevActiveSlot = this.registry.get('activeSlot');
     const hadPrevMeta = prevMeta !== undefined;
+    const hadPrevHints = prevHints !== undefined;
     const hadPrevActiveSlot = prevActiveSlot !== undefined;
     const rollbackNewGameState = () => {
       if (hadPrevMeta) this.registry.set('meta', prevMeta);
       else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
       else this.registry.set('meta', undefined);
+
+      if (hadPrevHints) this.registry.set('hints', prevHints);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
+      else this.registry.set('hints', undefined);
 
       if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
       else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
@@ -1176,15 +1184,19 @@ export class TitleScene extends Phaser.Scene {
     if (cloud) {
       meta.onSave = (payload) => pushMeta(cloud.userId, nextSlot, payload);
     }
+    // Stage slot state in registry (meta/hints/activeSlot) the same way
+    // SlotPickerScene does before its transition.
     this.registry.set('meta', meta);
+    this.registry.set('hints', new HintManager(nextSlot));
     this.registry.set('activeSlot', nextSlot);
     try {
-      const transitioned = await transitionToScene(
-        this,
-        'HomeBase',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.NEW_GAME },
-      );
+      // A brand-new slot is always fresh: skip Home Base / Difficulty / Blessing
+      // straight to the act-1 node map. The helper commits the run and (on
+      // success) increments runsStarted, which persists the slot's meta.
+      const transitioned = await startFirstRunFastPath(this, {
+        gameData: this.gameData,
+        slot: nextSlot,
+      });
       if (!transitioned) {
         rollbackNewGameState();
         return false;
@@ -1194,7 +1206,6 @@ export class TitleScene extends Phaser.Scene {
       throw err;
     }
 
-    meta._save();
     setActiveSlot(nextSlot);
     return true;
   }

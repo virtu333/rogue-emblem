@@ -6,6 +6,7 @@ vi.mock('phaser', () => ({
 
 const mocked = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(),
+  startFirstRunFastPathMock: vi.fn(),
   setActiveSlotMock: vi.fn(),
   getMetaKeyMock: vi.fn((slot) => `slot_${slot}_meta`),
   loadRunMock: vi.fn(() => null),
@@ -15,8 +16,14 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock('../src/utils/SceneRouter.js', () => ({
   transitionToScene: mocked.transitionToSceneMock,
-  TRANSITION_REASONS: { CONTINUE: 'continue' },
+  TRANSITION_REASONS: { CONTINUE: 'continue', BEGIN_RUN: 'begin_run' },
 }));
+
+// Keep the real isFirstRunSlot detection; stub only the run-committing helper.
+vi.mock('../src/utils/firstRunFastPath.js', async (importActual) => {
+  const actual = await importActual();
+  return { ...actual, startFirstRunFastPath: mocked.startFirstRunFastPathMock };
+});
 
 vi.mock('../src/engine/SlotManager.js', () => ({
   MAX_SLOTS: 3,
@@ -87,6 +94,7 @@ describe('SlotPickerScene selectSlot transition safety', () => {
     vi.clearAllMocks();
     mocked.metaInstances.length = 0;
     mocked.transitionToSceneMock.mockResolvedValue(true);
+    mocked.startFirstRunFastPathMock.mockResolvedValue(true);
     mocked.loadRunMock.mockReturnValue(null);
   });
 
@@ -101,9 +109,12 @@ describe('SlotPickerScene selectSlot transition safety', () => {
       audio: { stopMusic: vi.fn() },
     });
 
+    // A used slot (a run has been started) → normal HomeBase continue path.
     await SlotPickerScene.prototype.selectSlot.call(scene, 2, {
       hasActiveRun: false,
       runCorrupt: false,
+      runsStarted: 1,
+      runsCompleted: 0,
     });
 
     expect(mocked.transitionToSceneMock).toHaveBeenCalledWith(
@@ -158,12 +169,62 @@ describe('SlotPickerScene selectSlot transition safety', () => {
     await SlotPickerScene.prototype.selectSlot.call(scene, 3, {
       hasActiveRun: false,
       runCorrupt: false,
+      runsStarted: 1,
+      runsCompleted: 0,
     });
 
     expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
     expect(store.get('meta')).toBe(previousMeta);
     expect(store.get('hints')).toBe(previousHints);
     expect(store.get('activeSlot')).toBe(2);
+    expect(scene.isTransitioning).toBe(false);
+    expect(scene.input.enabled).toBe(true);
+  });
+
+  it('routes a brand-new slot (no runs yet) through the first-run fast path', async () => {
+    const { scene, store } = makeScene({
+      activeSlot: 1,
+      audio: { stopMusic: vi.fn() },
+    });
+
+    await SlotPickerScene.prototype.selectSlot.call(scene, 2, {
+      hasActiveRun: false,
+      runCorrupt: false,
+      runsStarted: 0,
+      runsCompleted: 0,
+    });
+
+    expect(mocked.startFirstRunFastPathMock).toHaveBeenCalledTimes(1);
+    expect(mocked.startFirstRunFastPathMock).toHaveBeenCalledWith(scene, {
+      gameData: scene.gameData,
+      slot: 2,
+    });
+    // Fast path took the branch instead of HomeBase.
+    expect(mocked.transitionToSceneMock).not.toHaveBeenCalled();
+    expect(mocked.setActiveSlotMock).toHaveBeenCalledWith(2);
+    expect(store.get('activeSlot')).toBe(2);
+  });
+
+  it('does not fast-path a brand-new slot when the fast path is rejected', async () => {
+    mocked.startFirstRunFastPathMock.mockResolvedValue(false);
+    const previousMeta = { tag: 'meta-old' };
+    const { scene, store } = makeScene({
+      meta: previousMeta,
+      activeSlot: 1,
+      audio: { stopMusic: vi.fn() },
+    });
+
+    await SlotPickerScene.prototype.selectSlot.call(scene, 2, {
+      hasActiveRun: false,
+      runCorrupt: false,
+      runsStarted: 0,
+      runsCompleted: 0,
+    });
+
+    expect(mocked.startFirstRunFastPathMock).toHaveBeenCalledTimes(1);
+    expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
+    expect(store.get('meta')).toBe(previousMeta);
+    expect(store.get('activeSlot')).toBe(1);
     expect(scene.isTransitioning).toBe(false);
     expect(scene.input.enabled).toBe(true);
   });

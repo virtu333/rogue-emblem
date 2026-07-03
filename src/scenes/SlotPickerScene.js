@@ -19,6 +19,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { isFirstRunSlot, startFirstRunFastPath } from '../utils/firstRunFastPath.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -442,6 +443,10 @@ export class SlotPickerScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.CONTINUE },
           );
         }
+      } else if (isFirstRunSlot(summary)) {
+        // Brand-new save (fresh meta, no run started yet): skip HomeBase /
+        // DifficultySelect / BlessingSelect straight to the act-1 node map.
+        transitioned = await startFirstRunFastPath(this, { gameData: this.gameData, slot });
       } else {
         // No active run - go to HomeBase
         transitioned = await transitionToScene(
