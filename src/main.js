@@ -19,6 +19,7 @@ import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 import { createViewportReconciler } from './utils/viewportReconciler.js';
 import { requireAuthUser } from './auth/requireAuthUser.js';
 import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
+import { registerSW } from 'virtual:pwa-register';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -208,6 +209,52 @@ function hideBootRecoveryOverlay() {
   if (overlay) overlay.remove();
 }
 
+// Passive bottom-right toast shown when a freshly deployed service worker is waiting.
+// registerType is 'prompt' (see vite.config.js) so the new build never swaps under a
+// live run — it activates only when the user chooses. onReload calls updateSW(true),
+// which skipWaiting()s the waiting worker and reloads THIS client. Dismiss hides it for
+// this page load only; onNeedRefresh fires again next load while the worker still waits.
+function showUpdateToast(onReload) {
+  if (document.getElementById('sw-update-toast')) return;
+
+  const toast = document.createElement('div');
+  toast.id = 'sw-update-toast';
+  toast.className = 'sw-update-toast';
+
+  const label = document.createElement('span');
+  label.className = 'sw-update-label';
+  label.textContent = 'UPDATE READY';
+  toast.appendChild(label);
+
+  const restartBtn = document.createElement('button');
+  restartBtn.type = 'button';
+  restartBtn.className = 'sw-update-restart';
+  restartBtn.textContent = 'RESTART';
+  restartBtn.addEventListener('click', () => {
+    restartBtn.disabled = true;
+    onReload();
+  });
+  toast.appendChild(restartBtn);
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'sw-update-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss update notice');
+  dismissBtn.textContent = '×';
+  dismissBtn.addEventListener('click', () => toast.remove());
+  toast.appendChild(dismissBtn);
+
+  document.body.appendChild(toast);
+}
+
+// Register the service worker exactly once (the in-bundle import stops the plugin from
+// injecting its own registerSW.js). No-ops gracefully in dev where the SW is disabled.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    showUpdateToast(() => updateSW(true));
+  },
+});
+
 function hasReachedStartupTarget() {
   const telemetry = getStartupTelemetry();
   const markers = telemetry?.markers || [];
@@ -330,9 +377,23 @@ function installAudioRecovery() {
 configureAudioSessionForPlayback();
 installAudioRecovery();
 
+// Returns a promise that settles when the AudioContext resume settles, bounded to
+// 250ms so a gesture-synchronous boot is never noticeably delayed. Awaiting this
+// before bootGame() lets the context reach 'running' before Phaser's
+// WebAudioSoundManager snapshots `locked` at construction — otherwise it initializes
+// locked=true (state still 'suspended') and TitleScene shows "TAP FOR SOUND" until a
+// second input, even though the user just tapped.
 function unlockAudio() {
   configureAudioSessionForPlayback();
-  resumeSharedAudio();
+  try {
+    if (sharedAudioContext && sharedAudioContext.state !== 'running') {
+      return Promise.race([
+        sharedAudioContext.resume().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 250)),
+      ]);
+    }
+  } catch (_) {}
+  return Promise.resolve();
 }
 
 async function startCloudPull(userId, mode) {
@@ -523,15 +584,20 @@ authToggle.addEventListener('click', () => {
   authError.textContent = '';
 });
 
-function handleSkip() {
-  unlockAudio();
+async function handleSkip() {
+  // Await the unlock (bounded to 250ms) so the AudioContext is 'running' before
+  // bootGame() constructs Phaser — otherwise TitleScene shows a stale "TAP FOR
+  // SOUND" hint even though this click already unlocked audio.
+  await unlockAudio();
   activateStartupViewportGuard('offline_skip');
   bootGame(null);
 }
 
 async function handleSubmit(e) {
   e.preventDefault();
-  unlockAudio();
+  // Consistent with the Skip path; the submit gesture makes the resume settle fast
+  // (well under the 250ms cap), and the cloud round-trip below gives further margin.
+  await unlockAudio();
   activateStartupViewportGuard(isRegisterMode ? 'register_submit' : 'login_submit');
   authError.textContent = '';
   authSubmit.disabled = true;

@@ -302,6 +302,66 @@
         z-index: 50;
         cursor: pointer;
       }
+
+      /* Service-worker update toast — passive, bottom-right, above the canvas.
+         Matches the auth overlay's navy/gold pixel language. Only the toast itself
+         is interactive; the rest of the page keeps its own pointer handling. */
+      .sw-update-toast {
+        position: fixed;
+        right: max(12px, env(safe-area-inset-right, 12px));
+        bottom: max(12px, env(safe-area-inset-bottom, 12px));
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: min(90vw, 340px);
+        padding: 10px 12px;
+        background: #0a0c1e;
+        border: 2px solid #e8b849;
+        color: #cccccc;
+        font-family: 'Press Start 2P', monospace;
+        pointer-events: auto;
+      }
+      .sw-update-label {
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: #f5d77a;
+        white-space: nowrap;
+      }
+      .sw-update-restart {
+        background: #12111f;
+        color: #cccccc;
+        border: 2px solid #3a3660;
+        padding: 6px 8px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 9px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .sw-update-restart:hover {
+        border-color: #e8b849;
+        color: #f5d77a;
+        background: rgba(232, 184, 73, 0.06);
+      }
+      .sw-update-restart:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .sw-update-dismiss {
+        background: transparent;
+        color: #8888aa;
+        border: none;
+        padding: 0 2px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 0.15s;
+      }
+      .sw-update-dismiss:hover {
+        color: #e8b849;
+      }
     </style>
   </head>
   <body>
