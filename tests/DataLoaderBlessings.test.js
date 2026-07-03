@@ -20,6 +20,7 @@ function makeMinimalPayload(path) {
         {
           id: 'minimal_seize',
           zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }],
+          features: [{ type: 'Throne', position: 'center' }],
         },
       ],
       escape: [

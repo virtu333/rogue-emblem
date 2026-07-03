@@ -386,10 +386,21 @@ function validateReinforcements(path, template, strict, errors, warnings) {
       if (!hasOnlyKnownKeys(gating, validDifficultyKeys)) {
         errors.push(`${path}.reinforcements.minActByDifficulty contains unknown difficulty keys`);
       }
-      const validActs = new Set(['act1', 'act2', 'act3', 'act4']);
+      // Intent must be explicit for every difficulty: a missing key silently
+      // disables reinforcements, so require all three (use "never" to opt out).
+      for (const difficultyId of DIFFICULTY_IDS) {
+        if (!(difficultyId in gating)) {
+          errors.push(
+            `${path}.reinforcements.minActByDifficulty missing required difficulty key: ${difficultyId}`,
+          );
+        }
+      }
+      const validActs = new Set(['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss', 'never']);
       for (const [key, value] of Object.entries(gating)) {
         if (!validActs.has(value)) {
-          errors.push(`${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act`);
+          errors.push(
+            `${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act or "never"`,
+          );
         }
       }
     }
@@ -709,10 +720,224 @@ function validatePhaseTerrainOverrides(path, overrides, anchorCoords, errors) {
   });
 }
 
+// Feature types handled specially in MapGenerator.generateBattle (Throne sets the
+// seize objective tile; Ballista adds a Hard/Lunatic siege engine).
+const KNOWN_FEATURE_TYPES = new Set(['Throne', 'Ballista']);
+// Position specs resolved by MapGenerator.resolveFeaturePosition.
+const KNOWN_FEATURE_POSITIONS = new Set([
+  'center',
+  'right',
+  'topRight',
+  'bottomRight',
+  'centerLeft',
+  'entityAnchor',
+]);
+// enemyWeights categories understood by MapGenerator.resolveClassWeight.
+const KNOWN_ENEMY_WEIGHT_KEYS = new Set([
+  'infantry',
+  'cavalry',
+  'archer',
+  'mage',
+  'knight',
+  'armored',
+  'lance',
+  'flying',
+]);
+// Anchor position/unit values handled by MapGenerator.resolveAnchorPositions /
+// resolveAnchorUnitClass. Anything else silently no-ops at generation time.
+const KNOWN_ANCHOR_POSITIONS = new Set(['throne', 'center_gap', 'bridge_ends', 'gate_adjacent']);
+const KNOWN_ANCHOR_UNITS = new Set(['highest_level', 'boss_or_strongest', 'lance_user', 'knight']);
+const VALID_GATE_ACTS = new Set(['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss']);
+
+function validateFeatures(path, features, errors) {
+  if (!Array.isArray(features)) {
+    errors.push(`${path} must be an array`);
+    return;
+  }
+  features.forEach((feat, i) => {
+    const fp = `${path}[${i}]`;
+    if (!isObject(feat)) {
+      errors.push(`${fp} must be an object`);
+      return;
+    }
+    const knownKeys = new Set(['type', 'position']);
+    if (!hasOnlyKnownKeys(feat, knownKeys)) {
+      errors.push(`${fp} contains unknown keys`);
+    }
+    if (typeof feat.type !== 'string' || !KNOWN_FEATURE_TYPES.has(feat.type)) {
+      errors.push(`${fp}.type must be one of: ${[...KNOWN_FEATURE_TYPES].join(', ')}`);
+    }
+    if (typeof feat.position !== 'string' || !KNOWN_FEATURE_POSITIONS.has(feat.position)) {
+      errors.push(`${fp}.position must be one of: ${[...KNOWN_FEATURE_POSITIONS].join(', ')}`);
+    }
+  });
+}
+
+function countThroneFeatures(features) {
+  if (!Array.isArray(features)) return 0;
+  return features.filter((feat) => isObject(feat) && feat.type === 'Throne').length;
+}
+
+function validateEnemyWeights(path, enemyWeights, errors) {
+  if (!isObject(enemyWeights)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  for (const [key, value] of Object.entries(enemyWeights)) {
+    if (!KNOWN_ENEMY_WEIGHT_KEYS.has(key)) {
+      errors.push(`${path} contains unknown key "${key}"`);
+    }
+    if (!isFiniteNumber(value) || value < 0) {
+      errors.push(`${path}["${key}"] must be a finite number >= 0`);
+    }
+  }
+}
+
+function validateAnchors(path, anchors, errors) {
+  if (!Array.isArray(anchors)) {
+    errors.push(`${path} must be an array`);
+    return;
+  }
+  anchors.forEach((anchor, i) => {
+    const ap = `${path}[${i}]`;
+    if (!isObject(anchor)) {
+      errors.push(`${ap} must be an object`);
+      return;
+    }
+    const knownKeys = new Set(['position', 'unit', 'count']);
+    if (!hasOnlyKnownKeys(anchor, knownKeys)) {
+      errors.push(`${ap} contains unknown keys`);
+    }
+    if (typeof anchor.position !== 'string' || !KNOWN_ANCHOR_POSITIONS.has(anchor.position)) {
+      errors.push(`${ap}.position must be one of: ${[...KNOWN_ANCHOR_POSITIONS].join(', ')}`);
+    }
+    if (typeof anchor.unit !== 'string' || !KNOWN_ANCHOR_UNITS.has(anchor.unit)) {
+      errors.push(`${ap}.unit must be one of: ${[...KNOWN_ANCHOR_UNITS].join(', ')}`);
+    }
+    if (anchor.count !== undefined && (!isInteger(anchor.count) || anchor.count <= 0)) {
+      errors.push(`${ap}.count must be a positive integer when provided`);
+    }
+  });
+}
+
+function validateBridges(path, template, errors) {
+  if (template.minBridges !== undefined) {
+    if (!isInteger(template.minBridges) || template.minBridges <= 0) {
+      errors.push(`${path}.minBridges must be a positive integer`);
+    }
+  }
+  if (template.minBridgesByAct !== undefined) {
+    const mba = template.minBridgesByAct;
+    if (!isObject(mba)) {
+      errors.push(`${path}.minBridgesByAct must be an object`);
+      return;
+    }
+    for (const [act, val] of Object.entries(mba)) {
+      if (!VALID_GATE_ACTS.has(act)) {
+        errors.push(`${path}.minBridgesByAct contains unknown act key "${act}"`);
+        continue;
+      }
+      if (Array.isArray(val)) {
+        if (
+          val.length !== 2 ||
+          !val.every(isInteger) ||
+          val[0] <= 0 ||
+          val[1] <= 0 ||
+          val[0] > val[1]
+        ) {
+          errors.push(
+            `${path}.minBridgesByAct["${act}"] must be [min,max] positive integers with min <= max`,
+          );
+        }
+      } else if (!isInteger(val) || val <= 0) {
+        errors.push(`${path}.minBridgesByAct["${act}"] must be a positive integer or [min,max]`);
+      }
+    }
+  }
+}
+
+function validateScriptedWaveCoordsInBounds(path, template, errors) {
+  const fixedSize = template.fixedSize;
+  const hasValidFixedSize =
+    Array.isArray(fixedSize) &&
+    fixedSize.length === 2 &&
+    isInteger(fixedSize[0]) &&
+    isInteger(fixedSize[1]);
+  if (!hasValidFixedSize) return;
+  const scriptedWaves = template.reinforcements?.scriptedWaves;
+  if (!Array.isArray(scriptedWaves)) return;
+  const [fc, fr] = fixedSize;
+  scriptedWaves.forEach((wave, wi) => {
+    if (!isObject(wave) || !Array.isArray(wave.spawns)) return;
+    wave.spawns.forEach((sp, si) => {
+      if (!isObject(sp)) return;
+      const sp2 = `${path}.reinforcements.scriptedWaves[${wi}].spawns[${si}]`;
+      if (isInteger(sp.col) && sp.col >= fc) {
+        errors.push(`${sp2}.col ${sp.col} is out of fixedSize width ${fc}`);
+      }
+      if (isInteger(sp.row) && sp.row >= fr) {
+        errors.push(`${sp2}.row ${sp.row} is out of fixedSize height ${fr}`);
+      }
+    });
+  });
+}
+
+function validateTerrainNameReferences(path, template, terrainNames, errors) {
+  const check = (name, where) => {
+    if (typeof name === 'string' && name.trim() !== '' && !terrainNames.has(name)) {
+      errors.push(`${where} references unknown terrain "${name}"`);
+    }
+  };
+  if (Array.isArray(template.zones)) {
+    template.zones.forEach((zone, i) => {
+      if (isObject(zone?.terrain)) {
+        for (const name of Object.keys(zone.terrain)) {
+          check(name, `${path}.zones[${i}].terrain`);
+        }
+      }
+    });
+  }
+  if (Array.isArray(template.structures)) {
+    template.structures.forEach((s, i) => {
+      if (!isObject(s)) return;
+      for (const key of ['terrain', 'interior', 'wallTerrain', 'floor', 'pillar']) {
+        if (s[key] !== undefined) check(s[key], `${path}.structures[${i}].${key}`);
+      }
+    });
+  }
+  const arena = template.hybridArena?.arenaTiles;
+  if (Array.isArray(arena)) {
+    arena.forEach((row, r) => {
+      if (Array.isArray(row)) {
+        row.forEach((name, c) => check(name, `${path}.hybridArena.arenaTiles[${r}][${c}]`));
+      }
+    });
+  }
+  if (Array.isArray(template.phaseTerrainOverrides)) {
+    template.phaseTerrainOverrides.forEach((ov, oi) => {
+      if (Array.isArray(ov?.setTiles)) {
+        ov.setTiles.forEach((st, si) => {
+          if (isObject(st)) {
+            check(st.terrain, `${path}.phaseTerrainOverrides[${oi}].setTiles[${si}].terrain`);
+          }
+        });
+      }
+    });
+  }
+  if (Array.isArray(template.features)) {
+    template.features.forEach((f, i) => {
+      if (!isObject(f)) return;
+      if (f.type !== undefined) check(f.type, `${path}.features[${i}].type`);
+      if (f.terrain !== undefined) check(f.terrain, `${path}.features[${i}].terrain`);
+    });
+  }
+}
+
 export function validateMapTemplatesConfig(config, options = {}) {
   const strict = options.strict !== false;
   const errors = [];
   const warnings = [];
+  const terrainNames = options.terrainNames instanceof Set ? options.terrainNames : null;
 
   if (!isObject(config)) {
     return { valid: false, errors: ['map templates config must be an object'], warnings };
@@ -837,6 +1062,17 @@ export function validateMapTemplatesConfig(config, options = {}) {
       }
 
       if (template.entitySpawn !== undefined) {
+        // entitySpawn requires fixedSize: without a known map footprint the 3x3
+        // bounds cannot be validated, and a variable-size map could place the
+        // entity where its footprint runs off the edge.
+        const hasValidFixedSize =
+          Array.isArray(template.fixedSize) &&
+          template.fixedSize.length === 2 &&
+          Number.isInteger(template.fixedSize[0]) &&
+          Number.isInteger(template.fixedSize[1]);
+        if (!hasValidFixedSize) {
+          errors.push(`${path}.entitySpawn requires a valid fixedSize`);
+        }
         if (
           !Array.isArray(template.entitySpawn) ||
           template.entitySpawn.length !== 2 ||
@@ -846,12 +1082,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
           template.entitySpawn[1] < 0
         ) {
           errors.push(`${path}.entitySpawn must be [col, row] with non-negative integers`);
-        } else if (
-          Array.isArray(template.fixedSize) &&
-          template.fixedSize.length === 2 &&
-          Number.isInteger(template.fixedSize[0]) &&
-          Number.isInteger(template.fixedSize[1])
-        ) {
+        } else if (hasValidFixedSize) {
           const [fc, fr] = template.fixedSize;
           const [ec, er] = template.entitySpawn;
           if (ec + ENTITY_FOOTPRINT.width > fc || er + ENTITY_FOOTPRINT.height > fr) {
@@ -864,8 +1095,45 @@ export function validateMapTemplatesConfig(config, options = {}) {
         validateStructures(`${path}.structures`, template.structures, errors);
       }
 
+      if (template.features !== undefined) {
+        validateFeatures(`${path}.features`, template.features, errors);
+      }
+      // Every seize template must define exactly one Throne feature — otherwise a
+      // seize map with no throne and no boss is unwinnable. Mirrors the
+      // escape/escapeZone rule.
+      if (objective === 'seize') {
+        const throneCount = countThroneFeatures(template.features);
+        if (throneCount !== 1) {
+          errors.push(
+            `${path} seize template must include exactly one Throne feature (found ${throneCount})`,
+          );
+        }
+      }
+
+      if (template.enemyWeights !== undefined) {
+        validateEnemyWeights(`${path}.enemyWeights`, template.enemyWeights, errors);
+      }
+      if (template.anchors !== undefined) {
+        validateAnchors(`${path}.anchors`, template.anchors, errors);
+      }
+      validateBridges(path, template, errors);
+      if (template.fogChance !== undefined) {
+        if (
+          !isFiniteNumber(template.fogChance) ||
+          template.fogChance < 0 ||
+          template.fogChance > 1
+        ) {
+          errors.push(`${path}.fogChance must be a finite number in [0,1]`);
+        }
+      }
+      validateScriptedWaveCoordsInBounds(path, template, errors);
+
       validateReinforcements(path, template, strict, errors, warnings);
       validateEscapeZone(path, objective, template, errors);
+
+      if (terrainNames) {
+        validateTerrainNameReferences(path, template, terrainNames, errors);
+      }
     });
   }
 

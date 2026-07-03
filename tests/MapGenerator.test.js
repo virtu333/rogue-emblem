@@ -1209,12 +1209,14 @@ describe('MapGenerator', () => {
       expect(config.reinforcements).toBeUndefined();
     });
 
-    it('strips reinforcements for finalBoss act even on hard (excluded from act ordering)', () => {
+    it('passes reinforcements through for finalBoss act on hard (finalBoss now in act ordering)', () => {
+      // Phase 1.3: ACT_GATE_ORDER extended to include postAct + finalBoss, so a
+      // hard:act2 gate is satisfied at finalBoss.
       const config = generateBattle(
         { act: 'finalBoss', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
         data,
       );
-      expect(config.reinforcements).toBeUndefined();
+      expect(config.reinforcements).toBeDefined();
     });
 
     it('passes reinforcements through when no minActByDifficulty is present', () => {
@@ -1753,11 +1755,15 @@ describe('enemy poison weapon assignment', () => {
   it('clamps combined poison chance to [0,1]', () => {
     let checkedEligible = false;
     for (let seed = 1; seed <= 30; seed++) {
+      // Pin to a no-anchor template: anchor-placed guards (e.g. chokepoint's
+      // center_gap unit) never roll poison, so they are exempt from the
+      // "every eligible enemy carries poison at chance>=1" clamp invariant.
       const config = withSeed(seed, () =>
         generateBattle(
           {
             act: 'act1',
             objective: 'rout',
+            templateId: 'open_field',
             enemyPoisonChance: 99,
           },
           data,
@@ -2766,5 +2772,176 @@ describe('Entity map generation', () => {
     const bossSpawn = config.enemySpawns.find((s) => s.isBoss);
     expect(bossSpawn).toBeDefined();
     expect(bossSpawn.className).toBe('Hero');
+  });
+});
+
+// ═══ Phase 1 — Confirmed bug fixes ═══
+
+describe('Phase 1.1 — highest_level anchor placement', () => {
+  // chokepoint (rout, all acts) is the only template using a highest_level anchor
+  // at center_gap. Before the fix, resolveAnchorUnitClass returned null and the
+  // anchor was silently skipped, so no max-level chokepoint guard ever spawned.
+  it('places a non-boss max-level enemy near center on chokepoint across seeds', () => {
+    const LEVEL_RANGE = [1, 20]; // wide range so random enemies rarely hit the max
+    for (let seed = 1; seed <= 12; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle(
+          { act: 'act1', objective: 'rout', templateId: 'chokepoint', levelRange: LEVEL_RANGE },
+          data,
+        ),
+      );
+      expect(config.templateId).toBe('chokepoint');
+      const midCol = Math.floor(config.cols / 2);
+      const midRow = Math.floor(config.rows / 2);
+      // center_gap searches within dr,dc <= 2 of center; allow a small margin.
+      const anchorUnit = config.enemySpawns.find(
+        (s) =>
+          !s.isBoss &&
+          s.level === LEVEL_RANGE[1] &&
+          Math.abs(s.col - midCol) <= 3 &&
+          Math.abs(s.row - midRow) <= 3,
+      );
+      expect(anchorUnit, `seed ${seed} should have a max-level anchor near center`).toBeDefined();
+    }
+  });
+
+  it('anchor class is drawn from the base pool (never a promoted/boss unit)', () => {
+    const promotedNames = new Set(
+      data.classes.filter((c) => c.promotesFrom || c.tier === 'promoted').map((c) => c.name),
+    );
+    for (let seed = 1; seed <= 12; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle(
+          { act: 'act1', objective: 'rout', templateId: 'chokepoint', levelRange: [1, 20] },
+          data,
+        ),
+      );
+      const anchorUnit = config.enemySpawns.find((s) => !s.isBoss && s.level === 20);
+      if (anchorUnit) {
+        expect(promotedNames.has(anchorUnit.className)).toBe(false);
+      }
+    }
+  });
+
+  it('boss_or_strongest throne anchor adds no unit beyond the seize boss', () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle(
+          { act: 'act1', objective: 'seize', isBoss: true, templateId: 'castle_assault' },
+          data,
+        ),
+      );
+      expect(config.thronePos).toBeTruthy();
+      const onThrone = config.enemySpawns.filter(
+        (s) => s.col === config.thronePos.col && s.row === config.thronePos.row,
+      );
+      expect(onThrone.length).toBe(1);
+      expect(onThrone[0].isBoss).toBe(true);
+    }
+  });
+});
+
+describe('Phase 1.2 — flying enemyWeights', () => {
+  it('resolveClassWeight applies the flying multiplier to Flying move-type classes', () => {
+    // Pegasus Knight / Wyvern Rider are Flying in classes.json.
+    const w = resolveClassWeight('Pegasus Knight', { flying: 5 }, data.classes);
+    expect(w).toBeCloseTo(5, 5);
+    // Non-flier is unaffected by the flying weight.
+    const wInf = resolveClassWeight('Fighter', { flying: 5 }, data.classes);
+    expect(wInf).toBeCloseTo(1, 5);
+    // Suppression works too.
+    const wLow = resolveClassWeight('Wyvern Rider', { flying: 0.0001 }, data.classes);
+    expect(wLow).toBeCloseTo(0.0001, 6);
+  });
+
+  it('flying weight drives spawn composition via generateBattle', () => {
+    const flyerNames = new Set(
+      data.classes.filter((c) => c.moveType === 'Flying').map((c) => c.name),
+    );
+    // Inject two stub rout templates cloned from mire_crossing (has a swamp band
+    // and an enemy pool that contains fliers at act2) with opposing flying weights.
+    const base = [...data.mapTemplates.rout].find((t) => t.id === 'mire_crossing');
+    const makeDeps = (id, flyingWeight) => {
+      const clone = JSON.parse(JSON.stringify(base));
+      clone.id = id;
+      clone.enemyWeights = { flying: flyingWeight };
+      return {
+        ...data,
+        mapTemplates: { ...data.mapTemplates, rout: [...data.mapTemplates.rout, clone] },
+      };
+    };
+    const depsHigh = makeDeps('mire_flying_high', 100);
+    const depsLow = makeDeps('mire_flying_low', 0.0001);
+
+    const countFlyers = (deps, id) => {
+      let flyers = 0;
+      let total = 0;
+      for (let seed = 1; seed <= 30; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act2', objective: 'rout', templateId: id }, deps),
+        );
+        for (const s of config.enemySpawns) {
+          if (s.isBoss) continue;
+          total += 1;
+          if (flyerNames.has(s.className)) flyers += 1;
+        }
+      }
+      return total > 0 ? flyers / total : 0;
+    };
+
+    const highFrac = countFlyers(depsHigh, 'mire_flying_high');
+    const lowFrac = countFlyers(depsLow, 'mire_flying_low');
+    expect(highFrac).toBeGreaterThan(lowFrac);
+    expect(highFrac).toBeGreaterThan(0.5);
+  });
+});
+
+describe('Phase 1.3 — reinforcement gating', () => {
+  it('Normal gated template drops reinforcements (normal:never)', () => {
+    const config = withSeed(3, () =>
+      generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'normal' },
+        data,
+      ),
+    );
+    expect(config.reinforcements).toBeUndefined();
+  });
+
+  it('Hard gated template: gated out in act1, present in act2', () => {
+    const act1 = withSeed(3, () =>
+      generateBattle(
+        { act: 'act1', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      ),
+    );
+    expect(act1.reinforcements).toBeUndefined();
+
+    const act2 = withSeed(3, () =>
+      generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      ),
+    );
+    expect(act2.reinforcements).toBeDefined();
+  });
+
+  it('Hard gated template reinforces in postAct (act-gate order fix)', () => {
+    const config = withSeed(3, () =>
+      generateBattle(
+        { act: 'postAct', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      ),
+    );
+    expect(config.reinforcements).toBeDefined();
+  });
+
+  it('Normal act4 biome template still reinforces (unchanged behavior)', () => {
+    const config = withSeed(3, () =>
+      generateBattle(
+        { act: 'act4', objective: 'rout', templateId: 'frozen_pass', difficultyId: 'normal' },
+        data,
+      ),
+    );
+    expect(config.reinforcements).toBeDefined();
   });
 });
