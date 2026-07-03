@@ -1786,6 +1786,20 @@ describe('RunManager', () => {
       expect(restored.roster[0].name).toBe('Edric');
     });
 
+    it('loadRun falls back to a non-null runSeed for legacy saves predating runSeed', () => {
+      rm.startRun();
+      const legacy = rm.toJSON();
+      delete legacy.runSeed;
+      delete legacy.rngSeed;
+      store['emblem_rogue_slot_1_run'] = JSON.stringify(legacy);
+
+      const restored = loadRun(gameData, 1);
+      expect(restored).not.toBeNull();
+      expect(restored.runSeed).not.toBeNull();
+      expect(typeof restored.runSeed).toBe('number');
+      expect(Number.isFinite(restored.runSeed)).toBe(true);
+    });
+
     it('clearSavedRun removes the save', () => {
       rm.startRun();
       saveRun(rm, null, 1);

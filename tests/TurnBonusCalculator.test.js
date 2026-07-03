@@ -654,3 +654,24 @@ describe('TurnBonusCalculator', () => {
     });
   });
 });
+
+describe('castle template parBonus data pins', () => {
+  function findTemplate(id) {
+    for (const category of Object.values(gameData.mapTemplates)) {
+      const found = category.find((t) => t.id === id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  it('pins parBonus for castle and swamp templates', () => {
+    expect(findTemplate('corridor_siege')?.parBonus).toBe(1);
+    expect(findTemplate('great_hall')?.parBonus).toBe(1);
+    expect(findTemplate('castle_ruins')?.parBonus).toBe(2);
+    expect(findTemplate('mire_crossing')?.parBonus).toBe(2);
+  });
+
+  it('includes Pillar in difficultTerrainTypes', () => {
+    expect(config.difficultTerrainTypes).toContain('Pillar');
+  });
+});

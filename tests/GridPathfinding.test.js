@@ -257,10 +257,29 @@ describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () =>
     return gridFromNames(names);
   }
 
-  function checkEquivalence(grid, moveType, mov, costMod, { expectAStarCost }) {
+  function checkEquivalence(
+    grid,
+    moveType,
+    mov,
+    costMod,
+    { expectAStarCost },
+    unitPositions = null,
+    moverFaction = null,
+  ) {
     const sc = 0;
     const sr = 0;
-    const range = grid.getMovementRange(sc, sr, mov, moveType, null, null, costMod);
+    const range = grid.getMovementRange(
+      sc,
+      sr,
+      mov,
+      moveType,
+      unitPositions,
+      moverFaction,
+      costMod,
+    );
+    // Mirrors AIController._findPathWithIceFallback: occupancy for effective-path
+    // validation is the same unitPositions set used to build the range.
+    const occupiedTiles = new Set(unitPositions ? unitPositions.keys() : []);
 
     for (const [key, entry] of range) {
       if (key === `${sc},${sr}`) continue;
@@ -280,14 +299,14 @@ describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () =>
         grid.cols,
         grid.rows,
         moveType,
-        new Set(),
+        occupiedTiles,
         costMod,
       );
       const reconLanding = reconEff.effectivePath[reconEff.effectivePath.length - 1];
       expect(reconLanding).toEqual({ col: gc, row: gr });
       expect(reconEff.movementCost, `recon cost mismatch at ${key}`).toBe(entry.cost);
 
-      const aStar = grid.findPath(sc, sr, gc, gr, moveType, null, null, costMod);
+      const aStar = grid.findPath(sc, sr, gc, gr, moveType, unitPositions, moverFaction, costMod);
       if (aStar) {
         const aEff = computeEffectivePath(
           aStar,
@@ -296,7 +315,7 @@ describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () =>
           grid.cols,
           grid.rows,
           moveType,
-          new Set(),
+          occupiedTiles,
           costMod,
         );
         const aLanding = aEff.effectivePath[aEff.effectivePath.length - 1];
@@ -339,6 +358,66 @@ describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () =>
     for (let i = 0; i < 20; i++) {
       const grid = randomGrid(rng, NAMES_NO_ICE);
       checkEquivalence(grid, 'Infantry', 6, 1, { expectAStarCost: true });
+    }
+  });
+
+  // Mirrors AIController's unitPositions shape: Map of "col,row" -> { faction },
+  // built from all non-mover units (see AIController.js `unitPositions.set`).
+  function randomUnitPositions(rng, grid, moverFaction, iceKey) {
+    const positions = new Map();
+    // One enemy-blocking unit (opposite faction — blocks entry outright).
+    let ec = 0;
+    let er = 0;
+    while ((ec === 0 && er === 0) || positions.has(`${ec},${er}`)) {
+      ec = Math.floor(rng() * grid.cols);
+      er = Math.floor(rng() * grid.rows);
+    }
+    positions.set(`${ec},${er}`, { faction: moverFaction === 'player' ? 'enemy' : 'player' });
+
+    // One ally pass-through unit (same faction — traversable but non-stoppable).
+    let ac = 0;
+    let ar = 0;
+    while ((ac === 0 && ar === 0) || positions.has(`${ac},${ar}`)) {
+      ac = Math.floor(rng() * grid.cols);
+      ar = Math.floor(rng() * grid.rows);
+    }
+    positions.set(`${ac},${ar}`, { faction: moverFaction });
+
+    // A unit (enemy faction) blocking an ice tile, when one exists in the layout.
+    if (iceKey && !positions.has(iceKey)) {
+      positions.set(iceKey, { faction: moverFaction === 'player' ? 'enemy' : 'player' });
+    }
+    return positions;
+  }
+
+  function findIceTileKey(grid) {
+    for (let r = 0; r < grid.rows; r++) {
+      for (let c = 0; c < grid.cols; c++) {
+        if (`${c},${r}` === '0,0') continue;
+        if (grid.getTerrainAt(c, r)?.name === 'Ice') return `${c},${r}`;
+      }
+    }
+    return null;
+  }
+
+  it('holds with unit occupancy (enemy blocker, ally pass-through, ice-tile blocker)', () => {
+    const rng = mulberry32(2468);
+    const moverFaction = 'player';
+    for (let i = 0; i < 40; i++) {
+      const grid = randomGrid(rng, NAMES_WITH_ICE);
+      const iceKey = findIceTileKey(grid);
+      const unitPositions = randomUnitPositions(rng, grid, moverFaction, iceKey);
+      for (const moveType of MOVE_TYPES) {
+        checkEquivalence(
+          grid,
+          moveType,
+          7,
+          0,
+          { expectAStarCost: false },
+          unitPositions,
+          moverFaction,
+        );
+      }
     }
   });
 });

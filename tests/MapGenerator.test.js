@@ -5,6 +5,7 @@ import {
   resolveClassWeight,
   pickTemplate,
   CAVALRY_CARVE_MAX_CONVERSIONS,
+  resolveAnchorUnitClass,
 } from '../src/engine/MapGenerator.js';
 import {
   TERRAIN,
@@ -3015,5 +3016,34 @@ describe('Phase 4.2 — pickTemplate weight knob', () => {
       expect(config.enemySpawns.length).toBeGreaterThan(0);
       if (obj === 'escape') expect(config.escapeTiles.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('resolveAnchorUnitClass', () => {
+  it('returns null instead of undefined when pool.base is empty (highest_level)', () => {
+    const result = resolveAnchorUnitClass(
+      { unit: 'highest_level' },
+      { base: [], promoted: [] },
+      [],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null instead of undefined when pool.base is empty (default/unknown unit spec)', () => {
+    const result = resolveAnchorUnitClass(
+      { unit: 'some_unrecognized_spec' },
+      { base: [], promoted: [] },
+      [],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('still picks a class from a non-empty base pool (highest_level)', () => {
+    const result = resolveAnchorUnitClass(
+      { unit: 'highest_level' },
+      { base: ['Myrmidon'], promoted: [] },
+      [],
+    );
+    expect(result).toBe('Myrmidon');
   });
 });
