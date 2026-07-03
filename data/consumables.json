@@ -118,7 +118,7 @@
   },
   {
     "name": "Mounted Seal",
-    "lore": "A saddle and rank, and one of the last warhorses to fill it.",
+    "lore": "Rank and a mount to bear it, of the few that remain.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "mounted",
