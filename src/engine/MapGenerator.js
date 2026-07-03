@@ -444,7 +444,16 @@ export function pickTemplate(objective, mapTemplates, act = null, options = {}) 
   );
   const sourcePool = bossFilteredPool.length > 0 ? bossFilteredPool : fallbackBossFilteredPool;
   if (sourcePool.length === 0) return null;
-  return sourcePool[Math.floor(Math.random() * sourcePool.length)];
+  // Weighted pick over optional per-template `weight` (default 1). Consumes
+  // exactly one Math.random() draw to preserve seeded-generation RNG discipline.
+  const weights = sourcePool.map((t) => (Number.isFinite(t.weight) && t.weight > 0 ? t.weight : 1));
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let roll = Math.random() * totalWeight;
+  for (let i = 0; i < sourcePool.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return sourcePool[i];
+  }
+  return sourcePool[sourcePool.length - 1];
 }
 
 function isTemplateAllowedForObjective(template, objective, mapTemplates) {
