@@ -1,7 +1,7 @@
 [
   {
     "name": "Vulnerary",
-    "lore": "Bitter herbs sealed in wax. The whole of the border's field medicine in one pouch.",
+    "lore": "Wax, herbs, and a prayer you only need it once.",
     "type": "Consumable",
     "effect": "heal",
     "value": 10,
@@ -10,7 +10,7 @@
   },
   {
     "name": "Elixir",
-    "lore": "Old-kingdom apothecary work. The recipe survives; the apothecaries did not.",
+    "lore": "Mends the body whole. Few know the recipe now.",
     "type": "Consumable",
     "effect": "healFull",
     "value": 0,
@@ -19,7 +19,7 @@
   },
   {
     "name": "Master Seal",
-    "lore": "An imperial commission, blank where the name goes. The war signs quickly.",
+    "lore": "The mark that turns a soldier into an officer.",
     "type": "Consumable",
     "effect": "promote",
     "value": 0,
@@ -28,7 +28,7 @@
   },
   {
     "name": "Energy Drop",
-    "lore": "Tastes of iron and intent. Old training-yard alchemy, one dose to a career.",
+    "lore": "Drink it and a month of drills passes in an afternoon.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "STR",
@@ -38,7 +38,7 @@
   },
   {
     "name": "Spirit Dust",
-    "lore": "Ground from a ruined ward-stone. It settles in the blood and listens.",
+    "lore": "Ground ward-stone that loosens the old words.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MAG",
@@ -48,7 +48,7 @@
   },
   {
     "name": "Secret Book",
-    "lore": "A master's annotated footwork, sold by an estate that did not read it.",
+    "lore": "One duelist's footwork, diagrammed in a careful hand.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SKL",
@@ -58,7 +58,7 @@
   },
   {
     "name": "Speedwing",
-    "lore": "Feathers from a pegasus that outflew its own rider's orders.",
+    "lore": "A pegasus feather, still restless in the hand.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SPD",
@@ -68,7 +68,7 @@
   },
   {
     "name": "Dracoshield",
-    "lore": "A scale shed by something patient. Armorers ask no questions.",
+    "lore": "Sewn into a gambeson, one dragon scale turns a killing blow.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "DEF",
@@ -78,7 +78,7 @@
   },
   {
     "name": "Talisman",
-    "lore": "A seer's knot worn against sorcery. It arrives already worn smooth.",
+    "lore": "A seer's charm, worn against hexes.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "RES",
@@ -88,7 +88,7 @@
   },
   {
     "name": "Angelic Robe",
-    "lore": "Woven in a temple the empire unroofed. The cloth still keeps its promises.",
+    "lore": "Temple cloth, blessed once and holding it still.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "HP",
@@ -98,7 +98,7 @@
   },
   {
     "name": "Swiftsoles",
-    "lore": "A courier's boots, resoled past counting. The roads are in them now.",
+    "lore": "Courier's boots that make any road shorter.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MOV",
@@ -108,7 +108,7 @@
   },
   {
     "name": "Infantry Seal",
-    "lore": "Reassignment papers, stamped by a clerk who no longer asks why.",
+    "lore": "Reassignment to the foot ranks, stamped and final.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "infantry",
@@ -118,7 +118,7 @@
   },
   {
     "name": "Mounted Seal",
-    "lore": "Stable requisition and rank in one seal. The horse is somehow always ready.",
+    "lore": "Orders to the saddle, the horse already chosen.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "mounted",
@@ -128,7 +128,7 @@
   },
   {
     "name": "Herb",
-    "lore": "Fen-picked and honest. Chew, grimace, continue.",
+    "lore": "Bitter fen-leaf that loosens poison's grip.",
     "type": "Consumable",
     "effect": "cure",
     "value": 0,
@@ -137,7 +137,7 @@
   },
   {
     "name": "Remedy",
-    "lore": "A field surgeon's kit in a tin: antidote, splint, and one strong opinion.",
+    "lore": "Antidote and bandage packed in one tin.",
     "type": "Consumable",
     "effect": "cureHeal",
     "value": 10,
