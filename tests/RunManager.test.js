@@ -4448,3 +4448,52 @@ describe('RunManager noMetaMode', () => {
     warnSpy.mockRestore();
   });
 });
+
+describe('seeded node map (Phase 6.6)', () => {
+  const nodeSignature = (nodeMap) =>
+    nodeMap.nodes
+      .map((n) => ({
+        id: n.id,
+        row: n.row,
+        col: n.col,
+        type: n.type,
+        edges: [...n.edges].sort(),
+        templateId: n.templateId ?? null,
+        fogEnabled: !!n.fogEnabled,
+        objective: n.battleParams?.objective ?? null,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+  it('same runSeed produces an identical node graph', () => {
+    const a = new RunManager(loadGameData());
+    const b = new RunManager(loadGameData());
+    a.startRun({ runSeed: 424242 });
+    b.startRun({ runSeed: 424242 });
+    expect(nodeSignature(a.nodeMap)).toEqual(nodeSignature(b.nodeMap));
+    expect(a.nodeMap.startNodeId).toBe(b.nodeMap.startNodeId);
+    expect(a.nodeMap.bossNodeId).toBe(b.nodeMap.bossNodeId);
+  });
+
+  it('different runSeeds generally produce different graphs', () => {
+    const seeds = [1, 2, 3, 4, 5];
+    const signatures = seeds.map((seed) => {
+      const rm = new RunManager(loadGameData());
+      rm.startRun({ runSeed: seed });
+      return JSON.stringify(nodeSignature(rm.nodeMap));
+    });
+    const distinct = new Set(signatures);
+    // Not all five identical — the seed actually drives generation.
+    expect(distinct.size).toBeGreaterThan(1);
+  });
+
+  it('advanceAct is deterministic for a given runSeed', () => {
+    const a = new RunManager(loadGameData());
+    const b = new RunManager(loadGameData());
+    a.startRun({ runSeed: 999 });
+    b.startRun({ runSeed: 999 });
+    a.advanceAct();
+    b.advanceAct();
+    expect(a.currentAct).toBe(b.currentAct);
+    expect(nodeSignature(a.nodeMap)).toEqual(nodeSignature(b.nodeMap));
+  });
+});
