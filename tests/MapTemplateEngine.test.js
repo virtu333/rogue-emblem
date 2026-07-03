@@ -377,15 +377,34 @@ describe('MapTemplateEngine', () => {
     expect(result.errors.some((error) => error.includes('must be a valid act'))).toBe(true);
   });
 
-  it('rejects postAct/finalBoss act values in minActByDifficulty (runtime unsupported)', () => {
-    for (const unsupportedAct of ['postAct', 'finalBoss']) {
-      const bad = JSON.parse(JSON.stringify(mapTemplates));
-      const template = bad.rout.find((entry) => entry.id === 'open_field');
-      template.reinforcements.minActByDifficulty = { hard: unsupportedAct };
-      const result = validateMapTemplatesConfig(bad);
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((error) => error.includes('must be a valid act'))).toBe(true);
+  it('accepts postAct/finalBoss/never act values in minActByDifficulty', () => {
+    // Phase 1.3: ACT_GATE_ORDER extended to postAct/finalBoss, and "never" is an
+    // explicit opt-out sentinel.
+    for (const supportedAct of ['postAct', 'finalBoss', 'never']) {
+      const good = JSON.parse(JSON.stringify(mapTemplates));
+      const template = good.rout.find((entry) => entry.id === 'open_field');
+      template.reinforcements.minActByDifficulty = {
+        normal: 'never',
+        hard: supportedAct,
+        lunatic: supportedAct,
+      };
+      const result = validateMapTemplatesConfig(good);
+      expect(result.valid).toBe(true);
     }
+  });
+
+  it('requires all three difficulty keys in minActByDifficulty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.rout.find((entry) => entry.id === 'open_field');
+    // Missing the "normal" key — the silent-gate footgun this rule guards against.
+    template.reinforcements.minActByDifficulty = { hard: 'act2', lunatic: 'act2' };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) =>
+        error.includes('minActByDifficulty missing required difficulty key: normal'),
+      ),
+    ).toBe(true);
   });
 
   it('reports malformed hybridArena with overrides without throwing', () => {

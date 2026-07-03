@@ -386,10 +386,21 @@ function validateReinforcements(path, template, strict, errors, warnings) {
       if (!hasOnlyKnownKeys(gating, validDifficultyKeys)) {
         errors.push(`${path}.reinforcements.minActByDifficulty contains unknown difficulty keys`);
       }
-      const validActs = new Set(['act1', 'act2', 'act3', 'act4']);
+      // Intent must be explicit for every difficulty: a missing key silently
+      // disables reinforcements, so require all three (use "never" to opt out).
+      for (const difficultyId of DIFFICULTY_IDS) {
+        if (!(difficultyId in gating)) {
+          errors.push(
+            `${path}.reinforcements.minActByDifficulty missing required difficulty key: ${difficultyId}`,
+          );
+        }
+      }
+      const validActs = new Set(['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss', 'never']);
       for (const [key, value] of Object.entries(gating)) {
         if (!validActs.has(value)) {
-          errors.push(`${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act`);
+          errors.push(
+            `${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act or "never"`,
+          );
         }
       }
     }

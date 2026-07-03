@@ -434,7 +434,7 @@ function findTemplateById(templateId, mapTemplates) {
   return null;
 }
 
-const ACT_GATE_ORDER = ['act1', 'act2', 'act3', 'act4'];
+const ACT_GATE_ORDER = ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss'];
 
 function meetsActThreshold(currentAct, requiredAct) {
   const ci = ACT_GATE_ORDER.indexOf(currentAct);
@@ -448,7 +448,9 @@ function cloneReinforcementConfig(template, { act = null, difficultyId = 'normal
   const gating = template.reinforcements.minActByDifficulty;
   if (gating) {
     const minAct = gating[difficultyId];
-    if (!minAct || !meetsActThreshold(act, minAct)) {
+    // Explicit "never" sentinel (and defensive missing-key) disable reinforcements
+    // for this difficulty regardless of act.
+    if (!minAct || minAct === 'never' || !meetsActThreshold(act, minAct)) {
       return {};
     }
   }
@@ -1516,8 +1518,10 @@ function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thro
 function resolveAnchorUnitClass(anchor, pool, spawns) {
   switch (anchor.unit) {
     case 'highest_level':
-      // Will be placed with max level from pool
-      return null; // use pool default, level handled separately
+      // Placed at the pool's max level via the level branch in generateEnemies.
+      // Class is a uniform base-pool pick (never promoted — chokepoint runs in
+      // all acts and a promoted unit in act1 would be a difficulty spike).
+      return pool.base[Math.floor(Math.random() * pool.base.length)];
     case 'boss_or_strongest':
       return null; // boss already placed by seize logic; skip
     case 'lance_user': {
@@ -1584,6 +1588,11 @@ function resolveClassWeight(className, enemyWeights, classData) {
   if (enemyWeights.cavalry !== undefined && moveType === 'Cavalry') {
     composite *= enemyWeights.cavalry;
     matched.push('cavalry');
+  }
+  // "flying" — moveType Flying (pegasus/wyvern)
+  if (enemyWeights.flying !== undefined && moveType === 'Flying') {
+    composite *= enemyWeights.flying;
+    matched.push('flying');
   }
   // "archer" — has Bows proficiency
   if (enemyWeights.archer !== undefined && profList.includes('Bows')) {
