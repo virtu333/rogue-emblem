@@ -19,7 +19,7 @@
   },
   {
     "name": "Master Seal",
-    "lore": "The mark that turns a soldier into an officer.",
+    "lore": "An old rite pressed in wax. It remakes the one it names.",
     "type": "Consumable",
     "effect": "promote",
     "value": 0,
@@ -118,7 +118,7 @@
   },
   {
     "name": "Mounted Seal",
-    "lore": "Orders to the saddle, the horse already chosen.",
+    "lore": "A saddle and rank, and one of the last warhorses to fill it.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "mounted",
