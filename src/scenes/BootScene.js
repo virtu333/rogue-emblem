@@ -361,6 +361,7 @@ export class BootScene extends Phaser.Scene {
       'recruit',
       'elite',
       'colosseum',
+      'ruins',
     ];
     for (const name of nodeIcons) {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);
