@@ -69,6 +69,9 @@ grim-declarative. No single register should dominate a file.
   to stop."
 - **The sacred ground** — consecrated to keep something asleep; the ritual
   overfed it.
+- **"Mounted" reclass = Cavalry + Flying.** The Mounted Seal reclasses into
+  cavalry AND fliers (pegasus/wyvern), so mount lore must say "mount," never
+  assume horses.
 - **The 11 bosses** each have an established identity (border captain, warchief,
   first lance / cavalry doctrinaire, court-circle keeper, the black rider, the
   perfect duelist, the breach-holder, the berserk-school founder, the
