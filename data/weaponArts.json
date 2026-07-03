@@ -22,7 +22,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A careful strike trading HP for accuracy.",
+      "description": "Two HP buys a surer edge: +20 Hit, +5 Crit.",
       "combatMods": {
         "hitBonus": 20,
         "critBonus": 5,
@@ -44,7 +44,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A forceful sword art that boosts might and hit.",
+      "description": "Anger sharpens the swing, adding might and hit.",
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,
@@ -66,7 +66,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A measured stance that sharply improves avoid.",
+      "description": "A duelist's guard turns aside almost any blow.",
       "combatMods": {
         "avoidBonus": 30,
         "activated": [
@@ -87,7 +87,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A grounded slash with effectiveness against fliers.",
+      "description": "Low sweep meant for wings, triple damage to fliers.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -113,7 +113,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A lunging strike that lets you advance 1 tile after combat.",
+      "description": "A lunge that ends with a free step into the gap.",
       "effects": {
         "afterCombat": [
           {
@@ -144,7 +144,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A high-precision sword art for seasoned duelists.",
+      "description": "The old duelists' finisher, all precision and crit.",
       "combatMods": {
         "atkBonus": 3,
         "hitBonus": 10,
@@ -167,7 +167,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A fast cut that prevents enemy counterattacks.",
+      "description": "So fast the enemy never gets to answer it.",
       "combatMods": {
         "preventCounter": true,
         "hitBonus": 10,
@@ -189,7 +189,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A cursed edge that targets resistance instead of defense.",
+      "description": "Cursed steel that bites resistance, not armor.",
       "combatMods": {
         "targetsRES": true,
         "atkBonus": 3,
@@ -212,7 +212,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A thrusting strike that swaps position with the target after combat.",
+      "description": "The thrust ends with you and the target trading places.",
       "effects": {
         "afterCombat": [
           {
@@ -243,7 +243,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A disabling cut that reduces the target's SPD by 4 after combat.",
+      "description": "Its cut leaves the target 4 Speed slower.",
       "effects": {
         "afterCombat": [
           {
@@ -275,7 +275,7 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A venomous slash that deals 5 poison damage after combat.",
+      "description": "Venom on the edge eats 5 more HP once blades part.",
       "effects": {
         "afterCombat": [
           {
@@ -307,8 +307,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A precise cut that scales with skill.",
-      "allowedFactions": ["player"],
+      "description": "The keener your skill, the harder this one lands.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "statScaling": {
           "stat": "SKL",
@@ -333,8 +335,10 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A silver-tier feint that ignores terrain avoid.",
-      "allowedFactions": ["player"],
+      "description": "Feint past cover the ground can no longer shield.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "critBonus": 20,
         "hitBonus": 15,
@@ -357,8 +361,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A blinding flourish that scales with speed.",
-      "allowedFactions": ["player"],
+      "description": "Faster hands mean a heavier blow; it scales on Speed.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "statScaling": {
           "stat": "SPD",
@@ -383,8 +389,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A flurry of 3 strikes at 60% damage each.",
-      "allowedFactions": ["player"],
+      "description": "Three blurred cuts, each landing at sixty percent.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "multiHit": {
           "count": 3,
@@ -411,7 +419,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A committed thrust with extra stopping power.",
+      "description": "Puts the whole body behind one thrust, for might and aim.",
       "combatMods": {
         "atkBonus": 4,
         "hitBonus": 10,
@@ -433,7 +441,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A surging thrust with extra attack power.",
+      "description": "One surging thrust, all momentum and raw attack power.",
       "combatMods": {
         "atkBonus": 8,
         "activated": [
@@ -454,7 +462,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A guarded lance technique that hardens defense.",
+      "description": "Guard behind the shaft; the next blow finds you harder.",
       "combatMods": {
         "defBonus": 5,
         "activated": [
@@ -475,7 +483,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A quick jab that lets you retreat 1 tile after combat.",
+      "description": "Strike and step back a tile before the counter.",
       "effects": {
         "afterCombat": [
           {
@@ -506,7 +514,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A committed leap-thrust that hits with extra force.",
+      "description": "Vault into the point so weight and reach add to it.",
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 5,
@@ -528,7 +536,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A punishing thrust effective against cavalry.",
+      "description": "Aimed at the legs, it drops cavalry mid-charge.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -555,7 +563,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A retaliatory thrust adding damage based on missing HP.",
+      "description": "The more blood you've lost, the more this thrust repays.",
       "combatMods": {
         "vengeance": true,
         "hitBonus": 10,
@@ -577,7 +585,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A crushing thrust that reduces the target's DEF by 3 after combat.",
+      "description": "Splits the guard so DEF stays down after the clash.",
       "effects": {
         "afterCombat": [
           {
@@ -609,8 +617,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A burning lance technique that scales with defense and grants avoid.",
-      "allowedFactions": ["player"],
+      "description": "Heavier armor feeds the flame, and helps you dodge.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "statScaling": {
           "stat": "DEF",
@@ -636,8 +646,10 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A stance that extends attack range to 1-2 tiles.",
-      "allowedFactions": ["player"],
+      "description": "Held long, the lance threatens tiles one and two out.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "rangeOverride": {
           "min": 1,
@@ -663,8 +675,10 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A devastating charge that pushes the target back 1 tile.",
-      "allowedFactions": ["player"],
+      "description": "Bowls the target back a full tile on impact.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "afterCombat": [
           {
@@ -697,7 +711,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A brutal swing with high damage but shaky aim.",
+      "description": "Big damage, loose aim, and the axe goes where it will.",
       "combatMods": {
         "atkBonus": 6,
         "hitBonus": -8,
@@ -719,7 +733,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A reckless swing with massive hit and crit spikes.",
+      "description": "Reckless overhead swing with +20 Hit and +20 Crit.",
       "combatMods": {
         "hitBonus": 20,
         "critBonus": 20,
@@ -741,7 +755,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A high-risk strike trading accuracy for power.",
+      "description": "Trade accuracy for raw power and pray it lands.",
       "combatMods": {
         "atkBonus": 10,
         "hitBonus": -15,
@@ -763,7 +777,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A heavy overhead strike effective against armored units.",
+      "description": "Overhead blow that splits plate, triple to armored.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -791,7 +805,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A savage overhead cleave with heavy momentum.",
+      "description": "The axe's own weight drags it down through the guard.",
       "combatMods": {
         "atkBonus": 7,
         "hitBonus": -5,
@@ -814,7 +828,7 @@
       "hpCost": 8,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A crushing blow with huge power but reduced accuracy.",
+      "description": "Enormous force, clumsy aim: +14 might, -10 Hit.",
       "combatMods": {
         "atkBonus": 14,
         "hitBonus": -10,
@@ -836,7 +850,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A feral strike with immense risk-reward profile.",
+      "description": "Nothing held back, wild power and +30 Crit.",
       "combatMods": {
         "atkBonus": 10,
         "hitBonus": -15,
@@ -859,7 +873,7 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A charging strike that passes through the target's position.",
+      "description": "The charge carries clean through the enemy's square.",
       "effects": {
         "afterCombat": [
           {
@@ -890,7 +904,7 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A battle cry that boosts nearby allies' STR by 3 after combat.",
+      "description": "A roar that lends nearby allies +3 Strength.",
       "effects": {
         "allyBuff": {
           "range": 2,
@@ -922,8 +936,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A fortified blow that scales with defense.",
-      "allowedFactions": ["player"],
+      "description": "The heavier your armor, the harder this one lands.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "statScaling": {
           "stat": "DEF",
@@ -948,8 +964,10 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A guarded strike that halves incoming physical damage.",
-      "allowedFactions": ["player"],
+      "description": "Fight behind the haft and take back half the blow.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "atkBonus": 0,
         "hitBonus": 15,
@@ -972,8 +990,10 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A rallying strike that boosts nearby allies' STR by 3 and Crit by 10 after combat.",
-      "allowedFactions": ["player"],
+      "description": "Nearby allies rally for +3 Strength and +10 Crit.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "allyBuff": {
           "range": 2,
@@ -1008,7 +1028,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A focused ranged shot that improves hit and crit.",
+      "description": "Sight down the shaft for a cleaner, deadlier shot.",
       "combatMods": {
         "hitBonus": 12,
         "critBonus": 8,
@@ -1030,7 +1050,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "An arcing shot with longer reach and improved accuracy.",
+      "description": "Arced over cover, it flies farther and rarely misses.",
       "combatMods": {
         "rangeBonus": 1,
         "hitBonus": 30,
@@ -1052,7 +1072,7 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A heavy draw that adds significant might.",
+      "description": "Draw to full and let the bow's weight do the rest.",
       "combatMods": {
         "atkBonus": 8,
         "activated": [
@@ -1075,7 +1095,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A disciplined release that sharpens speed and aim.",
+      "description": "One steadied breath sharpens aim, edge, and speed.",
       "combatMods": {
         "hitBonus": 18,
         "critBonus": 10,
@@ -1098,7 +1118,7 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A pinning shot that roots the target in place for 1 turn. +10 Hit.",
+      "description": "Pins the target where it stands for one turn.",
       "effects": {
         "afterCombat": [
           {
@@ -1129,7 +1149,7 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A warding shot that silences the target for 1 turn: no magic, staves, or skills. +10 Hit.",
+      "description": "Fletched against magic, it gags a caster for a turn.",
       "effects": {
         "afterCombat": [
           {
@@ -1160,7 +1180,7 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A piercing shot that reduces the target's DEF by 3 after combat.",
+      "description": "An arrow to the joints leaves DEF lowered.",
       "effects": {
         "afterCombat": [
           {
@@ -1192,7 +1212,7 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A debilitating shot that reduces the target's STR by 3 after combat.",
+      "description": "Wound the arm and the target strikes weaker after.",
       "effects": {
         "afterCombat": [
           {
@@ -1224,7 +1244,7 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A disruptive shot that reduces the target's MAG by 4 after combat.",
+      "description": "Rattle a caster and their MAG sags after the shot.",
       "effects": {
         "afterCombat": [
           {
@@ -1256,8 +1276,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "An extreme-range shot that sacrifices some hit rate.",
-      "allowedFactions": ["player"],
+      "description": "Reaches three tiles farther, though the aim strains.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "rangeBonus": 3,
         "atkBonus": 5,
@@ -1280,8 +1302,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss (cannot be fatal).",
-      "allowedFactions": ["player"],
+      "description": "Everything on one shot: double on a hit, blood on a miss.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "selfDamageOnMiss": 5
       },
@@ -1305,8 +1329,10 @@
       "hpCost": 8,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A rapid volley of 2 strikes at 90% damage each.",
-      "allowedFactions": ["player"],
+      "description": "Looses two arrows in a breath, each near full force.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "multiHit": {
           "count": 2,
@@ -1335,7 +1361,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A focused cast that boosts magical might and hit.",
+      "description": "Narrow the cast to a point for more force and aim.",
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,
@@ -1361,7 +1387,7 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A resonant cast that scales with magic.",
+      "description": "The stronger the mind, the stronger the bolt it hurls.",
       "combatMods": {
         "statScaling": {
           "stat": "MAG",
@@ -1388,7 +1414,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A sanctified blast with elevated magical force.",
+      "description": "Holy light gathered and loosed with added force.",
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,
@@ -1414,7 +1440,7 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Sacred magic highly effective against armored foes.",
+      "description": "Sacred fire scours armored foes, striking at their RES.",
       "combatMods": {
         "targetsRES": true,
         "hitBonus": 10,
@@ -1446,7 +1472,7 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A radiant strike that heals 30% of damage dealt.",
+      "description": "Wounds the enemy and mends you for a third of it.",
       "combatMods": {
         "drainPercent": 0.3,
         "hitBonus": 10,
@@ -1472,8 +1498,10 @@
       "hpCost": 5,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A distant mire cast with reduced hit chance.",
-      "allowedFactions": ["player"],
+      "description": "Casts two tiles out, at some cost to accuracy.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "rangeBonus": 2,
         "atkBonus": 3,
@@ -1499,8 +1527,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "An erupting blast that deals 60% splash damage to nearby enemies.",
-      "allowedFactions": ["player"],
+      "description": "The ground erupts, scorching enemies around the mark.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "aoeSplash": {
           "radius": 1,
@@ -1533,8 +1563,10 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A holy burst that deals 75% splash to 1 nearby enemy.",
-      "allowedFactions": ["player"],
+      "description": "Light flares wide enough to catch one foe alongside.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "aoeSplash": {
           "radius": 1,
@@ -1569,8 +1601,10 @@
       "hpCost": 8,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A disruptive blast that silences the target for 2 turns: no magic, staves, or skills. +10 Hit.",
-      "allowedFactions": ["player"],
+      "description": "Chokes off the target's magic for two full turns.",
+      "allowedFactions": [
+        "player"
+      ],
       "effects": {
         "afterCombat": [
           {
@@ -1605,8 +1639,10 @@
       "hpCost": 8,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A dark incantation that heals 100% of damage dealt.",
-      "allowedFactions": ["player"],
+      "description": "Dark words drink the wound whole and pour it into you.",
+      "allowedFactions": [
+        "player"
+      ],
       "combatMods": {
         "drainPercent": 1,
         "hitBonus": 10,
@@ -1630,7 +1666,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A legendary multi-hit cut tuned for Gemini.",
+      "description": "Gemini's own flurry, honed for its twin edges.",
       "allowedFactions": [
         "player"
       ],
@@ -1660,7 +1696,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A legendary burst shot bound to Starfall and Doublebow.",
+      "description": "Starfall and Doublebow answer in a burst of arrows.",
       "allowedFactions": [
         "player"
       ],
@@ -1691,7 +1727,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A spectral multi-strike bound to Brave Sword. Hits 3 times then teleports user back, but sets HP to 5.",
+      "description": "Brave Sword blurs into three cuts, then leaves you at 5 HP.",
       "allowedFactions": [
         "player"
       ],
@@ -1739,7 +1775,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A charging lance strike bound to Brave Lance. Hits twice and pierces through.",
+      "description": "Brave Lance strikes twice and drives clean through.",
       "allowedFactions": [
         "player"
       ],
@@ -1781,7 +1817,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A devastating assault bound to Brave Axe. Hits 3 times, buffs allies, grants move, but sets HP to 5.",
+      "description": "Brave Axe's triple storm buffs allies and drops you to 5 HP.",
       "allowedFactions": [
         "player"
       ],
@@ -1837,7 +1873,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A rain of arrows bound to Brave Bow. Hits twice and splashes adjacent enemies.",
+      "description": "Brave Bow rains twice, catching foes beside the mark.",
       "allowedFactions": [
         "player"
       ],
@@ -1879,7 +1915,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A sweeping blade tempest bound to Ragnarok. Prevents counter, boosts defense, hits twice, then retreats.",
+      "description": "Ragnarok's whirl: two cuts, no reply, then a step clear.",
       "allowedFactions": [
         "player"
       ],
@@ -1923,7 +1959,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A soul-rending strike bound to Soulreaver. Drains 150% of damage dealt as HP.",
+      "description": "Soulreaver feeds; 150% of the wound comes back as HP.",
       "allowedFactions": [
         "player"
       ],
@@ -1953,7 +1989,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A cursed thrust bound to Doomblade. Pierces through and pushes the target back.",
+      "description": "Doomblade runs one foe through and shoves it back.",
       "allowedFactions": [
         "player"
       ],
@@ -1996,7 +2032,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A blood-fueled lance strike bound to Gae Bolg. Vengeance damage plus cavalry effectiveness, and buffs adjacent allies' STR.",
+      "description": "Gae Bolg drinks your wounds, guts cavalry, rallies allies.",
       "allowedFactions": [
         "player"
       ],
@@ -2041,7 +2077,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "An earth-shattering strike bound to Stormbreaker. Massive power with defensive buffs and AoE splash.",
+      "description": "Stormbreaker splits the ground: huge power, wide splash.",
       "allowedFactions": [
         "player"
       ],
@@ -2081,7 +2117,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A devastating strike bound to Ruin. Massive power at cost of accuracy, ignores the weapon triangle. Slaying a foe grants +4 STR/+4 SPD until your next turn.",
+      "description": "Ruin ignores the triangle; a kill leaves you +4 Str/+4 Spd.",
       "allowedFactions": [
         "player"
       ],
@@ -2123,7 +2159,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A howling wind bound to Excalibur. Flying effectiveness plus AoE splash.",
+      "description": "Excalibur's gale tears fliers down and spreads outward.",
       "allowedFactions": [
         "player"
       ],
@@ -2170,7 +2206,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A devastating thunderbolt bound to Bolting. Splashes 2-tile radius.",
+      "description": "Bolting calls thunder down across two tiles.",
       "allowedFactions": [
         "player"
       ],
@@ -2211,7 +2247,7 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A divine blast bound to Luce. Ignores RES and is effective against dark enemies.",
+      "description": "Luce's light ignores RES and burns dark things away.",
       "allowedFactions": [
         "player"
       ],

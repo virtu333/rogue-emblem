@@ -1,7 +1,7 @@
 [
   {
     "name": "Myrmidon",
-    "lore": "The frontier's sword schools take anyone with quick feet and a debt. Their graduates fence like people who cannot afford armor, because they cannot.",
+    "lore": "Frontier sword schools take anyone with quick feet and a debt to work off.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -17,7 +17,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Fast melee, high crit",
-    "description": "A swift swordsman — high skill and speed, but fragile in prolonged fights.",
+    "description": "Fences with high skill and blistering speed. A drawn-out fight, though, is where it bleeds out.",
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -28,7 +28,10 @@
       "RES": "15-25",
       "LCK": "35-50"
     },
-    "promotesTo": ["Swordmaster", "Duelist"],
+    "promotesTo": [
+      "Swordmaster",
+      "Duelist"
+    ],
     "learnableSkills": [
       {
         "skillId": "vantage",
@@ -38,7 +41,7 @@
   },
   {
     "name": "Knight",
-    "lore": "The empire builds its walls twice: once in stone, once in soldiers. The second kind is cheaper to replace, and knows it.",
+    "lore": "Levied to stand where the empire wants stone and has only soldiers.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -54,7 +57,7 @@
     "moveType": "Armored",
     "weaponProficiencies": "Lances (P)",
     "role": "Slow tank, very high DEF",
-    "description": "An armored wall — absorbs punishment, but too slow to chase anyone down.",
+    "description": "All armor, no hurry. Soaks enormous punishment, then fails to catch anything that runs.",
     "growthRanges": {
       "HP": "80-95",
       "STR": "50-65",
@@ -65,7 +68,10 @@
       "RES": "15-25",
       "LCK": "20-30"
     },
-    "promotesTo": ["General", "Great Knight"],
+    "promotesTo": [
+      "General",
+      "Great Knight"
+    ],
     "learnableSkills": [
       {
         "skillId": "guard",
@@ -75,7 +81,7 @@
   },
   {
     "name": "Fighter",
-    "lore": "Levied from logging camps and quarries. The axe was already in their hands; the war only changed the target.",
+    "lore": "Levied from logging camps and quarries, where the axe was already in hand.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -91,7 +97,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (P)",
     "role": "High STR bruiser",
-    "description": "A brute with an axe — hits hard and takes hits, but clumsy and unlucky.",
+    "description": "Swings an axe hard enough to matter and eats hits well, though the aim and the luck both wander.",
     "growthRanges": {
       "HP": "75-90",
       "STR": "55-70",
@@ -102,7 +108,10 @@
       "RES": "5-15",
       "LCK": "15-25"
     },
-    "promotesTo": ["Warrior", "Berserker"],
+    "promotesTo": [
+      "Warrior",
+      "Berserker"
+    ],
     "learnableSkills": [
       {
         "skillId": "wrath",
@@ -112,7 +121,7 @@
   },
   {
     "name": "Cavalier",
-    "lore": "The mounted legions were the old kingdom's pride. The empire kept the horses and the drills, and quietly retired the oaths.",
+    "lore": "The old kingdom's mounted pride; the empire kept the horses and the drills and quietly dropped the oaths.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -128,7 +137,7 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (P)",
     "role": "Balanced mounted",
-    "description": "A mounted lancer — balanced stats and good reach, solid in any lineup.",
+    "description": "Lance and mount, steady in every stat. The dependable body for any lineup.",
     "growthRanges": {
       "HP": "65-80",
       "STR": "40-55",
@@ -139,7 +148,10 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": ["Paladin", "Dark Knight"],
+    "promotesTo": [
+      "Paladin",
+      "Dark Knight"
+    ],
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -149,7 +161,7 @@
   },
   {
     "name": "Archer",
-    "lore": "The border yeomen owe the crown a quiver a season and a son a war.",
+    "lore": "Border yeomen owe the crown a quiver each season and a son each war.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -165,7 +177,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (P)",
     "role": "Ranged physical (2 range)",
-    "description": "A patient marksman — strikes safely from range, but helpless up close.",
+    "description": "Deadly at two tiles, dead weight at one.",
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -176,7 +188,10 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": ["Sniper", "Bow Knight"],
+    "promotesTo": [
+      "Sniper",
+      "Bow Knight"
+    ],
     "learnableSkills": [
       {
         "skillId": "adept",
@@ -186,7 +201,7 @@
   },
   {
     "name": "Mage",
-    "lore": "The academies teach fire to children because children ask fewer questions about where the words come from.",
+    "lore": "The academies teach fire to children, who ask fewer questions about where the words come from.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -202,7 +217,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (P)",
     "role": "Ranged magic damage",
-    "description": "A student of the arcane — melts armor with magic, but crumbles to a stiff breeze.",
+    "description": "Burns through armor with raw magic. A single solid hit ends the lesson.",
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-15",
@@ -213,7 +228,10 @@
       "RES": "40-55",
       "LCK": "20-30"
     },
-    "promotesTo": ["Sage", "Warlock"],
+    "promotesTo": [
+      "Sage",
+      "Warlock"
+    ],
     "learnableSkills": [
       {
         "skillId": "luna",
@@ -223,7 +241,7 @@
   },
   {
     "name": "Cleric",
-    "lore": "The temples emptied when the war began. Not from fear: every hand that could hold a staff followed the levies out.",
+    "lore": "The temples emptied when the war began — every hand that could hold a staff followed the levies out.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -239,7 +257,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (P)",
     "role": "Healer, no offense",
-    "description": "A devoted healer — keeps your army alive, but can't fight back at all.",
+    "description": "Keeps the army standing turn after turn. Cannot land a blow of her own.",
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-10",
@@ -250,7 +268,10 @@
       "RES": "50-65",
       "LCK": "40-55"
     },
-    "promotesTo": ["Bishop", "Battle Monk"],
+    "promotesTo": [
+      "Bishop",
+      "Battle Monk"
+    ],
     "learnableSkills": [
       {
         "skillId": "miracle",
@@ -260,7 +281,7 @@
   },
   {
     "name": "Thief",
-    "lore": "The war made locks cheaper than what they guarded. A profession adjusted.",
+    "lore": "The war made locks cheaper than the things they guarded.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -276,7 +297,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Fast, picks locks, fog vision",
-    "description": "A nimble rogue — fastest on the field with keen eyes, but paper-thin defenses.",
+    "description": "Fastest boots on the field, keen eyes in the fog, and no lock slows her. Armor does.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "25-40",
@@ -287,7 +308,10 @@
       "RES": "15-25",
       "LCK": "50-65"
     },
-    "promotesTo": ["Assassin", "Trickster"],
+    "promotesTo": [
+      "Assassin",
+      "Trickster"
+    ],
     "learnableSkills": [
       {
         "skillId": "luna",
@@ -297,7 +321,7 @@
   },
   {
     "name": "Dancer",
-    "lore": "Older than the empire, older than the war. Armies have always needed someone to remind them what they march back to.",
+    "lore": "Older than the empire, older than the war: armies have always needed reminding what they march back to.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -313,7 +337,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Support, refreshes allies",
-    "description": "A battlefield muse — refreshes allies for another action, rare and invaluable.",
+    "description": "Her dance hands an ally a second action — the rarest, most prized support a lord can field.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "20-35",
@@ -328,7 +352,7 @@
   },
   {
     "name": "Pegasus Knight",
-    "lore": "The sky legions answer to no border garrison. Their mounts choose their riders, and neither explains the criteria.",
+    "lore": "The sky legions answer to no garrison — their mounts choose the riders.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -344,7 +368,7 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
     "role": "Flying, high RES, bow-weak",
-    "description": "A skyborne lancer — flies over terrain with high RES, but arrows are lethal.",
+    "description": "Rides the wind above every wall and shrugs off magic. An archer's arrow brings her down.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "30-45",
@@ -355,7 +379,10 @@
       "RES": "40-55",
       "LCK": "35-50"
     },
-    "promotesTo": ["Falcon Knight", "Wyvern Lord"],
+    "promotesTo": [
+      "Falcon Knight",
+      "Wyvern Lord"
+    ],
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -365,7 +392,7 @@
   },
   {
     "name": "Wyvern Rider",
-    "lore": "The mountain clans broke wyverns long before the empire came asking. The price of their service goes up every year.",
+    "lore": "The mountain clans broke wyverns long before the empire came asking, and the price climbs every year.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -381,7 +408,7 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
     "role": "Flying bruiser, bow-weak",
-    "description": "A flying juggernaut — tough and strong in the air, but magic cuts deep.",
+    "description": "Tough and strong on the wing. Magic finds the gaps in the scales.",
     "growthRanges": {
       "HP": "60-70",
       "STR": "40-55",
@@ -392,7 +419,10 @@
       "RES": "10-20",
       "LCK": "20-30"
     },
-    "promotesTo": ["Wyvern Lord", "Falcon Knight"],
+    "promotesTo": [
+      "Wyvern Lord",
+      "Falcon Knight"
+    ],
     "learnableSkills": [
       {
         "skillId": "guard",
@@ -402,7 +432,7 @@
   },
   {
     "name": "Mercenary",
-    "lore": "No banner, no levy, no cause: the contract is the whole of the law. The war has been very good for business.",
+    "lore": "Fights for whoever signs the contract, and answers to nothing else.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -418,7 +448,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced all-rounder",
-    "description": "A sellsword — no weakness and no wasted stat, reliable in every fight.",
+    "description": "No wasted stat, no glaring gap. The sellsword you can slot anywhere and trust.",
     "growthRanges": {
       "HP": "65-80",
       "STR": "45-60",
@@ -429,7 +459,10 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": ["Hero", "Hunter"],
+    "promotesTo": [
+      "Hero",
+      "Hunter"
+    ],
     "learnableSkills": [
       {
         "skillId": "astra",
@@ -439,7 +472,7 @@
   },
   {
     "name": "Swordmaster",
-    "lore": "What is left when a myrmidon survives long enough to stop being afraid. The schools call the final rank a blade with a person attached.",
+    "lore": "What is left when a myrmidon survives long enough to stop being afraid.",
     "tier": "promoted",
     "promotesFrom": "Myrmidon",
     "promotionBonuses": {
@@ -459,11 +492,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
     "roleChange": "+15 Crit innate",
-    "description": "A blade master — innate +15 crit makes every strike a potential killing blow."
+    "description": "Innate +15 crit turns any swing into an execution."
   },
   {
     "name": "General",
-    "lore": "The empire answers every question it cannot answer with more wall. A general is where the doctrine becomes a man.",
+    "lore": "Stands where a fortress would, if a fortress could be ordered to hold.",
     "tier": "promoted",
     "promotesFrom": "Knight",
     "promotionBonuses": {
@@ -484,7 +517,7 @@
     "moveType": "Armored",
     "weaponProficiencies": "Lances (M), Axes (P)",
     "roleChange": "Gains Axes, even tankier",
-    "description": "An immovable fortress — gains axes and shrugs off nearly all physical damage."
+    "description": "Doctrine made flesh: gains axes and shrugs off nearly every physical blow."
   },
   {
     "name": "Warrior",
@@ -508,7 +541,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
     "roleChange": "Gains Bows, raw power",
-    "description": "A rampaging berserker — gains bows for range and hits like an avalanche.",
+    "description": "Hits like a falling tree, and bows now give the swing reach.",
     "learnableSkills": [
       {
         "skillId": "wrath",
@@ -518,7 +551,7 @@
   },
   {
     "name": "Paladin",
-    "lore": "The old oaths survive in the paladin ranks, recited quietly, without the parts about whom the strong may serve.",
+    "lore": "The old oaths survive in the paladin ranks, recited without the parts about whom the strong must serve.",
     "tier": "promoted",
     "promotesFrom": "Cavalier",
     "promotionBonuses": {
@@ -535,11 +568,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Swords (P)",
     "roleChange": "Gains Swords, +MOV",
-    "description": "A holy knight — gains swords, extra movement, and balanced defenses."
+    "description": "Swords, extra reach, and defenses that lean nowhere — the knight the old oaths still fit."
   },
   {
     "name": "Sniper",
-    "lore": "The garrisons keep one sniper per wall and pretend not to know their names. Deniability is part of the kit.",
+    "lore": "Each garrison keeps one sniper per wall and pretends not to know the name.",
     "tier": "promoted",
     "promotesFrom": "Archer",
     "promotionBonuses": {
@@ -559,11 +592,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
     "roleChange": "Sure Shot: ignores terrain avoid",
-    "description": "A dead-eye archer — ignores terrain dodge bonuses, nothing hides from this shot."
+    "description": "No cover saves the target; this shot ignores terrain dodge entirely."
   },
   {
     "name": "Sage",
-    "lore": "A mage who has read past the approved pages. The academies grant the rank rather than admit the library has an end.",
+    "lore": "A mage who has read past the approved pages; the academies grant the rank rather than admit the library ends.",
     "tier": "promoted",
     "promotesFrom": "Mage",
     "promotionBonuses": {
@@ -583,11 +616,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P)",
     "roleChange": "Gains healing",
-    "description": "A master mage — gains healing staves while keeping devastating magic offense."
+    "description": "Keeps its devastating magic and picks up healing staves besides."
   },
   {
     "name": "Bishop",
-    "lore": "The temple hierarchy in one person: the light that heals, and the light that judges. The war needs both more than it admits.",
+    "lore": "Ranks high enough in the temple to wield both its mercy and its judgment.",
     "tier": "promoted",
     "promotesFrom": "Cleric",
     "promotionBonuses": {
@@ -607,11 +640,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Light (P)",
     "roleChange": "Gains Light magic offense",
-    "description": "A radiant cleric — gains light magic offense and auto-heals each turn."
+    "description": "Light magic to strike with, and a mend that arrives each turn on its own."
   },
   {
     "name": "Assassin",
-    "lore": "The empire does not employ assassins. The empire has never employed assassins. The rank exists in no ledger, which is the point.",
+    "lore": "A killer the empire pays for and keeps out of every ledger it signs.",
     "tier": "promoted",
     "promotesFrom": "Thief",
     "promotionBonuses": {
@@ -631,11 +664,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
     "roleChange": "Lethality chance, gains Bows",
-    "description": "An elite killer — chance to instantly slay on hit, gains bows for ranged options."
+    "description": "A hit that can simply end a life, now with bows for the foes out of reach."
   },
   {
     "name": "Bard",
-    "lore": "They carry the old kingdom's songs through checkpoints where its banners cannot go. Some verses are older than the roads.",
+    "lore": "They carry the old kingdom's songs through checkpoints its banners cannot pass.",
     "tier": "promoted",
     "promotesFrom": "Dancer",
     "promotionBonuses": {
@@ -652,11 +685,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
     "roleChange": "Gains staff proficiency",
-    "description": "A war-poet — gains staves to heal alongside the power to refresh allies."
+    "description": "Refreshes allies for another action and mends them with staves between songs."
   },
   {
     "name": "Falcon Knight",
-    "lore": "Sky-riders who earned the high commission: escort the seers, outfly the weather, and land where hope is thinnest.",
+    "lore": "Sky-riders of the high commission: escort the seers, outfly the weather, land where hope is thinnest.",
     "tier": "promoted",
     "promotesFrom": "Pegasus Knight",
     "promotionBonuses": {
@@ -673,11 +706,11 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
     "roleChange": "Gains Swords",
-    "description": "A sky commander — gains swords and flies with grace, high speed and RES."
+    "description": "Fast, warded, and now sword-armed, she commands the sky on grace alone."
   },
   {
     "name": "Wyvern Lord",
-    "lore": "The clans crown no kings, but a wyvern lord's landing shadow settles arguments the way a crown means to.",
+    "lore": "The clans crown no kings, yet a wyvern lord's landing shadow settles arguments a crown only means to.",
     "tier": "promoted",
     "promotesFrom": "Wyvern Rider",
     "promotionBonuses": {
@@ -694,11 +727,11 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
     "roleChange": "Gains Axes, heavy flying bruiser, Draconic Aura innate",
-    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air."
+    "description": "Axes, crushing bulk, and a shadow that owns the airspace it crosses."
   },
   {
     "name": "Hero",
-    "lore": "The word is a rank, not a compliment. It is given by soldiers, never by command, and it cannot be taken back.",
+    "lore": "The word is a rank, not a compliment — given by soldiers, never by command, and never taken back.",
     "tier": "promoted",
     "promotesFrom": "Mercenary",
     "promotionBonuses": {
@@ -718,7 +751,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
     "roleChange": "Gains Axes, versatile",
-    "description": "A veteran champion — gains axes, learns Sol for self-healing, no real weakness.",
+    "description": "Axes in hand and Sol to mend himself mid-swing; a veteran with no seam to exploit.",
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -728,7 +761,7 @@
   },
   {
     "name": "Lord",
-    "lore": "The banner houses of the border, sworn to a kingdom that no longer exists. What they lead now, they lead by being followed.",
+    "lore": "Border banner-houses still sworn to a kingdom too gone to release them from the oath.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -744,7 +777,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced leader, Charisma aura",
-    "description": "A born leader — inspires nearby allies with Charisma and grows into a great warrior.",
+    "description": "Steadies nearby allies with a Charisma aura and only sharpens as the war grinds on.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "38-50",
@@ -759,7 +792,7 @@
   },
   {
     "name": "Tactician",
-    "lore": "Trained in the war colleges the empire closed for asking whose war the exercises kept simulating.",
+    "lore": "Trained in the war colleges the empire closed for asking whose war the exercises kept rehearsing.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -775,7 +808,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (P)",
     "role": "Magical tactician, Foresight range bonus",
-    "description": "A battlefield scholar — wields magic with strategic vision, sees farther in fog.",
+    "description": "Reads the field farther through fog and answers it with magic.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "15-25",
@@ -790,7 +823,7 @@
   },
   {
     "name": "Ranger",
-    "lore": "Wardens of the border woods, half soldier and half rumor. The empire maps their territory; it does not enter it.",
+    "lore": "Wardens of the border woods, half soldier and half rumor: the empire maps their ground but will not enter it.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -806,7 +839,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P), Bows (P)",
     "role": "Tanky melee, Resolve at low HP",
-    "description": "A rugged frontliner — tough and hits hard, grows fiercer when wounded.",
+    "description": "Hard to drop and harder once wounded — Resolve sharpens him as the blood runs.",
     "growthRanges": {
       "HP": "55-70",
       "STR": "42-55",
@@ -821,7 +854,7 @@
   },
   {
     "name": "Light Sage",
-    "lore": "The seers' lay order: those who study the light without taking the veil. The war graduated them early.",
+    "lore": "The seers' lay order — study the light without taking the veil, graduated early by the war.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -837,7 +870,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Light (P)",
     "role": "Light magic, Renewal Aura healer",
-    "description": "A holy caster — wields light magic and heals nearby allies each turn.",
+    "description": "Light magic in one hand, a healing aura for nearby allies in the other.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "5-15",
@@ -852,7 +885,7 @@
   },
   {
     "name": "Great Lord",
-    "lore": "A lord the war has finished arguing with. The old kingdom's crown was lost; its weight, apparently, was not.",
+    "lore": "A lord the war has stopped arguing with, still bearing a crown the old kingdom lost.",
     "tier": "promoted",
     "promotesFrom": "Lord",
     "promotionBonuses": {
@@ -869,11 +902,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
     "roleChange": "Gains Lances, +MOV",
-    "description": "A proven sovereign — gains lances and extra movement, leads from the front."
+    "description": "The crown's weight settled; gains lances, more reach, and leads from the front rank."
   },
   {
     "name": "Grandmaster",
-    "lore": "The war college final rank, long thought theoretical. The theory assumed no one would ever need it twice.",
+    "lore": "The war college's final rank, kept as theory until the war finally called for it.",
     "tier": "promoted",
     "promotesFrom": "Tactician",
     "promotionBonuses": {
@@ -890,11 +923,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Swords (P)",
     "roleChange": "Gains Swords, magic mastery",
-    "description": "A supreme tactician — gains swords alongside mastered magic, total versatility."
+    "description": "Mastered magic, with swords added on top. Almost nothing it cannot answer."
   },
   {
     "name": "Vanguard",
-    "lore": "The first name on every breach roster. The rank is awarded posthumously more often than not; its holders find this motivating.",
+    "lore": "First name on every breach roster, a rank awarded posthumously more often than not.",
     "tier": "promoted",
     "promotesFrom": "Ranger",
     "promotionBonuses": {
@@ -911,11 +944,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P), Bows (P)",
     "roleChange": "Gains Axes, heavy armor",
-    "description": "A shield-bearing titan — gains axes, extreme STR and DEF, an unstoppable advance."
+    "description": "First through every breach: gains axes, piles on STR and DEF, and simply does not stop."
   },
   {
     "name": "Light Priestess",
-    "lore": "The order's highest office. She reads the liturgy's last pages, the ones about what sleeps and what wakes it.",
+    "lore": "The order's highest office, sworn to the liturgy's last pages: what sleeps, and what wakes it.",
     "tier": "promoted",
     "promotesFrom": "Light Sage",
     "promotionBonuses": {
@@ -932,11 +965,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Light (M), Staves (P)",
     "roleChange": "Gains Staves, healing",
-    "description": "A divine oracle — gains staves for healing alongside mastered light magic."
+    "description": "Mastered light to smite with, staves to mend with — the order's highest office."
   },
   {
     "name": "Chevalier",
-    "lore": "Riders of the long marches, bred for distance the way the border breeds patience. Their chargers know the roads home by dark.",
+    "lore": "Riders of the long marches, bred for distance the way the border breeds patience.",
     "tier": "base",
     "baseStats": {
       "HP": 21,
@@ -952,7 +985,7 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (P)",
     "role": "Mounted lancer, charge bonus",
-    "description": "A charging knight — hits harder the farther he rides, great reach on open ground.",
+    "description": "The farther he charges, the harder he lands; deadly reach across open ground.",
     "growthRanges": {
       "HP": "60-75",
       "STR": "40-55",
@@ -984,11 +1017,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Staves (P), Light (P)",
     "roleChange": "Gains Staves/Light, +MOV, mixed offense",
-    "description": "A holy cavalier — gains staves, Light magic, and a surge of MAG, rides to heal or strike."
+    "description": "A surge of magic, plus staves and Light — one saddle to heal from or to strike from."
   },
   {
     "name": "Sky Lancer",
-    "lore": "They fly the far pickets alone, by preference and by temperament. The sky legions call them weather with opinions.",
+    "lore": "They fly the far pickets alone, by preference and temperament — weather with opinions, the sky legions say.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -1004,7 +1037,7 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
     "role": "Flying skirmisher, solo evasion",
-    "description": "A lone sky lancer — faster and more evasive when away from allies, bow-weak.",
+    "description": "Cut loose from the pack she flies faster and dodges more. Keep her clear of archers.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "33-45",
@@ -1019,7 +1052,7 @@
   },
   {
     "name": "Seraph Knight",
-    "lore": "A sky lancer the light took an interest in. The pickets they fly are no longer entirely geographical.",
+    "lore": "A sky lancer the light took an interest in; the pickets they fly are no longer entirely geographical.",
     "tier": "promoted",
     "promotesFrom": "Sky Lancer",
     "promotionBonuses": {
@@ -1036,11 +1069,11 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Light (P)",
     "roleChange": "Gains Light magic, +MOV",
-    "description": "A radiant sky knight — gains light magic for mixed damage and flies farther."
+    "description": "Light magic for mixed damage and a longer reach on the wing."
   },
   {
     "name": "Sentinel",
-    "lore": "The old kingdom posted them at gates that no longer stand. The posting, as they understand it, was never rescinded.",
+    "lore": "The old kingdom posted them at gates that no longer stand, and never rescinded the order.",
     "tier": "base",
     "baseStats": {
       "HP": 25,
@@ -1056,7 +1089,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (P)",
     "role": "Heavy tank, debuffs attackers",
-    "description": "An immovable sentinel — punishes anyone who dares attack, enormous bulk.",
+    "description": "Enormous bulk that punishes whoever dares to strike it first.",
     "growthRanges": {
       "HP": "75-90",
       "STR": "45-60",
@@ -1071,7 +1104,7 @@
   },
   {
     "name": "Champion",
-    "lore": "Every province had one, once: the fighter other fighters walk around. The war has been collecting them.",
+    "lore": "Every province had one once — the fighter other fighters walk around.",
     "tier": "promoted",
     "promotesFrom": "Sentinel",
     "promotionBonuses": {
@@ -1088,11 +1121,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Lances (P)",
     "roleChange": "Gains Lances, +MOV, massive bulk",
-    "description": "A peerless champion — gains lances, unstoppable in close quarters with immense staying power."
+    "description": "Owns close quarters with lances now, and staying power nothing wears through."
   },
   {
     "name": "Duelist",
-    "lore": "The dueling halls survived the empire by teaching its officers. The forms remain formal; the applications have coarsened.",
+    "lore": "Bred in dueling halls that outlasted the empire by schooling its officers.",
     "tier": "promoted",
     "promotesFrom": "Myrmidon",
     "promotionBonuses": {
@@ -1112,11 +1145,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
     "roleChange": "Gains Lances, Duelist Stance innate",
-    "description": "A fencing prodigy — gains lances and excels at counter-attacks with Duelist Stance."
+    "description": "Counters better than most units attack; gains lances and thrives on being struck at."
   },
   {
     "name": "Great Knight",
-    "lore": "The heavy cavalry compromise: enough armor to be a wall, enough horse to be somewhere else. Doctrine calls it excessive. Doctrine loses.",
+    "lore": "Heavy cavalry that gives up a share of its plate for the speed to arrive at all.",
     "tier": "promoted",
     "promotesFrom": "Knight",
     "promotionBonuses": {
@@ -1137,11 +1170,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Axes (P), Swords (P)",
     "roleChange": "Gains Axes/Swords, Cavalry, Canto, Armored Blow innate",
-    "description": "A mounted fortress — trades pure defense for mobility and Canto after acting."
+    "description": "Wall enough and horse enough at once — trades pure armor for speed and Canto after acting."
   },
   {
     "name": "Berserker",
-    "lore": "The berserk school does not recruit; it recognizes. Its whole doctrine is a leash, and the leash is a courtesy.",
+    "lore": "The berserk school does not recruit; it recognizes. Its whole doctrine is a leash.",
     "tier": "promoted",
     "promotesFrom": "Fighter",
     "promotionBonuses": {
@@ -1162,11 +1195,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M)",
     "roleChange": "Fury innate, highest raw damage",
-    "description": "An unhinged berserker — crit rate scales with missing HP, devastating glass cannon."
+    "description": "The lower its health drops, the deadlier its crits climb. Little defense to slow the spiral."
   },
   {
     "name": "Dark Knight",
-    "lore": "Cavalry officers who studied under the court circle. The horses took longer to accept the change than the riders did.",
+    "lore": "Cavalry officers who took their training straight from the court circle.",
     "tier": "promoted",
     "promotesFrom": "Cavalier",
     "promotionBonuses": {
@@ -1186,11 +1219,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Tomes (P)",
     "roleChange": "Gains Tomes, Fiendish Blow innate, mixed offense",
-    "description": "A dark cavalier — gains tome magic for mixed offense, Fiendish Blow on initiation."
+    "description": "Rides with tome magic now, Fiendish Blow lending extra bite whenever it opens the attack."
   },
   {
     "name": "Bow Knight",
-    "lore": "Skirmish riders of the open marches: arrive, argue, leave. The empire's roads were built to their pace, then taxed.",
+    "lore": "Skirmish riders of the open marches: arrive, argue, leave.",
     "tier": "promoted",
     "promotesFrom": "Archer",
     "promotionBonuses": {
@@ -1211,11 +1244,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Bows (M), Swords (P)",
     "roleChange": "Gains Swords, Cavalry, Skirmisher innate",
-    "description": "A mounted archer — gains swords, cavalry mobility, and Skirmisher on initiation."
+    "description": "Bow from the saddle, sword up close, and Skirmisher rewarding every opening strike."
   },
   {
     "name": "Warlock",
-    "lore": "What the academies call a graduate who kept reading. The pages past the end feed on the reader, and give back.",
+    "lore": "What the academies call a graduate who kept reading: the pages past the end feed on the reader, and feed him back.",
     "tier": "promoted",
     "promotesFrom": "Mage",
     "promotionBonuses": {
@@ -1236,11 +1269,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M)",
     "roleChange": "Drain innate, sustained mage",
-    "description": "A dark sorcerer — heals 25% of damage dealt on every hit, outlasts in prolonged fights."
+    "description": "Every hit feeds back a quarter of the damage as health; it wins the long fights."
   },
   {
     "name": "Battle Monk",
-    "lore": "The temple answer to a burning world: a staff for the wounded, an axe for the cause of them.",
+    "lore": "The temple's answer to a burning world — a staff for the wounded, an axe for the cause of them.",
     "tier": "promoted",
     "promotesFrom": "Cleric",
     "promotionBonuses": {
@@ -1261,11 +1294,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Axes (P)",
     "roleChange": "Gains Axes, Fortify Aura innate, frontline healer",
-    "description": "A warrior healer — gains axes for offense and bolsters adjacent allies with Fortify Aura."
+    "description": "An axe for the enemy and a Fortify aura for the friends beside it — healing from the front line."
   },
   {
     "name": "Trickster",
-    "lore": "Thieves who found religion, or clergy who found locks. The order refuses to clarify, and its shrines are never robbed.",
+    "lore": "Thieves who took vows, or clergy who kept their picks, running both trades at once.",
     "tier": "promoted",
     "promotesFrom": "Thief",
     "promotionBonuses": {
@@ -1285,11 +1318,11 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
     "roleChange": "Gains Staves, Darting Blow innate, fast utility",
-    "description": "A cunning rogue — gains staves for support and Darting Blow for blinding speed on offense."
+    "description": "Staves for support, Darting Blow for speed — a rogue who blurs on the attack."
   },
   {
     "name": "Hunter",
-    "lore": "The deep-wood families who feed the border towns. The war conscripted their aim and got their patience for free.",
+    "lore": "The deep-wood families who feed the border towns; the war conscripted their aim and got the patience free.",
     "tier": "promoted",
     "promotesFrom": "Mercenary",
     "promotionBonuses": {
@@ -1310,78 +1343,146 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
     "roleChange": "Gains Bows, Pathfinder innate, terrain master",
-    "description": "A wilderness tracker — gains bows, moves through terrain cheaply with Pathfinder."
+    "description": "Bows in hand and terrain no obstacle; Pathfinder carries him cheaply across any ground."
   },
   {
     "name": "Zombie",
-    "lore": "The corruption does not raise the dead so much as decline to release them. The fens are patient about returning what they are given.",
+    "lore": "The corruption does not raise the dead so much as refuse to release them.",
     "tier": "base",
     "baseStats": {
-      "HP": 22, "STR": 6, "MAG": 0, "SKL": 2, "SPD": 2, "DEF": 6, "RES": 1, "LCK": 0, "MOV": 4
+      "HP": 22,
+      "STR": 6,
+      "MAG": 0,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 6,
+      "RES": 1,
+      "LCK": 0,
+      "MOV": 4
     },
     "growthRanges": {
-      "HP": "50-65", "STR": "40-55", "MAG": "0-5", "SKL": "10-20", "SPD": "5-15", "DEF": "40-55", "RES": "0-10", "LCK": "0-5"
+      "HP": "50-65",
+      "STR": "40-55",
+      "MAG": "0-5",
+      "SKL": "10-20",
+      "SPD": "5-15",
+      "DEF": "40-55",
+      "RES": "0-10",
+      "LCK": "0-5"
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (P)",
-    "promotesTo": ["Revenant"],
+    "promotesTo": [
+      "Revenant"
+    ],
     "role": "tank",
-    "description": "Slow, resilient undead. Revives once after death unless slain by Light magic."
+    "description": "Slow, hard to put down, and it rises once more after falling — unless Light magic does the killing."
   },
   {
     "name": "Revenant",
-    "lore": "A zombie the corruption has had time to finish. What walks afterward remembers how to fight, and little else.",
+    "lore": "A zombie the corruption has had time to finish — what walks afterward remembers how to fight, and little else.",
     "tier": "promoted",
     "promotesFrom": "Zombie",
     "promotionBonuses": {
-      "HP": 4, "STR": 2, "MAG": 0, "SKL": 0, "SPD": 1, "DEF": 2, "RES": 0, "LCK": 0, "MOV": 0
+      "HP": 4,
+      "STR": 2,
+      "MAG": 0,
+      "SKL": 0,
+      "SPD": 1,
+      "DEF": 2,
+      "RES": 0,
+      "LCK": 0,
+      "MOV": 0
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Swords (P)",
     "roleChange": "Gains Swords, Life Drain innate, stronger undead",
-    "learnableSkills": [{ "skillId": "zombie_drain", "level": 1 }],
-    "description": "An empowered undead — drains life with each strike."
+    "learnableSkills": [
+      {
+        "skillId": "zombie_drain",
+        "level": 1
+      }
+    ],
+    "description": "Stronger than the corpse it was, and every strike siphons the life back into it."
   },
   {
     "name": "Dragon",
-    "lore": "They slept below the sacred ground longer than the chronicles reach. The ritual is waking them in the wrong order.",
+    "lore": "They slept below the sacred ground longer than the chronicles reach; the ritual is waking them in the wrong order.",
     "tier": "base",
     "baseStats": {
-      "HP": 28, "STR": 2, "MAG": 8, "SKL": 4, "SPD": 3, "DEF": 10, "RES": 8, "LCK": 2, "MOV": 5
+      "HP": 28,
+      "STR": 2,
+      "MAG": 8,
+      "SKL": 4,
+      "SPD": 3,
+      "DEF": 10,
+      "RES": 8,
+      "LCK": 2,
+      "MOV": 5
     },
     "growthRanges": {
-      "HP": "60-75", "STR": "0-10", "MAG": "50-65", "SKL": "20-35", "SPD": "10-25", "DEF": "45-60", "RES": "35-50", "LCK": "5-15"
+      "HP": "60-75",
+      "STR": "0-10",
+      "MAG": "50-65",
+      "SKL": "20-35",
+      "SPD": "10-25",
+      "DEF": "45-60",
+      "RES": "35-50",
+      "LCK": "5-15"
     },
     "moveType": "Flying",
     "weaponProficiencies": "Breath (P)",
-    "promotesTo": ["Dragon Lord"],
+    "promotesTo": [
+      "Dragon Lord"
+    ],
     "role": "tank",
-    "description": "A hulking dragon — high bulk, breath attacks target RES at range 1-2."
+    "description": "Vast bulk, and breath that scorches resistance from one tile away or two."
   },
   {
     "name": "Dragon Lord",
-    "lore": "The eldest of the woken. The scale it wears has outlasted kingdoms; it regards the war as recent weather.",
+    "lore": "The eldest of the woken, wearing a scale that has outlasted kingdoms; it regards the war as recent weather.",
     "tier": "promoted",
     "promotesFrom": "Dragon",
     "promotionBonuses": {
-      "HP": 5, "STR": 0, "MAG": 3, "SKL": 0, "SPD": 0, "DEF": 3, "RES": 2, "LCK": 0, "MOV": 0
+      "HP": 5,
+      "STR": 0,
+      "MAG": 3,
+      "SKL": 0,
+      "SPD": 0,
+      "DEF": 3,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 0
     },
     "moveType": "Flying",
     "weaponProficiencies": "Breath (M)",
     "roleChange": "Dragon Scale innate, supreme magical tank",
-    "learnableSkills": [{ "skillId": "dragon_scale", "level": 1 }],
-    "description": "An ancient dragon lord — Dragon Scale reduces all incoming damage."
+    "learnableSkills": [
+      {
+        "skillId": "dragon_scale",
+        "level": 1
+      }
+    ],
+    "description": "Eldest of the woken, its ancient scale blunts every blow that lands."
   },
   {
     "name": "Entity",
-    "lore": "The thing beneath the stillness. The seers' liturgy does not name it; it names the shape the world makes around it.",
+    "lore": "The thing beneath the stillness. The seers' liturgy cannot name it, only the shape the world bends into around it.",
     "tier": "boss",
     "baseStats": {
-      "HP": 120, "STR": 24, "MAG": 22, "SKL": 20, "SPD": 12, "DEF": 22, "RES": 20, "LCK": 15, "MOV": 0
+      "HP": 120,
+      "STR": 24,
+      "MAG": 22,
+      "SKL": 20,
+      "SPD": 12,
+      "DEF": 22,
+      "RES": 20,
+      "LCK": 15,
+      "MOV": 0
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Tomes (M)",
     "role": "Eldritch final boss",
-    "description": "An unknowable eldritch horror — occupies a 3x3 area and attacks at range with dual weapons."
+    "description": "The horror beneath the stillness fills a three-tile span and strikes from range with two weapons at once."
   }
 ]
