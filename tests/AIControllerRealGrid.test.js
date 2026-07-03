@@ -4,7 +4,6 @@
 // stoppable moveRange entries, boss throne clamping, ice-diverted movement, and
 // acidic-tile avoidance.
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
 import { Grid } from '../src/engine/Grid.js';
 import { AIController } from '../src/engine/AIController.js';
 import { loadGameData } from './testData.js';
