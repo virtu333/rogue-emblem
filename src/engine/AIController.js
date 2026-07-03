@@ -722,6 +722,12 @@ export class AIController {
       destTile.row,
       unitPositions,
       moveRange,
+      // Hot path: one call per stoppable tile in the enemy's move range. The goal
+      // is always inside moveRange here, so reconstruct-from-Dijkstra is exact and
+      // skips the full A* + ice-validation pass. Only _buildPath opts in — the
+      // chase helpers below rely on A*'s specific path shape for "farthest node on
+      // path" selection, so they keep the original A*-first order (behavior-freeze).
+      true,
     );
   }
 
@@ -729,8 +735,43 @@ export class AIController {
    * Shared helper: try A* first, then fall back to Dijkstra ice-aware reconstruction.
    * Used by _buildPath, _findPathAwareChaseTile, and _findShortestPathToTiles.
    */
-  _findPathWithIceFallback(enemy, goalCol, goalRow, unitPositions, moveRange = null) {
+  _findPathWithIceFallback(
+    enemy,
+    goalCol,
+    goalRow,
+    unitPositions,
+    moveRange = null,
+    preferReconstruct = false,
+  ) {
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+    const goalKey = `${goalCol},${goalRow}`;
+
+    // Reconstruct-first: when a covering Dijkstra range is provided and the goal
+    // lies inside it, the range's parent chain already encodes the optimal,
+    // ice-correct path (the range itself was computed ice-aware). Reconstruct it
+    // directly in O(path length) and skip the full A* + ice-validation pass. Only
+    // opted into by _buildPath — the resulting final tile is identical to A*'s, but
+    // the intermediate path shape can differ on equal-cost ties, so callers that
+    // consume path shape (the chase helpers) leave this off to stay behavior-frozen.
+    if (
+      preferReconstruct &&
+      moveRange &&
+      typeof moveRange.has === 'function' &&
+      moveRange.has(goalKey) &&
+      typeof this.grid.reconstructIcePath === 'function'
+    ) {
+      const reconstructed = this.grid.reconstructIcePath(
+        moveRange,
+        enemy.col,
+        enemy.row,
+        goalCol,
+        goalRow,
+      );
+      if (reconstructed) return reconstructed;
+      // Reconstruction only returns null for a degenerate (start === goal) chain;
+      // fall through to A* which handles that case identically.
+    }
+
     const path = this.grid.findPath(
       enemy.col,
       enemy.row,
