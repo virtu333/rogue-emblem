@@ -23,6 +23,7 @@ import {
   SHOP_SELL_RATIO,
   LOOT_CHOICES,
   SHOP_ITEM_COUNT,
+  NODE_TYPES,
   NODE_GOLD_MULTIPLIER,
   GOLD_BATTLE_REWARD_MULTIPLIER,
   GOLD_LOOT_REWARD_MULTIPLIER,
@@ -33,6 +34,12 @@ describe('LootSystem', () => {
 
   beforeAll(() => {
     gameData = loadGameData();
+  });
+
+  it('defines a gold multiplier for every node type', () => {
+    for (const nodeType of Object.values(NODE_TYPES)) {
+      expect(NODE_GOLD_MULTIPLIER).toHaveProperty(nodeType);
+    }
   });
 
   describe('calculateKillGold', () => {
@@ -556,6 +563,45 @@ describe('LootSystem', () => {
         );
         expect(inv.length).toBeGreaterThanOrEqual(SHOP_ITEM_COUNT.min);
         expect(inv.length).toBeLessThanOrEqual(SHOP_ITEM_COUNT.max);
+      }
+    });
+
+    it('respects a smaller itemCountRange while preserving shop guarantees', () => {
+      for (let i = 0; i < 30; i++) {
+        const inv = generateShopInventory(
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 5, max: 6 } },
+        );
+        expect(inv.length).toBeGreaterThanOrEqual(5);
+        expect(inv.length).toBeLessThanOrEqual(6);
+        expect(inv.some((entry) => entry.type === 'weapon')).toBe(true);
+        expect(inv.some((entry) => entry.type === 'consumable')).toBe(true);
+        expect(inv.some((entry) => entry.item.name === 'Vulnerary')).toBe(true);
+        expect(inv.some((entry) => entry.item.name === 'Elixir')).toBe(true);
+      }
+    });
+
+    it('uses act4 merchandise for finalBoss shop stock', () => {
+      for (let i = 0; i < 20; i++) {
+        const inv = generateShopInventory(
+          'finalBoss',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 8, max: 10 } },
+        );
+        expect(inv.length).toBeGreaterThanOrEqual(8);
+        expect(inv.length).toBeLessThanOrEqual(10);
+        expect(inv.some((entry) => entry.type === 'weapon')).toBe(true);
       }
     });
 

@@ -82,6 +82,31 @@ describe('ChurchController gamepad focus', () => {
     expect(activeInputOwner()).toBe(ctrl);
   });
 
+  it('includes Browse Wares as a fixed ruins hub slot', () => {
+    const fired = [];
+    const scene = makeScene();
+    const ctrl = new ChurchController(scene);
+    ctrl._churchFixed = {
+      heal: fixedButton(fired, 'heal'),
+      browse: fixedButton(fired, 'browse'),
+      viewMap: fixedButton(fired, 'viewMap'),
+      roster: fixedButton(fired, 'roster'),
+      leave: fixedButton(fired, 'leave'),
+    };
+    ctrl._setupChurchFocus();
+
+    expect(ctrl._churchSlots.map((slot) => slot.btn?.name)).toEqual([
+      'heal',
+      'browse',
+      'viewMap',
+      'roster',
+      'leave',
+    ]);
+    ctrl._onChurchInput(InputAction.NAVIGATE, { dy: 1 });
+    ctrl._onChurchInput(InputAction.CONFIRM);
+    expect(fired).toEqual(['browse']);
+  });
+
   it('NAVIGATE clamps within the slot list; CONFIRM activates the focused fixed button', () => {
     const fired = [];
     const ctrl = setupController(makeScene(), fired); // no content -> [heal, viewMap, roster, leave]

@@ -57,6 +57,7 @@ vi.mock('../src/ui/ColosseumOverlay.js', () => {
 });
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
+import { ChurchController } from '../src/ui/ChurchController.js';
 import { NODE_TYPES } from '../src/utils/constants.js';
 
 function makeDisplayObject(seed = {}) {
@@ -287,6 +288,51 @@ describe('NodeMapScene Slice 4', () => {
         ambushDiscount: true,
         pendingAmbush: false,
       }),
+    );
+  });
+
+  it.each([
+    ['act1', { min: 5, max: 6 }],
+    ['finalBoss', { min: 8, max: 10 }],
+  ])('ruins shop in %s uses its stock range, markup, and preserves skipFirstShop', (act, range) => {
+    const generated = [makeShopEntry('Iron Sword', 'weapon', 100)];
+    const difficultyPriced = [makeShopEntry('Iron Sword', 'weapon', 80)];
+    const markedUp = [makeShopEntry('Iron Sword', 'weapon', 100)];
+    generateShopInventoryMock.mockReturnValueOnce(generated);
+    const node = { id: `ruins-${act}`, type: NODE_TYPES.RUINS };
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => true),
+        currentAct: act,
+        roster: [],
+        getWeaponArtSpawnConfig: vi.fn(() => null),
+        getShopItemCountDelta: vi.fn(() => 0),
+      },
+      gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+      registry: { get: vi.fn(() => null) },
+      applyDifficultyShopPricing: vi.fn(() => difficultyPriced),
+      applyRuinsMarkup: vi.fn(() => markedUp),
+      showShopOverlay: vi.fn(),
+    };
+
+    NodeMapScene.prototype.handleShop.call(scene, node, { ruins: true });
+
+    expect(scene.runManager.consumeSkipFirstShop).not.toHaveBeenCalled();
+    expect(generateShopInventoryMock).toHaveBeenCalledWith(
+      act,
+      scene.gameData.lootTables,
+      scene.gameData.weapons,
+      scene.gameData.consumables,
+      scene.gameData.accessories,
+      scene.runManager.roster,
+      null,
+      expect.objectContaining({ itemCountBonus: 0, itemCountRange: range }),
+    );
+    expect(scene.applyRuinsMarkup).toHaveBeenCalledWith(difficultyPriced);
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(
+      node,
+      markedUp,
+      expect.objectContaining({ ruins: true }),
     );
   });
 
@@ -702,6 +748,26 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.shopBuyItems[0].price).toBe(80);
   });
 
+  it('ruins reroll reapplies markup after difficulty pricing', () => {
+    generateShopInventoryMock.mockReturnValueOnce([makeShopEntry('Fresh A', 'weapon', 100)]);
+
+    const { scene, createdTexts } = makeRerollScene({
+      shopBuyItems: [makeShopEntry('Old A', 'weapon', 100)],
+      originalCount: 1,
+    });
+    scene._currentShopIsRuins = true;
+    scene.applyDifficultyShopPricing = vi.fn((items) => items.map((entry) => ({ ...entry })));
+    scene.applyRuinsMarkup = vi.fn((items) =>
+      items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 1.25) })),
+    );
+
+    NodeMapScene.prototype.drawRerollButton.call(scene);
+    createdTexts[0].handlers.pointerdown({ button: 0 });
+
+    expect(scene.applyRuinsMarkup).toHaveBeenCalled();
+    expect(scene.shopBuyItems[0].price).toBe(125);
+  });
+
   it('showForgeStatPicker keeps displayed and charged cost in sync with stacked ambush and blessing discounts', () => {
     const createdTexts = [];
     const spendGold = vi.fn(() => true);
@@ -1111,6 +1177,27 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.handleChurch).toHaveBeenCalled();
   });
 
+  it('onNodeClick commits currentNodeId for ruins before opening the hub', () => {
+    const node = { id: 'ruins-1', type: NODE_TYPES.RUINS };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      colosseumOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: { currentNodeId: null },
+      handleRuins: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.runManager.currentNodeId).toBe('ruins-1');
+    expect(scene.handleRuins).toHaveBeenCalledWith(node);
+  });
+
   it('onNodeClick commits currentNodeId for colosseum before opening overlay', () => {
     const node = { id: 'colo-1', type: NODE_TYPES.COLOSSEUM };
     const scene = {
@@ -1372,5 +1459,88 @@ describe('NodeMapScene Slice 4', () => {
     NodeMapScene.prototype.leaveShopNode.call(mismatched.scene);
     expect(mismatched.clearAmbushPendingNode).not.toHaveBeenCalled();
     expect(mismatched.scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
+  });
+
+  it('leaving a ruins shop saves stock and returns to the hub without completing the node', () => {
+    const node = { id: 'ruins-1', type: NODE_TYPES.RUINS };
+    const scene = {
+      shopOverlay: [makeDisplayObject()],
+      _shopNode: node,
+      _currentShopIsRuins: true,
+      registry: { get: vi.fn(() => null) },
+      _saveShopState: vi.fn(),
+      closeShopOverlay: vi.fn(),
+      handleRuins: vi.fn(),
+      runManager: {
+        currentAct: 'act1',
+        markNodeComplete: vi.fn(),
+        clearShopState: vi.fn(),
+      },
+      checkActComplete: vi.fn(),
+    };
+
+    NodeMapScene.prototype.leaveShopNode.call(scene);
+
+    expect(scene._saveShopState).toHaveBeenCalledTimes(1);
+    expect(scene.closeShopOverlay).toHaveBeenCalledTimes(1);
+    expect(scene.handleRuins).toHaveBeenCalledWith(node);
+    expect(scene.runManager.markNodeComplete).not.toHaveBeenCalled();
+    expect(scene.runManager.clearShopState).not.toHaveBeenCalled();
+    expect(scene.checkActComplete).not.toHaveBeenCalled();
+  });
+
+  it('ruins hub hides promotion, exposes Browse Wares, and completes only on hub leave', () => {
+    const createdTexts = [];
+    const node = { id: 'ruins-1', type: NODE_TYPES.RUINS };
+    const scene = {
+      registry: { get: vi.fn(() => null) },
+      runManager: {
+        gold: 1000,
+        currentAct: 'act1',
+        roster: [{ name: 'Lord', currentHP: 5, stats: { HP: 20 } }],
+        fallenUnits: [],
+        markNodeComplete: vi.fn(),
+      },
+      add: {
+        rectangle: (...args) => makeDisplayObject({ args }),
+        text: (x, y, text, style) => {
+          const obj = makeDisplayObject({ x, y, text, style });
+          obj.emit = (event, payload) => obj.handlers[event]?.(payload);
+          createdTexts.push(obj);
+          return obj;
+        },
+      },
+      drawChurchScrollContent: vi.fn(),
+      closeChurchOverlay: vi.fn(),
+      handleShop: vi.fn(),
+      leaveChurchNode: vi.fn(),
+      _enterChurchMapView: vi.fn(),
+      _setChurchOverlayVisibility: vi.fn(),
+      _openRoster: vi.fn(),
+    };
+    const controller = new ChurchController(scene);
+    vi.spyOn(controller, '_setupChurchFocus').mockImplementation(() => {});
+
+    controller.showChurchOverlay(node, { ruinsMode: true });
+
+    expect(scene._churchScrollItems.some((item) => item.type === 'promote')).toBe(false);
+    expect(scene._churchScrollItems.some((item) => item.text?.includes('Promote'))).toBe(false);
+    const browse = createdTexts.find((obj) => obj.text === '[ Browse Wares ]');
+    expect(browse).toBeDefined();
+    browse.handlers.pointerdown({ button: 0 });
+    expect(scene.closeChurchOverlay).toHaveBeenCalledTimes(1);
+    expect(scene.handleShop).toHaveBeenCalledWith(node, { ruins: true });
+
+    scene.churchOverlay = [makeDisplayObject()];
+    scene._churchNode = node;
+    scene.closeChurchOverlay.mockClear();
+    scene.closeChurchOverlay.mockImplementation(() => {
+      scene.churchOverlay = null;
+    });
+    scene.registry.get.mockReturnValue(null);
+    scene.checkActComplete = vi.fn();
+    controller.leaveChurchNode();
+    expect(scene.runManager.markNodeComplete).toHaveBeenCalledWith(node.id);
+    expect(scene.checkActComplete).toHaveBeenCalledTimes(1);
   });
 });

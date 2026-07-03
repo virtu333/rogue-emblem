@@ -35,9 +35,9 @@ describe('NodeMapGenerator', () => {
       expect(bossRow[0].id).toBe(map.bossNodeId);
     });
 
-    it('middle rows have 2-4 nodes', () => {
+    it('random middle rows have 2-4 nodes', () => {
       const map = generateNodeMap(actId, actConfig);
-      for (let r = 1; r < actConfig.rows - 1; r++) {
+      for (let r = 1; r < actConfig.rows - 2; r++) {
         const row = map.nodes.filter((n) => n.row === r);
         expect(row.length).toBeGreaterThanOrEqual(2);
         expect(row.length).toBeLessThanOrEqual(4);
@@ -140,14 +140,17 @@ describe('NodeMapGenerator', () => {
       expect(boss.battleParams.objective).toBe('seize');
     });
 
-    it('church and shop nodes have null battleParams', () => {
+    it('church, shop, and ruins nodes have null battleParams', () => {
       // Generate maps until we find non-battle nodes
       let foundChurch = false;
       let foundShop = false;
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap(actId, actConfig);
         const nonBattle = map.nodes.filter(
-          (n) => n.type === NODE_TYPES.CHURCH || n.type === NODE_TYPES.SHOP,
+          (n) =>
+            n.type === NODE_TYPES.CHURCH ||
+            n.type === NODE_TYPES.SHOP ||
+            n.type === NODE_TYPES.RUINS,
         );
         for (const node of nonBattle) {
           expect(node.battleParams).toBeNull();
@@ -161,7 +164,8 @@ describe('NodeMapGenerator', () => {
     it('combat nodes include a battleSeed for encounter locking', () => {
       const map = generateNodeMap(actId, actConfig);
       const combat = map.nodes.filter(
-        (n) => n.type !== NODE_TYPES.SHOP && n.type !== NODE_TYPES.CHURCH,
+        (n) =>
+          n.type !== NODE_TYPES.SHOP && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.RUINS,
       );
       expect(combat.length).toBeGreaterThan(0);
       for (const node of combat) {
@@ -171,16 +175,16 @@ describe('NodeMapGenerator', () => {
   });
 
   describe('generateNodeMap — finalBoss', () => {
-    it('produces shop + boss nodes', () => {
+    it('produces ruins + boss nodes', () => {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
       expect(map.nodes.length).toBe(2);
-      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
+      const ruinsNode = map.nodes.find((n) => n.type === NODE_TYPES.RUINS);
       const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
-      expect(shopNode).toBeDefined();
+      expect(ruinsNode).toBeDefined();
       expect(bossNode).toBeDefined();
-      expect(shopNode.row).toBe(0);
+      expect(ruinsNode.row).toBe(0);
       expect(bossNode.row).toBe(1);
-      expect(map.startNodeId).toBe(shopNode.id);
+      expect(map.startNodeId).toBe(ruinsNode.id);
       expect(map.bossNodeId).toBe(bossNode.id);
       expect(map.startNodeId).not.toBe(map.bossNodeId);
     });
@@ -191,18 +195,47 @@ describe('NodeMapGenerator', () => {
       expect(bossNode.battleParams.objective).toBe('seize');
     });
 
-    it('shop node connects to boss node', () => {
+    it('ruins node connects to boss node', () => {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
-      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
+      const ruinsNode = map.nodes.find((n) => n.type === NODE_TYPES.RUINS);
       const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
-      expect(shopNode.edges).toContain(bossNode.id);
+      expect(ruinsNode.edges).toContain(bossNode.id);
     });
 
-    it('shop node has no battleParams', () => {
+    it('ruins node has no battleParams', () => {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
-      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
-      expect(shopNode.battleParams).toBeNull();
+      const ruinsNode = map.nodes.find((n) => n.type === NODE_TYPES.RUINS);
+      expect(ruinsNode.battleParams).toBeNull();
     });
+  });
+
+  describe('mandatory pre-boss ruins', () => {
+    for (const actId of ['act1', 'act2', 'act3', 'act4']) {
+      it(`${actId} routes every path through one center-lane ruins node`, () => {
+        const rows = ACT_CONFIG[actId].rows;
+        for (let i = 0; i < 50; i++) {
+          const map = generateNodeMap(actId, ACT_CONFIG[actId], gameData.mapTemplates, {
+            villageAmbushChance: 1,
+            colosseumConfig: { spawnChance: 1, preferredRows: [2, 3, 4] },
+          });
+          const ruinsNodes = map.nodes.filter((node) => node.type === NODE_TYPES.RUINS);
+          expect(ruinsNodes).toHaveLength(1);
+
+          const ruins = ruinsNodes[0];
+          const boss = map.nodes.find((node) => node.type === NODE_TYPES.BOSS);
+          expect(ruins.row).toBe(rows - 2);
+          expect(ruins.col).toBe(2);
+          expect(ruins.battleParams).toBeNull();
+          expect(ruins.edges).toContain(boss.id);
+
+          const priorRow = map.nodes.filter((node) => node.row === rows - 3);
+          expect(priorRow.length).toBeGreaterThan(0);
+          for (const node of priorRow) {
+            expect(node.edges).toContain(ruins.id);
+          }
+        }
+      });
+    }
   });
 
   describe('RECRUIT node distribution', () => {
@@ -281,7 +314,8 @@ describe('NodeMapGenerator', () => {
             n.row === 2 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of row2) {
           expect(node.battleParams.levelRange).toEqual([1, 3]);
@@ -297,7 +331,8 @@ describe('NodeMapGenerator', () => {
             n.row >= 3 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of laterRows) {
           expect(node.battleParams.levelRange).toEqual([2, 3]);
@@ -325,7 +360,8 @@ describe('NodeMapGenerator', () => {
             n.row === 0 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of row0) {
           expect(node.battleParams.levelRange).toEqual([8, 11]);
@@ -341,7 +377,8 @@ describe('NodeMapGenerator', () => {
             n.row === 1 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of row1) {
           expect(node.battleParams.levelRange).toEqual([9, 12]);
@@ -357,7 +394,8 @@ describe('NodeMapGenerator', () => {
             n.row === 2 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of row2) {
           expect(node.battleParams.levelRange).toEqual([10, 13]);
@@ -373,7 +411,8 @@ describe('NodeMapGenerator', () => {
             n.row === 3 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of row3) {
           expect(node.battleParams.levelRange).toEqual([10, 14]);
@@ -389,7 +428,8 @@ describe('NodeMapGenerator', () => {
             n.row >= 4 &&
             n.type !== NODE_TYPES.BOSS &&
             n.type !== NODE_TYPES.CHURCH &&
-            n.type !== NODE_TYPES.SHOP,
+            n.type !== NODE_TYPES.SHOP &&
+            n.type !== NODE_TYPES.RUINS,
         );
         for (const node of laterRows) {
           expect(node.battleParams.levelRange).toEqual([11, 15]);
@@ -399,7 +439,7 @@ describe('NodeMapGenerator', () => {
   });
 
   describe('per-act seize/elite restrictions', () => {
-    it('act1: seize only on rows 4-5 (second half, excluding boss row 6)', () => {
+    it('act1: seize only on rows 4-5 (before ruins row 6 and boss row 7)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const seizeBattle = map.nodes.filter(
@@ -412,7 +452,7 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act2: seize only on rows 3-6 (excluding boss row 7)', () => {
+    it('act2: seize only on rows 3-6 (before ruins row 7 and boss row 8)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const seizeBattle = map.nodes.filter(
@@ -574,7 +614,7 @@ describe('Church node generation', () => {
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act1', ACT_CONFIG.act1);
-      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 2);
       totalMiddle += middleNodes.length;
       totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
     }
@@ -588,7 +628,7 @@ describe('Church node generation', () => {
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act2', ACT_CONFIG.act2);
-      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 1);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 2);
       totalMiddle += middleNodes.length;
       totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
     }
@@ -615,7 +655,7 @@ describe('Shop node frequency', () => {
     let totalShop = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act1', ACT_CONFIG.act1);
-      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 2);
       totalMiddle += middleNodes.length;
       totalShop += middleNodes.filter((n) => n.type === NODE_TYPES.SHOP).length;
     }
@@ -629,7 +669,7 @@ describe('Shop node frequency', () => {
     let totalShop = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act2', ACT_CONFIG.act2);
-      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 1);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 2);
       totalMiddle += middleNodes.length;
       totalShop += middleNodes.filter((n) => n.type === NODE_TYPES.SHOP).length;
     }

@@ -63,6 +63,7 @@ const NODE_SIZE = 24;
 const COLOR_BATTLE = 0xcc6633;
 const COLOR_BOSS = 0xcc3333;
 const COLOR_SHOP = 0xddaa33;
+const COLOR_RUINS = 0x9c8b6b;
 const COLOR_RECRUIT = 0x44ccaa;
 const COLOR_CHURCH = 0xcccccc; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
@@ -118,6 +119,7 @@ const NODE_ICONS = {
   [NODE_TYPES.BATTLE]: '\u2694', // ⚔
   [NODE_TYPES.BOSS]: '\u2620', // ☠
   [NODE_TYPES.SHOP]: '$',
+  [NODE_TYPES.RUINS]: '\u2302', // ⌂
   [NODE_TYPES.RECRUIT]: '!',
   [NODE_TYPES.CHURCH]: '\u271D', // ✝
   [NODE_TYPES.COLOSSEUM]: '\u039B', // Λ
@@ -127,6 +129,7 @@ const NODE_COLORS = {
   [NODE_TYPES.BATTLE]: COLOR_BATTLE,
   [NODE_TYPES.BOSS]: COLOR_BOSS,
   [NODE_TYPES.SHOP]: COLOR_SHOP,
+  [NODE_TYPES.RUINS]: COLOR_RUINS,
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
   [NODE_TYPES.CHURCH]: COLOR_CHURCH,
   [NODE_TYPES.COLOSSEUM]: COLOR_COLOSSEUM,
@@ -204,6 +207,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._churchViewingRoster = false;
     this._shopOriginalSlotCount = 0;
     this._currentShopHasAmbushDiscount = false;
+    this._currentShopIsRuins = false;
 
     // Debug overlay (dev-only)
     if (this.isDevToolsEnabled()) {
@@ -1230,7 +1234,10 @@ export class NodeMapScene extends Phaser.Scene {
       }
 
       // Node icon — use sprite if loaded, fall back to colored rectangle + unicode
-      let spriteKey = node.type === NODE_TYPES.CHURCH ? 'node_rest' : `node_${node.type}`;
+      let spriteKey =
+        node.type === NODE_TYPES.CHURCH || node.type === NODE_TYPES.RUINS
+          ? 'node_rest'
+          : `node_${node.type}`;
       // Elite seize battles use dark fortress sprite
       if (isEliteNode) {
         spriteKey = 'node_elite';
@@ -1245,6 +1252,7 @@ export class NodeMapScene extends Phaser.Scene {
           .image(pos.x, pos.y, spriteKey)
           .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
           .setDepth(NODE_DEPTH);
+        if (node.type === NODE_TYPES.RUINS) nodeObj.setTint(COLOR_RUINS);
         if (isCompleted) nodeObj.setTint(0x555555);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
       } else {
@@ -1486,6 +1494,8 @@ export class NodeMapScene extends Phaser.Scene {
       label = 'Boss Battle (Seize)';
     } else if (node.type === NODE_TYPES.CHURCH) {
       label = 'Church — Heal, revive fallen, promote';
+    } else if (node.type === NODE_TYPES.RUINS) {
+      label = 'Ruins — Scarce wares, heal, and revive';
     } else if (node.type === NODE_TYPES.SHOP) {
       label = 'Village — Buy, sell, and forge';
     } else if (node.type === NODE_TYPES.RECRUIT) {
@@ -1594,6 +1604,9 @@ export class NodeMapScene extends Phaser.Scene {
     if (node.type === NODE_TYPES.CHURCH) {
       this.runManager.currentNodeId = node.id;
       this.handleChurch(node);
+    } else if (node.type === NODE_TYPES.RUINS) {
+      this.runManager.currentNodeId = node.id;
+      this.handleRuins(node);
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       this.runManager.currentNodeId = node.id;
       this.handleColosseum(node);
@@ -1749,8 +1762,12 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).handleChurch(node);
   }
 
-  showChurchOverlay(node) {
-    (this._churchController ||= new ChurchController(this)).showChurchOverlay(node);
+  handleRuins(node) {
+    (this._churchController ||= new ChurchController(this)).handleRuins(node);
+  }
+
+  showChurchOverlay(node, options = {}) {
+    (this._churchController ||= new ChurchController(this)).showChurchOverlay(node, options);
   }
 
   drawChurchScrollContent() {
@@ -1825,6 +1842,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   applyAmbushDiscount(items) {
     return (this._shopController ||= new ShopController(this)).applyAmbushDiscount(items);
+  }
+
+  applyRuinsMarkup(items) {
+    return (this._shopController ||= new ShopController(this)).applyRuinsMarkup(items);
   }
 
   showShopOverlay(node, shopItems, options = {}) {

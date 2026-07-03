@@ -12,6 +12,9 @@ import {
   CONSUMABLE_MAX,
   SHOP_REROLL_COST,
   SHOP_REROLL_ESCALATION,
+  RUINS_SHOP_ITEM_COUNT,
+  RUINS_SHOP_ITEM_COUNT_FINAL,
+  RUINS_SHOP_MARKUP,
   SHOP_FORGE_LIMITS,
   FORGE_MAX_LEVEL,
   FORGE_STAT_CAP,
@@ -89,12 +92,13 @@ export class ShopController {
 
   handleShop(node, options = {}) {
     const scene = this.scene;
+    const ruins = options?.ruins === true;
     const pendingAmbush = scene._isPendingAmbushNode?.(node) === true;
     const ambushDiscount =
       options?.ambushDiscount === true ||
       pendingAmbush ||
       (node?.isAmbush === true && node?.ambushCleared === true);
-    if (scene.runManager.consumeSkipFirstShop()) {
+    if (!ruins && scene.runManager.consumeSkipFirstShop()) {
       showMinorHint(scene, 'Blessing effect: first shop skipped.');
       scene.runManager.markNodeComplete(node.id);
       if (pendingAmbush) scene._clearPendingAmbushForNode?.(node);
@@ -123,9 +127,13 @@ export class ShopController {
         {
           itemCountBonus: shopItemDelta,
           shopCureGating: rm.difficultyModifiers?.shopCureGating,
+          ...(ruins ? { itemCountRange: this._getRuinsItemCountRange(rm.currentAct) } : {}),
         },
       );
       shopItems = scene.applyDifficultyShopPricing(shopItems);
+      if (ruins) {
+        shopItems = scene.applyRuinsMarkup(shopItems);
+      }
       if (ambushDiscount) {
         shopItems = scene.applyAmbushDiscount(shopItems);
       }
@@ -133,6 +141,7 @@ export class ShopController {
     scene.showShopOverlay(node, shopItems, {
       ambushDiscount: cachedShop?.ambushDiscountActive ?? ambushDiscount,
       pendingAmbush: !cachedShop && pendingAmbush,
+      ruins,
       cachedShop,
     });
   }
@@ -157,6 +166,27 @@ export class ShopController {
     }));
   }
 
+  applyRuinsMarkup(items) {
+    if (!Array.isArray(items)) return [];
+    return items.map((entry) => ({
+      ...entry,
+      price: Math.max(1, Math.floor((entry?.price || 0) * RUINS_SHOP_MARKUP)),
+    }));
+  }
+
+  _getRuinsItemCountRange(actId) {
+    return actId === 'finalBoss' ? RUINS_SHOP_ITEM_COUNT_FINAL : RUINS_SHOP_ITEM_COUNT;
+  }
+
+  _getShopTabs() {
+    const tabs = [
+      { key: 'buy', label: 'Buy' },
+      { key: 'sell', label: 'Sell' },
+    ];
+    if (!this.scene._currentShopIsRuins) tabs.push({ key: 'forge', label: 'Forge' });
+    return tabs;
+  }
+
   showShopOverlay(node, shopItems, options = {}) {
     const scene = this.scene;
     scene.shopOverlay = [];
@@ -164,7 +194,10 @@ export class ShopController {
     scene.activeShopTab = 'buy';
     const cachedShop = options?.cachedShop;
     scene.shopForgesUsed = cachedShop?.forgesUsed || 0;
-    scene.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
+    scene._currentShopIsRuins = options?.ruins === true;
+    scene.shopScrollOffsets = scene._currentShopIsRuins
+      ? { buy: 0, sell: 0 }
+      : { buy: 0, sell: 0, forge: 0 };
     scene.shopScrollMax = 0;
     scene._shopViewingMap = false;
     scene._currentShopHasAmbushDiscount =
@@ -173,7 +206,12 @@ export class ShopController {
     // Tutorial hint for shop
     const hints = scene.registry.get('hints');
     if (hints?.shouldShow('nodemap_shop')) {
-      showMinorHint(scene, 'Buy, Sell, and Forge tabs available.');
+      showMinorHint(
+        scene,
+        scene._currentShopIsRuins
+          ? 'Scarce wares are available to buy or sell.'
+          : 'Buy, Sell, and Forge tabs available.',
+      );
     }
 
     // Dark overlay background
@@ -189,14 +227,20 @@ export class ShopController {
     scene.shopOverlay.push(panel);
 
     // Title
-    const titleLabel = scene._currentShopHasAmbushDiscount
-      ? 'Village (Liberated - 20% Off)'
-      : 'Village';
+    const titleLabel = scene._currentShopIsRuins
+      ? 'Ruins'
+      : scene._currentShopHasAmbushDiscount
+        ? 'Village (Liberated - 20% Off)'
+        : 'Village';
     const title = scene.add
       .text(320, 30, titleLabel, {
         fontFamily: 'monospace',
         fontSize: '22px',
-        color: scene._currentShopHasAmbushDiscount ? '#88ff88' : '#ffdd44',
+        color: scene._currentShopIsRuins
+          ? '#c4b18a'
+          : scene._currentShopHasAmbushDiscount
+            ? '#88ff88'
+            : '#ffdd44',
       })
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
@@ -283,13 +327,18 @@ export class ShopController {
 
     // Leave button
     const leaveBtn = scene.add
-      .text(320, SAFE_BOTTOM_Y, '[ Leave Village ]', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
-        padding: { x: 16, y: 8 },
-      })
+      .text(
+        320,
+        SAFE_BOTTOM_Y,
+        scene._currentShopIsRuins ? '[ Return to Ruins ]' : '[ Leave Village ]',
+        {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: '#e0e0e0',
+          backgroundColor: '#333333',
+          padding: { x: 16, y: 8 },
+        },
+      )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
@@ -322,9 +371,15 @@ export class ShopController {
     const scene = this.scene;
     if (!scene.shopOverlay) return;
     const node = scene._shopNode;
+    const isRuins = scene._currentShopIsRuins === true;
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(getMusicKey('nodeMap', scene.runManager.currentAct), scene, 300);
+    if (isRuins) scene._saveShopState();
     scene.closeShopOverlay();
+    if (isRuins && node) {
+      scene.handleRuins(node);
+      return;
+    }
     if (node) {
       scene._clearPendingAmbushForNode?.(node);
       scene.runManager.markNodeComplete(node.id);
@@ -339,11 +394,7 @@ export class ShopController {
     if (scene.shopTabObjects) scene.shopTabObjects.forEach((o) => o.destroy());
     scene.shopTabObjects = [];
 
-    const tabs = [
-      { key: 'buy', label: 'Buy' },
-      { key: 'sell', label: 'Sell' },
-      { key: 'forge', label: 'Forge' },
-    ];
+    const tabs = this._getShopTabs();
     const tabY = 80;
     const tabW = 80;
     const startX = 320 - (tabs.length * tabW) / 2 + tabW / 2;
@@ -486,7 +537,7 @@ export class ShopController {
     const scene = this.scene;
     if (!dir || scene._shopViewingMap || scene._shopViewingRoster) return;
     if (scene.forgePicker || scene.unitPicker) return;
-    const order = ['buy', 'sell', 'forge'];
+    const order = this._getShopTabs().map((tab) => tab.key);
     const cur = order.indexOf(scene.activeShopTab);
     if (cur === -1) return;
     const next = (cur + dir + order.length) % order.length;
@@ -1842,6 +1893,9 @@ export class ShopController {
             },
           );
           let priced = scene.applyDifficultyShopPricing(generated);
+          if (scene._currentShopIsRuins) {
+            priced = scene.applyRuinsMarkup(priced);
+          }
           if (scene._currentShopHasAmbushDiscount) {
             priced = scene.applyAmbushDiscount(priced);
           }
@@ -2147,6 +2201,7 @@ export class ShopController {
     scene._shopOriginalSlotCount = 0;
     scene._shopNode = null;
     scene._currentShopHasAmbushDiscount = false;
+    scene._currentShopIsRuins = false;
   }
   destroy() {
     // Release any input scopes still on the stack (scene shutdown with the shop

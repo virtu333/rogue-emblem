@@ -306,19 +306,19 @@ describe('Biome Regression — template reachability', () => {
     expect(castleRate).toBeLessThan(expectedCastleRate + 0.08);
   });
 
-  it('finalBoss shop is never ambushed', () => {
-    let totalShops = 0;
+  it('finalBoss ruins is structurally exempt from village ambushes', () => {
+    let totalRuins = 0;
     for (let i = 0; i < 50; i++) {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss, data.mapTemplates, {
         villageAmbushChance: 1,
       });
-      const shops = map.nodes.filter((n) => n.type === 'shop');
-      totalShops += shops.length;
-      for (const shop of shops) {
-        expect(shop.isAmbush).toBeFalsy();
+      const ruinsNodes = map.nodes.filter((n) => n.type === 'ruins');
+      totalRuins += ruinsNodes.length;
+      for (const ruins of ruinsNodes) {
+        expect(ruins.isAmbush).toBeFalsy();
       }
     }
-    expect(totalShops).toBeGreaterThan(0);
+    expect(totalRuins).toBeGreaterThan(0);
   });
 });
 
