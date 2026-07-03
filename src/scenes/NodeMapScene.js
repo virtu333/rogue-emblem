@@ -63,7 +63,7 @@ const ACT_REACHED_MILESTONE = {
 
 // Layout constants
 const MAP_TOP = 60;
-const MAP_BOTTOM = 400;
+const MAP_BOTTOM = 382;
 const MAP_LEFT = 80;
 const MAP_RIGHT = 560;
 const ROSTER_Y = SAFE_BOTTOM_Y;
@@ -1382,7 +1382,7 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Instructions
     this.add
-      .text(this.cameras.main.centerX, MAP_BOTTOM + 20, 'Click a node to proceed', {
+      .text(this.cameras.main.centerX, MAP_BOTTOM + 30, 'Click a node to proceed', {
         fontFamily: 'monospace',
         fontSize: '11px',
         color: '#888888',

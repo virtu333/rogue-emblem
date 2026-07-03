@@ -43,6 +43,7 @@ const BAR_EMPTY = 0x333344;
 // Row heights
 const ROW_H = 28; // stat rows (label + desc on same line area)
 const ROW_H_NAMED = 34; // economy/capacity rows (name + desc needs more room)
+const LORD_SKILLS_CARD_H = 84;
 const TAB_CONTENT_TOP_Y = 72;
 const TAB_CONTENT_BOTTOM_Y = 392;
 const TAB_CONTENT_LEFT_X = 30;
@@ -1236,8 +1237,9 @@ export class HomeBaseScene extends Phaser.Scene {
       const cx = startX + li * cardW;
       const assigned = assignments[lord.name] || [];
 
-      // Portrait
+      // Portrait slot remains legible for transparent or unusually framed art.
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
+      this.add.rectangle(cx + 40, y + 40, 40, 40, 0x111122, 1).setStrokeStyle(1, 0x666688);
       if (this.textures.exists(portraitKey)) {
         this.add
           .image(cx + 20, y + 20, portraitKey)
@@ -1324,20 +1326,16 @@ export class HomeBaseScene extends Phaser.Scene {
       // Locked slot hint when 2nd slot not yet purchased
       if (availableSlots < MAX_STARTING_SKILLS) {
         const lockedSlotY = y + 34 + availableSlots * 18;
-        this.add.text(
-          cx + 66,
-          lockedSlotY,
-          '\u25CB Slot 2 (locked \u2014 requires Extra Skill Slot)',
-          {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#444444',
-          },
-        );
+        this.add.text(cx + 66, lockedSlotY, '\u25CB Slot 2 \u2014 locked (Extra Skill Slot)', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#444444',
+          wordWrap: { width: 190 },
+        });
       }
     }
 
-    y += 80;
+    y += LORD_SKILLS_CARD_H;
 
     // --- Skill unlock section ---
     this.add.text(40, y, 'Unlock Skills', {
@@ -1645,15 +1643,21 @@ export class HomeBaseScene extends Phaser.Scene {
 
       let yOff = cy - cardH / 2 + 8;
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
+      objects.push(
+        this.add
+          .rectangle(cx, yOff + 20, 40, 40, 0x111122, 1)
+          .setStrokeStyle(1, isBlocked ? 0x444444 : 0x666688)
+          .setDepth(902),
+      );
       if (this.textures.exists(portraitKey)) {
         objects.push(
           this.add
-            .image(cx, yOff + 16, portraitKey)
+            .image(cx, yOff + 20, portraitKey)
             .setDisplaySize(32, 32)
             .setDepth(902),
         );
-        yOff += 34;
       }
+      yOff += 42;
 
       const textColor = isBlocked ? '#777777' : '#ffffff';
       const addLine = (text, fontSize, color, dy) => {
@@ -1961,7 +1965,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (category === 'starting_skills') {
       const skillUpgrades = this.meta.upgradesData.filter((u) => u.category === 'starting_skills');
       const commanderSection = this.meta.getCommanderChoiceTier?.() >= 1 ? 60 : 0;
-      return commanderSection + 18 + 80 + 18 + skillUpgrades.length * 22;
+      return commanderSection + 18 + LORD_SKILLS_CARD_H + 18 + skillUpgrades.length * 22;
     }
 
     const upgrades = this.meta.upgradesData.filter((u) => u.category === category);

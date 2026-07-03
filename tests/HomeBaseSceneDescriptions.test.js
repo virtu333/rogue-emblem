@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
+    Math: { Clamp: (value, min, max) => Math.max(min, Math.min(max, value)) },
   },
 }));
 
@@ -69,9 +70,11 @@ function createDisplayObject({
 function createAddRecorder() {
   const texts = [];
   const rectangles = [];
+  const images = [];
   return {
     texts,
     rectangles,
+    images,
     add: {
       text: vi.fn((x, y, text, style) => {
         const obj = createDisplayObject({ kind: 'text', x, y, text, style });
@@ -90,6 +93,12 @@ function createAddRecorder() {
           text: '',
         });
         rectangles.push(obj);
+        return obj;
+      }),
+      image: vi.fn((x, y, key) => {
+        const obj = createDisplayObject({ kind: 'image', x, y, text: key });
+        obj.setDisplaySize = vi.fn(() => obj);
+        images.push(obj);
         return obj;
       }),
     },
@@ -601,5 +610,43 @@ describe('HomeBaseScene "Other" subgroup for lord_bonuses', () => {
     const height = scene._estimateTabContentHeight('lord_bonuses');
     // Growth header (18) + 1 growth row (28) + gap (6) + Stat header (18) + 1 flat row (28) = 98
     expect(height).toBe(18 + 1 * 28 + 6 + 18 + 1 * 28);
+  });
+});
+
+describe('HomeBaseScene Skills layout', () => {
+  it('keeps locked-slot copy inside both cards and frames missing portraits', () => {
+    const scene = new HomeBaseScene();
+    const { add, texts, rectangles } = createAddRecorder();
+    scene.add = add;
+    scene.textures = { exists: vi.fn(() => false) };
+    scene.gameData = {
+      lords: [
+        { name: 'Edric', personalSkill: 'Commanding Presence: test' },
+        { name: 'Sera', personalSkill: 'Healing Light: test' },
+      ],
+      skills: [],
+    };
+    scene.meta = {
+      getLordSelection: () => ({ commander: 'Edric', partner: 'Sera' }),
+      getSkillAssignments: () => ({}),
+      getUnlockedSkills: () => [],
+      getCommanderChoiceTier: () => 0,
+      getStartingSkillSlots: () => 1,
+      upgradesData: [],
+    };
+    scene.tabScrollOffsets = {};
+
+    scene._drawSkillsTab();
+
+    const lockedLines = texts.filter((obj) => obj.text.includes('Extra Skill Slot'));
+    expect(lockedLines).toHaveLength(2);
+    expect(lockedLines.every((obj) => obj.style.wordWrap?.width === 190)).toBe(true);
+    expect(lockedLines[0].x + 190).toBeLessThanOrEqual(40 + 270 - 10);
+    expect(lockedLines[1].x + 190).toBeLessThanOrEqual(310 + 270 - 10);
+    expect(lockedLines[1].x + 190).toBeLessThan(590);
+
+    const portraitFrames = rectangles.filter((obj) => obj.width === 40 && obj.height === 40);
+    expect(portraitFrames).toHaveLength(2);
+    expect(scene.textures.exists).toHaveBeenCalledTimes(2);
   });
 });

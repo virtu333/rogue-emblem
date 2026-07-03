@@ -49,11 +49,40 @@ const SKILL_FILTER_MAP = {
 
 const ITEMS_PER_PAGE = 10;
 const LORD_ITEMS_PER_PAGE = 6;
+const DEFAULT_LINES_PER_ITEM = 2;
+const DEFAULT_LINE_HEIGHT = 14;
+const ITEM_GAP = 2;
 
 // Tabs whose rows carry a lore line get taller rows and fewer per page.
-// Content area is ~290px: 3-line rows (gap 44) fit 6, 4-line rows (gap 58) fit 5.
-const PER_PAGE_BY_KEY = { lords: LORD_ITEMS_PER_PAGE, weapons: 6, items: 6, blessings: 6, foes: 5 };
-const LINES_BY_KEY = { lords: 3, weapons: 3, items: 3, blessings: 3, foes: 4 };
+// Content rows must end at least 10px above the page-navigation baseline.
+export const PER_PAGE_BY_KEY = {
+  lords: LORD_ITEMS_PER_PAGE,
+  weapons: 6,
+  items: 6,
+  blessings: 6,
+  skills: 9,
+  weaponArts: 9,
+  classes: 5,
+  terrain: 9,
+  affixes: 9,
+  foes: 5,
+};
+export const LINES_BY_KEY = {
+  lords: 3,
+  weapons: 3,
+  items: 3,
+  blessings: 3,
+  classes: 4,
+  foes: 4,
+};
+export const ROW_HEIGHT_BY_KEY = { classes: 54, foes: 54 };
+
+export function getCompendiumRowHeight(key) {
+  return (
+    ROW_HEIGHT_BY_KEY[key] ??
+    (LINES_BY_KEY[key] ?? DEFAULT_LINES_PER_ITEM) * DEFAULT_LINE_HEIGHT + ITEM_GAP
+  );
+}
 
 export class CompendiumOverlay {
   constructor(scene, gameData, onClose) {
@@ -750,10 +779,7 @@ export class CompendiumOverlay {
       this._text(left + panelW / 2, startY + 8, msg, '#888888', 0.5);
       return;
     }
-    const linesPerItem = LINES_BY_KEY[def.key] ?? 2;
-    const lineH = 14;
-    // Keep final row clear of page-nav controls in filtered tabs.
-    const itemGap = linesPerItem * lineH + 2;
+    const itemGap = getCompendiumRowHeight(def.key);
     const rightX = left + panelW - 25;
 
     for (let i = 0; i < items.length; i++) {
@@ -863,6 +889,10 @@ export class CompendiumOverlay {
         : '';
     this._text(left + 25, y + 14, statLine, '#aaaaaa');
     if (link) this._text(rightX, y + 14, link, '#888888', 1);
+    const loreLines = this._wrapLore(item.lore, 84, 2);
+    for (let i = 0; i < loreLines.length; i++) {
+      this._text(left + 25, y + 28 + i * 12, loreLines[i], LORE_TEXT_COLOR);
+    }
   }
 
   _renderItem(item, y, left, rightX) {
@@ -1009,7 +1039,7 @@ export class CompendiumOverlay {
 
     const loreLines = this._wrapLore(item.lore, 84, isBoss ? 3 : 2);
     for (let i = 0; i < loreLines.length; i++) {
-      this._text(left + 25, y + 14 * (i + 1), loreLines[i], LORE_TEXT_COLOR);
+      this._text(left + 25, y + 14 + i * 12, loreLines[i], LORE_TEXT_COLOR);
     }
   }
 
