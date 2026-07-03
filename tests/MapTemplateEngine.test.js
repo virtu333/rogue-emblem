@@ -6,6 +6,8 @@ import {
 } from '../src/engine/MapTemplateEngine.js';
 
 const mapTemplates = JSON.parse(readFileSync('data/mapTemplates.json', 'utf8'));
+const terrainData = JSON.parse(readFileSync('data/terrain.json', 'utf8'));
+const terrainNames = new Set(terrainData.map((t) => t.name));
 const ACT4_HYBRID_BASE_TEMPLATE_ID = 'act4_boss_intent_bastion';
 
 function makeHybridTemplatePatch() {
@@ -40,6 +42,23 @@ describe('MapTemplateEngine', () => {
     const result = validateMapTemplatesConfig(mapTemplates);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
+  });
+
+  it('validates bundled config with real terrain-name cross-checking', () => {
+    // Passing terrainNames makes any terrain typo in zones/structures/features/
+    // hybridArena/phaseTerrainOverrides fail CI (generateTerrain silently skips
+    // unknown zone terrain names at runtime).
+    const result = validateMapTemplatesConfig(mapTemplates, { terrainNames });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects an unknown terrain name in a zone when terrainNames provided', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].zones[0].terrain = { Plaine: 1 }; // typo of "Plain"
+    const result = validateMapTemplatesConfig(bad, { terrainNames });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('references unknown terrain "Plaine"'))).toBe(true);
   });
 
   it('accepts non-negative integer parBonus', () => {
@@ -560,6 +579,193 @@ describe('MapTemplateEngine', () => {
       // Should report fixedSize error but not crash on bounds check
       expect(result.errors.some((e) => e.includes('fixedSize must be'))).toBe(true);
       expect(result.errors.some((e) => e.includes('3x3 footprint'))).toBe(false);
+    });
+
+    it('requires fixedSize when entitySpawn is present', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = bad.rout[0];
+      delete template.fixedSize;
+      template.entitySpawn = [1, 1];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('entitySpawn requires a valid fixedSize'))).toBe(
+        true,
+      );
+    });
+  });
+});
+
+describe('MapTemplateEngine — Phase 2.4 validation gaps', () => {
+  const findTemplate = (config, objective, id) =>
+    config[objective].find((entry) => entry.id === id);
+
+  describe('features + seize throne rule', () => {
+    it('rejects a seize template missing its Throne feature', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = findTemplate(bad, 'seize', 'castle_assault');
+      template.features = template.features.filter((f) => f.type !== 'Throne');
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) =>
+          e.includes('seize template must include exactly one Throne feature (found 0)'),
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects a seize template with two Throne features', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = findTemplate(bad, 'seize', 'great_hall');
+      template.features.push({ type: 'Throne', position: 'center' });
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('found 2'))).toBe(true);
+    });
+
+    it('rejects an unknown feature type', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = findTemplate(bad, 'seize', 'great_hall');
+      template.features.push({ type: 'Catapult', position: 'center' });
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('.type must be one of'))).toBe(true);
+    });
+
+    it('rejects an unknown feature position', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = findTemplate(bad, 'seize', 'great_hall');
+      template.features[0].position = 'nowhere';
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('.position must be one of'))).toBe(true);
+    });
+  });
+
+  describe('enemyWeights', () => {
+    it('accepts all known weight keys including flying', () => {
+      const ok = JSON.parse(JSON.stringify(mapTemplates));
+      ok.rout[0].enemyWeights = {
+        infantry: 1,
+        cavalry: 1,
+        archer: 1,
+        mage: 1,
+        knight: 1,
+        armored: 1,
+        lance: 1,
+        flying: 1.5,
+      };
+      const result = validateMapTemplatesConfig(ok);
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects an unknown enemyWeights key', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].enemyWeights = { dragon: 2 };
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => e.includes('enemyWeights contains unknown key "dragon"')),
+      ).toBe(true);
+    });
+
+    it('rejects a negative enemyWeights value', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].enemyWeights = { flying: -1 };
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('must be a finite number >= 0'))).toBe(true);
+    });
+  });
+
+  describe('anchors', () => {
+    it('rejects an unknown anchor position', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(bad, 'rout', 'chokepoint').anchors[0].position = 'middle';
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('.position must be one of'))).toBe(true);
+    });
+
+    it('rejects an unknown anchor unit', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(bad, 'rout', 'chokepoint').anchors[0].unit = 'super_boss';
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('.unit must be one of'))).toBe(true);
+    });
+
+    it('rejects a non-positive anchor count', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(bad, 'rout', 'chokepoint').anchors[0].count = 0;
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('.count must be a positive integer'))).toBe(true);
+    });
+  });
+
+  describe('minBridges / minBridgesByAct', () => {
+    it('rejects a non-positive minBridges', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(bad, 'rout', 'river_crossing').minBridges = 0;
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('minBridges must be a positive integer'))).toBe(
+        true,
+      );
+    });
+
+    it('rejects a minBridgesByAct range with min > max', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(bad, 'rout', 'river_crossing').minBridgesByAct.act2 = [4, 2];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('min <= max'))).toBe(true);
+    });
+
+    it('accepts a minBridgesByAct scalar and range', () => {
+      const ok = JSON.parse(JSON.stringify(mapTemplates));
+      findTemplate(ok, 'rout', 'river_crossing').minBridgesByAct = { act2: 3, act3: [2, 4] };
+      const result = validateMapTemplatesConfig(ok);
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('fogChance', () => {
+    it('rejects fogChance above 1', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fogChance = 1.5;
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => e.includes('fogChance must be a finite number in [0,1]')),
+      ).toBe(true);
+    });
+
+    it('rejects a negative fogChance', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fogChance = -0.1;
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('scripted-wave coordinates vs fixedSize', () => {
+    it('rejects a scripted-wave spawn outside fixedSize bounds', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = bad.rout[0];
+      template.fixedSize = [10, 8];
+      template.reinforcementContractVersion = REINFORCEMENT_CONTRACT_VERSION;
+      template.reinforcements = {
+        spawnEdges: ['right'],
+        waves: [{ turn: 2, count: [1, 1] }],
+        difficultyScaling: true,
+        turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+        xpDecay: [1],
+        scriptedWaves: [{ turn: 1, spawns: [{ col: 99, row: 2 }] }],
+      };
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('is out of fixedSize width'))).toBe(true);
     });
   });
 });

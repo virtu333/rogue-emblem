@@ -11,6 +11,7 @@ import {
   SIEGE_ELIGIBLE_CLASSES,
   ACT_BIOME_WEIGHTS,
   TOXIC_COVERAGE_BY_ACT,
+  ENTITY_FOOTPRINT,
   filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
@@ -126,6 +127,17 @@ export function generateBattle(params, deps) {
     spawnCount,
     biome,
   );
+  // Fail loudly (never throw) when the playerSpawn zone is too small to fit the
+  // requested deploy count even after the force-passable fallback. The fuzz
+  // test asserts this never fires on shipped data.
+  if (playerSpawns.length < spawnCount) {
+    const zone = template.zones.find((z) => z.role === 'playerSpawn');
+    console.warn(
+      `[MapGenerator] Template "${template.id}" playerSpawn zone yielded ` +
+        `${playerSpawns.length}/${spawnCount} spawns` +
+        (zone ? ` (zone rect ${JSON.stringify(zone.rect)}, map ${cols}x${rows})` : ' (no zone)'),
+    );
+  }
 
   // 6. Enemy composition
   const basePool = enemies.pools[act];
@@ -310,7 +322,7 @@ export function generateBattle(params, deps) {
   });
   const hybridConfig = cloneHybridConfig(template, resolvedHybridAnchors);
 
-  return {
+  const battleConfig = {
     mapLayout,
     cols,
     rows,
@@ -328,6 +340,22 @@ export function generateBattle(params, deps) {
     ...reinforcementConfig,
     ...hybridConfig,
   };
+
+  // Debug-only output assertion. Never throws (a throw during BattleScene.create
+  // would brick the run); only surfaces violations when DEBUG_MAP_GEN is on.
+  if (DEBUG_MAP_GEN) {
+    const violations = validateBattleConfig(battleConfig, deps, {
+      expectedPlayerSpawns: spawnCount,
+    });
+    if (violations.length > 0) {
+      console.warn(
+        `[MapGenerator] validateBattleConfig violations for template "${template.id}" ` +
+          `(${objective}/${act}):\n  - ${violations.join('\n  - ')}`,
+      );
+    }
+  }
+
+  return battleConfig;
 }
 
 // --- Map size selection ---
@@ -1685,15 +1713,25 @@ function generateEnemies(
     const bossDef = candidates[Math.floor(Math.random() * candidates.length)];
 
     // Entity boss: place at entitySpawn coords if template provides them
-    if (bossDef.isEntity && template.entitySpawn) {
+    const entityFootprintInBounds =
+      bossDef.isEntity &&
+      template.entitySpawn &&
+      template.entitySpawn[0] + ENTITY_FOOTPRINT.width <= cols &&
+      template.entitySpawn[1] + ENTITY_FOOTPRINT.height <= rows;
+    if (bossDef.isEntity && template.entitySpawn && entityFootprintInBounds) {
       const [ec, er] = template.entitySpawn;
-      // Mark all 9 footprint tiles as used + ensure Floor terrain
+      // Mark all footprint tiles as used + ensure Floor terrain.
+      // Bounds already guaranteed above, but guard each write defensively so a
+      // future footprint change can never extend row arrays past `cols`.
       const floorIdx = terrainNameToIndex('Floor', terrainData);
-      for (let dr = 0; dr < 3; dr++) {
-        for (let dc = 0; dc < 3; dc++) {
-          usedPositions.add(`${ec + dc},${er + dr}`);
-          if (floorIdx >= 0 && mapLayout[er + dr]) {
-            mapLayout[er + dr][ec + dc] = floorIdx;
+      for (let dr = 0; dr < ENTITY_FOOTPRINT.height; dr++) {
+        for (let dc = 0; dc < ENTITY_FOOTPRINT.width; dc++) {
+          const fc = ec + dc;
+          const fr = er + dr;
+          if (fc >= cols || fr >= rows) continue;
+          usedPositions.add(`${fc},${fr}`);
+          if (floorIdx >= 0 && mapLayout[fr]) {
+            mapLayout[fr][fc] = floorIdx;
           }
         }
       }
@@ -1714,7 +1752,13 @@ function generateEnemies(
         name: bossDef.name,
       });
     } else {
-      if (bossDef.isEntity) {
+      if (bossDef.isEntity && template.entitySpawn && !entityFootprintInBounds) {
+        console.warn(
+          `[MapGenerator] Entity boss "${bossDef.name}" entitySpawn ` +
+            `[${template.entitySpawn}] 3x3 footprint exceeds map ${cols}x${rows} — ` +
+            `falling back to standard boss placement`,
+        );
+      } else if (bossDef.isEntity) {
         console.warn(
           `[MapGenerator] Entity boss "${bossDef.name}" placed without entitySpawn ` +
             `(template lacks it) — 3x3 form lost`,
@@ -2541,6 +2585,13 @@ function generateNPCSpawn(
   const [minLvl, maxLvl] = levelRange;
   const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
+  // The NPC must be able to stand on its tile: a Cavalry/Flying recruit placed on
+  // Infantry-only terrain (e.g. Mountain) would sit on an impassable square. Require
+  // passability for BOTH Infantry (player-reach guarantee) and the NPC's move type.
+  const npcMoveType = classesData?.find((c) => c.name === className)?.moveType || 'Infantry';
+  const npcTilePassable = (idx) =>
+    isPassable(terrainData, idx, 'Infantry') && isPassable(terrainData, idx, npcMoveType);
+
   // Occupied positions
   const occupied = new Set();
   for (const s of playerSpawns) occupied.add(`${s.col},${s.row}`);
@@ -2574,7 +2625,7 @@ function generateNPCSpawn(
       for (let c = startCol; c < endCol; c++) {
         const key = `${c},${r}`;
         if (occupied.has(key)) continue;
-        if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
+        if (!npcTilePassable(mapLayout[r][c])) continue;
         const minPlayerDist = Math.min(
           ...playerSpawns.map((s) => Math.abs(s.col - c) + Math.abs(s.row - r)),
         );
@@ -2640,7 +2691,7 @@ function generateNPCSpawn(
       for (let c = wideStartCol; c < wideEndCol; c++) {
         const key = `${c},${r}`;
         if (occupied.has(key)) continue;
-        if (isPassable(terrainData, mapLayout[r][c], 'Infantry')) fallback.push({ col: c, row: r });
+        if (npcTilePassable(mapLayout[r][c])) fallback.push({ col: c, row: r });
       }
     }
     if (fallback.length > 0) {
@@ -2786,6 +2837,139 @@ function shuffleArray(arr) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+}
+
+/**
+ * Pure output assertion over a generated battle config. Returns an array of
+ * human-readable violation strings (empty === valid). Never throws — it is safe
+ * to call inside generateBattle behind a debug flag and inside property tests.
+ *
+ * @param {Object} config - a battleConfig from generateBattle
+ * @param {Object} deps - { terrain, classes } (same shape generateBattle receives)
+ * @param {Object} [options] - { expectedPlayerSpawns } optional deploy-count check
+ * @returns {string[]} violations
+ */
+export function validateBattleConfig(config, deps, options = {}) {
+  const violations = [];
+  try {
+    const terrainData = deps?.terrain;
+    const classData = deps?.classes;
+    if (!config || !Array.isArray(config.mapLayout) || !terrainData) {
+      violations.push('config/mapLayout/terrain missing');
+      return violations;
+    }
+    const { cols, rows, mapLayout, objective } = config;
+
+    // --- Rectangularity ---
+    if (mapLayout.length !== rows) {
+      violations.push(`mapLayout has ${mapLayout.length} rows, expected ${rows}`);
+    }
+    for (let r = 0; r < mapLayout.length; r++) {
+      if (!Array.isArray(mapLayout[r]) || mapLayout[r].length !== cols) {
+        violations.push(`row ${r} has length ${mapLayout[r]?.length}, expected ${cols}`);
+      }
+    }
+
+    const moveTypeOf = (spawn) => {
+      if (!spawn?.className) return 'Infantry';
+      const cd = classData?.find((c) => c.name === spawn.className);
+      return cd?.moveType || 'Infantry';
+    };
+    const inBounds = (t) => t && t.col >= 0 && t.col < cols && t.row >= 0 && t.row < rows;
+
+    const playerSpawns = config.playerSpawns || [];
+    const enemySpawns = config.enemySpawns || [];
+    const npcSpawn = config.npcSpawn || null;
+
+    // --- Player spawn capacity ---
+    if (
+      options.expectedPlayerSpawns != null &&
+      playerSpawns.length !== options.expectedPlayerSpawns
+    ) {
+      violations.push(
+        `playerSpawns.length ${playerSpawns.length} !== expected ${options.expectedPlayerSpawns}`,
+      );
+    }
+
+    // --- Collect all spawns; check bounds, overlap, per-move-type passability ---
+    const occupancy = new Map();
+    const registerSpawn = (spawn, kind, moveType) => {
+      if (!inBounds(spawn)) {
+        violations.push(`${kind} spawn out of bounds at (${spawn?.col},${spawn?.row})`);
+        return;
+      }
+      const key = `${spawn.col},${spawn.row}`;
+      if (occupancy.has(key)) {
+        violations.push(`${kind} spawn overlaps ${occupancy.get(key)} at ${key}`);
+      } else {
+        occupancy.set(key, kind);
+      }
+      const idx = mapLayout[spawn.row]?.[spawn.col];
+      if (!isPassable(terrainData, idx, moveType)) {
+        violations.push(`${kind} spawn at ${key} is impassable for ${moveType}`);
+      }
+    };
+    // Players use the generic force-passable (Infantry) guarantee.
+    for (const s of playerSpawns) registerSpawn(s, 'player', 'Infantry');
+    for (const s of enemySpawns) registerSpawn(s, 'enemy', moveTypeOf(s));
+    if (npcSpawn) registerSpawn(npcSpawn, 'npc', moveTypeOf(npcSpawn));
+
+    // --- Objective-specific requirements ---
+    if (objective === 'seize') {
+      if (!config.thronePos) violations.push('seize objective has no thronePos');
+      if (!enemySpawns.some((e) => e.isBoss)) {
+        violations.push('seize objective has no isBoss enemy spawn');
+      }
+    }
+    if (objective === 'escape') {
+      const escapeTiles = config.escapeTiles || [];
+      if (escapeTiles.length === 0) {
+        violations.push('escape objective has no escapeTiles');
+      }
+      for (const tile of escapeTiles) {
+        if (!inBounds(tile)) {
+          violations.push(`escape tile out of bounds at (${tile?.col},${tile?.row})`);
+          continue;
+        }
+        const idx = mapLayout[tile.row]?.[tile.col];
+        for (const mt of ESCAPE_TILE_MOVE_TYPES) {
+          if (!isPassable(terrainData, idx, mt)) {
+            violations.push(`escape tile (${tile.col},${tile.row}) impassable for ${mt}`);
+          }
+        }
+      }
+    }
+
+    // --- Infantry connectivity from playerSpawns[0] to all key tiles ---
+    if (playerSpawns.length > 0) {
+      const reachable = bfsFromSources(
+        mapLayout,
+        cols,
+        rows,
+        terrainData,
+        [playerSpawns[0]],
+        'Infantry',
+      );
+      const connTargets = [];
+      for (const e of enemySpawns) connTargets.push({ t: e, label: `enemy(${e.className})` });
+      if (npcSpawn) connTargets.push({ t: npcSpawn, label: 'npc' });
+      if (config.thronePos) connTargets.push({ t: config.thronePos, label: 'throne' });
+      for (const tile of config.escapeTiles || []) {
+        connTargets.push({ t: tile, label: 'escape' });
+      }
+      for (const { t, label } of connTargets) {
+        if (!inBounds(t)) continue; // bounds already reported
+        if (!reachable.has(`${t.col},${t.row}`)) {
+          violations.push(
+            `${label} at (${t.col},${t.row}) not Infantry-reachable from player spawn`,
+          );
+        }
+      }
+    }
+  } catch (err) {
+    violations.push(`validateBattleConfig threw: ${err?.message || err}`);
+  }
+  return violations;
 }
 
 // Exported for testing
