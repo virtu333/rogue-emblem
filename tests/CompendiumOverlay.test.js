@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
+import {
+  CompendiumOverlay,
+  TAB_DEFS,
+  PER_PAGE_BY_KEY,
+  getCompendiumRowHeight,
+} from '../src/ui/CompendiumOverlay.js';
 import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { loadGameData } from './testData.js';
 
@@ -259,9 +264,9 @@ describe('CompendiumOverlay', () => {
       expect(Math.ceil(overlay._getFilteredItems().length / perPage)).toBe(expectedPages);
     });
 
-    it('per-page counts: lore-bearing tabs shrink, others stay at 10', () => {
+    it('uses the compact per-page matrix for every tab', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const expectByTab = { 0: 6, 1: 10, 4: 6, 5: 6, 6: 6, 9: 5 }; // Arms, Skills, Items, Lords, Bless, Foes
+      const expectByTab = [6, 9, 9, 5, 6, 6, 6, 9, 9, 5];
       for (const [tabIndex, expected] of Object.entries(expectByTab)) {
         overlay.activeTabIndex = Number(tabIndex);
         expect(overlay._itemsPerPage(), `tab ${tabIndex}`).toBe(expected);
@@ -560,6 +565,36 @@ describe('CompendiumOverlay', () => {
       expect(classLine).toBeTruthy();
     });
 
+    it('renders two bounded lore lines for a max-length class entry', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      const longestName = gameData.classes.reduce(
+        (longest, klass) => (klass.name.length > longest.length ? klass.name : longest),
+        '',
+      );
+      const lore = `${'ancient battlefield vows '.repeat(8)}`.slice(0, 160);
+
+      overlay._renderClass(
+        {
+          name: longestName,
+          tier: 'promoted',
+          moveType: 'Infantry',
+          weaponProficiencies: ['Sword', 'Tome'],
+          baseStats: {},
+          lore,
+        },
+        100,
+        30,
+        585,
+      );
+
+      const loreLines = overlay.objects.filter(
+        (obj) => obj.style.color === '#c8b878' && (obj.y === 128 || obj.y === 140),
+      );
+      expect(loreLines).toHaveLength(2);
+      expect(loreLines.every((line) => line.text.length <= 84)).toBe(true);
+      expect(loreLines.every((line) => line.x + line.text.length * 6 <= 610)).toBe(true);
+    });
+
     it('renders accessory preventEnemyDouble and doubleThresholdReduction combat effects', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
 
@@ -706,32 +741,16 @@ describe('CompendiumOverlay', () => {
       expect(overlay.visible).toBe(false);
     });
 
-    it('filtered tab content stays above page navigation controls', () => {
-      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      overlay.show();
-      overlay.activeTabIndex = 0; // Arms (has filters and multiple pages)
-      overlay.activeFilterIndex = 0;
-      overlay.currentPage = 0;
-      overlay._draw();
+    it('keeps every tab row matrix at least 10px above page navigation', () => {
+      const panelTop = 30;
+      const navY = panelTop + 420 - 28;
 
-      const nav = overlay.objects.find(
-        (o) => typeof o.text === 'string' && o.text.startsWith('Page '),
-      );
-      expect(nav).toBeTruthy();
-      const navY = nav.y;
-
-      const contentTexts = overlay.objects.filter(
-        (o) =>
-          typeof o.text === 'string' &&
-          typeof o.y === 'number' &&
-          o.y >= 130 &&
-          o.text !== '\u25C0 Prev' &&
-          o.text !== 'Next \u25B6' &&
-          !o.text.startsWith('Page '),
-      );
-      expect(contentTexts.length).toBeGreaterThan(0);
-      const maxContentY = Math.max(...contentTexts.map((o) => o.y));
-      expect(maxContentY).toBeLessThan(navY);
+      for (const tab of TAB_DEFS) {
+        const contentStartY = panelTop + (tab.filters ? 102 : 92);
+        const perPage = PER_PAGE_BY_KEY[tab.key] ?? 10;
+        const finalRowBottom = contentStartY + perPage * getCompendiumRowHeight(tab.key);
+        expect(finalRowBottom, tab.key).toBeLessThanOrEqual(navY - 10);
+      }
     });
   });
 });

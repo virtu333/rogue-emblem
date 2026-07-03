@@ -7,7 +7,7 @@
 // is duplicated. The whole map is scaled to fit the viewport, so no camera-follow
 // is needed.
 
-const RING_RADIUS = 20; // NODE_SIZE (24) / 2 + a margin
+const RING_RADIUS = 17; // NODE_SIZE (24) / 2 + a compact focus margin
 const RING_COLOR = 0xffdd44;
 const RING_DEPTH = 5; // above nodes (NODE_DEPTH 1) and aura, below tooltips
 
