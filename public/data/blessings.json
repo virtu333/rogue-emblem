@@ -3,82 +3,94 @@
   "blessings": [
     {
       "id": "steady_hands",
-      "lore": "A steadying of the wrist, asked at shrines since before the shrines had a roof.",
+      "lore": "Pilgrims kneel to steady the wrist long before the road ever tests it.",
       "name": "Steady Hands",
       "tier": 1,
       "description": "+3 Hit for all units in every act.",
-      "weight": 1.0,
+      "weight": 1,
       "boons": [
         {
           "type": "all_act_hit_bonus",
-          "params": { "value": 3 }
+          "params": {
+            "value": 3
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "coin_of_fate",
-      "lore": "Pilgrims leave a coin at the shrine. Sometimes the shrine gives one back.",
+      "lore": "Toss a coin on the altar; walk out heavier than you knelt.",
       "name": "Coin of Fate",
       "tier": 1,
       "description": "+500 gold at run start.",
-      "weight": 1.0,
+      "weight": 1,
       "boons": [
         {
           "type": "gold_delta",
-          "params": { "value": 500 }
+          "params": {
+            "value": 500
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "blessed_vigor",
-      "lore": "The old blessing for departing levies: come back heavier than you left.",
+      "lore": "The going-away rite for levies, meant to bring them home whole.",
       "name": "Blessed Vigor",
       "tier": 1,
       "description": "At run start, lords gain +2 max HP.",
-      "weight": 1.0,
+      "weight": 1,
       "boons": [
         {
           "type": "run_start_max_hp_bonus",
-          "params": { "value": 2, "scope": "lords" }
+          "params": {
+            "value": 2,
+            "scope": "lords"
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "swift_instinct",
-      "lore": "Prayed for by couriers and deserters alike. The goddess does not distinguish.",
+      "lore": "Couriers and deserters pray the same prayer for quick feet.",
       "name": "Swift Instinct",
       "tier": 1,
       "description": "Lords gain +1 SPD at run start.",
-      "weight": 1.0,
+      "weight": 1,
       "boons": [
         {
           "type": "lord_stat_bonus",
-          "params": { "stat": "SPD", "value": 1 }
+          "params": {
+            "stat": "SPD",
+            "value": 1
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "field_medic",
-      "lore": "The shrine keeps its own stores. No one restocks them; they are stocked.",
+      "lore": "Every hand leaves the shrine with a salve tucked away.",
       "name": "Field Medic",
       "tier": 1,
       "description": "All units start with a Vulnerary.",
-      "weight": 1.0,
+      "weight": 1,
       "boons": [
         {
           "type": "starting_consumable_all",
-          "params": { "name": "Vulnerary" }
+          "params": {
+            "name": "Vulnerary"
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "iron_oath",
-      "lore": "Sworn at the shrine with a hand on cold iron. The iron remembers the terms.",
+      "lore": "Swear it with a palm on cold iron and the iron holds you together.",
       "name": "Iron Oath",
       "tier": 2,
       "description": "+2 DEF to lords.",
@@ -86,14 +98,17 @@
       "boons": [
         {
           "type": "lord_stat_bonus",
-          "params": { "stat": "DEF", "value": 2 }
+          "params": {
+            "stat": "DEF",
+            "value": 2
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "scout_blessing",
-      "lore": "The old faith walked its borders yearly. The habit of seeing far survives it.",
+      "lore": "Blessing of the border-wardens: one more marches out at your side.",
       "name": "Scout Blessing",
       "tier": 2,
       "description": "Deploy +1 unit.",
@@ -101,15 +116,19 @@
       "boons": [
         {
           "type": "deploy_cap_delta",
-          "params": { "value": 1 }
+          "params": {
+            "value": 1
+          }
         }
       ],
       "costs": [],
-      "excludes": ["nomad_pact"]
+      "excludes": [
+        "nomad_pact"
+      ]
     },
     {
       "id": "scholar_vow",
-      "lore": "A vow of the seer order's lay students: learn quickly, for the term is short.",
+      "lore": "The seer order's students vow to learn fast, since the term runs short.",
       "name": "Scholar's Vow",
       "tier": 2,
       "description": "All growths +5%.",
@@ -117,14 +136,16 @@
       "boons": [
         {
           "type": "all_growths_delta",
-          "params": { "value": 5 }
+          "params": {
+            "value": 5
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "rally_cry",
-      "lore": "The old war-blessing, shouted rather than whispered. The goddess hears both.",
+      "lore": "Shouted, not whispered — a war-blessing for the first hard act.",
       "name": "Rally Cry",
       "tier": 2,
       "description": "+2 STR to all units in Act 1.",
@@ -132,14 +153,18 @@
       "boons": [
         {
           "type": "act_stat_delta_all_units",
-          "params": { "act": "act1", "stat": "STR", "value": 2 }
+          "params": {
+            "act": "act1",
+            "stat": "STR",
+            "value": 2
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "war_veteran",
-      "lore": "Some shrines prefer scarred hands. Offerings from smooth ones go unanswered.",
+      "lore": "Some altars answer only scarred hands, and pay them in hard wisdom.",
       "name": "War Veteran",
       "tier": 2,
       "description": "+15% XP gain from combat.",
@@ -147,14 +172,16 @@
       "boons": [
         {
           "type": "xp_multiplier_delta",
-          "params": { "value": 0.15 }
+          "params": {
+            "value": 0.15
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "frugal_smith",
-      "lore": "A smith-saint's discount, honored at forges that keep the old mark by the door.",
+      "lore": "A smith-saint's mercy, honored at any forge that keeps the old mark.",
       "name": "Frugal Smith",
       "tier": 2,
       "description": "Forge costs reduced by 30%, +1 forge per shop.",
@@ -162,19 +189,25 @@
       "boons": [
         {
           "type": "forge_cost_multiplier",
-          "params": { "value": -0.30 }
+          "params": {
+            "value": -0.3
+          }
         },
         {
           "type": "forge_limit_delta",
-          "params": { "value": 1 }
+          "params": {
+            "value": 1
+          }
         }
       ],
       "costs": [],
-      "excludes": ["merchant_bane"]
+      "excludes": [
+        "merchant_bane"
+      ]
     },
     {
       "id": "arsenal_pact",
-      "lore": "Old kings armed pilgrims for the worst roads. Something still honors the custom.",
+      "lore": "Old kings armed their pilgrims in silver for the worst roads.",
       "name": "Arsenal Pact",
       "tier": 4,
       "description": "Start with a silver weapon.",
@@ -182,14 +215,17 @@
       "boons": [
         {
           "type": "starting_weapon_tier",
-          "params": { "tier": "Silver", "count": 1 }
+          "params": {
+            "tier": "Silver",
+            "count": 1
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "pilgrim_coin",
-      "lore": "The pilgrim roads pay their walkers. No one has ever met the paymaster.",
+      "lore": "Walk the pilgrim roads and the merchants along them cut you a price.",
       "name": "Pilgrim Coin",
       "tier": 3,
       "description": "Shops stock +1 item at 15% discount.",
@@ -197,18 +233,22 @@
       "boons": [
         {
           "type": "shop_item_count_delta",
-          "params": { "value": 1 }
+          "params": {
+            "value": 1
+          }
         },
         {
           "type": "shop_price_discount",
-          "params": { "value": 0.15 }
+          "params": {
+            "value": 0.15
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "merchant_bane",
-      "lore": "A curse-blessing. The old faith was not entirely gentle.",
+      "lore": "A curse wearing a boon's face, from a faith that was never wholly kind.",
       "name": "Merchant Bane",
       "tier": 3,
       "description": "+15% battle gold.",
@@ -216,15 +256,19 @@
       "boons": [
         {
           "type": "battle_gold_multiplier_delta",
-          "params": { "value": 0.15 }
+          "params": {
+            "value": 0.15
+          }
         }
       ],
       "costs": [],
-      "excludes": ["frugal_smith"]
+      "excludes": [
+        "frugal_smith"
+      ]
     },
     {
       "id": "nomad_pact",
-      "lore": "Sworn with the roads themselves. The old faith held that roads keep count.",
+      "lore": "Sworn to the open road; those who answer it come already hardened.",
       "name": "Nomad's Pact",
       "tier": 3,
       "description": "Recruited units join +1 level higher.",
@@ -232,15 +276,19 @@
       "boons": [
         {
           "type": "recruit_level_bonus",
-          "params": { "value": 1 }
+          "params": {
+            "value": 1
+          }
         }
       ],
       "costs": [],
-      "excludes": ["scout_blessing"]
+      "excludes": [
+        "scout_blessing"
+      ]
     },
     {
       "id": "terrain_mastery",
-      "lore": "The land remembers who kept its shrines and softens underfoot for them.",
+      "lore": "Tend a shrine's grounds and the woods and walls tend you back.",
       "name": "Terrain Mastery",
       "tier": 3,
       "description": "+5 avoid and +1 DEF on Forest/Fort tiles.",
@@ -248,14 +296,21 @@
       "boons": [
         {
           "type": "terrain_combat_bonus",
-          "params": { "terrains": ["Forest", "Fort"], "avoidBonus": 5, "defBonus": 1 }
+          "params": {
+            "terrains": [
+              "Forest",
+              "Fort"
+            ],
+            "avoidBonus": 5,
+            "defBonus": 1
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "quartermaster_cache",
-      "lore": "A tithe barn's blessing, returned with interest. The barns are long burned.",
+      "lore": "A tithe-barn's rite, repaid in full mending though the barns burned.",
       "name": "Quartermaster Cache",
       "tier": 3,
       "description": "Lords gain +1 Elixir at run start.",
@@ -263,14 +318,17 @@
       "boons": [
         {
           "type": "extra_consumable",
-          "params": { "itemName": "Elixir", "value": 1 }
+          "params": {
+            "itemName": "Elixir",
+            "value": 1
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "forbidden_tome",
-      "lore": "Shelved in the temple crypts for a reason. Borrowed from them for a better one.",
+      "lore": "Locked in the crypt shelves for good reason, and taken down anyway.",
       "name": "Forbidden Tome",
       "tier": 4,
       "description": "All growths +15%.",
@@ -278,14 +336,16 @@
       "boons": [
         {
           "type": "all_growths_delta",
-          "params": { "value": 15 }
+          "params": {
+            "value": 15
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "blood_forge",
-      "lore": "The forge-rite the smith-saints refused. It works. That was never the objection.",
+      "lore": "The forge-rite the smith-saints refused to teach. It works all the same.",
       "name": "Blood Forge",
       "tier": 4,
       "description": "All lord weapons gain +2 forge levels.",
@@ -293,14 +353,16 @@
       "boons": [
         {
           "type": "starting_weapon_forge_delta",
-          "params": { "value": 2 }
+          "params": {
+            "value": 2
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "war_tutelage",
-      "lore": "The war colleges tithed their best lessons to the shrines. The shrines kept them.",
+      "lore": "The war colleges tithed their sharpest lessons, and the shrines kept them.",
       "name": "War Tutelage",
       "tier": 4,
       "description": "Each lord learns one random skill at run start.",
@@ -308,14 +370,17 @@
       "boons": [
         {
           "type": "starting_random_skill",
-          "params": { "count": 1, "scope": "lords" }
+          "params": {
+            "count": 1,
+            "scope": "lords"
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "armory_stash",
-      "lore": "Shrine cellars were the old kingdom's arsenals of last resort. Some still are.",
+      "lore": "Shrine cellars once armed a kingdom in extremis, whetstones and all.",
       "name": "Armory Stash",
       "tier": 4,
       "description": "Gain 2 random whetstones at run start.",
@@ -323,14 +388,16 @@
       "boons": [
         {
           "type": "starting_whetstones",
-          "params": { "count": 2 }
+          "params": {
+            "count": 2
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "scroll_archive",
-      "lore": "The seer order copies everything twice. One copy goes where the empire cannot read.",
+      "lore": "The seer order copies each art twice and hides one from the empire.",
       "name": "Scroll Archive",
       "tier": 4,
       "description": "Gain 2 random weapon-art scrolls at run start.",
@@ -338,14 +405,16 @@
       "boons": [
         {
           "type": "starting_scroll",
-          "params": { "count": 2 }
+          "params": {
+            "count": 2
+          }
         }
       ],
       "costs": []
     },
     {
       "id": "focused_curriculum",
-      "lore": "A teaching-blessing: one lesson, learned all the way down.",
+      "lore": "One lesson, drilled all the way down until the hands own it.",
       "name": "Focused Curriculum",
       "tier": 4,
       "description": "Lords gain +12% SPD and SKL growths.",
@@ -353,7 +422,14 @@
       "boons": [
         {
           "type": "targeted_growths_delta",
-          "params": { "stats": ["SPD", "SKL"], "value": 12, "scope": "lords" }
+          "params": {
+            "stats": [
+              "SPD",
+              "SKL"
+            ],
+            "value": 12,
+            "scope": "lords"
+          }
         }
       ],
       "costs": []
@@ -364,25 +440,45 @@
       {
         "label": "-15% battle gold",
         "effects": [
-          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.15 } }
+          {
+            "type": "battle_gold_multiplier_delta",
+            "params": {
+              "value": -0.15
+            }
+          }
         ]
       },
       {
         "label": "Staff healing -20% effective",
         "effects": [
-          { "type": "healing_effectiveness_delta", "params": { "value": -0.20 } }
+          {
+            "type": "healing_effectiveness_delta",
+            "params": {
+              "value": -0.2
+            }
+          }
         ]
       },
       {
         "label": "-10% XP gain from combat",
         "effects": [
-          { "type": "xp_multiplier_delta", "params": { "value": -0.10 } }
+          {
+            "type": "xp_multiplier_delta",
+            "params": {
+              "value": -0.1
+            }
+          }
         ]
       },
       {
         "label": "+20% forge costs",
         "effects": [
-          { "type": "forge_cost_multiplier", "params": { "value": 0.20 } }
+          {
+            "type": "forge_cost_multiplier",
+            "params": {
+              "value": 0.2
+            }
+          }
         ]
       }
     ],
@@ -390,37 +486,70 @@
       {
         "label": "-20% battle gold",
         "effects": [
-          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.20 } }
+          {
+            "type": "battle_gold_multiplier_delta",
+            "params": {
+              "value": -0.2
+            }
+          }
         ]
       },
       {
         "label": "-1 DEF to all units in Act 1",
         "effects": [
-          { "type": "act_stat_delta_all_units", "params": { "act": "act1", "stat": "DEF", "value": -1 } }
+          {
+            "type": "act_stat_delta_all_units",
+            "params": {
+              "act": "act1",
+              "stat": "DEF",
+              "value": -1
+            }
+          }
         ]
       },
       {
         "label": "-8 Hit for all units in Act 1",
         "effects": [
-          { "type": "act_hit_bonus", "params": { "act": "act1", "value": -8 } }
+          {
+            "type": "act_hit_bonus",
+            "params": {
+              "act": "act1",
+              "value": -8
+            }
+          }
         ]
       },
       {
         "label": "All growths -5%",
         "effects": [
-          { "type": "all_growths_delta", "params": { "value": -5 } }
+          {
+            "type": "all_growths_delta",
+            "params": {
+              "value": -5
+            }
+          }
         ]
       },
       {
         "label": "Recruits join -1 level",
         "effects": [
-          { "type": "recruit_level_bonus", "params": { "value": -1 } }
+          {
+            "type": "recruit_level_bonus",
+            "params": {
+              "value": -1
+            }
+          }
         ]
       },
       {
         "label": "Weapon arts cost +2 HP",
         "effects": [
-          { "type": "weapon_art_hp_cost_delta", "params": { "value": 2 } }
+          {
+            "type": "weapon_art_hp_cost_delta",
+            "params": {
+              "value": 2
+            }
+          }
         ]
       }
     ],
@@ -428,31 +557,58 @@
       {
         "label": "-30% battle gold",
         "effects": [
-          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.30 } }
+          {
+            "type": "battle_gold_multiplier_delta",
+            "params": {
+              "value": -0.3
+            }
+          }
         ]
       },
       {
         "label": "-2 DEF to all units in Act 1",
         "effects": [
-          { "type": "act_stat_delta_all_units", "params": { "act": "act1", "stat": "DEF", "value": -2 } }
+          {
+            "type": "act_stat_delta_all_units",
+            "params": {
+              "act": "act1",
+              "stat": "DEF",
+              "value": -2
+            }
+          }
         ]
       },
       {
         "label": "Personal skills disabled until Act 3",
         "effects": [
-          { "type": "disable_personal_skills_until_act", "params": { "act": "act3" } }
+          {
+            "type": "disable_personal_skills_until_act",
+            "params": {
+              "act": "act3"
+            }
+          }
         ]
       },
       {
         "label": "+35% forge costs",
         "effects": [
-          { "type": "forge_cost_multiplier", "params": { "value": 0.35 } }
+          {
+            "type": "forge_cost_multiplier",
+            "params": {
+              "value": 0.35
+            }
+          }
         ]
       },
       {
         "label": "Deforge lord weapons by 1",
         "effects": [
-          { "type": "starting_weapon_forge_delta", "params": { "value": -1 } }
+          {
+            "type": "starting_weapon_forge_delta",
+            "params": {
+              "value": -1
+            }
+          }
         ]
       }
     ]

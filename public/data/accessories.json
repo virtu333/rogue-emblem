@@ -1,32 +1,317 @@
 [
-  { "name": "Power Ring", "type": "Accessory", "effects": { "STR": 2 }, "price": 1500, "lore": "A signet from the old kingdom's champions. The grip tightens on its own." },
-  { "name": "Magic Ring", "type": "Accessory", "effects": { "MAG": 2 }, "price": 1500, "lore": "A court circle band. It hums faintly near unfinished sentences." },
-  { "name": "Speed Ring", "type": "Accessory", "effects": { "SPD": 2 }, "price": 2000, "lore": "Won at a duel that observers describe as very short." },
-  { "name": "Shield Ring", "type": "Accessory", "effects": { "DEF": 2 }, "price": 1500, "lore": "Cast from a melted shield-boss that outlived three bearers." },
-  { "name": "Barrier Ring", "type": "Accessory", "effects": { "RES": 2 }, "price": 1500, "lore": "A ward-ring against sorcery, etched with a seer's patient script." },
-  { "name": "Skill Ring", "type": "Accessory", "effects": { "SKL": 3 }, "price": 1500, "lore": "A drillmaster's retirement gift, passed down and never retired." },
-  { "name": "Goddess Icon", "type": "Accessory", "effects": { "LCK": 8 }, "price": 1000, "lore": "A thumb-worn pocket shrine. The goddess's name was not forgotten; it was spent." },
-  { "name": "Seraph Robe", "type": "Accessory", "effects": { "HP": 5 }, "price": 2000, "lore": "Temple weave that sits heavy as a hand on the shoulder. The body takes heart." },
-  { "name": "Boots", "type": "Accessory", "effects": { "MOV": 1 }, "price": 3000, "lore": "A dead courier's boots. They know shortcuts their owner never taught anyone." },
-  { "name": "Delphi Shield", "type": "Accessory", "effects": { "DEF": 1, "RES": 1 }, "combatEffects": { "negateFlierWeakness": true }, "price": 2500, "lore": "A sky-knight's talisman: the arrow's argument, refused." },
-  { "name": "Veteran's Crest", "type": "Accessory", "effects": { "STR": 1, "SPD": 1, "DEF": 1 }, "price": 2000, "lore": "Issued after a soldier's twentieth battle. Few are issued; fewer are sold." },
-  { "name": "Wrath Band", "type": "Accessory", "effects": {}, "combatEffects": { "critBonus": 15, "condition": "below50" }, "price": 2000, "lore": "An arm-ring from the berserk school. It only wakes when the blood shows." },
-  { "name": "Counter Seal", "type": "Accessory", "effects": {}, "combatEffects": { "preventEnemyDouble": true }, "price": 2500, "lore": "A duelist's oath-mark. Whoever wears it is owed the time to answer." },
-  { "name": "Pursuit Ring", "type": "Accessory", "effects": {}, "combatEffects": { "doubleThresholdReduction": 2 }, "price": 2500, "lore": "A hunting band of the old kingdom: the quarry is slower than it believes." },
-  { "name": "Nullify Ring", "type": "Accessory", "effects": {}, "combatEffects": { "negateEffectiveness": true }, "price": 2500, "lore": "Etched with every slayer-rune, crossed out. Specialists find it very unfair." },
-  { "name": "Life Ring", "type": "Accessory", "effects": {}, "combatEffects": { "atkBonus": 2, "defBonus": 2, "condition": "above75" }, "price": 2000, "lore": "It rewards the unhurt with more of the same. Healers find it smug." },
-  { "name": "Forest Charm", "type": "Accessory", "effects": {}, "combatEffects": { "avoidBonus": 10, "defBonus": 2, "condition": "on_forest" }, "price": 1200, "lore": "Braided from the border woods. The trees consider its wearer local." },
-  { "name": "Blood Gem", "type": "Accessory", "effects": {}, "combatEffects": { "weaponArtCostReduction": 5 }, "price": 2500, "lore": "A dark stone that pays part of every art's price. It keeps its own accounts." },
-  { "name": "Vampire's Bloodshard", "type": "Accessory", "effects": {}, "combatEffects": { "perHitHeal": 2 }, "price": 2000, "lore": "A splinter of something the seers burned. It shares what the blade takes." },
-  { "name": "Soothing Stone", "type": "Accessory", "effects": {}, "combatEffects": { "turnStartHealPercent": 20 }, "turnStartEffects": { "healSelfPercent": 20 }, "price": 2000, "lore": "River-smooth and always warm. Wounds settle near it, a little, every dawn." },
-  { "name": "Phoenix Brooch", "type": "Accessory", "effects": {}, "combatEffects": { "phoenixBrooch": true, "phoenixHeal": 10, "phoenixThreshold": 0.25 }, "price": 2500, "lore": "Ash-forged. It has strong opinions about its wearer falling." },
-  { "name": "Recoil Guard", "type": "Accessory", "effects": {}, "combatEffects": { "weaponArtDefBuff": true, "buffDEF": 3, "buffRES": 3 }, "price": 2000, "lore": "Smith-blessed bracing: after the art's cost, the body braces itself." },
-  { "name": "Bounty Hunter's Mark", "type": "Accessory", "effects": {}, "combatEffects": { "goldPerKill": 300 }, "price": 2000, "lore": "A guild tally-brand. Someone, somewhere, pays out on every notch." },
-  { "name": "Moontide Amulet", "type": "Accessory", "effects": {}, "combatEffects": { "moontide": true }, "price": 1500, "lore": "Tide-silver. Its strength keeps a schedule no one has fully charted." },
-  { "name": "Gambler's Coin", "type": "Accessory", "effects": {}, "combatEffects": { "gamblerCoin": true }, "price": 1500, "lore": "Two faces, neither honest. Flip it and deserve what happens." },
-  { "name": "Vanguard Crest", "type": "Accessory", "effects": {}, "combatEffects": { "atkBonus": 4, "condition": "no_ally_within_2" }, "price": 2000, "lore": "The lone-spear medal, given for holding ground no one else reached." },
-  { "name": "Diamond Medallion", "type": "Accessory", "effects": {}, "combatEffects": { "defBonus": 3, "resBonus": 3, "condition": "enemies_nearby_2plus" }, "price": 2000, "lore": "Cut to scatter what crowds in. Worn by caravan guards on bad roads." },
-  { "name": "Hunter's Cloak", "type": "Accessory", "effects": {}, "combatEffects": { "hitBonus": 20, "critBonus": 10, "condition": "on_forest_or_mountain" }, "price": 1500, "lore": "Oiled against weather, patterned against notice. In wild country it is armor." },
-  { "name": "Duelist's Glove", "type": "Accessory", "effects": {}, "combatEffects": { "hitBonus": 10, "avoidBonus": 10, "critBonus": 5, "condition": "no_ally_within_2" }, "price": 2500, "lore": "It prefers its fights fair: one wearer, one opponent, no help." },
-  { "name": "Warding Charm", "type": "Accessory", "effects": {}, "combatEffects": { "statusImmunity": true }, "price": 2000, "lore": "A finished seer's ward. Afflictions arrive, find no purchase, and move on." }
+  {
+    "name": "Power Ring",
+    "type": "Accessory",
+    "effects": {
+      "STR": 2
+    },
+    "price": 1500,
+    "lore": "From the old kingdom's champions, a signet whose grip closes on its own."
+  },
+  {
+    "name": "Magic Ring",
+    "type": "Accessory",
+    "effects": {
+      "MAG": 2
+    },
+    "price": 1500,
+    "lore": "Court-circle work; it hums near a sentence left unfinished."
+  },
+  {
+    "name": "Speed Ring",
+    "type": "Accessory",
+    "effects": {
+      "SPD": 2
+    },
+    "price": 2000,
+    "lore": "Won at a duel the witnesses called mercifully short."
+  },
+  {
+    "name": "Shield Ring",
+    "type": "Accessory",
+    "effects": {
+      "DEF": 2
+    },
+    "price": 1500,
+    "lore": "Cast from a shield-boss that outlived the three men who carried it."
+  },
+  {
+    "name": "Barrier Ring",
+    "type": "Accessory",
+    "effects": {
+      "RES": 2
+    },
+    "price": 1500,
+    "lore": "A seer's ward against sorcery, etched in patient script."
+  },
+  {
+    "name": "Skill Ring",
+    "type": "Accessory",
+    "effects": {
+      "SKL": 3
+    },
+    "price": 1500,
+    "lore": "The drillmaster's parting gift, still sharpening hands he never met."
+  },
+  {
+    "name": "Goddess Icon",
+    "type": "Accessory",
+    "effects": {
+      "LCK": 8
+    },
+    "price": 1000,
+    "lore": "A pocket shrine worn smooth by one thumb's worth of prayer."
+  },
+  {
+    "name": "Seraph Robe",
+    "type": "Accessory",
+    "effects": {
+      "HP": 5
+    },
+    "price": 2000,
+    "lore": "Temple weave that lies heavy as a hand and steadies the heart under it."
+  },
+  {
+    "name": "Boots",
+    "type": "Accessory",
+    "effects": {
+      "MOV": 1
+    },
+    "price": 3000,
+    "lore": "They still take the shortcuts their dead courier never named."
+  },
+  {
+    "name": "Delphi Shield",
+    "type": "Accessory",
+    "effects": {
+      "DEF": 1,
+      "RES": 1
+    },
+    "combatEffects": {
+      "negateFlierWeakness": true
+    },
+    "price": 2500,
+    "lore": "A sky-knight's talisman that tells the arrow it has no special claim."
+  },
+  {
+    "name": "Veteran's Crest",
+    "type": "Accessory",
+    "effects": {
+      "STR": 1,
+      "SPD": 1,
+      "DEF": 1
+    },
+    "price": 2000,
+    "lore": "Given after a soldier's twentieth battle; almost none change hands."
+  },
+  {
+    "name": "Wrath Band",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "critBonus": 15,
+      "condition": "below50"
+    },
+    "price": 2000,
+    "lore": "An arm-ring of the berserk school, awake only once the wearer bleeds."
+  },
+  {
+    "name": "Counter Seal",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "preventEnemyDouble": true
+    },
+    "price": 2500,
+    "lore": "Wear the duelist's mark and you are owed a blow for every blow."
+  },
+  {
+    "name": "Pursuit Ring",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "doubleThresholdReduction": 2
+    },
+    "price": 2500,
+    "lore": "An old-kingdom hunting band; the quarry is always slower than it hopes."
+  },
+  {
+    "name": "Nullify Ring",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "negateEffectiveness": true
+    },
+    "price": 2500,
+    "lore": "Every slayer-rune, etched and then struck through."
+  },
+  {
+    "name": "Life Ring",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "atkBonus": 2,
+      "defBonus": 2,
+      "condition": "above75"
+    },
+    "price": 2000,
+    "lore": "Favors the wearer who hasn't yet been touched."
+  },
+  {
+    "name": "Forest Charm",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "avoidBonus": 10,
+      "defBonus": 2,
+      "condition": "on_forest"
+    },
+    "price": 1200,
+    "lore": "Braided from border-wood; under the trees, the wearer counts as one of them."
+  },
+  {
+    "name": "Blood Gem",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "weaponArtCostReduction": 5
+    },
+    "price": 2500,
+    "lore": "A dark stone that covers part of every art's blood-price."
+  },
+  {
+    "name": "Vampire's Bloodshard",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "perHitHeal": 2
+    },
+    "price": 2000,
+    "lore": "Splinter of a thing the seers burned; it feeds the wearer what the blade spills."
+  },
+  {
+    "name": "Soothing Stone",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "turnStartHealPercent": 20
+    },
+    "turnStartEffects": {
+      "healSelfPercent": 20
+    },
+    "price": 2000,
+    "lore": "River-smooth and always warm; wounds ease a little near it each morning."
+  },
+  {
+    "name": "Phoenix Brooch",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "phoenixBrooch": true,
+      "phoenixHeal": 10,
+      "phoenixThreshold": 0.25
+    },
+    "price": 2500,
+    "lore": "Ash-forged, and stubborn about letting its wearer fall."
+  },
+  {
+    "name": "Recoil Guard",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "weaponArtDefBuff": true,
+      "buffDEF": 3,
+      "buffRES": 3
+    },
+    "price": 2000,
+    "lore": "Smith-blessed bracing that stiffens the body right after the art lands."
+  },
+  {
+    "name": "Bounty Hunter's Mark",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "goldPerKill": 300
+    },
+    "price": 2000,
+    "lore": "A guild tally-brand; every notch is worth coin to someone."
+  },
+  {
+    "name": "Moontide Amulet",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "moontide": true
+    },
+    "price": 1500,
+    "lore": "Tide-silver, strong and weak by a calendar no one has finished reading."
+  },
+  {
+    "name": "Gambler's Coin",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "gamblerCoin": true
+    },
+    "price": 1500,
+    "lore": "Two faces, neither honest; flip it and take what you're given."
+  },
+  {
+    "name": "Vanguard Crest",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "atkBonus": 4,
+      "condition": "no_ally_within_2"
+    },
+    "price": 2000,
+    "lore": "The lone-spear medal, struck for ground no one else came to hold."
+  },
+  {
+    "name": "Diamond Medallion",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "defBonus": 3,
+      "resBonus": 3,
+      "condition": "enemies_nearby_2plus"
+    },
+    "price": 2000,
+    "lore": "Cut to break up whatever crowds in; caravan guards swear by it."
+  },
+  {
+    "name": "Hunter's Cloak",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "hitBonus": 20,
+      "critBonus": 10,
+      "condition": "on_forest_or_mountain"
+    },
+    "price": 1500,
+    "lore": "Oiled against weather and cut to vanish; in wild country it is armor."
+  },
+  {
+    "name": "Duelist's Glove",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "hitBonus": 10,
+      "avoidBonus": 10,
+      "critBonus": 5,
+      "condition": "no_ally_within_2"
+    },
+    "price": 2500,
+    "lore": "One wearer, one opponent, no help -- the way it likes a fight."
+  },
+  {
+    "name": "Warding Charm",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "statusImmunity": true
+    },
+    "price": 2000,
+    "lore": "A seer's finished ward; curses arrive, find nothing to hold, and pass on."
+  }
 ]

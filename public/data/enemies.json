@@ -1,79 +1,287 @@
 {
   "pools": {
     "act1": {
-      "levelRange": [1, 3],
-      "base": ["Myrmidon", "Fighter", "Archer", "Cavalier"],
+      "levelRange": [
+        1,
+        3
+      ],
+      "base": [
+        "Myrmidon",
+        "Fighter",
+        "Archer",
+        "Cavalier"
+      ],
       "promoted": [],
       "sunderChance": 0,
       "poisonChance": 0
     },
     "act2": {
-      "levelRange": [3, 8],
-      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider", "Zombie"],
+      "levelRange": [
+        3,
+        8
+      ],
+      "base": [
+        "Myrmidon",
+        "Fighter",
+        "Knight",
+        "Archer",
+        "Cavalier",
+        "Mage",
+        "Thief",
+        "Pegasus Knight",
+        "Wyvern Rider",
+        "Zombie"
+      ],
       "promoted": [],
       "sunderChance": 0.08,
       "poisonChance": 0
     },
     "act3": {
-      "levelRange": [8, 15],
-      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider", "Dragon"],
-      "promoted": ["Swordmaster", "General", "Paladin", "Sniper", "Wyvern Lord", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Revenant"],
-      "sunderChance": 0.20,
+      "levelRange": [
+        8,
+        15
+      ],
+      "base": [
+        "Myrmidon",
+        "Fighter",
+        "Knight",
+        "Archer",
+        "Cavalier",
+        "Mage",
+        "Thief",
+        "Pegasus Knight",
+        "Wyvern Rider",
+        "Dragon"
+      ],
+      "promoted": [
+        "Swordmaster",
+        "General",
+        "Paladin",
+        "Sniper",
+        "Wyvern Lord",
+        "Duelist",
+        "Great Knight",
+        "Berserker",
+        "Dark Knight",
+        "Bow Knight",
+        "Revenant"
+      ],
+      "sunderChance": 0.2,
       "poisonChance": 0.12
     },
     "act4": {
-      "levelRange": [11, 17],
-      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Warlock", "Battle Monk", "Trickster", "Hunter", "Revenant", "Dragon Lord"],
+      "levelRange": [
+        11,
+        17
+      ],
+      "base": [
+        "Myrmidon",
+        "Fighter",
+        "Knight",
+        "Archer",
+        "Cavalier",
+        "Mage",
+        "Thief",
+        "Pegasus Knight",
+        "Wyvern Rider"
+      ],
+      "promoted": [
+        "Swordmaster",
+        "General",
+        "Warrior",
+        "Paladin",
+        "Sniper",
+        "Sage",
+        "Falcon Knight",
+        "Wyvern Lord",
+        "Hero",
+        "Duelist",
+        "Great Knight",
+        "Berserker",
+        "Dark Knight",
+        "Bow Knight",
+        "Warlock",
+        "Battle Monk",
+        "Trickster",
+        "Hunter",
+        "Revenant",
+        "Dragon Lord"
+      ],
       "sunderChance": 0.25,
       "poisonChance": 0.15
     },
     "postAct": {
-      "levelRange": [12, 18],
-      "base": ["Myrmidon", "Fighter", "Cavalier", "Mage"],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Warlock", "Battle Monk", "Trickster", "Hunter"],
-      "sunderChance": 0.20,
+      "levelRange": [
+        12,
+        18
+      ],
+      "base": [
+        "Myrmidon",
+        "Fighter",
+        "Cavalier",
+        "Mage"
+      ],
+      "promoted": [
+        "Swordmaster",
+        "General",
+        "Warrior",
+        "Paladin",
+        "Sniper",
+        "Sage",
+        "Falcon Knight",
+        "Wyvern Lord",
+        "Hero",
+        "Duelist",
+        "Great Knight",
+        "Berserker",
+        "Dark Knight",
+        "Bow Knight",
+        "Warlock",
+        "Battle Monk",
+        "Trickster",
+        "Hunter"
+      ],
+      "sunderChance": 0.2,
       "poisonChance": 0.12
     },
     "finalBoss": {
-      "levelRange": [13, 18],
+      "levelRange": [
+        13,
+        18
+      ],
       "base": [],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Wyvern Lord", "Hero"],
+      "promoted": [
+        "Swordmaster",
+        "General",
+        "Warrior",
+        "Paladin",
+        "Sniper",
+        "Sage",
+        "Wyvern Lord",
+        "Hero"
+      ],
       "sunderChance": 0.15,
       "poisonChance": 0.08
     }
   },
   "bosses": {
     "act1": [
-      { "className": "Cavalier", "level": 3, "name": "Iron Captain", "lore": "Twenty years on the border with orders that never changed and relief that never came. He holds the line because the line is all the empire ever gave him to hold." },
-      { "className": "Fighter", "level": 3, "name": "Warchief", "lore": "The border clans buried the old kingdom's treaties with the old kingdom. The empire's new terms arrived by herald; the warchief sent back the herald's boots." }
+      {
+        "className": "Cavalier",
+        "level": 3,
+        "name": "Iron Captain",
+        "lore": "Twenty years on the border under orders that never changed and relief that never came. He holds the line because the line is all the empire ever left him."
+      },
+      {
+        "className": "Fighter",
+        "level": 3,
+        "name": "Warchief",
+        "lore": "The border clans buried the old kingdom's treaties with the old kingdom, and answer the empire's new terms with none of their own."
+      }
     ],
     "act2": [
-      { "className": "Paladin", "level": 12, "name": "Knight Commander", "lore": "First lance of the imperial second push. He wrote the cavalry doctrine the war colleges still teach, and he has read the casualty tables it bought. He no longer looks at them." },
-      { "className": "Sage", "level": 12, "name": "Archmage", "lore": "First of the court circle, keeper of the ritual's middle pages. He believes the summoning can be steered, and has believed it precisely as long as it has been too late to stop." },
-      { "className": "Dark Knight", "level": 12, "name": "Dark Rider", "lore": "The court circle's errand made flesh: he carries sealed orders between the ritual sites, and the roads empty ahead of him. The horse was black when this began. The rider was not." }
+      {
+        "className": "Paladin",
+        "level": 12,
+        "name": "Knight Commander",
+        "lore": "First lance of the imperial second push. He wrote the cavalry doctrine the war colleges still teach, and has read the casualty tables it cost."
+      },
+      {
+        "className": "Sage",
+        "level": 12,
+        "name": "Archmage",
+        "lore": "He keeps the ritual's middle pages and swears the summoning can still be steered. First of the court circle to say so, he has said it since long past the hour it could be."
+      },
+      {
+        "className": "Dark Knight",
+        "level": 12,
+        "name": "Dark Rider",
+        "lore": "Between the ritual sites he carries the court circle's sealed orders, and the roads empty ahead of him. The horse was black when this began; the rider has since outdone it."
+      }
     ],
     "act3": [
-      { "className": "Swordmaster", "level": 17, "name": "Blade Lord", "lore": "The dueling halls' perfect product, retained by the empire the way one retains a proof. He has never been touched in formal combat. The sacred ground is not formal." },
-      { "className": "General", "level": 17, "name": "Iron Wall", "lore": "He held the breach at the old capital until the order to fall back rotted unread in a courier's bag. The empire calls the resulting doctrine a triumph. He calls it a posting." },
-      { "className": "Berserker", "level": 17, "name": "Berserker King", "lore": "The berserk school's founder and its cautionary tale, crowned by the acclaim of everyone too frightened to object. The corruption did not change him. That is the frightening part." }
+      {
+        "className": "Swordmaster",
+        "level": 17,
+        "name": "Blade Lord",
+        "lore": "The dueling halls' perfect product, kept by the empire the way one keeps a proof. Never touched in formal combat — and the sacred ground keeps no forms."
+      },
+      {
+        "className": "General",
+        "level": 17,
+        "name": "Iron Wall",
+        "lore": "Held the breach at the old capital until the order to fall back rotted unread in a courier's bag. The empire made his stand its doctrine."
+      },
+      {
+        "className": "Berserker",
+        "level": 17,
+        "name": "Berserker King",
+        "lore": "Founder of the berserk school and its own cautionary tale, crowned by the acclaim of everyone too frightened to object. The corruption changed nothing in him."
+      }
     ],
     "act4": [
-      { "className": "General", "level": 20, "name": "The Emperor", "lore": "He traded the empire's future for the ritual's promise and believes the arithmetic favors him. Every timeline the seers have walked ends with him on this floor, certain, mid-sentence." }
+      {
+        "className": "General",
+        "level": 20,
+        "name": "The Emperor",
+        "lore": "Traded the empire's future for the ritual's promise, and still reads the arithmetic as running in his favor."
+      }
     ],
     "finalBoss": [
-      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal", "hard"], "lore": "The ritual's first success, or its first casualty; the court circle's records use both words. He has seen every future the seers have seen, from the other side of the glass. The emperor calls him lieutenant; the records never say of what." },
-      { "className": "Entity", "level": 20, "name": "The Entity", "isEntity": true, "difficultyFilter": ["lunatic"], "lore": "It was old when the sacred ground was consecrated to keep it asleep. The ritual fed it too much, and the war is the sound of it turning over. It does not hate. It does not need to." }
+      {
+        "className": "Hero",
+        "level": 20,
+        "name": "The Lieutenant",
+        "difficultyFilter": [
+          "normal",
+          "hard"
+        ],
+        "lore": "The ritual's first success, or its first casualty; the court circle's records use both. He has watched every future the seers walk, from the far side of the glass."
+      },
+      {
+        "className": "Entity",
+        "level": 20,
+        "name": "The Entity",
+        "isEntity": true,
+        "difficultyFilter": [
+          "lunatic"
+        ],
+        "lore": "Older than the ground consecrated to keep it asleep. The ritual overfed it, and the war is the sound of it turning over. It does not hate. It does not need to."
+      }
     ]
   },
   "enemyCountByTiles": {
-    "80":  [2, 8],
-    "96":  [2, 8],
-    "140": [5, 11],
-    "160": [6, 11],
-    "192": [7, 13],
-    "216": [8, 13],
-    "252": [9, 14],
-    "280": [10, 14]
+    "80": [
+      2,
+      8
+    ],
+    "96": [
+      2,
+      8
+    ],
+    "140": [
+      5,
+      11
+    ],
+    "160": [
+      6,
+      11
+    ],
+    "192": [
+      7,
+      13
+    ],
+    "216": [
+      8,
+      13
+    ],
+    "252": [
+      9,
+      14
+    ],
+    "280": [
+      10,
+      14
+    ]
   }
 }
