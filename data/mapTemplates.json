@@ -956,6 +956,7 @@
     {
       "id": "corridor_siege",
       "name": "Corridor Siege",
+      "parBonus": 1,
       "fogChance": 0.15,
       "acts": [
         "act2",
@@ -1186,6 +1187,7 @@
     {
       "id": "castle_ruins",
       "name": "Castle Ruins",
+      "parBonus": 2,
       "fogChance": 0.25,
       "acts": [
         "act2",
@@ -1773,6 +1775,7 @@
     {
       "id": "great_hall",
       "name": "Great Hall",
+      "parBonus": 1,
       "fogChance": 0.1,
       "acts": [
         "act2",
