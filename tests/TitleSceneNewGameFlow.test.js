@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   transitionToSceneMock,
+  startFirstRunFastPathMock,
   getNextAvailableSlotMock,
   setActiveSlotMock,
   getMetaKeyMock,
@@ -9,6 +10,7 @@ const {
   metaInstances,
 } = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(),
+  startFirstRunFastPathMock: vi.fn(),
   getNextAvailableSlotMock: vi.fn(),
   setActiveSlotMock: vi.fn(),
   getMetaKeyMock: vi.fn((slot) => `slot_${slot}_meta`),
@@ -25,8 +27,15 @@ vi.mock('phaser', () => ({
 vi.mock('../src/utils/SceneRouter.js', () => ({
   TRANSITION_REASONS: {
     NEW_GAME: 'new_game',
+    BEGIN_RUN: 'begin_run',
   },
   transitionToScene: transitionToSceneMock,
+}));
+
+// The fast-path helper is unit-tested separately (firstRunFastPath.test.js);
+// here we only assert TitleScene wires into it correctly.
+vi.mock('../src/utils/firstRunFastPath.js', () => ({
+  startFirstRunFastPath: startFirstRunFastPathMock,
 }));
 
 vi.mock('../src/engine/SlotManager.js', () => ({
@@ -49,6 +58,14 @@ vi.mock('../src/cloud/supabaseClient.js', () => ({
   signOut: vi.fn(),
 }));
 
+vi.mock('../src/engine/HintManager.js', () => ({
+  HintManager: class {
+    constructor(slot) {
+      this.slot = slot;
+    }
+  },
+}));
+
 vi.mock('../src/engine/MetaProgressionManager.js', () => ({
   MetaProgressionManager: class {
     constructor(upgradesData, storageKey) {
@@ -62,7 +79,6 @@ vi.mock('../src/engine/MetaProgressionManager.js', () => ({
 }));
 
 import { TitleScene } from '../src/scenes/TitleScene.js';
-import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 
 function makeRegistry(seed = {}) {
   const store = new Map(Object.entries(seed));
@@ -93,10 +109,10 @@ function makeScene(registrySeed = {}) {
   return { scene, audio, store };
 }
 
-describe('TitleScene NEW GAME failure handling', () => {
+describe('TitleScene NEW GAME → first-run fast path', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transitionToSceneMock.mockResolvedValue(true);
+    startFirstRunFastPathMock.mockResolvedValue(true);
     getNextAvailableSlotMock.mockReturnValue(1);
     metaInstances.length = 0;
   });
@@ -111,35 +127,53 @@ describe('TitleScene NEW GAME failure handling', () => {
     expect(scene.showMessage).toHaveBeenCalledWith(
       'All 3 save slots are full.\nDelete a slot from Continue to free space.',
     );
-    expect(transitionToSceneMock).not.toHaveBeenCalled();
+    expect(startFirstRunFastPathMock).not.toHaveBeenCalled();
     expect(setActiveSlotMock).not.toHaveBeenCalled();
     expect(metaInstances).toHaveLength(0);
   });
 
-  it('does not persist slot/meta state when transition returns false', async () => {
-    transitionToSceneMock.mockResolvedValue(false);
+  it('starts the fast path with the next slot and persists on success', async () => {
+    getNextAvailableSlotMock.mockReturnValue(3);
+    const { scene, store } = makeScene();
+
+    const ok = await TitleScene.prototype.handleNewGame.call(scene);
+
+    expect(ok).toBe(true);
+    expect(startFirstRunFastPathMock).toHaveBeenCalledTimes(1);
+    expect(startFirstRunFastPathMock).toHaveBeenCalledWith(scene, {
+      gameData: scene.gameData,
+      slot: 3,
+    });
+    expect(setActiveSlotMock).toHaveBeenCalledTimes(1);
+    expect(setActiveSlotMock).toHaveBeenCalledWith(3);
+    expect(store.get('meta')).toBe(metaInstances[0]);
+    expect(store.get('activeSlot')).toBe(3);
+    // Hints are staged the same way SlotPicker does.
+    expect(store.get('hints')?.slot).toBe(3);
+  });
+
+  it('does not persist slot/meta/hints state when the fast path is rejected', async () => {
+    startFirstRunFastPathMock.mockResolvedValue(false);
     getNextAvailableSlotMock.mockReturnValue(2);
     const previousMeta = { tag: 'existing-meta' };
-    const { scene, store } = makeScene({ meta: previousMeta, activeSlot: 1 });
+    const previousHints = { tag: 'existing-hints' };
+    const { scene, store } = makeScene({
+      meta: previousMeta,
+      hints: previousHints,
+      activeSlot: 1,
+    });
 
     const ok = await TitleScene.prototype.handleNewGame.call(scene);
 
     expect(ok).toBe(false);
-    expect(transitionToSceneMock).toHaveBeenCalledWith(
-      scene,
-      'HomeBase',
-      { gameData: scene.gameData },
-      { reason: TRANSITION_REASONS.NEW_GAME },
-    );
-    expect(metaInstances).toHaveLength(1);
-    expect(metaInstances[0]._save).not.toHaveBeenCalled();
     expect(setActiveSlotMock).not.toHaveBeenCalled();
     expect(store.get('meta')).toBe(previousMeta);
+    expect(store.get('hints')).toBe(previousHints);
     expect(store.get('activeSlot')).toBe(1);
   });
 
-  it('rolls back staged state when transition throws', async () => {
-    transitionToSceneMock.mockRejectedValueOnce(new Error('transition exploded'));
+  it('rolls back staged state when the fast path throws', async () => {
+    startFirstRunFastPathMock.mockRejectedValueOnce(new Error('transition exploded'));
     getNextAvailableSlotMock.mockReturnValue(3);
     const previousMeta = { tag: 'existing-meta' };
     const { scene, store } = makeScene({ meta: previousMeta, activeSlot: 2 });
@@ -148,31 +182,13 @@ describe('TitleScene NEW GAME failure handling', () => {
       'transition exploded',
     );
 
-    expect(metaInstances).toHaveLength(1);
-    expect(metaInstances[0]._save).not.toHaveBeenCalled();
     expect(setActiveSlotMock).not.toHaveBeenCalled();
     expect(store.get('meta')).toBe(previousMeta);
     expect(store.get('activeSlot')).toBe(2);
   });
 
-  it('persists exactly once on successful transition', async () => {
-    transitionToSceneMock.mockResolvedValue(true);
-    getNextAvailableSlotMock.mockReturnValue(3);
-    const { scene, store } = makeScene();
-
-    const ok = await TitleScene.prototype.handleNewGame.call(scene);
-
-    expect(ok).toBe(true);
-    expect(metaInstances).toHaveLength(1);
-    expect(metaInstances[0]._save).toHaveBeenCalledTimes(1);
-    expect(setActiveSlotMock).toHaveBeenCalledTimes(1);
-    expect(setActiveSlotMock).toHaveBeenCalledWith(3);
-    expect(store.get('meta')).toBe(metaInstances[0]);
-    expect(store.get('activeSlot')).toBe(3);
-  });
-
   it('restores menu interactivity when NEW GAME transition is rejected', async () => {
-    transitionToSceneMock.mockResolvedValue(false);
+    startFirstRunFastPathMock.mockResolvedValue(false);
     const { scene, audio } = makeScene();
 
     await TitleScene.prototype.runMenuTransition.call(scene, () =>
@@ -188,7 +204,7 @@ describe('TitleScene NEW GAME failure handling', () => {
   });
 
   it('restores menu interactivity and shows message when NEW GAME transition throws', async () => {
-    transitionToSceneMock.mockRejectedValueOnce(new Error('router failed'));
+    startFirstRunFastPathMock.mockRejectedValueOnce(new Error('router failed'));
     const { scene, audio } = makeScene();
 
     await TitleScene.prototype.runMenuTransition.call(scene, () =>
