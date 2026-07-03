@@ -1,11 +1,16 @@
 // GridParity.test.js — Anti-drift parity tests: HeadlessGrid vs production Grid.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'fs';
 import { HeadlessGrid } from './HeadlessGrid.js';
 import { Grid } from '../../src/engine/Grid.js';
 import { generateBattle } from '../../src/engine/MapGenerator.js';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
+
+const terrainNameIndex = Object.fromEntries(
+  JSON.parse(readFileSync('data/terrain.json', 'utf8')).map((t, i) => [t.name, i]),
+);
 
 // Minimal Phaser scene stub for production Grid
 function createMockScene() {
@@ -223,5 +228,61 @@ describe('GridParity', () => {
     const hSet = new Set(hTiles.map((t) => `${t.col},${t.row}`));
     const pSet = new Set(pTiles.map((t) => `${t.col},${t.row}`));
     expect(hSet).toEqual(pSet);
+  });
+
+  describe('reconstructIcePath parity (Ice layouts)', () => {
+    // Hand-authored layouts containing Ice, mirroring the pattern used in
+    // GridPathfinding.test.js, since generateBattle-produced maps aren't
+    // guaranteed to include Ice tiles.
+    function buildIceLayoutPair(namesGrid) {
+      const rows = namesGrid.length;
+      const cols = namesGrid[0].length;
+      const mapLayout = namesGrid.map((row) => row.map((name) => terrainNameIndex[name]));
+      const headless = new HeadlessGrid(cols, rows, gameData.terrain, mapLayout);
+      const production = new Grid(createMockScene(), cols, rows, gameData.terrain, mapLayout);
+      return { headless, production, cols, rows };
+    }
+
+    const ICE_LAYOUTS = [
+      [
+        ['Plain', 'Plain', 'Ice', 'Ice', 'Plain', 'Plain'],
+        ['Plain', 'Forest', 'Ice', 'Plain', 'Plain', 'Plain'],
+        ['Plain', 'Plain', 'Ice', 'Ice', 'Ice', 'Plain'],
+        ['Plain', 'Plain', 'Plain', 'Plain', 'Ice', 'Plain'],
+        ['Plain', 'Wall', 'Plain', 'Plain', 'Ice', 'Plain'],
+        ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+      ],
+      [
+        ['Plain', 'Ice', 'Ice', 'Ice', 'Ice', 'Plain'],
+        ['Plain', 'Ice', 'Wall', 'Wall', 'Ice', 'Plain'],
+        ['Plain', 'Ice', 'Ice', 'Ice', 'Ice', 'Plain'],
+        ['Plain', 'Plain', 'Forest', 'Plain', 'Plain', 'Plain'],
+        ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+        ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+      ],
+    ];
+
+    it('reconstructIcePath matches for all in-range goals across Ice layouts', () => {
+      for (const namesGrid of ICE_LAYOUTS) {
+        const { headless, production, cols, rows } = buildIceLayoutPair(namesGrid);
+        for (const moveType of ['Infantry', 'Cavalry']) {
+          const hRange = headless.getMovementRange(0, 0, 7, moveType);
+          const pRange = production.getMovementRange(0, 0, 7, moveType);
+          // Same reachable set is a precondition for this test to be meaningful.
+          expect(new Set(hRange.keys())).toEqual(new Set(pRange.keys()));
+
+          for (const key of hRange.keys()) {
+            if (key === '0,0') continue;
+            const [gc, gr] = key.split(',').map(Number);
+            if (gc >= cols || gr >= rows) continue;
+            const hPath = headless.reconstructIcePath(hRange, 0, 0, gc, gr);
+            const pPath = production.reconstructIcePath(pRange, 0, 0, gc, gr);
+            expect(hPath, `headless path null at ${key}`).not.toBeNull();
+            expect(pPath, `production path null at ${key}`).not.toBeNull();
+            expect(hPath).toEqual(pPath);
+          }
+        }
+      }
+    });
   });
 });

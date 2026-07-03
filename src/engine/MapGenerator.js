@@ -1558,6 +1558,7 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
       // Placed at the pool's max level via the level branch in generateEnemies.
       // Class is a uniform base-pool pick (never promoted — chokepoint runs in
       // all acts and a promoted unit in act1 would be a difficulty spike).
+      if (!pool.base?.length) return null;
       return pool.base[Math.floor(Math.random() * pool.base.length)];
     case 'boss_or_strongest':
       return null; // boss already placed by seize logic; skip
@@ -1588,6 +1589,7 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
         : pool.base[Math.floor(Math.random() * pool.base.length)];
     }
     default:
+      if (!pool.base?.length) return null;
       return pool.base[Math.floor(Math.random() * pool.base.length)];
   }
 }
@@ -2992,4 +2994,5 @@ export {
   applyStructures,
   getFallbackPassable,
   CAVALRY_CARVE_MAX_CONVERSIONS,
+  resolveAnchorUnitClass,
 };

@@ -750,9 +750,13 @@ export class AIController {
     // lies inside it, the range's parent chain already encodes the optimal,
     // ice-correct path (the range itself was computed ice-aware). Reconstruct it
     // directly in O(path length) and skip the full A* + ice-validation pass. Only
-    // opted into by _buildPath — the resulting final tile is identical to A*'s, but
-    // the intermediate path shape can differ on equal-cost ties, so callers that
-    // consume path shape (the chase helpers) leave this off to stay behavior-frozen.
+    // opted into by _buildPath — the reconstructed route and A* optimize different
+    // cost models (Dijkstra range charges ice entry once and slides free; A* treats
+    // ice as normal walk cost), so the visible route can differ categorically (e.g.
+    // sliding across ice vs walking around it). Only the landing tile is guaranteed
+    // identical between the two, and every game-state consumer (movement resolution,
+    // occupancy checks) relies only on the landing tile. Callers that consume path
+    // shape itself (the chase helpers) leave this off to stay behavior-frozen.
     if (
       preferReconstruct &&
       moveRange &&
