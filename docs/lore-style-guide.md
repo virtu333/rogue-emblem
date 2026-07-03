@@ -69,6 +69,12 @@ grim-declarative. No single register should dominate a file.
   to stop."
 - **The sacred ground** — consecrated to keep something asleep; the ritual
   overfed it.
+- **One faith; the goddess's name "was spent"** — a single old faith whose
+  goddess is nameless because the ritual/loop consumed the name (not merely
+  forgotten). The one in-data anchor is Goddess Icon's lore line ("The
+  goddess's name was not forgotten; it was spent.") — never cut it. The seer
+  order and its liturgy are that faith's remnant institution.
+- **The border quarries** — act1 geography; the levies stripped them for war.
 - **"Mounted" reclass = Cavalry + Flying.** The Mounted Seal reclasses into
   cavalry AND fliers (pegasus/wyvern), so mount lore must say "mount," never
   assume horses.
