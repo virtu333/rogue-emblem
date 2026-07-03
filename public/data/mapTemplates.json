@@ -956,6 +956,7 @@
     {
       "id": "corridor_siege",
       "name": "Corridor Siege",
+      "parBonus": 1,
       "fogChance": 0.15,
       "acts": [
         "act2",
@@ -1186,6 +1187,7 @@
     {
       "id": "castle_ruins",
       "name": "Castle Ruins",
+      "parBonus": 2,
       "fogChance": 0.25,
       "acts": [
         "act2",
@@ -1594,6 +1596,310 @@
           ]
         }
       }
+    },
+    {
+      "id": "glacier_run",
+      "name": "Glacier Run",
+      "fogChance": 0.2,
+      "acts": [
+        "act4"
+      ],
+      "biome": "tundra",
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 45,
+            "Ice": 35,
+            "Forest": 10,
+            "Mountain": 10
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.2,
+            0.15,
+            0.8,
+            0.85
+          ],
+          "terrain": {
+            "Ice": 65,
+            "Plain": 30,
+            "Forest": 5
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 25,
+            "Fort": 15,
+            "Forest": 5
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Ice": 25,
+            "Fort": 15,
+            "Mountain": 10
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "enemyWeights": {
+        "flying": 1.3,
+        "cavalry": 0.7
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "bottom"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 6,
+            "count": [
+              3,
+              4
+            ],
+            "edges": [
+              "bottom",
+              "right"
+            ]
+          },
+          {
+            "turn": 9,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "bottom"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "right",
+                "bottom"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "magma_flow",
+      "name": "Magma Flow",
+      "fogChance": 0.05,
+      "acts": [
+        "act4"
+      ],
+      "biome": "volcano",
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Lava Crack": 25,
+            "Mountain": 20
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.35,
+            0.1,
+            0.65,
+            0.9
+          ],
+          "terrain": {
+            "Lava Crack": 70,
+            "Plain": 30
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Mountain": 25,
+            "Fort": 15
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Mountain": 30,
+            "Fort": 15
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "enemyWeights": {
+        "mage": 1.3,
+        "flying": 1.2
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 6,
+            "count": [
+              3,
+              5
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          },
+          {
+            "turn": 9,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 12,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "right",
+                "top"
+              ]
+            }
+          ]
+        }
+      }
     }
   ],
   "seize": [
@@ -1773,6 +2079,7 @@
     {
       "id": "great_hall",
       "name": "Great Hall",
+      "parBonus": 1,
       "fogChance": 0.1,
       "acts": [
         "act2",
@@ -3557,6 +3864,127 @@
       "enemyWeights": {
         "archer": 1.3,
         "infantry": 1.1
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "left"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          }
+        ],
+        "repeatingWaves": [
+          {
+            "startTurn": 5,
+            "every": 2,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ],
+            "xpMultiplier": 0.25,
+            "maxActiveEnemies": 18
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -2
+        },
+        "xpDecay": [
+          0.75,
+          0.5,
+          0.25,
+          0.25
+        ]
+      }
+    },
+    {
+      "id": "frozen_flight",
+      "name": "Frozen Flight",
+      "fogChance": 0.2,
+      "acts": [
+        "act4"
+      ],
+      "biome": "tundra",
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 30,
+            "Forest": 10,
+            "Mountain": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0,
+            0.25,
+            0.12,
+            0.75
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Ice": 30
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.35,
+            0,
+            0.8,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 30,
+            "Forest": 10,
+            "Fort": 5
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "escapeZone": {
+        "rect": [
+          0.88,
+          0.25,
+          1,
+          0.75
+        ],
+        "tileCount": 2
+      },
+      "features": [
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
+      ],
+      "anchors": [],
+      "enemyWeights": {
+        "cavalry": 1.3,
+        "flying": 1.1
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {

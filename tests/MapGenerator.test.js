@@ -3,6 +3,7 @@ import {
   generateBattle,
   scoreSpawnTile,
   resolveClassWeight,
+  pickTemplate,
   CAVALRY_CARVE_MAX_CONVERSIONS,
 } from '../src/engine/MapGenerator.js';
 import {
@@ -2943,5 +2944,76 @@ describe('Phase 1.3 — reinforcement gating', () => {
       ),
     );
     expect(config.reinforcements).toBeDefined();
+  });
+});
+
+// ═══ Phase 4.2 — template weight knob + biome variety ═══
+
+describe('Phase 4.2 — pickTemplate weight knob', () => {
+  const plainZones = [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }];
+  function pickManyLocal(mapTemplates, seed, n) {
+    const counts = {};
+    const orig = Math.random;
+    Math.random = mulberry32(seed);
+    try {
+      for (let i = 0; i < n; i++) {
+        const t = pickTemplate('rout', mapTemplates, null, {});
+        counts[t.id] = (counts[t.id] || 0) + 1;
+      }
+    } finally {
+      Math.random = orig;
+    }
+    return counts;
+  }
+
+  it('a higher weight template is selected much more often', () => {
+    const mapTemplates = {
+      rout: [
+        { id: 'heavy', zones: plainZones, weight: 9 },
+        { id: 'light', zones: plainZones, weight: 1 },
+      ],
+      seize: [],
+      escape: [],
+    };
+    const counts = pickManyLocal(mapTemplates, 123, 3000);
+    // Expected split ~90/10; assert heavy strongly dominates.
+    expect(counts.heavy).toBeGreaterThan(counts.light * 5);
+  });
+
+  it('defaults to uniform selection when weight is unset', () => {
+    const mapTemplates = {
+      rout: [
+        { id: 'a', zones: plainZones },
+        { id: 'b', zones: plainZones },
+      ],
+      seize: [],
+      escape: [],
+    };
+    const counts = pickManyLocal(mapTemplates, 77, 4000);
+    const ratio = counts.a / counts.b;
+    expect(ratio).toBeGreaterThan(0.8);
+    expect(ratio).toBeLessThan(1.25);
+  });
+
+  it('new act4 biome templates exist and generate valid battles', () => {
+    const routIds = data.mapTemplates.rout.map((t) => t.id);
+    const escapeIds = data.mapTemplates.escape.map((t) => t.id);
+    expect(routIds).toContain('glacier_run');
+    expect(routIds).toContain('magma_flow');
+    expect(escapeIds).toContain('frozen_flight');
+
+    for (const [id, obj] of [
+      ['glacier_run', 'rout'],
+      ['magma_flow', 'rout'],
+      ['frozen_flight', 'escape'],
+    ]) {
+      const config = withSeed(9, () =>
+        generateBattle({ act: 'act4', objective: obj, templateId: id, difficultyId: 'hard' }, data),
+      );
+      expect(config.templateId).toBe(id);
+      expect(config.playerSpawns.length).toBeGreaterThan(0);
+      expect(config.enemySpawns.length).toBeGreaterThan(0);
+      if (obj === 'escape') expect(config.escapeTiles.length).toBeGreaterThan(0);
+    }
   });
 });

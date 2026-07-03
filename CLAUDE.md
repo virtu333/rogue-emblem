@@ -48,7 +48,7 @@ emblem-rogue/
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
 │   ├── skills.json        # 52 skills across 7 trigger types
-│   ├── terrain.json       # 15 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista)
+│   ├── terrain.json       # 19 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista, Swamp, Bog, Acidic Swamp/Bog)
 │   ├── turnBonus.json     # Turn par calculation config
 │   ├── weaponArts.json    # 75 weapon arts across 5 types, HP-cost combat mods
 │   ├── weapons.json       # 116 weapons across 8 types (incl. Restore cure staff, enemy-only status staves)

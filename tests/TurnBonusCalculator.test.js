@@ -143,6 +143,36 @@ describe('TurnBonusCalculator', () => {
       expect(par).toBe(5);
     });
 
+    // Phase 4.1 — indoor/hazard terrain now contributes to par.
+    it('counts Pillar as difficult terrain (indoor maps)', () => {
+      expect(config.difficultTerrainTypes).toContain('Pillar');
+      const cols = 8;
+      const rows = 6;
+      const plain = makeMapLayout(cols, rows, TERRAIN_INDEX.Plain);
+      const pillared = makeMapLayout(cols, rows, TERRAIN_INDEX.Plain);
+      // Sprinkle 12 Pillar tiles (25% of the map)
+      let placed = 0;
+      for (let r = 0; r < rows && placed < 12; r++) {
+        for (let c = 0; c < cols && placed < 12; c++) {
+          if ((r * cols + c) % 4 === 0) {
+            pillared[r][c] = TERRAIN_INDEX.Pillar;
+            placed++;
+          }
+        }
+      }
+      const base = { cols, rows, enemyCount: 8, objective: 'rout' };
+      const plainPar = calculatePar(makeMapParams({ ...base, mapLayout: plain }), config);
+      const pillarPar = calculatePar(makeMapParams({ ...base, mapLayout: pillared }), config);
+      expect(pillarPar).toBeGreaterThanOrEqual(plainPar);
+    });
+
+    it('applies template parBonus on top of terrain penalty', () => {
+      const base = makeMapParams({ cols: 10, rows: 8, enemyCount: 10, objective: 'rout' });
+      const noBonus = calculatePar(base, config);
+      const withBonus = calculatePar({ ...base, parBonus: 2 }, config);
+      expect(withBonus).toBe(noBonus + 2);
+    });
+
     it('handles all difficult terrain', () => {
       const par = calculatePar(
         makeMapParams({

@@ -183,6 +183,64 @@ describe('Grid.findPath — A* correctness', () => {
   });
 });
 
+describe('Grid.getAttackRange', () => {
+  it('returns the ring of tiles at weapon range, clamped to bounds', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+    ]);
+    // Range 1 melee from center (1,1) → 4 orthogonal neighbors.
+    const melee = grid.getAttackRange(1, 1, { range: '1' });
+    const meleeKeys = new Set(melee.map((t) => `${t.col},${t.row}`));
+    expect(meleeKeys).toEqual(new Set(['1,0', '0,1', '2,1', '1,2']));
+
+    // Range 2 from a corner (0,0) stays in-bounds: (2,0),(1,1),(0,2).
+    const ranged = grid.getAttackRange(0, 0, { range: '2' });
+    const rangedKeys = new Set(ranged.map((t) => `${t.col},${t.row}`));
+    expect(rangedKeys).toEqual(new Set(['2,0', '1,1', '0,2']));
+  });
+
+  it('supports min-max ranges (e.g. 2-3) excluding closer tiles', () => {
+    const grid = gridFromNames(Array.from({ length: 7 }, () => Array(7).fill('Plain')));
+    const tiles = grid.getAttackRange(3, 3, { range: '2-3' });
+    for (const t of tiles) {
+      const d = Math.abs(t.col - 3) + Math.abs(t.row - 3);
+      expect(d).toBeGreaterThanOrEqual(2);
+      expect(d).toBeLessThanOrEqual(3);
+    }
+    // Adjacent (range 1) tiles are excluded.
+    expect(tiles.some((t) => Math.abs(t.col - 3) + Math.abs(t.row - 3) === 1)).toBe(false);
+  });
+
+  it('returns [] for no weapon', () => {
+    const grid = gridFromNames([['Plain', 'Plain']]);
+    expect(grid.getAttackRange(0, 0, null)).toEqual([]);
+  });
+});
+
+describe('Grid.getVisionRange', () => {
+  it('returns the manhattan diamond within bounds', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+    ]);
+    const vis = grid.getVisionRange(1, 1, 1);
+    expect(vis).toEqual(new Set(['1,1', '1,0', '0,1', '2,1', '1,2']));
+  });
+
+  it('clamps to map bounds at a corner', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain'],
+    ]);
+    const vis = grid.getVisionRange(0, 0, 1);
+    expect(vis).toEqual(new Set(['0,0', '1,0', '0,1']));
+  });
+});
+
 // ─── The core equivalence invariant the Phase 3 optimization depends on ───
 describe('reconstructIcePath ≡ A*+computeEffectivePath cost (property)', () => {
   const NAMES_NO_ICE = ['Plain', 'Plain', 'Plain', 'Forest', 'Sand', 'Wall'];

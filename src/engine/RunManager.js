@@ -449,16 +449,13 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = generateNodeMap(
-      this.currentAct,
-      this.currentActConfig,
-      this.gameData.mapTemplates,
-      {
+    this.nodeMap = this._withNodeMapSeed(() =>
+      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-      },
+      }),
     );
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
@@ -2882,6 +2879,30 @@ export class RunManager {
     return boss ? boss.completed : false;
   }
 
+  /**
+   * Run node-map generation under a seeded Math.random derived from runSeed + the
+   * current act, so a given (runSeed, act) always yields the same graph.
+   * NodeMapGenerator uses ambient Math.random; this scopes it with the same
+   * install/restore pattern as BattleScene.withBattleSeed. No player-visible change
+   * today (runSeed defaults to Date.now()); this unblocks seeded/daily runs.
+   */
+  _withNodeMapSeed(fn) {
+    const base = Number.isFinite(this.runSeed) ? this.runSeed >>> 0 : 0;
+    let h = 2166136261 >>> 0;
+    const input = `nodemap:${base}:${this.currentAct}`;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    const prevRandom = Math.random;
+    Math.random = createSeededRng(h >>> 0);
+    try {
+      return fn();
+    } finally {
+      Math.random = prevRandom;
+    }
+  }
+
   /** Advance to the next act. Generates a new node map. Returns { unlockedArtIds, displacedSkills }. */
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
@@ -2889,16 +2910,13 @@ export class RunManager {
       return { unlockedArtIds: [], displacedSkills: {} };
     this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
-    this.nodeMap = generateNodeMap(
-      this.currentAct,
-      this.currentActConfig,
-      this.gameData.mapTemplates,
-      {
+    this.nodeMap = this._withNodeMapSeed(() =>
+      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-      },
+      }),
     );
     this.shopStateByNodeId = {};
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
