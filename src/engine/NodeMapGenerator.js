@@ -37,32 +37,9 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     ? Math.max(0, Math.min(1, options.villageAmbushChance))
     : 0;
   const { rows } = actConfig;
-
-  // Special case: finalBoss is a single boss node
-  if (rows === 1) {
-    const node = {
-      id: `${actId}_0_0`,
-      row: 0,
-      col: CENTER_COL,
-      type: NODE_TYPES.BOSS,
-      edges: [],
-      battleParams: { act: actId, objective: 'seize', battleSeed: rollBattleSeed() },
-      completed: false,
-    };
-    // Assign template for single-node boss
-    const biome = rollBiome(actId);
-    const template = pickTemplateForNode('seize', mapTemplates, actId, true, biome);
-    if (template) {
-      node.templateId = template.id;
-      node.battleParams.templateId = template.id;
-    }
-    return {
-      actId,
-      nodes: [node],
-      startNodeId: node.id,
-      bossNodeId: node.id,
-    };
-  }
+  // Every act (incl. finalBoss, rows === 2) uses the lane flow below: the first
+  // and last two rows are pinned to CENTER_COL, so the boss row is always
+  // reachable without a special single-node path.
 
   // Step 1: Assign column lanes to each row
   const rowCols = [];
@@ -76,25 +53,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     }
   }
 
-  // Backward pass: ensure penultimate row can reach the boss at CENTER_COL
-  if (rows > 2) {
-    const penultimate = rowCols[rows - 2];
-    if (!penultimate.some((c) => Math.abs(c - CENTER_COL) <= 1)) {
-      // Add a column reachable from the row before AND within ±1 of boss
-      const rowBefore = rowCols[rows - 3]; // exists because rows > 2 means rows >= 3
-      const candidates = [CENTER_COL - 1, CENTER_COL, CENTER_COL + 1].filter(
-        (c) =>
-          c >= 0 &&
-          c < NUM_COLUMNS &&
-          !penultimate.includes(c) &&
-          rowBefore.some((pc) => Math.abs(pc - c) <= 1),
-      );
-      if (candidates.length > 0) {
-        penultimate.push(candidates[Math.floor(Math.random() * candidates.length)]);
-        penultimate.sort((a, b) => a - b);
-      }
-    }
-  }
+  // Note: no backward pass is needed — row `rows - 2` is pinned to [CENTER_COL]
+  // above, so the penultimate row is always within ±1 of the boss at CENTER_COL.
 
   // Step 2: Create nodes from column assignments
   const nodes = [];
@@ -162,6 +122,28 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     connectRows(rowNodes[r], rowNodes[r + 1]);
   }
 
+  // Convert a BATTLE/SHOP node to RECRUIT consistently: fresh recruit
+  // battleParams, drop the stale BATTLE templateId (it no longer matches), and
+  // re-roll fog against the act-level chance (the old per-template BATTLE fog roll
+  // no longer applies). All RECRUIT nodes come from conversion, so this defines
+  // recruit fog behavior uniformly instead of inheriting it from the source node.
+  const convertToRecruit = (node) => {
+    node.type = NODE_TYPES.RECRUIT;
+    node.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, node.row, rows);
+    delete node.templateId;
+    delete node.fogEnabled;
+    let adjustedFogChance = Math.max(
+      0,
+      Math.min(0.9, (FOG_CHANCE_BY_ACT[actId] || 0) + fogChanceBonus),
+    );
+    if (halfFogChance) {
+      adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
+    }
+    if (Math.random() < adjustedFogChance) {
+      node.fogEnabled = true;
+    }
+  };
+
   // Post-process: guarantee 2-3 RECRUIT nodes per act (middle rows only)
   const convertibleTypes = [NODE_TYPES.BATTLE, NODE_TYPES.SHOP];
   const targetRecruits = 2; // guaranteed minimum
@@ -173,8 +155,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     const battleFirst = remaining.filter((n) => n.type === NODE_TYPES.BATTLE);
     const candidates = battleFirst.length > 0 ? battleFirst : remaining;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    pick.type = NODE_TYPES.RECRUIT;
-    pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row, rows);
+    convertToRecruit(pick);
   }
   // 50% chance for a 3rd recruit
   if (Math.random() < 0.5) {
@@ -183,8 +164,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     );
     if (remaining.length > 0) {
       const pick = remaining[Math.floor(Math.random() * remaining.length)];
-      pick.type = NODE_TYPES.RECRUIT;
-      pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row, rows);
+      convertToRecruit(pick);
     }
   }
 
@@ -206,6 +186,10 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         const pick = eligible[Math.floor(Math.random() * eligible.length)];
         pick.type = NODE_TYPES.COLOSSEUM;
         pick.battleParams = null;
+        // Colosseum is an arena fight, not a map battle — drop the stale BATTLE
+        // templateId and fog flag.
+        delete pick.templateId;
+        delete pick.fogEnabled;
       }
     }
   }

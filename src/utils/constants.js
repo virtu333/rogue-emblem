@@ -94,7 +94,12 @@ export const LAVA_CRACK_DAMAGE = 5;
 export const ACID_DAMAGE_PERCENT = 0.05;
 export const ACID_DAMAGE_MAX = 10;
 
-// Terrain index enum (matches terrain.json order)
+// Terrain index enum — POSITIONAL COUPLING: each value is the array index into
+// terrain.json. Serialized node maps and locked battle configs in existing saves
+// store these indices, so entries must NEVER be reordered or removed (only
+// appended). This includes seemingly-unused entries like Village — dropping one
+// would shift every later index and corrupt saved terrain. Keep in sync with
+// terrain.json order.
 export const TERRAIN = {
   Plain: 0,
   Forest: 1,

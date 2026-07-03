@@ -827,6 +827,32 @@ describe('Template-driven fog', () => {
     }
   });
 
+  // Phase 6.3 — converted nodes must not carry the source BATTLE node's stale
+  // templateId (it no longer matches their battleParams).
+  it('RECRUIT and COLOSSEUM nodes never carry a stale templateId', () => {
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, mapTemplates, {
+        colosseumConfig: { spawnChance: 1, preferredRows: [2, 3, 4] },
+      });
+      for (const n of map.nodes) {
+        if (n.type === NODE_TYPES.RECRUIT || n.type === NODE_TYPES.COLOSSEUM) {
+          expect(n.templateId).toBeUndefined();
+        }
+      }
+    }
+  });
+
+  it('COLOSSEUM nodes carry no fog flag', () => {
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, mapTemplates, {
+        colosseumConfig: { spawnChance: 1, preferredRows: [2, 3, 4] },
+      });
+      for (const n of map.nodes.filter((x) => x.type === NODE_TYPES.COLOSSEUM)) {
+        expect(n.fogEnabled).toBeUndefined();
+      }
+    }
+  });
+
   it('falls back to the first rout template when objective pool is missing', () => {
     const customTemplates = {
       rout: [
