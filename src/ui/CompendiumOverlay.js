@@ -3,6 +3,7 @@
 
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
+import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -72,6 +73,9 @@ export class CompendiumOverlay {
     this.searchIndex = [];
     this.searchInputActive = false;
     this._keyboardSearchHandler = null;
+    // Memoized bestiary list (bosses gated by act-reached milestones + all
+    // classes). Reset on each show() so milestone unlocks appear in real time.
+    this._foesItems = null;
 
     // Gamepad/keyboard focus: a ring on the active tab. The overlay pushes one
     // input-focus scope (LIFO) on show and pops it on hide, so the pad drives it on
@@ -89,6 +93,9 @@ export class CompendiumOverlay {
     this.searchResults = [];
     this.activeSearchResult = -1;
     this.searchInputActive = false;
+    // Re-read act-reached milestones every open so newly reached bosses appear
+    // (incl. mid-run pause → Compendium) and drop out of the search index too.
+    this._foesItems = null;
     this._buildSearchIndex();
     this._draw();
     this._setupFocus();
@@ -226,15 +233,19 @@ export class CompendiumOverlay {
   _getFoesItems() {
     if (this._foesItems) return this._foesItems;
     const gd = this.gameData;
+    // Each act's bosses stay hidden until any run (any slot) has reached that
+    // act. Read cross-slot so Title-screen access (no registry meta) matches
+    // in-run access. Classes below are always visible.
     const bossActs = [
-      ['act1', 'Act 1'],
-      ['act2', 'Act 2'],
-      ['act3', 'Act 3'],
-      ['act4', 'Act 4'],
-      ['finalBoss', 'Final'],
+      ['act1', 'Act 1', 'reachedAct1'],
+      ['act2', 'Act 2', 'reachedAct2'],
+      ['act3', 'Act 3', 'reachedAct3'],
+      ['act4', 'Act 4', 'reachedAct4'],
+      ['finalBoss', 'Final', 'reachedFinalBoss'],
     ];
     const bosses = [];
-    for (const [actKey, actLabel] of bossActs) {
+    for (const [actKey, actLabel, milestone] of bossActs) {
+      if (!hasAnySlotMilestone(milestone)) continue;
       for (const boss of gd?.enemies?.bosses?.[actKey] || []) {
         bosses.push({ ...boss, _kind: 'boss', _actLabel: actLabel });
       }
@@ -732,6 +743,13 @@ export class CompendiumOverlay {
 
   _renderItems(items, startY, left, panelW) {
     const def = TAB_DEFS[this.activeTabIndex];
+    if (items.length === 0) {
+      // The Foes tab's Bosses filter can be empty on a fresh save (nothing
+      // reached yet). Other tabs shouldn't hit this, but guard generically.
+      const msg = def.key === 'foes' ? 'No foes encountered yet.' : 'Nothing to show yet.';
+      this._text(left + panelW / 2, startY + 8, msg, '#888888', 0.5);
+      return;
+    }
     const linesPerItem = LINES_BY_KEY[def.key] ?? 2;
     const lineH = 14;
     // Keep final row clear of page-nav controls in filtered tabs.

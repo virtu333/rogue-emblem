@@ -51,6 +51,16 @@ import {
   CHURCH_SCROLL_STEP,
 } from '../ui/nodeMapOverlayLayout.js';
 
+// Maps runManager.currentAct → the meta milestone recorded on node-map entry,
+// which the Compendium Foes tab reads to gate each act's boss.
+const ACT_REACHED_MILESTONE = {
+  act1: 'reachedAct1',
+  act2: 'reachedAct2',
+  act3: 'reachedAct3',
+  act4: 'reachedAct4',
+  finalBoss: 'reachedFinalBoss',
+};
+
 // Layout constants
 const MAP_TOP = 60;
 const MAP_BOTTOM = 400;
@@ -191,6 +201,9 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     this.persistRunSave();
+
+    // Record the act reached for Compendium foe-gating (idempotent, real-time).
+    this._recordActReachedMilestone();
 
     this.pauseOverlay = null;
     this.settingsOverlay = null;
@@ -955,6 +968,20 @@ export class NodeMapScene extends Phaser.Scene {
           : 'Save failed — storage may be unavailable',
       );
     }
+  }
+
+  // Record which act this run has reached so the Compendium Foes tab can gate
+  // each act's boss behind having reached it. Real-time (fires on every node-map
+  // entry, incl. resumed runs and mid-run act advances), idempotent (guarded by
+  // hasMilestone so it does not re-trigger meta saves), and null-safe (dev routes
+  // may have no meta singleton).
+  _recordActReachedMilestone() {
+    const meta = this.registry.get('meta');
+    if (!meta?.recordMilestone) return;
+    const milestone = ACT_REACHED_MILESTONE[this.runManager?.currentAct];
+    if (!milestone) return;
+    if (meta.hasMilestone?.(milestone)) return;
+    meta.recordMilestone(milestone);
   }
 
   showPauseMenu() {

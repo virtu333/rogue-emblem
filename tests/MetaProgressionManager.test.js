@@ -968,6 +968,22 @@ describe('MetaProgressionManager', () => {
     expect(meta.getMilestones()).toEqual([]);
   });
 
+  it('round-trips the reached-act milestones used for Foes gating', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('reachedAct1');
+    meta.recordMilestone('reachedAct2');
+    meta.recordMilestone('reachedFinalBoss');
+    // Persisted as a plain array (cloud sync carries the blob unchanged).
+    const saved = JSON.parse(store['emblem_rogue_meta_save']);
+    expect(saved.milestones).toEqual(['reachedAct1', 'reachedAct2', 'reachedFinalBoss']);
+    // Reload from disk → the same set is restored.
+    const reloaded = new MetaProgressionManager(upgradesData);
+    expect(reloaded.hasMilestone('reachedAct1')).toBe(true);
+    expect(reloaded.hasMilestone('reachedAct2')).toBe(true);
+    expect(reloaded.hasMilestone('reachedFinalBoss')).toBe(true);
+    expect(reloaded.hasMilestone('reachedAct3')).toBe(false);
+  });
+
   // --- Prerequisite methods ---
 
   it('meetsPrerequisites returns true for upgrades with no requires field', () => {

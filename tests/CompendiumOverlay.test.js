@@ -1,9 +1,46 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CompendiumOverlay, TAB_DEFS } from '../src/ui/CompendiumOverlay.js';
 import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+
+// Foes-tab boss gating reads act-reached milestones across all save slots via
+// hasAnySlotMilestone → localStorage. Mock it so tests can seed unlock state.
+const lsStore = {};
+const localStorageMock = {
+  getItem: (k) => (k in lsStore ? lsStore[k] : null),
+  setItem: (k, v) => {
+    lsStore[k] = String(v);
+  },
+  removeItem: (k) => {
+    delete lsStore[k];
+  },
+  clear: () => {
+    for (const k of Object.keys(lsStore)) delete lsStore[k];
+  },
+};
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+
+const ALL_ACT_MILESTONES = [
+  'reachedAct1',
+  'reachedAct2',
+  'reachedAct3',
+  'reachedAct4',
+  'reachedFinalBoss',
+];
+
+function seedSlotMilestones(slot, milestones) {
+  lsStore[`emblem_rogue_slot_${slot}_meta`] = JSON.stringify({ milestones });
+}
+
+function unlockAllActs(slot = 1) {
+  seedSlotMilestones(slot, ALL_ACT_MILESTONES);
+}
+
+beforeEach(() => {
+  localStorageMock.clear();
+});
 
 function makeDisplayObject(extra = {}) {
   return {
@@ -244,6 +281,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('returns all bosses (act-flattened) followed by all classes', () => {
+      unlockAllActs();
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       const items = overlay._getItemsForTab(9);
       expect(bossCount).toBe(11);
@@ -256,6 +294,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('Bosses/Classes filters split the list', () => {
+      unlockAllActs();
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
       overlay.activeTabIndex = 9;
       overlay.activeFilterIndex = 1; // Bosses
@@ -340,6 +379,7 @@ describe('CompendiumOverlay', () => {
     });
 
     it('lore is searchable and boss hits jump to the Foes tab', () => {
+      unlockAllActs();
       const data = { ...gameData, enemies: structuredClone(gameData.enemies) };
       data.enemies.bosses.act1[0].lore = 'He held the xyzzy pass alone.';
       const overlay = new CompendiumOverlay(makeScene(), data, vi.fn());
@@ -358,6 +398,79 @@ describe('CompendiumOverlay', () => {
       overlay._setSearchQuery('Myrmidon');
       expect(overlay.searchResults.length).toBeGreaterThan(0);
       expect(overlay.searchResults.every((r) => r.tabIndex !== 9)).toBe(true);
+      overlay.hide();
+    });
+  });
+
+  describe('Foes tab boss gating', () => {
+    const bossesOf = (overlay) => overlay._getFoesItems().filter((i) => i._kind === 'boss');
+    const labelsOf = (overlay) => new Set(bossesOf(overlay).map((b) => b._actLabel));
+
+    it('hides every boss on a fresh save but keeps all classes', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(bossesOf(overlay)).toHaveLength(0);
+      const classes = overlay._getFoesItems().filter((i) => i._kind === 'class');
+      expect(classes.length).toBe(gameData.classes.length);
+    });
+
+    it('reveals only the acts that have been reached', () => {
+      seedSlotMilestones(1, ['reachedAct1', 'reachedAct2']);
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(labelsOf(overlay)).toEqual(new Set(['Act 1', 'Act 2']));
+    });
+
+    it('gates the final boss behind reachedFinalBoss', () => {
+      seedSlotMilestones(1, ['reachedAct4']);
+      let overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(labelsOf(overlay).has('Final')).toBe(false);
+
+      seedSlotMilestones(1, ['reachedAct4', 'reachedFinalBoss']);
+      overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(labelsOf(overlay).has('Final')).toBe(true);
+    });
+
+    it('takes the cross-slot union so a milestone in another slot unlocks it', () => {
+      // No registry meta (Title-screen access); milestone lives only in slot 2.
+      seedSlotMilestones(2, ['reachedAct3']);
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      expect(labelsOf(overlay).has('Act 3')).toBe(true);
+    });
+
+    it('excludes hidden bosses from the search index', () => {
+      const data = { ...gameData, enemies: structuredClone(gameData.enemies) };
+      data.enemies.bosses.act1[0].lore = 'He held the xyzzy pass alone.';
+      const overlay = new CompendiumOverlay(makeScene(), data, vi.fn());
+      overlay.show(); // no milestones seeded → act1 boss hidden
+      overlay.searchInputActive = true;
+      overlay._setSearchQuery('xyzzy');
+      expect(overlay.searchResults.length).toBe(0);
+      overlay.hide();
+    });
+
+    it('re-reads milestones on each show() (real-time unlock)', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      overlay.show();
+      expect(bossesOf(overlay)).toHaveLength(0);
+      overlay.hide();
+
+      seedSlotMilestones(1, ['reachedAct1']);
+      overlay.show();
+      expect(labelsOf(overlay)).toEqual(new Set(['Act 1']));
+      overlay.hide();
+    });
+
+    it('renders the empty state under the Bosses filter on a fresh save', () => {
+      const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+      overlay.activeTabIndex = 9; // Foes
+      overlay.activeFilterIndex = 1; // Bosses
+      overlay.show();
+      expect(overlay._getFilteredItems()).toHaveLength(0);
+      const emptyMsg = overlay.objects.find((o) => o.text === 'No foes encountered yet.');
+      expect(emptyMsg).toBeTruthy();
+      // No page indicator for a single (empty) page — never "Page 1/0".
+      expect(
+        overlay.objects.some((o) => typeof o.text === 'string' && o.text.includes('Page 1/0')),
+      ).toBe(false);
       overlay.hide();
     });
   });
