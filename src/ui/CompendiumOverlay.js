@@ -907,11 +907,15 @@ export class CompendiumOverlay {
       if (ce.critBonus) parts.push(`Crit+${ce.critBonus}`);
       if (ce.atkBonus) parts.push(`Atk+${ce.atkBonus}`);
       if (ce.defBonus) parts.push(`Def+${ce.defBonus}`);
+      if (ce.resBonus) parts.push(`Res+${ce.resBonus}`);
+      if (ce.hitBonus) parts.push(`Hit+${ce.hitBonus}`);
       if (ce.avoidBonus) parts.push(`Avo+${ce.avoidBonus}`);
       if (ce.preventEnemyDouble || ce.preventDouble) parts.push('Prevent Double');
       const dblThresholdReduction = ce.doubleThresholdReduction ?? ce.reduceDoubleThreshold;
       if (dblThresholdReduction) parts.push(`Dbl Thres -${dblThresholdReduction}`);
       if (ce.negateEffectiveness) parts.push('Negate Effectiveness');
+      if (ce.xpShare) parts.push(`XP Share ${Math.round(ce.xpShare * 100)}%`);
+      if (ce.moveTypeOverride) parts.push(`Move: ${ce.moveTypeOverride}`);
       if (ce.condition) parts.push(`(${ce.condition})`);
       desc = parts.join(', ');
     } else if (item.effects && typeof item.effects === 'object') {

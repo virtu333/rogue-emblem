@@ -882,7 +882,7 @@ export function gainExperience(unit, xpAmount, options = {}) {
  * - Advantage 7+: flat minimum XP, no kill bonus
  * - Underdog bonus (defender higher than attacker) is capped at +6 levels
  */
-function getXpEffectiveLevel(unit) {
+export function getXpEffectiveLevel(unit) {
   const visibleLevel = Math.max(1, Math.trunc(Number(unit?.level) || 1));
   return unit?.tier === 'promoted' ? visibleLevel + 12 : visibleLevel;
 }
@@ -929,7 +929,14 @@ export function normalizeUnitClassState(unit, classData) {
   const canonicalTier = classData.tier || unit.tier || 'base';
   unit.tier = canonicalTier;
 
-  if (classData.moveType) unit.moveType = classData.moveType;
+  if (classData.moveType) {
+    // Class sync is canonical: reset any accessory move-type override state so
+    // a stale _baseMoveType from a previous class can't survive promotion or
+    // reclass, then re-apply the override below when one is equipped.
+    unit.moveType = classData.moveType;
+    delete unit._baseMoveType;
+  }
+  applyAccessoryMoveTypeOverride(unit);
 
   if (!unit.stats || typeof unit.stats !== 'object') unit.stats = {};
   const fallbackMov = getCanonicalClassMove(classData, Number(unit.mov) || 4);
@@ -1363,11 +1370,35 @@ function applyAccessoryStats(unit, accessory, sign) {
   }
 }
 
+/**
+ * Apply an equipped accessory's move-type override (e.g. Mercury Sandals'
+ * moveTypeOverride: "Flying"). Stores the pre-override type in _baseMoveType so
+ * unequip can restore it. No-op (and no _baseMoveType) when the unit already
+ * has the override's move type natively — a Wyvern Rider in Mercury Sandals
+ * stays a flier after unequipping.
+ */
+function applyAccessoryMoveTypeOverride(unit) {
+  const override = unit?.accessory?.combatEffects?.moveTypeOverride;
+  if (typeof override !== 'string' || override.length === 0) return;
+  if (unit.moveType === override) return;
+  unit._baseMoveType = unit.moveType || unit._baseMoveType || 'Infantry';
+  unit.moveType = override;
+}
+
+/** Restore the unit's native move type when removing a move-type override accessory. */
+function removeAccessoryMoveTypeOverride(unit, accessory) {
+  const override = accessory?.combatEffects?.moveTypeOverride;
+  if (typeof override !== 'string' || override.length === 0) return;
+  if (unit._baseMoveType) unit.moveType = unit._baseMoveType;
+  delete unit._baseMoveType;
+}
+
 /** Equip an accessory. Returns the old accessory (or null). */
 export function equipAccessory(unit, accessory) {
   const old = unequipAccessory(unit);
   unit.accessory = accessory;
   applyAccessoryStats(unit, accessory, 1);
+  applyAccessoryMoveTypeOverride(unit);
   return old;
 }
 
@@ -1404,6 +1435,7 @@ export function unequipAccessory(unit) {
   const old = unit.accessory;
   if (old) {
     applyAccessoryStats(unit, old, -1);
+    removeAccessoryMoveTypeOverride(unit, old);
     unit.accessory = null;
   }
   return old;

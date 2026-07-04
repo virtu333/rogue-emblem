@@ -16,6 +16,7 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'goldPerKill',
   'hitBonus',
   'moontide',
+  'moveTypeOverride',
   'negateEffectiveness',
   'negateFlierWeakness',
   'perHitHeal',
@@ -30,6 +31,7 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'weaponArtCostReduction',
   'weaponArtDefBuff',
   'weaponArtHpCostReduction',
+  'xpShare',
 ]);
 
 export const HANDLED_ACCESSORY_TURN_START_EFFECT_KEYS = Object.freeze([
@@ -65,6 +67,7 @@ function combatConditionLabel(condition) {
   if (condition === 'below50') return '<50% HP';
   if (condition === 'above75') return '>75% HP';
   if (condition === 'on_forest') return '(forest)';
+  if (condition === 'adjacent_ally') return 'adjacent ally';
   if (condition === 'no_ally_within_2') return 'no ally <=2';
   if (condition === 'enemies_nearby_2plus') return '2+ enemies <=2';
   if (condition === 'on_forest_or_mountain') return '(forest/mountain)';
@@ -152,6 +155,16 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.negateEffectiveness) parts.push('Negate effectiveness');
   if (combatEffects?.negateFlierWeakness) parts.push('Negate bow flier weakness');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
+
+  const xpShare = firstNumericValue(combatEffects?.xpShare);
+  if (xpShare !== null && xpShare > 0) {
+    const percent = xpShare <= 1 ? xpShare * 100 : xpShare;
+    parts.push(`Share ${Number(percent.toFixed(2))}% XP to adjacent lower-lv allies`);
+  }
+
+  if (typeof combatEffects?.moveTypeOverride === 'string' && combatEffects.moveTypeOverride) {
+    parts.push(`Move as ${combatEffects.moveTypeOverride}`);
+  }
 
   const weaponArtCostReduction = firstNumericValue(
     combatEffects?.weaponArtCostReduction,
