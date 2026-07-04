@@ -35,10 +35,15 @@ cost (the juggernaut loses a combat accessory).
 
 ## New accessories (4)
 
-All gated to act3+act4 `accessories` loot pools (plus boss-weighted rolls), high prices; also
-purchasable in act4 shops via the normal accessory shop pool if applicable.
+Three are legendary-rare: gated to act3+act4 `accessories` loot pools (plus boss-weighted rolls),
+high prices. **Mentor's Band is deliberately NOT rare** (2026-07-04 feedback): it is a catch-up
+enabler whose value decays with lateness — it must be obtainable while the roster gap is still
+forming, and it is self-limiting (costs the carry's accessory slot; only feeds adjacent
+lower-level allies), so early access is safe. Distribution: **act2+ in both loot `accessories`
+pools and shop accessory inventory, price ~2500** — cheap enough to be a real act1→act2 save-up
+decision, deliberate (shop) rather than loot-RNG-gated.
 
-### 1. Mentor's Band — EXP Share (combatEffects: `xpShare: 0.5`, price ~4500)
+### 1. Mentor's Band — EXP Share (combatEffects: `xpShare: 0.5`, price ~2500, act2+, loot AND shops)
 
 - When the **holder** is awarded combat XP in `awardXP`, each **adjacent** ally whose effective
   level (`getXpEffectiveLevel`) is **lower than the holder's** receives
@@ -79,8 +84,10 @@ purchasable in act4 shops via the normal accessory shop pool if applicable.
 
 - Labels for new combatEffects keys in `src/utils/accessoryText.js` (coverage enforced by
   `tests/accessoryTextCoverage.test.js`); Compendium renders conditions automatically.
-- No new rarity UI; the price + act gating carries the "legendary" feel. Optional: gold-tinted
-  name in loot cards if a cheap hook exists; do not build a rarity system.
+- No new rarity UI; the price + act gating carries the "legendary" feel for the three rare items.
+  Optional: gold-tinted name in loot cards if a cheap hook exists; do not build a rarity system.
+- Mentor's Band must appear in the shop accessory pool from act2 (verify how shop accessory
+  inventory is drawn in `LootSystem.generateShopInventory` and gate accordingly).
 
 ## Tests
 
