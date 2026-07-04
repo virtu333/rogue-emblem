@@ -386,10 +386,13 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0) 
 
   // Merchant Caravan spawn roll: BATTLE/ELITE nodes act2+ only, rolled here
   // (deterministic, node-generation time) so it survives suspend/revert just
-  // like the battleSeed above. Recruit/boss/escape are excluded by
-  // rollCaravanSpawn's own gating; ambush conversion (villageAmbushChance
-  // pass, later in generateNodeMap) fully overwrites battleParams for the
-  // nodes it touches, so ambush battles never carry a stale caravan flag.
+  // like the battleSeed above. Load-bearing exclusions: the BATTLE type check
+  // here plus rollCaravanSpawn's escape-objective and act gating. Conversion
+  // passes that run later in generateNodeMap (colosseum, ambush) don't rely on
+  // rollCaravanSpawn's flags at all — they discard the roll by replacing or
+  // nulling battleParams outright (colosseum nulls it; ambush rebuilds it for
+  // SHOP nodes only). rollCaravanSpawn's isAmbush/tutorialMode/isColosseum
+  // checks are defense-in-depth, not what excludes those battles today.
   if (type === NODE_TYPES.BATTLE && rollCaravanSpawn(params, caravanChanceBonus)) {
     params.hasCaravan = true;
   }

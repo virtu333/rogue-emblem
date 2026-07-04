@@ -23,6 +23,12 @@ const ACT_NUMBER = { act1: 1, act2: 2, act3: 3, act4: 4 };
 export function rollCaravanSpawn(params, chanceBonus = 0, rng = Math.random) {
   if (!params) return false;
   const { act, objective, isRecruitBattle, isBoss, isAmbush, tutorialMode, isColosseum } = params;
+  // Defensive checks: isAmbush/tutorialMode/isColosseum are never actually set
+  // on BATTLE params at roll time today — colosseum conversion retypes the node
+  // and nulls battleParams AFTER this roll (discarding the result), and ambush
+  // conversion rebuilds battleParams for SHOP nodes only. The load-bearing
+  // exclusions are isRecruitBattle/isBoss/escape/act gating below; the rest is
+  // defense-in-depth for any future caller that does set those flags.
   if (isRecruitBattle || isBoss || isAmbush || tutorialMode || isColosseum) return false;
   if (objective === 'escape') return false;
   if (!CARAVAN_ELIGIBLE_ACTS.includes(act)) return false;
@@ -44,6 +50,12 @@ function isTilePassable(terrainData, mapLayout, col, row, cols, rows, moveType =
  * Pick an open, passable spawn tile for the caravan biased toward the enemy
  * half of the map (mirrors the existing npcSpawn placement pattern: avoid
  * occupied tiles, require Infantry passability).
+ *
+ * Spawn depth requirement: the caravan must need several turns of crawling
+ * (MOV 1) before it can exit — an edge-adjacent spawn would hand out a free
+ * reward shop with zero escort gameplay. Prefer candidates at least
+ * min(4, floor((cols-1)/2)) columns from the nearest edge; if no tile
+ * qualifies (cramped/blocked maps), fall back to the deepest available tier.
  * @returns {{col:number,row:number}|null}
  */
 export function pickCaravanSpawnTile(
@@ -79,13 +91,22 @@ export function pickCaravanSpawnTile(
   }
   if (candidates.length === 0) return null;
 
-  // Prefer tiles on the enemy half, close to an edge (col-edge, since the
-  // caravan flees toward the nearest column edge).
+  // Prefer tiles on the enemy half.
   const halfMatches = candidates.filter((t) => t.halfMatch);
   const pool = halfMatches.length > 0 ? halfMatches : candidates;
-  pool.sort((a, b) => a.edgeDist - b.edgeDist);
-  const nearest = pool.filter((t) => t.edgeDist === pool[0].edgeDist);
-  const pick = nearest[Math.floor(Math.random() * nearest.length)];
+
+  // Enforce spawn depth: tiles at least minDepth columns from the nearest
+  // edge qualify; otherwise fall back to the deepest tier the pool offers.
+  const minDepth = Math.min(4, Math.floor((cols - 1) / 2));
+  const deepEnough = pool.filter((t) => t.edgeDist >= minDepth);
+  let tier;
+  if (deepEnough.length > 0) {
+    tier = deepEnough;
+  } else {
+    const maxDepth = Math.max(...pool.map((t) => t.edgeDist));
+    tier = pool.filter((t) => t.edgeDist === maxDepth);
+  }
+  const pick = tier[Math.floor(Math.random() * tier.length)];
   return { col: pick.col, row: pick.row };
 }
 

@@ -634,6 +634,34 @@ describe('RunManager', () => {
       rm.advanceAct?.();
       expect(rm.getPendingCaravanShop()).toBeNull();
     });
+
+    it('Trade Contacts end-to-end: metaEffects.caravanChanceBonus boosts act2 spawn rate through startRun/advanceAct node generation', () => {
+      // 0.15 base + 0.85 bonus = chance clamped to 1.0: with the bonus, EVERY
+      // eligible act2 BATTLE node (non-escape objective) must roll a caravan.
+      // Same seed without the bonus serves as the deterministic control.
+      const seed = 424242;
+      const eligibleBattleNodes = (manager) =>
+        manager.nodeMap.nodes.filter(
+          (n) => n.type === NODE_TYPES.BATTLE && n.battleParams?.objective !== 'escape',
+        );
+      const caravanCount = (manager) =>
+        manager.nodeMap.nodes.filter((n) => n.battleParams?.hasCaravan).length;
+
+      const boosted = new RunManager(gameData, { caravanChanceBonus: 0.85 });
+      boosted.startRun({ runSeed: seed });
+      expect(caravanCount(boosted)).toBe(0); // act1: never, even at 100% chance
+      boosted.advanceAct(); // act2
+      const eligible = eligibleBattleNodes(boosted);
+      expect(eligible.length).toBeGreaterThan(0);
+      expect(eligible.every((n) => n.battleParams.hasCaravan === true)).toBe(true);
+      // Non-BATTLE and escape nodes stay caravan-free even at 100% chance.
+      expect(caravanCount(boosted)).toBe(eligible.length);
+
+      const baseline = new RunManager(gameData);
+      baseline.startRun({ runSeed: seed });
+      baseline.advanceAct();
+      expect(caravanCount(baseline)).toBeLessThan(caravanCount(boosted));
+    });
   });
 
   describe('gold methods', () => {

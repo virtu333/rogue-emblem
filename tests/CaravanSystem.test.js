@@ -122,6 +122,63 @@ describe('CaravanSystem', () => {
       const tile = pickCaravanSpawnTile(mapLayout, cols, rows, terrainData, [], []);
       expect(tile).toBeNull();
     });
+
+    it('enforces spawn depth: at least min(4, floor((cols-1)/2)) columns from the nearest edge', () => {
+      const cols = 14;
+      const rows = 8;
+      const mapLayout = flatMap(cols, rows, 0);
+      const minDepth = Math.min(4, Math.floor((cols - 1) / 2)); // 4 on a 14-wide map
+      for (let i = 0; i < 50; i++) {
+        const tile = pickCaravanSpawnTile(mapLayout, cols, rows, terrainData, [], []);
+        expect(tile).toBeTruthy();
+        const edgeDist = Math.min(tile.col, cols - 1 - tile.col);
+        expect(edgeDist).toBeGreaterThanOrEqual(minDepth);
+      }
+    });
+
+    it('never spawns on an edge column when the map is wide enough', () => {
+      const cols = 12;
+      const rows = 6;
+      const mapLayout = flatMap(cols, rows, 0);
+      for (let i = 0; i < 50; i++) {
+        const tile = pickCaravanSpawnTile(mapLayout, cols, rows, terrainData, [], []);
+        expect(tile).toBeTruthy();
+        expect(tile.col).not.toBe(0);
+        expect(tile.col).not.toBe(cols - 1);
+      }
+    });
+
+    it('falls back to the deepest available tier when no tile meets the depth requirement', () => {
+      // 14-wide map where every column except 1 and 12 (edgeDist 1) is blocked:
+      // no tile reaches minDepth 4, so the fallback picks the deepest tier (1).
+      const cols = 14;
+      const rows = 3;
+      const mapLayout = flatMap(cols, rows, 1); // all impassable
+      for (let r = 0; r < rows; r++) {
+        mapLayout[r][1] = 0;
+        mapLayout[r][12] = 0;
+      }
+      const tile = pickCaravanSpawnTile(mapLayout, cols, rows, terrainData, [], []);
+      expect(tile).toBeTruthy();
+      expect([1, 12]).toContain(tile.col);
+    });
+
+    it('keeps the enemy-half bias when deep tiles exist on both halves', () => {
+      const cols = 14;
+      const rows = 6;
+      const mapLayout = flatMap(cols, rows, 0);
+      const enemySpawns = [
+        { col: 12, row: 2 },
+        { col: 12, row: 3 },
+      ];
+      for (let i = 0; i < 50; i++) {
+        const tile = pickCaravanSpawnTile(mapLayout, cols, rows, terrainData, [], enemySpawns);
+        expect(tile).toBeTruthy();
+        // Enemy half is the right half; depth requirement (>= 4 from either
+        // edge) constrains cols to 4-9, so the overlap is cols 7-9.
+        expect(tile.col).toBeGreaterThanOrEqual(cols / 2);
+      }
+    });
   });
 
   describe('createCaravanUnit', () => {
