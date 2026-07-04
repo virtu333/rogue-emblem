@@ -26,6 +26,8 @@ import {
   isPromotionClassBlocked,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   checkLevelUpSkills,
   learnSkill,
 } from './UnitManager.js';
@@ -293,7 +295,7 @@ export function generateBossRecruitCandidates(
   // Final boss — run ends, no recruit event
   if (actId === 'finalBoss') return null;
 
-  const { lords, classes, weapons, recruits, skills, consumables } = gameData;
+  const { lords, classes, weapons, recruits, skills, consumables, accessories } = gameData;
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
   // Recruit scaling anchor is the commander to keep behavior aligned across systems.
@@ -412,6 +414,7 @@ export function generateBossRecruitCandidates(
       metaEffects,
       baseLevelOverride,
       gameData.traits || null,
+      accessories || null,
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
@@ -498,6 +501,7 @@ function createRecruitFromPool(
   metaEffects,
   baseLevelOverride = null,
   traitsData = null,
+  accessories = null,
 ) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
@@ -505,6 +509,14 @@ function createRecruitFromPool(
     if (!metaEffects?.recruitStartingVulnerary) return;
     const vulnerary = (consumables || []).find((c) => c.name === 'Vulnerary');
     if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
+  };
+  const applyRecruitJoinBonuses = (unit) => {
+    if (metaEffects?.recruitWeaponForge) {
+      applyRecruitWeaponForge(unit, metaEffects.recruitWeaponForge);
+    }
+    if (metaEffects?.recruitStartingAccessory) {
+      grantRecruitStartingAccessory(unit, accessories, metaEffects.recruitStartingAccessory);
+    }
   };
   const addClassInnates = (unit, className) => {
     for (const sid of getClassInnateSkills(className, skills)) {
@@ -557,6 +569,7 @@ function createRecruitFromPool(
     if (metaEffects?.masterOfArms) {
       grantSecondaryWeapons(unit, weapons, promotedSpawnTier);
     }
+    applyRecruitJoinBonuses(unit);
     maybeAddStartingVulnerary(unit);
     return unit;
   } else {
@@ -586,6 +599,7 @@ function createRecruitFromPool(
     if (metaEffects?.masterOfArms) {
       grantSecondaryWeapons(unit, weapons, baseSpawnTier);
     }
+    applyRecruitJoinBonuses(unit);
     maybeAddStartingVulnerary(unit);
     return unit;
   }

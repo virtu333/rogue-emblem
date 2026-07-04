@@ -35,6 +35,8 @@ import {
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   learnSkill,
   LETHAL_ARMORY_WEAPONS,
 } from './UnitManager.js';
@@ -2369,6 +2371,16 @@ export class RunManager {
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
     if (this.metaEffects?.masterOfArms) {
       grantSecondaryWeapons(unit, this.gameData?.weapons || [], cadreSpawnTier);
+    }
+    if (this.metaEffects?.recruitWeaponForge) {
+      applyRecruitWeaponForge(unit, this.metaEffects.recruitWeaponForge);
+    }
+    if (this.metaEffects?.recruitStartingAccessory) {
+      grantRecruitStartingAccessory(
+        unit,
+        this.gameData?.accessories || [],
+        this.metaEffects.recruitStartingAccessory,
+      );
     }
     if (this.metaEffects?.recruitStartingVulnerary) {
       const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Vulnerary');

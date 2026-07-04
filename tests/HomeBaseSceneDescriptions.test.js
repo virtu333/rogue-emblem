@@ -255,6 +255,35 @@ describe('HomeBaseScene upgrade description helpers', () => {
     );
     expect(scene._formatEffectValue({ recruitStartingVulnerary: 1 })).toBe('+1');
   });
+
+  it('formats and describes recruit weapon forge upgrade', () => {
+    const scene = new HomeBaseScene();
+
+    expect(scene._getActionDesc({ effects: [{ recruitWeaponForge: 1 }] })).toBe(
+      'Recruits join with forged weapons',
+    );
+    expect(scene._formatEffectValue({ recruitWeaponForge: 1 })).toBe('+1');
+    expect(scene._formatEffectValue({ recruitWeaponForge: 2 })).toBe('+2');
+  });
+
+  it('formats and describes recruit starting accessory upgrade', () => {
+    const scene = new HomeBaseScene();
+
+    expect(scene._getActionDesc({ effects: [{ recruitStartingAccessory: 1 }] })).toBe(
+      'Recruits join with a stat accessory',
+    );
+    expect(scene._formatEffectValue({ recruitStartingAccessory: 1 })).toBe('Enabled');
+  });
+
+  it('formats and describes recruit XP bonus upgrade', () => {
+    const scene = new HomeBaseScene();
+
+    expect(scene._getActionDesc({ effects: [{ recruitXpBonus: 0.1 }] })).toBe(
+      'Combat XP bonus for non-lord units',
+    );
+    expect(scene._formatEffectValue({ recruitXpBonus: 0.1 })).toBe('+10%');
+    expect(scene._formatEffectValue({ recruitXpBonus: 0.2 })).toBe('+20%');
+  });
 });
 
 describe('HomeBaseScene _getUpgradeTooltipLines', () => {

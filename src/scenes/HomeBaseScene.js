@@ -912,6 +912,9 @@ export class HomeBaseScene extends Phaser.Scene {
         `Tier ${effect.extraStartingUnitTier}`
       );
     if (effect.lethalArmoryTier !== undefined) return `Tier ${effect.lethalArmoryTier}`;
+    if (effect.recruitWeaponForge !== undefined) return `+${effect.recruitWeaponForge}`;
+    if (effect.recruitStartingAccessory !== undefined) return 'Enabled';
+    if (effect.recruitXpBonus !== undefined) return `+${Math.round(effect.recruitXpBonus * 100)}%`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenalTier !== undefined) return `Tier ${effect.deadlyArsenalTier}`;
     if (effect.deadlyArsenal !== undefined) return 'Tier 2';
@@ -998,6 +1001,9 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
+    if (effect.recruitWeaponForge !== undefined) return 'Recruits join with forged weapons';
+    if (effect.recruitStartingAccessory !== undefined) return 'Recruits join with a stat accessory';
+    if (effect.recruitXpBonus !== undefined) return 'Combat XP bonus for non-lord units';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined)
       return "Commander's starting weapon upgrades";

@@ -421,6 +421,67 @@ describe('BossRecruitSystem', () => {
         ),
       ).toBe(true);
     });
+
+    it('forges non-lord boss candidate weapons when recruitWeaponForge is active', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const meta = { recruitWeaponForge: 2 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      let forgedWeapons = 0;
+      for (const c of candidates) {
+        for (const weapon of c.unit.inventory) {
+          if (weapon.type === 'Staff') continue;
+          expect(weapon._forgeLevel).toBe(2);
+          expect(weapon.name).toMatch(/\+2$/);
+          forgedWeapons++;
+        }
+      }
+      expect(forgedWeapons).toBeGreaterThan(0);
+    });
+
+    it('does not forge candidate weapons when recruitWeaponForge is absent', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
+      for (const c of candidates) {
+        for (const weapon of c.unit.inventory) {
+          expect(weapon._forgeLevel || 0).toBe(0);
+        }
+      }
+    });
+
+    it('equips non-lord boss candidates with a stat accessory when recruitStartingAccessory is active', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const meta = { recruitStartingAccessory: 1 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      expect(candidates.length).toBeGreaterThan(0);
+      for (const c of candidates) {
+        expect(c.unit.accessory).toBeTruthy();
+        expect(typeof c.unit.accessory.uid).toBe('string');
+        expect(gameData.accessories.some((a) => a.name === c.unit.accessory.name)).toBe(true);
+      }
+    });
+
+    it('does not grant recruit forge or accessory to lord candidates', () => {
+      let callCount = 0;
+      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return 0.05; // force lord slot
+        return 0.99;
+      });
+      const meta = { recruitWeaponForge: 2, recruitStartingAccessory: 1 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      const lordCandidate = candidates.find((c) => c.isLord);
+      if (lordCandidate) {
+        expect(lordCandidate.unit.accessory).toBeNull();
+        for (const weapon of lordCandidate.unit.inventory) {
+          expect(weapon._forgeLevel || 0).toBe(0);
+        }
+      }
+      const nonLordCandidates = candidates.filter((c) => !c.isLord);
+      expect(nonLordCandidates.length).toBeGreaterThan(0);
+      for (const c of nonLordCandidates) {
+        expect(c.unit.accessory).toBeTruthy();
+      }
+    });
   });
 
   describe('lord slot', () => {
