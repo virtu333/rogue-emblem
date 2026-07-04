@@ -7038,6 +7038,7 @@ export class BattleScene extends Phaser.Scene {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      imbuesData: this.gameData.imbues || null,
     };
   }
 

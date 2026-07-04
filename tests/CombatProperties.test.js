@@ -359,6 +359,7 @@ describe('Combat property tests', () => {
       attackerDied: false,
       defenderDied: false,
       poisonEffects: [],
+      imbueStatusEffects: [],
       debuffEvents: [],
       divineChargeHeals: [],
       divineChargeHeal: null,

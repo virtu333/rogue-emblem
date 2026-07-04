@@ -22,6 +22,7 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
+import { getImbueStoneItems } from './ImbueSystem.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -886,6 +887,12 @@ export function generateLootChoices(
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
   const options = generateOptions || {};
 
+  // Imbuing stones (whetstone-like, from imbues.json) resolve through the
+  // whetstone lookup so `forge` pools can list them without a schema change.
+  const imbueStoneItems = getImbueStoneItems(options.imbues);
+  const whetstoneLookup =
+    imbueStoneItems.length > 0 ? [...(allWhetstones || []), ...imbueStoneItems] : allWhetstones;
+
   const adjustedWeights = { ...weights };
   if (options.lootCategoryWeightBonuses || options.weightBonuses) {
     applyMetaWeightBonuses(adjustedWeights, options);
@@ -955,7 +962,7 @@ export function generateLootChoices(
     if (randomLegendary && name === randomLegendary.name) {
       item = ensureItemUid(structuredClone(randomLegendary));
     } else {
-      item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
+      item = findItem(name, allWeapons, consumables, allAccessories, whetstoneLookup);
     }
     if (!item) continue;
     applyMetaInnateArtToItem(item, metaInnateArtConfig);

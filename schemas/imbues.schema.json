@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Weapon Imbues",
+  "type": "object",
+  "properties": {
+    "imbues": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/imbue" }
+    },
+    "prismaticStone": { "$ref": "#/$defs/stone" }
+  },
+  "required": ["imbues", "prismaticStone"],
+  "additionalProperties": false,
+  "$defs": {
+    "stone": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "price": { "type": "integer", "minimum": 0 },
+        "lore": { "type": "string" }
+      },
+      "required": ["name", "price"],
+      "additionalProperties": false
+    },
+    "combatMods": {
+      "type": "object",
+      "properties": {
+        "hitBonus": { "type": "number" },
+        "critBonus": { "type": "number" },
+        "atkBonus": { "type": "number" },
+        "defBonus": { "type": "number" },
+        "resBonus": { "type": "number" },
+        "avoidBonus": { "type": "number" },
+        "spdBonus": { "type": "number" },
+        "drainPercent": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "effectiveness": {
+          "type": "object",
+          "properties": {
+            "moveTypes": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "minItems": 1
+            },
+            "classNames": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "multiplier": { "type": "integer", "minimum": 2 }
+          },
+          "required": ["multiplier"],
+          "additionalProperties": false
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "combatMods" },
+            "combatMods": { "$ref": "#/$defs/combatMods" }
+          },
+          "required": ["type", "combatMods"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "postCombatPoison" },
+            "damage": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["type", "damage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "postCombatStatus" },
+            "status": { "enum": ["root", "sleep", "silence", "acid"] },
+            "chance": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "durationPhases": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["type", "status", "chance", "durationPhases"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "imbue": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "adjective": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "lore": { "type": "string" },
+        "weight": { "type": "number", "exclusiveMinimum": 0 },
+        "effect": { "$ref": "#/$defs/effect" },
+        "stone": { "$ref": "#/$defs/stone" }
+      },
+      "required": ["id", "name", "adjective", "description", "weight", "effect", "stone"],
+      "additionalProperties": false
+    }
+  }
+}

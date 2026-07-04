@@ -658,10 +658,17 @@ describe('Phalanx Band: adjacent_ally combat mods', () => {
       return strike ? strike.damage : 0;
     };
 
-    const damageAlone = resolveWith(makeDefender(), []);
-    const damageFormation = resolveWith(makeDefender(), [ally]);
-    expect(damageAlone).toBeGreaterThan(0);
-    expect(damageAlone - damageFormation).toBe(2);
+    // Pin RNG so both strikes hit and neither crits (hitRate ~150, critRate ~15):
+    // 0.5*100 = 50 is below the hit threshold and above the crit threshold.
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const damageAlone = resolveWith(makeDefender(), []);
+      const damageFormation = resolveWith(makeDefender(), [ally]);
+      expect(damageAlone).toBeGreaterThan(0);
+      expect(damageAlone - damageFormation).toBe(2);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });
 

@@ -15,6 +15,7 @@ import {
   checkLevelUpSkills,
 } from '../engine/UnitManager.js';
 import { canForge, canForgeStat } from '../engine/ForgeSystem.js';
+import { canImbue, isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import {
   GOLD_BATTLE_BONUS,
@@ -188,7 +189,7 @@ export class LootScreenController {
       null,
       ctx.isElite,
       runManager.getWeaponArtSpawnConfig(),
-      { lootCategoryWeightBonuses: metaLootBonuses },
+      { lootCategoryWeightBonuses: metaLootBonuses, imbues: gameData.imbues || null },
     );
 
     // Skip bonus gold
@@ -337,8 +338,11 @@ export class LootScreenController {
           .setDepth(702);
         lootGroup.push(nameLabel);
 
-        let detail =
-          item.forgeStat === 'choice'
+        let detail = isImbueStone(item)
+          ? item.imbueId === 'choice'
+            ? 'Choose imbue'
+            : 'Imbue weapon'
+          : item.forgeStat === 'choice'
             ? 'Choose stat'
             : item.forgeStat === 'might'
               ? '+1 Might'
@@ -1141,20 +1145,30 @@ export class LootScreenController {
     };
     let validCount = 0;
 
+    const stoneIsImbue = isImbueStone(whetstone);
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const forgeableCount = unit.inventory.filter((w) =>
-        whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
+        stoneIsImbue
+          ? canImbue(w)
+          : whetstone.forgeStat !== 'choice'
+            ? canForgeStat(w, whetstone.forgeStat)
+            : canForge(w),
       ).length;
       const by = listTop + i * rowHeight + rowHeight / 2;
 
       if (forgeableCount === 0) {
         const label = scene.add
-          .text(cam.centerX, by, `${unit.name}  (no forgeable weapons)`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#666666',
-          })
+          .text(
+            cam.centerX,
+            by,
+            `${unit.name}  (no ${stoneIsImbue ? 'imbueable' : 'forgeable'} weapons)`,
+            {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#666666',
+            },
+          )
           .setOrigin(0.5)
           .setDepth(712);
         pickerGroup.push(label);
@@ -1217,11 +1231,16 @@ export class LootScreenController {
 
     if (validCount === 0) {
       const noWeapons = scene.add
-        .text(cam.centerX, cam.centerY + 10, 'No forgeable weapons in roster!', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff8888',
-        })
+        .text(
+          cam.centerX,
+          cam.centerY + 10,
+          `No ${stoneIsImbue ? 'imbueable' : 'forgeable'} weapons in roster!`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#ff8888',
+          },
+        )
         .setOrigin(0.5)
         .setDepth(711);
       pickerGroup.push(noWeapons);
@@ -1465,6 +1484,17 @@ export class LootScreenController {
       if (description) lines.push(description);
       const usesText = formatUses(item);
       if (usesText) lines.push(usesText);
+      return lines.join('\n');
+    }
+
+    // Imbuing stones (whetstone-like, apply a weapon imbue)
+    if (isImbueStone(item)) {
+      const lines = [item.name || 'Imbuing Stone'];
+      lines.push(getImbueStoneDetailText(item, scene.gameData?.imbues));
+      if (item.imbueId === 'choice') {
+        lines.push('Pick a weapon, then one of six imbues');
+      }
+      lines.push('One imbue per weapon');
       return lines.join('\n');
     }
 

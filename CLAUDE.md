@@ -39,6 +39,7 @@ emblem-rogue/
 │   ├── dialogue.json      # Recruit lines, act transition dialogue, story sequences
 │   ├── difficulty.json    # Difficulty modes (Normal/Hard/Lunatic): stat/economy/fog modifiers
 │   ├── enemies.json       # Enemy pools by act (act1-act4, postAct, finalBoss), boss defs, count scaling
+│   ├── imbues.json        # 6 weapon imbues (rare blessings) + Imbuing Stone / Prismatic Stone defs
 │   ├── lords.json         # 7 lord characters with stats/growths/promotions
 │   ├── lootTables.json    # Per-act loot pools with weighted categories
 │   ├── mapSizes.json      # 10 map size templates by act/phase
@@ -89,6 +90,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **affixes.json** — `difficultyGating`: Normal=0%, Hard=12% chance/1 max, Lunatic=30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
+- **imbues.json** — One imbue per weapon, instance-only state (`weapon._imbueId`; canonical weapons.json never gains imbue fields). Effects resolve catalog-side at combat time via `ImbueSystem.js`; combat mods merge like weapon-art mods in `Combat.js`. Imbuing Stones are whetstone-like `forge`-category loot (act2+), stone names listed in lootTables forge pools (whetstones doubled so stones drop ~half as often as Silver Whetstone).
 - **skills.json** — 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action. `activation` = proc chance type (SKL/SKL_HALF/LCK_THIRD/SPD/LCK/always).
 
 ## Core Formulas (from GDD Section 3.3)

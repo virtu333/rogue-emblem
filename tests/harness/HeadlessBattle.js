@@ -1802,6 +1802,7 @@ export class HeadlessBattle {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      imbuesData: this.gameData.imbues || null,
     };
   }
 

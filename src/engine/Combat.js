@@ -14,6 +14,11 @@ import {
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
+import {
+  getImbueCombatMods,
+  getImbuePostCombatPoison,
+  getImbuePostCombatStatus,
+} from './ImbueSystem.js';
 
 // --- Weapon classification ---
 
@@ -746,8 +751,16 @@ export function getCombatForecast(
     };
   }
 
-  const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
-  const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
+  // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
+  // wields the imbued weapon (so defensive imbues also apply when defending).
+  const atkMods = mergeCombatMods(
+    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
+    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
+  );
+  const defMods = mergeCombatMods(
+    mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
+    defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
+  );
   const atkMultiHit = atkMods?.multiHit || null;
   const defMultiHit = defMods?.multiHit || null;
 
@@ -1166,6 +1179,7 @@ export function resolveCombat(
       attackerDied: false,
       defenderDied: false,
       poisonEffects: [],
+      imbueStatusEffects: [],
       debuffEvents: [],
       divineChargeHeals: [],
       divineChargeHeal: null,
@@ -1178,8 +1192,16 @@ export function resolveCombat(
   attacker._teleportUsedThisCombat = false;
   defender._teleportUsedThisCombat = false;
 
-  const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
-  const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
+  // Weapon imbue mods merge exactly like weapon-art mods, on whichever side
+  // wields the imbued weapon (so defensive imbues also apply when defending).
+  const atkMods = mergeCombatMods(
+    mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods),
+    getImbueCombatMods(atkWeapon, skillCtx?.imbuesData),
+  );
+  const defMods = mergeCombatMods(
+    mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods),
+    defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
+  );
 
   // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES) — combat-time mods only
   // Pick the relevant defensive bonus based on incoming weapon type
@@ -1778,20 +1800,49 @@ export function resolveCombat(
   const poisonEffects = [];
   if (atkHP > 0 && defHP > 0) {
     if (escapedSide !== 'attacker') {
-      const atkPoison = parsePoisonDamage(atkWeapon);
+      const atkPoison =
+        parsePoisonDamage(atkWeapon) + getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData);
       if (atkPoison > 0) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
     }
     if (escapedSide !== 'defender') {
-      const defPoison = defCanCounter && defWeapon ? parsePoisonDamage(defWeapon) : 0;
+      const defPoison =
+        defCanCounter && defWeapon
+          ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
+          : 0;
       if (defPoison > 0) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }
     }
   }
+
+  // Post-combat imbue status procs (e.g. Binding → root). Hit-gated: the
+  // imbued side must have landed at least one strike. RNG only draws when a
+  // status imbue is actually present, so unimbued combats keep their RNG
+  // stream. Application (and the statusImmunity gate) happens in the caller's
+  // post-combat pipeline via StatusConditionSystem.applyCondition.
+  const imbueStatusEffects = [];
+  const rollImbueStatus = (weapon, sourceSide, targetSide, targetHP) => {
+    if (!weapon || escapedSide === sourceSide || targetHP <= 0) return;
+    const statusFx = getImbuePostCombatStatus(weapon, skillCtx?.imbuesData);
+    if (!statusFx) return;
+    const landedHit = events.some(
+      (event) => event.type === 'strike' && !event.miss && event.attackerSide === sourceSide,
+    );
+    if (!landedHit) return;
+    if (statusFx.chance < 100 && Math.random() * 100 >= statusFx.chance) return;
+    imbueStatusEffects.push({
+      target: targetSide,
+      sourceSide,
+      status: statusFx.status,
+      durationPhases: statusFx.durationPhases,
+    });
+  };
+  rollImbueStatus(atkWeapon, 'attacker', 'defender', defHP);
+  if (defCanCounter) rollImbueStatus(defWeapon, 'defender', 'attacker', atkHP);
 
   // Post-combat: Intimidate debuff — suppress if the debuffing side escaped
   const debuffEvents = [];
@@ -1854,6 +1905,7 @@ export function resolveCombat(
     attackerDied: atkHP <= 0,
     defenderDied: defHP <= 0,
     poisonEffects,
+    imbueStatusEffects,
     debuffEvents,
     divineChargeHeals,
     divineChargeHeal: divineChargeHeals[0] ?? null,

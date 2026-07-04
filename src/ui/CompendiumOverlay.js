@@ -6,6 +6,7 @@ import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
+import { getImbueStoneItems } from '../engine/ImbueSystem.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -241,7 +242,12 @@ export class CompendiumOverlay {
       case 'classes':
         return gd.classes || [];
       case 'items':
-        return [...(gd.consumables || []), ...(gd.accessories || []), ...(gd.whetstones || [])];
+        return [
+          ...(gd.consumables || []),
+          ...(gd.accessories || []),
+          ...(gd.whetstones || []),
+          ...getImbueStoneItems(gd.imbues),
+        ];
       case 'lords':
         return gd.lords || [];
       case 'blessings':
@@ -929,6 +935,8 @@ export class CompendiumOverlay {
       else desc = item.effect || '';
     } else if (item.forgeStat) {
       desc = `Forge: ${item.forgeStat}`;
+    } else if (item.imbueId) {
+      desc = `Imbue: ${item.description || 'weapon blessing'}`;
     }
     this._text(left + 25, y + 14, desc, '#aaaaaa');
     this._renderLoreLine(item, y + 28, left);
