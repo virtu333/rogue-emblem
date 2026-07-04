@@ -1045,4 +1045,88 @@ describe('Template-driven fog', () => {
       randomSpy.mockRestore();
     }
   });
+
+  describe('Merchant Caravan spawn gating', () => {
+    it('never rolls hasCaravan on act1 even with a rigged low roll', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1, gameData.mapTemplates);
+        expect(map.nodes.some((n) => n.battleParams?.hasCaravan)).toBe(false);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('can roll hasCaravan on act2 BATTLE nodes with a rigged low roll', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates);
+        const battleNodes = map.nodes.filter((n) => n.type === NODE_TYPES.BATTLE);
+        expect(battleNodes.some((n) => n.battleParams?.hasCaravan)).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('never rolls hasCaravan when the roll is rigged above the chance ceiling', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
+      try {
+        const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates);
+        expect(map.nodes.some((n) => n.battleParams?.hasCaravan)).toBe(false);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('never rolls hasCaravan on RECRUIT, BOSS, SHOP, CHURCH, or RUINS nodes', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates);
+        const excluded = map.nodes.filter((n) =>
+          [
+            NODE_TYPES.RECRUIT,
+            NODE_TYPES.BOSS,
+            NODE_TYPES.SHOP,
+            NODE_TYPES.CHURCH,
+            NODE_TYPES.RUINS,
+          ].includes(n.type),
+        );
+        expect(excluded.length).toBeGreaterThan(0);
+        expect(excluded.every((n) => !n.battleParams?.hasCaravan)).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('never rolls hasCaravan on escape-objective nodes', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        // Run several seeds worth of maps to find escape-objective nodes.
+        for (let i = 0; i < 10; i++) {
+          const map = generateNodeMap('act3', ACT_CONFIG.act3, gameData.mapTemplates);
+          const escapeNodes = map.nodes.filter((n) => n.battleParams?.objective === 'escape');
+          expect(escapeNodes.every((n) => !n.battleParams?.hasCaravan)).toBe(true);
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('caravanChanceBonus increases spawn frequency (seeded rng at the boundary)', () => {
+      // Roll sits just above base chance (0.15) but below base+0.2 bonus.
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+      try {
+        const base = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates);
+        const boosted = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, {
+          caravanChanceBonus: 0.2,
+        });
+        const baseCount = base.nodes.filter((n) => n.battleParams?.hasCaravan).length;
+        const boostedCount = boosted.nodes.filter((n) => n.battleParams?.hasCaravan).length;
+        expect(baseCount).toBe(0);
+        expect(boostedCount).toBeGreaterThan(0);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+  });
 });

@@ -165,6 +165,27 @@ describe('captureCheckpoint', () => {
     scene.playerUnits = null; // forces a TypeError inside the build
     expect(new BattleSuspendController(scene).captureCheckpoint()).toBe(false);
   });
+
+  it('Merchant Caravan: captures isCaravan on npcUnits and the _caravanExited flag', () => {
+    const scene = makeScene();
+    scene.npcUnits = [
+      makeUnit({ name: 'Merchant', faction: 'npc', isCaravan: true, weapon: null, inventory: [] }),
+    ];
+    scene._caravanExited = true;
+    new BattleSuspendController(scene).captureCheckpoint();
+    const cp = scene.runManager.battleInProgress.checkpoint;
+    expect(cp.npcUnits).toHaveLength(1);
+    expect(cp.npcUnits[0].isCaravan).toBe(true);
+    expect(cp.caravanExited).toBe(true);
+  });
+
+  it('Merchant Caravan: captures caravanExited=false when the caravan is still on the field', () => {
+    const scene = makeScene();
+    scene._caravanExited = false;
+    new BattleSuspendController(scene).captureCheckpoint();
+    const cp = scene.runManager.battleInProgress.checkpoint;
+    expect(cp.caravanExited).toBe(false);
+  });
 });
 
 describe('applyUnits (resume restore)', () => {
@@ -216,6 +237,43 @@ describe('applyUnits (resume restore)', () => {
     expect(scene._playerDeathsThisBattle).toBe(2);
     expect(scene.appliedHybridOverrideTurns).toEqual(new Set([3, 5]));
     expect(scene._latePressureWarningShown).toBe(true);
+  });
+
+  it('Merchant Caravan: restores isCaravan npc units and the caravanExited flag', () => {
+    const scene = makeScene();
+    const source = makeScene({
+      npcUnits: [
+        makeUnit({
+          name: 'Merchant',
+          faction: 'npc',
+          isCaravan: true,
+          weapon: null,
+          inventory: [],
+        }),
+      ],
+    });
+    source._caravanExited = true;
+    new BattleSuspendController(source).captureCheckpoint();
+    const cp = roundTrip(source.runManager.battleInProgress.checkpoint);
+
+    new BattleSuspendController(scene).applyUnits(cp);
+
+    expect(scene.npcUnits).toHaveLength(1);
+    expect(scene.npcUnits[0].isCaravan).toBe(true);
+    expect(scene._caravanExited).toBe(true);
+  });
+
+  it('Merchant Caravan: caravanExited defaults to false for pre-feature checkpoints', () => {
+    const scene = makeScene();
+    new BattleSuspendController(scene).applyUnits(
+      roundTrip({
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        // no caravanExited field at all (older save shape)
+      }),
+    );
+    expect(scene._caravanExited).toBe(false);
   });
 });
 

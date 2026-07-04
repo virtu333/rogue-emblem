@@ -117,6 +117,7 @@ export class BattleSuspendController {
       appliedHybridOverrideTurns: [...(scene.appliedHybridOverrideTurns || [])],
       latePressureWarningShown: scene._latePressureWarningShown === true,
       bossName: scene._bossName || null,
+      caravanExited: scene._caravanExited === true,
     });
   }
 
@@ -162,6 +163,7 @@ export class BattleSuspendController {
     scene._playerDeathsThisBattle = Number(checkpoint.playerDeathsThisBattle) || 0;
     scene._latePressureWarningShown = checkpoint.latePressureWarningShown === true;
     scene.appliedHybridOverrideTurns = new Set(checkpoint.appliedHybridOverrideTurns || []);
+    scene._caravanExited = checkpoint.caravanExited === true;
   }
 
   /**

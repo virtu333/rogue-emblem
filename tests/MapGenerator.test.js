@@ -6,6 +6,7 @@ import {
   pickTemplate,
   CAVALRY_CARVE_MAX_CONVERSIONS,
   resolveAnchorUnitClass,
+  validateBattleConfig,
 } from '../src/engine/MapGenerator.js';
 import {
   TERRAIN,
@@ -3045,5 +3046,45 @@ describe('resolveAnchorUnitClass', () => {
       [],
     );
     expect(result).toBe('Myrmidon');
+  });
+
+  describe('Merchant Caravan spawn (battleConfig.caravanSpawn)', () => {
+    it('omits caravanSpawn when hasCaravan is not set', () => {
+      const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
+      expect(config.caravanSpawn).toBeUndefined();
+    });
+
+    it('produces a valid caravanSpawn tile when hasCaravan is set', () => {
+      const config = generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data);
+      expect(config.caravanSpawn).toBeTruthy();
+      const { col, row } = config.caravanSpawn;
+      expect(col).toBeGreaterThanOrEqual(0);
+      expect(col).toBeLessThan(config.cols);
+      expect(row).toBeGreaterThanOrEqual(0);
+      expect(row).toBeLessThan(config.rows);
+      const idx = config.mapLayout[row][col];
+      expect(data.terrain[idx].moveCost.Infantry).not.toBe('--');
+    });
+
+    it('caravanSpawn does not overlap player or enemy spawns', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data),
+        );
+        if (!config.caravanSpawn) continue;
+        const key = `${config.caravanSpawn.col},${config.caravanSpawn.row}`;
+        const occupied = new Set([
+          ...config.playerSpawns.map((s) => `${s.col},${s.row}`),
+          ...config.enemySpawns.map((s) => `${s.col},${s.row}`),
+        ]);
+        expect(occupied.has(key)).toBe(false);
+      }
+    });
+
+    it('validateBattleConfig passes for a caravan-equipped battle config', () => {
+      const config = generateBattle({ act: 'act2', objective: 'rout', hasCaravan: true }, data);
+      const violations = validateBattleConfig(config, data);
+      expect(violations).toEqual([]);
+    });
   });
 });

@@ -15,6 +15,7 @@ import {
   filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
+import { pickCaravanSpawnTile } from './CaravanSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
@@ -256,6 +257,14 @@ export function generateBattle(params, deps) {
     }
   }
 
+  // 7d. Merchant Caravan spawn tile (rolled earlier into params.hasCaravan at
+  // node-generation time; here we just resolve a concrete open tile, same
+  // deferred-placement pattern as npcSpawn above).
+  let caravanSpawn = null;
+  if (params.hasCaravan) {
+    caravanSpawn = pickCaravanSpawnTile(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns);
+  }
+
   // 7c. Escape squares for the Escape objective
   let escapeTiles = null;
   if (objective === 'escape') {
@@ -278,6 +287,7 @@ export function generateBattle(params, deps) {
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC + exits
   const reachTargets = [...enemySpawns];
   if (npcSpawn) reachTargets.push(npcSpawn);
+  if (caravanSpawn) reachTargets.push(caravanSpawn);
   if (escapeTiles) reachTargets.push(...escapeTiles);
   ensureReachability(
     mapLayout,
@@ -331,6 +341,7 @@ export function generateBattle(params, deps) {
     playerSpawns,
     enemySpawns,
     npcSpawn,
+    caravanSpawn: caravanSpawn || undefined,
     thronePos,
     escapeTiles: escapeTiles || undefined,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
@@ -2891,6 +2902,7 @@ export function validateBattleConfig(config, deps, options = {}) {
     const playerSpawns = config.playerSpawns || [];
     const enemySpawns = config.enemySpawns || [];
     const npcSpawn = config.npcSpawn || null;
+    const caravanSpawn = config.caravanSpawn || null;
 
     // --- Player spawn capacity ---
     if (
@@ -2924,6 +2936,7 @@ export function validateBattleConfig(config, deps, options = {}) {
     for (const s of playerSpawns) registerSpawn(s, 'player', 'Infantry');
     for (const s of enemySpawns) registerSpawn(s, 'enemy', moveTypeOf(s));
     if (npcSpawn) registerSpawn(npcSpawn, 'npc', moveTypeOf(npcSpawn));
+    if (caravanSpawn) registerSpawn(caravanSpawn, 'caravan', 'Infantry');
 
     // --- Objective-specific requirements ---
     if (objective === 'seize') {
@@ -2964,6 +2977,7 @@ export function validateBattleConfig(config, deps, options = {}) {
       const connTargets = [];
       for (const e of enemySpawns) connTargets.push({ t: e, label: `enemy(${e.className})` });
       if (npcSpawn) connTargets.push({ t: npcSpawn, label: 'npc' });
+      if (caravanSpawn) connTargets.push({ t: caravanSpawn, label: 'caravan' });
       if (config.thronePos) connTargets.push({ t: config.thronePos, label: 'throne' });
       for (const tile of config.escapeTiles || []) {
         connTargets.push({ t: tile, label: 'escape' });

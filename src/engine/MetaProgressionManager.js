@@ -597,7 +597,7 @@ export class MetaProgressionManager {
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
-   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
+   *            deployBonus, rosterCapBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
@@ -621,6 +621,7 @@ export class MetaProgressionManager {
       deployBonus: 0,
       rosterCapBonus: 0,
       visionChargesBonus: 0,
+      caravanChanceBonus: 0,
       recruitRandomSkill: false,
       recruitStartingVulnerary: 0,
       extraStartingUnitTier: 0,
@@ -702,6 +703,8 @@ export class MetaProgressionManager {
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined)
         effects.visionChargesBonus = effect.visionChargesBonus;
+      if (effect.caravanChanceBonus !== undefined)
+        effects.caravanChanceBonus = effect.caravanChanceBonus;
       if (effect.recruitRandomSkill) effects.recruitRandomSkill = true;
       if (effect.recruitStartingVulnerary !== undefined)
         effects.recruitStartingVulnerary = effect.recruitStartingVulnerary;

@@ -111,6 +111,7 @@ function makeScene() {
     showLootStatus: vi.fn(),
     reportLootError: vi.fn(),
     forceTransitionAfterBattle: vi.fn(),
+    showBriefBanner: vi.fn(() => Promise.resolve()),
   };
 }
 
@@ -159,6 +160,62 @@ describe('PostCombatController', () => {
     const completeOrder = scene.runManager.completeBattle.mock.invocationCallOrder[0];
     const persistOrder = scene._persistBattleRunState.mock.invocationCallOrder[0];
     expect(persistOrder).toBeGreaterThan(completeOrder);
+  });
+
+  describe('Merchant Caravan reward wiring', () => {
+    it('passes caravanSurvived: true to completeBattle when the caravan survived', () => {
+      const scene = makeScene();
+      scene._caravanController = {
+        hadCaravan: vi.fn(() => true),
+        caravanSurvived: vi.fn(() => true),
+      };
+
+      new PostCombatController(scene).onVictory();
+
+      const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+      expect(options.caravanSurvived).toBe(true);
+      expect(scene.showBriefBanner).not.toHaveBeenCalled();
+    });
+
+    it('passes caravanSurvived: false and shows a destroyed toast when the caravan died', () => {
+      const scene = makeScene();
+      scene.showBriefBanner = vi.fn(() => Promise.resolve());
+      scene._caravanController = {
+        hadCaravan: vi.fn(() => true),
+        caravanSurvived: vi.fn(() => false),
+      };
+
+      new PostCombatController(scene).onVictory();
+
+      const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+      expect(options.caravanSurvived).toBe(false);
+      expect(scene.showBriefBanner).toHaveBeenCalledWith('Caravan destroyed.', expect.any(String));
+    });
+
+    it('passes caravanSurvived: false and shows no toast when this battle never had a caravan', () => {
+      const scene = makeScene();
+      scene.showBriefBanner = vi.fn(() => Promise.resolve());
+      scene._caravanController = {
+        hadCaravan: vi.fn(() => false),
+        caravanSurvived: vi.fn(() => false),
+      };
+
+      new PostCombatController(scene).onVictory();
+
+      const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+      expect(options.caravanSurvived).toBe(false);
+      expect(scene.showBriefBanner).not.toHaveBeenCalled();
+    });
+
+    it('defaults caravanSurvived to false when the scene has no _caravanController', () => {
+      const scene = makeScene();
+      expect(scene._caravanController).toBeUndefined();
+
+      new PostCombatController(scene).onVictory();
+
+      const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+      expect(options.caravanSurvived).toBe(false);
+    });
   });
 
   it('onDefeat persists the failed run so a banner refresh cannot rewind it', () => {

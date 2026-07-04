@@ -224,6 +224,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._shopOriginalSlotCount = 0;
     this._currentShopHasAmbushDiscount = false;
     this._currentShopIsRuins = false;
+    this._currentShopIsCaravan = false;
 
     // Debug overlay (dev-only)
     if (this.isDevToolsEnabled()) {
@@ -465,7 +466,10 @@ export class NodeMapScene extends Phaser.Scene {
         this.isSceneReady = true;
         const consumedPendingSelection = this._consumePendingNodeSelection?.() === true;
         if (!consumedPendingSelection) {
-          this._maybeOpenPendingAmbushShop?.(lifecycleGeneration);
+          const openedAmbushShop = this._maybeOpenPendingAmbushShop?.(lifecycleGeneration) === true;
+          if (!openedAmbushShop) {
+            this._maybeOpenPendingCaravanShop?.(lifecycleGeneration);
+          }
         }
       }
     }
@@ -536,6 +540,35 @@ export class NodeMapScene extends Phaser.Scene {
 
     if (typeof this.handleShop !== 'function') return false;
     this.handleShop(node, { ambushDiscount: true, pendingAmbush: true });
+    return true;
+  }
+
+  /**
+   * Merchant Caravan reward: unlike the ambush shop, this isn't tied to a
+   * specific node -- it opens as soon as the map is safe to interact with,
+   * mirroring pendingAmbushNodeId's round trip but with node=null.
+   */
+  _maybeOpenPendingCaravanShop(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+    if (this.sys?.isActive?.() === false) return false;
+    if (!this.isSceneReady) return false;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible
+    ) {
+      return false;
+    }
+
+    const pending = this.runManager?.getPendingCaravanShop?.();
+    if (!pending) return false;
+
+    if (typeof this.handleShop !== 'function') return false;
+    this.handleShop(null, { caravan: true, caravanActId: pending.actId });
     return true;
   }
 

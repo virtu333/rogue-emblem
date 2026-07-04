@@ -21,6 +21,7 @@ import {
   AMBUSH_SHOP_DISCOUNT,
   SAFE_BOTTOM_Y,
   LORE_TEXT_COLOR,
+  CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
@@ -93,12 +94,17 @@ export class ShopController {
   handleShop(node, options = {}) {
     const scene = this.scene;
     const ruins = options?.ruins === true;
-    const pendingAmbush = scene._isPendingAmbushNode?.(node) === true;
+    // Caravan reward shop: not tied to a node (the player picks it up on
+    // whichever node they're standing on when it opens), no reroll/forge/
+    // markup/skip-first-shop/ambush-discount interplay.
+    const caravan = options?.caravan === true && !node;
+    const pendingAmbush = !caravan && scene._isPendingAmbushNode?.(node) === true;
     const ambushDiscount =
-      options?.ambushDiscount === true ||
-      pendingAmbush ||
-      (node?.isAmbush === true && node?.ambushCleared === true);
-    if (!ruins && scene.runManager.consumeSkipFirstShop()) {
+      !caravan &&
+      (options?.ambushDiscount === true ||
+        pendingAmbush ||
+        (node?.isAmbush === true && node?.ambushCleared === true));
+    if (!ruins && !caravan && scene.runManager.consumeSkipFirstShop()) {
       showMinorHint(scene, 'Blessing effect: first shop skipped.');
       scene.runManager.markNodeComplete(node.id);
       if (pendingAmbush) scene._clearPendingAmbushForNode?.(node);
@@ -110,14 +116,15 @@ export class ShopController {
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), scene, 300);
 
     const rm = scene.runManager;
-    const cachedShop = rm.getShopState?.(node.id);
+    const cachedShop = caravan ? null : rm.getShopState?.(node.id);
+    const shopActId = caravan ? options?.caravanActId || rm.currentAct : rm.currentAct;
     let shopItems;
     if (cachedShop) {
       shopItems = cachedShop.items;
     } else {
-      const shopItemDelta = rm.getShopItemCountDelta();
+      const shopItemDelta = caravan ? 0 : rm.getShopItemCountDelta();
       shopItems = generateShopInventory(
-        rm.currentAct,
+        shopActId,
         scene.gameData.lootTables,
         scene.gameData.weapons,
         scene.gameData.consumables,
@@ -128,6 +135,7 @@ export class ShopController {
           itemCountBonus: shopItemDelta,
           shopCureGating: rm.difficultyModifiers?.shopCureGating,
           ...(ruins ? { itemCountRange: this._getRuinsItemCountRange(rm.currentAct) } : {}),
+          ...(caravan ? { itemCountRange: CARAVAN_SHOP_ITEM_COUNT_RANGE, rareBias: true } : {}),
         },
       );
       shopItems = scene.applyDifficultyShopPricing(shopItems);
@@ -142,6 +150,7 @@ export class ShopController {
       ambushDiscount: cachedShop?.ambushDiscountActive ?? ambushDiscount,
       pendingAmbush: !cachedShop && pendingAmbush,
       ruins,
+      caravan,
       cachedShop,
     });
   }
@@ -183,7 +192,9 @@ export class ShopController {
       { key: 'buy', label: 'Buy' },
       { key: 'sell', label: 'Sell' },
     ];
-    if (!this.scene._currentShopIsRuins) tabs.push({ key: 'forge', label: 'Forge' });
+    if (!this.scene._currentShopIsRuins && !this.scene._currentShopIsCaravan) {
+      tabs.push({ key: 'forge', label: 'Forge' });
+    }
     return tabs;
   }
 
@@ -195,9 +206,11 @@ export class ShopController {
     const cachedShop = options?.cachedShop;
     scene.shopForgesUsed = cachedShop?.forgesUsed || 0;
     scene._currentShopIsRuins = options?.ruins === true;
-    scene.shopScrollOffsets = scene._currentShopIsRuins
-      ? { buy: 0, sell: 0 }
-      : { buy: 0, sell: 0, forge: 0 };
+    scene._currentShopIsCaravan = options?.caravan === true;
+    scene.shopScrollOffsets =
+      scene._currentShopIsRuins || scene._currentShopIsCaravan
+        ? { buy: 0, sell: 0 }
+        : { buy: 0, sell: 0, forge: 0 };
     scene.shopScrollMax = 0;
     scene._shopViewingMap = false;
     scene._currentShopHasAmbushDiscount =
@@ -205,7 +218,11 @@ export class ShopController {
 
     // Tutorial hint for shop
     const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('nodemap_shop')) {
+    if (scene._currentShopIsCaravan) {
+      if (hints?.shouldShow('nodemap_caravan_shop')) {
+        showMinorHint(scene, 'The caravan trades its rare wares -- buy or sell, no forge here.');
+      }
+    } else if (hints?.shouldShow('nodemap_shop')) {
       showMinorHint(
         scene,
         scene._currentShopIsRuins
@@ -227,20 +244,24 @@ export class ShopController {
     scene.shopOverlay.push(panel);
 
     // Title
-    const titleLabel = scene._currentShopIsRuins
-      ? 'Ruins'
-      : scene._currentShopHasAmbushDiscount
-        ? 'Village (Liberated - 20% Off)'
-        : 'Village';
+    const titleLabel = scene._currentShopIsCaravan
+      ? 'Merchant Caravan'
+      : scene._currentShopIsRuins
+        ? 'Ruins'
+        : scene._currentShopHasAmbushDiscount
+          ? 'Village (Liberated - 20% Off)'
+          : 'Village';
     const title = scene.add
       .text(320, 30, titleLabel, {
         fontFamily: 'monospace',
         fontSize: '22px',
-        color: scene._currentShopIsRuins
-          ? '#c4b18a'
-          : scene._currentShopHasAmbushDiscount
-            ? '#88ff88'
-            : '#ffdd44',
+        color: scene._currentShopIsCaravan
+          ? '#ffcc33'
+          : scene._currentShopIsRuins
+            ? '#c4b18a'
+            : scene._currentShopHasAmbushDiscount
+              ? '#88ff88'
+              : '#ffdd44',
       })
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
@@ -326,19 +347,19 @@ export class ShopController {
     scene.drawActiveTabContent();
 
     // Leave button
+    const leaveLabel = scene._currentShopIsCaravan
+      ? '[ Leave Caravan ]'
+      : scene._currentShopIsRuins
+        ? '[ Return to Ruins ]'
+        : '[ Leave Village ]';
     const leaveBtn = scene.add
-      .text(
-        320,
-        SAFE_BOTTOM_Y,
-        scene._currentShopIsRuins ? '[ Return to Ruins ]' : '[ Leave Village ]',
-        {
-          fontFamily: 'monospace',
-          fontSize: '16px',
-          color: '#e0e0e0',
-          backgroundColor: '#333333',
-          padding: { x: 16, y: 8 },
-        },
-      )
+      .text(320, SAFE_BOTTOM_Y, leaveLabel, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 8 },
+      })
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
@@ -372,10 +393,17 @@ export class ShopController {
     if (!scene.shopOverlay) return;
     const node = scene._shopNode;
     const isRuins = scene._currentShopIsRuins === true;
+    const isCaravan = scene._currentShopIsCaravan === true;
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(getMusicKey('nodeMap', scene.runManager.currentAct), scene, 300);
     if (isRuins) scene._saveShopState();
     scene.closeShopOverlay();
+    if (isCaravan) {
+      // Not tied to a node -- just clear the reward flag. No markNodeComplete,
+      // no shop-state caching (one-time reward, never revisited).
+      scene.runManager?.clearPendingCaravanShop?.();
+      return;
+    }
     if (isRuins && node) {
       scene.handleRuins(node);
       return;
@@ -445,7 +473,8 @@ export class ShopController {
 
     if (scene.activeShopTab === 'buy') {
       scene.drawShopBuyList();
-      scene.drawRerollButton();
+      // Caravan is a one-time reward stock -- no reroll.
+      if (!scene._currentShopIsCaravan) scene.drawRerollButton();
     } else if (scene.activeShopTab === 'sell') {
       scene.drawShopSellList();
     } else if (scene.activeShopTab === 'forge') {
@@ -2202,6 +2231,7 @@ export class ShopController {
     scene._shopNode = null;
     scene._currentShopHasAmbushDiscount = false;
     scene._currentShopIsRuins = false;
+    scene._currentShopIsCaravan = false;
   }
   destroy() {
     // Release any input scopes still on the stack (scene shutdown with the shop

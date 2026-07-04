@@ -374,6 +374,13 @@ export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
 export const FOG_CHANCE_BY_ACT = { act1: 0.1, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
 
+// Merchant Caravan (rare escort micro-objective, BATTLE/ELITE nodes act2+ only)
+export const CARAVAN_SPAWN_CHANCE = 0.15;
+export const CARAVAN_ELIGIBLE_ACTS = ['act2', 'act3', 'act4'];
+export const CARAVAN_BASE_HP = 18;
+export const CARAVAN_HP_PER_ACT = 4;
+export const CARAVAN_SHOP_ITEM_COUNT_RANGE = { min: 3, max: 4 };
+
 // Placeholder terrain colors (Phase 1 colored rectangles)
 export const TERRAIN_COLORS = {
   Plain: 0x7ec850,

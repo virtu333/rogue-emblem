@@ -1388,4 +1388,65 @@ describe('AIController', () => {
       expect(dest.row).toBe(5);
     });
   });
+
+  describe('Merchant Caravan targeting priority', () => {
+    it('_scoreAttackTarget adds a flat bonus for isCaravan targets', () => {
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy();
+      const caravan = makePlayer({ faction: 'npc', isCaravan: true, currentHP: 20 });
+      const normalNpc = makePlayer({ faction: 'npc', currentHP: 20 });
+
+      const caravanScore = ai._scoreAttackTarget(enemy, caravan);
+      const normalScore = ai._scoreAttackTarget(enemy, normalNpc);
+      expect(caravanScore - normalScore).toBe(40);
+    });
+
+    it('prefers the caravan over an equal-score player target', () => {
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy();
+      // Same currentHP/stats.HP so the base score ties exactly.
+      const caravan = makePlayer({
+        faction: 'npc',
+        isCaravan: true,
+        currentHP: 20,
+        stats: { HP: 20 },
+      });
+      const playerTarget = makePlayer({ currentHP: 20, stats: { HP: 20 } });
+
+      const caravanScore = ai._scoreAttackTarget(enemy, caravan);
+      const playerScore = ai._scoreAttackTarget(enemy, playerTarget);
+      expect(caravanScore).toBeGreaterThan(playerScore);
+    });
+
+    it('does not apply the caravan bonus to a non-caravan npc', () => {
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy();
+      const normalNpc = makePlayer({ faction: 'npc', currentHP: 20, stats: { HP: 20 } });
+      const baselineNoBonus = ai._scoreAttackTarget(enemy, { ...normalNpc, isCaravan: false });
+      expect(ai._scoreAttackTarget(enemy, normalNpc)).toBe(baselineNoBonus);
+    });
+
+    it('guard enemies remain unaffected (guard trigger logic untouched)', () => {
+      // Guard behavior lives entirely in _decideAction's trigger-range gate,
+      // upstream of _scoreAttackTarget -- verify a guard enemy far from any
+      // unit (including a caravan) still holds position rather than chasing.
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ aiMode: 'guard', col: 0, row: 0 });
+      const caravan = makePlayer({
+        faction: 'npc',
+        isCaravan: true,
+        col: 10,
+        row: 10,
+        currentHP: 20,
+      });
+
+      const decision = ai._decideAction(enemy, [enemy], [], [caravan]);
+      expect(decision.path).toBeNull();
+      expect(decision.target).toBeNull();
+    });
+  });
 });

@@ -982,7 +982,8 @@ export function generateLootChoices(
  * @param {Array} [allAccessories] - accessories.json array
  * @param {Array} [roster] - current roster for weapon type filtering
  * @param {object|null} weaponArtSpawnConfig - meta-art spawn settings
- * @param {object} [options={}] - future extension for loot effects
+ * @param {object} [generateOptions={}] - itemCountRange, itemCountBonus, shopCureGating,
+ *   rareBias (Merchant Caravan reward shop: guarantee 1-2 rare/forge-pool items)
  * @returns {Array<{ item: object, price: number, type: string }>}
  */
 export function generateShopInventory(
@@ -1049,6 +1050,34 @@ export function generateShopInventory(
     return true;
   };
 
+  // Rare bias (Merchant Caravan reward shop): guarantee 1-2 items from the
+  // rare/forge pools up front, before the normal weapon/consumable guarantees,
+  // so a caravan shop reliably reads as a step up from a regular village even
+  // when the random fill loop below would otherwise miss the rare pools.
+  // Capped to leave room for the weapon + consumable guarantees below so a
+  // small itemCountRange (e.g. the caravan's 3-4) doesn't overshoot.
+  if (generateOptions?.rareBias) {
+    const rarePool = [
+      ...filteredSkillScrolls,
+      ...filteredWeaponArtScrolls,
+      ...filteredLegendaryWeapons,
+      ...filteredForge,
+    ];
+    const rareGuaranteeCount = Math.max(0, Math.min(2, itemCount - 2));
+    let rareGuaranteed = 0;
+    let rareAttempts = 0;
+    const maxRareAttempts = Math.max(1, rareGuaranteeCount) * 5;
+    while (
+      rareGuaranteed < rareGuaranteeCount &&
+      rareAttempts < maxRareAttempts &&
+      rarePool.length > 0
+    ) {
+      rareAttempts++;
+      const name = rarePool[Math.floor(Math.random() * rarePool.length)];
+      if (addByName(name)) rareGuaranteed++;
+    }
+  }
+
   // Guarantee at least one weapon.
   if (filteredWeapons.length > 0) {
     const weaponName = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
@@ -1065,15 +1094,21 @@ export function generateShopInventory(
     addByName(consumableName, 'consumable');
   }
 
-  const guaranteedConsumables = ['Vulnerary', 'Elixir'];
-  for (const name of guaranteedConsumables) {
-    if (usedNames.has(name)) continue;
-    const inHealingOrPromotion = [
-      ...normalizeLootArray(pools.healing),
-      ...normalizeLootArray(pools.promotion),
-    ].includes(name);
-    if (!inHealingOrPromotion) continue;
-    addByName(name, 'consumable');
+  // Skipped for rareBias (Merchant Caravan): a rare-stock reward shop isn't
+  // meant to double as the standard starter healing kit, and the caravan's
+  // tight 3-4 item count has no room for two more unconditional guarantees
+  // on top of the rare-item guarantee above.
+  if (!generateOptions?.rareBias) {
+    const guaranteedConsumables = ['Vulnerary', 'Elixir'];
+    for (const name of guaranteedConsumables) {
+      if (usedNames.has(name)) continue;
+      const inHealingOrPromotion = [
+        ...normalizeLootArray(pools.healing),
+        ...normalizeLootArray(pools.promotion),
+      ].includes(name);
+      if (!inHealingOrPromotion) continue;
+      addByName(name, 'consumable');
+    }
   }
 
   const combinedPool = [

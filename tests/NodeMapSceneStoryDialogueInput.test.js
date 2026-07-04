@@ -367,4 +367,152 @@ describe('NodeMap story-dialogue node click queue', () => {
     await expect(NodeMapScene.prototype.finalizeSceneReady.call(scene)).resolves.toBeUndefined();
     expect(handleShop).not.toHaveBeenCalled();
   });
+
+  it('finalizeSceneReady auto-opens pending caravan shop when no ambush shop is pending', async () => {
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        getAmbushPendingNode: vi.fn(() => null),
+        getPendingCaravanShop: vi.fn(() => ({ actId: 'act2' })),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      _maybeOpenPendingCaravanShop: NodeMapScene.prototype._maybeOpenPendingCaravanShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).toHaveBeenCalledTimes(1);
+    expect(handleShop).toHaveBeenCalledWith(null, { caravan: true, caravanActId: 'act2' });
+  });
+
+  it('finalizeSceneReady prefers the ambush shop over a pending caravan shop', async () => {
+    const pendingShopNode = { id: 'shop1', type: 'shop' };
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        currentNodeId: pendingShopNode.id,
+        nodeMap: { nodes: [pendingShopNode] },
+        getAmbushPendingNode: vi.fn(() => pendingShopNode),
+        getPendingCaravanShop: vi.fn(() => ({ actId: 'act2' })),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      _maybeOpenPendingCaravanShop: NodeMapScene.prototype._maybeOpenPendingCaravanShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).toHaveBeenCalledTimes(1);
+    expect(handleShop).toHaveBeenCalledWith(pendingShopNode, {
+      ambushDiscount: true,
+      pendingAmbush: true,
+    });
+  });
+
+  it('finalizeSceneReady does not open the caravan shop while another overlay is open', async () => {
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        getAmbushPendingNode: vi.fn(() => null),
+        getPendingCaravanShop: vi.fn(() => ({ actId: 'act2' })),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: { visible: true },
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      _maybeOpenPendingCaravanShop: NodeMapScene.prototype._maybeOpenPendingCaravanShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).not.toHaveBeenCalled();
+  });
+
+  it('finalizeSceneReady does not open a caravan shop when none is pending', async () => {
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        getAmbushPendingNode: vi.fn(() => null),
+        getPendingCaravanShop: vi.fn(() => null),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      _maybeOpenPendingCaravanShop: NodeMapScene.prototype._maybeOpenPendingCaravanShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).not.toHaveBeenCalled();
+  });
 });

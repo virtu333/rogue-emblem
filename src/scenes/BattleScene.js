@@ -212,6 +212,7 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { CaravanController } from '../ui/CaravanController.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -477,6 +478,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._healController) {
       this._healController.destroy();
       this._healController = null;
+    }
+    if (this._caravanController) {
+      this._caravanController.destroy();
+      this._caravanController = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1164,6 +1169,13 @@ export class BattleScene extends Phaser.Scene {
       this._bossName = this._resolveBossDialogueName(
         this.enemyUnits.find((unit) => unit.isBoss)?.name || null,
       );
+
+      // Merchant Caravan: spawn from battleConfig.caravanSpawn if rolled for
+      // this node (resume restores it from the suspend checkpoint instead).
+      (this._caravanController ||= new CaravanController(this)).spawnIfConfigured();
+      if (this._resumeCheckpoint) {
+        this._caravanController.retintIfPresent();
+      }
 
       // Spawn NPC for recruit battles
       if (bc.npcSpawn && !this._resumeCheckpoint) {
@@ -9432,6 +9444,9 @@ export class BattleScene extends Phaser.Scene {
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
+      // Merchant Caravan: 1-tile greedy step toward the nearest edge, before
+      // enemy AI acts so enemies can react to the caravan's new position.
+      this._caravanController?.stepTurn();
       // Debug: skip enemy phase entirely
       if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
         this._debugSkipEnemyPhase = false;

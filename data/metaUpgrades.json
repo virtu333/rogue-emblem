@@ -1017,6 +1017,19 @@
     ]
   },
   {
+    "id": "trade_contacts",
+    "name": "Trade Contacts",
+    "description": "+7% Merchant Caravan spawn chance per tier",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [150, 250],
+    "requires": { "milestones": ["beatAct1"] },
+    "effects": [
+      { "caravanChanceBonus": 0.07 },
+      { "caravanChanceBonus": 0.15 }
+    ]
+  },
+  {
     "id": "deploy_limit",
     "name": "Tactical Advantage",
     "description": "+1 deploy slot in all acts",

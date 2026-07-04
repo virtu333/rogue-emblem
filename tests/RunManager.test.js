@@ -580,6 +580,90 @@ describe('RunManager', () => {
     });
   });
 
+  describe('Merchant Caravan pending shop', () => {
+    it('completeBattle sets pendingCaravanShop only when caravanSurvived is true', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      expect(rm.getPendingCaravanShop()).toBeNull();
+      rm.completeBattle(rm.getRoster(), startNode.id, 0, { caravanSurvived: true });
+      expect(rm.getPendingCaravanShop()).toEqual({ actId: rm.currentAct });
+    });
+
+    it('completeBattle does not set pendingCaravanShop when caravanSurvived is false/omitted', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.completeBattle(rm.getRoster(), startNode.id, 0, { caravanSurvived: false });
+      expect(rm.getPendingCaravanShop()).toBeNull();
+    });
+
+    it('clearPendingCaravanShop clears the flag', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.completeBattle(rm.getRoster(), startNode.id, 0, { caravanSurvived: true });
+      expect(rm.getPendingCaravanShop()).not.toBeNull();
+      expect(rm.clearPendingCaravanShop()).toBe(true);
+      expect(rm.getPendingCaravanShop()).toBeNull();
+      // Clearing again is a no-op, not an error.
+      expect(rm.clearPendingCaravanShop()).toBe(false);
+    });
+
+    it('survives a serialize/deserialize round trip via toJSON/fromJSON', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.completeBattle(rm.getRoster(), startNode.id, 0, { caravanSurvived: true });
+      const saved = rm.toJSON();
+      expect(saved.pendingCaravanShop).toEqual({ actId: rm.currentAct });
+
+      const restored = RunManager.fromJSON(saved, gameData);
+      expect(restored.getPendingCaravanShop()).toEqual({ actId: rm.currentAct });
+    });
+
+    it('back-compat: loading a save with no pendingCaravanShop field defaults to null', () => {
+      rm.startRun();
+      const saved = rm.toJSON();
+      delete saved.pendingCaravanShop; // simulate a pre-feature save
+      const restored = RunManager.fromJSON(saved, gameData);
+      expect(restored.getPendingCaravanShop()).toBeNull();
+    });
+
+    it('advanceAct clears any pending caravan shop', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.completeBattle(rm.getRoster(), startNode.id, 0, { caravanSurvived: true });
+      expect(rm.getPendingCaravanShop()).not.toBeNull();
+      rm.advanceAct?.();
+      expect(rm.getPendingCaravanShop()).toBeNull();
+    });
+
+    it('Trade Contacts end-to-end: metaEffects.caravanChanceBonus boosts act2 spawn rate through startRun/advanceAct node generation', () => {
+      // 0.15 base + 0.85 bonus = chance clamped to 1.0: with the bonus, EVERY
+      // eligible act2 BATTLE node (non-escape objective) must roll a caravan.
+      // Same seed without the bonus serves as the deterministic control.
+      const seed = 424242;
+      const eligibleBattleNodes = (manager) =>
+        manager.nodeMap.nodes.filter(
+          (n) => n.type === NODE_TYPES.BATTLE && n.battleParams?.objective !== 'escape',
+        );
+      const caravanCount = (manager) =>
+        manager.nodeMap.nodes.filter((n) => n.battleParams?.hasCaravan).length;
+
+      const boosted = new RunManager(gameData, { caravanChanceBonus: 0.85 });
+      boosted.startRun({ runSeed: seed });
+      expect(caravanCount(boosted)).toBe(0); // act1: never, even at 100% chance
+      boosted.advanceAct(); // act2
+      const eligible = eligibleBattleNodes(boosted);
+      expect(eligible.length).toBeGreaterThan(0);
+      expect(eligible.every((n) => n.battleParams.hasCaravan === true)).toBe(true);
+      // Non-BATTLE and escape nodes stay caravan-free even at 100% chance.
+      expect(caravanCount(boosted)).toBe(eligible.length);
+
+      const baseline = new RunManager(gameData);
+      baseline.startRun({ runSeed: seed });
+      baseline.advanceAct();
+      expect(caravanCount(baseline)).toBeLessThan(caravanCount(boosted));
+    });
+  });
+
   describe('gold methods', () => {
     it('applies meta goldBonus to starting gold', () => {
       const baseline = new RunManager(gameData);
