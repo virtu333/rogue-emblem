@@ -40,6 +40,12 @@ export const ENEMY_PROMOTION_BASE_LEVEL = 12;
 // Skill cap per unit
 export const MAX_SKILLS = 5;
 
+// Class mastery: battles fought in a class family to earn its perk.
+// Traits can shift the effective threshold (masteryBattlesDelta), floored at
+// MASTERY_MIN_BATTLES.
+export const MASTERY_BATTLES = 8;
+export const MASTERY_MIN_BATTLES = 4;
+
 // XP system
 export const XP_PER_LEVEL = 100;
 export const XP_BASE_COMBAT = 25;

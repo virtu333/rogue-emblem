@@ -18,6 +18,12 @@
     "weaponProficiencies": "Swords (P)",
     "role": "Fast melee, high crit",
     "description": "Fences with high skill and blistering speed. A drawn-out fight, though, is where it bleeds out.",
+    "masteryPerk": {
+      "name": "Duelist's Edge",
+      "mods": {
+        "critBonus": 10
+      }
+    },
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -58,6 +64,12 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Slow tank, very high DEF",
     "description": "All armor, no hurry. Soaks enormous punishment, then fails to catch anything that runs.",
+    "masteryPerk": {
+      "name": "Bulwark",
+      "mods": {
+        "defBonus": 2
+      }
+    },
     "growthRanges": {
       "HP": "80-95",
       "STR": "50-65",
@@ -98,6 +110,12 @@
     "weaponProficiencies": "Axes (P)",
     "role": "High STR bruiser",
     "description": "Swings an axe hard enough to matter and eats hits well, though the aim and the luck both wander.",
+    "masteryPerk": {
+      "name": "Frenzy",
+      "mods": {
+        "atkBonus": 2
+      }
+    },
     "growthRanges": {
       "HP": "75-90",
       "STR": "55-70",
@@ -138,6 +156,13 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Balanced mounted",
     "description": "Lance and mount, steady in every stat. The dependable body for any lineup.",
+    "masteryPerk": {
+      "name": "Wayfarer",
+      "mods": {
+        "atkBonus": 1,
+        "spdBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "65-80",
       "STR": "40-55",
@@ -178,6 +203,13 @@
     "weaponProficiencies": "Bows (P)",
     "role": "Ranged physical (2 range)",
     "description": "Deadly at two tiles, dead weight at one.",
+    "masteryPerk": {
+      "name": "Deadeye",
+      "mods": {
+        "hitBonus": 10,
+        "critBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -218,6 +250,12 @@
     "weaponProficiencies": "Tomes (P)",
     "role": "Ranged magic damage",
     "description": "Burns through armor with raw magic. A single solid hit ends the lesson.",
+    "masteryPerk": {
+      "name": "Focus",
+      "mods": {
+        "atkBonus": 2
+      }
+    },
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-15",
@@ -258,6 +296,13 @@
     "weaponProficiencies": "Staves (P)",
     "role": "Healer, no offense",
     "description": "Keeps the army standing turn after turn. Cannot land a blow of her own.",
+    "masteryPerk": {
+      "name": "Devotion",
+      "mods": {
+        "resBonus": 2,
+        "avoidBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-10",
@@ -298,6 +343,12 @@
     "weaponProficiencies": "Swords (P)",
     "role": "Fast, picks locks, fog vision",
     "description": "Fastest boots on the field, keen eyes in the fog, and no lock slows her. Armor does.",
+    "masteryPerk": {
+      "name": "Evasion",
+      "mods": {
+        "avoidBonus": 10
+      }
+    },
     "growthRanges": {
       "HP": "50-65",
       "STR": "25-40",
@@ -338,6 +389,13 @@
     "weaponProficiencies": "Swords (P)",
     "role": "Support, refreshes allies",
     "description": "Her dance hands an ally a second action — the rarest, most prized support a lord can field.",
+    "masteryPerk": {
+      "name": "Grace",
+      "mods": {
+        "avoidBonus": 8,
+        "spdBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "40-55",
       "STR": "20-35",
@@ -369,6 +427,13 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Flying, high RES, bow-weak",
     "description": "Rides the wind above every wall and shrugs off magic. An archer's arrow brings her down.",
+    "masteryPerk": {
+      "name": "Tailwind",
+      "mods": {
+        "spdBonus": 1,
+        "avoidBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "50-65",
       "STR": "30-45",
@@ -409,6 +474,12 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Flying bruiser, bow-weak",
     "description": "Tough and strong on the wing. Magic finds the gaps in the scales.",
+    "masteryPerk": {
+      "name": "Iron Scales",
+      "mods": {
+        "defBonus": 2
+      }
+    },
     "growthRanges": {
       "HP": "60-70",
       "STR": "40-55",
@@ -449,6 +520,13 @@
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced all-rounder",
     "description": "No wasted stat, no glaring gap. The sellsword you can slot anywhere and trust.",
+    "masteryPerk": {
+      "name": "Veteran",
+      "mods": {
+        "hitBonus": 5,
+        "critBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "65-80",
       "STR": "45-60",
@@ -778,6 +856,13 @@
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced leader, Charisma aura",
     "description": "Steadies nearby allies with a Charisma aura and only sharpens as the war grinds on.",
+    "masteryPerk": {
+      "name": "Resolve",
+      "mods": {
+        "atkBonus": 1,
+        "defBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "50-65",
       "STR": "38-50",
@@ -809,6 +894,13 @@
     "weaponProficiencies": "Tomes (P)",
     "role": "Magical tactician, Foresight range bonus",
     "description": "Reads the field farther through fog and answers it with magic.",
+    "masteryPerk": {
+      "name": "Foresight",
+      "mods": {
+        "avoidBonus": 5,
+        "hitBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "40-55",
       "STR": "15-25",
@@ -840,6 +932,13 @@
     "weaponProficiencies": "Swords (P), Bows (P)",
     "role": "Tanky melee, Resolve at low HP",
     "description": "Hard to drop and harder once wounded — Resolve sharpens him as the blood runs.",
+    "masteryPerk": {
+      "name": "Pathfinder",
+      "mods": {
+        "spdBonus": 1,
+        "hitBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "55-70",
       "STR": "42-55",
@@ -871,6 +970,13 @@
     "weaponProficiencies": "Light (P)",
     "role": "Light magic, Renewal Aura healer",
     "description": "Light magic in one hand, a healing aura for nearby allies in the other.",
+    "masteryPerk": {
+      "name": "Radiance",
+      "mods": {
+        "atkBonus": 1,
+        "resBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "40-55",
       "STR": "5-15",
@@ -986,6 +1092,13 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Mounted lancer, charge bonus",
     "description": "The farther he charges, the harder he lands; deadly reach across open ground.",
+    "masteryPerk": {
+      "name": "Vanguard",
+      "mods": {
+        "atkBonus": 1,
+        "defBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "60-75",
       "STR": "40-55",
@@ -1038,6 +1151,13 @@
     "weaponProficiencies": "Lances (P)",
     "role": "Flying skirmisher, solo evasion",
     "description": "Cut loose from the pack she flies faster and dodges more. Keep her clear of archers.",
+    "masteryPerk": {
+      "name": "Skyfall",
+      "mods": {
+        "spdBonus": 1,
+        "critBonus": 5
+      }
+    },
     "growthRanges": {
       "HP": "50-65",
       "STR": "33-45",
@@ -1090,6 +1210,13 @@
     "weaponProficiencies": "Axes (P)",
     "role": "Heavy tank, debuffs attackers",
     "description": "Enormous bulk that punishes whoever dares to strike it first.",
+    "masteryPerk": {
+      "name": "Aegis",
+      "mods": {
+        "defBonus": 1,
+        "resBonus": 1
+      }
+    },
     "growthRanges": {
       "HP": "75-90",
       "STR": "45-60",
@@ -1376,7 +1503,13 @@
       "Revenant"
     ],
     "role": "tank",
-    "description": "Slow, hard to put down, and it rises once more after falling — unless Light magic does the killing."
+    "description": "Slow, hard to put down, and it rises once more after falling — unless Light magic does the killing.",
+    "masteryPerk": {
+      "name": "Undying",
+      "mods": {
+        "defBonus": 1
+      }
+    }
   },
   {
     "name": "Revenant",
@@ -1436,7 +1569,13 @@
       "Dragon Lord"
     ],
     "role": "tank",
-    "description": "Vast bulk, and breath that scorches resistance from one tile away or two."
+    "description": "Vast bulk, and breath that scorches resistance from one tile away or two.",
+    "masteryPerk": {
+      "name": "Wyrmwrath",
+      "mods": {
+        "atkBonus": 2
+      }
+    }
   },
   {
     "name": "Dragon Lord",

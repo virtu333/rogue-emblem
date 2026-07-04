@@ -411,6 +411,7 @@ export function generateBossRecruitCandidates(
       skills,
       metaEffects,
       baseLevelOverride,
+      gameData.traits || null,
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
@@ -496,6 +497,7 @@ function createRecruitFromPool(
   skills,
   metaEffects,
   baseLevelOverride = null,
+  traitsData = null,
 ) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
@@ -528,6 +530,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
+      { traitsData, rng: Math.random },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
@@ -573,6 +576,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
+      { traitsData, rng: Math.random },
     );
     addClassInnates(unit, classData.name);
     const baseSpawnTier = unit.weapon?.tier || 'Iron';

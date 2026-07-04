@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { rollAndApplyTraits } from './TraitSystem.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -509,6 +510,7 @@ export function createRecruitUnit(
   growthBonuses = null,
   randomSkillPool = null,
   classesData = null,
+  options = {},
 ) {
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
@@ -615,6 +617,12 @@ export function createRecruitUnit(
   if (Array.isArray(classesData) && classesData.length > 0) {
     checkLevelUpSkills(unit, classesData);
   }
+
+  // Roll traits (recruits only; lords never call this path). Creation-time
+  // stat/growth mods are baked immediately — same philosophy as rolled growths.
+  // No-op unless options.traitsData is provided, keeping sim/harness/test paths
+  // that omit it deterministic and unchanged. Always sets unit.traits = [].
+  rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random);
 
   return unit;
 }

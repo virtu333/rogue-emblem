@@ -253,6 +253,7 @@ export function generateMercenaryCandidates(
   difficultyMode,
   colosseumData,
   rng,
+  traitsData = null,
 ) {
   const mercConfig = colosseumData?.mercenaries;
   if (!mercConfig) {
@@ -330,6 +331,7 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
+          { traitsData, rng },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -349,6 +351,7 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
+          { traitsData, rng },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team

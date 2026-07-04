@@ -433,6 +433,10 @@ export class ColosseumOverlay {
 
     // Minimal skill context for forecast (arena = isolated 1v1, no allies)
     const skillsData = this.gameData.skills || [];
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       unit,
       challenger,
@@ -441,6 +445,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       true,
+      null,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       challenger,
@@ -450,6 +456,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       false,
+      null,
+      masteryCtx,
     );
 
     const forecast = getCombatForecast(
@@ -555,6 +563,10 @@ export class ColosseumOverlay {
 
     // Build full skill context for resolution
     const skillsData = this.gameData.skills || [];
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       unit,
       challenger,
@@ -563,6 +575,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       true,
+      null,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       challenger,
@@ -572,6 +586,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       false,
+      null,
+      masteryCtx,
     );
 
     const skillCtx = {
@@ -930,6 +946,7 @@ export class ColosseumOverlay {
           this._getDifficultyId(),
           this._colosseumData,
           Math.random,
+          this.gameData.traits || null,
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);

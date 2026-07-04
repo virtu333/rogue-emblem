@@ -1,0 +1,93 @@
+[
+  {
+    "id": "steady",
+    "name": "Steady",
+    "description": "+1 DEF and +5 HP growth. Weathers punishment.",
+    "creationMods": { "stats": { "DEF": 1 }, "growths": { "HP": 5 } }
+  },
+  {
+    "id": "nimble",
+    "name": "Nimble",
+    "description": "+1 SPD and +5 SPD growth. Hard to pin down.",
+    "creationMods": { "stats": { "SPD": 1 }, "growths": { "SPD": 5 } }
+  },
+  {
+    "id": "hardy",
+    "name": "Hardy",
+    "description": "+2 HP and +10 HP growth. Slow to fall.",
+    "creationMods": { "stats": { "HP": 2 }, "growths": { "HP": 10 } }
+  },
+  {
+    "id": "keen",
+    "name": "Keen",
+    "description": "+1 SKL and +5 SKL growth. Rarely misses.",
+    "creationMods": { "stats": { "SKL": 1 }, "growths": { "SKL": 5 } }
+  },
+  {
+    "id": "brawny",
+    "name": "Brawny",
+    "description": "+1 STR but -5 SPD growth. Hits hard, hefts slow.",
+    "creationMods": { "stats": { "STR": 1 }, "growths": { "SPD": -5 } }
+  },
+  {
+    "id": "clever",
+    "name": "Clever",
+    "description": "+1 MAG but -1 DEF. A fragile mind for magic.",
+    "creationMods": { "stats": { "MAG": 1, "DEF": -1 } }
+  },
+  {
+    "id": "lucky",
+    "name": "Lucky",
+    "description": "+2 LCK and +5 LCK growth. Fortune favors them.",
+    "creationMods": { "stats": { "LCK": 2 }, "growths": { "LCK": 5 } }
+  },
+  {
+    "id": "cornered",
+    "name": "Cornered",
+    "description": "+15 crit while below half HP. Fights hardest wounded.",
+    "combatMods": { "critBonus": 15, "condition": "below50" }
+  },
+  {
+    "id": "vigorous",
+    "name": "Vigorous",
+    "description": "+2 ATK while above three-quarters HP. Strong when fresh.",
+    "combatMods": { "atkBonus": 2, "condition": "above75" }
+  },
+  {
+    "id": "lone_wolf",
+    "name": "Lone Wolf",
+    "description": "+10 avoid with no ally within 2 tiles. Fights alone.",
+    "combatMods": { "avoidBonus": 10, "condition": "no_ally_within_2" }
+  },
+  {
+    "id": "woodsman",
+    "name": "Woodsman",
+    "description": "+2 DEF while standing in forest. At home in the trees.",
+    "combatMods": { "defBonus": 2, "condition": "on_forest" }
+  },
+  {
+    "id": "studious",
+    "name": "Studious",
+    "description": "Masters a class 2 battles sooner. A quick learner.",
+    "masteryBattlesDelta": -2
+  },
+  {
+    "id": "lazy",
+    "name": "Lazy",
+    "description": "+1 STR and +1 DEF, but masters a class 2 battles later.",
+    "creationMods": { "stats": { "STR": 1, "DEF": 1 } },
+    "masteryBattlesDelta": 2
+  },
+  {
+    "id": "reckless",
+    "name": "Reckless",
+    "description": "When mastered, gains +2 ATK / -1 DEF instead of the class perk.",
+    "masteryPerkOverride": { "atkBonus": 2, "defBonus": -1 }
+  },
+  {
+    "id": "quick_study",
+    "name": "Quick Study",
+    "description": "Earns 15% more XP. Grows faster than most.",
+    "xpMultiplier": 1.15
+  }
+]

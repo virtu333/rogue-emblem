@@ -2351,6 +2351,7 @@ export class RunManager {
       growthBonuses,
       randomSkillPool,
       classes,
+      { traitsData: this.gameData?.traits || null, rng: Math.random },
     );
     if (!hasRecruitTemplate) {
       promoteUnit(unit, classData, classData.promotionBonuses || {}, this.gameData?.skills || []);
