@@ -5,6 +5,72 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
+
+Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
+implementation cost, philosophy fit, and collisions with the in-flight wave.
+
+### Ruling: ally-relocation is staff-exclusive
+
+Verified: no Warp/Rescue staves exist (8 staves total; the utility-staff niche is empty —
+Sleep/Silence are enemy-only). Decision: **Warp and Rescue effects ship only as staves**, giving
+healers a second high-leverage role (roster-incentive aligned). Self-teleport (Blink, wave 1
+scroll) stays a skill. Definitions, FE-classic:
+- **Rescue Staff** — pull a distant ally (within MAG-scaled range) to a tile adjacent to the caster.
+- **Warp Staff** — send an adjacent ally to a passable tile within MAG-scaled range.
+Both use the existing staff plumbing (uses, MAG 8/14/20 bonus uses, staff XP). The "Warp/Recall"
+entries in the ability list below are superseded by this ruling.
+
+### Accessories, wave 2
+
+| Item | Effect | Notes |
+|---|---|---|
+| Chronal Locket | Once per battle, survive a lethal hit at 1 HP | Guaranteed Miracle; Sera timeline flavor. Reuse the per-battle usage-counter pattern; interacts with the Miracle skill (must not double-fire — locket consumes first or last, pick and document). Cheap. |
+| Shadow Cloak | Enemies won't target holder unless it's the only unit in range | Aggro-drop for fragile mages/healers. Needs an AI hook in `_scoreAttackTarget`; same plumbing as Provoke (aggro-up) below — build both flags at once. |
+| Sunstone Band | Heal 20% max HP at start of each turn | Juggernaut enabler — accepted deliberately (roguelikes love a busted find). `turnStartEffects.healSelfPercent` already exists (Soothing Stone) so it's a data-only item. Adopt the suggested "only while no ally adjacent" gate: it creates clean anti-synergy with Phalanx Band/Mentor's Band, so the item declares an identity instead of stacking with formation play. Act3+, expensive. |
+| Timeweaver's Pendant | Once per battle, rewind holder to its turn-start position and HP | Item-based personal Vision. Flag: needs a turn-start snapshot + restore path; Vision/BattleSuspend systems are precedent but this is the priciest item here — spec carefully (interaction with kills made, XP gained, statuses since turn start: rewind position/HP only, nothing else). |
+| Aegis Mantle | Halve incoming ranged/magic damage | Hard counter to act3 mage stacks/siege; melee still punishes. New combat-mod key, clean Combat.js seam. |
+| Berserker's Chain | +30 crit; holder cannot be healed by staves | Glass-cannon enabler with a real cost. Needs a heal-block check in staff targeting (HealController) + clear UI messaging on why the target is invalid. |
+| Phantom Step | Ignore enemy zone of control | **Reinterpretation required: the game has no ZoC mechanic** — enemies block tiles outright. Implement as FE "Pass": holder may path *through* enemy-occupied tiles (still can't end on them). Grid/movement flag; moderate. |
+| Oathkeeper's Ring | While above 75% HP: immune to crits and effective damage | `above75` condition + `negateEffectiveness` already exist; crit immunity is one new key. Cheap, great tension (protection drops when chipped). |
+| Gluttonous Idol | +1 random stat per kill, battle-only | Snowball that resets per map so it can't warp the run. Battle-scoped buff container exists (timed-buff array) — needs a non-expiring-until-battle-end variant. |
+
+### Utility abilities, wave 2 (same action framework as wave 1)
+
+| Ability | Effect | Notes |
+|---|---|---|
+| Smoke Veil | Allies in radius untargetable until next player phase | Defensive turn-skip. Shares the untargetable-flag AI plumbing with Shadow Cloak. |
+| Recall | Swap positions with any ally on the map | Cheap effect, huge ceiling; needs a map-wide ally-pick targeting mode (new but simple — highlight allies, not tiles). |
+| ~~Warp~~ | — | Superseded: staff-exclusive (see ruling above). |
+| Bulwark | Until next turn, allies adjacent to caster take −50% damage | Mobile fort; strongest once a Defend-style objective exists (future Part B) but fine standalone. Timed aura via the buff container. |
+| Time Stop | All enemies skip movement next enemy phase (can still counter) | Movement-only neuter = literally mass `root` — the root status already means "may act, not move," so this is `applyCondition('root')` on all enemies. Trivial to build; price very high, single use. Panic button vs reinforcement dumps. |
+| Meteor | Fixed AoE damage, 2-tile radius, anywhere on map | Flat damage (ignores MAG) so it doesn't warp mage builds. **Requires the pick-a-center AOE targeting UI wave 1 explicitly deferred** — this is the feature that justifies building it. |
+| Provoke | Enemies in range must target caster next enemy phase | Taunt; pairs with Oathkeeper/Aegis tank. Same AI-scoring hook family as Shadow Cloak. |
+| Second Wind | Refresh self (act again), no movement on second action | Self-Dance for ranged units. Watch balance: double Bolting/ballista turns; maybe once per battle and act3+. |
+
+### Imbues, wave 2
+
+| Imbue | Effect | Notes |
+|---|---|---|
+| Stormcharged | +1 max range, **counter-only** (melee counters at 1-2), halved damage on the extended-range counter | User-refined to defense-only; conditional range needs a counter-context check in Combat.js — the wave-1 combatMods vocabulary has `rangeBonus` but not counter-only. |
+| Venomous (20% max HP) | Post-combat poison scaling off target max HP, ignores DEF | **Collision: wave-1 `venom` imbue is flat 5 poison.** Resolve by upgrading the wave-1 imbue to the % version rather than shipping both (percent version is the anti-boss/anti-juggernaut-mirror tool the player wields). |
+| Reaver | Reverses weapon triangle | The `"Reverses weapon triangle"` special string is already parsed (Combat.js:535) — nearly free. |
+| Lightweight | Weapon weight set to 0 | Trivial to implement; quietly top-tier (frees Silver/Killer doubling) — price accordingly. |
+| Piercing | 20% chance per hit to ignore DEF (true damage) | Luna-proc as an imbue; reuse skill-proc infrastructure. |
+| Soulbound | +1 might each time the wielder levels up (permanent for the run) | Signature-blade fantasy. Bind to the unit at application (`_soulboundTo`); might only accrues from the bound wielder's level-ups; needs a level-up hook + serialization. Medium. |
+
+### Sequencing notes
+
+- Wave 2 depends on wave 1 landing: abilities II builds on AbilityController; imbues II on
+  ImbueSystem; accessories II will re-collide with the accessories count assertions.
+- Shadow Cloak + Provoke + Smoke Veil share one AI-targeting-modifier system — spec them together.
+- Meteor is the forcing function for pick-a-center targeting; bundle any other center-targeted
+  effects into that PR.
+- Staves (Warp/Rescue) are self-contained and could ship early in wave 2 — highest
+  roster-incentive value per unit of work in this batch.
+
+---
+
 ## 2026-07-04 — Early-game difficulty vs. Edric juggernaut
 
 ### Problem statement
