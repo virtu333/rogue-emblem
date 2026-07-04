@@ -227,6 +227,7 @@ import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
+import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
@@ -467,6 +468,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._weaponArtController) {
       this._weaponArtController.destroy();
       this._weaponArtController = null;
+    }
+    if (this._abilityController) {
+      this._abilityController.destroy();
+      this._abilityController = null;
     }
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -3525,6 +3530,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
       'SELECTING_BREAK_TARGET',
+      'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
     ];
@@ -3659,6 +3665,9 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.breakTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
+      this._cancelAbilityTileSelection();
+      this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
       const tradeMutated = this.tradeMutatedThisSession;
@@ -3710,6 +3719,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_TRADE_TARGET',
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
+      'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
     ];
@@ -3746,6 +3756,7 @@ export class BattleScene extends Phaser.Scene {
       s === 'SELECTING_SWAP_TARGET' ||
       s === 'SELECTING_DANCE_TARGET' ||
       s === 'SELECTING_BREAK_TARGET' ||
+      s === 'SELECTING_ABILITY_TILE' ||
       s === 'TRADING' ||
       s === 'CANTO_MOVING'
     )
@@ -5644,6 +5655,10 @@ export class BattleScene extends Phaser.Scene {
     // Dance: show if unit has skill and valid targets exist
     if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
       items.push('Dance');
+    // Ability: action-trigger skills with structured actionAbility data
+    // (Blink/Rally Cry/Healing Circle/Ensnare). Silence gating lives in
+    // canUseAbility, so a silenced unit sees no Ability entry.
+    if (this._hasUsableAbilities(unit)) items.push('Ability');
     // Break: adjacent temporary wall terrain (Waller)
     if (this.findBreakTargets(unit).length > 0) items.push('Break');
     // Talk: Lord adjacent to NPC, roster not full
@@ -5804,6 +5819,8 @@ export class BattleScene extends Phaser.Scene {
             this.startSwapTargetSelection(unit);
           } else if (label === 'Dance') {
             this.startDanceTargetSelection(unit);
+          } else if (label === 'Ability') {
+            this.showAbilityPicker(unit);
           } else if (label === 'Break') {
             this.startBreakTargetSelection(unit);
           } else if (label === 'Wait') {
@@ -6049,6 +6066,24 @@ export class BattleScene extends Phaser.Scene {
 
   showWeaponArtPicker(unit) {
     (this._weaponArtController ||= new WeaponArtController(this)).showWeaponArtPicker(unit);
+  }
+
+  // --- Utility abilities (Blink / Rally Cry / Healing Circle / Ensnare) ---
+
+  showAbilityPicker(unit) {
+    (this._abilityController ||= new AbilityController(this)).showAbilityPicker(unit);
+  }
+
+  handleAbilityTileClick(gp) {
+    (this._abilityController ||= new AbilityController(this)).handleAbilityTileClick(gp);
+  }
+
+  _hasUsableAbilities(unit) {
+    return (this._abilityController ||= new AbilityController(this)).hasUsableAbilities(unit);
+  }
+
+  _cancelAbilityTileSelection() {
+    (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
   }
 
   showWeaponPicker(unit, attackTargets) {

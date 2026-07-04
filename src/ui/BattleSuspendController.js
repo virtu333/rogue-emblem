@@ -38,6 +38,7 @@ export function serializeSuspendUnit(unit) {
   for (const field of [
     '_battleDeltas',
     '_battleWeaponArtUsage',
+    '_battleAbilityUsage',
     '_battleTimedWeaponArtBuffs',
     '_battleTimedWeaponArtAppliedStats',
     '_battleTimedWeaponArtAppliedCombatMods',
