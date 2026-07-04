@@ -337,6 +337,7 @@ export class RunManager {
     };
     this.actSequence = [...ACT_SEQUENCE];
     this.pendingAmbushNodeId = null;
+    this.pendingCaravanShop = null;
     this.endRunRewards = null;
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -455,10 +456,12 @@ export class RunManager {
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
+        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
+    this.pendingCaravanShop = null;
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
@@ -2513,6 +2516,19 @@ export class RunManager {
     return battleParams;
   }
 
+  /** Merchant Caravan reward: set when a caravan survives a battle; consumed on next NodeMap entry. */
+  getPendingCaravanShop() {
+    return this.pendingCaravanShop && typeof this.pendingCaravanShop === 'object'
+      ? this.pendingCaravanShop
+      : null;
+  }
+
+  clearPendingCaravanShop() {
+    if (!this.pendingCaravanShop) return false;
+    this.pendingCaravanShop = null;
+    return true;
+  }
+
   getAmbushPendingNode() {
     const pendingNodeId =
       typeof this.pendingAmbushNodeId === 'string' ? this.pendingAmbushNodeId : null;
@@ -2761,7 +2777,7 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean }} [options]
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -2820,6 +2836,9 @@ export class RunManager {
     if (node?.isAmbush && node.ambushCleared !== true) {
       node.ambushCleared = true;
       this.pendingAmbushNodeId = nodeId;
+    }
+    if (options?.caravanSurvived === true) {
+      this.pendingCaravanShop = { actId: this.currentAct };
     }
     this.markNodeComplete(nodeId);
     return true;
@@ -2916,6 +2935,7 @@ export class RunManager {
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
+        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
       }),
     );
     this.shopStateByNodeId = {};
@@ -2924,6 +2944,7 @@ export class RunManager {
     this._lastRestorationDisplacements = null;
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
+    this.pendingCaravanShop = null;
     return { unlockedArtIds: unlockedNow, displacedSkills };
   }
 
@@ -3238,6 +3259,7 @@ export class RunManager {
       },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
+      pendingCaravanShop: this.pendingCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
@@ -3743,6 +3765,10 @@ export class RunManager {
     }
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
+    rm.pendingCaravanShop =
+      saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
+        ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }
+        : null;
     rm.endRunRewards = saved.endRunRewards || null;
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)

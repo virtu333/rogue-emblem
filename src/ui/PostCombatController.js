@@ -76,12 +76,18 @@ export class PostCombatController {
       scene._victoryPressureState = turnPressure;
       scene._completionGoldAward = completionGoldAward;
       const vaultGoldBeforeCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
+      const hadCaravan = scene._caravanController?.hadCaravan() === true;
+      const caravanSurvived = hadCaravan ? scene._caravanController.caravanSurvived() : false;
+      if (hadCaravan && !caravanSurvived) {
+        scene.showBriefBanner?.('Caravan destroyed.', '#ff8888')?.catch?.(() => {});
+      }
       const completionApplied = scene.runManager.completeBattle(
         allUnits,
         scene.nodeId,
         scene.goldEarned,
         {
           completionGoldOverride: completionGoldAward,
+          caravanSurvived,
         },
       );
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));

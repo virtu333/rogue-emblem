@@ -854,6 +854,10 @@ export class AIController {
       const maxHp = target?.stats?.HP || target.currentHP || 0;
       score = maxHp - (target.currentHP || 0) + (100 - (target.currentHP || 0));
     }
+    // Merchant Caravan: enemies prioritize killing it (unconditional, not
+    // gated behind aggressiveMode -- the caravan is the whole point of the
+    // micro-objective as soon as it's on the field).
+    if (target.isCaravan) score += 40;
     if (this.aggressiveMode) {
       const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
       const fortIdx = getTerrainIndexByName(this.gameData?.terrain, 'Fort');

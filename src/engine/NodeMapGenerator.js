@@ -4,6 +4,7 @@
 
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
 import { rollBiome, getTemplateBiome } from './MapGenerator.js';
+import { rollCaravanSpawn } from './CaravanSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
@@ -35,6 +36,9 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const halfFogChance = options.halfFogChance === true;
   const villageAmbushChance = Number.isFinite(options.villageAmbushChance)
     ? Math.max(0, Math.min(1, options.villageAmbushChance))
+    : 0;
+  const caravanChanceBonus = Number.isFinite(options.caravanChanceBonus)
+    ? options.caravanChanceBonus
     : 0;
   const { rows } = actConfig;
   // Every act (incl. finalBoss, rows === 2) uses the lane flow below: the first
@@ -69,7 +73,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         col: c,
         type,
         edges: [],
-        battleParams: buildBattleParams(actId, type, r, rows),
+        battleParams: buildBattleParams(actId, type, r, rows, caravanChanceBonus),
         completed: false,
       };
 
@@ -129,7 +133,13 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   // recruit fog behavior uniformly instead of inheriting it from the source node.
   const convertToRecruit = (node) => {
     node.type = NODE_TYPES.RECRUIT;
-    node.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, node.row, rows);
+    node.battleParams = buildBattleParams(
+      actId,
+      NODE_TYPES.RECRUIT,
+      node.row,
+      rows,
+      caravanChanceBonus,
+    );
     delete node.templateId;
     delete node.fogEnabled;
     let adjustedFogChance = Math.max(
@@ -337,8 +347,9 @@ function canSeizeAtRow(actId, row, totalRows) {
  * @param {string} type - NODE_TYPES value
  * @param {number} [row] - row index for per-node level scaling
  * @param {number} [totalRows] - total rows in this act (for seize eligibility)
+ * @param {number} [caravanChanceBonus=0] - Trade Contacts meta effect
  */
-function buildBattleParams(actId, type, row, totalRows) {
+function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0) {
   if (type === NODE_TYPES.BOSS) {
     return { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
   }
@@ -372,6 +383,16 @@ function buildBattleParams(actId, type, row, totalRows) {
     params.levelRange = scaling[row] || scaling.default;
   }
   params.battleSeed = rollBattleSeed();
+
+  // Merchant Caravan spawn roll: BATTLE/ELITE nodes act2+ only, rolled here
+  // (deterministic, node-generation time) so it survives suspend/revert just
+  // like the battleSeed above. Recruit/boss/escape are excluded by
+  // rollCaravanSpawn's own gating; ambush conversion (villageAmbushChance
+  // pass, later in generateNodeMap) fully overwrites battleParams for the
+  // nodes it touches, so ambush battles never carry a stale caravan flag.
+  if (type === NODE_TYPES.BATTLE && rollCaravanSpawn(params, caravanChanceBonus)) {
+    params.hasCaravan = true;
+  }
 
   return params;
 }
