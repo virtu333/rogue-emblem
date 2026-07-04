@@ -352,6 +352,9 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.lethal_armory = 1;
     meta.purchasedUpgrades.lethal_armory_killer = 1;
     meta.purchasedUpgrades.lethal_armory_silver = 1;
+    meta.purchasedUpgrades.recruit_weapon_forge = 1;
+    meta.purchasedUpgrades.recruit_accessory = 1;
+    meta.purchasedUpgrades.recruit_xp = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
     expect(effects.rosterCapBonus).toBe(3);
@@ -360,6 +363,18 @@ describe('MetaProgressionManager', () => {
     expect(effects.recruitPromotionChanceBonus).toBe(0.24);
     expect(effects.extraStartingUnitTier).toBe(3);
     expect(effects.lethalArmoryTier).toBe(3);
+    expect(effects.recruitWeaponForge).toBe(1);
+    expect(effects.recruitStartingAccessory).toBe(1);
+    expect(effects.recruitXpBonus).toBe(0.1);
+  });
+
+  it('getActiveEffects surfaces max-tier recruit_weapon_forge and recruit_xp values', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.recruit_weapon_forge = 2;
+    meta.purchasedUpgrades.recruit_xp = 2;
+    const effects = meta.getActiveEffects();
+    expect(effects.recruitWeaponForge).toBe(2);
+    expect(effects.recruitXpBonus).toBe(0.2);
   });
 
   it('vision_charges_3 overrides vision bonus to 2 when purchased', () => {
@@ -386,6 +401,9 @@ describe('MetaProgressionManager', () => {
     expect(effects.recruitPromotionChanceBonus).toBe(0);
     expect(effects.extraStartingUnitTier).toBe(0);
     expect(effects.lethalArmoryTier).toBe(0);
+    expect(effects.recruitWeaponForge).toBe(0);
+    expect(effects.recruitStartingAccessory).toBe(0);
+    expect(effects.recruitXpBonus).toBe(0);
     expect(effects.lootCategoryWeightBonuses).toEqual({});
   });
 

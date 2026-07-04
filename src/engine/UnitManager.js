@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { applyForge } from './ForgeSystem.js';
 import { rollAndApplyTraits } from './TraitSystem.js';
 
 // --- Weapon proficiency parsing ---
@@ -723,6 +724,99 @@ export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) 
   if (canEquip(unit, grantedWeapon)) {
     unit.weapon = grantedWeapon;
   }
+  return true;
+}
+
+/** Stats eligible for recruit join-weapon forges (mirrors createInitialRoster's FORGE_STATS). */
+export const RECRUIT_FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
+
+/**
+ * Quartermaster's Craft meta upgrade: apply `forgeCount` forges to every non-Staff
+ * weapon a recruit joins with (primary weapon, Lethal Armory grant, Longbow /
+ * Master of Arms secondaries). Each weapon gets unique stats via a Fisher-Yates
+ * shuffle — the same pattern RunManager.createInitialRoster uses for lords'
+ * startingWeaponForge. Recruit inventory items are unit-owned clones, so
+ * in-place forging is safe.
+ * Returns the number of weapons that received at least one forge.
+ */
+export function applyRecruitWeaponForge(unit, forgeCount = 0, rng = Math.random) {
+  const count = Math.max(0, Math.trunc(Number(forgeCount) || 0));
+  if (!unit || count <= 0) return 0;
+  if (unit.isLord) return 0;
+  if (!Array.isArray(unit.inventory)) return 0;
+
+  let forgedWeapons = 0;
+  for (const weapon of unit.inventory) {
+    if (!weapon || weapon.type === 'Staff') continue;
+    if (!isProficiencyRelevantItemType(weapon.type)) continue;
+    const shuffled = [...RECRUIT_FORGE_STATS];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const applyCount = Math.min(count, shuffled.length);
+    let applied = false;
+    for (let i = 0; i < applyCount; i++) {
+      const result = applyForge(weapon, shuffled[i]);
+      if (result?.success) applied = true;
+    }
+    if (applied) forgedWeapons++;
+  }
+  return forgedWeapons;
+}
+
+/**
+ * Basic stat accessories a recruit can join with (Outfitted Recruits meta upgrade).
+ * Pure stat accessories only — combat-effect accessories and chase items (Boots)
+ * are excluded.
+ */
+export const RECRUIT_STARTING_ACCESSORY_POOL = [
+  'Power Ring',
+  'Magic Ring',
+  'Speed Ring',
+  'Shield Ring',
+  'Barrier Ring',
+  'Skill Ring',
+  'Goddess Icon',
+  'Seraph Robe',
+];
+
+/**
+ * Outfitted Recruits meta upgrade: equip a random basic stat accessory on a
+ * joining recruit. Units cannot carry unequipped accessories (the team pool is
+ * the only unequipped storage), so the accessory arrives equipped; the player
+ * can freely unequip it into the team pool afterwards.
+ * Damage-stat rings are filtered by the recruit's proficiencies so physical
+ * units never roll a dead Magic Ring and vice versa.
+ * Returns true when an accessory was granted.
+ */
+export function grantRecruitStartingAccessory(
+  unit,
+  allAccessories,
+  enabled = 0,
+  rng = Math.random,
+) {
+  if (!unit || !(Number(enabled) > 0)) return false;
+  if (unit.isLord) return false;
+  if (unit.accessory) return false;
+  if (!Array.isArray(allAccessories) || allAccessories.length === 0) return false;
+
+  const types = new Set((unit.proficiencies || []).map((p) => p?.type).filter(Boolean));
+  const usesMagic = types.has('Tome') || types.has('Light') || types.has('Staff');
+  const usesPhysical = [...types].some(
+    (type) => type !== 'Staff' && type !== 'Tome' && type !== 'Light',
+  );
+  const pool = RECRUIT_STARTING_ACCESSORY_POOL.filter((name) => {
+    if (name === 'Power Ring' && !usesPhysical) return false;
+    if (name === 'Magic Ring' && !usesMagic) return false;
+    return true;
+  })
+    .map((name) => allAccessories.find((a) => a?.name === name))
+    .filter(Boolean);
+  if (pool.length === 0) return false;
+
+  const pick = pool[Math.floor(rng() * pool.length)];
+  equipAccessory(unit, ensureItemUid(structuredClone(pick)));
   return true;
 }
 

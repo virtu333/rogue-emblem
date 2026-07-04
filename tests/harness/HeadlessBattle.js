@@ -37,6 +37,8 @@ import {
   addToConsumables,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
 import {
@@ -462,6 +464,16 @@ export class HeadlessBattle {
             if (metaEffects?.masterOfArms) {
               grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
             }
+            if (metaEffects?.recruitWeaponForge) {
+              applyRecruitWeaponForge(npc, metaEffects.recruitWeaponForge);
+            }
+            if (metaEffects?.recruitStartingAccessory) {
+              grantRecruitStartingAccessory(
+                npc,
+                this.gameData.accessories,
+                metaEffects.recruitStartingAccessory,
+              );
+            }
             if (metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
               if (vulnerary) addToConsumables(npc, vulnerary);
@@ -884,6 +896,13 @@ export class HeadlessBattle {
     const isSpecialEnemy = Boolean(unit?.isBoss || unit?.isElite);
     if (!isSpecialEnemy) return rewardMultiplier;
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  }
+
+  /** Training Doctrine meta upgrade: non-lord units earn bonus combat XP (mirrors BattleScene.awardXP). */
+  _getRecruitXpMultiplier(unit) {
+    if (!unit || unit.isLord) return 1;
+    const bonus = Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0;
+    return bonus > 0 ? 1 + bonus : 1;
   }
 
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
@@ -2231,7 +2250,9 @@ export class HeadlessBattle {
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
-      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(defender));
+      const xp = Math.floor(
+        baseXp * this._getEnemyXpMultiplier(defender) * this._getRecruitXpMultiplier(attacker),
+      );
       if (xp > 0) {
         gainExperience(attacker, xp);
         checkLevelUpSkills(attacker, this.gameData.classes);
@@ -2551,7 +2572,9 @@ export class HeadlessBattle {
     // Award XP to player defender
     if (defender.faction === 'player' && defender.currentHP > 0) {
       const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
-      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(attacker));
+      const xp = Math.floor(
+        baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
+      );
       if (xp > 0) {
         gainExperience(defender, xp);
         checkLevelUpSkills(defender, this.gameData.classes);

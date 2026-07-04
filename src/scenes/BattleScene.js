@@ -46,6 +46,8 @@ import {
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
@@ -1440,6 +1442,16 @@ export class BattleScene extends Phaser.Scene {
             }
             if (this.runManager?.metaEffects?.masterOfArms) {
               grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
+            }
+            if (this.runManager?.metaEffects?.recruitWeaponForge) {
+              applyRecruitWeaponForge(npc, this.runManager.metaEffects.recruitWeaponForge);
+            }
+            if (this.runManager?.metaEffects?.recruitStartingAccessory) {
+              grantRecruitStartingAccessory(
+                npc,
+                this.gameData.accessories,
+                this.runManager.metaEffects.recruitStartingAccessory,
+              );
             }
             if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
@@ -8435,7 +8447,13 @@ export class BattleScene extends Phaser.Scene {
     }
     const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
     const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
-    const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier);
+    // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
+    const recruitXpBonus = playerUnit?.isLord
+      ? 0
+      : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
+    const adjustedBaseXp = Math.floor(
+      baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
+    );
     if (adjustedBaseXp <= 0) return;
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
   }

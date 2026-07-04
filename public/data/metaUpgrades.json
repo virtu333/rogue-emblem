@@ -426,11 +426,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      53,
-      70,
-      88,
-      140
+      75,
+      80,
+      105,
+      130,
+      210
     ],
     "effects": [
       {
@@ -462,11 +462,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      125,
-      175,
-      250
+      110,
+      190,
+      265,
+      375
     ],
     "effects": [
       {
@@ -498,11 +498,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      125,
-      175,
-      250
+      110,
+      190,
+      265,
+      375
     ],
     "effects": [
       {
@@ -534,11 +534,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      125,
-      175,
-      275
+      110,
+      190,
+      265,
+      415
     ],
     "effects": [
       {
@@ -570,11 +570,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      100,
-      125,
-      200
+      110,
+      150,
+      190,
+      300
     ],
     "effects": [
       {
@@ -606,11 +606,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      100,
-      125,
-      200
+      110,
+      150,
+      190,
+      300
     ],
     "effects": [
       {
@@ -642,9 +642,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      300,
-      575
+      190,
+      450,
+      875
     ],
     "requires": {
       "upgrades": [
@@ -679,9 +679,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      325,
-      675
+      190,
+      500,
+      1025
     ],
     "requires": {
       "upgrades": [
@@ -716,9 +716,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      325,
-      675
+      190,
+      500,
+      1025
     ],
     "requires": {
       "upgrades": [
@@ -753,9 +753,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      350,
-      725
+      190,
+      525,
+      1100
     ],
     "requires": {
       "upgrades": [
@@ -790,9 +790,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      500
+      190,
+      425,
+      750
     ],
     "requires": {
       "upgrades": [
@@ -824,9 +824,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      500
+      190,
+      425,
+      750
     ],
     "requires": {
       "upgrades": [
@@ -1301,6 +1301,63 @@
     "effects": [
       {
         "masterOfArms": true
+      }
+    ]
+  },
+  {
+    "id": "recruit_xp",
+    "name": "Training Doctrine",
+    "description": "+10% combat XP for non-lord units per tier",
+    "category": "capacity",
+    "maxLevel": 2,
+    "costs": [350, 700],
+    "effects": [
+      {
+        "recruitXpBonus": 0.1
+      },
+      {
+        "recruitXpBonus": 0.2
+      }
+    ]
+  },
+  {
+    "id": "recruit_accessory",
+    "name": "Outfitted Recruits",
+    "description": "Recruits who join your army wear a random stat accessory",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [650],
+    "requires": {
+      "milestones": ["beatAct1"]
+    },
+    "effects": [
+      {
+        "recruitStartingAccessory": 1
+      }
+    ]
+  },
+  {
+    "id": "recruit_weapon_forge",
+    "name": "Quartermaster's Craft",
+    "description": "Recruits who join your army carry forged weapons (+1 forge per tier)",
+    "category": "capacity",
+    "maxLevel": 2,
+    "costs": [800, 1400],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lethal_armory",
+          "level": 1
+        }
+      ],
+      "milestones": ["beatAct1"]
+    },
+    "effects": [
+      {
+        "recruitWeaponForge": 1
+      },
+      {
+        "recruitWeaponForge": 2
       }
     ]
   },
