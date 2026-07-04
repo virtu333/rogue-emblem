@@ -5,6 +5,7 @@
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
 import { rollBiome, getTemplateBiome } from './MapGenerator.js';
 import { rollCaravanSpawn } from './CaravanSystem.js';
+import { rollVillageSpawn } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
@@ -395,6 +396,14 @@ function buildBattleParams(actId, type, row, totalRows, caravanChanceBonus = 0) 
   // checks are defense-in-depth, not what excludes those battles today.
   if (type === NODE_TYPES.BATTLE && rollCaravanSpawn(params, caravanChanceBonus)) {
     params.hasCaravan = true;
+  }
+
+  // Village & bandit spawn roll: BATTLE nodes with a rout/seize objective,
+  // acts 1-4. Rolled here for the same suspend/revert determinism as the
+  // caravan roll above, and mutually exclusive with it (rollVillageSpawn
+  // checks params.hasCaravan) — max one micro-objective per map.
+  if (type === NODE_TYPES.BATTLE && rollVillageSpawn(params)) {
+    params.hasVillage = true;
   }
 
   return params;

@@ -94,6 +94,12 @@ describe('Schema validation — positive (real data)', () => {
     expect(validate(loadData('metaUpgrades.json'))).toBe(true);
   });
 
+  it('imbues.json passes schema', () => {
+    const validate = compileSchema('imbues.schema.json');
+    const data = loadData('imbues.json');
+    expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it('mapTemplates.json passes engine validator', () => {
     const data = loadData('mapTemplates.json');
     const result = validateMapTemplatesConfig(data);

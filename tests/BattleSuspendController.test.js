@@ -186,6 +186,30 @@ describe('captureCheckpoint', () => {
     const cp = scene.runManager.battleInProgress.checkpoint;
     expect(cp.caravanExited).toBe(false);
   });
+
+  it('Village: captures the village state and the bandit aiMode/aiTargetTile', () => {
+    const scene = makeScene();
+    scene._villageState = { col: 6, row: 2, status: 'intact' };
+    scene.enemyUnits = [
+      makeUnit({
+        name: 'Bandit',
+        faction: 'enemy',
+        aiMode: 'seek_tile',
+        aiTargetTile: { col: 6, row: 2 },
+      }),
+    ];
+    new BattleSuspendController(scene).captureCheckpoint();
+    const cp = scene.runManager.battleInProgress.checkpoint;
+    expect(cp.villageState).toEqual({ col: 6, row: 2, status: 'intact' });
+    expect(cp.enemyUnits[0].aiMode).toBe('seek_tile');
+    expect(cp.enemyUnits[0].aiTargetTile).toEqual({ col: 6, row: 2 });
+  });
+
+  it('Village: captures villageState=null when the battle has no village', () => {
+    const scene = makeScene();
+    new BattleSuspendController(scene).captureCheckpoint();
+    expect(scene.runManager.battleInProgress.checkpoint.villageState).toBeNull();
+  });
 });
 
 describe('applyUnits (resume restore)', () => {
@@ -274,6 +298,42 @@ describe('applyUnits (resume restore)', () => {
       }),
     );
     expect(scene._caravanExited).toBe(false);
+  });
+
+  it('Village: restores villageState and the bandit seek fields through a JSON round-trip', () => {
+    const scene = makeScene();
+    const source = makeScene({
+      enemyUnits: [
+        makeUnit({
+          name: 'Bandit',
+          faction: 'enemy',
+          aiMode: 'seek_tile',
+          aiTargetTile: { col: 6, row: 2 },
+        }),
+      ],
+    });
+    source._villageState = { col: 6, row: 2, status: 'visited' };
+    new BattleSuspendController(source).captureCheckpoint();
+    const cp = roundTrip(source.runManager.battleInProgress.checkpoint);
+
+    new BattleSuspendController(scene).applyUnits(cp);
+
+    expect(scene._villageState).toEqual({ col: 6, row: 2, status: 'visited' });
+    expect(scene.enemyUnits[0].aiMode).toBe('seek_tile');
+    expect(scene.enemyUnits[0].aiTargetTile).toEqual({ col: 6, row: 2 });
+  });
+
+  it('Village: villageState defaults to null for pre-feature checkpoints', () => {
+    const scene = makeScene();
+    new BattleSuspendController(scene).applyUnits(
+      roundTrip({
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        // no villageState field at all (older save shape)
+      }),
+    );
+    expect(scene._villageState).toBeNull();
   });
 });
 

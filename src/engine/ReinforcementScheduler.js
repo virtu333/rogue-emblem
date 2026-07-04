@@ -434,6 +434,16 @@ export function scheduleReinforcementsForTurn({
       if (typeof rawSpawn.poisonWeapon === 'boolean')
         scriptedSpawn.poisonWeapon = rawSpawn.poisonWeapon;
       if (typeof rawSpawn.aiMode === 'string') scriptedSpawn.aiMode = rawSpawn.aiMode;
+      if (
+        rawSpawn.aiTargetTile &&
+        Number.isFinite(rawSpawn.aiTargetTile.col) &&
+        Number.isFinite(rawSpawn.aiTargetTile.row)
+      ) {
+        scriptedSpawn.aiTargetTile = {
+          col: Math.trunc(rawSpawn.aiTargetTile.col),
+          row: Math.trunc(rawSpawn.aiTargetTile.row),
+        };
+      }
       if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
       spawns.push(scriptedSpawn);
       spawnedKeys.add(key);

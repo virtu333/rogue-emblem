@@ -469,7 +469,7 @@ export class ColosseumOverlay {
       distance,
       plainTerrain,
       plainTerrain,
-      { atkMods, defMods },
+      { atkMods, defMods, imbuesData: this.gameData.imbues || null },
     );
 
     // Layout: two columns
@@ -597,6 +597,7 @@ export class ColosseumOverlay {
       rollStrikeSkills,
       rollDefenseSkills,
       skillsData,
+      imbuesData: this.gameData.imbues || null,
     };
 
     const result = resolveCombat(

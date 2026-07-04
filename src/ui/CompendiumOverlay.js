@@ -6,6 +6,7 @@ import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
+import { getImbueStoneItems } from '../engine/ImbueSystem.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -241,7 +242,12 @@ export class CompendiumOverlay {
       case 'classes':
         return gd.classes || [];
       case 'items':
-        return [...(gd.consumables || []), ...(gd.accessories || []), ...(gd.whetstones || [])];
+        return [
+          ...(gd.consumables || []),
+          ...(gd.accessories || []),
+          ...(gd.whetstones || []),
+          ...getImbueStoneItems(gd.imbues),
+        ];
       case 'lords':
         return gd.lords || [];
       case 'blessings':
@@ -907,11 +913,15 @@ export class CompendiumOverlay {
       if (ce.critBonus) parts.push(`Crit+${ce.critBonus}`);
       if (ce.atkBonus) parts.push(`Atk+${ce.atkBonus}`);
       if (ce.defBonus) parts.push(`Def+${ce.defBonus}`);
+      if (ce.resBonus) parts.push(`Res+${ce.resBonus}`);
+      if (ce.hitBonus) parts.push(`Hit+${ce.hitBonus}`);
       if (ce.avoidBonus) parts.push(`Avo+${ce.avoidBonus}`);
       if (ce.preventEnemyDouble || ce.preventDouble) parts.push('Prevent Double');
       const dblThresholdReduction = ce.doubleThresholdReduction ?? ce.reduceDoubleThreshold;
       if (dblThresholdReduction) parts.push(`Dbl Thres -${dblThresholdReduction}`);
       if (ce.negateEffectiveness) parts.push('Negate Effectiveness');
+      if (ce.xpShare) parts.push(`XP Share ${Math.round(ce.xpShare * 100)}%`);
+      if (ce.moveTypeOverride) parts.push(`Move: ${ce.moveTypeOverride}`);
       if (ce.condition) parts.push(`(${ce.condition})`);
       desc = parts.join(', ');
     } else if (item.effects && typeof item.effects === 'object') {
@@ -925,6 +935,8 @@ export class CompendiumOverlay {
       else desc = item.effect || '';
     } else if (item.forgeStat) {
       desc = `Forge: ${item.forgeStat}`;
+    } else if (item.imbueId) {
+      desc = `Imbue: ${item.description || 'weapon blessing'}`;
     }
     this._text(left + 25, y + 14, desc, '#aaaaaa');
     this._renderLoreLine(item, y + 28, left);

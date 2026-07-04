@@ -22,6 +22,7 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
+import { getImbueStoneItems } from './ImbueSystem.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -886,6 +887,12 @@ export function generateLootChoices(
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
   const options = generateOptions || {};
 
+  // Imbuing stones (whetstone-like, from imbues.json) resolve through the
+  // whetstone lookup so `forge` pools can list them without a schema change.
+  const imbueStoneItems = getImbueStoneItems(options.imbues);
+  const whetstoneLookup =
+    imbueStoneItems.length > 0 ? [...(allWhetstones || []), ...imbueStoneItems] : allWhetstones;
+
   const adjustedWeights = { ...weights };
   if (options.lootCategoryWeightBonuses || options.weightBonuses) {
     applyMetaWeightBonuses(adjustedWeights, options);
@@ -955,7 +962,7 @@ export function generateLootChoices(
     if (randomLegendary && name === randomLegendary.name) {
       item = ensureItemUid(structuredClone(randomLegendary));
     } else {
-      item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
+      item = findItem(name, allWeapons, consumables, allAccessories, whetstoneLookup);
     }
     if (!item) continue;
     applyMetaInnateArtToItem(item, metaInnateArtConfig);
@@ -1078,10 +1085,17 @@ export function generateShopInventory(
     }
   }
 
-  // Guarantee at least one weapon.
+  // Guarantee at least one weapon. A single random pick can land on an
+  // unsellable entry (price <= 0, e.g. the Fortify staff in the weapons pool)
+  // or an already-used name, which addByName silently rejects — leaving the
+  // shop with no weapon. Start at a random index and scan the whole pool so a
+  // sellable weapon is added whenever one exists.
   if (filteredWeapons.length > 0) {
-    const weaponName = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
-    addByName(weaponName);
+    const start = Math.floor(Math.random() * filteredWeapons.length);
+    for (let offset = 0; offset < filteredWeapons.length; offset++) {
+      const weaponName = filteredWeapons[(start + offset) % filteredWeapons.length];
+      if (addByName(weaponName)) break;
+    }
   }
 
   const shopConsumables = [

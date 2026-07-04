@@ -22,6 +22,7 @@ const AJV_SCHEMAS = [
   { schema: 'consumables.schema.json', data: 'consumables.json' },
   { schema: 'recruits.schema.json', data: 'recruits.json' },
   { schema: 'metaUpgrades.schema.json', data: 'metaUpgrades.json' },
+  { schema: 'imbues.schema.json', data: 'imbues.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });

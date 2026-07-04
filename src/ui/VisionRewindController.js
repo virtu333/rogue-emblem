@@ -87,6 +87,7 @@ export class VisionRewindController {
       for (const field of [
         '_battleDeltas',
         '_battleWeaponArtUsage',
+        '_battleAbilityUsage',
         '_battleTimedWeaponArtBuffs',
         '_battleTimedWeaponArtAppliedStats',
         '_battleTimedWeaponArtAppliedCombatMods',
@@ -348,6 +349,7 @@ export class VisionRewindController {
       'SELECTING_TRADE_TARGET',
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
+      'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
     ]);

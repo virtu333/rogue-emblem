@@ -7,12 +7,22 @@ import {
   HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS,
   HANDLED_ACCESSORY_TURN_START_EFFECT_KEYS,
 } from '../../utils/accessoryText.js';
+import { getImbueStoneItems } from '../../engine/ImbueSystem.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_REPO_ROOT = join(__dirname, '..', '..', '..');
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+// Optional datasets (temp validator workspaces in tests may omit them)
+function readOptionalJson(path) {
+  try {
+    return readJson(path);
+  } catch {
+    return null;
+  }
 }
 
 function normalizeJson(value) {
@@ -286,6 +296,37 @@ function validateLootReferenceIntegrity(accessories, consumables, lootTables, is
   }
 }
 
+function validateForgePoolIntegrity(whetstones, imbues, lootTables, issues) {
+  const validNames = new Set(
+    ensureArray(whetstones)
+      .map((whetstone) => whetstone?.name)
+      .filter(Boolean),
+  );
+  const stoneNames = new Set(getImbueStoneItems(imbues).map((stone) => stone.name));
+  for (const stoneName of stoneNames) validNames.add(stoneName);
+
+  for (const [actId, table] of Object.entries(lootTables || {})) {
+    const forgePool = Array.isArray(table?.forge) ? table.forge : [];
+    for (const itemName of forgePool) {
+      if (!validNames.has(itemName)) {
+        issues.push(
+          `data/lootTables.json:${actId}.forge references unknown whetstone/imbue stone "${itemName}"`,
+        );
+      }
+    }
+  }
+
+  // Imbuing stones are act2+ loot by design (rare "blessing" drops).
+  const act1Forge = Array.isArray(lootTables?.act1?.forge) ? lootTables.act1.forge : [];
+  for (const itemName of act1Forge) {
+    if (stoneNames.has(itemName)) {
+      issues.push(
+        `data/lootTables.json:act1.forge should not include imbuing stone "${itemName}" (imbues are act2+)`,
+      );
+    }
+  }
+}
+
 function validateAccessoryTextCoverage(accessories, issues) {
   const unknownCombatKeys = new Set();
   const unknownTurnStartKeys = new Set();
@@ -353,6 +394,8 @@ export function validateContentContract(options = {}) {
   const accessoriesPath = options.accessoriesPath || join(repoRoot, 'data', 'accessories.json');
   const consumablesPath = options.consumablesPath || join(repoRoot, 'data', 'consumables.json');
   const lootTablesPath = options.lootTablesPath || join(repoRoot, 'data', 'lootTables.json');
+  const whetstonesPath = options.whetstonesPath || join(repoRoot, 'data', 'whetstones.json');
+  const imbuesPath = options.imbuesPath || join(repoRoot, 'data', 'imbues.json');
 
   const issues = [];
   const summary = { accessories: 0, consumables: 0, acts: 0 };
@@ -362,6 +405,8 @@ export function validateContentContract(options = {}) {
     const accessories = readJson(accessoriesPath);
     const consumables = readJson(consumablesPath);
     const lootTables = readJson(lootTablesPath);
+    const whetstones = readOptionalJson(whetstonesPath);
+    const imbues = readOptionalJson(imbuesPath);
 
     summary.accessories = ensureArray(accessories).length;
     summary.consumables = ensureArray(consumables).length;
@@ -372,6 +417,9 @@ export function validateContentContract(options = {}) {
     validateExpectedTotals(contract, accessories, consumables, issues);
     validateLootDistribution(contract, lootTables, issues);
     validateLootReferenceIntegrity(accessories, consumables, lootTables, issues);
+    if (whetstones || imbues) {
+      validateForgePoolIntegrity(whetstones, imbues, lootTables, issues);
+    }
     validateAccessoryTextCoverage(accessories, issues);
   } catch (error) {
     issues.push(`validator runtime error: ${error.message}`);

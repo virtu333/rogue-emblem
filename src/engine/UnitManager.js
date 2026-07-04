@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { applyForge } from './ForgeSystem.js';
 import { rollAndApplyTraits } from './TraitSystem.js';
 
 // --- Weapon proficiency parsing ---
@@ -726,6 +727,99 @@ export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) 
   return true;
 }
 
+/** Stats eligible for recruit join-weapon forges (mirrors createInitialRoster's FORGE_STATS). */
+export const RECRUIT_FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
+
+/**
+ * Quartermaster's Craft meta upgrade: apply `forgeCount` forges to every non-Staff
+ * weapon a recruit joins with (primary weapon, Lethal Armory grant, Longbow /
+ * Master of Arms secondaries). Each weapon gets unique stats via a Fisher-Yates
+ * shuffle — the same pattern RunManager.createInitialRoster uses for lords'
+ * startingWeaponForge. Recruit inventory items are unit-owned clones, so
+ * in-place forging is safe.
+ * Returns the number of weapons that received at least one forge.
+ */
+export function applyRecruitWeaponForge(unit, forgeCount = 0, rng = Math.random) {
+  const count = Math.max(0, Math.trunc(Number(forgeCount) || 0));
+  if (!unit || count <= 0) return 0;
+  if (unit.isLord) return 0;
+  if (!Array.isArray(unit.inventory)) return 0;
+
+  let forgedWeapons = 0;
+  for (const weapon of unit.inventory) {
+    if (!weapon || weapon.type === 'Staff') continue;
+    if (!isProficiencyRelevantItemType(weapon.type)) continue;
+    const shuffled = [...RECRUIT_FORGE_STATS];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const applyCount = Math.min(count, shuffled.length);
+    let applied = false;
+    for (let i = 0; i < applyCount; i++) {
+      const result = applyForge(weapon, shuffled[i]);
+      if (result?.success) applied = true;
+    }
+    if (applied) forgedWeapons++;
+  }
+  return forgedWeapons;
+}
+
+/**
+ * Basic stat accessories a recruit can join with (Outfitted Recruits meta upgrade).
+ * Pure stat accessories only — combat-effect accessories and chase items (Boots)
+ * are excluded.
+ */
+export const RECRUIT_STARTING_ACCESSORY_POOL = [
+  'Power Ring',
+  'Magic Ring',
+  'Speed Ring',
+  'Shield Ring',
+  'Barrier Ring',
+  'Skill Ring',
+  'Goddess Icon',
+  'Seraph Robe',
+];
+
+/**
+ * Outfitted Recruits meta upgrade: equip a random basic stat accessory on a
+ * joining recruit. Units cannot carry unequipped accessories (the team pool is
+ * the only unequipped storage), so the accessory arrives equipped; the player
+ * can freely unequip it into the team pool afterwards.
+ * Damage-stat rings are filtered by the recruit's proficiencies so physical
+ * units never roll a dead Magic Ring and vice versa.
+ * Returns true when an accessory was granted.
+ */
+export function grantRecruitStartingAccessory(
+  unit,
+  allAccessories,
+  enabled = 0,
+  rng = Math.random,
+) {
+  if (!unit || !(Number(enabled) > 0)) return false;
+  if (unit.isLord) return false;
+  if (unit.accessory) return false;
+  if (!Array.isArray(allAccessories) || allAccessories.length === 0) return false;
+
+  const types = new Set((unit.proficiencies || []).map((p) => p?.type).filter(Boolean));
+  const usesMagic = types.has('Tome') || types.has('Light') || types.has('Staff');
+  const usesPhysical = [...types].some(
+    (type) => type !== 'Staff' && type !== 'Tome' && type !== 'Light',
+  );
+  const pool = RECRUIT_STARTING_ACCESSORY_POOL.filter((name) => {
+    if (name === 'Power Ring' && !usesPhysical) return false;
+    if (name === 'Magic Ring' && !usesMagic) return false;
+    return true;
+  })
+    .map((name) => allAccessories.find((a) => a?.name === name))
+    .filter(Boolean);
+  if (pool.length === 0) return false;
+
+  const pick = pool[Math.floor(rng() * pool.length)];
+  equipAccessory(unit, ensureItemUid(structuredClone(pick)));
+  return true;
+}
+
 /**
  * Grant secondary weapons for all non-Staff proficiencies not already in inventory.
  * Falls back to Iron tier if requested tier unavailable. Respects inventory cap.
@@ -882,7 +976,7 @@ export function gainExperience(unit, xpAmount, options = {}) {
  * - Advantage 7+: flat minimum XP, no kill bonus
  * - Underdog bonus (defender higher than attacker) is capped at +6 levels
  */
-function getXpEffectiveLevel(unit) {
+export function getXpEffectiveLevel(unit) {
   const visibleLevel = Math.max(1, Math.trunc(Number(unit?.level) || 1));
   return unit?.tier === 'promoted' ? visibleLevel + 12 : visibleLevel;
 }
@@ -929,7 +1023,14 @@ export function normalizeUnitClassState(unit, classData) {
   const canonicalTier = classData.tier || unit.tier || 'base';
   unit.tier = canonicalTier;
 
-  if (classData.moveType) unit.moveType = classData.moveType;
+  if (classData.moveType) {
+    // Class sync is canonical: reset any accessory move-type override state so
+    // a stale _baseMoveType from a previous class can't survive promotion or
+    // reclass, then re-apply the override below when one is equipped.
+    unit.moveType = classData.moveType;
+    delete unit._baseMoveType;
+  }
+  applyAccessoryMoveTypeOverride(unit);
 
   if (!unit.stats || typeof unit.stats !== 'object') unit.stats = {};
   const fallbackMov = getCanonicalClassMove(classData, Number(unit.mov) || 4);
@@ -1363,11 +1464,35 @@ function applyAccessoryStats(unit, accessory, sign) {
   }
 }
 
+/**
+ * Apply an equipped accessory's move-type override (e.g. Mercury Sandals'
+ * moveTypeOverride: "Flying"). Stores the pre-override type in _baseMoveType so
+ * unequip can restore it. No-op (and no _baseMoveType) when the unit already
+ * has the override's move type natively — a Wyvern Rider in Mercury Sandals
+ * stays a flier after unequipping.
+ */
+function applyAccessoryMoveTypeOverride(unit) {
+  const override = unit?.accessory?.combatEffects?.moveTypeOverride;
+  if (typeof override !== 'string' || override.length === 0) return;
+  if (unit.moveType === override) return;
+  unit._baseMoveType = unit.moveType || unit._baseMoveType || 'Infantry';
+  unit.moveType = override;
+}
+
+/** Restore the unit's native move type when removing a move-type override accessory. */
+function removeAccessoryMoveTypeOverride(unit, accessory) {
+  const override = accessory?.combatEffects?.moveTypeOverride;
+  if (typeof override !== 'string' || override.length === 0) return;
+  if (unit._baseMoveType) unit.moveType = unit._baseMoveType;
+  delete unit._baseMoveType;
+}
+
 /** Equip an accessory. Returns the old accessory (or null). */
 export function equipAccessory(unit, accessory) {
   const old = unequipAccessory(unit);
   unit.accessory = accessory;
   applyAccessoryStats(unit, accessory, 1);
+  applyAccessoryMoveTypeOverride(unit);
   return old;
 }
 
@@ -1404,6 +1529,7 @@ export function unequipAccessory(unit) {
   const old = unit.accessory;
   if (old) {
     applyAccessoryStats(unit, old, -1);
+    removeAccessoryMoveTypeOverride(unit, old);
     unit.accessory = null;
   }
   return old;

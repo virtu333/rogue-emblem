@@ -37,8 +37,15 @@ import {
   addToConsumables,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
+import {
+  getXpShareRatio,
+  getXpShareRecipients,
+  calculateSharedXp,
+} from '../../src/engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -74,6 +81,15 @@ import {
   processConditionRecovery,
 } from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
+import {
+  createVillageState,
+  visitVillage,
+  razeVillage,
+  clearSeekTileBandits,
+  getVillageGoldReward,
+  rollVillageRewardItem,
+  VILLAGE_STATUS,
+} from '../../src/engine/VillageSystem.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
 import {
   resolveRecruitScalingTargets,
@@ -97,6 +113,7 @@ import {
   POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
   BASE_CLASS_LEVEL_CAP,
+  TERRAIN,
   RECRUIT_NODE_LORD_CHANCE,
   RECRUIT_SKILL_POOL,
   XP_STAT_NAMES,
@@ -175,6 +192,8 @@ export class HeadlessBattle {
     this._combatRollSession = null;
     this.runManager = null;
     this._reinforcementsPendingThisTurn = false;
+    this._villageState = null;
+    this.villageRewardItems = [];
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -216,6 +235,8 @@ export class HeadlessBattle {
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this._reinforcementsPendingThisTurn = false;
+    this._villageState = bc.villageTile ? createVillageState(bc.villageTile) : null;
+    this.villageRewardItems = [];
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -461,6 +482,16 @@ export class HeadlessBattle {
             }
             if (metaEffects?.masterOfArms) {
               grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
+            }
+            if (metaEffects?.recruitWeaponForge) {
+              applyRecruitWeaponForge(npc, metaEffects.recruitWeaponForge);
+            }
+            if (metaEffects?.recruitStartingAccessory) {
+              grantRecruitStartingAccessory(
+                npc,
+                this.gameData.accessories,
+                metaEffects.recruitStartingAccessory,
+              );
             }
             if (metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
@@ -886,6 +917,34 @@ export class HeadlessBattle {
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
   }
 
+  /** Training Doctrine meta upgrade: non-lord units earn bonus combat XP (mirrors BattleScene.awardXP). */
+  _getRecruitXpMultiplier(unit) {
+    if (!unit || unit.isLord) return 1;
+    const bonus = Number(this.battleParams?.metaEffects?.recruitXpBonus) || 0;
+    return bonus > 0 ? 1 + bonus : 1;
+  }
+
+  /**
+   * Mentor's Band (EXP Share) — mirror of BattleScene.awardXP's share pass.
+   * When the holder earns combat XP, each adjacent lower-level ally receives
+   * that ally's own combat XP formula against the same opponent, scaled by the
+   * accessory ratio and the enemy reward multiplier. Combat XP only; shares
+   * never re-enter the share hook (no chaining, no double-grant).
+   */
+  _awardSharedCombatXP(holder, opponent, opponentDied) {
+    const ratio = getXpShareRatio(holder);
+    if (ratio <= 0) return;
+    const recipients = getXpShareRecipients(holder, this.playerUnits);
+    if (recipients.length <= 0) return;
+    const multiplier = this._getEnemyXpMultiplier(opponent);
+    for (const ally of recipients) {
+      const sharedXp = calculateSharedXp(ally, opponent, opponentDied, ratio, multiplier);
+      if (sharedXp <= 0) continue;
+      gainExperience(ally, sharedXp);
+      checkLevelUpSkills(ally, this.gameData.classes);
+    }
+  }
+
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
     let hash = this._getReinforcementSeed() >>> 0;
     const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
@@ -943,6 +1002,12 @@ export class HeadlessBattle {
         typeof scheduledSpawn?.aiMode === 'string'
           ? scheduledSpawn.aiMode
           : template?.aiMode || null,
+      aiTargetTile:
+        scheduledSpawn?.aiTargetTile &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.col) &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.row)
+          ? { col: scheduledSpawn.aiTargetTile.col, row: scheduledSpawn.aiTargetTile.row }
+          : null,
       affixes: Array.isArray(scheduledSpawn?.affixes)
         ? [...scheduledSpawn.affixes]
         : Array.isArray(template?.affixes)
@@ -1031,6 +1096,22 @@ export class HeadlessBattle {
     }
 
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    if (
+      spawn.aiTargetTile &&
+      Number.isFinite(spawn.aiTargetTile.col) &&
+      Number.isFinite(spawn.aiTargetTile.row)
+    ) {
+      enemy.aiTargetTile = { col: spawn.aiTargetTile.col, row: spawn.aiTargetTile.row };
+    }
+    // Village bandits that spawn after the village resolved revert to chase
+    // (mirrors VillageController.sanitizeSpawnedEnemy).
+    if (
+      enemy.aiMode === 'seek_tile' &&
+      (!this._villageState || this._villageState.status !== VILLAGE_STATUS.INTACT)
+    ) {
+      enemy.aiMode = 'chase';
+      delete enemy.aiTargetTile;
+    }
 
     const reinforcementMeta = options.reinforcementMeta || null;
     if (reinforcementMeta) {
@@ -1721,6 +1802,7 @@ export class HeadlessBattle {
       checkAstra,
       affixData: affixes,
       skillsData: skills,
+      imbuesData: this.gameData.imbues || null,
     };
   }
 
@@ -2231,8 +2313,11 @@ export class HeadlessBattle {
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
-      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(defender));
+      const xp = Math.floor(
+        baseXp * this._getEnemyXpMultiplier(defender) * this._getRecruitXpMultiplier(attacker),
+      );
       if (xp > 0) {
+        this._awardSharedCombatXP(attacker, defender, defender.currentHP <= 0);
         gainExperience(attacker, xp);
         checkLevelUpSkills(attacker, this.gameData.classes);
       }
@@ -2356,10 +2441,44 @@ export class HeadlessBattle {
 
     // Canto disabled in MVP
     unit.hasActed = true;
+    this._handleVillageVisit(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     this.turnManager.unitActed(unit);
+  }
+
+  /** Mirrors VillageController.handleUnitActionEnd (gold + convoy-item reward, never XP). */
+  _handleVillageVisit(unit) {
+    const state = this._villageState;
+    if (!state || state.status !== VILLAGE_STATUS.INTACT) return false;
+    if (!unit || unit.faction !== 'player' || unit.currentHP <= 0) return false;
+    if (unit.col !== state.col || unit.row !== state.row) return false;
+    if (!visitVillage(state)) return false;
+
+    this.grid?.setTerrainAt?.(state.col, state.row, TERRAIN.Plain);
+    const act = this.battleParams?.act || 'act1';
+    this.goldEarned += getVillageGoldReward(act);
+    const item = rollVillageRewardItem(act, this.gameData?.lootTables, this.gameData?.consumables);
+    if (item) {
+      this.villageRewardItems.push(item);
+      this.runManager?.addToConvoy?.(item);
+    }
+    clearSeekTileBandits(this.enemyUnits);
+    return true;
+  }
+
+  /** Mirrors VillageController.handleEnemyUnitDone (only seek_tile bandits raze). */
+  _handleVillageRaze(enemy) {
+    const state = this._villageState;
+    if (!state || state.status !== VILLAGE_STATUS.INTACT) return false;
+    if (!enemy || enemy.currentHP <= 0 || enemy.aiMode !== 'seek_tile') return false;
+    if (enemy.col !== state.col || enemy.row !== state.row) return false;
+    if (!razeVillage(state)) return false;
+
+    this.grid?.setTerrainAt?.(state.col, state.row, TERRAIN.Plain);
+    clearSeekTileBandits(this.enemyUnits);
+    return true;
   }
 
   /** Escape objective: unit leaves the field (mirrors EscapeObjectiveController). */
@@ -2457,6 +2576,7 @@ export class HeadlessBattle {
             onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
             onUnitDone: (enemy) => {
               enemy.hasActed = true;
+              this._handleVillageRaze(enemy);
             },
           },
         );
@@ -2557,8 +2677,11 @@ export class HeadlessBattle {
     // Award XP to player defender
     if (defender.faction === 'player' && defender.currentHP > 0) {
       const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
-      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(attacker));
+      const xp = Math.floor(
+        baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
+      );
       if (xp > 0) {
+        this._awardSharedCombatXP(defender, attacker, attacker.currentHP <= 0);
         gainExperience(defender, xp);
         checkLevelUpSkills(defender, this.gameData.classes);
       }

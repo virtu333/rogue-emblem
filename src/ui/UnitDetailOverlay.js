@@ -26,6 +26,7 @@ import {
 } from '../engine/MasterySystem.js';
 import { getUnitTraits } from '../engine/TraitSystem.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
+import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -940,7 +941,9 @@ export class UnitDetailOverlay {
   }
 
   _getWeaponNameColor(weapon, fallbackColor) {
-    return weapon?.tier === 'Legend' ? UI_COLORS.gold : fallbackColor;
+    if (weapon?.tier === 'Legend') return UI_COLORS.gold;
+    if (isImbued(weapon)) return '#cc88ff';
+    return fallbackColor;
   }
 
   _collectWeaponBoundArts(weapon) {
@@ -1134,6 +1137,11 @@ export class UnitDetailOverlay {
     if (!weapon || !anchor) return;
     const lines = [];
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    const imbueInfo = getImbueDisplayInfo(weapon, this.gameData?.imbues);
+    if (imbueInfo) {
+      const detail = imbueInfo.description ? ` - ${imbueInfo.description}` : '';
+      lines.push(`Imbue: ${imbueInfo.name}${detail}`);
+    }
     const boundArts = this._collectWeaponBoundArts(weapon);
     if (boundArts.length > 0) {
       for (const art of boundArts) {
