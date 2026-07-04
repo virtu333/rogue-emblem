@@ -18,6 +18,13 @@ import {
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { canEquip, getDisplayLevel } from '../engine/UnitManager.js';
+import {
+  getMasteryProgress,
+  getMasteryThreshold,
+  isMastered,
+  getMasteryPerk,
+} from '../engine/MasterySystem.js';
+import { getUnitTraits } from '../engine/TraitSystem.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -25,6 +32,24 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
+
+// Short display for the seven flat combat-mod keys of a mastery perk.
+const PERK_MOD_LABELS = {
+  critBonus: 'Crit',
+  hitBonus: 'Hit',
+  avoidBonus: 'Avo',
+  atkBonus: 'Atk',
+  defBonus: 'Def',
+  resBonus: 'Res',
+  spdBonus: 'Spd',
+};
+function formatPerkMods(mods) {
+  if (!mods) return '';
+  return Object.entries(mods)
+    .filter(([, v]) => Number.isFinite(v) && v !== 0)
+    .map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${PERK_MOD_LABELS[k] || k}`)
+    .join(', ');
+}
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -535,6 +560,54 @@ export class UnitDetailOverlay {
       const profStr = unit.proficiencies.map((p) => `${p.type}(${p.rank[0]})`).join('  ');
       this._tabText(lx, y, `Prof: ${profStr}`, '#aaaacc', '10px');
       y += 13;
+    }
+
+    // Class mastery (player/NPC recruits + lords — not generic enemies)
+    if (unit.faction !== 'enemy') {
+      const classesData = this.gameData?.classes || null;
+      const traitsData = this.gameData?.traits || null;
+      if (classesData) {
+        if (isMastered(unit, classesData, traitsData)) {
+          const perk = getMasteryPerk(unit, classesData, traitsData);
+          const modStr = perk ? formatPerkMods(perk.mods) : '';
+          const label = perk ? `Mastered ★ ${perk.name}` : 'Mastered ★';
+          const masteryText = this._tabText(
+            lx,
+            y,
+            modStr ? `${label} (${modStr})` : label,
+            '#ffdd66',
+            '9px',
+          );
+          if (perk) {
+            masteryText.setInteractive({ useHandCursor: true });
+            masteryText.on('pointerover', () =>
+              this._showSkillTooltip(
+                masteryText,
+                `${perk.name}: permanent combat bonus for mastering this class family.`,
+              ),
+            );
+            masteryText.on('pointerout', () => this._hideSkillTooltip());
+          }
+          y += 13;
+        } else {
+          const prog = getMasteryProgress(unit, classesData);
+          const thresh = getMasteryThreshold(unit, traitsData);
+          this._tabText(lx, y, `Mastery: ${prog}/${thresh}`, '#aaccaa', '9px');
+          y += 13;
+        }
+      }
+
+      // Traits (recruits only; lords never roll)
+      const unitTraits = getUnitTraits(unit, traitsData);
+      if (unitTraits.length > 0) {
+        const names = unitTraits.map((t) => t.name).join(', ');
+        const traitText = this._tabText(lx, y, `Traits: ${names}`, '#cc99ff', '9px');
+        const descriptions = unitTraits.map((t) => `${t.name}: ${t.description}`).join('\n');
+        traitText.setInteractive({ useHandCursor: true });
+        traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
+        traitText.on('pointerout', () => this._hideSkillTooltip());
+        y += 13;
+      }
     }
 
     // Affixes (Enemy/NPC only typically, but show for all if present)

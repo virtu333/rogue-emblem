@@ -5,6 +5,7 @@
  */
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
+import { getTraitNames } from '../engine/TraitSystem.js';
 import { applyTextResolution } from '../utils/uiStyles.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -277,6 +278,25 @@ export class BossRecruitOverlay {
             .setDepth(702),
         );
         recruitGroup.push(prof);
+        yOff += 13;
+      }
+
+      // Traits — the player decides with this info
+      const traitNames = getTraitNames(u, this.gameData.traits);
+      if (traitNames) {
+        const tr = applyTextResolution(
+          scene.add
+            .text(cx, yOff, `Traits: ${traitNames}`, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#cc99ff',
+              wordWrap: { width: cardW - 10 },
+              align: 'center',
+            })
+            .setOrigin(0.5)
+            .setDepth(702),
+        );
+        recruitGroup.push(tr);
         yOff += 13;
       }
 

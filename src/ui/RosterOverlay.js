@@ -31,6 +31,7 @@ import {
   getDisplayLevel,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
+import { isMastered } from '../engine/MasterySystem.js';
 import {
   getStaffRemainingUses,
   getStaffMaxUses,
@@ -983,10 +984,18 @@ export class RosterOverlay {
 
     // --- Fixed Header ---
     const tierLabel = unit.tier === 'promoted' ? 'Promoted' : 'Base';
+    // ★ marks a mastered class family (1 char — no layout risk).
+    const masteryStar = isMastered(
+      unit,
+      this.gameData?.classes || null,
+      this.gameData?.traits || null,
+    )
+      ? ' ★'
+      : '';
     this._text(
       x,
       y,
-      `${unit.name}  Lv${getDisplayLevel(unit)} ${unit.className}  (${tierLabel})`,
+      `${unit.name}  Lv${getDisplayLevel(unit)} ${unit.className}${masteryStar}  (${tierLabel})`,
       '#ffdd44',
       '12px',
     );

@@ -17,6 +17,7 @@ import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engi
 import { gainExperience, getDisplayLevel, grantSecondaryWeapons } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
+import { getTraitNames } from '../engine/TraitSystem.js';
 import { findCommander } from '../engine/Commander.js';
 
 // ── Layout constants (match NodeMapScene overlay pattern) ──
@@ -1046,6 +1047,18 @@ export class ColosseumOverlay {
           })
           .setDepth(CONTENT_DEPTH);
         this.objects.push(gearText);
+
+        // Traits (mercs can roll them — the player decides with this info)
+        const traitNames = getTraitNames(unit, this.gameData.traits);
+        if (traitNames) {
+          const traitText = this.scene.add
+            .text(75, y + 50, `Traits: ${traitNames}`, {
+              ...SMALL_STYLE,
+              color: hired ? '#555555' : '#cc99ff',
+            })
+            .setDepth(CONTENT_DEPTH);
+          this.objects.push(traitText);
+        }
 
         // Price + hire button
         if (hired) {
