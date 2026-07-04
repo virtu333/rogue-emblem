@@ -88,5 +88,7 @@ describe('MapGenerator fuzz — validateBattleConfig over the full matrix', () =
 
     expect(generated).toBeGreaterThan(500);
     expect(failures, `\n${failures.slice(0, 40).join('\n')}`).toEqual([]);
-  });
+    // Explicit timeout: the caravan variant grew the matrix by a third, and
+    // under full-suite parallel load this run brushes the 5s default.
+  }, 20000);
 });

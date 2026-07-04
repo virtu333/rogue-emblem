@@ -155,7 +155,7 @@ describe('CaravanController', () => {
       expect(() => ctrl.stepTurn()).not.toThrow();
     });
 
-    it('skips the step (holds position) when the adjacent tile is occupied', () => {
+    it('sidesteps vertically when the forward tile is occupied by a unit', () => {
       const scene = makeScene({
         npcUnits: [
           {
@@ -173,7 +173,32 @@ describe('CaravanController', () => {
       });
       const ctrl = new CaravanController(scene);
       ctrl.stepTurn();
-      expect(scene.npcUnits[0].col).toBe(2); // held, tile occupied
+      expect(scene.npcUnits[0].col).toBe(2); // sidestep is vertical, same column
+      expect([0, 2]).toContain(scene.npcUnits[0].row);
+    });
+
+    it('holds position when a full wall column blocks every forward row', () => {
+      const grid = makeGrid(10, 3);
+      for (let r = 0; r < 3; r++) grid.mapLayout[r][1] = 1; // full wall column ahead
+      const scene = makeScene({
+        grid,
+        npcUnits: [
+          {
+            isCaravan: true,
+            col: 2,
+            row: 1,
+            currentHP: 20,
+            moveType: 'Infantry',
+            graphic: makeGraphic(),
+            factionIndicator: makeGraphic(),
+            hpBar: null,
+          },
+        ],
+      });
+      const ctrl = new CaravanController(scene);
+      ctrl.stepTurn();
+      expect(scene.npcUnits[0].col).toBe(2);
+      expect(scene.npcUnits[0].row).toBe(1); // truly held: no wiggle against a wall
     });
   });
 

@@ -220,24 +220,67 @@ describe('CaravanSystem', () => {
       expect(step).toEqual({ col: 9, row: 1 });
     });
 
-    it('skips the step when the adjacent tile is impassable', () => {
-      const cols = 5;
-      const rows = 3;
+    it('sidesteps vertically around a single wall segment blocking the forward tile', () => {
+      // Live-smoke case: forward tile is a Wall, but the rows above/below are
+      // open — the caravan should sidestep instead of parking forever.
+      const cols = 10;
+      const rows = 5;
       const mapLayout = flatMap(cols, rows, 0);
-      mapLayout[1][0] = 1; // impassable for Infantry
-      const unit = { col: 1, row: 1, moveType: 'Infantry' };
+      mapLayout[2][8] = 1; // wall directly ahead of a right-bound caravan at (7,2)
+      const unit = { col: 7, row: 2, moveType: 'Infantry' };
+      const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, new Set());
+      expect(step).toBeTruthy();
+      expect(step.col).toBe(7); // vertical sidestep, same column
+      expect([1, 3]).toContain(step.row);
+    });
+
+    it('holds still against a full wall column (no oscillation)', () => {
+      // Every row of the forward column is impassable: a sidestep gains
+      // nothing (the destination row is equally blocked), so the caravan must
+      // hold rather than wiggle up and down forever.
+      const cols = 10;
+      const rows = 5;
+      const mapLayout = flatMap(cols, rows, 0);
+      for (let r = 0; r < rows; r++) mapLayout[r][8] = 1; // full wall column
+      const unit = { col: 7, row: 2, moveType: 'Infantry' };
       const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, new Set());
       expect(step).toBeNull();
     });
 
-    it('skips the step when the adjacent tile is occupied', () => {
-      const cols = 5;
-      const rows = 3;
+    it('sidesteps when the forward tile is occupied by a unit and a sidestep row is open', () => {
+      const cols = 10;
+      const rows = 5;
       const mapLayout = flatMap(cols, rows, 0);
-      const unit = { col: 1, row: 1, moveType: 'Infantry' };
-      const occupied = new Set(['0,1']);
+      const unit = { col: 7, row: 2, moveType: 'Infantry' };
+      const occupied = new Set(['8,2']); // a unit stands on the forward tile
+      const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, occupied);
+      expect(step).toBeTruthy();
+      expect(step.col).toBe(7);
+      expect([1, 3]).toContain(step.row);
+    });
+
+    it('holds still when the forward tile and both sidestep tiles are blocked', () => {
+      const cols = 10;
+      const rows = 5;
+      const mapLayout = flatMap(cols, rows, 0);
+      mapLayout[2][8] = 1; // forward wall
+      const unit = { col: 7, row: 2, moveType: 'Infantry' };
+      const occupied = new Set(['7,1', '7,3']); // both sidestep tiles occupied
       const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, occupied);
       expect(step).toBeNull();
+    });
+
+    it('sidestep only targets a row whose own forward tile is passable', () => {
+      // Forward (8,2) walled; row 1's forward (8,1) also walled, row 3's
+      // forward (8,3) open -> must sidestep DOWN to (7,3), never up.
+      const cols = 10;
+      const rows = 5;
+      const mapLayout = flatMap(cols, rows, 0);
+      mapLayout[2][8] = 1;
+      mapLayout[1][8] = 1;
+      const unit = { col: 7, row: 2, moveType: 'Infantry' };
+      const step = computeCaravanStep(unit, mapLayout, cols, rows, terrainData, new Set());
+      expect(step).toEqual({ col: 7, row: 3 });
     });
 
     it('returns null when already at the edge', () => {

@@ -56,6 +56,8 @@ function isTilePassable(terrainData, mapLayout, col, row, cols, rows, moveType =
  * reward shop with zero escort gameplay. Prefer candidates at least
  * min(4, floor((cols-1)/2)) columns from the nearest edge; if no tile
  * qualifies (cramped/blocked maps), fall back to the deepest available tier.
+ * Within the tier, tiles whose straight row to the exit edge is wall-free are
+ * preferred (full tier as fallback) so the caravan rarely needs to sidestep.
  * @returns {{col:number,row:number}|null}
  */
 export function pickCaravanSpawnTile(
@@ -106,7 +108,22 @@ export function pickCaravanSpawnTile(
     const maxDepth = Math.max(...pool.map((t) => t.edgeDist));
     tier = pool.filter((t) => t.edgeDist === maxDepth);
   }
-  const pick = tier[Math.floor(Math.random() * tier.length)];
+
+  // Within the tier, prefer tiles whose straight row to the target edge has
+  // no impassable tile — the caravan's movement is (nearly) straight-line, so
+  // a wall bisecting the row forces sidesteps or a permanent stall. Fall back
+  // to the whole tier when no row is clear (cramped maps): no behavior change
+  // there, the movement-time sidestep handles it.
+  const rowIsClear = (t) => {
+    const dir = cols - 1 - t.col <= t.col ? 1 : -1;
+    for (let c = t.col + dir; c >= 0 && c < cols; c += dir) {
+      if (!isTilePassable(terrainData, mapLayout, c, t.row, cols, rows, 'Infantry')) return false;
+    }
+    return true;
+  };
+  const clearTier = tier.filter(rowIsClear);
+  const finalTier = clearTier.length > 0 ? clearTier : tier;
+  const pick = finalTier[Math.floor(Math.random() * finalTier.length)];
   return { col: pick.col, row: pick.row };
 }
 
@@ -153,33 +170,54 @@ export function createCaravanUnit(act, spawnTile) {
 
 /**
  * Compute the caravan's next tile: 1 greedy step toward the nearest column
- * edge, skipping the step if the adjacent tile is impassable or occupied.
- * No pathfinding — a straight-line step is all the spec calls for.
+ * edge. When the straight-line forward tile is blocked (impassable or
+ * occupied), try a one-tile vertical sidestep — still no real pathfinding,
+ * just enough to un-stick the common single-wall-segment case (a straight-only
+ * caravan parks forever behind any wall that bisects its row, which reads as
+ * broken). A sidestep row only qualifies when ITS forward tile is passable —
+ * that guard alone prevents up-down oscillation against a full wall column,
+ * where holding still is the correct behavior.
  * @returns {{col:number,row:number}|null} null if no legal step (caravan holds still)
  */
 export function computeCaravanStep(unit, mapLayout, cols, rows, terrainData, occupiedTiles) {
+  const moveType = unit.moveType || 'Infantry';
   const distToLeft = unit.col;
   const distToRight = cols - 1 - unit.col;
   const direction = distToRight <= distToLeft ? 1 : -1;
   const nextCol = unit.col + direction;
-  const nextRow = unit.row;
   if (nextCol < 0 || nextCol >= cols) return null; // already at the edge
-  if (
-    !isTilePassable(
-      terrainData,
-      mapLayout,
-      nextCol,
-      nextRow,
-      cols,
-      rows,
-      unit.moveType || 'Infantry',
-    )
-  ) {
-    return null;
+
+  const open = (c, r) =>
+    isTilePassable(terrainData, mapLayout, c, r, cols, rows, moveType) &&
+    !occupiedTiles?.has(`${c},${r}`);
+
+  // Straight-line step toward the edge.
+  if (open(nextCol, unit.row)) {
+    return { col: nextCol, row: unit.row };
   }
-  const key = `${nextCol},${nextRow}`;
-  if (occupiedTiles?.has(key)) return null;
-  return { col: nextCol, row: nextRow };
+
+  // Forward blocked: one-tile vertical sidestep. The sidestep tile must be
+  // open, and the destination row's forward tile must be passable (otherwise
+  // sidestepping gains nothing — hold still instead). Prefer the row whose
+  // forward tile is also unoccupied; tiebreak toward the map's center row so
+  // the caravan drifts away from edges it isn't exiting through.
+  const centerRow = (rows - 1) / 2;
+  const sidestepRows = [unit.row - 1, unit.row + 1]
+    .filter((r) => r >= 0 && r < rows)
+    .filter((r) => open(unit.col, r))
+    .filter((r) => isTilePassable(terrainData, mapLayout, nextCol, r, cols, rows, moveType))
+    .sort((a, b) => {
+      // Rows whose forward tile is fully open (not just passable) come first.
+      const aFwdOpen = open(nextCol, a) ? 0 : 1;
+      const bFwdOpen = open(nextCol, b) ? 0 : 1;
+      if (aFwdOpen !== bFwdOpen) return aFwdOpen - bFwdOpen;
+      return Math.abs(a - centerRow) - Math.abs(b - centerRow);
+    });
+  if (sidestepRows.length > 0) {
+    return { col: unit.col, row: sidestepRows[0] };
+  }
+
+  return null; // fully blocked: hold still
 }
 
 /** True once the caravan's column reaches either map edge. */
