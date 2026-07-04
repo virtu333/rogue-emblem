@@ -277,6 +277,7 @@ export function serializeUnit(unit) {
   }
   delete data._battleDeltas;
   delete data._battleWeaponArtUsage;
+  delete data._battleAbilityUsage;
   delete data._battleTimedWeaponArtBuffs;
   delete data._battleTimedWeaponArtAppliedStats;
   delete data._battleTimedWeaponArtAppliedCombatMods;
