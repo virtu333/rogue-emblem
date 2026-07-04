@@ -379,6 +379,76 @@ describe('ReinforcementScheduler', () => {
       );
     });
 
+    it('propagates aiMode and aiTargetTile onto scripted spawns (village bandits)', () => {
+      const mapLayout = Array.from({ length: 4 }, () => Array(6).fill(TERRAIN.Plain));
+      const reinforcements = {
+        waves: [],
+        scriptedWaves: [
+          {
+            turn: 1,
+            xpMultiplier: 0.85,
+            spawns: [
+              {
+                col: 5,
+                row: 0,
+                className: 'Fighter',
+                level: 2,
+                aiMode: 'seek_tile',
+                aiTargetTile: { col: 3, row: 3 },
+              },
+              {
+                col: 5,
+                row: 1,
+                className: 'Fighter',
+                level: 2,
+                aiMode: 'seek_tile',
+                aiTargetTile: { col: 3, row: 3 },
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = scheduleReinforcementsForTurn({
+        turn: 1,
+        seed: 5,
+        reinforcements,
+        mapLayout,
+        terrain: terrainData,
+        occupied: [],
+      });
+
+      expect(result.spawns).toHaveLength(2);
+      for (const spawn of result.spawns) {
+        expect(spawn.aiMode).toBe('seek_tile');
+        expect(spawn.aiTargetTile).toEqual({ col: 3, row: 3 });
+        expect(spawn.xpMultiplier).toBe(0.85);
+      }
+    });
+
+    it('drops a malformed aiTargetTile instead of propagating it', () => {
+      const mapLayout = Array.from({ length: 4 }, () => Array(6).fill(TERRAIN.Plain));
+      const reinforcements = {
+        waves: [],
+        scriptedWaves: [
+          {
+            turn: 1,
+            spawns: [{ col: 5, row: 0, className: 'Fighter', aiTargetTile: { col: 'x' } }],
+          },
+        ],
+      };
+
+      const result = scheduleReinforcementsForTurn({
+        turn: 1,
+        reinforcements,
+        mapLayout,
+        terrain: terrainData,
+      });
+
+      expect(result.spawns).toHaveLength(1);
+      expect(result.spawns[0].aiTargetTile).toBeUndefined();
+    });
+
     it('applies shared difficulty turn offset to scripted waves', () => {
       const mapLayout = Array.from({ length: 3 }, () => Array(3).fill(TERRAIN.Plain));
       const reinforcements = {

@@ -381,6 +381,20 @@ export const CARAVAN_BASE_HP = 18;
 export const CARAVAN_HP_PER_ACT = 4;
 export const CARAVAN_SHOP_ITEM_COUNT_RANGE = { min: 3, max: 4 };
 
+// Village & bandit secondary objective (BATTLE nodes, rout/seize, acts 1-4,
+// mutually exclusive with the caravan — max one micro-objective per map).
+// Reward pays in gold + a convoy item, never XP (anti-juggernaut design).
+export const VILLAGE_SPAWN_CHANCE = 0.25;
+export const VILLAGE_ELIGIBLE_ACTS = ['act1', 'act2', 'act3', 'act4'];
+// Act-scaled visit gold; reference scale is turnBonus.json baseBonusGold.
+export const VILLAGE_GOLD_BY_ACT = { act1: 150, act2: 300, act3: 500, act4: 700 };
+export const VILLAGE_BANDIT_COUNT = 2;
+// Modest wave-style XP decay: bandits initially walk away from the player.
+export const VILLAGE_BANDIT_XP_MULTIPLIER = 0.85;
+// Race calibration: banditPathDistance ≈ playerSpawnPathDistance + margin, so
+// a dedicated player unit wins the race while the deathball does not.
+export const VILLAGE_BANDIT_DISTANCE_MARGIN = 3;
+
 // Placeholder terrain colors (Phase 1 colored rectangles)
 export const TERRAIN_COLORS = {
   Plain: 0x7ec850,

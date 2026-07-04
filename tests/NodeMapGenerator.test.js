@@ -1129,4 +1129,80 @@ describe('Template-driven fog', () => {
       }
     });
   });
+
+  describe('Village & bandit spawn gating', () => {
+    it('can roll hasVillage on act1 BATTLE nodes with a rigged low roll', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1, gameData.mapTemplates);
+        const battleNodes = map.nodes.filter((n) => n.type === NODE_TYPES.BATTLE);
+        expect(battleNodes.some((n) => n.battleParams?.hasVillage)).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('never rolls hasVillage when the roll is rigged above the chance ceiling', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
+      try {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1, gameData.mapTemplates);
+        expect(map.nodes.some((n) => n.battleParams?.hasVillage)).toBe(false);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('is mutually exclusive with hasCaravan (act2, both rolls rigged low)', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates);
+        const battleNodes = map.nodes.filter((n) => n.type === NODE_TYPES.BATTLE);
+        // The caravan rolls first and wins every rigged node; no node may
+        // carry both micro-objectives.
+        expect(battleNodes.some((n) => n.battleParams?.hasCaravan)).toBe(true);
+        expect(
+          map.nodes.every((n) => !(n.battleParams?.hasCaravan && n.battleParams?.hasVillage)),
+        ).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('never rolls hasVillage on RECRUIT, BOSS, SHOP, CHURCH, or RUINS nodes', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1, gameData.mapTemplates);
+        const excluded = map.nodes.filter((n) =>
+          [
+            NODE_TYPES.RECRUIT,
+            NODE_TYPES.BOSS,
+            NODE_TYPES.SHOP,
+            NODE_TYPES.CHURCH,
+            NODE_TYPES.RUINS,
+          ].includes(n.type),
+        );
+        expect(excluded.length).toBeGreaterThan(0);
+        expect(excluded.every((n) => !n.battleParams?.hasVillage)).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('only ever rolls hasVillage on rout/seize objectives', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.001);
+      try {
+        for (let i = 0; i < 10; i++) {
+          for (const act of ['act1', 'act3', 'act4']) {
+            const map = generateNodeMap(act, ACT_CONFIG[act], gameData.mapTemplates);
+            const villageNodes = map.nodes.filter((n) => n.battleParams?.hasVillage);
+            expect(
+              villageNodes.every((n) => ['rout', 'seize'].includes(n.battleParams?.objective)),
+            ).toBe(true);
+          }
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+  });
 });

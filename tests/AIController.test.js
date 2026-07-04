@@ -1449,4 +1449,103 @@ describe('AIController', () => {
       expect(decision.target).toBeNull();
     });
   });
+
+  describe('seek_tile AI (village bandits)', () => {
+    const GOAL = { col: 5, row: 9 };
+
+    function makeBandit(overrides = {}) {
+      return makeEnemy({
+        col: 5,
+        row: 5,
+        aiMode: 'seek_tile',
+        aiTargetTile: { ...GOAL },
+        ...overrides,
+      });
+    }
+
+    it('advances toward the target tile and ignores adjacent player units', () => {
+      const moveTiles = [
+        { col: 5, row: 6 },
+        { col: 5, row: 7 },
+        { col: 5, row: 8 },
+      ];
+      const ai = new AIController(createMockGrid(moveTiles), {}, { objective: 'rout' });
+      const bandit = makeBandit();
+      const adjacentPlayer = makePlayer({ col: 4, row: 5 }); // would be an easy kill
+
+      const decision = ai._decideAction(bandit, [bandit], [adjacentPlayer], []);
+      expect(decision.reason).toBe('seek_tile_advance');
+      expect(decision.target).toBeNull(); // no chase, no deviation
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest).toEqual({ col: 5, row: 8 }); // farthest reachable node toward the goal
+    });
+
+    it('ends its move on the goal tile when it is reachable this turn', () => {
+      const moveTiles = [
+        { col: 5, row: 6 },
+        { col: 5, row: 7 },
+      ];
+      const ai = new AIController(createMockGrid(moveTiles), {}, { objective: 'rout' });
+      const bandit = makeBandit({ aiTargetTile: { col: 5, row: 7 } });
+
+      const decision = ai._decideAction(bandit, [bandit], [makePlayer({ col: 0, row: 0 })], []);
+      expect(decision.reason).toBe('seek_tile_advance');
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest).toEqual({ col: 5, row: 7 });
+    });
+
+    it('attacks a player unit blocking the target tile', () => {
+      const moveTiles = [{ col: 5, row: 6 }];
+      const ai = new AIController(createMockGrid(moveTiles), {}, { objective: 'rout' });
+      const bandit = makeBandit({ aiTargetTile: { col: 5, row: 7 } });
+      const blocker = makePlayer({ col: 5, row: 7 });
+
+      const decision = ai._decideAction(bandit, [bandit], [blocker], []);
+      expect(decision.reason).toBe('seek_tile_attack_blocker');
+      expect(decision.target).toBe(blocker);
+    });
+
+    it('takes an opportunistic attack from the landing tile without deviating', () => {
+      const moveTiles = [
+        { col: 5, row: 6 },
+        { col: 5, row: 7 },
+        { col: 5, row: 8 },
+      ];
+      const ai = new AIController(createMockGrid(moveTiles), {}, { objective: 'rout' });
+      const bandit = makeBandit();
+      const bystander = makePlayer({ col: 4, row: 8 }); // adjacent to the landing tile
+
+      const decision = ai._decideAction(bandit, [bandit], [bystander], []);
+      expect(decision.reason).toBe('seek_tile_advance');
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest).toEqual({ col: 5, row: 8 });
+      expect(decision.target).toBe(bystander);
+    });
+
+    it('holds (and may attack in place) when it cannot move', () => {
+      const ai = new AIController(createMockGrid([]), {}, { objective: 'rout' });
+      const bandit = makeBandit();
+      const adjacentPlayer = makePlayer({ col: 4, row: 5 });
+
+      const decision = ai._decideAction(bandit, [bandit], [adjacentPlayer], []);
+      expect(decision.reason).toBe('seek_tile_hold');
+      expect(decision.path).toBeNull();
+      expect(decision.target).toBe(adjacentPlayer);
+    });
+
+    it('reverts to normal chase behavior once the mode is cleared', () => {
+      const moveTiles = [
+        { col: 4, row: 5 },
+        { col: 3, row: 4 },
+      ];
+      const ai = new AIController(createMockGrid(moveTiles), {}, { objective: 'rout' });
+      const bandit = makeBandit({ aiMode: 'chase' });
+      delete bandit.aiTargetTile;
+      const target = makePlayer({ col: 3, row: 5 });
+
+      const decision = ai._decideAction(bandit, [bandit], [target], []);
+      expect(decision.reason).toBe('attack_in_range');
+      expect(decision.target).toBe(target);
+    });
+  });
 });

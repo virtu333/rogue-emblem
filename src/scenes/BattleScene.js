@@ -214,6 +214,7 @@ import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { CaravanController } from '../ui/CaravanController.js';
+import { VillageController } from '../ui/VillageController.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -318,6 +319,7 @@ export class BattleScene extends Phaser.Scene {
     this._battleSuspendController = null;
     this.escapedUnits = [];
     this._escapeController = null;
+    this._villageState = null;
     this.isTransitioningOut = false;
     this.visionSnapshot = null;
     this.pendingVisionSnapshot = null;
@@ -488,6 +490,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._caravanController) {
       this._caravanController.destroy();
       this._caravanController = null;
+    }
+    if (this._villageController) {
+      this._villageController.destroy();
+      this._villageController = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1182,6 +1188,11 @@ export class BattleScene extends Phaser.Scene {
       if (this._resumeCheckpoint) {
         this._caravanController.retintIfPresent();
       }
+
+      // Village & bandit secondary objective: marker + state from
+      // battleConfig.villageTile (resume restores state from the suspend
+      // checkpoint; the controller only re-renders/re-applies terrain).
+      (this._villageController ||= new VillageController(this)).create();
 
       // Spawn NPC for recruit battles
       if (bc.npcSpawn && !this._resumeCheckpoint) {
@@ -2260,6 +2271,12 @@ export class BattleScene extends Phaser.Scene {
         typeof scheduledSpawn?.aiMode === 'string'
           ? scheduledSpawn.aiMode
           : template?.aiMode || null,
+      aiTargetTile:
+        scheduledSpawn?.aiTargetTile &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.col) &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.row)
+          ? { col: scheduledSpawn.aiTargetTile.col, row: scheduledSpawn.aiTargetTile.row }
+          : null,
       affixes: Array.isArray(scheduledSpawn?.affixes)
         ? [...scheduledSpawn.affixes]
         : Array.isArray(template?.affixes)
@@ -2386,6 +2403,15 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    if (
+      spawn.aiTargetTile &&
+      Number.isFinite(spawn.aiTargetTile.col) &&
+      Number.isFinite(spawn.aiTargetTile.row)
+    ) {
+      enemy.aiTargetTile = { col: spawn.aiTargetTile.col, row: spawn.aiTargetTile.row };
+    }
+    // Village bandits that spawn after the village resolved revert to chase.
+    this._villageController?.sanitizeSpawnedEnemy(enemy);
 
     const reinforcementMeta = options.reinforcementMeta || null;
     if (reinforcementMeta) {
@@ -2443,6 +2469,7 @@ export class BattleScene extends Phaser.Scene {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
+    let banditSpawned = 0;
     const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
@@ -2451,6 +2478,7 @@ export class BattleScene extends Phaser.Scene {
       const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
       if (enemy) {
         spawned++;
+        if (enemy.aiMode === 'seek_tile') banditSpawned++;
         // Repeating pursuit waves are constant pressure, not added objectives —
         // they never bump par.
         if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating') {
@@ -2465,7 +2493,10 @@ export class BattleScene extends Phaser.Scene {
       this.dangerZoneStale = true;
       if (this.grid.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
-      this.showReinforcementBanner(spawned);
+      // Village bandits get their own telegraph instead of the generic
+      // reinforcement banner; mixed arrivals show both.
+      this.showReinforcementBanner(spawned - banditSpawned);
+      if (banditSpawned > 0) this._villageController?.showBanditArrivalBanner();
 
       // Bump par for each wave that actually instantiated enemies
       if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0) {
@@ -4576,6 +4607,10 @@ export class BattleScene extends Phaser.Scene {
 
     unit.hasActed = true;
     this.dimUnit(unit);
+    // Village visit: a player unit ending its action on the intact village
+    // tile claims the reward. Resolved before the suspend checkpoint below so
+    // a refresh can never undo or double the grant.
+    this._villageController?.handleUnitActionEnd(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this._preFogSnapshot = null;
@@ -9545,6 +9580,9 @@ export class BattleScene extends Phaser.Scene {
             onUnitDone: (enemy) => {
               enemy.hasActed = true;
               this.dimUnit(enemy);
+              // Village raze: a seek_tile bandit ending its move on the
+              // intact village tile burns it down.
+              this._villageController?.handleEnemyUnitDone(enemy);
             },
           },
         );
@@ -9944,6 +9982,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.npcUnits.length > 0) {
       label += '\nRecruit: Talk to green unit';
+    }
+    const villageSuffix = this._villageController?.getObjectiveSuffix();
+    if (villageSuffix) {
+      label += `\n${villageSuffix}`;
     }
     this.objectiveText.setText(label);
     this.objectiveText.setColor(color);

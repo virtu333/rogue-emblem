@@ -278,6 +278,25 @@ export class AIController {
       }
     }
 
+    // --- Tile-seeking AI (village bandits) ---
+    // Carries its own decision pipeline: bandits beeline for aiTargetTile and
+    // never chase player units. Placed after the acid filter so candidates and
+    // candidatePlans are final.
+    if (enemy.aiMode === 'seek_tile' && enemy.aiTargetTile) {
+      return this._finalizeDecision(
+        enemy,
+        this._decideSeekTileAction(
+          enemy,
+          candidates,
+          candidatePlans,
+          unitPositions,
+          moveRange,
+          playerUnits,
+          npcUnits,
+        ),
+      );
+    }
+
     // --- Status staff targeting (checked before normal attack) ---
     const staff = enemy.statusStaff;
     const staffUsesLeft = staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses;
@@ -551,6 +570,158 @@ export class AIController {
         nearestDistance: gridDistance(enemy.col, enemy.row, nearest.col, nearest.row),
       },
     });
+  }
+
+  /**
+   * seek_tile decision: path-aware advance toward enemy.aiTargetTile (the
+   * village). The unit does not chase player units. If a player/NPC unit
+   * occupies the target tile, attack the blocker when reachable; otherwise
+   * advance along the best path and take at most one opportunistic attack
+   * from the landing tile (no deviation from the route).
+   */
+  _decideSeekTileAction(
+    enemy,
+    candidates,
+    candidatePlans,
+    unitPositions,
+    moveRange,
+    playerUnits,
+    npcUnits,
+  ) {
+    const goal = enemy.aiTargetTile;
+    const attackable = [...(playerUnits || []), ...(npcUnits || [])].filter(
+      (u) => u && u.currentHP > 0 && !u._removing,
+    );
+    const blocker = attackable.find((u) => u.col === goal.col && u.row === goal.row) || null;
+
+    // A unit blocking the village tile is the one target worth deviating for.
+    if (blocker && enemy.weapon) {
+      let best = null;
+      let bestPathLen = Infinity;
+      for (const candidate of candidatePlans) {
+        const dist = gridDistance(
+          candidate.finalTile.col,
+          candidate.finalTile.row,
+          blocker.col,
+          blocker.row,
+        );
+        if (!isInRange(enemy.weapon, dist)) continue;
+        const len = candidate.path ? candidate.path.length : 0;
+        if (len < bestPathLen) {
+          bestPathLen = len;
+          best = candidate;
+        }
+      }
+      if (best) {
+        return {
+          path: best.path,
+          target: blocker,
+          reason: 'seek_tile_attack_blocker',
+          detail: { goal: { ...goal }, targetName: blocker.name || null },
+        };
+      }
+    }
+
+    // Destination: the goal tile itself when we can end there this turn,
+    // otherwise the farthest reachable node on the best full path toward it
+    // (same pattern as _findPathAwareChaseTile, with a tile goal).
+    const candidateSet = new Set(candidates.map((t) => `${t.col},${t.row}`));
+    let dest = null;
+    if (!blocker && candidateSet.has(`${goal.col},${goal.row}`)) {
+      dest = { col: goal.col, row: goal.row };
+    } else {
+      const goalOccupied = blocker || unitPositions.has(`${goal.col},${goal.row}`);
+      const goalTiles = goalOccupied ? this._getAdjacentPassableTiles(enemy, goal) : [goal];
+      let bestPath = null;
+      for (const tile of goalTiles) {
+        const path = this._findPathWithIceFallback(
+          enemy,
+          tile.col,
+          tile.row,
+          unitPositions,
+          moveRange,
+        );
+        if (!path || path.length < 2) continue;
+        if (!bestPath || path.length < bestPath.length) bestPath = path;
+      }
+      if (bestPath) {
+        for (let i = bestPath.length - 1; i >= 1; i--) {
+          const node = bestPath[i];
+          if (candidateSet.has(`${node.col},${node.row}`)) {
+            dest = node;
+            break;
+          }
+        }
+      }
+      if (!dest) {
+        // Greedy fallback: reachable candidate closest to the goal.
+        let closestDist = Infinity;
+        for (const tile of candidates) {
+          const dist = gridDistance(tile.col, tile.row, goal.col, goal.row);
+          if (dist < closestDist) {
+            closestDist = dist;
+            dest = tile;
+          }
+        }
+      }
+    }
+
+    let path = null;
+    let finalTile = { col: enemy.col, row: enemy.row };
+    if (dest && (dest.col !== enemy.col || dest.row !== enemy.row)) {
+      path = this._buildPath(enemy, dest, unitPositions, moveRange);
+      if (path && path.length >= 2) {
+        const plan = candidatePlans.find((c) => c.tile.col === dest.col && c.tile.row === dest.row);
+        finalTile = plan ? plan.finalTile : { col: dest.col, row: dest.row };
+      } else {
+        path = null;
+      }
+    }
+
+    // Opportunistic attack from the landing tile — may be null; never deviates.
+    let target = null;
+    if (enemy.weapon) {
+      let bestScore = -Infinity;
+      for (const unit of attackable) {
+        const dist = gridDistance(finalTile.col, finalTile.row, unit.col, unit.row);
+        if (!isInRange(enemy.weapon, dist)) continue;
+        const score = this._scoreAttackTarget(enemy, unit, false);
+        if (score > bestScore) {
+          bestScore = score;
+          target = unit;
+        }
+      }
+    }
+
+    return {
+      path,
+      target,
+      reason: path ? 'seek_tile_advance' : 'seek_tile_hold',
+      detail: {
+        goal: { ...goal },
+        destination: path ? { col: finalTile.col, row: finalTile.row } : null,
+        opportunisticTarget: target?.name || null,
+      },
+    };
+  }
+
+  _getAdjacentPassableTiles(enemy, tile) {
+    const tiles = [];
+    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+    for (const [dc, dr] of [
+      [0, -1],
+      [0, 1],
+      [-1, 0],
+      [1, 0],
+    ]) {
+      const col = tile.col + dc;
+      const row = tile.row + dr;
+      if (this.grid.cols !== undefined && (col < 0 || col >= this.grid.cols)) continue;
+      if (this.grid.rows !== undefined && (row < 0 || row >= this.grid.rows)) continue;
+      if (this.grid.getMoveCost(col, row, enemy.moveType, costMod) === Infinity) continue;
+      tiles.push({ col, row });
+    }
+    return tiles;
   }
 
   _findPathAwareChaseTile(enemy, target, candidates, unitPositions, moveRange = null) {

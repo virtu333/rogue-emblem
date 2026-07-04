@@ -3087,4 +3087,138 @@ describe('resolveAnchorUnitClass', () => {
       expect(violations).toEqual([]);
     });
   });
+
+  describe('Village & bandit objective (battleConfig.villageTile)', () => {
+    function bfsReachable(config, from) {
+      const { mapLayout, cols, rows } = config;
+      const passable = (c, r) => {
+        if (c < 0 || c >= cols || r < 0 || r >= rows) return false;
+        const cost = data.terrain[mapLayout[r][c]]?.moveCost?.Infantry;
+        return cost !== '--' && !isNaN(parseInt(cost, 10));
+      };
+      const seen = new Set([`${from.col},${from.row}`]);
+      const queue = [from];
+      while (queue.length) {
+        const cur = queue.shift();
+        for (const [dc, dr] of [
+          [0, 1],
+          [0, -1],
+          [1, 0],
+          [-1, 0],
+        ]) {
+          const c = cur.col + dc;
+          const r = cur.row + dr;
+          if (seen.has(`${c},${r}`) || !passable(c, r)) continue;
+          seen.add(`${c},${r}`);
+          queue.push({ col: c, row: r });
+        }
+      }
+      return seen;
+    }
+
+    it('omits villageTile when hasVillage is not set', () => {
+      const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
+      expect(config.villageTile).toBeUndefined();
+    });
+
+    it('writes the Village terrain at the picked tile when hasVillage is set', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', hasVillage: true }, data),
+        );
+        expect(config.villageTile).toBeTruthy();
+        const { col, row } = config.villageTile;
+        expect(config.mapLayout[row][col]).toBe(TERRAIN.Village);
+      }
+    });
+
+    it('village tile is Infantry-reachable from the player spawn', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', hasVillage: true }, data),
+        );
+        if (!config.villageTile) continue;
+        const reachable = bfsReachable(config, config.playerSpawns[0]);
+        expect(reachable.has(`${config.villageTile.col},${config.villageTile.row}`)).toBe(true);
+      }
+    });
+
+    it('village tile never overlaps player or enemy spawns', () => {
+      let placed = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', hasVillage: true }, data),
+        );
+        if (!config.villageTile) continue;
+        placed++;
+        const occupied = new Set([
+          ...config.playerSpawns.map((s) => `${s.col},${s.row}`),
+          ...config.enemySpawns.map((s) => `${s.col},${s.row}`),
+        ]);
+        expect(occupied.has(`${config.villageTile.col},${config.villageTile.row}`)).toBe(false);
+      }
+      expect(placed).toBeGreaterThan(0);
+    });
+
+    it('adds a race-calibrated turn-1 scripted bandit wave targeting the village', () => {
+      let waves = 0;
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', hasVillage: true }, data),
+        );
+        if (!config.villageTile) continue;
+        const banditWaves = (config.reinforcements?.scriptedWaves || []).filter((w) =>
+          w.spawns?.some((s) => s.aiMode === 'seek_tile'),
+        );
+        if (banditWaves.length === 0) continue; // cramped map: player got the benefit
+        waves++;
+        expect(banditWaves).toHaveLength(1);
+        const wave = banditWaves[0];
+        expect(wave.turn).toBe(1);
+        expect(wave.xpMultiplier).toBe(0.85);
+        expect(wave.spawns.length).toBeGreaterThan(0);
+        expect(wave.spawns.length).toBeLessThanOrEqual(2);
+        for (const spawn of wave.spawns) {
+          expect(spawn.aiMode).toBe('seek_tile');
+          expect(spawn.aiTargetTile).toEqual(config.villageTile);
+          expect(typeof spawn.className).toBe('string');
+          expect(spawn.level).toBeGreaterThanOrEqual(1);
+          // Bandits spawn on a map edge.
+          expect(
+            spawn.col === 0 ||
+              spawn.col === config.cols - 1 ||
+              spawn.row === 0 ||
+              spawn.row === config.rows - 1,
+          ).toBe(true);
+        }
+      }
+      expect(waves).toBeGreaterThan(0);
+    });
+
+    it('validateBattleConfig passes for a village-equipped battle config', () => {
+      for (let seed = 1; seed <= 5; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', hasVillage: true }, data),
+        );
+        const violations = validateBattleConfig(config, data);
+        expect(violations).toEqual([]);
+      }
+    });
+
+    it('works on seize maps too (act2) without stomping the throne', () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act2', objective: 'seize', hasVillage: true }, data),
+        );
+        if (!config.villageTile) continue;
+        expect(config.mapLayout[config.villageTile.row][config.villageTile.col]).toBe(
+          TERRAIN.Village,
+        );
+        expect(
+          config.thronePos.col === config.villageTile.col &&
+            config.thronePos.row === config.villageTile.row,
+        ).toBe(false);
+      }
+    });
+  });
 });

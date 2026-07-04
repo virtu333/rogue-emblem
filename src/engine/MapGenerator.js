@@ -16,6 +16,12 @@ import {
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
+import {
+  pickVillageTile,
+  calibrateBanditSpawn,
+  pickBanditClass,
+  buildBanditScriptedWave,
+} from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
@@ -265,6 +271,19 @@ export function generateBattle(params, deps) {
     caravanSpawn = pickCaravanSpawnTile(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns);
   }
 
+  // 7e. Village tile (rolled earlier into params.hasVillage at node-generation
+  // time, mutually exclusive with hasCaravan). Resolve a neutral-band tile and
+  // write the Village terrain now, so ensureReachability below can guarantee a
+  // path to it; the bandit squad is calibrated after reachability (it needs
+  // real path distances).
+  let villageTile = null;
+  if (params.hasVillage) {
+    villageTile = pickVillageTile(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns);
+    if (villageTile) {
+      mapLayout[villageTile.row][villageTile.col] = TERRAIN.Village;
+    }
+  }
+
   // 7c. Escape squares for the Escape objective
   let escapeTiles = null;
   if (objective === 'escape') {
@@ -288,6 +307,7 @@ export function generateBattle(params, deps) {
   const reachTargets = [...enemySpawns];
   if (npcSpawn) reachTargets.push(npcSpawn);
   if (caravanSpawn) reachTargets.push(caravanSpawn);
+  if (villageTile) reachTargets.push(villageTile);
   if (escapeTiles) reachTargets.push(...escapeTiles);
   ensureReachability(
     mapLayout,
@@ -332,6 +352,34 @@ export function generateBattle(params, deps) {
   });
   const hybridConfig = cloneHybridConfig(template, resolvedHybridAnchors);
 
+  // Village bandit squad: race-calibrated edge spawns (path distances are only
+  // meaningful after ensureReachability/ensureBridges above), delivered as a
+  // turn-1 scripted reinforcement wave so aiMode/aiTargetTile ride the
+  // existing ReinforcementScheduler scriptedWaves path. When calibration finds
+  // no viable spawn, the village simply goes uncontested (player's benefit).
+  if (villageTile) {
+    const banditCalibration = calibrateBanditSpawn({
+      mapLayout,
+      cols,
+      rows,
+      terrainData: terrain,
+      villageTile,
+      playerSpawns,
+      enemySpawns,
+    });
+    const banditWave = buildBanditScriptedWave({
+      spawnTiles: banditCalibration.spawns,
+      className: pickBanditClass(pool, classes),
+      level: adjustedLevelRange[0],
+      villageTile,
+    });
+    if (banditWave) {
+      if (!reinforcementConfig.reinforcements) reinforcementConfig.reinforcements = {};
+      const r = reinforcementConfig.reinforcements;
+      r.scriptedWaves = [...(Array.isArray(r.scriptedWaves) ? r.scriptedWaves : []), banditWave];
+    }
+  }
+
   const battleConfig = {
     mapLayout,
     cols,
@@ -342,6 +390,7 @@ export function generateBattle(params, deps) {
     enemySpawns,
     npcSpawn,
     caravanSpawn: caravanSpawn || undefined,
+    villageTile: villageTile || undefined,
     thronePos,
     escapeTiles: escapeTiles || undefined,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
@@ -2903,6 +2952,7 @@ export function validateBattleConfig(config, deps, options = {}) {
     const enemySpawns = config.enemySpawns || [];
     const npcSpawn = config.npcSpawn || null;
     const caravanSpawn = config.caravanSpawn || null;
+    const villageTile = config.villageTile || null;
 
     // --- Player spawn capacity ---
     if (
@@ -2937,6 +2987,23 @@ export function validateBattleConfig(config, deps, options = {}) {
     for (const s of enemySpawns) registerSpawn(s, 'enemy', moveTypeOf(s));
     if (npcSpawn) registerSpawn(npcSpawn, 'npc', moveTypeOf(npcSpawn));
     if (caravanSpawn) registerSpawn(caravanSpawn, 'caravan', 'Infantry');
+    if (villageTile) {
+      if (!inBounds(villageTile)) {
+        violations.push(`village tile out of bounds at (${villageTile?.col},${villageTile?.row})`);
+      } else {
+        const idx = mapLayout[villageTile.row]?.[villageTile.col];
+        if (idx !== TERRAIN.Village) {
+          violations.push(
+            `village tile (${villageTile.col},${villageTile.row}) terrain index ${idx} is not Village`,
+          );
+        }
+        if (!isPassable(terrainData, idx, 'Infantry')) {
+          violations.push(
+            `village tile (${villageTile.col},${villageTile.row}) is impassable for Infantry`,
+          );
+        }
+      }
+    }
 
     // --- Objective-specific requirements ---
     if (objective === 'seize') {
@@ -2978,6 +3045,7 @@ export function validateBattleConfig(config, deps, options = {}) {
       for (const e of enemySpawns) connTargets.push({ t: e, label: `enemy(${e.className})` });
       if (npcSpawn) connTargets.push({ t: npcSpawn, label: 'npc' });
       if (caravanSpawn) connTargets.push({ t: caravanSpawn, label: 'caravan' });
+      if (villageTile) connTargets.push({ t: villageTile, label: 'village' });
       if (config.thronePos) connTargets.push({ t: config.thronePos, label: 'throne' });
       for (const tile of config.escapeTiles || []) {
         connTargets.push({ t: tile, label: 'escape' });
