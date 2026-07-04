@@ -2,7 +2,7 @@
   "id": "pr1-accessories-delphi-swiftsoles-v1",
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
   "expectedTotals": {
-    "accessories": 30,
+    "accessories": 33,
     "consumables": 15
   },
   "accessories": [
@@ -146,6 +146,45 @@
         "gamblerCoin": true
       },
       "price": 1500
+    },
+    {
+      "name": "Mentor's Band",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "xpShare": 0.5
+      },
+      "price": 2500
+    },
+    {
+      "name": "Mercury Sandals",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "moveTypeOverride": "Flying"
+      },
+      "price": 5000
+    },
+    {
+      "name": "Phalanx Band",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "defBonus": 2,
+        "resBonus": 2,
+        "hitBonus": 10,
+        "condition": "adjacent_ally"
+      },
+      "price": 3500
+    },
+    {
+      "name": "Pursuit Ring",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "doubleThresholdReduction": 2
+      },
+      "price": 4000
     }
   ],
   "consumables": [

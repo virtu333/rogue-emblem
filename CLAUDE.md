@@ -30,7 +30,7 @@ emblem-rogue/
 ├── public/                # Static files served as-is (synced from data/ and assets/)
 ├── docs/                  # Design documents (GDD, class data, mobile/iOS specs)
 ├── data/                  # 23 game data JSON files (source of truth)
-│   ├── accessories.json   # 30 accessories: 10 stat-based + 20 with combatEffects (incl. Warding Charm status immunity)
+│   ├── accessories.json   # 33 accessories: 10 stat-based + 23 with combatEffects (incl. legendaries: Mentor's Band EXP Share, Mercury Sandals)
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules
 │   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers
 │   ├── classes.json       # 52 entries: 21 base + 30 promoted + 1 boss-tier class
@@ -80,7 +80,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **weapons.json** — Scrolls have `skillId` field (consumable, not equippable as weapons). Staves gain +1 use at MAG 8/14/20; uses tracked via `_usesSpent` (survives serialization). Prices: Iron=500, Steel=1000, Silver=2000, Legend=0, Scrolls=2500, Staves 300/600/1000/1200/0.
 - **consumables.json** — Stat boosters are loot-only (not in shops). Reclass seals: Infantry Seal, Mounted Seal.
 - **lootTables.json** — Act 1: no rare pool, limited forge pool. Loot weapons filtered by roster proficiencies.
-- **accessories.json** — Stat accessories modify `unit.stats` directly on equip/unequip. Combat accessories have `combatEffects` evaluated at combat time by Combat.js + SkillSystem.js. Conditions: `below50`, `above75`, `on_forest`.
+- **accessories.json** — Stat accessories modify `unit.stats` directly on equip/unequip. Combat accessories have `combatEffects` evaluated at combat time by Combat.js + SkillSystem.js. Conditions: `below50`, `above75`, `on_forest`, `adjacent_ally`, `no_ally_within_2`, and more (see SkillSystem.isAccessoryConditionMet).
 - **metaUpgrades.json** — Effects cumulative per tier (level 2 shows total bonus, not incremental). Growth and flat stat upgrades are independent tracks.
 - **enemies.json** — Act 1 `levelRange` overridden per-node by `ACT_LEVEL_SCALING` in NodeMapGenerator.js (row 0: `[1,1]`, row 1: `[1,2]`, row 2: `[1,3]`, default: `[2,3]`).
 - **recruits.json** — `levelRange` overridden at spawn. Recruit scaling is Edric-anchored (see `RecruitScaling.js`), not simple lord-level mirroring.

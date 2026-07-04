@@ -92,6 +92,7 @@ export function loadFixture(name) {
 
 export const FIXTURES = [
   'act1_rout_basic',
+  'act1_village_race',
   'act2_seize_basic',
   'act2_escape_pursuit',
   'healer_heavy',

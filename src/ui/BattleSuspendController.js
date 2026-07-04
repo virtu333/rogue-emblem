@@ -38,6 +38,7 @@ export function serializeSuspendUnit(unit) {
   for (const field of [
     '_battleDeltas',
     '_battleWeaponArtUsage',
+    '_battleAbilityUsage',
     '_battleTimedWeaponArtBuffs',
     '_battleTimedWeaponArtAppliedStats',
     '_battleTimedWeaponArtAppliedCombatMods',
@@ -118,6 +119,7 @@ export class BattleSuspendController {
       latePressureWarningShown: scene._latePressureWarningShown === true,
       bossName: scene._bossName || null,
       caravanExited: scene._caravanExited === true,
+      villageState: scene._villageState ? { ...scene._villageState } : null,
     });
   }
 
@@ -164,6 +166,7 @@ export class BattleSuspendController {
     scene._latePressureWarningShown = checkpoint.latePressureWarningShown === true;
     scene.appliedHybridOverrideTurns = new Set(checkpoint.appliedHybridOverrideTurns || []);
     scene._caravanExited = checkpoint.caravanExited === true;
+    scene._villageState = checkpoint.villageState ? { ...checkpoint.villageState } : null;
   }
 
   /**

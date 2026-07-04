@@ -1063,6 +1063,7 @@ describe('HeadlessBattle', () => {
       sunderWeapon: true,
       poisonWeapon: false,
       aiMode: 'guard',
+      aiTargetTile: null,
       affixes: ['scripted_affix'],
     });
   });
