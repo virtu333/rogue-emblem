@@ -1280,10 +1280,7 @@ export class NodeMapScene extends Phaser.Scene {
       }
 
       // Node icon — use sprite if loaded, fall back to colored rectangle + unicode
-      let spriteKey =
-        node.type === NODE_TYPES.CHURCH || node.type === NODE_TYPES.RUINS
-          ? 'node_rest'
-          : `node_${node.type}`;
+      let spriteKey = node.type === NODE_TYPES.CHURCH ? 'node_rest' : `node_${node.type}`;
       // Elite seize battles use dark fortress sprite
       if (isEliteNode) {
         spriteKey = 'node_elite';
@@ -1298,7 +1295,6 @@ export class NodeMapScene extends Phaser.Scene {
           .image(pos.x, pos.y, spriteKey)
           .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
           .setDepth(NODE_DEPTH);
-        if (node.type === NODE_TYPES.RUINS) nodeObj.setTint(COLOR_RUINS);
         if (isCompleted) nodeObj.setTint(0x555555);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
       } else {

@@ -1,0 +1,47 @@
+{
+  "globalStyle": "SNES 16-bit pixel art, limited color palette, clean pixel edges, fantasy medieval setting",
+  "categories": {
+    "sera_portrait": {
+      "targetSize": 128,
+      "aspectRatio": "1:1",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "128x128 pixel art character portrait, bust shot from the chest up filling most of the frame, expressive face, tactical RPG portrait framing, painted pixel-art shading, solid muted dark background filling the entire canvas, no transparency",
+      "assets": [
+        {
+          "name": "sera_bust_warm",
+          "prompt": "young woman light sage with long deep-red hair falling past her shoulders, soft green eyes, gentle serene expression with a faint smile, violet-purple priestess robes with pale gold trim at the collar, holding a small holy tome near her chest, warm candlelit glow, dark plum background"
+        },
+        {
+          "name": "sera_bust_serene",
+          "prompt": "young woman healer-sage with long straight crimson hair and side-swept bangs, kind green eyes, calm compassionate expression, high-collared violet robe with white inner lining, small gold pendant, soft radiant light from below, deep navy background"
+        },
+        {
+          "name": "sera_bust_devout",
+          "prompt": "young priestess with flowing dark red hair, green eyes looking slightly off-frame, peaceful devoted expression, rich purple vestments with subtle embroidery, faint halo of pale light behind her head, muted dark violet background"
+        }
+      ]
+    },
+    "node_icons": {
+      "targetSize": 48,
+      "aspectRatio": "1:1",
+      "removeBg": true,
+      "sampleCount": 4,
+      "stylePrefix": "small pixel art building icon for a strategy game overworld map, single structure centered on a plain solid black background, bold readable silhouette at small size, chunky clean pixels, slight 3/4 top-down view",
+      "assets": [
+        {
+          "name": "node_ruins_temple",
+          "prompt": "crumbling ancient stone temple ruins, broken columns and a collapsed arch, weathered tan and grey stone, moss and creeping vines, a faint mysterious teal glow from within the doorway"
+        },
+        {
+          "name": "node_ruins_keep",
+          "prompt": "ruined fortress keep, shattered tower with a jagged broken top, cracked sandstone walls half fallen, rubble at the base, overgrown grass and ivy, desaturated earthy tones"
+        },
+        {
+          "name": "node_ruins_arch",
+          "prompt": "lonely freestanding ruined archway and broken wall fragments, ancient carved stone, tumbled blocks, dry brush growing between cracks, ochre and grey palette"
+        }
+      ]
+    }
+  }
+}
