@@ -25,6 +25,7 @@ scroll) stays a skill. Definitions, FE-classic:
 - **Warp Staff** — send an adjacent ally to a passable tile within MAG-scaled range.
 Both use the existing staff plumbing (uses, MAG 8/14/20 bonus uses, staff XP). The "Warp/Recall"
 entries in the ability list below are superseded by this ruling.
+**Graduated to spec:** `specs/warp-rescue-staves.md` (2026-07-04).
 
 ### Accessories, wave 2
 
