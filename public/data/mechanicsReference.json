@@ -5,7 +5,8 @@
     "tabTitle": "Advanced Mechanics",
     "notes": [
       "Forecast AS is full effective combat speed and should include active combat bonuses.",
-      "Promoted units gain Mast rank in all currently held weapon proficiencies."
+      "Promoted units gain Mast rank in all currently held weapon proficiencies.",
+      "Relocation staves: Rescue targets an ally within staff range and pulls them to a free tile beside the caster; Warp targets an adjacent ally and sends them to a free tile within staff range of the caster. MAG range bonuses apply to the targeting range (Rescue) or destination radius (Warp); destinations must be passable for the moved ally."
     ]
   },
   "combat": {

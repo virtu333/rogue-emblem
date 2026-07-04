@@ -320,6 +320,12 @@ export class InputController {
       case 'SELECTING_CURE_TARGET':
         scene._handleCureTargetClick(gp);
         break;
+      case 'SELECTING_STAFF_ALLY':
+        scene.handleStaffAllyClick(gp);
+        break;
+      case 'SELECTING_STAFF_TILE':
+        scene.handleStaffTileClick(gp);
+        break;
       case 'SELECTING_SHOVE_TARGET':
         scene.handleShoveTargetClick(gp);
         break;

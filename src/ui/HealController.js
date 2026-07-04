@@ -16,6 +16,11 @@ import {
 } from '../engine/Combat.js';
 import { equipWeapon, canEquip, hasStaff, getCombatWeapons } from '../engine/UnitManager.js';
 import { isCureStaff, clearAllConditions } from '../engine/StatusConditionSystem.js';
+import {
+  isRelocateStaff,
+  findRelocateTargets,
+  getRelocationDestinations,
+} from '../engine/StaffRelocation.js';
 import { showMinorHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 
@@ -42,6 +47,13 @@ export class HealController {
     if (!hasStaff(unit)) return [];
     const staff = staffOverride || scene.getActiveHealStaff(unit);
     if (!staff) return [];
+    if (isRelocateStaff(staff)) {
+      // Warp/Rescue: phase-1 ally targets (destination legality by the
+      // ALLY's moveType is checked inside findRelocateTargets).
+      return findRelocateTargets(staff, unit, scene.playerUnits, scene.grid, (c, r) =>
+        scene.getUnitAt(c, r),
+      );
+    }
     const range = getEffectiveStaffRange(staff, unit);
     const cure = isCureStaff(staff);
     const targets = [];
@@ -78,6 +90,16 @@ export class HealController {
         scene,
         'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.',
       );
+    }
+
+    // Warp/Rescue: two-phase targeting — pick the ally first, then the tile.
+    if (isRelocateStaff(staff)) {
+      scene.staffRelocateTargets = targets;
+      scene.staffRelocateAlly = null;
+      scene.staffRelocateTiles = [];
+      scene.grid.showHealRange(targets.map((a) => ({ col: a.col, row: a.row })));
+      scene.battleState = 'SELECTING_STAFF_ALLY';
+      return;
     }
 
     // Fortify: auto-heal all targets, no selection needed
@@ -148,7 +170,10 @@ export class HealController {
           equipWeapon(unit, staff);
           const healTargets = scene.findHealTargets(unit, staff);
           if (healTargets.length === 0) {
-            await scene.showBriefBanner('No heal targets in range for that staff.', '#ff8888');
+            const message = isRelocateStaff(staff)
+              ? 'No valid allies in range for that staff.'
+              : 'No heal targets in range for that staff.';
+            await scene.showBriefBanner(message, '#ff8888');
             scene.showStaffPicker(unit, usableStaves);
             return;
           }
@@ -169,6 +194,111 @@ export class HealController {
     const target = scene.healTargets.find((a) => a.col === gp.col && a.row === gp.row);
     if (target) {
       scene.executeHeal(scene.selectedUnit, target);
+    }
+  }
+
+  // --- Warp/Rescue relocation flow ---
+
+  /** Phase 1 (SELECTING_STAFF_ALLY): pick the ally to relocate. */
+  handleStaffAllyClick(gp) {
+    const scene = this.scene;
+    const ally = (scene.staffRelocateTargets || []).find(
+      (a) => a.col === gp.col && a.row === gp.row,
+    );
+    if (!ally) return;
+    const caster = scene.selectedUnit;
+    const staff = caster?.weapon; // equipped by startHealTargetSelection
+    if (!caster || !isRelocateStaff(staff)) return;
+    const tiles = getRelocationDestinations(staff, caster, ally, scene.grid, (c, r) =>
+      scene.getUnitAt(c, r),
+    );
+    if (tiles.length === 0) return; // phase-1 filter should prevent this
+    scene.staffRelocateAlly = ally;
+    scene.staffRelocateTiles = tiles;
+    scene.grid.showAttackRange(tiles, 0x66ccff, 0.4);
+    scene.battleState = 'SELECTING_STAFF_TILE';
+  }
+
+  /** Phase 2 (SELECTING_STAFF_TILE): pick the destination tile. */
+  handleStaffTileClick(gp) {
+    const scene = this.scene;
+    const tile = (scene.staffRelocateTiles || []).find((t) => t.col === gp.col && t.row === gp.row);
+    if (!tile) return;
+    const ally = scene.staffRelocateAlly;
+    if (!ally) return;
+    scene.executeRelocate(scene.selectedUnit, ally, tile);
+  }
+
+  /**
+   * Resolve a Warp/Rescue relocation: fade the ally to the destination
+   * (executeWarp pattern), spend a staff use, award staff XP, finish the
+   * CASTER's action. The moved ally's acted state is deliberately untouched
+   * (FE-classic: an un-acted ally can still act after being moved).
+   */
+  async executeRelocate(healer, ally, dest) {
+    const scene = this.scene;
+    scene.battleState = 'HEAL_RESOLVING';
+    scene.grid.clearAttackHighlights();
+    scene.staffRelocateTargets = [];
+    scene.staffRelocateAlly = null;
+    scene.staffRelocateTiles = [];
+
+    try {
+      const staff = healer.weapon; // Should already be equipped
+
+      await this.animateRelocate(ally, dest);
+
+      // A long-range landing can change fog visibility.
+      if (scene.grid.fogEnabled) {
+        scene.grid.updateFogOfWar(scene.playerUnits);
+        scene.updateEnemyVisibility();
+      }
+
+      // Spend a use and check depletion (same pattern as executeHeal)
+      spendStaffUse(staff);
+      if (getStaffRemainingUses(staff, healer) <= 0) {
+        const combatWpn = getCombatWeapons(healer)[0];
+        if (combatWpn) equipWeapon(healer, combatWpn);
+      }
+
+      try {
+        await scene.awardScaledXP(healer, XP_BASE_HEAL);
+      } finally {
+        scene.finishUnitAction(healer);
+      }
+    } catch (err) {
+      scene._recoverUnitActionError(healer, 'staffRelocate', err);
+    }
+  }
+
+  /** Fade-out → move → fade-in (BattleScene.executeWarp pattern). */
+  async animateRelocate(ally, dest) {
+    const scene = this.scene;
+    const audio = scene.registry.get('audio');
+    if (audio) audio.playSFX('sfx_heal');
+
+    const targets = [
+      ally.graphic,
+      ally.label,
+      ally.factionIndicator,
+      ally.hpBar?.bg,
+      ally.hpBar?.fill,
+    ].filter(Boolean);
+
+    if (targets.length > 0) {
+      await scene._awaitSceneTween(
+        { targets, alpha: 0, duration: 180 },
+        { label: 'staff_relocate_fade_out' },
+      );
+    }
+    ally.col = dest.col;
+    ally.row = dest.row;
+    scene.updateUnitPosition(ally);
+    if (targets.length > 0) {
+      await scene._awaitSceneTween(
+        { targets, alpha: ally.hasActed ? 0.5 : 1, duration: 180 },
+        { label: 'staff_relocate_fade_in' },
+      );
     }
   }
 

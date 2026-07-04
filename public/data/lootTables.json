@@ -77,7 +77,8 @@
       "Restore",
       "Bolganone",
       "Aura",
-      "Recurve Bow"
+      "Recurve Bow",
+      "Rescue Staff"
     ],
     "healing": [
       "Vulnerary",
@@ -192,7 +193,9 @@
       "Killer Axe",
       "Killer Bow",
       "Tempest Blade",
-      "Levin Sword"
+      "Levin Sword",
+      "Rescue Staff",
+      "Warp Staff"
     ],
     "healing": [
       "Elixir",
@@ -344,7 +347,9 @@
       "Killer Bow",
       "Tempest Blade",
       "Levin Sword",
-      "Fortify"
+      "Fortify",
+      "Rescue Staff",
+      "Warp Staff"
     ],
     "healing": [
       "Elixir",

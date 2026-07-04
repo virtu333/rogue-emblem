@@ -413,6 +413,112 @@ describe('BattleScene equip menu text', () => {
     expect(scene.startHealTargetSelection).toHaveBeenCalledWith(unit, [ally], physic);
   });
 
+  it('labels the staff action "Staff (rem/max)" when the preferred staff is a relocate staff', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+
+    const rescue = {
+      name: 'Rescue Staff',
+      type: 'Staff',
+      relocate: 'rescue',
+      uses: 2,
+      _usesSpent: 0,
+    };
+    const ally = { name: 'Ally' };
+
+    scene.getUsableStaves = vi.fn(() => [rescue]);
+    scene.findHealTargets = vi.fn(() => [ally]);
+
+    const unit = {
+      col: 1,
+      row: 1,
+      weapon: rescue,
+      inventory: [rescue],
+      stats: { MAG: 5 },
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).toContain('Staff (2/2)');
+    expect(labels.some((label) => label.startsWith('Heal ('))).toBe(false);
+  });
+
+  it('"Staff (...)" action routes to startHealTargetSelection with the relocate staff', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.showStaffPicker = vi.fn();
+    scene.startHealTargetSelection = vi.fn();
+
+    const rescue = {
+      name: 'Rescue Staff',
+      type: 'Staff',
+      relocate: 'rescue',
+      uses: 2,
+      _usesSpent: 0,
+    };
+    const ally = { name: 'Ally' };
+
+    scene.getUsableStaves = vi.fn(() => [rescue]);
+    scene.findHealTargets = vi.fn(() => [ally]);
+
+    const unit = {
+      col: 1,
+      row: 1,
+      weapon: rescue,
+      inventory: [rescue],
+      stats: { MAG: 5 },
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+    const staffCall = scene._makeMenuTextButton.mock.calls.find((call) =>
+      call[2].startsWith('Staff ('),
+    );
+    expect(staffCall).toBeTruthy();
+    staffCall[5]();
+
+    expect(scene.showStaffPicker).not.toHaveBeenCalled();
+    expect(scene.startHealTargetSelection).toHaveBeenCalledWith(unit, [ally], rescue);
+  });
+
+  it('keeps the "Heal (...)" label when the preferred staff heals (mixed kit)', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+
+    const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
+    const rescue = {
+      name: 'Rescue Staff',
+      type: 'Staff',
+      relocate: 'rescue',
+      uses: 2,
+      _usesSpent: 0,
+    };
+    const ally = { name: 'Ally' };
+
+    scene.getUsableStaves = vi.fn(() => [heal, rescue]);
+    scene.findHealTargets = vi.fn(() => [ally]);
+
+    const unit = {
+      col: 1,
+      row: 1,
+      weapon: heal, // Heal equipped => preferred option
+      inventory: [heal, rescue],
+      stats: { MAG: 5 },
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).toContain('Heal (3/3)');
+    expect(labels.some((label) => label.startsWith('Staff ('))).toBe(false);
+  });
+
   it('non-proficient rows render gray with (no prof) suffix', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));

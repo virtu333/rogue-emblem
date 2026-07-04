@@ -724,7 +724,7 @@ describe('LootSystem', () => {
       expect(inv.some((entry) => entry.item.name === 'Windsweep Scroll')).toBe(false);
     });
 
-    it('no Legend-tier items in shop', () => {
+    it('no zero-price Legend-tier items in shop (Warp Staff is the priced exception)', () => {
       for (let i = 0; i < 30; i++) {
         const inv = generateShopInventory(
           'act3',
@@ -733,7 +733,12 @@ describe('LootSystem', () => {
           gameData.consumables,
         );
         for (const entry of inv) {
-          expect(entry.item.tier).not.toBe('Legend');
+          if (entry.item.tier !== 'Legend') continue;
+          // Legendary combat weapons are all price 0 and must never be sold.
+          // The Warp Staff (price 5000) is deliberately shop-purchasable —
+          // premium gold is part of its gating (act3+, Mast rank, 1 use).
+          expect(entry.item.name).toBe('Warp Staff');
+          expect(entry.item.price).toBeGreaterThan(0);
         }
       }
     });

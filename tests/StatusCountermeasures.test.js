@@ -21,6 +21,7 @@ import {
   isStatusImmune,
   resolveStatusStaff,
 } from '../src/engine/StatusConditionSystem.js';
+import { isRelocateStaff } from '../src/engine/StaffRelocation.js';
 import { generateShopInventory } from '../src/engine/LootSystem.js';
 import { formatAccessoryCombatEffect } from '../src/utils/accessoryText.js';
 import { XP_BASE_HEAL } from '../src/utils/constants.js';
@@ -81,11 +82,16 @@ describe('countermeasures: data shapes', () => {
     });
   });
 
-  it('every staff classifies as exactly one of heal/status/cure', () => {
+  it('every staff classifies as exactly one of heal/status/cure/relocate', () => {
     const staves = gameData.weapons.filter((w) => w.type === 'Staff');
     expect(staves.length).toBeGreaterThanOrEqual(8);
     for (const staff of staves) {
-      const flags = [isHealStaff(staff), isStatusStaff(staff), isCureStaff(staff)];
+      const flags = [
+        isHealStaff(staff),
+        isStatusStaff(staff),
+        isCureStaff(staff),
+        isRelocateStaff(staff),
+      ];
       expect(flags.filter(Boolean)).toHaveLength(1);
     }
     expect(isCureStaff(restoreStaff)).toBe(true);

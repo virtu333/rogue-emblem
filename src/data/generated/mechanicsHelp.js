@@ -48,11 +48,11 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 100 weapons (0 legendary)",
+            "text": "Prof: 101 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 20 weapons (19 legendary)",
+            "text": "Mast: 21 weapons (20 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,17 +137,17 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 100,
+        "totalWeapons": 101,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 20,
-        "legendaryWeapons": 19
+        "totalWeapons": 21,
+        "legendaryWeapons": 20
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 19
+    "legendaryCount": 20
   },
   "legendaryWeapons": [
     {
@@ -226,6 +226,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "rankRequired": "Mast",
       "range": "2",
       "special": "Heals all allies in range, MAG + 5 HP"
+    },
+    {
+      "name": "Warp Staff",
+      "type": "Staff",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": "Sends an adjacent ally across the field"
     },
     {
       "name": "Brave Sword",

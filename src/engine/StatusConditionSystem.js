@@ -97,7 +97,9 @@ export function isCureStaff(weapon) {
 }
 
 export function isHealStaff(weapon) {
-  return weapon?.type === 'Staff' && !weapon.statusEffect && !weapon.cureConditions;
+  return (
+    weapon?.type === 'Staff' && !weapon.statusEffect && !weapon.cureConditions && !weapon.relocate
+  );
 }
 
 // --- Hit formula ---

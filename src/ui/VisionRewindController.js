@@ -217,6 +217,9 @@ export class VisionRewindController {
     scene.unitPositions = null;
     scene.attackTargets = [];
     scene.healTargets = [];
+    scene.staffRelocateTargets = [];
+    scene.staffRelocateAlly = null;
+    scene.staffRelocateTiles = [];
     scene.shoveTargets = [];
     scene.pullTargets = [];
     scene.tradeTargets = [];
@@ -339,6 +342,8 @@ export class VisionRewindController {
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
       'SELECTING_CURE_TARGET',
+      'SELECTING_STAFF_ALLY',
+      'SELECTING_STAFF_TILE',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',

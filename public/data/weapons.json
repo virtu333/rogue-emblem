@@ -899,6 +899,60 @@
     "price": 0
   },
   {
+    "name": "Rescue Staff",
+    "lore": "A tether of light thrown across the field. It pulls; the field lets go.",
+    "type": "Staff",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 100,
+    "crit": 0,
+    "weight": 2,
+    "range": "2-3",
+    "uses": 2,
+    "perBattleUses": true,
+    "relocate": "rescue",
+    "rangeBonuses": [
+      {
+        "mag": 10,
+        "bonus": 1
+      },
+      {
+        "mag": 18,
+        "bonus": 1
+      }
+    ],
+    "special": "Pulls a distant ally to your side",
+    "price": 2400
+  },
+  {
+    "name": "Warp Staff",
+    "lore": "The old circle's forbidden shorthand: why march, when the world can fold?",
+    "type": "Staff",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 0,
+    "hit": 100,
+    "crit": 0,
+    "weight": 3,
+    "range": "1-4",
+    "uses": 1,
+    "perBattleUses": true,
+    "relocate": "warp",
+    "rangeBonuses": [
+      {
+        "mag": 12,
+        "bonus": 1
+      },
+      {
+        "mag": 18,
+        "bonus": 1
+      }
+    ],
+    "special": "Sends an adjacent ally across the field",
+    "price": 5000
+  },
+  {
     "name": "Armorslayer",
     "lore": "First-siege work, from when the empire's plate was the problem.",
     "type": "Sword",

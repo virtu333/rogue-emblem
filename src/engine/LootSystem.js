@@ -1085,10 +1085,17 @@ export function generateShopInventory(
     }
   }
 
-  // Guarantee at least one weapon.
+  // Guarantee at least one weapon. A single random pick can land on an
+  // unsellable entry (price <= 0, e.g. the Fortify staff in the weapons pool)
+  // or an already-used name, which addByName silently rejects — leaving the
+  // shop with no weapon. Start at a random index and scan the whole pool so a
+  // sellable weapon is added whenever one exists.
   if (filteredWeapons.length > 0) {
-    const weaponName = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
-    addByName(weaponName);
+    const start = Math.floor(Math.random() * filteredWeapons.length);
+    for (let offset = 0; offset < filteredWeapons.length; offset++) {
+      const weaponName = filteredWeapons[(start + offset) % filteredWeapons.length];
+      if (addByName(weaponName)) break;
+    }
   }
 
   const shopConsumables = [
