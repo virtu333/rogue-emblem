@@ -24,7 +24,7 @@
     "goldRange": [360, 600]
   },
   "act2": {
-    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Spear", "Killer Lance", "Physic", "Restore", "Bolganone", "Aura", "Recurve Bow"],
+    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Spear", "Killer Lance", "Physic", "Restore", "Bolganone", "Aura", "Recurve Bow", "Rescue Staff"],
     "healing": ["Vulnerary", "Elixir", "Herb"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal"],
@@ -48,7 +48,7 @@
     "goldRange": [720, 1080]
   },
   "act3": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Rescue Staff", "Warp Staff"],
     "healing": ["Elixir", "Herb", "Remedy"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],
@@ -72,7 +72,7 @@
     "goldRange": [1100, 1700]
   },
   "act4": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify"],
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify", "Rescue Staff", "Warp Staff"],
     "healing": ["Elixir", "Herb", "Remedy"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],

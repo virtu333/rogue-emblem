@@ -16,17 +16,17 @@
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 96,
+        "totalWeapons": 97,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 20,
-        "legendaryWeapons": 19
+        "totalWeapons": 21,
+        "legendaryWeapons": 20
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 19
+    "legendaryCount": 20
   },
   "legendaryWeapons": [
     {
@@ -105,6 +105,13 @@
       "rankRequired": "Mast",
       "range": "2",
       "special": "Heals all allies in range, MAG + 5 HP"
+    },
+    {
+      "name": "Warp Staff",
+      "type": "Staff",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": "Sends an adjacent ally across the field"
     },
     {
       "name": "Brave Sword",

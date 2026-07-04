@@ -1508,6 +1508,9 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = null;
       this.attackTargets = [];
       this.healTargets = [];
+      this.staffRelocateTargets = [];
+      this.staffRelocateAlly = null;
+      this.staffRelocateTiles = [];
       this.forecastTarget = null;
       this.forecastObjects = null;
       this._forecastWeaponArt = null;
@@ -3518,6 +3521,8 @@ export class BattleScene extends Phaser.Scene {
       'SHOWING_FORECAST',
       'SELECTING_HEAL_TARGET',
       'SELECTING_CURE_TARGET',
+      'SELECTING_STAFF_ALLY',
+      'SELECTING_STAFF_TILE',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',
@@ -3634,6 +3639,25 @@ export class BattleScene extends Phaser.Scene {
       this._pendingCureItem = null;
       this._pendingCureUser = null;
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_STAFF_ALLY') {
+      this.grid.clearAttackHighlights();
+      this.staffRelocateTargets = [];
+      this.staffRelocateAlly = null;
+      this.staffRelocateTiles = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_STAFF_TILE') {
+      // Back to phase 1: re-highlight the ally choices.
+      this.grid.clearAttackHighlights();
+      this.staffRelocateAlly = null;
+      this.staffRelocateTiles = [];
+      const relocateTargets = this.staffRelocateTargets || [];
+      if (relocateTargets.length > 0) {
+        this.grid.showHealRange(relocateTargets.map((a) => ({ col: a.col, row: a.row })));
+        this.battleState = 'SELECTING_STAFF_ALLY';
+      } else {
+        this.staffRelocateTargets = [];
+        this.showActionMenu(this.selectedUnit);
+      }
     } else if (this.battleState === 'SELECTING_SHOVE_TARGET') {
       this.grid.clearAttackHighlights();
       this.shoveTargets = [];
@@ -3704,6 +3728,8 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
       'SELECTING_CURE_TARGET',
+      'SELECTING_STAFF_ALLY',
+      'SELECTING_STAFF_TILE',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',
@@ -3733,7 +3759,13 @@ export class BattleScene extends Phaser.Scene {
     if (s === 'PLAYER_IDLE') ctx = 'battle_player_idle';
     else if (s === 'UNIT_SELECTED') ctx = 'battle_unit_selected';
     // States where roster IS allowed (matches _onRosterClick rosterStates)
-    else if (s === 'UNIT_ACTION_MENU' || s === 'SELECTING_TARGET' || s === 'SELECTING_HEAL_TARGET')
+    else if (
+      s === 'UNIT_ACTION_MENU' ||
+      s === 'SELECTING_TARGET' ||
+      s === 'SELECTING_HEAL_TARGET' ||
+      s === 'SELECTING_STAFF_ALLY' ||
+      s === 'SELECTING_STAFF_TILE'
+    )
       ctx = 'battle_action';
     // States where roster is NOT allowed
     else if (
@@ -3825,6 +3857,8 @@ export class BattleScene extends Phaser.Scene {
       'SHOWING_FORECAST',
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
+      'SELECTING_STAFF_ALLY',
+      'SELECTING_STAFF_TILE',
     ];
     if (
       !rosterStates.includes(this.battleState) ||
@@ -3882,6 +3916,9 @@ export class BattleScene extends Phaser.Scene {
     this.inEquipMenu = false;
     this.attackTargets = [];
     this.healTargets = [];
+    this.staffRelocateTargets = [];
+    this.staffRelocateAlly = null;
+    this.staffRelocateTiles = [];
     this.shoveTargets = [];
     this.pullTargets = [];
     this.tradeTargets = [];
@@ -4542,6 +4579,9 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
     this.attackTargets = [];
     this.healTargets = [];
+    this.staffRelocateTargets = [];
+    this.staffRelocateAlly = null;
+    this.staffRelocateTiles = [];
     this.inEquipMenu = false;
     this.tradeMutatedThisSession = false;
     this._clearSelectedWeaponArt();
@@ -5612,7 +5652,9 @@ export class BattleScene extends Phaser.Scene {
       const staff = preferredHealOption.staff;
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
-      items.push(`Heal (${rem}/${max})`);
+      // Warp/Rescue staves relocate instead of healing — label generically.
+      const verb = staff.relocate ? 'Staff' : 'Heal';
+      items.push(`${verb} (${rem}/${max})`);
     }
     const equipMenuItems = unit.inventory.filter(
       (item) =>
@@ -5742,7 +5784,7 @@ export class BattleScene extends Phaser.Scene {
               }
             }
             this.showWeaponArtPicker(unit);
-          } else if (label.startsWith('Heal')) {
+          } else if (label.startsWith('Heal (') || label.startsWith('Staff (')) {
             this.hideActionMenu();
             if (healOptions.length >= 2) {
               this.showStaffPicker(
@@ -6030,6 +6072,18 @@ export class BattleScene extends Phaser.Scene {
 
   handleHealTargetClick(gp) {
     (this._healController ||= new HealController(this)).handleHealTargetClick(gp);
+  }
+
+  handleStaffAllyClick(gp) {
+    (this._healController ||= new HealController(this)).handleStaffAllyClick(gp);
+  }
+
+  handleStaffTileClick(gp) {
+    (this._healController ||= new HealController(this)).handleStaffTileClick(gp);
+  }
+
+  executeRelocate(healer, ally, dest) {
+    return (this._healController ||= new HealController(this)).executeRelocate(healer, ally, dest);
   }
 
   executeHeal(healer, target) {

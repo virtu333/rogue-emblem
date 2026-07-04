@@ -2315,9 +2315,15 @@ export class HeadlessBattle {
   }
 
   _getUsableStaves(unit) {
+    // Warp/Rescue relocation staves are a player-flow-only utility; the
+    // harness AI never relocates, so exclude them from its heal-staff pool
+    // (otherwise a looted relocate staff would be "used" as a 0-base heal).
     return unit.inventory.filter(
       (w) =>
-        w.type === 'Staff' && getStaffMaxUses(w, unit) > 0 && getStaffRemainingUses(w, unit) > 0,
+        w.type === 'Staff' &&
+        !w.relocate &&
+        getStaffMaxUses(w, unit) > 0 &&
+        getStaffRemainingUses(w, unit) > 0,
     );
   }
 

@@ -230,6 +230,52 @@ describe('Schema validation — negative (known-bad fixtures)', () => {
     expect(validate(bad)).toBe(false);
   });
 
+  it('accepts staff with a declared relocate kind', () => {
+    const validate = compileSchema('weapons.schema.json');
+    const good = [
+      {
+        name: 'Test Rescue',
+        type: 'Staff',
+        tier: 'Steel',
+        rankRequired: 'Prof',
+        might: 0,
+        hit: 100,
+        crit: 0,
+        weight: 2,
+        range: '2-3',
+        uses: 2,
+        perBattleUses: true,
+        relocate: 'rescue',
+        special: 'Pulls a distant ally to your side',
+        price: 2400,
+      },
+    ];
+    expect(validate(good)).toBe(true);
+  });
+
+  it('rejects staff with an invalid relocate value', () => {
+    const validate = compileSchema('weapons.schema.json');
+    const bad = [
+      {
+        name: 'Bad Relocate',
+        type: 'Staff',
+        tier: 'Steel',
+        rankRequired: 'Prof',
+        might: 0,
+        hit: 100,
+        crit: 0,
+        weight: 2,
+        range: '2-3',
+        uses: 2,
+        perBattleUses: true,
+        relocate: 'teleport',
+        special: '',
+        price: 2400,
+      },
+    ];
+    expect(validate(bad)).toBe(false);
+  });
+
   it('rejects class with extra properties', () => {
     const validate = compileSchema('classes.schema.json');
     const bad = [

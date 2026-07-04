@@ -1395,18 +1395,38 @@ describe('Staff effective range', () => {
     const range = getEffectiveStaffRange(fortify, makeHealer(5));
     expect(range).toEqual({ min: 2, max: 2 });
   });
+
+  it('Rescue Staff targeting range scales at MAG 10 and 18 breakpoints', () => {
+    const rescue = data.weapons.find((w) => w.name === 'Rescue Staff');
+    expect(rescue.relocate).toBe('rescue');
+    expect(getEffectiveStaffRange(rescue, makeHealer(9))).toEqual({ min: 2, max: 3 });
+    expect(getEffectiveStaffRange(rescue, makeHealer(10))).toEqual({ min: 2, max: 4 });
+    expect(getEffectiveStaffRange(rescue, makeHealer(17))).toEqual({ min: 2, max: 4 });
+    expect(getEffectiveStaffRange(rescue, makeHealer(18))).toEqual({ min: 2, max: 5 });
+  });
+
+  it('Warp Staff destination radius scales at MAG 12 and 18 breakpoints', () => {
+    const warp = data.weapons.find((w) => w.name === 'Warp Staff');
+    expect(warp.relocate).toBe('warp');
+    expect(getEffectiveStaffRange(warp, makeHealer(11))).toEqual({ min: 1, max: 4 });
+    expect(getEffectiveStaffRange(warp, makeHealer(12))).toEqual({ min: 1, max: 5 });
+    expect(getEffectiveStaffRange(warp, makeHealer(17))).toEqual({ min: 1, max: 5 });
+    expect(getEffectiveStaffRange(warp, makeHealer(18))).toEqual({ min: 1, max: 6 });
+  });
 });
 
 describe('Staff data integrity', () => {
   it('all staves have uses field; heal staves have healBase', () => {
     const staves = data.weapons.filter((w) => w.type === 'Staff');
-    expect(staves.length).toBe(8);
-    const healStaves = staves.filter((s) => !s.statusEffect && !s.cureConditions);
+    expect(staves.length).toBe(10);
+    const healStaves = staves.filter((s) => !s.statusEffect && !s.cureConditions && !s.relocate);
     const statusStaves = staves.filter((s) => s.statusEffect);
     const cureStaves = staves.filter((s) => s.cureConditions);
+    const relocateStaves = staves.filter((s) => s.relocate);
     expect(healStaves.length).toBe(5);
     expect(statusStaves.length).toBe(2);
     expect(cureStaves.length).toBe(1);
+    expect(relocateStaves.length).toBe(2);
     for (const staff of healStaves) {
       expect(staff.healBase).toBeDefined();
       expect(typeof staff.healBase).toBe('number');

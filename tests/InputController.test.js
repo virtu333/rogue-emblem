@@ -192,6 +192,26 @@ describe('InputController', () => {
     expect(routeSpy).toHaveBeenCalledWith(gp);
   });
 
+  it.each([
+    ['SELECTING_STAFF_ALLY', 'handleStaffAllyClick'],
+    ['SELECTING_STAFF_TILE', 'handleStaffTileClick'],
+  ])('onClick routes %s to scene.%s', (battleState, sceneMethod) => {
+    const gp = { col: 3, row: 4 };
+    const scene = makeScene({
+      battleState,
+      grid: {
+        pixelToGrid: vi.fn(() => gp),
+      },
+      [sceneMethod]: vi.fn(),
+    });
+    const controller = new InputController(scene);
+    vi.spyOn(controller, '_screenToWorld').mockReturnValue({ x: 60, y: 72 });
+
+    controller.onClick({ x: 10, y: 20, rightButtonDown: () => false });
+
+    expect(scene[sceneMethod]).toHaveBeenCalledWith(gp);
+  });
+
   it('inspection show/clear flow updates panel and range visuals', () => {
     const unit = {
       faction: 'player',
