@@ -103,7 +103,10 @@
       "Luna Scroll",
       "Guard Scroll",
       "Cancel Scroll",
-      "Desperation Scroll"
+      "Desperation Scroll",
+      "Rally Cry Scroll",
+      "Healing Circle Scroll",
+      "Ensnare Scroll"
     ],
     "weaponArtScroll": [
       "Windsweep Scroll",
@@ -134,7 +137,8 @@
       "Bounty Hunter's Mark",
       "Vampire's Bloodshard",
       "Boots",
-      "Warding Charm"
+      "Warding Charm",
+      "Mentor's Band"
     ],
     "forge": [
       "Silver Whetstone",
@@ -220,7 +224,11 @@
       "Death Blow Scroll",
       "Darting Blow Scroll",
       "Shove Scroll",
-      "Pull Scroll"
+      "Pull Scroll",
+      "Blink Scroll",
+      "Rally Cry Scroll",
+      "Healing Circle Scroll",
+      "Ensnare Scroll"
     ],
     "weaponArtScroll": [
       "Windsweep Scroll",
@@ -276,7 +284,10 @@
       "Recoil Guard",
       "Phoenix Brooch",
       "Duelist's Glove",
-      "Warding Charm"
+      "Warding Charm",
+      "Mentor's Band",
+      "Mercury Sandals",
+      "Phalanx Band"
     ],
     "forge": [
       "Silver Whetstone",
@@ -365,7 +376,11 @@
       "Death Blow Scroll",
       "Darting Blow Scroll",
       "Shove Scroll",
-      "Pull Scroll"
+      "Pull Scroll",
+      "Blink Scroll",
+      "Rally Cry Scroll",
+      "Healing Circle Scroll",
+      "Ensnare Scroll"
     ],
     "weaponArtScroll": [
       "Windsweep Scroll",
@@ -418,7 +433,10 @@
       "Counter Seal",
       "Pursuit Ring",
       "Nullify Ring",
-      "Warding Charm"
+      "Warding Charm",
+      "Mentor's Band",
+      "Mercury Sandals",
+      "Phalanx Band"
     ],
     "forge": [
       "Silver Whetstone",

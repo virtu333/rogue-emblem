@@ -26,6 +26,9 @@ import {
   hasStaff,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
+  RECRUIT_STARTING_ACCESSORY_POOL,
   getStaffWeapon,
   resolvePromotionTargetClass,
   getDefaultWeapon,
@@ -810,6 +813,122 @@ describe('grantLethalArmoryWeapon', () => {
     } finally {
       staffSpy.mockRestore();
     }
+  });
+});
+
+describe('applyRecruitWeaponForge', () => {
+  function makeUnit(overrides = {}) {
+    const ironAxe = { name: 'Iron Axe', type: 'Axe', might: 8, hit: 75, crit: 0, weight: 10 };
+    return {
+      isLord: false,
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      inventory: [ironAxe],
+      weapon: ironAxe,
+      ...overrides,
+    };
+  }
+
+  it('applies the requested number of forges with unique stats per weapon', () => {
+    const unit = makeUnit();
+    const forged = applyRecruitWeaponForge(unit, 2, () => 0.99);
+    expect(forged).toBe(1);
+    expect(unit.weapon._forgeLevel).toBe(2);
+    expect(unit.weapon.name).toBe('Iron Axe +2');
+    const bonuses = unit.weapon._forgeBonuses;
+    const touchedStats = Object.entries(bonuses).filter(([, value]) => value !== 0);
+    expect(touchedStats).toHaveLength(2);
+  });
+
+  it('forges all non-Staff weapons in inventory (mutating equipped reference in place)', () => {
+    const unit = makeUnit();
+    const longbow = { name: 'Longbow', type: 'Bow', might: 5, hit: 65, crit: 0, weight: 9 };
+    const heal = { name: 'Heal', type: 'Staff', uses: 20 };
+    unit.inventory.push(longbow, heal);
+
+    const forged = applyRecruitWeaponForge(unit, 1);
+    expect(forged).toBe(2);
+    expect(unit.inventory[0]._forgeLevel).toBe(1);
+    expect(longbow._forgeLevel).toBe(1);
+    expect(heal._forgeLevel).toBeUndefined();
+    expect(unit.weapon).toBe(unit.inventory[0]);
+  });
+
+  it('returns 0 for lords, zero counts, and invalid input', () => {
+    expect(applyRecruitWeaponForge(makeUnit({ isLord: true }), 2)).toBe(0);
+    expect(applyRecruitWeaponForge(makeUnit(), 0)).toBe(0);
+    expect(applyRecruitWeaponForge(makeUnit(), -1)).toBe(0);
+    expect(applyRecruitWeaponForge(null, 2)).toBe(0);
+    expect(applyRecruitWeaponForge({ isLord: false }, 2)).toBe(0);
+    const untouched = makeUnit();
+    applyRecruitWeaponForge(untouched, 0);
+    expect(untouched.weapon._forgeLevel).toBeUndefined();
+  });
+});
+
+describe('grantRecruitStartingAccessory', () => {
+  const accessories = data.accessories;
+
+  function makeUnit(overrides = {}) {
+    return {
+      isLord: false,
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 4, SPD: 5, DEF: 4, RES: 1, LCK: 3, MOV: 5 },
+      currentHP: 20,
+      accessory: null,
+      inventory: [],
+      ...overrides,
+    };
+  }
+
+  it('equips a random pool accessory and applies its stat bonus', () => {
+    const unit = makeUnit();
+    const granted = grantRecruitStartingAccessory(unit, accessories, 1, () => 0);
+    expect(granted).toBe(true);
+    expect(unit.accessory).toBeTruthy();
+    expect(RECRUIT_STARTING_ACCESSORY_POOL).toContain(unit.accessory.name);
+    // Physical unit at rng=0 rolls Power Ring (+2 STR, applied on equip)
+    expect(unit.accessory.name).toBe('Power Ring');
+    expect(unit.stats.STR).toBe(7);
+    expect(typeof unit.accessory.uid).toBe('string');
+  });
+
+  it('filters damage-stat rings by proficiency', () => {
+    // Physical unit never rolls Magic Ring
+    for (let roll = 0; roll < 1; roll += 0.05) {
+      const unit = makeUnit();
+      grantRecruitStartingAccessory(unit, accessories, 1, () => roll);
+      expect(unit.accessory.name).not.toBe('Magic Ring');
+    }
+    // Pure magic unit never rolls Power Ring
+    for (let roll = 0; roll < 1; roll += 0.05) {
+      const unit = makeUnit({ proficiencies: [{ type: 'Tome', rank: 'Prof' }] });
+      grantRecruitStartingAccessory(unit, accessories, 1, () => roll);
+      expect(unit.accessory.name).not.toBe('Power Ring');
+    }
+    // Staff-only healers can roll Magic Ring but not Power Ring
+    for (let roll = 0; roll < 1; roll += 0.05) {
+      const unit = makeUnit({ proficiencies: [{ type: 'Staff', rank: 'Prof' }] });
+      grantRecruitStartingAccessory(unit, accessories, 1, () => roll);
+      expect(unit.accessory.name).not.toBe('Power Ring');
+    }
+  });
+
+  it('does not grant to lords, disabled upgrades, or already-outfitted units', () => {
+    expect(grantRecruitStartingAccessory(makeUnit({ isLord: true }), accessories, 1)).toBe(false);
+    expect(grantRecruitStartingAccessory(makeUnit(), accessories, 0)).toBe(false);
+    expect(grantRecruitStartingAccessory(makeUnit(), [], 1)).toBe(false);
+    expect(grantRecruitStartingAccessory(null, accessories, 1)).toBe(false);
+    const outfitted = makeUnit({ accessory: { name: 'Speed Ring' } });
+    expect(grantRecruitStartingAccessory(outfitted, accessories, 1)).toBe(false);
+    expect(outfitted.accessory.name).toBe('Speed Ring');
+  });
+
+  it('grants clones, never shared references into the accessories data array', () => {
+    const unit = makeUnit();
+    grantRecruitStartingAccessory(unit, accessories, 1, () => 0);
+    const source = accessories.find((a) => a.name === unit.accessory.name);
+    expect(source).toBeTruthy();
+    expect(unit.accessory).not.toBe(source);
   });
 });
 

@@ -46,6 +46,8 @@ import {
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
+  applyRecruitWeaponForge,
+  grantRecruitStartingAccessory,
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
@@ -58,6 +60,7 @@ import {
   reclassUnit,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
+import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -213,6 +216,7 @@ import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { CaravanController } from '../ui/CaravanController.js';
+import { VillageController } from '../ui/VillageController.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -226,6 +230,7 @@ import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
+import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
@@ -316,6 +321,7 @@ export class BattleScene extends Phaser.Scene {
     this._battleSuspendController = null;
     this.escapedUnits = [];
     this._escapeController = null;
+    this._villageState = null;
     this.isTransitioningOut = false;
     this.visionSnapshot = null;
     this.pendingVisionSnapshot = null;
@@ -467,6 +473,10 @@ export class BattleScene extends Phaser.Scene {
       this._weaponArtController.destroy();
       this._weaponArtController = null;
     }
+    if (this._abilityController) {
+      this._abilityController.destroy();
+      this._abilityController = null;
+    }
     if (this._procBanner) {
       this._procBanner.destroy();
       this._procBanner = null;
@@ -482,6 +492,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._caravanController) {
       this._caravanController.destroy();
       this._caravanController = null;
+    }
+    if (this._villageController) {
+      this._villageController.destroy();
+      this._villageController = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1177,6 +1191,11 @@ export class BattleScene extends Phaser.Scene {
         this._caravanController.retintIfPresent();
       }
 
+      // Village & bandit secondary objective: marker + state from
+      // battleConfig.villageTile (resume restores state from the suspend
+      // checkpoint; the controller only re-renders/re-applies terrain).
+      (this._villageController ||= new VillageController(this)).create();
+
       // Spawn NPC for recruit battles
       if (bc.npcSpawn && !this._resumeCheckpoint) {
         const npcSpawn = bc.npcSpawn;
@@ -1440,6 +1459,16 @@ export class BattleScene extends Phaser.Scene {
             }
             if (this.runManager?.metaEffects?.masterOfArms) {
               grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
+            }
+            if (this.runManager?.metaEffects?.recruitWeaponForge) {
+              applyRecruitWeaponForge(npc, this.runManager.metaEffects.recruitWeaponForge);
+            }
+            if (this.runManager?.metaEffects?.recruitStartingAccessory) {
+              grantRecruitStartingAccessory(
+                npc,
+                this.gameData.accessories,
+                this.runManager.metaEffects.recruitStartingAccessory,
+              );
             }
             if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
@@ -2254,6 +2283,12 @@ export class BattleScene extends Phaser.Scene {
         typeof scheduledSpawn?.aiMode === 'string'
           ? scheduledSpawn.aiMode
           : template?.aiMode || null,
+      aiTargetTile:
+        scheduledSpawn?.aiTargetTile &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.col) &&
+        Number.isFinite(scheduledSpawn.aiTargetTile.row)
+          ? { col: scheduledSpawn.aiTargetTile.col, row: scheduledSpawn.aiTargetTile.row }
+          : null,
       affixes: Array.isArray(scheduledSpawn?.affixes)
         ? [...scheduledSpawn.affixes]
         : Array.isArray(template?.affixes)
@@ -2380,6 +2415,15 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+    if (
+      spawn.aiTargetTile &&
+      Number.isFinite(spawn.aiTargetTile.col) &&
+      Number.isFinite(spawn.aiTargetTile.row)
+    ) {
+      enemy.aiTargetTile = { col: spawn.aiTargetTile.col, row: spawn.aiTargetTile.row };
+    }
+    // Village bandits that spawn after the village resolved revert to chase.
+    this._villageController?.sanitizeSpawnedEnemy(enemy);
 
     const reinforcementMeta = options.reinforcementMeta || null;
     if (reinforcementMeta) {
@@ -2437,6 +2481,7 @@ export class BattleScene extends Phaser.Scene {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
+    let banditSpawned = 0;
     const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
@@ -2445,6 +2490,7 @@ export class BattleScene extends Phaser.Scene {
       const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
       if (enemy) {
         spawned++;
+        if (enemy.aiMode === 'seek_tile') banditSpawned++;
         // Repeating pursuit waves are constant pressure, not added objectives —
         // they never bump par.
         if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating') {
@@ -2459,7 +2505,10 @@ export class BattleScene extends Phaser.Scene {
       this.dangerZoneStale = true;
       if (this.grid.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
-      this.showReinforcementBanner(spawned);
+      // Village bandits get their own telegraph instead of the generic
+      // reinforcement banner; mixed arrivals show both.
+      this.showReinforcementBanner(spawned - banditSpawned);
+      if (banditSpawned > 0) this._villageController?.showBanditArrivalBanner();
 
       // Bump par for each wave that actually instantiated enemies
       if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0) {
@@ -3524,6 +3573,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
       'SELECTING_BREAK_TARGET',
+      'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
     ];
@@ -3658,6 +3708,9 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.breakTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_ABILITY_TILE') {
+      this._cancelAbilityTileSelection();
+      this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
       const tradeMutated = this.tradeMutatedThisSession;
@@ -3709,6 +3762,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_TRADE_TARGET',
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
+      'SELECTING_ABILITY_TILE',
       'TRADING',
       'CANTO_MOVING',
     ];
@@ -3745,6 +3799,7 @@ export class BattleScene extends Phaser.Scene {
       s === 'SELECTING_SWAP_TARGET' ||
       s === 'SELECTING_DANCE_TARGET' ||
       s === 'SELECTING_BREAK_TARGET' ||
+      s === 'SELECTING_ABILITY_TILE' ||
       s === 'TRADING' ||
       s === 'CANTO_MOVING'
     )
@@ -4564,6 +4619,10 @@ export class BattleScene extends Phaser.Scene {
 
     unit.hasActed = true;
     this.dimUnit(unit);
+    // Village visit: a player unit ending its action on the intact village
+    // tile claims the reward. Resolved before the suspend checkpoint below so
+    // a refresh can never undo or double the grant.
+    this._villageController?.handleUnitActionEnd(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this._preFogSnapshot = null;
@@ -5643,6 +5702,10 @@ export class BattleScene extends Phaser.Scene {
     // Dance: show if unit has skill and valid targets exist
     if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
       items.push('Dance');
+    // Ability: action-trigger skills with structured actionAbility data
+    // (Blink/Rally Cry/Healing Circle/Ensnare). Silence gating lives in
+    // canUseAbility, so a silenced unit sees no Ability entry.
+    if (this._hasUsableAbilities(unit)) items.push('Ability');
     // Break: adjacent temporary wall terrain (Waller)
     if (this.findBreakTargets(unit).length > 0) items.push('Break');
     // Talk: Lord adjacent to NPC, roster not full
@@ -5803,6 +5866,8 @@ export class BattleScene extends Phaser.Scene {
             this.startSwapTargetSelection(unit);
           } else if (label === 'Dance') {
             this.startDanceTargetSelection(unit);
+          } else if (label === 'Ability') {
+            this.showAbilityPicker(unit);
           } else if (label === 'Break') {
             this.startBreakTargetSelection(unit);
           } else if (label === 'Wait') {
@@ -6048,6 +6113,24 @@ export class BattleScene extends Phaser.Scene {
 
   showWeaponArtPicker(unit) {
     (this._weaponArtController ||= new WeaponArtController(this)).showWeaponArtPicker(unit);
+  }
+
+  // --- Utility abilities (Blink / Rally Cry / Healing Circle / Ensnare) ---
+
+  showAbilityPicker(unit) {
+    (this._abilityController ||= new AbilityController(this)).showAbilityPicker(unit);
+  }
+
+  handleAbilityTileClick(gp) {
+    (this._abilityController ||= new AbilityController(this)).handleAbilityTileClick(gp);
+  }
+
+  _hasUsableAbilities(unit) {
+    return (this._abilityController ||= new AbilityController(this)).hasUsableAbilities(unit);
+  }
+
+  _cancelAbilityTileSelection() {
+    (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
   }
 
   showWeaponPicker(unit, attackTargets) {
@@ -8426,19 +8509,48 @@ export class BattleScene extends Phaser.Scene {
   async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
     if (opponent?._noXP) return;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    let damageRatio = 1;
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
       const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
       if (safeDamage <= 0) return;
-      const damageRatio = Math.min(1, safeDamage / safeStartHp);
+      damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
       if (baseXp <= 0) return;
     }
     const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
     const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
-    const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier);
+    // Training Doctrine meta upgrade: non-lord units earn bonus combat XP.
+    const recruitXpBonus = playerUnit?.isLord
+      ? 0
+      : Number(this.runManager?.metaEffects?.recruitXpBonus) || 0;
+    const adjustedBaseXp = Math.floor(
+      baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
+    );
     if (adjustedBaseXp <= 0) return;
+    // Mentor's Band (EXP Share): capture recipients before the holder's award
+    // so a mid-award level-up can't change eligibility. Mirrored by the
+    // headless harness (HeadlessBattle._awardSharedCombatXP) — keep in sync.
+    const xpShareRatio = getXpShareRatio(playerUnit);
+    const xpShareRecipients =
+      xpShareRatio > 0 ? getXpShareRecipients(playerUnit, this.playerUnits || []) : [];
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
+    for (const ally of xpShareRecipients) {
+      // The scene may have shut down while a level-up popup was showing.
+      if (this.sys?.isActive?.() === false) break;
+      if (ally.currentHP <= 0) continue; // safety: state changed mid-sequence
+      const sharedXp = calculateSharedXp(
+        ally,
+        opponent,
+        opponentDied,
+        xpShareRatio,
+        damageRatio * rewardMultiplier * pressureXpMultiplier,
+      );
+      if (sharedXp <= 0) continue;
+      // Direct awardScaledXP: shares never re-enter awardXP, so bands cannot
+      // chain (allies of allies) and heal/dance XP is never shared.
+      await this.awardScaledXP(ally, sharedXp);
+    }
   }
 
   _playLevelUpSfx() {
@@ -9487,6 +9599,9 @@ export class BattleScene extends Phaser.Scene {
             onUnitDone: (enemy) => {
               enemy.hasActed = true;
               this.dimUnit(enemy);
+              // Village raze: a seek_tile bandit ending its move on the
+              // intact village tile burns it down.
+              this._villageController?.handleEnemyUnitDone(enemy);
             },
           },
         );
@@ -9886,6 +10001,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.npcUnits.length > 0) {
       label += '\nRecruit: Talk to green unit';
+    }
+    const villageSuffix = this._villageController?.getObjectiveSuffix();
+    if (villageSuffix) {
+      label += `\n${villageSuffix}`;
     }
     this.objectiveText.setText(label);
     this.objectiveText.setColor(color);

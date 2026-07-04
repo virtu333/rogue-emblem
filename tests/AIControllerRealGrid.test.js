@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { Grid } from '../src/engine/Grid.js';
 import { AIController } from '../src/engine/AIController.js';
+import { clearSeekTileBandits } from '../src/engine/VillageSystem.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -198,5 +199,87 @@ describe('AIController vs real Grid — acidic-tile avoidance', () => {
     expect(decision.reason).toBe('attack_in_range');
     expect(tile).toEqual({ col: 2, row: 1 });
     expect(decision.path.length).toBeGreaterThan(1);
+  });
+});
+
+describe('AIController vs real Grid — seek_tile (village bandits)', () => {
+  const seekEnemy = (overrides = {}) =>
+    enemy({
+      aiMode: 'seek_tile',
+      mov: 4,
+      weapon: { name: 'Iron Axe', range: '1', type: 'Axe', might: 6 },
+      ...overrides,
+    });
+
+  it('paths around a wall toward the target tile instead of stalling', () => {
+    // Wall between the bandit and the goal, open detour on row 2.
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Wall', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Wall', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+    ]);
+    const ai = new AIController(grid, gameData, { objective: 'rout' });
+    const bandit = seekEnemy({ col: 0, row: 0, aiTargetTile: { col: 4, row: 0 } });
+
+    const decision = ai._decideAction(bandit, [bandit], [player({ col: 0, row: 2 })], []);
+    expect(decision.reason).toBe('seek_tile_advance');
+    const dest = lastTile(decision.path, { col: bandit.col, row: bandit.row });
+    // The only route runs through the row-2 gap: with MOV 4 over uniform-cost
+    // plains, every shortest path puts the bandit exactly on the gap tile.
+    expect(dest).toEqual({ col: 2, row: 2 });
+    expect(grid.mapLayout[dest.row][dest.col]).not.toBe(T.Wall);
+  });
+
+  it('reaches and ends on the goal tile across turns, ignoring a nearby player', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+    ]);
+    const ai = new AIController(grid, gameData, { objective: 'rout' });
+    const bandit = seekEnemy({ col: 0, row: 0, aiTargetTile: { col: 7, row: 1 } });
+    const bystander = player({ col: 0, row: 1 });
+
+    for (let turn = 0; turn < 4; turn++) {
+      const decision = ai._decideAction(bandit, [bandit], [bystander], []);
+      if (decision.path && decision.path.length >= 2) {
+        const dest = decision.path[decision.path.length - 1];
+        bandit.col = dest.col;
+        bandit.row = dest.row;
+      }
+      if (bandit.col === 7 && bandit.row === 1) break;
+    }
+    expect({ col: bandit.col, row: bandit.row }).toEqual({ col: 7, row: 1 });
+  });
+
+  it('attacks the unit blocking the goal tile', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+    ]);
+    const ai = new AIController(grid, gameData, { objective: 'rout' });
+    const bandit = seekEnemy({ col: 0, row: 0, aiTargetTile: { col: 4, row: 0 } });
+    const blocker = player({ col: 4, row: 0 });
+    const farPlayer = player({ col: 0, row: 1 });
+
+    const decision = ai._decideAction(bandit, [bandit], [blocker, farPlayer], []);
+    expect(decision.reason).toBe('seek_tile_attack_blocker');
+    expect(decision.target).toBe(blocker);
+  });
+
+  it('behaves as a normal chaser after clearSeekTileBandits reverts it', () => {
+    const grid = gridFromNames([
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+      ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+    ]);
+    const ai = new AIController(grid, gameData, { objective: 'rout' });
+    const bandit = seekEnemy({ col: 0, row: 0, aiTargetTile: { col: 5, row: 0 } });
+    clearSeekTileBandits([bandit]);
+    expect(bandit.aiMode).toBe('chase');
+    expect(bandit.aiTargetTile).toBeUndefined();
+
+    const target = player({ col: 3, row: 0 });
+    const decision = ai._decideAction(bandit, [bandit], [target], []);
+    expect(decision.reason).toBe('attack_in_range');
+    expect(decision.target).toBe(target);
   });
 });

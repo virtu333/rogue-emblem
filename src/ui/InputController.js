@@ -338,6 +338,9 @@ export class InputController {
       case 'SELECTING_BREAK_TARGET':
         scene.handleBreakTargetClick(gp);
         break;
+      case 'SELECTING_ABILITY_TILE':
+        scene.handleAbilityTileClick(gp);
+        break;
       case 'CANTO_MOVING':
         scene.handleCantoClick(gp);
         break;

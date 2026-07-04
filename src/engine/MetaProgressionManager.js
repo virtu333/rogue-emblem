@@ -598,7 +598,7 @@ export class MetaProgressionManager {
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
    *            lordRecruitChanceBonus, recruitPromotionChanceBonus,
    *            deployBonus, rosterCapBonus, visionChargesBonus, caravanChanceBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
-   *            lethalArmoryTier,
+   *            lethalArmoryTier, recruitWeaponForge, recruitStartingAccessory, recruitXpBonus,
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingReclassSeal,
@@ -626,6 +626,9 @@ export class MetaProgressionManager {
       recruitStartingVulnerary: 0,
       extraStartingUnitTier: 0,
       lethalArmoryTier: 0,
+      recruitWeaponForge: 0,
+      recruitStartingAccessory: 0,
+      recruitXpBonus: 0,
       startingWeaponForge: 0,
       deadlyArsenalTier: 0,
       ironArms: 0,
@@ -714,6 +717,24 @@ export class MetaProgressionManager {
         effects.lethalArmoryTier = Math.max(
           effects.lethalArmoryTier,
           Number(effect.lethalArmoryTier) || 0,
+        );
+      }
+      if (effect.recruitWeaponForge !== undefined) {
+        effects.recruitWeaponForge = Math.max(
+          effects.recruitWeaponForge,
+          Number(effect.recruitWeaponForge) || 0,
+        );
+      }
+      if (effect.recruitStartingAccessory !== undefined) {
+        effects.recruitStartingAccessory = Math.max(
+          effects.recruitStartingAccessory,
+          Number(effect.recruitStartingAccessory) || 0,
+        );
+      }
+      if (effect.recruitXpBonus !== undefined) {
+        effects.recruitXpBonus = Math.max(
+          effects.recruitXpBonus,
+          Number(effect.recruitXpBonus) || 0,
         );
       }
       // Starting equipment effects

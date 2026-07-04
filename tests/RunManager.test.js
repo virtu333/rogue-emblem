@@ -177,6 +177,73 @@ describe('RunManager', () => {
       }
     });
 
+    it('extra starter weapons are forged when recruitWeaponForge is active', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          recruitWeaponForge: 2,
+        });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        const combatWeapons = extra.inventory.filter((w) => w.type !== 'Staff');
+        expect(combatWeapons.length).toBeGreaterThan(0);
+        for (const weapon of combatWeapons) {
+          expect(weapon._forgeLevel).toBe(2);
+          expect(weapon.name).toMatch(/\+2$/);
+        }
+        // Lords never receive recruit forges
+        for (const lord of rmMeta.roster.slice(0, 2)) {
+          for (const weapon of lord.inventory) {
+            expect(weapon._forgeLevel || 0).toBe(0);
+          }
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('recruitWeaponForge stacks with Lethal Armory and Longbow grants', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          lethalArmoryTier: 2,
+          recruitWeaponForge: 1,
+        });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        // Archer: base bow + Longbow + Lethal Armory Steel Bow, all forged once
+        expect(extra.inventory.length).toBe(3);
+        for (const weapon of extra.inventory) {
+          expect(weapon._forgeLevel).toBe(1);
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('extra starter is equipped with a stat accessory when recruitStartingAccessory is active', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          recruitStartingAccessory: 1,
+        });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        expect(extra.accessory).toBeTruthy();
+        expect(typeof extra.accessory.uid).toBe('string');
+        // Archer is physical: never a Magic Ring
+        expect(extra.accessory.name).not.toBe('Magic Ring');
+        // Lords never receive the recruit accessory
+        expect(rmMeta.roster[0].accessory).toBeNull();
+        expect(rmMeta.roster[1].accessory).toBeNull();
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('paladin extra starter uses fixed Iron Sword + Steel Lance loadout', () => {
       const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
       try {

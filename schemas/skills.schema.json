@@ -26,6 +26,27 @@
       "rangeMin": { "type": "integer" },
       "auraTarget": { "type": "string" },
       "effects": { "type": "object" },
+      "actionAbility": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["teleport_self", "ally_buff", "aoe_heal", "aoe_root"]
+          },
+          "range": { "type": "integer", "minimum": 1 },
+          "radius": { "type": "integer", "minimum": 1 },
+          "stats": {
+            "type": "object",
+            "additionalProperties": { "type": "integer" }
+          },
+          "durationPhases": { "type": "integer", "minimum": 1 },
+          "amount": { "type": "integer", "minimum": 1 },
+          "includeSelf": { "type": "boolean" },
+          "perMapLimit": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["kind", "perMapLimit"],
+        "additionalProperties": false
+      },
       "personal": { "type": "boolean" },
       "classInnate": {
         "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]

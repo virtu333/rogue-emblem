@@ -263,6 +263,40 @@
     "classInnate": "Dancer"
   },
   {
+    "id": "blink",
+    "name": "Blink",
+    "description": "Once per battle: teleport to an open tile within 4 spaces",
+    "trigger": "action",
+    "actionAbility": { "kind": "teleport_self", "range": 4, "perMapLimit": 1 }
+  },
+  {
+    "id": "rally_cry_skill",
+    "name": "Rally Cry",
+    "description": "Once per battle: allies within 2 tiles gain +2 STR and +2 SPD for 2 phases",
+    "trigger": "action",
+    "actionAbility": {
+      "kind": "ally_buff",
+      "radius": 2,
+      "stats": { "STR": 2, "SPD": 2 },
+      "durationPhases": 2,
+      "perMapLimit": 1
+    }
+  },
+  {
+    "id": "healing_circle",
+    "name": "Healing Circle",
+    "description": "Once per battle: restore 15 HP to self and allies within 2 tiles",
+    "trigger": "action",
+    "actionAbility": { "kind": "aoe_heal", "radius": 2, "amount": 15, "includeSelf": true, "perMapLimit": 1 }
+  },
+  {
+    "id": "ensnare",
+    "name": "Ensnare",
+    "description": "Once per battle: root enemies within 2 tiles for 1 phase (may act, not move)",
+    "trigger": "action",
+    "actionAbility": { "kind": "aoe_root", "radius": 2, "durationPhases": 1, "perMapLimit": 1 }
+  },
+  {
     "id": "canto",
     "name": "Canto",
     "description": "Use remaining movement after acting",

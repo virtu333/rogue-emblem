@@ -15,6 +15,7 @@ function getConditionLabel(condition) {
   if (condition === 'below50') return '<50% HP';
   if (condition === 'above75') return '>75% HP';
   if (condition === 'on_forest') return '(forest)';
+  if (condition === 'adjacent_ally') return 'adjacent ally';
   if (condition === 'no_ally_within_2') return 'no ally <=2';
   if (condition === 'enemies_nearby_2plus') return '2+ enemies <=2';
   if (condition === 'on_forest_or_mountain') return '(forest/mountain)';
@@ -50,6 +51,9 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'weaponArtCostReduction')
     return combatText.includes(`Art HP Cost -${combatEffects.weaponArtCostReduction}`);
   if (key === 'weaponArtDefBuff') return combatText.includes('Recoil Guard');
+  if (key === 'xpShare') return combatText.includes('% XP to adjacent lower-lv allies');
+  if (key === 'moveTypeOverride')
+    return combatText.includes(`Move as ${combatEffects.moveTypeOverride}`);
   return true;
 }
 
