@@ -10,6 +10,11 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
 implementation cost, philosophy fit, and collisions with the in-flight wave.
 
+**Latitude (user, same day):** this list is inspiration, not a contract — at spec time, freely
+rename, retune numbers, reshape concepts, cut entries that don't earn their complexity, and add
+new ones that fit the themes (roster incentives, telegraphed counterplay, build-defining rare
+finds). The design principles at the top of the 2026-07-04 entry are the actual constraints.
+
 ### Ruling: ally-relocation is staff-exclusive
 
 Verified: no Warp/Rescue staves exist (8 staves total; the utility-staff niche is empty —
