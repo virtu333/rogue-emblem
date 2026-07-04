@@ -122,6 +122,22 @@ export function getPostCombatPipelineSteps({
     });
   }
 
+  // Imbue status procs (e.g. Binding → root) ride the tier2_status step so
+  // application (applyCondition + statusImmunity gate + UI feedback) is shared
+  // with weapon-art inflictStatus in BattleScene and the headless harness.
+  for (const effect of result?.imbueStatusEffects || []) {
+    if (!effect || (effect.target !== 'attacker' && effect.target !== 'defender')) continue;
+    const status = typeof effect.status === 'string' ? effect.status : '';
+    if (!status) continue;
+    steps.push({
+      type: 'tier2_status',
+      sourceSide: getOpposingSide(effect.target),
+      targetSide: effect.target,
+      status,
+      durationPhases: Math.max(1, Math.trunc(Number(effect.durationPhases) || 1)),
+    });
+  }
+
   for (const heal of result?.divineChargeHeals || []) {
     if (!heal || (heal.side !== 'attacker' && heal.side !== 'defender')) continue;
     steps.push({

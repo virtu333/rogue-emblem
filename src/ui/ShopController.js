@@ -40,6 +40,7 @@ import {
   getForgeCost,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
+import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from './HintDisplay.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
@@ -1555,6 +1556,9 @@ export class ShopController {
     }
 
     if (item.type === 'Whetstone') {
+      if (isImbueStone(item)) {
+        return getImbueStoneDetailText(item, scene.gameData?.imbues) || 'Imbue a weapon';
+      }
       if (item.forgeStat === 'choice') return 'Forge: choose a stat boost';
       if (item.forgeStat === 'might') return 'Forge: +1 Mt';
       if (item.forgeStat === 'crit') return 'Forge: +5 Crit';

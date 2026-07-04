@@ -5,6 +5,14 @@ import {
   isForged,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
+import {
+  canImbue,
+  applyImbue,
+  isImbueStone,
+  resolveStoneImbue,
+  getImbueList,
+  IMBUE_CHOICE_ID,
+} from '../engine/ImbueSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/constants.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -184,6 +192,7 @@ export class LootFlowController {
     const cam = scene.cameras.main;
     let teardownFocus = () => {};
     const focusButtons = [];
+    const stoneIsImbue = isImbueStone(whetstone);
 
     const bg = scene.add
       .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
@@ -192,7 +201,7 @@ export class LootFlowController {
     pickerGroup.push(bg);
 
     const title = scene.add
-      .text(cam.centerX, 60, `${unit.name}: Select weapon to forge`, {
+      .text(cam.centerX, 60, `${unit.name}: Select weapon to ${stoneIsImbue ? 'imbue' : 'forge'}`, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ff8844',
@@ -202,7 +211,11 @@ export class LootFlowController {
     pickerGroup.push(title);
 
     const forgeableWeapons = unit.inventory.filter((w) =>
-      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
+      stoneIsImbue
+        ? canImbue(w)
+        : whetstone.forgeStat !== 'choice'
+          ? canForgeStat(w, whetstone.forgeStat)
+          : canForge(w),
     );
     const topY = 110;
     const bottomY = cam.height - 70;
@@ -256,7 +269,33 @@ export class LootFlowController {
         try {
           teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
-          if (whetstone.forgeStat === 'choice') {
+          if (stoneIsImbue && whetstone.imbueId === IMBUE_CHOICE_ID) {
+            // Prismatic Stone: pick which imbue to apply
+            this.showImbuePickerLoot(whetstone, wpn, lootGroup, cardIdx);
+          } else if (stoneIsImbue) {
+            // Specific imbuing stone: apply immediately
+            const imbueDef = resolveStoneImbue(whetstone, scene.gameData?.imbues);
+            const result = imbueDef ? applyImbue(wpn, imbueDef) : { success: false };
+            if (!result.success) {
+              scene.reportLootError(
+                'showForgeWeaponPicker:applyImbueFailed',
+                new Error('applyImbue returned success=false'),
+                {
+                  unit: unit?.name,
+                  weapon: wpn?.name,
+                  imbueId: whetstone?.imbueId,
+                  cardIdx,
+                },
+              );
+              scene.showLootStatus('Imbue failed. Choose another weapon.', '#ff8888');
+              scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
+              return;
+            }
+            const audio = scene.registry.get('audio');
+            if (audio) audio.playSFX('sfx_gold');
+            scene.showLootStatus(`${wpn.name} shimmers with new power!`, '#cc88ff');
+            this.finalizeLootPick(lootGroup, cardIdx);
+          } else if (whetstone.forgeStat === 'choice') {
             // Silver Whetstone: pick stat
             this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
           } else {
@@ -286,6 +325,7 @@ export class LootFlowController {
             unit: unit?.name,
             weapon: wpn?.name,
             forgeStat: whetstone?.forgeStat,
+            imbueId: whetstone?.imbueId,
             cardIdx,
           });
           scene.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
@@ -409,6 +449,127 @@ export class LootFlowController {
       teardownFocus();
       for (const obj of pickerGroup) obj.destroy();
       scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
+    });
+
+    teardownFocus = this._attachForgePickerFocus(focusButtons, backBtn);
+  }
+
+  // Prismatic Stone: pick which imbue to bless the chosen weapon with.
+  // Mirrors showForgeStatPickerLoot (Silver Whetstone stat choice).
+  showImbuePickerLoot(stone, weapon, lootGroup, cardIdx) {
+    const scene = this.scene;
+    const pickerGroup = [];
+    const cam = scene.cameras.main;
+    let teardownFocus = () => {};
+    const focusButtons = [];
+
+    const bg = scene.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
+    pickerGroup.push(bg);
+
+    const title = scene.add
+      .text(cam.centerX, 70, `Imbue ${weapon.name}: Choose blessing`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#cc88ff',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
+    pickerGroup.push(title);
+
+    const imbues = getImbueList(scene.gameData?.imbues);
+    const startY = 116;
+    const btnH = 40;
+
+    for (let i = 0; i < imbues.length; i++) {
+      const imbue = imbues[i];
+      const by = startY + i * (btnH + 8);
+
+      const btn = scene.add
+        .rectangle(cam.centerX, by, 380, btnH, 0x332244, 1)
+        .setStrokeStyle(1, 0xcc88ff)
+        .setDepth(711)
+        .setInteractive({ useHandCursor: true });
+      pickerGroup.push(btn);
+      focusButtons.push(btn);
+
+      const label = scene.add
+        .text(cam.centerX, by - Math.floor(btnH * 0.2), imbue.name, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#e0d0ff',
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
+      pickerGroup.push(label);
+
+      const detail = scene.add
+        .text(cam.centerX, by + Math.floor(btnH * 0.25), imbue.description || '', {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
+      pickerGroup.push(detail);
+
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        try {
+          const result = applyImbue(weapon, imbue);
+          if (!result.success) {
+            scene.reportLootError(
+              'showImbuePickerLoot:applyImbueFailed',
+              new Error('applyImbue returned success=false'),
+              { weapon: weapon?.name, imbueId: imbue?.id, cardIdx },
+            );
+            scene.showLootStatus('Imbue failed. Choose another reward.', '#ff8888');
+            teardownFocus();
+            for (const obj of pickerGroup) obj.destroy();
+            for (const obj of lootGroup) obj.setVisible(true);
+            return;
+          }
+          const audio = scene.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          teardownFocus();
+          for (const obj of pickerGroup) obj.destroy();
+          scene.showLootStatus(`${weapon.name} shimmers with new power!`, '#cc88ff');
+          this.finalizeLootPick(lootGroup, cardIdx);
+        } catch (err) {
+          scene.reportLootError('showImbuePickerLoot:pointerdown', err, {
+            weapon: weapon?.name,
+            imbueId: imbue?.id,
+            cardIdx,
+          });
+          scene.showLootStatus('An error occurred while imbuing. Returning to rewards.', '#ff8888');
+          teardownFocus();
+          for (const obj of pickerGroup) obj.destroy();
+          for (const obj of lootGroup) obj.setVisible(true);
+        }
+      });
+    }
+
+    // Back button
+    const backBtn = scene.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
+    pickerGroup.push(backBtn);
+
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      teardownFocus();
+      for (const obj of pickerGroup) obj.destroy();
+      scene.showForgeLootPicker(stone, lootGroup, cardIdx);
     });
 
     teardownFocus = this._attachForgePickerFocus(focusButtons, backBtn);

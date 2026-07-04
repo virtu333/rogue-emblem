@@ -6,6 +6,7 @@ import {
   getCompendiumRowHeight,
 } from '../src/ui/CompendiumOverlay.js';
 import { PauseOverlay } from '../src/ui/PauseOverlay.js';
+import { getImbueStoneItems } from '../src/engine/ImbueSystem.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -181,10 +182,13 @@ describe('CompendiumOverlay', () => {
     expect(overlay._getItemsForTab(3).length).toBe(gameData.classes.length);
   });
 
-  it('Items tab returns consumables + accessories + whetstones', () => {
+  it('Items tab returns consumables + accessories + whetstones + imbuing stones', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
     const expected =
-      gameData.consumables.length + gameData.accessories.length + gameData.whetstones.length;
+      gameData.consumables.length +
+      gameData.accessories.length +
+      gameData.whetstones.length +
+      getImbueStoneItems(gameData.imbues).length;
     expect(overlay._getItemsForTab(4).length).toBe(expected);
   });
 

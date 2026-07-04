@@ -1,14 +1,49 @@
 {
   "act1": {
-    "weapons": ["Hand Axe", "Javelin", "Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Horseslayer", "Armorslayer", "Lancereaver", "Swordreaver", "Axereaver", "Wind Sword", "Shortbow"],
-    "healing": ["Vulnerary", "Vulnerary", "Vulnerary", "Vulnerary"],
+    "weapons": [
+      "Hand Axe",
+      "Javelin",
+      "Steel Sword",
+      "Steel Lance",
+      "Steel Axe",
+      "Steel Bow",
+      "Elfire",
+      "Shine",
+      "Mend",
+      "Horseslayer",
+      "Armorslayer",
+      "Lancereaver",
+      "Swordreaver",
+      "Axereaver",
+      "Wind Sword",
+      "Shortbow"
+    ],
+    "healing": [
+      "Vulnerary",
+      "Vulnerary",
+      "Vulnerary",
+      "Vulnerary"
+    ],
     "statBooster": [],
-    "promotion": ["Master Seal"],
+    "promotion": [
+      "Master Seal"
+    ],
     "skillScroll": [],
     "weaponArtScroll": [],
     "legendaryWeapon": [],
-    "accessories": ["Goddess Icon", "Shield Ring", "Forest Charm", "Soothing Stone", "Hunter's Cloak", "Gambler's Coin"],
-    "forge": ["Might Whetstone", "Hit Whetstone", "Weight Whetstone"],
+    "accessories": [
+      "Goddess Icon",
+      "Shield Ring",
+      "Forest Charm",
+      "Soothing Stone",
+      "Hunter's Cloak",
+      "Gambler's Coin"
+    ],
+    "forge": [
+      "Might Whetstone",
+      "Hit Whetstone",
+      "Weight Whetstone"
+    ],
     "weights": {
       "weapon": 20,
       "healing": 12,
@@ -21,18 +56,99 @@
       "forge": 15,
       "gold": 35
     },
-    "goldRange": [360, 600]
+    "goldRange": [
+      360,
+      600
+    ]
   },
   "act2": {
-    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Spear", "Killer Lance", "Physic", "Restore", "Bolganone", "Aura", "Recurve Bow"],
-    "healing": ["Vulnerary", "Elixir", "Herb"],
-    "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
-    "promotion": ["Master Seal", "Infantry Seal"],
-    "skillScroll": ["Sol Scroll", "Luna Scroll", "Guard Scroll", "Cancel Scroll", "Desperation Scroll"],
-    "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll"],
+    "weapons": [
+      "Short Spear",
+      "Longbow",
+      "Horseslayer",
+      "Armorslayer",
+      "Killing Edge",
+      "Witchfire",
+      "Sunflare",
+      "Hammer",
+      "Spear",
+      "Killer Lance",
+      "Physic",
+      "Restore",
+      "Bolganone",
+      "Aura",
+      "Recurve Bow"
+    ],
+    "healing": [
+      "Vulnerary",
+      "Elixir",
+      "Herb"
+    ],
+    "statBooster": [
+      "Energy Drop",
+      "Spirit Dust",
+      "Secret Book",
+      "Speedwing",
+      "Dracoshield",
+      "Talisman",
+      "Angelic Robe",
+      "Swiftsoles"
+    ],
+    "promotion": [
+      "Master Seal",
+      "Infantry Seal"
+    ],
+    "skillScroll": [
+      "Sol Scroll",
+      "Luna Scroll",
+      "Guard Scroll",
+      "Cancel Scroll",
+      "Desperation Scroll"
+    ],
+    "weaponArtScroll": [
+      "Windsweep Scroll",
+      "Lunge Scroll",
+      "Grounder Scroll",
+      "Hexblade Scroll",
+      "Knightkneeler Scroll",
+      "Vengeance Scroll",
+      "Helm Splitter Scroll",
+      "Wild Abandon Scroll",
+      "Rushing Blow Scroll",
+      "Encloser Scroll",
+      "Ward Arrow Scroll",
+      "Healing Light Scroll",
+      "Seraphim Scroll"
+    ],
     "legendaryWeapon": [],
-    "accessories": ["Power Ring", "Speed Ring", "Barrier Ring", "Skill Ring", "Life Ring", "Veteran's Crest", "Vanguard Crest", "Diamond Medallion", "Moontide Amulet", "Bounty Hunter's Mark", "Vampire's Bloodshard", "Boots", "Warding Charm"],
-    "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
+    "accessories": [
+      "Power Ring",
+      "Speed Ring",
+      "Barrier Ring",
+      "Skill Ring",
+      "Life Ring",
+      "Veteran's Crest",
+      "Vanguard Crest",
+      "Diamond Medallion",
+      "Moontide Amulet",
+      "Bounty Hunter's Mark",
+      "Vampire's Bloodshard",
+      "Boots",
+      "Warding Charm"
+    ],
+    "forge": [
+      "Silver Whetstone",
+      "Silver Whetstone",
+      "Might Whetstone",
+      "Might Whetstone",
+      "Crit Whetstone",
+      "Crit Whetstone",
+      "Hit Whetstone",
+      "Hit Whetstone",
+      "Weight Whetstone",
+      "Weight Whetstone",
+      "Prismatic Stone"
+    ],
     "weights": {
       "weapon": 20,
       "healing": 3,
@@ -45,18 +161,138 @@
       "forge": 20,
       "gold": 20
     },
-    "goldRange": [720, 1080]
+    "goldRange": [
+      720,
+      1080
+    ]
   },
   "act3": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
-    "healing": ["Elixir", "Herb", "Remedy"],
-    "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
-    "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],
-    "skillScroll": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll"],
-    "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll", "Dragonhaze Scroll", "Longearche Scroll", "Glowing Ember Scroll", "Armored Strike Scroll", "Deadeye Scroll", "Hunter's Volley Scroll", "Burning Quake Scroll", "Nosferatu Scroll", "Silence Strike Scroll"],
-    "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin", "Doublebow", "Brave Sword", "Brave Lance", "Brave Axe", "Brave Bow", "Excalibur", "Luce"],
-    "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Blood Gem", "Recoil Guard", "Phoenix Brooch", "Duelist's Glove", "Warding Charm"],
-    "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
+    "weapons": [
+      "Silver Sword",
+      "Silver Lance",
+      "Silver Axe",
+      "Silver Bow",
+      "Bolganone",
+      "Aura",
+      "Recover",
+      "Physic",
+      "Restore",
+      "Killing Edge",
+      "Witchfire",
+      "Sunflare",
+      "Hammer",
+      "Tomahawk",
+      "Spear",
+      "Killer Lance",
+      "Venin Blade",
+      "Killer Axe",
+      "Killer Bow",
+      "Tempest Blade",
+      "Levin Sword"
+    ],
+    "healing": [
+      "Elixir",
+      "Herb",
+      "Remedy"
+    ],
+    "statBooster": [
+      "Energy Drop",
+      "Spirit Dust",
+      "Secret Book",
+      "Speedwing",
+      "Dracoshield",
+      "Talisman",
+      "Angelic Robe",
+      "Swiftsoles"
+    ],
+    "promotion": [
+      "Master Seal",
+      "Infantry Seal",
+      "Mounted Seal"
+    ],
+    "skillScroll": [
+      "Astra Scroll",
+      "Vantage Scroll",
+      "Wrath Scroll",
+      "Adept Scroll",
+      "Miracle Scroll",
+      "Quick Riposte Scroll",
+      "Death Blow Scroll",
+      "Darting Blow Scroll",
+      "Shove Scroll",
+      "Pull Scroll"
+    ],
+    "weaponArtScroll": [
+      "Windsweep Scroll",
+      "Lunge Scroll",
+      "Grounder Scroll",
+      "Hexblade Scroll",
+      "Knightkneeler Scroll",
+      "Vengeance Scroll",
+      "Helm Splitter Scroll",
+      "Wild Abandon Scroll",
+      "Rushing Blow Scroll",
+      "Encloser Scroll",
+      "Ward Arrow Scroll",
+      "Healing Light Scroll",
+      "Seraphim Scroll",
+      "Dragonhaze Scroll",
+      "Longearche Scroll",
+      "Glowing Ember Scroll",
+      "Armored Strike Scroll",
+      "Deadeye Scroll",
+      "Hunter's Volley Scroll",
+      "Burning Quake Scroll",
+      "Nosferatu Scroll",
+      "Silence Strike Scroll"
+    ],
+    "legendaryWeapon": [
+      "Ragnarok",
+      "Soulreaver",
+      "Bolting",
+      "Gemini",
+      "Doomblade",
+      "Gae Bolg",
+      "Starfall",
+      "Stormbreaker",
+      "Ruin",
+      "Doublebow",
+      "Brave Sword",
+      "Brave Lance",
+      "Brave Axe",
+      "Brave Bow",
+      "Excalibur",
+      "Luce"
+    ],
+    "accessories": [
+      "Seraph Robe",
+      "Magic Ring",
+      "Boots",
+      "Delphi Shield",
+      "Wrath Band",
+      "Counter Seal",
+      "Pursuit Ring",
+      "Blood Gem",
+      "Recoil Guard",
+      "Phoenix Brooch",
+      "Duelist's Glove",
+      "Warding Charm"
+    ],
+    "forge": [
+      "Silver Whetstone",
+      "Silver Whetstone",
+      "Might Whetstone",
+      "Might Whetstone",
+      "Crit Whetstone",
+      "Crit Whetstone",
+      "Hit Whetstone",
+      "Hit Whetstone",
+      "Weight Whetstone",
+      "Weight Whetstone",
+      "Prismatic Stone",
+      "Vampiric Imbuing Stone",
+      "Keen Imbuing Stone"
+    ],
     "weights": {
       "weapon": 25,
       "healing": 2,
@@ -69,18 +305,138 @@
       "forge": 15,
       "gold": 15
     },
-    "goldRange": [1100, 1700]
+    "goldRange": [
+      1100,
+      1700
+    ]
   },
   "act4": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Restore", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify"],
-    "healing": ["Elixir", "Herb", "Remedy"],
-    "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
-    "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],
-    "skillScroll": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll"],
-    "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll", "Dragonhaze Scroll", "Longearche Scroll", "Glowing Ember Scroll", "Armored Strike Scroll", "Deadeye Scroll", "Hunter's Volley Scroll", "Burning Quake Scroll", "Nosferatu Scroll", "Silence Strike Scroll"],
-    "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin", "Doublebow", "Brave Sword", "Brave Lance", "Brave Axe", "Brave Bow", "Excalibur", "Luce"],
-    "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring", "Warding Charm"],
-    "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
+    "weapons": [
+      "Silver Sword",
+      "Silver Lance",
+      "Silver Axe",
+      "Silver Bow",
+      "Bolganone",
+      "Aura",
+      "Recover",
+      "Physic",
+      "Restore",
+      "Killing Edge",
+      "Witchfire",
+      "Sunflare",
+      "Hammer",
+      "Tomahawk",
+      "Spear",
+      "Killer Lance",
+      "Venin Blade",
+      "Killer Axe",
+      "Killer Bow",
+      "Tempest Blade",
+      "Levin Sword",
+      "Fortify"
+    ],
+    "healing": [
+      "Elixir",
+      "Herb",
+      "Remedy"
+    ],
+    "statBooster": [
+      "Energy Drop",
+      "Spirit Dust",
+      "Secret Book",
+      "Speedwing",
+      "Dracoshield",
+      "Talisman",
+      "Angelic Robe",
+      "Swiftsoles"
+    ],
+    "promotion": [
+      "Master Seal",
+      "Infantry Seal",
+      "Mounted Seal"
+    ],
+    "skillScroll": [
+      "Astra Scroll",
+      "Vantage Scroll",
+      "Wrath Scroll",
+      "Adept Scroll",
+      "Miracle Scroll",
+      "Quick Riposte Scroll",
+      "Death Blow Scroll",
+      "Darting Blow Scroll",
+      "Shove Scroll",
+      "Pull Scroll"
+    ],
+    "weaponArtScroll": [
+      "Windsweep Scroll",
+      "Lunge Scroll",
+      "Grounder Scroll",
+      "Hexblade Scroll",
+      "Knightkneeler Scroll",
+      "Vengeance Scroll",
+      "Helm Splitter Scroll",
+      "Wild Abandon Scroll",
+      "Rushing Blow Scroll",
+      "Encloser Scroll",
+      "Ward Arrow Scroll",
+      "Healing Light Scroll",
+      "Seraphim Scroll",
+      "Dragonhaze Scroll",
+      "Longearche Scroll",
+      "Glowing Ember Scroll",
+      "Armored Strike Scroll",
+      "Deadeye Scroll",
+      "Hunter's Volley Scroll",
+      "Burning Quake Scroll",
+      "Nosferatu Scroll",
+      "Silence Strike Scroll"
+    ],
+    "legendaryWeapon": [
+      "Ragnarok",
+      "Soulreaver",
+      "Bolting",
+      "Gemini",
+      "Doomblade",
+      "Gae Bolg",
+      "Starfall",
+      "Stormbreaker",
+      "Ruin",
+      "Doublebow",
+      "Brave Sword",
+      "Brave Lance",
+      "Brave Axe",
+      "Brave Bow",
+      "Excalibur",
+      "Luce"
+    ],
+    "accessories": [
+      "Seraph Robe",
+      "Magic Ring",
+      "Boots",
+      "Delphi Shield",
+      "Wrath Band",
+      "Counter Seal",
+      "Pursuit Ring",
+      "Nullify Ring",
+      "Warding Charm"
+    ],
+    "forge": [
+      "Silver Whetstone",
+      "Silver Whetstone",
+      "Might Whetstone",
+      "Might Whetstone",
+      "Crit Whetstone",
+      "Crit Whetstone",
+      "Hit Whetstone",
+      "Hit Whetstone",
+      "Weight Whetstone",
+      "Weight Whetstone",
+      "Prismatic Stone",
+      "Sundering Imbuing Stone",
+      "Warded Imbuing Stone",
+      "Venomous Imbuing Stone",
+      "Binding Imbuing Stone"
+    ],
     "weights": {
       "weapon": 25,
       "healing": 2,
@@ -93,7 +449,10 @@
       "forge": 15,
       "gold": 10
     },
-    "goldRange": [1400, 2000]
+    "goldRange": [
+      1400,
+      2000
+    ]
   },
   "finalBoss": {
     "weapons": [],
@@ -108,6 +467,9 @@
     "weights": {
       "gold": 100
     },
-    "goldRange": [1450, 2200]
+    "goldRange": [
+      1450,
+      2200
+    ]
   }
 }
