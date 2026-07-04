@@ -1,7 +1,9 @@
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
+import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
+import { UI_DEPTHS } from '../utils/uiDepths.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -63,10 +65,23 @@ export class PostCombatController {
       scene.clearBattleScopedDeltas(scene.playerUnits);
       scene.clearBattleScopedDeltas(scene.escapedUnits || []);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
-      // Escaped units (Escape objective) survived the battle off the field
-      const surviving = [...scene.playerUnits, ...(scene.escapedUnits || [])].map((u) =>
-        serializeUnit(u),
-      );
+      // Escaped units (Escape objective) survived the battle off the field.
+      // Record class-mastery participation on these live deployed survivors
+      // BEFORE serializing — non-deployed and fallen units gain nothing.
+      const classesData = scene.gameData?.classes || null;
+      const traitsData = scene.gameData?.traits || null;
+      const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      const newlyMastered = [];
+      for (const u of liveSurvivors) {
+        const wasMastered = classesData ? isMastered(u, classesData, traitsData) : false;
+        recordBattleParticipation(u);
+        if (classesData && !wasMastered && isMastered(u, classesData, traitsData)) {
+          const perk = getMasteryPerk(u, classesData, traitsData);
+          newlyMastered.push({ name: u.name, className: u.className, perk });
+        }
+      }
+      scene._newlyMasteredUnits = newlyMastered;
+      const surviving = liveSurvivors.map((u) => serializeUnit(u));
       const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])];
       const turnPressure = scene.getTurnPressureState();
       const completionGoldAward = Math.max(
@@ -440,6 +455,41 @@ export class PostCombatController {
     });
     scene._lootController.renderCards();
     scene.lootGroup = scene._lootController.lootGroup;
+    this._showMasteryNotice();
+  }
+
+  // Transient toast announcing units that mastered their class this battle.
+  // Non-blocking (rides on top of the loot screen), mirrors showLootStatus.
+  _showMasteryNotice() {
+    const scene = this.scene;
+    const mastered = scene._newlyMasteredUnits;
+    if (!Array.isArray(mastered) || mastered.length === 0) return;
+    scene._newlyMasteredUnits = null;
+    const cam = scene.cameras.main;
+    const lines = mastered
+      .slice(0, 3)
+      .map((m) => `${m.name} mastered ${m.className}!` + (m.perk?.name ? ` (${m.perk.name})` : ''));
+    const text = scene.add
+      .text(cam.centerX, 40, lines.join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffdd66',
+        align: 'center',
+        backgroundColor: '#000000cc',
+        padding: { x: 10, y: 6 },
+      })
+      .setOrigin(0.5, 0)
+      // Must render above LootScreenController's full-screen dim rect (depth
+      // UI_DEPTHS.LOOT_OVERLAY_DIM = 700) or the toast is invisible.
+      .setDepth(UI_DEPTHS.MASTERY_NOTICE);
+    scene._pinToScreen?.(text);
+    scene.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 3200,
+      duration: 900,
+      onComplete: () => text.destroy(),
+    });
   }
 
   showLootStatus(message, color = '#ff8888') {

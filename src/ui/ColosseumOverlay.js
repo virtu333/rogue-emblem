@@ -17,6 +17,7 @@ import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engi
 import { gainExperience, getDisplayLevel, grantSecondaryWeapons } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
+import { getTraitNames } from '../engine/TraitSystem.js';
 import { findCommander } from '../engine/Commander.js';
 
 // ── Layout constants (match NodeMapScene overlay pattern) ──
@@ -433,6 +434,10 @@ export class ColosseumOverlay {
 
     // Minimal skill context for forecast (arena = isolated 1v1, no allies)
     const skillsData = this.gameData.skills || [];
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       unit,
       challenger,
@@ -441,6 +446,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       true,
+      null,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       challenger,
@@ -450,6 +457,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       false,
+      null,
+      masteryCtx,
     );
 
     const forecast = getCombatForecast(
@@ -555,6 +564,10 @@ export class ColosseumOverlay {
 
     // Build full skill context for resolution
     const skillsData = this.gameData.skills || [];
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       unit,
       challenger,
@@ -563,6 +576,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       true,
+      null,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       challenger,
@@ -572,6 +587,8 @@ export class ColosseumOverlay {
       skillsData,
       plainTerrain,
       false,
+      null,
+      masteryCtx,
     );
 
     const skillCtx = {
@@ -930,6 +947,7 @@ export class ColosseumOverlay {
           this._getDifficultyId(),
           this._colosseumData,
           Math.random,
+          this.gameData.traits || null,
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);
@@ -1029,6 +1047,18 @@ export class ColosseumOverlay {
           })
           .setDepth(CONTENT_DEPTH);
         this.objects.push(gearText);
+
+        // Traits (mercs can roll them — the player decides with this info)
+        const traitNames = getTraitNames(unit, this.gameData.traits);
+        if (traitNames) {
+          const traitText = this.scene.add
+            .text(75, y + 50, `Traits: ${traitNames}`, {
+              ...SMALL_STYLE,
+              color: hired ? '#555555' : '#cc99ff',
+            })
+            .setDepth(CONTENT_DEPTH);
+          this.objects.push(traitText);
+        }
 
         // Price + hire button
         if (hired) {

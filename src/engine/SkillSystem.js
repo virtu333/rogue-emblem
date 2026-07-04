@@ -5,6 +5,18 @@
 import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
+import { getMasteryCombatMods } from './MasterySystem.js';
+
+// The seven flat combat-mod keys shared by mastery perks and trait combatMods.
+const MOD_KEYS = [
+  'critBonus',
+  'hitBonus',
+  'avoidBonus',
+  'atkBonus',
+  'defBonus',
+  'resBonus',
+  'spdBonus',
+];
 
 // --- Helpers ---
 
@@ -177,6 +189,7 @@ export function getSkillCombatMods(
   terrain,
   isInitiating = false,
   affixData = null,
+  context = null,
 ) {
   const mods = {
     hitBonus: 0,
@@ -202,6 +215,43 @@ export function getSkillCombatMods(
   const wpnCond = getConditionalWeaponBonuses(unit.weapon, unit, allies);
   mods.atkBonus += wpnCond.atkBonus;
   mods.spdBonus += wpnCond.spdBonus;
+
+  // --- Mastery perk + trait combat mods ---
+  // Independent of skillsData (a mastered unit with no skills still gets its
+  // perk), so this runs BEFORE the empty-skills early return.
+  const classesData = context?.classesData || null;
+  const traitsData = context?.traitsData || null;
+  if (classesData) {
+    const mastery = getMasteryCombatMods(unit, classesData, traitsData);
+    for (const key of MOD_KEYS) {
+      if (Number.isFinite(mastery.mods[key])) mods[key] += mastery.mods[key];
+    }
+    if (mastery.activated) mods.activated.push(mastery.activated);
+  }
+  if (traitsData && Array.isArray(unit.traits) && unit.traits.length > 0) {
+    for (const traitId of unit.traits) {
+      const trait = traitsData.find((t) => t?.id === traitId);
+      const cmods = trait?.combatMods;
+      if (!cmods) continue;
+      const condMet = isAccessoryConditionMet(
+        cmods.condition,
+        unit,
+        opponent,
+        allies,
+        enemies,
+        terrain,
+      );
+      if (!condMet) continue;
+      let applied = false;
+      for (const key of MOD_KEYS) {
+        if (Number.isFinite(cmods[key])) {
+          mods[key] += cmods[key];
+          applied = true;
+        }
+      }
+      if (applied) mods.activated.push({ id: `trait_${traitId}`, name: trait.name });
+    }
+  }
 
   if (!skillsData) return mods;
 

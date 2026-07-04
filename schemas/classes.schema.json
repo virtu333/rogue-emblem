@@ -65,6 +65,28 @@
       "required": ["skillId", "level"],
       "additionalProperties": false
     },
+    "masteryPerk": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 16 },
+        "mods": {
+          "type": "object",
+          "properties": {
+            "critBonus": { "type": "integer" },
+            "hitBonus": { "type": "integer" },
+            "avoidBonus": { "type": "integer" },
+            "atkBonus": { "type": "integer" },
+            "defBonus": { "type": "integer" },
+            "resBonus": { "type": "integer" },
+            "spdBonus": { "type": "integer" }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
+        }
+      },
+      "required": ["name", "mods"],
+      "additionalProperties": false
+    },
     "moveType": {
       "type": "string",
       "enum": ["Infantry", "Cavalry", "Flying", "Armored"]
@@ -81,6 +103,7 @@
         "weaponProficiencies": { "type": "string" },
         "role": { "type": "string" },
         "growthRanges": { "$ref": "#/$defs/growthRanges" },
+        "masteryPerk": { "$ref": "#/$defs/masteryPerk" },
         "promotesTo": {
           "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
         },

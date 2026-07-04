@@ -18,6 +18,8 @@ export const UI_DEPTHS = {
   HOW_TO_PLAY: 500, // HowToPlayOverlay
   ROSTER: 700, // RosterOverlay
   LOOT_DISPLAY: 701, // BattleScene loot
+  LOOT_OVERLAY_DIM: 700, // LootScreenController full-screen dim rectangle
+  MASTERY_NOTICE: 799, // Post-battle mastery toast (above loot dim; == showLootStatus)
   PAUSE_MENU: 800, // PauseOverlay
   CAMPAIGN_MAP_BG: 830, // CampaignMapOverlay background
   CAMPAIGN_MAP_PANEL: 831, // CampaignMapOverlay panel

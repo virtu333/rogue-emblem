@@ -57,6 +57,7 @@ import {
   getReclassTargets,
   reclassUnit,
 } from '../engine/UnitManager.js';
+import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -1292,6 +1293,7 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
+                    { traitsData: this.gameData.traits || null, rng: Math.random },
                   );
                   for (const sid of getClassInnateSkills(
                     baseClassData.name,
@@ -1325,6 +1327,7 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
+                    { traitsData: this.gameData.traits || null, rng: Math.random },
                   );
                   console.warn(
                     'Promoted recruit missing base class mapping:',
@@ -1350,6 +1353,7 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
+                    { traitsData: this.gameData.traits || null, rng: Math.random },
                   );
                   for (const sid of getClassInnateSkills(
                     baseClassData.name,
@@ -1366,6 +1370,7 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
+                    { traitsData: this.gameData.traits || null, rng: Math.random },
                   );
                   console.warn(
                     'Promoted recruit roll fallback missing base class mapping:',
@@ -1388,6 +1393,7 @@ export class BattleScene extends Phaser.Scene {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
+                  { traitsData: this.gameData.traits || null, rng: Math.random },
                 );
                 console.warn(
                   'Promoted recruit source not eligible for promotion roll:',
@@ -1404,6 +1410,7 @@ export class BattleScene extends Phaser.Scene {
                 recruitGrowthBonuses,
                 recruitSkillPool,
                 this.gameData.classes,
+                { traitsData: this.gameData.traits || null, rng: Math.random },
               );
               // Assign base-class innate skills (e.g. Dancer gets 'dance')
               for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
@@ -6860,6 +6867,10 @@ export class BattleScene extends Phaser.Scene {
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
 
     const affixes = this.gameData.affixes;
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       attacker,
       defender,
@@ -6869,6 +6880,7 @@ export class BattleScene extends Phaser.Scene {
       atkTerrain,
       true,
       affixes,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       defender,
@@ -6879,6 +6891,7 @@ export class BattleScene extends Phaser.Scene {
       defTerrain,
       false,
       affixes,
+      masteryCtx,
     );
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
@@ -8441,7 +8454,11 @@ export class BattleScene extends Phaser.Scene {
       ? this.battleParams.xpMultiplier
       : 1;
     const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
-    const xp = Math.max(1, Math.floor(baseXp * parXpMult * (xpMultiplier + blessingXpDelta)));
+    const traitXpMult = getTraitXpMultiplier(playerUnit, this.gameData?.traits || null);
+    const xp = Math.max(
+      1,
+      Math.floor(baseXp * parXpMult * (xpMultiplier + blessingXpDelta) * traitXpMult),
+    );
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);

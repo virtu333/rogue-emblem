@@ -1648,6 +1648,10 @@ export class HeadlessBattle {
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
     const affixes = this.gameData.affixes;
+    const masteryCtx = {
+      classesData: this.gameData.classes,
+      traitsData: this.gameData.traits || null,
+    };
     const atkMods = getSkillCombatMods(
       attacker,
       defender,
@@ -1657,6 +1661,7 @@ export class HeadlessBattle {
       atkTerrain,
       true,
       affixes,
+      masteryCtx,
     );
     const defMods = getSkillCombatMods(
       defender,
@@ -1667,6 +1672,7 @@ export class HeadlessBattle {
       defTerrain,
       false,
       affixes,
+      masteryCtx,
     );
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
