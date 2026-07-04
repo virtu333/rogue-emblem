@@ -1200,6 +1200,83 @@ describe('LootSystem', () => {
     });
   });
 
+  describe('generateShopInventory rareBias (Merchant Caravan reward shop)', () => {
+    it('produces 3-4 items with rareBias + a caravan-sized itemCountRange', () => {
+      for (let i = 0; i < 30; i++) {
+        const inv = generateShopInventory(
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 3, max: 4 }, rareBias: true },
+        );
+        expect(inv.length).toBeGreaterThanOrEqual(3);
+        expect(inv.length).toBeLessThanOrEqual(4);
+      }
+    });
+
+    it('reliably includes at least one rare-category item on act2 (non-empty rare pool)', () => {
+      let rareHits = 0;
+      const trials = 50;
+      for (let i = 0; i < trials; i++) {
+        const inv = generateShopInventory(
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 3, max: 4 }, rareBias: true },
+        );
+        const hasRare = inv.some(
+          (entry) => entry.type === 'scroll' || entry.item?.tier === 'Legend',
+        );
+        if (hasRare) rareHits++;
+      }
+      // Not a hard 100% guarantee (retry loop can exhaust attempts), but should
+      // be reliable given act2's non-empty rare pools.
+      expect(rareHits / trials).toBeGreaterThan(0.8);
+    });
+
+    it('degrades gracefully on act1 (no rare pool) without throwing or under-filling', () => {
+      for (let i = 0; i < 20; i++) {
+        const inv = generateShopInventory(
+          'act1',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 3, max: 4 }, rareBias: true },
+        );
+        expect(inv.length).toBeGreaterThanOrEqual(3);
+        expect(inv.length).toBeLessThanOrEqual(4);
+      }
+    });
+
+    it('without rareBias, behavior is unchanged (regression guard)', () => {
+      for (let i = 0; i < 20; i++) {
+        const inv = generateShopInventory(
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 3, max: 4 } },
+        );
+        expect(inv.length).toBeGreaterThanOrEqual(3);
+        expect(inv.length).toBeLessThanOrEqual(4);
+      }
+    });
+  });
+
   describe('boss loot (isBoss flag)', () => {
     it('boss flag shifts distribution toward high-value categories', () => {
       const counts = {

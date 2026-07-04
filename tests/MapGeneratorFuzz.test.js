@@ -30,6 +30,7 @@ const VARIANTS = [
   { label: 'standard', params: {} },
   { label: 'boss', params: { isBoss: true } },
   { label: 'recruit', params: { isRecruitBattle: true } },
+  { label: 'caravan', params: { hasCaravan: true } },
 ];
 
 describe('MapGenerator fuzz — validateBattleConfig over the full matrix', () => {
