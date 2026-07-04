@@ -3,6 +3,7 @@ import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
+import { UI_DEPTHS } from '../utils/uiDepths.js';
 import {
   transitionToScene,
   transitionToSceneWithBlockedRetry,
@@ -478,7 +479,9 @@ export class PostCombatController {
         padding: { x: 10, y: 6 },
       })
       .setOrigin(0.5, 0)
-      .setDepth(620);
+      // Must render above LootScreenController's full-screen dim rect (depth
+      // UI_DEPTHS.LOOT_OVERLAY_DIM = 700) or the toast is invisible.
+      .setDepth(UI_DEPTHS.MASTERY_NOTICE);
     scene._pinToScreen?.(text);
     scene.tweens.add({
       targets: text,

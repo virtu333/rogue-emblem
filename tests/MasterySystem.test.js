@@ -14,6 +14,12 @@ import { createRecruitUnit, promoteUnit, reclassUnit } from '../src/engine/UnitM
 import { serializeUnit } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 import { MASTERY_BATTLES, MASTERY_MIN_BATTLES } from '../src/utils/constants.js';
+import { UI_DEPTHS } from '../src/utils/uiDepths.js';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __testDir = dirname(fileURLToPath(import.meta.url));
 
 const data = loadGameData();
 const classes = data.classes;
@@ -252,6 +258,24 @@ describe('getSkillCombatMods — mastery/trait integration', () => {
     const opp = mkUnit({ name: 'O', col: 5, row: 5 });
     const mods = getSkillCombatMods(u, opp, [u], [opp], data.skills, plain, true);
     expect(mods.hitBonus).toBe(0);
+  });
+});
+
+describe('Mastery notice depth (renders above the loot overlay)', () => {
+  it('MASTERY_NOTICE exceeds the loot dim/display depths', () => {
+    expect(UI_DEPTHS.MASTERY_NOTICE).toBeGreaterThan(UI_DEPTHS.LOOT_OVERLAY_DIM);
+    expect(UI_DEPTHS.MASTERY_NOTICE).toBeGreaterThan(UI_DEPTHS.LOOT_DISPLAY);
+  });
+
+  it('LOOT_OVERLAY_DIM matches the literal used by LootScreenController', () => {
+    // The dim rect still uses a literal depth; keep the registry constant honest.
+    const src = readFileSync(join(__testDir, '..', 'src', 'ui', 'LootScreenController.js'), 'utf8');
+    expect(src).toContain(`.setDepth(${UI_DEPTHS.LOOT_OVERLAY_DIM})`);
+  });
+
+  it('PostCombatController mastery notice uses the registry constant', () => {
+    const src = readFileSync(join(__testDir, '..', 'src', 'ui', 'PostCombatController.js'), 'utf8');
+    expect(src).toContain('.setDepth(UI_DEPTHS.MASTERY_NOTICE)');
   });
 });
 

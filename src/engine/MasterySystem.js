@@ -79,6 +79,11 @@ export function recordBattleParticipation(unit) {
  * Battles fought toward the unit's current class family.
  * = classBattles[currentClass] + classBattles[baseClassOfCurrentClass]
  * (deduped when the current class IS the base class).
+ *
+ * Known quirk (intentional): counters are never cleared, so reclassing
+ * A -> B -> A resurrects the old family-A progress. Accepted as-is — the
+ * round trip costs two scarce reclass seals, making it a deliberate
+ * min-max path rather than an exploit.
  */
 export function getMasteryProgress(unit, classesData) {
   const battles = unit?.classBattles;
