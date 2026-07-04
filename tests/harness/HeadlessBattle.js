@@ -40,6 +40,11 @@ import {
   checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
 import {
+  getXpShareRatio,
+  getXpShareRecipients,
+  calculateSharedXp,
+} from '../../src/engine/XpShare.js';
+import {
   getSkillCombatMods,
   rollStrikeSkills,
   rollDefenseSkills,
@@ -884,6 +889,27 @@ export class HeadlessBattle {
     const isSpecialEnemy = Boolean(unit?.isBoss || unit?.isElite);
     if (!isSpecialEnemy) return rewardMultiplier;
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  }
+
+  /**
+   * Mentor's Band (EXP Share) — mirror of BattleScene.awardXP's share pass.
+   * When the holder earns combat XP, each adjacent lower-level ally receives
+   * that ally's own combat XP formula against the same opponent, scaled by the
+   * accessory ratio and the enemy reward multiplier. Combat XP only; shares
+   * never re-enter the share hook (no chaining, no double-grant).
+   */
+  _awardSharedCombatXP(holder, opponent, opponentDied) {
+    const ratio = getXpShareRatio(holder);
+    if (ratio <= 0) return;
+    const recipients = getXpShareRecipients(holder, this.playerUnits);
+    if (recipients.length <= 0) return;
+    const multiplier = this._getEnemyXpMultiplier(opponent);
+    for (const ally of recipients) {
+      const sharedXp = calculateSharedXp(ally, opponent, opponentDied, ratio, multiplier);
+      if (sharedXp <= 0) continue;
+      gainExperience(ally, sharedXp);
+      checkLevelUpSkills(ally, this.gameData.classes);
+    }
   }
 
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
@@ -2233,6 +2259,7 @@ export class HeadlessBattle {
       const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
       const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(defender));
       if (xp > 0) {
+        this._awardSharedCombatXP(attacker, defender, defender.currentHP <= 0);
         gainExperience(attacker, xp);
         checkLevelUpSkills(attacker, this.gameData.classes);
       }
@@ -2553,6 +2580,7 @@ export class HeadlessBattle {
       const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
       const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(attacker));
       if (xp > 0) {
+        this._awardSharedCombatXP(defender, attacker, attacker.currentHP <= 0);
         gainExperience(defender, xp);
         checkLevelUpSkills(defender, this.gameData.classes);
       }

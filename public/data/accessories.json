@@ -132,7 +132,7 @@
     "combatEffects": {
       "doubleThresholdReduction": 2
     },
-    "price": 2500,
+    "price": 4000,
     "lore": "An old-kingdom hunting band; the quarry is always slower than it hopes."
   },
   {
@@ -313,5 +313,38 @@
     },
     "price": 2000,
     "lore": "A seer's finished ward; curses arrive, find nothing to hold, and pass on."
+  },
+  {
+    "name": "Mentor's Band",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "xpShare": 0.5
+    },
+    "price": 2500,
+    "lore": "The drillmaster's arm-band; whoever fights beside its wearer learns the trade."
+  },
+  {
+    "name": "Mercury Sandals",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "moveTypeOverride": "Flying"
+    },
+    "price": 5000,
+    "lore": "Winged heels that scorn the ground -- but to every archer, the wearer is a bird."
+  },
+  {
+    "name": "Phalanx Band",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "defBonus": 2,
+      "resBonus": 2,
+      "hitBonus": 10,
+      "condition": "adjacent_ally"
+    },
+    "price": 3500,
+    "lore": "Issued in pairs to shield-brothers; it remembers how to fight only in formation."
   }
 ]

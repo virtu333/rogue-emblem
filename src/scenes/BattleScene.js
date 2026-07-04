@@ -58,6 +58,7 @@ import {
   reclassUnit,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
+import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
 import {
   getSkillCombatMods,
   rollStrikeSkills,
@@ -8425,11 +8426,12 @@ export class BattleScene extends Phaser.Scene {
   async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
     if (opponent?._noXP) return;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    let damageRatio = 1;
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
       const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
       if (safeDamage <= 0) return;
-      const damageRatio = Math.min(1, safeDamage / safeStartHp);
+      damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
       if (baseXp <= 0) return;
     }
@@ -8437,7 +8439,29 @@ export class BattleScene extends Phaser.Scene {
     const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
     const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier);
     if (adjustedBaseXp <= 0) return;
+    // Mentor's Band (EXP Share): capture recipients before the holder's award
+    // so a mid-award level-up can't change eligibility. Mirrored by the
+    // headless harness (HeadlessBattle._awardSharedCombatXP) — keep in sync.
+    const xpShareRatio = getXpShareRatio(playerUnit);
+    const xpShareRecipients =
+      xpShareRatio > 0 ? getXpShareRecipients(playerUnit, this.playerUnits || []) : [];
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
+    for (const ally of xpShareRecipients) {
+      // The scene may have shut down while a level-up popup was showing.
+      if (this.sys?.isActive?.() === false) break;
+      if (ally.currentHP <= 0) continue; // safety: state changed mid-sequence
+      const sharedXp = calculateSharedXp(
+        ally,
+        opponent,
+        opponentDied,
+        xpShareRatio,
+        damageRatio * rewardMultiplier * pressureXpMultiplier,
+      );
+      if (sharedXp <= 0) continue;
+      // Direct awardScaledXP: shares never re-enter awardXP, so bands cannot
+      // chain (allies of allies) and heal/dance XP is never shared.
+      await this.awardScaledXP(ally, sharedXp);
+    }
   }
 
   _playLevelUpSfx() {
