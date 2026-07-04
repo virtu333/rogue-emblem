@@ -1,0 +1,14 @@
+{
+  "id": "act1_village_race",
+  "description": "Act 1 rout battle with a village + scripted bandit squad racing for it",
+  "battleParams": {
+    "act": "act1",
+    "objective": "rout",
+    "row": 2,
+    "isBoss": false,
+    "isRecruitBattle": false,
+    "difficultyMod": 1.0,
+    "hasVillage": true
+  },
+  "roster": null
+}
