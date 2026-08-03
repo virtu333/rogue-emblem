@@ -74,6 +74,23 @@ Risk: if generics play at NieR pace and bosses at Sekiro pace, the first boss is
 
 Side benefit: the ladder gives the middle of each act texture — a rhythm of performance fights and test fights instead of "generics, generics, BOSS" — and maps cleanly onto the resolution tiers (generics auto/skirmish-eligible; promoted skirmish/full; elites and above always full arena).
 
+## Ranged combat stays at the tactics layer
+
+Rule: **ranged attacks initiated from the grid resolve tactically — formula damage, no zoom.** Not a compromise; the design wants this:
+
+- **Preserves FE archer identity.** Ranged's whole point is attacking without entering the exchange — chip from safety, no counter, positioning as the skill. The no-counter-at-range rule survives for free: the target isn't in an arena with you.
+- **Feeds engagement engineering.** Ranged is the *preparation* tool: soften a cluster with volleys, then send melee in to finish it in the arena — or chip an elite below the forecast threshold to unlock auto-resolve. Ranged shapes the fights you'll pilot.
+- **Controls encounter count** — every ranged attack resolved on the grid is an arena fight that didn't happen.
+- **Deliberate roster asymmetry as a feature:** melee classes are arena performers, ranged classes are grid controllers. Action-lovers build melee-heavy; FE purists lean ranged — a real playstyle axis, and graceful degradation for players who tolerate rather than love the arena. (The ballista is already this: grid artillery with no exchange.)
+
+Edges:
+
+- **Ranged units touch the arena two ways.** As **assists** (adjacency system — where their skills/combat effects express in action mode), and when **engaged upon**: a melee enemy initiating on your mage pulls the mage into an arena with a minimal defensive kit (kite, dodge, charged shot, panic-nova art) — deliberately weaker than melee kits, because "my archer got caught" should feel bad. NieR's pod and Ys's ranged party members prove simple playable ranged action works. Hand axes / javelins / 1–2 range tomes give hybrid units a natural melee-engage option; ranged-initiated arenas are a nice-to-have, not a pillar.
+- **Enemy ranged fire on enemy phase** resolves symmetrically — formula damage on the grid. Enemy archers threaten the classic FE way: map-control pressure punishing bad positioning, not arena content.
+- **Pulled-in ranged enemies are arena gold.** An archer caught in a cluster engagement becomes the arena's projectile threat — telegraphed shots to dodge — exactly the low-stakes dodge grammar the enemy ladder teaches early. Enemy mages one rung up: bigger telegraphs, area denial.
+
+Risk: if grid ranged is too efficient it becomes the way to avoid the action game entirely. Mitigations in the design's grain: ranged tuned as chip/setup not deletion (FE archer damage curves already do this), frailty as the classic tax, and opt-up rewards meaning the arena is where the run's upside lives.
+
 ## Enemy phase
 
 Half of FE is enemy phase. If every enemy-phase attack triggers a zoom-in, the player plays dozens of defensive arena fights per map. Options:
