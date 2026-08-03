@@ -33,6 +33,47 @@ Guardrail (the E33 balance point): **defense is skill, offense is stats.** If ex
 | Weapon arts | The special-move list — HP-cost specials is already a DMC-ish economy. (Rogue Emblem has 75 to draw from.) |
 | Skills | on-attack / on-defend / on-combat-start triggers become action procs; much of `skills.json` translates line for line. |
 
+## Combat feel & references
+
+Target: DMC's pace and offensive framing without its combo-lab input depth; none of Souls' wait-and-punish pacing. The useful axes are not "fast vs slow" but *animation commitment*, *who is performing*, and *where depth lives*.
+
+**Take from DMC:** the conceptual inversion — you are performing, enemies are material. Right frame for generics, since most zoom-ins are fights already won strategically on the grid; the enemy's job is to be interesting to defeat. Also: attacks-as-components (generous cancel windows into dodge), movement/offense blurring, and the idea of a style grade. **Leave behind:** the fighting-game command system (lock-on directional modifiers, jump cancels, pause-timing strings) — execution depth we don't want in 20–45 second fights whose depth budget is already spent on the strategy layer.
+
+**Take from Souls:** commitment as a *tunable dial*, not a philosophy — and put the dial on weapon Weight/Speed. Swords are fluid and cancel-anything; axes have Souls-flavored wind-up/recovery but hit like trucks; lances sit between with reach. The Souls-vs-DMC spectrum becomes *weapon identity*, giving the weapon triangle a feel dimension on top of the poise interaction.
+
+**Core principle — depth lives in loadout, not execution.** DMC's depth is which animations cancel into which; ours is which weapon arts, skills, and adjacency assists you brought into the arena. Same expressive-offense feel, but composition happens at the prep layer, where FE players live. (Hades is the existence proof: trivially simple inputs, enormous build-driven variety, nobody calls it shallow.)
+
+### Reference stack
+
+| Game | What it contributes |
+|---|---|
+| **NieR: Automata** | Closest reference for generics: two-button combos, no memorization, fast, generous dodge with perfect-dodge counter reward — "DMC feel at 30% of the input complexity." Our skirmish mode, almost exactly. Also the soft auto-lock model. |
+| **Bayonetta (Witch Time) / Ys (Flash Move)** | Perfect-dodge-triggers-offense-window as the defensive spine: defense is skill-expressive but its *reward is offense*, so the game never becomes wait-and-punish. Slots into the defense-is-skill / offense-is-stats rule: the dodge window is player skill; what you do with it is your stat sheet. |
+| **God of War (2018)** | Combo-light, weighty — and Atreus: squad assists woven into solo action combat is our adjacency-assist system, shipped and proven. Study how assist calls feel like part of your offense rather than an interruption. |
+| **Ys VIII/IX** | Pacing benchmark: encounters at exactly our target length; party damage-type swapping vs enemy weaknesses is structurally our weapon triangle; relentless forward tempo. |
+| **Sekiro** | *Bosses only.* Posture is our poise/triangle mechanic taken seriously; its rhythm-duel intensity is the texture for the hard-boss tier — more aggressive than Souls, still deliberate. |
+| **Hades** | Encounter length, dash-centric defense, and depth-from-buildcraft (boons ≈ weapon arts/skills) under minimal inputs. Roguelike pacing reference. |
+
+### Control sketch
+
+Light attack (cancellable) · heavy/launcher · dodge (perfect dodge → slow-mo offense window) · weapon art button (HP cost, committal — where Souls-weight lives on every weapon) · assist call(s) from grid adjacency · soft auto-lock. No manual jump; air states triggered contextually by launchers. Six meaningful inputs; everything else is loadout.
+
+### Style meter grades tactical flair, not execution
+
+Meter rewards perfect dodges, assist usage, weapon-art variety, triangle-advantage exploitation, no-damage streaks — not string length. Keeps the DMC grading-the-performance dopamine, pointed at things the strategy layer set up, tightening the grid↔arena connection. Deliberate failure-mode choice: a one-combo survival-focused player (the Souls-trained default) only misses style bonus, not the core system — the right failure mode for a strategy-first audience.
+
+## The enemy ladder: pacing between generics and bosses
+
+Risk: if generics play at NieR pace and bosses at Sekiro pace, the first boss is a genre change the player never trained for. Rule: **bosses never introduce new verbs, only new intensity.** Every boss demand — reading a telegraph, punishing a poise break, respecting a committal attack, handling adds mid-duel — is rehearsed at a lower tier first. The enemy ladder is a curriculum:
+
+1. **Generics** — combo material, NieR pace, the player's performance space.
+2. **Promoted units** — first enemies with real telegraphs and one attack you shouldn't tank. Teach "watch the enemy" without slowing the fight. Free from existing data (promoted classes), and FE players already read "promoted" as a threat flag.
+3. **Affixed elites** — each affix maps to one boss-grammar mechanic (enrage timer, armor phase, punishable super). Affixes are visible on the grid pre-engagement, so the player *chose* the rehearsal — never an ambush.
+4. **Minibosses / throne & leader units** — dress rehearsal: full arena tier, duel framing, a subset of the act boss's actual moveset. Seize maps provide these naturally — the throne unit was always a mini-boss; now it plays like one. Give act leaders literal moves from the act boss's kit so the player has fought its pieces before the boss door.
+5. **Act bosses** — full Sekiro-lean setpiece assembling only previously-taught grammar at higher intensity.
+
+Side benefit: the ladder gives the middle of each act texture — a rhythm of performance fights and test fights instead of "generics, generics, BOSS" — and maps cleanly onto the resolution tiers (generics auto/skirmish-eligible; promoted skirmish/full; elites and above always full arena).
+
 ## Enemy phase
 
 Half of FE is enemy phase. If every enemy-phase attack triggers a zoom-in, the player plays dozens of defensive arena fights per map. Options:
