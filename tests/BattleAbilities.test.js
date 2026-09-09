@@ -380,6 +380,87 @@ describe('state registration for SELECTING_ABILITY_TILE', () => {
   });
 });
 
+describe('ability execution blocks input while resolving', () => {
+  function makeDeferredTween(scene) {
+    let release;
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    scene._awaitSceneTween = vi.fn(() => pending);
+    return () => release();
+  }
+
+  function wireInputGates(scene) {
+    scene.isStoryInputLocked = () => false;
+    scene.pauseOverlay = null;
+    scene.unitDetailOverlay = null;
+    scene.lootSettingsOverlay = null;
+    scene.visionDialog = null;
+    scene.visionSnapshot = {};
+  }
+
+  it('executeBlink enters HEAL_RESOLVING before the first animation await', async () => {
+    // Regression: without the blocking state, cancel / End Turn / Vision all
+    // stayed enabled during the teleport animation (state was still
+    // SELECTING_ABILITY_TILE) and could race the in-flight execution.
+    const unit = makeUnit({ skills: ['blink'], graphic: {} });
+    const scene = makeAbilityScene({ unit });
+    scene.hideActionMenu = vi.fn();
+    scene.selectedUnit = unit;
+    wireInputGates(scene);
+    const ctrl = scene._abilityController;
+    ctrl.startBlinkTileSelection(unit, skillById.get('blink'));
+    const release = makeDeferredTween(scene);
+
+    ctrl.handleAbilityTileClick({ col: 5, row: 7 });
+
+    // Mid-await: the fade-out tween is pending, the ability is committed…
+    expect(scene._awaitSceneTween).toHaveBeenCalled();
+    expect(unit._battleAbilityUsage.map.blink).toBe(1);
+    // …and every interrupt gate must be closed.
+    expect(scene.battleState).toBe('HEAL_RESOLVING');
+    expect(scene.isCancelableBattleState()).toBe(false);
+    expect(scene.canForceEndTurn()).toBe(false);
+    const vision = new VisionRewindController(scene);
+    vision.getChargesRemaining = () => 1;
+    expect(vision.canUseNow()).toBe(false);
+
+    release();
+    await vi.waitFor(() => expect(scene.finishUnitAction).toHaveBeenCalledWith(unit));
+    expect(unit.col).toBe(5);
+    expect(unit.row).toBe(7);
+  });
+
+  it('executeSelfCentered enters HEAL_RESOLVING before its effect awaits', async () => {
+    const unit = makeUnit({ name: 'Caster', skills: ['rally_cry_skill'] });
+    const scene = makeAbilityScene({ unit });
+    scene.hideActionMenu = vi.fn();
+    wireInputGates(scene);
+    let release;
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    scene._applyTier5AllyBuffStep = vi.fn(() => pending);
+
+    const done = scene._abilityController.executeSelfCentered(
+      unit,
+      skillById.get('rally_cry_skill'),
+    );
+
+    expect(scene._applyTier5AllyBuffStep).toHaveBeenCalled();
+    expect(scene.battleState).toBe('HEAL_RESOLVING');
+    expect(scene.isCancelableBattleState()).toBe(false);
+    expect(scene.canForceEndTurn()).toBe(false);
+    const vision = new VisionRewindController(scene);
+    vision.getChargesRemaining = () => 1;
+    expect(vision.canUseNow()).toBe(false);
+
+    release();
+    await done;
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit);
+  });
+});
+
 describe('confirm prompt (self-centered AOE)', () => {
   it('highlights affected units and clears the preview via the menu sentinel', () => {
     const unit = makeUnit({ skills: ['ensnare'] });

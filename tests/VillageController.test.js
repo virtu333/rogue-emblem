@@ -211,6 +211,97 @@ describe('VillageController', () => {
     });
   });
 
+  describe('restoreFromVisionSnapshot (Vision rewind)', () => {
+    function setupIntact(sceneOverrides = {}) {
+      const scene = makeScene({
+        battleConfig: { villageTile: { ...TILE } },
+        runManager: { addToConvoy: vi.fn(() => true), removeFromConvoyByUid: vi.fn(() => ({})) },
+        ...sceneOverrides,
+      });
+      const ctrl = new VillageController(scene);
+      ctrl.create();
+      return { scene, ctrl };
+    }
+
+    it('a visit records the granted item uid on the village state', () => {
+      const { scene, ctrl } = setupIntact();
+      expect(ctrl.handleUnitActionEnd(makeUnit())).toBe(true);
+      const granted = scene.runManager.addToConvoy.mock.calls[0][0];
+      expect(typeof granted.uid).toBe('string');
+      expect(scene._villageState.rewardItemUid).toBe(granted.uid);
+    });
+
+    it('rewinding a visit reclaims the item, restores terrain + marker, and re-arms the tile', () => {
+      const { scene, ctrl } = setupIntact();
+      const intactSnapshot = { ...scene._villageState }; // captured at turn start
+      ctrl.handleUnitActionEnd(makeUnit());
+      const grantedUid = scene._villageState.rewardItemUid;
+      expect(scene._villageState.status).toBe('visited');
+      expect(ctrl.markers).toHaveLength(0);
+
+      ctrl.restoreFromVisionSnapshot(intactSnapshot);
+
+      expect(scene.runManager.removeFromConvoyByUid).toHaveBeenCalledWith(grantedUid);
+      expect(scene.grid.setTerrainAt).toHaveBeenCalledWith(4, 6, TERRAIN.Village);
+      expect(scene._villageState).toEqual({ col: 4, row: 6, status: 'intact' });
+      expect(ctrl.markers.length).toBeGreaterThan(0);
+      // The tile re-arms: a fresh visit works again.
+      expect(ctrl.handleUnitActionEnd(makeUnit())).toBe(true);
+    });
+
+    it('rewinding a raze restores the village without touching the convoy', () => {
+      const bandit = makeUnit({ faction: 'enemy', aiMode: 'seek_tile', aiTargetTile: { ...TILE } });
+      const { scene, ctrl } = setupIntact({ enemyUnits: [bandit] });
+      const intactSnapshot = { ...scene._villageState };
+      expect(ctrl.handleEnemyUnitDone(bandit)).toBe(true);
+      expect(scene._villageState.status).toBe('razed');
+
+      ctrl.restoreFromVisionSnapshot(intactSnapshot);
+
+      expect(scene.runManager.removeFromConvoyByUid).not.toHaveBeenCalled();
+      expect(scene.grid.setTerrainAt).toHaveBeenCalledWith(4, 6, TERRAIN.Village);
+      expect(scene._villageState.status).toBe('intact');
+      expect(ctrl.markers.length).toBeGreaterThan(0);
+    });
+
+    it('a convoy-full visit (no recorded uid) rewinds without a removal attempt', () => {
+      const { scene, ctrl } = setupIntact({
+        runManager: { addToConvoy: vi.fn(() => false), removeFromConvoyByUid: vi.fn() },
+      });
+      const intactSnapshot = { ...scene._villageState };
+      ctrl.handleUnitActionEnd(makeUnit());
+      expect(scene._villageState.rewardItemUid).toBeUndefined();
+
+      ctrl.restoreFromVisionSnapshot(intactSnapshot);
+      expect(scene.runManager.removeFromConvoyByUid).not.toHaveBeenCalled();
+      expect(scene._villageState.status).toBe('intact');
+    });
+
+    it('a rewind not spanning the visit leaves the resolved village resolved', () => {
+      const { scene, ctrl } = setupIntact();
+      ctrl.handleUnitActionEnd(makeUnit());
+      const visitedSnapshot = { ...scene._villageState }; // snapshot taken after the visit
+      scene.grid.setTerrainAt.mockClear();
+
+      ctrl.restoreFromVisionSnapshot(visitedSnapshot);
+
+      expect(scene.runManager.removeFromConvoyByUid).not.toHaveBeenCalled();
+      expect(scene.grid.setTerrainAt).not.toHaveBeenCalled();
+      expect(scene._villageState.status).toBe('visited');
+      expect(ctrl.markers).toHaveLength(0);
+    });
+
+    it('no-ops without a village tile or without a snapshot state', () => {
+      const bare = new VillageController(makeScene());
+      expect(() => bare.restoreFromVisionSnapshot({ ...TILE, status: 'intact' })).not.toThrow();
+
+      const { scene, ctrl } = setupIntact();
+      ctrl.handleUnitActionEnd(makeUnit());
+      ctrl.restoreFromVisionSnapshot(null);
+      expect(scene._villageState.status).toBe('visited');
+    });
+  });
+
   describe('sanitizeSpawnedEnemy', () => {
     it('reverts a seek_tile spawn to chase when the village already resolved', () => {
       const scene = makeScene({

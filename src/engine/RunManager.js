@@ -2660,6 +2660,22 @@ export class RunManager {
   }
 
   /**
+   * Remove a specific convoy item by uid (both buckets searched). Used by
+   * reward-reverting flows (Vision rewind of a village visit) that must undo
+   * exactly the item they granted.
+   * @returns {object|null} the removed item, or null when no match
+   */
+  removeFromConvoyByUid(uid) {
+    if (typeof uid !== 'string' || !uid) return null;
+    this._sanitizeUnitPools();
+    for (const bucket of [this.convoy.consumables, this.convoy.weapons]) {
+      const idx = (bucket || []).findIndex((item) => item?.uid === uid);
+      if (idx !== -1) return bucket.splice(idx, 1)[0];
+    }
+    return null;
+  }
+
+  /**
    * Move eligible fallen-unit items into team storage.
    * Weapons/staves + consumables route to convoy if capacity allows.
    * Accessories route to the team accessory pool.

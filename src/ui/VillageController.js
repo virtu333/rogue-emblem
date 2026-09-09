@@ -19,6 +19,7 @@ import {
   VILLAGE_STATUS,
 } from '../engine/VillageSystem.js';
 import { TERRAIN, TILE_SIZE } from '../utils/constants.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 import { showMinorHint } from './HintDisplay.js';
 
 export class VillageController {
@@ -100,8 +101,11 @@ export class VillageController {
       scene.gameData?.lootTables,
       scene.gameData?.consumables,
     );
-    if (item && scene.runManager?.addToConvoy?.(item)) {
+    // Pre-assign the uid so the convoy clone shares it — a Vision rewind of
+    // this visit removes exactly this item again (see restoreFromVisionSnapshot).
+    if (item && scene.runManager?.addToConvoy?.(ensureItemUid(item))) {
       grantedItemName = item.name;
+      state.rewardItemUid = item.uid;
     }
 
     this._showFloat(unit, `+${gold}g`);
@@ -159,6 +163,45 @@ export class VillageController {
     const scene = this.scene;
     if (scene?._villageState?.status !== VILLAGE_STATUS.INTACT) return;
     scene.showBriefBanner?.('Bandits! They head for the village!', '#ff8888')?.catch?.(() => {});
+  }
+
+  /**
+   * Vision-rewind hook (called from VisionRewindController._applySnapshot):
+   * restore the village lifecycle to the snapshot's state so the visit/raze
+   * and its rewards rewind together. Undoes the visit's convoy item (by the
+   * uid recorded at grant time — gold rewinds via the generic goldEarned
+   * restore), reverts the tile terrain, and re-renders the marker. Bandit
+   * aiMode/aiTargetTile rewind with the generic enemy-unit restore.
+   * @param {object|null} snapshotState - the snapshot's cloned _villageState
+   */
+  restoreFromVisionSnapshot(snapshotState) {
+    const scene = this.scene;
+    if (!scene?.battleConfig?.villageTile) return;
+    const current = scene._villageState;
+    const target = snapshotState ? structuredClone(snapshotState) : null;
+    if (!target) return;
+
+    const currentResolved = current && current.status !== VILLAGE_STATUS.INTACT;
+    const targetIntact = target.status === VILLAGE_STATUS.INTACT;
+    if (currentResolved && targetIntact) {
+      // Rewinding across a visit/raze: reclaim the granted item (raze grants
+      // nothing — rewardItemUid is only set by a visit) and restore the tile.
+      if (current.rewardItemUid) {
+        scene.runManager?.removeFromConvoyByUid?.(current.rewardItemUid);
+      }
+      scene.grid?.setTerrainAt?.(target.col, target.row, TERRAIN.Village);
+      scene._villageState = target;
+      this._destroyMarkers();
+      this._renderMarker();
+    } else if (!currentResolved && !targetIntact) {
+      // Defensive: should not happen (village transitions are monotonic and
+      // snapshots precede the current state), but keep rendering consistent.
+      scene._villageState = target;
+      this._resolveTile(target);
+    } else {
+      scene._villageState = target;
+    }
+    scene.updateObjectiveText?.();
   }
 
   /** Convert the tile to Plain (visited/razed must not re-trigger) and clear the marker. */
