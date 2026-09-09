@@ -415,6 +415,24 @@ describe('VisionRewindController', () => {
       expect(snap.stats.MOV).toBe(7);
       expect(snap.mov).toBe(7); // live mov travels with live stats
     });
+
+    it('captures the village lifecycle state as an independent clone', () => {
+      scene._villageState = { col: 4, row: 6, status: 'intact' };
+      controller.captureSnapshot();
+      expect(scene.visionSnapshot.villageState).toEqual({ col: 4, row: 6, status: 'intact' });
+      // Later mutation of the live state must not leak into the snapshot.
+      scene._villageState.status = 'visited';
+      scene._villageState.rewardItemUid = 'itm_1_test';
+      expect(scene.visionSnapshot.villageState.status).toBe('intact');
+      expect(scene.visionSnapshot.villageState.rewardItemUid).toBeUndefined();
+    });
+
+    it('captures null villageState and the caravan exit flag', () => {
+      scene._caravanExited = true;
+      controller.captureSnapshot();
+      expect(scene.visionSnapshot.villageState).toBeNull();
+      expect(scene.visionSnapshot.caravanExited).toBe(true);
+    });
   });
 
   // ── commitSnapshotIfPending ─────────────────────────────
@@ -899,6 +917,57 @@ describe('VisionRewindController', () => {
       };
       controller._applySnapshot();
       expect(scene.battleState).toBe('PLAYER_IDLE');
+    });
+
+    it('routes the village state to VillageController and restores the caravan flag', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene._villageController = { restoreFromVisionSnapshot: vi.fn() };
+      scene._villageState = { col: 4, row: 6, status: 'visited', rewardItemUid: 'itm_9_x' };
+      scene._caravanExited = true;
+      scene.visionSnapshot = {
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        turnNumber: 1,
+        phase: 'player',
+        antiTurtleState: {},
+        rngSeed: 42,
+        fog: null,
+        ballistas: [],
+        zombieTombstones: [],
+        villageState: { col: 4, row: 6, status: 'intact' },
+        caravanExited: false,
+      };
+      controller._applySnapshot();
+      expect(scene._villageController.restoreFromVisionSnapshot).toHaveBeenCalledWith({
+        col: 4,
+        row: 6,
+        status: 'intact',
+      });
+      expect(scene._caravanExited).toBe(false);
+    });
+
+    it('tolerates snapshots without village/caravan fields and scenes without the controller', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene._caravanExited = true;
+      scene.visionSnapshot = {
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        turnNumber: 1,
+        phase: 'player',
+        antiTurtleState: {},
+        rngSeed: 42,
+        fog: null,
+        ballistas: [],
+        zombieTombstones: [],
+      };
+      expect(controller._applySnapshot()).toBe(true);
+      expect(scene._caravanExited).toBe(true); // legacy snapshot: flag untouched
     });
 
     it('restores turnPar from snapshot on rewind', () => {

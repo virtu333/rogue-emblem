@@ -313,6 +313,43 @@ describe("Mentor's Band: BattleScene.awardXP share pass", () => {
     expect(scene2.awards).toEqual([]);
   });
 
+  it("shares still flow when the holder's own rounded XP is 0 (overleveled chip damage)", async () => {
+    // Level-20 holder vs level-5 enemy: steep-decay tier floors the holder at
+    // XP_MIN=1; 5/20 chip damage rounds that to 0. The trainee's independent
+    // formula still yields 45 → floor(45 * 0.5 * 0.25) = 5, and must be paid.
+    const holder = makeUnit({ name: 'Holder', level: 20, col: 2, row: 2, accessory: mentorsBand });
+    const trainee = makeUnit({ name: 'Trainee', level: 1, col: 2, row: 3 });
+    const enemy = makeUnit({ name: 'Enemy', level: 5, faction: 'enemy' });
+    const scene = makeXpScene([holder, trainee]);
+
+    expect(calculateCombatXP(holder, enemy, false)).toBe(1);
+    await scene.awardXP(holder, enemy, false, 5, 20);
+    expect(scene.awards).toEqual([{ unit: trainee, xp: 5 }]);
+  });
+
+  it('shares still flow when a <1 reward multiplier zeroes the holder award', async () => {
+    // Holder floors at 1 base XP; a 0.5 reward multiplier rounds it to 0.
+    // Trainee (underdog +4, kill): 60 → floor(60 * 0.5 * 0.5) = 15.
+    const holder = makeUnit({ name: 'Holder', level: 20, col: 2, row: 2, accessory: mentorsBand });
+    const trainee = makeUnit({ name: 'Trainee', level: 1, col: 2, row: 3 });
+    const enemy = makeUnit({ name: 'Enemy', level: 5, faction: 'enemy' });
+    const scene = makeXpScene([holder, trainee]);
+    scene.getEnemyXpMultiplier = () => 0.5;
+
+    await scene.awardXP(holder, enemy, true);
+    expect(scene.awards).toEqual([{ unit: trainee, xp: 15 }]);
+  });
+
+  it('true zero-damage combats still award nothing to anyone', async () => {
+    const holder = makeUnit({ name: 'Holder', level: 20, col: 2, row: 2, accessory: mentorsBand });
+    const trainee = makeUnit({ name: 'Trainee', level: 1, col: 2, row: 3 });
+    const enemy = makeUnit({ name: 'Enemy', level: 5, faction: 'enemy' });
+    const scene = makeXpScene([holder, trainee]);
+
+    await scene.awardXP(holder, enemy, false, 0, 20);
+    expect(scene.awards).toEqual([]);
+  });
+
   it('shares are combat-only: dance/heal XP goes through awardScaledXP and never shares', () => {
     // Structural guarantee: the share pass lives in awardXP (combat entry
     // point) and grants via awardScaledXP directly. awardScaledXP contains no
@@ -438,6 +475,51 @@ describe("Mentor's Band: headless harness parity", () => {
     // Holder survives and counters the 1 HP enemy dead → counter XP + share.
     expect(holder.currentHP).toBeGreaterThan(0);
     expect(enemy.currentHP).toBeLessThanOrEqual(0);
+    expect(trainee.xp).toBe(expectedShare);
+  });
+
+  it("shares flow even when the holder's rounded XP is 0 (parity with BattleScene)", () => {
+    const holder = makeRosterUnit('Holder', 20, { accessory: structuredClone(mentorsBand) });
+    const trainee = makeRosterUnit('Trainee', 1);
+    const battle = new HeadlessBattle(gameData, battleParams, [holder, trainee]);
+    battle.init();
+
+    battle.enemyUnits.forEach((e, i) => {
+      e.col = i;
+      e.row = 0;
+    });
+    const enemy = battle.enemyUnits[0];
+    enemy.level = 5;
+    enemy.tier = 'base';
+    enemy.currentHP = 1;
+    enemy.stats.SPD = 0;
+    enemy.stats.LCK = 0;
+    enemy.stats.DEF = 0;
+    enemy.weapon = null;
+    // Reduced-reward reinforcement: holder's floor-1 base XP rounds to 0.
+    enemy._isReinforcement = true;
+    enemy._reinforcementRewardMultiplier = 0.85;
+    holder.col = 5;
+    holder.row = 5;
+    trainee.col = 5;
+    trainee.row = 6;
+    enemy.col = 6;
+    enemy.row = 5;
+
+    expect(calculateCombatXP(holder, enemy, true)).toBe(1);
+    const expectedShare = calculateSharedXp(
+      trainee,
+      enemy,
+      true,
+      0.5,
+      battle._getEnemyXpMultiplier(enemy),
+    );
+    expect(expectedShare).toBeGreaterThan(0);
+
+    battle._executeCombat(holder, enemy);
+
+    expect(enemy.currentHP).toBeLessThanOrEqual(0);
+    expect(holder.xp).toBe(0); // rounded holder award stays skipped
     expect(trainee.xp).toBe(expectedShare);
   });
 

@@ -209,6 +209,10 @@ export class AbilityController {
 
   async executeBlink(unit, skill, tile) {
     const scene = this.scene;
+    // Block input (cancel/End Turn/Vision) while the teleport resolves —
+    // same convention as HealController.executeRelocate. finishUnitAction
+    // moves the state onward once the effect completes.
+    scene.battleState = 'HEAL_RESOLVING';
     scene.commitVisionSnapshotIfPending();
     scene.hideActionMenu();
     markUsed(unit, skill.id);
@@ -334,6 +338,9 @@ export class AbilityController {
 
   async executeSelfCentered(unit, skill) {
     const scene = this.scene;
+    // Block input while the effect resolves (see executeBlink) — otherwise
+    // UNIT_ACTION_MENU stays live through the awaited FX/buff steps.
+    scene.battleState = 'HEAL_RESOLVING';
     scene.commitVisionSnapshotIfPending();
     scene.hideActionMenu(); // sentinel clears the AOE preview highlights
     scene.inEquipMenu = false;

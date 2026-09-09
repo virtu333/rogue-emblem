@@ -8570,7 +8570,6 @@ export class BattleScene extends Phaser.Scene {
       if (safeDamage <= 0) return;
       damageRatio = Math.min(1, safeDamage / safeStartHp);
       baseXp = Math.floor(baseXp * damageRatio);
-      if (baseXp <= 0) return;
     }
     const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
     const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
@@ -8581,14 +8580,17 @@ export class BattleScene extends Phaser.Scene {
     const adjustedBaseXp = Math.floor(
       baseXp * rewardMultiplier * pressureXpMultiplier * (1 + recruitXpBonus),
     );
-    if (adjustedBaseXp <= 0) return;
     // Mentor's Band (EXP Share): capture recipients before the holder's award
     // so a mid-award level-up can't change eligibility. Mirrored by the
     // headless harness (HeadlessBattle._awardSharedCombatXP) — keep in sync.
+    // Shares use the recipient's own XP formula, so they must be computed even
+    // when the holder's rounded award is 0 (overleveled holder, <1 multipliers).
     const xpShareRatio = getXpShareRatio(playerUnit);
     const xpShareRecipients =
       xpShareRatio > 0 ? getXpShareRecipients(playerUnit, this.playerUnits || []) : [];
-    await this.awardScaledXP(playerUnit, adjustedBaseXp);
+    if (adjustedBaseXp > 0) {
+      await this.awardScaledXP(playerUnit, adjustedBaseXp);
+    }
     for (const ally of xpShareRecipients) {
       // The scene may have shut down while a level-up popup was showing.
       if (this.sys?.isActive?.() === false) break;

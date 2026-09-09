@@ -857,3 +857,32 @@ describe('convoy scene/UI flows', () => {
     expect(overlay._convoyScrollOffset).toBe(0);
   });
 });
+
+describe('removeFromConvoyByUid', () => {
+  it('removes exactly the matching item from either bucket and returns it', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    vuln.uid = 'itm_test_consumable';
+    const sword = structuredClone(gameData.weapons.find((w) => w.name === 'Iron Sword'));
+    sword.uid = 'itm_test_weapon';
+    expect(rm.addToConvoy(vuln)).toBe(true);
+    expect(rm.addToConvoy(sword)).toBe(true);
+
+    const removed = rm.removeFromConvoyByUid('itm_test_consumable');
+    expect(removed?.name).toBe('Vulnerary');
+    expect(rm.convoy.consumables.some((i) => i.uid === 'itm_test_consumable')).toBe(false);
+    expect(rm.convoy.weapons.some((i) => i.uid === 'itm_test_weapon')).toBe(true);
+
+    const removedWeapon = rm.removeFromConvoyByUid('itm_test_weapon');
+    expect(removedWeapon?.name).toBe('Iron Sword');
+  });
+
+  it('returns null for an unknown or invalid uid', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    expect(rm.removeFromConvoyByUid('itm_missing')).toBeNull();
+    expect(rm.removeFromConvoyByUid(null)).toBeNull();
+    expect(rm.removeFromConvoyByUid('')).toBeNull();
+  });
+});

@@ -156,6 +156,11 @@ export class VisionRewindController {
       fog,
       ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
       zombieTombstones: structuredClone(scene._zombieTombstones || []),
+      // Micro-objective lifecycle state: a rewind spanning a village visit or
+      // raze must revert the village (and its reward item) together with the
+      // gold — see VillageController.restoreFromVisionSnapshot.
+      villageState: scene._villageState ? structuredClone(scene._villageState) : null,
+      caravanExited: scene._caravanExited === true,
     };
     if (!scene.visionSnapshot) {
       scene.visionSnapshot = snapshot;
@@ -273,6 +278,13 @@ export class VisionRewindController {
 
     scene.ballistas = (scene.visionSnapshot.ballistas || []).map((b) => ({ ...b }));
     scene._zombieTombstones = structuredClone(scene.visionSnapshot.zombieTombstones || []);
+    // Rewind micro-objective lifecycles with the rest of the turn: village
+    // visit/raze (terrain, marker, convoy reward) and the caravan exit flag
+    // (a lord-death rewind can span the enemy-phase step that exited it).
+    scene._villageController?.restoreFromVisionSnapshot?.(scene.visionSnapshot.villageState);
+    if ('caravanExited' in scene.visionSnapshot) {
+      scene._caravanExited = scene.visionSnapshot.caravanExited === true;
+    }
 
     const sourceSeed = Number.isFinite(scene.visionSnapshot.rngSeed)
       ? scene.visionSnapshot.rngSeed >>> 0

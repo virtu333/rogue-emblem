@@ -2316,8 +2316,10 @@ export class HeadlessBattle {
       const xp = Math.floor(
         baseXp * this._getEnemyXpMultiplier(defender) * this._getRecruitXpMultiplier(attacker),
       );
+      // Shares are computed from the recipient's own formula, so award them
+      // even when the holder's rounded XP is 0 (mirrors BattleScene.awardXP).
+      this._awardSharedCombatXP(attacker, defender, defender.currentHP <= 0);
       if (xp > 0) {
-        this._awardSharedCombatXP(attacker, defender, defender.currentHP <= 0);
         gainExperience(attacker, xp);
         checkLevelUpSkills(attacker, this.gameData.classes);
       }
@@ -2680,8 +2682,10 @@ export class HeadlessBattle {
       const xp = Math.floor(
         baseXp * this._getEnemyXpMultiplier(attacker) * this._getRecruitXpMultiplier(defender),
       );
+      // Shares are computed from the recipient's own formula, so award them
+      // even when the holder's rounded XP is 0 (mirrors BattleScene.awardXP).
+      this._awardSharedCombatXP(defender, attacker, attacker.currentHP <= 0);
       if (xp > 0) {
-        this._awardSharedCombatXP(defender, attacker, attacker.currentHP <= 0);
         gainExperience(defender, xp);
         checkLevelUpSkills(defender, this.gameData.classes);
       }
