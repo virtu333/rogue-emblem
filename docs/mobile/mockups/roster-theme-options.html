@@ -1,0 +1,327 @@
+<title>Rogue Emblem Mobile Theme</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* ============================================================
+     Rogue Emblem — mobile overlay theme reference
+     Single-theme (dark) by design: this mocks the in-game UI.
+     Tokens mirror src/utils/uiStyles.js + index.html auth overlay.
+     ============================================================ */
+  :root {
+    --bg: #0a0c1e;            /* page ground (index.html body) */
+    --panel: #12111f;         /* auth-overlay panel fill */
+    --panel-2: #1a1a2e;       /* Phaser overlay panel fill (0x1a1a2e) */
+    --line: #3a3a55;          /* hairline borders (0x444444 nudged blue) */
+    --line-soft: #26243c;
+    --gold: #e8b849;          /* focus / selection (auth overlay) */
+    --gold-hi: #f5d77a;       /* headers (auth overlay hover) */
+    --gold-ui: #ffdd44;       /* Phaser UI gold (uiStyles) */
+    --text: #e0e0e0;
+    --muted: #8888aa;
+    --blue: #88ccff;          /* convoy / XP accents */
+    --c-hp: #ff6666; --c-off: #ffdd44; --c-spd: #66ddff;
+    --c-def: #66ff66; --c-util: #e0e0e0;
+    --px: 'Press Start 2P', monospace;
+    --mono: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  /* ---- page chrome (this reference doc itself) ---- */
+  .doc-head { margin-bottom: 20px; }
+  .doc-head h1 { font-family: var(--px); font-size: 15px; color: var(--gold-hi); margin: 0 0 10px; letter-spacing: 1px; }
+  .doc-head p { color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 68ch; margin: 0; }
+  .doc-head p b { color: var(--text); font-weight: 600; }
+
+  .picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 10px; }
+  .pick {
+    font-family: var(--px); font-size: 9px; letter-spacing: 1px;
+    color: var(--muted); background: var(--panel); border: 1px solid var(--line);
+    padding: 12px 16px; cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .pick:hover { color: var(--text); }
+  .pick.on { color: var(--gold-hi); border-color: var(--gold); background: rgba(232,184,73,.06); }
+  .pick:focus-visible, .btn:focus-visible, .tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .variant-note { color: var(--muted); font-size: 12.5px; line-height: 1.6; margin: 0 0 14px; max-width: 78ch; }
+  .variant-note b { color: var(--gold-hi); font-weight: 600; }
+
+  /* ============================================================
+     Shared mockup layout (structure identical across variants;
+     only the .v-a / .v-b / .v-c skins differ)
+     ============================================================ */
+  .screen { border: 1px solid var(--line); overflow: hidden; }
+  .scr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
+  .scr-title { font-family: var(--px); font-size: 12px; margin: 0; letter-spacing: 1px; }
+  .scr-body { display: flex; gap: 12px; padding: 12px 14px; align-items: flex-start; }
+  .unit-col { flex: 0 0 190px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .scr-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+  .scr-foot .hint { color: var(--muted); font-size: 11.5px; }
+  @media (max-width: 620px) {
+    .scr-body { flex-direction: column; }
+    .unit-col { flex-basis: auto; flex-direction: row; overflow-x: auto; width: 100%; }
+    .ucard { flex: 0 0 150px; }
+  }
+
+  .ucard { padding: 10px 10px 9px; cursor: pointer; min-height: 44px; }
+  .uname { font-family: var(--px); font-size: 9px; margin-bottom: 6px; }
+  .usub { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
+  .uhp { display: flex; align-items: center; gap: 7px; }
+  .hpbar { flex: 1 1 auto; height: 6px; background: #333333; position: relative; }
+  .hpbar i { display: block; height: 100%; background: #44cc44; }
+  .hptxt { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ucard.convoy .uname { color: var(--blue); }
+
+  .dhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .dname { font-family: var(--px); font-size: 12px; }
+  .dsub { font-size: 11.5px; color: var(--muted); }
+
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    font-family: var(--px); font-size: 8px; letter-spacing: 1px; cursor: pointer;
+    padding: 12px 14px; min-height: 40px; flex: 1 1 0;
+  }
+
+  .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 14px; padding: 12px; }
+  @media (max-width: 480px) { .statgrid { grid-template-columns: repeat(2, 1fr); } }
+  .stat { display: grid; grid-template-columns: 34px 28px 1fr; align-items: center; gap: 8px; }
+  .stat label { font-family: var(--px); font-size: 7px; color: var(--muted); }
+  .stat b { font-family: var(--px); font-size: 10px; font-weight: 400; text-align: right; font-variant-numeric: tabular-nums; }
+  .sbar { height: 5px; background: #2a2840; position: relative; }
+  .sbar i { display: block; height: 100%; }
+
+  .box { padding: 10px 12px; }
+  .box h4 { font-family: var(--px); font-size: 8px; letter-spacing: 1px; color: var(--muted); margin: 0 0 8px; }
+  .box p { margin: 0; font-size: 12px; line-height: 1.55; }
+  .box .rank { color: var(--gold-ui); }
+
+  .btn {
+    font-family: var(--px); font-size: 8px; letter-spacing: 1px; cursor: pointer;
+    padding: 12px 16px; min-height: 42px; transition: color .15s, border-color .15s, background .15s;
+  }
+
+  /* ============================================================
+     VARIANT A — "Command Panel"  (lowest-effort restyle)
+     Direct port of the auth overlay + Phaser panel language.
+     ============================================================ */
+  .v-a { background: var(--bg); }
+  .v-a .scr-head { border-bottom: 2px solid var(--gold); background: var(--panel); }
+  .v-a .scr-title { color: var(--gold-hi); }
+  .v-a .ucard { background: var(--panel-2); border: 1px solid var(--line); }
+  .v-a .ucard .uname { color: var(--text); }
+  .v-a .ucard:hover .uname { color: var(--gold-hi); }
+  .v-a .ucard.sel { border-color: var(--gold); background: rgba(232,184,73,.06); }
+  .v-a .ucard.sel .uname { color: var(--gold-hi); }
+  .v-a .tab { background: #222233; border: 1px solid #666666; color: var(--muted); }
+  .v-a .tab.on { background: #443300; border-color: var(--gold-ui); color: #ffffff; }
+  .v-a .statgrid, .v-a .box { background: var(--panel-2); border: 1px solid var(--line); }
+  .v-a .btn { background: var(--panel); border: 1px solid #444466; color: #cccccc; }
+  .v-a .btn:hover { border-color: var(--gold); color: var(--gold-hi); background: rgba(232,184,73,.06); }
+  .v-a .scr-foot { border-top: 1px solid var(--line-soft); }
+
+  /* ============================================================
+     VARIANT B — "FE Window"  (GBA-style bevelled blue windows)
+     ============================================================ */
+  .v-b { background: #0b0d22 url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="8" height="8"%3E%3Crect width="8" height="8" fill="%230b0d22"/%3E%3Crect width="4" height="4" fill="%230d1028"/%3E%3Crect x="4" y="4" width="4" height="4" fill="%230d1028"/%3E%3C/svg%3E'); }
+  .v-b .scr-head { padding-bottom: 8px; }
+  .v-b .scr-title { color: #ffffff; text-shadow: 1px 1px 0 #101538, 2px 2px 0 rgba(0,0,0,.5); }
+  .v-b .scr-title::after { content: ""; display: block; height: 3px; margin-top: 8px;
+    background: linear-gradient(90deg, var(--gold) 0 60%, transparent); }
+  .fe-window, .v-b .ucard, .v-b .statgrid, .v-b .box {
+    background: linear-gradient(180deg, #2c3d72 0%, #1c2752 55%, #161e42 100%);
+    border: 2px solid #0a0c1e;
+    box-shadow: inset 0 0 0 1px #9aaad8, inset 0 0 0 2px #3b4a80, inset 2px 2px 0 2px rgba(255,255,255,.08);
+    border-radius: 3px;
+  }
+  .v-b .ucard .uname { color: #ffffff; text-shadow: 1px 1px 0 rgba(0,0,0,.6); }
+  .v-b .usub { color: #aab6e0; }
+  .v-b .ucard.sel { box-shadow: inset 0 0 0 1px var(--gold-hi), inset 0 0 0 2px #7a5c1a, inset 2px 2px 0 2px rgba(255,255,255,.08); }
+  .v-b .ucard.sel .uname { color: var(--gold-hi); }
+  .v-b .hpbar, .v-b .sbar { background: #101538; box-shadow: inset 0 1px 0 rgba(0,0,0,.6); border-radius: 2px; }
+  .v-b .tab { background: #131a38; border: 2px solid #0a0c1e; box-shadow: inset 0 0 0 1px #3b4a80; color: #8f9cc8; border-radius: 3px; }
+  .v-b .tab.on { background: linear-gradient(180deg, #2c3d72, #1c2752); box-shadow: inset 0 0 0 1px var(--gold-hi); color: #ffffff; text-shadow: 1px 1px 0 rgba(0,0,0,.6); }
+  .v-b .stat label { color: #aab6e0; }
+  .v-b .box h4 { color: var(--gold-hi); }
+  .v-b .box p { color: #e8ecfa; }
+  .v-b .btn { background: linear-gradient(180deg, #2c3d72, #161e42); border: 2px solid #0a0c1e; box-shadow: inset 0 0 0 1px #9aaad8; color: #ffffff; border-radius: 3px; text-shadow: 1px 1px 0 rgba(0,0,0,.6); }
+  .v-b .btn:hover { box-shadow: inset 0 0 0 1px var(--gold-hi); color: var(--gold-hi); }
+  .v-b .scr-foot .hint { color: #8f9cc8; }
+
+  /* ============================================================
+     VARIANT C — "Gilded Tactics"  (hairlines + gold corner brackets)
+     ============================================================ */
+  .v-c { background: #0b0a14; position: relative; }
+  .v-c .scr-head { border-bottom: 1px solid var(--line-soft); }
+  .v-c .scr-title { color: var(--gold-hi); font-size: 11px; }
+  .v-c .scr-title::before { content: "◆ "; color: var(--gold); }
+  .bracketed { position: relative; background: rgba(26,26,46,.55); border: 1px solid var(--line-soft); }
+  .bracketed::before, .bracketed::after {
+    content: ""; position: absolute; width: 9px; height: 9px; pointer-events: none;
+  }
+  .bracketed::before { top: -1px; left: -1px; border-top: 2px solid var(--gold); border-left: 2px solid var(--gold); }
+  .bracketed::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }
+  .v-c .ucard { background: rgba(26,26,46,.55); border: 1px solid var(--line-soft); }
+  .v-c .ucard .uname { color: var(--text); }
+  .v-c .ucard.sel { border-color: var(--gold); background: rgba(232,184,73,.07); position: relative; }
+  .v-c .ucard.sel::before { content: "▸"; position: absolute; left: -3px; top: 8px; color: var(--gold-ui); font-size: 12px; }
+  .v-c .ucard.sel .uname { color: var(--gold-hi); }
+  .v-c .tab { background: transparent; border: 1px solid var(--line-soft); color: var(--muted); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+  .v-c .tab.on { border-color: var(--gold); color: var(--gold-hi); background: rgba(232,184,73,.08); }
+  .v-c .stat label { color: #6c6a8e; }
+  .v-c .box h4 { color: var(--gold); }
+  .v-c .btn { background: transparent; border: 1px solid var(--line); color: #cccccc; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .v-c .btn:hover { border-color: var(--gold); color: var(--gold-hi); }
+  .v-c .scr-foot { border-top: 1px solid var(--line-soft); }
+  .v-c .sbar, .v-c .hpbar { background: #201e33; }
+
+  /* ---- hand-off notes ---- */
+  .notes { margin-top: 42px; border-top: 1px solid var(--line-soft); padding-top: 26px; }
+  .notes h2 { font-family: var(--px); font-size: 11px; color: var(--gold-hi); margin: 0 0 14px; }
+  .notes h3 { font-family: var(--px); font-size: 9px; color: var(--text); margin: 26px 0 10px; }
+  .notes p, .notes li { color: #b8b8cc; font-size: 13px; line-height: 1.65; }
+  .notes ul { padding-left: 20px; margin: 0; }
+  .notes li { margin-bottom: 7px; }
+  .notes li b { color: var(--gold-hi); font-weight: 600; }
+  .notes code { background: var(--panel); border: 1px solid var(--line-soft); padding: 1px 5px; font-size: 12px; color: var(--c-spd); }
+  .notes pre { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; overflow-x: auto; font-size: 12px; line-height: 1.6; color: #cfcfe0; margin: 10px 0 0; }
+  .notes pre .cm { color: #6c6a8e; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="doc-head">
+    <h1>ROGUE EMBLEM · MOBILE THEME OPTIONS</h1>
+    <p>The mobile roster/menu revamp is <b>more readable but off-brand</b> — it currently reads as a generic
+    slate admin panel. These are three restyles of the same roster screen, all built from tokens the game
+    already ships (<code style="color:#88ccff">src/utils/uiStyles.js</code> + the auth overlay CSS in
+    <code style="color:#88ccff">index.html</code>). Structure and touch targets are unchanged from the revamp —
+    only the skin differs. Hand-off notes for the implementing agent are at the bottom.</p>
+  </header>
+
+  <nav class="picker" id="picker">
+    <button class="pick on" data-v="a">A · COMMAND PANEL</button>
+    <button class="pick" data-v="b">B · FE WINDOW</button>
+    <button class="pick" data-v="c">C · GILDED TACTICS</button>
+  </nav>
+
+  <p class="variant-note" id="note-a"><b>Recommended baseline.</b> Cheapest to adopt: it is a direct port of the
+  existing auth-overlay + Phaser panel language. Square corners, 1px hairlines, navy <code>#1a1a2e</code> panels,
+  gold selection states, 'Press Start 2P' headers, per-stat colors. Roughly a CSS-only diff on the current revamp.</p>
+  <p class="variant-note" id="note-b" hidden><b>Most "Fire Emblem."</b> GBA-style bevelled blue windows built with
+  layered <code>box-shadow</code> insets (no images), pixel-checker backdrop, text shadows for sprite-font depth.
+  Higher effort; strongest vibe. Works best if applied everywhere at once — mixing it with flat panels looks broken.</p>
+  <p class="variant-note" id="note-c" hidden><b>Modern-tactical middle ground.</b> Near-black ground, hairline panels
+  with gold corner brackets, chamfered (clip-path) buttons and tabs, a ▸ cursor glyph on the selected unit.
+  Distinctive without imitating GBA chrome; scales well to dense screens like convoy lists.</p>
+
+  <div id="stage"></div>
+
+  <section class="notes">
+    <h2>HAND-OFF NOTES</h2>
+
+    <h3>NON-NEGOTIABLES (ANY VARIANT)</h3>
+    <ul>
+      <li><b>Border radius ≤ 3px.</b> The current 8–12px rounded cards are the single biggest vibe-killer. Pixel-art UIs are square.</li>
+      <li><b>'Press Start 2P' for headers, labels, buttons, tabs.</b> Keep the readable system/monospace font for body copy and long descriptions — that readability win was the point of the revamp. Budget ~8px width per character at 9px size; test longest names ("Acidic Swamp", "Light Sage", promoted class names).</li>
+      <li><b>Gold means "selected / focused / actionable",</b> exactly as in-game: <code>#e8b849</code> border + <code>rgba(232,184,73,.06)</code> fill, text to <code>#f5d77a</code>. Never a filled blue "primary button".</li>
+      <li><b>Stat colors from uiStyles.js</b>: HP <code>#ff6666</code>, STR/MAG/SKL <code>#ffdd44</code>, SPD <code>#66ddff</code>, DEF/RES <code>#66ff66</code>, LCK/MOV <code>#e0e0e0</code>. The all-gold numbers in the current build lose information the game already encodes.</li>
+      <li><b>Panels are navy, not slate</b>: fills <code>#12111f</code> / <code>#1a1a2e</code> on ground <code>#0a0c1e</code>, hairlines <code>#3a3a55</code>. No drop shadows — use borders and fills for depth (or Variant B's inset bevels).</li>
+      <li><b>Keep the touch ergonomics</b>: ≥44px hit areas, current spacing, current information order. This is a reskin, not a relayout.</li>
+      <li><b>HP bars everywhere HP appears</b> (green/yellow/red at 70%/40% per <code>getHPBarColor</code>) and mini stat bars in stat grids — bars are half the FE feel.</li>
+      <li><b>Micro-details that sell it</b>: 2px gold rule under screen titles, ▸ or ◆ glyphs as cursors/markers, <code>image-rendering: pixelated</code> on any sprite/portrait images, <code>font-variant-numeric: tabular-nums</code> on stat columns, no opacity-fade hovers (color-shift to gold instead).</li>
+    </ul>
+
+    <h3>DROP-IN TOKENS</h3>
+    <pre>/* mobile-overlay theme tokens — mirrors uiStyles.js + index.html auth overlay */
+:root {
+  --re-bg: #0a0c1e;        <span class="cm">/* page ground */</span>
+  --re-panel: #12111f;     <span class="cm">/* chrome / buttons */</span>
+  --re-panel-2: #1a1a2e;   <span class="cm">/* content panels (Phaser 0x1a1a2e) */</span>
+  --re-line: #3a3a55;      <span class="cm">/* hairline borders */</span>
+  --re-gold: #e8b849;      <span class="cm">/* selection / focus border */</span>
+  --re-gold-hi: #f5d77a;   <span class="cm">/* selected / hover text */</span>
+  --re-gold-ui: #ffdd44;   <span class="cm">/* in-canvas gold (headers, offense stats) */</span>
+  --re-text: #e0e0e0;  --re-muted: #8888aa;  --re-blue: #88ccff;
+  --re-hp: #ff6666; --re-off: #ffdd44; --re-spd: #66ddff; --re-def: #66ff66;
+  --re-font-px: 'Press Start 2P', monospace;
+}
+.re-panel  { background: var(--re-panel-2); border: 1px solid var(--re-line); border-radius: 0; }
+.re-select { border-color: var(--re-gold); background: rgba(232,184,73,.06); color: var(--re-gold-hi); }
+.re-btn    { font: 8px/1 var(--re-font-px); letter-spacing: 1px; color: #cccccc;
+             background: var(--re-panel); border: 1px solid #444466; padding: 12px 16px; }
+.re-btn:hover, .re-btn:active { border-color: var(--re-gold); color: var(--re-gold-hi);
+             background: rgba(232,184,73,.06); }</pre>
+
+    <h3>SUGGESTED PATH</h3>
+    <ul>
+      <li>Ship <b>Variant A</b> now as the shared base stylesheet for all HTML overlays (roster, shop, church, settings, deploy) — it is essentially token substitution on the current markup.</li>
+      <li>Layer <b>C's brackets/chamfers</b> on hero surfaces (screen headers, selected cards) if A feels too plain; the classes are additive.</li>
+      <li>Treat <b>B</b> as the aspirational skin — only adopt if committing to it across every overlay in one pass.</li>
+      <li>Whichever variant wins, extract the tokens into one shared CSS file so mobile overlays and the auth overlay stop diverging.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const STATS = [
+    ['HP', 20, 40, 'var(--c-hp)'],  ['Strength', 6, 20, 'var(--c-off)'], ['Magic', 2, 20, 'var(--c-off)'],
+    ['Skill', 7, 20, 'var(--c-off)'], ['Speed', 8, 20, 'var(--c-spd)'],  ['Defense', 5, 20, 'var(--c-def)'],
+    ['Resist', 3, 20, 'var(--c-def)'], ['Luck', 6, 20, 'var(--c-util)'], ['Move', 4, 10, 'var(--c-util)'],
+  ];
+  function screenHTML(v) {
+    const stats = STATS.map(([n, val, cap, col]) => `
+      <div class="stat"><label>${n.slice(0,3).toUpperCase()}</label>
+        <b style="color:${col}">${val}</b>
+        <span class="sbar"><i style="width:${Math.round(val/cap*100)}%;background:${col}"></i></span></div>`).join('');
+    const bracket = v === 'c' ? ' bracketed' : '';
+    return `
+    <div class="screen v-${v}">
+      <div class="scr-head">
+        <h2 class="scr-title">YOUR ROSTER</h2>
+        <button class="btn">CLOSE</button>
+      </div>
+      <div class="scr-body">
+        <aside class="unit-col">
+          <div class="ucard sel${bracket}">
+            <div class="uname">EDRIC</div><div class="usub">Lord · Lv 1</div>
+            <div class="uhp"><span class="hpbar"><i style="width:100%"></i></span><span class="hptxt">20/20</span></div>
+          </div>
+          <div class="ucard">
+            <div class="uname">SERA</div><div class="usub">Light Sage · Lv 1</div>
+            <div class="uhp"><span class="hpbar"><i style="width:100%"></i></span><span class="hptxt">18/18</span></div>
+          </div>
+          <div class="ucard convoy">
+            <div class="uname">CONVOY</div><div class="usub">12 items stored</div>
+          </div>
+        </aside>
+        <section class="detail">
+          <div class="dhead"><span class="dname">EDRIC</span><span class="dsub">Level 1 Lord · HP 20/20 · XP 0/100</span></div>
+          <div class="tabs">
+            <button class="tab on">STATS</button>
+            <button class="tab">EQUIPMENT</button>
+            <button class="tab">CONVOY</button>
+          </div>
+          <div class="statgrid${bracket}">${stats}</div>
+          <div class="box${bracket}"><h4>PROFICIENCIES</h4><p>Sword <span class="rank">D</span></p></div>
+          <div class="box${bracket}"><h4>CHARISMA</h4><p>Allies within 2 tiles gain +10 Hit, +5 Avoid</p></div>
+        </section>
+      </div>
+      <div class="scr-foot">
+        <span class="hint">Promotion, scrolls and trading</span>
+        <button class="btn">ADVANCED MANAGEMENT</button>
+      </div>
+    </div>`;
+  }
+  const stage = document.getElementById('stage');
+  function show(v) {
+    stage.innerHTML = screenHTML(v);
+    document.querySelectorAll('.pick').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    ['a','b','c'].forEach(x => { document.getElementById('note-' + x).hidden = x !== v; });
+    try { localStorage.setItem('re-theme-variant', v); } catch (e) {}
+  }
+  document.getElementById('picker').addEventListener('click', e => {
+    const b = e.target.closest('.pick'); if (b) show(b.dataset.v);
+  });
+  let initial = 'a';
+  try { initial = localStorage.getItem('re-theme-variant') || 'a'; } catch (e) {}
+  show(['a','b','c'].includes(initial) ? initial : 'a');
+</script>
