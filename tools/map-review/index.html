@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Emblem Rogue · Map field trials</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #12252c;
+      color: #e5e3d5;
+      font: 15px/1.5 system-ui;
+    }
+    main {
+      max-width: 1240px;
+      margin: auto;
+      padding: 28px;
+    }
+    h1 {
+      font: 36px Georgia;
+      margin: 8px 0;
+    }
+    h2 {
+      font: 23px Georgia;
+    }
+    p {
+      color: #bdc8c1;
+      max-width: 880px;
+    }
+    .kicker {
+      color: #d6bd83;
+      font: 12px monospace;
+      letter-spacing: 2px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 22px 0;
+    }
+    label {
+      display: grid;
+      gap: 4px;
+      font-size: 12px;
+    }
+    select,
+    button,
+    a.action {
+      font: 14px system-ui;
+      color: #eee8d3;
+      background: #304851;
+      border: 1px solid #73837b;
+      padding: 10px;
+      min-height: 44px;
+      border-radius: 3px;
+    }
+    button,
+    a {
+      cursor: pointer;
+    }
+    a {
+      color: #e0c486;
+    }
+    button:hover {
+      background: #435e65;
+    }
+    button:focus-visible,
+    select:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #edd28b;
+    }
+    a.action {
+      text-decoration: none;
+      display: inline-block;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 18px 0;
+    }
+    .metric {
+      background: #233a42;
+      padding: 14px;
+      border-top: 2px solid #9f956e;
+    }
+    .metric b {
+      display: block;
+      color: #e6d2a3;
+      font-size: 23px;
+    }
+    .metric span {
+      font-size: 12px;
+      color: #bac8c2;
+    }
+    .viewport {
+      overflow: auto;
+      border: 1px solid #667d7b;
+      background: #0c1420;
+      padding: 12px;
+    }
+    iframe {
+      display: block;
+      border: 0;
+      max-width: none;
+      background: #0a0a20;
+    }
+    .notes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .plan {
+      background: #233a42;
+      padding: 18px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .catalog {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .card {
+      text-align: left;
+      padding: 10px;
+      background: #213740;
+    }
+    .card.active {
+      outline: 2px solid #e0c486;
+    }
+    .card canvas {
+      width: 100%;
+      height: 85px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      background: #14272d;
+    }
+    .card small {
+      display: block;
+      color: #c4c9bc;
+    }
+    .legend {
+      font-size: 12px;
+      color: #afc1bc;
+    }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      color: #eee;
+      background: #142a32;
+      border: 1px solid #6a8079;
+      padding: 10px;
+      font: 14px system-ui;
+    }
+    .status {
+      color: #cbbb87;
+    }
+    footer {
+      padding: 24px 0;
+      color: #acbab5;
+      font-size: 12px;
+    }
+    @media (max-width: 720px) {
+      main {
+        padding: 16px;
+      }
+      .catalog {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .notes {
+        grid-template-columns: 1fr;
+      }
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+  <main>
+    <div class="kicker">EMBLEM ROGUE / PLAYABLE MAP FIELD TRIALS</div>
+    <h1>Thirty maps. One phone layout.</h1>
+    <p>
+      Real generator outputs across ten templates and three repeatable seeds. The embedded battle
+      uses the current terrain, sprites, camera and command rail. Select a case, play a few turns,
+      and compare its starting view with Overview.
+    </p>
+    <div class="controls">
+      <label>Template<select id="template"></select></label
+      ><label
+        >Seed<select id="seed">
+          <option>42</option>
+          <option>137</option>
+          <option>908</option>
+        </select></label
+      ><label
+        >Viewport<select id="device">
+          <option value="844,390">Phone · 844 × 390</option>
+          <option value="667,375">Compact phone · 667 × 375</option>
+          <option value="640,480">Base design · 640 × 480</option>
+        </select></label
+      ><button id="next">Next case →</button><button id="restart">Restart battle</button
+      ><a id="open" class="action" target="_blank">Open battle separately ↗</a>
+    </div>
+    <div class="metrics" id="metrics"></div>
+    <div class="viewport">
+      <div id="screen">
+        <iframe id="battle" title="Playable generated battle" allow="autoplay"></iframe>
+      </div>
+    </div>
+    <p class="legend">
+      The frame uses the selected CSS viewport, scaled down to fit this review page; native
+      safe-area/notch testing remains a separate check. Changing cases or restarting resets this
+      review battle.
+    </p>
+    <div class="notes">
+      <section class="plan">
+        <h2 id="caseTitle"></h2>
+        <div id="focus"></div>
+        <p id="diagnostics"></p>
+        <p id="crowd"></p>
+      </section>
+      <section class="plan">
+        <h2>Playtest checklist</h2>
+        <ol>
+          <li>Can you identify your allies and the approach immediately?</li>
+          <li>Tap a unit, preview movement, and inspect terrain near a chokepoint.</li>
+          <li>Compare Overview with the normal view. Can you return to the action easily?</li>
+          <li>Move, open Roster, then close it. Check for camera jumps or hidden units.</li>
+          <li>Try the compact phone size. Check target selection and edge panning.</li>
+        </ol>
+        <label
+          >Notes for this seed (saved in this browser)<textarea
+            id="notes"
+            placeholder="Framing, crowded tiles, confusing terrain, travel time…"
+          ></textarea></label
+        ><span id="saved" class="status" aria-live="polite"></span>
+      </section>
+    </div>
+    <h2>Case catalog</h2>
+    <p class="legend">
+      Diagnostic miniatures show terrain and actual spawn locations, not final art. Cyan = allied
+      spawn; red = enemy spawn. Every case is a rout battle.
+    </p>
+    <div id="catalog" class="catalog"></div>
+    <footer>
+      Checks: 60 generated configurations (2- and 8-unit deployment requests); 30 repeat-generation
+      comparisons. Ground-route metrics ignore units, combat, reinforcements, flight and danger.
+      Narrow cells are a topology hint, not a chokepoint verdict.
+    </footer>
+  </main>
+  <script type="module">
+    const data = await (await fetch('cases.json')).json(),
+      $ = (s) => document.querySelector(s),
+      cases = data.cases;
+    const focus = {
+      river_crossing:
+        'Bridge congestion, water boundaries, and the camera following movement across the river.',
+      forest_ambush:
+        'Unit silhouettes over forest, movement-cost visibility, and crowded deployment.',
+      chokepoint:
+        'Wall connectivity, readable gaps, and whether the route is obvious without Overview.',
+      corridor_siege: 'Constrained movement, vertical space, and targeting units along walls.',
+      castle_ruins: 'Stone-floor contrast, broken walls, and readable alternate routes.',
+      mire_crossing: 'Swamp and water distinctions, expensive movement, and long approaches.',
+      frozen_pass: 'Mountain passages, snow contrast, and visibility of units at the map edge.',
+      glacier_run: 'Large-map framing, ice/water boundaries, and travel distance.',
+      caldera: 'Hazard contrast, reachable paths, and the amount of panning required.',
+      magma_flow: 'Lava crossings, congestion, and late-act enemy density.',
+    };
+    for (const t of [...new Map(cases.map((c) => [c.id, c])).values()])
+      $('#template').add(new Option(t.label, t.id));
+    let current;
+    const key = (c) => 'map-review:' + c.id + ':' + c.seed;
+    function fit() {
+      const f = $('#battle'),
+        scale = Math.min(1, ($('#screen').clientWidth || 844) / parseFloat(f.style.width));
+      f.style.transformOrigin = 'top left';
+      f.style.transform = `scale(${scale})`;
+      $('#screen').style.height = parseFloat(f.style.height) * scale + 'px';
+    }
+    new ResizeObserver(fit).observe($('#screen'));
+    function url(c) {
+      return (
+        'http://127.0.0.1:3000/?' +
+        new URLSearchParams({
+          devScene: 'battle',
+          preset: 'battle_smoke',
+          seed: c.seed,
+          mobilePreview: 1,
+          battleLab: 1,
+          labMap: c.id,
+        })
+      );
+    }
+    function render(reload = true) {
+      current = cases.find((c) => c.id === $('#template').value && c.seed === +$('#seed').value);
+      const c = current;
+      $('#metrics').innerHTML =
+        `<div class="metric"><b>${c.cols} × ${c.rows}</b><span>${c.biome} · ${c.act}</span></div><div class="metric"><b>${c.players.length} / ${c.enemies.length}</b><span>Allied / enemy spawns</span></div><div class="metric"><b>${c.metrics.nearest ?? '—'}</b><span>Cheapest infantry cost to an enemy tile*</span></div><div class="metric"><b>${c.metrics.narrow} / ${c.metrics.passable}</b><span>Narrow / passable ground cells*</span></div>`;
+      $('#caseTitle').textContent = c.label + ' · seed ' + c.seed;
+      $('#focus').textContent = focus[c.id];
+      $('#diagnostics').textContent =
+        `Generator validation: ${c.violations.length ? c.violations.join('; ') : 'passed'}. Enemy tiles without a terrain-only infantry route: ${c.metrics.unreachable}.`;
+      $('#crowd').textContent =
+        `Separate 8-unit deployment request: ${c.crowd.players} spawn slots, ${c.crowd.enemies} enemies; ${c.crowd.violations.length ? 'validation warnings' : 'validation passed'}. This diagnostic is not the two-ally playable roster shown above.`;
+      $('#open').href = url(c);
+      if (reload) $('#battle').src = url(c);
+      let [w, h] = $('#device').value.split(',');
+      $('#battle').style.width = w + 'px';
+      $('#battle').style.height = h + 'px';
+      fit();
+      try {
+        $('#notes').value = localStorage.getItem(key(c)) || '';
+      } catch {
+        $('#notes').value = '';
+      }
+      $('#saved').textContent = '';
+      document
+        .querySelectorAll('.card')
+        .forEach((b, i) => b.classList.toggle('active', cases[i] === c));
+    }
+    const colors = {
+      Plain: '#8c9862',
+      Forest: '#465c43',
+      Mountain: '#919087',
+      Wall: '#adae97',
+      Floor: '#85897f',
+      Water: '#426b80',
+      Bridge: '#ac875b',
+      Fort: '#cab789',
+      Lava: '#b35b36',
+      Ice: '#9cbbc1',
+      Snow: '#c3ccc1',
+      Swamp: '#5c6650',
+    };
+    cases.forEach((c) => {
+      let b = document.createElement('button');
+      b.className = 'card';
+      b.innerHTML = `<canvas width="180" height="130"></canvas><strong>${c.label}</strong><small>Seed ${c.seed} · ${c.cols} × ${c.rows}</small>`;
+      b.onclick = () => {
+        $('#template').value = c.id;
+        $('#seed').value = c.seed;
+        render();
+      };
+      $('#catalog').append(b);
+      let ctx = b.querySelector('canvas').getContext('2d'),
+        s = Math.min(180 / c.cols, 130 / c.rows);
+      c.mapLayout.forEach((r, y) =>
+        r.forEach((t, x) => {
+          ctx.fillStyle = colors[data.terrain[t].name] || '#797461';
+          ctx.fillRect(x * s, y * s, s, s);
+        }),
+      );
+      for (const [list, color] of [
+        [c.players, '#7fe5f7'],
+        [c.enemies, '#ef7070'],
+      ])
+        for (const p of list) {
+          ctx.fillStyle = '#14232b';
+          ctx.fillRect(p.col * s, p.row * s, s, s);
+          ctx.fillStyle = color;
+          ctx.fillRect(p.col * s + 2, p.row * s + 2, s - 4, s - 4);
+        }
+    });
+    for (const id of ['template', 'seed']) $('#' + id).onchange = () => render();
+    $('#device').onchange = () => render(false);
+    $('#restart').onclick = () => render();
+    $('#next').onclick = () => {
+      let c = cases[(cases.indexOf(current) + 1) % cases.length];
+      $('#template').value = c.id;
+      $('#seed').value = c.seed;
+      render();
+    };
+    $('#notes').oninput = () => {
+      try {
+        localStorage.setItem(key(current), $('#notes').value);
+        $('#saved').textContent = 'Saved locally';
+      } catch {
+        $('#saved').textContent = 'Local storage unavailable';
+      }
+    };
+    render();
+  </script>
+</html>
