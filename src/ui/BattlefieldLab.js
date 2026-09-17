@@ -1,5 +1,6 @@
 import './battlefieldLab.css';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
+import { deploymentFrame } from '../utils/deploymentCamera.js';
 import { TILE_SIZE } from '../utils/constants.js';
 
 export function battlefieldLabEnabled() {
@@ -23,8 +24,9 @@ export class BattlefieldLab {
     this.tools.className = 'bl-tools';
     this.tools.setAttribute('aria-label', 'Battle utilities');
     this.tools.append(
-      hud.button('Back', () => this.scene.requestCancel({ allowPause: false })),
       hud.button('Overview', () => this.scene.resetBattleCameraView()),
+      hud.button('Recenter', () => this.recenter()),
+      hud.button('Back', () => this.scene.requestCancel({ allowPause: false })),
       hud.button('Menu', () => this.scene.game.events.emit('mobile:menu')),
     );
     hud.root.append(this.tools);
@@ -50,6 +52,16 @@ export class BattlefieldLab {
     if (viewportKey === this.lastViewportKey) return;
     this.lastViewportKey = viewportKey;
     const s = this.scene;
+    const cam = s.cameras.main;
+    const previous = this.viewHeight
+      ? {
+          x: cam.scrollX + cam.width / 2,
+          y: cam.scrollY + cam.height / 2,
+          zoom: (cam.zoom * this.viewHeight) / rect.height,
+          overview: Math.abs(cam.zoom - s._battleCamera?.minZoom) < 0.001,
+        }
+      : null;
+    this.viewHeight = rect.height;
     s.scale.setGameSize(width, 480);
     s.cameras.main.setSize(width, 480);
     s._uiCamera?.setSize(width, 480);
@@ -58,23 +70,42 @@ export class BattlefieldLab {
       const fit = Math.min((width - 32) / bounds.width, 448 / bounds.height);
       s._battleCamera.minZoom = Math.max(0.5, fit);
       s._battleCamera.maxZoom = Math.max(3, fit * 2.5);
-      s._battleCamera.resetView();
-      // Keep roughly 34 CSS pixels per tile on short phone viewports.
-      // Overview remains the fitted view; pinch/pan can explore the full map.
-      const zoom = Math.min(
-        s._battleCamera.maxZoom,
-        Math.max(fit, (34 * 480) / (rect.height * TILE_SIZE)),
-      );
-      const leader = s.selectedUnit || s.playerUnits?.[0];
-      s.cameras.main.setZoom(zoom);
-      if (leader) {
-        const point = s.grid.gridToPixel(leader.col, leader.row);
-        s.cameras.main.centerOn(point.x, point.y);
+      if (!previous) this.recenter();
+      else if (previous.overview) s._battleCamera.resetView();
+      else {
+        cam.setZoom(
+          Math.max(s._battleCamera.minZoom, Math.min(s._battleCamera.maxZoom, previous.zoom)),
+        );
+        cam.centerOn(previous.x, previous.y);
       }
       s._battleCamera.clampToBounds();
     }
     s.scale.getParentBounds();
     s.scale.refresh();
+  }
+
+  recenter() {
+    const s = this.scene,
+      cam = s.cameras.main,
+      controller = s._battleCamera;
+    if (!controller || !this.viewHeight) return;
+    const selected = s.selectedUnit?.currentHP > 0 ? s.selectedUnit : null;
+    const units = selected ? [selected] : (s.playerUnits || []).filter((u) => u.currentHP > 0);
+    const points = units.map((u) => s.grid.gridToPixel(u.col, u.row));
+    const frame = deploymentFrame(points, {
+      width: cam.width,
+      height: cam.height,
+      tileSize: TILE_SIZE,
+      cssHeight: this.viewHeight,
+      minZoom: controller.minZoom,
+      maxZoom: controller.maxZoom,
+    });
+    if (!frame) return;
+    controller.clearTouches();
+    cam.setZoom(frame.zoom);
+    cam.centerOn(frame.x, frame.y);
+    controller.clampToBounds();
+    s._syncMobileResetViewButton();
   }
 
   paintTerrain(art) {

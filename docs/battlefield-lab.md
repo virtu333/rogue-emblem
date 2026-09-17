@@ -37,3 +37,11 @@ A separately identified simulator app (com.davechen.emblemrogue.lab) bundles the
 ## Remaining review
 
 Physical-device comfort/performance and a complete end-to-end encounter need hands-on review. Some generated maps contain isolated bridge cells or enclosed wall formations; these should be reviewed as generator choices, not silently edited by the renderer. More bank-corner art, class-specific sprite refreshes, and matching roster/inventory/shop screens remain future work. Legacy scenes outside the battle presentation still assume a 640×480 canvas.
+
+## Deployment camera and Recenter (2026-09-16)
+
+The lab opens on the living allied deployment bounds with two tiles of surrounding space. It targets 34 CSS pixels per tile, relaxing to 30 to include a compact party. If the party cannot fit at that readable scale, it starts on the first living ally. Overview still fits the full map.
+
+The persistent Recenter control returns to the selected living unit at tactical zoom, or recomposes the living allied party when nothing is selected. It does not select units, move them, or commit actions. Camera controls share one row with Back and Menu; the command rail has a 222px minimum width to retain 44px targets without consuming another row of vertical space.
+
+Viewport resizing preserves world center and apparent tile size, subject to map bounds and zoom limits. An existing overview remains an overview. Modal transitions at the same viewport dimensions leave the camera untouched. These changes remain inside the development battlefield lab.

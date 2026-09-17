@@ -10,7 +10,7 @@ html.touch-ui #game-wrapper.battlefield-lab {
   --re-gold-hi: #ead8a5;
   --re-selected: #476664;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) clamp(190px, 24vw, 220px);
+  grid-template-columns: minmax(0, 1fr) clamp(222px, 24vw, 240px);
   grid-template-rows: minmax(0, 1fr);
   position: relative;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
@@ -137,7 +137,7 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 .battlefield-lab .mb-battle-info[open] > .mb-more-content {
   position: fixed;
   z-index: 30;
-  right: calc(clamp(190px, 24vw, 220px) + env(safe-area-inset-right) + 8px);
+  right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right) + 8px);
   bottom: max(8px, env(safe-area-inset-bottom));
   width: min(330px, 50vw);
   padding: 10px;
@@ -158,12 +158,15 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 }
 .bl-tools {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(52px, 1fr)) repeat(2, 44px);
+  gap: 2px;
   flex-shrink: 0;
 }
 .battlefield-lab .bl-tools .mb-button {
-  font-size: 10px;
+  font:
+    10px/1.2 system-ui,
+    sans-serif;
+  white-space: nowrap;
   padding: 4px 1px;
 }
 .battlefield-lab .bl-inactive {
