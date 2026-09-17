@@ -1,3 +1,4 @@
+import { MobileHomeBase } from '../ui/MobileHomeBase.js';
 import { inputHint } from '../utils/inputHint.js';
 // HomeBaseScene — Meta-progression upgrade shop with tabbed UI
 
@@ -215,14 +216,20 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.drawUI();
 
+    if (this.isMobileInput) this.mobileHome = new MobileHomeBase(this);
+
     // Tutorial hints for home base
     const hints = this.registry.get('hints');
-    if (hints) {
+    if (hints && !this.isMobileInput) {
       void HomeBaseScene.prototype._runStartupHints.call(this, hints, lifecycleGeneration);
     }
   }
 
   _onSceneShutdown() {
+    this.mobileHome?.destroy();
+    this.mobileHome = null;
+    this.mobileUpgrades?.destroy();
+    this.mobileUpgrades = null;
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
@@ -2219,6 +2226,14 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   requestCancel({ allowExit = true } = {}) {
+    if (this.mobileHome?.visible) {
+      this.mobileHome.back();
+      return;
+    }
+    if (this.mobileUpgrades?.visible) {
+      this.mobileUpgrades.back();
+      return true;
+    }
     if (this._sceneShuttingDown) return true;
     if (!this.canRequestCancel({ allowExit })) return false;
     if (this.confirmOverlayObjects.length > 0) {
