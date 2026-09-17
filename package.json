@@ -55,7 +55,9 @@
     "lint": "eslint --max-warnings=-1 .",
     "lint:fix": "eslint --fix .",
     "validate:data": "node tools/validateSchemas.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "lint-staged": {
     "*.js": [
@@ -67,10 +69,14 @@
     ]
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@fontsource/press-start-2p": "^5.3.0",
     "@supabase/supabase-js": "^2.95.3",
     "phaser": "^3.80.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "ajv": "^8.18.0",
