@@ -2,7 +2,9 @@
 
 **Date:** 2026-09-16
 **Status:** Reference for the mobile UI/UX revamp
-**Interactive mockups:** `docs/mobile/mockups/roster-theme-options.html` (open in any browser — three switchable variants of the roster screen)
+**Interactive mockups:**
+- `docs/mobile/mockups/roster-theme-options.html` — three theme variants of the roster screen
+- `docs/mobile/mockups/upgrade-menu-mobile.html` — three touch interaction patterns for the Home Base upgrade shop (iOS landscape, real metaUpgrades.json data, working purchase flow); hand-off rules at the bottom of the file
 
 ## Problem
 

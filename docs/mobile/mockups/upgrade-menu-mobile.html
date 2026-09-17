@@ -1,0 +1,409 @@
+<title>Upgrade Menu Touch Patterns</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  /* ============================================================
+     Rogue Emblem — mobile upgrade menu (iOS) interaction mockups
+     Single-theme (dark) by design: mocks the in-game UI.
+     Tokens mirror docs/mobile/ui-theme-guide.md (Variant A).
+     ============================================================ */
+  :root {
+    --bg:#0a0c1e; --panel:#12111f; --panel-2:#1a1a2e; --line:#3a3a55; --line-soft:#26243c;
+    --gold:#e8b849; --gold-hi:#f5d77a; --gold-ui:#ffdd44;
+    --text:#e0e0e0; --muted:#8888aa; --blue:#88ccff;
+    --pip:#88ccff; --pip-max:#ffdd44; --pip-empty:#333344;
+    --px:'Press Start 2P', monospace;
+    --mono: ui-monospace,'Cascadia Mono',Menlo,monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 24px 16px 64px; }
+  .doc-head h1 { font-family: var(--px); font-size: 14px; color: var(--gold-hi); margin: 0 0 10px; letter-spacing: 1px; }
+  .doc-head p { color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 70ch; margin: 0; }
+  .doc-head b { color: var(--text); font-weight: 600; }
+  .doc-head code { color: var(--blue); }
+
+  .picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 10px; }
+  .pick { font-family: var(--px); font-size: 8.5px; letter-spacing: 1px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; cursor: pointer;
+    transition: color .15s, border-color .15s; }
+  .pick:hover { color: var(--text); }
+  .pick.on { color: var(--gold-hi); border-color: var(--gold); background: rgba(232,184,73,.06); }
+  .pick:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .variant-note { color: var(--muted); font-size: 12.5px; line-height: 1.6; margin: 0 0 14px; max-width: 80ch; }
+  .variant-note b { color: var(--gold-hi); font-weight: 600; }
+
+  /* ---------- iPhone landscape frame (844x390 design space, scaled) ---------- */
+  .phone-outer { border: 1px solid var(--line); background: #000; padding: 10px; }
+  .phone-scale { transform-origin: top left; }
+  .phone { width: 844px; height: 390px; background: var(--bg); position: relative; overflow: hidden;
+    border-radius: 18px; outline: 2px solid #26243c; }
+  .notch { position: absolute; left: 0; top: 0; bottom: 0; width: 28px; pointer-events: none;
+    background: linear-gradient(90deg, rgba(0,0,0,.5), transparent); z-index: 40; }
+  .notch::before { content: ""; position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 90px; background: #000; border-radius: 8px; }
+  .safe { position: absolute; inset: 0 12px 0 34px; display: flex; flex-direction: column; }
+
+  /* ---------- shared screen chrome ---------- */
+  .hb-head { display: flex; align-items: center; gap: 10px; padding: 8px 4px 7px; border-bottom: 2px solid var(--gold); flex: 0 0 auto; }
+  .hb-title { font-family: var(--px); font-size: 10px; color: var(--gold-hi); letter-spacing: 1px; margin-right: auto; }
+  .cur { font-family: var(--px); font-size: 8px; padding: 8px 10px; border: 1px solid var(--line-soft); background: var(--panel); color: var(--muted); }
+  .cur b { font-weight: 400; color: var(--text); }
+  .cur.active { border-color: var(--gold); color: var(--gold-hi); }
+  .cur.active b { color: var(--gold-hi); }
+  .hb-close { font-family: var(--px); font-size: 8px; color: #cccccc; background: var(--panel);
+    border: 1px solid #444466; padding: 10px 12px; cursor: pointer; }
+
+  .cat-row { display: flex; gap: 6px; padding: 8px 4px; overflow-x: auto; flex: 0 0 auto; scrollbar-width: none; }
+  .cat-row::-webkit-scrollbar { display: none; }
+  .cat { font-family: var(--px); font-size: 7.5px; letter-spacing: 1px; white-space: nowrap;
+    color: var(--muted); background: #222233; border: 1px solid #555566; padding: 10px 12px; cursor: pointer; min-height: 34px; }
+  .cat.on { background: #443300; border-color: var(--gold-ui); color: #fff; }
+  .cat small { display: block; font-family: var(--mono); font-size: 8px; margin-top: 3px; color: inherit; opacity: .7; letter-spacing: 0; }
+
+  .list { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 2px 4px 10px; }
+  .grp { font-family: var(--px); font-size: 7px; color: var(--muted); letter-spacing: 1px; margin: 6px 0 0; }
+
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px;
+    background: var(--panel-2); border: 1px solid var(--line); padding: 7px 10px; min-height: 48px; cursor: pointer; }
+  .row.sel { border-color: var(--gold); background: rgba(232,184,73,.06); }
+  .row .nm { font-family: var(--px); font-size: 8px; color: var(--text); }
+  .row.sel .nm { color: var(--gold-hi); }
+  .row .ds { grid-column: 1; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .row.locked .nm { color: #55536e; }
+  .row.locked .ds { color: #55536e; }
+  .pips { display: flex; gap: 3px; }
+  .pip { width: 12px; height: 9px; background: var(--pip-empty); }
+  .pip.f { background: var(--pip); }
+  .maxed .pip.f { background: var(--pip-max); }
+  .costchip { font-family: var(--px); font-size: 7.5px; padding: 9px 10px; border: 1px solid #444466;
+    background: var(--panel); color: var(--gold-hi); white-space: nowrap; }
+  .costchip.dim { color: #6b6884; border-color: var(--line-soft); }
+  .costchip.max { color: var(--gold-ui); border-color: var(--gold-ui); background: rgba(255,221,68,.06); }
+  .rt { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; grid-row: span 2; }
+
+  /* ---------- option A: bottom sheet ---------- */
+  .sheet-veil { position: absolute; inset: 0; background: rgba(4,5,15,.65); z-index: 50; opacity: 0; pointer-events: none; transition: opacity .18s; }
+  .sheet-veil.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 34px; right: 12px; bottom: 0; z-index: 51; background: var(--panel);
+    border: 1px solid var(--gold); border-bottom: 0; transform: translateY(105%); transition: transform .2s ease-out; }
+  .sheet.open { transform: none; }
+  .sheet-in { padding: 12px 14px 14px; display: grid; grid-template-columns: 1fr 210px; gap: 8px 16px; }
+  .sheet .nm { font-family: var(--px); font-size: 9px; color: var(--gold-hi); }
+  .sheet .ds { font-size: 11px; color: var(--text); line-height: 1.5; margin-top: 6px; }
+  .sheet .fx { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+  .sheet .fx b { color: var(--blue); font-weight: 600; }
+  .sheet .fx .nxt { color: var(--gold-hi); }
+  .sheet-r { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  .buy { font-family: var(--px); font-size: 8.5px; letter-spacing: 1px; padding: 14px 12px; cursor: pointer;
+    background: #443300; border: 1px solid var(--gold-ui); color: #fff; min-height: 44px; }
+  .buy:active { background: #5a4400; }
+  .buy[disabled] { background: var(--panel-2); border-color: var(--line); color: #6b6884; cursor: default; }
+  .ghost { font-family: var(--px); font-size: 7.5px; padding: 10px 12px; background: transparent;
+    border: 1px solid var(--line); color: var(--muted); cursor: pointer; min-height: 38px; }
+  .sheet .pips { margin-top: 8px; }
+  .grab { width: 46px; height: 4px; background: var(--line); margin: 8px auto 0; }
+
+  /* ---------- option B: two-pane ---------- */
+  .split { flex: 1 1 auto; display: flex; gap: 8px; min-height: 0; padding: 6px 4px 8px; }
+  .split .list { flex: 1 1 55%; padding: 0; }
+  .split .row { min-height: 44px; }
+  .detailp { flex: 1 1 45%; background: var(--panel-2); border: 1px solid var(--line); display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+  .detailp .nm { font-family: var(--px); font-size: 9px; color: var(--gold-hi); }
+  .detailp .ds { font-size: 11px; line-height: 1.55; color: var(--text); }
+  .detailp .fx { font-size: 10.5px; color: var(--muted); }
+  .detailp .fx b { color: var(--blue); font-weight: 600; }
+  .detailp .fx .nxt { color: var(--gold-hi); }
+  .detailp .spacer { flex: 1; }
+  .detailp .buyrow { display: flex; gap: 8px; }
+  .detailp .buy { flex: 1; }
+
+  /* ---------- option C: quick-buy ---------- */
+  .qrow { grid-template-columns: 1fr auto auto; }
+  .qbuy { font-family: var(--px); font-size: 7.5px; padding: 12px 12px; min-height: 44px; min-width: 76px;
+    background: #443300; border: 1px solid var(--gold-ui); color: #fff; cursor: pointer; }
+  .qbuy:active { background: #5a4400; }
+  .qbuy[disabled] { background: var(--panel-2); border-color: var(--line); color: #6b6884; cursor: default; }
+  .qinfo { font-family: var(--px); font-size: 9px; min-width: 40px; min-height: 44px; background: var(--panel);
+    border: 1px solid var(--line); color: var(--muted); cursor: pointer; }
+  .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 60;
+    font-family: var(--px); font-size: 8px; color: var(--gold-hi); background: var(--panel);
+    border: 1px solid var(--gold); padding: 10px 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* ---------- notes ---------- */
+  .notes { margin-top: 42px; border-top: 1px solid var(--line-soft); padding-top: 26px; }
+  .notes h2 { font-family: var(--px); font-size: 11px; color: var(--gold-hi); margin: 0 0 14px; }
+  .notes h3 { font-family: var(--px); font-size: 9px; color: var(--text); margin: 26px 0 10px; }
+  .notes p, .notes li { color: #b8b8cc; font-size: 13px; line-height: 1.65; }
+  .notes ul { padding-left: 20px; margin: 0; }
+  .notes li { margin-bottom: 7px; }
+  .notes li b { color: var(--gold-hi); font-weight: 600; }
+  .notes code { background: var(--panel); border: 1px solid var(--line-soft); padding: 1px 5px; font-size: 12px; color: var(--blue); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="doc-head">
+    <h1>UPGRADE MENU · TOUCH PATTERNS</h1>
+    <p>The Home Base upgrade shop is the densest point-and-click screen in the game: 8px rows, hover
+    tooltips, tiny cost buttons, scroll arrows. None of it survives touch. Below are <b>three interaction
+    patterns</b> for iOS (landscape, per the mobile spec), mocked in an iPhone-13-class frame (844×390 pt)
+    with real <code>metaUpgrades.json</code> data. Everything is tappable — try buying <b>Hardy Recruits</b>.
+    Theme is Variant A from <code>docs/mobile/ui-theme-guide.md</code>.</p>
+  </header>
+
+  <nav class="picker" id="picker">
+    <button class="pick on" data-v="a">A · TAP ROW → SHEET</button>
+    <button class="pick" data-v="b">B · TWO-PANE</button>
+    <button class="pick" data-v="c">C · QUICK-BUY ROWS</button>
+  </nav>
+
+  <p class="variant-note" id="note-a"><b>Recommended.</b> List rows carry only name, tier pips and a cost chip;
+  tapping a row slides up a bottom sheet with the description, current → next effect, refund, and one big BUY
+  button on the right (thumb side). The sheet replaces every hover tooltip — including milestone-lock
+  explanations. Two taps per purchase, but zero accidental spends and room for full text at readable sizes.</p>
+  <p class="variant-note" id="note-b" hidden><b>Most console-like.</b> Landscape split: scrollable list on the
+  left, persistent detail panel on the right with BUY pinned at the bottom-right corner. No modal churn — best
+  for browsing and comparing upgrades. Costs one third of the horizontal space, so rows carry less text.</p>
+  <p class="variant-note" id="note-c" hidden><b>Fastest, riskiest.</b> Inline BUY button on every row plus an
+  ⓘ target opening the same detail sheet as A. One tap per purchase suits repeat tier-buying, but adjacent-row
+  misfires spend real Valor/Supply — if chosen, add an undo toast (5s) rather than a confirm dialog.</p>
+
+  <div class="phone-outer"><div class="phone-scale" id="scaleBox">
+    <div class="phone" id="phone">
+      <div class="notch"></div>
+      <div class="safe" id="screen"></div>
+      <div class="sheet-veil" id="veil"></div>
+      <div class="sheet" id="sheet"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div></div>
+
+  <section class="notes">
+    <h2>HAND-OFF NOTES (iOS)</h2>
+
+    <h3>RULES THAT APPLY TO EVERY OPTION</h3>
+    <ul>
+      <li><b>Kill hover.</b> Every tooltip in HomeBaseScene (upgrade details, prerequisite explanations,
+      milestone locks) must have a tap home: the detail sheet/panel. The existing
+      <code>_toggleTouchTooltip</code> tap-tooltip is a stopgap, not the pattern.</li>
+      <li><b>44pt minimum targets</b> (Apple HIG): rows ≥48pt tall, BUY ≥44pt, category chips ≥34pt with
+      padding taking them past 44pt effective. The current 14×10px cost buttons are ~4× too small.</li>
+      <li><b>Type floor:</b> nothing below 7px 'Press Start 2P' / 10px body at 1× frame scale. Long
+      descriptions move to the sheet/panel instead of shrinking.</li>
+      <li><b>One category currency at a time:</b> highlight the active tab's currency (Valor for
+      Lords/Equip/Skills, Supply for Recruits/Economy/Battalion) in the header, dim the other — same rule the
+      desktop scene already applies, but with both totals always visible.</li>
+      <li><b>Scrolling is momentum touch-scroll</b> on the list only (header/tabs fixed). Delete the
+      [^]/[v] arrow buttons.</li>
+      <li><b>Milestone-locked rows</b> keep the '???' mystery but the whole row is tappable and the sheet
+      states the unlock requirement — no more hidden hover-only explanation.</li>
+      <li><b>Refund mode</b> stops being a global toggle: REFUND lives in the detail sheet/panel next to BUY
+      (with the −20 fee stated inline). Removes an entire mode and its footer banner.</li>
+      <li><b>Safe areas:</b> respect <code>env(safe-area-inset-*)</code>; in landscape the notch side needs
+      ~34pt inset (mocked as the dark left gutter above). Bottom sheet sits above the home indicator.</li>
+      <li><b>Haptics (Capacitor later):</b> light impact on buy, rigid on maxed/unaffordable tap.</li>
+      <li><b>Maxed rows</b> flip pips to gold and the cost chip to a gold MAX badge — same
+      <code>BAR_FILLED_MAX</code> language as desktop.</li>
+    </ul>
+
+    <h3>WHY A OVER B/C</h3>
+    <ul>
+      <li>A keeps rows full-width, so 'Deadly Arsenal II — Edric also starts with a Silver Sword
+      (auto-equipped)' fits without truncation; B's rows can't hold description text at all.</li>
+      <li>A's two-tap purchase is self-confirming; C needs undo infrastructure.</li>
+      <li>B is the best fit <i>if</i> the team wants one codepath for tablet + phone (on iPad the sheet
+      pattern feels undersized). A phone / B tablet is a reasonable split since both share row markup.</li>
+    </ul>
+
+    <h3>IMPLEMENTATION SKETCH</h3>
+    <ul>
+      <li>Build as an HTML overlay (like the mobile controls / roster revamp), not in-canvas: the shop is
+      pure meta-state (<code>MetaProgressionManager</code>), no Phaser objects needed beyond scene routing.</li>
+      <li>Reuse list markup across options: <code>.row</code> = name + pips + cost chip; options differ only
+      in what tap does. Ship A; C is a settings-flag experiment later ("Quick buy").</li>
+      <li>Group headers (GROWTHS / FLAT BONUSES / OTHER) mirror the desktop subgrouping for
+      recruit_stats / lord_bonuses.</li>
+      <li>Category chips scroll horizontally with edge-fade; badge un-affordable-but-new states later if
+      desired.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  // Real rows from data/metaUpgrades.json (subset per tab for the mockup)
+  const DATA = {
+    recruit_stats: { label: 'RECRUITS', cur: 'supply', groups: [
+      { g: 'GROWTHS', items: [
+        { id:'hr', nm:'Hardy Recruits',  ds:'+5% HP growth per tier',  lv:2, max:5, cost:53,  fx:['+10% HP growth','+15% HP growth'] },
+        { id:'sa', nm:'Strong Arms',     ds:'+5% STR growth per tier', lv:1, max:5, cost:50,  fx:['+5% STR growth','+10% STR growth'] },
+        { id:'tr', nm:'Tough Recruits',  ds:'+5% DEF growth per tier', lv:0, max:5, cost:50,  fx:['—','+5% DEF growth'] },
+        { id:'qf', nm:'Quick Feet',      ds:'+5% SPD growth per tier', lv:5, max:5, cost:0,   fx:['+25% SPD growth', null] },
+      ]},
+      { g: 'OTHER', items: [
+        { id:'rs', nm:'Skilled Recruits', ds:'Recruits spawn with 1 random combat skill', lv:0, max:1, cost:500, fx:['—','1 random skill'] },
+        { id:'mx', nm:'???', ds:'Requirements not met', lv:0, max:1, cost:null, locked:true,
+          fx:[null,null], lockText:'Unlocks after reaching Act 3 on any difficulty.' },
+      ]},
+    ]},
+    lord_bonuses: { label: 'LORDS', cur: 'valor', groups: [
+      { g: 'GROWTHS', items: [
+        { id:'lv', nm:'Lord Vitality',        ds:'+5% HP growth per tier',  lv:1, max:5, cost:80,  fx:['+5% HP growth','+10% HP growth'] },
+        { id:'lc', nm:'Lord Combat Training', ds:'+5% STR growth per tier', lv:0, max:5, cost:75,  fx:['—','+5% STR growth'] },
+        { id:'lr', nm:'Lord Resilience',      ds:'+5% DEF growth per tier', lv:0, max:5, cost:75,  fx:['—','+5% DEF growth'] },
+      ]},
+      { g: 'OTHER', items: [
+        { id:'wf', nm:'Honed Blades', ds:"Lords' starting weapons gain forge levels", lv:1, max:3, cost:325, fx:['+1 forge level','+2 forge levels'] },
+        { id:'da', nm:'Deadly Arsenal II', ds:"Edric also starts with a Silver Sword (auto-equipped)", lv:0, max:1, cost:600, fx:['—','Silver Sword'] },
+      ]},
+    ]},
+    economy: { label: 'ECONOMY', cur: 'supply', groups: [ { g:'', items: [
+        { id:'wc', nm:'War Chest', ds:'+500 starting gold per level', lv:1, max:3, cost:100, fx:['+500 gold','+1000 gold'] },
+        { id:'pl', nm:'Plunder',   ds:'+10% battle gold per level',   lv:0, max:2, cost:125, fx:['—','+10% battle gold'] },
+        { id:'lq', nm:'Lucky Finds', ds:'Higher chance for upgraded weapon drops', lv:0, max:2, cost:150, fx:['—','Improved loot rolls'] },
+    ]}]},
+  };
+  const CATS = ['recruit_stats','lord_bonuses','economy'];
+  const CUR_ICON = { valor: '⬥', supply: '●' };
+  let wallet = { valor: 320, supply: 185 };
+  let option = 'a', activeCat = 'recruit_stats', selId = 'hr';
+
+  const $ = id => document.getElementById(id);
+  const findItem = id => { for (const c of CATS) for (const g of DATA[c].groups) for (const it of g.items) if (it.id === id) return it; };
+
+  function pips(it) {
+    let h = `<span class="pips${it.lv >= it.max ? ' maxed' : ''}">`;
+    for (let i = 0; i < it.max; i++) h += `<span class="pip${i < it.lv ? ' f' : ''}"></span>`;
+    return h + '</span>';
+  }
+  function costChip(it, cur) {
+    if (it.locked) return `<span class="costchip dim">LOCKED</span>`;
+    if (it.lv >= it.max) return `<span class="costchip max">MAX</span>`;
+    const afford = wallet[cur] >= it.cost;
+    return `<span class="costchip${afford ? '' : ' dim'}">${it.cost} ${CUR_ICON[cur]}</span>`;
+  }
+  function headerHTML(cur) {
+    return `<div class="hb-head">
+      <span class="hb-title">HOME BASE · UPGRADES</span>
+      <span class="cur${cur==='valor'?' active':''}">⬥ VALOR <b>${wallet.valor}</b></span>
+      <span class="cur${cur==='supply'?' active':''}">● SUPPLY <b>${wallet.supply}</b></span>
+      <button class="hb-close">BACK</button>
+    </div>
+    <div class="cat-row">${CATS.map(c =>
+      `<button class="cat${c===activeCat?' on':''}" data-cat="${c}">${DATA[c].label}<small>${CUR_ICON[DATA[c].cur]} ${DATA[c].cur}</small></button>`).join('')}
+      <button class="cat">BATTALION<small>● supply</small></button>
+      <button class="cat">EQUIP<small>⬥ valor</small></button>
+      <button class="cat">SKILLS<small>⬥ valor</small></button>
+    </div>`;
+  }
+  function rowsHTML(kind) {
+    const tab = DATA[activeCat], cur = tab.cur;
+    return tab.groups.map(g => (g.g ? `<div class="grp">── ${g.g} ──</div>` : '') +
+      g.items.map(it => {
+        const sel = kind === 'b' && it.id === selId ? ' sel' : '';
+        const lock = it.locked ? ' locked' : '';
+        if (kind === 'c') {
+          const dis = it.locked || it.lv >= it.max || wallet[cur] < it.cost ? ' disabled' : '';
+          return `<div class="row qrow${lock}" data-id="${it.id}">
+            <div><div class="nm">${it.nm}</div><div class="ds">${it.ds}</div>${pips(it)}</div>
+            <button class="qinfo" data-info="${it.id}">i</button>
+            <button class="qbuy" data-buy="${it.id}"${dis}>${it.locked ? '???' : it.lv >= it.max ? 'MAX' : `BUY ${it.cost}${CUR_ICON[cur]}`}</button>
+          </div>`;
+        }
+        return `<div class="row${sel}${lock}" data-id="${it.id}">
+          <div class="nm">${it.nm}</div>
+          <span class="rt">${pips(it)}${costChip(it, cur)}</span>
+          <div class="ds">${kind === 'b' ? '' : it.ds}</div>
+        </div>`;
+      }).join('')).join('');
+  }
+  function detailHTML(it, cur, compact) {
+    if (it.locked) return `<div><div class="nm">???</div>
+      <div class="ds">${it.lockText}</div></div>
+      <div class="${compact ? 'detailp-r' : 'sheet-r'}"><button class="buy" disabled>LOCKED</button></div>`;
+    const maxed = it.lv >= it.max, afford = !maxed && wallet[cur] >= it.cost;
+    const fx = maxed
+      ? `Current: <b>${it.fx[0]}</b> · <span class="nxt">fully upgraded</span>`
+      : `Current: <b>${it.fx[0]}</b> → Next: <span class="nxt">${it.fx[1]}</span>`;
+    return `<div><div class="nm">${it.nm}</div><div class="ds">${it.ds}</div>
+      <div class="fx">${fx}</div>${pips(it)}</div>
+      <div class="sheet-r">
+        <button class="buy" data-confirm="${it.id}"${afford ? '' : ' disabled'}>${maxed ? 'MAX' : `BUY · ${it.cost} ${CUR_ICON[cur]}`}</button>
+        ${it.lv > 0 ? `<button class="ghost">REFUND TIER (−20 ${CUR_ICON[cur]} FEE)</button>` : ''}
+      </div>`;
+  }
+
+  function render() {
+    const cur = DATA[activeCat].cur;
+    let body;
+    if (option === 'b') {
+      const it = findItem(selId) || DATA[activeCat].groups[0].items[0];
+      body = `<div class="split"><div class="list">${rowsHTML('b')}</div>
+        <div class="detailp">${detailHTML(it, cur, true)}</div></div>`;
+    } else {
+      body = `<div class="list">${rowsHTML(option)}</div>`;
+    }
+    $('screen').innerHTML = headerHTML(cur) + body;
+    closeSheet();
+  }
+  function openSheet(it) {
+    const cur = DATA[activeCat].cur;
+    $('sheet').innerHTML = `<div class="grab"></div><div class="sheet-in">${detailHTML(it, cur, false)}</div>`;
+    $('sheet').classList.add('open'); $('veil').classList.add('open');
+  }
+  function closeSheet() { $('sheet').classList.remove('open'); $('veil').classList.remove('open'); }
+  let toastT;
+  function toast(msg) {
+    $('toast').textContent = msg; $('toast').classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), 1600);
+  }
+  function buy(it) {
+    const cur = DATA[activeCat].cur;
+    if (it.locked || it.lv >= it.max || wallet[cur] < it.cost) return;
+    wallet[cur] -= it.cost; it.lv++;
+    it.fx[0] = it.fx[1]; it.fx[1] = it.lv >= it.max ? null : it.fx[1].replace(/\d+/, m => +m + 5);
+    it.cost = Math.round(it.cost * 1.5);
+    toast(`${it.nm.toUpperCase()} → TIER ${it.lv}`);
+    render();
+  }
+
+  $('screen').parentElement.addEventListener('click', e => {
+    const cat = e.target.closest('[data-cat]');
+    if (cat) { activeCat = cat.dataset.cat; selId = DATA[activeCat].groups[0].items[0].id; render(); return; }
+    const confirm = e.target.closest('[data-confirm]');
+    if (confirm) { buy(findItem(confirm.dataset.confirm)); return; }
+    const qb = e.target.closest('[data-buy]');
+    if (qb) { buy(findItem(qb.dataset.buy)); return; }
+    const info = e.target.closest('[data-info]');
+    if (info) { openSheet(findItem(info.dataset.info)); return; }
+    const row = e.target.closest('.row[data-id]');
+    if (row) {
+      const it = findItem(row.dataset.id);
+      if (option === 'a') openSheet(it);
+      else if (option === 'b') { selId = it.id; render(); }
+    }
+  });
+  $('veil').addEventListener('click', closeSheet);
+
+  document.getElementById('picker').addEventListener('click', e => {
+    const b = e.target.closest('.pick'); if (!b) return;
+    option = b.dataset.v;
+    document.querySelectorAll('.pick').forEach(p => p.classList.toggle('on', p === b));
+    ['a','b','c'].forEach(x => { $('note-' + x).hidden = x !== option; });
+    render();
+    try { localStorage.setItem('re-upgrade-option', option); } catch (err) {}
+  });
+
+  function rescale() {
+    const w = $('scaleBox').parentElement.clientWidth - 0;
+    const s = Math.min(1, w / 844);
+    $('scaleBox').style.transform = `scale(${s})`;
+    $('scaleBox').parentElement.style.height = (390 * s + 20) + 'px';
+  }
+  addEventListener('resize', rescale);
+
+  try { const o = localStorage.getItem('re-upgrade-option'); if (['a','b','c'].includes(o)) {
+    option = o; document.querySelectorAll('.pick').forEach(p => p.classList.toggle('on', p.dataset.v === o));
+    ['a','b','c'].forEach(x => { $('note-' + x).hidden = x !== o; });
+  } } catch (e) {}
+  render(); rescale();
+</script>
