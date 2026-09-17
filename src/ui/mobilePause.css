@@ -1,0 +1,77 @@
+@import './mobileTheme.css';
+.mp-backdrop[hidden] {
+  display: none;
+}
+.mp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  background: #050510db;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  color: var(--re-text);
+  font: 14px/1.5 var(--re-body);
+  touch-action: pan-y;
+}
+.mp-panel {
+  width: min(420px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  background: var(--re-panel-raised);
+  border: 1px solid var(--re-gold);
+  box-sizing: border-box;
+}
+.mp-panel h2 {
+  font: 12px/1.6 var(--re-pixel);
+  color: var(--re-gold-hi);
+  text-transform: uppercase;
+  padding: 0 0 10px;
+  margin: 0 0 10px;
+  border-bottom: 2px solid var(--re-gold);
+}
+.mp-message {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  margin: 0 0 12px;
+  overflow-y: auto;
+}
+.mp-actions {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overscroll-behavior: contain;
+}
+.mp-actions button {
+  flex-shrink: 0;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--re-line);
+  background: var(--re-panel);
+  color: var(--re-text);
+  font: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.mp-actions button:is(:hover, :focus-visible) {
+  border-color: var(--re-gold);
+  color: var(--re-gold-hi);
+  background: var(--re-selected);
+  outline: 2px solid var(--re-gold);
+  outline-offset: -2px;
+}
+.mp-actions .mp-primary {
+  border-color: var(--re-gold);
+  color: var(--re-gold-hi);
+}
+.mp-actions .mp-danger {
+  color: #ff9999;
+}

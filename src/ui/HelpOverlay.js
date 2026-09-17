@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // HelpOverlay — Tabbed reference dictionary accessible from Pause menu
 // 8 tabs with paginated content. Depth 860-862.
 
@@ -150,10 +151,14 @@ export class HelpOverlay {
         const page = pages[pageIndex];
         const lines = Array.isArray(page?.lines) ? page.lines : [];
         const pageTags = Array.isArray(page?.tags) ? page.tags : [];
-        const lineText = lines.map((line) => line?.text || '').join(' ');
+        const lineText = lines
+          .map((line) =>
+            inputHint(this.scene, line?.text || '', line?.mobileText ?? line?.text ?? ''),
+          )
+          .join(' ');
         const source = [
           tab?.label || '',
-          page?.title || '',
+          inputHint(this.scene, page?.title || '', page?.mobileTitle ?? page?.title ?? ''),
           lineText,
           ...tabTags,
           ...pageTags,
@@ -427,12 +432,21 @@ export class HelpOverlay {
 
     // Page title
     const pageTitle = this.scene.add
-      .text(left + 25, contentY, page.title, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: this._matchesSearch(page.title) ? '#66ff66' : '#ffdd44',
-        fontStyle: 'bold',
-      })
+      .text(
+        left + 25,
+        contentY,
+        inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+        {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: this._matchesSearch(
+            inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+          )
+            ? '#66ff66'
+            : '#ffdd44',
+          fontStyle: 'bold',
+        },
+      )
       .setDepth(DEPTH_UI);
     this.objects.push(pageTitle);
 
@@ -461,13 +475,20 @@ export class HelpOverlay {
     for (let i = 0; i < page.lines.length; i++) {
       const line = page.lines[i];
       if (!line.text && line.text !== '') continue;
-      const isMatch = this._matchesSearch(line.text);
+      const isMatch = this._matchesSearch(
+        inputHint(this.scene, line.text, line.mobileText ?? line.text),
+      );
       const lineText = this.scene.add
-        .text(left + 25, lineStartY + i * lineHeight, line.text, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: isMatch ? '#66ff66' : line.color || '#e0e0e0',
-        })
+        .text(
+          left + 25,
+          lineStartY + i * lineHeight,
+          inputHint(this.scene, line.text, line.mobileText ?? line.text),
+          {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: isMatch ? '#66ff66' : line.color || '#e0e0e0',
+          },
+        )
         .setDepth(DEPTH_UI);
       this.objects.push(lineText);
     }

@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // HomeBaseScene — Meta-progression upgrade shop with tabbed UI
 
 import Phaser from 'phaser';
@@ -295,7 +296,10 @@ export class HomeBaseScene extends Phaser.Scene {
       }
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_begin')) {
-        void showMinorHint(this, 'Click Begin Run when ready.');
+        void showMinorHint(
+          this,
+          inputHint(this, 'Click Begin Run when ready.', 'Tap Begin Run when ready.'),
+        );
       }
     } catch (_) {}
   }

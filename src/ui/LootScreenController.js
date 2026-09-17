@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 /**
  * LootScreenController — extracted from BattleScene.
  *
@@ -165,8 +166,16 @@ export class LootScreenController {
     const hints = scene.registry.get('hints');
     if (hints?.shouldShow('battle_loot')) {
       const hintMsg = ctx.isElite
-        ? 'Elite battle! Choose 2 rewards. Press [R] for roster.'
-        : 'Choose one reward. Weapons equip to a unit. Press [R] for roster.';
+        ? inputHint(
+            scene,
+            'Elite battle! Choose 2 rewards. Press [R] for roster.',
+            'Elite battle! Choose 2 rewards. Tap Roster for your units.',
+          )
+        : inputHint(
+            scene,
+            'Choose one reward. Weapons equip to a unit. Press [R] for roster.',
+            'Choose one reward. Weapons equip to a unit. Tap Roster for your units.',
+          );
       showMinorHint(scene, hintMsg);
     }
 
@@ -528,11 +537,16 @@ export class LootScreenController {
     scene._lootInstruction = inst;
 
     const hintText = scene.add
-      .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666666',
-      })
+      .text(
+        cam.centerX,
+        cardY + cardH / 2 + 42,
+        inputHint(scene, '[R] Roster  |  [ESC] Settings', 'Roster: view units  |  Menu: settings'),
+        {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#666666',
+        },
+      )
       .setOrigin(0.5)
       .setDepth(701);
     lootGroup.push(hintText);

@@ -1,0 +1,398 @@
+{
+  "lordedric": {
+    "file": "lordedric.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 275,
+      "y": 237,
+      "width": 712,
+      "height": 872
+    },
+    "source": "coverage/lord.png"
+  },
+  "sera": {
+    "file": "sera.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 275,
+      "y": 166,
+      "width": 783,
+      "height": 960
+    },
+    "source": "coverage/light_sage.png"
+  },
+  "enemy_myrmidon": {
+    "file": "enemy_myrmidon.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 276,
+      "y": 168,
+      "width": 743,
+      "height": 1037
+    },
+    "source": "enemies/myrmidon.png"
+  },
+  "enemy_fighter": {
+    "file": "enemy_fighter.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 195,
+      "y": 238,
+      "width": 998,
+      "height": 975
+    },
+    "source": "enemies/fighter.png"
+  },
+  "enemy_cavalier": {
+    "file": "enemy_cavalier.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 237,
+      "y": 27,
+      "width": 876,
+      "height": 1210
+    },
+    "source": "enemies/cavalier.png"
+  },
+  "enemy_archer": {
+    "file": "enemy_archer.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 207,
+      "y": 58,
+      "width": 872,
+      "height": 1272
+    },
+    "source": "enemies/archer-v2.png"
+  },
+  "enemy_mage": {
+    "file": "enemy_mage.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 343,
+      "y": 70,
+      "width": 719,
+      "height": 1172
+    },
+    "source": "enemies/mage-v2.png"
+  },
+  "enemy_knight": {
+    "file": "enemy_knight.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 335,
+      "y": 33,
+      "width": 733,
+      "height": 1204
+    },
+    "source": "enemies/knight-v2.png"
+  },
+  "enemy_pegasus_knight": {
+    "file": "enemy_pegasus_knight.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 16,
+      "y": 78,
+      "width": 1120,
+      "height": 1254
+    },
+    "source": "enemies/pegasus_knight-v3.png"
+  },
+  "enemy_duelist": {
+    "file": "enemy_duelist.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 59,
+      "y": 193,
+      "width": 1163,
+      "height": 909
+    },
+    "source": "enemies/duelist-v5.png"
+  },
+  "enemy_entity": {
+    "file": "enemy_entity.png",
+    "kind": "entity",
+    "bounds": {
+      "x": 13,
+      "y": 12,
+      "width": 1659,
+      "height": 911
+    },
+    "source": "enemies/entity-v3.png"
+  },
+  "boss_iron_captain": {
+    "file": "boss_iron_captain.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 39,
+      "width": 1104,
+      "height": 1363
+    },
+    "source": "boss-lofi/boss_iron_captain-v2.png"
+  },
+  "boss_warchief": {
+    "file": "boss_warchief.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 25,
+      "y": 19,
+      "width": 1053,
+      "height": 1383
+    },
+    "source": "boss-lofi/boss_warchief-v2.png"
+  },
+  "boss_knight_commander": {
+    "file": "boss_knight_commander.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 18,
+      "width": 1242,
+      "height": 1236
+    },
+    "source": "boss-lofi/boss_knight_commander-v2.png"
+  },
+  "boss_archmage": {
+    "file": "boss_archmage.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 36,
+      "width": 1108,
+      "height": 1342
+    },
+    "source": "boss-lofi/boss_archmage-v2.png"
+  },
+  "boss_blade_lord": {
+    "file": "boss_blade_lord.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 25,
+      "y": 19,
+      "width": 1075,
+      "height": 1367
+    },
+    "source": "boss-lofi/boss_blade_lord-v2.png"
+  },
+  "boss_berserker_king": {
+    "file": "boss_berserker_king.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 19,
+      "width": 1100,
+      "height": 1383
+    },
+    "source": "boss-lofi/boss_berserker_king-v2.png"
+  },
+  "boss_the_emperor": {
+    "file": "boss_the_emperor.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 22,
+      "width": 1096,
+      "height": 1290
+    },
+    "source": "boss-lofi/boss_the_emperor-v2.png"
+  },
+  "boss_the_lieutenant": {
+    "file": "boss_the_lieutenant.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 9,
+      "width": 1106,
+      "height": 1393
+    },
+    "source": "boss-lofi/boss_the_lieutenant-v2.png"
+  },
+  "boss_the_entity": {
+    "file": "boss_the_entity.png",
+    "kind": "entity",
+    "bounds": {
+      "x": 0,
+      "y": 49,
+      "width": 1254,
+      "height": 1183
+    },
+    "source": "boss-lofi/boss_the_entity-v2.png"
+  },
+  "lord_edric": {
+    "file": "lord_edric.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 65,
+      "y": 182,
+      "width": 1134,
+      "height": 1048
+    },
+    "source": "coverage/lord.png"
+  },
+  "lord_kira": {
+    "file": "lord_kira.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 49,
+      "y": 21,
+      "width": 1181,
+      "height": 1207
+    },
+    "source": "coverage/tactician.png"
+  },
+  "lord_voss": {
+    "file": "lord_voss.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 21,
+      "width": 1192,
+      "height": 1233
+    },
+    "source": "coverage/ranger.png"
+  },
+  "lord_sera": {
+    "file": "lord_sera.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 41,
+      "y": 57,
+      "width": 1151,
+      "height": 1197
+    },
+    "source": "coverage/light_sage.png"
+  },
+  "lord_rowan": {
+    "file": "lord_rowan.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 21,
+      "width": 1234,
+      "height": 1233
+    },
+    "source": "coverage/chevalier.png"
+  },
+  "lord_astrid": {
+    "file": "lord_astrid.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 19,
+      "width": 1236,
+      "height": 1235
+    },
+    "source": "mounted-pass/sky_lancer-v4.png"
+  },
+  "lord_cael": {
+    "file": "lord_cael.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 21,
+      "width": 1236,
+      "height": 1233
+    },
+    "source": "coverage/sentinel.png"
+  },
+  "boss_dark_rider": {
+    "file": "boss_dark_rider.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 15,
+      "width": 1135,
+      "height": 1359
+    },
+    "source": "enemies/dark_knight-v2.png"
+  },
+  "boss_iron_wall": {
+    "file": "boss_iron_wall.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 1,
+      "width": 1214,
+      "height": 1294
+    },
+    "source": "enemies/general-v2.png"
+  },
+  "lord_edric_promoted": {
+    "file": "lord_edric_promoted.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 24,
+      "y": 21,
+      "width": 1194,
+      "height": 1233
+    },
+    "source": "refinements/great_lord-v3.png"
+  },
+  "lord_kira_promoted": {
+    "file": "lord_kira_promoted.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 29,
+      "y": 21,
+      "width": 1197,
+      "height": 1209
+    },
+    "source": "coverage/grandmaster.png"
+  },
+  "lord_voss_promoted": {
+    "file": "lord_voss_promoted.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 59,
+      "y": 23,
+      "width": 1165,
+      "height": 1200
+    },
+    "source": "coverage/vanguard.png"
+  },
+  "lord_sera_promoted": {
+    "file": "lord_sera_promoted.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 21,
+      "width": 1236,
+      "height": 1215
+    },
+    "source": "coverage/light_priestess.png"
+  },
+  "lord_rowan_promoted": {
+    "file": "lord_rowan_promoted.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 21,
+      "width": 1248,
+      "height": 1233
+    },
+    "source": "coverage/holy_knight.png"
+  },
+  "lord_astrid_promoted": {
+    "file": "lord_astrid_promoted.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 0,
+      "y": 19,
+      "width": 1222,
+      "height": 1235
+    },
+    "source": "mounted-pass/seraph_knight-v2.png"
+  },
+  "lord_cael_promoted": {
+    "file": "lord_cael_promoted.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 1192,
+      "height": 1254
+    },
+    "source": "coverage/champion.png"
+  }
+}

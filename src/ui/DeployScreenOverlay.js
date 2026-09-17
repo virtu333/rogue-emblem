@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 /**
  * DeployScreenOverlay — extracted from BattleScene.
  * Renders the deploy unit selection UI before battle.
@@ -463,7 +464,11 @@ export class DeployScreenOverlay {
     if (hints?.shouldShow('battle_deploy')) {
       showImportantHint(
         scene,
-        'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
+        inputHint(
+          scene,
+          'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
+          'Tap units to deploy them.\nYour commander always deploys. Tap Confirm when ready.',
+        ),
       );
     }
 

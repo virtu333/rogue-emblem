@@ -1,3 +1,5 @@
+import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
 // Optional roster cycling via UP/DOWN arrows when opened with roster context
@@ -101,7 +103,7 @@ export class UnitDetailOverlay {
     this._mobileNextUnit = null;
   }
 
-  show(unit, terrain, gameData, rosterOptions) {
+  show(unit, terrain, gameData, rosterOptions, forceLegacy = false) {
     if (this.visible) this.hide();
     this.visible = true;
     this._bindSceneCleanup();
@@ -113,6 +115,37 @@ export class UnitDetailOverlay {
     const len = this._rosterUnits?.length || 0;
     this._rosterIndex =
       len > 0 ? Math.max(0, Math.min(rosterOptions?.rosterIndex ?? 0, len - 1)) : 0;
+
+    if (!forceLegacy && canShowMobileRoster(this.scene)) {
+      this._unit = unit;
+      this._terrain = terrain;
+      this._mobileSheet = new MobileRosterSheet({
+        scene: this.scene,
+        units: this._rosterUnits || [unit],
+        index: this._rosterIndex,
+        gameData: this.gameData,
+        portraitKey: (unit) => this._getPortraitKey(unit),
+        onClose: () => this.hide(),
+        advancedLabel: 'More details',
+        advancedDescription: 'Combat, terrain and weapon arts',
+        onAdvanced: () => {
+          const index = this._mobileSheet.index;
+          const units = this._rosterUnits || [unit];
+          const chosen = units[index];
+          const terrainIndex = this.scene.grid?.mapLayout?.[chosen.row]?.[chosen.col];
+          const chosenTerrain =
+            terrainIndex != null ? this.gameData.terrain[terrainIndex] : terrain;
+          this.show(
+            chosen,
+            chosenTerrain,
+            this.gameData,
+            { rosterUnits: units, rosterIndex: index },
+            true,
+          );
+        },
+      });
+      return;
+    }
 
     const left = CX - OVERLAY_W / 2;
     const top = CY - OVERLAY_H / 2;
@@ -313,10 +346,10 @@ export class UnitDetailOverlay {
     const hasRoster = this._rosterUnits && this._rosterUnits.length > 1;
     const footerStr = hasRoster
       ? isMobile
-        ? '[X] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
+        ? 'Cancel: close  |  Prev/Next: tabs  |  Unit: browse'
         : '[ESC] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
       : isMobile
-        ? '[X] Close    [\u25c4/\u25ba] Switch Tab'
+        ? 'Cancel: close  |  Prev/Next: switch tabs'
         : '[ESC] Close    [LEFT/RIGHT] Switch Tab';
     this._unitText(lx, footerY, footerStr, UI_COLORS.gray, '9px');
 
@@ -357,6 +390,8 @@ export class UnitDetailOverlay {
   }
 
   hide() {
+    this._mobileSheet?.destroy();
+    this._mobileSheet = null;
     if (!this.visible && !this._mobileContextPushed && !this._mobilePrev && !this._mobileNext) {
       return;
     }
@@ -1024,6 +1059,8 @@ export class UnitDetailOverlay {
   }
 
   _getPortraitKey(unit) {
+    const rebuilt = rebuiltPortraitKey(this.scene, unit);
+    if (rebuilt) return rebuilt;
     const lordData = this.gameData?.lords?.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
     const classNorm = unit.className.toLowerCase().replace(/ /g, '_');

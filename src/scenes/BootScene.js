@@ -1,3 +1,5 @@
+import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
+import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
@@ -51,6 +53,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    preloadRebuiltSprites(this);
+    preloadRebuiltPortraits(this);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
     this._deferredAssets = [];
@@ -638,6 +642,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
+    prepareRebuiltSprites(this);
     markStartup('boot_create_start');
     this._clearPreloadStallWatch();
     this._destroyStallUi();

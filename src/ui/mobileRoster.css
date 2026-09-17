@@ -1,0 +1,316 @@
+@import './mobileTheme.css';
+
+.mr-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--re-bg);
+  color: var(--re-text);
+  font: 14px/1.45 var(--re-body);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: pan-y;
+}
+.mr-sheet * {
+  box-sizing: border-box;
+}
+.mr-sheet header,
+.mr-sheet footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.mr-sheet h2,
+.mr-sheet h3,
+.mr-sheet h4,
+.mr-sheet p {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.mr-sheet h2 {
+  font: 12px/1.6 var(--re-pixel);
+  color: var(--re-gold-hi);
+  text-transform: uppercase;
+}
+.mr-sheet h3 {
+  font-size: 18px;
+}
+.mr-sheet h4 {
+  font-size: 16px;
+}
+.mr-sheet button {
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  color: inherit;
+  background: var(--re-panel);
+  font: inherit;
+  cursor: pointer;
+  touch-action: pan-y;
+  overflow-wrap: anywhere;
+}
+.mr-sheet button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mr-sheet button:focus-visible,
+.mr-sheet summary:focus-visible {
+  outline: 3px solid var(--re-gold-hi);
+  outline-offset: -3px;
+}
+.mr-sheet button[aria-pressed='true'] {
+  border-color: var(--re-gold-hi);
+  background: var(--re-selected);
+}
+.mr-layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 23%) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.mr-units {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.mr-units button {
+  flex-shrink: 0;
+  text-align: left;
+}
+.mr-units strong,
+.mr-units span {
+  display: block;
+}
+.mr-units span {
+  color: var(--re-muted);
+  font-size: 12px;
+}
+.mr-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.mr-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.mr-tabs button {
+  flex: 1;
+}
+.mr-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 0 4px 12px;
+}
+.mr-card {
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  padding: 12px;
+  margin: 0 0 10px;
+  background: var(--re-panel-raised);
+}
+.mr-card p {
+  color: var(--re-muted);
+}
+.mr-card button {
+  margin: 4px 8px 0 0;
+}
+.mr-card small {
+  display: block;
+  margin: 5px 0;
+  color: #c9b68e;
+}
+.mr-card summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.mr-card .mr-equipped {
+  color: #99ddb2;
+  font-weight: 600;
+}
+.mr-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr) auto);
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+}
+.mr-stats dd {
+  margin: 0;
+  color: var(--re-gold-hi);
+  font-weight: 600;
+}
+.mr-sheet footer {
+  color: var(--re-muted);
+  font-size: 12px;
+}
+.mr-sheet footer button {
+  font-size: 13px;
+}
+.mr-status {
+  color: #99ddb2;
+}
+@media (max-width: 700px) {
+  .mr-sheet {
+    gap: 6px;
+  }
+  .mr-layout {
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .mr-sheet footer {
+    font-size: 11px;
+  }
+}
+.mr-portrait {
+  float: right;
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  margin: 0 0 8px 10px;
+}
+.mr-summary {
+  display: flow-root;
+}
+
+.mr-sheet header {
+  border-bottom: 2px solid var(--re-gold);
+  padding-bottom: 8px;
+}
+.mr-sheet footer {
+  border-top: 1px solid var(--re-line);
+  padding-top: 8px;
+}
+.mr-sheet button:not(:disabled):is(:hover, :active) {
+  border-color: var(--re-gold);
+  color: var(--re-gold-hi);
+  background: var(--re-selected);
+}
+.mr-units button[aria-pressed='true'] {
+  position: relative;
+  box-shadow: inset 3px 0 var(--re-gold);
+}
+.mr-units button[aria-pressed='true'] strong::before {
+  content: '▸ ';
+  color: var(--re-gold);
+}
+.mr-units .re-health {
+  margin-bottom: 2px;
+}
+.mr-tabs button {
+  font: 10px/1.5 var(--re-pixel);
+  padding: 10px 6px;
+  text-transform: uppercase;
+}
+.mr-tabs button[aria-pressed='true'] {
+  color: var(--re-gold-hi);
+  border-bottom: 3px solid var(--re-gold);
+}
+.mr-summary {
+  border-bottom: 1px solid var(--re-line);
+  margin-bottom: 12px;
+}
+.mr-summary h3 {
+  color: var(--re-gold-hi);
+}
+.mr-stats {
+  position: relative;
+  background: var(--re-panel-raised);
+  font-variant-numeric: tabular-nums;
+}
+.mr-stats::before,
+.mr-stats::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.mr-stats::before {
+  top: -1px;
+  left: -1px;
+  border-left: 2px solid var(--re-gold);
+  border-top: 2px solid var(--re-gold);
+}
+.mr-stats::after {
+  bottom: -1px;
+  right: -1px;
+  border-right: 2px solid var(--re-gold);
+  border-bottom: 2px solid var(--re-gold);
+}
+.mr-card h4 {
+  color: var(--re-gold-hi);
+}
+.mr-card .mr-equipped::before {
+  content: '◆ ';
+}
+.mr-portrait {
+  border-color: var(--re-gold);
+}
+
+.mr-summary h3 {
+  font: 11px/1.65 var(--re-pixel);
+}
+
+/* Faces identify roster members; battlefield sprites keep their own tile scale. */
+.mr-units .mr-unit-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  text-align: left;
+  flex-shrink: 0;
+}
+.mr-unit-face {
+  width: 40px;
+  height: 48px;
+  flex: none;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--re-bg);
+  border: 1px solid var(--re-line);
+}
+.mr-unit-info {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+.mr-unit-info strong,
+.mr-unit-info > span {
+  display: block;
+}
+.mr-portrait {
+  width: 76px;
+  height: 88px;
+  object-fit: contain;
+  background: var(--re-panel);
+}
+@media (max-width: 700px) {
+  .mr-layout {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .mr-portrait {
+    width: 64px;
+    height: 76px;
+  }
+}

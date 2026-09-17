@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
+import './ui/mobileBattle.css';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
@@ -29,6 +30,12 @@ const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
+if (startupFlags.isMobile) document.documentElement.classList.add('touch-ui');
+if (import.meta.env.DEV && new URLSearchParams(location.search).get('mobilePreview') === '1') {
+  document.documentElement.classList.add('mobile-preview');
+  document.title = 'Emblem Rogue · Mobile preview';
+}
+
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
 const BOOT_WATCHDOG_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 30000 : 22000;
 const STARTUP_VIEWPORT_GUARD_TIMEOUT_MS = Math.max(

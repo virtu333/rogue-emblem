@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // HowToPlayOverlay — Linear paginated guide accessible from Title Screen
 // 4 sequential pages. Depth 500-502.
 
@@ -162,12 +163,17 @@ export class HowToPlayOverlay {
     // Section title
     const contentY = top + 55;
     const sectionTitle = this.scene.add
-      .text(left + 25, contentY, page.title, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
+      .text(
+        left + 25,
+        contentY,
+        inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+        {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ffdd44',
+          fontStyle: 'bold',
+        },
+      )
       .setDepth(DEPTH_UI);
     this.objects.push(sectionTitle);
 
@@ -179,11 +185,16 @@ export class HowToPlayOverlay {
       const line = page.lines[i];
       if (!line.text && line.text !== '') continue;
       const lineText = this.scene.add
-        .text(left + 25, lineStartY + i * lineHeight, line.text, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: line.color || '#e0e0e0',
-        })
+        .text(
+          left + 25,
+          lineStartY + i * lineHeight,
+          inputHint(this.scene, line.text, line.mobileText ?? line.text),
+          {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: line.color || '#e0e0e0',
+          },
+        )
         .setDepth(DEPTH_UI);
       this.objects.push(lineText);
     }

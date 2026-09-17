@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // TitleScene — Animated pixel-art title screen
 
 import Phaser from 'phaser';
@@ -1248,7 +1249,13 @@ export class TitleScene extends Phaser.Scene {
       console.error('[TitleScene] transition failed', err);
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
-      this.showMessage('Transition failed. Please click again.');
+      this.showMessage(
+        inputHint(
+          this,
+          'Transition failed. Please click again.',
+          'Transition failed. Please tap again.',
+        ),
+      );
 
       // Restore title music when transition fails and we remain in this scene.
       const audio = this.registry.get('audio');

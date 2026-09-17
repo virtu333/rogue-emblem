@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Emblem Rogue · Playable map lab</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background: #192f3b;
+      color: #eee9d5;
+      font: 16px/1.5 monospace;
+      margin: 0;
+    }
+    main {
+      max-width: 950px;
+      margin: auto;
+      padding: 24px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #ddcc99;
+    }
+    p {
+      color: #b7c3ba;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 18px 0;
+    }
+    label {
+      display: grid;
+      gap: 6px;
+    }
+    input,
+    select,
+    button,
+    a {
+      font: inherit;
+    }
+    input,
+    select,
+    button {
+      min-height: 44px;
+      padding: 10px;
+      background: #304e58;
+      border: 1px solid #819184;
+      color: inherit;
+    }
+    button {
+      cursor: pointer;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: #263f4a;
+      border: 3px double #b7ad8c;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 18px;
+      margin: 0 0 10px;
+    }
+    .card a {
+      display: block;
+      background: #c8b789;
+      color: #18313b;
+      min-height: 44px;
+      padding: 10px;
+      text-align: center;
+    }
+    .card small {
+      color: #b7c3ba;
+    }
+    a {
+      color: #ead8a5;
+    }
+  </style>
+  <main>
+    <h1>Playable map lab</h1>
+    <p>
+      Existing generated battles with the rebuilt mobile presentation. Pick a seed to reproduce a
+      map. Later-act maps retain their normal enemies; this starter party is a presentation fixture,
+      not a balanced campaign party.
+    </p>
+    <form onsubmit="return false;">
+      <label
+        >Seed<input id="seed" type="number" value="42" min="0" max="4294967295" step="1" /></label
+      ><label
+        >Touch layout<select id="touch">
+          <option value="1">Mobile preview</option>
+          <option value="">Device detection</option>
+        </select></label
+      ><button id="next" type="button">Next seed</button>
+    </form>
+    <div id="maps" class="cards"></div>
+    <p>
+      <a href="/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1"
+        >Combat practice fixture</a
+      >
+      · <a href="http://127.0.0.1:3012/nodes/">Art review</a>
+    </p>
+  </main>
+  <script type="module">
+    import { BATTLEFIELD_LAB_MAPS } from './src/utils/battlefieldLabMaps.js';
+    const seed = document.querySelector('#seed'),
+      touch = document.querySelector('#touch');
+    function render() {
+      const value = Number(seed.value);
+      seed.setCustomValidity(
+        Number.isInteger(value) && value >= 0 && value <= 4294967295
+          ? ''
+          : 'Use a whole number from 0 to 4294967295',
+      );
+      const root = document.querySelector('#maps');
+      root.replaceChildren();
+      for (const map of BATTLEFIELD_LAB_MAPS) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        const h = document.createElement('h2');
+        h.textContent = map.label;
+        const info = document.createElement('p');
+        info.textContent = map.biome + ' · ' + map.act.replace('act', 'Act ');
+        const link = document.createElement('a');
+        const query = new URLSearchParams({
+          devScene: 'battle',
+          preset: 'battle_smoke',
+          seed: String(seed.validity.valid ? value : 42),
+          battleLab: '1',
+          labMap: map.id,
+        });
+        if (touch.value) query.set('mobilePreview', touch.value);
+        link.href = '/?' + query;
+        link.textContent = 'Play ' + map.label;
+        card.append(h, info, link);
+        root.append(card);
+      }
+    }
+    seed.oninput = render;
+    touch.onchange = render;
+    document.querySelector('#next').onclick = () => {
+      seed.value = String(((Number(seed.value) || 0) + 1) >>> 0);
+      render();
+    };
+    render();
+    window.addEventListener('pageshow', () => requestAnimationFrame(render));
+  </script>
+</html>

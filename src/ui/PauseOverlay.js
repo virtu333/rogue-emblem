@@ -1,3 +1,5 @@
+import { MobilePauseMenu } from './MobilePauseMenu.js';
+import { inputHint } from '../utils/inputHint.js';
 // PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
@@ -73,6 +75,8 @@ export class PauseOverlay {
   }
 
   show() {
+    this._mobileMenu?.destroy();
+    this._mobileMenu = null;
     // Clean up stale objects without triggering onResume callback
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
@@ -237,6 +241,12 @@ export class PauseOverlay {
     }
 
     this._setupFocus();
+    if (
+      typeof document !== 'undefined' &&
+      document.getElementById('game-wrapper') &&
+      inputHint(this.scene, false, true)
+    )
+      this._mobileMenu = new MobilePauseMenu(this);
   }
 
   // Build the focus ring over the menu buttons and claim the input-focus stack so
@@ -267,6 +277,10 @@ export class PauseOverlay {
       if (action === InputAction.CANCEL || action === InputAction.PAUSE) {
         this.closeActiveSubOverlay();
       }
+      return;
+    }
+    if (this._mobileMenu) {
+      this._mobileMenu.handleInput(action, payload);
       return;
     }
     const onConfirm = this._confirmButtons.length > 0;
@@ -379,6 +393,8 @@ export class PauseOverlay {
   }
 
   hide() {
+    this._mobileMenu?.destroy();
+    this._mobileMenu = null;
     if (this.compendiumOverlay?.visible) this.compendiumOverlay.hide();
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
@@ -407,6 +423,8 @@ export class PauseOverlay {
 
   /** Like hide(), but skips onResume — used before destructive transitions (Save & Exit, Abandon). */
   hideForTransition() {
+    this._mobileMenu?.destroy();
+    this._mobileMenu = null;
     if (this.compendiumOverlay?.visible) this.compendiumOverlay.hide();
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();

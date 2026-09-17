@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // HintDisplay — Two display functions for tutorial hints
 // Important hints require dismiss (Space/Enter/click). Minor hints auto-fade.
 
@@ -29,7 +30,7 @@ export function showImportantHint(scene, message) {
       .setAlpha(0);
 
     const footerObj = scene.add
-      .text(cx, 0, '[Space / Click to continue]', {
+      .text(cx, 0, inputHint(scene, '[Space / Click to continue]', 'Tap to continue'), {
         fontFamily: 'monospace',
         fontSize: '9px',
         color: '#888888',

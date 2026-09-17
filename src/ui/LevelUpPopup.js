@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
 
@@ -180,7 +181,7 @@ export class LevelUpPopup {
       // Dismiss hint
       y += 6;
       const hint = this.scene.add
-        .text(cx, y, '(click to continue)', {
+        .text(cx, y, inputHint(this.scene, '(click to continue)', '(tap to continue)'), {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#888888',

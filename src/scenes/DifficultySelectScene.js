@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // DifficultySelectScene — Choose difficulty before starting a run
 
 import Phaser from 'phaser';
@@ -218,11 +219,20 @@ export class DifficultySelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(cx, 62, 'Left/Right to browse, Enter to confirm, ESC to go back', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
+      .text(
+        cx,
+        62,
+        inputHint(
+          this,
+          'Left/Right to browse, Enter to confirm, ESC to go back',
+          'Tap a difficulty to select it. Tap Back to return.',
+        ),
+        {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+        },
+      )
       .setOrigin(0.5);
 
     // Cards

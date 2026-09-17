@@ -1,3 +1,9 @@
+import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
+import { rebuiltSpriteKey } from '../ui/RebuiltSprites.js';
+import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
+import { battlefieldLabEnabled } from '../ui/BattlefieldLab.js';
+import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
+import { inputHint } from '../utils/inputHint.js';
 // BattleScene -- Phase 3: multi-unit tactical combat with unit system
 
 import Phaser from 'phaser';
@@ -215,6 +221,7 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { MobileBattleHUD } from '../ui/MobileBattleHUD.js';
 import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
 import { HealController } from '../ui/HealController.js';
@@ -456,6 +463,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this.hideForecast();
+    this._mobileBattleHud?.destroy();
+    this._mobileBattleHud = null;
     this.closeVisionDialog();
     if (this._postCombatController) {
       this._postCombatController.destroy();
@@ -1062,6 +1071,22 @@ export class BattleScene extends Phaser.Scene {
             generateBattle(this.battleParams, this.gameData),
           );
           this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
+        }
+      }
+      if (battlefieldLabEnabled() && !this.battleParams?.tutorialMode && !this._resumeCheckpoint) {
+        const labQuery = new URLSearchParams(globalThis.location?.search || '');
+        const templateId = labQuery.get('labMap');
+        const labMap = BATTLEFIELD_LAB_MAPS.find((map) => map.id === templateId);
+        if (labMap) {
+          const seed = Number(labQuery.get('seed') || 42);
+          this.battleConfig = this.withBattleSeed(Number.isFinite(seed) ? seed : 42, () =>
+            generateBattle(
+              { act: labMap.act, objective: 'rout', templateId, deployCount },
+              this.gameData,
+            ),
+          );
+        } else {
+          this.battleConfig = createBattlefieldLabFixture(this.battleConfig, this.gameData.terrain);
         }
       }
       const bc = this.battleConfig;
@@ -1682,7 +1707,7 @@ export class BattleScene extends Phaser.Scene {
           hw,
           helpRowY,
           this.isMobileInput
-            ? '[R] Vision  [Inspect]/long-press unit: Details  |  [X]/off-map tap: cancel'
+            ? 'Vision: rewind  |  Inspect: unit details  |  Cancel: go back'
             : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
           { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' },
         )
@@ -1802,6 +1827,16 @@ export class BattleScene extends Phaser.Scene {
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
           ge.on(`mobile:${action}`, handler);
         }
+      }
+
+      this._mobileBattleHud?.destroy();
+      this._mobileBattleHud = null;
+      if (
+        this.isMobileInput &&
+        typeof document !== 'undefined' &&
+        document.getElementById('game-wrapper')?.append
+      ) {
+        this._mobileBattleHud = new MobileBattleHUD(this);
       }
 
       // Start battle music -- per-act tracks
@@ -2883,6 +2918,8 @@ export class BattleScene extends Phaser.Scene {
   // --- Unit rendering ---
 
   getSpriteKey(unit) {
+    const rebuilt = rebuiltSpriteKey(this, unit);
+    if (rebuilt) return rebuilt;
     const classKey = unit.className.toLowerCase().replace(/ /g, '_');
     if (unit.faction === 'enemy') {
       const defaultEnemySpriteKey = `enemy_${classKey}`;
@@ -2944,7 +2981,10 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, spriteKey);
-        unit.graphic.setDisplaySize(entitySize - 4, entitySize - 4);
+        unit.graphic.setDisplaySize(
+          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
+          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
+        );
         unit.label = null;
       } else {
         unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
@@ -2988,7 +3028,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.textures.exists(spriteKey)) {
       unit.graphic = this.add.image(pos.x, pos.y, spriteKey);
       const src = this.textures.get(spriteKey).getSourceImage();
-      if (src && src.width > TILE_SIZE && src.width <= TILE_SIZE * 1.5) {
+      if (spriteKey.startsWith('rebuilt-')) {
+        unit.graphic.setDisplaySize(64, 64);
+      } else if (src && src.width > TILE_SIZE && src.width <= TILE_SIZE * 1.5) {
         // Hi-res overhang sprite (48px art on 32px tiles). The anchor is
         // baked into the texture — feet sit 8px above the bottom edge — so
         // centering on the tile keeps feet at the tile bottom while the head
@@ -2998,6 +3040,14 @@ export class BattleScene extends Phaser.Scene {
         unit.graphic.setDisplaySize(src.width, src.height);
       } else {
         unit.graphic.setDisplaySize(TILE_SIZE - 2, TILE_SIZE - 2);
+      }
+      if (
+        !spriteKey.startsWith('rebuilt-') &&
+        battlefieldLabEnabled() &&
+        unit.graphic.displayHeight > TILE_SIZE * 1.15
+      ) {
+        const ratio = (TILE_SIZE * 1.15) / unit.graphic.displayHeight;
+        unit.graphic.setDisplaySize(unit.graphic.displayWidth * ratio, TILE_SIZE * 1.15);
       }
       unit.label = null;
     } else {
@@ -3280,6 +3330,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update() {
+    this._mobileBattleHud?.sync();
     if (!this._uiCamera) return;
     const childCount = this.children?.list?.length || 0;
     if (!this._cameraFilterDirty && childCount === this._lastChildrenCount) return;
@@ -5933,9 +5984,11 @@ export class BattleScene extends Phaser.Scene {
         color: '#e0e0e0',
       }));
     this._menuFocus?.setItems(focusItems);
+    this._mobileBattleHud?.showMenu(focusItems, this.actionMenu);
   }
 
   hideActionMenu() {
+    this._mobileBattleHud?.hideMenu();
     this._menuFocus?.clear();
     this._hideMenuTooltip();
     this._hideWeaponDetailTooltip();
@@ -7350,6 +7403,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getPortraitKey(unit) {
+    const rebuilt = rebuiltPortraitKey(this, unit);
+    if (rebuilt) return rebuilt;
     const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
     const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
@@ -7450,7 +7505,11 @@ export class BattleScene extends Phaser.Scene {
       await this._withTutorialHintState(async () => {
         await showImportantHint(
           this,
-          'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
+          inputHint(
+            this,
+            'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
+            'The forecast shows damage, hit %, and crit %.\nTap Confirm attack to commit, or Cancel to go back.',
+          ),
         );
       });
     }
@@ -9067,7 +9126,14 @@ export class BattleScene extends Phaser.Scene {
           } else if (hints && turn === 2) {
             this.time.delayedCall(1500, () => {
               if (hints.shouldShow('battle_danger_zone')) {
-                showMinorHint(this, 'Press [D] to show enemy threat range.');
+                showMinorHint(
+                  this,
+                  inputHint(
+                    this,
+                    'Press [D] to show enemy threat range.',
+                    'Tap Danger to show enemy threat range.',
+                  ),
+                );
               }
             });
           }

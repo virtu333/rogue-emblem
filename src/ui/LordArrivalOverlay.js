@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 /**
  * LordArrivalOverlay — Post-battle overlay for the Power of Friendship meta upgrade.
  * Renders lord selection cards when a third lord joins mid-run.
@@ -224,11 +225,16 @@ export class LordArrivalOverlay {
 
     const hintText = applyTextResolution(
       scene.add
-        .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#666666',
-        })
+        .text(
+          cam.centerX,
+          cardY + cardH / 2 + 42,
+          inputHint(scene, '[R] Roster', 'Tap Roster to view units'),
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#666666',
+          },
+        )
         .setOrigin(0.5)
         .setDepth(701),
     );

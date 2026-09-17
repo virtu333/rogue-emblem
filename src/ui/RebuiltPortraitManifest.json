@@ -1,0 +1,89 @@
+{
+  "lord_edric": {
+    "file": "lord_edric.png"
+  },
+  "lord_kira": {
+    "file": "lord_kira.png"
+  },
+  "lord_voss": {
+    "file": "lord_voss.png"
+  },
+  "lord_sera": {
+    "file": "lord_sera.png"
+  },
+  "lord_rowan": {
+    "file": "lord_rowan.png"
+  },
+  "lord_astrid": {
+    "file": "lord_astrid.png"
+  },
+  "lord_cael": {
+    "file": "lord_cael.png"
+  },
+  "boss_iron_captain": {
+    "file": "boss_iron_captain.png"
+  },
+  "boss_warchief": {
+    "file": "boss_warchief.png"
+  },
+  "boss_knight_commander": {
+    "file": "boss_knight_commander.png"
+  },
+  "boss_archmage": {
+    "file": "boss_archmage.png"
+  },
+  "boss_dark_rider": {
+    "file": "boss_dark_rider.png"
+  },
+  "boss_blade_lord": {
+    "file": "boss_blade_lord.png"
+  },
+  "boss_iron_wall": {
+    "file": "boss_iron_wall.png"
+  },
+  "boss_berserker_king": {
+    "file": "boss_berserker_king.png"
+  },
+  "boss_the_emperor": {
+    "file": "boss_the_emperor.png"
+  },
+  "boss_the_lieutenant": {
+    "file": "boss_the_lieutenant.png"
+  },
+  "boss_the_entity": {
+    "file": "boss_the_entity.png"
+  },
+  "generic_fighter": {
+    "file": "generic_fighter.png"
+  },
+  "generic_sniper": {
+    "file": "generic_sniper.png"
+  },
+  "generic_warlock": {
+    "file": "generic_warlock.png"
+  },
+  "generic_battle_monk": {
+    "file": "generic_battle_monk.png"
+  },
+  "lord_edric_promoted": {
+    "file": "lord_edric_promoted.png"
+  },
+  "lord_kira_promoted": {
+    "file": "lord_kira_promoted.png"
+  },
+  "lord_voss_promoted": {
+    "file": "lord_voss_promoted.png"
+  },
+  "lord_sera_promoted": {
+    "file": "lord_sera_promoted.png"
+  },
+  "lord_rowan_promoted": {
+    "file": "lord_rowan_promoted.png"
+  },
+  "lord_astrid_promoted": {
+    "file": "lord_astrid_promoted.png"
+  },
+  "lord_cael_promoted": {
+    "file": "lord_cael_promoted.png"
+  }
+}

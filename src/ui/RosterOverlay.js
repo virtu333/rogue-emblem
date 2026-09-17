@@ -1,3 +1,5 @@
+import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
 
@@ -152,7 +154,28 @@ export class RosterOverlay {
     this._inReclassPicker = false; // in-pane reclass picker is up (CANCEL = back)
   }
 
-  show() {
+  show(forceLegacy = false) {
+    if (!forceLegacy && canShowMobileRoster(this.scene)) {
+      if (this.visible) this.hide();
+      this.visible = true;
+      this._mobileSheet = new MobileRosterSheet({
+        scene: this.scene,
+        units: this.runManager.roster,
+        index: this.selection.index,
+        gameData: this.gameData,
+        portraitKey: (unit) => this._getPortraitKey(unit),
+        run: this.runManager,
+        onClose: () => this.hide(),
+        onAdvanced: () => {
+          this.selection.index = this._mobileSheet.index;
+          this._mobileSheet.destroy();
+          this._mobileSheet = null;
+          this.visible = false;
+          this.show(true);
+        },
+      });
+      return;
+    }
     if (this.visible) this.hide();
     this.visible = true;
 
@@ -203,6 +226,8 @@ export class RosterOverlay {
 
   hide() {
     if (!this.visible) return;
+    this._mobileSheet?.destroy();
+    this._mobileSheet = null;
     this._teardownRosterFocus();
     this._clearTooltipTimers();
     this._unregisterListeners();
@@ -2849,6 +2874,8 @@ export class RosterOverlay {
   }
 
   _getPortraitKey(unit) {
+    const rebuilt = rebuiltPortraitKey(this.scene, unit);
+    if (rebuilt) return rebuilt;
     // Lords have named portraits
     const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;

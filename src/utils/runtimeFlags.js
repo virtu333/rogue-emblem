@@ -26,6 +26,11 @@ function isStandaloneDisplayMode() {
 }
 
 export function detectMobileRuntime() {
+  if (
+    import.meta.env.DEV &&
+    new URLSearchParams(globalThis?.location?.search || '').get('mobilePreview') === '1'
+  )
+    return true;
   const ua = globalThis?.navigator?.userAgent || '';
   const coarsePointer = !!globalThis?.matchMedia?.('(pointer: coarse)').matches;
   return coarsePointer || isMobileUserAgent(ua);

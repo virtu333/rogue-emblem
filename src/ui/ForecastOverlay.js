@@ -29,6 +29,18 @@ export class ForecastOverlay {
    */
   render({ attacker, defender, forecast, weaponArt, gamblerLine, validWeapons }) {
     const scene = this.scene;
+    if (scene._mobileBattleHud) {
+      scene._mobileBattleHud.showForecast({
+        attacker,
+        defender,
+        forecast,
+        weaponArt,
+        gamblerLine,
+        validWeapons,
+      });
+      this.mobileHud = scene._mobileBattleHud;
+      return;
+    }
     const depth = 200;
     const panelW = 380;
 
@@ -569,6 +581,8 @@ export class ForecastOverlay {
    * Uses .length = 0 (not reassignment) so BattleScene's alias stays valid.
    */
   destroy() {
+    this.mobileHud?.hideForecast();
+    this.mobileHud = null;
     for (const obj of this.displayObjects) {
       try {
         obj.destroy();

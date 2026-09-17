@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // PromotionChoicePanel — Side-by-side promotion choice overlay
 // Used by BattleScene, NodeMapScene (church), and RosterOverlay
 
@@ -184,7 +185,7 @@ export class PromotionChoicePanel {
     const cancelText = this._text(
       cx,
       cancelY,
-      '(ESC to cancel)',
+      inputHint(this.scene, '(ESC to cancel)', '(Tap outside to cancel)'),
       {
         fontSize: '10px',
         color: '#888888',

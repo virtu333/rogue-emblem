@@ -1,0 +1,27 @@
+/* Shared mobile menu language: navy command panels and restrained gold detail. */
+:root {
+  --re-bg: #0a0c1e;
+  --re-panel: #12111f;
+  --re-panel-raised: #1a1a2e;
+  --re-line: #3a3a55;
+  --re-gold: #e8b849;
+  --re-gold-hi: #f5d77a;
+  --re-selected: rgba(232, 184, 73, 0.08);
+  --re-text: #e0e0e0;
+  --re-muted: #aaaac1;
+  --re-blue: #88ccff;
+  --re-body: ui-monospace, Menlo, Consolas, monospace;
+  --re-pixel: 'Press Start 2P', monospace;
+}
+.re-health {
+  display: block;
+  height: 7px;
+  background: #080916;
+  border: 1px solid #444459;
+  margin: 7px 0;
+  overflow: hidden;
+}
+.re-health-fill {
+  display: block;
+  height: 100%;
+}

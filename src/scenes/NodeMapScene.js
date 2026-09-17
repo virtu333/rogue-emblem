@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
@@ -1411,11 +1412,16 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Instructions
     this.add
-      .text(this.cameras.main.centerX, MAP_BOTTOM + 30, 'Click a node to proceed', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#888888',
-      })
+      .text(
+        this.cameras.main.centerX,
+        MAP_BOTTOM + 30,
+        inputHint(this, 'Click a node to proceed', 'Tap a node to proceed'),
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#888888',
+        },
+      )
       .setOrigin(0.5);
 
     // Refresh the gamepad cursor over this frame's available nodes (the marker was

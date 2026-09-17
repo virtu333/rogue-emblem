@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 import {
   canForge,
   canForgeStat,
@@ -629,11 +630,16 @@ export class LootFlowController {
     }
 
     const hint = scene.add
-      .text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#888888',
-      })
+      .text(
+        px,
+        py + panelH / 2 - 10,
+        inputHint(scene, '[R] Close  |  [ESC] Close', 'Tap Roster again to close'),
+        {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#888888',
+        },
+      )
       .setOrigin(0.5)
       .setDepth(751);
     scene.lootRosterGroup.push(hint);

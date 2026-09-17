@@ -1,3 +1,4 @@
+import { inputHint } from '../utils/inputHint.js';
 /**
  * BossRecruitOverlay — extracted from BattleScene.
  * Renders the post-boss recruit card selection UI.
@@ -402,11 +403,16 @@ export class BossRecruitOverlay {
 
     const hintText = applyTextResolution(
       scene.add
-        .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#666666',
-        })
+        .text(
+          cam.centerX,
+          cardY + cardH / 2 + 42,
+          inputHint(scene, '[R] Roster', 'Tap Roster to view units'),
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#666666',
+          },
+        )
         .setOrigin(0.5)
         .setDepth(701),
     );

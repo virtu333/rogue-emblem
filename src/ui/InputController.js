@@ -54,6 +54,7 @@ export class InputController {
     const scene = this.scene;
     if (!scene.grid || !scene.infoText) return;
     const terrain = scene.grid.getTerrainAt(col, row);
+    scene._mobileTerrainFocus = { col, row };
     let info = terrain.name;
     const hovered = scene.getUnitAt(col, row);
     // Fog gate BEFORE any per-unit info: a hidden enemy's moveType must not leak
@@ -298,6 +299,8 @@ export class InputController {
       return;
     }
 
+    if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
+
     switch (scene.battleState) {
       case 'PLAYER_IDLE':
         this.handleIdleClick(gp);
@@ -438,6 +441,7 @@ export class InputController {
 
   handleForecastClick(gp) {
     const scene = this.scene;
+    if (scene._mobileBattleHud?.forecast) return;
     if (
       scene.forecastTarget &&
       gp.col === scene.forecastTarget.col &&
@@ -662,7 +666,14 @@ export class InputController {
       this.clearInspectionVisuals();
       return true;
     }
-    if (this._showInspectionAtPixel(px, py)) return true;
+    if (this._showInspectionAtPixel(px, py)) {
+      if (scene.inspectionPanel?._unit) {
+        this.openUnitDetailOverlay();
+        scene.inspectMode = false;
+        this.clearInspectionVisuals();
+      }
+      return true;
+    }
     this.clearInspectionVisuals();
     return true;
   }
