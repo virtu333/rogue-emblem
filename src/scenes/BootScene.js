@@ -1,3 +1,4 @@
+import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
 import Phaser from 'phaser';
@@ -710,6 +711,8 @@ export class BootScene extends Phaser.Scene {
       this.registry.set('cloud', cloudState);
     }
 
+    const fontReady = await loadGameFont();
+    markStartup('boot_local_font_ready', { ready: fontReady });
     markStartup('boot_scene_complete');
     installSceneGuard(this.game);
 

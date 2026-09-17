@@ -1,6 +1,7 @@
 // Emblem Rogue - Entry Point
 
 import Phaser from 'phaser';
+import '@fontsource/press-start-2p/latin-400.css';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
@@ -534,12 +535,13 @@ const authSkip = document.getElementById('auth-skip');
 let isRegisterMode = false;
 
 if (!supabase) {
-  // No Supabase configured - boot directly in offline mode
+  // Local-only by default; no session restoration or cloud pulls.
   authOverlay.style.display = 'none';
-  markStartup('supabase_unavailable_boot_offline');
+  markStartup('local_play_boot');
   bootGame(null);
 } else {
-  // Check existing session
+  authOverlay.style.display = 'flex';
+  // Cloud-enabled builds only: check existing session
   getSession()
     .then(async (session) => {
       if (session) {

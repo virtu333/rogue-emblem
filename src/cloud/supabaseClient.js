@@ -5,7 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+// Credentials alone must never opt players into account/session restoration.
+// Keep existing cloud support available only to deliberately cloud-enabled builds.
+export const cloudEnabled = import.meta.env.VITE_CLOUD_ENABLED === 'true';
+export const supabase =
+  cloudEnabled && supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const EMAIL_DOMAIN = '@emblem-rogue.local';
 

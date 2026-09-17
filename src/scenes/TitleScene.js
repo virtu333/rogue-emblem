@@ -961,6 +961,17 @@ export class TitleScene extends Phaser.Scene {
       })
       .setDepth(30);
 
+    if (!cloud) {
+      this.add
+        .text(W / 2, H - 16, 'Progress saved on this device', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#aaaac1',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(30);
+    }
+
     // Desktop notice — hidden on mobile / standalone PWA (touch context)
     if (!getStartupFlags().isMobile) {
       this.add
