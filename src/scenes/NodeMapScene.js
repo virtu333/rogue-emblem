@@ -933,7 +933,10 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   requestCancel({ allowPause = true } = {}) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return true;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
+      this.dialogueOverlay?.hide();
+      return true;
+    }
     if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return false;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {

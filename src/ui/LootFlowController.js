@@ -331,6 +331,7 @@ export class LootFlowController {
           });
           scene.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
           for (const obj of lootGroup) obj.setVisible(true);
+          scene._lootController?.mobileRewards?.open();
         }
       });
     }
@@ -530,6 +531,7 @@ export class LootFlowController {
             teardownFocus();
             for (const obj of pickerGroup) obj.destroy();
             for (const obj of lootGroup) obj.setVisible(true);
+            scene._lootController?.mobileRewards?.open();
             return;
           }
           const audio = scene.registry.get('audio');
@@ -548,6 +550,7 @@ export class LootFlowController {
           teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
           for (const obj of lootGroup) obj.setVisible(true);
+          scene._lootController?.mobileRewards?.open();
         }
       });
     }
@@ -682,6 +685,7 @@ export class LootFlowController {
 
     // Re-show loot cards (sub-pickers hide them)
     for (const obj of lootGroup) obj.setVisible(true);
+    scene._lootController?.mobileRewards?.open();
 
     // Update instruction text
     if (scene._lootInstruction) {

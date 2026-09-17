@@ -1,3 +1,4 @@
+import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 // ShopController -- shop node overlay flow extracted from NodeMapScene.
 // Owns the shop overlay UI (buy/sell/forge tabs, unit picker, forge picker,
 // reroll, banners). All overlay state stays on the scene (shopOverlay,
@@ -90,6 +91,14 @@ export class ShopController {
     this._forgePickerTeardown = null;
     this._unitPickerTeardown = null;
     this._unitPickerRefocus = null;
+  }
+
+  _styleMobileButton(button, x, y, width) {
+    if (!this.scene.isMobileInput) return;
+    const height = mobileTarget(this.scene);
+    button.setPosition(x, y).setOrigin(0, 0).setFontSize(13);
+    button.setPadding(6, Math.max(6, (height - 16) / 2), 6, 0);
+    button.setFixedSize(width, height).setAlign('center').setBackgroundColor('#2b454b');
   }
 
   handleShop(node, options = {}) {
@@ -278,6 +287,11 @@ export class ShopController {
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.shopOverlay.push(scene.shopGoldText);
+    if (scene.isMobileInput) {
+      title.setPosition(60, 30).setOrigin(0, 0.5).setFontSize(18);
+      scene.shopGoldText.setPosition(580, 30).setOrigin(1, 0.5);
+      panel.setFillStyle(0x182f39, 1).setStrokeStyle(2, 0x80968a);
+    }
 
     const viewMapBtn = scene.add
       .text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
@@ -296,6 +310,7 @@ export class ShopController {
       if (pointer?.button !== 0) return;
       scene._enterShopMapView();
     });
+    this._styleMobileButton(viewMapBtn, 190, 400, 110);
     scene.shopOverlay.push(viewMapBtn);
 
     // Roster button
@@ -334,6 +349,7 @@ export class ShopController {
         scene._setShopOverlayVisibility(true);
       }
     });
+    this._styleMobileButton(shopRosterBtn, 310, 400, 110);
     scene.shopOverlay.push(shopRosterBtn);
 
     scene.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
@@ -370,6 +386,7 @@ export class ShopController {
       if (pointer?.button !== 0) return;
       scene.leaveShopNode();
     });
+    this._styleMobileButton(leaveBtn, 430, 400, 150);
     scene.shopOverlay.push(leaveBtn);
 
     this._shopFixed = { viewMap: viewMapBtn, roster: shopRosterBtn, leave: leaveBtn };
@@ -381,7 +398,7 @@ export class ShopController {
       const shopPool =
         scene.gameData?.dialogue?.shopFlavor?.[shopAct] ||
         scene.gameData?.dialogue?.shopFlavor?.['act3'];
-      if (Array.isArray(shopPool) && shopPool.length > 0) {
+      if (!scene.isMobileInput && Array.isArray(shopPool) && shopPool.length > 0) {
         scene.showShopBanner(shopPool[Math.floor(Math.random() * shopPool.length)], '#aabbcc');
       }
     } catch (_) {
@@ -425,7 +442,7 @@ export class ShopController {
 
     const tabs = this._getShopTabs();
     const tabY = 80;
-    const tabW = 80;
+    const tabW = scene.isMobileInput ? 150 : 80;
     const startX = 320 - (tabs.length * tabW) / 2 + tabW / 2;
 
     for (let i = 0; i < tabs.length; i++) {
@@ -445,6 +462,8 @@ export class ShopController {
         .setDepth(OVERLAY_CONTENT_DEPTH)
         .setInteractive({ useHandCursor: true });
 
+      this._styleMobileButton(tabText, tx - 70, 48, 140);
+      if (scene.isMobileInput) tabText.setBackgroundColor(isActive ? '#496361' : '#2b454b');
       tabText.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         if (scene.activeShopTab === tab.key) return;
@@ -482,6 +501,38 @@ export class ShopController {
       scene.drawShopForgeList();
     }
 
+    if (scene.isMobileInput) {
+      const targetHeight = mobileTarget(scene);
+      const maskGraphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      maskGraphics
+        .fillStyle(0xffffff)
+        .fillRect(50, SHOP_LIST_TOP_Y, 540, SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y);
+      const mask = maskGraphics.createGeometryMask();
+      maskGraphics.once('destroy', () => mask.destroy());
+      scene.shopContentGroup.push(maskGraphics);
+      for (const obj of scene.shopContentGroup) {
+        if (obj.type !== 'Text' || obj === scene._shopRerollBtn || obj.y > SHOP_LIST_BOTTOM_Y)
+          continue;
+        obj.setMask(mask);
+        obj.setFontSize(16);
+        if (obj.input?.enabled) {
+          const isForge = scene.activeShopTab === 'forge';
+          const width = isForge ? (obj.x >= 350 ? 155 : 270) : 500;
+          obj.setWordWrapWidth(width - 16);
+          obj.setPadding(8, 8, 8, 8);
+          obj.setFixedSize(width, targetHeight);
+          obj.setBackgroundColor('#2b454b');
+          const hitTop = Math.max(0, SHOP_LIST_TOP_Y - obj.y);
+          const hitHeight = Math.max(
+            0,
+            Math.min(targetHeight, SHOP_LIST_BOTTOM_Y - obj.y) - hitTop,
+          );
+          obj.input.hitArea = new Phaser.Geom.Rectangle(0, hitTop, width, hitHeight);
+          obj.input.customHitArea = true;
+          if (scene.activeShopTab !== 'buy') deferTouchActivation(obj);
+        }
+      }
+    }
     scene.drawShopScrollHint();
     // Re-resolve the ring against the freshly drawn objects (no scroll — that
     // would fight a mouse-wheel scroll; gamepad nav re-renders with scroll=true).
@@ -786,8 +837,9 @@ export class ShopController {
     const scene = this.scene;
     const st = scene.unitPickerState;
     if (!st) return;
-    const rowTop = i * 30;
-    const rowBottom = rowTop + 30;
+    const rowHeight = mobileTarget(scene, 30) + (scene.isMobileInput ? 6 : 0);
+    const rowTop = i * rowHeight;
+    const rowBottom = rowTop + rowHeight;
     const viewH = st.viewportBottom - st.viewportTop;
     let offset = st.offset || 0;
     if (rowTop < offset) offset = rowTop;
@@ -803,7 +855,7 @@ export class ShopController {
     const scene = this.scene;
     if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     const startY = 105;
-    const lineH = 24;
+    const lineH = mobileTarget(scene, 24) + (scene.isMobileInput ? 8 : 0);
     scene.shopScrollMax = Math.max(
       0,
       scene.shopBuyItems.length * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y),
@@ -1007,7 +1059,7 @@ export class ShopController {
     const scene = this.scene;
     if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     const startY = 105;
-    const lineH = 22;
+    const lineH = mobileTarget(scene, 22) + (scene.isMobileInput ? 8 : 0);
     const rm = scene.runManager;
     const previewAwardedSellGold = (amount) => {
       const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
@@ -1253,7 +1305,7 @@ export class ShopController {
     if (!Array.isArray(scene._shopFocusEntries)) scene._shopFocusEntries = [];
     scene._hideForgeTooltip();
     const startY = 105;
-    const lineH = 20;
+    const lineH = mobileTarget(scene, 20) + (scene.isMobileInput ? 8 : 0);
     const rm = scene.runManager;
     const baseForgeLimit = SHOP_FORGE_LIMITS[rm.currentAct] || 2;
     const forgeLimit = baseForgeLimit + (rm.blessingRuntimeModifiers?.forgeLimitDelta || 0);
@@ -1518,7 +1570,7 @@ export class ShopController {
     const offset = scene.shopScrollOffsets?.[scene.activeShopTab] || 0;
     const percent = scene.shopScrollMax > 0 ? Math.round((offset / scene.shopScrollMax) * 100) : 0;
     const hint = scene.add
-      .text(445, 392, `Scroll: ${percent}%`, {
+      .text(445, scene.isMobileInput ? 380 : 392, `Scroll: ${percent}%`, {
         fontFamily: 'monospace',
         fontSize: '10px',
         color: '#888888',
@@ -1669,7 +1721,7 @@ export class ShopController {
     const level = weapon._forgeLevel || 0;
 
     const pickerBg = scene.add
-      .rectangle(cx, cy, 320, 220, 0x222233, 0.97)
+      .rectangle(cx, cy, scene.isMobileInput ? 410 : 320, 250, 0x222233, 0.97)
       .setDepth(450)
       .setStrokeStyle(2, 0xff8844)
       .setInteractive();
@@ -1709,7 +1761,9 @@ export class ShopController {
       const baseCost = getForgeCost(weapon, stat.key);
       const cost = Math.max(1, Math.floor(baseCost * (1 - discount)));
       const affordable = cost > 0 && scene.runManager.gold >= cost;
-      const by = btnStartY + i * btnH;
+      const by = scene.isMobileInput
+        ? cy - 38 + Math.floor(i / 2) * (mobileTarget(scene) + 10)
+        : btnStartY + i * btnH;
       const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
       const color = atStatCap ? '#666666' : affordable ? affordableColor : '#666666';
 
@@ -1745,6 +1799,15 @@ export class ShopController {
         });
       }
 
+      if (scene.isMobileInput) {
+        btn
+          .setX(cx + (i % 2 ? 98 : -98))
+          .setFontSize(14)
+          .setFixedSize(185, mobileTarget(scene))
+          .setPadding(8, 12, 8, 8)
+          .setBackgroundColor('#2b454b');
+        deferTouchActivation(btn);
+      }
       scene.forgePicker.push(btn);
     }
 
@@ -1891,6 +1954,7 @@ export class ShopController {
         padding: { x: 8, y: 4 },
       })
       .setDepth(OVERLAY_CONTENT_DEPTH);
+    this._styleMobileButton(rerollBtn, 60, 400, 120);
     scene.shopContentGroup.push(rerollBtn);
     scene.shopOverlay.push(rerollBtn);
 
@@ -1992,7 +2056,8 @@ export class ShopController {
 
     const rm = scene.runManager;
     const viewportHeight = 280;
-    const contentHeight = rm.roster.length * 30;
+    const contentHeight =
+      rm.roster.length * (mobileTarget(scene, 30) + (scene.isMobileInput ? 6 : 0));
     const maxOffset = Math.max(0, contentHeight - viewportHeight);
     const pickerOptions =
       pickerOptionsOrItem &&
@@ -2056,7 +2121,8 @@ export class ShopController {
     scene.unitPicker.push(clipTop, clipBottom);
 
     rm.roster.forEach((unit, i) => {
-      const y = listTop + i * 30 - offset + 15;
+      const rowHeight = mobileTarget(scene, 30) + (scene.isMobileInput ? 6 : 0);
+      const y = listTop + i * rowHeight - offset + rowHeight / 2;
       if (y < listTop - 15 || y > listBottom + 15) return;
       const profCheckItem = state.profCheckItem || null;
       const shouldCheckProficiency = isProficiencyCheckRelevant(profCheckItem);
@@ -2076,7 +2142,9 @@ export class ShopController {
               : ''
             : '';
       const displayName = truncateUnitNameForCapacityLabel(unit.name, 16);
-      const label = `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
+      const label = scene.isMobileInput
+        ? `${displayName}${noProf ? ' · no proficiency' : ''}\nItems ${inventoryCount}/${INVENTORY_MAX} · Supplies ${consumableCount}/${CONSUMABLE_MAX}${fullSuffix}`
+        : `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
       const color = noProf ? '#cc8844' : '#e0e0e0';
       const btn = scene.add
         .text(cx, y, label, {
@@ -2099,6 +2167,10 @@ export class ShopController {
         cb(i);
       });
 
+      if (scene.isMobileInput) {
+        btn.setFontSize(15).setFixedSize(330, mobileTarget(scene)).setBackgroundColor('#2b454b');
+        deferTouchActivation(btn);
+      }
       btn._unitPickerIndex = i; // gamepad focus re-resolves the rendered row by index
       scene.unitPicker.push(btn);
     });
@@ -2133,6 +2205,8 @@ export class ShopController {
       if (pointer?.button !== 0) return;
       scene.closeUnitPicker();
     });
+    if (scene.isMobileInput)
+      cancelBtn.setFontSize(16).setFixedSize(150, mobileTarget(scene)).setPadding(10, 12, 10, 8);
     scene._unitPickerCancelBtn = cancelBtn;
     scene.unitPicker.push(cancelBtn);
     // Rows were just destroyed + recreated; re-point the focus ring at the row it
@@ -2157,7 +2231,7 @@ export class ShopController {
   showShopBanner(msg, color) {
     const scene = this.scene;
     const banner = scene.add
-      .text(320, 400, msg, {
+      .text(320, scene.isMobileInput ? 365 : 400, msg, {
         fontFamily: 'monospace',
         fontSize: '12px',
         color,

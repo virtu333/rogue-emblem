@@ -1,10 +1,9 @@
+import { battlefieldLabEnabled } from './BattlefieldLab.js';
 import manifest from './RebuiltSpriteManifest.json';
 
 export function rebuiltSpritesEnabled() {
   const query = new URLSearchParams(globalThis.location?.search || '');
-  return (
-    import.meta.env.DEV && query.get('battleLab') === '1' && query.get('spriteArt') !== 'classic'
-  );
+  return battlefieldLabEnabled() && !(import.meta.env.DEV && query.get('spriteArt') === 'classic');
 }
 
 // Source pixels stay untouched. Render into a tile-centred texture so every movement,

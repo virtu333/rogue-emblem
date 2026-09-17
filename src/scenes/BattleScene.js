@@ -1073,7 +1073,12 @@ export class BattleScene extends Phaser.Scene {
           this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
         }
       }
-      if (battlefieldLabEnabled() && !this.battleParams?.tutorialMode && !this._resumeCheckpoint) {
+      if (
+        import.meta.env.DEV &&
+        new URLSearchParams(globalThis.location?.search || '').get('battleLab') === '1' &&
+        !this.battleParams?.tutorialMode &&
+        !this._resumeCheckpoint
+      ) {
         const labQuery = new URLSearchParams(globalThis.location?.search || '');
         const templateId = labQuery.get('labMap');
         const labMap = BATTLEFIELD_LAB_MAPS.find((map) => map.id === templateId);

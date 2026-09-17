@@ -1,12 +1,14 @@
 import './battlefieldLab.css';
+import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';
 import { TILE_SIZE } from '../utils/constants.js';
 
 export function battlefieldLabEnabled() {
   return (
-    import.meta.env.DEV &&
-    new URLSearchParams(globalThis.location?.search || '').get('battleLab') === '1'
+    detectMobileRuntime() ||
+    (import.meta.env.DEV &&
+      new URLSearchParams(globalThis.location?.search || '').get('battleLab') === '1')
   );
 }
 
@@ -140,7 +142,7 @@ export class BattlefieldLab {
     for (const key of this.textureKeys) this.scene.textures.remove(key);
     this.hud.wrapper.classList.remove('battlefield-lab');
     delete this.hud.wrapper.dataset.terrainArt;
-    this.scene.cameras.main.setBackgroundColor(this.originalBackground);
+    this.scene.cameras?.main?.setBackgroundColor(this.originalBackground);
     this.scene.scale.setGameSize(this.originalSize.width, this.originalSize.height);
   }
 }

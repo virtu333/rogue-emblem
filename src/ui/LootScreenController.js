@@ -1,3 +1,5 @@
+import { MobileRewards } from './MobileRewards.js';
+import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 import { inputHint } from '../utils/inputHint.js';
 /**
  * LootScreenController — extracted from BattleScene.
@@ -204,6 +206,8 @@ export class LootScreenController {
     // Skip bonus gold
     const skipGold = Math.floor(calculateSkipLootBonus(totalGold) * GOLD_LOOT_REWARD_MULTIPLIER);
 
+    const mobileChoices = choices.map((choice) => ({ ...choice }));
+
     // Render cards
     const totalCards = choices.length + 1;
     const cardW = totalCards <= 4 ? 120 : 100;
@@ -278,6 +282,7 @@ export class LootScreenController {
           Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier),
         );
         const displayedGoldAmount = previewAwardedGold(scaledGoldAmount);
+        mobileChoices[i].goldAmount = displayedGoldAmount;
         const goldLabel = scene.add
           .text(cx, cardY - 2, `${displayedGoldAmount}G`, {
             fontFamily: 'monospace',
@@ -556,6 +561,19 @@ export class LootScreenController {
     }
 
     this._setupInputFocus();
+    if (
+      scene.isMobileInput &&
+      typeof document !== 'undefined' &&
+      document.getElementById('game-wrapper')
+    ) {
+      this.mobileRewards = new MobileRewards(
+        scene,
+        this,
+        mobileChoices,
+        goldLines.join(' · '),
+        displayedSkipGold,
+      );
+    }
   }
 
   // Claim the input-focus stack so the pad drives the reward cards. The ring is
@@ -589,6 +607,8 @@ export class LootScreenController {
   }
 
   _teardownInputFocus() {
+    this.mobileRewards?.destroy();
+    this.mobileRewards = null;
     if (this._onInputActionBound) {
       popInputScope(this);
       this._onInputActionBound = null;
@@ -629,8 +649,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -741,6 +761,7 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
@@ -762,6 +783,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -808,8 +832,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -920,6 +944,7 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
@@ -941,6 +966,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -987,8 +1015,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 52;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -1064,6 +1092,7 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
@@ -1085,6 +1114,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -1141,8 +1173,8 @@ export class LootScreenController {
     const btnW = 240;
     const listTop = 108;
     const listBottom = cam.height - 62;
-    const rowHeight = 30;
-    const btnH = 22;
+    const rowHeight = mobileTarget(scene, 30) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 22);
     const labelOffset = -Math.floor(btnH * 0.1);
     const rows = [];
     let detachScroll = () => {};
@@ -1239,6 +1271,7 @@ export class LootScreenController {
             whetstone: whetstone?.name,
           });
           for (const obj of lootGroup) obj.setVisible(true);
+          scene._lootController?.mobileRewards?.open();
         }
       });
     }
@@ -1263,6 +1296,7 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
@@ -1284,6 +1318,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
