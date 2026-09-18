@@ -153,7 +153,7 @@ export class MobileRosterSheet {
     const focusKey = document.activeElement?.dataset?.focusKey;
     this.root.replaceChildren();
     const head = el('header');
-    head.append(el('h2', this.run ? 'Your roster' : 'Unit details'));
+    head.append(el('h2', this.run ? 'Roster' : 'Unit details'));
     head.append(this.button('Close', this.onClose));
     this.root.append(head);
     const layout = el('div', null, 'mr-layout');
@@ -195,7 +195,7 @@ export class MobileRosterSheet {
       b.setAttribute('aria-pressed', String(this.tab === id));
       tabs.append(b);
     }
-    pane.append(tabs);
+    head.insertBefore(tabs, head.lastElementChild);
     const body = el('div', null, 'mr-content');
     this.body = body;
     const unit = this.units[this.index];

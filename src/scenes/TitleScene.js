@@ -31,7 +31,6 @@ import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
-import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -49,7 +48,6 @@ const GOLD_DARK = UI_PALETTE.lineStrong;
 const TEXT_SUB = UI_PALETTE.muted;
 const BTN_BG = UI_HEX.panel;
 const BTN_BORDER = UI_HEX.line;
-const MORE_INFO_URL = 'https://github.com/virtu333/rogue-emblem';
 
 // --- Background drawing helpers (all operate on a 2D canvas context) ---
 
@@ -985,37 +983,6 @@ export class TitleScene extends Phaser.Scene {
         .setOrigin(0.5, 0)
         .setDepth(30);
     }
-
-    // Desktop notice — hidden on mobile / standalone PWA (touch context)
-    if (!getStartupFlags().isMobile) {
-      applyTextResolution(
-        this.add.text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
-          fontFamily: FONT,
-          fontSize: '9px',
-          color: 'rgba(100,100,120,0.4)',
-        }),
-      )
-        .setOrigin(0.5, 0)
-        .setDepth(30);
-    }
-
-    const moreInfoText = applyTextResolution(
-      this.add.text(W - 12, H - 16, 'GITHUB', {
-        fontFamily: FONT,
-        fontSize: '7px',
-        color: 'rgba(136,136,170,0.75)',
-      }),
-    )
-      .setOrigin(1, 0)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    moreInfoText.on('pointerover', () => moreInfoText.setColor(GOLD_LIGHT));
-    moreInfoText.on('pointerout', () => moreInfoText.setColor('rgba(136,136,170,0.75)'));
-    moreInfoText.on('pointerdown', () => {
-      try {
-        window.open(MORE_INFO_URL, '_blank', 'noopener,noreferrer');
-      } catch (_) {}
-    });
   }
 
   // Gamepad: drive a focus highlight over the main menu column, reusing each

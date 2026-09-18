@@ -10,16 +10,14 @@
   box-sizing: border-box;
   background: var(--re-bg);
   color: var(--re-text);
-  font:
-    14px/1.4 system-ui,
-    sans-serif;
+  font: var(--re-t-body);
 }
 .mu-screen * {
   box-sizing: border-box;
 }
 .mu-screen button,
 .mu-launch {
-  min-height: 44px;
+  min-height: var(--re-tap);
   border: 1px solid var(--re-line);
   border-radius: 0;
   background: var(--re-raised);

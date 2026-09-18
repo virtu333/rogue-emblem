@@ -297,7 +297,8 @@
 }
 @media (max-width: 700px) {
   .re-node-layout {
-    grid-template-columns: minmax(0, 1fr) 150px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 8px;
   }
 }
@@ -356,4 +357,43 @@ html.mobile-preview .re-screen {
 .mh-onboarding button {
   min-width: 64px;
   min-height: 44px;
+}
+
+/* Compact route artwork retains a full 44px button. */
+.re-node-graph--horizontal .re-node {
+  width: var(--re-tap);
+  height: var(--re-tap);
+  border-radius: 50%;
+  padding: 4px;
+}
+.re-node-scroll {
+  touch-action: pan-x pan-y;
+}
+@media (max-width: 700px) {
+  .re-node-map .re-node-side {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr) 88px;
+    align-items: center;
+  }
+  .re-node-map .re-node-party {
+    display: none;
+  }
+  .re-node-map .re-node-detail {
+    max-height: 62px;
+  }
+  .re-node-map .re-node-detail h3 {
+    margin: 0;
+  }
+  .re-node-map .re-node-detail p {
+    margin: 2px 0;
+    font: var(--re-t-small);
+  }
+  .re-node-map .re-node-side > .re-btn {
+    padding-inline: 6px;
+  }
+}
+
+/* Future destinations remain inspectable, but the reachable frontier leads. */
+.re-node.is-future:not([aria-pressed='true']):not(:focus-visible) {
+  opacity: 0.45;
 }

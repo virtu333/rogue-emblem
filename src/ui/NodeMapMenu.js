@@ -77,7 +77,7 @@ export class NodeMapMenu {
     const focus = this.root.contains(document.activeElement)
       ? document.activeElement.dataset.node
       : null;
-    const scroll = this.scroll?.scrollTop;
+    const scroll = this.scroll?.scrollLeft;
     this.root.replaceChildren();
     const header = element('header', null, 're-header');
     header.append(
@@ -89,8 +89,9 @@ export class NodeMapMenu {
     );
     const layout = element('div', null, 're-node-layout');
     this.scroll = element('div', null, 're-node-scroll');
-    const { graph, height } = createRouteGraph({
+    const { graph } = createRouteGraph({
       nodes,
+      horizontal: true,
       available,
       selectedId: this.selected,
       actId: rm.nodeMap.actId,
@@ -168,9 +169,10 @@ export class NodeMapMenu {
     side.append(actions, detail, advance, party);
     layout.append(this.scroll, side);
     this.root.append(header, layout);
-    const selectedRow = nodes.find((n) => n.id === this.selected)?.row || 0;
-    this.scroll.scrollTop =
-      scroll ?? Math.max(0, height - 28 - selectedRow * 64 - this.scroll.clientHeight / 2);
+    // Anchor a fresh route on the available frontier, leaving room for the next
+    // two columns. Preserve browsing position across selection and service visits.
+    const selectedButton = graph.querySelector('[aria-pressed="true"]');
+    this.scroll.scrollLeft = scroll ?? Math.max(0, (selectedButton?.offsetLeft || 0) - 28);
     if (focus)
       [...this.root.querySelectorAll('[data-node]')]
         .find((b) => b.dataset.node === focus)

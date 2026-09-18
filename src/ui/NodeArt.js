@@ -25,9 +25,9 @@ export const NODE_ART_ATLAS = {
     ]),
   ),
 };
-export function createNodeArt(index) {
+export function createNodeArt(index, size = 44) {
   const [x, y, w, h] = NODE_ART_RECTS[index] || NODE_ART_RECTS[0];
-  const scale = 44 / Math.max(w, h);
+  const scale = size / Math.max(w, h);
   const el = document.createElement('span');
   el.className = 're-node-art';
   el.style.width = `${w * scale}px`;

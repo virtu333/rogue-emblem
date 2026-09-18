@@ -29,17 +29,29 @@ export function createRouteGraph({
   activeId,
   actId,
   onSelect,
+  horizontal = false,
 }) {
   const graph = element('div', null, 're-node-graph');
   const rows = Math.max(1, ...nodes.map((n) => n.row));
-  const height = Math.max(260, (rows + 1) * 64);
-  graph.style.height = `${height}px`;
+  const height = horizontal ? 260 : Math.max(260, (rows + 1) * 64);
+  const width = horizontal ? 56 + rows * 64 : 500;
+  if (horizontal) {
+    graph.classList.add('re-node-graph--horizontal');
+    graph.style.minWidth = `${width}px`;
+  }
+  graph.style.height = horizontal ? '100%' : `${height}px`;
+  if (horizontal) graph.style.minHeight = '240px';
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', `0 0 500 ${height}`);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('aria-hidden', 'true');
   const positions = new Map(
-    nodes.map((n) => [n.id, { x: 42 + n.col * 104, y: 36 + (rows - n.row) * 64 }]),
+    nodes.map((n) => [
+      n.id,
+      horizontal
+        ? { x: 28 + n.row * 64, y: 28 + n.col * 50 }
+        : { x: 42 + n.col * 104, y: 36 + (rows - n.row) * 64 },
+    ]),
   );
   for (const n of nodes)
     for (const edge of n.edges) {
@@ -76,9 +88,10 @@ export function createRouteGraph({
     b.setAttribute('aria-pressed', String(n.id === selectedId));
     b.classList.toggle('is-completed', !!n.completed);
     b.classList.toggle('is-available', available.has(n.id));
-    b.style.left = `${pos.x / 5}%`;
-    b.style.top = `${pos.y}px`;
-    const icon = createNodeArt(nodeFrame(n, actId));
+    b.classList.toggle('is-future', state === 'Future');
+    b.style.left = `${(pos.x / width) * 100}%`;
+    b.style.top = horizontal ? `${(pos.y / height) * 100}%` : `${pos.y}px`;
+    const icon = createNodeArt(nodeFrame(n, actId), horizontal ? 30 : 44);
     b.append(icon);
     graph.append(b);
   });
