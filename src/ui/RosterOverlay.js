@@ -1,3 +1,4 @@
+import { teachRosterScroll } from '../engine/RosterTransfers.js';
 import { applyRosterClassChange } from '../engine/RosterCommands.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
@@ -27,7 +28,6 @@ import {
   resolvePromotionTargetClass,
   addToConsumables,
   removeFromConsumables,
-  learnSkill,
   canReclass,
   getReclassTargets,
   getDisplayLevel,
@@ -1836,12 +1836,8 @@ export class RosterOverlay {
   }
 
   _teachScroll(unit, scroll) {
-    const result = learnSkill(unit, scroll.skillId);
-    if (result.learned) {
-      // Remove scroll from team pool
-      const idx = this.runManager.scrolls.indexOf(scroll);
-      if (idx !== -1) this.runManager.scrolls.splice(idx, 1);
-
+    const result = teachRosterScroll(this.runManager, unit, scroll, this.gameData.skills);
+    if (result.ok) {
       const audio = this.scene.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
 
@@ -1850,9 +1846,7 @@ export class RosterOverlay {
       this._showBanner(`${unit.name} learned ${skillName}!`, '#88ffff');
       this.refresh();
     } else {
-      const reason =
-        result.reason === 'at_cap' ? 'Already knows 5 skills!' : 'Already knows this skill!';
-      this._showBanner(reason, '#ff8888');
+      this._showBanner(result.reason, '#ff8888');
     }
   }
 

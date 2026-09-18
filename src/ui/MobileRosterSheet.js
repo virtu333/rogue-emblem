@@ -1,3 +1,13 @@
+import { MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import {
+  teachScrollBlock,
+  teachRosterScroll,
+  giveRosterItemBlock,
+  giveRosterItem,
+} from '../engine/RosterTransfers.js';
+import { canEquip } from '../engine/UnitManager.js';
+import { getStaticCombatStats } from '../engine/Combat.js';
+import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
 import {
@@ -43,7 +53,7 @@ export class MobileRosterSheet {
     onClose,
     onAdvanced = null,
     advancedLabel = 'Advanced management',
-    advancedDescription = 'Promotion, scrolls and trading',
+    advancedDescription = 'Weapon-art binding and remaining details',
     portraitKey = null,
   }) {
     Object.assign(this, {
@@ -192,6 +202,7 @@ export class MobileRosterSheet {
     tabs.setAttribute('aria-label', 'Roster views');
     for (const [id, label] of [
       ['stats', 'Stats'],
+      ['skills', 'Skills'],
       ['gear', 'Equipment'],
       ...(this.run ? [['convoy', 'Convoy']] : []),
     ]) {
@@ -214,12 +225,13 @@ export class MobileRosterSheet {
         el('h3', unit.name),
         el(
           'p',
-          `Level ${getDisplayLevel(unit)} ${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`,
+          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier || 'base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
         ),
       );
       summary.append(createHealthBar(unit));
       body.append(summary);
       if (this.tab === 'stats') this.stats(unit);
+      if (this.tab === 'skills') this.skills(unit);
       if (this.tab === 'gear') this.gear(unit);
     }
     if (this.tab === 'convoy') this.convoy(unit);
@@ -287,11 +299,103 @@ export class MobileRosterSheet {
       'Proficiencies',
       (unit.proficiencies || []).map((p) => `${p.type} ${p.rank || ''}`).join(' · ') || 'None',
     );
+    const combat = getStaticCombatStats(unit, unit.weapon);
+    this.card(
+      'Combat',
+      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Crit ${combat.crit} · Wt ${combat.weight}`,
+    );
+    if (unit.growths && unit.faction !== 'enemy') {
+      const details = el('details', null, 'mr-card');
+      details.append(
+        el('summary', 'Growths'),
+        el(
+          'p',
+          Object.entries(unit.growths)
+            .map(([stat, value]) => `${stat} ${value}%`)
+            .join(' · '),
+        ),
+      );
+      this.body.append(details);
+    }
+  }
+  skills(unit) {
+    this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
     for (const id of unit.skills || []) {
       const skill = this.gameData.skills?.find((s) => s.id === id);
       this.card(skill?.name || id, skill?.description || '');
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
+    this.body.append(el('h3', 'Weapon arts'));
+    let count = 0;
+    for (const weapon of unit.inventory || []) {
+      for (const id of getWeaponArtIds(weapon)) {
+        const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
+        this.card(
+          `${art?.name || id} · ${weapon.name}`,
+          `${art?.description || ''} · HP cost ${art?.hpCost || 0}`,
+        );
+        count++;
+      }
+    }
+    if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
+    if (this.run) {
+      this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
+      for (const scroll of this.run.scrolls || []) {
+        const skill = this.gameData.skills.find((s) => s.id === scroll.skillId);
+        const card = this.card(scroll.name, skill?.description || scroll.description || '');
+        if (!scroll.teachesWeaponArtId)
+          card.append(this.button('Teach…', () => this.teachScroll(scroll)));
+        else card.append(el('small', 'Weapon-art binding is available in Advanced management.'));
+      }
+    }
+  }
+  chooseUnit(title, blocked, apply, describe = (unit) => unit.className) {
+    if (this.picker || this.destroyed) return;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title,
+      choices: this.units,
+      label: (unit) => unit.name,
+      describe,
+      blocked,
+      apply,
+      onClose: () => {
+        this.picker = null;
+        this.root.querySelector('button')?.focus();
+      },
+    });
+  }
+  giveItem(source, item) {
+    this.chooseUnit(
+      `Give ${item.name}`,
+      (target) => giveRosterItemBlock(this.run, source, target, item),
+      (target) => {
+        const result = giveRosterItem(this.run, source, target, item);
+        if (result.ok) this.render(`${item.name} given to ${target.name}.`);
+        return result;
+      },
+      (target) => {
+        if (item.type === 'Consumable') return `${target.consumables?.length || 0}/3 supplies`;
+        if (!canEquip(target, item))
+          return `Needs ${item.type} ${item.rankRequired || 'Prof'} · ${target.inventory.length}/5 items`;
+        return `Can equip · AS ${getStaticCombatStats(target, target.weapon).as} → ${getStaticCombatStats(target, item).as} if equipped · ${target.inventory.length}/5 items`;
+      },
+    );
+  }
+  teachScroll(scroll) {
+    this.chooseUnit(
+      `Teach ${scroll.name}`,
+      (unit) => teachScrollBlock(this.run, unit, scroll, this.gameData.skills),
+      (unit) => {
+        const result = teachRosterScroll(this.run, unit, scroll, this.gameData.skills);
+        if (result.ok)
+          this.render(
+            `${unit.name} learned ${this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId}.`,
+          );
+        return result;
+      },
+      (unit) => `${unit.className} · ${unit.skills.length}/${MAX_SKILLS} skills`,
+    );
   }
   changeClass(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -384,6 +488,7 @@ export class MobileRosterSheet {
       }
       if (this.run) {
         if (unit.weapon !== item) this.action(c, 'Equip', unit, item, 'equip');
+        c.append(this.button('Give…', () => this.giveItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -405,6 +510,7 @@ export class MobileRosterSheet {
           );
           if (reason) c.append(el('small', reason));
         }
+        c.append(this.button('Give…', () => this.giveItem(unit, item)));
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -446,7 +552,17 @@ export class MobileRosterSheet {
       return;
     }
     this.body.append(
-      el('p', `Withdraw to ${unit.name}. Select another unit on the left to change recipient.`),
+      this.button(`Withdraw to: ${unit.name}`, () =>
+        this.chooseUnit(
+          'Convoy recipient',
+          () => '',
+          (target) => {
+            this.index = this.units.indexOf(target);
+            this.render();
+            return { ok: true };
+          },
+        ),
+      ),
     );
     for (const item of [...items.weapons, ...items.consumables]) {
       const c = this.itemCard(item, unit);

@@ -106,3 +106,47 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
   });
   expect(result).toEqual({ className: 'Warrior', seals: 0, bows: 1 });
 });
+
+test('Skills teaching, giving and convoy recipient work without leaving DOM roster', async ({
+  page,
+}) => {
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  const skillName = await page.evaluate(() => {
+    const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const unit = scene.runManager.roster[0];
+    unit.skills = [];
+    const skill = scene.gameData.skills.find((s) => s.id === 'wrath') || scene.gameData.skills[0];
+    scene.runManager.scrolls = [{ name: 'Test scroll', type: 'Scroll', skillId: skill.id }];
+    unit.inventory.push({
+      ...scene.gameData.weapons.find((w) => w.name === 'Iron Sword'),
+      name: 'Test blade',
+    });
+    return skill.name;
+  });
+  await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
+  const roster = page.locator('.mr-sheet');
+  await roster.getByRole('button', { name: 'Skills', exact: true }).tap();
+  await roster.getByRole('button', { name: 'Teach…', exact: true }).tap();
+  const teach = page.getByRole('dialog', { name: 'Teach Test scroll' });
+  await teach.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await expect(roster.getByRole('status')).toContainText(skillName);
+  await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  await roster
+    .locator('article')
+    .filter({ has: page.getByRole('heading', { name: 'Test blade', exact: true }) })
+    .getByRole('button', { name: 'Give…' })
+    .tap();
+  const give = page.getByRole('dialog', { name: 'Give Test blade' });
+  await give.getByRole('button', { name: /^Sera/ }).tap();
+  await give.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await expect(roster.getByRole('status')).toContainText('given to Sera');
+  await roster.getByRole('button', { name: 'Convoy', exact: true }).tap();
+  await roster.getByRole('button', { name: /^Withdraw to:/ }).tap();
+  const convoy = page.getByRole('dialog', { name: 'Convoy recipient' });
+  await convoy.getByRole('button', { name: /^Sera/ }).tap();
+  await convoy.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await expect(roster.getByRole('button', { name: 'Withdraw to: Sera' })).toBeVisible();
+  expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+});

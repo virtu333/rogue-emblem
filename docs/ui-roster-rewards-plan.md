@@ -277,3 +277,20 @@ Validation: targeted command/promotion/reclass/roster suites; compact phone test
 exercise cancel, promoted weapon grants, seal consumption, and delayed-apply
 duplicate-confirm/Back guards. Full roster parity, Skills/scrolls/trade/convoy,
 rewards and deployment remain subsequent steps.
+
+### Phase 2b: skills and item recipients
+
+Native roster now has Stats / Skills / Equipment / Convoy. Skills displays the
+learned-skill cap, carried weapon arts, and team scroll shelf. Ordinary skill
+scroll teaching uses a revalidated shared command from both roster renderers.
+Giving equipment or supplies uses the shared picker; as in legacy trading, lack
+of proficiency warns but does not prevent carrying an item. Capacity and stale
+item ownership are checked at confirmation, and items are added successfully
+before being removed from their source. Convoy has an explicit recipient picker.
+
+Stats now includes effective combat values and folded growths. The identity
+summary is compact and shows tier/XP. Advanced management is retained specifically
+until weapon-art scroll binding and the remaining detail parity are complete.
+Phone browser tests cover teaching, giving, and convoy-recipient changes on both
+landscape sizes; command tests cover full bags, full skills, duplicate skills,
+and repeated application of a consumed scroll/transferred item.
