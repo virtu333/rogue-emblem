@@ -61,6 +61,11 @@ export const TEXT_RESOLUTION = 2;
 
 /** Safely apply resolution to a Phaser text object (no-ops in test mocks) */
 export function applyTextResolution(text) {
-  if (text?.setResolution) text.setResolution(TEXT_RESOLUTION);
+  if (text?.setResolution) {
+    text.setResolution(TEXT_RESOLUTION);
+    // Phaser updates style.resolution after construction but CanvasRenderer reads
+    // the texture source resolution. Keep both in sync to avoid double-size text.
+    if (text.frame?.source) text.frame.source.resolution = TEXT_RESOLUTION;
+  }
   return text;
 }

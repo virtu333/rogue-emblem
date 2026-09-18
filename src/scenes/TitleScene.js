@@ -404,7 +404,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
 
   // Cursor arrow (hidden)
   const cursor = applyTextResolution(
-    scene.add.text(-btnW / 2 + 12, 0, '\u25b6', {
+    scene.add.text(-btnW / 2 + 12, 0, '>', {
       fontFamily: FONT,
       fontSize: options.fontSize || '10px',
       color: GOLD,
@@ -442,7 +442,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   // Hover
   hitZone.on('pointerover', () => {
     bg.clear();
-    bg.fillStyle(UI_HEX.accent, 0.06);
+    bg.fillStyle(UI_HEX.selected, 1);
     bg.fillRect(-btnW / 2, -btnH / 2, btnW, btnH);
     bg.lineStyle(2, UI_HEX.accent, 1);
     bg.strokeRect(-btnW / 2, -btnH / 2, btnW, btnH);
@@ -526,7 +526,7 @@ export class TitleScene extends Phaser.Scene {
     // mystery. Self-dismisses on the same 'unlocked' event the audio system already uses.
     if (this.sound.locked) {
       this._audioLockHint = applyTextResolution(
-        this.add.text(cx, H - 56, 'TAP FOR SOUND', {
+        this.add.text(cx, 20, 'TAP FOR SOUND', {
           fontFamily: FONT,
           fontSize: '9px',
           color: GOLD,
@@ -738,7 +738,7 @@ export class TitleScene extends Phaser.Scene {
     // --- Menu buttons ---
     let menuY = 190;
     const btnDelay = 1000;
-    const btnGap = 42;
+    const btnGap = 48;
     const hasSlots = getSlotCount() > 0;
 
     // Main vertical menu column, collected in display order so the gamepad can

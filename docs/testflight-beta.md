@@ -26,7 +26,7 @@ npx playwright test --config playwright.release.config.js
 ## Packaging
 
 - Bundle ID: `com.davechen.emblemrogue`
-- Version/build: `0.1.0 (2)`
+- Version/build: `0.1.0 (3)`
 - Apple team: `Y463W47P77`
 - Landscape iPhone/iPad Capacitor app; assets bundled, no development server URL.
 - Game app icon replaces the Capacitor placeholder.
@@ -108,3 +108,12 @@ Keep map sizes and balance unchanged for this beta. Further art and menu polish 
 The release commits are on local `mobile-rebuild-checkpoint`. Pushing to
 `virtu333/rogue-emblem` returned HTTP 403: the active GitHub CLI account
 `davechenbhh` lacks write access. No merge was performed.
+
+## Build 3 title-screen hotfix
+
+Solid selected-button fill, separated title-menu rows, a pixel-font cursor instead
+of an emoji, and repositioned sound hint. Text texture resolution is synchronized
+with text style resolution for correct Canvas fallback rendering.
+
+Validated: 5,100 unit tests; title-screen browser check at 844px and 667px widths;
+visual screenshot review and touch navigation. Release packaging pending.
