@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
@@ -156,7 +157,7 @@ export class UnitDetailOverlay {
 
     // Panel background
     this._panel = this.scene.add
-      .rectangle(CX, CY, OVERLAY_W, OVERLAY_H, 0x1a1a2e, 1)
+      .rectangle(CX, CY, OVERLAY_W, OVERLAY_H, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
       .setStrokeStyle(2, 0x444444);
     this.objects.push(this._panel);
@@ -254,43 +255,46 @@ export class UnitDetailOverlay {
     // Navigation UI (arrows + counter) to the left of portrait
     if (this._rosterUnits && this._rosterUnits.length > 1) {
       const navX = left + OVERLAY_W - 72;
-      const upArrow = this.scene.add
-        .text(navX, y + 6, '\u25b2', {
-          fontFamily: 'monospace',
+      const upArrow = applyTextResolution(
+        this.scene.add.text(navX, y + 6, '\u25b2', {
+          fontFamily: 'Arial',
           fontSize: '14px',
-          color: '#ffdd44',
-        })
+          color: UI_PALETTE.accent,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_TEXT)
         .setInteractive({ useHandCursor: true });
       upArrow.on('pointerdown', () => this._cycleUnit(-1));
-      upArrow.on('pointerover', () => upArrow.setColor('#ffffff'));
-      upArrow.on('pointerout', () => upArrow.setColor('#ffdd44'));
+      upArrow.on('pointerover', () => upArrow.setColor(UI_PALETTE.text));
+      upArrow.on('pointerout', () => upArrow.setColor(UI_PALETTE.accent));
       this._expandTouchHitArea(upArrow, 40, 34);
       this._unitObjects.push(upArrow);
 
-      const counter = this.scene.add
-        .text(navX, y + 24, `${this._rosterIndex + 1}/${this._rosterUnits.length}`, {
-          fontFamily: 'monospace',
+      const counter = applyTextResolution(
+        this.scene.add.text(navX, y + 24, `${this._rosterIndex + 1}/${this._rosterUnits.length}`, {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#888888',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_TEXT);
       this._unitObjects.push(counter);
 
-      const downArrow = this.scene.add
-        .text(navX, y + 42, '\u25bc', {
-          fontFamily: 'monospace',
+      const downArrow = applyTextResolution(
+        this.scene.add.text(navX, y + 42, '\u25bc', {
+          fontFamily: 'Arial',
           fontSize: '14px',
-          color: '#ffdd44',
-        })
+          color: UI_PALETTE.accent,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_TEXT)
         .setInteractive({ useHandCursor: true });
       downArrow.on('pointerdown', () => this._cycleUnit(1));
-      downArrow.on('pointerover', () => downArrow.setColor('#ffffff'));
-      downArrow.on('pointerout', () => downArrow.setColor('#ffdd44'));
+      downArrow.on('pointerover', () => downArrow.setColor(UI_PALETTE.text));
+      downArrow.on('pointerout', () => downArrow.setColor(UI_PALETTE.accent));
       this._expandTouchHitArea(downArrow, 40, 34);
       this._unitObjects.push(downArrow);
     }
@@ -321,7 +325,7 @@ export class UnitDetailOverlay {
     const barW = 180;
     const barH = 8;
     const barBg = this.scene.add
-      .rectangle(lx, y + 1, barW, barH, 0x333333)
+      .rectangle(lx, y + 1, barW, barH, UI_HEX.raised)
       .setOrigin(0, 0)
       .setDepth(DEPTH_TEXT);
     const barFill = this.scene.add
@@ -455,14 +459,15 @@ export class UnitDetailOverlay {
     this._tabBtnStats = this.scene.add
       .rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, 0x443300)
       .setDepth(DEPTH_TEXT)
-      .setStrokeStyle(1, 0xffdd44)
+      .setStrokeStyle(1, UI_HEX.accent)
       .setInteractive({ useHandCursor: true });
-    this._tabLabelStats = this.scene.add
-      .text(x + tabW / 2, y + tabH / 2, 'Stats', {
-        fontFamily: 'monospace',
+    this._tabLabelStats = applyTextResolution(
+      this.scene.add.text(x + tabW / 2, y + tabH / 2, 'Stats', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#ffffff',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT + 1);
     this._tabBtnStats.on('pointerdown', () => {
@@ -478,12 +483,13 @@ export class UnitDetailOverlay {
       .setDepth(DEPTH_TEXT)
       .setStrokeStyle(1, 0x666666)
       .setInteractive({ useHandCursor: true });
-    this._tabLabelGear = this.scene.add
-      .text(gx + tabW / 2, y + tabH / 2, 'Gear', {
-        fontFamily: 'monospace',
+    this._tabLabelGear = applyTextResolution(
+      this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT + 1);
     this._tabBtnGear.on('pointerdown', () => {
@@ -499,15 +505,15 @@ export class UnitDetailOverlay {
   _refreshTabs() {
     // Update tab button styles
     if (this._activeTab === 'stats') {
-      this._tabBtnStats.setFillStyle(0x443300).setStrokeStyle(1, 0xffdd44);
-      this._tabLabelStats.setColor('#ffffff');
+      this._tabBtnStats.setFillStyle(0x443300).setStrokeStyle(1, UI_HEX.accent);
+      this._tabLabelStats.setColor(UI_PALETTE.text);
       this._tabBtnGear.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
-      this._tabLabelGear.setColor('#888888');
+      this._tabLabelGear.setColor(UI_PALETTE.muted);
     } else {
       this._tabBtnStats.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
-      this._tabLabelStats.setColor('#888888');
-      this._tabBtnGear.setFillStyle(0x443300).setStrokeStyle(1, 0xffdd44);
-      this._tabLabelGear.setColor('#ffffff');
+      this._tabLabelStats.setColor(UI_PALETTE.muted);
+      this._tabBtnGear.setFillStyle(0x443300).setStrokeStyle(1, UI_HEX.accent);
+      this._tabLabelGear.setColor(UI_PALETTE.text);
     }
     this._drawTabContent();
   }
@@ -578,17 +584,17 @@ export class UnitDetailOverlay {
     if (combat.as < unit.stats.SPD) asColor = '#ff6666';
     else if (combat.as > unit.stats.SPD) asColor = '#44ff88';
 
-    this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, UI_PALETTE.text, '10px');
     this._tabText(rx, y, `AS  ${String(combat.as).padStart(3)}`, asColor, '10px');
     y += 13;
-    this._tabText(lx, y, `Hit ${String(combat.hit).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(lx, y, `Hit ${String(combat.hit).padStart(3)}`, UI_PALETTE.text, '10px');
     const avo = this._terrain
       ? calculateAvoid(unit, this._terrain)
       : unit.stats.SPD * 2 + unit.stats.LCK;
-    this._tabText(rx, y, `Avo ${String(avo).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(rx, y, `Avo ${String(avo).padStart(3)}`, UI_PALETTE.text, '10px');
     y += 13;
-    this._tabText(lx, y, `Crt ${String(combat.crit).padStart(3)}`, '#ffffff', '10px');
-    this._tabText(rx, y, `Wt  ${String(combat.weight).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(lx, y, `Crt ${String(combat.crit).padStart(3)}`, UI_PALETTE.text, '10px');
+    this._tabText(rx, y, `Wt  ${String(combat.weight).padStart(3)}`, UI_PALETTE.text, '10px');
     y += 15;
 
     // Proficiencies
@@ -897,25 +903,25 @@ export class UnitDetailOverlay {
   // --- Helpers ---
 
   _unitText(x, y, str, color, fontSize) {
-    const t = this.scene.add
-      .text(x, y, str, {
-        fontFamily: 'monospace',
+    const t = applyTextResolution(
+      this.scene.add.text(x, y, str, {
+        fontFamily: 'Arial',
         fontSize: fontSize || '10px',
         color: color || UI_COLORS.white,
-      })
-      .setDepth(DEPTH_TEXT);
+      }),
+    ).setDepth(DEPTH_TEXT);
     this._unitObjects.push(t);
     return t;
   }
 
   _tabText(x, y, str, color, fontSize) {
-    const t = this.scene.add
-      .text(x, y, str, {
-        fontFamily: 'monospace',
+    const t = applyTextResolution(
+      this.scene.add.text(x, y, str, {
+        fontFamily: 'Arial',
         fontSize: fontSize || '10px',
         color: color || UI_COLORS.white,
-      })
-      .setDepth(DEPTH_TEXT);
+      }),
+    ).setDepth(DEPTH_TEXT);
     this._tabObjects.push(t);
     return t;
   }
@@ -1194,18 +1200,18 @@ export class UnitDetailOverlay {
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     const tipY = Math.min(anchor.y, 430);
     const tipBg = this.scene.add
-      .rectangle(tipX, tipY, 200, 10, 0x111111, 0.95)
+      .rectangle(tipX, tipY, 200, 10, UI_HEX.sunken, 0.95)
       .setOrigin(0, 0)
       .setDepth(DEPTH_TOOLTIP)
       .setStrokeStyle(1, 0x555555);
-    const tipText = this.scene.add
-      .text(tipX + 4, tipY + 3, lines.join('\n'), {
-        fontFamily: 'monospace',
+    const tipText = applyTextResolution(
+      this.scene.add.text(tipX + 4, tipY + 3, lines.join('\n'), {
+        fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         wordWrap: { width: 192 },
-      })
-      .setDepth(DEPTH_TOOLTIP + 1);
+      }),
+    ).setDepth(DEPTH_TOOLTIP + 1);
     tipBg.setSize(200, tipText.height + 8);
     if (tipBg.y + tipBg.height > 480) tipBg.y = 480 - tipBg.height;
     tipText.y = tipBg.y + 3;
@@ -1225,18 +1231,18 @@ export class UnitDetailOverlay {
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     const tipY = Math.min(anchor.y, 440);
     const tipBg = this.scene.add
-      .rectangle(tipX, tipY, 200, 10, 0x111111, 0.95)
+      .rectangle(tipX, tipY, 200, 10, UI_HEX.sunken, 0.95)
       .setOrigin(0, 0)
       .setDepth(DEPTH_TOOLTIP)
       .setStrokeStyle(1, 0x555555);
-    const tipText = this.scene.add
-      .text(tipX + 4, tipY + 3, description, {
-        fontFamily: 'monospace',
+    const tipText = applyTextResolution(
+      this.scene.add.text(tipX + 4, tipY + 3, description, {
+        fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         wordWrap: { width: 192 },
-      })
-      .setDepth(DEPTH_TOOLTIP + 1);
+      }),
+    ).setDepth(DEPTH_TOOLTIP + 1);
     tipBg.setSize(200, tipText.height + 8);
     if (tipBg.y + tipBg.height > 480) tipBg.y = 480 - tipBg.height;
     tipText.y = tipBg.y + 3;

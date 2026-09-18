@@ -131,3 +131,13 @@ export function clearOverlayStack(scene) {
   const state = scene && typeof scene === 'object' ? SCENE_OVERLAY_STATE.get(scene) : null;
   if (state) state.entries.length = 0;
 }
+
+/** Mobile buttons have no per-overlay key event. Route Back to its owner and
+ * suppress scene shortcuts while a modal owns input. */
+export function routeMobileAction(scene, action, fallback) {
+  if (hasOpenOverlay(scene)) {
+    if (action === 'cancel') cancelTopOverlay(scene);
+    return true;
+  }
+  return fallback();
+}

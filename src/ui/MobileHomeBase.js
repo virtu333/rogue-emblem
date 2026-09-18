@@ -1,7 +1,11 @@
 import { MobileUpgradeMenu } from './MobileUpgradeMenu.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
 import './mobileUpgrade.css';
 const node = (tag, cls, text) => {
@@ -75,25 +79,31 @@ export class MobileHomeBase {
     this.root.remove();
     this.scene.input.enabled = this.previousInput;
   }
-  back() {
+  back({ allowExit = true } = {}) {
     if (this.tab !== 'lords') {
       this.tab = 'lords';
       this.render();
-    } else void this.transition('Title');
+    } else if (allowExit) void this.transition('Title');
+    else return false;
+    return true;
   }
   async transition(target) {
     if (this.pending) return;
     this.pending = true;
     this.render();
-    const ok = await this.scene.runTransition(() => {
+    const ok = await this.scene.runTransition(async () => {
       if (target === 'Title') this.scene.registry.get('audio')?.stopMusic(this.scene, 0);
-      return transitionToScene(
-        this.scene,
-        target,
-        { gameData: this.scene.gameData },
-        {
-          reason: target === 'Title' ? TRANSITION_REASONS.BACK : TRANSITION_REASONS.BEGIN_RUN,
-        },
+      return (
+        (
+          await transitionToSceneWithBlockedRetry(
+            this.scene,
+            target,
+            { gameData: this.scene.gameData },
+            {
+              reason: target === 'Title' ? TRANSITION_REASONS.BACK : TRANSITION_REASONS.BEGIN_RUN,
+            },
+          )
+        ).status === TRANSITION_RESULTS.STARTED
       );
     });
     if (!ok && this.visible) {

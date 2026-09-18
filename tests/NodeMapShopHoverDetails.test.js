@@ -1,3 +1,4 @@
+import { UI_PALETTE } from '../src/utils/uiStyles.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
@@ -150,11 +151,11 @@ describe('NodeMap shop hover details', () => {
 
     row.handlers.pointerover();
     expect(scene._showShopItemTooltip).toHaveBeenCalledWith(entry, 60 + row.width + 10, row.y);
-    expect(row._color).toBe('#ffdd44');
+    expect(row._color).toBe(UI_PALETTE.accent);
 
     row.handlers.pointerout();
     expect(scene._hideShopItemTooltip).toHaveBeenCalledTimes(1);
-    expect(row._color).toBe('#666666');
+    expect(row._color).toBe(UI_PALETTE.muted);
   });
 
   it('keeps affordable buy rows clickable and still shows hover details', () => {
@@ -287,7 +288,7 @@ describe('NodeMap shop hover details', () => {
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
     expect(scene.showShopBanner).toHaveBeenCalledWith(
       expect.stringContaining('Sold Vulnerary for '),
-      '#ffdd44',
+      UI_PALETTE.accent,
     );
   });
 

@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Emblem Rogue — palette revision (v2), as an override layer over re-kit.css.
+   Scoped to .v2 so the same markup can be rendered both ways for comparison.
+
+   Four changes, in order of how much they matter:
+     1. Real value separation between surfaces (v1 is 1.13:1 panel→card).
+     2. Border hue pulled from sage-green 131° to teal 185°, matching surfaces.
+     3. Gold demoted from "five jobs" to one: where you are / what you'll act on.
+        Structure moves to --re-line-soft.
+     4. Actual weathering — an inner bevel line — so the panels look like the
+        "weathered command panels" mobileTheme.css claims they are.
+   ========================================================================== */
+
+.v2 {
+  /* ---- surfaces: bg→card is now 1.78:1, was 1.36:1 --------------------- */
+  --re-bg: #10212a;
+  --re-panel: #1d3742;
+  --re-panel-raised: #294c55;
+  --re-selected: #3a6560;
+  --re-sunken: #0a171e;
+
+  /* ---- line: 185° teal, was 131° green -------------------------------- */
+  --re-line: #5c7a7d;
+  --re-line-soft: #35545c;
+  --re-line-strong: #8aa39d;
+
+  /* ---- accent: one job ------------------------------------------------ */
+  --re-gold: #d9be7e;
+  --re-gold-hi: #f0dcab;
+  --re-gold-deep: #d9be7e; /* primary is now a FILL, not a brown wash */
+  --re-accent-ink: #10212a; /* dark text on that fill                 */
+
+  /* ---- text ----------------------------------------------------------- */
+  --re-text: #eee9d5;
+  --re-muted: #9fb3b0;
+  --re-blue: #8fd3e0; /* was #bde1d9 — indistinguishable from text */
+
+  /* ---- status: allowed to be loud ------------------------------------- */
+  --re-good: #7bd39a;
+  --re-warn: #f0c16a;
+  --re-bad: #ef857e;
+  --re-alarm: #ff5a4d; /* new: crit, lethal, boss. deliberately outside   */
+  --re-danger-bg: #7a2f31;
+  --re-danger-line: #c25a55;
+
+  --re-scrim: rgba(6, 15, 20, 0.8);
+  --re-scrim-heavy: rgba(6, 15, 20, 0.94);
+
+  /* structural rules stop being gold */
+  --re-rule: 1px solid var(--re-line-soft);
+}
+
+/* ---- weathering: a 1px inner bevel, the SNES window idiom -------------- */
+.v2 .re-panel,
+.v2 .re-card,
+.v2 .re-stats,
+.v2 .re-btn,
+.v2 .re-search {
+  box-shadow:
+    inset 0 1px 0 #ffffff0f,
+    inset 0 0 0 1px #0000002e;
+}
+.v2 .re-rail .re-btn,
+.v2 .re-btn--quiet {
+  box-shadow: none;
+}
+
+/* ---- gold now marks exactly one thing per screen ---------------------- */
+.v2 .re-header {
+  border-bottom: 1px solid var(--re-line-soft);
+}
+.v2 .re-header h1,
+.v2 .re-header h2 {
+  color: var(--re-text);
+}
+.v2 .re-btn[aria-pressed='true'],
+.v2 .re-btn.is-active {
+  background: var(--re-selected);
+  border-color: var(--re-gold);
+  color: var(--re-gold-hi);
+}
+.v2 .re-btn--primary {
+  background: var(--re-gold);
+  border-color: var(--re-gold-hi);
+  color: var(--re-accent-ink);
+  font-weight: 700;
+}
+.v2 .re-tabs .re-btn[aria-pressed='true'] {
+  border-bottom-color: var(--re-gold);
+}
+.v2 .re-bracket::before,
+.v2 .re-bracket::after {
+  border-color: var(--re-gold);
+}
+/* the corner bracket becomes the consistent "this is the focused object"
+   marker instead of appearing once on the roster stat grid */
+
+/* ---- density: tabs are navigation, not destructive actions ------------ */
+.v2 .re-tabs .re-btn {
+  min-height: 38px;
+  padding: 10px 9px;
+}
+
+/* ---- motion: 90ms, enough to feel responsive on touch, not animated --- */
+@media (prefers-reduced-motion: no-preference) {
+  .v2 .re-btn {
+    transition:
+      background 0.09s linear,
+      border-color 0.09s linear,
+      color 0.09s linear;
+  }
+}

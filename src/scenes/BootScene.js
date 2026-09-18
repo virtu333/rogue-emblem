@@ -1,3 +1,5 @@
+import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
@@ -55,6 +57,7 @@ export class BootScene extends Phaser.Scene {
   preload() {
     preloadRebuiltSprites(this);
     preloadRebuiltPortraits(this);
+    this.load.atlas('weathered_nodes', 'assets/sprites/nodes/weathered-nodes.png', NODE_ART_ATLAS);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
     this._deferredAssets = [];
@@ -63,22 +66,22 @@ export class BootScene extends Phaser.Scene {
     this._stallUi = [];
 
     const failedFiles = [];
-    const statusText = this.add
-      .text(320, 210, 'Loading assets...', {
-        fontFamily: 'monospace',
+    const statusText = applyTextResolution(
+      this.add.text(320, 210, 'Loading assets...', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
-    const progressText = this.add
-      .text(320, 240, '0%', {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    const progressText = applyTextResolution(
+      this.add.text(320, 240, '0%', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     markStartup('boot_preload_start', {
       reducedPreload: this._startupFlags.reducedPreload,
@@ -531,23 +534,25 @@ export class BootScene extends Phaser.Scene {
 
   _showPreloadRecoveryUi() {
     if (this._stallUi.length > 0) return;
-    const title = this.add
-      .text(320, 306, 'Loading is taking longer than expected.', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.add.text(320, 306, 'Loading is taking longer than expected.', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#ffcc88',
         align: 'center',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1200);
-    const retryBtn = this.add
-      .text(320, 330, '[ Reload ]', {
-        fontFamily: 'monospace',
+    const retryBtn = applyTextResolution(
+      this.add.text(320, 330, '[ Reload ]', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1201)
       .setInteractive({ useHandCursor: true });
@@ -555,14 +560,15 @@ export class BootScene extends Phaser.Scene {
       markStartup('boot_preload_recovery_reload');
       window.location.reload();
     });
-    const safeBtn = this.add
-      .text(320, 356, '[ Reload Safe Mode ]', {
-        fontFamily: 'monospace',
+    const safeBtn = applyTextResolution(
+      this.add.text(320, 356, '[ Reload Safe Mode ]', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#ffd580',
         backgroundColor: '#443322',
         padding: { x: 10, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1201)
       .setInteractive({ useHandCursor: true });
@@ -583,40 +589,41 @@ export class BootScene extends Phaser.Scene {
   _showDataLoadRecovery(err) {
     this.children.removeAll(true);
     const msg = err?.message || 'unknown';
-    this.add
-      .text(320, 206, 'Failed to load game data.', {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(320, 206, 'Failed to load game data.', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff4444',
         align: 'center',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(320, 232, 'You can retry now or reload in safe mode.', {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(320, 232, 'You can retry now or reload in safe mode.', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(320, 258, msg, {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(320, 258, msg, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#999999',
+        color: UI_PALETTE.muted,
         align: 'center',
         wordWrap: { width: 560, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
-    const retryBtn = this.add
-      .text(320, 302, '[ Retry ]', {
-        fontFamily: 'monospace',
+    const retryBtn = applyTextResolution(
+      this.add.text(320, 302, '[ Retry ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerdown', () => {
@@ -624,14 +631,15 @@ export class BootScene extends Phaser.Scene {
       restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
     });
 
-    const safeBtn = this.add
-      .text(320, 336, '[ Reload Safe Mode ]', {
-        fontFamily: 'monospace',
+    const safeBtn = applyTextResolution(
+      this.add.text(320, 336, '[ Reload Safe Mode ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#ffd580',
         backgroundColor: '#443322',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     safeBtn.on('pointerdown', () => {
@@ -653,14 +661,19 @@ export class BootScene extends Phaser.Scene {
 
     if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
       const sample = this._failedAssetKeys.slice(0, 3).join(', ');
-      this.add
-        .text(320, 26, `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#ffb347',
-          align: 'center',
-        })
-        .setOrigin(0.5);
+      applyTextResolution(
+        this.add.text(
+          320,
+          26,
+          `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#ffb347',
+            align: 'center',
+          },
+        ),
+      ).setOrigin(0.5);
     }
 
     let data;

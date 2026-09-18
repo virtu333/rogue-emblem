@@ -29,7 +29,8 @@ vi.mock('../src/engine/UnitManager.js', async () => {
   };
 });
 
-vi.mock('../src/utils/uiStyles.js', () => ({
+vi.mock('../src/utils/uiStyles.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   applyTextResolution: (obj) => obj,
   STAT_COLORS: {},
   HP_GRADIENT: [],

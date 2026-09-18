@@ -1,3 +1,9 @@
+import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { dialoguePortraitKey } from './RebuiltPortraits.js';
+import { canUseTouchUI } from '../utils/domUI.js';
+import { textureImageSource } from './textureImageSource.js';
+import { MenuSurface, element, button } from './MenuSurface.js';
 // DialogueOverlay.js - Lightweight dialogue box with portrait support.
 // Recruit dialogue auto-dismisses; story sequences are manual-advance.
 
@@ -70,6 +76,8 @@ export class DialogueOverlay {
     this.visible = true;
 
     const scene = this.scene;
+    portraitKey = dialoguePortraitKey(scene, name, portraitKey);
+    if (canUseTouchUI(scene)) return this._showDOM(name, line, portraitKey, autoAdvance, options);
     const cam = scene.cameras.main;
     const cx = cam.centerX;
     const cy = cam.centerY;
@@ -101,56 +109,63 @@ export class DialogueOverlay {
         .image(cx - boxW / 2 + 40, boxY, portraitKey)
         .setDisplaySize(64, 64)
         .setDepth(DEPTH + 2);
+      const source = scene.textures.get?.(portraitKey)?.getSourceImage?.();
+      if (source?.width && source?.height) {
+        const scale = Math.min(64 / source.width, 80 / source.height);
+        portrait.setDisplaySize(source.width * scale, source.height * scale);
+      }
       this.objects.push(portrait);
     }
 
     if (hasSpeaker) {
       const nameX = hasPortrait ? cx - boxW / 2 + 80 : textLeft;
-      const nameText = scene.add
-        .text(nameX, boxY - boxH / 2 + 10, name, {
-          fontFamily: 'monospace',
+      const nameText = applyTextResolution(
+        scene.add.text(nameX, boxY - boxH / 2 + 10, name, {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accent,
           fontStyle: 'bold',
-        })
-        .setDepth(DEPTH + 2);
+        }),
+      ).setDepth(DEPTH + 2);
       this.objects.push(nameText);
     }
 
     if (hasSpeaker) {
       const lineX = hasPortrait ? cx - boxW / 2 + 80 : textLeft;
       const lineWrap = hasPortrait ? boxW - 100 : boxW - 28;
-      const lineText = scene.add
-        .text(lineX, lineTop, String(line || ''), {
-          fontFamily: 'monospace',
+      const lineText = applyTextResolution(
+        scene.add.text(lineX, lineTop, String(line || ''), {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#ffffff',
+          color: UI_PALETTE.text,
           wordWrap: { width: lineWrap },
           lineSpacing: 2,
-        })
-        .setDepth(DEPTH + 2);
+        }),
+      ).setDepth(DEPTH + 2);
       this.objects.push(lineText);
     } else {
-      const lineText = scene.add
-        .text(cx, boxY, String(line || ''), {
-          fontFamily: 'monospace',
+      const lineText = applyTextResolution(
+        scene.add.text(cx, boxY, String(line || ''), {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#ffffff',
+          color: UI_PALETTE.text,
           align: 'center',
           wordWrap: { width: boxW - 28 },
           lineSpacing: 2,
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH + 2);
       this.objects.push(lineText);
     }
 
-    const closeHint = scene.add
-      .text(cx + boxW / 2 - 10, boxY - boxH / 2 + 10, 'X', {
-        fontFamily: 'monospace',
+    const closeHint = applyTextResolution(
+      scene.add.text(cx + boxW / 2 - 10, boxY - boxH / 2 + 10, 'X', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(DEPTH + 2)
       .setInteractive({ useHandCursor: true });
@@ -158,12 +173,13 @@ export class DialogueOverlay {
 
     let skipText = null;
     if (allowSkip) {
-      skipText = scene.add
-        .text(cx + boxW / 2 - 10, boxY + boxH / 2 - 10, '[Skip]', {
-          fontFamily: 'monospace',
+      skipText = applyTextResolution(
+        scene.add.text(cx + boxW / 2 - 10, boxY + boxH / 2 - 10, '[Skip]', {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#999999',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(1, 1)
         .setDepth(DEPTH + 2)
         .setInteractive({ useHandCursor: true });
@@ -208,6 +224,46 @@ export class DialogueOverlay {
     });
   }
 
+  _showDOM(name, line, portraitKey, autoAdvance, { allowSkip, onSkip }) {
+    return new Promise((resolve) => {
+      this._pendingResolve = resolve;
+      this.surface = new MenuSurface(this.scene, name || 'Story', () => this.hide());
+      this.surface.root.className = 're re-screen re-dialogue';
+      this.surface.root.style.setProperty('--re-z', DOM_UI_DEPTHS.DIALOGUE);
+      this.surface.root.replaceChildren();
+      const panel = element('div', null, 're-panel');
+      const copy = element('div', null, 're-dialogue-copy');
+      if (portraitKey && this.scene.textures.exists(portraitKey)) {
+        const image = element('img');
+        image.src = textureImageSource(this.scene.textures.get(portraitKey));
+        image.alt = name || '';
+        copy.append(image);
+      }
+      const text = element('div');
+      if (name) text.append(element('h2', name));
+      text.append(element('p', String(line || '')));
+      copy.append(text);
+      const footer = element('footer');
+      if (allowSkip)
+        footer.append(
+          button(
+            'Skip conversation',
+            () => {
+              onSkip?.();
+              this.hide();
+            },
+            're-btn re-btn--quiet',
+          ),
+        );
+      const next = button('Continue', () => this.hide(), 're-btn re-btn--primary');
+      footer.append(next);
+      panel.append(copy, footer);
+      this.surface.root.append(panel);
+      next.focus();
+      if (autoAdvance) this._timer = this.scene.time.delayedCall(3000, () => this.hide());
+    });
+  }
+
   _resolvePending() {
     const resolve = this._pendingResolve;
     this._pendingResolve = null;
@@ -215,6 +271,8 @@ export class DialogueOverlay {
   }
 
   hide() {
+    this.surface?.destroy();
+    this.surface = null;
     if (this._timer) {
       this._timer.remove();
       this._timer = null;

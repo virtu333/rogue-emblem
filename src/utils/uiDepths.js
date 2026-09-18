@@ -41,3 +41,6 @@ export const UI_DEPTHS = {
   DIALOGUE: 960, // DialogueOverlay
   HINTS: 965, // HintDisplay (above dialogue)
 };
+
+// DOM surfaces have their own stacking context above the Phaser canvas.
+export const DOM_UI_DEPTHS = { ROUTE: 400, DIALOGUE: 1200, MENU: 1250 };

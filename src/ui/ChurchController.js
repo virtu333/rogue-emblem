@@ -1,3 +1,5 @@
+import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // ChurchController -- church node overlay flow extracted from NodeMapScene.
 // Owns the church overlay UI (heal/revive/promote services, scroll content)
 // and its message/flavor timers. All overlay state stays on the scene
@@ -64,6 +66,7 @@ export class ChurchController {
   showChurchOverlay(node, options = {}) {
     const scene = this.scene;
     const ruinsMode = options?.ruinsMode === true;
+    this.rowHeight = mobileTarget(scene, CHURCH_ITEM_HEIGHT);
     scene._churchRuinsMode = ruinsMode;
     scene.churchOverlay = [];
     scene.churchContentGroup = [];
@@ -85,42 +88,50 @@ export class ChurchController {
 
     // Centered panel container
     const panel = scene.add
-      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, UI_HEX.sunken, 0.95)
       .setDepth(OVERLAY_PANEL_DEPTH)
       .setStrokeStyle(2, 0x444444)
       .setInteractive();
     scene.churchOverlay.push(panel);
 
     // Title
-    const title = scene.add
-      .text(320, 40, ruinsMode ? 'Ruins' : 'Church', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(320, 40, ruinsMode ? 'Ruins' : 'Church', {
+        fontFamily: 'Arial',
         fontSize: '22px',
-        color: '#cccccc',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.churchOverlay.push(title);
 
     if (ruinsMode) {
-      const flavor = scene.add
-        .text(320, 64, "Whoever kept this place kept it stocked. The prices are the empire's.", {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#aabbcc',
-        })
+      const flavor = applyTextResolution(
+        scene.add.text(
+          320,
+          64,
+          "Whoever kept this place kept it stocked. The prices are the empire's.",
+          {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#aabbcc',
+          },
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(OVERLAY_CONTENT_DEPTH);
       scene.churchOverlay.push(flavor);
     }
 
     // Gold display
-    scene.churchGoldText = scene.add
-      .text(320, ruinsMode ? 82 : 70, `Gold: ${scene.runManager.gold}G`, {
-        fontFamily: 'monospace',
+    scene.churchGoldText = applyTextResolution(
+      scene.add.text(320, ruinsMode ? 82 : 70, `Gold: ${scene.runManager.gold}G`, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.churchOverlay.push(scene.churchGoldText);
@@ -128,19 +139,20 @@ export class ChurchController {
     const rm = scene.runManager;
 
     // Service 1: Heal All (Free) — fixed, not scrollable
-    const healBtn = scene.add
-      .text(320, 110, '[ Heal All Units ] (Free)', {
-        fontFamily: 'monospace',
+    const healBtn = applyTextResolution(
+      scene.add.text(320, 110, '[ Heal All Units ] (Free)', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#44ff44',
-        backgroundColor: '#222222',
+        backgroundColor: UI_PALETTE.panel,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
-    healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
+    healBtn.on('pointerover', () => healBtn.setBackgroundColor(UI_PALETTE.raised));
+    healBtn.on('pointerout', () => healBtn.setBackgroundColor(UI_PALETTE.panel));
     healBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       for (const unit of rm.roster) {
@@ -154,18 +166,19 @@ export class ChurchController {
 
     let browseBtn = null;
     if (ruinsMode) {
-      browseBtn = scene.add
-        .text(320, 140, '[ Browse Wares ]', {
-          fontFamily: 'monospace',
+      browseBtn = applyTextResolution(
+        scene.add.text(320, 140, '[ Browse Wares ]', {
+          fontFamily: 'Arial',
           fontSize: '14px',
           color: '#d6c28f',
           backgroundColor: '#333022',
           padding: { x: 12, y: 5 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(OVERLAY_CONTENT_DEPTH)
         .setInteractive({ useHandCursor: true });
-      browseBtn.on('pointerover', () => browseBtn.setColor('#ffdd44'));
+      browseBtn.on('pointerover', () => browseBtn.setColor(UI_PALETTE.accent));
       browseBtn.on('pointerout', () => browseBtn.setColor('#d6c28f'));
       browseBtn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
@@ -176,18 +189,19 @@ export class ChurchController {
     }
 
     // View Map button — fixed
-    const viewMapBtn = scene.add
-      .text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
-        fontFamily: 'monospace',
+    const viewMapBtn = applyTextResolution(
+      scene.add.text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#aaddff',
         backgroundColor: '#223344',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
+    viewMapBtn.on('pointerover', () => viewMapBtn.setColor(UI_PALETTE.accent));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
     viewMapBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -196,18 +210,19 @@ export class ChurchController {
     scene.churchOverlay.push(viewMapBtn);
 
     // Roster button — fixed
-    const rosterBtn = scene.add
-      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
-        fontFamily: 'monospace',
+    const rosterBtn = applyTextResolution(
+      scene.add.text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#aaddff',
         backgroundColor: '#223344',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    rosterBtn.on('pointerover', () => rosterBtn.setColor('#ffdd44'));
+    rosterBtn.on('pointerover', () => rosterBtn.setColor(UI_PALETTE.accent));
     rosterBtn.on('pointerout', () => rosterBtn.setColor('#aaddff'));
     rosterBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -231,19 +246,20 @@ export class ChurchController {
     scene.churchOverlay.push(rosterBtn);
 
     // Leave button — fixed
-    const leaveBtn = scene.add
-      .text(320, SAFE_BOTTOM_Y, ruinsMode ? '[ Leave Ruins ]' : '[ Leave Church ]', {
-        fontFamily: 'monospace',
+    const leaveBtn = applyTextResolution(
+      scene.add.text(320, SAFE_BOTTOM_Y, ruinsMode ? '[ Leave Ruins ]' : '[ Leave Church ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 16, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
-    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
+    leaveBtn.on('pointerover', () => leaveBtn.setColor(UI_PALETTE.accent));
+    leaveBtn.on('pointerout', () => leaveBtn.setColor(UI_PALETTE.text));
     leaveBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       scene.leaveChurchNode();
@@ -259,13 +275,13 @@ export class ChurchController {
       items.push({
         type: 'label',
         text: 'Revive Fallen Unit:',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         y: localY,
       });
       localY += 25;
       for (const fallen of rm.fallenUnits) {
         items.push({ type: 'revive', unit: fallen, cost: getReviveCost(fallen), y: localY });
-        localY += CHURCH_ITEM_HEIGHT;
+        localY += this.rowHeight;
       }
       localY += 10;
     }
@@ -279,7 +295,7 @@ export class ChurchController {
       items.push({
         type: 'label',
         text: `Promote Unit (${CHURCH_PROMOTE_COST}G):${promoLimitText}`,
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         y: localY,
       });
       localY += 25;
@@ -287,14 +303,14 @@ export class ChurchController {
       const eligibleUnits = rm.roster.filter((u) => canPromote(u));
       if (promoRemaining === 0) {
         items.push({ type: 'none', text: '(Promotion limit reached)', y: localY });
-        localY += CHURCH_ITEM_HEIGHT;
+        localY += this.rowHeight;
       } else if (eligibleUnits.length === 0) {
         items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
-        localY += CHURCH_ITEM_HEIGHT;
+        localY += this.rowHeight;
       } else {
         for (const unit of eligibleUnits) {
           items.push({ type: 'promote', unit, y: localY });
-          localY += CHURCH_ITEM_HEIGHT;
+          localY += this.rowHeight;
         }
       }
     }
@@ -313,6 +329,17 @@ export class ChurchController {
       roster: rosterBtn,
       leave: leaveBtn,
     };
+    if (scene.registry.get('startupFlags')?.isMobile) {
+      for (const target of [healBtn, browseBtn, viewMapBtn, rosterBtn, leaveBtn].filter(Boolean)) {
+        target.setPadding({ x: 12, y: Math.max(8, (this.rowHeight - 20) / 2) });
+        deferTouchActivation(target);
+      }
+      healBtn.setPosition(ruinsMode ? 205 : 320, 112);
+      browseBtn?.setPosition(430, 112);
+      viewMapBtn.setPosition(145, 408);
+      rosterBtn.setPosition(315, 408);
+      leaveBtn.setPosition(470, 408);
+    }
     this._setupChurchFocus();
   }
 
@@ -428,8 +455,8 @@ export class ChurchController {
     const viewH = CHURCH_LIST_BOTTOM_Y - CHURCH_LIST_TOP_Y;
     let offset = scene.churchScrollOffset || 0;
     if (item.y < offset) offset = item.y;
-    else if (item.y + CHURCH_ITEM_HEIGHT > offset + viewH) {
-      offset = item.y + CHURCH_ITEM_HEIGHT - viewH;
+    else if (item.y + (this.rowHeight || CHURCH_ITEM_HEIGHT) > offset + viewH) {
+      offset = item.y + (this.rowHeight || CHURCH_ITEM_HEIGHT) - viewH;
     }
     offset = Math.max(0, Math.min(scene.churchScrollMax || 0, offset));
     if (offset !== scene.churchScrollOffset) {
@@ -478,60 +505,63 @@ export class ChurchController {
     const node = scene._churchNode;
 
     for (const item of items) {
-      const y = CHURCH_LIST_TOP_Y + item.y - offset;
+      const y = CHURCH_LIST_TOP_Y + item.y + (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2 - offset;
       // Keep row/button bounds out of fixed controls; use half-row guard at bottom.
       if (
-        y < CHURCH_LIST_TOP_Y - CHURCH_ITEM_HEIGHT ||
-        y > CHURCH_LIST_BOTTOM_Y - CHURCH_ITEM_HEIGHT / 2
+        y < CHURCH_LIST_TOP_Y + (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2 ||
+        y > CHURCH_LIST_BOTTOM_Y - (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2
       )
         continue;
 
       if (item.type === 'label') {
-        const label = scene.add
-          .text(320, y, item.text, {
-            fontFamily: 'monospace',
+        const label = applyTextResolution(
+          scene.add.text(320, y, item.text, {
+            fontFamily: 'Arial',
             fontSize: '14px',
             color: item.color,
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(OVERLAY_CONTENT_DEPTH);
         scene.churchContentGroup.push(label);
       } else if (item.type === 'none') {
-        const noneText = scene.add
-          .text(320, y, item.text, {
-            fontFamily: 'monospace',
+        const noneText = applyTextResolution(
+          scene.add.text(320, y, item.text, {
+            fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#888888',
-          })
+            color: UI_PALETTE.muted,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(OVERLAY_CONTENT_DEPTH);
         scene.churchContentGroup.push(noneText);
       } else if (item.type === 'revive') {
         const fallen = item.unit;
         const cost = item.cost;
-        const unitBtn = scene.add
-          .text(
+        const unitBtn = applyTextResolution(
+          scene.add.text(
             320,
             y,
             `${fallen.name} (Lv${getDisplayLevel(fallen)} ${fallen.className}) — ${cost}G`,
             {
-              fontFamily: 'monospace',
+              fontFamily: 'Arial',
               fontSize: '14px',
-              color: '#e0e0e0',
-              backgroundColor: '#222222',
-              padding: { x: 10, y: 4 },
+              color: UI_PALETTE.text,
+              backgroundColor: UI_PALETTE.panel,
+              padding: { x: 10, y: Math.max(4, ((this.rowHeight || CHURCH_ITEM_HEIGHT) - 18) / 2) },
             },
-          )
+          ),
+        )
           .setOrigin(0.5)
           .setDepth(OVERLAY_CONTENT_DEPTH)
           .setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
-          if (rm.gold >= cost) unitBtn.setColor('#ffdd44');
-          unitBtn.setBackgroundColor('#333333');
+          if (rm.gold >= cost) unitBtn.setColor(UI_PALETTE.accent);
+          unitBtn.setBackgroundColor(UI_PALETTE.raised);
         });
         unitBtn.on('pointerout', () => {
-          unitBtn.setColor('#e0e0e0');
-          unitBtn.setBackgroundColor('#222222');
+          unitBtn.setColor(UI_PALETTE.text);
+          unitBtn.setBackgroundColor(UI_PALETTE.panel);
         });
         unitBtn.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -550,28 +580,30 @@ export class ChurchController {
             scene.showChurchMessage('Not enough gold or roster full!', '#ff4444');
           }
         });
+        deferTouchActivation(unitBtn);
         unitBtn._churchItemIndex = items.indexOf(item);
         scene.churchContentGroup.push(unitBtn);
       } else if (item.type === 'promote') {
         const unit = item.unit;
-        const unitBtn = scene.add
-          .text(320, y, `${unit.name} (Lv${getDisplayLevel(unit)} ${unit.className})`, {
-            fontFamily: 'monospace',
+        const unitBtn = applyTextResolution(
+          scene.add.text(320, y, `${unit.name} (Lv${getDisplayLevel(unit)} ${unit.className})`, {
+            fontFamily: 'Arial',
             fontSize: '14px',
-            color: '#e0e0e0',
-            backgroundColor: '#222222',
-            padding: { x: 10, y: 4 },
-          })
+            color: UI_PALETTE.text,
+            backgroundColor: UI_PALETTE.panel,
+            padding: { x: 10, y: Math.max(4, ((this.rowHeight || CHURCH_ITEM_HEIGHT) - 18) / 2) },
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(OVERLAY_CONTENT_DEPTH)
           .setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
-          if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor('#ffdd44');
-          unitBtn.setBackgroundColor('#333333');
+          if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor(UI_PALETTE.accent);
+          unitBtn.setBackgroundColor(UI_PALETTE.raised);
         });
         unitBtn.on('pointerout', () => {
-          unitBtn.setColor('#e0e0e0');
-          unitBtn.setBackgroundColor('#222222');
+          unitBtn.setColor(UI_PALETTE.text);
+          unitBtn.setBackgroundColor(UI_PALETTE.panel);
         });
         unitBtn.on('pointerdown', async (pointer) => {
           if (pointer?.button !== 0) return;
@@ -657,10 +689,11 @@ export class ChurchController {
               ? `${unit.name} promoted to ${promotedClassData.name}! ` +
                   `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
               : `${unit.name} promoted to ${promotedClassData.name}!`,
-            droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
+            droppedNames.length > 0 ? '#ffaa66' : UI_PALETTE.accent,
             'promotion',
           );
         });
+        deferTouchActivation(unitBtn);
         unitBtn._churchItemIndex = items.indexOf(item);
         scene.churchContentGroup.push(unitBtn);
       }
@@ -670,15 +703,15 @@ export class ChurchController {
     if ((scene.churchScrollMax || 0) > 0) {
       const percent =
         scene.churchScrollMax > 0 ? Math.round((offset / scene.churchScrollMax) * 100) : 0;
-      const hint = scene.add
-        .text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
-          fontFamily: 'monospace',
+      const hint = applyTextResolution(
+        scene.add.text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#888888',
-          backgroundColor: '#222222',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.panel,
           padding: { x: 4, y: 2 },
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
+        }),
+      ).setDepth(OVERLAY_CONTENT_DEPTH);
       scene.churchContentGroup.push(hint);
     }
   }
@@ -736,14 +769,15 @@ export class ChurchController {
     if (scene.churchMessage) scene.churchMessage.destroy();
     clearTrackedSceneTimer(scene, scene._churchMessageTimer);
     scene._churchMessageTimer = null;
-    scene.churchMessage = scene.add
-      .text(320, 95, text, {
-        fontFamily: 'monospace',
+    scene.churchMessage = applyTextResolution(
+      scene.add.text(320, 95, text, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color,
         backgroundColor: '#000000dd',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(302);
     scene.churchOverlay.push(scene.churchMessage);

@@ -1,3 +1,6 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { CampaignMapMenu } from './CampaignMapMenu.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // CampaignMapOverlay — Read-only mini node map shown from the battle pause menu.
 // Depth range 830-832 (between PauseOverlay 800 and confirm dialog 850).
 
@@ -23,7 +26,7 @@ const NUM_COLUMNS = 5;
 // Node state colors
 const COLOR_COMPLETED = 0x555555;
 const COLOR_ACTIVE = 0x44ff44;
-const COLOR_NEXT = 0xffdd44;
+const COLOR_NEXT = UI_HEX.accent;
 const COLOR_LOCKED_BATTLE = 0xcc6633;
 const COLOR_LOCKED_BOSS = 0xcc3333;
 const COLOR_LOCKED_SHOP = 0xddaa33;
@@ -103,6 +106,10 @@ export class CampaignMapOverlay {
   show() {
     this.hide();
     this.visible = true;
+    if (hasDOMHost()) {
+      this.domMenu = new CampaignMapMenu(this);
+      return;
+    }
     this._draw();
 
     this._overlayToken = pushOverlay(this.scene, {
@@ -142,9 +149,9 @@ export class CampaignMapOverlay {
     const panelX = cx;
     const panelY = cy;
     const panel = this.scene.add
-      .rectangle(panelX, panelY, PANEL_W, PANEL_H, 0x1a1a2e, 1)
+      .rectangle(panelX, panelY, PANEL_W, PANEL_H, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     const panelLeft = panelX - PANEL_W / 2;
@@ -157,23 +164,25 @@ export class CampaignMapOverlay {
     const titleText = actNum
       ? `${actNum}: ${actConfig.name || ''}`
       : actConfig.name || 'Campaign Map';
-    const title = this.scene.add
-      .text(panelX, panelTop + 18, titleText, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(panelX, panelTop + 18, titleText, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_UI);
     this.objects.push(title);
 
     // Close button
-    const closeBtn = this.scene.add
-      .text(panelLeft + PANEL_W - 16, panelTop + 8, '[X]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(panelLeft + PANEL_W - 16, panelTop + 8, '[X]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#cc5555',
-      })
+      }),
+    )
       .setOrigin(0.5, 0)
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
@@ -221,7 +230,7 @@ export class CampaignMapOverlay {
           (fromState === 'completed' && (toState === 'active' || toState === 'completed'));
         graphics.lineStyle(
           isActivePath ? 2 : 1,
-          isActivePath ? 0xffdd44 : 0x666666,
+          isActivePath ? UI_HEX.accent : 0x666666,
           isActivePath ? 0.9 : 0.3,
         );
         graphics.lineBetween(from.x, from.y, to.x, to.y);
@@ -254,13 +263,14 @@ export class CampaignMapOverlay {
 
       // Icon text
       const icon = NODE_ICONS[node.type] || '?';
-      const iconColor = state === 'completed' ? '#888888' : '#ffffff';
-      const iconText = this.scene.add
-        .text(pos.x, pos.y, icon, {
-          fontFamily: 'monospace',
+      const iconColor = state === 'completed' ? UI_PALETTE.muted : UI_PALETTE.text;
+      const iconText = applyTextResolution(
+        this.scene.add.text(pos.x, pos.y, icon, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: iconColor,
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI)
         .setAlpha(state === 'locked' ? 0.5 : 1);
@@ -268,12 +278,13 @@ export class CampaignMapOverlay {
 
       // "YOU" marker for active node
       if (state === 'active') {
-        const marker = this.scene.add
-          .text(pos.x, pos.y - NODE_RADIUS - 10, '\u25BC YOU', {
-            fontFamily: 'monospace',
+        const marker = applyTextResolution(
+          this.scene.add.text(pos.x, pos.y - NODE_RADIUS - 10, '\u25BC YOU', {
+            fontFamily: 'Arial',
             fontSize: '8px',
             color: '#44ff44',
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_UI);
         this.objects.push(marker);
@@ -299,8 +310,8 @@ export class CampaignMapOverlay {
     const entries = [
       { label: 'Done', color: '#555555' },
       { label: 'Here', color: '#44ff44' },
-      { label: 'Next', color: '#ffdd44' },
-      { label: 'Locked', color: '#888888' },
+      { label: 'Next', color: UI_PALETTE.accent },
+      { label: 'Locked', color: UI_PALETTE.muted },
     ];
     const spacing = 80;
     const startX = cx - ((entries.length - 1) * spacing) / 2;
@@ -313,12 +324,13 @@ export class CampaignMapOverlay {
       if (entries[i].label === 'Locked') dot.setAlpha(0.4);
       this.objects.push(dot);
 
-      const lbl = this.scene.add
-        .text(ex, y, entries[i].label, {
-          fontFamily: 'monospace',
+      const lbl = applyTextResolution(
+        this.scene.add.text(ex, y, entries[i].label, {
+          fontFamily: 'Arial',
           fontSize: '8px',
           color: entries[i].color,
-        })
+        }),
+      )
         .setOrigin(0, 0.5)
         .setDepth(DEPTH_UI);
       this.objects.push(lbl);
@@ -368,6 +380,8 @@ export class CampaignMapOverlay {
   }
 
   hide() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     this._teardownFocus();
     if (this.escKey) {
       this.escKey.off('down', this._onEsc, this);

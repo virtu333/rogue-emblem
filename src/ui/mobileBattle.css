@@ -15,7 +15,6 @@
   flex-direction: column;
   gap: 8px;
   background: var(--re-bg);
-  border-left: 1px solid var(--re-line);
   color: var(--re-text);
   font: 14px/1.4 var(--re-body);
 }
@@ -40,11 +39,10 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.4px;
-  color: #a9bcd1;
+  color: var(--re-muted);
 }
 .mb-summary h2 {
   margin: 0 0 3px;
-  font: 700 18px/1.2 var(--re-body);
   overflow-wrap: anywhere;
 }
 .mb-detail {
@@ -55,7 +53,7 @@
 }
 .mb-hp {
   font-size: 13px;
-  color: #d7e9e7;
+  color: var(--re-text);
 }
 .mb-body {
   flex: 1;
@@ -98,16 +96,11 @@
   background: var(--re-selected);
 }
 .mb-primary {
-  background: var(--re-gold);
-  color: #182333;
-  border-color: #f3d699;
-}
-.mb-primary:active {
-  background: #f7d796;
+  border-color: var(--re-accent-text);
 }
 .mb-danger {
-  background: #853d42;
-  border-color: #c16e73;
+  background: var(--re-danger-bg);
+  border-color: var(--re-danger-line);
 }
 .mb-actions,
 .mb-command-grid {
@@ -119,13 +112,13 @@
 }
 .mb-end-turn {
   margin-top: 8px;
-  color: #f1c4b7;
+  color: var(--re-bad);
 }
 .mb-forecast-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: #050c16b8;
+  background: var(--re-scrim);
   display: grid;
   place-items: center;
   padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
@@ -163,13 +156,13 @@
 }
 .mb-forecast-side {
   background: var(--re-panel-raised);
-  border-top: 3px solid #81caba;
+  border-top: 3px solid var(--re-info);
   padding: 10px 12px;
   border-radius: 2px;
   min-width: 0;
 }
 .mb-enemy {
-  border-top-color: #e68f8c;
+  border-top-color: var(--re-bad);
 }
 .mb-forecast-side h3 {
   margin: 4px 0 2px;
@@ -177,7 +170,7 @@
   overflow-wrap: anywhere;
 }
 .mb-weapon {
-  color: #c6d8ed;
+  color: var(--re-text);
   overflow-wrap: anywhere;
 }
 .mb-stats {
@@ -188,7 +181,7 @@
 }
 .mb-stats dt {
   font-size: 12px;
-  color: #b3c5d9;
+  color: var(--re-muted);
 }
 .mb-stats dd {
   font-size: 20px;
@@ -196,7 +189,7 @@
   margin: 0;
 }
 .mb-notice {
-  color: #f4ce8c;
+  color: var(--re-warn);
   font-size: 13px;
   margin: 5px 0;
   overflow-wrap: anywhere;
@@ -299,7 +292,7 @@ html.touch-ui .mobile-battle-hud {
 }
 .mb-phase {
   color: var(--re-gold-hi);
-  border-bottom: 2px solid var(--re-gold);
+  border-bottom: 1px solid var(--re-line-soft);
   padding-bottom: 8px;
 }
 .mb-summary h2 {
@@ -315,7 +308,7 @@ html.touch-ui .mobile-battle-hud {
   border: 2px solid var(--re-gold);
 }
 .mb-primary:active {
-  background: #443300;
+  background: var(--re-selected);
 }
 .mb-forecast {
   border-color: var(--re-gold);
@@ -323,7 +316,7 @@ html.touch-ui .mobile-battle-hud {
 .mb-forecast h2 {
   font: 12px/1.6 var(--re-pixel);
   color: var(--re-gold-hi);
-  border-bottom: 2px solid var(--re-gold);
+  border-bottom: 1px solid var(--re-line-soft);
   padding-bottom: 8px;
   text-transform: uppercase;
 }

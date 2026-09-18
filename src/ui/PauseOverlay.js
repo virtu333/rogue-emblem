@@ -1,5 +1,6 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { canUseTouchUI } from '../utils/domUI.js';
 import { MobilePauseMenu } from './MobilePauseMenu.js';
-import { inputHint } from '../utils/inputHint.js';
 // PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
@@ -108,18 +109,19 @@ export class PauseOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, 260, panelHeight, 0x1a1a2e, 1)
+      .rectangle(cx, cy, 260, panelHeight, UI_HEX.panel, 1)
       .setDepth(801)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add
-      .text(cx, cy - panelHeight / 2 + 25, 'Paused', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(cx, cy - panelHeight / 2 + 25, 'Paused', {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(802);
     this.objects.push(title);
@@ -241,12 +243,7 @@ export class PauseOverlay {
     }
 
     this._setupFocus();
-    if (
-      typeof document !== 'undefined' &&
-      document.getElementById('game-wrapper') &&
-      inputHint(this.scene, false, true)
-    )
-      this._mobileMenu = new MobilePauseMenu(this);
+    if (canUseTouchUI(this.scene)) this._mobileMenu = new MobilePauseMenu(this);
   }
 
   // Build the focus ring over the menu buttons and claim the input-focus stack so
@@ -302,19 +299,20 @@ export class PauseOverlay {
     }
   }
 
-  _addButton(x, y, label, onClick, color = '#e0e0e0') {
-    const btn = this.scene.add
-      .text(x, y, label, {
-        fontFamily: 'monospace',
+  _addButton(x, y, label, onClick, color = UI_PALETTE.text) {
+    const btn = applyTextResolution(
+      this.scene.add.text(x, y, label, {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color,
-        backgroundColor: '#333333',
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 16, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(802)
       .setInteractive({ useHandCursor: true });
-    btn.on('pointerover', () => btn.setColor('#ffdd44'));
+    btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
     btn.on('pointerout', () => btn.setColor(color));
     btn.on('pointerdown', onClick);
     this.objects.push(btn);
@@ -327,52 +325,55 @@ export class PauseOverlay {
     const cy = this.scene.cameras.main.centerY;
 
     const bg = this.scene.add
-      .rectangle(cx, cy, 320, 120, 0x1a1a2e, 1)
+      .rectangle(cx, cy, 320, 120, UI_HEX.panel, 1)
       .setDepth(850)
       .setStrokeStyle(2, 0xcc5555)
       .setInteractive();
     this.confirmObjects.push(bg);
 
-    const msg = this.scene.add
-      .text(cx, cy - 30, message, {
-        fontFamily: 'monospace',
+    const msg = applyTextResolution(
+      this.scene.add.text(cx, cy - 30, message, {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         align: 'center',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(851);
     this.confirmObjects.push(msg);
 
-    const yesBtn = this.scene.add
-      .text(cx - 50, cy + 25, 'Yes', {
-        fontFamily: 'monospace',
+    const yesBtn = applyTextResolution(
+      this.scene.add.text(cx - 50, cy + 25, 'Yes', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: confirmColor,
-        backgroundColor: '#333333',
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(851)
       .setInteractive({ useHandCursor: true });
-    yesBtn.on('pointerover', () => yesBtn.setColor('#ffdd44'));
+    yesBtn.on('pointerover', () => yesBtn.setColor(UI_PALETTE.accent));
     yesBtn.on('pointerout', () => yesBtn.setColor(confirmColor));
     yesBtn.on('pointerdown', () => onConfirm());
     this.confirmObjects.push(yesBtn);
 
-    const cancelBtn = this.scene.add
-      .text(cx + 50, cy + 25, 'Cancel', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      this.scene.add.text(cx + 50, cy + 25, 'Cancel', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(851)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#e0e0e0'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.text));
     cancelBtn.on('pointerdown', () => this._hideConfirm());
     this.confirmObjects.push(cancelBtn);
 

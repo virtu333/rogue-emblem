@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
@@ -187,34 +188,35 @@ export class RosterOverlay {
     this.objects.push(bg);
 
     // Header
-    const title = this.scene.add
-      .text(20, 12, 'Roster', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(20, 12, 'Roster', {
+        fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#ffdd44',
-      })
-      .setDepth(DEPTH_TEXT);
+        color: UI_PALETTE.accent,
+      }),
+    ).setDepth(DEPTH_TEXT);
     this.objects.push(title);
 
     // Close button
-    const closeBtn = this.scene.add
-      .text(590, 12, '[ Close ]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(590, 12, '[ Close ]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(DEPTH_TEXT)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#e0e0e0'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.accent));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.text));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
     // Divider line
-    const divider = this.scene.add.rectangle(320, 38, 600, 2, 0x888888).setDepth(DEPTH_TEXT);
+    const divider = this.scene.add.rectangle(320, 38, 600, 2, UI_HEX.line).setDepth(DEPTH_TEXT);
     this.objects.push(divider);
 
     this._registerListeners();
@@ -769,7 +771,7 @@ export class RosterOverlay {
 
     // List background
     const listBg = this.scene.add
-      .rectangle(LIST_X + LIST_WIDTH / 2, PANEL_CENTER_Y, LIST_WIDTH, PANEL_HEIGHT, 0x1a1a2e)
+      .rectangle(LIST_X + LIST_WIDTH / 2, PANEL_CENTER_Y, LIST_WIDTH, PANEL_HEIGHT, UI_HEX.panel)
       .setDepth(DEPTH_PANEL)
       .setStrokeStyle(1, 0x444444);
     listBg._rosterList = true;
@@ -801,7 +803,7 @@ export class RosterOverlay {
       hitZone._rosterList = true;
 
       // Name
-      const nameColor = isSelected ? '#ffdd44' : '#e0e0e0';
+      const nameColor = isSelected ? UI_PALETTE.accent : UI_PALETTE.text;
       let nameText = null;
       const nameY = y + 4;
       const NAME_LINE_HEIGHT = 12;
@@ -809,13 +811,13 @@ export class RosterOverlay {
         nameY >= layout.unitViewportTop &&
         nameY + NAME_LINE_HEIGHT <= layout.unitViewportBottom
       ) {
-        nameText = this.scene.add
-          .text(LIST_X + 8, nameY, `${unit.name}  Lv${getDisplayLevel(unit)}`, {
-            fontFamily: 'monospace',
+        nameText = applyTextResolution(
+          this.scene.add.text(LIST_X + 8, nameY, `${unit.name}  Lv${getDisplayLevel(unit)}`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: nameColor,
-          })
-          .setDepth(DEPTH_TEXT);
+          }),
+        ).setDepth(DEPTH_TEXT);
         nameText._rosterList = true;
       }
 
@@ -833,7 +835,7 @@ export class RosterOverlay {
       if (clippedBarHeight > 0) {
         const clippedBarCenterY = clippedBarTop + clippedBarHeight / 2;
         barBg = this.scene.add
-          .rectangle(barX + barW / 2, clippedBarCenterY, barW, clippedBarHeight, 0x333333)
+          .rectangle(barX + barW / 2, clippedBarCenterY, barW, clippedBarHeight, UI_HEX.raised)
           .setDepth(DEPTH_TEXT);
         barBg._rosterList = true;
         barFill = this.scene.add
@@ -852,12 +854,13 @@ export class RosterOverlay {
       const hpY = barY - 3;
       const HP_LINE_HEIGHT = 8;
       if (hpY >= layout.unitViewportTop && hpY + HP_LINE_HEIGHT <= layout.unitViewportBottom) {
-        hpText = this.scene.add
-          .text(LIST_X + LIST_WIDTH - 6, hpY, `${unit.currentHP}/${unit.stats.HP}`, {
-            fontFamily: 'monospace',
+        hpText = applyTextResolution(
+          this.scene.add.text(LIST_X + LIST_WIDTH - 6, hpY, `${unit.currentHP}/${unit.stats.HP}`, {
+            fontFamily: 'Arial',
             fontSize: '8px',
-            color: '#aaaaaa',
-          })
+            color: UI_PALETTE.muted,
+          }),
+        )
           .setOrigin(1, 0)
           .setDepth(DEPTH_TEXT);
         hpText._rosterList = true;
@@ -865,10 +868,10 @@ export class RosterOverlay {
 
       hitZone.on('pointerdown', () => this.select('unit', i));
       hitZone.on('pointerover', () => {
-        if (!isSelected && nameText) nameText.setColor('#ffdd44');
+        if (!isSelected && nameText) nameText.setColor(UI_PALETTE.accent);
       });
       hitZone.on('pointerout', () => {
-        if (!isSelected && nameText) nameText.setColor('#e0e0e0');
+        if (!isSelected && nameText) nameText.setColor(UI_PALETTE.text);
       });
 
       this.objects.push(hitZone);
@@ -880,24 +883,24 @@ export class RosterOverlay {
 
     // 2. Draw viewport overflow indicators
     if (this._rosterScrollOffset > 0) {
-      const upIndicator = this.scene.add
-        .text(LIST_X + LIST_WIDTH - 12, layout.unitViewportTop + 1, '\u25b2', {
-          fontFamily: 'monospace',
+      const upIndicator = applyTextResolution(
+        this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportTop + 1, '\u25b2', {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#888888',
-        })
-        .setDepth(DEPTH_TEXT);
+          color: UI_PALETTE.muted,
+        }),
+      ).setDepth(DEPTH_TEXT);
       upIndicator._rosterList = true;
       this.objects.push(upIndicator);
     }
     if (this._rosterScrollOffset < this._rosterScrollMax) {
-      const downIndicator = this.scene.add
-        .text(LIST_X + LIST_WIDTH - 12, layout.unitViewportBottom - 12, '\u25bc', {
-          fontFamily: 'monospace',
+      const downIndicator = applyTextResolution(
+        this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportBottom - 12, '\u25bc', {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#888888',
-        })
-        .setDepth(DEPTH_TEXT);
+          color: UI_PALETTE.muted,
+        }),
+      ).setDepth(DEPTH_TEXT);
       downIndicator._rosterList = true;
       this.objects.push(downIndicator);
     }
@@ -918,19 +921,19 @@ export class RosterOverlay {
       .setInteractive({ useHandCursor: true });
     convoyHitZone._rosterList = true;
 
-    const convoyColor = isConvoySelected ? '#ffdd44' : '#88ccff';
-    const convoyText = this.scene.add
-      .text(LIST_X + 8, convoyY + 12, 'Convoy Management', {
-        fontFamily: 'monospace',
+    const convoyColor = isConvoySelected ? UI_PALETTE.accent : '#88ccff';
+    const convoyText = applyTextResolution(
+      this.scene.add.text(LIST_X + 8, convoyY + 12, 'Convoy Management', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: convoyColor,
-      })
-      .setDepth(DEPTH_TEXT);
+      }),
+    ).setDepth(DEPTH_TEXT);
     convoyText._rosterList = true;
 
     convoyHitZone.on('pointerdown', () => this.select('convoy'));
     convoyHitZone.on('pointerover', () => {
-      if (!isConvoySelected) convoyText.setColor('#ffdd44');
+      if (!isConvoySelected) convoyText.setColor(UI_PALETTE.accent);
     });
     convoyHitZone.on('pointerout', () => {
       if (!isConvoySelected) convoyText.setColor('#88ccff');
@@ -980,7 +983,13 @@ export class RosterOverlay {
 
     // Detail panel background
     const detailBg = this.scene.add
-      .rectangle(DETAIL_X + DETAIL_WIDTH / 2, PANEL_CENTER_Y, DETAIL_WIDTH, PANEL_HEIGHT, 0x1a1a2e)
+      .rectangle(
+        DETAIL_X + DETAIL_WIDTH / 2,
+        PANEL_CENTER_Y,
+        DETAIL_WIDTH,
+        PANEL_HEIGHT,
+        UI_HEX.panel,
+      )
       .setDepth(DEPTH_PANEL)
       .setStrokeStyle(1, 0x444444);
     this.detailObjects.push(detailBg);
@@ -1021,7 +1030,7 @@ export class RosterOverlay {
       x,
       y,
       `${unit.name}  Lv${getDisplayLevel(unit)} ${unit.className}${masteryStar}  (${tierLabel})`,
-      '#ffdd44',
+      UI_PALETTE.accent,
       '12px',
     );
 
@@ -1046,7 +1055,7 @@ export class RosterOverlay {
     const barH = 8;
     const ratio = unit.currentHP / unit.stats.HP;
     const barBg = this.scene.add
-      .rectangle(x, y + 4, barW, barH, 0x333333)
+      .rectangle(x, y + 4, barW, barH, UI_HEX.raised)
       .setOrigin(0, 0.5)
       .setDepth(DEPTH_TEXT);
     const barFill = this.scene.add
@@ -1068,24 +1077,26 @@ export class RosterOverlay {
     const navY = 50;
 
     // Unit navigation
-    const upArrow = this.scene.add
-      .text(navX, navY + 6, '\u25b2', {
-        fontFamily: 'monospace',
+    const upArrow = applyTextResolution(
+      this.scene.add.text(navX, navY + 6, '\u25b2', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT)
       .setInteractive({ useHandCursor: true });
     upArrow.on('pointerdown', () => this._cycleSelection(-1));
     this.detailObjects.push(upArrow);
 
-    const downArrow = this.scene.add
-      .text(navX, navY + 40, '\u25bc', {
-        fontFamily: 'monospace',
+    const downArrow = applyTextResolution(
+      this.scene.add.text(navX, navY + 40, '\u25bc', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT)
       .setInteractive({ useHandCursor: true });
@@ -1120,14 +1131,15 @@ export class RosterOverlay {
     const statsBtn = this.scene.add
       .rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, isStats ? 0x443300 : 0x222233)
       .setDepth(DEPTH_TEXT)
-      .setStrokeStyle(1, isStats ? 0xffdd44 : 0x666666)
+      .setStrokeStyle(1, isStats ? UI_HEX.accent : 0x666666)
       .setInteractive({ useHandCursor: true });
-    const statsLabel = this.scene.add
-      .text(x + tabW / 2, y + tabH / 2, 'Stats', {
-        fontFamily: 'monospace',
+    const statsLabel = applyTextResolution(
+      this.scene.add.text(x + tabW / 2, y + tabH / 2, 'Stats', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: isStats ? '#ffffff' : '#888888',
-      })
+        color: isStats ? UI_PALETTE.text : UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT + 1);
     statsBtn.on('pointerdown', () => {
@@ -1142,14 +1154,15 @@ export class RosterOverlay {
     const gearBtn = this.scene.add
       .rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, isGear ? 0x443300 : 0x222233)
       .setDepth(DEPTH_TEXT)
-      .setStrokeStyle(1, isGear ? 0xffdd44 : 0x666666)
+      .setStrokeStyle(1, isGear ? UI_HEX.accent : 0x666666)
       .setInteractive({ useHandCursor: true });
-    const gearLabel = this.scene.add
-      .text(gx + tabW / 2, y + tabH / 2, 'Gear', {
-        fontFamily: 'monospace',
+    const gearLabel = applyTextResolution(
+      this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: isGear ? '#ffffff' : '#888888',
-      })
+        color: isGear ? UI_PALETTE.text : UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT + 1);
     gearBtn.on('pointerdown', () => {
@@ -1166,7 +1179,7 @@ export class RosterOverlay {
     const col2X = x + 160;
 
     // Stats
-    this._text(x, y, '\u2500\u2500 Attributes \u2500\u2500', '#888888', '10px');
+    this._text(x, y, '\u2500\u2500 Attributes \u2500\u2500', UI_PALETTE.muted, '10px');
     y += 14;
 
     const leftStats = ['STR', 'MAG', 'SKL', 'SPD'];
@@ -1200,42 +1213,42 @@ export class RosterOverlay {
     // Effective Stats
     y += 6;
     const combat = getStaticCombatStats(unit, unit.weapon);
-    this._text(x, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
+    this._text(x, y, `Atk ${String(combat.atk).padStart(3)}`, UI_PALETTE.text, '10px');
     this._text(
       col2X,
       y,
       `AS  ${String(combat.as).padStart(3)}`,
-      combat.as < unit.stats.SPD ? '#ff6666' : '#ffffff',
+      combat.as < unit.stats.SPD ? '#ff6666' : UI_PALETTE.text,
       '10px',
     );
     y += 13;
-    this._text(x, y, `Hit ${String(combat.hit).padStart(3)}`, '#ffffff', '10px');
+    this._text(x, y, `Hit ${String(combat.hit).padStart(3)}`, UI_PALETTE.text, '10px');
     const avo = unit.stats.SPD * 2 + unit.stats.LCK;
-    this._text(col2X, y, `Avo ${String(avo).padStart(3)}`, '#ffffff', '10px');
+    this._text(col2X, y, `Avo ${String(avo).padStart(3)}`, UI_PALETTE.text, '10px');
     y += 13;
-    this._text(x, y, `Crt ${String(combat.crit).padStart(3)}`, '#ffffff', '10px');
-    this._text(col2X, y, `Wt  ${String(combat.weight).padStart(3)}`, '#ffffff', '10px');
+    this._text(x, y, `Crt ${String(combat.crit).padStart(3)}`, UI_PALETTE.text, '10px');
+    this._text(col2X, y, `Wt  ${String(combat.weight).padStart(3)}`, UI_PALETTE.text, '10px');
     y += 16;
 
     // Proficiencies
-    this._text(x, y, '\u2500\u2500 Proficiencies \u2500\u2500', '#888888', '10px');
+    this._text(x, y, '\u2500\u2500 Proficiencies \u2500\u2500', UI_PALETTE.muted, '10px');
     y += 14;
     if (unit.proficiencies && unit.proficiencies.length > 0) {
       const profStr = unit.proficiencies.map((p) => `${p.type}(${p.rank[0]})`).join('  ');
       this._text(x, y, profStr, '#aaaacc', '10px');
       y += 16;
     } else {
-      this._text(x, y, '(none)', '#888888', '10px');
+      this._text(x, y, '(none)', UI_PALETTE.muted, '10px');
       y += 16;
     }
 
     // Growths
     if (unit.faction !== 'enemy' && unit.growths) {
-      this._text(x, y, '\u2500\u2500 Growths \u2500\u2500', '#888888', '10px');
+      this._text(x, y, '\u2500\u2500 Growths \u2500\u2500', UI_PALETTE.muted, '10px');
       y += 14;
       const growthPairs = XP_STAT_NAMES.map((s) => `${s}:${unit.growths[s] || 0}`);
       for (let i = 0; i < growthPairs.length; i += 4) {
-        this._text(x, y, growthPairs.slice(i, i + 4).join('  '), '#888888', '9px');
+        this._text(x, y, growthPairs.slice(i, i + 4).join('  '), UI_PALETTE.muted, '9px');
         y += 12;
       }
     }
@@ -1243,11 +1256,11 @@ export class RosterOverlay {
 
   _drawGearTab(x, y, unit) {
     // Inventory
-    this._text(x, y, '\u2500\u2500 Equipment \u2500\u2500', '#888888', '10px');
+    this._text(x, y, '\u2500\u2500 Equipment \u2500\u2500', UI_PALETTE.muted, '10px');
     y += 14;
 
     if (unit.inventory.length === 0) {
-      this._text(x + 8, y, '(empty)', '#888888', '10px');
+      this._text(x + 8, y, '(empty)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
       for (const item of unit.inventory) {
@@ -1256,7 +1269,7 @@ export class RosterOverlay {
         let tooltipAnchor = null;
         let tooltipLine = null;
         const usableNow = canEquip(unit, item);
-        const lineColor = usableNow ? '#e0e0e0' : '#777777';
+        const lineColor = usableNow ? UI_PALETTE.text : '#777777';
         const nameColor = usableNow ? this._getWeaponNameColor(item, lineColor) : lineColor;
         const forgeSuffixSegments = usableNow
           ? this._getWeaponForgeSuffixSegments(item)
@@ -1374,12 +1387,12 @@ export class RosterOverlay {
 
     // Consumables
     y += 4;
-    this._text(x, y, '\u2500\u2500 Consumables \u2500\u2500', '#888888', '10px');
+    this._text(x, y, '\u2500\u2500 Consumables \u2500\u2500', UI_PALETTE.muted, '10px');
     y += 14;
 
     const consumables = unit.consumables || [];
     if (consumables.length === 0) {
-      this._text(x + 8, y, '(empty)', '#888888', '10px');
+      this._text(x + 8, y, '(empty)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
       for (const item of consumables) {
@@ -1422,7 +1435,13 @@ export class RosterOverlay {
       ? this.runManager.accessories
       : [];
     const accPoolLabel = teamAccessories.length > 0 ? ` (${teamAccessories.length} in pool)` : '';
-    this._text(x, y, `\u2500\u2500 Accessory${accPoolLabel} \u2500\u2500`, '#888888', '10px');
+    this._text(
+      x,
+      y,
+      `\u2500\u2500 Accessory${accPoolLabel} \u2500\u2500`,
+      UI_PALETTE.muted,
+      '10px',
+    );
     y += 14;
     if (unit.accessory) {
       const acc = unit.accessory;
@@ -1440,7 +1459,7 @@ export class RosterOverlay {
       }
       y += 13;
     } else {
-      this._text(x + 8, y, '(none)', '#888888', '10px');
+      this._text(x + 8, y, '(none)', UI_PALETTE.muted, '10px');
       if (teamAccessories.length > 0) {
         this._actionBtn(x + 280, y, '[Equip]', () => this._showAccessoryPicker(unit));
       }
@@ -1454,7 +1473,7 @@ export class RosterOverlay {
         x,
         y,
         `\u2500\u2500 Skills (${unit.skills.length}/${MAX_SKILLS}) \u2500\u2500`,
-        '#888888',
+        UI_PALETTE.muted,
         '10px',
       );
       y += 14;
@@ -1474,16 +1493,16 @@ export class RosterOverlay {
     }
 
     y += 4;
-    this._text(x, y, '\u2500\u2500 Weapon Arts \u2500\u2500', '#888888', '10px');
+    this._text(x, y, '\u2500\u2500 Weapon Arts \u2500\u2500', UI_PALETTE.muted, '10px');
     y += 14;
     const weaponArtChoices = this._getInspectableWeaponArtChoicesForInventory(unit);
     if (weaponArtChoices.length <= 0) {
-      this._text(x + 8, y, '(none)', '#888888', '10px');
+      this._text(x + 8, y, '(none)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
-        const color = canUse ? '#88ddff' : '#666666';
+        const color = canUse ? '#88ddff' : UI_PALETTE.muted;
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
         const weaponName = this._getWeaponBaseName(weapon);
@@ -1509,12 +1528,12 @@ export class RosterOverlay {
       x,
       y,
       `\u2500\u2500 Team Scrolls (${teamScrolls.length}) \u2500\u2500`,
-      '#888888',
+      UI_PALETTE.muted,
       '10px',
     );
     y += 14;
     if (teamScrolls.length <= 0) {
-      this._text(x + 8, y, '(none)', '#888888', '10px');
+      this._text(x + 8, y, '(none)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
       this._actionBtn(x + 8, y, '[Use Scroll]', () => this._showScrollPicker(unit), '10px');
@@ -1592,7 +1611,7 @@ export class RosterOverlay {
     // gamepad ring can scroll an off-screen row into view before resolving it.
     this._convoyFocusRows = [];
 
-    this._text(x, y, 'Convoy Management', '#ffdd44', '14px');
+    this._text(x, y, 'Convoy Management', UI_PALETTE.accent, '14px');
     y += 24;
 
     const caps = this.runManager.getConvoyCapacities();
@@ -1609,9 +1628,9 @@ export class RosterOverlay {
 
     const roster = this.runManager.roster;
     if (!roster || roster.length === 0) {
-      this._text(x, y, 'Withdrawing to: (no units)', '#666666', '10px');
+      this._text(x, y, 'Withdrawing to: (no units)', UI_PALETTE.muted, '10px');
       y += 20;
-      this._text(x, y, 'No roster units available for withdraw.', '#888888', '10px');
+      this._text(x, y, 'No roster units available for withdraw.', UI_PALETTE.muted, '10px');
       this._convoyScrollMax = 0;
       this._convoyScrollOffset = 0;
       return;
@@ -1619,7 +1638,7 @@ export class RosterOverlay {
 
     this._targetUnitIndex = this._clamp(this._targetUnitIndex, 0, roster.length - 1);
     const targetUnit = roster[this._targetUnitIndex];
-    this._text(x, y, `Withdrawing to: ${targetUnit.name}`, '#aaaaaa', '10px');
+    this._text(x, y, `Withdrawing to: ${targetUnit.name}`, UI_PALETTE.muted, '10px');
     if (roster.length > 1) {
       const changeBtn = this._actionBtn(x + 250, y, '[ Change ]', () => {
         this.showUnitPicker((idx) => {
@@ -1659,7 +1678,7 @@ export class RosterOverlay {
         this._text(x + 8, rowY, item.name, color, '10px');
 
         if (isFull) {
-          this._text(x + 250, rowY, '(unit full)', '#666666', '10px');
+          this._text(x + 250, rowY, '(unit full)', UI_PALETTE.muted, '10px');
         } else {
           const withdrawBtn = this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
             const pulled = this.runManager.takeFromConvoy(type, idx);
@@ -1676,20 +1695,20 @@ export class RosterOverlay {
 
     if (items.weapons.length > 0) {
       if (rowY >= startY && rowY <= PANEL_BOTTOM - 40)
-        this._text(x, rowY, 'Weapons:', '#888888', '10px');
+        this._text(x, rowY, 'Weapons:', UI_PALETTE.muted, '10px');
       rowY += itemH;
       items.weapons.forEach((wpn, i) => drawItem(wpn, 'weapon', i));
     }
     if (items.consumables.length > 0) {
       if (rowY >= startY && rowY <= PANEL_BOTTOM - 40)
-        this._text(x, rowY, 'Consumables:', '#888888', '10px');
+        this._text(x, rowY, 'Consumables:', UI_PALETTE.muted, '10px');
       rowY += itemH;
       items.consumables.forEach((item, i) => drawItem(item, 'consumable', i));
     }
 
     if (this._convoyScrollMax > 0) {
       const pct = Math.round((this._convoyScrollOffset / this._convoyScrollMax) * 100);
-      this._text(x + DETAIL_WIDTH - 60, PANEL_BOTTOM - 25, `${pct}%`, '#888888', '10px');
+      this._text(x + DETAIL_WIDTH - 60, PANEL_BOTTOM - 25, `${pct}%`, UI_PALETTE.muted, '10px');
     }
   }
 
@@ -1792,7 +1811,7 @@ export class RosterOverlay {
         ? `${unit.name} promoted to ${promotedClassData.name}! ` +
             `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
         : `${unit.name} promoted to ${promotedClassData.name}!`,
-      droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
+      droppedNames.length > 0 ? '#ffaa66' : UI_PALETTE.accent,
     );
     this.refresh();
   }
@@ -1813,11 +1832,11 @@ export class RosterOverlay {
 
     for (const cls of targets) {
       const desc = cls.description || cls.roleChange || cls.role || '';
-      this._text(x + 8, y, cls.name, '#e0e0e0', '10px');
+      this._text(x + 8, y, cls.name, UI_PALETTE.text, '10px');
       this._actionBtn(x + 150, y, '[Select]', () => this._useReclass(unit, sealItem, cls));
       y += 13;
       if (desc) {
-        this._text(x + 12, y, desc, '#888888', '8px');
+        this._text(x + 12, y, desc, UI_PALETTE.muted, '8px');
         y += 11;
       }
     }
@@ -1987,40 +2006,43 @@ export class RosterOverlay {
     const height = 140;
 
     const bg = this.scene.add
-      .rectangle(cx, cy, width, height, 0x222222, 0.95)
+      .rectangle(cx, cy, width, height, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.line);
     this.tradeObjects.push(bg);
 
-    const titleText = this.scene.add
-      .text(cx, cy - 46, title, {
-        fontFamily: 'monospace',
+    const titleText = applyTextResolution(
+      this.scene.add.text(cx, cy - 46, title, {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(titleText);
 
-    const messageText = this.scene.add
-      .text(cx, cy - 18, message, {
-        fontFamily: 'monospace',
+    const messageText = applyTextResolution(
+      this.scene.add.text(cx, cy - 18, message, {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         align: 'center',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(messageText);
 
-    const yesBtn = this.scene.add
-      .text(cx - 60, cy + 24, 'Overwrite', {
-        fontFamily: 'monospace',
+    const yesBtn = applyTextResolution(
+      this.scene.add.text(cx - 60, cy + 24, 'Overwrite', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#ff8888',
-        backgroundColor: '#333333',
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
@@ -2032,19 +2054,20 @@ export class RosterOverlay {
     });
     this.tradeObjects.push(yesBtn);
 
-    const cancelBtn = this.scene.add
-      .text(cx + 60, cy + 24, 'Cancel', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      this.scene.add.text(cx + 60, cy + 24, 'Cancel', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
     this.tradeObjects.push(cancelBtn);
   }
@@ -2066,27 +2089,29 @@ export class RosterOverlay {
     const topY = cy - totalH / 2;
 
     const pickerBg = this.scene.add
-      .rectangle(cx, cy, 380, totalH, 0x222222, 0.95)
+      .rectangle(cx, cy, 380, totalH, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.line);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add
-      .text(cx, topY + pad, `Replace with ${art.name}:`, {
-        fontFamily: 'monospace',
+    const pickerTitle = applyTextResolution(
+      this.scene.add.text(cx, topY + pad, `Replace with ${art.name}:`, {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
-    const subTitle = this.scene.add
-      .text(cx, topY + pad + 16, 'Choose an existing art slot to overwrite', {
-        fontFamily: 'monospace',
+    const subTitle = applyTextResolution(
+      this.scene.add.text(cx, topY + pad + 16, 'Choose an existing art slot to overwrite', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(subTitle);
@@ -2097,20 +2122,21 @@ export class RosterOverlay {
       const boundArt = allArts.find((row) => row?.id === binding.id);
       const artName = boundArt?.name || binding.id;
       const sourceLabel = this._weaponArtSourceLabel(binding.source);
-      const btn = this.scene.add
-        .text(cx, y, `${artName} (${sourceLabel})`, {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        this.scene.add.text(cx, y, `${artName} (${sourceLabel})`, {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
           backgroundColor: '#444444',
           padding: { x: 10, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
       btn.on('pointerdown', () => {
         this._destroyTrade();
         onSelect?.({ index: i, binding });
@@ -2119,19 +2145,20 @@ export class RosterOverlay {
     });
 
     const cancelY = topY + titleH + bindings.length * itemH + pad;
-    const cancelBtn = this.scene.add
-      .text(cx, cancelY, 'Cancel', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      this.scene.add.text(cx, cancelY, 'Cancel', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
     this.tradeObjects.push(cancelBtn);
   }
@@ -2260,27 +2287,29 @@ export class RosterOverlay {
       const pageItems = accessories.slice(start, start + ACCESSORY_PICKER_MAX_ROWS);
 
       const pickerBg = this.scene.add
-        .rectangle(cx, 240, 460, totalH, 0x222222, 0.95)
+        .rectangle(cx, 240, 460, totalH, UI_HEX.panel, 0.95)
         .setDepth(DEPTH_PICKER)
-        .setStrokeStyle(1, 0x888888);
+        .setStrokeStyle(1, UI_HEX.line);
       this.tradeObjects.push(pickerBg);
 
-      const pickerTitle = this.scene.add
-        .text(cx, topY + pad, 'Equip Accessory:', {
-          fontFamily: 'monospace',
+      const pickerTitle = applyTextResolution(
+        this.scene.add.text(cx, topY + pad, 'Equip Accessory:', {
+          fontFamily: 'Arial',
           fontSize: '13px',
-          color: '#ffdd44',
-        })
+          color: UI_PALETTE.accent,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(pickerTitle);
 
-      const subTitle = this.scene.add
-        .text(cx, topY + pad + 14, `${unit.name} (${accessories.length} in pool)`, {
-          fontFamily: 'monospace',
+      const subTitle = applyTextResolution(
+        this.scene.add.text(cx, topY + pad + 14, `${unit.name} (${accessories.length} in pool)`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#999999',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(subTitle);
@@ -2289,20 +2318,21 @@ export class RosterOverlay {
         const y = topY + titleH + i * itemH + pad;
         const detail = formatAccessoryDetail(acc);
         const label = detail ? `${acc.name} - ${detail}` : acc.name;
-        const btn = this.scene.add
-          .text(cx, y, label, {
-            fontFamily: 'monospace',
+        const btn = applyTextResolution(
+          this.scene.add.text(cx, y, label, {
+            fontFamily: 'Arial',
             fontSize: '10px',
             color: '#cc88ff',
             backgroundColor: '#444444',
             padding: { x: 10, y: 3 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1)
           .setInteractive({ useHandCursor: true });
 
         const selectedIndex = start + i;
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
         btn.on('pointerout', () => btn.setColor('#cc88ff'));
         btn.on('pointerdown', () => {
           const pool = Array.isArray(this.runManager.accessories)
@@ -2333,55 +2363,58 @@ export class RosterOverlay {
       });
 
       const navY = topY + titleH + visibleRows * itemH + pad;
-      const pageLabel = this.scene.add
-        .text(cx, navY, `Page ${page + 1}/${totalPages}`, {
-          fontFamily: 'monospace',
+      const pageLabel = applyTextResolution(
+        this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#aaaaaa',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(pageLabel);
 
       if (totalPages > 1) {
-        const prevColor = page > 0 ? '#e0e0e0' : '#666666';
-        const prevBtn = this.scene.add
-          .text(cx - 100, navY, 'Prev', {
-            fontFamily: 'monospace',
+        const prevColor = page > 0 ? UI_PALETTE.text : UI_PALETTE.muted;
+        const prevBtn = applyTextResolution(
+          this.scene.add.text(cx - 100, navY, 'Prev', {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: prevColor,
-            backgroundColor: '#333333',
+            backgroundColor: UI_PALETTE.raised,
             padding: { x: 8, y: 3 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1);
         this.tradeObjects.push(prevBtn);
         if (page > 0) {
           prevBtn.setInteractive({ useHandCursor: true });
-          prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
-          prevBtn.on('pointerout', () => prevBtn.setColor('#e0e0e0'));
+          prevBtn.on('pointerover', () => prevBtn.setColor(UI_PALETTE.accent));
+          prevBtn.on('pointerout', () => prevBtn.setColor(UI_PALETTE.text));
           prevBtn.on('pointerdown', () => {
             page--;
             drawPage();
           });
         }
 
-        const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
-        const nextBtn = this.scene.add
-          .text(cx + 100, navY, 'Next', {
-            fontFamily: 'monospace',
+        const nextColor = page < totalPages - 1 ? UI_PALETTE.text : UI_PALETTE.muted;
+        const nextBtn = applyTextResolution(
+          this.scene.add.text(cx + 100, navY, 'Next', {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: nextColor,
-            backgroundColor: '#333333',
+            backgroundColor: UI_PALETTE.raised,
             padding: { x: 8, y: 3 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1);
         this.tradeObjects.push(nextBtn);
         if (page < totalPages - 1) {
           nextBtn.setInteractive({ useHandCursor: true });
-          nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
-          nextBtn.on('pointerout', () => nextBtn.setColor('#e0e0e0'));
+          nextBtn.on('pointerover', () => nextBtn.setColor(UI_PALETTE.accent));
+          nextBtn.on('pointerout', () => nextBtn.setColor(UI_PALETTE.text));
           nextBtn.on('pointerdown', () => {
             page++;
             drawPage();
@@ -2390,19 +2423,20 @@ export class RosterOverlay {
       }
 
       const cancelY = navY + itemH;
-      const cancelBtn = this.scene.add
-        .text(cx, cancelY, 'Cancel', {
-          fontFamily: 'monospace',
+      const cancelBtn = applyTextResolution(
+        this.scene.add.text(cx, cancelY, 'Cancel', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#888888',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 10, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
-      cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-      cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+      cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+      cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
       cancelBtn.on('pointerdown', () => this._destroyTrade());
       this.tradeObjects.push(cancelBtn);
     };
@@ -2437,12 +2471,13 @@ export class RosterOverlay {
       const pageScrolls = allScrolls.slice(start, start + SCROLL_PICKER_MAX_PER_PAGE);
 
       // Pass 1: create elements at y=0 so Phaser computes their height
-      const pickerTitle = this.scene.add
-        .text(cx, 0, 'Use Scroll:', {
-          fontFamily: 'monospace',
+      const pickerTitle = applyTextResolution(
+        this.scene.add.text(cx, 0, 'Use Scroll:', {
+          fontFamily: 'Arial',
           fontSize: '13px',
-          color: '#ffdd44',
-        })
+          color: UI_PALETTE.accent,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1);
 
@@ -2452,19 +2487,20 @@ export class RosterOverlay {
         const skillDef = this.gameData?.skills?.find((s) => s.id === scroll.skillId);
         const desc = skillDef?.description ? `\n${skillDef.description}` : '';
         const label = `${scroll.name}${desc}`;
-        const btn = this.scene.add
-          .text(cx, 0, label, {
-            fontFamily: 'monospace',
+        const btn = applyTextResolution(
+          this.scene.add.text(cx, 0, label, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color,
             backgroundColor: '#444444',
             padding: { x: 10, y: 3 },
             wordWrap: { width: 260 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1)
           .setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
         btn.on('pointerout', () => btn.setColor(color));
         btn.on('pointerdown', () => {
           this._destroyTrade();
@@ -2491,30 +2527,32 @@ export class RosterOverlay {
 
       // Nav row
       const navY = curY + navH / 2;
-      const pageLabel = this.scene.add
-        .text(cx, navY, `Page ${page + 1}/${totalPages}`, {
-          fontFamily: 'monospace',
+      const pageLabel = applyTextResolution(
+        this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#aaaaaa',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1);
 
       const navObjects = [pageLabel];
       if (totalPages > 1) {
-        const prevColor = page > 0 ? '#e0e0e0' : '#666666';
-        const prevBtn = this.scene.add
-          .text(cx - 100, navY, 'Prev', {
-            fontFamily: 'monospace',
+        const prevColor = page > 0 ? UI_PALETTE.text : UI_PALETTE.muted;
+        const prevBtn = applyTextResolution(
+          this.scene.add.text(cx - 100, navY, 'Prev', {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: prevColor,
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1);
         if (page > 0) {
           prevBtn.setInteractive({ useHandCursor: true });
-          prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
-          prevBtn.on('pointerout', () => prevBtn.setColor('#e0e0e0'));
+          prevBtn.on('pointerover', () => prevBtn.setColor(UI_PALETTE.accent));
+          prevBtn.on('pointerout', () => prevBtn.setColor(UI_PALETTE.text));
           prevBtn.on('pointerdown', () => {
             page--;
             drawPage();
@@ -2522,19 +2560,20 @@ export class RosterOverlay {
         }
         navObjects.push(prevBtn);
 
-        const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
-        const nextBtn = this.scene.add
-          .text(cx + 100, navY, 'Next', {
-            fontFamily: 'monospace',
+        const nextColor = page < totalPages - 1 ? UI_PALETTE.text : UI_PALETTE.muted;
+        const nextBtn = applyTextResolution(
+          this.scene.add.text(cx + 100, navY, 'Next', {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: nextColor,
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_PICKER + 1);
         if (page < totalPages - 1) {
           nextBtn.setInteractive({ useHandCursor: true });
-          nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
-          nextBtn.on('pointerout', () => nextBtn.setColor('#e0e0e0'));
+          nextBtn.on('pointerover', () => nextBtn.setColor(UI_PALETTE.accent));
+          nextBtn.on('pointerout', () => nextBtn.setColor(UI_PALETTE.text));
           nextBtn.on('pointerdown', () => {
             page++;
             drawPage();
@@ -2545,26 +2584,27 @@ export class RosterOverlay {
 
       // Cancel button
       const cancelY = navY + navH;
-      const cancelBtn = this.scene.add
-        .text(cx, cancelY, 'Cancel', {
-          fontFamily: 'monospace',
+      const cancelBtn = applyTextResolution(
+        this.scene.add.text(cx, cancelY, 'Cancel', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#888888',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 10, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
-      cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-      cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+      cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+      cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
       cancelBtn.on('pointerdown', () => this._destroyTrade());
 
       // Background behind everything
       const pickerBg = this.scene.add
-        .rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
+        .rectangle(cx, topY + totalH / 2, 300, totalH, UI_HEX.panel, 0.95)
         .setDepth(DEPTH_PICKER)
-        .setStrokeStyle(1, 0x888888);
+        .setStrokeStyle(1, UI_HEX.line);
 
       this.tradeObjects.push(pickerBg, pickerTitle, ...buttons, ...navObjects, cancelBtn);
     };
@@ -2583,37 +2623,39 @@ export class RosterOverlay {
     const topY = cy - totalH / 2;
 
     const pickerBg = this.scene.add
-      .rectangle(cx, cy, 320, totalH, 0x222222, 0.95)
+      .rectangle(cx, cy, 320, totalH, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.line);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add
-      .text(cx, topY + pad, title, {
-        fontFamily: 'monospace',
+    const pickerTitle = applyTextResolution(
+      this.scene.add.text(cx, topY + pad, title, {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
     weapons.forEach((weapon, i) => {
       const y = topY + titleH + i * itemH + pad;
-      const btn = this.scene.add
-        .text(cx, y, weapon.name, {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        this.scene.add.text(cx, y, weapon.name, {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
           backgroundColor: '#444444',
           padding: { x: 10, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
       btn.on('pointerdown', () => {
         this._destroyTrade();
         onSelect(weapon);
@@ -2622,19 +2664,20 @@ export class RosterOverlay {
     });
 
     const cancelY = topY + titleH + weapons.length * itemH + pad;
-    const cancelBtn = this.scene.add
-      .text(cx, cancelY, 'Cancel', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      this.scene.add.text(cx, cancelY, 'Cancel', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
     this.tradeObjects.push(cancelBtn);
   }
@@ -2774,13 +2817,13 @@ export class RosterOverlay {
     for (const segment of segments) {
       const text = String(segment?.text ?? '');
       if (!text) continue;
-      const t = this.scene.add
-        .text(cursor, y, text, {
-          fontFamily: 'monospace',
+      const t = applyTextResolution(
+        this.scene.add.text(cursor, y, text, {
+          fontFamily: 'Arial',
           fontSize,
-          color: segment?.color || '#e0e0e0',
-        })
-        .setDepth(DEPTH_TEXT);
+          color: segment?.color || UI_PALETTE.text,
+        }),
+      ).setDepth(DEPTH_TEXT);
       this.detailObjects.push(t);
       if (!anchor) anchor = t;
       texts.push(t);
@@ -2820,22 +2863,22 @@ export class RosterOverlay {
   }
 
   _getWeaponNameColor(weapon, fallbackColor) {
-    return weapon?.tier === 'Legend' ? '#ffdd44' : fallbackColor;
+    return weapon?.tier === 'Legend' ? UI_PALETTE.accent : fallbackColor;
   }
 
-  _text(x, y, str, color = '#e0e0e0', fontSize = '10px') {
-    const t = this.scene.add
-      .text(x, y, str, {
-        fontFamily: 'monospace',
+  _text(x, y, str, color = UI_PALETTE.text, fontSize = '10px') {
+    const t = applyTextResolution(
+      this.scene.add.text(x, y, str, {
+        fontFamily: 'Arial',
         fontSize,
         color,
-      })
-      .setDepth(DEPTH_TEXT);
+      }),
+    ).setDepth(DEPTH_TEXT);
     this.detailObjects.push(t);
     return t;
   }
 
-  _tradeText(x, y, str, color = '#e0e0e0', fontSize = '10px') {
+  _tradeText(x, y, str, color = UI_PALETTE.text, fontSize = '10px') {
     return (this._tradeController ||= new RosterTradeController(this))._tradeText(
       x,
       y,
@@ -2855,18 +2898,19 @@ export class RosterOverlay {
   }
 
   _actionBtn(x, y, label, onClick, fontSize = '10px') {
-    const btn = this.scene.add
-      .text(x, y, label, {
-        fontFamily: 'monospace',
+    const btn = applyTextResolution(
+      this.scene.add.text(x, y, label, {
+        fontFamily: 'Arial',
         fontSize,
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 4, y: 1 },
-      })
+      }),
+    )
       .setDepth(DEPTH_TEXT)
       .setInteractive({ useHandCursor: true });
-    btn.on('pointerover', () => btn.setColor('#ffdd44'));
-    btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+    btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
+    btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
     btn.on('pointerdown', onClick);
     btn._rosterAction = true; // collected into the detail focus ring (gamepad)
     this.detailObjects.push(btn);
@@ -2981,14 +3025,14 @@ export class RosterOverlay {
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     let tipY = anchor.y;
 
-    const txt = this.scene.add
-      .text(tipX + 6, tipY + 4, description, {
-        fontFamily: 'monospace',
+    const txt = applyTextResolution(
+      this.scene.add.text(tipX + 6, tipY + 4, description, {
+        fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         wordWrap: { width: 200 },
-      })
-      .setDepth(DEPTH_PICKER + 2);
+      }),
+    ).setDepth(DEPTH_PICKER + 2);
 
     const w = txt.width + 12;
     const h = txt.height + 8;
@@ -3003,9 +3047,9 @@ export class RosterOverlay {
     }
 
     const bg = this.scene.add
-      .rectangle(txt.x - 6 + w / 2, txt.y - 4 + h / 2, w, h, 0x222222, 0.95)
+      .rectangle(txt.x - 6 + w / 2, txt.y - 4 + h / 2, w, h, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER + 1)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.line);
 
     this._skillTooltip = [bg, txt];
   }
@@ -3031,15 +3075,24 @@ export class RosterOverlay {
     if (lines.length <= 0) return;
     const body = lines.join('\n');
 
-    const descText = this.scene.add.text(0, 0, body, {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#ffffff',
-      wordWrap: { width: maxWidth - padding * 2 },
-    });
+    const descText = applyTextResolution(
+      this.scene.add.text(0, 0, body, {
+        fontFamily: 'Arial',
+        fontSize: '9px',
+        color: UI_PALETTE.text,
+        wordWrap: { width: maxWidth - padding * 2 },
+      }),
+    );
 
     const bg = this.scene.add
-      .rectangle(0, 0, descText.width + padding * 2, descText.height + padding * 2, 0x222222, 0.95)
+      .rectangle(
+        0,
+        0,
+        descText.width + padding * 2,
+        descText.height + padding * 2,
+        UI_HEX.panel,
+        0.95,
+      )
       .setOrigin(0);
 
     tooltip.add([bg, descText]);
@@ -3066,9 +3119,9 @@ export class RosterOverlay {
   }
 
   _showBanner(msg, color) {
-    const banner = this.scene.add
-      .text(320, 240, msg, {
-        fontFamily: 'monospace',
+    const banner = applyTextResolution(
+      this.scene.add.text(320, 240, msg, {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color,
         backgroundColor: '#000000cc',
@@ -3076,7 +3129,8 @@ export class RosterOverlay {
         align: 'center',
         // Promotion notices with dropped skills can exceed the 640px screen.
         wordWrap: { width: 580 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 10)
       .setAlpha(0);

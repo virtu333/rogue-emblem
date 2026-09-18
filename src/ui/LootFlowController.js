@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 import {
   canForge,
@@ -86,30 +87,30 @@ export class LootFlowController {
     const maxTextW = 224;
     const cam = scene.cameras.main;
 
-    const detailText = scene.add
-      .text(0, 0, text, {
-        fontFamily: 'monospace',
+    const detailText = applyTextResolution(
+      scene.add.text(0, 0, text, {
+        fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         lineSpacing: 3,
         wordWrap: { width: maxTextW },
-      })
-      .setDepth(761);
+      }),
+    ).setDepth(761);
 
     // Lore as its own stacked object (single-color Phaser text; the tooltip
     // text builder stays untouched so its exact-string tests hold).
     const loreGap = 6;
     const loreText = item?.lore
-      ? scene.add
-          .text(0, 0, `"${item.lore}"`, {
-            fontFamily: 'monospace',
+      ? applyTextResolution(
+          scene.add.text(0, 0, `"${item.lore}"`, {
+            fontFamily: 'Arial',
             fontSize: '9px',
             fontStyle: 'italic',
             color: LORE_TEXT_COLOR,
             lineSpacing: 3,
             wordWrap: { width: maxTextW },
-          })
-          .setDepth(761)
+          }),
+        ).setDepth(761)
       : null;
 
     const contentW = Math.max(detailText.width, loreText ? loreText.width : 0);
@@ -201,12 +202,18 @@ export class LootFlowController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 60, `${unit.name}: Select weapon to ${stoneIsImbue ? 'imbue' : 'forge'}`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ff8844',
-      })
+    const title = applyTextResolution(
+      scene.add.text(
+        cam.centerX,
+        60,
+        `${unit.name}: Select weapon to ${stoneIsImbue ? 'imbue' : 'forge'}`,
+        {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: '#ff8844',
+        },
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -230,7 +237,7 @@ export class LootFlowController {
       const wpn = forgeableWeapons[i];
       const level = wpn._forgeLevel || 0;
       const by = topY + i * rowGap;
-      const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
+      const wpnColor = isForged(wpn) ? '#44ff88' : UI_PALETTE.text;
 
       const btn = scene.add
         .rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
@@ -240,27 +247,29 @@ export class LootFlowController {
       pickerGroup.push(btn);
       focusButtons.push(btn);
 
-      const label = scene.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color: wpnColor,
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
 
-      const detail = scene.add
-        .text(
+      const detail = applyTextResolution(
+        scene.add.text(
           cam.centerX,
           by + Math.floor(btnH * 0.28),
           `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '9px',
-            color: '#aaaaaa',
+            color: UI_PALETTE.muted,
           },
-        )
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(detail);
@@ -337,14 +346,15 @@ export class LootFlowController {
     }
 
     // Back button
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -373,12 +383,13 @@ export class LootFlowController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#ff8844',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -398,7 +409,7 @@ export class LootFlowController {
       const statCount = getStatForgeCount(weapon, stat.key);
       const atStatCap = statCount >= FORGE_STAT_CAP;
       const by = startY + i * (btnH + 10);
-      const color = atStatCap ? '#666666' : '#e0e0e0';
+      const color = atStatCap ? UI_PALETTE.muted : UI_PALETTE.text;
       const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
 
       const btn = scene.add
@@ -407,12 +418,13 @@ export class LootFlowController {
         .setDepth(711);
       pickerGroup.push(btn);
 
-      const label = scene.add
-        .text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
+          fontFamily: 'Arial',
           fontSize: '13px',
           color,
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
@@ -433,14 +445,15 @@ export class LootFlowController {
     }
 
     // Back button
-    const backBtn = scene.add
-      .text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -471,12 +484,13 @@ export class LootFlowController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 70, `Imbue ${weapon.name}: Choose blessing`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 70, `Imbue ${weapon.name}: Choose blessing`, {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#cc88ff',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -497,22 +511,24 @@ export class LootFlowController {
       pickerGroup.push(btn);
       focusButtons.push(btn);
 
-      const label = scene.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.2), imbue.name, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.2), imbue.name, {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color: '#e0d0ff',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
 
-      const detail = scene.add
-        .text(cam.centerX, by + Math.floor(btnH * 0.25), imbue.description || '', {
-          fontFamily: 'monospace',
+      const detail = applyTextResolution(
+        scene.add.text(cam.centerX, by + Math.floor(btnH * 0.25), imbue.description || '', {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#aaaaaa',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(detail);
@@ -556,14 +572,15 @@ export class LootFlowController {
     }
 
     // Back button
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -601,13 +618,14 @@ export class LootFlowController {
       .setInteractive();
     scene.lootRosterGroup.push(bg);
 
-    const title = scene.add
-      .text(px, py - panelH / 2 + 14, 'ROSTER', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(px, py - panelH / 2 + 14, 'ROSTER', {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(751);
     scene.lootRosterGroup.push(title);
@@ -622,27 +640,28 @@ export class LootFlowController {
       const accName = u.accessory?.name || '-';
       const invCount = (u.inventory || []).length;
       const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
-      const txt = scene.add
-        .text(leftX, y, line, {
-          fontFamily: 'monospace',
+      const txt = applyTextResolution(
+        scene.add.text(leftX, y, line, {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#cccccc',
-        })
-        .setDepth(751);
+          color: UI_PALETTE.muted,
+        }),
+      ).setDepth(751);
       scene.lootRosterGroup.push(txt);
     }
 
-    const hint = scene.add
-      .text(
+    const hint = applyTextResolution(
+      scene.add.text(
         px,
         py + panelH / 2 - 10,
         inputHint(scene, '[R] Close  |  [ESC] Close', 'Tap Roster again to close'),
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         },
-      )
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(751);
     scene.lootRosterGroup.push(hint);
@@ -677,7 +696,7 @@ export class LootFlowController {
     // Gray out the chosen card
     const cardRef = scene._lootCards?.[cardIndex];
     if (cardRef?.bg) {
-      cardRef.bg.setFillStyle(0x222222);
+      cardRef.bg.setFillStyle(UI_HEX.panel);
       cardRef.bg.setStrokeStyle(2, 0x444444);
       cardRef.bg.removeAllListeners('pointerdown');
       cardRef.bg.disableInteractive();

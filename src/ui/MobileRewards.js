@@ -1,3 +1,4 @@
+import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import './mobileUpgrade.css';
@@ -25,6 +26,8 @@ export class MobileRewards {
   open() {
     if (this.visible || this.scene._lootResolving || this.scene._lootCleanedUp) return;
     this.visible = true;
+    this.previousFocus = document.activeElement;
+    this.overlayToken = pushOverlay(this.scene, { name: 'rewards', onCancel: () => true });
     this.root = node('section', null, 'mu-screen');
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
@@ -54,6 +57,9 @@ export class MobileRewards {
   }
   render() {
     const scene = this.scene;
+    const focus = this.root.contains(document.activeElement)
+      ? document.activeElement.dataset.focus
+      : null;
     this.root.replaceChildren();
     const header = node('header', null, 'mu-header');
     header.append(
@@ -74,6 +80,7 @@ export class MobileRewards {
         this.selected = i;
         this.render();
       });
+      b.dataset.focus = `reward-${i}`;
       b.className = 'mh-skill';
       b.setAttribute('aria-pressed', String(this.selected === i));
       b.disabled = !this.controller._focusCards[i]?.input?.enabled;
@@ -103,18 +110,23 @@ export class MobileRewards {
       this.hide();
       card.emit('pointerdown', { button: 0 });
     });
+    claim.dataset.focus = 'claim';
     claim.className = 'mu-buy';
     claim.disabled = !this.controller._focusCards[this.selected]?.input?.enabled;
     actions.append(claim);
     detail.append(copy, actions);
     split.append(list, detail);
     this.root.append(header, split);
+    if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
   }
   hide() {
     if (!this.visible) return;
     this.visible = false;
     popInputScope(this);
+    removeOverlay(this.scene, this.overlayToken);
+    this.overlayToken = null;
     this.root.remove();
+    if (this.previousFocus?.isConnected) this.previousFocus.focus();
   }
   destroy() {
     this.hide();

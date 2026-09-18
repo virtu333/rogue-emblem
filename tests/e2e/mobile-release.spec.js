@@ -35,11 +35,16 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   });
   await page.touchscreen.tap(p.x, p.y);
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'));
-  // The first-run fast path intentionally starts here; advance narrative using touch Cancel.
+  // The first-run fast path intentionally starts here; advance the visible narrative.
   for (let i = 0; i < 12; i++) {
     await page.waitForTimeout(200);
     if (await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').isSceneReady))
       break;
+    const next = page.getByRole('button', { name: 'Continue', exact: true });
+    if (await next.isVisible()) {
+      await next.tap();
+      continue;
+    }
     const hint = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');
       const target = s.children.list.find((o) => o.depth === 965 && o.input?.enabled);
@@ -52,21 +57,17 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
       };
     });
     if (hint) await page.touchscreen.tap(hint.x, hint.y);
-    else await page.locator('#mobile-left-panel [data-action=cancel]').tap();
   }
-  const battlePoint = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('NodeMap'),
-      rm = s.runManager;
-    const n = rm.getAvailableNodes().find((n) => n.type === 'battle');
-    const max = Math.max(...rm.nodeMap.nodes.map((n) => n.row));
-    const r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + ((80 + n.col * 120) * r.width) / 640,
-      y: r.y + ((60 + (1 - n.row / Math.max(1, max)) * 322) * r.height) / 480,
-    };
-  });
-  await page.touchscreen.tap(battlePoint.x, battlePoint.y);
-  await page.touchscreen.tap(battlePoint.x, battlePoint.y);
+  await expect(page.locator('.re-node-map')).toBeVisible();
+  const nodeId = await page.evaluate(
+    () =>
+      window.__emblemRogueGame.scene
+        .getScene('NodeMap')
+        .runManager.getAvailableNodes()
+        .find((n) => n.type === 'battle').id,
+  );
+  await page.locator(`[data-node="${nodeId}"]`).tap();
+  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('Battle'));
   await expect(page.locator('#game-wrapper')).toHaveAttribute('data-terrain-art', 'weathered');
   await expect

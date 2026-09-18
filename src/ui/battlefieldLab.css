@@ -1,14 +1,6 @@
+@import './mobileTheme.css';
 /* Landscape lab: uninterrupted map height and a compact, safe-area-aware command rail. */
 html.touch-ui #game-wrapper.battlefield-lab {
-  --re-bg: #192f3b;
-  --re-panel: #263f4a;
-  --re-panel-raised: #304e58;
-  --re-line: #6b807e;
-  --re-text: #eee9d5;
-  --re-muted: #b7c3ba;
-  --re-gold: #c5ad77;
-  --re-gold-hi: #ead8a5;
-  --re-selected: #476664;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) clamp(222px, 24vw, 240px);
   grid-template-rows: minmax(0, 1fr);
@@ -16,7 +8,7 @@ html.touch-ui #game-wrapper.battlefield-lab {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
   box-sizing: border-box;
-  background: #192f3b;
+  background: var(--re-bg);
 }
 html.touch-ui .battlefield-lab #game-container {
   grid-area: 1 / 1;
@@ -25,7 +17,7 @@ html.touch-ui .battlefield-lab #game-container {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #263e40;
+  background: var(--re-panel);
 }
 html.touch-ui #game-wrapper.battlefield-lab .mobile-panel {
   display: none !important;
@@ -38,18 +30,18 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   min-height: 0;
   padding: 10px;
   border: 0;
-  border-left: 2px solid #819184;
+  border-left: 2px solid var(--re-line);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #192f3b;
+  background: var(--re-bg);
 }
 .battlefield-lab .mb-phase {
   position: static;
   padding: 0 0 8px;
-  border-bottom: 1px solid #9c8d65;
-  font: 8px/1.5 var(--re-pixel);
-  color: #ddcc99;
+  border-bottom: 1px solid var(--re-line-soft);
+  font: 10px/1.5 var(--re-pixel);
+  color: var(--re-text);
   letter-spacing: 0;
 }
 .battlefield-lab .mb-summary {
@@ -78,7 +70,7 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   margin: 0;
   font-size: 11px;
   line-height: 1.3;
-  color: #d1c29b;
+  color: var(--re-text);
   border: 0;
   padding: 0;
 }
@@ -105,24 +97,24 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   width: 100%;
   padding: 7px;
   font-size: 13px;
-  border: 1px solid #728a88;
+  border: 1px solid var(--re-line);
   border-radius: 3px;
-  background: #2c4955;
-  color: #eee9d5;
+  background: var(--re-raised);
+  color: var(--re-text);
   box-shadow:
     inset 0 1px #ffffff12,
-    0 2px #10242e;
+    0 2px var(--re-sunken);
 }
 .battlefield-lab .mb-button[aria-pressed='true'],
 .battlefield-lab .mb-primary {
-  background: #c8b789;
-  color: #18313b;
-  border-color: #e9d8a8;
+  background: var(--re-action);
+  color: var(--re-action-ink);
+  border-color: var(--re-accent-text);
 }
 .battlefield-lab .mb-end-turn {
   margin: 0;
-  background: #655842;
-  color: #f0dfb7;
+  background: var(--re-action);
+  color: var(--re-action-ink);
 }
 .battlefield-lab .mb-battle-info {
   order: 5;
@@ -141,8 +133,8 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   bottom: max(8px, env(safe-area-inset-bottom));
   width: min(330px, 50vw);
   padding: 10px;
-  background: #192f3b;
-  border: 2px solid #c5ad77;
+  background: var(--re-bg);
+  border: 2px solid var(--re-line);
   max-height: 90%;
   overflow: auto;
 }
@@ -187,27 +179,25 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 
 /* Chunky inset frames and restrained pixel accents for the lab's pause menu. */
 .battlefield-lab .mp-panel {
-  background: #233c46;
-  border: 3px double #b7ad8c;
+  background: var(--re-panel);
+  border: 1px solid var(--re-line-soft);
   border-radius: 0;
   box-shadow:
-    0 0 0 3px #111f28,
-    5px 5px 0 #080f18;
+    0 0 0 3px var(--re-bg),
+    5px 5px 0 var(--re-sunken);
 }
 .battlefield-lab .mp-panel h2 {
-  color: #dfcf9e;
+  color: var(--re-text);
   letter-spacing: 2px;
 }
 .battlefield-lab .mp-actions button {
   border-radius: 0;
-  border: 2px solid #6f837f;
-  background: #304d57;
-  box-shadow:
-    inset 2px 2px #ffffff12,
-    inset -2px -2px #091e2855;
+  border: 2px solid var(--re-line);
+  background: var(--re-raised);
+  box-shadow: var(--re-bevel);
 }
 .battlefield-lab .mp-actions button:focus-visible {
-  outline: 2px solid #dec991;
+  outline: 2px solid var(--re-focus);
   outline-offset: 1px;
 }
 
@@ -217,12 +207,12 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   gap: 1px 6px;
   margin-top: 5px;
   padding-top: 5px;
-  border-top: 1px solid #53665e;
+  border-top: 1px solid var(--re-line-soft);
   font: 11px/1.35 var(--re-body);
-  color: #c8d1bc;
+  color: var(--re-muted);
 }
 .battlefield-lab .mb-terrain strong {
-  color: #e0cda1;
+  color: var(--re-text);
 }
 .battlefield-lab .mb-terrain span:nth-of-type(2),
 .battlefield-lab .mb-terrain small {
@@ -231,40 +221,38 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 
 /* Battle, forecast and roster share the same worn inset-window treatment. */
 .battlefield-lab .mb-forecast {
-  border: 3px double #b7ad8c;
+  border: 1px solid var(--re-line-soft);
   border-radius: 0;
-  background: #233c46;
+  background: var(--re-panel);
   box-shadow:
-    0 0 0 2px #111f28,
-    4px 4px 0 #080f18;
+    0 0 0 2px var(--re-bg),
+    4px 4px 0 var(--re-sunken);
 }
 .battlefield-lab .mb-forecast-side {
-  background: #2b454b;
+  background: var(--re-raised);
   border-radius: 0;
-  border-top-color: #94b2ab;
-  box-shadow: inset 0 -2px #182d36;
+  border-top-color: var(--re-line-strong);
+  box-shadow: inset 0 -2px var(--re-sunken);
 }
 .battlefield-lab .mb-forecast-side.mb-enemy {
-  border-top-color: #b87969;
+  border-top-color: var(--re-bad);
 }
 .battlefield-lab .mb-forecast-footer .mb-button {
   border-radius: 0;
 }
 .battlefield-lab .mr-sheet {
-  background: #192f3b;
+  background: var(--re-bg);
 }
 .battlefield-lab .mr-sheet header {
   padding-bottom: 6px;
-  border-bottom: 3px double #b7ad8c;
+  border-bottom: 1px solid var(--re-line-soft);
 }
 .battlefield-lab .mr-sheet button {
   border-radius: 0;
-  box-shadow:
-    inset 1px 1px #ffffff12,
-    inset -1px -1px #091e2855;
+  box-shadow: var(--re-bevel);
 }
 .battlefield-lab .mr-sheet button[aria-pressed='true'] {
-  border-left: 4px solid #d4c08d;
+  border-left: 4px solid var(--re-accent);
 }
 
 @media (max-height: 420px) {

@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 // ShopController -- shop node overlay flow extracted from NodeMapScene.
 // Owns the shop overlay UI (buy/sell/forge tabs, unit picker, forge picker,
@@ -247,7 +248,7 @@ export class ShopController {
 
     // Centered panel container
     const panel = scene.add
-      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, UI_HEX.sunken, 0.95)
       .setDepth(OVERLAY_PANEL_DEPTH)
       .setStrokeStyle(2, 0x444444)
       .setInteractive();
@@ -261,9 +262,9 @@ export class ShopController {
         : scene._currentShopHasAmbushDiscount
           ? 'Village (Liberated - 20% Off)'
           : 'Village';
-    const title = scene.add
-      .text(320, 30, titleLabel, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(320, 30, titleLabel, {
+        fontFamily: 'Arial',
         fontSize: '22px',
         color: scene._currentShopIsCaravan
           ? '#ffcc33'
@@ -271,19 +272,21 @@ export class ShopController {
             ? '#c4b18a'
             : scene._currentShopHasAmbushDiscount
               ? '#88ff88'
-              : '#ffdd44',
-      })
+              : UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.shopOverlay.push(title);
 
     // Gold display
-    scene.shopGoldText = scene.add
-      .text(320, 58, `Gold: ${scene.runManager.gold}G`, {
-        fontFamily: 'monospace',
+    scene.shopGoldText = applyTextResolution(
+      scene.add.text(320, 58, `Gold: ${scene.runManager.gold}G`, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH);
     scene.shopOverlay.push(scene.shopGoldText);
@@ -293,18 +296,19 @@ export class ShopController {
       panel.setFillStyle(0x182f39, 1).setStrokeStyle(2, 0x80968a);
     }
 
-    const viewMapBtn = scene.add
-      .text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
-        fontFamily: 'monospace',
+    const viewMapBtn = applyTextResolution(
+      scene.add.text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#aaddff',
         backgroundColor: '#223344',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
+    viewMapBtn.on('pointerover', () => viewMapBtn.setColor(UI_PALETTE.accent));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
     viewMapBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -314,18 +318,19 @@ export class ShopController {
     scene.shopOverlay.push(viewMapBtn);
 
     // Roster button
-    const shopRosterBtn = scene.add
-      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
-        fontFamily: 'monospace',
+    const shopRosterBtn = applyTextResolution(
+      scene.add.text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#aaddff',
         backgroundColor: '#223344',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    shopRosterBtn.on('pointerover', () => shopRosterBtn.setColor('#ffdd44'));
+    shopRosterBtn.on('pointerover', () => shopRosterBtn.setColor(UI_PALETTE.accent));
     shopRosterBtn.on('pointerout', () => shopRosterBtn.setColor('#aaddff'));
     shopRosterBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -369,19 +374,20 @@ export class ShopController {
       : scene._currentShopIsRuins
         ? '[ Return to Ruins ]'
         : '[ Leave Village ]';
-    const leaveBtn = scene.add
-      .text(320, SAFE_BOTTOM_Y, leaveLabel, {
-        fontFamily: 'monospace',
+    const leaveBtn = applyTextResolution(
+      scene.add.text(320, SAFE_BOTTOM_Y, leaveLabel, {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 16, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
-    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
+    leaveBtn.on('pointerover', () => leaveBtn.setColor(UI_PALETTE.accent));
+    leaveBtn.on('pointerout', () => leaveBtn.setColor(UI_PALETTE.text));
     leaveBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       scene.leaveShopNode();
@@ -449,15 +455,16 @@ export class ShopController {
       const tab = tabs[i];
       const tx = startX + i * tabW;
       const isActive = scene.activeShopTab === tab.key;
-      const color = isActive ? '#ffdd44' : '#888888';
-      const tabText = scene.add
-        .text(tx, tabY, tab.label, {
-          fontFamily: 'monospace',
+      const color = isActive ? UI_PALETTE.accent : UI_PALETTE.muted;
+      const tabText = applyTextResolution(
+        scene.add.text(tx, tabY, tab.label, {
+          fontFamily: 'Arial',
           fontSize: '14px',
           color,
-          backgroundColor: isActive ? '#333355' : '#222222',
+          backgroundColor: isActive ? '#333355' : UI_PALETTE.panel,
           padding: { x: 12, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(OVERLAY_CONTENT_DEPTH)
         .setInteractive({ useHandCursor: true });
@@ -875,20 +882,20 @@ export class ShopController {
       const y = contentY - offset;
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
       const affordable = scene.runManager.gold >= entry.price;
-      const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
-      const color = affordable ? affordableColor : '#666666';
+      const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : UI_PALETTE.text;
+      const color = affordable ? affordableColor : UI_PALETTE.muted;
       const marker = hasWeaponArt(entry?.item, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
-      const text = scene.add
-        .text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
-          fontFamily: 'monospace',
+      const text = applyTextResolution(
+        scene.add.text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color,
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
+        }),
+      ).setDepth(OVERLAY_CONTENT_DEPTH);
 
       text.setInteractive({ useHandCursor: affordable });
       text.on('pointerover', () => {
-        text.setColor('#ffdd44');
+        text.setColor(UI_PALETTE.accent);
         scene._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
       });
       text.on('pointerout', () => {
@@ -1130,13 +1137,13 @@ export class ShopController {
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) continue;
 
       if (rowData.kind === 'unit') {
-        const nameText = scene.add
-          .text(60, y, `${rowData.unit.name}:`, {
-            fontFamily: 'monospace',
+        const nameText = applyTextResolution(
+          scene.add.text(60, y, `${rowData.unit.name}:`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+            color: UI_PALETTE.muted,
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(nameText);
         scene.shopOverlay.push(nameText);
         continue;
@@ -1149,25 +1156,25 @@ export class ShopController {
         const locked = isLastCombatWeapon(unit, item);
         const equipped = item === unit.weapon ? '\u25b6' : ' ';
         const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
-        const wpnColor = locked ? '#666666' : isForged(item) ? '#44ff88' : '#e0e0e0';
+        const wpnColor = locked ? UI_PALETTE.muted : isForged(item) ? '#44ff88' : UI_PALETTE.text;
         const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const text = scene.add
-          .text(
+        const text = applyTextResolution(
+          scene.add.text(
             70,
             y,
             `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + awardedSellPrice + 'G'}`,
             {
-              fontFamily: 'monospace',
+              fontFamily: 'Arial',
               fontSize: '11px',
               color: wpnColor,
             },
-          )
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          ),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
 
         if (!locked) {
           text._shopFocusKey = focusKey;
           text.setInteractive({ useHandCursor: true });
-          text.on('pointerover', () => text.setColor('#ffdd44'));
+          text.on('pointerover', () => text.setColor(UI_PALETTE.accent));
           text.on('pointerout', () => text.setColor(wpnColor));
           text.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
@@ -1177,7 +1184,7 @@ export class ShopController {
             const audio = scene.registry.get('audio');
             if (audio) audio.playSFX('sfx_gold');
             scene.refreshShop();
-            scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+            scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, UI_PALETTE.accent);
           });
         }
 
@@ -1193,16 +1200,16 @@ export class ShopController {
         const unit = rowData.unit;
         const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
         const baseColor = '#88ff88';
-        const text = scene.add
-          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
+        const text = applyTextResolution(
+          scene.add.text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: baseColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerover', () => text.setColor(UI_PALETTE.accent));
         text.on('pointerout', () => text.setColor(baseColor));
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1212,7 +1219,7 @@ export class ShopController {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
           scene.refreshShop();
-          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, UI_PALETTE.accent);
         });
 
         scene.shopContentGroup.push(text);
@@ -1221,13 +1228,13 @@ export class ShopController {
       }
 
       if (rowData.kind === 'convoy_header') {
-        const hdr = scene.add
-          .text(60, y, 'Convoy:', {
-            fontFamily: 'monospace',
+        const hdr = applyTextResolution(
+          scene.add.text(60, y, 'Convoy:', {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+            color: UI_PALETTE.muted,
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(hdr);
         scene.shopOverlay.push(hdr);
         continue;
@@ -1239,17 +1246,17 @@ export class ShopController {
         const awardedSellPrice = previewAwardedSellGold(sellPrice);
         const convoyIdx = rowData.convoyIndex;
         const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
-        const wpnColor = isForged(item) ? '#44ff88' : '#e0e0e0';
-        const text = scene.add
-          .text(70, y, ` ${item.name}${marker}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
+        const wpnColor = isForged(item) ? '#44ff88' : UI_PALETTE.text;
+        const text = applyTextResolution(
+          scene.add.text(70, y, ` ${item.name}${marker}  +${awardedSellPrice}G`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerover', () => text.setColor(UI_PALETTE.accent));
         text.on('pointerout', () => text.setColor(wpnColor));
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1259,7 +1266,7 @@ export class ShopController {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
           scene.refreshShop();
-          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, UI_PALETTE.accent);
         });
         scene.shopContentGroup.push(text);
         scene.shopOverlay.push(text);
@@ -1273,16 +1280,16 @@ export class ShopController {
         const convoyIdx = rowData.convoyIndex;
         const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
         const baseColor = '#88ff88';
-        const text = scene.add
-          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
+        const text = applyTextResolution(
+          scene.add.text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: baseColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         text._shopFocusKey = focusKey;
         text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerover', () => text.setColor(UI_PALETTE.accent));
         text.on('pointerout', () => text.setColor(baseColor));
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1292,7 +1299,7 @@ export class ShopController {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
           scene.refreshShop();
-          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+          scene.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, UI_PALETTE.accent);
         });
         scene.shopContentGroup.push(text);
         scene.shopOverlay.push(text);
@@ -1330,13 +1337,18 @@ export class ShopController {
     // Header: forges remaining
     const headerY = startY - offset;
     if (headerY >= SHOP_LIST_TOP_Y - lineH && headerY <= SHOP_LIST_BOTTOM_Y) {
-      const header = scene.add
-        .text(60, headerY, `Forges remaining: ${forgeLimit - scene.shopForgesUsed}/${forgeLimit}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff8844',
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
+      const header = applyTextResolution(
+        scene.add.text(
+          60,
+          headerY,
+          `Forges remaining: ${forgeLimit - scene.shopForgesUsed}/${forgeLimit}`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: '#ff8844',
+          },
+        ),
+      ).setDepth(OVERLAY_CONTENT_DEPTH);
       scene.shopContentGroup.push(header);
       scene.shopOverlay.push(header);
     }
@@ -1350,13 +1362,13 @@ export class ShopController {
 
       const nameY = startY + row * lineH - offset;
       if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
-        const nameText = scene.add
-          .text(60, nameY, `${unit.name}:`, {
-            fontFamily: 'monospace',
+        const nameText = applyTextResolution(
+          scene.add.text(60, nameY, `${unit.name}:`, {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+            color: UI_PALETTE.muted,
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(nameText);
         scene.shopOverlay.push(nameText);
       }
@@ -1372,20 +1384,20 @@ export class ShopController {
           forgeFocusKey = scene._shopFocusEntries.length;
           scene._shopFocusEntries.push({ key: forgeFocusKey, y: contentY, h: lineH });
         }
-        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
+        const wpnColor = isForged(wpn) ? '#44ff88' : UI_PALETTE.text;
         const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
         const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
         if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
           row++;
           continue;
         }
-        const wpnText = scene.add
-          .text(70, y, label, {
-            fontFamily: 'monospace',
+        const wpnText = applyTextResolution(
+          scene.add.text(70, y, label, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(wpnText);
         scene.shopOverlay.push(wpnText);
 
@@ -1402,37 +1414,38 @@ export class ShopController {
         });
 
         if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = scene.add
-            .text(350, y, 'MAX', {
-              fontFamily: 'monospace',
+          const maxLabel = applyTextResolution(
+            scene.add.text(350, y, 'MAX', {
+              fontFamily: 'Arial',
               fontSize: '11px',
-              color: '#888888',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
+              color: UI_PALETTE.muted,
+            }),
+          ).setDepth(OVERLAY_CONTENT_DEPTH);
           scene.shopContentGroup.push(maxLabel);
           scene.shopOverlay.push(maxLabel);
         } else if (limitReached) {
-          const limitLabel = scene.add
-            .text(350, y, '(limit)', {
-              fontFamily: 'monospace',
+          const limitLabel = applyTextResolution(
+            scene.add.text(350, y, '(limit)', {
+              fontFamily: 'Arial',
               fontSize: '11px',
-              color: '#666666',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
+              color: UI_PALETTE.muted,
+            }),
+          ).setDepth(OVERLAY_CONTENT_DEPTH);
           scene.shopContentGroup.push(limitLabel);
           scene.shopOverlay.push(limitLabel);
         } else {
-          const forgeBtn = scene.add
-            .text(350, y, '[ Forge ]', {
-              fontFamily: 'monospace',
+          const forgeBtn = applyTextResolution(
+            scene.add.text(350, y, '[ Forge ]', {
+              fontFamily: 'Arial',
               fontSize: '11px',
               color: '#ff8844',
-              backgroundColor: '#333333',
+              backgroundColor: UI_PALETTE.raised,
               padding: { x: 4, y: 1 },
-            })
+            }),
+          )
             .setDepth(OVERLAY_CONTENT_DEPTH)
             .setInteractive({ useHandCursor: true });
-          forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
+          forgeBtn.on('pointerover', () => forgeBtn.setColor(UI_PALETTE.accent));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
           forgeBtn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
@@ -1451,13 +1464,13 @@ export class ShopController {
     if (convoyForgeWeapons.length > 0) {
       const convoyHeaderY = startY + row * lineH - offset;
       if (convoyHeaderY >= SHOP_LIST_TOP_Y - lineH && convoyHeaderY <= SHOP_LIST_BOTTOM_Y) {
-        const hdr = scene.add
-          .text(60, convoyHeaderY, 'Convoy:', {
-            fontFamily: 'monospace',
+        const hdr = applyTextResolution(
+          scene.add.text(60, convoyHeaderY, 'Convoy:', {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+            color: UI_PALETTE.muted,
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(hdr);
         scene.shopOverlay.push(hdr);
       }
@@ -1473,20 +1486,20 @@ export class ShopController {
           forgeFocusKey = scene._shopFocusEntries.length;
           scene._shopFocusEntries.push({ key: forgeFocusKey, y: contentY, h: lineH });
         }
-        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
+        const wpnColor = isForged(wpn) ? '#44ff88' : UI_PALETTE.text;
         const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(scene)) ? ' *' : '';
         const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
         if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
           row++;
           continue;
         }
-        const wpnText = scene.add
-          .text(70, y, label, {
-            fontFamily: 'monospace',
+        const wpnText = applyTextResolution(
+          scene.add.text(70, y, label, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(wpnText);
         scene.shopOverlay.push(wpnText);
 
@@ -1502,37 +1515,38 @@ export class ShopController {
         });
 
         if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = scene.add
-            .text(350, y, 'MAX', {
-              fontFamily: 'monospace',
+          const maxLabel = applyTextResolution(
+            scene.add.text(350, y, 'MAX', {
+              fontFamily: 'Arial',
               fontSize: '11px',
-              color: '#888888',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
+              color: UI_PALETTE.muted,
+            }),
+          ).setDepth(OVERLAY_CONTENT_DEPTH);
           scene.shopContentGroup.push(maxLabel);
           scene.shopOverlay.push(maxLabel);
         } else if (limitReached) {
-          const limitLabel = scene.add
-            .text(350, y, '(limit)', {
-              fontFamily: 'monospace',
+          const limitLabel = applyTextResolution(
+            scene.add.text(350, y, '(limit)', {
+              fontFamily: 'Arial',
               fontSize: '11px',
-              color: '#666666',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
+              color: UI_PALETTE.muted,
+            }),
+          ).setDepth(OVERLAY_CONTENT_DEPTH);
           scene.shopContentGroup.push(limitLabel);
           scene.shopOverlay.push(limitLabel);
         } else {
-          const forgeBtn = scene.add
-            .text(350, y, '[ Forge ]', {
-              fontFamily: 'monospace',
+          const forgeBtn = applyTextResolution(
+            scene.add.text(350, y, '[ Forge ]', {
+              fontFamily: 'Arial',
               fontSize: '11px',
               color: '#ff8844',
-              backgroundColor: '#333333',
+              backgroundColor: UI_PALETTE.raised,
               padding: { x: 4, y: 1 },
-            })
+            }),
+          )
             .setDepth(OVERLAY_CONTENT_DEPTH)
             .setInteractive({ useHandCursor: true });
-          forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
+          forgeBtn.on('pointerover', () => forgeBtn.setColor(UI_PALETTE.accent));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
           forgeBtn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
@@ -1550,13 +1564,13 @@ export class ShopController {
     if (row <= 1.5 && convoyForgeWeapons.length === 0) {
       const emptyY = startY + row * lineH - offset;
       if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
-        const emptyText = scene.add
-          .text(60, emptyY, 'No forgeable weapons in roster.', {
-            fontFamily: 'monospace',
+        const emptyText = applyTextResolution(
+          scene.add.text(60, emptyY, 'No forgeable weapons in roster.', {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#888888',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
+            color: UI_PALETTE.muted,
+          }),
+        ).setDepth(OVERLAY_CONTENT_DEPTH);
         scene.shopContentGroup.push(emptyText);
         scene.shopOverlay.push(emptyText);
       }
@@ -1569,15 +1583,15 @@ export class ShopController {
     if ((scene.shopScrollMax || 0) <= 0) return;
     const offset = scene.shopScrollOffsets?.[scene.activeShopTab] || 0;
     const percent = scene.shopScrollMax > 0 ? Math.round((offset / scene.shopScrollMax) * 100) : 0;
-    const hint = scene.add
-      .text(445, scene.isMobileInput ? 380 : 392, `Scroll: ${percent}%`, {
-        fontFamily: 'monospace',
+    const hint = applyTextResolution(
+      scene.add.text(445, scene.isMobileInput ? 380 : 392, `Scroll: ${percent}%`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-        backgroundColor: '#222222',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.panel,
         padding: { x: 4, y: 2 },
-      })
-      .setDepth(OVERLAY_CONTENT_DEPTH);
+      }),
+    ).setDepth(OVERLAY_CONTENT_DEPTH);
     scene.shopContentGroup.push(hint);
     scene.shopOverlay.push(hint);
   }
@@ -1647,31 +1661,31 @@ export class ShopController {
     const maxTextW = 304; // 320 - padX*2
 
     // Create text first with wordWrap so Phaser computes accurate dimensions
-    const detailText = scene.add
-      .text(0, 0, detail, {
-        fontFamily: 'monospace',
+    const detailText = applyTextResolution(
+      scene.add.text(0, 0, detail, {
+        fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         lineSpacing: 4,
         wordWrap: { width: maxTextW },
-      })
-      .setDepth(311);
+      }),
+    ).setDepth(311);
 
     // Lore rides below the mechanical detail as its own object — Phaser text is
     // single-color, and keeping the detail builder untouched preserves its tests.
     const lore = entry?.item?.lore;
     const loreGap = 6;
     const loreText = lore
-      ? scene.add
-          .text(0, 0, `"${lore}"`, {
-            fontFamily: 'monospace',
+      ? applyTextResolution(
+          scene.add.text(0, 0, `"${lore}"`, {
+            fontFamily: 'Arial',
             fontSize: '9px',
             fontStyle: 'italic',
             color: LORE_TEXT_COLOR,
             lineSpacing: 4,
             wordWrap: { width: maxTextW },
-          })
-          .setDepth(311)
+          }),
+        ).setDepth(311)
       : null;
 
     const contentW = Math.max(detailText.width, loreText ? loreText.width : 0);
@@ -1727,12 +1741,13 @@ export class ShopController {
       .setInteractive();
     scene.forgePicker.push(pickerBg);
 
-    const title = scene.add
-      .text(cx, cy - 88, `Forge ${weapon.name} (${level}/${FORGE_MAX_LEVEL})`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cx, cy - 88, `Forge ${weapon.name} (${level}/${FORGE_MAX_LEVEL})`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(451);
     scene.forgePicker.push(title);
@@ -1764,25 +1779,26 @@ export class ShopController {
       const by = scene.isMobileInput
         ? cy - 38 + Math.floor(i / 2) * (mobileTarget(scene) + 10)
         : btnStartY + i * btnH;
-      const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
-      const color = atStatCap ? '#666666' : affordable ? affordableColor : '#666666';
+      const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : UI_PALETTE.text;
+      const color = atStatCap ? UI_PALETTE.muted : affordable ? affordableColor : UI_PALETTE.muted;
 
       const costLabel = atStatCap ? 'MAX' : `${cost}G`;
-      const btn = scene.add
-        .text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        scene.add.text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color,
-          backgroundColor: affordable && !atStatCap ? '#444444' : '#333333',
+          backgroundColor: affordable && !atStatCap ? '#444444' : UI_PALETTE.raised,
           padding: { x: 16, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(451);
 
       if (affordable && !atStatCap) {
         forgeStatButtons.push(btn);
         btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
         btn.on('pointerout', () => btn.setColor(color));
         btn.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1812,19 +1828,20 @@ export class ShopController {
     }
 
     // Cancel button
-    const cancelBtn = scene.add
-      .text(cx, btnStartY + stats.length * btnH + 10, 'Cancel', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      scene.add.text(cx, btnStartY + stats.length * btnH + 10, 'Cancel', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(451)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       scene.closeForgeStatPicker();
@@ -1860,8 +1877,8 @@ export class ShopController {
     const line3 = `Forge: Mt(${mtCount}/${FORGE_STAT_CAP}) Cr(${crCount}/${FORGE_STAT_CAP}) Ht(${htCount}/${FORGE_STAT_CAP}) Wt(${wtCount}/${FORGE_STAT_CAP})`;
 
     const lineDefs = [
-      { text: line1, color: '#e0e0e0' },
-      { text: line2, color: '#e0e0e0' },
+      { text: line1, color: UI_PALETTE.text },
+      { text: line2, color: UI_PALETTE.text },
       { text: line3, color: '#ff8844' },
     ];
     if (wpn.special) lineDefs.push({ text: `Special: ${wpn.special}`, color: '#88ccff' });
@@ -1873,14 +1890,14 @@ export class ShopController {
     const maxTextW = 320;
     const lineSpacing = 3;
     const detailLines = lineDefs.map(({ text, color }) =>
-      scene.add
-        .text(0, 0, text, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        scene.add.text(0, 0, text, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color,
           wordWrap: { width: maxTextW },
-        })
-        .setDepth(311),
+        }),
+      ).setDepth(311),
     );
     const textW = detailLines.reduce((max, lineObj) => Math.max(max, lineObj.width || 0), 0);
     const textH =
@@ -1944,16 +1961,16 @@ export class ShopController {
     const scene = this.scene;
     const cost = SHOP_REROLL_COST + scene.shopRerollCount * SHOP_REROLL_ESCALATION;
     const affordable = scene.runManager.gold >= cost;
-    const color = affordable ? '#aaddff' : '#666666';
-    const rerollBtn = scene.add
-      .text(60, 410, `[ Reroll ${cost}G ]`, {
-        fontFamily: 'monospace',
+    const color = affordable ? '#aaddff' : UI_PALETTE.muted;
+    const rerollBtn = applyTextResolution(
+      scene.add.text(60, 410, `[ Reroll ${cost}G ]`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color,
-        backgroundColor: '#333333',
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 8, y: 4 },
-      })
-      .setDepth(OVERLAY_CONTENT_DEPTH);
+      }),
+    ).setDepth(OVERLAY_CONTENT_DEPTH);
     this._styleMobileButton(rerollBtn, 60, 400, 120);
     scene.shopContentGroup.push(rerollBtn);
     scene.shopOverlay.push(rerollBtn);
@@ -1961,7 +1978,7 @@ export class ShopController {
     if (affordable) {
       scene._shopRerollBtn = rerollBtn; // focusable fixed slot (Buy tab only)
       rerollBtn.setInteractive({ useHandCursor: true });
-      rerollBtn.on('pointerover', () => rerollBtn.setColor('#ffdd44'));
+      rerollBtn.on('pointerover', () => rerollBtn.setColor(UI_PALETTE.accent));
       rerollBtn.on('pointerout', () => rerollBtn.setColor(color));
       rerollBtn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
@@ -2098,18 +2115,19 @@ export class ShopController {
     const offset = state.offset || 0;
 
     const pickerBg = scene.add
-      .rectangle(cx, panelY, panelW, panelH, 0x222222, 0.95)
+      .rectangle(cx, panelY, panelW, panelH, UI_HEX.panel, 0.95)
       .setDepth(400)
-      .setStrokeStyle(1, 0x888888)
+      .setStrokeStyle(1, UI_HEX.line)
       .setInteractive();
     scene.unitPicker.push(pickerBg);
 
-    const pickerTitle = scene.add
-      .text(cx, 102, 'Give to:', {
-        fontFamily: 'monospace',
+    const pickerTitle = applyTextResolution(
+      scene.add.text(cx, 102, 'Give to:', {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(401);
     scene.unitPicker.push(pickerTitle);
@@ -2145,20 +2163,21 @@ export class ShopController {
       const label = scene.isMobileInput
         ? `${displayName}${noProf ? ' · no proficiency' : ''}\nItems ${inventoryCount}/${INVENTORY_MAX} · Supplies ${consumableCount}/${CONSUMABLE_MAX}${fullSuffix}`
         : `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
-      const color = noProf ? '#cc8844' : '#e0e0e0';
-      const btn = scene.add
-        .text(cx, y, label, {
-          fontFamily: 'monospace',
+      const color = noProf ? '#cc8844' : UI_PALETTE.text;
+      const btn = applyTextResolution(
+        scene.add.text(cx, y, label, {
+          fontFamily: 'Arial',
           fontSize: '13px',
           color,
           backgroundColor: '#444444',
           padding: { x: 12, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(401)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
@@ -2177,29 +2196,31 @@ export class ShopController {
 
     if (state.maxOffset > 0) {
       const pct = Math.round((offset / state.maxOffset) * 100);
-      const hint = scene.add
-        .text(cx + panelW / 2 - 10, 102, `${pct}%`, {
-          fontFamily: 'monospace',
+      const hint = applyTextResolution(
+        scene.add.text(cx + panelW / 2 - 10, 102, `${pct}%`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#888888',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(1, 0.5)
         .setDepth(401);
       scene.unitPicker.push(hint);
     }
 
-    const cancelBtn = scene.add
-      .text(cx, 430, '[ Cancel ]', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      scene.add.text(cx, 430, '[ Cancel ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#bbbbbb',
-        backgroundColor: '#333333',
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(401)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accent));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#bbbbbb'));
     cancelBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -2230,14 +2251,15 @@ export class ShopController {
 
   showShopBanner(msg, color) {
     const scene = this.scene;
-    const banner = scene.add
-      .text(320, scene.isMobileInput ? 365 : 400, msg, {
-        fontFamily: 'monospace',
+    const banner = applyTextResolution(
+      scene.add.text(320, scene.isMobileInput ? 365 : 400, msg, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color,
         backgroundColor: '#000000cc',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(500)
       .setAlpha(0);

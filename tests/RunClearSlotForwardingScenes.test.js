@@ -156,6 +156,7 @@ function makeBattleSceneForRecoveryTests() {
   };
   scene.cameras = {
     main: {
+      setBackgroundColor: vi.fn(),
       centerX: 320,
       centerY: 240,
       width: 640,
@@ -204,7 +205,7 @@ describe('Run clear callback forwarding across scenes', () => {
         return null;
       }),
     };
-    scene.cameras = { main: { centerX: 320, centerY: 240 } };
+    scene.cameras = { main: { centerX: 320, centerY: 240, setBackgroundColor: vi.fn() } };
     scene.events = { once: vi.fn() };
     scene.add = { text: vi.fn(() => makeUiObject()) };
 

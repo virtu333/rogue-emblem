@@ -1,3 +1,8 @@
+import { NodeMapMenu } from '../ui/NodeMapMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { getHPBarColor } from '../utils/uiStyles.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { routeMobileAction } from '../utils/overlayStack.js';
 import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
 
@@ -80,9 +85,9 @@ const COLOR_CHURCH = 0xcccccc; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = 0x555555;
-const COLOR_AVAILABLE = 0xffdd44;
-const COLOR_EDGE = 0x666666;
-const COLOR_EDGE_ACTIVE = 0xffdd44;
+const COLOR_AVAILABLE = UI_HEX.accent;
+const COLOR_EDGE = UI_HEX.lineStrong;
+const COLOR_EDGE_ACTIVE = UI_HEX.accent;
 // Aura effects for special node types
 const AURA_ELITE_COLOR = 0xcc2222;
 const AURA_ELITE_RADIUS = 26;
@@ -610,13 +615,14 @@ export class NodeMapScene extends Phaser.Scene {
       .setDepth(OVERLAY_CONTENT_DEPTH + 120)
       .setStrokeStyle(2, 0xaa3333)
       .setAlpha(0);
-    const label = this.add
-      .text(cx, cy, 'The village is under attack!', {
-        fontFamily: 'monospace',
+    const label = applyTextResolution(
+      this.add.text(cx, cy, 'The village is under attack!', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff6666',
         backgroundColor: '#00000000',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH + 121)
       .setAlpha(0);
@@ -901,18 +907,21 @@ export class NodeMapScene extends Phaser.Scene {
     this._churchViewingMap = true;
     this._churchMapViewSuppressCancel = true;
     // Persistent "Return to Church" button (not in churchOverlay so it stays visible)
-    this._churchReturnBtn = this.add
-      .text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
-        fontFamily: 'monospace',
+    this._churchReturnBtn = applyTextResolution(
+      this.add.text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#aaddff',
-        backgroundColor: '#222222',
+        backgroundColor: UI_PALETTE.panel,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(OVERLAY_CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true });
-    this._churchReturnBtn.on('pointerover', () => this._churchReturnBtn.setColor('#ffdd44'));
+    this._churchReturnBtn.on('pointerover', () =>
+      this._churchReturnBtn.setColor(UI_PALETTE.accent),
+    );
     this._churchReturnBtn.on('pointerout', () => this._churchReturnBtn.setColor('#aaddff'));
     this._churchReturnBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -1148,6 +1157,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawMap() {
+    this.cameras.main.setBackgroundColor?.(UI_PALETTE.bg);
     // Clear everything
     this.children.removeAll(true);
 
@@ -1158,73 +1168,73 @@ export class NodeMapScene extends Phaser.Scene {
     const availableIds = new Set(availableNodes.map((n) => n.id));
 
     // Title
-    this.add
-      .text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
+        fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5);
+        color: UI_PALETTE.accent,
+      }),
+    ).setOrigin(0.5);
 
     // Gold display + info labels (dynamic stacking to stay above MAP_TOP=60)
     let infoY = 14;
     const infoX = this.cameras.main.width - 20;
-    this.add
-      .text(infoX, infoY, `${rm.gold}G`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(infoX, infoY, `${rm.gold}G`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#ffdd44',
-      })
-      .setOrigin(1, 0);
+        color: UI_PALETTE.accent,
+      }),
+    ).setOrigin(1, 0);
     infoY += 12;
 
     // Difficulty label (non-Normal only)
     const diffLabel = rm.difficultyModifiers?.label || 'Normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
     if (diffLabel !== 'Normal') {
-      this.add
-        .text(infoX, infoY, diffLabel, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, diffLabel, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: diffColor,
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
       infoY += 11;
     }
 
     // No Meta indicator
     if (rm.noMetaMode === true) {
-      this.add
-        .text(infoX, infoY, 'NO META', {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, 'NO META', {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#ff8800',
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
       infoY += 11;
     }
 
     // Win streak display (only when >= 2)
     if (rm.winStreak >= 2) {
-      this.add
-        .text(infoX, infoY, `Streak: ${rm.winStreak}`, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, `Streak: ${rm.winStreak}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#88ccff',
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
     }
 
     // Gear icon — opens settings
-    const gear = this.add
-      .text(20, 16, '\u2699', {
-        fontFamily: 'monospace',
+    const gear = applyTextResolution(
+      this.add.text(20, 16, '\u2699', {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#888888',
-      })
-      .setInteractive({ useHandCursor: true });
-    gear.on('pointerover', () => gear.setColor('#ffdd44'));
-    gear.on('pointerout', () => gear.setColor('#888888'));
+        color: UI_PALETTE.muted,
+      }),
+    ).setInteractive({ useHandCursor: true });
+    gear.on('pointerover', () => gear.setColor(UI_PALETTE.accent));
+    gear.on('pointerout', () => gear.setColor(UI_PALETTE.muted));
     gear.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       if (this.settingsOverlay?.visible) return;
@@ -1259,7 +1269,7 @@ export class NodeMapScene extends Phaser.Scene {
         const isActive =
           (node.completed && availableIds.has(edgeId)) ||
           (rm.currentNodeId === null && node.id === nodeMap.startNodeId);
-        graphics.lineStyle(2, isActive ? COLOR_EDGE_ACTIVE : COLOR_EDGE, isActive ? 0.8 : 0.4);
+        graphics.lineStyle(2, isActive ? COLOR_EDGE_ACTIVE : COLOR_EDGE, isActive ? 1 : 0.7);
         graphics.lineBetween(from.x, from.y, to.x, to.y);
       }
     }
@@ -1295,7 +1305,7 @@ export class NodeMapScene extends Phaser.Scene {
         const aura = this.add
           .circle(pos.x, pos.y, auraRadius, auraColor, auraAlphaRange[0])
           .setDepth(AURA_DEPTH);
-        aura.setBlendMode(Phaser.BlendModes.ADD);
+        aura.setBlendMode(Phaser.BlendModes.NORMAL);
 
         if (isAvailable) {
           aura.setAlpha(auraAlphaRange[0]);
@@ -1326,26 +1336,45 @@ export class NodeMapScene extends Phaser.Scene {
         const actId = this.runManager.nodeMap.actId;
         if (actId === 'finalBoss') spriteKey = 'node_boss_final';
       }
+      const weatheredFrames = {
+        node_battle: 0,
+        node_rest: 1,
+        node_boss: 2,
+        node_shop: 3,
+        node_ruins: 4,
+        node_recruit: 5,
+        node_colosseum: 6,
+        node_elite: 7,
+        node_boss_final: 8,
+      };
+      const weatheredFrame = weatheredFrames[spriteKey];
+      const hasWeathered = this.textures.get?.('weathered_nodes')?.has?.(weatheredFrame);
       let nodeObj;
       if (this.textures.exists(spriteKey)) {
         nodeObj = this.add
-          .image(pos.x, pos.y, spriteKey)
-          .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
+          .image(
+            pos.x,
+            pos.y,
+            hasWeathered ? 'weathered_nodes' : spriteKey,
+            hasWeathered ? weatheredFrame : undefined,
+          )
+          .setDisplaySize(NODE_SIZE + 18, NODE_SIZE + 18)
           .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(0x555555);
-        if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
+        if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.85);
       } else {
         nodeObj = this.add
           .rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
-          .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888)
+          .setStrokeStyle(2, isAvailable ? 0xffffff : UI_HEX.line)
           .setDepth(NODE_DEPTH);
         const icon = NODE_ICONS[node.type] || '?';
-        this.add
-          .text(pos.x, pos.y, icon, {
-            fontFamily: 'monospace',
+        applyTextResolution(
+          this.add.text(pos.x, pos.y, icon, {
+            fontFamily: 'Arial',
             fontSize: '14px',
-            color: isCompleted ? '#888888' : '#ffffff',
-          })
+            color: isCompleted ? UI_PALETTE.muted : UI_PALETTE.text,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(NODE_DEPTH + 1);
       }
@@ -1377,18 +1406,19 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawRoster();
 
     // Roster button (bottom-right, near gear icon area)
-    this._rosterBtn = this.add
-      .text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
-        fontFamily: 'monospace',
+    this._rosterBtn = applyTextResolution(
+      this.add.text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true });
-    this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor('#ffdd44'));
-    this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor('#e0e0e0'));
+    this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor(UI_PALETTE.accent));
+    this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor(UI_PALETTE.text));
     this._rosterBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       this._openRoster();
@@ -1407,29 +1437,35 @@ export class NodeMapScene extends Phaser.Scene {
           roster: () => this._openRoster(),
         };
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-          ge.on(`mobile:${action}`, handler);
+          const routed = () => routeMobileAction(this, action, handler);
+          this._mobileHandlers[action] = routed;
+          ge.on(`mobile:${action}`, routed);
         }
       }
       ge.emit('mobile:setContext', { context: 'nodemap' });
     }
 
     // Instructions
-    this.add
-      .text(
+    applyTextResolution(
+      this.add.text(
         this.cameras.main.centerX,
         MAP_BOTTOM + 30,
         inputHint(this, 'Click a node to proceed', 'Tap a node to proceed'),
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         },
-      )
-      .setOrigin(0.5);
+      ),
+    ).setOrigin(0.5);
 
     // Refresh the gamepad cursor over this frame's available nodes (the marker was
     // wiped by children.removeAll at the top of drawMap).
     this._nodeCursor?.setNodes(availableNodes, nodePositions);
+    if (hasDOMHost()) {
+      if (!this.nodeView || this.nodeView.destroyed) this.nodeView = new NodeMapMenu(this);
+      this.nodeView.render();
+    }
   }
 
   // Device-independent input from the global reader (top of the input-focus stack).
@@ -1527,11 +1563,13 @@ export class NodeMapScene extends Phaser.Scene {
       const label = compact
         ? `${unit.name} Lv${getDisplayLevel(unit)}`
         : `${unit.name} Lv${getDisplayLevel(unit)} ${unit.className}`;
-      this.add.text(x, ROSTER_Y, label, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e0e0e0',
-      });
+      applyTextResolution(
+        this.add.text(x, ROSTER_Y, label, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+        }),
+      );
 
       // HP bar — scale width with spacing
       const barWidth = Math.min(120, spacing - 20);
@@ -1541,8 +1579,14 @@ export class NodeMapScene extends Phaser.Scene {
       const maxHp = Math.max(1, Number(unit.stats.HP) || 1);
       const ratio = Phaser.Math.Clamp((Number(unit.currentHP) || 0) / maxHp, 0, 1);
 
-      this.add.rectangle(barX + barWidth / 2, barY + barHeight / 2, barWidth, barHeight, 0x333333);
-      const fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xcccc44 : 0xcc4444;
+      this.add.rectangle(
+        barX + barWidth / 2,
+        barY + barHeight / 2,
+        barWidth,
+        barHeight,
+        UI_HEX.raised,
+      );
+      const fillColor = getHPBarColor(ratio);
       this.add.rectangle(
         barX + (barWidth * ratio) / 2,
         barY + barHeight / 2,
@@ -1553,21 +1597,25 @@ export class NodeMapScene extends Phaser.Scene {
 
       // HP text (only if enough space)
       if (spacing >= 80) {
-        this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#aaaaaa',
-        });
+        applyTextResolution(
+          this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: UI_PALETTE.muted,
+          }),
+        );
       }
     }
 
     if (hiddenCount > 0) {
       const anchorX = Phaser.Math.Clamp(startX + shownUnits.length * spacing, 120, 560);
-      this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      });
+      applyTextResolution(
+        this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        }),
+      );
     }
   }
 
@@ -1601,14 +1649,15 @@ export class NodeMapScene extends Phaser.Scene {
     ) {
       label += '\nEncounter Locked';
     }
-    this.nodeTooltip = this.add
-      .text(pos.x, pos.y - NODE_SIZE - 8, label, {
-        fontFamily: 'monospace',
+    this.nodeTooltip = applyTextResolution(
+      this.add.text(pos.x, pos.y - NODE_SIZE - 8, label, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#ffffff',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000cc',
         padding: { x: 4, y: 2 },
-      })
+      }),
+    )
       .setOrigin(0.5, 1)
       .setDepth(100);
     const halfW = this.nodeTooltip.width * 0.5;
@@ -1886,14 +1935,15 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
-    this.transientMessage = this.add
-      .text(this.cameras.main.centerX, 96, text, {
-        fontFamily: 'monospace',
+    this.transientMessage = applyTextResolution(
+      this.add.text(this.cameras.main.centerX, 96, text, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color,
         backgroundColor: '#000000dd',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(400);
     this._transientMessageTimer = trackSceneTimer(
@@ -2109,14 +2159,15 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showActCompleteBanner(onComplete) {
-    const banner = this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'Act Complete!', {
-        fontFamily: 'monospace',
+    const banner = applyTextResolution(
+      this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, 'Act Complete!', {
+        fontFamily: 'Arial',
         fontSize: '24px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         backgroundColor: '#000000dd',
         padding: { x: 20, y: 10 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setAlpha(0)
       .setDepth(200);

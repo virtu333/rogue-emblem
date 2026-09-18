@@ -1,3 +1,5 @@
+import { routeMobileAction } from '../utils/overlayStack.js';
+import { canUseTouchUI } from '../utils/domUI.js';
 import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
 import { rebuiltSpriteKey } from '../ui/RebuiltSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
@@ -1830,17 +1832,15 @@ export class BattleScene extends Phaser.Scene {
           },
         };
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-          ge.on(`mobile:${action}`, handler);
+          const routed = () => routeMobileAction(this, action, handler);
+          this._mobileHandlers[action] = routed;
+          ge.on(`mobile:${action}`, routed);
         }
       }
 
       this._mobileBattleHud?.destroy();
       this._mobileBattleHud = null;
-      if (
-        this.isMobileInput &&
-        typeof document !== 'undefined' &&
-        document.getElementById('game-wrapper')?.append
-      ) {
+      if (canUseTouchUI(this)) {
         this._mobileBattleHud = new MobileBattleHUD(this);
       }
 

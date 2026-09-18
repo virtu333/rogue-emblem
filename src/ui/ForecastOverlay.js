@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 /**
  * ForecastOverlay — extracted from BattleScene.
  * Renders the combat forecast panel (FE GBA-style split layout).
@@ -94,12 +95,13 @@ export class ForecastOverlay {
     divGfx.lineBetween(panelX + panelW / 2, panelY + 8, panelX + panelW / 2, panelY + panelH - 22);
     this.displayObjects.push(divGfx);
 
-    const vs = scene.add
-      .text(panelX + panelW / 2, panelY + 28, 'VS', {
-        fontFamily: 'monospace',
+    const vs = applyTextResolution(
+      scene.add.text(panelX + panelW / 2, panelY + 28, 'VS', {
+        fontFamily: 'Arial',
         fontSize: '9px',
         color: '#666688',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(depth + 1);
     this.displayObjects.push(vs);
@@ -138,14 +140,14 @@ export class ForecastOverlay {
 
     // Name -- positioned next to portrait
     const nameX = isAttacker ? x + 48 : x + 2;
-    const name = scene.add
-      .text(nameX, y + 6, unit.name, {
-        fontFamily: 'monospace',
+    const name = applyTextResolution(
+      scene.add.text(nameX, y + 6, unit.name, {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setDepth(textDepth);
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(name);
 
     // EFFECTIVE! banner -- below name, beside portrait
@@ -154,35 +156,35 @@ export class ForecastOverlay {
       getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
       (isAttacker || info.canCounter)
     ) {
-      const eff = scene.add
-        .text(nameX, y + 22, 'EFFECTIVE!', {
-          fontFamily: 'monospace',
+      const eff = applyTextResolution(
+        scene.add.text(nameX, y + 22, 'EFFECTIVE!', {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: '#ff4444',
           fontStyle: 'bold',
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(eff);
     }
 
     // HP row -- below portrait area
     y += 44;
-    const hpLabel = scene.add
-      .text(x + 2, y, 'HP', {
-        fontFamily: 'monospace',
+    const hpLabel = applyTextResolution(
+      scene.add.text(x + 2, y, 'HP', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#aaaaaa',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(hpLabel);
 
-    const hpVal = scene.add
-      .text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
-        fontFamily: 'monospace',
+    const hpVal = applyTextResolution(
+      scene.add.text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#ffffff',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.text,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(hpVal);
 
     // HP bar
@@ -191,7 +193,7 @@ export class ForecastOverlay {
     const barH = 6;
     const barY = y + 4;
     const hpGfx = scene.add.graphics().setDepth(textDepth);
-    hpGfx.fillStyle(0x333333);
+    hpGfx.fillStyle(UI_HEX.raised);
     hpGfx.fillRect(barX, barY, barW, barH);
     const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
     hpGfx.fillStyle(getHPBarColor(ratio));
@@ -202,116 +204,117 @@ export class ForecastOverlay {
 
     // Cannot counter case (defender only)
     if (!isAttacker && !info.canCounter) {
-      const noCounter = scene.add
-        .text(x + sideW / 2, y + 4, '-- No Counter --', {
-          fontFamily: 'monospace',
+      const noCounter = applyTextResolution(
+        scene.add.text(x + sideW / 2, y + 4, '-- No Counter --', {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#cc6666',
-        })
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(textDepth);
       this.displayObjects.push(noCounter);
 
       y += 20;
       const wpnName = unit.weapon?.name || 'Unarmed';
-      const wpn = scene.add
-        .text(x + 2, y, wpnName, {
-          fontFamily: 'monospace',
+      const wpn = applyTextResolution(
+        scene.add.text(x + 2, y, wpnName, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: '#88bbff',
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(wpn);
       return;
     }
 
     // Stat row 1: Dmg + Hit
-    const dmgLabel = scene.add
-      .text(x + 2, y, 'Dmg', {
-        fontFamily: 'monospace',
+    const dmgLabel = applyTextResolution(
+      scene.add.text(x + 2, y, 'Dmg', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(dmgLabel);
-    const dmgVal = scene.add
-      .text(x + 32, y, `${info.damage}`, {
-        fontFamily: 'monospace',
+    const dmgVal = applyTextResolution(
+      scene.add.text(x + 32, y, `${info.damage}`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.text,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(dmgVal);
 
-    const hitLabel = scene.add
-      .text(x + 80, y, 'Hit', {
-        fontFamily: 'monospace',
+    const hitLabel = applyTextResolution(
+      scene.add.text(x + 80, y, 'Hit', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(hitLabel);
-    const hitVal = scene.add
-      .text(x + 108, y, `${info.hit}%`, {
-        fontFamily: 'monospace',
+    const hitVal = applyTextResolution(
+      scene.add.text(x + 108, y, `${info.hit}%`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.text,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(hitVal);
 
     y += 14;
 
     // Stat row 2: Crt + doubling
-    const crtLabel = scene.add
-      .text(x + 2, y, 'Crt', {
-        fontFamily: 'monospace',
+    const crtLabel = applyTextResolution(
+      scene.add.text(x + 2, y, 'Crt', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(crtLabel);
-    const crtVal = scene.add
-      .text(x + 32, y, `${info.crit}%`, {
-        fontFamily: 'monospace',
+    const crtVal = applyTextResolution(
+      scene.add.text(x + 32, y, `${info.crit}%`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.text,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(crtVal);
 
     // AS display
     const baseAs = calculateEffectiveSpeed(unit, unit.weapon);
-    let asColor = '#e0e0e0';
+    let asColor = UI_PALETTE.text;
     if (info.as < baseAs) asColor = '#ff6666';
     else if (info.as > baseAs) asColor = '#44ff88';
-    const asLabel = scene.add
-      .text(x + 80, y, 'AS', {
-        fontFamily: 'monospace',
+    const asLabel = applyTextResolution(
+      scene.add.text(x + 80, y, 'AS', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(asLabel);
-    const asVal = scene.add
-      .text(x + 108, y, `${info.as}`, {
-        fontFamily: 'monospace',
+    const asVal = applyTextResolution(
+      scene.add.text(x + 108, y, `${info.as}`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
         color: asColor,
-      })
-      .setDepth(textDepth);
+      }),
+    ).setDepth(textDepth);
     this.displayObjects.push(asVal);
 
     // Doubling indicator
     if (info.attackCount > 1) {
-      const countText = scene.add
-        .text(x + 134, y, `x${info.attackCount}`, {
-          fontFamily: 'monospace',
+      const countText = applyTextResolution(
+        scene.add.text(x + 134, y, `x${info.attackCount}`, {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accent,
           fontStyle: 'bold',
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(countText);
     }
 
@@ -325,16 +328,17 @@ export class ForecastOverlay {
 
     if (canCycle) {
       // Left arrow
-      const leftArrow = scene.add
-        .text(x + 1, y - 2, '\u25C4', {
-          fontFamily: 'monospace',
+      const leftArrow = applyTextResolution(
+        scene.add.text(x + 1, y - 2, '\u25C4', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#888888',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setDepth(textDepth)
         .setInteractive({ useHandCursor: true });
-      leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
-      leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
+      leftArrow.on('pointerover', () => leftArrow.setColor(UI_PALETTE.accent));
+      leftArrow.on('pointerout', () => leftArrow.setColor(UI_PALETTE.muted));
       leftArrow.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         scene._uiClickBlocked = true;
@@ -343,26 +347,27 @@ export class ForecastOverlay {
       this.displayObjects.push(leftArrow);
 
       // Current weapon name (centered between arrows)
-      const wpn = scene.add
-        .text(x + 16, y, wpnName, {
-          fontFamily: 'monospace',
+      const wpn = applyTextResolution(
+        scene.add.text(x + 16, y, wpnName, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: wpnColor,
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(wpn);
 
       // Right arrow
-      const rightArrow = scene.add
-        .text(x + sideW - 14, y - 2, '\u25BA', {
-          fontFamily: 'monospace',
+      const rightArrow = applyTextResolution(
+        scene.add.text(x + sideW - 14, y - 2, '\u25BA', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#888888',
-        })
+          color: UI_PALETTE.muted,
+        }),
+      )
         .setDepth(textDepth)
         .setInteractive({ useHandCursor: true });
-      rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
-      rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
+      rightArrow.on('pointerover', () => rightArrow.setColor(UI_PALETTE.accent));
+      rightArrow.on('pointerout', () => rightArrow.setColor(UI_PALETTE.muted));
       rightArrow.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         scene._uiClickBlocked = true;
@@ -375,23 +380,23 @@ export class ForecastOverlay {
       const nextIdx = (curIdx + 1) % validWpns.length;
       const nextWpn = validWpns[nextIdx];
       if (nextWpn) {
-        const preview = scene.add
-          .text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
-            fontFamily: 'monospace',
+        const preview = applyTextResolution(
+          scene.add.text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
+            fontFamily: 'Arial',
             fontSize: '8px',
             color: '#666688',
-          })
-          .setDepth(textDepth);
+          }),
+        ).setDepth(textDepth);
         this.displayObjects.push(preview);
       }
     } else {
-      const wpn = scene.add
-        .text(x + 2, y, wpnName, {
-          fontFamily: 'monospace',
+      const wpn = applyTextResolution(
+        scene.add.text(x + 2, y, wpnName, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: wpnColor,
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(wpn);
     }
 
@@ -407,14 +412,14 @@ export class ForecastOverlay {
       parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
     }
     if (parts.length) {
-      const skillText = scene.add
-        .text(x + 2, y, parts.join('  '), {
-          fontFamily: 'monospace',
+      const skillText = applyTextResolution(
+        scene.add.text(x + 2, y, parts.join('  '), {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: '#aaddff',
           wordWrap: { width: sideW - 6 },
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(skillText);
       y += skillText.height + 2;
     }
@@ -423,27 +428,32 @@ export class ForecastOverlay {
       const hpCost = scene._formatWeaponArtCostLabel(unit, opts.weaponArt);
       const hpNow = Number(unit.currentHP) || 0;
       const hpAfter = scene._getWeaponArtHpAfterCost(unit, opts.weaponArt);
-      const artText = scene.add
-        .text(x + 2, y, `ART: ${opts.weaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#ffd98a',
-          wordWrap: { width: sideW - 6 },
-        })
-        .setDepth(textDepth);
+      const artText = applyTextResolution(
+        scene.add.text(
+          x + 2,
+          y,
+          `ART: ${opts.weaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '9px',
+            color: '#ffd98a',
+            wordWrap: { width: sideW - 6 },
+          },
+        ),
+      ).setDepth(textDepth);
       this.displayObjects.push(artText);
       y += artText.height + 2;
     }
 
     if (isAttacker && opts.gamblerLine) {
-      const gamblerText = scene.add
-        .text(x + 2, y, opts.gamblerLine, {
-          fontFamily: 'monospace',
+      const gamblerText = applyTextResolution(
+        scene.add.text(x + 2, y, opts.gamblerLine, {
+          fontFamily: 'Arial',
           fontSize: '9px',
           color: '#ffb38a',
           wordWrap: { width: sideW - 6 },
-        })
-        .setDepth(textDepth);
+        }),
+      ).setDepth(textDepth);
       this.displayObjects.push(gamblerText);
       y += gamblerText.height + 2;
     }
@@ -466,16 +476,16 @@ export class ForecastOverlay {
           color = '#cc88ff';
         }
 
-        const warningText = scene.add
-          .text(x + 2, y, label, {
-            fontFamily: 'monospace',
+        const warningText = applyTextResolution(
+          scene.add.text(x + 2, y, label, {
+            fontFamily: 'Arial',
             fontSize: '10px',
             color,
             fontStyle: 'bold',
             backgroundColor: '#00000088',
             padding: { x: 4, y: 1 },
-          })
-          .setDepth(textDepth);
+          }),
+        ).setDepth(textDepth);
         this.displayObjects.push(warningText);
         y += 14;
       }
@@ -488,7 +498,7 @@ export class ForecastOverlay {
   _drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons) {
     const scene = this.scene;
 
-    const hintStyle = { fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8' };
+    const hintStyle = { fontFamily: 'Arial', fontSize: '8px', color: '#a0a0b8' };
     const hintPrimary =
       validWeapons.length >= 2
         ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
@@ -501,7 +511,9 @@ export class ForecastOverlay {
       validWeapons.length >= 2 ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC' : '[CONFIRM] | ESC';
 
     const measureHint = (text) => {
-      const t = scene.add.text(-9999, -9999, text, hintStyle).setVisible(false);
+      const t = applyTextResolution(scene.add.text(-9999, -9999, text, hintStyle)).setVisible(
+        false,
+      );
       const w = t.width;
       t.destroy();
       return w;
@@ -540,18 +552,19 @@ export class ForecastOverlay {
       .setDepth(depth + 1)
       .setStrokeStyle(1, 0x4dff77)
       .setInteractive({ useHandCursor: true });
-    const confirmBtnText = scene.add
-      .text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
-        fontFamily: 'monospace',
+    const confirmBtnText = applyTextResolution(
+      scene.add.text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
+        fontFamily: 'Arial',
         fontSize: '9px',
         color: '#d8ffe1',
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(depth + 2);
     confirmBtnBg.on('pointerover', () => {
       confirmBtnBg.setFillStyle(0x2c7b3a, 1);
-      confirmBtnText.setColor('#ffffff');
+      confirmBtnText.setColor(UI_PALETTE.text);
     });
     confirmBtnBg.on('pointerout', () => {
       confirmBtnBg.setFillStyle(0x1d5f2a, 0.95);
@@ -566,11 +579,12 @@ export class ForecastOverlay {
     });
     this.displayObjects.push(confirmBtnBg, confirmBtnText);
 
-    const hint = scene.add
-      .text(hintX, hintY, hintText, {
+    const hint = applyTextResolution(
+      scene.add.text(hintX, hintY, hintText, {
         ...hintStyle,
         wordWrap: { width: hintWrapW, useAdvancedWrap: false },
-      })
+      }),
+    )
       .setOrigin(0, 0.5)
       .setDepth(depth + 1);
     this.displayObjects.push(hint);

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && vite build",
+    "build": "node tools/buildUITheme.js && node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && vite build",
     "preview": "vite preview",
     "build:reference": "node tools/buildReferenceContent.js",
     "check:reference": "node tools/buildReferenceContent.js --check",
@@ -57,7 +57,9 @@
     "validate:data": "node tools/validateSchemas.js",
     "prepare": "husky",
     "ios:sync": "npm run build && cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "predev": "node tools/buildUITheme.js",
+    "check:ui-theme": "node tools/buildUITheme.js --check"
   },
   "lint-staged": {
     "*.js": [

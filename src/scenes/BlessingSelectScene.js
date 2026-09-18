@@ -1,3 +1,6 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { RunSetupMenu } from '../ui/RunSetupMenu.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // BlessingSelectScene — Choose a shrine blessing before the run begins
 
 import Phaser from 'phaser';
@@ -159,7 +162,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         gameData: this.gameData,
         runManager: this.runManager,
       },
-      { reason: TRANSITION_REASONS.BEGIN_RUN },
+      { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: hasDOMHost() },
     )
       .then((ok) => {
         if (!ok) {
@@ -198,13 +201,19 @@ export class BlessingSelectScene extends Phaser.Scene {
       this,
       'DifficultySelect',
       { gameData: this.gameData, noMetaUpgrades: this.noMetaUpgrades === true },
-      { reason: TRANSITION_REASONS.BACK },
+      { reason: TRANSITION_REASONS.BACK, retryBlocked: hasDOMHost() },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;
     });
   }
 
   _draw() {
+    if (hasDOMHost()) {
+      if (!this.domSetup || this.domSetup.surface.destroyed)
+        this.domSetup = new RunSetupMenu(this, 'blessing');
+      this.domSetup.render();
+      return;
+    }
     this.children.removeAll(true);
 
     const w = this.cameras.main.width;
@@ -212,38 +221,45 @@ export class BlessingSelectScene extends Phaser.Scene {
     const cx = w / 2;
 
     // Background
-    this.add.rectangle(cx, h / 2, w, h, 0x0a0a14);
+    this.add.rectangle(cx, h / 2, w, h, UI_HEX.bg);
 
     // Panel
     const panelW = Math.min(600, w - 40);
     const panelH = Math.min(410, h - 60);
     const panelTop = (h - panelH) / 2;
     const panelBottom = panelTop + panelH;
-    this.add.rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96).setStrokeStyle(2, 0xffdd44, 0.9);
+    this.add
+      .rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96)
+      .setStrokeStyle(2, UI_HEX.accent, 0.9);
 
     // Header
     const headerY = panelTop + 24;
     this.add.rectangle(cx, headerY, panelW - 24, 30, 0x1a2138).setStrokeStyle(1, 0x3d4a77);
-    this.add
-      .text(cx, headerY, 'Shrine Blessing', {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, headerY, 'Shrine Blessing', {
+        fontFamily: 'Arial',
         fontSize: '17px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     const subtitleY = panelTop + 52;
-    this.add
-      .text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#b7bfd9',
-      })
-      .setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(
+        cx,
+        subtitleY,
+        'Select one blessing to shape this run. Or skip for a neutral start.',
+        {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        },
+      ),
+    ).setOrigin(0.5);
 
     const dividerY = panelTop + 68;
-    this.add.rectangle(cx, dividerY, panelW - 28, 1, 0x364166);
+    this.add.rectangle(cx, dividerY, panelW - 28, 1, UI_HEX.lineSoft);
 
     // Blessing cards
     const cardW = panelW - 28;
@@ -267,7 +283,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
       const card = this.add
         .rectangle(cx, cardCY, cardW, cardH, tierStyle.bg)
-        .setStrokeStyle(isSelected ? 2 : 1, isSelected ? 0xffdd44 : tierStyle.border);
+        .setStrokeStyle(isSelected ? 2 : 1, isSelected ? UI_HEX.accent : tierStyle.border);
 
       card.setInteractive({ useHandCursor: true });
       card.on('pointerdown', () => this._select(i));
@@ -277,23 +293,27 @@ export class BlessingSelectScene extends Phaser.Scene {
       const row1Y = y + 10;
 
       // Tier badge
-      this.add.text(left, row1Y, `T${blessing.tier}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#0b101f',
-        backgroundColor: tierStyle.label,
-        padding: { x: 5, y: 2 },
-        fontStyle: 'bold',
-      });
+      applyTextResolution(
+        this.add.text(left, row1Y, `T${blessing.tier}`, {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: '#0b101f',
+          backgroundColor: tierStyle.label,
+          padding: { x: 5, y: 2 },
+          fontStyle: 'bold',
+        }),
+      );
 
       // Name
       const nameX = left + 38;
-      this.add.text(nameX, row1Y + 1, blessing.name, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#edf1ff',
-        fontStyle: 'bold',
-      });
+      applyTextResolution(
+        this.add.text(nameX, row1Y + 1, blessing.name, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+          fontStyle: 'bold',
+        }),
+      );
 
       // Description
       const descWrapWidth = Math.max(150, cardW - 38 - 80);
@@ -301,12 +321,14 @@ export class BlessingSelectScene extends Phaser.Scene {
         typeof blessing?.rolledCost?.label === 'string' &&
         blessing.rolledCost.label.trim().length > 0;
       const descFontSize = cardH < 76 ? '9px' : '10px';
-      const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
-        fontFamily: 'monospace',
-        fontSize: descFontSize,
-        color: '#aeb8dc',
-        wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
-      });
+      const desc = applyTextResolution(
+        this.add.text(nameX, row1Y + 20, blessing.description || '-', {
+          fontFamily: 'Arial',
+          fontSize: descFontSize,
+          color: UI_PALETTE.muted,
+          wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
+        }),
+      );
       // Truncate if too tall
       let guard = 0;
       const maxDescHeight = hasCostLine ? Math.max(12, cardH - 48) : Math.max(18, cardH - 34);
@@ -317,28 +339,31 @@ export class BlessingSelectScene extends Phaser.Scene {
         guard++;
       }
       if (hasCostLine) {
-        this.add.text(nameX, row1Y + cardH - 34, `Cost: ${blessing.rolledCost.label}`, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#c8a27b',
-        });
+        applyTextResolution(
+          this.add.text(nameX, row1Y + cardH - 34, `Cost: ${blessing.rolledCost.label}`, {
+            fontFamily: 'Arial',
+            fontSize: '9px',
+            color: '#c8a27b',
+          }),
+        );
       }
 
       // Select button
-      const pickBtn = this.add
-        .text(right, cardCY, isSelected ? '\u25b6 Selected' : '[Select]', {
-          fontFamily: 'monospace',
+      const pickBtn = applyTextResolution(
+        this.add.text(right, cardCY, isSelected ? '\u25b6 Selected' : '[Select]', {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: isSelected ? '#ffdd44' : '#cbffd5',
+          color: isSelected ? UI_PALETTE.accent : '#cbffd5',
           backgroundColor: isSelected ? '#2f5d39' : '#21442a',
           padding: { x: 8, y: 4 },
-        })
+        }),
+      )
         .setOrigin(1, 0.5)
         .setInteractive({ useHandCursor: true });
 
       pickBtn.on('pointerover', () => {
-        pickBtn.setColor('#ffdd44');
-        card.setStrokeStyle(2, 0xffdd44);
+        pickBtn.setColor(UI_PALETTE.accent);
+        card.setStrokeStyle(2, UI_HEX.accent);
       });
       pickBtn.on('pointerout', () => {
         if (i !== this.selectedIndex) {
@@ -353,17 +378,23 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Skip option
     const isSkipSelected = this.selectedIndex >= this.options.length;
-    const skipBtn = this.add
-      .text(cx, skipY, isSkipSelected ? '\u25b6 Skip Blessing (Selected)' : '[Skip Blessing]', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: isSkipSelected ? '#ffdd44' : '#d7dbe8',
-        backgroundColor: isSkipSelected ? '#3a4053' : '#2a2f3f',
-        padding: { x: 10, y: 4 },
-      })
+    const skipBtn = applyTextResolution(
+      this.add.text(
+        cx,
+        skipY,
+        isSkipSelected ? '\u25b6 Skip Blessing (Selected)' : '[Skip Blessing]',
+        {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: isSkipSelected ? UI_PALETTE.accent : '#d7dbe8',
+          backgroundColor: isSkipSelected ? '#3a4053' : '#2a2f3f',
+          padding: { x: 10, y: 4 },
+        },
+      ),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    skipBtn.on('pointerover', () => skipBtn.setColor('#ffdd44'));
+    skipBtn.on('pointerover', () => skipBtn.setColor(UI_PALETTE.accent));
     skipBtn.on('pointerout', () => {
       if (!isSkipSelected) skipBtn.setColor('#d7dbe8');
     });
@@ -371,32 +402,34 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Bottom buttons
     const bottomY = panelBottom - 30;
-    const confirmBtn = this.add
-      .text(cx - 80, bottomY, '[ Confirm ]', {
-        fontFamily: 'monospace',
+    const confirmBtn = applyTextResolution(
+      this.add.text(cx - 80, bottomY, '[ Confirm ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#88ff88',
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
+    confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
     confirmBtn.on('pointerout', () => confirmBtn.setColor('#88ff88'));
     confirmBtn.on('pointerdown', () => this._confirm());
 
-    const backBtn = this.add
-      .text(cx + 80, bottomY, '[ Back ]', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      this.add.text(cx + 80, bottomY, '[ Back ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
-    backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
+    backBtn.on('pointerover', () => backBtn.setColor(UI_PALETTE.accent));
+    backBtn.on('pointerout', () => backBtn.setColor(UI_PALETTE.text));
     backBtn.on('pointerdown', () => this._back());
   }
 }

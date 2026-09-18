@@ -185,8 +185,11 @@ export class MobileControls {
 
   _syncPanelVisibility() {
     const shouldShow = this._isVisible && this._currentContext !== 'none';
+    const changed = this._panelsShown !== shouldShow;
+    this._panelsShown = shouldShow;
     if (this._leftPanel) this._leftPanel.style.display = shouldShow ? 'flex' : 'none';
     if (this._rightPanel) this._rightPanel.style.display = shouldShow ? 'flex' : 'none';
+    if (changed) this.game.scale?.refresh?.();
   }
 
   _isButtonVisible(action) {

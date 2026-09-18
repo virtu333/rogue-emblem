@@ -1,27 +1,70 @@
-/* Shared mobile menu language: weathered command panels and restrained gold detail. */
+@import './uiTokens.css';
+/* Compatibility aliases let existing screens migrate without a second palette. */
 :root {
-  --re-bg: #192f3b;
-  --re-panel: #233c46;
-  --re-panel-raised: #2b454b;
-  --re-line: #819184;
-  --re-gold: #d6bd83;
-  --re-gold-hi: #e1cc99;
-  --re-selected: #425d5b;
-  --re-text: #eee9d5;
-  --re-muted: #b8c6c0;
-  --re-blue: #bde1d9;
-  --re-body: system-ui, sans-serif;
+  --re-panel-raised: var(--re-raised);
+  --re-gold: var(--re-accent);
+  --re-gold-hi: var(--re-accent-text);
+  --re-blue: var(--re-info);
+  --re-focus: var(--re-accent);
+  --re-select: var(--re-selected);
+  --re-action: var(--re-accent);
+  --re-action-ink: var(--re-bg);
+  --re-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --re-pixel: 'Press Start 2P', monospace;
+  --re-mono: ui-monospace, monospace;
+  --re-t-display: 16px/1.5 var(--re-pixel);
+  --re-t-title: 12px/1.6 var(--re-pixel);
+  --re-t-label: 10px/1.5 var(--re-pixel);
+  --re-t-lede: 18px/1.3 var(--re-body);
+  --re-t-body: 14px/1.45 var(--re-body);
+  --re-t-small: 12px/1.4 var(--re-body);
+  --re-t-micro: 11px/1.35 var(--re-body);
+  --re-s1: 4px;
+  --re-s2: 8px;
+  --re-s3: 12px;
+  --re-s4: 16px;
+  --re-s5: 24px;
+  --re-radius: 2px;
+  --re-tap: 44px;
+  --re-tap-row: 64px;
+  --re-hairline: 1px solid var(--re-line);
+  --re-rule: 1px solid var(--re-line-soft);
+  --re-bevel: inset 0 1px 0 #ffffff0f, inset 0 0 0 1px #0000002e;
+  --re-scrim: rgba(6, 15, 20, 0.8);
+  --re-scrim-heavy: rgba(6, 15, 20, 0.94);
 }
 .re-health {
   display: block;
   height: 7px;
-  background: #080916;
-  border: 1px solid #444459;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
   margin: 7px 0;
   overflow: hidden;
 }
 .re-health-fill {
   display: block;
   height: 100%;
+}
+#game-wrapper {
+  background: var(--re-bg);
+}
+#game-wrapper .mobile-panel {
+  background: var(--re-bg);
+  border-inline: 1px solid var(--re-line-soft);
+}
+#game-wrapper .mobile-btn {
+  min-height: 44px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  background: var(--re-panel);
+  color: var(--re-text);
+  font-family: var(--re-body);
+  box-shadow: var(--re-bevel);
+}
+#game-wrapper .mobile-btn:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -3px;
+}
+#game-wrapper .mobile-btn:active {
+  background: var(--re-select);
 }

@@ -1,3 +1,4 @@
+@import './mobileTheme.css';
 .mu-screen {
   position: fixed;
   inset: 0;
@@ -8,8 +9,8 @@
   padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
     max(6px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   box-sizing: border-box;
-  background: #192f3b;
-  color: #eee9d5;
+  background: var(--re-bg);
+  color: var(--re-text);
   font:
     14px/1.4 system-ui,
     sans-serif;
@@ -20,20 +21,18 @@
 .mu-screen button,
 .mu-launch {
   min-height: 44px;
-  border: 1px solid #819184;
+  border: 1px solid var(--re-line);
   border-radius: 0;
-  background: #2b454b;
-  color: #eee9d5;
+  background: var(--re-raised);
+  color: var(--re-text);
   font: inherit;
   cursor: pointer;
   padding: 8px 10px;
-  box-shadow:
-    inset 1px 1px #ffffff12,
-    inset -1px -1px #091e2855;
+  box-shadow: var(--re-bevel);
   touch-action: manipulation;
 }
 .mu-screen button:focus-visible {
-  outline: 2px solid #e2c887;
+  outline: 2px solid var(--re-focus);
   outline-offset: -3px;
 }
 .mu-screen button:disabled {
@@ -44,7 +43,7 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  border-bottom: 3px double #b7ad8c;
+  border-bottom: 1px solid var(--re-line-soft);
   padding-bottom: 6px;
   flex-shrink: 0;
 }
@@ -52,16 +51,16 @@
   font:
     11px/1.5 'Press Start 2P',
     monospace;
-  color: #ddcc99;
+  color: var(--re-text);
   margin: 0 auto 0 0;
 }
 .mu-currency {
   font-size: 12px;
-  color: #b8c6c0;
+  color: var(--re-muted);
   white-space: nowrap;
 }
 .mu-currency.active {
-  color: #efd391;
+  color: var(--re-accent-text);
 }
 .mu-tabs {
   display: flex;
@@ -74,8 +73,8 @@
   min-width: 80px;
 }
 .mu-screen button[aria-pressed='true'] {
-  border-color: #dcc28b;
-  background: #425d5b;
+  border-color: var(--re-focus);
+  background: var(--re-selected);
 }
 .mu-split {
   display: grid;
@@ -95,7 +94,7 @@
   font:
     10px/1.5 'Press Start 2P',
     monospace;
-  color: #b8c6c0;
+  color: var(--re-muted);
   margin: 8px 0;
 }
 .mu-row {
@@ -113,12 +112,12 @@
 }
 .mu-row-state {
   font-size: 11px;
-  color: #e3cb90;
+  color: var(--re-text);
 }
 .mu-row small {
   font-size: 11px;
   text-align: right;
-  color: #b8c6c0;
+  color: var(--re-muted);
 }
 .mu-pips {
   display: flex;
@@ -129,22 +128,21 @@
 .mu-pips i {
   width: 10px;
   height: 7px;
-  background: #152730;
+  background: var(--re-sunken);
 }
 .mu-pips .filled {
-  background: #94b7bd;
+  background: var(--re-info);
 }
 .mu-pips.maxed .filled {
-  background: #ddc17e;
+  background: var(--re-accent);
 }
 .mu-detail {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 3px double #819184;
+  border: 1px solid var(--re-line);
   padding: 10px;
-  background: #233c46;
-  overflow: auto;
+  background: var(--re-panel);
   overscroll-behavior: contain;
 }
 .mu-copy {
@@ -154,7 +152,7 @@
   font-size: 18px;
   line-height: 1.2;
   margin: 0 0 8px;
-  color: #e1cc99;
+  color: var(--re-accent-text);
 }
 .mu-detail p {
   margin: 7px 0;
@@ -163,15 +161,15 @@
 }
 .mu-help {
   font-size: 12px;
-  color: #b8c6c0;
+  color: var(--re-muted);
 }
 .mu-effects {
-  color: #bde1d9;
-  border-block: 1px solid #526d6c;
+  color: var(--re-info);
+  border-block: 1px solid var(--re-line-soft);
   padding: 8px 0;
 }
 .mu-requirements {
-  color: #e2c493;
+  color: var(--re-warn);
   font-size: 12px;
 }
 .mu-actions {
@@ -180,8 +178,8 @@
   margin-top: 8px;
 }
 .mu-screen .mu-buy {
-  background: #61533e;
-  border-color: #d6bd83;
+  background: var(--re-accent);
+  border-color: var(--re-accent);
 }
 .mu-refund-info {
   font-size: 12px;
@@ -189,7 +187,7 @@
 .mu-status {
   font-size: 11px;
   min-height: 16px;
-  color: #c6d8c5;
+  color: var(--re-muted);
   flex-shrink: 0;
 }
 .mu-launch {
@@ -210,7 +208,7 @@
     gap: 8px;
   }
   .mu-header h1 {
-    font-size: 9px;
+    font-size: 10px;
   }
   .mu-detail {
     padding: 8px;
@@ -278,14 +276,14 @@ html.mobile-preview .mu-screen {
   height: 56px;
   object-fit: contain;
   image-rendering: pixelated;
-  background: #172b34;
+  background: var(--re-sunken);
 }
 .mh-lord .mh-portrait {
   grid-row: span 2;
 }
 .mh-lord span {
   font-size: 12px;
-  color: #bdcfc7;
+  color: var(--re-muted);
 }
 .mh-identity {
   display: flex;

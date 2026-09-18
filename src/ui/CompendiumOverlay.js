@@ -1,3 +1,6 @@
+import { ReferenceMenu, compendiumEntries } from './ReferenceMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // CompendiumOverlay — Encyclopedia data browser for game content
 // 10 tabs with sub-filters, pagination, and search. Depth 870-872.
 
@@ -119,6 +122,17 @@ export class CompendiumOverlay {
   show() {
     this.hide();
     this.visible = true;
+    if (hasDOMHost()) {
+      this._foesItems = null;
+      this.domMenu = new ReferenceMenu(
+        this.scene,
+        'Compendium',
+        TAB_DEFS,
+        (tab, filter) => compendiumEntries(this, tab, filter),
+        () => this.hide(),
+      );
+      return;
+    }
     this.searchQuery = '';
     this.searchResults = [];
     this.activeSearchResult = -1;
@@ -453,34 +467,35 @@ export class CompendiumOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, panelW, panelH, 0x1a1a2e, 1)
+      .rectangle(cx, cy, panelW, panelH, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add
-      .text(left + 20, top + 16, 'COMPENDIUM', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(left + 20, top + 16, 'COMPENDIUM', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setDepth(DEPTH_UI);
+      }),
+    ).setDepth(DEPTH_UI);
     this.objects.push(title);
 
     // Close button [X]
-    const closeBtn = this.scene.add
-      .text(left + panelW - 20, top + 16, '[X]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(left + panelW - 20, top + 16, '[X]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#888888'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.accent));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.muted));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
@@ -624,13 +639,13 @@ export class CompendiumOverlay {
   }
 
   _drawSearch(left, top, panelW) {
-    const searchLabel = this.scene.add
-      .text(left + 160, top + 18, 'Search:', {
-        fontFamily: 'monospace',
+    const searchLabel = applyTextResolution(
+      this.scene.add.text(left + 160, top + 18, 'Search:', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(DEPTH_UI);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(DEPTH_UI);
     this.objects.push(searchLabel);
 
     const searchBoxW = 190;
@@ -638,9 +653,9 @@ export class CompendiumOverlay {
     const searchBoxX = left + 205 + searchBoxW / 2;
     const searchBoxY = top + 24;
     const searchBox = this.scene.add
-      .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, 0x111111, 1)
+      .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, UI_HEX.sunken, 1)
       .setDepth(DEPTH_UI)
-      .setStrokeStyle(1, this.searchInputActive ? 0xffdd44 : 0x555555)
+      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : 0x555555)
       .setInteractive({ useHandCursor: true });
     searchBox.on('pointerdown', () => {
       this.searchInputActive = true;
@@ -654,12 +669,13 @@ export class CompendiumOverlay {
         : this.searchInputActive
           ? ''
           : 'Press / to search';
-    const searchValue = this.scene.add
-      .text(left + 212, top + 18, queryText, {
-        fontFamily: 'monospace',
+    const searchValue = applyTextResolution(
+      this.scene.add.text(left + 212, top + 18, queryText, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: this.searchQuery.length > 0 ? '#e0e0e0' : '#666666',
-      })
+        color: this.searchQuery.length > 0 ? UI_PALETTE.text : UI_PALETTE.muted,
+      }),
+    )
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
     searchValue.on('pointerdown', () => {
@@ -674,13 +690,13 @@ export class CompendiumOverlay {
           ? `${this.activeSearchResult + 1}/${this.searchResults.length}`
           : 'No matches';
       const statusColor = this.searchResults.length > 0 ? '#66ff66' : '#ff8888';
-      const searchStatus = this.scene.add
-        .text(left + panelW - 72, top + 18, statusText, {
-          fontFamily: 'monospace',
+      const searchStatus = applyTextResolution(
+        this.scene.add.text(left + panelW - 72, top + 18, statusText, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: statusColor,
-        })
-        .setDepth(DEPTH_UI);
+        }),
+      ).setDepth(DEPTH_UI);
       this.objects.push(searchStatus);
     }
   }
@@ -693,20 +709,21 @@ export class CompendiumOverlay {
     for (let i = 0; i < TAB_DEFS.length; i++) {
       const tx = tabStartX + tabGap * i + tabGap / 2;
       const isActive = i === this.activeTabIndex;
-      const tabText = this.scene.add
-        .text(tx, tabY, TAB_DEFS[i].label, {
-          fontFamily: 'monospace',
+      const tabText = applyTextResolution(
+        this.scene.add.text(tx, tabY, TAB_DEFS[i].label, {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: isActive ? '#ffdd44' : '#888888',
+          color: isActive ? UI_PALETTE.accent : UI_PALETTE.muted,
           fontStyle: isActive ? 'bold' : '',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI);
 
       if (!isActive) {
         tabText.setInteractive({ useHandCursor: true });
-        tabText.on('pointerover', () => tabText.setColor('#cccccc'));
-        tabText.on('pointerout', () => tabText.setColor('#888888'));
+        tabText.on('pointerover', () => tabText.setColor(UI_PALETTE.muted));
+        tabText.on('pointerout', () => tabText.setColor(UI_PALETTE.muted));
         tabText.on('pointerdown', () => {
           this.activeTabIndex = i;
           this.activeFilterIndex = 0;
@@ -719,7 +736,7 @@ export class CompendiumOverlay {
       if (isActive) {
         this._activeTabObj = tabText; // gamepad focus ring target
         const underline = this.scene.add.graphics().setDepth(DEPTH_UI);
-        underline.lineStyle(2, 0xffdd44);
+        underline.lineStyle(2, UI_HEX.accent);
         underline.beginPath();
         const halfW = tabGap * 0.4;
         underline.moveTo(tx - halfW, tabY + 10);
@@ -743,17 +760,17 @@ export class CompendiumOverlay {
     let fx = left + 25;
     for (let i = 0; i < filters.length; i++) {
       const isActive = i === this.activeFilterIndex;
-      const chip = this.scene.add
-        .text(fx, filterY, filters[i], {
-          fontFamily: 'monospace',
+      const chip = applyTextResolution(
+        this.scene.add.text(fx, filterY, filters[i], {
+          fontFamily: 'Arial',
           fontSize: '8px',
-          color: isActive ? '#ffdd44' : '#777777',
-        })
-        .setDepth(DEPTH_UI);
+          color: isActive ? UI_PALETTE.accent : '#777777',
+        }),
+      ).setDepth(DEPTH_UI);
 
       if (!isActive) {
         chip.setInteractive({ useHandCursor: true });
-        chip.on('pointerover', () => chip.setColor('#cccccc'));
+        chip.on('pointerover', () => chip.setColor(UI_PALETTE.muted));
         chip.on('pointerout', () => chip.setColor('#777777'));
         chip.on('pointerdown', () => {
           this.activeFilterIndex = i;
@@ -763,7 +780,7 @@ export class CompendiumOverlay {
       } else {
         // Gold underline for active filter
         const underline = this.scene.add.graphics().setDepth(DEPTH_UI);
-        underline.lineStyle(1, 0xffdd44);
+        underline.lineStyle(1, UI_HEX.accent);
         underline.beginPath();
         underline.moveTo(fx, filterY + 12);
         // Approximate width based on character count
@@ -782,7 +799,7 @@ export class CompendiumOverlay {
       // The Foes tab's Bosses filter can be empty on a fresh save (nothing
       // reached yet). Other tabs shouldn't hit this, but guard generically.
       const msg = def.key === 'foes' ? 'No foes encountered yet.' : 'Nothing to show yet.';
-      this._text(left + panelW / 2, startY + 8, msg, '#888888', 0.5);
+      this._text(left + panelW / 2, startY + 8, msg, UI_PALETTE.muted, 0.5);
       return;
     }
     const itemGap = getCompendiumRowHeight(def.key);
@@ -830,58 +847,64 @@ export class CompendiumOverlay {
     const nameColor = this._matchesSearch(item.name)
       ? '#66ff66'
       : item.tier === 'Legend'
-        ? '#ffdd44'
-        : '#e0e0e0';
+        ? UI_PALETTE.accent
+        : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(
       rightX,
       y,
       `${item.type}  ${item.tier || ''}  ${item.rankRequired || ''}`,
-      '#888888',
+      UI_PALETTE.muted,
       1,
     );
 
     if (item.type === 'Scroll') {
       const taught = item.skillId || item.teachesWeaponArtId || '?';
-      this._text(left + 25, y + 14, `Teaches: ${taught}  ${item.price || 0}g`, '#aaaaaa');
+      this._text(left + 25, y + 14, `Teaches: ${taught}  ${item.price || 0}g`, UI_PALETTE.muted);
     } else {
       const stats = `Mt:${item.might ?? '-'}  Ht:${item.hit ?? '-'}  Cr:${item.crit ?? '-'}  Wt:${item.weight ?? '-'}  Rng:${item.range ?? '-'}`;
-      this._text(left + 25, y + 14, stats, '#aaaaaa');
-      this._text(rightX, y + 14, `${item.price || 0}g`, '#aaaaaa', 1);
+      this._text(left + 25, y + 14, stats, UI_PALETTE.muted);
+      this._text(rightX, y + 14, `${item.price || 0}g`, UI_PALETTE.muted, 1);
     }
     this._renderLoreLine(item, y + 28, left);
   }
 
   _renderSkill(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     const activation = item.activation ? `  ${item.activation}%` : '';
-    this._text(rightX, y, `${item.trigger || ''}${activation}`, '#888888', 1);
-    this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+    this._text(rightX, y, `${item.trigger || ''}${activation}`, UI_PALETTE.muted, 1);
+    this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
   }
 
   _renderArt(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(
       rightX,
       y,
       `${item.weaponType || ''}  ${item.requiredRank || ''}  HP:${item.hpCost ?? '?'}  Act:${item.unlockAct || '?'}`,
-      '#888888',
+      UI_PALETTE.muted,
       1,
     );
-    this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+    this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
   }
 
   _renderClass(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     const profs = Array.isArray(item.weaponProficiencies)
       ? item.weaponProficiencies.join('/')
       : typeof item.weaponProficiencies === 'string'
         ? item.weaponProficiencies
         : '';
-    this._text(rightX, y, `${item.tier || ''}  ${item.moveType || ''}  ${profs}`, '#888888', 1);
+    this._text(
+      rightX,
+      y,
+      `${item.tier || ''}  ${item.moveType || ''}  ${profs}`,
+      UI_PALETTE.muted,
+      1,
+    );
 
     const bs = item.baseStats || {};
     const statLine = `HP:${bs.HP ?? '-'} STR:${bs.STR ?? '-'} MAG:${bs.MAG ?? '-'} SKL:${bs.SKL ?? '-'} SPD:${bs.SPD ?? '-'} DEF:${bs.DEF ?? '-'} RES:${bs.RES ?? '-'} MOV:${bs.MOV ?? '-'}`;
@@ -893,8 +916,8 @@ export class CompendiumOverlay {
       : item.promotesFrom
         ? `\u2190 ${item.promotesFrom}`
         : '';
-    this._text(left + 25, y + 14, statLine, '#aaaaaa');
-    if (link) this._text(rightX, y + 14, link, '#888888', 1);
+    this._text(left + 25, y + 14, statLine, UI_PALETTE.muted);
+    if (link) this._text(rightX, y + 14, link, UI_PALETTE.muted, 1);
     const loreLines = this._wrapLore(item.lore, 84, 2);
     for (let i = 0; i < loreLines.length; i++) {
       this._text(left + 25, y + 28 + i * 12, loreLines[i], LORE_TEXT_COLOR);
@@ -902,9 +925,9 @@ export class CompendiumOverlay {
   }
 
   _renderItem(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `${item.type || ''}  ${item.price || 0}g`, '#888888', 1);
+    this._text(rightX, y, `${item.type || ''}  ${item.price || 0}g`, UI_PALETTE.muted, 1);
 
     let desc = '';
     if (item.combatEffects) {
@@ -938,7 +961,7 @@ export class CompendiumOverlay {
     } else if (item.imbueId) {
       desc = `Imbue: ${item.description || 'weapon blessing'}`;
     }
-    this._text(left + 25, y + 14, desc, '#aaaaaa');
+    this._text(left + 25, y + 14, desc, UI_PALETTE.muted);
     this._renderLoreLine(item, y + 28, left);
   }
 
@@ -985,35 +1008,47 @@ export class CompendiumOverlay {
   }
 
   _renderLord(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `${item.class || ''} \u2192 ${item.promotedClass || ''}`, '#888888', 1);
+    this._text(
+      rightX,
+      y,
+      `${item.class || ''} \u2192 ${item.promotedClass || ''}`,
+      UI_PALETTE.muted,
+      1,
+    );
 
     const bs = item.baseStats || {};
     const statLine = `HP:${bs.HP ?? '-'} STR:${bs.STR ?? '-'} MAG:${bs.MAG ?? '-'} SKL:${bs.SKL ?? '-'} SPD:${bs.SPD ?? '-'} DEF:${bs.DEF ?? '-'} RES:${bs.RES ?? '-'} LCK:${bs.LCK ?? '-'} MOV:${bs.MOV ?? '-'}`;
-    this._text(left + 25, y + 14, statLine, '#aaaaaa');
+    this._text(left + 25, y + 14, statLine, UI_PALETTE.muted);
 
     const weapon = item.weapon || item.promotionWeapons || '';
     this._text(
       left + 25,
       y + 28,
       `Skill: ${item.personalSkill || '-'}  Weapon: ${weapon}`,
-      '#aaaaaa',
+      UI_PALETTE.muted,
     );
   }
 
   _renderBlessing(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `Tier ${item.tier || '?'}`, '#888888', 1);
-    this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+    this._text(rightX, y, `Tier ${item.tier || '?'}`, UI_PALETTE.muted, 1);
+    this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
     this._renderLoreLine(item, y + 28, left);
   }
 
   _renderTerrain(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `Avo:${item.avoidBonus ?? 0}  Def:${item.defBonus ?? 0}`, '#888888', 1);
+    this._text(
+      rightX,
+      y,
+      `Avo:${item.avoidBonus ?? 0}  Def:${item.defBonus ?? 0}`,
+      UI_PALETTE.muted,
+      1,
+    );
 
     const mc = item.moveCost || {};
     const special = item.special ? `  ${item.special}` : '';
@@ -1021,20 +1056,24 @@ export class CompendiumOverlay {
       left + 25,
       y + 14,
       `Move \u2014 Inf:${mc.Infantry ?? '-'} Arm:${mc.Armored ?? '-'} Cav:${mc.Cavalry ?? '-'} Fly:${mc.Flying ?? '-'}${special}`,
-      '#aaaaaa',
+      UI_PALETTE.muted,
     );
   }
 
   _renderAffix(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
-    this._text(rightX, y, `Tier ${item.tier || '?'}  ${item.trigger || ''}`, '#888888', 1);
-    this._text(left + 25, y + 14, item.description || '', '#aaaaaa');
+    this._text(rightX, y, `Tier ${item.tier || '?'}  ${item.trigger || ''}`, UI_PALETTE.muted, 1);
+    this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
   }
 
   _renderFoe(item, y, left, rightX) {
     const isBoss = item._kind === 'boss';
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : isBoss ? '#ff8866' : '#e0e0e0';
+    const nameColor = this._matchesSearch(item.name)
+      ? '#66ff66'
+      : isBoss
+        ? '#ff8866'
+        : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
 
     let meta;
@@ -1047,7 +1086,7 @@ export class CompendiumOverlay {
     } else {
       meta = `Class  ${item.tier || ''}  ${item.moveType || ''}`;
     }
-    this._text(rightX, y, meta, '#888888', 1);
+    this._text(rightX, y, meta, UI_PALETTE.muted, 1);
 
     const loreLines = this._wrapLore(item.lore, 84, isBoss ? 3 : 2);
     for (let i = 0; i < loreLines.length; i++) {
@@ -1056,14 +1095,14 @@ export class CompendiumOverlay {
   }
 
   /** Helper: create a text object, optionally right-aligned (originX=1). */
-  _text(x, y, str, color = '#e0e0e0', originX = 0) {
-    const t = this.scene.add
-      .text(x, y, str, {
-        fontFamily: 'monospace',
+  _text(x, y, str, color = UI_PALETTE.text, originX = 0) {
+    const t = applyTextResolution(
+      this.scene.add.text(x, y, str, {
+        fontFamily: 'Arial',
         fontSize: '10px',
         color,
-      })
-      .setDepth(DEPTH_UI);
+      }),
+    ).setDepth(DEPTH_UI);
     if (originX) t.setOrigin(originX, 0);
     this.objects.push(t);
     return t;
@@ -1074,30 +1113,32 @@ export class CompendiumOverlay {
     const navY = top + panelH - 28;
 
     // Page indicator
-    const pageInd = this.scene.add
-      .text(cx, navY, `Page ${this.currentPage + 1}/${totalPages}`, {
-        fontFamily: 'monospace',
+    const pageInd = applyTextResolution(
+      this.scene.add.text(cx, navY, `Page ${this.currentPage + 1}/${totalPages}`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_UI);
     this.objects.push(pageInd);
 
     if (this.currentPage > 0) {
-      const prevBtn = this.scene.add
-        .text(cx - 80, navY, '\u25C0 Prev', {
-          fontFamily: 'monospace',
+      const prevBtn = applyTextResolution(
+        this.scene.add.text(cx - 80, navY, '\u25C0 Prev', {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#aaaaaa',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 8, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI)
         .setInteractive({ useHandCursor: true });
-      prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
-      prevBtn.on('pointerout', () => prevBtn.setColor('#aaaaaa'));
+      prevBtn.on('pointerover', () => prevBtn.setColor(UI_PALETTE.accent));
+      prevBtn.on('pointerout', () => prevBtn.setColor(UI_PALETTE.muted));
       prevBtn.on('pointerdown', () => {
         this.currentPage--;
         this._draw();
@@ -1106,19 +1147,20 @@ export class CompendiumOverlay {
     }
 
     if (this.currentPage < totalPages - 1) {
-      const nextBtn = this.scene.add
-        .text(cx + 80, navY, 'Next \u25B6', {
-          fontFamily: 'monospace',
+      const nextBtn = applyTextResolution(
+        this.scene.add.text(cx + 80, navY, 'Next \u25B6', {
+          fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#aaaaaa',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 8, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI)
         .setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
-      nextBtn.on('pointerout', () => nextBtn.setColor('#aaaaaa'));
+      nextBtn.on('pointerover', () => nextBtn.setColor(UI_PALETTE.accent));
+      nextBtn.on('pointerout', () => nextBtn.setColor(UI_PALETTE.muted));
       nextBtn.on('pointerdown', () => {
         this.currentPage++;
         this._draw();
@@ -1128,6 +1170,8 @@ export class CompendiumOverlay {
   }
 
   hide() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     this._teardownFocus();
     const game = this.scene?.game;
     if (game?.events) {

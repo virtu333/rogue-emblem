@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // ColosseumOverlay.js — Overlay UI for the Colosseum node (Arena + Mercenary Board)
 // Self-contained overlay class following RosterOverlay/PauseOverlay patterns.
 // All Phaser objects pushed to this.objects[] and destroyed in bulk on hide().
@@ -31,39 +32,39 @@ const CY = 240;
 
 // ── Shared text styles ──
 const TITLE_STYLE = {
-  fontFamily: 'monospace',
+  fontFamily: 'Arial',
   fontSize: '18px',
-  color: '#ffdd44',
+  color: UI_PALETTE.accent,
   fontStyle: 'bold',
 };
 const HEADER_STYLE = {
-  fontFamily: 'monospace',
+  fontFamily: 'Arial',
   fontSize: '14px',
-  color: '#ffdd44',
+  color: UI_PALETTE.accent,
   fontStyle: 'bold',
 };
 const BODY_STYLE = {
-  fontFamily: 'monospace',
+  fontFamily: 'Arial',
   fontSize: '12px',
-  color: '#e0e0e0',
+  color: UI_PALETTE.text,
 };
 const SMALL_STYLE = {
-  fontFamily: 'monospace',
+  fontFamily: 'Arial',
   fontSize: '10px',
-  color: '#aaaaaa',
+  color: UI_PALETTE.muted,
 };
 const GOLD_STYLE = {
-  fontFamily: 'monospace',
+  fontFamily: 'Arial',
   fontSize: '13px',
-  color: '#ffdd44',
+  color: UI_PALETTE.accent,
 };
 
-function btnStyle(color = '#ffdd44') {
+function btnStyle(color = UI_PALETTE.accent) {
   return {
-    fontFamily: 'monospace',
+    fontFamily: 'Arial',
     fontSize: '14px',
     color,
-    backgroundColor: '#333333',
+    backgroundColor: UI_PALETTE.raised,
     padding: { x: 10, y: 5 },
   };
 }
@@ -142,7 +143,7 @@ export class ColosseumOverlay {
 
   _addPanel() {
     const panel = this.scene.add
-      .rectangle(CX, CY, PANEL_W, PANEL_H, 0x111111, 0.95)
+      .rectangle(CX, CY, PANEL_W, PANEL_H, UI_HEX.sunken, 0.95)
       .setDepth(PANEL_DEPTH)
       .setStrokeStyle(2, 0x444444)
       .setInteractive();
@@ -150,13 +151,16 @@ export class ColosseumOverlay {
   }
 
   _addTitle(text) {
-    const t = this.scene.add.text(CX, 50, text, TITLE_STYLE).setOrigin(0.5).setDepth(CONTENT_DEPTH);
+    const t = applyTextResolution(this.scene.add.text(CX, 50, text, TITLE_STYLE))
+      .setOrigin(0.5)
+      .setDepth(CONTENT_DEPTH);
     this.objects.push(t);
   }
 
   _addGold() {
-    const t = this.scene.add
-      .text(CX, 75, `Gold: ${this.runManager.gold}G`, GOLD_STYLE)
+    const t = applyTextResolution(
+      this.scene.add.text(CX, 75, `Gold: ${this.runManager.gold}G`, GOLD_STYLE),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(t);
@@ -164,8 +168,7 @@ export class ColosseumOverlay {
   }
 
   _addBtn(x, y, label, color, callback) {
-    const btn = this.scene.add
-      .text(x, y, label, btnStyle(color))
+    const btn = applyTextResolution(this.scene.add.text(x, y, label, btnStyle(color)))
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH)
       .setInteractive({ useHandCursor: true })
@@ -192,11 +195,12 @@ export class ColosseumOverlay {
     this._addBtn(CX, 300, '[ Leave ]', '#ff6666', () => this.leave());
 
     // Flavor text
-    const flavor = this.scene.add
-      .text(CX, 120, 'Train your fighters or hire seasoned mercenaries.', {
+    const flavor = applyTextResolution(
+      this.scene.add.text(CX, 120, 'Train your fighters or hire seasoned mercenaries.', {
         ...BODY_STYLE,
         fontStyle: 'italic',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(flavor);
@@ -225,16 +229,15 @@ export class ColosseumOverlay {
     let y = startY;
 
     if (roster.length === 0) {
-      const t = this.scene.add
-        .text(CX, 200, 'No units available.', BODY_STYLE)
+      const t = applyTextResolution(this.scene.add.text(CX, 200, 'No units available.', BODY_STYLE))
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(t);
     } else {
       // Column headers
-      const hdr = this.scene.add
-        .text(65, y, 'Name             Class         Lv  HP    Fights', SMALL_STYLE)
-        .setDepth(CONTENT_DEPTH);
+      const hdr = applyTextResolution(
+        this.scene.add.text(65, y, 'Name             Class         Lv  HP    Fights', SMALL_STYLE),
+      ).setDepth(CONTENT_DEPTH);
       this.objects.push(hdr);
       y += lineH;
 
@@ -250,18 +253,18 @@ export class ColosseumOverlay {
         const hp = hpStr.padStart(6);
         const ft = fightStr;
 
-        const color = eligible ? '#e0e0e0' : '#666666';
-        const line = this.scene.add
-          .text(65, y, `${name}${cls}${lv}  ${hp}  ${ft}`, {
+        const color = eligible ? UI_PALETTE.text : UI_PALETTE.muted;
+        const line = applyTextResolution(
+          this.scene.add.text(65, y, `${name}${cls}${lv}  ${hp}  ${ft}`, {
             ...BODY_STYLE,
             color,
-          })
-          .setDepth(CONTENT_DEPTH);
+          }),
+        ).setDepth(CONTENT_DEPTH);
         this.objects.push(line);
 
         if (eligible) {
           line.setInteractive({ useHandCursor: true });
-          line.on('pointerover', () => line.setColor('#ffdd44'));
+          line.on('pointerover', () => line.setColor(UI_PALETTE.accent));
           line.on('pointerout', () => line.setColor(color));
           line.on('pointerdown', () => {
             this._selectedUnit = unit;
@@ -274,18 +277,24 @@ export class ColosseumOverlay {
 
       if (roster.length > unitsPerPage) {
         if (this._unitSelectPage > 0) {
-          this._addBtn(CX - 120, 400, '[ Prev ]', '#aaaaaa', () => {
+          this._addBtn(CX - 120, 400, '[ Prev ]', UI_PALETTE.muted, () => {
             this._unitSelectPage = Math.max(0, this._unitSelectPage - 1);
             this._showUnitSelect();
           });
         }
-        const pageText = this.scene.add
-          .text(CX, 400, `Page ${this._unitSelectPage + 1}/${maxPage + 1}`, SMALL_STYLE)
+        const pageText = applyTextResolution(
+          this.scene.add.text(
+            CX,
+            400,
+            `Page ${this._unitSelectPage + 1}/${maxPage + 1}`,
+            SMALL_STYLE,
+          ),
+        )
           .setOrigin(0.5)
           .setDepth(CONTENT_DEPTH);
         this.objects.push(pageText);
         if (this._unitSelectPage < maxPage) {
-          this._addBtn(CX + 120, 400, '[ Next ]', '#aaaaaa', () => {
+          this._addBtn(CX + 120, 400, '[ Next ]', UI_PALETTE.muted, () => {
             this._unitSelectPage = Math.min(maxPage, this._unitSelectPage + 1);
             this._showUnitSelect();
           });
@@ -293,7 +302,7 @@ export class ColosseumOverlay {
       }
     }
 
-    this._addBtn(CX, 430, '[ Back ]', '#aaaaaa', () => this._showMenu());
+    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showMenu());
   }
 
   // ────────────────────────────────────────
@@ -308,23 +317,25 @@ export class ColosseumOverlay {
     this._addGold();
 
     const unit = this._selectedUnit;
-    const info = this.scene.add
-      .text(
+    const info = applyTextResolution(
+      this.scene.add.text(
         CX,
         95,
         `Fighter: ${unit.name} (Lv ${getDisplayLevel(unit)} ${unit.className})`,
         BODY_STYLE,
-      )
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(info);
 
     if (message) {
-      const msg = this.scene.add
-        .text(CX, 115, message, {
+      const msg = applyTextResolution(
+        this.scene.add.text(CX, 115, message, {
           ...SMALL_STYLE,
           color: '#ff8888',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(msg);
@@ -341,7 +352,7 @@ export class ColosseumOverlay {
     let y = 140;
     for (const [tierName, tier] of tiers) {
       const canAfford = this._canAffordTier(tier);
-      const color = canAfford ? tierColors[tierName] || '#e0e0e0' : '#666666';
+      const color = canAfford ? tierColors[tierName] || UI_PALETTE.text : UI_PALETTE.muted;
       const label = `[ ${tierName.charAt(0).toUpperCase() + tierName.slice(1)} ]`;
       const detail = `Win: +${tier.goldReward}G  |  Lose: -${tier.entryFee}G  |  XP: ${tier.xpMultiplier}×`;
 
@@ -351,29 +362,35 @@ export class ColosseumOverlay {
           this._generateAndShowForecast();
         });
       } else {
-        const disabledBtn = this.scene.add
-          .text(CX, y, label, {
+        const disabledBtn = applyTextResolution(
+          this.scene.add.text(CX, y, label, {
             ...btnStyle(color),
-            backgroundColor: '#222222',
-          })
+            backgroundColor: UI_PALETTE.panel,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(CONTENT_DEPTH)
           .setAlpha(0.7);
         this.objects.push(disabledBtn);
       }
 
-      const detailText = this.scene.add
-        .text(CX, y + 20, detail, SMALL_STYLE)
+      const detailText = applyTextResolution(this.scene.add.text(CX, y + 20, detail, SMALL_STYLE))
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(detailText);
 
       if (!canAfford) {
-        const reasonText = this.scene.add
-          .text(CX, y + 36, `Need ${tier.entryFee}G (have ${this.runManager.gold}G)`, {
-            ...SMALL_STYLE,
-            color: '#ff6666',
-          })
+        const reasonText = applyTextResolution(
+          this.scene.add.text(
+            CX,
+            y + 36,
+            `Need ${tier.entryFee}G (have ${this.runManager.gold}G)`,
+            {
+              ...SMALL_STYLE,
+              color: '#ff6666',
+            },
+          ),
+        )
           .setOrigin(0.5)
           .setDepth(CONTENT_DEPTH);
         this.objects.push(reasonText);
@@ -382,7 +399,7 @@ export class ColosseumOverlay {
       y += canAfford ? 55 : 68;
     }
 
-    this._addBtn(CX, 430, '[ Back ]', '#aaaaaa', () => this._showUnitSelect());
+    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showUnitSelect());
   }
 
   // ────────────────────────────────────────
@@ -489,8 +506,7 @@ export class ColosseumOverlay {
         fc.doubles ? 'Doubles: Yes' : 'Doubles: No',
       ];
       for (const line of items) {
-        const t = this.scene.add
-          .text(x, y, line, BODY_STYLE)
+        const t = applyTextResolution(this.scene.add.text(x, y, line, BODY_STYLE))
           .setOrigin(0.5)
           .setDepth(CONTENT_DEPTH);
         this.objects.push(t);
@@ -510,12 +526,13 @@ export class ColosseumOverlay {
     );
 
     // VS
-    const vs = this.scene.add
-      .text(CX, 160, 'VS', {
+    const vs = applyTextResolution(
+      this.scene.add.text(CX, 160, 'VS', {
         ...HEADER_STYLE,
         fontSize: '16px',
         color: '#ff6666',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(vs);
@@ -532,17 +549,21 @@ export class ColosseumOverlay {
     );
 
     // Entry fee warning
-    const feeText = this.scene.add
-      .text(CX, 310, `Entry fee on loss: ${tier.entryFee}G`, { ...SMALL_STYLE, color: '#ff8888' })
+    const feeText = applyTextResolution(
+      this.scene.add.text(CX, 310, `Entry fee on loss: ${tier.entryFee}G`, {
+        ...SMALL_STYLE,
+        color: '#ff8888',
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(feeText);
 
     // Buttons
     this._addBtn(CX - 80, 370, '[ Fight! ]', '#44ff44', () => this._executeFight());
-    this._addBtn(CX + 80, 370, '[ Withdraw ]', '#aaaaaa', () => this._showTierSelect());
+    this._addBtn(CX + 80, 370, '[ Withdraw ]', UI_PALETTE.muted, () => this._showTierSelect());
 
-    this._addBtn(CX, 430, '[ Back to Menu ]', '#aaaaaa', () => this._showMenu());
+    this._addBtn(CX, 430, '[ Back to Menu ]', UI_PALETTE.muted, () => this._showMenu());
   }
 
   // ────────────────────────────────────────
@@ -655,7 +676,7 @@ export class ColosseumOverlay {
       if (evt.miss) {
         lines.push({
           text: `${evt.attacker} attacks... Miss!`,
-          color: '#888888',
+          color: UI_PALETTE.muted,
         });
       } else if (evt.isCrit) {
         lines.push({
@@ -665,7 +686,7 @@ export class ColosseumOverlay {
       } else {
         lines.push({
           text: `${evt.attacker} attacks for ${evt.damage} damage.`,
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
         });
       }
 
@@ -681,7 +702,7 @@ export class ColosseumOverlay {
     const outcomeColors = {
       win: '#44ff44',
       lose: '#ff4444',
-      draw: '#ffdd44',
+      draw: UI_PALETTE.accent,
     };
     const outcomeLabels = {
       win: 'Victory!',
@@ -707,11 +728,12 @@ export class ColosseumOverlay {
       const timer = this.scene.time.delayedCall(i * delayPerLine, () => {
         if (!this.visible) return;
         const y = startY + i * lineH;
-        const t = this.scene.add
-          .text(75, y, line.text, {
+        const t = applyTextResolution(
+          this.scene.add.text(75, y, line.text, {
             ...BODY_STYLE,
             color: line.color,
-          })
+          }),
+        )
           .setDepth(CONTENT_DEPTH)
           .setAlpha(0);
         this.objects.push(t);
@@ -730,7 +752,9 @@ export class ColosseumOverlay {
     const totalDelay = visibleLines.length * delayPerLine + 500;
     const continueTimer = this.scene.time.delayedCall(totalDelay, () => {
       if (!this.visible) return;
-      this._addBtn(CX, 430, '[ Continue ]', '#ffdd44', () => this._showResult(outcome, tier));
+      this._addBtn(CX, 430, '[ Continue ]', UI_PALETTE.accent, () =>
+        this._showResult(outcome, tier),
+      );
     });
     this.objects.push(continueTimer);
   }
@@ -804,7 +828,7 @@ export class ColosseumOverlay {
     const outcomeColors = {
       win: '#44ff44',
       lose: '#ff4444',
-      draw: '#ffdd44',
+      draw: UI_PALETTE.accent,
     };
     const outcomeLabels = {
       win: 'Victory!',
@@ -812,20 +836,22 @@ export class ColosseumOverlay {
       draw: 'Draw — fee refunded.',
     };
 
-    const outcomeText = this.scene.add
-      .text(CX, y, outcomeLabels[outcome], {
+    const outcomeText = applyTextResolution(
+      this.scene.add.text(CX, y, outcomeLabels[outcome], {
         ...HEADER_STYLE,
         fontSize: '16px',
         color: outcomeColors[outcome],
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(outcomeText);
     y += 35;
 
     // Fighter status
-    const status = this.scene.add
-      .text(CX, y, `${unit.name}: HP ${unit.currentHP}/${unit.stats.HP}`, BODY_STYLE)
+    const status = applyTextResolution(
+      this.scene.add.text(CX, y, `${unit.name}: HP ${unit.currentHP}/${unit.stats.HP}`, BODY_STYLE),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(status);
@@ -833,12 +859,13 @@ export class ColosseumOverlay {
 
     // Gold change
     const goldSign = reward.goldDelta >= 0 ? '+' : '';
-    const goldColor = reward.goldDelta >= 0 ? '#ffdd44' : '#ff6666';
-    const goldText = this.scene.add
-      .text(CX, y, `Gold: ${goldSign}${reward.goldDelta}G`, {
+    const goldColor = reward.goldDelta >= 0 ? UI_PALETTE.accent : '#ff6666';
+    const goldText = applyTextResolution(
+      this.scene.add.text(CX, y, `Gold: ${goldSign}${reward.goldDelta}G`, {
         ...BODY_STYLE,
         color: goldColor,
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(goldText);
@@ -846,11 +873,12 @@ export class ColosseumOverlay {
 
     // XP gained
     if (reward.xpGained > 0) {
-      const xpText = this.scene.add
-        .text(CX, y, `XP: +${reward.xpGained}`, {
+      const xpText = applyTextResolution(
+        this.scene.add.text(CX, y, `XP: +${reward.xpGained}`, {
           ...BODY_STYLE,
           color: '#66ddff',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(xpText);
@@ -859,11 +887,12 @@ export class ColosseumOverlay {
 
     // Level up
     if (levelUpInfo) {
-      const lvText = this.scene.add
-        .text(CX, y, `Level Up! ${levelUpInfo.from} → ${levelUpInfo.to}`, {
+      const lvText = applyTextResolution(
+        this.scene.add.text(CX, y, `Level Up! ${levelUpInfo.from} → ${levelUpInfo.to}`, {
           ...HEADER_STYLE,
           color: '#44ff44',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(lvText);
@@ -877,11 +906,12 @@ export class ColosseumOverlay {
             .filter(([, v]) => v > 0)
             .map(([stat, v]) => `${stat}+${v}`);
           if (gainStrs.length > 0) {
-            const gainText = this.scene.add
-              .text(CX, y, gainStrs.join('  '), {
+            const gainText = applyTextResolution(
+              this.scene.add.text(CX, y, gainStrs.join('  '), {
                 ...SMALL_STYLE,
                 color: '#88ff88',
-              })
+              }),
+            )
               .setOrigin(0.5)
               .setDepth(CONTENT_DEPTH);
             this.objects.push(gainText);
@@ -895,11 +925,12 @@ export class ColosseumOverlay {
     const drAfter = colosseumData?.arena?.diminishingReturnsAfterLevels ?? 2;
     const totalLevels = this._levelsGainedThisVisit[unit.name] || 0;
     if (totalLevels >= drAfter) {
-      const drText = this.scene.add
-        .text(CX, y + 10, 'XP diminishing returns active.', {
+      const drText = applyTextResolution(
+        this.scene.add.text(CX, y + 10, 'XP diminishing returns active.', {
           ...SMALL_STYLE,
           color: '#ff8888',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(drText);
@@ -915,7 +946,7 @@ export class ColosseumOverlay {
       );
     }
 
-    this._addBtn(canFightAgain ? CX + 90 : CX, 390, '[ Back to Menu ]', '#aaaaaa', () =>
+    this._addBtn(canFightAgain ? CX + 90 : CX, 390, '[ Back to Menu ]', UI_PALETTE.muted, () =>
       this._showMenu(),
     );
 
@@ -995,8 +1026,7 @@ export class ColosseumOverlay {
       const emptyMsg = this._mercGenerationFailed
         ? 'Mercenary board unavailable. Please try again later.'
         : 'No mercenaries available.';
-      const t = this.scene.add
-        .text(CX, 200, emptyMsg, BODY_STYLE)
+      const t = applyTextResolution(this.scene.add.text(CX, 200, emptyMsg, BODY_STYLE))
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(t);
@@ -1018,66 +1048,73 @@ export class ColosseumOverlay {
         this.objects.push(cardBg);
 
         // Name + class + level
-        const nameText = this.scene.add
-          .text(75, y, `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`, {
-            ...BODY_STYLE,
-            color: hired ? '#666666' : '#e0e0e0',
-          })
-          .setDepth(CONTENT_DEPTH);
+        const nameText = applyTextResolution(
+          this.scene.add.text(
+            75,
+            y,
+            `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`,
+            {
+              ...BODY_STYLE,
+              color: hired ? UI_PALETTE.muted : UI_PALETTE.text,
+            },
+          ),
+        ).setDepth(CONTENT_DEPTH);
         this.objects.push(nameText);
 
         // Key stats
         const stats = unit.stats;
         const statLine = `HP:${stats.HP} STR:${stats.STR} MAG:${stats.MAG} SPD:${stats.SPD} DEF:${stats.DEF} RES:${stats.RES}`;
-        const statText = this.scene.add
-          .text(75, y + 18, statLine, {
+        const statText = applyTextResolution(
+          this.scene.add.text(75, y + 18, statLine, {
             ...SMALL_STYLE,
-            color: hired ? '#555555' : '#aaaaaa',
-          })
-          .setDepth(CONTENT_DEPTH);
+            color: hired ? '#555555' : UI_PALETTE.muted,
+          }),
+        ).setDepth(CONTENT_DEPTH);
         this.objects.push(statText);
 
         // Weapon + skill
         const weaponName = unit.weapon?.name || 'None';
         const skillNames = unit.skills?.length > 0 ? unit.skills.join(', ') : 'None';
         const gearLine = `Weapon: ${weaponName}  |  Skills: ${skillNames}`;
-        const gearText = this.scene.add
-          .text(75, y + 34, gearLine, {
+        const gearText = applyTextResolution(
+          this.scene.add.text(75, y + 34, gearLine, {
             ...SMALL_STYLE,
-            color: hired ? '#555555' : '#aaaaaa',
-          })
-          .setDepth(CONTENT_DEPTH);
+            color: hired ? '#555555' : UI_PALETTE.muted,
+          }),
+        ).setDepth(CONTENT_DEPTH);
         this.objects.push(gearText);
 
         // Traits (mercs can roll them — the player decides with this info)
         const traitNames = getTraitNames(unit, this.gameData.traits);
         if (traitNames) {
-          const traitText = this.scene.add
-            .text(75, y + 50, `Traits: ${traitNames}`, {
+          const traitText = applyTextResolution(
+            this.scene.add.text(75, y + 50, `Traits: ${traitNames}`, {
               ...SMALL_STYLE,
               color: hired ? '#555555' : '#cc99ff',
-            })
-            .setDepth(CONTENT_DEPTH);
+            }),
+          ).setDepth(CONTENT_DEPTH);
           this.objects.push(traitText);
         }
 
         // Price + hire button
         if (hired) {
-          const hiredLabel = this.scene.add
-            .text(490, y + 15, 'HIRED', {
+          const hiredLabel = applyTextResolution(
+            this.scene.add.text(490, y + 15, 'HIRED', {
               ...HEADER_STYLE,
               color: '#44ff44',
-            })
+            }),
+          )
             .setOrigin(0.5)
             .setDepth(CONTENT_DEPTH);
           this.objects.push(hiredLabel);
         } else {
-          const priceColor = canAfford ? '#ffdd44' : '#ff4444';
-          const priceText = this.scene.add
-            .text(490, y + 5, `${hireCost}G`, {
+          const priceColor = canAfford ? UI_PALETTE.accent : '#ff4444';
+          const priceText = applyTextResolution(
+            this.scene.add.text(490, y + 5, `${hireCost}G`, {
               ...BODY_STYLE,
               color: priceColor,
-            })
+            }),
+          )
             .setOrigin(0.5)
             .setDepth(CONTENT_DEPTH);
           this.objects.push(priceText);
@@ -1090,11 +1127,12 @@ export class ColosseumOverlay {
             else if (rosterFull) reason = 'Roster full';
             else if (!canAfford) reason = 'Not enough gold';
 
-            const reasonText = this.scene.add
-              .text(490, y + 35, reason, {
+            const reasonText = applyTextResolution(
+              this.scene.add.text(490, y + 35, reason, {
                 ...SMALL_STYLE,
                 color: '#ff6666',
-              })
+              }),
+            )
               .setOrigin(0.5)
               .setDepth(CONTENT_DEPTH);
             this.objects.push(reasonText);
@@ -1105,7 +1143,7 @@ export class ColosseumOverlay {
       }
     }
 
-    this._addBtn(CX, 430, '[ Back ]', '#aaaaaa', () => this._showMenu());
+    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showMenu());
   }
 
   // ────────────────────────────────────────
@@ -1124,8 +1162,14 @@ export class ColosseumOverlay {
     let y = 120;
 
     // Unit details
-    const nameText = this.scene.add
-      .text(CX, y, `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`, BODY_STYLE)
+    const nameText = applyTextResolution(
+      this.scene.add.text(
+        CX,
+        y,
+        `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`,
+        BODY_STYLE,
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(nameText);
@@ -1133,8 +1177,7 @@ export class ColosseumOverlay {
 
     const stats = unit.stats;
     const statLine = `HP:${stats.HP}  STR:${stats.STR}  MAG:${stats.MAG}  SKL:${stats.SKL}  SPD:${stats.SPD}  DEF:${stats.DEF}  RES:${stats.RES}`;
-    const statText = this.scene.add
-      .text(CX, y, statLine, SMALL_STYLE)
+    const statText = applyTextResolution(this.scene.add.text(CX, y, statLine, SMALL_STYLE))
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(statText);
@@ -1142,26 +1185,29 @@ export class ColosseumOverlay {
 
     const weaponName = unit.weapon?.name || 'None';
     const skillNames = unit.skills?.length > 0 ? unit.skills.join(', ') : 'None';
-    const gearText = this.scene.add
-      .text(CX, y, `Weapon: ${weaponName}  |  Skills: ${skillNames}`, SMALL_STYLE)
+    const gearText = applyTextResolution(
+      this.scene.add.text(CX, y, `Weapon: ${weaponName}  |  Skills: ${skillNames}`, SMALL_STYLE),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(gearText);
     y += 40;
 
     // Cost
-    const costText = this.scene.add
-      .text(CX, y, `Hire cost: ${hireCost}G`, {
+    const costText = applyTextResolution(
+      this.scene.add.text(CX, y, `Hire cost: ${hireCost}G`, {
         ...BODY_STYLE,
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(costText);
     y += 25;
 
-    const afterGold = this.scene.add
-      .text(CX, y, `Gold after: ${this.runManager.gold - hireCost}G`, SMALL_STYLE)
+    const afterGold = applyTextResolution(
+      this.scene.add.text(CX, y, `Gold after: ${this.runManager.gold - hireCost}G`, SMALL_STYLE),
+    )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(afterGold);
@@ -1170,7 +1216,7 @@ export class ColosseumOverlay {
     this._addBtn(CX - 80, 350, '[ Confirm ]', '#44ff44', () => {
       this._hireMercenary(candidateIdx);
     });
-    this._addBtn(CX + 80, 350, '[ Cancel ]', '#aaaaaa', () => this._showMercBrowse());
+    this._addBtn(CX + 80, 350, '[ Cancel ]', UI_PALETTE.muted, () => this._showMercBrowse());
   }
 
   // ────────────────────────────────────────

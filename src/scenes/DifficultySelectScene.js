@@ -1,3 +1,6 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { RunSetupMenu } from '../ui/RunSetupMenu.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 // DifficultySelectScene — Choose difficulty before starting a run
 
@@ -115,7 +118,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     return DIFFICULTY_IDS.map((id) => {
       const mode = config[id] || {};
       const label = mode.label || id.charAt(0).toUpperCase() + id.slice(1);
-      const color = mode.color || '#aaaaaa';
+      const color = mode.color || UI_PALETTE.muted;
       const summary = generateModifierSummary(mode);
       let locked = false;
       let lockReason = null;
@@ -172,7 +175,7 @@ export class DifficultySelectScene extends Phaser.Scene {
         difficultyId: mode.id,
         noMetaUpgrades: this._noMetaUpgrades || false,
       },
-      { reason: TRANSITION_REASONS.BEGIN_RUN },
+      { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: hasDOMHost() },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;
     });
@@ -187,13 +190,19 @@ export class DifficultySelectScene extends Phaser.Scene {
       this,
       'HomeBase',
       { gameData: this.gameData },
-      { reason: TRANSITION_REASONS.BACK },
+      { reason: TRANSITION_REASONS.BACK, retryBlocked: hasDOMHost() },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;
     });
   }
 
   _draw() {
+    if (hasDOMHost()) {
+      if (!this.domSetup || this.domSetup.surface.destroyed)
+        this.domSetup = new RunSetupMenu(this, 'difficulty');
+      this.domSetup.render();
+      return;
+    }
     // Destroy mask graphics before removing children (masks aren't auto-destroyed)
     if (this._maskGraphics) {
       this._maskGraphics.forEach((g) => g.destroy());
@@ -206,20 +215,20 @@ export class DifficultySelectScene extends Phaser.Scene {
     const cx = w / 2;
 
     // Background
-    this.add.rectangle(cx, 240, w, 480, 0x0a0a14);
+    this.add.rectangle(cx, 240, w, 480, UI_HEX.bg);
 
     // Title
-    this.add
-      .text(cx, 36, 'CHOOSE DIFFICULTY', {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, 36, 'CHOOSE DIFFICULTY', {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
-    this.add
-      .text(
+    applyTextResolution(
+      this.add.text(
         cx,
         62,
         inputHint(
@@ -228,12 +237,12 @@ export class DifficultySelectScene extends Phaser.Scene {
           'Tap a difficulty to select it. Tap Back to return.',
         ),
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         },
-      )
-      .setOrigin(0.5);
+      ),
+    ).setOrigin(0.5);
 
     // Cards
     const cardW = 180;
@@ -249,8 +258,8 @@ export class DifficultySelectScene extends Phaser.Scene {
       const isSelected = i === this.selectedIndex;
 
       // Card background
-      const borderColor = isSelected ? 0xffdd44 : mode.locked ? 0x444444 : 0x666666;
-      const bgColor = isSelected ? 0x1a1a2e : 0x111122;
+      const borderColor = isSelected ? UI_HEX.accent : mode.locked ? UI_HEX.line : 0x666666;
+      const bgColor = isSelected ? UI_HEX.panel : UI_HEX.panel;
       const card = this.add
         .rectangle(mx, cardTopY + cardH / 2, cardW, cardH, bgColor)
         .setStrokeStyle(isSelected ? 2 : 1, borderColor);
@@ -264,48 +273,50 @@ export class DifficultySelectScene extends Phaser.Scene {
       });
 
       // Mode name
-      const nameColor = mode.locked ? '#666666' : mode.color;
-      this.add
-        .text(mx, cardTopY + 20, mode.label, {
-          fontFamily: 'monospace',
+      const nameColor = mode.locked ? UI_PALETTE.muted : mode.color;
+      applyTextResolution(
+        this.add.text(mx, cardTopY + 20, mode.label, {
+          fontFamily: 'Arial',
           fontSize: '16px',
           color: nameColor,
           fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
 
       // Lock or summary
       if (mode.locked) {
-        this.add
-          .text(mx, cardTopY + 50, mode.lockReason, {
-            fontFamily: 'monospace',
+        applyTextResolution(
+          this.add.text(mx, cardTopY + 50, mode.lockReason, {
+            fontFamily: 'Arial',
             fontSize: '10px',
             color: '#aa4444',
             wordWrap: { width: cardW - 20 },
-          })
-          .setOrigin(0.5, 0);
+          }),
+        ).setOrigin(0.5, 0);
       } else if (mode.summary.length === 0) {
-        this.add
-          .text(mx, cardTopY + 50, 'Standard experience\n  no modifiers', {
-            fontFamily: 'monospace',
+        applyTextResolution(
+          this.add.text(mx, cardTopY + 50, 'Standard experience\n  no modifiers', {
+            fontFamily: 'Arial',
             fontSize: '10px',
             color: '#88cc88',
             wordWrap: { width: cardW - 20 },
             lineSpacing: 4,
-          })
-          .setOrigin(0.5, 0);
+          }),
+        ).setOrigin(0.5, 0);
       } else {
         const summaryText = mode.summary.map((s) => `\u2022 ${s}`).join('\n');
         const textTopY = cardTopY + 50;
         const viewportH = cardH - 80; // room for title + "Selected" label
         // Create text to measure
-        const measurer = this.add.text(0, 0, summaryText, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#cccccc',
-          wordWrap: { width: cardW - 20 },
-          lineSpacing: 3,
-        });
+        const measurer = applyTextResolution(
+          this.add.text(0, 0, summaryText, {
+            fontFamily: 'Arial',
+            fontSize: '9px',
+            color: UI_PALETTE.muted,
+            wordWrap: { width: cardW - 20 },
+            lineSpacing: 3,
+          }),
+        );
         const textH = measurer.height;
         measurer.destroy();
 
@@ -316,24 +327,26 @@ export class DifficultySelectScene extends Phaser.Scene {
 
         if (scrollMax <= 0) {
           // Fits without scroll
-          this.add
-            .text(mx, textTopY, summaryText, {
-              fontFamily: 'monospace',
+          applyTextResolution(
+            this.add.text(mx, textTopY, summaryText, {
+              fontFamily: 'Arial',
               fontSize: '9px',
-              color: '#cccccc',
+              color: UI_PALETTE.muted,
               wordWrap: { width: cardW - 20 },
               lineSpacing: 3,
-            })
-            .setOrigin(0.5, 0);
+            }),
+          ).setOrigin(0.5, 0);
         } else {
           // Needs scroll — use Container + GeometryMask
-          const textObj = this.add.text(0, -scrollOffset, summaryText, {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#cccccc',
-            wordWrap: { width: cardW - 20 },
-            lineSpacing: 3,
-          });
+          const textObj = applyTextResolution(
+            this.add.text(0, -scrollOffset, summaryText, {
+              fontFamily: 'Arial',
+              fontSize: '9px',
+              color: UI_PALETTE.muted,
+              wordWrap: { width: cardW - 20 },
+              lineSpacing: 3,
+            }),
+          );
           textObj.setOrigin(0.5, 0);
 
           const container = this.add.container(mx, textTopY, [textObj]);
@@ -348,12 +361,13 @@ export class DifficultySelectScene extends Phaser.Scene {
 
           // Scroll arrows
           if (scrollOffset > 0) {
-            const upArrow = this.add
-              .text(mx + cardW / 2 - 14, textTopY - 2, '\u25b2', {
-                fontFamily: 'monospace',
+            const upArrow = applyTextResolution(
+              this.add.text(mx + cardW / 2 - 14, textTopY - 2, '\u25b2', {
+                fontFamily: 'Arial',
                 fontSize: '10px',
-                color: '#ffdd44',
-              })
+                color: UI_PALETTE.accent,
+              }),
+            )
               .setOrigin(0.5)
               .setInteractive({ useHandCursor: true });
             upArrow.on('pointerdown', () => {
@@ -362,12 +376,13 @@ export class DifficultySelectScene extends Phaser.Scene {
             });
           }
           if (scrollOffset < scrollMax) {
-            const downArrow = this.add
-              .text(mx + cardW / 2 - 14, textTopY + viewportH - 4, '\u25bc', {
-                fontFamily: 'monospace',
+            const downArrow = applyTextResolution(
+              this.add.text(mx + cardW / 2 - 14, textTopY + viewportH - 4, '\u25bc', {
+                fontFamily: 'Arial',
                 fontSize: '10px',
-                color: '#ffdd44',
-              })
+                color: UI_PALETTE.accent,
+              }),
+            )
               .setOrigin(0.5)
               .setInteractive({ useHandCursor: true });
             downArrow.on('pointerdown', () => {
@@ -380,13 +395,13 @@ export class DifficultySelectScene extends Phaser.Scene {
 
       // Selection indicator
       if (isSelected && !mode.locked) {
-        this.add
-          .text(mx, cardTopY + cardH - 16, '\u25b6 Selected', {
-            fontFamily: 'monospace',
+        applyTextResolution(
+          this.add.text(mx, cardTopY + cardH - 16, '\u25b6 Selected', {
+            fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#ffdd44',
-          })
-          .setOrigin(0.5);
+            color: UI_PALETTE.accent,
+          }),
+        ).setOrigin(0.5);
       }
     }
 
@@ -395,52 +410,55 @@ export class DifficultySelectScene extends Phaser.Scene {
     const selected = this.modes[this.selectedIndex];
     const canConfirm = selected && !selected.locked;
 
-    const confirmBtn = this.add
-      .text(cx - 80, btnY, '[ Confirm ]', {
-        fontFamily: 'monospace',
+    const confirmBtn = applyTextResolution(
+      this.add.text(cx - 80, btnY, '[ Confirm ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: canConfirm ? '#88ff88' : '#555555',
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: canConfirm });
 
     if (canConfirm) {
-      confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
+      confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
       confirmBtn.on('pointerout', () => confirmBtn.setColor('#88ff88'));
       confirmBtn.on('pointerdown', () => this._confirm());
     }
 
-    const backBtn = this.add
-      .text(cx + 80, btnY, '[ Back ]', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      this.add.text(cx + 80, btnY, '[ Back ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
-    backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
+    backBtn.on('pointerover', () => backBtn.setColor(UI_PALETTE.accent));
+    backBtn.on('pointerout', () => backBtn.setColor(UI_PALETTE.text));
     backBtn.on('pointerdown', () => this._back());
 
     // Meta upgrades toggle
     const metaLabel = this._noMetaUpgrades ? 'Meta Upgrades: OFF' : 'Meta Upgrades: ON';
     const metaColor = this._noMetaUpgrades ? '#ff8800' : '#88cc88';
-    const metaToggle = this.add
-      .text(cx, btnY + 36, metaLabel, {
-        fontFamily: 'monospace',
+    const metaToggle = applyTextResolution(
+      this.add.text(cx, btnY + 36, metaLabel, {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: metaColor,
         backgroundColor: '#000000aa',
         padding: { x: 10, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    metaToggle.on('pointerover', () => metaToggle.setColor('#ffdd44'));
+    metaToggle.on('pointerover', () => metaToggle.setColor(UI_PALETTE.accent));
     metaToggle.on('pointerout', () => metaToggle.setColor(metaColor));
     metaToggle.on('pointerdown', () => this._toggleMetaMode());
 
@@ -453,13 +471,13 @@ export class DifficultySelectScene extends Phaser.Scene {
         { startingLords: this.meta.getLordSelection() },
         this.gameData?.lords,
       );
-      this.add
-        .text(cx, btnY + 56, `Commander: ${cmdDef?.name} · Partner: ${partnerDef?.name}`, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(cx, btnY + 56, `Commander: ${cmdDef?.name} · Partner: ${partnerDef?.name}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#88bbff',
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
     }
   }
 }

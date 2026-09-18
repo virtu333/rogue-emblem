@@ -1,0 +1,588 @@
+@import './mobileTheme.css';
+
+/* ==========================================================================
+   Reset / shell
+   ========================================================================== */
+
+.re,
+.re * {
+  box-sizing: border-box;
+}
+
+/* Full-screen surface. Use for: Title, Compendium, Settings, Roster,
+   Upgrades, Home Base, Rewards. */
+.re-screen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-z, 950);
+  display: flex;
+  flex-direction: column;
+  gap: var(--re-s2);
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--re-bg);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+  touch-action: pan-y;
+}
+
+/* Modal over gameplay. Use for: Pause, confirms, Forecast, Church, Shop
+   sub-dialogs. */
+.re-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-z, 1100);
+  display: grid;
+  place-items: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--re-scrim);
+  touch-action: pan-y;
+}
+.re-backdrop--heavy {
+  background: var(--re-scrim-heavy);
+}
+
+.re-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  width: min(var(--re-panel-w, 420px), 100%);
+  padding: var(--re-s3);
+  background: var(--re-panel-raised);
+  border: var(--re-hairline);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+}
+
+/* ==========================================================================
+   Header — one treatment, everywhere
+   ========================================================================== */
+
+.re-header {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s3);
+  flex-shrink: 0;
+  padding-bottom: var(--re-s2);
+  border-bottom: var(--re-rule);
+}
+.re-header h1,
+.re-header h2 {
+  margin: 0 auto 0 0;
+  font: var(--re-t-title);
+  font-family: var(--re-pixel);
+  color: var(--re-accent-text);
+  text-transform: uppercase;
+}
+.re-header h1 {
+  font: var(--re-t-display);
+  font-family: var(--re-pixel);
+}
+.re-header .re-eyebrow {
+  margin: 0;
+  font: var(--re-t-micro);
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--re-muted);
+}
+
+.re-footer {
+  flex-shrink: 0;
+  padding-top: var(--re-s2);
+  border-top: 1px solid var(--re-line-soft);
+  font: var(--re-t-small);
+  font-family: var(--re-body);
+  color: var(--re-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--re-s3);
+}
+
+/* ==========================================================================
+   Buttons — ONE base + variants. No per-screen `.x-screen button` blankets.
+   ========================================================================== */
+
+.re-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--re-s2);
+  min-height: var(--re-tap);
+  padding: var(--re-s2) var(--re-s3);
+  background: var(--re-panel);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  overflow-wrap: anywhere;
+  -webkit-tap-highlight-color: transparent;
+}
+.re-btn:disabled,
+.re-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+.re-btn:focus-visible {
+  outline: 3px solid var(--re-gold);
+  outline-offset: -3px;
+}
+.re-btn[aria-pressed='true'],
+.re-btn.is-active {
+  background: var(--re-selected);
+  border-color: var(--re-gold);
+  color: var(--re-accent-text);
+}
+.re-btn:active {
+  background: var(--re-selected);
+}
+
+.re-btn--primary {
+  background: var(--re-accent);
+  border-color: var(--re-gold);
+  color: var(--re-accent-text);
+}
+.re-btn--danger {
+  background: var(--re-danger-bg);
+  border-color: var(--re-danger-line);
+  color: var(--re-text);
+}
+.re-btn--quiet {
+  background: transparent;
+  border-color: var(--re-line-soft);
+  color: var(--re-muted);
+  font-weight: 400;
+}
+.re-btn--block {
+  width: 100%;
+}
+.re-btn--icon {
+  min-width: var(--re-tap);
+  padding: var(--re-s2);
+}
+
+/* Menu list — Title, Pause, any vertical action stack */
+.re-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--re-s2);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.re-menu .re-btn {
+  justify-content: space-between;
+  text-align: left;
+}
+.re-badge {
+  font: var(--re-t-micro);
+  font-family: var(--re-pixel);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 3px 5px;
+  color: var(--re-bg);
+  background: var(--re-gold);
+  border-radius: var(--re-radius);
+}
+
+/* ==========================================================================
+   Tabs / filter chips
+   ========================================================================== */
+
+.re-tabs {
+  display: flex;
+  gap: var(--re-s1);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--re-line-soft);
+}
+.re-tabs::-webkit-scrollbar {
+  display: none;
+}
+.re-tabs .re-btn {
+  flex: 0 0 auto;
+  min-height: var(--re-tap);
+  padding: var(--re-s3) var(--re-s2);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  font: var(--re-t-label);
+  font-family: var(--re-pixel);
+  text-transform: uppercase;
+  color: var(--re-muted);
+}
+.re-tabs .re-btn[aria-pressed='true'] {
+  color: var(--re-accent-text);
+  border-bottom-color: var(--re-gold);
+  background: transparent;
+}
+
+.re-chips {
+  display: flex;
+  gap: var(--re-s1);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.re-chips .re-btn {
+  min-height: var(--re-tap);
+  padding: 6px 10px;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Search
+   ========================================================================== */
+
+.re-search {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s2);
+  flex-shrink: 0;
+  min-height: var(--re-tap);
+  padding: 0 var(--re-s3);
+  background: var(--re-sunken);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+}
+.re-search:focus-within {
+  border-color: var(--re-gold);
+}
+.re-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+}
+.re-search input::placeholder {
+  color: var(--re-muted);
+  opacity: 0.8;
+}
+
+/* ==========================================================================
+   Layout: master / detail
+   ========================================================================== */
+
+.re-split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--re-split-a, 1fr)) minmax(0, var(--re-split-b, 1fr));
+  gap: var(--re-s3);
+  flex: 1;
+  min-height: 0;
+}
+.re-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  min-height: 0;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: var(--re-line-soft) transparent;
+}
+.re-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.re-scroll::-webkit-scrollbar-thumb {
+  background: var(--re-line-soft);
+}
+
+/* ==========================================================================
+   Rows and cards
+   ========================================================================== */
+
+.re-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--re-s1) var(--re-s2);
+  width: 100%;
+  min-height: var(--re-tap-row);
+  padding: var(--re-s2) var(--re-s3);
+  text-align: left;
+  font-weight: 400;
+}
+.re-row strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--re-text);
+}
+.re-row small {
+  grid-column: 1;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  color: var(--re-muted);
+}
+.re-row .re-row-meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  text-align: right;
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  color: var(--re-accent-text);
+  white-space: nowrap;
+}
+.re-row[aria-pressed='true'] {
+  box-shadow: inset 3px 0 var(--re-gold);
+}
+
+.re-card {
+  padding: var(--re-s3);
+  background: var(--re-panel-raised);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+}
+.re-card + .re-card {
+  margin-top: var(--re-s2);
+}
+.re-card h3,
+.re-card h4 {
+  margin: 0 0 var(--re-s1);
+  font: var(--re-t-lede);
+  font-family: var(--re-body);
+  color: var(--re-accent-text);
+}
+.re-card h4 {
+  font-size: 16px;
+}
+.re-card p {
+  margin: 0 0 var(--re-s2);
+  color: var(--re-text);
+}
+.re-card p:last-child {
+  margin-bottom: 0;
+}
+
+/* Corner-bracket treatment. Reserve for ONE emphasis surface per screen. */
+.re-bracket {
+  position: relative;
+}
+.re-bracket::before,
+.re-bracket::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.re-bracket::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--re-gold);
+  border-left: 2px solid var(--re-gold);
+}
+.re-bracket::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 2px solid var(--re-gold);
+  border-bottom: 2px solid var(--re-gold);
+}
+
+.re-portrait {
+  flex: none;
+  width: 40px;
+  height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--re-sunken);
+  border: var(--re-hairline);
+}
+
+/* ==========================================================================
+   Data display
+   ========================================================================== */
+
+.re-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--re-stat-cols, 3), minmax(0, 1fr) auto);
+  gap: var(--re-s2) var(--re-s3);
+  padding: var(--re-s3);
+  background: var(--re-panel-raised);
+  border: var(--re-hairline);
+  border-radius: var(--re-radius);
+  font-variant-numeric: tabular-nums;
+}
+.re-stats dt {
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+  color: var(--re-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.re-stats dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--re-accent-text);
+  text-align: right;
+}
+
+.re-health {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+}
+.re-health-fill {
+  display: block;
+  height: 100%;
+  background: var(--re-hp, var(--re-good));
+}
+.re-hp-high {
+  --re-hp: #7fc98c;
+}
+.re-hp-med {
+  --re-hp: #d8c471;
+}
+.re-hp-low {
+  --re-hp: #cf7d77;
+}
+
+.re-pips {
+  display: inline-flex;
+  gap: 2px;
+}
+.re-pips i {
+  width: 10px;
+  height: 7px;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+}
+.re-pips i.filled {
+  background: var(--re-blue);
+}
+.re-pips.maxed i.filled {
+  background: var(--re-gold);
+}
+
+.re-kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--re-s2);
+  font: var(--re-t-small);
+  font-family: var(--re-body);
+}
+.re-kv dt {
+  color: var(--re-muted);
+}
+.re-kv dd {
+  margin: 0;
+  color: var(--re-text);
+}
+
+.re-note {
+  margin: 0;
+  padding: var(--re-s2) var(--re-s3);
+  border-left: 3px solid var(--re-gold);
+  background: rgba(214, 189, 131, 0.08);
+  font: var(--re-t-small);
+  font-family: var(--re-body);
+  color: var(--re-warn);
+}
+.re-empty {
+  margin: auto;
+  padding: var(--re-s5);
+  text-align: center;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+  font-family: var(--re-body);
+}
+
+/* ==========================================================================
+   The side rails (node map, battle, anywhere the canvas is live).
+   Replaces index.html's black/white monospace `.mobile-btn`.
+   ========================================================================== */
+
+.re-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--re-s2);
+  flex: 0 0 80px;
+  padding: var(--re-s2);
+  background: var(--re-bg);
+  border-inline: 1px solid var(--re-line-soft);
+}
+.re-rail--right {
+  margin-left: auto;
+}
+.re-rail .re-btn {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 56px;
+  padding: var(--re-s2) 2px;
+  background: var(--re-panel-raised);
+  font: var(--re-t-micro);
+  font-family: var(--re-body);
+}
+.re-rail .re-glyph {
+  font-size: 15px;
+  line-height: 1;
+  color: var(--re-accent-text);
+}
+.re-rail .re-spacer {
+  flex: 1;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 700px) {
+  :root {
+    --re-t-display: 13px/1.5 var(--re-pixel);
+    --re-t-title: 11px/1.6 var(--re-pixel);
+    --re-t-lede: 16px/1.3 var(--re-body);
+  }
+}
+@media (max-height: 380px) {
+  :root {
+    --re-s5: 16px;
+  }
+  .re-screen {
+    gap: var(--re-s1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .re-btn {
+    transition:
+      background 0.12s linear,
+      border-color 0.12s linear;
+  }
+}
+
+.re-btn--primary {
+  color: var(--re-bg);
+  font-weight: 700;
+}
+.re-header h1,
+.re-header h2 {
+  color: var(--re-text);
+}
+.re-panel,
+.re-card,
+.re-stats,
+.re-btn,
+.re-search {
+  box-shadow: var(--re-bevel);
+}
+.re-tabs .re-btn {
+  box-shadow: none;
+}

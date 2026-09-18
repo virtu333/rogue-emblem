@@ -1,0 +1,1111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Emblem Rogue — UI cohesion pass</title>
+    <link rel="stylesheet" href="re-kit.css" />
+    <link rel="stylesheet" href="re-kit-v2.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/press-start-2p@5.0.16/index.css"
+    />
+    <style>
+      /* ---- mockup harness only. none of this ships. ---- */
+      html {
+        background: #0f1b22;
+        color: #eee9d5;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 32px 24px 80px;
+        max-width: 1180px;
+        margin-inline: auto;
+      }
+      h1.doc {
+        font:
+          20px/1.4 'Press Start 2P',
+          monospace;
+        color: #e1cc99;
+        margin: 0 0 8px;
+      }
+      h2.doc {
+        font:
+          13px/1.5 'Press Start 2P',
+          monospace;
+        color: #e1cc99;
+        margin: 48px 0 6px;
+        padding-top: 20px;
+        border-top: 2px solid #d6bd83;
+      }
+      h3.doc {
+        font: 15px/1.4 system-ui;
+        color: #d6bd83;
+        margin: 24px 0 4px;
+      }
+      p.doc,
+      li.doc {
+        color: #b8c6c0;
+        font-size: 14px;
+        line-height: 1.6;
+        max-width: 78ch;
+      }
+      code {
+        font:
+          12px ui-monospace,
+          Menlo,
+          monospace;
+        background: #233c46;
+        padding: 1px 5px;
+        border-radius: 2px;
+        color: #eee9d5;
+      }
+      .caption {
+        font-size: 12px;
+        color: #819184;
+        margin: 6px 0 20px;
+        max-width: 78ch;
+      }
+      .caption b {
+        color: #d6bd83;
+        font-weight: 600;
+      }
+
+      /* device frame: iPhone 14 Pro landscape, the target the mobile work uses */
+      .frame {
+        position: relative;
+        width: 844px;
+        height: 390px;
+        overflow: hidden;
+        border: 1px solid #56676a;
+        box-shadow: 0 8px 30px #0006;
+        background: #192f3b;
+        margin: 10px 0 0;
+      }
+      .frame .re-screen,
+      .frame .re-backdrop {
+        position: absolute;
+      }
+      .frame-row {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      .frame.small {
+        width: 412px;
+        height: 390px;
+      }
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        margin: 12px 0 0;
+      }
+      .sw {
+        border: 1px solid #56676a;
+        padding: 8px;
+        font:
+          11px ui-monospace,
+          monospace;
+      }
+      .sw i {
+        display: block;
+        height: 34px;
+        margin-bottom: 6px;
+        border: 1px solid #0004;
+      }
+      .sw b {
+        display: block;
+        color: #eee9d5;
+        font: 600 11px system-ui;
+      }
+      .sw span {
+        color: #819184;
+      }
+      table.doc {
+        border-collapse: collapse;
+        font-size: 13px;
+        margin: 12px 0;
+      }
+      table.doc th,
+      table.doc td {
+        border: 1px solid #3c545c;
+        padding: 6px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.doc th {
+        background: #233c46;
+        color: #e1cc99;
+        font-weight: 600;
+      }
+      table.doc td {
+        color: #cdd8d3;
+      }
+      .bad {
+        color: #e68f8c;
+      }
+      .good {
+        color: #99ddb2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="doc">UI cohesion pass</h1>
+    <p class="doc">
+      Mockups for bringing the pre-mobile screens onto the language established by the mobile
+      rebuild. Every frame below is 844×390 — iPhone 14 Pro landscape, the size
+      <code>mobileBattle.css</code> already pins the dev preview to. All frames are real HTML driven
+      by <code>re-kit.css</code> in this folder, which is the proposed replacement for
+      <code>mobileTheme.css</code>.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">1 · Tokens</h2>
+    <p class="doc">
+      The existing theme has 14 tokens but the code uses roughly 60 literal hexes around them — six
+      golds, three muteds, two scrim hues.
+      <code>mobileUpgrade.css</code> (which drives Home Base, Upgrades and Rewards) does not import
+      the theme at all and uses zero <code>var()</code>. The kit below closes that, adds the tokens
+      that were being faked with literals, and keeps every value already in use except where two
+      values clearly meant to be one.
+    </p>
+
+    <h3 class="doc">Surfaces</h3>
+    <div class="swatches">
+      <div class="sw"><i style="background: #192f3b"></i><b>--re-bg</b><span>#192f3b</span></div>
+      <div class="sw"><i style="background: #233c46"></i><b>--re-panel</b><span>#233c46</span></div>
+      <div class="sw">
+        <i style="background: #2b454b"></i><b>--re-panel-raised</b><span>#2b454b</span>
+      </div>
+      <div class="sw">
+        <i style="background: #425d5b"></i><b>--re-selected</b><span>#425d5b</span>
+      </div>
+      <div class="sw">
+        <i style="background: #152730"></i><b>--re-sunken</b><span>#152730 · new</span>
+      </div>
+    </div>
+    <h3 class="doc">Line &amp; accent</h3>
+    <div class="swatches">
+      <div class="sw"><i style="background: #819184"></i><b>--re-line</b><span>#819184</span></div>
+      <div class="sw">
+        <i style="background: #56676a"></i><b>--re-line-soft</b><span>#56676a · new</span>
+      </div>
+      <div class="sw">
+        <i style="background: #d6bd83"></i><b>--re-gold</b><span>#d6bd83 · borders</span>
+      </div>
+      <div class="sw">
+        <i style="background: #e1cc99"></i><b>--re-gold-hi</b><span>#e1cc99 · text</span>
+      </div>
+      <div class="sw">
+        <i style="background: #61533e"></i><b>--re-gold-deep</b><span>#61533e · fills</span>
+      </div>
+    </div>
+    <h3 class="doc">Text &amp; status</h3>
+    <div class="swatches">
+      <div class="sw"><i style="background: #eee9d5"></i><b>--re-text</b><span>#eee9d5</span></div>
+      <div class="sw"><i style="background: #b8c6c0"></i><b>--re-muted</b><span>#b8c6c0</span></div>
+      <div class="sw">
+        <i style="background: #bde1d9"></i><b>--re-blue</b><span>#bde1d9 · values</span>
+      </div>
+      <div class="sw"><i style="background: #99ddb2"></i><b>--re-good</b><span>#99ddb2</span></div>
+      <div class="sw"><i style="background: #f4ce8c"></i><b>--re-warn</b><span>#f4ce8c</span></div>
+      <div class="sw"><i style="background: #e68f8c"></i><b>--re-bad</b><span>#e68f8c</span></div>
+    </div>
+
+    <h3 class="doc">Type</h3>
+    <table class="doc">
+      <tr>
+        <th>Role</th>
+        <th>Token</th>
+        <th>Rule</th>
+      </tr>
+      <tr>
+        <td>Scene title</td>
+        <td><code>--re-t-display</code> 16px Press Start 2P</td>
+        <td rowspan="3">Pixel font, uppercase, never below 10px, line-height ≥1.5.</td>
+      </tr>
+      <tr>
+        <td>Panel / modal heading</td>
+        <td><code>--re-t-title</code> 12px</td>
+      </tr>
+      <tr>
+        <td>Tabs, group captions</td>
+        <td><code>--re-t-label</code> 10px</td>
+      </tr>
+      <tr>
+        <td>Detail headline</td>
+        <td><code>--re-t-lede</code> 18px system-ui</td>
+        <td rowspan="4">System font, sentence case. Everything a player has to actually read.</td>
+      </tr>
+      <tr>
+        <td>Body / buttons</td>
+        <td><code>--re-t-body</code> 14px</td>
+      </tr>
+      <tr>
+        <td>Secondary</td>
+        <td><code>--re-t-small</code> 12px</td>
+      </tr>
+      <tr>
+        <td>Meta / captions</td>
+        <td><code>--re-t-micro</code> 11px</td>
+      </tr>
+    </table>
+    <p class="caption">
+      <b>Rule that is currently violated everywhere:</b> the pixel font is for labels you scan, the
+      system font is for text you read. The Compendium currently sets item descriptions in 8px
+      monospace — that's the reverse.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">2 · Components</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1">
+        <header class="re-header">
+          <h1>Component kit</h1>
+          <button class="re-btn re-btn--quiet">Close</button>
+        </header>
+        <div class="re-tabs">
+          <button class="re-btn" aria-pressed="true">Buttons</button>
+          <button class="re-btn">Rows</button>
+          <button class="re-btn">Data</button>
+          <button class="re-btn">Long tab name</button>
+        </div>
+        <div class="re-split" style="--re-split-a: 1fr; --re-split-b: 1fr">
+          <div class="re-scroll" style="display: flex; flex-direction: column; gap: 8px">
+            <button class="re-btn re-btn--block">Default</button>
+            <button class="re-btn re-btn--block" aria-pressed="true">Selected</button>
+            <button class="re-btn re-btn--block re-btn--primary">Primary</button>
+            <button class="re-btn re-btn--block re-btn--danger">Danger</button>
+            <button class="re-btn re-btn--block" disabled>Disabled</button>
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Veteran Drill</strong>
+              <small>+2 starting level for every recruit</small>
+              <span class="re-row-meta"
+                >2400g<br /><span class="re-pips"
+                  ><i class="filled"></i><i class="filled"></i><i></i><i></i></span
+              ></span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Supply Lines</strong>
+              <small>Convoy capacity +4</small>
+              <span class="re-row-meta"
+                >900g<br /><span class="re-pips maxed"
+                  ><i class="filled"></i><i class="filled"></i><i class="filled"></i></span
+              ></span>
+            </button>
+          </div>
+          <div class="re-scroll" style="display: flex; flex-direction: column; gap: 8px">
+            <div class="re-search">
+              <span aria-hidden="true" style="color: #b8c6c0">⌕</span>
+              <input placeholder="Search weapons…" />
+            </div>
+            <article class="re-card re-bracket">
+              <h4>Killing Edge</h4>
+              <p style="font-size: 13px">
+                Ground to slip the seam in any guard and end things early.
+              </p>
+              <dl class="re-kv">
+                <dt>Might</dt>
+                <dd>9</dd>
+                <dt>Hit</dt>
+                <dd>85</dd>
+                <dt>Crit</dt>
+                <dd style="color: var(--re-gold-hi)">+30</dd>
+              </dl>
+            </article>
+            <dl class="re-stats" style="--re-stat-cols: 2">
+              <dt>STR</dt>
+              <dd>14</dd>
+              <dt>SKL</dt>
+              <dd>11</dd>
+              <dt>SPD</dt>
+              <dd>16</dd>
+              <dt>DEF</dt>
+              <dd>9</dd>
+            </dl>
+            <p class="re-note">Enrage triggers at turn 12.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="caption">
+      One <code>.re-btn</code> base with modifiers replaces the five independent button
+      implementations (Pause <code>_addButton</code>, Roster close, the <code>[X]</code> in
+      Help/Compendium/HowToPlay, Colosseum <code>_addBtn</code>, and three CSS blanket rules). One
+      focus ring replaces five. <b>44px</b> is the only tap minimum — 46 and 48 are dropped.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">3 · Title — opening menu</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1; padding: 0; gap: 0">
+        <!-- painted background stays; only its ramp is retinted -->
+        <div
+          style="
+            position: absolute;
+            inset: 0;
+            background:
+              radial-gradient(120% 90% at 50% 120%, #2b454b 0%, transparent 60%),
+              linear-gradient(#0e1d26 0%, #17303b 45%, #24484c 78%, #3a5a52 100%);
+          "
+        ></div>
+        <div
+          style="
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(#0000 0 3px, #0000000d 3px 4px);
+          "
+        ></div>
+        <div
+          style="
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+          "
+        >
+          <header class="re-header" style="border: 0; padding: 0">
+            <button class="re-btn re-btn--quiet" style="min-height: 36px">Settings</button>
+            <p class="re-eyebrow" style="margin-left: auto">v0.1.0 · alpha</p>
+          </header>
+
+          <div style="text-align: center; margin: 4px 0 10px">
+            <h1
+              style="
+                margin: 0;
+                font:
+                  26px/1.3 'Press Start 2P',
+                  monospace;
+                color: var(--re-gold-hi);
+                text-shadow: 0 3px 0 #5d4a29;
+              "
+            >
+              ROGUE EMBLEM
+            </h1>
+            <p
+              style="
+                margin: 8px 0 0;
+                font:
+                  9px/1.4 'Press Start 2P',
+                  monospace;
+                color: var(--re-muted);
+                letter-spacing: 1px;
+              "
+            >
+              TACTICAL ROGUELIKE
+            </p>
+          </div>
+
+          <nav
+            class="re-menu"
+            style="width: min(420px, 100%); margin-inline: auto; flex: 1; gap: 6px"
+          >
+            <button class="re-btn" aria-pressed="true">
+              New game <span class="re-row-meta">Slot 1</span>
+            </button>
+            <button class="re-btn">Continue <span class="re-row-meta">Act 2 · Hard</span></button>
+            <button class="re-btn">Tutorial <span class="re-badge">NEW</span></button>
+            <button class="re-btn">How to play <span class="re-badge">NEW</span></button>
+            <button class="re-btn">Compendium</button>
+          </nav>
+
+          <footer class="re-footer" style="border: 0; justify-content: center">
+            <span>Progress saved on this device</span>
+          </footer>
+        </div>
+      </section>
+    </div>
+    <p class="caption">
+      <b>What changes.</b> The painted sky/mountain background stays — only its colour ramp moves
+      from warm magenta (<code>[120,55,50]</code>) to the teal ramp, and
+      <code>GOLD #e8b849 → #d6bd83</code>, <code>BTN_BG 0x12111f → 0x233c46</code>,
+      <code>BTN_BORDER 0x3a3660 → 0x819184</code>. <b>What's fixed.</b> Menu rows go from 42px
+      hover-driven canvas text to 44px tap targets with a visible pressed state; the menu scrolls
+      instead of overflowing when Continue and the badges are present; the stray
+      <code>monospace</code> "Progress saved" line joins the system font; Settings becomes a real
+      button instead of an 8px canvas label. Sub-titles and the slot/act summary let players skip
+      SlotPicker for the common case.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">4 · Node map</h2>
+    <div class="frame">
+      <div style="display: flex; height: 100%; background: var(--re-bg)">
+        <!-- LEFT RAIL -->
+        <nav class="re re-rail">
+          <button class="re-btn"><span class="re-glyph">☰</span>Menu</button>
+          <button class="re-btn"><span class="re-glyph">▣</span>Roster</button>
+          <span class="re-spacer"></span>
+          <button class="re-btn"><span class="re-glyph">◎</span>Map</button>
+        </nav>
+
+        <!-- CANVAS AREA -->
+        <div class="re" style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+          <header
+            class="re-header"
+            style="padding: 10px 12px 8px; border-bottom: 1px solid var(--re-line-soft)"
+          >
+            <h2 style="font: var(--re-t-title); font-family: var(--re-pixel)">Act 1</h2>
+            <p class="re-eyebrow" style="margin: 0">Border skirmishes</p>
+            <span style="margin-left: auto; display: flex; gap: 12px; align-items: center">
+              <span style="font: var(--re-t-small); color: var(--re-gold-hi)">200 G</span>
+              <span style="font: var(--re-t-micro); color: var(--re-good)">Normal</span>
+            </span>
+          </header>
+
+          <!-- map viewport: this is the Phaser canvas, shown here as a sketch -->
+          <div
+            style="
+              flex: 1;
+              position: relative;
+              min-height: 0;
+              background: radial-gradient(70% 90% at 50% 100%, #1e3944 0%, #14252f 70%);
+              border-block: 1px solid var(--re-line-soft);
+            "
+          >
+            <svg
+              viewBox="0 0 620 180"
+              style="position: absolute; inset: 0; width: 100%; height: 100%"
+            >
+              <g stroke="#56676a" stroke-width="2" fill="none">
+                <path d="M310 158 L200 118 M310 158 L310 118 M310 158 L420 118" />
+                <path
+                  d="M200 118 L150 78 M200 118 L310 78 M310 118 L310 78 M420 118 L470 78 M420 118 L310 78"
+                />
+                <path d="M150 78 L310 32 M310 78 L310 32 M470 78 L310 32" />
+              </g>
+              <path d="M310 158 L310 118" stroke="#d6bd83" stroke-width="2" fill="none" />
+              <g font-family="system-ui" font-size="11">
+                <!-- current -->
+                <circle cx="310" cy="158" r="13" fill="#2b454b" stroke="#d6bd83" stroke-width="2" />
+                <text x="310" y="162" text-anchor="middle" fill="#e1cc99">◆</text>
+                <!-- available -->
+                <circle cx="200" cy="118" r="13" fill="#233c46" stroke="#819184" stroke-width="2" />
+                <text x="200" y="122" text-anchor="middle" fill="#eee9d5">⚔</text>
+                <circle cx="310" cy="118" r="15" fill="#425d5b" stroke="#d6bd83" stroke-width="3" />
+                <text x="310" y="123" text-anchor="middle" fill="#e1cc99">⚔</text>
+                <circle cx="420" cy="118" r="13" fill="#233c46" stroke="#819184" stroke-width="2" />
+                <text x="420" y="122" text-anchor="middle" fill="#eee9d5">$</text>
+                <!-- locked -->
+                <g opacity="0.42">
+                  <circle
+                    cx="150"
+                    cy="78"
+                    r="12"
+                    fill="#1b323c"
+                    stroke="#56676a"
+                    stroke-width="2"
+                  />
+                  <text x="150" y="82" text-anchor="middle" fill="#b8c6c0">✝</text>
+                  <circle
+                    cx="310"
+                    cy="78"
+                    r="12"
+                    fill="#1b323c"
+                    stroke="#56676a"
+                    stroke-width="2"
+                  />
+                  <text x="310" y="82" text-anchor="middle" fill="#b8c6c0">⌂</text>
+                  <circle
+                    cx="470"
+                    cy="78"
+                    r="12"
+                    fill="#1b323c"
+                    stroke="#56676a"
+                    stroke-width="2"
+                  />
+                  <text x="470" y="82" text-anchor="middle" fill="#b8c6c0">!</text>
+                  <circle
+                    cx="310"
+                    cy="32"
+                    r="14"
+                    fill="#2a1f24"
+                    stroke="#8e5a57"
+                    stroke-width="2"
+                  />
+                  <text x="310" y="37" text-anchor="middle" fill="#e68f8c">☠</text>
+                </g>
+              </g>
+            </svg>
+            <!-- selected-node sheet, docked -->
+            <div
+              class="re"
+              style="
+                position: absolute;
+                right: 10px;
+                bottom: 10px;
+                width: 236px;
+                padding: 10px;
+                background: var(--re-panel);
+                border: var(--re-rule);
+              "
+            >
+              <p
+                style="
+                  margin: 0 0 4px;
+                  font: var(--re-t-label);
+                  font-family: var(--re-pixel);
+                  color: var(--re-gold-hi);
+                  text-transform: uppercase;
+                "
+              >
+                Battle · Rout
+              </p>
+              <p style="margin: 0 0 8px; font: var(--re-t-small); color: var(--re-muted)">
+                6 enemies · Lv 1–2 · Plains
+              </p>
+              <button class="re-btn re-btn--primary re-btn--block">Advance</button>
+            </div>
+          </div>
+
+          <!-- party bar -->
+          <footer
+            class="re-footer"
+            style="border: 0; padding: 8px 12px; gap: 14px; overflow-x: auto"
+          >
+            <span style="display: flex; align-items: center; gap: 7px; flex: none">
+              <span class="re-portrait" style="width: 22px; height: 26px"></span>
+              <span>
+                <b style="display: block; color: var(--re-text); font-size: 12px">Edric</b>
+                <span class="re-health" style="width: 72px"
+                  ><span class="re-health-fill re-hp-high" style="width: 100%"></span
+                ></span>
+              </span>
+              <span style="font: var(--re-t-micro); color: var(--re-muted)">20/20</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 7px; flex: none">
+              <span class="re-portrait" style="width: 22px; height: 26px"></span>
+              <span>
+                <b style="display: block; color: var(--re-text); font-size: 12px">Sera</b>
+                <span class="re-health" style="width: 72px"
+                  ><span class="re-health-fill re-hp-med" style="width: 62%"></span
+                ></span>
+              </span>
+              <span style="font: var(--re-t-micro); color: var(--re-muted)">10/16</span>
+            </span>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <p class="caption">
+      <b>The biggest live problem.</b> On a phone today the node map is a 640×480 letterboxed canvas
+      floating in black, flanked by the original <code>index.html</code> rail buttons — black fill,
+      white monospace, 4px radius — which belong to neither style. This frame shows the rail
+      restyled with <code>.re-rail</code> so it reads as part of the same product, the
+      header/gold/difficulty row promoted out of 10px canvas text into real HTML, and the party bar
+      using the same HP meter as the battle HUD. <b>Node art is the real cost:</b> the node glyphs
+      are sprites (<code>node_battle.png</code> …) and the auras use <code>BlendModes.ADD</code>,
+      which behaves differently over <code>#192f3b</code> than over near-black. Recolouring
+      constants is a day; re-authoring the node set and re-tuning the auras is the schedule risk.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">5 · Compendium</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1">
+        <header class="re-header">
+          <h1>Compendium</h1>
+          <div class="re-search" style="width: 300px">
+            <span aria-hidden="true" style="color: var(--re-muted)">⌕</span>
+            <input value="sword" />
+          </div>
+          <button class="re-btn re-btn--quiet re-btn--icon">✕</button>
+        </header>
+        <div class="re-tabs">
+          <button class="re-btn" aria-pressed="true">Arms</button>
+          <button class="re-btn">Skills</button>
+          <button class="re-btn">Arts</button>
+          <button class="re-btn">Class</button>
+          <button class="re-btn">Items</button>
+          <button class="re-btn">Lords</button>
+          <button class="re-btn">Bless</button>
+          <button class="re-btn">Terrain</button>
+          <button class="re-btn">Affixes</button>
+          <button class="re-btn">Foes</button>
+        </div>
+        <div class="re-chips">
+          <button class="re-btn" aria-pressed="true">All</button>
+          <button class="re-btn">Sword</button>
+          <button class="re-btn">Lance</button>
+          <button class="re-btn">Axe</button>
+          <button class="re-btn">Bow</button>
+          <button class="re-btn">Tome</button>
+          <button class="re-btn">Staff</button>
+        </div>
+        <div class="re-split" style="--re-split-a: 1fr; --re-split-b: 1.15fr">
+          <div class="re-scroll">
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Killing Edge</strong>
+              <small>Sword · Steel · Prof</small>
+              <span class="re-row-meta">2300 g</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Iron Sword</strong>
+              <small>Sword · Iron · Prof</small>
+              <span class="re-row-meta">500 g</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Silver Sword</strong>
+              <small>Sword · Silver · Prof</small>
+              <span class="re-row-meta">2000 g</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Rapier</strong>
+              <small>Sword · Steel · Prof</small>
+              <span class="re-row-meta">1800 g</span>
+            </button>
+          </div>
+          <div class="re-scroll">
+            <article class="re-card re-bracket" style="margin-bottom: 8px">
+              <h4>Killing Edge</h4>
+              <p style="font-size: 13px; color: var(--re-muted)">
+                Ground to slip the seam in any guard and end things early.
+              </p>
+              <dl class="re-stats" style="--re-stat-cols: 3; padding: 10px; margin-top: 8px">
+                <dt>Mt</dt>
+                <dd>9</dd>
+                <dt>Hit</dt>
+                <dd>85</dd>
+                <dt>Crit</dt>
+                <dd>30</dd>
+                <dt>Wt</dt>
+                <dd>5</dd>
+                <dt>Rng</dt>
+                <dd>1</dd>
+                <dt>Uses</dt>
+                <dd>25</dd>
+              </dl>
+            </article>
+            <dl class="re-kv">
+              <dt>Type</dt>
+              <dd>Sword · Steel tier</dd>
+              <dt>Rank</dt>
+              <dd>Proficient</dd>
+              <dt>Triangle</dt>
+              <dd>Beats Axes · loses to Lances</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="caption">
+      <b>What's broken today.</b> 8–9px monospace body text; ten tab labels and seven filter chips
+      rendered as bare canvas glyphs; <code>Page 1/21</code> pagination with text-glyph arrows; and
+      search that is literally keyboard-only — <code>input.keyboard.on('keydown', …)</code> with a
+      "Press / to search" prompt and no field to tap, so on a phone it cannot be used at all.
+      <b>The change</b> is list→detail with a real <code>&lt;input&gt;</code> (which raises the OS
+      keyboard), continuous scroll instead of 21 pages, and 44px tabs. The identical panel, tab
+      strip, search box and keyboard handler are copy-pasted into <code>HelpOverlay</code> and
+      <code>HowToPlayOverlay</code> — one component fixes three screens, plus
+      <code>CampaignMapOverlay</code> for free.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">6 · Settings &amp; Pause</h2>
+    <div class="frame-row">
+      <div class="frame small">
+        <section class="re re-screen" style="--re-z: 1">
+          <header class="re-header">
+            <h2>Settings</h2>
+            <button class="re-btn re-btn--quiet re-btn--icon">✕</button>
+          </header>
+          <div class="re-scroll" style="display: flex; flex-direction: column; gap: 8px">
+            <div class="re-row" style="padding: 0; grid-template-columns: 1fr auto">
+              <strong>Music</strong>
+              <span style="display: flex; align-items: center; gap: 8px">
+                <button class="re-btn re-btn--icon" style="min-height: 38px; min-width: 38px">
+                  −
+                </button>
+                <span style="width: 42px; text-align: center; color: var(--re-gold-hi)">70%</span>
+                <button class="re-btn re-btn--icon" style="min-height: 38px; min-width: 38px">
+                  +
+                </button>
+              </span>
+            </div>
+            <div class="re-row" style="padding: 0; grid-template-columns: 1fr auto">
+              <strong>Effects</strong>
+              <span style="display: flex; align-items: center; gap: 8px">
+                <button class="re-btn re-btn--icon" style="min-height: 38px; min-width: 38px">
+                  −
+                </button>
+                <span style="width: 42px; text-align: center; color: var(--re-gold-hi)">100%</span>
+                <button class="re-btn re-btn--icon" style="min-height: 38px; min-width: 38px">
+                  +
+                </button>
+              </span>
+            </div>
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Reduced effects</strong>
+              <small>Fewer tweens and particles</small>
+              <span class="re-row-meta" style="color: var(--re-good)">On</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Danger zone</strong>
+              <small>Show enemy threat range</small>
+              <span class="re-row-meta" style="color: var(--re-muted)">Off</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Combat animations</strong>
+              <small>Play full attack sequences</small>
+              <span class="re-row-meta" style="color: var(--re-good)">On</span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <div class="frame small">
+        <div
+          style="
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(70% 90% at 50% 100%, #1e3944 0%, #14252f 70%);
+          "
+        ></div>
+        <div class="re re-backdrop" style="--re-z: 2">
+          <div class="re-panel" style="--re-panel-w: 320px">
+            <h2
+              style="
+                margin: 0 0 10px;
+                padding-bottom: 10px;
+                font: var(--re-t-title);
+                font-family: var(--re-pixel);
+                color: var(--re-gold-hi);
+                text-transform: uppercase;
+                border-bottom: var(--re-rule);
+              "
+            >
+              Paused
+            </h2>
+            <div class="re-menu">
+              <button class="re-btn re-btn--primary">Resume</button>
+              <button class="re-btn">Settings</button>
+              <button class="re-btn">Help</button>
+              <button class="re-btn">Compendium</button>
+              <button class="re-btn">Campaign map</button>
+              <button class="re-btn">Save &amp; exit</button>
+              <button class="re-btn re-btn--danger">Abandon run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">
+      Settings is closest to the target already; the work is the 26px transparent row hit-rects
+      becoming real 44px rows and the volume arrows becoming tappable buttons.
+      <b>Constraint to respect:</b> <code>MobilePauseMenu.sync()</code> mirrors
+      <code>PauseOverlay._menuButtons</code> and string-matches the labels <code>'Resume'</code> /
+      <code>'Cancel'</code> / <code>'Abandon Run'</code>. Any restyle of
+      <code>PauseOverlay._addButton</code> must keep producing objects with a
+      <code>.text</code> property or the mobile pause menu goes blank.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">7 · Blessing select — the tier problem</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1">
+        <header class="re-header">
+          <h1>Choose a blessing</h1>
+          <p class="re-eyebrow" style="margin: 0">One pick · shapes the whole run</p>
+        </header>
+        <div class="re-scroll" style="display: flex; flex-direction: column; gap: 8px">
+          <button
+            class="re-btn re-row"
+            aria-pressed="true"
+            style="border-left: 4px solid #e68f8c; align-items: start"
+          >
+            <strong
+              >Ruinous Pact
+              <span
+                style="
+                  margin-left: 6px;
+                  font:
+                    8px 'Press Start 2P',
+                    monospace;
+                  color: #e68f8c;
+                  border: 1px solid #e68f8c;
+                  padding: 2px 4px;
+                "
+                >IV</span
+              ></strong
+            >
+            <small>+25% damage dealt and taken. Enemy affixes appear one act early.</small>
+            <span class="re-row-meta">Free</span>
+          </button>
+          <button class="re-btn re-row" style="border-left: 4px solid #f4ce8c; align-items: start">
+            <strong
+              >Gilded March
+              <span
+                style="
+                  margin-left: 6px;
+                  font:
+                    8px 'Press Start 2P',
+                    monospace;
+                  color: #f4ce8c;
+                  border: 1px solid #f4ce8c;
+                  padding: 2px 4px;
+                "
+                >III</span
+              ></strong
+            >
+            <small>+40% gold from battles. Shops stock one extra rare item.</small>
+            <span class="re-row-meta">Free</span>
+          </button>
+          <button class="re-btn re-row" style="border-left: 4px solid #bde1d9; align-items: start">
+            <strong
+              >Steady Hand
+              <span
+                style="
+                  margin-left: 6px;
+                  font:
+                    8px 'Press Start 2P',
+                    monospace;
+                  color: #bde1d9;
+                  border: 1px solid #bde1d9;
+                  padding: 2px 4px;
+                "
+                >II</span
+              ></strong
+            >
+            <small>+10 Hit for every unit. Weapon triangle bonuses increased.</small>
+            <span class="re-row-meta">Free</span>
+          </button>
+          <button class="re-btn re-row" style="border-left: 4px solid #99ddb2; align-items: start">
+            <strong
+              >Field Rations
+              <span
+                style="
+                  margin-left: 6px;
+                  font:
+                    8px 'Press Start 2P',
+                    monospace;
+                  color: #99ddb2;
+                  border: 1px solid #99ddb2;
+                  padding: 2px 4px;
+                "
+                >I</span
+              ></strong
+            >
+            <small>Heal 20% HP after each battle.</small>
+            <span class="re-row-meta">Free</span>
+          </button>
+        </div>
+        <footer class="re-footer" style="border: 0">
+          <button class="re-btn re-btn--quiet">Back</button>
+          <button class="re-btn re-btn--primary" style="margin-left: auto">Confirm</button>
+        </footer>
+      </section>
+    </div>
+    <p class="caption">
+      <b>The one place the palette genuinely fights the design.</b>
+      <code>BlessingSelectScene.TIER_COLORS</code> currently gives each tier its own
+      <em>background, border and label</em> — twelve values spanning green / blue / orange / red.
+      Flattening that into a single teal system loses the at-a-glance tier read. The proposal here:
+      shared panel background, tier communicated by a 4px left border + a roman-numeral badge, with
+      the four tier hues surviving as accents only. This needs a design call, not just a
+      find-and-replace — flagging it as the one item in this pass I would not decide unilaterally.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">8 · Shop</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1">
+        <header class="re-header">
+          <h1>Armoury</h1>
+          <span style="margin-left: auto; color: var(--re-gold-hi)">1,240 G</span>
+          <button class="re-btn re-btn--quiet">Leave</button>
+        </header>
+        <div class="re-tabs">
+          <button class="re-btn" aria-pressed="true">Buy</button>
+          <button class="re-btn">Sell</button>
+          <button class="re-btn">Forge</button>
+        </div>
+        <div class="re-split" style="--re-split-a: 1fr; --re-split-b: 1fr">
+          <div class="re-scroll">
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Steel Lance</strong>
+              <small>Mt 10 · Hit 75 · Wt 8</small>
+              <span class="re-row-meta" style="color: var(--re-good)">1,000 g</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Silver Sword</strong>
+              <small>Mt 11 · Hit 80 · Wt 4</small>
+              <span class="re-row-meta" style="color: var(--re-good)">2,000 g</span>
+            </button>
+            <button class="re-btn re-row" disabled>
+              <strong>Brave Axe</strong>
+              <small>Mt 8 · Hit 70 · Wt 12</small>
+              <span class="re-row-meta" style="color: var(--re-bad)">3,500 g</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Vulnerary</strong>
+              <small>Restores 10 HP · 3 uses</small>
+              <span class="re-row-meta" style="color: var(--re-good)">300 g</span>
+            </button>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; min-height: 0">
+            <article class="re-card re-bracket re-scroll" style="flex: 1">
+              <h4>Steel Lance</h4>
+              <p style="font-size: 13px; color: var(--re-muted)">
+                Heavier than the iron pattern and twice as unkind to armour.
+              </p>
+              <dl class="re-stats" style="--re-stat-cols: 3; padding: 10px">
+                <dt>Mt</dt>
+                <dd>10</dd>
+                <dt>Hit</dt>
+                <dd>75</dd>
+                <dt>Wt</dt>
+                <dd>8</dd>
+              </dl>
+              <p style="margin: 8px 0 0; font: var(--re-t-small); color: var(--re-muted)">
+                Equipped by Kira: <span style="color: var(--re-good)">Mt +2</span>,
+                <span style="color: var(--re-bad)">AS −1</span> vs Iron Lance
+              </p>
+            </article>
+            <div style="display: flex; gap: 8px">
+              <button class="re-btn" style="flex: 1">Compare</button>
+              <button class="re-btn re-btn--primary" style="flex: 2">Buy · 1,000 g</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="caption">
+      <code>ShopController</code> has already done the hard part — geometry masking,
+      <code>mobileTarget</code> sizing, <code>deferTouchActivation</code>, touch-drag scroll — and
+      it even hardcodes <code>'#2b454b'</code>, i.e. <code>--re-panel-raised</code>, straight from
+      the mobile theme. It's mostly a token swap. <code>ChurchController</code> sits in the same
+      scene using the same panel and got <em>none</em> of that work: 30px rows, zero touch sizing,
+      zero ESC handling.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">9 · Run complete</h2>
+    <div class="frame">
+      <section class="re re-screen" style="--re-z: 1">
+        <div
+          style="
+            margin: auto;
+            width: min(480px, 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          "
+        >
+          <h1
+            style="
+              margin: 0;
+              text-align: center;
+              font:
+                20px/1.4 'Press Start 2P',
+                monospace;
+              color: var(--re-gold-hi);
+            "
+          >
+            VICTORY
+          </h1>
+          <p style="margin: 0; text-align: center; color: var(--re-muted)">
+            Act 3 cleared · Hard · 14 battles
+          </p>
+          <dl class="re-stats re-bracket" style="--re-stat-cols: 2">
+            <dt>Valor earned</dt>
+            <dd>340</dd>
+            <dt>Supply earned</dt>
+            <dd style="color: var(--re-blue)">120</dd>
+            <dt>Units lost</dt>
+            <dd>2</dd>
+            <dt>Turn rating</dt>
+            <dd style="color: var(--re-good)">A</dd>
+          </dl>
+          <div style="display: flex; gap: 8px">
+            <button class="re-btn" style="flex: 1">Title</button>
+            <button class="re-btn re-btn--primary" style="flex: 2">Home base</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="caption">
+      Currently the only screen with <em>no background fill at all</em> — it shows the raw Phaser
+      canvas colour <code>#0a0c1e</code> through, which is why it looks like a different game from
+      the Home Base you land in one tap later. Cheapest win in the set.
+    </p>
+
+    <!-- ================================================================== -->
+    <h2 class="doc">10 · Palette revision (v2)</h2>
+    <p class="doc">
+      Same markup, rendered twice. The only difference is the token layer in
+      <code>re-kit-v2.css</code>. Four changes: real value separation between surfaces, border hue
+      moved from sage-green to teal, gold demoted to one job, and an inner bevel line so the panels
+      are actually weathered.
+    </p>
+
+    <h3 class="doc">Surface ramp</h3>
+    <table class="doc">
+      <tr>
+        <th>Step</th>
+        <th>v1</th>
+        <th>v2</th>
+        <th>Contrast to previous step</th>
+      </tr>
+      <tr>
+        <td>bg</td>
+        <td><code>#192f3b</code></td>
+        <td><code>#10212a</code></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>panel</td>
+        <td><code>#233c46</code></td>
+        <td><code>#1d3742</code></td>
+        <td class="bad">1.20:1</td>
+      </tr>
+      <tr>
+        <td>panel-raised</td>
+        <td><code>#2b454b</code></td>
+        <td><code>#294c55</code></td>
+        <td class="bad">1.13:1 → <span class="good">1.33:1</span></td>
+      </tr>
+      <tr>
+        <td>selected</td>
+        <td><code>#425d5b</code></td>
+        <td><code>#3a6560</code></td>
+        <td>1.87:1 → 1.42:1</td>
+      </tr>
+      <tr>
+        <td><b>bg → raised, total</b></td>
+        <td></td>
+        <td></td>
+        <td class="bad">1.36:1 → <span class="good">1.78:1</span></td>
+      </tr>
+    </table>
+
+    <h3 class="doc">v1 — current tokens</h3>
+    <div id="cmp-v1"></div>
+    <h3 class="doc">v2 — proposed</h3>
+    <div id="cmp-v2"></div>
+    <p class="caption">
+      The v1 card-on-panel step is <b>1.13:1</b>. That is below the threshold of perception on a
+      phone in daylight — the entire hierarchy is being carried by the 1px border, which is why the
+      interface reads flat and why every screen needed its own border idiom to compensate.
+    </p>
+
+    <script>
+      // Clone the Compendium and Node map frames verbatim so the A/B is provably
+      // the same markup, differing only in the token layer.
+      const frames = document.querySelectorAll('.frame');
+      const pick = [frames[3], frames[2]]; // compendium, node map
+      for (const [host, cls] of [
+        [document.getElementById('cmp-v1'), null],
+        [document.getElementById('cmp-v2'), 'v2'],
+      ]) {
+        for (const f of pick) {
+          const c = f.cloneNode(true);
+          if (cls) c.classList.add(cls);
+          host.append(c);
+        }
+      }
+    </script>
+  </body>
+</html>

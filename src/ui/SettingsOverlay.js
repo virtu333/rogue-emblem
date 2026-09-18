@@ -1,3 +1,6 @@
+import { SettingsMenu } from './SettingsMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SettingsOverlay — Reusable SNES-style settings panel (volume controls)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
@@ -26,6 +29,10 @@ export class SettingsOverlay {
   show() {
     this.hide();
     this.visible = true;
+    if (hasDOMHost()) {
+      this.domMenu = new SettingsMenu(this.scene, () => this.hide());
+      return;
+    }
 
     const cx = this.scene.cameras.main.centerX;
     const cy = this.scene.cameras.main.centerY;
@@ -39,18 +46,19 @@ export class SettingsOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, 300, 250, 0x1a1a2e, 1)
+      .rectangle(cx, cy, 300, 250, UI_HEX.panel, 1)
       .setDepth(901)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add
-      .text(cx, cy - 96, 'Settings', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(cx, cy - 96, 'Settings', {
+        fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902);
     this.objects.push(title);
@@ -92,19 +100,20 @@ export class SettingsOverlay {
     );
 
     // Close button
-    const closeBtn = this.scene.add
-      .text(cx, cy + 96, '[ Close ]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(cx, cy + 96, '[ Close ]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#e0e0e0'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.accent));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.text));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
     this._rows.push({
@@ -182,22 +191,24 @@ export class SettingsOverlay {
     const rowRect = this.scene.add.rectangle(cx, y, 250, 26, 0x000000, 0).setDepth(902);
     this.objects.push(rowRect);
 
-    const labelText = this.scene.add
-      .text(cx - 100, y, label, {
-        fontFamily: 'monospace',
+    const labelText = applyTextResolution(
+      this.scene.add.text(cx - 100, y, label, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0, 0.5)
       .setDepth(902);
     this.objects.push(labelText);
 
-    const valText = this.scene.add
-      .text(cx + 20, y, `${value}%`, {
-        fontFamily: 'monospace',
+    const valText = applyTextResolution(
+      this.scene.add.text(cx + 20, y, `${value}%`, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ffffff',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0.5, 0.5)
       .setDepth(902);
     this.objects.push(valText);
@@ -209,32 +220,34 @@ export class SettingsOverlay {
     };
 
     // Left arrow
-    const leftBtn = this.scene.add
-      .text(cx - 20, y, '\u25C0', {
-        fontFamily: 'monospace',
+    const leftBtn = applyTextResolution(
+      this.scene.add.text(cx - 20, y, '\u25C0', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
-    leftBtn.on('pointerover', () => leftBtn.setColor('#ffdd44'));
-    leftBtn.on('pointerout', () => leftBtn.setColor('#aaaaaa'));
+    leftBtn.on('pointerover', () => leftBtn.setColor(UI_PALETTE.accent));
+    leftBtn.on('pointerout', () => leftBtn.setColor(UI_PALETTE.muted));
     leftBtn.on('pointerdown', () => update(-10));
     this.objects.push(leftBtn);
 
     // Right arrow
-    const rightBtn = this.scene.add
-      .text(cx + 60, y, '\u25B6', {
-        fontFamily: 'monospace',
+    const rightBtn = applyTextResolution(
+      this.scene.add.text(cx + 60, y, '\u25B6', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
-    rightBtn.on('pointerover', () => rightBtn.setColor('#ffdd44'));
-    rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
+    rightBtn.on('pointerover', () => rightBtn.setColor(UI_PALETTE.accent));
+    rightBtn.on('pointerout', () => rightBtn.setColor(UI_PALETTE.muted));
     rightBtn.on('pointerdown', () => update(10));
     this.objects.push(rightBtn);
 
@@ -249,22 +262,24 @@ export class SettingsOverlay {
     const rowRect = this.scene.add.rectangle(cx, y, 250, 26, 0x000000, 0).setDepth(902);
     this.objects.push(rowRect);
 
-    const labelText = this.scene.add
-      .text(cx - 102, y, label, {
-        fontFamily: 'monospace',
+    const labelText = applyTextResolution(
+      this.scene.add.text(cx - 102, y, label, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0, 0.5)
       .setDepth(902);
     this.objects.push(labelText);
 
-    const valueText = this.scene.add
-      .text(cx + 72, y, value ? 'ON' : 'OFF', {
-        fontFamily: 'monospace',
+    const valueText = applyTextResolution(
+      this.scene.add.text(cx + 72, y, value ? 'ON' : 'OFF', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: value ? '#88ff88' : '#ff8888',
-      })
+      }),
+    )
       .setOrigin(0.5, 0.5)
       .setDepth(902);
     this.objects.push(valueText);
@@ -276,31 +291,33 @@ export class SettingsOverlay {
       onChange(value);
     };
 
-    const leftBtn = this.scene.add
-      .text(cx + 30, y, '\u25C0', {
-        fontFamily: 'monospace',
+    const leftBtn = applyTextResolution(
+      this.scene.add.text(cx + 30, y, '\u25C0', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
-    leftBtn.on('pointerover', () => leftBtn.setColor('#ffdd44'));
-    leftBtn.on('pointerout', () => leftBtn.setColor('#aaaaaa'));
+    leftBtn.on('pointerover', () => leftBtn.setColor(UI_PALETTE.accent));
+    leftBtn.on('pointerout', () => leftBtn.setColor(UI_PALETTE.muted));
     leftBtn.on('pointerdown', () => update(-1));
     this.objects.push(leftBtn);
 
-    const rightBtn = this.scene.add
-      .text(cx + 114, y, '\u25B6', {
-        fontFamily: 'monospace',
+    const rightBtn = applyTextResolution(
+      this.scene.add.text(cx + 114, y, '\u25B6', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
-    rightBtn.on('pointerover', () => rightBtn.setColor('#ffdd44'));
-    rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
+    rightBtn.on('pointerover', () => rightBtn.setColor(UI_PALETTE.accent));
+    rightBtn.on('pointerout', () => rightBtn.setColor(UI_PALETTE.muted));
     rightBtn.on('pointerdown', () => update(1));
     this.objects.push(rightBtn);
 
@@ -309,6 +326,8 @@ export class SettingsOverlay {
   }
 
   hide() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     const wasVisible = this.visible;
     this._teardownFocus();
     for (const obj of this.objects) obj.destroy();

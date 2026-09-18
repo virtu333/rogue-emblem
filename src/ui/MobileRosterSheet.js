@@ -13,15 +13,11 @@ import { getConsumableDescription, formatUses } from '../utils/consumableText.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import { inputHint } from '../utils/inputHint.js';
+import { canUseTouchUI } from '../utils/domUI.js';
 import './mobileRoster.css';
 
 export function canShowMobileRoster(scene) {
-  return (
-    typeof document !== 'undefined' &&
-    !!document.getElementById('game-wrapper') &&
-    inputHint(scene, false, true)
-  );
+  return canUseTouchUI(scene);
 }
 function el(tag, text, cls) {
   const node = document.createElement(tag);

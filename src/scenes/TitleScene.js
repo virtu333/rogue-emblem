@@ -1,3 +1,5 @@
+import { UI_HEX } from '../utils/uiStyles.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 // TitleScene — Animated pixel-art title screen
 
@@ -41,12 +43,12 @@ const W = 640,
 const FONT = '"Press Start 2P", monospace';
 
 // Colors
-const GOLD = '#e8b849';
-const GOLD_LIGHT = '#f5d77a';
-const GOLD_DARK = '#a67c2e';
-const TEXT_SUB = '#8888aa';
-const BTN_BG = 0x12111f;
-const BTN_BORDER = 0x3a3660;
+const GOLD = UI_PALETTE.accent;
+const GOLD_LIGHT = UI_PALETTE.accentText;
+const GOLD_DARK = UI_PALETTE.lineStrong;
+const TEXT_SUB = UI_PALETTE.muted;
+const BTN_BG = UI_HEX.panel;
+const BTN_BORDER = UI_HEX.line;
 const MORE_INFO_URL = 'https://github.com/virtu333/rogue-emblem';
 
 // --- Background drawing helpers (all operate on a 2D canvas context) ---
@@ -390,23 +392,24 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   container.add(bg);
 
   // Label
-  const text = scene.add
-    .text(0, 0, label, {
+  const text = applyTextResolution(
+    scene.add.text(0, 0, label, {
       fontFamily: FONT,
       fontSize: fontSize,
-      color: '#cccccc',
+      color: UI_PALETTE.muted,
       letterSpacing: letterSpacing,
-    })
-    .setOrigin(0.5);
+    }),
+  ).setOrigin(0.5);
   container.add(text);
 
   // Cursor arrow (hidden)
-  const cursor = scene.add
-    .text(-btnW / 2 + 12, 0, '\u25b6', {
+  const cursor = applyTextResolution(
+    scene.add.text(-btnW / 2 + 12, 0, '\u25b6', {
       fontFamily: FONT,
       fontSize: options.fontSize || '10px',
       color: GOLD,
-    })
+    }),
+  )
     .setOrigin(0, 0.5)
     .setAlpha(0);
   if (btnW < 150) cursor.setVisible(false); // Hide arrow on small buttons
@@ -416,7 +419,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   const corners = scene.add.graphics();
   corners.setAlpha(0);
   // Top-left L
-  corners.lineStyle(2, 0xa67c2e, 1);
+  corners.lineStyle(2, UI_HEX.lineSoft, 1);
   corners.beginPath();
   corners.moveTo(-btnW / 2, -btnH / 2 + 6);
   corners.lineTo(-btnW / 2, -btnH / 2);
@@ -439,9 +442,9 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   // Hover
   hitZone.on('pointerover', () => {
     bg.clear();
-    bg.fillStyle(0xe8b849, 0.06);
+    bg.fillStyle(UI_HEX.accent, 0.06);
     bg.fillRect(-btnW / 2, -btnH / 2, btnW, btnH);
-    bg.lineStyle(2, 0xe8b849, 1);
+    bg.lineStyle(2, UI_HEX.accent, 1);
     bg.strokeRect(-btnW / 2, -btnH / 2, btnW, btnH);
     text.setColor(GOLD_LIGHT);
     cursor.setAlpha(1);
@@ -455,7 +458,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     bg.fillRect(-btnW / 2, -btnH / 2, btnW, btnH);
     bg.lineStyle(2, BTN_BORDER, 1);
     bg.strokeRect(-btnW / 2, -btnH / 2, btnW, btnH);
-    text.setColor('#cccccc');
+    text.setColor(UI_PALETTE.muted);
     cursor.setAlpha(0);
     corners.setAlpha(0);
     scene.tweens.add({ targets: container, scaleX: 1, scaleY: 1, duration: 80 });
@@ -522,12 +525,13 @@ export class TitleScene extends Phaser.Scene {
     // unlocks on any first tap/click/key — show a hint until then so the silence isn't a
     // mystery. Self-dismisses on the same 'unlocked' event the audio system already uses.
     if (this.sound.locked) {
-      this._audioLockHint = this.add
-        .text(cx, H - 56, 'TAP FOR SOUND', {
+      this._audioLockHint = applyTextResolution(
+        this.add.text(cx, H - 56, 'TAP FOR SOUND', {
           fontFamily: FONT,
           fontSize: '9px',
           color: GOLD,
-        })
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(30);
       this.tweens.add({
@@ -616,51 +620,55 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Title block ---
     // Shadow text (3D emboss)
-    this.add
-      .text(cx, 70 + 4, 'ROGUE EMBLEM', {
+    applyTextResolution(
+      this.add.text(cx, 70 + 4, 'ROGUE EMBLEM', {
         fontFamily: FONT,
         fontSize: '28px',
         color: '#7a5520',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(9)
       .setAlpha(0);
 
     // Main title
-    const titleText = this.add
-      .text(cx, 70, 'ROGUE EMBLEM', {
+    const titleText = applyTextResolution(
+      this.add.text(cx, 70, 'ROGUE EMBLEM', {
         fontFamily: FONT,
         fontSize: '28px',
         color: GOLD,
         shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.5)', blur: 20, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
 
     // Subtitle
-    const subtitleText = this.add
-      .text(cx, 110, 'TACTICAL ROGUELIKE', {
+    const subtitleText = applyTextResolution(
+      this.add.text(cx, 110, 'TACTICAL ROGUELIKE', {
         fontFamily: FONT,
         fontSize: '10px',
         color: TEXT_SUB,
         letterSpacing: 4,
         shadow: { offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.8)', blur: 8, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
 
     // Alpha Testing tag
-    const alphaTag = this.add
-      .text(cx, 132, 'ALPHA TESTING', {
+    const alphaTag = applyTextResolution(
+      this.add.text(cx, 132, 'ALPHA TESTING', {
         fontFamily: FONT,
         fontSize: '8px',
         color: '#ff6666',
         letterSpacing: 2,
         backgroundColor: '#220000aa',
         padding: { x: 8, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
@@ -668,7 +676,7 @@ export class TitleScene extends Phaser.Scene {
     // Sword divider
     const divider = this.add.graphics().setDepth(10).setAlpha(0);
     const divW = 200;
-    divider.lineStyle(1, 0xa67c2e, 1);
+    divider.lineStyle(1, UI_HEX.lineSoft, 1);
     // Left line
     divider.beginPath();
     divider.moveTo(cx - divW / 2, 154);
@@ -680,13 +688,14 @@ export class TitleScene extends Phaser.Scene {
     divider.lineTo(cx + divW / 2, 154);
     divider.strokePath();
 
-    const swordIcon = this.add
-      .text(cx, 154, '\u2694', {
+    const swordIcon = applyTextResolution(
+      this.add.text(cx, 154, '\u2694', {
         fontFamily: FONT,
         fontSize: '12px',
         color: GOLD_DARK,
         shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.3)', blur: 8, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
@@ -850,14 +859,15 @@ export class TitleScene extends Phaser.Scene {
     // First-run "NEW" badges
     try {
       if (!localStorage.getItem('emblem_rogue_seen_how_to_play')) {
-        const newBadge = this.add
-          .text(135, 0, 'NEW', {
+        const newBadge = applyTextResolution(
+          this.add.text(135, 0, 'NEW', {
             fontFamily: FONT,
             fontSize: '8px',
             color: '#ff6666',
             backgroundColor: '#330000',
             padding: { x: 4, y: 2 },
-          })
+          }),
+        )
           .setOrigin(0, 0.5)
           .setDepth(21);
         htpBtn.add(newBadge);
@@ -871,14 +881,15 @@ export class TitleScene extends Phaser.Scene {
         });
       }
       if (!localStorage.getItem('emblem_rogue_tutorial_completed')) {
-        const tutBadge = this.add
-          .text(135, 0, 'NEW', {
+        const tutBadge = applyTextResolution(
+          this.add.text(135, 0, 'NEW', {
             fontFamily: FONT,
             fontSize: '8px',
             color: '#ff6666',
             backgroundColor: '#330000',
             padding: { x: 4, y: 2 },
-          })
+          }),
+        )
           .setOrigin(0, 0.5)
           .setDepth(21);
         tutBtn.add(tutBadge);
@@ -941,12 +952,13 @@ export class TitleScene extends Phaser.Scene {
       );
 
       // User name near Log Out
-      this.add
-        .text(W - 132, 30, cloud.displayName, {
+      applyTextResolution(
+        this.add.text(W - 132, 30, cloud.displayName, {
           fontFamily: FONT,
           fontSize: '7px',
           color: 'rgba(136,136,170,0.6)',
-        })
+        }),
+      )
         .setOrigin(1, 0.5)
         .setDepth(30);
     }
@@ -954,43 +966,46 @@ export class TitleScene extends Phaser.Scene {
     this._setupMenuGamepadFocus();
 
     // --- Footer ---
-    this.add
-      .text(12, H - 16, 'v0.1.0', {
+    applyTextResolution(
+      this.add.text(12, H - 16, 'v0.1.0', {
         fontFamily: FONT,
         fontSize: '7px',
         color: 'rgba(136,136,170,0.3)',
-      })
-      .setDepth(30);
+      }),
+    ).setDepth(30);
 
     if (!cloud) {
-      this.add
-        .text(W / 2, H - 16, 'Progress saved on this device', {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(W / 2, H - 16, 'Progress saved on this device', {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#aaaac1',
-        })
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(30);
     }
 
     // Desktop notice — hidden on mobile / standalone PWA (touch context)
     if (!getStartupFlags().isMobile) {
-      this.add
-        .text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
+      applyTextResolution(
+        this.add.text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
           fontFamily: FONT,
           fontSize: '9px',
           color: 'rgba(100,100,120,0.4)',
-        })
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(30);
     }
 
-    const moreInfoText = this.add
-      .text(W - 12, H - 16, 'GITHUB', {
+    const moreInfoText = applyTextResolution(
+      this.add.text(W - 12, H - 16, 'GITHUB', {
         fontFamily: FONT,
         fontSize: '7px',
         color: 'rgba(136,136,170,0.75)',
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(30)
       .setInteractive({ useHandCursor: true });
@@ -1109,13 +1124,14 @@ export class TitleScene extends Phaser.Scene {
       this.logoutNoticeText = null;
     }
     if (!message) return;
-    this.logoutNoticeText = this.add
-      .text(W - 12, 64, message, {
+    this.logoutNoticeText = applyTextResolution(
+      this.add.text(W - 12, 64, message, {
         fontFamily: FONT,
         fontSize: '6px',
         color,
         align: 'right',
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(30);
   }
@@ -1124,12 +1140,13 @@ export class TitleScene extends Phaser.Scene {
     const cloud = this.registry.get('cloud');
     const showNotice = !!cloud?.syncStatus?.authExpired;
     if (showNotice && !this.cloudSyncStatusText) {
-      this.cloudSyncStatusText = this.add
-        .text(W - 12, 46, 'Cloud unavailable - local saves only (re-auth required)', {
+      this.cloudSyncStatusText = applyTextResolution(
+        this.add.text(W - 12, 46, 'Cloud unavailable - local saves only (re-auth required)', {
           fontFamily: FONT,
           fontSize: '6px',
           color: '#ff9a6a',
-        })
+        }),
+      )
         .setOrigin(1, 0.5)
         .setDepth(30);
       return;
@@ -1266,15 +1283,16 @@ export class TitleScene extends Phaser.Scene {
   showMessage(text) {
     if (this.msgText) this.msgText.destroy();
     const cx = W / 2;
-    this.msgText = this.add
-      .text(cx, 440, text, {
+    this.msgText = applyTextResolution(
+      this.add.text(cx, 440, text, {
         fontFamily: FONT,
         fontSize: '9px',
         color: '#ff8888',
         align: 'center',
         backgroundColor: '#000000cc',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(50);
 

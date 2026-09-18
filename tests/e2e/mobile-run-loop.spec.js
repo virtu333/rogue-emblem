@@ -40,7 +40,9 @@ async function enterNode(page, desired) {
       return !!(s._storyDialogueActive || s.dialogueOverlay?.visible);
     });
     if (!blocked) break;
-    await page.locator('#mobile-left-panel [data-action=cancel]').tap();
+    const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+    if (await skip.isVisible()) await skip.tap();
+    else await page.getByRole('button', { name: 'Continue', exact: true }).tap();
     await page.waitForTimeout(150);
   }
 
@@ -48,24 +50,17 @@ async function enterNode(page, desired) {
     () =>
       window.__emblemRogueGame.scene.getScene('NodeMap').runManager.getAvailableNodes().length > 0,
   );
-  const p = await page.evaluate((desired) => {
-    const s = window.__emblemRogueGame.scene.getScene('NodeMap'),
-      rm = s.runManager;
-    const n = rm.getAvailableNodes().find((n) => n.type === desired) || rm.getAvailableNodes()[0];
-    // Deterministic itinerary in this isolated test, not a map-size/balance change.
+  const nodeId = await page.evaluate((desired) => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const n =
+      s.runManager.getAvailableNodes().find((n) => n.type === desired) ||
+      s.runManager.getAvailableNodes()[0];
     n.type = desired;
     s.drawMap();
-    const r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + ((80 + (n.col / 4) * 480) * r.width) / 640,
-      y:
-        r.y +
-        ((60 + (1 - n.row / Math.max(1, ...rm.nodeMap.nodes.map((n) => n.row))) * 322) * r.height) /
-          480,
-    };
+    return n.id;
   }, desired);
-  await page.touchscreen.tap(p.x, p.y);
-  await page.touchscreen.tap(p.x, p.y);
+  await page.locator(`[data-node="${nodeId}"]`).tap();
+  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
 }
 
 test('touch run: loadout, battle action, rewards, shop, equipment, next battle and local resume', async ({
@@ -109,11 +104,11 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
   await waitForScene(page, 'DifficultySelect');
   await page.waitForTimeout(500);
-  await tapText(page, 'DifficultySelect', '[ Confirm ]');
+  await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await waitForScene(page, 'BlessingSelect');
   await page.waitForTimeout(500);
-  await tapText(page, 'BlessingSelect', '[Skip Blessing]');
-  await tapText(page, 'BlessingSelect', '[ Confirm ]');
+  await page.getByRole('button', { name: 'No blessing', exact: true }).tap();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   // Skip narrative/hint presentation so the test can deterministically reach combat.
   await page.evaluate(() => {
@@ -185,6 +180,12 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   }
 
   await page.getByRole('button', { name: /Take .* gold instead/ }).tap();
+  await page.keyboard.press('Escape');
+  expect(
+    await page.evaluate(
+      () => !!window.__emblemRogueGame.scene.getScene('Battle').settingsOverlay?.visible,
+    ),
+  ).toBe(false);
   await page.getByRole('button', { name: 'Take gold', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   await page.waitForTimeout(800);

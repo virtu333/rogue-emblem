@@ -1,5 +1,4 @@
 import manifest from './RebuiltPortraitManifest.json';
-import { rebuiltSpritesEnabled } from './RebuiltSprites.js';
 
 const normalize = (value) =>
   String(value || '')
@@ -7,7 +6,6 @@ const normalize = (value) =>
     .replace(/ /g, '_');
 
 export function preloadRebuiltPortraits(scene) {
-  if (!rebuiltSpritesEnabled()) return;
   for (const [id, entry] of Object.entries(manifest)) {
     const key = `rebuilt-portrait-${id}`;
     if (!scene.textures.exists(key))
@@ -16,7 +14,7 @@ export function preloadRebuiltPortraits(scene) {
 }
 
 export function rebuiltPortraitKey(scene, unit) {
-  if (!rebuiltSpritesEnabled() || !unit) return null;
+  if (!unit) return null;
   const name = normalize(unit.name);
   const candidates = [];
   if (unit.isBoss) candidates.push(`boss_${name}`);
@@ -30,4 +28,21 @@ export function rebuiltPortraitKey(scene, unit) {
     if (manifest[id] && scene.textures.exists(key)) return key;
   }
   return null;
+}
+
+// Story keys remain stable in data; presentation resolves approved art at runtime.
+export function dialoguePortraitKey(scene, name, legacyKey) {
+  if (!legacyKey) return null;
+  const roster = scene.runManager?.roster || [];
+  const units = [...roster, ...(scene.playerUnits || []), ...(scene.enemyUnits || [])];
+  const unit = units.find((unit) => normalize(unit.name) === normalize(name));
+  const rebuilt = unit && rebuiltPortraitKey(scene, unit);
+  if (rebuilt) return rebuilt;
+  const id = String(legacyKey).replace(/^portrait_/, '');
+  const candidates = [id, `boss_${normalize(name)}`, `lord_${normalize(name)}`];
+  for (const candidate of candidates) {
+    const key = `rebuilt-portrait-${candidate}`;
+    if (manifest[candidate] && scene.textures?.exists?.(key)) return key;
+  }
+  return legacyKey;
 }
