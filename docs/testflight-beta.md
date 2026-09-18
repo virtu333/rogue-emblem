@@ -116,4 +116,9 @@ of an emoji, and repositioned sound hint. Text texture resolution is synchronize
 with text style resolution for correct Canvas fallback rendering.
 
 Validated: 5,100 unit tests; title-screen browser check at 844px and 667px widths;
-visual screenshot review and touch navigation. Release packaging pending.
+visual screenshot review and touch navigation; production offline smoke passed.
+Build 3 uploaded September 18, 2026 at 14:51 Pacific, approved and verified
+**Testing** in Public Playtest. Hotfix notes saved; automatic notifications enabled.
+Source commit: `9aeb140`. GitHub retry was blocked by automatic approval review
+pending explicit destination/payload approval; the earlier account-access blocker
+also remains.
