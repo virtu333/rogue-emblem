@@ -44,3 +44,65 @@ test('horizontal route retains selection and scroll through roster on landscape 
   expect(await scroll.evaluate((e) => e.scrollLeft)).toBeCloseTo(left, 0);
   await page.screenshot({ path: `test-results/compact-route-${testInfo.project.name}.png` });
 });
+
+test('DOM promotion can cancel, then apply once without the legacy roster', async ({ page }) => {
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  await page.evaluate(async () => {
+    const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const { createUnit } = await import('/src/engine/UnitManager.js');
+    const fighter = createUnit(
+      scene.gameData.classes.find((c) => c.name === 'Fighter'),
+      10,
+      scene.gameData.weapons,
+      { name: 'Test fighter' },
+    );
+    fighter.consumables = [{ name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 }];
+    scene.runManager.roster.unshift(fighter);
+  });
+  await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
+  const roster = page.locator('.mr-sheet');
+  await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  await roster.getByRole('button', { name: 'Promote', exact: true }).tap();
+  let picker = page.getByRole('dialog', { name: 'Promote Test fighter', exact: true });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(picker).toHaveCount(0);
+  await roster.getByRole('button', { name: 'Promote', exact: true }).tap();
+  picker = page.getByRole('dialog', { name: 'Promote Test fighter', exact: true });
+  await picker.getByRole('button', { name: /^Warrior/ }).tap();
+  await page.evaluate(() => {
+    const picker =
+      window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay._mobileSheet.picker;
+    const apply = picker.apply;
+    window.__pickerApplyCount = 0;
+    picker.apply = (choice) =>
+      new Promise((resolve) => {
+        window.__pickerApplyCount++;
+        window.__finishPickerApply = () => resolve(apply(choice));
+      });
+  });
+  await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeVisible();
+  await page.evaluate(() => {
+    const picker =
+      window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay._mobileSheet.picker;
+    picker.confirm();
+    window.__finishPickerApply();
+  });
+  expect(await page.evaluate(() => window.__pickerApplyCount)).toBe(1);
+
+  await expect(picker).toHaveCount(0);
+  await expect(roster.getByRole('status')).toContainText('is now Warrior');
+  const result = await page.evaluate(() => {
+    const unit = window.__emblemRogueGame.scene.getScene('NodeMap').runManager.roster[0];
+    return {
+      className: unit.className,
+      seals: unit.consumables.length,
+      bows: unit.inventory.filter((w) => w.type === 'Bow').length,
+    };
+  });
+  expect(result).toEqual({ className: 'Warrior', seals: 0, bows: 1 });
+});

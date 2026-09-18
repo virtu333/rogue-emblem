@@ -1,3 +1,10 @@
+import { ChoicePicker } from './ChoicePicker.js';
+import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
+import {
+  resolvePromotionTargets,
+  getReclassTargets,
+  getSkillDisplayNames,
+} from '../engine/UnitManager.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { createHealthBar } from './healthBar.js';
 import { STAT_COLORS } from '../utils/uiStyles.js';
@@ -286,6 +293,38 @@ export class MobileRosterSheet {
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
   }
+  changeClass(unit, item) {
+    if (this.picker || this.destroyed) return;
+    const choices =
+      item.effect === 'promote'
+        ? resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords)
+        : getReclassTargets(unit, this.gameData.classes, item.subEffect);
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `${item.effect === 'promote' ? 'Promote' : 'Reclass'} ${unit.name}`,
+      choices,
+      label: (choice) => choice.name,
+      describe: (choice) => choice.description || choice.roleChange || choice.role || '',
+      blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
+      apply: (choice) => {
+        const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
+        if (result.ok) {
+          const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
+          this.scene.registry
+            .get('audio')
+            ?.playSFX(item.effect === 'promote' ? 'sfx_levelup' : 'sfx_confirm');
+          this.render(
+            `${unit.name} is now ${choice.name}.${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
+          );
+        }
+        return result;
+      },
+      onClose: () => {
+        this.picker = null;
+        this.root.querySelector('button')?.focus();
+      },
+    });
+  }
   itemDescription(item, unit) {
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
@@ -355,6 +394,17 @@ export class MobileRosterSheet {
       const c = this.itemCard(item, unit);
       if (this.run) {
         if (['heal', 'healFull'].includes(item.effect)) this.action(c, 'Use', unit, item, 'heal');
+        if (['promote', 'reclass'].includes(item.effect)) {
+          const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
+          c.append(
+            this.button(
+              item.effect === 'promote' ? 'Promote' : 'Reclass',
+              () => this.changeClass(unit, item),
+              reason,
+            ),
+          );
+          if (reason) c.append(el('small', reason));
+        }
         this.action(c, 'Store', unit, item, 'store');
       }
     }
@@ -406,6 +456,8 @@ export class MobileRosterSheet {
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
   }
   destroy() {
+    this.picker?.destroy();
+    this.picker = null;
     if (this.destroyed) return;
     this.destroyed = true;
     popInputScope(this);

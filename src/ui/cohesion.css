@@ -397,3 +397,18 @@ html.mobile-preview .re-screen {
 .re-node.is-future:not([aria-pressed='true']):not(:focus-visible) {
   opacity: 0.45;
 }
+
+.re-choice-picker .re-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.re-choice-picker .re-scroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+.re-choice-picker .re-row {
+  width: 100%;
+  margin-bottom: 4px;
+}

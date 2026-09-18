@@ -262,3 +262,18 @@ The vertical renderer is **not dead code**: CampaignMapMenu still calls the
 default vertical layout for the in-battle read-only overview. Retain it until
 that caller is explicitly migrated. Compact tests now assert no vertical overflow
 on the two supported landscape fixtures and a dimmed future-node state.
+
+### Phase 2a: class changes and shared picker
+
+`RosterCommands` now owns promotion/reclass mutation, grants and consumption,
+with ownership/eligibility revalidation. Both canvas and DOM call it. DOM Equipment
+now exposes Promote/Reclass through `ChoicePicker`; cancel before confirmation is
+non-mutating. The picker accepts operation-specific eligibility and rejects extra
+confirmation or Back while applying. Class changes remain synchronous, avoiding
+input interleaving between unit mutation and seal consumption. Existing save
+ownership remains with the roster/scene lifecycle.
+
+Validation: targeted command/promotion/reclass/roster suites; compact phone tests
+exercise cancel, promoted weapon grants, seal consumption, and delayed-apply
+duplicate-confirm/Back guards. Full roster parity, Skills/scrolls/trade/convoy,
+rewards and deployment remain subsequent steps.

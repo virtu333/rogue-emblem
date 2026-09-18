@@ -1,3 +1,4 @@
+import { applyRosterClassChange } from '../engine/RosterCommands.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
@@ -19,7 +20,6 @@ import {
   isLastCombatWeapon,
   canEquip,
   canPromote,
-  promoteUnit,
   getSkillDisplayNames,
   equipAccessory,
   unequipAccessory,
@@ -30,7 +30,6 @@ import {
   learnSkill,
   canReclass,
   getReclassTargets,
-  reclassUnit,
   getDisplayLevel,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
@@ -1728,92 +1727,57 @@ export class RosterOverlay {
   }
 
   async _usePromote(unit, item) {
-    // Find promotion targets
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
-    if (!targets?.length) {
-      this._showBanner('Promotion to that class is currently unavailable.', '#ff8888');
-      return;
-    }
-
-    let promotedClassData;
-    if (targets.length === 1) {
-      promotedClassData = targets[0];
-    } else {
-      const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
-      const panel = new PromotionChoicePanel(this.scene, unit, targets, this.gameData.skills);
-      promotedClassData = await panel.show();
-      if (!promotedClassData) return; // cancelled
-    }
-
-    let promotionBonuses;
-    if (lordData) {
-      promotionBonuses = lordData.promotionBonuses;
-    } else {
-      promotionBonuses = promotedClassData.promotionBonuses;
-    }
-
-    if (!promotionBonuses) return;
-
-    // Track old types for new weapon grant
-    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
-
-    const promotionResult = promoteUnit(
-      unit,
-      promotedClassData,
-      promotionBonuses,
-      this.gameData.skills,
-    );
-
-    // Grant Iron weapons for new proficiency types
-    const lordPromoWeapons = lordData?.promotionWeapons;
-    if (lordPromoWeapons) {
-      const newType = lordPromoWeapons.match(/(\w+)/)?.[1];
-      const typeMap = {
-        Swords: 'Sword',
-        Lances: 'Lance',
-        Axes: 'Axe',
-        Bows: 'Bow',
-        Tomes: 'Tome',
-        Staves: 'Staff',
-        Light: 'Light',
-      };
-      const wpnType = typeMap[newType] || newType;
-      const newWeapon = this.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+    if (this._promotionChoosing) return;
+    this._promotionChoosing = true;
+    try {
+      // Find promotion targets
+      const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
+      if (!targets?.length) {
+        this._showBanner('Promotion to that class is currently unavailable.', '#ff8888');
+        return;
       }
-    } else {
-      for (const prof of unit.proficiencies) {
-        if (oldTypes.has(prof.type)) continue;
-        const newWeapon = this.gameData.weapons.find(
-          (w) => w.type === prof.type && w.tier === 'Iron',
-        );
-        if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-          addToInventory(unit, newWeapon);
-        }
+
+      let promotedClassData;
+      if (targets.length === 1) {
+        promotedClassData = targets[0];
+      } else {
+        const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
+        const panel = new PromotionChoicePanel(this.scene, unit, targets, this.gameData.skills);
+        promotedClassData = await panel.show();
+        if (!promotedClassData) return; // cancelled
       }
-    }
 
-    // Consume the Master Seal
-    item.uses--;
-    if (item.uses <= 0) {
-      removeFromConsumables(unit, item);
-    }
+      const promotionResult = applyRosterClassChange(
+        this.runManager,
+        unit,
+        item,
+        promotedClassData,
+        this.gameData,
+      );
+      if (!promotionResult.ok) {
+        this._showBanner(promotionResult.reason, '#ff8888');
+        return;
+      }
 
-    const audio = this.scene.registry.get('audio');
-    if (typeof this.scene.sound?.stopByKey === 'function')
-      this.scene.sound.stopByKey('sfx_levelup');
-    if (audio) audio.playSFX('sfx_levelup');
-    const droppedNames = getSkillDisplayNames(promotionResult?.droppedSkills, this.gameData.skills);
-    this._showBanner(
-      droppedNames.length > 0
-        ? `${unit.name} promoted to ${promotedClassData.name}! ` +
-            `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
-        : `${unit.name} promoted to ${promotedClassData.name}!`,
-      droppedNames.length > 0 ? '#ffaa66' : UI_PALETTE.accent,
-    );
-    this.refresh();
+      const audio = this.scene.registry.get('audio');
+      if (typeof this.scene.sound?.stopByKey === 'function')
+        this.scene.sound.stopByKey('sfx_levelup');
+      if (audio) audio.playSFX('sfx_levelup');
+      const droppedNames = getSkillDisplayNames(
+        promotionResult?.droppedSkills,
+        this.gameData.skills,
+      );
+      this._showBanner(
+        droppedNames.length > 0
+          ? `${unit.name} promoted to ${promotedClassData.name}! ` +
+              `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
+          : `${unit.name} promoted to ${promotedClassData.name}!`,
+        droppedNames.length > 0 ? '#ffaa66' : UI_PALETTE.accent,
+      );
+      this.refresh();
+    } finally {
+      this._promotionChoosing = false;
+    }
   }
 
   _showReclassClassPicker(unit, sealItem) {
@@ -1853,31 +1817,17 @@ export class RosterOverlay {
   }
 
   _useReclass(unit, sealItem, newClassData) {
-    const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (!oldClassData) {
-      this._showBanner('Reclass data missing.', '#ff8888');
+    const result = applyRosterClassChange(
+      this.runManager,
+      unit,
+      sealItem,
+      newClassData,
+      this.gameData,
+    );
+    if (!result.ok) {
+      this._showBanner(result.reason, '#ff8888');
       return;
     }
-
-    // Track old proficiency types to detect new ones
-    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
-
-    reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
-
-    // Grant Iron weapons for newly gained proficiency types
-    for (const prof of unit.proficiencies) {
-      if (oldTypes.has(prof.type)) continue;
-      const newWeapon = this.gameData.weapons.find(
-        (w) => w.type === prof.type && w.tier === 'Iron',
-      );
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
-      }
-    }
-
-    // Consume seal
-    sealItem.uses = (sealItem.uses ?? 1) - 1;
-    if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
 
     const audio = this.scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
