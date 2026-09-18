@@ -11,14 +11,16 @@ import {
   removeFromConsumables,
 } from './UnitManager.js';
 
-const applying = new WeakSet();
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
-  if (applying.has(unit)) return 'A class change is already being applied.';
   if (!unit.consumables?.includes(item) || !((item.uses ?? 1) > 0))
     return 'Seal is no longer available.';
-  if (item.effect === 'promote')
-    return canPromote(unit) ? '' : 'Requires a base class at level 10 or higher.';
+  if (item.effect === 'promote') {
+    if (!canPromote(unit)) return 'Requires a base class at level 10 or higher.';
+    return resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length
+      ? ''
+      : 'No available promotion class.';
+  }
   if (item.effect === 'reclass')
     return canReclass(unit) && getReclassTargets(unit, gameData.classes, item.subEffect).length
       ? ''
@@ -34,16 +36,12 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
       : getReclassTargets(unit, gameData.classes, item.subEffect);
   const canonical = targets.find((c) => c.name === target?.name);
   if (!canonical) return { ok: false, reason: 'Class is no longer available.' };
-  applying.add(unit);
-  try {
-    return item.effect === 'promote'
-      ? promote(unit, item, canonical, gameData)
-      : reclass(unit, item, canonical, gameData);
-  } finally {
-    applying.delete(unit);
-  }
+  return item.effect === 'promote'
+    ? promote(unit, item, canonical, gameData)
+    : reclass(unit, item, canonical, gameData);
 }
 function promote(unit, item, promotedClassData, gameData) {
+  const notices = [];
   const lordData = gameData.lords.find((l) => l.name === unit.name);
   let promotionBonuses;
   if (lordData) {
@@ -75,14 +73,16 @@ function promote(unit, item, promotedClassData, gameData) {
     const wpnType = typeMap[newType] || newType;
     const newWeapon = gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
     if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-      addToInventory(unit, newWeapon);
+      if (!addToInventory(unit, newWeapon))
+        notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
     }
   } else {
     for (const prof of unit.proficiencies) {
       if (oldTypes.has(prof.type)) continue;
       const newWeapon = gameData.weapons.find((w) => w.type === prof.type && w.tier === 'Iron');
       if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
+        if (!addToInventory(unit, newWeapon))
+          notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
       }
     }
   }
@@ -93,9 +93,10 @@ function promote(unit, item, promotedClassData, gameData) {
     removeFromConsumables(unit, item);
   }
 
-  return { ok: true, droppedSkills: promotionResult?.droppedSkills || [] };
+  return { ok: true, notices, droppedSkills: promotionResult?.droppedSkills || [] };
 }
 function reclass(unit, sealItem, newClassData, gameData) {
+  const notices = [];
   const oldClassData = gameData.classes.find((c) => c.name === unit.className);
   if (!oldClassData) return { ok: false, reason: 'Reclass data missing.' };
   // Track old proficiency types to detect new ones
@@ -108,7 +109,8 @@ function reclass(unit, sealItem, newClassData, gameData) {
     if (oldTypes.has(prof.type)) continue;
     const newWeapon = gameData.weapons.find((w) => w.type === prof.type && w.tier === 'Iron');
     if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-      addToInventory(unit, newWeapon);
+      if (!addToInventory(unit, newWeapon))
+        notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
     }
   }
 
@@ -116,5 +118,5 @@ function reclass(unit, sealItem, newClassData, gameData) {
   sealItem.uses = (sealItem.uses ?? 1) - 1;
   if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
 
-  return { ok: true, droppedSkills: [] };
+  return { ok: true, notices, droppedSkills: [] };
 }

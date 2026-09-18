@@ -294,3 +294,28 @@ until weapon-art scroll binding and the remaining detail parity are complete.
 Phone browser tests cover teaching, giving, and convoy-recipient changes on both
 landscape sizes; command tests cover full bags, full skills, duplicate skills,
 and repeated application of a consumed scroll/transferred item.
+
+### Phase 2c: review fixes and native art binding
+
+Fixed Dancer/blocked-only promotion by checking resolved targets before enabling
+Promote; ChoicePicker independently accepts null/empty choices with a disabled
+Confirm and usable Close. Removed the redundant synchronous WeakSet guard;
+mutation safety is provided by ownership/uses/canonical-target rechecks, while
+the UI busy guard prevents concurrent asynchronous confirmations.
+
+Give retains legacy permissiveness but warns when it leaves the source unarmed.
+Combat includes Avoid, tiers are capitalized, and skill failure codes are mapped
+to readable text. Full-bag Iron grants return visible notices in both renderers;
+no new convoy policy was introduced. Legacy canvas trade remains a separate
+implementation and must be retired or migrated during final parity cleanup.
+
+Weapon-art scroll binding now runs natively: owner/weapon choice, replacement-slot
+choice when full, and explicit final confirmation showing the overwritten art
+and its source. The command rechecks compatibility, rank, roster/weapon/scroll
+ownership and replacement identity/source. Stale slots cannot be overwritten.
+The remaining Advanced management entry is for outstanding detail parity, not
+art binding. Rewards/deployment remain subsequent phases.
+
+Validation added: blocked Dancer, empty picker, full-bag grant notice, compatible
+art binding, consumed-scroll replay, stale overwrite and incompatible ownership.
+Eight compact phone browser cases include native overwrite confirmation.

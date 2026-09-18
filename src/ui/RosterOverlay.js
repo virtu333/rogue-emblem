@@ -1770,8 +1770,8 @@ export class RosterOverlay {
       this._showBanner(
         droppedNames.length > 0
           ? `${unit.name} promoted to ${promotedClassData.name}! ` +
-              `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
-          : `${unit.name} promoted to ${promotedClassData.name}!`,
+              `Skill limit: couldn't learn ${droppedNames.join(', ')}. ${(promotionResult.notices || []).join(' ')}`
+          : `${unit.name} promoted to ${promotedClassData.name}! ${(promotionResult.notices || []).join(' ')}`,
         droppedNames.length > 0 ? '#ffaa66' : UI_PALETTE.accent,
       );
       this.refresh();
@@ -1831,7 +1831,10 @@ export class RosterOverlay {
 
     const audio = this.scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    this._showBanner(`${unit.name} reclassed to ${newClassData.name}!`, '#88ffff');
+    this._showBanner(
+      `${unit.name} reclassed to ${newClassData.name}! ${(result.notices || []).join(' ')}`,
+      '#88ffff',
+    );
     this.refresh();
   }
 

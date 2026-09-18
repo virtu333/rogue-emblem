@@ -150,3 +150,59 @@ test('Skills teaching, giving and convoy recipient work without leaving DOM rost
   await expect(roster.getByRole('button', { name: 'Withdraw to: Sera' })).toBeVisible();
   expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
 });
+
+test('art binding confirms replacement and empty promotion choices are safe', async ({ page }) => {
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'NodeMap');
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  const names = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const unit = s.runManager.roster[0];
+    const arts = s.gameData.weaponArts.arts
+      .filter((a) => a.weaponType === 'Sword' && a.requiredRank === 'Prof')
+      .slice(0, 4);
+    const weapon = unit.inventory.find((w) => w.type === 'Sword');
+    weapon.weaponArtIds = arts.slice(0, 3).map((a) => a.id);
+    weapon.weaponArtSources = ['innate', 'scroll', 'meta_innate'];
+    s.runManager.scrolls = [{ name: 'Test art scroll', teachesWeaponArtId: arts[3].id }];
+    return { weapon: weapon.name, old: arts[0].name, next: arts[3].id };
+  });
+  await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
+  await page.locator('.mr-sheet').getByRole('button', { name: 'Skills', exact: true }).tap();
+  await page.getByRole('button', { name: 'Bind to weapon…' }).tap();
+  await page
+    .getByRole('dialog', { name: 'Choose weapon for Test art scroll' })
+    .getByRole('button', { name: 'Confirm', exact: true })
+    .tap();
+  await page
+    .getByRole('dialog', { name: 'Choose art to replace' })
+    .getByRole('button', { name: 'Confirm', exact: true })
+    .tap();
+  const confirm = page.getByRole('dialog', { name: `Replace ${names.old}?` });
+  await expect(confirm).toContainText('innate');
+  await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await expect(confirm).toHaveCount(0);
+  const state = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    return {
+      ids: s.runManager.roster[0].inventory[0].weaponArtIds,
+      scrolls: s.runManager.scrolls.length,
+    };
+  });
+  expect(state.ids[0]).toBe(names.next);
+  expect(state.scrolls).toBe(0);
+  await page.evaluate(async () => {
+    const { ChoicePicker } = await import('/src/ui/ChoicePicker.js');
+    new ChoicePicker({
+      scene: window.__emblemRogueGame.scene.getScene('NodeMap'),
+      title: 'Empty picker',
+      choices: null,
+      label: (c) => c.name,
+      apply: () => ({ ok: true }),
+    });
+  });
+  const empty = page.getByRole('dialog', { name: 'Empty picker' });
+  await expect(empty).toContainText('No available choices.');
+  await expect(empty.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
+  await empty.getByRole('button', { name: 'Close', exact: true }).tap();
+});

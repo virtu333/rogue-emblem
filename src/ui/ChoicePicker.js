@@ -14,7 +14,8 @@ export class ChoicePicker {
     onClose,
   }) {
     Object.assign(this, { choices, label, describe, blocked, apply, onClose });
-    this.selected = choices[0];
+    this.choices = Array.isArray(choices) ? choices : [];
+    this.selected = this.choices[0];
     this.surface = new MenuSurface(scene, title, () => this.close(), { modal: true });
     this.surface.root.classList.add('re-choice-picker');
     this.render();
@@ -43,7 +44,7 @@ export class ChoicePicker {
       row.setAttribute('aria-pressed', String(this.selected === choice));
       list.append(row);
     }
-    this.status = element('p', message);
+    this.status = element('p', message || (this.choices.length ? '' : 'No available choices.'));
     this.status.setAttribute('role', 'status');
     const confirm = button('Confirm', () => this.confirm(), 're-btn re-btn--primary');
     confirm.disabled = !this.selected || !!this.blocked(this.selected) || this.busy;

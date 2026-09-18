@@ -1,3 +1,4 @@
+import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
 import {
   teachScrollBlock,
@@ -5,9 +6,9 @@ import {
   giveRosterItemBlock,
   giveRosterItem,
 } from '../engine/RosterTransfers.js';
-import { canEquip } from '../engine/UnitManager.js';
+import { canEquip, isLastCombatWeapon } from '../engine/UnitManager.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
-import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import { getWeaponArtIds, getWeaponArtBindings } from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
 import {
@@ -53,7 +54,7 @@ export class MobileRosterSheet {
     onClose,
     onAdvanced = null,
     advancedLabel = 'Advanced management',
-    advancedDescription = 'Weapon-art binding and remaining details',
+    advancedDescription = 'Additional unit details',
     portraitKey = null,
   }) {
     Object.assign(this, {
@@ -225,7 +226,7 @@ export class MobileRosterSheet {
         el('h3', unit.name),
         el(
           'p',
-          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier || 'base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
+          `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
         ),
       );
       summary.append(createHealthBar(unit));
@@ -302,7 +303,7 @@ export class MobileRosterSheet {
     const combat = getStaticCombatStats(unit, unit.weapon);
     this.card(
       'Combat',
-      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Crit ${combat.crit} · Wt ${combat.weight}`,
+      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
     );
     if (unit.growths && unit.faction !== 'enemy') {
       const details = el('details', null, 'mr-card');
@@ -345,9 +346,79 @@ export class MobileRosterSheet {
         const card = this.card(scroll.name, skill?.description || scroll.description || '');
         if (!scroll.teachesWeaponArtId)
           card.append(this.button('Teach…', () => this.teachScroll(scroll)));
-        else card.append(el('small', 'Weapon-art binding is available in Advanced management.'));
+        else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
       }
     }
+  }
+  bindArt(scroll) {
+    if (this.picker || this.destroyed) return;
+    const arts = this.gameData.weaponArts?.arts || [];
+    const choices = this.units.flatMap((unit) =>
+      (unit.inventory || []).map((weapon) => ({ unit, weapon })),
+    );
+    const openStep = (title, options, label, describe, blocked, apply, next) => {
+      let selected = null;
+      this.picker = new ChoicePicker({
+        scene: this.scene,
+        title,
+        choices: options,
+        label,
+        describe,
+        blocked,
+        apply: (choice) => {
+          const result = apply(choice);
+          if (result.ok) selected = choice;
+          return result;
+        },
+        onClose: () => {
+          this.picker = null;
+          if (!this.destroyed && selected && next) next(selected);
+          else this.root.querySelector('button')?.focus();
+        },
+      });
+    };
+    const confirm = ({ unit, weapon }, replacement) => {
+      const oldName = replacement
+        ? arts.find((a) => a.id === replacement.id)?.name || replacement.id
+        : '';
+      openStep(
+        replacement ? `Replace ${oldName}?` : 'Bind weapon art',
+        [weapon],
+        (w) => w.name,
+        () =>
+          `${scroll.name} · ${unit.name}${replacement ? ` · Replaces ${replacement.source} art ${oldName}` : ' · Uses one scroll'}`,
+        () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
+        () => {
+          const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
+          if (result.ok) this.render(`${scroll.name} bound to ${weapon.name}.`);
+          return result;
+        },
+      );
+    };
+    openStep(
+      `Choose weapon for ${scroll.name}`,
+      choices,
+      (c) => `${c.unit.name} · ${c.weapon.name}`,
+      (c) => `${getWeaponArtBindings(c.weapon).length}/3 art slots`,
+      (c) => rosterArtBlock(this.run, c.unit, c.weapon, scroll, arts),
+      () => ({ ok: true }),
+      (choice) => {
+        const bindings = getWeaponArtBindings(choice.weapon);
+        if (bindings.length < 3) {
+          confirm(choice, null);
+          return;
+        }
+        openStep(
+          'Choose art to replace',
+          bindings.map((b, index) => ({ ...b, index })),
+          (b) => arts.find((a) => a.id === b.id)?.name || b.id,
+          (b) => `Slot ${b.index + 1} · ${b.source}`,
+          () => rosterArtBlock(this.run, choice.unit, choice.weapon, scroll, arts),
+          () => ({ ok: true }),
+          (replacement) => confirm(choice, replacement),
+        );
+      },
+    );
   }
   chooseUnit(title, blocked, apply, describe = (unit) => unit.className) {
     if (this.picker || this.destroyed) return;
@@ -367,7 +438,7 @@ export class MobileRosterSheet {
   }
   giveItem(source, item) {
     this.chooseUnit(
-      `Give ${item.name}`,
+      `Give ${item.name}${item.type !== 'Consumable' && isLastCombatWeapon(source, item) ? ' — leaves unit unarmed' : ''}`,
       (target) => giveRosterItemBlock(this.run, source, target, item),
       (target) => {
         const result = giveRosterItem(this.run, source, target, item);
@@ -418,7 +489,7 @@ export class MobileRosterSheet {
             .get('audio')
             ?.playSFX(item.effect === 'promote' ? 'sfx_levelup' : 'sfx_confirm');
           this.render(
-            `${unit.name} is now ${choice.name}.${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
+            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
           );
         }
         return result;

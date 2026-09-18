@@ -53,3 +53,27 @@ describe('roster class change commands', () => {
     expect(unit.consumables).not.toContain(seal);
   });
 });
+
+it('blocks a Dancer with no allowed promotion target without consuming the seal', () => {
+  const unit = createUnit(
+    data.classes.find((c) => c.name === 'Dancer'),
+    10,
+    data.weapons,
+    { name: 'Dancer' },
+  );
+  const seal = { type: 'Consumable', effect: 'promote', uses: 1 };
+  unit.consumables = [seal];
+  const result = applyRosterClassChange({ roster: [unit] }, unit, seal, { name: 'Bard' }, data);
+  expect(result).toEqual({ ok: false, reason: 'No available promotion class.' });
+  expect(seal.uses).toBe(1);
+});
+it('reports an ungranted Iron weapon when the promoted unit bag is full', () => {
+  const { unit, seal, run } = fixture();
+  while (unit.inventory.length < 5) unit.inventory.push({ ...unit.inventory[0] });
+  const target = resolvePromotionTargets(unit, data.classes, data.lords).find(
+    (c) => c.name === 'Warrior',
+  );
+  expect(applyRosterClassChange(run, unit, seal, target, data).notices).toEqual([
+    'Bag full: Iron Bow could not be granted.',
+  ]);
+});

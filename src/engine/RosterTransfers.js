@@ -20,7 +20,11 @@ export function teachRosterScroll(run, unit, scroll, skills) {
   const reason = teachScrollBlock(run, unit, scroll, skills);
   if (reason) return { ok: false, reason };
   const result = learnSkill(unit, scroll.skillId);
-  if (!result.learned) return { ok: false, reason: result.reason };
+  if (!result.learned)
+    return {
+      ok: false,
+      reason: result.reason === 'already_known' ? 'Already known.' : 'Skill slots full.',
+    };
   run.scrolls.splice(run.scrolls.indexOf(scroll), 1);
   return { ok: true };
 }
