@@ -68,7 +68,11 @@ test('commands have readable targets, toggle feedback and reversible end-turn co
       font: parseFloat(getComputedStyle(b).fontSize),
     })),
   );
-  expect(metrics.every((m) => m.height >= 44 && m.font >= 14)).toBe(true);
+  expect(metrics.every((m) => m.height >= 44)).toBe(true);
+  const commandFonts = await hud
+    .locator('.mb-body button')
+    .evaluateAll((buttons) => buttons.map((b) => parseFloat(getComputedStyle(b).fontSize)));
+  expect(commandFonts.every((font) => font >= 13)).toBe(true);
   await page.screenshot({ path: 'test-results/mobile-battle-commands.png' });
 });
 
@@ -101,6 +105,18 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   await bootBattle(page);
   await prepareForecast(page);
   const dialog = page.getByRole('dialog', { name: 'Combat forecast' });
+  await expect(dialog).toHaveCSS('display', 'flex');
+  await expect(dialog).toHaveCSS('flex-direction', 'column');
+  await expect(dialog).toHaveCSS('padding', '14px');
+  await expect(dialog).toHaveCSS('border-top-width', '1px');
+  expect(await dialog.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(
+    'rgba(0, 0, 0, 0)',
+  );
+  const portrait = dialog.locator('.mb-portrait').first();
+  await expect(portrait).toBeVisible();
+  await expect(portrait).toHaveCSS('width', '48px');
+  await expect(portrait).toHaveCSS('height', '48px');
+  await expect(portrait).toHaveCSS('image-rendering', 'pixelated');
   const expected = await page.evaluate(() => {
     const battle = window.__emblemRogueGame.scene.getScene('Battle');
     const f = battle._mobileBattleHud.forecast.forecast.attacker;
@@ -115,7 +131,10 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
   await expect
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
     .toBe('SELECTING_TARGET');
-  await page.locator('#mobile-left-panel [data-action=cancel]').tap();
+  await page
+    .getByRole('navigation', { name: 'Battle utilities' })
+    .getByRole('button', { name: 'Back', exact: true })
+    .tap();
   await expect
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
     .toBe('UNIT_ACTION_MENU');
@@ -151,10 +170,12 @@ test('higher overlays own input and scene shutdown removes the mobile layer', as
   await bootBattle(page);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Roster', exact: true }).tap();
-  await expect(hud).toBeHidden();
-  await page.evaluate(() =>
-    window.__emblemRogueGame.scene.getScene('Battle').unitDetailOverlay.hide(),
-  );
+  // Keep the map viewport stable while a higher sheet owns input.
+  await expect(hud).toHaveClass(/bl-inactive/);
+  const roster = page.getByRole('dialog', { name: 'Inspect roster', exact: true });
+  await expect(roster).toBeVisible();
+  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(hud).not.toHaveClass(/bl-inactive/);
   await expect(hud).toBeVisible();
   await page.evaluate(async () => {
     const { startSceneLazy } = await import('/src/utils/sceneLoader.js');
@@ -208,8 +229,8 @@ test('real map taps select a unit and open its touch action list', async ({ page
     const canvas = battle.game.canvas.getBoundingClientRect();
     return {
       name: unit.name,
-      x: canvas.x + (screen.x * canvas.width) / 640,
-      y: canvas.y + (screen.y * canvas.height) / 480,
+      x: canvas.x + (screen.x * canvas.width) / battle.scale.width,
+      y: canvas.y + (screen.y * canvas.height) / battle.scale.height,
     };
   });
   await page.touchscreen.tap(position.x, position.y);

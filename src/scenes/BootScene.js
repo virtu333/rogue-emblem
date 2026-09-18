@@ -57,10 +57,20 @@ export class BootScene extends Phaser.Scene {
   preload() {
     preloadRebuiltSprites(this);
     preloadRebuiltPortraits(this);
-    this.load.atlas('weathered_nodes', 'assets/sprites/nodes/weathered-nodes.png', NODE_ART_ATLAS);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
     this._deferredAssets = [];
+    const nodes = {
+      type: 'atlas',
+      key: 'weathered_nodes',
+      src: 'assets/sprites/nodes/weathered-nodes.png',
+      data: NODE_ART_ATLAS,
+      group: 'node_art',
+    };
+    if (this._startupFlags.reducedPreload) {
+      this._deferredAssetGroups.push(nodes.group);
+      this._deferredAssets.push(nodes);
+    } else this.load.atlas(nodes.key, nodes.src, nodes.data);
     this._preloadComplete = false;
     this._lastPreloadProgressAt = performance.now();
     this._stallUi = [];

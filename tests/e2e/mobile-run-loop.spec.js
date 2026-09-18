@@ -179,6 +179,8 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     await expect(page.getByRole('dialog', { name: 'Battle rewards' })).toBeVisible();
   }
 
+  await expect(page.locator('#mobile-right-panel [data-action=roster]')).not.toBeVisible();
+  await expect(page.locator('#mobile-left-panel [data-action=menu]')).not.toBeVisible();
   await page.getByRole('button', { name: /Take .* gold instead/ }).tap();
   await page.keyboard.press('Escape');
   expect(
@@ -193,6 +195,18 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   await page.waitForFunction(
     () => !!window.__emblemRogueGame.scene.getScene('NodeMap').shopOverlay,
   );
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').isMobileInput),
+  ).toBe(true);
+  await expect(page.locator('#mobile-left-panel [data-action=cancel]')).toBeVisible();
+  await expect(page.locator('#mobile-right-panel [data-action=roster]')).toBeVisible();
+  const tabSizes = await page.evaluate(() =>
+    window.__emblemRogueGame.scene
+      .getScene('NodeMap')
+      .shopTabObjects.map((tab) => ({ width: tab.width, height: tab.height })),
+  );
+  expect(tabSizes.length).toBeGreaterThan(0);
+  expect(tabSizes.every((tab) => tab.width === 140 && tab.height >= 44)).toBe(true);
   await page.screenshot({ path: 'test-results/mobile-loop-shop.png' });
   const entry = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');

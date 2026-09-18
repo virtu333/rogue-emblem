@@ -1,6 +1,5 @@
 import { hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import './mobilePause.css';
 
 // Presents the existing PauseOverlay actions; ownership and transitions stay there.
 export class MobilePauseMenu {

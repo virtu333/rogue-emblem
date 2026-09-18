@@ -245,7 +245,7 @@ export class SlotPickerScene extends Phaser.Scene {
     // Card background
     const bg = this.add
       .rectangle(x, y, w, h, UI_HEX.panel)
-      .setStrokeStyle(2, isEmpty ? UI_HEX.line : UI_HEX.line);
+      .setStrokeStyle(2, isEmpty ? UI_HEX.lineSoft : UI_HEX.lineStrong);
     this.slotCards.push(bg);
 
     // Slot header

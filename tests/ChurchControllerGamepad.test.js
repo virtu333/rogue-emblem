@@ -148,6 +148,30 @@ describe('ChurchController gamepad focus', () => {
     expect(fired).toEqual(['promote0']);
   });
 
+  it('confirmation reveals a row clipped by manual scrolling before activating it', () => {
+    const scene = makeScene({
+      _churchScrollItems: [{ type: 'promote', y: 0 }],
+      churchScrollOffset: 20,
+      churchScrollMax: 500,
+    });
+    const fired = [];
+    const ctrl = setupController(scene, fired);
+    const row = makeObj({ _churchItemIndex: 0, input: { enabled: false } });
+    row.on('pointerdown', () => fired.push('promote'));
+    scene.churchContentGroup = [row];
+    scene.drawChurchScrollContent.mockImplementation(() => {
+      row.input.enabled = true;
+    });
+    ctrl._churchFocusIndex = 1;
+    ctrl._onChurchInput(InputAction.CONFIRM);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.drawChurchScrollContent).toHaveBeenCalled();
+    expect(fired).toEqual(['promote']);
+    row.input.enabled = false;
+    ctrl._onChurchInput(InputAction.CONFIRM);
+    expect(fired).toEqual(['promote']);
+  });
+
   it('map-view: CONFIRM/CANCEL return to the church, NAVIGATE is ignored', () => {
     const scene = makeScene({ _churchViewingMap: true });
     const ctrl = setupController(scene, []);

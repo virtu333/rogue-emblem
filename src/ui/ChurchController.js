@@ -34,6 +34,10 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 
+// Mobile service buttons reserve a separate bottom message strip.
+const TOUCH_SERVICE_Y = 112;
+const TOUCH_FOOTER_Y = SAFE_BOTTOM_Y - 17;
+const TOUCH_MESSAGE_Y = SAFE_BOTTOM_Y + 28;
 export class ChurchController {
   constructor(scene) {
     this.scene = scene;
@@ -334,11 +338,11 @@ export class ChurchController {
         target.setPadding({ x: 12, y: Math.max(8, (this.rowHeight - 20) / 2) });
         deferTouchActivation(target);
       }
-      healBtn.setPosition(ruinsMode ? 205 : 320, 112);
-      browseBtn?.setPosition(430, 112);
-      viewMapBtn.setPosition(145, 408);
-      rosterBtn.setPosition(315, 408);
-      leaveBtn.setPosition(470, 408);
+      healBtn.setPosition(ruinsMode ? 205 : 320, TOUCH_SERVICE_Y);
+      browseBtn?.setPosition(430, TOUCH_SERVICE_Y);
+      viewMapBtn.setPosition(145, TOUCH_FOOTER_Y);
+      rosterBtn.setPosition(315, TOUCH_FOOTER_Y);
+      leaveBtn.setPosition(470, TOUCH_FOOTER_Y);
     }
     this._setupChurchFocus();
   }
@@ -421,7 +425,10 @@ export class ChurchController {
   _activateChurchFocus() {
     const slot = this._churchSlots?.[this._churchFocusIndex];
     if (!slot) return;
+    // Manual scrolling may have clipped the selected row since navigation.
+    this._renderChurchFocus();
     const target = slot.kind === 'fixed' ? slot.btn : this._renderedChurchButtonFor(slot.itemIndex);
+    if (target?.input?.enabled === false) return;
     target?.emit?.('pointerdown', { button: 0 });
   }
 
@@ -500,18 +507,25 @@ export class ChurchController {
     const items = scene._churchScrollItems;
     if (!items) return;
 
+    if (!this.scrollMask && scene.make?.graphics) {
+      this.scrollMaskGraphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      this.scrollMaskGraphics
+        .fillStyle(0xffffff)
+        .fillRect(0, CHURCH_LIST_TOP_Y, 640, CHURCH_LIST_BOTTOM_Y - CHURCH_LIST_TOP_Y);
+      this.scrollMask = this.scrollMaskGraphics.createGeometryMask();
+      this._maskShutdown = () => this._clearScrollMask();
+      scene.events?.once?.('shutdown', this._maskShutdown);
+    }
     const offset = scene.churchScrollOffset || 0;
     const rm = scene.runManager;
     const node = scene._churchNode;
 
     for (const item of items) {
       const y = CHURCH_LIST_TOP_Y + item.y + (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2 - offset;
-      // Keep row/button bounds out of fixed controls; use half-row guard at bottom.
-      if (
-        y < CHURCH_LIST_TOP_Y + (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2 ||
-        y > CHURCH_LIST_BOTTOM_Y - (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2
-      )
-        continue;
+      // Keep intersecting rows alive under a viewport mask while dragging.
+      const half = (this.rowHeight || CHURCH_ITEM_HEIGHT) / 2;
+      const margin = this.scrollMask ? -half : half;
+      if (y < CHURCH_LIST_TOP_Y + margin || y > CHURCH_LIST_BOTTOM_Y - margin) continue;
 
       if (item.type === 'label') {
         const label = applyTextResolution(
@@ -699,6 +713,13 @@ export class ChurchController {
       }
     }
 
+    if (this.scrollMask)
+      for (const obj of scene.churchContentGroup) {
+        obj.setMask(this.scrollMask);
+        const bounds = obj.getBounds();
+        if (obj.input && (bounds.top < CHURCH_LIST_TOP_Y || bounds.bottom > CHURCH_LIST_BOTTOM_Y))
+          obj.input.enabled = false;
+      }
     // Scroll hint when content overflows
     if ((scene.churchScrollMax || 0) > 0) {
       const percent =
@@ -770,13 +791,18 @@ export class ChurchController {
     clearTrackedSceneTimer(scene, scene._churchMessageTimer);
     scene._churchMessageTimer = null;
     scene.churchMessage = applyTextResolution(
-      scene.add.text(320, 95, text, {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color,
-        backgroundColor: '#000000dd',
-        padding: { x: 8, y: 4 },
-      }),
+      scene.add.text(
+        320,
+        scene.registry.get('startupFlags')?.isMobile ? TOUCH_MESSAGE_Y : 95,
+        text,
+        {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color,
+          backgroundColor: '#000000dd',
+          padding: { x: 8, y: 4 },
+        },
+      ),
     )
       .setOrigin(0.5)
       .setDepth(302);
@@ -821,6 +847,7 @@ export class ChurchController {
       scene.churchMessage.destroy();
       scene.churchMessage = null;
     }
+    this._clearScrollMask();
     scene.churchGoldText = null;
     scene._churchNode = null;
     scene._churchViewingMap = false;
@@ -836,7 +863,17 @@ export class ChurchController {
     scene._touchScrollDrag = null;
   }
 
+  _clearScrollMask() {
+    if (this._maskShutdown) this.scene?.events?.off?.('shutdown', this._maskShutdown);
+    this._maskShutdown = null;
+    this.scrollMask?.destroy();
+    this.scrollMask = null;
+    this.scrollMaskGraphics?.destroy();
+    this.scrollMaskGraphics = null;
+  }
+
   destroy() {
+    this._clearScrollMask();
     this.scene = null;
   }
 }

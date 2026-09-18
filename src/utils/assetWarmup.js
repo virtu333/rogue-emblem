@@ -1,7 +1,7 @@
 import { markStartup } from './startupTelemetry.js';
 
 function isLoaded(scene, asset) {
-  if (asset.type === 'image') {
+  if (asset.type === 'image' || asset.type === 'atlas') {
     return scene.textures.exists(asset.key);
   }
   if (asset.type === 'audio') {
@@ -11,6 +11,10 @@ function isLoaded(scene, asset) {
 }
 
 function queueAsset(scene, asset) {
+  if (asset.type === 'atlas') {
+    scene.load.atlas(asset.key, asset.src, asset.data);
+    return;
+  }
   if (asset.type === 'image') {
     scene.load.image(asset.key, asset.src);
     return;

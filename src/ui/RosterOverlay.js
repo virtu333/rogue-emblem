@@ -2869,7 +2869,9 @@ export class RosterOverlay {
   _text(x, y, str, color = UI_PALETTE.text, fontSize = '10px') {
     const t = applyTextResolution(
       this.scene.add.text(x, y, str, {
-        fontFamily: 'Arial',
+        fontFamily: /^(HP|STR|MAG|SKL|SPD|DEF|RES|LCK|MOV|Atk|AS|Hit|Avo|Crt|Wt)\s/.test(str)
+          ? 'monospace'
+          : 'Arial',
         fontSize,
         color,
       }),

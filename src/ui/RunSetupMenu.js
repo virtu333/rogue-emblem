@@ -1,3 +1,4 @@
+import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 
 export class RunSetupMenu {
@@ -10,6 +11,36 @@ export class RunSetupMenu {
       () => scene._back(),
     );
     this.surface.header.lastChild.textContent = 'Back';
+    this.surface.onKey = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return false;
+      if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) {
+        this.navigate(['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1);
+        return true;
+      }
+      if (kind !== 'blessing' && event.key.toLowerCase() === 'm') {
+        scene._toggleMetaMode();
+        return true;
+      }
+      return false;
+    };
+    this.surface.onAction = (action, payload) => {
+      if (action === InputAction.NAVIGATE) {
+        this.navigate(payload?.dy || payload?.dx || 1);
+        return true;
+      }
+      return false;
+    };
+  }
+  navigate(delta) {
+    if (this.scene.isTransitioning) return;
+    const count =
+      this.kind === 'blessing' ? this.scene.options.length + 1 : this.scene.modes.length;
+    this.scene.selectedIndex = (this.scene.selectedIndex + delta + count) % count;
+    this.render();
+    (
+      this.surface.body.querySelector('[data-focus="confirm"]:not(:disabled)') ||
+      this.surface.body.querySelector(`[data-focus="choice-${this.scene.selectedIndex}"]`)
+    )?.focus();
   }
   render() {
     const s = this.scene,
@@ -41,7 +72,7 @@ export class RunSetupMenu {
       );
       b.dataset.focus = `choice-${i}`;
       b.setAttribute('aria-pressed', String(i === s.selectedIndex));
-      b.disabled = !!choice.locked;
+      b.dataset.locked = String(!!choice.locked);
       b.append(element('strong', choice.name || choice.label));
       if (choice.tier) {
         b.style.borderLeft = `4px solid var(--re-tier-${choice.tier})`;
@@ -63,6 +94,13 @@ export class RunSetupMenu {
       if (!chosen?.summary?.length)
         detail.append(element('p', 'Standard experience with no difficulty modifiers.'));
       if (chosen?.lockReason) detail.append(element('p', chosen.lockReason));
+      const pair = s._noMetaUpgrades
+        ? { commander: 'Edric', partner: 'Sera' }
+        : s.meta?.getLordSelection?.();
+      if (pair)
+        detail.append(
+          element('p', `Commander: ${pair.commander} · Partner: ${pair.partner}`, 're-note'),
+        );
     }
     split.append(this.list, detail);
     const footer = element('footer', null, 're-footer');
@@ -80,7 +118,10 @@ export class RunSetupMenu {
     footer.append(confirm);
     this.surface.body.replaceChildren(split, footer);
     this.list.scrollTop = previousScroll;
-    if (oldFocus)
+    if (!this.initialFocusSet) {
+      confirm.focus();
+      this.initialFocusSet = true;
+    } else if (oldFocus)
       this.surface.body.querySelector(`[data-focus="${oldFocus}"]`)?.focus({ preventScroll: true });
   }
   destroy() {

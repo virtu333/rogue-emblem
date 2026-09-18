@@ -2,7 +2,6 @@ import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import './cohesion.css';
 
 export function element(tag, text, className = '') {
   const el = document.createElement(tag);
@@ -40,13 +39,26 @@ export class MenuSurface {
       this.root.addEventListener(name, (event) => event.stopPropagation());
     this.root.addEventListener('keydown', (event) => {
       event.stopPropagation();
+      if (this.onKey?.(event)) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
+        return;
       }
       if (event.key === 'Tab') {
         event.preventDefault();
         this.focusNext(event.shiftKey ? -1 : 1);
+      } else if (!event.target.matches('input,textarea,select')) {
+        if (['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(event.key)) {
+          event.preventDefault();
+          this.focusNext(['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1);
+        } else if (event.key === 'Enter') {
+          event.preventDefault();
+          document.activeElement?.click();
+        }
       }
     });
     this.token = pushOverlay(scene, {
@@ -57,6 +69,7 @@ export class MenuSurface {
       },
     });
     pushInputScope(this, (action, payload) => {
+      if (this.onAction?.(action, payload)) return;
       if ([InputAction.CANCEL, InputAction.PAUSE].includes(action)) onClose();
       if (action === InputAction.NAVIGATE) this.focusNext(payload?.dy || payload?.dx || 1);
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
@@ -64,8 +77,25 @@ export class MenuSurface {
     });
     this.shutdown = () => this.destroy();
     scene.events.once('shutdown', this.shutdown);
-    document.getElementById('game-wrapper').append(this.root);
+    const host = document.getElementById('game-wrapper');
+    if (modal) {
+      this.shield = element('div', null, 're-modal-shield');
+      this.shield.style.zIndex = DOM_UI_DEPTHS.MENU;
+      this.shield.append(this.root);
+      for (const type of ['pointerdown', 'pointerup', 'click', 'wheel'])
+        this.shield.addEventListener(type, (event) => {
+          event.stopPropagation();
+          if (event.target === this.shield) {
+            event.preventDefault();
+            this.root.focus();
+          }
+        });
+      host.append(this.shield);
+    } else host.append(this.root);
     this.root.querySelector('button').focus();
+  }
+  focusContent() {
+    (this.body.querySelector('button:not(:disabled),input,select') || this.root).focus();
   }
   focusNext(delta) {
     const items = [...this.root.querySelectorAll('button:not(:disabled),input,select')];
@@ -79,6 +109,7 @@ export class MenuSurface {
     popInputScope(this);
     this.scene.events.off('shutdown', this.shutdown);
     this.root.remove();
+    this.shield?.remove();
     if (this.previousFocus?.isConnected) this.previousFocus.focus();
   }
 }

@@ -1,4 +1,3 @@
-@import './mobileTheme.css';
 .mp-backdrop[hidden] {
   display: none;
 }
@@ -69,8 +68,9 @@
   outline-offset: -2px;
 }
 .mp-actions .mp-primary {
-  border-color: var(--re-gold);
-  color: var(--re-gold-hi);
+  border-color: var(--re-accent-text);
+  background: var(--re-action);
+  color: var(--re-action-ink);
 }
 .mp-actions .mp-danger {
   color: var(--re-bad);

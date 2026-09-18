@@ -7,7 +7,6 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
-import './mobileUpgrade.css';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -22,6 +21,14 @@ export class MobileHomeBase {
     this.meta = scene.meta;
     this.role = 'commander';
     this.tab = 'lords';
+    const hints = scene.registry.get('hints');
+    this.onboarding = [];
+    if (hints?.shouldShow('homebase_intro'))
+      this.onboarding.push(
+        'Spend Valor and Supply in Upgrades to strengthen your army across runs.',
+      );
+    if (hints?.shouldShow('homebase_begin'))
+      this.onboarding.push('Choose your starting lords and skills, then Begin Run.');
     scene.mobileUpgrades = new MobileUpgradeMenu(scene, {
       embedded: true,
       onClose: () => this.open(),
@@ -291,7 +298,20 @@ export class MobileHomeBase {
     split.append(list, detail);
     const status = node('div', 'mu-status', this.message || 'Progress stored on this device.');
     status.setAttribute('role', 'status');
-    this.root.append(header, tabs, split, status);
+    this.root.append(header, tabs, split);
+    if (this.onboarding.length) {
+      const hint = node('aside', 'mh-onboarding');
+      hint.append(
+        node('span', '', this.onboarding.join(' ')),
+        this.button('Got it', () => {
+          this.onboarding = [];
+          this.render();
+          this.root.querySelector('[data-focus="begin"]')?.focus();
+        }),
+      );
+      this.root.append(hint);
+    }
+    this.root.append(status);
     list.scrollTop = scroll;
     if (this.pending) for (const b of this.root.querySelectorAll('button')) b.disabled = true;
     if (focus)

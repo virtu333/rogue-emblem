@@ -1,6 +1,5 @@
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import './mobileUpgrade.css';
 const categories = [
   ['recruit_stats', 'Recruits'],
   ['lord_bonuses', 'Lords'],

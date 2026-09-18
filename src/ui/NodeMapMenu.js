@@ -168,7 +168,9 @@ export class NodeMapMenu {
     side.append(actions, detail, advance, party);
     layout.append(this.scroll, side);
     this.root.append(header, layout);
-    this.scroll.scrollTop = scroll ?? height;
+    const selectedRow = nodes.find((n) => n.id === this.selected)?.row || 0;
+    this.scroll.scrollTop =
+      scroll ?? Math.max(0, height - 28 - selectedRow * 64 - this.scroll.clientHeight / 2);
     if (focus)
       [...this.root.querySelectorAll('[data-node]')]
         .find((b) => b.dataset.node === focus)

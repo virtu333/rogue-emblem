@@ -5,7 +5,7 @@ Mockups: `docs/mockups/index.html` (serve via `npm run dev`, then open
 `http://localhost:3000/docs/mockups/index.html`). Proposed stylesheet:
 `docs/mockups/re-kit.css`.
 
-Status: proposal. Nothing in `src/` has been changed.
+Status: original design proposal, implemented in checkpoint `8ad908d` with follow-up review fixes. See `ui-cohesion-implementation.md` for delivered scope and `ui-cohesion-review-response.md` for validation and corrections.
 
 ---
 

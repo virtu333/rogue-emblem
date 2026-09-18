@@ -1,3 +1,4 @@
+import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
@@ -891,6 +892,18 @@ export class NodeMapScene extends Phaser.Scene {
     this._churchController?._setChurchRingVisible?.(visible);
   }
 
+  _showServiceMap(onClose) {
+    const rm = this.runManager;
+    const view = new CampaignMapOverlay(this, {
+      nodeMap: rm.nodeMap,
+      currentNodeId: rm.currentNodeId,
+      activeNodeId: rm.currentNodeId,
+      actId: rm.currentAct,
+      onClose,
+    });
+    view.show();
+  }
+
   _enterShopMapView() {
     if (!this.shopOverlay || this._shopViewingMap) return;
     this._touchScrollDrag = null;
@@ -898,6 +911,11 @@ export class NodeMapScene extends Phaser.Scene {
     this._hideShopItemTooltip();
     this._setShopOverlayVisibility(false);
     this._shopViewingMap = true;
+    if (hasDOMHost())
+      this._showServiceMap(() => {
+        this._shopViewingMap = false;
+        this._setShopOverlayVisibility(true);
+      });
   }
 
   _enterChurchMapView() {
@@ -906,6 +924,10 @@ export class NodeMapScene extends Phaser.Scene {
     this._setChurchOverlayVisibility(false);
     this._churchViewingMap = true;
     this._churchMapViewSuppressCancel = true;
+    if (hasDOMHost()) {
+      this._showServiceMap(() => this._exitChurchMapView());
+      return;
+    }
     // Persistent "Return to Church" button (not in churchOverlay so it stays visible)
     this._churchReturnBtn = applyTextResolution(
       this.add.text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
@@ -1161,6 +1183,31 @@ export class NodeMapScene extends Phaser.Scene {
     // Clear everything
     this.children.removeAll(true);
 
+    // Mobile virtual controls
+    const flags = this.registry.get('startupFlags');
+    this.isMobileInput = Boolean(flags?.isMobile);
+    if (this.isMobileInput) {
+      const ge = this.game.events;
+      if (!this._mobileHandlers) {
+        this._mobileHandlers = {
+          cancel: () => this.requestCancel({ allowPause: false }),
+          menu: () => this.requestCancel(),
+          roster: () => this._openRoster(),
+        };
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          const routed = () => routeMobileAction(this, action, handler);
+          this._mobileHandlers[action] = routed;
+          ge.on(`mobile:${action}`, routed);
+        }
+      }
+      ge.emit('mobile:setContext', { context: 'nodemap' });
+    }
+
+    if (hasDOMHost()) {
+      if (!this.nodeView || this.nodeView.destroyed) this.nodeView = new NodeMapMenu(this);
+      this.nodeView.render();
+      return;
+    }
     const rm = this.runManager;
     const nodeMap = rm.nodeMap;
     const actConfig = ACT_CONFIG[rm.currentAct];
@@ -1424,26 +1471,7 @@ export class NodeMapScene extends Phaser.Scene {
       this._openRoster();
     });
 
-    // Mobile virtual controls
-    const flags = this.registry.get('startupFlags');
-    this.isMobileInput = Boolean(flags?.isMobile);
-    if (this.isMobileInput) {
-      this._rosterBtn.setVisible(false);
-      const ge = this.game.events;
-      if (!this._mobileHandlers) {
-        this._mobileHandlers = {
-          cancel: () => this.requestCancel({ allowPause: false }),
-          menu: () => this.requestCancel(),
-          roster: () => this._openRoster(),
-        };
-        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-          const routed = () => routeMobileAction(this, action, handler);
-          this._mobileHandlers[action] = routed;
-          ge.on(`mobile:${action}`, routed);
-        }
-      }
-      ge.emit('mobile:setContext', { context: 'nodemap' });
-    }
+    if (this.isMobileInput) this._rosterBtn.setVisible(false);
 
     // Instructions
     applyTextResolution(
@@ -1462,10 +1490,6 @@ export class NodeMapScene extends Phaser.Scene {
     // Refresh the gamepad cursor over this frame's available nodes (the marker was
     // wiped by children.removeAll at the top of drawMap).
     this._nodeCursor?.setNodes(availableNodes, nodePositions);
-    if (hasDOMHost()) {
-      if (!this.nodeView || this.nodeView.destroyed) this.nodeView = new NodeMapMenu(this);
-      this.nodeView.render();
-    }
   }
 
   // Device-independent input from the global reader (top of the input-focus stack).

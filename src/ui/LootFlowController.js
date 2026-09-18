@@ -642,7 +642,7 @@ export class LootFlowController {
       const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
       const txt = applyTextResolution(
         scene.add.text(leftX, y, line, {
-          fontFamily: 'Arial',
+          fontFamily: 'monospace',
           fontSize: '9px',
           color: UI_PALETTE.muted,
         }),

@@ -1,3 +1,4 @@
+import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
@@ -21,7 +22,65 @@ export class ReferenceMenu {
     });
     search.append(this.input);
     this.surface.header.insertBefore(search, this.surface.header.lastChild);
+    this.surface.onKey = (event) => {
+      if (event.key === '/' && event.target !== this.input) {
+        this.input.focus();
+        return true;
+      }
+      if (event.target === this.input) return false;
+      if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        this.changeTab(event.key === 'ArrowLeft' ? -1 : 1);
+        return true;
+      }
+      if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+        this.moveEntry(event.key === 'ArrowUp' ? -1 : 1);
+        return true;
+      }
+      return false;
+    };
+    this.surface.onAction = (action, payload) => {
+      if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action)) {
+        this.changeTab(action === InputAction.PREV_UNIT ? -1 : 1);
+        return true;
+      }
+      if (action === InputAction.NAVIGATE) {
+        if (payload?.dx) this.changeTab(payload.dx);
+        else this.moveEntry(payload?.dy || 1);
+        return true;
+      }
+      return false;
+    };
     this.render();
+    this.surface.focusContent();
+  }
+  changeTab(delta) {
+    this.tab = (this.tab + delta + this.tabs.length) % this.tabs.length;
+    this.filter = 0;
+    this.selected = 0;
+    this.render();
+    this.surface.body.querySelector(`[data-focus="tab-${this.tab}"]`)?.focus();
+  }
+  moveEntry(delta) {
+    this.selected = Math.max(0, Math.min(this.selected + delta, (this.entryCount || 1) - 1));
+    this.render();
+    this.list.querySelector(`[data-focus="entry-${this.selected}"]`)?.focus();
+  }
+  highlight(el) {
+    const query = this.query.trim();
+    if (!query) return;
+    const text = el.textContent,
+      lower = text.toLowerCase();
+    el.replaceChildren();
+    let start = 0,
+      pos;
+    while ((pos = lower.indexOf(query.toLowerCase(), start)) !== -1) {
+      el.append(
+        document.createTextNode(text.slice(start, pos)),
+        element('mark', text.slice(pos, pos + query.length)),
+      );
+      start = pos + query.length;
+    }
+    el.append(document.createTextNode(text.slice(start)));
   }
   render() {
     const oldFocus = this.surface.body.contains(document.activeElement)
@@ -64,6 +123,7 @@ export class ReferenceMenu {
     const entries = this.provider(this.tab, this.filter).filter(
       (entry) => !query || `${entry.name} ${entry.lines.join(' ')}`.toLowerCase().includes(query),
     );
+    this.entryCount = entries.length;
     this.selected = Math.min(this.selected, Math.max(0, entries.length - 1));
     const split = element('div', null, 're-split');
     this.list = element('div', null, 're-scroll re-menu');
@@ -96,6 +156,11 @@ export class ReferenceMenu {
           're-empty',
         ),
       );
+    for (const el of [
+      ...this.list.querySelectorAll('strong,small'),
+      ...detail.querySelectorAll('h3,p'),
+    ])
+      this.highlight(el);
     split.append(this.list, detail);
     body.append(split);
     this.list.scrollTop = previousScroll;

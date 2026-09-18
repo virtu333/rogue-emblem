@@ -1,5 +1,3 @@
-@import './mobileTheme.css';
-
 .mr-sheet {
   position: fixed;
   inset: 0;
@@ -179,13 +177,6 @@
     font-size: 11px;
   }
 }
-.mr-portrait {
-  float: right;
-  image-rendering: pixelated;
-  border: 1px solid var(--re-line);
-  border-radius: 2px;
-  margin: 0 0 8px 10px;
-}
 .mr-summary {
   display: flow-root;
 }
@@ -261,9 +252,6 @@
 .mr-card .mr-equipped::before {
   content: '◆ ';
 }
-.mr-portrait {
-  border-color: var(--re-gold);
-}
 
 .mr-summary h3 {
   font: 11px/1.65 var(--re-pixel);
@@ -297,6 +285,12 @@
   display: block;
 }
 .mr-portrait {
+  float: right;
+  image-rendering: pixelated;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  margin: 0 0 8px 10px;
+  border-color: var(--re-gold);
   width: 76px;
   height: 88px;
   object-fit: contain;

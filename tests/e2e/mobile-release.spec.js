@@ -84,4 +84,41 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   expect(external).toEqual([]);
   expect(errors).toEqual([]);
   await page.screenshot({ path: 'test-results-release/production-battle.png' });
+  // Exercise the actual production CSS after the battle/menu chunks have loaded.
+  await page.setViewportSize({ width: 667, height: 390 });
+  expect(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--re-t-display').trim(),
+    ),
+  ).toMatch(/^13px/);
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').showPauseMenu());
+  const resume = page.getByRole('button', { name: 'Resume', exact: true });
+  await expect(resume).toBeVisible();
+  const contrast = await resume.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const luminance = (color) => {
+      const rgb = color
+        .match(/[\d.]+/g)
+        .slice(0, 3)
+        .map(Number)
+        .map((v) => {
+          const c = v / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+      return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    };
+    const a = luminance(style.color),
+      b = luminance(style.backgroundColor);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
+  await page.getByRole('button', { name: 'Compendium', exact: true }).tap();
+  await page.getByRole('searchbox').fill('Iron Sword');
+  await expect(page.locator('.re-reference-detail')).toContainText('Iron Sword');
+  // Tokens survive opening a second lazy scene/overlay in the built bundle.
+  expect(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--re-t-display').trim(),
+    ),
+  ).toMatch(/^13px/);
 });

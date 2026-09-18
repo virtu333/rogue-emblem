@@ -1,7 +1,6 @@
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import './mobileUpgrade.css';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;

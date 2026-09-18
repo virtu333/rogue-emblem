@@ -219,9 +219,8 @@ export class HomeBaseScene extends Phaser.Scene {
     this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
     pushInputScope(this, this._onInputActionBound);
 
-    this.drawUI();
-
     if (hasDOMHost()) this.mobileHome = new MobileHomeBase(this);
+    else this.drawUI();
 
     // Tutorial hints for home base
     const hints = this.registry.get('hints');
@@ -317,6 +316,10 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawUI() {
+    if (this.mobileHome) {
+      this.mobileHome.render();
+      return;
+    }
     this._hideMetaTooltips();
     this._hideRefundConfirm();
     this.children.removeAll(true);

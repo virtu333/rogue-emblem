@@ -23,7 +23,7 @@
     "imagen:process": "node tools/imagen-pipeline/process.js",
     "test": "vitest run",
     "test:all": "vitest run",
-    "test:unit": "vitest run --exclude tests/harness/** --exclude tests/sim/** --exclude tests/agents/** --exclude tests/fixtures/** --exclude tests/artifacts/**",
+    "test:unit": "vitest run --exclude 'tests/harness/**' --exclude 'tests/sim/**' --exclude 'tests/agents/**' --exclude 'tests/fixtures/**' --exclude 'tests/artifacts/**'",
     "test:watch": "vitest",
     "sim:progression": "node sim/progression.js",
     "sim:matchups": "node sim/matchups.js",

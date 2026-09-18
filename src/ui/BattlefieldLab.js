@@ -1,4 +1,3 @@
-import './battlefieldLab.css';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';

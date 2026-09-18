@@ -2,8 +2,7 @@
 
 import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
-import './ui/mobileBattle.css';
-import './ui/cohesion.css';
+import './ui/styles.css';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';

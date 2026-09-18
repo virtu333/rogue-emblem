@@ -36,3 +36,18 @@ Companion to `ui-cohesion-plan.md` and its v2 mockups. The original proposal and
 This applies the common presentation and touch foundation without changing game balance, unlock costs, or save formats. Some legacy canvas layouts (advanced roster, loot submenus, shop/church/colosseum, title and slot picker) remain canvas-based. Their typography and palette were aligned; a complete DOM replacement and newly painted title background are not included. The alarm token is reserved, rather than adding unverified lethal-forecast logic.
 
 Review on a physical phone should cover the software keyboard, safe areas, long reference descriptions, and canvas service menus. The new web bundle is synced into Xcode; no new TestFlight build was uploaded in this pass.
+
+## Checkpoint review follow-up
+
+See `ui-cohesion-review-response.md` for validated findings and corrections after `8ad908d`. In particular, CSS now has one eager entry, run setup supports initial Confirm and keyboard/controller navigation, available route choices are centered on entry, desktop hints are visible, and canvas Home Base/node UI is gated behind the DOM path. CI now exercises the DOM menus and production stylesheet. No new TestFlight upload is part of this review-fix pass.
+
+Follow-up verification: 5,099 unit tests passed; the combined browser pass had 13 passing checks, followed by 8 passing final layout/run-loop checks. The production offline test also passes its new 667px typography and primary-button contrast assertions. The built page contains one game stylesheet. ESLint has zero errors (existing warnings remain).
+
+### Follow-up regression review
+
+Restored node-map mobile setup before the DOM return and the forecast panel/portrait
+CSS. Added phone service geometry/rail assertions and battle HUD coverage to CI;
+fixed modifier shortcuts, initial menu focus, and Church gamepad activation after
+manual scrolling. See [review response](ui-cohesion-review-response.md) for details.
+Validation: 5,100 unit tests, 13 mobile browser checks, and the production offline
+check passed. Production bundle rebuilt and synced to iOS; not uploaded.

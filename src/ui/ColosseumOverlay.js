@@ -236,7 +236,10 @@ export class ColosseumOverlay {
     } else {
       // Column headers
       const hdr = applyTextResolution(
-        this.scene.add.text(65, y, 'Name             Class         Lv  HP    Fights', SMALL_STYLE),
+        this.scene.add.text(65, y, 'Name             Class         Lv  HP    Fights', {
+          ...SMALL_STYLE,
+          fontFamily: 'monospace',
+        }),
       ).setDepth(CONTENT_DEPTH);
       this.objects.push(hdr);
       y += lineH;
@@ -257,6 +260,7 @@ export class ColosseumOverlay {
         const line = applyTextResolution(
           this.scene.add.text(65, y, `${name}${cls}${lv}  ${hp}  ${ft}`, {
             ...BODY_STYLE,
+            fontFamily: 'monospace',
             color,
           }),
         ).setDepth(CONTENT_DEPTH);

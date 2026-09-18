@@ -14,7 +14,6 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { canUseTouchUI } from '../utils/domUI.js';
-import './mobileRoster.css';
 
 export function canShowMobileRoster(scene) {
   return canUseTouchUI(scene);

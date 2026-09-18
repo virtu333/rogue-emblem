@@ -57,6 +57,7 @@ export class SettingsMenu {
     render();
     list.append(reduced);
     this.surface.body.append(list);
+    this.surface.focusContent();
   }
   destroy() {
     this.surface.destroy();

@@ -1,4 +1,3 @@
-@import './mobileTheme.css';
 /* Landscape lab: uninterrupted map height and a compact, safe-area-aware command rail. */
 html.touch-ui #game-wrapper.battlefield-lab {
   display: grid !important;
@@ -193,7 +192,6 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 .battlefield-lab .mp-actions button {
   border-radius: 0;
   border: 2px solid var(--re-line);
-  background: var(--re-raised);
   box-shadow: var(--re-bevel);
 }
 .battlefield-lab .mp-actions button:focus-visible {

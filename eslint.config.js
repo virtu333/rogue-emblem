@@ -21,6 +21,7 @@ export default [
   {
     ignores: [
       'dist/**',
+      'ios/App/App/public/**', // Generated Capacitor copy of dist, including vendor bundles.
       'node_modules/**',
       'References/**',
       'public/data/**',
