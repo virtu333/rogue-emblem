@@ -49,8 +49,12 @@ ExportOptions values: method `app-store-connect`, destination `export`, teamID `
 ## Release history
 
 - Build 1: upload succeeded on September 17, 2026 (verified in the Xcode upload log).
-- Build 2: UI cohesion and review fixes committed as `82db34b`. Packaging in progress;
-  processing and external testing availability must be verified in App Store Connect.
+- Build 2: UI cohesion and review fixes `82db34b`; release metadata `0d5a863`.
+  Archived and uploaded September 18, 2026 at 14:25 Pacific. Apple completed
+  processing and approved external beta review. Assigned to `Public Playtest`,
+  with What to Test saved and automatic tester notification enabled.
+  Verified **Testing** in the external group after approval.
+  Public link: https://testflight.apple.com/join/UeWBYA5n
 
 ## Build 2 gates
 
@@ -98,3 +102,9 @@ expected versus actual behavior, and a screenshot or recording when possible.
 - Saves are device-local; uninstalling the app can remove progress. No cloud-sync promise.
 
 Keep map sizes and balance unchanged for this beta. Further art and menu polish should follow tester feedback.
+
+## Git publication status
+
+The release commits are on local `mobile-rebuild-checkpoint`. Pushing to
+`virtu333/rogue-emblem` returned HTTP 403: the active GitHub CLI account
+`davechenbhh` lacks write access. No merge was performed.
