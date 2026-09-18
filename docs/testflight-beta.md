@@ -26,7 +26,7 @@ npx playwright test --config playwright.release.config.js
 ## Packaging
 
 - Bundle ID: `com.davechen.emblemrogue`
-- Version/build: `0.1.0 (1)`
+- Version/build: `0.1.0 (2)`
 - Apple team: `Y463W47P77`
 - Landscape iPhone/iPad Capacitor app; assets bundled, no development server URL.
 - Game app icon replaces the Capacitor placeholder.
@@ -46,9 +46,47 @@ xcodebuild -exportArchive -archivePath /tmp/EmblemRogue-Beta.xcarchive \
 
 ExportOptions values: method `app-store-connect`, destination `export`, teamID `Y463W47P77`, signingStyle `automatic`, manageAppVersionAndBuildNumber `false`. Use destination `upload` after the app record exists. Increment the build number before replacing a build already accepted by Apple.
 
-## Remaining release gate
+## Release history
 
-The upload attempt failed at fetching the App Store Connect record: `missingApp(bundleId: "com.davechen.emblemrogue")`. The browser is awaiting the owner's Apple sign-in. Create the matching iOS app record, retry upload, verify processing, complete beta information, and assign the build to the intended tester group. No upload success, review approval, or tester availability has been claimed.
+- Build 1: upload succeeded on September 17, 2026 (verified in the Xcode upload log).
+- Build 2: UI cohesion and review fixes committed as `82db34b`. Packaging in progress;
+  processing and external testing availability must be verified in App Store Connect.
+
+## Build 2 gates
+
+- 5,100 unit tests; 109 harness tests; all PR full-run simulation slices passed.
+- Reference/data parity and theme parity passed.
+- 13 mobile browser checks and production offline/style check passed.
+- ESLint has zero errors (existing warnings remain).
+
+## Build 2: What to Test
+
+This build unifies menus, dialogue, and route-map presentation and fixes mobile
+service controls, combat forecasts, keyboard navigation, and scrolling behavior.
+
+Please focus on:
+
+- A complete Home Base → battle → rewards → shop/equipment → next battle loop.
+- Physical iPhone: Compendium search with the software keyboard open, notch/home
+  indicator clearance, and normal thumb taps versus scroll gestures in Shop/Church.
+- Shop, Church, Colosseum, loot sub-screens, and Advanced management: overflowing
+  text, clipped rows, missed taps, and reliable Back/Close behavior.
+- Combat forecast: portrait size, scrollable details, weapon switching, Cancel,
+  and explicit Confirm attack.
+- Resume an existing save carried over from the previous TestFlight build.
+  Please do not uninstall first; progress is saved locally.
+- Older phones: cold-launch time and first route-map loading.
+- Desktop keyboard, if available: Home Base → Difficulty → Blessing → Node map →
+  Compendium → Settings, including arrows, Enter, Escape, M, and / for search.
+
+When reporting a problem, include phone model, iOS version, the screen/action,
+expected versus actual behavior, and a screenshot or recording when possible.
+
+## Later maintenance (not release blockers)
+
+- Migrate compatibility palette aliases to canonical names before removing them.
+- Explicitly decide whether to retain non-DOM Phaser Home Base/node-map paths as
+  test fallbacks or remove them together with dependent tests.
 
 ## First tester focus
 
