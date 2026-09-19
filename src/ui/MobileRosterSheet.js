@@ -1,3 +1,5 @@
+import { formatPerkMods } from './rosterDisplay.js';
+import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
 import {
@@ -23,6 +25,7 @@ import {
   getWeaponArtIds,
   getWeaponArtBindings,
   canUseWeaponArt,
+  isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
@@ -46,10 +49,10 @@ import { getConsumableDescription, formatUses } from '../utils/consumableText.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import { canUseTouchUI } from '../utils/domUI.js';
+import { hasDOMHost } from '../utils/domUI.js';
 
-export function canShowMobileRoster(scene) {
-  return canUseTouchUI(scene);
+export function canShowMobileRoster() {
+  return hasDOMHost();
 }
 function el(tag, text, cls) {
   const node = document.createElement(tag);
@@ -95,20 +98,27 @@ export class MobileRosterSheet {
         e.preventDefault();
         this.onClose();
       }
-      if (e.key === 'Tab') {
-        const controls = [...this.root.querySelectorAll('button:not(:disabled), select')];
-        const current = controls.indexOf(document.activeElement);
-        if (e.shiftKey && current <= 0) {
-          e.preventDefault();
-          controls.at(-1)?.focus();
-        } else if (!e.shiftKey && current === controls.length - 1) {
-          e.preventDefault();
-          controls[0]?.focus();
-        }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Tab' || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        this.moveFocus(
+          e.key === 'Tab'
+            ? e.shiftKey
+              ? -1
+              : 1
+            : ['ArrowUp', 'ArrowLeft'].includes(e.key)
+              ? -1
+              : 1,
+        );
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.activateFocused();
       }
     });
     document.getElementById('game-wrapper').append(this.root);
-    pushInputScope(this, (action) => {
+    pushInputScope(this, (action, payload) => {
+      if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
+      if (action === InputAction.CONFIRM) this.activateFocused();
       if ([InputAction.CANCEL, InputAction.PAUSE, InputAction.ROSTER].includes(action))
         this.onClose();
       if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action) && this.units.length) {
@@ -122,7 +132,21 @@ export class MobileRosterSheet {
     this.shutdown = () => this.destroy();
     scene.events.once('shutdown', this.shutdown);
     this.render();
-    this.root.querySelector('button')?.focus();
+    this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
+  }
+  controls() {
+    return [...this.root.querySelectorAll('button:not(:disabled), summary, select')].filter(
+      (node) => node.getClientRects().length > 0,
+    );
+  }
+  moveFocus(delta) {
+    const controls = this.controls();
+    const index = controls.indexOf(document.activeElement);
+    controls[(index + delta + controls.length) % controls.length]?.focus();
+  }
+  activateFocused() {
+    const active = document.activeElement;
+    if (this.controls().includes(active)) active.click();
   }
   button(label, action, reason = '') {
     const b = el('button', label);
@@ -316,9 +340,7 @@ export class MobileRosterSheet {
       this.card(
         mastered ? `Mastered ★${perk ? ` ${perk.name}` : ''}` : 'Class mastery',
         mastered
-          ? Object.entries(perk?.mods || {})
-              .map(([key, value]) => `${key}: ${value}`)
-              .join(' · ')
+          ? formatPerkMods(perk?.mods)
           : `${getMasteryProgress(unit, this.gameData.classes)}/${getMasteryThreshold(unit, this.gameData.traits)}`,
       );
       for (const trait of getUnitTraits(unit, this.gameData.traits))
@@ -363,7 +385,7 @@ export class MobileRosterSheet {
           `${art?.name || id} · ${weapon.name}`,
           `${art?.description || ''} · HP cost ${art?.hpCost || 0}`,
         );
-        if (art) {
+        if (art && this.scene.sys?.settings?.key === 'Battle' && this.scene.turnManager) {
           const check = canUseWeaponArt(unit, weapon, art, {
             turnNumber: this.scene.turnManager?.turnNumber,
             isInitiating: true,
@@ -373,6 +395,21 @@ export class MobileRosterSheet {
           });
           this.body.lastElementChild.append(
             el('small', check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')),
+          );
+        } else if (art) {
+          const prof = unit.proficiencies?.find((p) => p.type === weapon.type);
+          const required = art.requiredRank || 'Prof';
+          const qualifies =
+            prof &&
+            ({ Prof: 0, Mast: 1 }[prof.rank || 'Prof'] ?? -1) >=
+              ({ Prof: 0, Mast: 1 }[required] ?? 0);
+          this.body.lastElementChild.append(
+            el(
+              'small',
+              !isWeaponArtCompatibleWithWeapon(art, weapon)
+                ? 'Incompatible weapon type.'
+                : `${qualifies ? 'Meets' : 'Needs'} ${weapon.type} ${required} · Battle usage resets for the next map.`,
+            ),
           );
         }
         count++;
@@ -557,16 +594,17 @@ export class MobileRosterSheet {
     return `${item.type} · Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
   }
   itemCard(item, unit) {
-    const forgeLevel = Number(item._forgeLevel) || 0;
+    const forge = getForgeDisplayInfo(item);
+    const forgeLevel = forge.level;
     const displayName = forgeLevel
-      ? `${item._baseName || item.name.replace(/\s\+\d+$/, '')} +${forgeLevel}`
+      ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
     const c = this.card(displayName, this.itemDescription(item, unit));
-    if (item._forgeBonuses)
+    if (Object.values(forge.bonuses).some(Boolean))
       c.append(
         el(
           'p',
-          `Forge: ${Object.entries(item._forgeBonuses)
+          `Forge: ${Object.entries(forge.bonuses)
             .filter(([, v]) => v)
             .map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`)
             .join(' · ')}`,

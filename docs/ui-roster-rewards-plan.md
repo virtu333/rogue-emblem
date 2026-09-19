@@ -338,3 +338,22 @@ and cleanup; their removal is not part of this checkpoint.
 Compact e2e now checks no legacy handoff, plain confirmation, and battle terrain /
 mastery details while keeping inspection read-only. Next is the complete reward
 sheet and its recipient/forge/imbue steps, then deployment and desktop parity.
+
+### Phase 2e: review follow-ups and desktop roster
+
+Weapon-art readiness is now limited to active battles. Outside battle, the Skills
+card shows static weapon compatibility, proficiency/rank and HP cost without
+reading stale per-map usage. Mastery perk labels share the canvas formatter, and
+forge details use ForgeSystem's display helper.
+
+The native roster now opens on any DOM host, including desktop; headless callers
+retain the canvas fallback. Initial focus lands on the active tab. Arrows and
+Tab move focus, Enter/Space activate, controller navigation/confirmation uses the
+same controls, and shoulder actions switch units. Canvas deletion remains a
+separate cleanup after the remaining flows migrate.
+
+Validation: 5,113 unit tests, ten compact phone cases, and the new desktop roster
+case passed; lint and production build passed. Desktop coverage seeds exhausted
+prior-battle art usage and exercises keyboard plus controller action dispatch.
+Physical controller/device testing remains useful. Next: native reward recipient,
+forge and imbue flows; no new TestFlight build in this checkpoint.
