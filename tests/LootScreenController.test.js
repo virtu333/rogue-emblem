@@ -281,6 +281,26 @@ describe('LootScreenController', () => {
   // ── renderCards ────────────────────────────────────────────
 
   describe('renderCards', () => {
+    it('claims native rewards once, allows retry after rejection and rejects cleanup-time callbacks', () => {
+      const scene = makeScene();
+      const controller = new LootScreenController(
+        scene,
+        scene.runManager,
+        scene.gameData,
+        makeCtx(),
+      );
+      controller.renderCards();
+      const reject = vi.fn(() => ({ ok: false, reason: 'Bag full' }));
+      expect(controller.applyNativeReward(1, reject).ok).toBe(false);
+      const apply = vi.fn(() => ({ ok: true }));
+      expect(controller.applyNativeReward(1, apply).ok).toBe(true);
+      expect(controller.applyNativeReward(1, apply).ok).toBe(false);
+      expect(apply).toHaveBeenCalledTimes(1);
+      scene._lootCleanedUp = true;
+      expect(controller.applyNativeReward(2, apply).ok).toBe(false);
+      expect(apply).toHaveBeenCalledTimes(1);
+    });
+
     it('creates loot cards and populates lootGroup', () => {
       const scene = makeScene();
       const ctx = makeCtx();

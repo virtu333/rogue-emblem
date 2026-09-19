@@ -1,3 +1,4 @@
+import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -86,6 +87,7 @@ export class MobileRosterSheet {
     this.tab = 'stats';
     this.previousFocus = document.activeElement;
     this.root = el('section', null, 'mr-sheet');
+    this.root.style.zIndex = DOM_UI_DEPTHS.MENU;
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', run ? 'Manage roster' : 'Inspect roster');

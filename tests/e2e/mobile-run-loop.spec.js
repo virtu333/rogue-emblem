@@ -167,15 +167,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
       .getByRole('button', { name: itemName, exact: true })
       .tap();
     await page.getByRole('button', { name: 'Choose reward', exact: true }).tap();
-    await expect(page.getByRole('dialog', { name: 'Battle rewards' })).toHaveCount(0);
-    const back = await page.evaluate(
-      () =>
-        window.__emblemRogueGame.scene
-          .getScene('Battle')
-          .children.list.filter((o) => o.type === 'Text' && o.visible && /Back/.test(o.text))
-          .at(-1)?.text,
-    );
-    if (back) await tapText(page, 'Battle', back);
+    await page.getByRole('button', { name: 'Back', exact: true }).tap();
     await expect(page.getByRole('dialog', { name: 'Battle rewards' })).toBeVisible();
   }
 

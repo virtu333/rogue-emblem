@@ -25,6 +25,7 @@ test('desktop native roster supports keyboard and gamepad actions without stale 
   });
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(roster).toBeVisible();
+  expect(await roster.evaluate((el) => getComputedStyle(el).zIndex)).toBe('1250');
   await expect(roster.getByRole('button', { name: 'Stats', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(roster.getByRole('button', { name: 'Skills', exact: true })).toBeFocused();

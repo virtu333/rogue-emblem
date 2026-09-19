@@ -1,7 +1,6 @@
 .mr-sheet {
   position: fixed;
   inset: 0;
-  z-index: 100;
   box-sizing: border-box;
   padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
     max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
@@ -365,4 +364,17 @@
 .mr-summary > .re-health {
   max-width: 160px;
   margin: 4px 0;
+}
+
+@media (min-width: 1000px) and (min-height: 600px) {
+  .mr-sheet > header,
+  .mr-sheet > .mr-layout {
+    width: 100%;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+  .mr-summary .mr-portrait {
+    width: 64px;
+    height: 74px;
+  }
 }

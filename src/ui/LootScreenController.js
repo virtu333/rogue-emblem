@@ -59,6 +59,8 @@ export class LootScreenController {
     // sub-picker is open (via the input-focus stack's onTopChange).
     this._focus = null;
     this._focusCards = [];
+    this.cardActions = [];
+    this.claimed = new Set();
     this._onInputActionBound = null;
   }
 
@@ -323,8 +325,7 @@ export class LootScreenController {
           .setDepth(702);
         lootGroup.push(typeLabel);
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) {
@@ -344,7 +345,7 @@ export class LootScreenController {
             }
           }
           scene.finalizeLootPick(lootGroup, cardIdx);
-        });
+        };
       } else if (choice.type === 'forge') {
         // Forge whetstone card
         const item = choice.item;
@@ -387,13 +388,12 @@ export class LootScreenController {
         );
         lootGroup.push(detailLabel);
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           scene.showForgeLootPicker(item, lootGroup, cardIdx);
-        });
+        };
         card.on('pointerover', () => {
           scene._clearLootTooltipTimer();
           scene._lootTooltipTimer = scene.time.delayedCall(
@@ -450,8 +450,7 @@ export class LootScreenController {
           lootGroup.push(detailLabel);
         }
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
@@ -472,7 +471,7 @@ export class LootScreenController {
           } else {
             scene.showLootUnitPicker(item, lootGroup, cardIdx);
           }
-        });
+        };
         card.on('pointerover', () => {
           scene._clearLootTooltipTimer();
           scene._lootTooltipTimer = scene.time.delayedCall(
@@ -485,8 +484,12 @@ export class LootScreenController {
         });
         card.on('pointerout', () => scene._hideLootTooltip());
       }
+      card.on('pointerdown', (pointer) => {
+        if (pointer?.button === 0) this.activateReward(cardIdx);
+      });
     }
 
+    // Commands are callable by either renderer without synthetic pointer events.
     // Skip card
     const skipX = startX + choices.length * (cardW + gap);
     const skipCard = scene.add
@@ -532,8 +535,7 @@ export class LootScreenController {
       .setDepth(702);
     lootGroup.push(skipDesc);
 
-    skipCard.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
+    this.cardActions[choices.length] = () => {
       scene._hideLootTooltip();
       const audio = scene.registry.get('audio');
       if (audio) {
@@ -542,6 +544,9 @@ export class LootScreenController {
       }
       awardGoldNow(skipGold);
       scene.cleanupLootScreen(lootGroup);
+    };
+    skipCard.on('pointerdown', (pointer) => {
+      if (pointer?.button === 0) this.activateReward(choices.length);
     });
 
     // Instruction
@@ -578,6 +583,7 @@ export class LootScreenController {
       scene._pinToScreen(lootGroup);
     }
 
+    this.choices = mobileChoices;
     this._setupInputFocus();
     if (canUseTouchUI(scene)) {
       this.mobileRewards = new MobileRewards(
@@ -588,6 +594,35 @@ export class LootScreenController {
         displayedSkipGold,
       );
     }
+  }
+
+  isRewardAvailable(index) {
+    return (
+      !this.scene._lootResolving &&
+      !this.scene._lootCleanedUp &&
+      !this.claimed.has(index) &&
+      typeof this.cardActions[index] === 'function'
+    );
+  }
+
+  activateReward(index) {
+    if (!this.isRewardAvailable(index)) return;
+    const choice = this.choices[index];
+    const immediate =
+      !choice ||
+      choice.type === 'gold' ||
+      choice.type === 'accessory' ||
+      choice.item?.type === 'Scroll';
+    if (immediate) this.claimed.add(index);
+    this.cardActions[index]?.();
+  }
+
+  applyNativeReward(index, apply) {
+    if (!this.isRewardAvailable(index)) return { ok: false, reason: 'Reward already claimed.' };
+    const result = apply();
+    if (!result.ok) return result;
+    this.claimed.add(index);
+    return result;
   }
 
   // Claim the input-focus stack so the pad drives the reward cards. The ring is

@@ -357,3 +357,37 @@ case passed; lint and production build passed. Desktop coverage seeds exhausted
 prior-battle art usage and exercises keyboard plus controller action dispatch.
 Physical controller/device testing remains useful. Next: native reward recipient,
 forge and imbue flows; no new TestFlight build in this checkpoint.
+
+### Phase 3a: native reward follow-through and roster review
+
+Validated and fixed the roster layering finding: roster and reward sheets use
+DOM_UI_DEPTHS.MENU. Wide desktop roster content is limited to 960px, with a larger
+summary portrait. Directional tab/list navigation remains a separate improvement;
+the existing linear focus ring is unchanged. Legacy canvas deletion is deferred.
+
+Mobile rewards now stay in the DOM through recipients, convoy, stat boosters,
+consumables, weapon selection, forge-stat selection and imbue selection. A step
+stack provides breadcrumbs and one-step Back. Gold/XP, scroll and accessory
+claims call explicit controller actions rather than emitting fake pointer events.
+Claim availability is controller state, independent of canvas input objects.
+The canvas renderer remains intact for desktop/headless paths; it is still built
+behind the mobile sheet pending separate rendering/deletion cleanup.
+
+LootRewardCommands revalidates roster membership, weapon ownership, capacity,
+equip eligibility and canonical imbue/forge choices before applying. Loot retains
+its existing equip-gated recipient rule; roster Give remains a separate operation.
+A claimed-card set prevents replay; the native sheet blocks Back and repeat input
+while applying. Elite continuation still uses the existing loot finalizer, gold
+accounting, persistence and scene-transition pipeline.
+
+Validation: full unit suite passed (5,116 at that run), followed by the added
+claim-replay/rejected-retry/cleanup test. Six SE-width browser cases complete
+weapon, consumable, booster, convoy, forge and imbue rewards, including Back,
+stalled apply and elite second-pick behavior. Desktop roster and review regression
+suites passed; the full mobile run/resume test passed. Lint, theme gate and build
+passed. Three initial browser startup timeouts during a concurrent build passed
+on a rerun after the build finished. Small-phone screenshots were inspected.
+
+Next: deployment and arrival/recruit overlays, then a combined physical-phone
+playtest and a release checkpoint. Rewards remain mobile-gated for this phase;
+no new TestFlight upload is included.

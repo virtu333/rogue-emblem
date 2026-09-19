@@ -682,6 +682,7 @@ export class LootFlowController {
     const scene = this.scene;
     this._hideLootTooltip();
     if (scene._lootResolving) return;
+    scene._lootController?.claimed?.add(cardIndex);
     if (!scene.isElite || !scene._elitePicksRemaining || scene._elitePicksRemaining <= 1) {
       // Non-elite or last pick - clean up immediately
       scene._lootResolving = true;

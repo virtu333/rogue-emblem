@@ -1,3 +1,14 @@
+import { getStaticCombatStats } from '../engine/Combat.js';
+import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
+import {
+  rewardTargetBlock,
+  applyRewardTarget,
+  rewardWeaponEligible,
+  applyRewardForge,
+  REWARD_FORGE_STATS,
+} from '../engine/LootRewardCommands.js';
+import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
+import { canForgeStat } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -12,6 +23,7 @@ export class MobileRewards {
   constructor(scene, controller, choices, summary, skipGold) {
     Object.assign(this, { scene, controller, choices, summary, skipGold });
     this.selected = 0;
+    this.steps = [];
     this.onShutdown = () => this.destroy();
     scene.events.once('shutdown', this.onShutdown);
     this.open();
@@ -19,29 +31,44 @@ export class MobileRewards {
   button(label, action) {
     const b = node('button', label);
     b.type = 'button';
-    b.onclick = action;
+    b.onclick = () => {
+      if (!this.busy) action();
+    };
     return b;
   }
   open() {
     if (this.visible || this.scene._lootResolving || this.scene._lootCleanedUp) return;
     this.visible = true;
     this.previousFocus = document.activeElement;
-    this.overlayToken = pushOverlay(this.scene, { name: 'rewards', onCancel: () => true });
+    this.overlayToken = pushOverlay(this.scene, {
+      name: 'rewards',
+      onCancel: () => {
+        this.back();
+        return true;
+      },
+    });
     this.root = node('section', null, 'mu-screen');
+    this.root.style.zIndex = DOM_UI_DEPTHS.MENU;
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Battle rewards');
     for (const type of ['pointerdown', 'pointerup', 'click', 'wheel', 'keydown'])
       this.root.addEventListener(type, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab') {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        this.moveFocus(e.shiftKey ? -1 : 1);
+        this.back();
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (['Tab', 'ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        this.moveFocus(e.shiftKey || ['ArrowUp', 'ArrowLeft'].includes(e.key) ? -1 : 1);
       }
     });
     document.getElementById('game-wrapper').append(this.root);
     for (const obj of this.controller.lootGroup) obj.setVisible(false);
     pushInputScope(this, (action, payload) => {
+      if (action === InputAction.CANCEL) this.back();
       if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
         document.activeElement.click();
@@ -50,11 +77,13 @@ export class MobileRewards {
     this.root.querySelector('button')?.focus();
   }
   moveFocus(delta) {
+    if (this.busy) return;
     const buttons = [...this.root.querySelectorAll('button:not(:disabled)')];
     const i = buttons.indexOf(document.activeElement);
     buttons[(i + delta + buttons.length) % buttons.length]?.focus();
   }
   render() {
+    if (this.steps.length) return this.renderStep();
     const scene = this.scene;
     const focus = this.root.contains(document.activeElement)
       ? document.activeElement.dataset.focus
@@ -82,7 +111,7 @@ export class MobileRewards {
       b.dataset.focus = `reward-${i}`;
       b.className = 'mh-skill';
       b.setAttribute('aria-pressed', String(this.selected === i));
-      b.disabled = !this.controller._focusCards[i]?.input?.enabled;
+      b.disabled = !this.controller.isRewardAvailable(i);
       list.append(b);
     });
     const c = all[this.selected];
@@ -104,19 +133,180 @@ export class MobileRewards {
       ),
     );
     const claim = this.button(c.type === 'skip' ? 'Take gold' : 'Choose reward', () => {
-      const card = this.controller._focusCards[this.selected];
-      if (!card?.input?.enabled || scene._lootResolving) return;
-      this.hide();
-      card.emit('pointerdown', { button: 0 });
+      if (!this.controller.isRewardAvailable(this.selected)) return;
+      if (
+        c.type === 'skip' ||
+        c.type === 'gold' ||
+        c.type === 'accessory' ||
+        c.item?.type === 'Scroll'
+      ) {
+        this.hide();
+        this.controller.activateReward(this.selected);
+      } else this.startChoice(c);
     });
     claim.dataset.focus = 'claim';
     claim.className = 'mu-buy';
-    claim.disabled = !this.controller._focusCards[this.selected]?.input?.enabled;
+    claim.disabled = !this.controller.isRewardAvailable(this.selected);
     actions.append(claim);
     detail.append(copy, actions);
     split.append(list, detail);
     this.root.append(header, split);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
+  }
+  back() {
+    if (this.busy || !this.steps.length) return;
+    this.steps.pop();
+    this.render();
+    this.root.querySelector('button:not(:disabled)')?.focus();
+  }
+  pushStep(step) {
+    this.steps.push(step);
+    this.renderStep();
+    this.root.querySelector('[aria-pressed="true"]')?.focus();
+  }
+  renderStep(message = '') {
+    const step = this.steps.at(-1);
+    this.root.replaceChildren();
+    const header = node('header', null, 'mu-header');
+    header.append(
+      node('h1', 'Battle rewards'),
+      this.button('Back', () => this.back()),
+    );
+    const trail = node('p', ['Rewards', ...this.steps.map((s) => s.title)].join(' › '), 'mu-help');
+    const split = node('div', null, 'mu-split');
+    const list = node('div', null, 'mu-list');
+    step.selected ??= step.choices[0];
+    for (const choice of step.choices) {
+      const reason = step.blocked?.(choice);
+      const row = this.button(null, () => {
+        step.selected = choice;
+        this.renderStep();
+        this.root.querySelector('[aria-pressed="true"]')?.focus();
+      });
+      row.className = 'mh-skill';
+      row.setAttribute('aria-pressed', String(step.selected === choice));
+      row.append(
+        node('strong', step.label(choice)),
+        node('small', reason || step.describe?.(choice) || ''),
+      );
+      list.append(row);
+    }
+    const detail = node('section', null, 'mu-detail');
+    const copy = node('div', null, 'mu-copy');
+    const chosen = step.selected;
+    copy.append(
+      node('h2', chosen ? step.label(chosen) : 'No available choices'),
+      node(
+        'p',
+        chosen
+          ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
+          : 'Go back to choose another reward.',
+      ),
+    );
+    const status = node('p', message);
+    status.setAttribute('role', 'status');
+    copy.append(status);
+    const actions = node('div', null, 'mu-actions');
+    const confirm = this.button(step.final ? 'Apply reward' : 'Continue', () => {
+      if (!chosen || step.blocked?.(chosen)) return;
+      if (step.final) this.apply(() => step.apply(chosen));
+      else step.next(chosen);
+    });
+    confirm.className = 'mu-buy';
+    confirm.disabled = !chosen || !!step.blocked?.(chosen);
+    actions.append(confirm);
+    detail.append(copy, actions);
+    split.append(list, detail);
+    this.root.append(header, trail, split);
+  }
+  startChoice(choice) {
+    const item = choice.item;
+    const run = this.scene.runManager;
+    if (choice.type === 'forge') {
+      this.pushStep({
+        title: item.name,
+        choices: run.roster,
+        label: (unit) => unit.name,
+        blocked: (unit) =>
+          unit.inventory?.some((w) => rewardWeaponEligible(item, w)) ? '' : 'No eligible weapons',
+        describe: () => 'Choose the unit carrying the weapon.',
+        next: (unit) => this.weaponStep(item, unit),
+      });
+    } else {
+      const booster = item.type === 'Consumable' && item.effect === 'statBoost';
+      this.pushStep({
+        title: item.name,
+        choices: [...run.roster, ...(booster ? [] : ['convoy'])],
+        label: (unit) => (unit === 'convoy' ? 'Send to Convoy' : unit.name),
+        blocked: (unit) => rewardTargetBlock(run, item, unit),
+        describe: (unit) =>
+          unit === 'convoy'
+            ? 'Store for later.'
+            : booster
+              ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
+              : item.type === 'Consumable'
+                ? `${unit.consumables?.length || 0}/3 consumables`
+                : `Can equip · AS ${getStaticCombatStats(unit, unit.weapon).as} → ${getStaticCombatStats(unit, item).as} if equipped · ${unit.inventory?.length || 0}/5 items`,
+        final: true,
+        apply: (unit) => applyRewardTarget(run, item, unit),
+      });
+    }
+  }
+  weaponStep(item, unit) {
+    const apply = (weapon, selection) =>
+      applyRewardForge(this.scene.runManager, this.scene.gameData, item, unit, weapon, selection);
+    const needsChoice = item.forgeStat === 'choice' || item.imbueId === 'choice';
+    this.pushStep({
+      title: unit.name,
+      choices: unit.inventory.filter((w) => rewardWeaponEligible(item, w)),
+      label: (weapon) => weapon.name,
+      describe: (weapon) =>
+        `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
+      blocked: (weapon) =>
+        unit.inventory.includes(weapon) && rewardWeaponEligible(item, weapon)
+          ? ''
+          : 'Weapon unavailable',
+      final: !needsChoice,
+      apply: (weapon) => apply(weapon),
+      next: (weapon) => {
+        const imbue = isImbueStone(item);
+        this.pushStep({
+          title: weapon.name,
+          choices: imbue ? getImbueList(this.scene.gameData.imbues) : REWARD_FORGE_STATS,
+          label: (entry) => (imbue ? entry.name : entry.label),
+          describe: (entry) => (imbue ? entry.description : 'Permanent weapon upgrade.'),
+          blocked: (entry) =>
+            !imbue && !canForgeStat(weapon, entry.key) ? 'Stat limit reached' : '',
+          final: true,
+          apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),
+        });
+      },
+    });
+  }
+  async apply(command) {
+    if (this.busy || !this.visible) return;
+    this.busy = true;
+    this.root.setAttribute('aria-busy', 'true');
+    for (const button of this.root.querySelectorAll('button')) button.disabled = true;
+    try {
+      const result = await this.controller.applyNativeReward(this.selected, command);
+      if (!this.visible) return;
+      if (!result.ok) {
+        this.renderStep(result.reason);
+        this.root.querySelector('button:not(:disabled)')?.focus();
+        return;
+      }
+      this.steps = [];
+      this.hide();
+      this.scene.registry.get('audio')?.playSFX('sfx_gold');
+      this.scene.finalizeLootPick(this.controller.lootGroup, this.selected);
+    } catch (error) {
+      if (this.visible) this.renderStep('Could not apply reward. Please try again.');
+      console.error('Reward application failed', error);
+    } finally {
+      this.busy = false;
+      this.root?.removeAttribute('aria-busy');
+    }
   }
   hide() {
     if (!this.visible) return;
