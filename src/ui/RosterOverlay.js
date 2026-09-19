@@ -166,13 +166,6 @@ export class RosterOverlay {
         portraitKey: (unit) => this._getPortraitKey(unit),
         run: this.runManager,
         onClose: () => this.hide(),
-        onAdvanced: () => {
-          this.selection.index = this._mobileSheet.index;
-          this._mobileSheet.destroy();
-          this._mobileSheet = null;
-          this.visible = false;
-          this.show(true);
-        },
       });
       return;
     }

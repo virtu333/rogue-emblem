@@ -12,8 +12,9 @@ export class ChoicePicker {
     blocked = () => '',
     apply,
     onClose,
+    confirmation = false,
   }) {
-    Object.assign(this, { choices, label, describe, blocked, apply, onClose });
+    Object.assign(this, { choices, label, describe, blocked, apply, onClose, confirmation });
     this.choices = Array.isArray(choices) ? choices : [];
     this.selected = this.choices[0];
     this.surface = new MenuSurface(scene, title, () => this.close(), { modal: true });
@@ -25,7 +26,7 @@ export class ChoicePicker {
     const body = this.surface.body;
     body.replaceChildren();
     const list = element('div', null, 're-scroll');
-    for (const choice of this.choices) {
+    for (const choice of this.confirmation ? [] : this.choices) {
       const reason = this.blocked(choice);
       const row = button(
         null,
@@ -43,6 +44,12 @@ export class ChoicePicker {
       );
       row.setAttribute('aria-pressed', String(this.selected === choice));
       list.append(row);
+    }
+    if (this.confirmation && this.selected) {
+      list.append(
+        element('h3', this.label(this.selected)),
+        element('p', this.describe(this.selected)),
+      );
     }
     this.status = element('p', message || (this.choices.length ? '' : 'No available choices.'));
     this.status.setAttribute('role', 'status');

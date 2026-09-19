@@ -319,3 +319,22 @@ art binding. Rewards/deployment remain subsequent phases.
 Validation added: blocked Dancer, empty picker, full-bag grant notice, compatible
 art binding, consumed-scroll replay, stale overwrite and incompatible ownership.
 Eight compact phone browser cases include native overwrite confirmation.
+
+### Phase 2d: picker refinement and native detail handoff removal
+
+Weapon binding now filters hard-ineligible owner/weapon combinations, retains
+already-bound entries with their explanation, labels sources Innate / Scroll /
+Meta Innate, and renders its final step as a plain confirmation using the same
+busy/cancel ownership machinery as the picker.
+
+Native Stats/inspection now includes terrain-aware Avoid and terrain bonuses
+(with flying exclusions), mastery progress/perk, traits, enemy affixes and
+expandable attribute explanations. Equipment adds explicit forge deltas, imbue
+descriptions and effective staff range; weapon arts show availability. The
+Advanced management / More details links and their footer were removed.
+Legacy classes remain for desktop/headless callers until the separate migration
+and cleanup; their removal is not part of this checkpoint.
+
+Compact e2e now checks no legacy handoff, plain confirmation, and battle terrain /
+mastery details while keeping inspection read-only. Next is the complete reward
+sheet and its recipient/forge/imbue steps, then deployment and desktop parity.

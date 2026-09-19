@@ -30,6 +30,7 @@ test('horizontal route retains selection and scroll through roster on landscape 
   await route.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
   await expect(roster).toBeVisible();
+  await expect(roster.getByRole('button', { name: 'Advanced management' })).toHaveCount(0);
   expect(await roster.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await expect(
     roster.locator('header').getByRole('button', { name: 'Equipment', exact: true }),
@@ -179,7 +180,8 @@ test('art binding confirms replacement and empty promotion choices are safe', as
     .getByRole('button', { name: 'Confirm', exact: true })
     .tap();
   const confirm = page.getByRole('dialog', { name: `Replace ${names.old}?` });
-  await expect(confirm).toContainText('innate');
+  await expect(confirm).toContainText('Innate');
+  await expect(confirm.locator('.re-row')).toHaveCount(0);
   await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(confirm).toHaveCount(0);
   const state = await page.evaluate(() => {
@@ -205,4 +207,26 @@ test('art binding confirms replacement and empty promotion choices are safe', as
   await expect(empty).toContainText('No available choices.');
   await expect(empty.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
   await empty.getByRole('button', { name: 'Close', exact: true }).tap();
+});
+
+test('battle inspection shows terrain and mastery without a legacy link', async ({ page }) => {
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1');
+  await waitForScene(page, 'Battle');
+  const terrainName = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const unit = s.playerUnits[0];
+    const terrain = s.gameData.terrain[s.grid.mapLayout[unit.row][unit.col]];
+    s.unitDetailOverlay.show(unit, terrain, s.gameData);
+    return terrain.name;
+  });
+  const sheet = page.locator('.mr-sheet');
+  await expect(sheet.getByRole('heading', { name: `Terrain: ${terrainName}` })).toHaveCount(1);
+  await expect(sheet.getByRole('heading', { name: /Class mastery|Mastered/ })).toHaveCount(1);
+  await expect(sheet.getByRole('button', { name: 'More details', exact: true })).toHaveCount(0);
+  await expect(sheet.locator('footer')).toHaveCount(0);
+  await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  await expect(sheet.getByRole('button', { name: 'Give…' })).toHaveCount(0);
+  await page.screenshot({ path: `test-results/native-inspect-${page.viewportSize().width}.png` });
+  await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(sheet).toHaveCount(0);
 });

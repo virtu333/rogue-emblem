@@ -1,3 +1,14 @@
+import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
+import { getEffectiveStaffRange } from '../engine/Combat.js';
+import {
+  getMasteryProgress,
+  getMasteryThreshold,
+  isMastered,
+  getMasteryPerk,
+} from '../engine/MasterySystem.js';
+import { getUnitTraits } from '../engine/TraitSystem.js';
+import { calculateAvoid } from '../engine/Combat.js';
+import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
 import {
@@ -8,7 +19,11 @@ import {
 } from '../engine/RosterTransfers.js';
 import { canEquip, isLastCombatWeapon } from '../engine/UnitManager.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
-import { getWeaponArtIds, getWeaponArtBindings } from '../engine/WeaponArtSystem.js';
+import {
+  getWeaponArtIds,
+  getWeaponArtBindings,
+  canUseWeaponArt,
+} from '../engine/WeaponArtSystem.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { applyRosterClassChange, rosterClassChangeBlock } from '../engine/RosterCommands.js';
 import {
@@ -52,10 +67,8 @@ export class MobileRosterSheet {
     gameData,
     run = null,
     onClose,
-    onAdvanced = null,
-    advancedLabel = 'Advanced management',
-    advancedDescription = 'Additional unit details',
     portraitKey = null,
+    terrainForUnit = null,
   }) {
     Object.assign(this, {
       scene,
@@ -64,10 +77,8 @@ export class MobileRosterSheet {
       gameData,
       run,
       onClose,
-      onAdvanced,
-      advancedLabel,
-      advancedDescription,
       portraitKey,
+      terrainForUnit,
     });
     this.tab = 'stats';
     this.previousFocus = document.activeElement;
@@ -242,20 +253,6 @@ export class MobileRosterSheet {
     pane.append(body);
     layout.append(pane);
     this.root.append(layout);
-    if (this.onAdvanced) {
-      const foot = el('footer');
-      foot.append(
-        el('span', this.advancedDescription),
-        this.button(this.advancedLabel, this.onAdvanced),
-      );
-      this.root.append(foot);
-    } else {
-      const foot = el(
-        'footer',
-        'Inspect only during battle. Change equipment through the unit’s battle actions.',
-      );
-      this.root.append(foot);
-    }
     [...this.root.querySelectorAll('button')].forEach((b, i) => {
       b.dataset.focusKey = String(i);
     });
@@ -273,6 +270,7 @@ export class MobileRosterSheet {
     return c;
   }
   stats(unit) {
+    const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
     for (const [key, value] of Object.entries(unit.stats || {})) {
       const valueText = el('dd', String(value));
@@ -303,8 +301,38 @@ export class MobileRosterSheet {
     const combat = getStaticCombatStats(unit, unit.weapon);
     this.card(
       'Combat',
-      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
+      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${terrain ? calculateAvoid(unit, terrain) : unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
     );
+    if (terrain)
+      this.card(
+        `Terrain: ${terrain.name}`,
+        unit.moveType === 'Flying'
+          ? 'Flying — no terrain defense or avoid bonus.'
+          : `Defense +${parseInt(terrain.defBonus) || 0} · Avoid +${parseInt(terrain.avoidBonus) || 0}`,
+      );
+    if (unit.faction !== 'enemy') {
+      const mastered = isMastered(unit, this.gameData.classes, this.gameData.traits);
+      const perk = getMasteryPerk(unit, this.gameData.classes, this.gameData.traits);
+      this.card(
+        mastered ? `Mastered ★${perk ? ` ${perk.name}` : ''}` : 'Class mastery',
+        mastered
+          ? Object.entries(perk?.mods || {})
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(' · ')
+          : `${getMasteryProgress(unit, this.gameData.classes)}/${getMasteryThreshold(unit, this.gameData.traits)}`,
+      );
+      for (const trait of getUnitTraits(unit, this.gameData.traits))
+        this.card(trait.name, trait.description);
+    }
+    for (const id of unit.affixes || []) {
+      const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
+      this.card(affix?.name || id, affix?.description || '');
+    }
+    const explanations = el('details', null, 'mr-card');
+    explanations.append(el('summary', 'Attribute explanations'));
+    for (const [stat, description] of Object.entries(STAT_DESCRIPTIONS))
+      explanations.append(el('p', `${stat}: ${description}`));
+    this.body.append(explanations);
     if (unit.growths && unit.faction !== 'enemy') {
       const details = el('details', null, 'mr-card');
       details.append(
@@ -335,6 +363,18 @@ export class MobileRosterSheet {
           `${art?.name || id} · ${weapon.name}`,
           `${art?.description || ''} · HP cost ${art?.hpCost || 0}`,
         );
+        if (art) {
+          const check = canUseWeaponArt(unit, weapon, art, {
+            turnNumber: this.scene.turnManager?.turnNumber,
+            isInitiating: true,
+            actorFaction: unit.faction,
+            weaponArtHpCostDelta:
+              this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+          });
+          this.body.lastElementChild.append(
+            el('small', check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')),
+          );
+        }
         count++;
       }
     }
@@ -354,7 +394,12 @@ export class MobileRosterSheet {
     if (this.picker || this.destroyed) return;
     const arts = this.gameData.weaponArts?.arts || [];
     const choices = this.units.flatMap((unit) =>
-      (unit.inventory || []).map((weapon) => ({ unit, weapon })),
+      (unit.inventory || [])
+        .map((weapon) => ({ unit, weapon }))
+        .filter(({ weapon }) => {
+          const reason = rosterArtBlock(this.run, unit, weapon, scroll, arts);
+          return !reason || reason === 'Weapon already has this art.';
+        }),
     );
     const openStep = (title, options, label, describe, blocked, apply, next) => {
       let selected = null;
@@ -362,6 +407,7 @@ export class MobileRosterSheet {
         scene: this.scene,
         title,
         choices: options,
+        confirmation: !next,
         label,
         describe,
         blocked,
@@ -386,7 +432,7 @@ export class MobileRosterSheet {
         [weapon],
         (w) => w.name,
         () =>
-          `${scroll.name} · ${unit.name}${replacement ? ` · Replaces ${replacement.source} art ${oldName}` : ' · Uses one scroll'}`,
+          `${scroll.name} · ${unit.name}${replacement ? ` · Replaces ${{ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' }[replacement.source] || 'Innate'} art ${oldName}` : ' · Uses one scroll'}`,
         () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
         () => {
           const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
@@ -412,7 +458,8 @@ export class MobileRosterSheet {
           'Choose art to replace',
           bindings.map((b, index) => ({ ...b, index })),
           (b) => arts.find((a) => a.id === b.id)?.name || b.id,
-          (b) => `Slot ${b.index + 1} · ${b.source}`,
+          (b) =>
+            `Slot ${b.index + 1} · ${{ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' }[b.source] || 'Innate'}`,
           () => rosterArtBlock(this.run, choice.unit, choice.weapon, scroll, arts),
           () => ({ ok: true }),
           (replacement) => confirm(choice, replacement),
@@ -503,12 +550,30 @@ export class MobileRosterSheet {
   itemDescription(item, unit) {
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
-    if (item.type === 'Staff')
-      return `Staff · Range ${item.range} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}`;
+    if (item.type === 'Staff') {
+      const range = getEffectiveStaffRange(item, unit);
+      return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}`;
+    }
     return `${item.type} · Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
   }
   itemCard(item, unit) {
-    const c = this.card(item.name, this.itemDescription(item, unit));
+    const forgeLevel = Number(item._forgeLevel) || 0;
+    const displayName = forgeLevel
+      ? `${item._baseName || item.name.replace(/\s\+\d+$/, '')} +${forgeLevel}`
+      : item.name;
+    const c = this.card(displayName, this.itemDescription(item, unit));
+    if (item._forgeBonuses)
+      c.append(
+        el(
+          'p',
+          `Forge: ${Object.entries(item._forgeBonuses)
+            .filter(([, v]) => v)
+            .map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`)
+            .join(' · ')}`,
+        ),
+      );
+    const imbue = getImbueDisplayInfo(item, this.gameData.imbues);
+    if (imbue) c.append(el('p', `${imbue.name}: ${imbue.description}`));
     if (item === unit.weapon) c.append(el('p', 'Equipped', 'mr-equipped'));
     if (item.special) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));

@@ -127,22 +127,9 @@ export class UnitDetailOverlay {
         gameData: this.gameData,
         portraitKey: (unit) => this._getPortraitKey(unit),
         onClose: () => this.hide(),
-        advancedLabel: 'More details',
-        advancedDescription: 'Combat, terrain and weapon arts',
-        onAdvanced: () => {
-          const index = this._mobileSheet.index;
-          const units = this._rosterUnits || [unit];
-          const chosen = units[index];
-          const terrainIndex = this.scene.grid?.mapLayout?.[chosen.row]?.[chosen.col];
-          const chosenTerrain =
-            terrainIndex != null ? this.gameData.terrain[terrainIndex] : terrain;
-          this.show(
-            chosen,
-            chosenTerrain,
-            this.gameData,
-            { rosterUnits: units, rosterIndex: index },
-            true,
-          );
+        terrainForUnit: (chosen) => {
+          const index = this.scene.grid?.mapLayout?.[chosen.row]?.[chosen.col];
+          return index != null ? this.gameData.terrain[index] : chosen === unit ? terrain : null;
         },
       });
       return;
