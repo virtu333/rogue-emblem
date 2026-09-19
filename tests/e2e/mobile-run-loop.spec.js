@@ -123,19 +123,16 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
       window.__emblemRogueGame.scene.getScene('Battle').battleState,
     ),
   );
-  const deploy = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Battle');
-    return s.children.list.filter((o) => o.type === 'Text' && o.visible).map((o) => o.text);
-  });
-  if (deploy.includes('Begin Battle')) await tapText(page, 'Battle', 'Begin Battle');
+  const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  if (await deploy.isVisible()) {
+    const confirm = deploy.getByRole('button', { name: 'Deploy', exact: true });
+    if (await confirm.isDisabled())
+      await deploy.locator('.re-party-row[aria-pressed="false"]').first().tap();
+    await confirm.tap();
+  }
   // UI action follows the same selected-unit menu as a map tap; fixture skips pathfinding.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
-    if (s.battleState === 'DEPLOY_SELECTION')
-      s.children.list
-        .filter((o) => o.type === 'Rectangle' && o.input?.enabled && o.listenerCount('pointerdown'))
-        .at(-1)
-        ?.emit('pointerdown');
     s.selectUnit(s.playerUnits[0]);
     s.showActionMenu(s.playerUnits[0]);
   });
@@ -167,7 +164,10 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
       .getByRole('button', { name: itemName, exact: true })
       .tap();
     await page.getByRole('button', { name: 'Choose reward', exact: true }).tap();
-    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await page
+      .getByRole('dialog', { name: 'Battle rewards', exact: true })
+      .getByRole('button', { name: 'Back', exact: true })
+      .tap();
     await expect(page.getByRole('dialog', { name: 'Battle rewards' })).toBeVisible();
   }
 

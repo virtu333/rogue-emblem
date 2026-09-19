@@ -35,10 +35,9 @@ import {
   getReclassTargets,
   getSkillDisplayNames,
 } from '../engine/UnitManager.js';
-import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { unitPortrait } from './unitPortrait.js';
 import { createHealthBar } from './healthBar.js';
 import { STAT_COLORS } from '../utils/uiStyles.js';
-import { textureImageSource } from './textureImageSource.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   rosterItemAction,
@@ -101,17 +100,15 @@ export class MobileRosterSheet {
         this.onClose();
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === 'Tab' || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
-        this.moveFocus(
-          e.key === 'Tab'
-            ? e.shiftKey
-              ? -1
-              : 1
-            : ['ArrowUp', 'ArrowLeft'].includes(e.key)
-              ? -1
-              : 1,
-        );
+        this.changeTab(e.key === 'ArrowLeft' ? -1 : 1);
+      } else if (['ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        this.moveWithinList(e.key === 'ArrowUp' ? -1 : 1);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        this.moveFocus(e.shiftKey ? -1 : 1);
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         this.activateFocused();
@@ -119,7 +116,10 @@ export class MobileRosterSheet {
     });
     document.getElementById('game-wrapper').append(this.root);
     pushInputScope(this, (action, payload) => {
-      if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
+      if (action === InputAction.NAVIGATE) {
+        if (payload?.dx) this.changeTab(payload.dx);
+        else this.moveWithinList(payload?.dy || 1);
+      }
       if (action === InputAction.CONFIRM) this.activateFocused();
       if ([InputAction.CANCEL, InputAction.PAUSE, InputAction.ROSTER].includes(action))
         this.onClose();
@@ -135,6 +135,26 @@ export class MobileRosterSheet {
     scene.events.once('shutdown', this.shutdown);
     this.render();
     this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
+  }
+  changeTab(delta) {
+    const tabs = [...this.root.querySelectorAll('.mr-tabs button')];
+    const index = tabs.findIndex((b) => b.getAttribute('aria-pressed') === 'true');
+    tabs[(index + Math.sign(delta) + tabs.length) % tabs.length]?.click();
+    this.root.querySelector('.mr-tabs [aria-pressed="true"]')?.focus();
+  }
+  moveWithinList(delta) {
+    const active = document.activeElement;
+    const region = active?.closest('.mr-units') || this.root.querySelector('.mr-content');
+    const items = this.controls().filter((el) => region?.contains(el));
+    if (!items.length) return;
+    const index = items.indexOf(active);
+    items[
+      index < 0
+        ? delta < 0
+          ? items.length - 1
+          : 0
+        : (index + Math.sign(delta) + items.length) % items.length
+    ]?.focus();
   }
   controls() {
     return [...this.root.querySelectorAll('button:not(:disabled), summary, select')].filter(
@@ -170,37 +190,7 @@ export class MobileRosterSheet {
     return b;
   }
   portrait(unit, className) {
-    const normalize = (name) => name.toLowerCase().replace(/ /g, '_');
-    const named = this.gameData.lords?.some((lord) => lord.name === unit.name);
-    const base = this.gameData.classes?.find(
-      (entry) => entry.name === unit.className,
-    )?.promotesFrom;
-    const prefix = unit.faction === 'enemy' ? 'portrait_enemy_' : 'portrait_generic_';
-    const fallbackCandidates = named
-      ? [`portrait_lord_${normalize(unit.name)}`]
-      : [
-          this.portraitKey?.(unit),
-          prefix + normalize(unit.className),
-          ...(typeof base === 'string' ? [prefix + normalize(base)] : []),
-        ];
-    const candidates = [rebuiltPortraitKey(this.scene, unit), ...fallbackCandidates];
-    let source = '';
-    for (const key of candidates.filter(Boolean)) {
-      if (this.scene.textures.exists(key)) {
-        source = textureImageSource(this.scene.textures.get(key));
-      } else {
-        const deferred = this.scene.registry.get('deferredAssets') || [];
-        const asset = deferred.find((entry) => entry.key === key && entry.group === 'portraits');
-        if (asset) source = `${import.meta.env.BASE_URL}${asset.src}`;
-      }
-      if (source) break;
-    }
-    if (!source) return null;
-    const image = el('img', null, className);
-    image.src = source;
-    image.alt = '';
-    image.addEventListener('error', () => image.remove(), { once: true });
-    return image;
+    return unitPortrait(this.scene, this.gameData, unit, className, this.portraitKey);
   }
   render(message = '') {
     if (this.destroyed) return;
@@ -273,12 +263,17 @@ export class MobileRosterSheet {
       if (this.tab === 'gear') this.gear(unit);
     }
     if (this.tab === 'convoy') this.convoy(unit);
-    const status = el('p', message, 'mr-status');
+    const status = (this.status ||= el('p', '', 'mr-status'));
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
     status.setAttribute('role', 'status');
     body.append(status);
     pane.append(body);
     layout.append(pane);
     this.root.append(layout);
+    queueMicrotask(() => {
+      if (!this.destroyed) status.textContent = message;
+    });
     [...this.root.querySelectorAll('button')].forEach((b, i) => {
       b.dataset.focusKey = String(i);
     });

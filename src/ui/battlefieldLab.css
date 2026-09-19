@@ -127,7 +127,7 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 }
 .battlefield-lab .mb-battle-info[open] > .mb-more-content {
   position: fixed;
-  z-index: 30;
+  z-index: var(--re-depth-lab);
   right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right) + 8px);
   bottom: max(8px, env(safe-area-inset-bottom));
   width: min(330px, 50vw);

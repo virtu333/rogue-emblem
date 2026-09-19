@@ -391,3 +391,42 @@ on a rerun after the build finished. Small-phone screenshots were inspected.
 Next: deployment and arrival/recruit overlays, then a combined physical-phone
 playtest and a release checkpoint. Rewards remain mobile-gated for this phase;
 no new TestFlight upload is included.
+
+### Phase 3b: remaining player-facing screens and final review refinements
+
+Deployment and post-battle boss/lord recruitment now use MenuSurface on every
+browser host. Deployment preserves commander locking, min/max rules and original
+roster ordering; management layers the native roster above deployment, then
+refreshes the cloned deployment roster by selected names. Recruit/lord generation,
+reroll consumption and completion callbacks remain in their original owners.
+Full roster details are available for candidate comparison. Optional recruits
+honor cancel as Skip; mandatory arrivals announce how to continue.
+
+Left/right changes roster tabs; up/down traverses the current content/unit list;
+Tab retains full control traversal. Rewards, dialogue and pause are DOM on desktop.
+Only the battle HUD uses canUseTouchUI; desktop combat retains pointer-oriented
+canvas presentation. Roster notices explicitly use a persistent polite live region.
+
+DOM_UI_DEPTHS generates uiDepthTokens.css through buildUITheme. check:ui-theme
+verifies both the generated values and absence of numeric CSS z-index literals.
+The old roster/reward mockup is marked historical (its letter ranks are invalid).
+
+Reload/rotation browser cases validate the current contract: completed battle
+state persists, but unclaimed loot is forfeited on reload. The step stack is not
+persisted. This pass does not change save schemas or that product behavior.
+
+Canvas deletion is deferred as a dedicated command-extraction/test migration,
+not a prerequisite for showing the new UI: every browser menu gate now selects
+the DOM implementation, and unused forceLegacy overrides are removed. The
+headless branches and hidden reward/pause display objects still exist. Retaining
+these explicitly avoids silently removing shared operations or test coverage.
+See ui-release-review-note.md for the reviewer handoff and physical-device limits.
+
+Final reviewer additions: party comparison opens the vetted roster detail sheet;
+underlying party menus are inert while it is open. Cancel skips optional boss
+recruits and explains mandatory lord selection. CSS also hides covered battle
+HUD controls from accessibility navigation. Reload and rotation are under browser
+coverage. Wholesale canvas deletion remains the only deliberately deferred
+engineering cleanup; it requires isolating shared methods before removing the
+headless implementations. Physical iOS/controller/save-upgrade playtesting is
+not claimed by Chromium validation.

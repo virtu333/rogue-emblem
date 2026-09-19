@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { showDeploymentMenu } from './PartyMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 /**
@@ -41,6 +43,10 @@ export class DeployScreenOverlay {
    * @param {Set<string>|null} initialSelectedNames
    */
   show(roster, limits, onConfirm, initialSelectedNames = null) {
+    if (hasDOMHost()) {
+      showDeploymentMenu(this, roster, limits, onConfirm, initialSelectedNames);
+      return;
+    }
     const scene = this.scene;
     const deployGroup = this.displayObjects;
     const cam = scene.cameras.main;
@@ -533,6 +539,8 @@ export class DeployScreenOverlay {
   }
 
   _cleanup() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     if (this._closed) return;
     this._closed = true;
     if (this._onInputActionBound) {

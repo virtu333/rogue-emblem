@@ -1,4 +1,5 @@
 @import './uiTokens.css';
+@import './uiDepthTokens.css';
 /* Compatibility aliases let existing screens migrate without a second palette. */
 :root {
   --re-panel-raised: var(--re-raised);

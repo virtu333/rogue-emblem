@@ -1,5 +1,5 @@
 import { UI_PALETTE } from '../utils/uiStyles.js';
-import { canUseTouchUI } from '../utils/domUI.js';
+import { hasDOMHost } from '../utils/domUI.js';
 import { MobileRewards } from './MobileRewards.js';
 import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -585,7 +585,7 @@ export class LootScreenController {
 
     this.choices = mobileChoices;
     this._setupInputFocus();
-    if (canUseTouchUI(scene)) {
+    if (hasDOMHost()) {
       this.mobileRewards = new MobileRewards(
         scene,
         this,

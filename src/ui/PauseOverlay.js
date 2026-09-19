@@ -1,5 +1,5 @@
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
-import { canUseTouchUI } from '../utils/domUI.js';
+import { hasDOMHost } from '../utils/domUI.js';
 import { MobilePauseMenu } from './MobilePauseMenu.js';
 // PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run)
 // Follows StatPanel show()/hide() pattern with this.objects[].
@@ -243,7 +243,7 @@ export class PauseOverlay {
     }
 
     this._setupFocus();
-    if (canUseTouchUI(this.scene)) this._mobileMenu = new MobilePauseMenu(this);
+    if (hasDOMHost()) this._mobileMenu = new MobilePauseMenu(this);
   }
 
   // Build the focus ring over the menu buttons and claim the input-focus stack so

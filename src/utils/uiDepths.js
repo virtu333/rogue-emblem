@@ -43,4 +43,13 @@ export const UI_DEPTHS = {
 };
 
 // DOM surfaces have their own stacking context above the Phaser canvas.
-export const DOM_UI_DEPTHS = { ROUTE: 400, DIALOGUE: 1200, MENU: 1250 };
+export const DOM_UI_DEPTHS = {
+  LAB: 30,
+  ROUTE: 400,
+  LAUNCH: 920,
+  UPGRADE: 950,
+  FORECAST: 1000,
+  PAUSE: 1100,
+  DIALOGUE: 1200,
+  MENU: 1250,
+};

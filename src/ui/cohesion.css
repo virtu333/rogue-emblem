@@ -412,3 +412,37 @@ html.mobile-preview .re-screen {
   width: 100%;
   margin-bottom: 4px;
 }
+
+/* Portrait rows shared by deployment and post-battle recruitment. */
+.re-party-list {
+  flex: 1;
+}
+.re-party-row {
+  grid-template-columns: 40px minmax(0, 1fr);
+  margin-bottom: 6px;
+}
+.re-party-row .mr-unit-face {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+}
+.re-party-row strong,
+.re-party-row small {
+  grid-column: 2;
+}
+.re-party-row[aria-disabled='true']:not([aria-pressed='true']) {
+  opacity: 0.55;
+}
+.re-party-row[aria-disabled='true'][aria-pressed='true'] {
+  opacity: 1;
+}
+/* Keep covered battle commands out of keyboard and accessibility navigation. */
+#game-wrapper:has(
+    > .re-screen:not([hidden]),
+    > .mu-screen,
+    > .mr-sheet,
+    > .re-modal-shield,
+    > .mp-backdrop:not([hidden])
+  )
+  > .mobile-battle-hud {
+  visibility: hidden;
+}

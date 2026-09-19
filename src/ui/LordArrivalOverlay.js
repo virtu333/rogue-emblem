@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { showArrivalMenu } from './PartyMenus.js';
 import { inputHint } from '../utils/inputHint.js';
 /**
  * LordArrivalOverlay — Post-battle overlay for the Power of Friendship meta upgrade.
@@ -60,6 +62,17 @@ export class LordArrivalOverlay {
       onComplete(unit);
     };
 
+    if (hasDOMHost()) {
+      showArrivalMenu(this, 'Lord arrival', candidates, resolve, {
+        reroll:
+          mode !== 'random' && this.runManager.canRerollThirdLord()
+            ? () => {
+                if (this.runManager.canRerollThirdLord()) this._handleReroll(onComplete);
+              }
+            : null,
+      });
+      return;
+    }
     if (mode === 'random') {
       this._renderSingleLordCard(candidates[0], resolve);
     } else {
@@ -583,6 +596,8 @@ export class LordArrivalOverlay {
   }
 
   _cleanup() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     const scene = this.scene;
     if (typeof scene._hideMenuTooltip === 'function') scene._hideMenuTooltip();
     if (typeof scene.hideLootRoster === 'function') scene.hideLootRoster();

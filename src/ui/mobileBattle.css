@@ -112,7 +112,7 @@
 .mb-forecast-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--re-depth-forecast);
   background: var(--re-scrim);
   display: grid;
   place-items: center;

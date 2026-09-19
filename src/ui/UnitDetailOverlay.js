@@ -87,7 +87,7 @@ export class UnitDetailOverlay {
     this._mobileNextUnit = null;
   }
 
-  show(unit, terrain, gameData, rosterOptions, forceLegacy = false) {
+  show(unit, terrain, gameData, rosterOptions) {
     if (this.visible) this.hide();
     this.visible = true;
     this._bindSceneCleanup();
@@ -100,7 +100,7 @@ export class UnitDetailOverlay {
     this._rosterIndex =
       len > 0 ? Math.max(0, Math.min(rosterOptions?.rosterIndex ?? 0, len - 1)) : 0;
 
-    if (!forceLegacy && canShowMobileRoster(this.scene)) {
+    if (canShowMobileRoster(this.scene)) {
       this._unit = unit;
       this._terrain = terrain;
       this._mobileSheet = new MobileRosterSheet({

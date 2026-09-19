@@ -1,7 +1,7 @@
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { dialoguePortraitKey } from './RebuiltPortraits.js';
-import { canUseTouchUI } from '../utils/domUI.js';
+import { hasDOMHost } from '../utils/domUI.js';
 import { textureImageSource } from './textureImageSource.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 // DialogueOverlay.js - Lightweight dialogue box with portrait support.
@@ -77,7 +77,7 @@ export class DialogueOverlay {
 
     const scene = this.scene;
     portraitKey = dialoguePortraitKey(scene, name, portraitKey);
-    if (canUseTouchUI(scene)) return this._showDOM(name, line, portraitKey, autoAdvance, options);
+    if (hasDOMHost()) return this._showDOM(name, line, portraitKey, autoAdvance, options);
     const cam = scene.cameras.main;
     const cx = cam.centerX;
     const cy = cam.centerY;

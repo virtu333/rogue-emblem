@@ -12,7 +12,7 @@
 .re-screen {
   position: fixed;
   inset: 0;
-  z-index: var(--re-z, 950);
+  z-index: var(--re-z, var(--re-depth-menu));
   display: flex;
   flex-direction: column;
   gap: var(--re-s2);
@@ -30,7 +30,7 @@
 .re-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--re-z, 1100);
+  z-index: var(--re-z, var(--re-depth-pause));
   display: grid;
   place-items: center;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))

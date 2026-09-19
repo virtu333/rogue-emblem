@@ -154,8 +154,9 @@ export class RosterOverlay {
     this._inReclassPicker = false; // in-pane reclass picker is up (CANCEL = back)
   }
 
-  show(forceLegacy = false) {
-    if (!forceLegacy && canShowMobileRoster(this.scene)) {
+  show() {
+    // Browser hosts always use the DOM sheet; canvas below is the headless fallback.
+    if (canShowMobileRoster(this.scene)) {
       if (this.visible) this.hide();
       this.visible = true;
       this._mobileSheet = new MobileRosterSheet({

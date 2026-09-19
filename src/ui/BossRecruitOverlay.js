@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { showArrivalMenu } from './PartyMenus.js';
 import { inputHint } from '../utils/inputHint.js';
 /**
  * BossRecruitOverlay — extracted from BattleScene.
@@ -64,6 +66,10 @@ export class BossRecruitOverlay {
       this._cleanup();
       onComplete(unit);
     };
+    if (hasDOMHost()) {
+      showArrivalMenu(this, 'Boss recruit', candidates, resolve, { skip: true });
+      return;
+    }
     this._resolveSelection = resolve;
     this._focusCards = [];
 
@@ -554,6 +560,8 @@ export class BossRecruitOverlay {
   }
 
   _cleanup() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     const scene = this.scene;
     if (this._onInputActionBound) {
       popInputScope(this);

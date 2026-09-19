@@ -9,10 +9,7 @@ test('desktop native roster supports keyboard and gamepad actions without stale 
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
   );
-  await page.evaluate(() => {
-    const dialogue = window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay;
-    dialogue.objects.find((object) => object.text === '[Skip]').emit('pointerdown');
-  });
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
   await page.waitForFunction(
     () => !window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
   );
@@ -45,6 +42,10 @@ test('desktop native roster supports keyboard and gamepad actions without stale 
   await expect(roster.getByRole('button', { name: 'Equipment', exact: true })).toBeFocused();
   await action('input:confirm');
   await expect(roster.getByRole('heading', { name: /Equipment ·/ })).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  expect(
+    await roster.locator('.mr-content').evaluate((el) => el.contains(document.activeElement)),
+  ).toBe(true);
   await action('input:nextUnit');
   await expect(roster.locator('.mr-summary')).toContainText('Sera');
   await action('input:cancel');
