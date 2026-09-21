@@ -41,11 +41,19 @@ test('setup owns keyboard/gamepad actions and initially confirms forward', async
   await expect(
     difficulty.getByRole('button', { name: 'Army upgrades: Off', exact: true }),
   ).toBeVisible();
+  // Arrow keys and controller navigation traverse the dialog's own controls;
+  // the canvas scene never receives them as difficulty changes.
   await page.keyboard.press('ArrowRight');
-  await expect(difficulty.locator('article')).toContainText('Beat the game');
-  await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
+  await expect(difficulty.getByRole('button', { name: 'Back', exact: true })).toBeFocused();
+  await expect(difficulty.locator('article')).not.toContainText('Beat the game');
   await action(page, 'navigate', { dx: -1, dy: 0 });
   await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeFocused();
+  await difficulty.getByRole('button', { name: /^Hard/ }).tap();
+  await expect(difficulty.locator('article')).toContainText('Beat the game');
+  await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
+  await difficulty.getByRole('button', { name: /^Normal/ }).tap();
+  await expect(difficulty.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
+  await difficulty.getByRole('button', { name: 'Confirm', exact: true }).focus();
   await action(page, 'confirm');
   const blessing = page.getByRole('dialog', { name: 'Choose a blessing', exact: true });
   await expect(blessing).toBeVisible();
@@ -70,8 +78,11 @@ test('reference shortcuts and compact backdrop preserve input ownership', async 
     'aria-pressed',
     'true',
   );
+  // Arrow keys traverse the dialog's controls in order; the selected entry
+  // keeps its pressed state rather than taking focus.
   await page.keyboard.press('ArrowDown');
-  await expect(comp.locator('.re-row[aria-pressed=true]')).toBeFocused();
+  await expect(comp.getByRole('button', { name: 'Arts', exact: true })).toBeFocused();
+  await expect(comp.locator('.re-row[aria-pressed=true]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Settings', exact: true }).tap();
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });

@@ -4,7 +4,6 @@ import { waitForScene } from './helpers.js';
 test.use({
   ...devices['iPhone SE'],
   viewport: { width: 667, height: 375 },
-  baseURL: 'http://127.0.0.1:3000',
 });
 test.setTimeout(90000);
 test.beforeEach(async ({ page }) => {
@@ -144,6 +143,13 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await page.getByRole('button', { name: 'Advance', exact: true }).tap();
   await waitForScene(page, 'Battle');
   await battleIdle(page); // This small roster follows the normal automatic deployment path.
+  // A resumed slot with no seen hints shows the first-battle Field notes shortly
+  // after controls unlock; dismiss it so the unit tap below reaches the map.
+  const battleNotes = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  await battleNotes.waitFor({ timeout: 3000 }).catch(() => {});
+  if (await battleNotes.isVisible())
+    await battleNotes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  await expect(battleNotes).toHaveCount(0);
   const deployed = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const { canEquip } = await import('/src/engine/UnitManager.js');
