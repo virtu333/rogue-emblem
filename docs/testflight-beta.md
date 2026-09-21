@@ -1,5 +1,13 @@
 # Mobile beta release
 
+## Build 14 — September 21, 2026
+
+Version **0.1.0 (14)** uploaded successfully at **15:27 Pacific** (`/tmp/build14-upload.log`, `EXPORT SUCCEEDED`). Archive: `/tmp/EmblemRogue-Beta-14.xcarchive`; bundle/version and all 817 archived web assets verified against the built distribution. Cloud explicitly disabled. Source commit: `33e3cca`; remote proposal/test fixes reconciled in `efd4208`, no GitHub push. Apple processing and Public Playtest assignment are pending.
+
+Scope: durable pending reward choices/drafts with map re-entry and safe save retry, pre-move submenu cancellation, persistent global Danger, roster equipment persistence and preview restoration, clearer arena/mercenary/equipment information, two-Vulnerary rewards, first-boss-reaching milestone and shop stock differentiation. Timeline remains deferred.
+
+Verification: **5,510 unit tests / 327 files**, **56 journey tests**, production build/Capacitor sync/archive passed; lint zero errors (existing warnings). Two code-focused adversarial reviews completed and findings addressed. Muted 844×390 browser checks covered Item → Back → move, pinned Danger, multistep reward → map → reopen, Compendium, and a real Slot 1 pending bundle → page reload → same Sera selection → one claim → correct three carried Vulneraries and route advancement. Standalone dev fixture navigation was not counted as durable-save verification. Physical touch/device upgrade remain tester checks. Tester notes: `/tmp/EmblemRogue-Build14-WhatToTest.txt`.
+
 ## Build 13 — September 21, 2026 — Testing
 
 Version **0.1.0 (13)** uploaded successfully at **12:08 Pacific** (`/tmp/build13-upload.log`, `EXPORT SUCCEEDED`). Archive: `/tmp/EmblemRogue-Beta-13.xcarchive`. Cloud explicitly disabled. Local commit: `63b85b9`; no GitHub push. App Store Connect confirms **Testing** in **Public Playtest** with four testers, notes saved and automatic notifications enabled. Build ID: `20a38907-4b02-49fa-ac84-70a7c0d8ced5`. Public link: https://testflight.apple.com/join/UeWBYA5n.
