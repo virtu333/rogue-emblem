@@ -2,7 +2,13 @@
 
 Source: `docs/improvement-opportunities-2026-09-20.md`. Scope per Dave: the effects-flag split first; then gameplay Tier 1 and Tier 2, forecast upgrades, repeat-player efficiency, the level-up moment, and five story items (run-history variants, cause-aware defeat epilogues, act 4 + secret act voices, anti-repeat shuffle-bag, place names). Everything else from the opportunities report is logged in the backlog at the bottom.
 
-## Current slice status — September 21
+## Next project — battle timeline and rewind (September 21)
+
+Dave requested investigation and a proposed plan, including adversarial review, before implementation. The [investigated timeline/rewind plan](specs/battle-timeline-rewind-plan-2026-09-21.md) is the current planning artifact. It replaces the original timeline proposal's unsafe live-preview approach and persistence-last ordering. Recommended sequence: canonical state/identity → durable transaction/RNG/history → isolated viewer → player-action destinations/death flow → separately verified enemy-action destinations. No timeline gameplay changes are implemented by this documentation update.
+
+The entries below are historical checkpoints. For release status use `testflight-beta.md`; for the completed fresh-player wave see the final implementation and release-verification sections below. Older upload/commit/browser restrictions in this historical text are superseded by Dave's later explicit instructions.
+
+## Historical slice status — September 21
 
 Build 11 is the current distributed TestFlight build. The sections below preserve the original specs and historical checkpoints; they are not the current completion ledger.
 

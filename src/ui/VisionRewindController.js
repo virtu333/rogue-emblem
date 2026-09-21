@@ -5,8 +5,14 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 // State properties (visionSnapshot, pendingVisionSnapshot, visionDialog, visionBaseSeed,
 // visionHudText) remain on BattleScene; controller accesses via this.scene.*.
 
-import { serializeUnit, relinkWeapon } from '../engine/RunManager.js';
+import { relinkWeapon } from '../engine/RunManager.js';
 import { captureBattleWorldState, restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
+import { serializeBattleUnit, restoreEquippedReference } from '../engine/BattleUnitState.js';
+import {
+  resetBattleIdentities,
+  registerBattleEntity,
+  BATTLE_UNIT_GROUPS,
+} from '../engine/BattleEntityIdentity.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 
 /**
@@ -73,68 +79,11 @@ export class VisionRewindController {
   captureSnapshot() {
     const scene = this.scene;
     const stripVisuals = (unit) => {
-      const serialized = serializeUnit(unit);
-      // serializeUnit reverts timed-buff stats and strips per-battle art
-      // tracking for between-battle persistence. Mid-battle snapshots must
-      // keep them — otherwise a rewind refunds perMapLimit art uses from
-      // earlier turns and drops active kill buffs. Mirrors
-      // BattleSuspendController.serializeSuspendUnit.
-      serialized.stats = { ...unit.stats };
-      // Live mov must travel with live stats — a MOV timed buff reverted in
-      // serialized.mov but kept in stats.MOV would desync movement from HUD.
-      if (Number.isFinite(unit.mov)) serialized.mov = unit.mov;
-      // Once-per-battle flags consumed on earlier turns must survive the
-      // rewind — serializeUnit force-clears them for between-battle reuse.
-      serialized._miracleUsed = unit._miracleUsed === true;
-      serialized._phoenixBroochUsed = unit._phoenixBroochUsed === true;
-      for (const field of [
-        '_battleDeltas',
-        '_battleWeaponArtUsage',
-        '_battleAbilityUsage',
-        '_battleTimedWeaponArtBuffs',
-        '_battleTimedWeaponArtAppliedStats',
-        '_battleTimedWeaponArtAppliedCombatMods',
-      ]) {
-        if (unit[field] !== undefined) serialized[field] = structuredClone(unit[field]);
-      }
-      try {
-        return structuredClone(serialized);
-      } catch (err) {
-        try {
-          return JSON.parse(JSON.stringify(serialized));
-        } catch {
-          const minimal = {
-            name: serialized.name,
-            className: serialized.className,
-            faction: serialized.faction,
-            level: serialized.level,
-            xp: serialized.xp,
-            stats: serialized.stats,
-            growths: serialized.growths,
-            currentHP: serialized.currentHP,
-            col: serialized.col,
-            row: serialized.row,
-            hasMoved: Boolean(serialized.hasMoved),
-            hasActed: Boolean(serialized.hasActed),
-            weapon: serialized.weapon || null,
-            inventory: Array.isArray(serialized.inventory) ? serialized.inventory : [],
-            consumables: Array.isArray(serialized.consumables) ? serialized.consumables : [],
-            skills: Array.isArray(serialized.skills) ? serialized.skills : [],
-            proficiencies: Array.isArray(serialized.proficiencies) ? serialized.proficiencies : [],
-            accessory: serialized.accessory || null,
-            isLord: Boolean(serialized.isLord),
-            isBoss: Boolean(serialized.isBoss),
-            _miracleUsed: Boolean(serialized._miracleUsed),
-            _gambitUsedThisTurn: Boolean(serialized._gambitUsedThisTurn),
-          };
-          console.warn(
-            'Vision snapshot used minimal fallback clone for unit:',
-            serialized?.name,
-            err,
-          );
-          return minimal;
-        }
-      }
+      const data = serializeBattleUnit(unit);
+      // Legacy Vision anchors are turn starts, not action continuations.
+      data.hasActed = false;
+      data.hasMoved = false;
+      return data;
     };
     const fog = scene.grid?.fogEnabled
       ? {
@@ -143,6 +92,7 @@ export class VisionRewindController {
         }
       : null;
     const snapshot = {
+      nextEntityId: scene._nextBattleEntityId || 1,
       ...captureBattleWorldState(scene),
       playerUnits: scene.playerUnits.map(stripVisuals),
       enemyUnits: scene.enemyUnits.map(stripVisuals),
@@ -192,13 +142,21 @@ export class VisionRewindController {
   _applySnapshot() {
     const scene = this.scene;
     if (!scene.visionSnapshot) return false;
+    resetBattleIdentities(
+      scene,
+      scene.visionSnapshot.nextEntityId,
+      BATTLE_UNIT_GROUPS.flatMap((key) => scene.visionSnapshot[key] || scene[key] || []),
+    );
+    for (const unit of scene.nonDeployedUnits || []) registerBattleEntity(scene, unit);
     const restoreUnits = (targetArr, sourceUnits) => {
       for (const unit of targetArr) scene.removeUnitGraphic(unit);
       targetArr.length = 0;
       for (const unitData of sourceUnits) {
         const unit = structuredClone(unitData);
+        restoreEquippedReference(unit);
         relinkWeapon(unit);
         targetArr.push(unit);
+        registerBattleEntity(scene, unit);
         scene.addUnitGraphic(unit);
         // Conditions rewind with the unit; rebuild their badges (mirrors
         // BattleSuspendController's restore).
@@ -216,7 +174,9 @@ export class VisionRewindController {
     if (Array.isArray(scene.visionSnapshot.escapedUnits)) {
       scene.escapedUnits = scene.visionSnapshot.escapedUnits.map((data) => {
         const unit = structuredClone(data);
+        restoreEquippedReference(unit);
         relinkWeapon(unit);
+        registerBattleEntity(scene, unit);
         return unit;
       });
     }

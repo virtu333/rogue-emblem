@@ -256,6 +256,7 @@ import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { TutorialController } from '../ui/TutorialController.js';
+import { registerBattleEntity, resetBattleIdentities } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -1190,6 +1191,9 @@ export class BattleScene extends Phaser.Scene {
         fogEnabled,
         bc.biome || null,
       );
+
+      resetBattleIdentities(this, this._resumeCheckpoint?.nextEntityId);
+      for (const unit of this.nonDeployedUnits || []) registerBattleEntity(this, unit);
 
       // Unit arrays
       this.playerUnits = [];
@@ -3123,6 +3127,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   addUnitGraphic(unit) {
+    registerBattleEntity(this, unit);
     const color = FACTION_COLORS[unit.faction];
 
     // Entity: 3x3 footprint, center graphic on middle tile
@@ -4874,7 +4879,12 @@ export class BattleScene extends Phaser.Scene {
   finishUnitAction(unit, { skipCanto = false } = {}) {
     if (this._pendingLevelUpPopups?.length && this.turnManager?.currentPhase !== 'enemy') {
       this.battleState = 'COMBAT_RESOLVING';
-      const continuation = { kind: 'finish', unitName: unit.name, skipCanto };
+      const continuation = {
+        kind: 'finish',
+        unitName: unit.name,
+        ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
+        skipCanto,
+      };
       return presentQueuedLevelUps(this, continuation)
         .then(() => {
           if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
@@ -7986,6 +7996,7 @@ export class BattleScene extends Phaser.Scene {
       const continuation = {
         kind: 'combat',
         unitName: attacker.name,
+        ...(attacker.battleEntityId ? { unitId: attacker.battleEntityId } : {}),
         gambitTriggered: result.events.some((event) =>
           event.skillActivations?.some((skill) => skill.id === 'commanders_gambit'),
         ),
@@ -9001,6 +9012,7 @@ export class BattleScene extends Phaser.Scene {
       });
       (this._pendingLevelUpPopups ||= []).push({
         unitName: playerUnit.name,
+        ...(playerUnit.battleEntityId ? { unitId: playerUnit.battleEntityId } : {}),
         levelUp: lvUp,
         learnedNames,
       });

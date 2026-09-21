@@ -62,6 +62,7 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   findCommander,
   stampCommanderFlag,
@@ -71,7 +72,7 @@ import {
 } from './Commander.js';
 
 // Phaser-specific fields that must be stripped for serialization
-const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
+const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -232,6 +233,8 @@ function parsePersonalSkillId(personalSkillStr) {
  */
 export function serializeUnit(unit) {
   const data = { ...unit };
+  delete data.battleEntityId;
+  delete data.equippedInventoryIndex;
   delete data._lastAiDecision; // transient target references can contain Phaser objects
   if (unit?.stats && typeof unit.stats === 'object') {
     data.stats = { ...unit.stats };

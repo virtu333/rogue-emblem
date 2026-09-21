@@ -12,52 +12,23 @@
 // State stays on BattleScene (units, fog, HUD); the controller reads/writes
 // via scene.* like the other extracted battle controllers.
 
-import { serializeUnit, relinkWeapon } from '../engine/RunManager.js';
-import { captureBattleWorldState, restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
+import { relinkWeapon } from '../engine/RunManager.js';
+import { restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 import { hashRewindSeed } from './VisionRewindController.js';
 import { showMinorHint } from './HintDisplay.js';
 import { completeResolvedAction, readActionContinuation } from './BattlePresentationCheckpoint.js';
 
-/**
- * Serialize a unit for the suspend checkpoint. serializeUnit is the
- * battle-proven clonable form, but it deliberately normalizes mid-battle
- * state away (acted flags, once-per-battle protections, timed weapon-art
- * buffs, movement spent) for between-battle persistence — overlay the live
- * values back on top so a resume is exact.
- */
-export function serializeSuspendUnit(unit) {
-  const data = serializeUnit(unit);
-  data.stats = { ...unit.stats }; // live stats (timed buffs still applied)
-  if (Number.isFinite(unit.mov)) data.mov = unit.mov;
-  data.hasMoved = unit.hasMoved === true;
-  data.hasActed = unit.hasActed === true;
-  data._movementCommitted = unit._movementCommitted === true;
-  data._miracleUsed = unit._miracleUsed === true;
-  data._phoenixBroochUsed = unit._phoenixBroochUsed === true;
-  data._movementSpent = Number(unit._movementSpent) || 0;
-  data._conditions = structuredClone(unit._conditions || []);
-  for (const field of [
-    '_battleDeltas',
-    '_battleWeaponArtUsage',
-    '_battleAbilityUsage',
-    '_battleTimedWeaponArtBuffs',
-    '_battleTimedWeaponArtAppliedStats',
-    '_battleTimedWeaponArtAppliedCombatMods',
-  ]) {
-    if (unit[field] !== undefined) data[field] = structuredClone(unit[field]);
-  }
-  return data;
-}
+import { serializeBattleUnit, restoreEquippedReference } from '../engine/BattleUnitState.js';
+import {
+  registerBattleEntity,
+  resetBattleIdentities,
+  BATTLE_UNIT_GROUPS,
+} from '../engine/BattleEntityIdentity.js';
+import { captureBattleState } from './BattleCheckpointAdapter.js';
 
-function cloneCheckpointPayload(payload) {
-  try {
-    return structuredClone(payload);
-  } catch (_) {
-    return JSON.parse(JSON.stringify(payload));
-  }
-}
+export const serializeSuspendUnit = serializeBattleUnit;
 
 export class BattleSuspendController {
   constructor(scene) {
@@ -95,38 +66,12 @@ export class BattleSuspendController {
 
   _buildCheckpoint(checkpointIndex, rngSeed) {
     const scene = this.scene;
-    const fog = scene.grid?.fogEnabled
-      ? {
-          visible: [...(scene.grid.visibleSet || new Set())],
-          everSeen: [...(scene.grid.everSeenSet || new Set())],
-        }
-      : null;
-    return cloneCheckpointPayload({
-      version: 1,
-      phase: scene.turnManager?.currentPhase === 'enemy' ? 'enemy' : 'player',
-      ...captureBattleWorldState(scene),
-      checkpointIndex,
-      rngSeed: rngSeed >>> 0,
-      visionBaseSeed: Number(scene.visionBaseSeed) >>> 0,
-      turnNumber: scene.turnManager?.turnNumber || 1,
-      turnPar: scene.turnPar ?? null,
-      playerUnits: scene.playerUnits.map(serializeSuspendUnit),
-      enemyUnits: scene.enemyUnits.map(serializeSuspendUnit),
-      npcUnits: scene.npcUnits.map(serializeSuspendUnit),
-      escapedUnits: (scene.escapedUnits || []).map(serializeSuspendUnit),
-      nonDeployedUnits: scene.nonDeployedUnits || [],
-      visionSnapshot: scene.visionSnapshot || null,
-      pendingVisionSnapshot: scene.pendingVisionSnapshot || null,
-      pendingActionCompletion: scene._pendingActionCompletion || null,
-      antiTurtleState: scene.antiTurtleState || {},
-      fog,
-      ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
-      zombieTombstones: scene._zombieTombstones || [],
-      goldEarned: scene.goldEarned || 0,
-      bossName: scene._bossName || null,
-      caravanExited: scene._caravanExited === true,
-      villageState: scene._villageState ? { ...scene._villageState } : null,
-    });
+    return {
+      ...captureBattleState(scene, { checkpointIndex, rngSeed }),
+      // Compatibility envelope; historical snapshots use captureBattleState directly.
+      visionSnapshot: structuredClone(scene.visionSnapshot || null),
+      pendingVisionSnapshot: structuredClone(scene.pendingVisionSnapshot || null),
+    };
   }
 
   /**
@@ -136,12 +81,19 @@ export class BattleSuspendController {
    */
   applyUnits(checkpoint) {
     const scene = this.scene;
+    resetBattleIdentities(
+      scene,
+      checkpoint.nextEntityId,
+      BATTLE_UNIT_GROUPS.flatMap((key) => checkpoint[key] || []),
+    );
     const restore = (targetArr, list) => {
       for (const data of Array.isArray(list) ? list : []) {
         const unit = structuredClone(data);
         // The checkpoint crossed a JSON boundary, which breaks the
         // weapon === inventory[i] identity invariant — relink like fromJSON.
+        restoreEquippedReference(unit);
         relinkWeapon(unit);
+        registerBattleEntity(scene, unit);
         // Build 9 checkpoints saved after a trade retained hasMoved but had
         // no commitment flag. Conservatively keep that movement spent while
         // preserving the unit's remaining attack/item actions. Explicit flags
@@ -165,13 +117,29 @@ export class BattleSuspendController {
       Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []
     ).map((data) => {
       const unit = structuredClone(data);
+      restoreEquippedReference(unit);
       relinkWeapon(unit);
+      registerBattleEntity(scene, unit);
       return unit;
     });
     for (const unit of scene.playerUnits) {
       if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
     }
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
+    for (const unit of scene.nonDeployedUnits) {
+      restoreEquippedReference(unit);
+      relinkWeapon(unit);
+      registerBattleEntity(scene, unit);
+    }
+    if (checkpoint.runBattleState && scene.runManager) {
+      const domain = checkpoint.runBattleState;
+      // This is a rewindable subset, never an arbitrary RunManager assignment.
+      if (Array.isArray(domain.convoy?.weapons) && Array.isArray(domain.convoy?.consumables))
+        scene.runManager.convoy = structuredClone(domain.convoy);
+      if (Array.isArray(domain.accessories))
+        scene.runManager.accessories = structuredClone(domain.accessories);
+      if (Number.isFinite(domain.gold) && domain.gold >= 0) scene.runManager.gold = domain.gold;
+    }
     scene.ballistas = (checkpoint.ballistas || []).map((b) => ({ ...b }));
     scene._zombieTombstones = structuredClone(checkpoint.zombieTombstones || []);
     scene.goldEarned = Number(checkpoint.goldEarned) || 0;

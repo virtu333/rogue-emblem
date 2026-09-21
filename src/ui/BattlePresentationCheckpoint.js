@@ -1,3 +1,4 @@
+import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
 
@@ -5,6 +6,11 @@ import { gridDistance } from '../engine/Combat.js';
 export function readActionContinuation(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   if (!['combat', 'finish'].includes(value.kind)) return null;
+  if (
+    value.unitId !== undefined &&
+    (typeof value.unitId !== 'string' || !/^u[1-9]\d*$/.test(value.unitId))
+  )
+    return null;
   if (typeof value.unitName !== 'string' || !value.unitName.trim()) return null;
   if (value.skipCanto !== undefined && typeof value.skipCanto !== 'boolean') return null;
   if (value.gambitTriggered !== undefined && typeof value.gambitTriggered !== 'boolean')
@@ -12,6 +18,7 @@ export function readActionContinuation(value) {
   return {
     kind: value.kind,
     unitName: value.unitName,
+    ...(value.unitId ? { unitId: value.unitId } : {}),
     ...(value.skipCanto !== undefined ? { skipCanto: value.skipCanto } : {}),
     ...(value.gambitTriggered !== undefined ? { gambitTriggered: value.gambitTriggered } : {}),
   };
@@ -30,9 +37,9 @@ export async function presentQueuedLevelUps(scene, continuation = null) {
   if (!queue.length) return;
   scene._pendingLevelUpPopups = [];
   if (continuation) captureResolvedAction(scene, continuation);
-  for (const { unitName, levelUp, learnedNames } of queue) {
+  for (const { unitName, unitId, levelUp, learnedNames } of queue) {
     if (scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false) return;
-    const unit = scene.playerUnits.find((u) => u.name === unitName);
+    const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
     if (!unit) continue;
     scene._playLevelUpSfx();
     scene.updateHPBar(unit);
@@ -48,7 +55,7 @@ export function completeResolvedAction(scene, continuation) {
   scene._pendingActionCompletion = null;
   continuation = readActionContinuation(continuation);
   if (!continuation) return;
-  const unit = scene.playerUnits.find((u) => u.name === continuation.unitName);
+  const unit = findBattleEntity(scene, continuation, ['playerUnits']);
   if (scene.checkBattleEnd?.()) return;
   if (
     continuation.kind === 'combat' &&

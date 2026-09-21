@@ -254,7 +254,7 @@ describe('applyUnits (resume restore)', () => {
         latePressureWarningShown: true,
       }),
     );
-    expect(scene.nonDeployedUnits).toEqual([{ name: 'Benched' }]);
+    expect(scene.nonDeployedUnits).toEqual([expect.objectContaining({ name: 'Benched' })]);
     expect(scene.ballistas).toEqual([{ col: 1, row: 1 }]);
     expect(scene._zombieTombstones).toHaveLength(1);
     expect(scene.goldEarned).toBe(300);

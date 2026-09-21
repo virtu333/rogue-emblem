@@ -1,7 +1,7 @@
 # Battle Timeline Rewind — Proposal
 
 **Date:** 2026-09-21
-**Status:** Proposal (not scheduled)
+**Status:** Original proposal; implementation assumptions and sequencing superseded by the [investigated timeline plan](battle-timeline-rewind-plan-2026-09-21.md). Retained as design history.
 **Branch context:** `mobile-rebuild-checkpoint`
 **Replaces / extends:** the current turn-start "Vision" rewind (`src/ui/VisionRewindController.js`)
 
