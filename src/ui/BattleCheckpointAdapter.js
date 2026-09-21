@@ -11,6 +11,9 @@ export function captureBattleState(scene, { checkpointIndex = 0, rngSeed = 0 } =
     : null;
   return structuredClone({
     version: 2,
+    rewindPolicy: scene._battleRewindPolicy || 'legacy-v1',
+    rngState: scene._battleRng?.getState?.() || null,
+    decisionRngState: scene._battleDecisionRngState || scene._battleRng?.getState?.() || null,
     phase: scene.turnManager?.currentPhase === 'enemy' ? 'enemy' : 'player',
     ...captureBattleWorldState(scene),
     checkpointIndex,

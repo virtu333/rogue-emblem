@@ -48,6 +48,7 @@ function fixture() {
   const enemy = structuredClone(unit);
   Object.assign(enemy, { name: 'Hidden enemy', faction: 'enemy', col: 3, row: 3 });
   s.enemyUnits = [enemy];
+  for (const unit of [...s.playerUnits, ...s.enemyUnits]) s.addUnitGraphic(unit);
   expect(s._captureSuspendCheckpoint()).toBe(true);
   return { d, s };
 }

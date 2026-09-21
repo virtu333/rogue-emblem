@@ -51,10 +51,12 @@ export class BattleSuspendController {
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
-      const seed = hashRewindSeed(base, index);
+      const fixed = scene._battleRewindPolicy === 'fixed-v1';
+      const seed = fixed ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
       // Reseed at the checkpoint so live play and any resume from it share
       // the exact same RNG stream from this point on.
-      scene.reseedBattleRng(seed);
+      if (!fixed) scene.reseedBattleRng(seed);
+      if (fixed) scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
       rm.setBattleCheckpoint(this._buildCheckpoint(index, seed));
       const persisted = scene._persistBattleRunState?.();
       return persisted?.ok === true;
@@ -187,7 +189,9 @@ export class BattleSuspendController {
 
     if (Number.isFinite(checkpoint.visionBaseSeed))
       scene.visionBaseSeed = checkpoint.visionBaseSeed >>> 0;
-    scene.reseedBattleRng(checkpoint.rngSeed);
+    if (checkpoint.rngState) scene.reseedBattleRng(checkpoint.rngSeed, checkpoint.rngState);
+    else scene.reseedBattleRng(checkpoint.rngSeed);
+    scene._battleDecisionRngState = checkpoint.decisionRngState || checkpoint.rngState || null;
     scene.dangerZoneStale = true;
     scene._pinnedThreats?.invalidate();
     scene.battleState = 'PLAYER_IDLE';

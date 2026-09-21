@@ -549,10 +549,11 @@ describe('BattleScene deferred vision snapshot commit', () => {
     await actionPromise;
   });
 
-  it('rewind after select-before-action uses prior committed snapshot', () => {
+  it('standalone rewind after select-before-action uses prior committed snapshot', () => {
     const { scene, unit } = setupScene();
     const { previous, pending } = primeVisionSnapshots(scene);
-    scene.runManager = { visionChargesRemaining: 1, visionCount: 0 };
+    scene.runManager = null;
+    scene._standaloneVisionState = { visionChargesRemaining: 1, visionCount: 0 };
     scene.applyVisionSnapshot = vi.fn(function applyVisionSnapshot() {
       this._appliedSnapshotId = this.visionSnapshot?.id;
       return true;
@@ -567,7 +568,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     expect(scene._appliedSnapshotId).toBe(previous.id);
     expect(scene.visionSnapshot).toBe(previous);
     expect(scene.pendingVisionSnapshot).toBeNull();
-    expect(scene.runManager.visionChargesRemaining).toBe(0);
+    expect(scene._standaloneVisionState.visionChargesRemaining).toBe(0);
     expect(pending.id).toBe('current-turn-start');
   });
 });

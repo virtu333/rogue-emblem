@@ -12,3 +12,24 @@ export function presentationText(scene, ...args) {
     Math.random = previous;
   }
 }
+
+// Cover legacy canvas widgets created while battle owns Math.random too.
+// This is scoped to one scene factory and restored on battle shutdown.
+export function isolateBattleTextFactory(scene) {
+  const factory = scene.add;
+  if (!factory?.text) return () => {};
+  const original = factory.text;
+  const isolated = function (...args) {
+    const previous = Math.random;
+    try {
+      Math.random = uuidRandom;
+      return original.apply(this, args);
+    } finally {
+      Math.random = previous;
+    }
+  };
+  factory.text = isolated;
+  return () => {
+    if (factory.text === isolated) factory.text = original;
+  };
+}

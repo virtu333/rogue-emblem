@@ -1,3 +1,6 @@
+import { presentationText } from '../utils/presentationText.js';
+import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 // VisionRewindController — extracted from BattleScene (Chunk 4)
@@ -78,6 +81,8 @@ export class VisionRewindController {
 
   captureSnapshot() {
     const scene = this.scene;
+    if (scene._battleRewindPolicy === 'fixed-v1')
+      scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
     const stripVisuals = (unit) => {
       const data = serializeBattleUnit(unit);
       // Legacy Vision anchors are turn starts, not action continuations.
@@ -91,31 +96,34 @@ export class VisionRewindController {
           everSeen: [...(scene.grid.everSeenSet || new Set())],
         }
       : null;
-    const snapshot = {
-      nextEntityId: scene._nextBattleEntityId || 1,
-      ...captureBattleWorldState(scene),
-      playerUnits: scene.playerUnits.map(stripVisuals),
-      enemyUnits: scene.enemyUnits.map(stripVisuals),
-      npcUnits: scene.npcUnits.map(stripVisuals),
-      escapedUnits: (scene.escapedUnits || []).map(stripVisuals),
-      goldEarned: scene.goldEarned || 0,
-      turnNumber: scene.turnManager?.turnNumber || 1,
-      phase: scene.turnManager?.currentPhase || 'player',
-      turnPar: scene.turnPar,
-      objectiveText: scene.objectiveText?.text || '',
-      antiTurtleState: structuredClone(scene.antiTurtleState || {}),
-      rngSeed: Number.isFinite(this.runManager?.rngSeed)
-        ? this.runManager.rngSeed >>> 0
-        : scene.visionBaseSeed >>> 0,
-      fog,
-      ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
-      zombieTombstones: structuredClone(scene._zombieTombstones || []),
-      // Micro-objective lifecycle state: a rewind spanning a village visit or
-      // raze must revert the village (and its reward item) together with the
-      // gold — see VillageController.restoreFromVisionSnapshot.
-      villageState: scene._villageState ? structuredClone(scene._villageState) : null,
-      caravanExited: scene._caravanExited === true,
-    };
+    const snapshot =
+      scene._battleRewindPolicy === 'fixed-v1'
+        ? captureBattleState(scene, { rngSeed: this.runManager?.rngSeed ?? scene.visionBaseSeed })
+        : {
+            nextEntityId: scene._nextBattleEntityId || 1,
+            ...captureBattleWorldState(scene),
+            playerUnits: scene.playerUnits.map(stripVisuals),
+            enemyUnits: scene.enemyUnits.map(stripVisuals),
+            npcUnits: scene.npcUnits.map(stripVisuals),
+            escapedUnits: (scene.escapedUnits || []).map(stripVisuals),
+            goldEarned: scene.goldEarned || 0,
+            turnNumber: scene.turnManager?.turnNumber || 1,
+            phase: scene.turnManager?.currentPhase || 'player',
+            turnPar: scene.turnPar,
+            objectiveText: scene.objectiveText?.text || '',
+            antiTurtleState: structuredClone(scene.antiTurtleState || {}),
+            rngSeed: Number.isFinite(this.runManager?.rngSeed)
+              ? this.runManager.rngSeed >>> 0
+              : scene.visionBaseSeed >>> 0,
+            fog,
+            ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
+            zombieTombstones: structuredClone(scene._zombieTombstones || []),
+            // Micro-objective lifecycle state: a rewind spanning a village visit or
+            // raze must revert the village (and its reward item) together with the
+            // gold — see VillageController.restoreFromVisionSnapshot.
+            villageState: scene._villageState ? structuredClone(scene._villageState) : null,
+            caravanExited: scene._caravanExited === true,
+          };
     if (!scene.visionSnapshot) {
       scene.visionSnapshot = snapshot;
       scene.pendingVisionSnapshot = null;
@@ -139,7 +147,7 @@ export class VisionRewindController {
 
   // ── Snapshot apply (rewind) ─────────────────────────────────
 
-  _applySnapshot() {
+  _applySnapshot({ committed = false } = {}) {
     const scene = this.scene;
     if (!scene.visionSnapshot) return false;
     resetBattleIdentities(
@@ -180,6 +188,23 @@ export class VisionRewindController {
         return unit;
       });
     }
+    if (Array.isArray(scene.visionSnapshot.nonDeployedUnits)) {
+      scene.nonDeployedUnits = scene.visionSnapshot.nonDeployedUnits.map((data) => {
+        const unit = structuredClone(data);
+        restoreEquippedReference(unit);
+        relinkWeapon(unit);
+        return unit;
+      });
+    }
+    // Complete owner table after all groups have been reconstructed.
+    resetBattleIdentities(
+      scene,
+      scene.visionSnapshot.nextEntityId,
+      BATTLE_UNIT_GROUPS.flatMap((key) => scene[key] || []),
+    );
+    for (const key of BATTLE_UNIT_GROUPS)
+      for (const unit of scene[key] || []) registerBattleEntity(scene, unit);
+    for (const unit of scene.playerUnits) if (unit.hasActed) scene.dimUnit?.(unit);
     if (Number.isFinite(scene.visionSnapshot.goldEarned)) {
       scene.goldEarned = scene.visionSnapshot.goldEarned;
     }
@@ -252,7 +277,15 @@ export class VisionRewindController {
     // Rewind micro-objective lifecycles with the rest of the turn: village
     // visit/raze (terrain, marker, convoy reward) and the caravan exit flag
     // (a lord-death rewind can span the enemy-phase step that exited it).
-    scene._villageController?.restoreFromVisionSnapshot?.(scene.visionSnapshot.villageState);
+    if (scene.visionSnapshot.runBattleState && scene.runManager) {
+      const domain = scene.visionSnapshot.runBattleState;
+      scene.runManager.convoy = structuredClone(domain.convoy);
+      scene.runManager.accessories = structuredClone(domain.accessories);
+      scene.runManager.gold = domain.gold;
+      scene._villageState = structuredClone(scene.visionSnapshot.villageState);
+      scene._villageController?._destroyMarkers?.();
+      if (scene._villageState?.status === 'intact') scene._villageController?._renderMarker?.();
+    } else scene._villageController?.restoreFromVisionSnapshot?.(scene.visionSnapshot.villageState);
     if ('caravanExited' in scene.visionSnapshot) {
       scene._caravanExited = scene.visionSnapshot.caravanExited === true;
     }
@@ -262,7 +295,18 @@ export class VisionRewindController {
       : scene.visionBaseSeed >>> 0;
     const rewindCount = this._chargeHost().visionCount || 0;
     const reseed = hashRewindSeed(sourceSeed, rewindCount);
-    scene.reseedBattleRng(reseed);
+    const resolvedSeed =
+      committed || scene._battleRewindPolicy === 'fixed-v1' ? sourceSeed : reseed;
+    if (scene.visionSnapshot.rngState)
+      scene.reseedBattleRng(resolvedSeed, scene.visionSnapshot.rngState);
+    else scene.reseedBattleRng(resolvedSeed);
+    scene._battleDecisionRngState =
+      scene.visionSnapshot.decisionRngState || scene.visionSnapshot.rngState || null;
+    scene._pendingActionCompletion = null;
+    scene._pendingLevelUpPopups = [];
+    scene._commanderKillerName = null;
+    this._rewindFatalOrigin = false;
+    scene._clearCombatRollSession?.();
 
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
@@ -361,12 +405,13 @@ export class VisionRewindController {
     const remaining = this.getChargesRemaining();
     if (remaining <= 0) return false;
 
+    const intent = this.createRewindIntent(scene.visionSnapshot);
     this.showDialog({
       title: 'Foresee a different path?',
       body: `Spend 1 rewind to return to the start of player turn ${scene.visionSnapshot.turnNumber}?\n(${remaining} left this run)`,
       confirmLabel: 'Confirm',
       cancelLabel: 'Cancel',
-      onConfirm: () => this.executeRewind(),
+      onConfirm: () => this.executeRewind(intent.target, null, intent),
       onCancel: () => {},
     });
     return true;
@@ -378,13 +423,18 @@ export class VisionRewindController {
     // Flavor follows Sera: generic copy when she isn't part of this run.
     const visionPool = this.runManager?.roster || this.scene.playerUnits || [];
     const seraPresent = visionPool.some((u) => u?.name === 'Sera');
+    this._rewindFatalOrigin = true;
+    const intent = this.createRewindIntent(this.scene.visionSnapshot);
     this.showDialog({
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `Reveal another path?\n(${remaining} left this run)`,
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
-      onConfirm: () => this.executeRewind(),
-      onCancel: () => this.scene.onDefeat(),
+      onConfirm: () => this.executeRewind(intent.target, null, intent),
+      onCancel: () => {
+        this._rewindFatalOrigin = false;
+        this.scene.onDefeat();
+      },
       accent: 0xcc6666,
     });
     return true;
@@ -421,35 +471,32 @@ export class VisionRewindController {
       .setDepth(901)
       .setStrokeStyle(2, accent, 1);
     group.push(panel);
-    const titleText = scene.add
-      .text(cx, cy - 54, title, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffdd88',
-        fontStyle: 'bold',
-      })
+    const titleText = presentationText(scene, cx, cy - 54, title, {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#ffdd88',
+      fontStyle: 'bold',
+    })
       .setOrigin(0.5)
       .setDepth(902);
     group.push(titleText);
-    const bodyText = scene.add
-      .text(cx, cy - 14, body, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#d0d7e8',
-        align: 'center',
-      })
+    const bodyText = presentationText(scene, cx, cy - 14, body, {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#d0d7e8',
+      align: 'center',
+    })
       .setOrigin(0.5)
       .setDepth(902);
     group.push(bodyText);
     const makeButton = (x, y, label, color, callback) => {
-      const btn = scene.add
-        .text(x, y, label, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-          backgroundColor: '#223044',
-          padding: { x: 10, y: 5 },
-        })
+      const btn = presentationText(scene, x, y, label, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color,
+        backgroundColor: '#223044',
+        padding: { x: 10, y: 5 },
+      })
         .setOrigin(0.5)
         .setDepth(902)
         .setInteractive({ useHandCursor: true });
@@ -504,15 +551,135 @@ export class VisionRewindController {
 
   // ── Execute rewind ──────────────────────────────────────────
 
-  executeRewind() {
-    if (!this.scene.visionSnapshot) return false;
+  createRewindIntent(target) {
+    return {
+      target: structuredClone(target),
+      expectedBattle: this.runManager?.battleInProgress?.startedAt,
+      expectedRevision: this.runManager?.battleInProgress?.rewindRevision || 0,
+    };
+  }
+
+  executeRewind(
+    target = this.scene.visionSnapshot,
+    history = null,
+    intent = this.createRewindIntent(target),
+  ) {
+    const scene = this.scene;
+    if (this.runManager && !this.runManager.battleInProgress) return false;
+    if (!target || this._rewindCommitting) return false;
     const host = this._chargeHost();
     if (host.visionChargesRemaining <= 0) return false;
-    host.visionChargesRemaining -= 1;
-    host.visionCount = Math.max(0, (host.visionCount || 0) + 1);
-    this.scene.pendingVisionSnapshot = null;
-    // Route through scene shim so test mocks on scene.applyVisionSnapshot still work
-    return this.scene.applyVisionSnapshot();
+    // Tutorial has no run record. It retains its existing in-memory teaching
+    // rewind; every persisted game uses the same transaction below.
+    if (!this.runManager) {
+      host.visionChargesRemaining--;
+      host.visionCount = Math.max(0, (host.visionCount || 0) + 1);
+      scene.pendingVisionSnapshot = null;
+      return scene.applyVisionSnapshot();
+    }
+    this._rewindCommitting = true;
+    try {
+      const state = this._prepareTarget(target);
+      const prepared = prepareBattleRewind(this.runManager.toJSON(), state, {
+        history,
+        expectedBattle: intent.expectedBattle,
+        expectedRevision: intent.expectedRevision,
+      });
+      const result = persistBattleRewind(prepared, (candidate) =>
+        scene._persistBattleRunState(candidate),
+      );
+      if (!result.ok) {
+        if (['stale_battle', 'stale_branch', 'battle_closed', 'no_charges'].includes(result.reason))
+          return false;
+        this.lastRewindError = result.reason;
+        this.showDialog({
+          title: 'Rewind was not saved',
+          body: 'The battle and your rewind charge are unchanged. Try again or return to the battle.',
+          confirmLabel: 'Retry',
+          cancelLabel: 'Cancel',
+          onConfirm: () => this.executeRewind(target, history, intent),
+          onCancel: () => {
+            if (this._rewindFatalOrigin) this.showLordDeathPrompt();
+          },
+        });
+        return false;
+      }
+      const candidate = result.candidate;
+      host.visionChargesRemaining = candidate.visionChargesRemaining;
+      host.visionCount = candidate.visionCount;
+      this.runManager.battleInProgress = candidate.battleInProgress;
+      scene.visionSnapshot = state;
+      scene.pendingVisionSnapshot = null;
+      scene._battleTimeline = candidate.battleInProgress.timeline;
+      this.lastRewindError = null;
+      // Reconstruction is after durability. Never refund/retry the debit if
+      // rendering fails; reload adopts the already-committed checkpoint.
+      try {
+        return this._applySnapshot({ committed: true });
+      } catch (error) {
+        scene.battleState = 'PAUSED';
+        this.showDialog({
+          title: 'Rewind saved',
+          body: 'Reload to finish restoring this battle. Your charge has already been spent.',
+          confirmLabel: 'Reload',
+          cancelLabel: 'Reload',
+          onConfirm: () => globalThis.location?.reload(),
+          onCancel: () => globalThis.location?.reload(),
+        });
+        console.error('[Rewind] saved checkpoint needs reload:', error);
+        return false;
+      }
+    } finally {
+      this._rewindCommitting = false;
+    }
+  }
+
+  _prepareTarget(anchor) {
+    const scene = this.scene;
+    const policy = this.runManager.battleInProgress?.rewindPolicy || 'legacy-v1';
+    if (policy === 'fixed-v1') return structuredClone(anchor);
+    // Old anchors lack the canonical envelope. Upgrade a detached copy once;
+    // preserve their original reroll policy throughout this battle.
+    const state = {
+      ...captureBattleState(scene),
+      ...structuredClone(anchor),
+      rewindPolicy: 'legacy-v1',
+    };
+    delete state.visionSnapshot;
+    delete state.pendingVisionSnapshot;
+    state.pendingActionCompletion = null;
+    state.rngSeed = hashRewindSeed(
+      anchor.rngSeed ?? scene.visionBaseSeed,
+      (this.runManager.visionCount || 0) + 1,
+    );
+    state.rngState = null;
+    state.decisionRngState = null;
+    const detached = {};
+    resetBattleIdentities(
+      detached,
+      state.nextEntityId,
+      BATTLE_UNIT_GROUPS.flatMap((key) => state[key] || []),
+    );
+    for (const key of BATTLE_UNIT_GROUPS)
+      state[key] = (state[key] || []).map((unit) => {
+        restoreEquippedReference(unit);
+        relinkWeapon(unit);
+        registerBattleEntity(detached, unit);
+        return serializeBattleUnit(unit);
+      });
+    state.nextEntityId = detached._nextBattleEntityId;
+    if (
+      !anchor.runBattleState &&
+      scene._villageState?.rewardItemUid &&
+      anchor.villageState?.status === 'intact'
+    ) {
+      const uid = scene._villageState.rewardItemUid;
+      for (const bucket of ['weapons', 'consumables'])
+        state.runBattleState.convoy[bucket] = state.runBattleState.convoy[bucket].filter(
+          (item) => item.uid !== uid,
+        );
+    }
+    return state;
   }
 
   // ── HUD ─────────────────────────────────────────────────────

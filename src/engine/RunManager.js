@@ -2857,6 +2857,12 @@ export class RunManager {
   beginBattleInProgress(nodeId, entryInfo = {}) {
     if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
     this.battleInProgress = {
+      rewindPolicy: 'fixed-v1',
+      entryBattleState: structuredClone({
+        convoy: this.convoy,
+        accessories: this.accessories,
+        gold: this.gold,
+      }),
       nodeId: typeof nodeId === 'string' ? nodeId : null,
       startedAt: Date.now(),
       battleParams:
@@ -4214,6 +4220,14 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     if (!parsed || typeof parsed !== 'object') return { ok: false, reason: 'corrupt' };
     if (parsed.battleInProgress == null) return { ok: true, reason: 'already_clear' };
     const flag = parsed.battleInProgress;
+    if (flag.checkpoint?.recoveryKind === 'fatal_pending')
+      return { ok: false, reason: 'fatal_pending' };
+    const entry = flag.entryBattleState;
+    if (entry && typeof entry === 'object') {
+      if (entry.convoy) parsed.convoy = entry.convoy;
+      if (Array.isArray(entry.accessories)) parsed.accessories = entry.accessories;
+      if (Number.isFinite(entry.gold)) parsed.gold = entry.gold;
+    }
     if (Number.isFinite(flag?.visionChargesAtEntry)) {
       parsed.visionChargesRemaining = flag.visionChargesAtEntry;
     }

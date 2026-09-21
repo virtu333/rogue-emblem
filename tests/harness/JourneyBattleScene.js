@@ -1,3 +1,5 @@
+import { createBattleRng } from '../../src/engine/BattleRng.js';
+import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
 // Rendering-only fixture; production XP/checkpoint/restore/continuation methods remain real.
 import { BattleScene } from '../../src/scenes/BattleScene.js';
 export function journeyBattleScene(run, data) {
@@ -33,6 +35,8 @@ export function journeyBattleScene(run, data) {
     battleParams: {},
     grid,
     visionBaseSeed: 42,
+    _battleRewindPolicy: run.battleInProgress?.rewindPolicy || 'legacy-v1',
+    _battleRng: createBattleRng(42),
     registry: { get: (key) => (key === 'activeSlot' ? 1 : null) },
     turnManager: {
       currentPhase: 'player',
@@ -60,10 +64,11 @@ export function journeyBattleScene(run, data) {
       }),
     },
     tweens: { add: noop },
-    reseedBattleRng: (seed) => {
+    reseedBattleRng: (seed, state) => {
       scene.lastSeed = seed;
+      scene._battleRng = createBattleRng(seed, state);
     },
-    addUnitGraphic: noop,
+    addUnitGraphic: (unit) => registerBattleEntity(scene, unit),
     removeUnitGraphic: noop,
     dimUnit: noop,
     updateHPBar: noop,

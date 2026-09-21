@@ -264,3 +264,13 @@ Adversarial review caught and fixed non-cloneable affixPips, legacy player/enemy
 Verification: 187 targeted tests passed across seven state/RNG/recovery/phase/journey suites. The earlier broad foundation run passed 5,518 unit tests; that count predates the review regressions. Approximate JSON size with five weapons and three supplies per unit: 47,700 bytes for 20 units, 94,100 bytes for 40. This confirms that optional-history retention must budget snapshots, not just rows; 512 KiB cannot promise four complete turns of action snapshots in a crowded map.
 
 T2–T4 remain unfinished. No timeline UI or paid-action rewind is enabled by this foundation slice alone.
+
+### T2 — transaction and randomness foundation
+
+New battles select fixed-v1; resumed flags without a policy retain legacy-v1. Stateful Mulberry32 cursors match the prior generator, pure checkpoint capture no longer reseeds fixed-policy battles, and Gambler forecasts use a stable keyed draw independent of combat draws. A scoped Phaser text factory prevents legacy text UUID allocation from advancing battle randomness. Between-battle UI is unaffected.
+
+Paid run rewinds now prepare a detached run record, write the target/domain/charge debit together, and reconstruct only after local success. Confirmation intents bind to battle identity and a persisted rewind revision. Failed writes retain the old battle/charge; fatal-origin cancellation returns to the fatal decision. Restoration failure offers reload of the committed checkpoint rather than a second debit. Tutorial-only rewinds remain memory-only. Full-map reset restores the battle-entry convoy/accessories/gold.
+
+The bounded pure history module is ready for recorder integration: 32 tests cover pruning, references, migration, revision/ID behavior and representative inventory budgets. T3 wires it into production boundaries and supplies the viewer; it is not exposed by the T2 foundation alone.
+
+Review regressions cover fatal-failure cancellation and repeated confirmation. Real save-service tests verify one slot write contains both target and charge spend, plus write/quota failure, stale intent, incompatible policy/cursor, and full-map reset domain rollback. Further feature-level adversarial review remains required after T3/T4.

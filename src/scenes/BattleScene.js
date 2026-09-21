@@ -1,3 +1,4 @@
+import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
 import {
   beginWeaponPreview,
   restoreWeaponPreview,
@@ -6,7 +7,7 @@ import {
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
-import { presentationText } from '../utils/presentationText.js';
+import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
 import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 import { canInspectUnit, statusStaffThreat } from '../engine/BattleInformation.js';
@@ -1215,6 +1216,9 @@ export class BattleScene extends Phaser.Scene {
       this.lastEnemyPhaseAiStats = null;
       this.currentEnemyPhaseAiStats = null;
       this.initializeVisionState();
+      this._battleRewindPolicy = this._resumeCheckpoint
+        ? this.runManager?.battleInProgress?.rewindPolicy || 'legacy-v1'
+        : 'fixed-v1';
       this.installBattleRng();
 
       // Anti-refresh suspend: persist a battle-in-progress flag (plus the
@@ -2259,9 +2263,14 @@ export class BattleScene extends Phaser.Scene {
     if (this.runManager) this.runManager.rngSeed = currentSeed;
     this.visionBaseSeed = currentSeed;
     const prevRandom = Math.random;
-    Math.random = createSeededRng(currentSeed);
+    this._battleRng = createBattleRng(currentSeed);
+    Math.random = this._battleRng;
+    const restoreText =
+      this._battleRewindPolicy === 'fixed-v1' ? isolateBattleTextFactory(this) : () => {};
     this._battleRandomRestore = () => {
       Math.random = prevRandom;
+      restoreText();
+      this._battleRng = null;
       this._battleRandomRestore = null;
     };
   }
@@ -2270,10 +2279,11 @@ export class BattleScene extends Phaser.Scene {
     if (this._battleRandomRestore) this._battleRandomRestore();
   }
 
-  reseedBattleRng(seed) {
+  reseedBattleRng(seed, state = null) {
     const resolved = Number(seed) >>> 0;
     if (this.runManager) this.runManager.rngSeed = resolved;
-    Math.random = createSeededRng(resolved);
+    this._battleRng = createBattleRng(resolved, state);
+    Math.random = this._battleRng;
   }
 
   initializeVisionState() {
@@ -7238,7 +7248,7 @@ export class BattleScene extends Phaser.Scene {
   _getCombatRollSessionKey(attacker, defender) {
     const phase = this.turnManager?.currentPhase || 'player';
     const turn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
-    return `${phase}:${turn}:${String(attacker?.name || '')}:${String(defender?.name || '')}:${attacker?.col},${attacker?.row}:${defender?.col},${defender?.row}`;
+    return `${this._battleDecisionRngState?.cursor ?? ''}:${phase}:${turn}:${attacker?.battleEntityId || attacker?.name || ''}:${defender?.battleEntityId || defender?.name || ''}:${attacker?.col},${attacker?.row}:${defender?.col},${defender?.row}`;
   }
 
   _ensureCombatRollSession(attacker, defender) {
@@ -7268,15 +7278,24 @@ export class BattleScene extends Phaser.Scene {
     this._forecastGamblerLine = null;
   }
 
+  _gamblerRandom(unit, session) {
+    if (this._battleRewindPolicy !== 'fixed-v1') return Math.random;
+    return keyedBattleRandom(
+      this.visionBaseSeed,
+      `gambler:${session?.key || ''}:${unit?.battleEntityId || unit?.name || ''}`,
+    );
+  }
+
   _getGamblerAtkDelta(unit, session = null) {
-    return resolveGamblerDelta(unit, session || this._combatRollSession, Math.random);
+    const rolls = session || this._combatRollSession;
+    return resolveGamblerDelta(unit, rolls, this._gamblerRandom(unit, rolls));
   }
 
   _applyAccessoryPhaseCombatMods(unit, mods, session = null) {
     applyAccessoryPhaseCombatMods(unit, mods, {
       turnNumber: this.turnManager?.turnNumber,
       rollSession: session || this._combatRollSession,
-      rng: Math.random,
+      rng: this._gamblerRandom(unit, session || this._combatRollSession),
     });
   }
 
@@ -9023,14 +9042,14 @@ export class BattleScene extends Phaser.Scene {
    * Persist the run mid-battle (anti-refresh casualty lock). Quota/storage
    * failures only degrade the lock, never gameplay — warn and continue.
    */
-  _persistBattleRunState() {
+  _persistBattleRunState(candidate = null) {
     if (!this.runManager) return { ok: false, reason: 'missing_run' };
     try {
       const cloud = this.registry?.get?.('cloud');
       const slot = this.registry?.get?.('activeSlot');
       if (!Number.isInteger(slot)) return { ok: false, reason: 'missing_slot' }; // dev/QA route without a slot — nothing to lock
       const result = saveRun(
-        this.runManager,
+        candidate ? { toJSON: () => candidate } : this.runManager,
         cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
         slot,
       );
