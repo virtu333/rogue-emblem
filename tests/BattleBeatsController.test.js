@@ -331,3 +331,24 @@ it('default quip randomness does not draw from the combat stream', () => {
   expect(random).not.toHaveBeenCalled();
   expect(scene.add.text).toHaveBeenCalled();
 });
+
+it.each([
+  { x: 0, y: 0 },
+  { x: 640, y: 0 },
+  { x: 640, y: 480 },
+])('keeps crit quips and their entire drift inside the viewport: %j', (point) => {
+  const { scene } = makeScene({
+    cameras: { main: { width: 640, height: 480 } },
+    _worldToScreen: () => point,
+    _pinToScreen: vi.fn(),
+  });
+  const text = { ...makeTextObj(), width: 200, height: 36 };
+  text.setOrigin = text.setDepth = text.setAlpha = () => text;
+  scene.add.text.mockReturnValue(text);
+  new BattleBeatsController(scene)._showQuipText(LORD, 'For the banner!');
+  expect(text.x - 100).toBeGreaterThanOrEqual(8);
+  expect(text.x + 100).toBeLessThanOrEqual(632);
+  expect(text.y + 18).toBeLessThanOrEqual(472);
+  expect(scene.tweens.add.mock.calls[1][0].y - 18).toBeGreaterThanOrEqual(8);
+  expect(scene._pinToScreen).toHaveBeenCalledWith(text);
+});

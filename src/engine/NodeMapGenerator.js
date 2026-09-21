@@ -207,6 +207,52 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     }
   }
 
+  // Repair service pacing after recruit/arena placement, before ambush rolls.
+  // Never alter edges, recruit guarantees, the opening, or the pre-boss rest.
+  const serviceTypes = new Set([NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.COLOSSEUM]);
+  const serviceStreak = new Map();
+  const processed = new Set();
+  for (const node of nodes) {
+    const parents = nodes.filter((n) => n.edges.includes(node.id));
+    const priorStreak = Math.max(0, ...parents.map((n) => serviceStreak.get(n.id) || 0));
+    if (serviceTypes.has(node.type)) {
+      const conflicts = (type) =>
+        parents.some(
+          (parent) =>
+            parent.type === type ||
+            parent.edges.some(
+              (id) => processed.has(id) && nodes.find((n) => n.id === id)?.type === type,
+            ),
+        );
+      if (priorStreak >= 2 || conflicts(node.type)) {
+        const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
+        node.type = priorStreak < 2 && !conflicts(alternative) ? alternative : NODE_TYPES.BATTLE;
+        node.battleParams = buildBattleParams(actId, node.type, node.row, rows, caravanChanceBonus);
+        if (node.type === NODE_TYPES.BATTLE) {
+          const template = pickTemplateForNode(
+            node.battleParams.objective,
+            mapTemplates,
+            actId,
+            false,
+            rollBiome(actId),
+          );
+          if (template) {
+            node.templateId = template.id;
+            node.battleParams.templateId = template.id;
+          }
+          let chance = Math.max(
+            0,
+            Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
+          );
+          if (halfFogChance) chance = Math.floor((chance * 100) / 2) / 100;
+          if (Math.random() < chance) node.fogEnabled = true;
+        }
+      }
+    }
+    serviceStreak.set(node.id, serviceTypes.has(node.type) ? priorStreak + 1 : 0);
+    processed.add(node.id);
+  }
+
   // Post-process: mark a subset of remaining shops as village ambush encounters.
   // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
   // The mandatory pre-boss RUINS is structurally exempt because this pass only considers SHOP.

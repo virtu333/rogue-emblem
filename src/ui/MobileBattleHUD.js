@@ -486,6 +486,7 @@ export class MobileBattleHUD {
       statusStaffInfo(unit)?.text,
       s.getBossPressureWarning?.(),
       s.inspectMode,
+      Boolean(s.inspectionPanel?.visible),
       s.dangerZone?.visible,
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
@@ -523,6 +524,18 @@ export class MobileBattleHUD {
         this.summary.append(el('p', 'mb-detail', status));
       const staff = statusStaffInfo(unit);
       if (staff) this.summary.append(el('p', 'mb-detail', staff.text));
+      if (s.inspectionPanel?.visible && s.inspectionPanel._unit === unit) {
+        this.summary.append(
+          this.button('View unit details', () => {
+            if (
+              s.inspectionPanel?.visible &&
+              s.inspectionPanel._unit === unit &&
+              canInspectUnit(s.grid, unit)
+            )
+              s.openUnitDetailOverlay();
+          }),
+        );
+      }
       this.appendThreatPinControl(unit);
     } else {
       if (!this.lab)

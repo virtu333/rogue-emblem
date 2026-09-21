@@ -761,8 +761,8 @@ export class TitleScene extends Phaser.Scene {
 
     const activeRuns = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
     const resumeSlot = activeRuns.length === 1 ? activeRuns[0] : null;
-    // Continue retains the full picker when there is more than one active run.
-    if (hasSlots) {
+    // Multiple runs use Save Slots; only one run gets a direct Resume shortcut.
+    if (resumeSlot) {
       this._menuButtons.push(
         createMenuButton(
           this,
@@ -781,6 +781,30 @@ export class TitleScene extends Phaser.Scene {
           btnDelay + delayIdx * 150,
         ),
       );
+      menuY += btnGap;
+      delayIdx++;
+    }
+
+    if (hasSlots) {
+      this._menuButtons.push(
+        createMenuButton(
+          this,
+          cx,
+          menuY,
+          'SAVE SLOTS',
+          () =>
+            this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
+            ),
+          btnDelay,
+        ),
+      );
+
       menuY += btnGap;
       delayIdx++;
     }
@@ -856,25 +880,6 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
-    this._menuButtons.push(
-      createMenuButton(
-        this,
-        cx,
-        menuY,
-        'MORE INFO',
-        () => {
-          if (this.helpOverlay?.visible) return;
-          this.helpOverlay = new HelpOverlay(this, () => {
-            this.helpOverlay = null;
-          });
-          this.helpOverlay.show();
-        },
-        btnDelay + delayIdx * 150,
-      ),
-    );
-    menuY += btnGap;
-    delayIdx++;
-
     // First-run "NEW" badges
     try {
       if (!localStorage.getItem('emblem_rogue_seen_how_to_play')) {
@@ -942,29 +947,26 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
-    if (resumeSlot)
-      this._menuButtons.push(
-        createMenuButton(
-          this,
-          W - 78,
-          H - 30,
-          'SAVE SLOTS',
-          () =>
-            this.runMenuTransition(() =>
-              transitionToScene(
-                this,
-                'SlotPicker',
-                { gameData: this.gameData },
-                { reason: TRANSITION_REASONS.CONTINUE },
-              ),
-            ),
-          btnDelay,
-          { width: 130, height: 44, fontSize: '8px', letterSpacing: 1 },
-        ),
-      );
+    this._menuButtons.push(
+      createMenuButton(
+        this,
+        W - 80,
+        H - 30,
+        'MORE INFO',
+        () => {
+          if (this.helpOverlay?.visible) return;
+          this.helpOverlay = new HelpOverlay(this, () => {
+            this.helpOverlay = null;
+          });
+          this.helpOverlay.show();
+        },
+        btnDelay,
+        { width: 130, height: 44, fontSize: '8px', letterSpacing: 1 },
+      ),
+    );
 
     this._menuButtons.push(
-      createMenuButton(this, W - 80, H - 65, 'RECORDS', () => showRunRecords(this), btnDelay, {
+      createMenuButton(this, W - 80, H - 82, 'RECORDS', () => showRunRecords(this), btnDelay, {
         width: 130,
         height: 44,
         fontSize: '8px',

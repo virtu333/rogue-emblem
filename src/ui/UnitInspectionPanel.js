@@ -28,6 +28,13 @@ export class UnitInspectionPanel {
     this._terrain = terrain;
     this._gameData = gameData;
 
+    // The DOM sidebar owns inspection on touch layouts. Keep the shared
+    // inspection state for range/Back/detail handling without a second popup.
+    if (this.scene._mobileBattleHud?.root) {
+      this.scene._mobileBattleHud.lastSnapshot = null;
+      return;
+    }
+
     // Position tooltip near the unit's tile in screen space, clamped to viewport.
     const worldPos = this.scene?.grid?.gridToPixel
       ? this.scene.grid.gridToPixel(unit.col, unit.row)

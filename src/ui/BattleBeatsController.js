@@ -21,7 +21,7 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 
-const QUIP_DEPTH = 301; // world-space, same tier as proc chips (damage text is 300)
+const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
 const QUIP_OFFSET_Y = -58; // clear of proc chips (-26/-44) and damage numbers (-16 -> -32)
 const QUIP_COOLDOWN_MS = 10000; // shared across ALL quips so exchanges never chain
 const QUIP_CHANCE = 0.2;
@@ -148,9 +148,15 @@ export class BattleBeatsController {
     try {
       const pos = scene.grid?.gridToPixel?.(lord.col, lord.row);
       if (!pos) return;
-      const quip = presentationText(scene, pos.x, pos.y + QUIP_OFFSET_Y, line, {
+      const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
+      const cam = scene.cameras?.main;
+      const width = cam?.width || 640;
+      const height = cam?.height || 480;
+      const travel = scene._reduceMotion?.() ? 0 : 20;
+      const quip = presentationText(scene, screen.x, screen.y + QUIP_OFFSET_Y, line, {
         fontFamily: 'monospace',
-        fontSize: '10px',
+        fontSize: '13px',
+        wordWrap: { width: Math.max(80, Math.min(280, width - 24)) },
         color: '#ffe9a8',
         fontStyle: 'italic',
         backgroundColor: '#000000cc',
@@ -159,6 +165,12 @@ export class BattleBeatsController {
         .setOrigin(0.5)
         .setDepth(QUIP_DEPTH)
         .setAlpha(0);
+      // Clamp the entire bubble and its upward animation, not just its anchor.
+      const halfW = (quip.width || 0) / 2;
+      const halfH = (quip.height || 0) / 2;
+      quip.x = Math.max(8 + halfW, Math.min(width - 8 - halfW, screen.x));
+      quip.y = Math.max(8 + halfH + travel, Math.min(height - 8 - halfH, screen.y + QUIP_OFFSET_Y));
+      scene._pinToScreen?.(quip);
       this._live.add(quip);
       scene.tweens.add({
         targets: quip,
@@ -167,7 +179,7 @@ export class BattleBeatsController {
       });
       scene.tweens.add({
         targets: quip,
-        y: pos.y + QUIP_OFFSET_Y - (scene._reduceMotion?.() ? 0 : 20),
+        y: quip.y - travel,
         alpha: 0,
         delay: 900,
         duration: 1400,

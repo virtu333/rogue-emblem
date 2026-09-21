@@ -3,7 +3,6 @@ import { waitForGame, waitForScene } from './helpers.js';
 test.use({
   ...devices['iPhone SE'],
   viewport: { width: 667, height: 375 },
-  baseURL: 'http://127.0.0.1:3000',
 });
 test.setTimeout(60000);
 async function fixture(page, conflict = false) {
@@ -37,6 +36,26 @@ async function fixture(page, conflict = false) {
   }, conflict);
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1300);
+  const layout = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Title');
+    const buttons = s._menuButtons;
+    const label = (b) => b.list.find((c) => typeof c.text === 'string')?.text;
+    const newGame = buttons.find((b) => label(b) === 'NEW GAME');
+    const slots = buttons.find((b) => label(b) === 'SAVE SLOTS');
+    return {
+      gap: slots.y - newGame.y,
+      overlap: buttons.some((a, i) =>
+        buttons
+          .slice(i + 1)
+          .some(
+            (b) =>
+              Math.abs(a.x - b.x) < (a._hitZone.width + b._hitZone.width) / 2 &&
+              Math.abs(a.y - b.y) < (a._hitZone.height + b._hitZone.height) / 2,
+          ),
+      ),
+    };
+  });
+  expect(layout).toEqual({ gap: 48, overlap: false });
   return errors;
 }
 async function tapTitle(page, label) {
