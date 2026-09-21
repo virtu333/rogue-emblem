@@ -1,5 +1,11 @@
 # Mobile beta release
 
+## Build 13 — September 21, 2026 — Testing
+
+Version **0.1.0 (13)** uploaded successfully at **12:08 Pacific** (`/tmp/build13-upload.log`, `EXPORT SUCCEEDED`). Archive: `/tmp/EmblemRogue-Beta-13.xcarchive`. Cloud explicitly disabled. Local commit: `63b85b9`; no GitHub push. App Store Connect confirms **Testing** in **Public Playtest** with four testers, notes saved and automatic notifications enabled. Build ID: `20a38907-4b02-49fa-ac84-70a7c0d8ced5`. Public link: https://testflight.apple.com/join/UeWBYA5n.
+
+Scope: readable mobile inspection, clamped crit/kill quips, service-route spacing, and title button layout. Reviewer note: `docs/build13-review-note.md`. Verification: 5,690 tests / 342 files; nine headed browser cases; 1,000 seeded route-contract maps; targeted lint zero errors, theme/build/sync/archive passed. Tester notes: `/tmp/EmblemRogue-Build13-WhatToTest.txt`. Existing saved routes are preserved.
+
 ## Build 12 — September 21, 2026 — Testing
 
 Version **0.1.0 (12)** archived at `/tmp/EmblemRogue-Beta-12.xcarchive`; bundle `com.davechen.emblemrogue` and build number verified. Production assets rebuilt after U7 and synced with cloud explicitly disabled. Signed upload succeeded at **11:28 Pacific** (`/tmp/build12-upload.log`, `EXPORT SUCCEEDED`). Processing and external review completed. App Store Connect confirms **Testing** in **Public Playtest**, with tester notes saved and automatic notifications enabled. Build ID: `0de7fc0d-97ad-409d-acb5-2ce972ad699b`. Public link: https://testflight.apple.com/join/UeWBYA5n.
