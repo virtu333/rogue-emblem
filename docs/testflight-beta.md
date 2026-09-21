@@ -1,10 +1,10 @@
 # Mobile beta release
 
-## Build 12 — September 21, 2026 — processing
+## Build 12 — September 21, 2026 — Testing
 
-Version **0.1.0 (12)** archived at `/tmp/EmblemRogue-Beta-12.xcarchive`; bundle `com.davechen.emblemrogue` and build number verified. Production assets rebuilt after U7 and synced with cloud explicitly disabled. Signed upload succeeded at **11:28 Pacific** (`/tmp/build12-upload.log`, `EXPORT SUCCEEDED`). App Store Connect confirms Processing; group assignment/testing confirmation remain pending.
+Version **0.1.0 (12)** archived at `/tmp/EmblemRogue-Beta-12.xcarchive`; bundle `com.davechen.emblemrogue` and build number verified. Production assets rebuilt after U7 and synced with cloud explicitly disabled. Signed upload succeeded at **11:28 Pacific** (`/tmp/build12-upload.log`, `EXPORT SUCCEEDED`). Processing and external review completed. App Store Connect confirms **Testing** in **Public Playtest**, with tester notes saved and automatic notifications enabled. Build ID: `0de7fc0d-97ad-409d-acb5-2ce972ad699b`. Public link: https://testflight.apple.com/join/UeWBYA5n.
 
-Scope: remaining presentation/story/gameplay wave, September 21 adversarial-review fixes, and U7 threat intensity/pinning. Brief reviewer handoff: `docs/build12-review-note.md`; tester notes: `/tmp/EmblemRogue-Build12-WhatToTest.txt`. No GitHub commit/push.
+Scope: remaining presentation/story/gameplay wave, September 21 adversarial-review fixes, and U7 threat intensity/pinning. Brief reviewer handoff: `docs/build12-review-note.md`; tester notes: `/tmp/EmblemRogue-Build12-WhatToTest.txt`. Release changes committed locally as `7273131`; no GitHub push.
 
 Verification: **5,686 combined tests / 342 files**, **47 distinct headed browser cases** across presentation, input, fog, hints, reload and production offline smoke; all PR simulation slices passed earlier in this review wave. Data schemas/reference/theme and 27-file parity pass. Lint zero errors (309 existing warnings); targeted U7 lint clean. Production build, Capacitor sync and archive pass. Initial browser failures were corrected test contracts/setup: trait randomness in the speed matrix, persistent teaching-note acknowledgment, configured server address, stepped-threat record/copy and keyboard frame timing. No product failure was waived. U7 lifecycle/checkpoint/RNG review found no outstanding blocker.
 
