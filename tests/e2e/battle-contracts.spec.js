@@ -6,7 +6,7 @@ async function boot(page, mobile) {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(
-    `http://127.0.0.1:3000/?devScene=battle&preset=combat_actions&seed=42&battleLab=1${mobile ? '&mobilePreview=1' : ''}`,
+    `/?devScene=battle&preset=combat_actions&seed=42&battleLab=1${mobile ? '&mobilePreview=1' : ''}`,
   );
   await page.waitForFunction(
     () => window.__emblemRogueGame?.scene.getScene('Battle')?.battleState === 'PLAYER_IDLE',
