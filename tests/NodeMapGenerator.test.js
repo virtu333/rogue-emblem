@@ -340,14 +340,16 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act2 battle nodes have no levelRange in battleParams', () => {
+    it('act2 battle nodes ramp within the act pool range', () => {
       for (let i = 0; i < 10; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const battleNodes = map.nodes.filter(
           (n) => n.type === NODE_TYPES.BATTLE || n.type === NODE_TYPES.RECRUIT,
         );
         for (const node of battleNodes) {
-          expect(node.battleParams.levelRange).toBeUndefined();
+          expect(node.battleParams.levelRange).toEqual(
+            { 0: [3, 5], 1: [4, 6], 2: [5, 7] }[node.row] || [5, 8],
+          );
         }
       }
     });
@@ -609,7 +611,7 @@ describe('NodeMapGenerator', () => {
 });
 
 describe('Church node generation', () => {
-  it('pickNodeType generates CHURCH nodes in act1 middle rows (~5%)', () => {
+  it('pickNodeType generates CHURCH nodes in act1 middle rows (~10%)', () => {
     let totalMiddle = 0;
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
@@ -619,8 +621,8 @@ describe('Church node generation', () => {
       totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
     }
     const churchPercent = (totalChurch / totalMiddle) * 100;
-    expect(churchPercent).toBeGreaterThan(2); // 5% ± margin
-    expect(churchPercent).toBeLessThan(10);
+    expect(churchPercent).toBeGreaterThan(7); // 10% after forced recruit conversions
+    expect(churchPercent).toBeLessThan(13);
   });
 
   it('pickNodeType generates CHURCH nodes in act2 middle rows (~15%)', () => {
@@ -753,7 +755,7 @@ describe('Village ambush post-pass', () => {
     expect(sawAmbush).toBe(true);
   });
 
-  it('applies act1 ambush levelRange scaling by row and leaves act2 ambush levelRange unset', () => {
+  it('applies act1 ambush levelRange scaling by row and applies act2 ambush row scaling', () => {
     const expectedAct1LevelRangeByRow = {
       0: [1, 1],
       1: [1, 2],
@@ -790,7 +792,9 @@ describe('Village ambush post-pass', () => {
       if (ambushNodes.length <= 0) continue;
       sawAct2Ambush = true;
       for (const node of ambushNodes) {
-        expect(node.battleParams?.levelRange).toBeUndefined();
+        expect(node.battleParams?.levelRange).toEqual(
+          { 0: [3, 5], 1: [4, 6], 2: [5, 7] }[node.row] || [5, 8],
+        );
       }
     }
     expect(sawAct2Ambush).toBe(true);

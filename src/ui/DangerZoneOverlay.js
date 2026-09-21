@@ -3,9 +3,11 @@
 import { TILE_SIZE } from '../utils/constants.js';
 
 export class DangerZoneOverlay {
-  constructor(scene, grid) {
+  constructor(scene, grid, { color = 0xff8800, depth = 4 } = {}) {
     this.scene = scene;
     this.grid = grid;
+    this.color = color;
+    this.depth = depth;
     this.tiles = [];
     this.visible = false;
   }
@@ -13,7 +15,7 @@ export class DangerZoneOverlay {
   show(dangerTiles) {
     this.hide();
     this.visible = true;
-    for (const { col, row, statusThreat, damageThreat } of dangerTiles) {
+    for (const { col, row, count = 1, statusThreat, damageThreat } of dangerTiles) {
       const { x, y } = this.grid.gridToPixel(col, row);
       const rect = this.scene.add
         .rectangle(
@@ -21,10 +23,10 @@ export class DangerZoneOverlay {
           y,
           TILE_SIZE - 1,
           TILE_SIZE - 1,
-          0xff8800,
-          statusThreat && !damageThreat ? 0 : 0.25,
+          this.color,
+          statusThreat && !damageThreat ? 0 : count >= 3 ? 0.42 : count === 2 ? 0.3 : 0.18,
         )
-        .setDepth(4);
+        .setDepth(this.depth);
       if (statusThreat) rect.setStrokeStyle(2, 0xb08bd6);
       this.tiles.push(rect);
     }

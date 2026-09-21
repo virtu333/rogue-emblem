@@ -130,6 +130,8 @@ describe('buildNarrativeContext', () => {
       difficulty: 'normal',
       runsCompleted: 0,
       lastRunResult: 'none',
+      lastRunAct: null,
+      currentDefeatWasBoss: false,
       lastRunDefeatedBy: null,
       bossName: null,
       bossSlainCount: 0,
@@ -167,6 +169,8 @@ describe('buildNarrativeContext', () => {
       difficulty: 'lunatic',
       runsCompleted: 7,
       lastRunResult: 'defeat',
+      lastRunAct: null,
+      currentDefeatWasBoss: false,
       lastRunDefeatedBy: 'Warchief',
       bossName: 'Warchief',
       bossSlainCount: 3,
@@ -187,13 +191,15 @@ describe('buildNarrativeContext', () => {
 });
 
 describe('KNOWN_WHEN_KEYS', () => {
-  it('exports the v1 condition vocabulary', () => {
+  it('exports the supported condition vocabulary', () => {
     expect([...KNOWN_WHEN_KEYS].sort()).toEqual([
       'bossKilledYouBefore',
       'bossSlainBefore',
       'commander',
+      'currentDefeatWasBoss',
       'difficulty',
       'firstClear',
+      'lastRunAct',
       'lastRunDefeatedByKnown',
       'lastRunResult',
       'minRunsCompleted',

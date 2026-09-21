@@ -534,7 +534,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     scene.add = {
       circle: vi.fn(() => sparkle),
     };
-    scene._isReducedEffects = vi.fn(() => true);
+    scene._reduceMotion = vi.fn(() => true);
     scene.tweens = { add: vi.fn() };
     scene.awardScaledXP = vi.fn(async () => {});
     scene.finishUnitAction = vi.fn();

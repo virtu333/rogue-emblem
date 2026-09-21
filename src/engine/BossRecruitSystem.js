@@ -542,7 +542,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
-      { traitsData, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
@@ -589,7 +589,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
-      { traitsData, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random },
     );
     addClassInnates(unit, classData.name);
     const baseSpawnTier = unit.weapon?.tier || 'Iron';

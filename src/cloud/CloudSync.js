@@ -1,3 +1,5 @@
+import { mergeRunRecords } from '../engine/RunRecords.js';
+import { normalizeSettings } from '../utils/SettingsManager.js';
 import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
 // All methods catch errors and console.warn — never throw.
@@ -163,9 +165,19 @@ function applyMetaSlots(metaData, skipped = new Set()) {
     if (cloudSlot == null) continue;
     const localSlot = readLocalJSON(key);
     const shouldKeepLocal = shouldPreferLocalMeta(localSlot, cloudSlot);
-    if (!shouldKeepLocal) {
+    const records = mergeRunRecords(localSlot?.runRecords || [], cloudSlot?.runRecords || []);
+    if (
+      !shouldKeepLocal ||
+      JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || [])
+    ) {
       try {
-        localStorage.setItem(key, JSON.stringify(cloudSlot));
+        const selected = shouldKeepLocal
+          ? { ...localSlot, savedAt: Math.max(Date.now(), Number(localSlot.savedAt || 0) + 1) }
+          : cloudSlot;
+        localStorage.setItem(
+          key,
+          JSON.stringify(records.length ? { ...selected, runRecords: records } : selected),
+        );
       } catch (e) {
         console.warn('[CloudSync] localStorage write failed:', key, e);
       }
@@ -174,12 +186,18 @@ function applyMetaSlots(metaData, skipped = new Set()) {
 }
 
 function applySettings(settingsData) {
+  // No cloud row is not a request to reset local preferences.
+  if (!settingsData) return;
   try {
-    if (settingsData) {
-      localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settingsData));
-    } else {
-      localStorage.removeItem(SETTINGS_LS_KEY);
-    }
+    const local = readLocalJSON(SETTINGS_LS_KEY);
+    const localTime = Number(local?.savedAt) || 0;
+    const cloudTime = Number(settingsData.savedAt) || 0;
+    if (local && localTime >= cloudTime) return;
+    localStorage.setItem(
+      SETTINGS_LS_KEY,
+      JSON.stringify({ ...normalizeSettings(settingsData), savedAt: cloudTime || Date.now() }),
+    );
+    globalThis.dispatchEvent?.(new Event('emblem-settings-hydrated'));
   } catch (e) {
     console.warn('[CloudSync] localStorage write failed:', SETTINGS_LS_KEY, e);
   }
@@ -314,6 +332,11 @@ export function pushSettings(userId, settingsData) {
   const next = prev
     .catch(() => {})
     .then(async () => {
+      const remote = await fetchTable(userId, TABLES.settings);
+      if (Number(remote?.savedAt || 0) > Number(settingsData?.savedAt || 0)) {
+        applySettings(remote);
+        return;
+      }
       const { error } = await supabase
         .from(TABLES.settings)
         .upsert({ user_id: userId, data: settingsData, updated_at: new Date().toISOString() });
@@ -327,6 +350,7 @@ export function pushSettings(userId, settingsData) {
       if (updateQueues.get(queueKey) === next) updateQueues.delete(queueKey);
     });
   updateQueues.set(queueKey, next);
+  return next;
 }
 
 export function deleteRunSave(userId, slot) {

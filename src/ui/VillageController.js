@@ -229,7 +229,7 @@ export class VillageController {
         .setOrigin(0.5)
         .setDepth(5);
       this.markers.push(highlight, label);
-      if (!scene._isReducedEffects?.()) {
+      if (!scene._reduceMotion?.()) {
         scene.tweens?.add?.({
           targets: highlight,
           alpha: 0.08,
@@ -259,7 +259,7 @@ export class VillageController {
         })
         .setOrigin(0.5)
         .setDepth(320);
-      if (scene._isReducedEffects?.()) {
+      if (scene._reduceMotion?.()) {
         scene.time.delayedCall(700, () => txt.destroy());
       } else {
         scene.tweens.add({

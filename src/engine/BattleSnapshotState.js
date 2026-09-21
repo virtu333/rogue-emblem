@@ -1,3 +1,4 @@
+import { migrateCleverTrait } from './TraitSystem.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -20,6 +21,9 @@ export function captureBattleWorldState(scene) {
 }
 
 export function restoreBattleWorldState(scene, snapshot) {
+  for (const group of [...UNIT_GROUPS, 'escapedUnits', 'nonDeployedUnits']) {
+    for (const unit of scene[group] || []) migrateCleverTrait(unit);
+  }
   const grid = scene.grid;
   // Older saves have no terrain snapshot. Preserve their existing fallback
   // behavior instead of replacing a map with an empty/unknown layout.
@@ -48,6 +52,7 @@ export function restoreBattleWorldState(scene, snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }
   scene.dangerZoneStale = true;
+  scene._pinnedThreats?.invalidate();
   scene.dangerZoneCache = null;
   scene.dangerZone?.hide?.();
 }

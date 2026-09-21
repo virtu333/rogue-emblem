@@ -1,14 +1,32 @@
 # Mobile beta release
 
-## Build 10 — September 20, 2026 — uploaded, distribution pending
+## Build 12 — September 21, 2026 — processing
 
-Version **0.1.0 (10)** archived at `/tmp/EmblemRogue-Beta-10.xcarchive`; bundle version verified. Upload succeeded at **18:09 Pacific** (`/tmp/build10-upload.log`, `EXPORT SUCCEEDED`). Apple reported the package processing. Browser App Store Connect session expired on the post-upload refresh, so **Public Playtest assignment and Testing status are not yet verified**. Build 9 remains the last confirmed distributed build. Next: sign back in, open build 10, set its What to Test text, add Public Playtest with automatic notifications, and verify Testing.
+Version **0.1.0 (12)** archived at `/tmp/EmblemRogue-Beta-12.xcarchive`; bundle `com.davechen.emblemrogue` and build number verified. Production assets rebuilt after U7 and synced with cloud explicitly disabled. Signed upload succeeded at **11:28 Pacific** (`/tmp/build12-upload.log`, `EXPORT SUCCEEDED`). App Store Connect confirms Processing; group assignment/testing confirmation remain pending.
+
+Scope: remaining presentation/story/gameplay wave, September 21 adversarial-review fixes, and U7 threat intensity/pinning. Brief reviewer handoff: `docs/build12-review-note.md`; tester notes: `/tmp/EmblemRogue-Build12-WhatToTest.txt`. No GitHub commit/push.
+
+Verification: **5,686 combined tests / 342 files**, **47 distinct headed browser cases** across presentation, input, fog, hints, reload and production offline smoke; all PR simulation slices passed earlier in this review wave. Data schemas/reference/theme and 27-file parity pass. Lint zero errors (309 existing warnings); targeted U7 lint clean. Production build, Capacitor sync and archive pass. Initial browser failures were corrected test contracts/setup: trait randomness in the speed matrix, persistent teaching-note acknowledgment, configured server address, stepped-threat record/copy and keyboard frame timing. No product failure was waived. U7 lifecycle/checkpoint/RNG review found no outstanding blocker.
+
+Logs: `/tmp/build12-final-unit.log`, `/tmp/build12-presentation.log`, `/tmp/build12-followups.log`, `/tmp/build12-u7.log`, `/tmp/build12-contracts.log`, `/tmp/build12-final-contracts.log`, `/tmp/build12-reload-final.log`, `/tmp/build12-production-smoke.log`. Physical-phone upgrade/audio/safe-area/gesture checks remain tester priorities.
+
+## Build 11 — September 21, 2026 — Testing
+
+Version **0.1.0 (11)** archived at `/tmp/EmblemRogue-Beta-11.xcarchive`; bundle ID/version verified. Signed upload succeeded at **00:39 Pacific** (`/tmp/build11-upload.log`, `EXPORT SUCCEEDED`). Processing and external review completed. App Store Connect confirms **Testing** in **Public Playtest**, with What to Test saved and automatic tester notifications enabled. Build ID: `4f218261-1924-471e-b4c0-f3c560235162`. Public link: https://testflight.apple.com/join/UeWBYA5n. No GitHub commit/push.
+
+Changes: presentation/onboarding checkpoint plus escape-map visibility, stat-booster/cure use, item-description audit and art details, revival catch-up, Act 1 boss rewind reward, and Vampiric 15% rounded down. Reviewer handoff: `docs/presentation-checkpoint-review-2026-09-20.md`. What to Test: `/tmp/EmblemRogue-Build11-WhatToTest.txt`.
+
+Verification: 5,317 unit tests, 162 harness tests, all PR full-run simulation slices, 12 latest headed item/roster/escape checks and production offline phone smoke; data/schema/theme gates and production build/Capacitor sync/archive passed. Lint zero errors with existing warnings. Physical-device upgrade/audio/safe-area checks remain tester priorities.
+
+## Build 10 — September 20, 2026 — Testing
+
+Version **0.1.0 (10)** archived at `/tmp/EmblemRogue-Beta-10.xcarchive`; bundle version verified. Upload succeeded at **18:09 Pacific** (`/tmp/build10-upload.log`, `EXPORT SUCCEEDED`). Processing and external review completed. App Store Connect now confirms **Testing**, assigned to **Public Playtest** with automatic tester notifications enabled. What to Test notes were saved and submitted. Build ID: `8e3d4884-cabe-4547-a141-a88d31480fbd`. Distribution was completed after the user restored the App Store Connect session.
 
 Changes: both UX contract audits, including service/arena/caravan persistence, resolved combat/promotion presentation checkpoints, movement/Canto/rewind integrity, shared fog/status/danger rules, contextual management information, cancelable touch controls/panning, save identity/conflict recovery and verified logout backup. Arena now grants threshold skills before saving. New optional save fields are backward-compatible; no new remote telemetry. No GitHub commit/push.
 
 Verification: **5,291 unit tests**, **109 harness tests**, all PR simulation slices, **79 headed browser cases without retries**, production offline mobile smoke; formatting, lint (zero errors, 307 warnings), data/reference/theme parity, production build/Capacitor sync and Xcode archive passed. Independent reviewers found and helped fix cloud save-loss and sleeping-resume edge cases before packaging. Physical iOS behavior remains a tester priority.
 
-Reviewer note: `docs/ui-release-review-note.md`. Implementation/evidence: `docs/ux-contract-implementation.md`, `docs/ux-supplement-implementation.md`. Final browser artifacts: `/tmp/build10-final-browser`; tests log: `/tmp/build10-final-browser.log`. Tester notes ready at `/tmp/EmblemRogue-Build10-WhatToTest.txt`. Existing public link: https://testflight.apple.com/join/UeWBYA5n (new build availability pending).
+Reviewer note: `docs/ui-release-review-note.md`. Implementation/evidence: `docs/ux-contract-implementation.md`, `docs/ux-supplement-implementation.md`. Final browser artifacts: `/tmp/build10-final-browser`; tests log: `/tmp/build10-final-browser.log`. Submitted tester notes: `/tmp/EmblemRogue-Build10-WhatToTest.txt`. Public link: https://testflight.apple.com/join/UeWBYA5n
 
 ## Build 9 — September 20, 2026
 

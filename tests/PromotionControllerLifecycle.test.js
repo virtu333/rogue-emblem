@@ -10,6 +10,7 @@ vi.mock('../src/engine/UnitManager.js', async () => ({
   promoteUnit: mocks.promote,
 }));
 import { PromotionController } from '../src/ui/PromotionController.js';
+import { LevelUpPopup } from '../src/ui/LevelUpPopup.js';
 import { PromotionChoicePanel } from '../src/ui/PromotionChoicePanel.js';
 function fixture() {
   const seal = { effect: 'promote', uses: 1 };
@@ -70,3 +71,32 @@ describe('promotion UI shutdown', () => {
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
   });
 });
+
+for (const shutdown of [false, true])
+  it(`promotion audio stops when popup ${shutdown ? 'shuts down' : 'closes'}`, async () => {
+    const { seal, unit, scene, controller } = fixture();
+    mocks.resolve.mockReturnValue([{ name: 'Hero', promotionBonuses: { STR: 2, MOV: 1 } }]);
+    scene.showPromotionBanner = vi.fn(async () => {});
+    scene._playLevelUpSfx = vi.fn();
+    scene._stopLevelUpSfx = vi.fn();
+    let release;
+    const spy = vi.spyOn(LevelUpPopup.prototype, 'show').mockImplementation(function () {
+      expect(this.levelUpResult.gains.MOV).toBe(1);
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    });
+    try {
+      const pending = controller.executePromotion(unit, seal);
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      expect(scene._playLevelUpSfx).toHaveBeenCalledTimes(1);
+      if (shutdown) scene._sceneShutdownCleanedUp = true;
+      release();
+      expect(await pending).toBe(true);
+      expect(scene._stopLevelUpSfx).toHaveBeenCalledTimes(1);
+      expect(scene.finishUnitAction).toHaveBeenCalledTimes(shutdown ? 0 : 1);
+      expect(unit.consumables).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });

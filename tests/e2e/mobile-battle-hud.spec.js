@@ -121,10 +121,26 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
     const battle = window.__emblemRogueGame.scene.getScene('Battle');
     const f = battle._mobileBattleHud.forecast.forecast.attacker;
     battle.handleForecastClick({ col: battle.forecastTarget.col, row: battle.forecastTarget.row });
-    return { damage: `${f.damage} × ${f.attackCount || 1}`, state: battle.battleState };
+    return {
+      damage: String(f.damage),
+      hits: String(f.attackCount || 1),
+      state: battle.battleState,
+    };
   });
   expect(expected.state).toBe('SHOWING_FORECAST');
-  await expect(dialog.locator('.mb-ally')).toContainText(expected.damage);
+  const ally = dialog.locator('.mb-ally');
+  await expect(
+    ally
+      .locator('dl > div')
+      .filter({ has: page.getByText('Damage per hit', { exact: true }) })
+      .locator('dd'),
+  ).toHaveText(expected.damage);
+  await expect(
+    ally
+      .locator('dl > div')
+      .filter({ has: page.getByText('Planned hits', { exact: true }) })
+      .locator('dd'),
+  ).toHaveText(expected.hits);
   await page.screenshot({ path: 'test-results/mobile-battle-forecast.png' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect(dialog).toHaveCount(0);

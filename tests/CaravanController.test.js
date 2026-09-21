@@ -85,15 +85,18 @@ describe('CaravanController', () => {
       expect(scene.npcUnits).toHaveLength(0);
     });
 
-    it('shows the first-encounter hint exactly once', () => {
-      const shouldShow = vi.fn(() => true);
+    it('queues the first-encounter hint without marking it seen on spawn', () => {
+      const hints = { hasSeen: vi.fn(() => false), markSeen: vi.fn() };
       const scene = makeScene({
+        battleState: 'DEPLOY',
+        events: { on: vi.fn(), once: vi.fn() },
         battleConfig: { caravanSpawn: { col: 3, row: 1 } },
-        registry: { get: vi.fn(() => ({ shouldShow })) },
+        registry: { get: vi.fn((key) => (key === 'hints' ? hints : null)) },
       });
-      const ctrl = new CaravanController(scene);
-      ctrl.spawnIfConfigured();
-      expect(shouldShow).toHaveBeenCalledWith('battle_caravan');
+      new CaravanController(scene).spawnIfConfigured();
+      expect(hints.hasSeen).toHaveBeenCalledWith('battle_caravan');
+      expect(hints.markSeen).not.toHaveBeenCalled();
+      expect(scene._pendingContextualHints.has('battle_caravan')).toBe(true);
     });
   });
 

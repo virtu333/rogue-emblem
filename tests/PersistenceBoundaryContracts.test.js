@@ -417,7 +417,6 @@ it('reopening a persisted arena visit restores fight limits, XP caps and the hir
   expect(first._hireMercenary(0)).toBe(true);
   const loaded = loadRun(data, 1);
   const reopened = new ColosseumOverlay(scene, loaded, data);
-  reopened._installInput = vi.fn();
   reopened._showMenu = vi.fn();
   reopened._showMercBrowse = vi.fn();
   reopened.show(loaded.nodeMap.nodes[0], vi.fn());

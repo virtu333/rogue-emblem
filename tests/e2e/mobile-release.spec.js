@@ -36,15 +36,15 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   await page.touchscreen.tap(p.x, p.y);
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'));
   // The first-run fast path intentionally starts here; advance the visible narrative.
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 24; i++) {
     await page.waitForTimeout(200);
-    if (await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').isSceneReady))
-      break;
+    if (await page.locator('.re-node-map').isVisible()) break;
     const hintContinue = page
       .getByRole('dialog', { name: 'Field notes', exact: true })
       .locator('.re-menu-body')
       .getByRole('button', { name: 'Continue', exact: true });
     if (await hintContinue.isVisible()) {
+      await page.waitForTimeout(550);
       await hintContinue.tap();
       continue;
     }
@@ -103,7 +103,10 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
     .getByRole('dialog', { name: 'Field notes', exact: true })
     .locator('.re-menu-body')
     .getByRole('button', { name: 'Continue', exact: true });
-  if (await battleHint.isVisible()) await battleHint.tap();
+  if (await battleHint.isVisible()) {
+    await page.waitForTimeout(550);
+    await battleHint.tap();
+  }
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').showPauseMenu());
   const resume = page.getByRole('button', { name: 'Resume', exact: true });
   await expect(resume).toBeVisible();

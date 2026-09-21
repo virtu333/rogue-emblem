@@ -5,6 +5,22 @@ import { RunSimulationDriver } from './RunSimulationDriver.js';
 import { NODE_TYPES } from '../../src/utils/constants.js';
 
 describe('RunSimulationDriver', () => {
+  it('seed 11 terminates without a movement timeout', async () => {
+    installSeed(11);
+    try {
+      const driver = new RunSimulationDriver(loadGameData(), {
+        runOptions: { runSeed: 11, difficultyId: 'normal', autoSelectBlessing: false },
+      });
+      const result = await driver.run();
+      // Balance changes may end this journey before its original wall-detour encounter.
+      // The cleared-throne geometry is isolated in ScriptedAgent.test.js.
+      expect(['victory', 'defeat']).toContain(result.result);
+      expect(result.metrics.timeouts).toBe(0);
+    } finally {
+      restoreMathRandom();
+    }
+  });
+
   it('completes a seeded run with terminal result', async () => {
     const gameData = loadGameData();
     installSeed(1234);

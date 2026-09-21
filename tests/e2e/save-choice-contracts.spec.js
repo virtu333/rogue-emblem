@@ -71,7 +71,7 @@ test('New Game explains the free slot and preserves the existing run when cancel
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBe(before);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_2_meta'))).toBeNull();
-  await tapTitle(page, 'CONTINUE');
+  await tapTitle(page, 'SAVE SLOTS');
   await waitForScene(page, 'SlotPicker');
   const menu = page.getByRole('dialog', { name: 'Select save', exact: true });
   await expect(menu).toContainText('Edric');
@@ -82,7 +82,7 @@ test('cloud conflict keeps both versions until an explicit choice, then resumes 
   page,
 }, info) => {
   const errors = await fixture(page, true);
-  await tapTitle(page, 'CONTINUE');
+  await tapTitle(page, 'SAVE SLOTS');
   await waitForScene(page, 'SlotPicker');
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
@@ -106,5 +106,26 @@ test('cloud conflict keeps both versions until an explicit choice, then resumes 
   expect(
     await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_cloud_conflict')),
   ).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('single-run Resume preserves the cloud conflict choice instead of bypassing it', async ({
+  page,
+}) => {
+  const errors = await fixture(page, true);
+  const label = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Title');
+    return s.children.list
+      .flatMap((o) => o.list || [])
+      .find((o) => o.text?.startsWith('RESUME · ACT'))?.text;
+  });
+  expect(label).toMatch(/^RESUME · ACT /);
+  await page.screenshot({ path: 'test-results/title-resume.png' });
+  await tapTitle(page, label);
+  await expect(
+    page.getByRole('dialog', { name: 'Choose save version', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Decide later', exact: true }).tap();
+  await expect(page.getByRole('dialog', { name: 'Choose save version', exact: true })).toBeHidden();
   expect(errors).toEqual([]);
 });

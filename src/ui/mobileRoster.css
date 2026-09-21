@@ -188,14 +188,28 @@
   border-top: 1px solid var(--re-line);
   padding-top: 8px;
 }
-.mr-sheet button:not(:disabled):is(:hover, :active) {
+/* :active is transient and correct everywhere. :hover is not — a touch browser
+   leaves the last-tapped element hovered until something else is tapped, and
+   this paint is the selected paint, so the previous unit keeps reading as
+   selected next to the real one. Give hover to real pointers only. */
+.mr-sheet button:not(:disabled):active {
   border-color: var(--re-gold);
   color: var(--re-gold-hi);
   background: var(--re-selected);
 }
+@media (hover: hover) {
+  .mr-sheet button:not(:disabled):hover {
+    border-color: var(--re-gold);
+    color: var(--re-gold-hi);
+    background: var(--re-selected);
+  }
+}
+/* Selected must stay distinguishable from hover even where hover applies, so it
+   carries a full-height gold rail rather than sharing only the fill colour. */
 .mr-units button[aria-pressed='true'] {
   position: relative;
-  box-shadow: inset 3px 0 var(--re-gold);
+  box-shadow: inset 4px 0 var(--re-gold-hi);
+  border-color: var(--re-gold-hi);
 }
 .mr-units button[aria-pressed='true'] strong::before {
   content: '▸ ';
@@ -282,6 +296,23 @@
 .mr-unit-info strong,
 .mr-unit-info > span {
   display: block;
+}
+.mr-unit-info > .mr-unit-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.mr-unit-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mr-unit-name em {
+  margin-left: auto;
+  flex: none;
+  font-style: normal;
+  color: var(--re-gold);
 }
 .mr-portrait {
   float: right;
@@ -414,4 +445,15 @@
 .re-choice-picker .re-header > button {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+/* Equipment groups keep their own capacity and slot boundaries. */
+.mr-sheet .mr-gear-section {
+  border-top: 1px solid var(--re-line);
+  padding-top: 12px;
+  margin-top: 8px;
+}
+
+.mr-scroll-description p {
+  white-space: pre-line;
 }

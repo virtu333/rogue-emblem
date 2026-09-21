@@ -163,6 +163,7 @@ export function generateBattle(params, deps) {
     : filteredPool;
   const rolledEnemyCount = rollEnemyCount({
     deployCount: spawnCount,
+    deployCountCap: params.act1EnemyCountDeployCap ?? (diffMode === 'normal' ? 3 : 0),
     act,
     row,
     isBoss,
@@ -172,7 +173,9 @@ export function generateBattle(params, deps) {
     enemyCountBase,
     isAmbush,
   });
-  const recruitBonus = isRecruitBattle ? 1 : 0;
+  const recruitBonus = isRecruitBattle
+    ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 0 : 1)))
+    : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
   // Apply difficulty-driven level bonus (supports positive and negative offsets)
@@ -1623,6 +1626,9 @@ function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thro
  * Select a class name for an anchor enemy based on anchor.unit spec.
  */
 function resolveAnchorUnitClass(anchor, pool, spawns) {
+  if (spawns.some((spawn) => spawn.className === 'Cleric')) {
+    pool = { ...pool, base: pool.base.filter((name) => name !== 'Cleric') };
+  }
   switch (anchor.unit) {
     case 'highest_level':
       // Placed at the pool's max level via the level branch in generateEnemies.
@@ -1876,14 +1882,19 @@ function generateEnemies(
         terrainData,
         thronePos,
       );
-      const className = resolveAnchorUnitClass(anchor, pool, spawns);
-      if (!className || anchorTiles.length === 0) continue;
+      const anchorClassName = resolveAnchorUnitClass(anchor, pool, spawns);
+      if (!anchorClassName || anchorTiles.length === 0) continue;
 
       for (const tile of anchorTiles) {
         const key = `${tile.col},${tile.row}`;
         if (usedPositions.has(key)) continue;
         if (spawns.length >= count) break;
 
+        const className =
+          anchorClassName === 'Cleric' && spawns.some((spawn) => spawn.className === 'Cleric')
+            ? resolveAnchorUnitClass(anchor, pool, spawns)
+            : anchorClassName;
+        if (!className) continue;
         usedPositions.add(key);
         const level =
           anchor.unit === 'highest_level'
@@ -1896,6 +1907,7 @@ function generateEnemies(
           col: tile.col,
           row: tile.row,
           isBoss: false,
+          aiMode: className === 'Cleric' ? 'heal' : undefined,
         });
 
         if (DEBUG_MAP_GEN)
@@ -1957,7 +1969,13 @@ function generateEnemies(
     if (usePromoted && Math.random() < 0.3) {
       className = weightedClassPick(pool.promoted, enemyWeights, classes);
     } else if (pool.base.length > 0) {
-      className = weightedClassPick(pool.base, enemyWeights, classes);
+      className = weightedClassPick(
+        spawns.some((s) => s.className === 'Cleric')
+          ? pool.base.filter((c) => c !== 'Cleric')
+          : pool.base,
+        enemyWeights,
+        classes,
+      );
     } else {
       className = weightedClassPick(allClasses, enemyWeights, classes);
     }
@@ -1989,7 +2007,10 @@ function generateEnemies(
     const cd = classes?.find((c) => c.name === className);
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
-    const sunderChance = Number(pool.sunderChance || 0);
+    const sunderChance =
+      act === 'act2' && (extraOptions.difficultyId || 'normal') === 'normal'
+        ? 0
+        : Number(pool.sunderChance || 0);
     const baseRoll = Math.random();
     const sunderRoll = canHaveSunder && sunderChance > 0 ? baseRoll : null;
     const sunderWeapon = sunderRoll !== null && sunderRoll < sunderChance;
@@ -2054,6 +2075,7 @@ function generateEnemies(
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
       statusStaff: statusStaff || undefined,
+      aiMode: className === 'Cleric' ? 'heal' : undefined,
       siegeWeapon: siegeWeapon || undefined,
     });
   }
@@ -2061,7 +2083,7 @@ function generateEnemies(
   // Assign guard AI mode only on seize maps to avoid passive enemies on rout maps.
   if (objective === 'seize') {
     const bossHalfCol = Math.floor(cols / 2);
-    const bossHalfEnemies = spawns.filter((s) => !s.isBoss && s.col >= bossHalfCol);
+    const bossHalfEnemies = spawns.filter((s) => !s.isBoss && !s.aiMode && s.col >= bossHalfCol);
     const guardRate = 0.15 + Math.random() * 0.1; // 15-25%
     const guardCount = Math.max(0, Math.round(bossHalfEnemies.length * guardRate));
     const shuffledGuards = [...bossHalfEnemies];
@@ -2078,8 +2100,9 @@ function generateEnemies(
   return spawns;
 }
 
-function rollEnemyCount({
+export function rollEnemyCount({
   deployCount,
+  deployCountCap = 0,
   act,
   row,
   isBoss,
@@ -2099,7 +2122,9 @@ function rollEnemyCount({
     offset = [2, 3]; // fallback for unmapped acts (postAct)
   }
   const [minOff, maxOff] = offset;
-  const base = enemyCountBase > 0 ? enemyCountBase : deployCount;
+  const scaledDeployment =
+    act === 'act1' && deployCountCap > 0 ? Math.min(deployCount, deployCountCap) : deployCount;
+  const base = enemyCountBase > 0 ? enemyCountBase : scaledDeployment;
   const count =
     base + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 

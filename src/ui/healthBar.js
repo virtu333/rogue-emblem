@@ -1,6 +1,6 @@
 import { getHPBarColor } from '../utils/uiStyles.js';
 
-export function createHealthBar(unit) {
+export function createHealthBar(unit, projectedHP = null) {
   const max = Math.max(1, Number(unit.stats?.HP) || 1);
   const current = Math.max(0, Math.min(max, Number(unit.currentHP) || 0));
   const ratio = current / max;
@@ -17,5 +17,18 @@ export function createHealthBar(unit) {
   fill.style.width = `${ratio * 100}%`;
   fill.style.backgroundColor = `#${getHPBarColor(ratio).toString(16).padStart(6, '0')}`;
   bar.append(fill);
+  if (Number.isFinite(projectedHP)) {
+    const remaining = Math.max(0, Math.min(current, projectedHP));
+    const loss = document.createElement('span');
+    loss.className = 're-health-projection';
+    loss.style.left = `${(remaining / max) * 100}%`;
+    loss.style.width = `${((current - remaining) / max) * 100}%`;
+    loss.setAttribute('aria-hidden', 'true');
+    bar.append(loss);
+    bar.setAttribute(
+      'aria-valuetext',
+      `${current} of ${max} HP; estimated ${remaining} HP if all hits land without critical hits or skill procs`,
+    );
+  }
   return bar;
 }

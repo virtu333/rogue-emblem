@@ -74,3 +74,14 @@ html .re-run-flow.re-compact-menu {
 .re-run-flow.re-compact-menu .re-menu-body {
   flex: 0 1 auto;
 }
+
+/* Tutorial notes retain modal input ownership while keeping the battlefield visible. */
+.re-modal-shield:has(.re-tutorial-note) {
+  background: transparent;
+  align-items: flex-end;
+}
+.re-tutorial-note.re-compact-menu {
+  max-width: 540px;
+  max-height: 42dvh;
+  margin-bottom: max(8px, env(safe-area-inset-bottom));
+}

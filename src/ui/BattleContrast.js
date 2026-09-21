@@ -13,8 +13,33 @@ export function contrastSpriteKey(scene, sourceKey) {
   if (!battleContrastEnabled()) return sourceKey;
   const key = `contrast-${sourceKey}`;
   if (scene.textures.exists(key)) return key;
-  const source = scene.textures.get(sourceKey)?.getSourceImage();
+  let source = scene.textures.get(sourceKey)?.getSourceImage();
   if (!source || typeof document === 'undefined') return sourceKey;
+  // Slightly reduce the tallest silhouettes inside the same tile-centered
+  // texture. Keep the foot baseline fixed so HP bars and hit coordinates agree.
+  const compact =
+    /^(rebuilt-)?(lord_astrid|astrid|myrmidon|enemy_myrmidon|enemy_mage|fighter|enemy_fighter)$/.test(
+      sourceKey,
+    );
+  if (compact) {
+    const fitted = document.createElement('canvas');
+    fitted.width = source.width;
+    fitted.height = source.height;
+    const paint = fitted.getContext('2d');
+    paint.imageSmoothingEnabled = false;
+    const factor = sourceKey.includes('astrid') ? 0.9 : 0.92;
+    const width = Math.round(source.width * factor),
+      height = Math.round(source.height * factor);
+    const foot = sourceKey.startsWith('rebuilt-') ? 44 : source.height - 8;
+    paint.drawImage(
+      source,
+      Math.round((source.width - width) / 2),
+      Math.round(foot * (1 - factor)),
+      width,
+      height,
+    );
+    source = fitted;
+  }
   const canvas = document.createElement('canvas');
   canvas.width = source.width;
   canvas.height = source.height;

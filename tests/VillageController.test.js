@@ -46,7 +46,7 @@ function makeScene(overrides = {}) {
     time: { delayedCall: vi.fn() },
     showBriefBanner: vi.fn(() => Promise.resolve()),
     updateObjectiveText: vi.fn(),
-    _isReducedEffects: () => true,
+    _reduceMotion: () => true,
     ...overrides,
   };
 }

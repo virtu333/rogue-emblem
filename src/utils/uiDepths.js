@@ -6,6 +6,8 @@
 export const UI_DEPTHS = {
   // Battle scene layers
   GRID_BASE: 0,
+  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites.
+  OBJECTIVE_LABEL: 15, // Readable even when a unit occupies an exit.
   TERRAIN_HIGHLIGHTS: 10,
   UNITS: 50,
   DAMAGE_NUMBERS: 80,
@@ -13,6 +15,8 @@ export const UI_DEPTHS = {
   FOG_LABEL: 100,
   UNIT_INSPECTION: 150,
   FORECAST_PANEL: 200,
+
+  NODE_EVENT: 422, // Node-map ambush notification
 
   // Overlays (ascending priority)
   HOW_TO_PLAY: 500, // HowToPlayOverlay

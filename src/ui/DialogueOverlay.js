@@ -1,3 +1,4 @@
+import { seenDialogueKey } from '../utils/seenDialogue.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { dialoguePortraitKey } from './RebuiltPortraits.js';
@@ -46,14 +47,20 @@ export class DialogueOverlay {
    * @param {Array<{speaker?: string|null, portrait?: string|null, line?: string}>} entries
    * @returns {Promise<void>}
    */
-  async showSequence(entries) {
+  async showSequence(entries, options = {}) {
     if (!Array.isArray(entries) || entries.length <= 0 || this._destroyed) return;
+    const seenKey = seenDialogueKey(options.category, options.key, entries);
+    const meta = this.scene?.registry?.get?.('meta');
+    const settings = this.scene?.registry?.get?.('settings');
+    if (seenKey && settings?.getSkipSeenDialogue?.() && meta?.hasSeenDialogue?.(seenKey))
+      return true;
     this._sequenceSkipRequested = false;
+    let completed = true;
     for (let i = 0; i < entries.length; i++) {
       if (this._sequenceSkipRequested || this._destroyed) break;
       const entry = entries[i] || {};
       const remaining = entries.length - i - 1;
-      await this._showEntry(
+      const acknowledged = await this._showEntry(
         entry.speaker ?? null,
         entry.line ?? '',
         entry.portrait ?? null,
@@ -65,8 +72,14 @@ export class DialogueOverlay {
           },
         },
       );
+      if (!acknowledged || this._destroyed) {
+        completed = false;
+        break;
+      }
     }
+    if (completed && !this._destroyed && seenKey) meta?.markDialogueSeen?.(seenKey);
     this._sequenceSkipRequested = false;
+    return completed;
   }
 
   _showEntry(name, line, portraitKey, autoAdvance, options = {}) {
@@ -193,7 +206,7 @@ export class DialogueOverlay {
       const onDismiss = () => {
         if (dismissed) return;
         dismissed = true;
-        this.hide();
+        this.hide(true);
       };
 
       const onSkipClick = () => {
@@ -227,7 +240,7 @@ export class DialogueOverlay {
   _showDOM(name, line, portraitKey, autoAdvance, { allowSkip, onSkip }) {
     return new Promise((resolve) => {
       this._pendingResolve = resolve;
-      this.surface = new MenuSurface(this.scene, name || 'Story', () => this.hide());
+      this.surface = new MenuSurface(this.scene, name || 'Story', () => this.hide(true));
       this.surface.root.className = 're re-screen re-dialogue';
       this.surface.root.style.setProperty('--re-z', DOM_UI_DEPTHS.DIALOGUE);
       this.surface.root.replaceChildren();
@@ -250,12 +263,12 @@ export class DialogueOverlay {
             'Skip conversation',
             () => {
               onSkip?.();
-              this.hide();
+              this.hide(true);
             },
             're-btn re-btn--quiet',
           ),
         );
-      const next = button('Continue', () => this.hide(), 're-btn re-btn--primary');
+      const next = button('Continue', () => this.hide(true), 're-btn re-btn--primary');
       footer.append(next);
       panel.append(copy, footer);
       this.surface.root.append(panel);
@@ -264,13 +277,13 @@ export class DialogueOverlay {
     });
   }
 
-  _resolvePending() {
+  _resolvePending(acknowledged = false) {
     const resolve = this._pendingResolve;
     this._pendingResolve = null;
-    if (resolve) resolve();
+    if (resolve) resolve(acknowledged);
   }
 
-  hide() {
+  hide(acknowledged = false) {
     this.surface?.destroy();
     this.surface = null;
     if (this._timer) {
@@ -296,7 +309,7 @@ export class DialogueOverlay {
     }
     this.objects = [];
     this.visible = false;
-    this._resolvePending();
+    this._resolvePending(acknowledged);
   }
 
   destroy() {

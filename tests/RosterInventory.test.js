@@ -62,4 +62,55 @@ describe('roster inventory actions', () => {
     expect(rosterAccessoryAction(run, unit)).toBe('');
     expect(run.accessories.filter((a) => a === item)).toHaveLength(1);
   });
+  it.each(loadGameData().consumables.filter((i) => i.effect === 'statBoost'))(
+    'uses $name exactly once, with permanent stats surviving serialization',
+    (base) => {
+      const { run, unit } = fixture();
+      const item = structuredClone(base);
+      unit.consumables = [item];
+      const before = unit.stats[item.stat],
+        hp = unit.currentHP;
+      expect(rosterItemAction(run, unit, item, 'use')).toBe('');
+      expect(unit.stats[item.stat]).toBe(before + item.value);
+      if (item.stat === 'HP') expect(unit.currentHP).toBe(hp + item.value);
+      if (item.stat === 'MOV') expect(unit.mov).toBe(unit.stats.MOV);
+      expect(unit.consumables).toEqual([]);
+      expect(rosterItemAction(run, unit, item, 'use')).toContain('no longer');
+      expect(unit.stats[item.stat]).toBe(before + item.value);
+      const restored = RunManager.fromJSON(
+        JSON.parse(JSON.stringify(run.toJSON())),
+        loadGameData(),
+      );
+      expect(restored.roster[0].stats[item.stat]).toBe(before + item.value);
+      expect(restored.roster[0].consumables).toEqual([]);
+    },
+  );
+  it('refuses exhausted or transferred boosters and invalid stats', () => {
+    const { run, unit } = fixture();
+    const item = { type: 'Consumable', effect: 'statBoost', stat: 'MAG', value: 2, uses: 0 };
+    unit.consumables = [item];
+    expect(rosterItemAction(run, unit, item, 'use')).toBe('No uses remaining.');
+    item.uses = 1;
+    item.stat = 'invalid';
+    expect(rosterItemAction(run, unit, item, 'use')).toBe('Invalid stat booster.');
+    expect(item.uses).toBe(1);
+    unit.consumables = [];
+    expect(rosterItemAction(run, unit, item, 'use')).toContain('no longer');
+  });
+  it('cures conditions and lets Remedy heal without a condition, without wasting healthy uses', () => {
+    const { run, unit } = fixture();
+    const herb = { type: 'Consumable', effect: 'cure', uses: 2 };
+    const remedy = { type: 'Consumable', effect: 'cureHeal', value: 10, uses: 1 };
+    unit.consumables = [herb, remedy];
+    expect(rosterItemAction(run, unit, herb, 'use')).toContain('No status');
+    expect(rosterItemAction(run, unit, remedy, 'use')).toContain('HP is full');
+    unit._conditions = [{ id: 'poison', turnsRemaining: 2 }];
+    expect(rosterItemAction(run, unit, herb, 'use')).toBe('');
+    expect(unit._conditions).toEqual([]);
+    expect(herb.uses).toBe(1);
+    unit.currentHP -= 3;
+    expect(rosterItemAction(run, unit, remedy, 'use')).toBe('');
+    expect(unit.currentHP).toBe(unit.stats.HP);
+    expect(unit.consumables).toEqual([herb]);
+  });
 });

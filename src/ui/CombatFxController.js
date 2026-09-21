@@ -8,9 +8,10 @@
  * via settle(), which also kills any in-flight FX tweens so overlapping
  * strikes (doubles, counters) can never drift a sprite off its tile.
  *
- * Reduced-effects mode shortens durations and skips camera shake.
+ * Reduced motion removes displacement and camera shake; quality controls overlay art.
  */
 
+import { battleSpeed, combatDuration, combatTween } from '../utils/combatTiming.js';
 import Phaser from 'phaser';
 import { fxForActivation, findArtByName, artBurstsForTier, PROC_THEME } from './ProcVisualTheme.js';
 
@@ -40,10 +41,84 @@ const WEAPON_FX = {
 export class CombatFxController {
   constructor(scene) {
     this.scene = scene;
+    this._motionTweens = new Set();
+    this._timers = new Set();
+    this._sprites = new Set();
+    this._units = new Set();
+    this._zoomCamera = null;
+    this._shakeCamera = null;
+    this._lastSoundAt = new Map();
+  }
+
+  _motion(config) {
+    let tween;
+    tween = this.scene.tweens.add(
+      combatTween(this.scene, {
+        ...config,
+        onComplete: (...args) => {
+          this._motionTweens.delete(tween);
+          config.onComplete?.(...args);
+        },
+      }),
+    );
+    if (tween) this._motionTweens.add(tween);
+  }
+
+  _later(ms, callback) {
+    let timer;
+    timer = this.scene.time.delayedCall(combatDuration(this.scene, ms), () => {
+      this._timers.delete(timer);
+      callback();
+    });
+    if (timer) this._timers.add(timer);
+  }
+
+  finishStrike(...units) {
+    for (const tween of this._motionTweens) tween.remove?.();
+    this._motionTweens.clear();
+    for (const unit of new Set([...this._units, ...units])) {
+      const g = unit?.graphic;
+      if (g?._fxHomeX !== undefined) {
+        g.x = g._fxHomeX;
+        g.y = g._fxHomeY;
+        g.scaleX = g._fxHomeScaleX;
+        g.scaleY = g._fxHomeScaleY;
+      }
+      this._clearHome(g);
+    }
+    this._units.clear();
+    if (this._zoomCamera) this._zoomCamera.setZoom(1);
+    this._zoomCamera = null;
+    if (this._shakeCamera) this._shakeCamera.camera.rotation = this._shakeCamera.rotation;
+    this._shakeCamera = null;
+    // Strike-owned effects must settle even if a held speed override was released.
+    for (const timer of this._timers) timer.remove?.(false);
+    this._timers.clear();
+    for (const sprite of this._sprites) sprite.destroy();
+    this._sprites.clear();
+  }
+
+  destroy() {
+    this.finishStrike();
+    for (const timer of this._timers) timer.remove?.(false);
+    for (const sprite of this._sprites) sprite.destroy();
+    this._timers.clear();
+    this._sprites.clear();
+  }
+
+  playStrikeSound(key) {
+    const now = this.scene.time?.now ?? 0;
+    if (
+      battleSpeed(this.scene) === 'instant' &&
+      now - (this._lastSoundAt.get(key) ?? -Infinity) < 100
+    )
+      return;
+    this._lastSoundAt.set(key, now);
+    this.scene.registry?.get?.('audio')?.playSFX(key);
   }
 
   _reduced() {
-    return this.scene._isReducedEffects();
+    return this.scene._reduceMotion();
   }
 
   /** Unit vector from `fromG` toward `toG` (falls back to pointing down). */
@@ -67,6 +142,7 @@ export class CombatFxController {
       g.scaleX = g._fxHomeScaleX;
       g.scaleY = g._fxHomeScaleY;
     }
+    this._units.add(unit);
     g._fxHomeX = g.x;
     g._fxHomeY = g.y;
     g._fxHomeScaleX = g.scaleX;
@@ -100,6 +176,7 @@ export class CombatFxController {
     }
     this.settle(striker);
     if (target?.graphic) this.settle(target);
+    if (reduced) return;
     const { nx, ny } = this._dir(g, target?.graphic);
     const followUp = opts.tempo === 'followup';
     if (opts.windUp && !reduced && !followUp) {
@@ -120,7 +197,7 @@ export class CombatFxController {
         targets: g,
         x: g._fxHomeX + nx * dist,
         y: g._fxHomeY + ny * dist,
-        duration: reduced ? (followUp ? 35 : 50) : followUp ? 55 : 90,
+        duration: followUp ? 55 : 90,
         ease: 'Quad.easeOut',
       },
       { label: 'combat_fx_lunge_forward' },
@@ -131,46 +208,44 @@ export class CombatFxController {
    * Return the striker's sprite to its home tile, then clear stored homes on
    * both units. Clearing matters: units move between combats, so a stale home
    * must never survive past the strike (settle() would snap to it).
-   * The fire-and-forget dodge/recoil/pop tweens always finish within the
-   * hit/miss hold that precedes this call, so clearing here is race-free.
+   * Settle owned reaction tweens explicitly: Instant can finish the hold first.
    */
   async lungeBack(striker, target) {
     const g = striker?.graphic;
     if (g && g._fxHomeX !== undefined) {
-      const reduced = this._reduced();
-      await this.scene._awaitSceneTween(
-        {
-          targets: g,
-          x: g._fxHomeX,
-          y: g._fxHomeY,
-          duration: reduced ? 50 : 90,
-          ease: 'Quad.easeIn',
-        },
-        { label: 'combat_fx_lunge_back' },
-      );
+      if (!this._reduced())
+        await this.scene._awaitSceneTween(
+          {
+            targets: g,
+            x: g._fxHomeX,
+            y: g._fxHomeY,
+            duration: 90,
+            ease: 'Quad.easeIn',
+          },
+          { label: 'combat_fx_lunge_back' },
+        );
       if (g._fxHomeX !== undefined) {
         g.x = g._fxHomeX;
         g.y = g._fxHomeY;
       }
     }
-    this._clearHome(g);
-    this._clearHome(target?.graphic);
+    this.finishStrike(striker, target);
   }
 
   /** Side-step hop for a missed strike. Fire-and-forget (yoyo restores position). */
   dodge(target, striker) {
+    if (this._reduced()) return;
     const g = target?.graphic;
     if (!g || g._fxHomeX === undefined) return;
-    const reduced = this._reduced();
     const { nx, ny } = this._dir(striker?.graphic, g);
     // Perpendicular to the attack direction reads as a side-step.
     const px = -ny;
     const py = nx;
-    this.scene.tweens.add({
+    this._motion({
       targets: g,
       x: g._fxHomeX + px * DODGE_PX,
       y: g._fxHomeY + py * DODGE_PX,
-      duration: reduced ? 45 : 80,
+      duration: 80,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
@@ -184,15 +259,15 @@ export class CombatFxController {
 
   /** Knockback nudge on a landed hit. Fire-and-forget (yoyo restores position). */
   recoil(target, striker) {
+    if (this._reduced()) return;
     const g = target?.graphic;
     if (!g || g._fxHomeX === undefined) return;
-    const reduced = this._reduced();
     const { nx, ny } = this._dir(striker?.graphic, g);
-    this.scene.tweens.add({
+    this._motion({
       targets: g,
       x: g._fxHomeX + nx * RECOIL_PX,
       y: g._fxHomeY + ny * RECOIL_PX,
-      duration: reduced ? 30 : 50,
+      duration: 50,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
@@ -210,14 +285,14 @@ export class CombatFxController {
    * Fire-and-forget (yoyo restores scale).
    */
   brace(target) {
+    if (this._reduced()) return;
     const g = target?.graphic;
     if (!g || g._fxHomeScaleX === undefined) return;
-    const reduced = this._reduced();
-    this.scene.tweens.add({
+    this._motion({
       targets: g,
       scaleX: g._fxHomeScaleX * 1.08,
       scaleY: g._fxHomeScaleY * 0.86,
-      duration: reduced ? 35 : 60,
+      duration: 60,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
@@ -240,7 +315,8 @@ export class CombatFxController {
     const cam = scene.cameras?.main;
     if (!cam || scene._battleCamera) return;
     if (Math.abs(cam.zoom - 1) > 0.001) return;
-    scene.tweens.add({
+    this._zoomCamera = cam;
+    this._motion({
       targets: cam,
       zoom: 1.06,
       duration: 70,
@@ -252,15 +328,32 @@ export class CombatFxController {
 
   /** Crit punch-up: brief camera shake + scale pop on the striker. */
   critImpact(striker) {
-    const reduced = this._reduced();
-    if (!reduced) this.scene.cameras?.main?.shake?.(120, 0.006);
+    if (this._reduced()) return;
+    // Phaser's random shake consumes Math.random on every frame, changing the
+    // next combat's RNG when playback speed changes. Use a fixed oscillation.
+    const camera = this.scene.cameras?.main;
+    if (camera && battleSpeed(this.scene) !== 'instant') {
+      const rotation = this._shakeCamera?.rotation ?? camera.rotation ?? 0;
+      this._shakeCamera = { camera, rotation };
+      this._motion({
+        targets: camera,
+        rotation: rotation + 0.004,
+        duration: 30,
+        yoyo: true,
+        repeat: 1,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          camera.rotation = rotation;
+        },
+      });
+    }
     const g = striker?.graphic;
     if (!g || g._fxHomeScaleX === undefined) return;
-    this.scene.tweens.add({
+    this._motion({
       targets: g,
       scaleX: g._fxHomeScaleX * 1.18,
       scaleY: g._fxHomeScaleY * 1.18,
-      duration: reduced ? 40 : 70,
+      duration: 70,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
@@ -294,12 +387,13 @@ export class CombatFxController {
   /**
    * Play a one-shot effect overlay at (x, y). Additive blending makes the
    * black spritesheet background invisible. Fire-and-forget; the sprite
-   * destroys itself when the animation ends. Skipped in reduced-effects mode.
+   * destroys itself when the animation ends. Omitted at low quality; static with reduced motion.
    * tint colors the (white/light) art; delay staggers stacked bursts.
    */
   playOverlay(key, x, y, { rotation = 0, scale = 1, tint = null, delay = 0 } = {}) {
-    if (this._reduced()) return;
-    if (!this._ensureAnim(key)) return;
+    if (this.scene._effectsQuality?.() === 'low') return;
+    const staticFrame = this._reduced() || battleSpeed(this.scene) === 'instant';
+    if (staticFrame ? !this.scene.textures?.exists?.(key) : !this._ensureAnim(key)) return;
     const spawn = () => {
       if (!this.scene.sys || !this.scene.sys.isActive()) return;
       const sprite = this.scene.add
@@ -308,11 +402,22 @@ export class CombatFxController {
         .setBlendMode(Phaser.BlendModes.ADD)
         .setRotation(rotation)
         .setScale(scale);
+      this._sprites.add(sprite);
+      const dispose = () => {
+        this._sprites.delete(sprite);
+        sprite.destroy();
+      };
       if (tint !== null) sprite.setTint(tint);
-      sprite.once('animationcomplete', () => sprite.destroy());
-      sprite.play(`${key}_anim`);
+      if (staticFrame) {
+        sprite.setFrame(1);
+        this._later(250, dispose);
+      } else {
+        sprite.once('animationcomplete', dispose);
+        if (sprite.anims) sprite.anims.timeScale = battleSpeed(this.scene) === 'fast' ? 2 : 1;
+        sprite.play(`${key}_anim`);
+      }
     };
-    if (delay > 0) this.scene.time.delayedCall(delay, spawn);
+    if (delay > 0) this._later(delay, spawn);
     else spawn();
   }
 
@@ -345,7 +450,7 @@ export class CombatFxController {
    * Deduplicated per key+position; capped at 2 per strike to avoid clutter.
    */
   playProcOverlays(split, striker, target) {
-    if (this._reduced()) return;
+    if (this.scene._effectsQuality?.() === 'low') return;
     const seen = new Set();
     let played = 0;
     for (const entry of [...(split?.striker || []), ...(split?.target || [])]) {
@@ -367,13 +472,13 @@ export class CombatFxController {
    * extra, larger bursts (Iron/Steel 1, Silver 2, Legendary 3).
    */
   playArtBurst(split, target, artCatalog) {
-    if (this._reduced()) return;
+    if (this.scene._effectsQuality?.() === 'low') return;
     const tg = target?.graphic;
     if (!tg) return;
     const artEntry = (split?.striker || []).find((e) => e.id === 'weapon_art');
     if (!artEntry) return;
     const art = findArtByName(artEntry.name, artCatalog);
-    const bursts = artBurstsForTier(art?.tierAffinity);
+    const bursts = this._reduced() ? 1 : artBurstsForTier(art?.tierAffinity);
     for (let i = 0; i < bursts; i++) {
       this.playOverlay('fx_ring', tg.x, tg.y, {
         tint: PROC_THEME.art.accent,
@@ -412,7 +517,7 @@ export class CombatFxController {
       unit.hpBar?.fill,
       ...(unit.affixPips || []),
     ].filter(Boolean);
-    if (g.setTintFill) g.setTintFill(0xffffff);
+    if (!reduced && g.setTintFill) g.setTintFill(0xffffff);
     await this.scene._awaitSceneTween(
       {
         targets,

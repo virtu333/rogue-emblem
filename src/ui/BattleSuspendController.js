@@ -74,7 +74,9 @@ export class BattleSuspendController {
     const rm = scene.runManager;
     if (!rm?.battleInProgress) return false; // tutorial/standalone or battle already settled
     if (scene.battleState === 'BATTLE_END') return false;
-    if (scene.turnManager?.currentPhase !== 'player') return false;
+    const enemyBoundary =
+      scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
+    if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary) return false;
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
@@ -83,8 +85,8 @@ export class BattleSuspendController {
       // the exact same RNG stream from this point on.
       scene.reseedBattleRng(seed);
       rm.setBattleCheckpoint(this._buildCheckpoint(index, seed));
-      scene._persistBattleRunState?.();
-      return true;
+      const persisted = scene._persistBattleRunState?.();
+      return persisted?.ok === true;
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
       return false;
@@ -101,9 +103,11 @@ export class BattleSuspendController {
       : null;
     return cloneCheckpointPayload({
       version: 1,
+      phase: scene.turnManager?.currentPhase === 'enemy' ? 'enemy' : 'player',
       ...captureBattleWorldState(scene),
       checkpointIndex,
       rngSeed: rngSeed >>> 0,
+      visionBaseSeed: Number(scene.visionBaseSeed) >>> 0,
       turnNumber: scene.turnManager?.turnNumber || 1,
       turnPar: scene.turnPar ?? null,
       playerUnits: scene.playerUnits.map(serializeSuspendUnit),
@@ -186,7 +190,8 @@ export class BattleSuspendController {
    */
   finalizeResume(checkpoint) {
     const scene = this.scene;
-    scene.turnManager.currentPhase = 'player';
+    const enemyResume = checkpoint.phase === 'enemy';
+    scene.turnManager.currentPhase = enemyResume ? 'enemy' : 'player';
     scene.turnManager.turnNumber = Math.max(1, Math.trunc(checkpoint.turnNumber) || 1);
     if (checkpoint.turnPar !== null && checkpoint.turnPar !== undefined) {
       scene.turnPar = checkpoint.turnPar;
@@ -212,8 +217,11 @@ export class BattleSuspendController {
       scene.updateEnemyVisibility();
     }
 
+    if (Number.isFinite(checkpoint.visionBaseSeed))
+      scene.visionBaseSeed = checkpoint.visionBaseSeed >>> 0;
     scene.reseedBattleRng(checkpoint.rngSeed);
     scene.dangerZoneStale = true;
+    scene._pinnedThreats?.invalidate();
     scene.battleState = 'PLAYER_IDLE';
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
@@ -231,6 +239,17 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    if (enemyResume) {
+      scene.battleState = 'ENEMY_PHASE';
+      const resume = () => scene.startEnemyPhase({ resume: true });
+      if (scene._scheduleSafeDelayedAsync)
+        scene._scheduleSafeDelayedAsync(0, 'enemy_phase_resume', resume, {
+          phase: 'enemy',
+          turn: scene.turnManager.turnNumber,
+        });
+      else return resume();
+      return;
+    }
     const continuation = readActionContinuation(checkpoint.pendingActionCompletion);
     if (continuation) {
       completeResolvedAction(scene, continuation);

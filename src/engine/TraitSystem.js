@@ -2,7 +2,8 @@
 // creation-time stat/growth mods.
 //
 // Traits are rolled ONCE, at unit creation, for roster-joining non-lord units
-// (random recruits, boss recruits, colosseum mercs). Lords never roll traits.
+// (random recruits, boss recruits, colosseum mercs). Lords roll exactly one
+// eligible trait through their separate creation path.
 // A unit carries `unit.traits = ['id', ...]` (0–2 entries).
 //
 // Creation-time mods (`creationMods.stats` / `creationMods.growths`) are baked
@@ -34,9 +35,16 @@ function rollTraitCount(rng) {
  * Pick `count` distinct trait ids from traitsData, without replacement, using rng.
  * Returns an array of trait ids (may be shorter than count if the pool is small).
  */
-export function rollTraits(traitsData, count, rng = Math.random) {
+export function rollTraits(traitsData, count, rng = Math.random, unit = null) {
   if (!Array.isArray(traitsData) || traitsData.length === 0 || count <= 0) return [];
-  const pool = traitsData.map((t) => t.id).filter((id) => typeof id === 'string');
+  const pool = traitsData
+    .filter(
+      (t) =>
+        !t.eligibleWeaponTypes ||
+        (unit?.proficiencies || []).some((p) => t.eligibleWeaponTypes.includes(p.type)),
+    )
+    .map((t) => t.id)
+    .filter((id) => typeof id === 'string');
   const picked = [];
   for (let i = 0; i < count && pool.length > 0; i++) {
     const idx = Math.floor(rng() * pool.length);
@@ -51,6 +59,7 @@ export function rollTraits(traitsData, count, rng = Math.random) {
  * Stats bump `unit.stats` (and currentHP for HP); growths bump `unit.growths`.
  */
 export function applyTraitCreationMods(unit, trait) {
+  if (trait?.id === 'clever') unit.cleverRulesVersion = 2;
   const mods = trait?.creationMods;
   if (!mods || typeof mods !== 'object') return;
   if (mods.stats && typeof mods.stats === 'object' && unit.stats) {
@@ -92,7 +101,7 @@ export function rollAndApplyTraits(unit, traitsData, rng = Math.random) {
   if (!Array.isArray(traitsData) || traitsData.length === 0) return unit;
   const roll = typeof rng === 'function' ? rng : Math.random;
   const count = rollTraitCount(roll);
-  const ids = rollTraits(traitsData, count, roll);
+  const ids = rollTraits(traitsData, count, roll, unit);
   unit.traits = ids;
   for (const id of ids) {
     const trait = traitsData.find((t) => t.id === id);
@@ -112,4 +121,30 @@ export function getTraitNames(unit, traitsData) {
   return getUnitTraits(unit, traitsData)
     .map((t) => t.name)
     .join(', ');
+}
+
+// Creation bonuses are baked into saves. Repair the old Clever penalty once,
+// retaining the player's rolled trait rather than randomly replacing it.
+export function migrateCleverTrait(unit) {
+  if (!unit?.traits?.includes('clever') || unit.cleverRulesVersion >= 2 || !unit.stats) return unit;
+  unit.stats = { ...unit.stats, DEF: (unit.stats.DEF || 0) + 1 };
+  unit.growths = { ...unit.growths, MAG: (unit.growths?.MAG || 0) + 5 };
+  unit.cleverRulesVersion = 2;
+  return unit;
+}
+
+/** Lord traits preserve mastery identity and respect weapon-type eligibility.
+ * Existing saves are never re-rolled; an already assigned trait is retained.
+ */
+export function rollAndApplyLordTrait(unit, traitsData, rng = Math.random) {
+  if (!unit?.isLord || unit.traits?.length) return unit;
+  const pool = (traitsData || []).filter((trait) => !['lazy', 'reckless'].includes(trait.id));
+  const ids = rollTraits(pool, 1, rng, unit);
+  unit.traits = ids;
+  for (const id of ids)
+    applyTraitCreationMods(
+      unit,
+      pool.find((trait) => trait.id === id),
+    );
+  return unit;
 }

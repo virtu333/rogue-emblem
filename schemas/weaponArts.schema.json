@@ -27,6 +27,7 @@
           },
           "tierAffinity": { "type": "string", "enum": ["Iron", "Steel", "Silver", "Legendary"] },
           "legacy": { "type": "boolean" },
+          "scrollOnly": { "type": "boolean" },
           "unlockAct": { "type": "string", "enum": ["act1", "act2", "act3", "act4", "finalBoss"] },
           "requiredRank": { "type": "string", "enum": ["Prof", "Mast"] },
           "hpCost": { "type": "integer", "minimum": 0 },

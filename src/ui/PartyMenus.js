@@ -1,3 +1,4 @@
+import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
 import { getTraitNames } from '../engine/TraitSystem.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait } from './unitPortrait.js';
@@ -141,9 +142,7 @@ export function showArrivalMenu(
 export function showDeploymentMenu(owner, roster, limits, onConfirm, initialNames) {
   const { scene, gameData, runManager } = owner;
   let commander = findCommander(roster);
-  const selected = new Set(commander ? [commander] : []);
-  for (const unit of roster)
-    if (initialNames?.has(unit.name) && selected.size < limits.max) selected.add(unit);
+  const selected = new Set(resolveDeploymentSelection(roster, limits, [...(initialNames || [])]));
   let busy = false;
   const surface = new MenuSurface(scene, 'Deploy units', async () => {
     if (busy || !runManager) return;
@@ -231,7 +230,24 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   surface.body.style.display = 'flex';
   surface.body.style.flexDirection = 'column';
   surface.body.style.gap = '8px';
-  surface.body.append(status, list, confirm);
+  const selectionActions = element('div');
+  selectionActions.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0';
+  const restore = button('Same as last battle', () => {
+    if (busy) return;
+    selected.clear();
+    for (const unit of resolveDeploymentSelection(roster, limits, runManager?.lastDeployment))
+      selected.add(unit);
+    render();
+  });
+  restore.disabled = !runManager?.lastDeployment?.length;
+  const clear = button('Clear optional selections', () => {
+    if (busy) return;
+    selected.clear();
+    if (commander) selected.add(commander);
+    render();
+  });
+  selectionActions.append(restore, clear);
+  surface.body.append(status, selectionActions, list, confirm);
   render();
   surface.focusContent();
 }

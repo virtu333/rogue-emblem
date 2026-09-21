@@ -6,10 +6,12 @@ import {
   removeFromConsumables,
   canEquip,
   equipWeapon,
+  applyStatBoost,
   isLastCombatWeapon,
   equipAccessory,
   unequipAccessory,
 } from './UnitManager.js';
+import { clearAllConditions, getConditions } from './StatusConditionSystem.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 
 function convoyIndex(list, item) {
@@ -39,10 +41,24 @@ export function rosterItemBlock(run, unit, item, action) {
     if (!consumable && isLastCombatWeapon(unit, item)) return 'Keep at least one combat weapon.';
     return run.canAddToConvoy(item) ? '' : 'Convoy is full.';
   }
-  if (action === 'heal') {
-    if (!['heal', 'healFull'].includes(item.effect)) return 'Use this item in advanced management.';
+  if (action === 'heal' || action === 'use') {
+    if (!consumable) return 'This item cannot be used.';
     if (!(item.uses > 0)) return 'No uses remaining.';
-    return unit.currentHP < unit.stats.HP ? '' : 'HP is already full.';
+    if (item.effect === 'statBoost' && action === 'use') {
+      return ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV'].includes(item.stat) &&
+        Number.isFinite(item.value) &&
+        item.value > 0 &&
+        Number.isFinite(unit.stats?.[item.stat])
+        ? ''
+        : 'Invalid stat booster.';
+    }
+    const hurt = unit.currentHP < unit.stats.HP;
+    const afflicted = getConditions(unit).length > 0;
+    if (['heal', 'healFull'].includes(item.effect)) return hurt ? '' : 'HP is already full.';
+    if (item.effect === 'cure') return afflicted ? '' : 'No status conditions to cure.';
+    if (item.effect === 'cureHeal')
+      return hurt || afflicted ? '' : 'HP is full and there are no status conditions to cure.';
+    return 'Use the dedicated action for this item.';
   }
   return 'Unavailable action.';
 }
@@ -65,11 +81,15 @@ export function rosterItemAction(run, unit, item, action) {
       return 'Cannot carry this item.';
     run.takeFromConvoy(consumable ? 'consumable' : 'weapon', index);
   }
-  if (action === 'heal') {
-    unit.currentHP = Math.min(
-      unit.stats.HP,
-      unit.currentHP + (item.effect === 'healFull' ? unit.stats.HP : item.value),
-    );
+  if (action === 'heal' || action === 'use') {
+    if (item.effect === 'statBoost') applyStatBoost(unit, item);
+    if (['heal', 'healFull', 'cureHeal'].includes(item.effect)) {
+      unit.currentHP = Math.min(
+        unit.stats.HP,
+        unit.currentHP + (item.effect === 'healFull' ? unit.stats.HP : item.value),
+      );
+    }
+    if (['cure', 'cureHeal'].includes(item.effect)) clearAllConditions(unit);
     if (--item.uses <= 0) removeFromConsumables(unit, item);
   }
   return '';

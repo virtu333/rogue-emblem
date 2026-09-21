@@ -965,6 +965,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
       const knownTemplateKeys = new Set([
         'id',
         'name',
+        'lore',
         'fogChance',
         'parBonus',
         'weight',
@@ -988,6 +989,16 @@ export function validateMapTemplatesConfig(config, options = {}) {
       ]);
       if (!hasOnlyKnownKeys(template, knownTemplateKeys)) {
         errors.push(`${path} contains unknown keys`);
+      }
+
+      if (
+        template.lore !== undefined &&
+        (typeof template.lore !== 'string' ||
+          !template.lore.trim() ||
+          template.lore.length > 140 ||
+          template.lore.includes('\n'))
+      ) {
+        errors.push(`${path}.lore must be a non-empty single line of at most 140 characters`);
       }
 
       if (typeof template.id !== 'string' || template.id.trim() === '') {

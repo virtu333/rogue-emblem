@@ -1,3 +1,4 @@
+import { ShopController } from '../src/ui/ShopController.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { generateShopInventoryMock } = vi.hoisted(() => ({
@@ -57,7 +58,6 @@ vi.mock('../src/ui/ColosseumOverlay.js', () => {
 });
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
-import { ChurchController } from '../src/ui/ChurchController.js';
 import { NODE_TYPES } from '../src/utils/constants.js';
 
 function makeDisplayObject(seed = {}) {
@@ -654,32 +654,6 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.nodeTooltip.text).toBe('Colosseum - Arena and Mercenary Board');
   });
 
-  it('view-map mode blocks shop touch and wheel scrolling mutations', () => {
-    const scene = {
-      _storyDialogueActive: false,
-      dialogueOverlay: { visible: false },
-      _shopViewingMap: true,
-      shopOverlay: [makeDisplayObject()],
-      activeShopTab: 'buy',
-      forgePicker: null,
-      unitPicker: null,
-      shopScrollMax: 100,
-      shopScrollOffsets: { buy: 12 },
-      drawActiveTabContent: vi.fn(),
-      _touchScrollDrag: null,
-    };
-
-    NodeMapScene.prototype.onPointerDown.call(scene, { pointerType: 'touch', y: 200 });
-    expect(scene._touchScrollDrag).toBeNull();
-
-    scene._touchScrollDrag = { type: 'shop', tab: 'buy', startY: 180, startOffset: 12 };
-    NodeMapScene.prototype.onPointerMove.call(scene, { pointerType: 'touch', y: 120 });
-    NodeMapScene.prototype.onWheel.call(scene, { y: 220 }, 0, 24);
-
-    expect(scene.shopScrollOffsets.buy).toBe(12);
-    expect(scene.drawActiveTabContent).not.toHaveBeenCalled();
-  });
-
   it('reroll with purchases preserves remaining items and refills to original slot count', () => {
     const keepA = makeShopEntry('Keep A');
     const keepB = makeShopEntry('Keep B');
@@ -687,13 +661,12 @@ describe('NodeMapScene Slice 4', () => {
       .mockReturnValueOnce([makeShopEntry('Keep A'), makeShopEntry('New C')])
       .mockReturnValueOnce([makeShopEntry('New D')]);
 
-    const { scene, createdTexts } = makeRerollScene({
+    const { scene } = makeRerollScene({
       shopBuyItems: [keepA, keepB],
       originalCount: 4,
     });
 
-    NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown({ button: 0 });
+    new ShopController(scene).rerollShop();
 
     const names = scene.shopBuyItems.map((entry) => entry.item.name);
     expect(scene.shopBuyItems).toHaveLength(4);
@@ -710,13 +683,12 @@ describe('NodeMapScene Slice 4', () => {
       makeShopEntry('Fresh C'),
     ]);
 
-    const { scene, createdTexts } = makeRerollScene({
+    const { scene } = makeRerollScene({
       shopBuyItems: [makeShopEntry('Old A'), makeShopEntry('Old B'), makeShopEntry('Old C')],
       originalCount: 3,
     });
 
-    NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown({ button: 0 });
+    new ShopController(scene).rerollShop();
 
     expect(scene.shopBuyItems).toHaveLength(3);
     expect(scene.shopBuyItems.map((entry) => entry.item.name)).toEqual([
@@ -731,7 +703,7 @@ describe('NodeMapScene Slice 4', () => {
   it('reroll reapplies ambush discount when current shop is ambush-discounted', () => {
     generateShopInventoryMock.mockReturnValueOnce([makeShopEntry('Fresh A', 'weapon', 100)]);
 
-    const { scene, createdTexts } = makeRerollScene({
+    const { scene } = makeRerollScene({
       shopBuyItems: [makeShopEntry('Old A', 'weapon', 100)],
       originalCount: 1,
     });
@@ -741,8 +713,7 @@ describe('NodeMapScene Slice 4', () => {
       items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 0.8) })),
     );
 
-    NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown({ button: 0 });
+    new ShopController(scene).rerollShop();
 
     expect(scene.applyAmbushDiscount).toHaveBeenCalled();
     expect(scene.shopBuyItems[0].price).toBe(80);
@@ -751,7 +722,7 @@ describe('NodeMapScene Slice 4', () => {
   it('ruins reroll reapplies markup after difficulty pricing', () => {
     generateShopInventoryMock.mockReturnValueOnce([makeShopEntry('Fresh A', 'weapon', 100)]);
 
-    const { scene, createdTexts } = makeRerollScene({
+    const { scene } = makeRerollScene({
       shopBuyItems: [makeShopEntry('Old A', 'weapon', 100)],
       originalCount: 1,
     });
@@ -761,65 +732,10 @@ describe('NodeMapScene Slice 4', () => {
       items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 1.25) })),
     );
 
-    NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown({ button: 0 });
+    new ShopController(scene).rerollShop();
 
     expect(scene.applyRuinsMarkup).toHaveBeenCalled();
     expect(scene.shopBuyItems[0].price).toBe(125);
-  });
-
-  it('showForgeStatPicker keeps displayed and charged cost in sync with stacked ambush and blessing discounts', () => {
-    const createdTexts = [];
-    const spendGold = vi.fn(() => true);
-    const weapon = {
-      name: 'Iron Sword',
-      type: 'Sword',
-      might: 5,
-      hit: 85,
-      crit: 0,
-      weight: 6,
-      range: '1',
-      price: 900,
-    };
-    const scene = {
-      _currentShopHasAmbushDiscount: true,
-      shopForgesUsed: 0,
-      runManager: {
-        gold: 9999,
-        spendGold,
-        getForgeCostDiscount: vi.fn(() => 0.25),
-      },
-      registry: { get: vi.fn(() => null) },
-      add: {
-        rectangle: (x, y, width, height, color, alpha) =>
-          makeDisplayObject({ x, y, width, height, color, alpha }),
-        text: (x, y, text, style) => {
-          const obj = makeDisplayObject({ x, y, text, style });
-          createdTexts.push(obj);
-          return obj;
-        },
-      },
-      closeForgeStatPicker: vi.fn(),
-      refreshShop: vi.fn(),
-      showShopBanner: vi.fn(),
-    };
-
-    NodeMapScene.prototype.showForgeStatPicker.call(scene, weapon);
-
-    const mightButton = createdTexts.find(
-      (entry) => typeof entry.text === 'string' && entry.text.includes('+1 Mt'),
-    );
-    expect(mightButton).toBeTruthy();
-    const costMatch = mightButton.text.match(/(\d+)G/);
-    expect(costMatch).not.toBeNull();
-    const displayedCost = Number(costMatch[1]);
-    expect(displayedCost).toBe(240);
-
-    mightButton.handlers.pointerdown({ button: 0 });
-
-    expect(spendGold).toHaveBeenCalledWith(displayedCost);
-    expect(scene.closeForgeStatPicker).toHaveBeenCalledTimes(1);
-    expect(scene.refreshShop).toHaveBeenCalledTimes(1);
   });
 
   it('drawRoster shows lords only and +N more for omitted non-lords', () => {
@@ -979,89 +895,6 @@ describe('NodeMapScene Slice 4', () => {
     expect(scrollObj.visible).toBe(true);
   });
 
-  it('church wheel/drag blocked during map-view', () => {
-    const scene = {
-      _storyDialogueActive: false,
-      dialogueOverlay: { visible: false },
-      unitPickerState: null,
-      churchOverlay: [makeDisplayObject()],
-      _churchViewingMap: true,
-      churchScrollMax: 100,
-      churchScrollOffset: 0,
-      drawChurchScrollContent: vi.fn(),
-      shopOverlay: null,
-      forgePicker: null,
-      unitPicker: null,
-      _touchScrollDrag: null,
-    };
-
-    // Wheel should be blocked by _churchViewingMap
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 30);
-    expect(scene.churchScrollOffset).toBe(0);
-    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
-  });
-
-  it('church wheel scrolls within bounds and clamps', () => {
-    const scene = {
-      _storyDialogueActive: false,
-      dialogueOverlay: { visible: false },
-      unitPickerState: null,
-      churchOverlay: [makeDisplayObject()],
-      _churchViewingMap: false,
-      churchScrollMax: 60,
-      churchScrollOffset: 0,
-      drawChurchScrollContent: vi.fn(),
-      shopOverlay: null,
-    };
-
-    // Scroll down
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 30);
-    expect(scene.churchScrollOffset).toBe(30);
-    expect(scene.drawChurchScrollContent).toHaveBeenCalledTimes(1);
-
-    // Scroll down past max — should clamp to 60
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 300);
-    expect(scene.churchScrollOffset).toBe(60);
-
-    // Scroll up — step-based, goes to 30
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
-    expect(scene.churchScrollOffset).toBe(30);
-
-    // Scroll up again — goes to 0
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
-    expect(scene.churchScrollOffset).toBe(0);
-
-    // Scroll up once more — clamped at 0, no change
-    scene.drawChurchScrollContent.mockClear();
-    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
-    expect(scene.churchScrollOffset).toBe(0);
-    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
-  });
-
-  it('church wheel ignores pointer outside list bounds', () => {
-    const scene = {
-      _storyDialogueActive: false,
-      dialogueOverlay: { visible: false },
-      unitPickerState: null,
-      churchOverlay: [makeDisplayObject()],
-      _churchViewingMap: false,
-      churchScrollMax: 100,
-      churchScrollOffset: 0,
-      drawChurchScrollContent: vi.fn(),
-      shopOverlay: null,
-    };
-
-    // Pointer above the list area
-    NodeMapScene.prototype.onWheel.call(scene, { y: 50 }, 0, 30);
-    expect(scene.churchScrollOffset).toBe(0);
-    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
-
-    // Pointer below the list area
-    NodeMapScene.prototype.onWheel.call(scene, { y: 450 }, 0, 30);
-    expect(scene.churchScrollOffset).toBe(0);
-    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
-  });
-
   it('no stale drag after church close', () => {
     const scene = {
       _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
@@ -1090,6 +923,7 @@ describe('NodeMapScene Slice 4', () => {
       churchContentGroup: [makeDisplayObject()],
       _churchViewingMap: false,
       _churchReturnBtn: null,
+      _showServiceMap: vi.fn(),
       _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
       _setOverlayVisibility: NodeMapScene.prototype._setOverlayVisibility,
       _setChurchOverlayVisibility: NodeMapScene.prototype._setChurchOverlayVisibility,
@@ -1107,7 +941,8 @@ describe('NodeMapScene Slice 4', () => {
     NodeMapScene.prototype._enterChurchMapView.call(scene);
     expect(scene._touchScrollDrag).toBeNull();
     expect(scene._churchViewingMap).toBe(true);
-    expect(scene._churchReturnBtn).not.toBeNull();
+    expect(scene._showServiceMap).toHaveBeenCalledWith(expect.any(Function));
+    expect(scene._churchReturnBtn).toBeNull();
   });
 
   it('requestCancel restores both churchOverlay and churchContentGroup from map-view', () => {
@@ -1469,11 +1304,12 @@ describe('NodeMapScene Slice 4', () => {
       _shopNode: node,
       _currentShopIsRuins: true,
       registry: { get: vi.fn(() => null) },
-      _saveShopState: vi.fn(),
+      shopBuyItems: [{ name: 'Iron Sword' }],
       closeShopOverlay: vi.fn(),
       handleRuins: vi.fn(),
       runManager: {
         currentAct: 'act1',
+        saveShopState: vi.fn(),
         markNodeComplete: vi.fn(),
         clearShopState: vi.fn(),
       },
@@ -1482,66 +1318,11 @@ describe('NodeMapScene Slice 4', () => {
 
     NodeMapScene.prototype.leaveShopNode.call(scene);
 
-    expect(scene._saveShopState).toHaveBeenCalledTimes(1);
+    expect(scene.runManager.saveShopState).toHaveBeenCalledTimes(1);
     expect(scene.closeShopOverlay).toHaveBeenCalledTimes(1);
     expect(scene.handleRuins).toHaveBeenCalledWith(node);
     expect(scene.runManager.markNodeComplete).not.toHaveBeenCalled();
     expect(scene.runManager.clearShopState).not.toHaveBeenCalled();
     expect(scene.checkActComplete).not.toHaveBeenCalled();
-  });
-
-  it('ruins hub hides promotion, exposes Browse Wares, and completes only on hub leave', () => {
-    const createdTexts = [];
-    const node = { id: 'ruins-1', type: NODE_TYPES.RUINS };
-    const scene = {
-      registry: { get: vi.fn(() => null) },
-      runManager: {
-        gold: 1000,
-        currentAct: 'act1',
-        roster: [{ name: 'Lord', currentHP: 5, stats: { HP: 20 } }],
-        fallenUnits: [],
-        markNodeComplete: vi.fn(),
-      },
-      add: {
-        rectangle: (...args) => makeDisplayObject({ args }),
-        text: (x, y, text, style) => {
-          const obj = makeDisplayObject({ x, y, text, style });
-          obj.emit = (event, payload) => obj.handlers[event]?.(payload);
-          createdTexts.push(obj);
-          return obj;
-        },
-      },
-      drawChurchScrollContent: vi.fn(),
-      closeChurchOverlay: vi.fn(),
-      handleShop: vi.fn(),
-      leaveChurchNode: vi.fn(),
-      _enterChurchMapView: vi.fn(),
-      _setChurchOverlayVisibility: vi.fn(),
-      _openRoster: vi.fn(),
-    };
-    const controller = new ChurchController(scene);
-    vi.spyOn(controller, '_setupChurchFocus').mockImplementation(() => {});
-
-    controller.showChurchOverlay(node, { ruinsMode: true });
-
-    expect(scene._churchScrollItems.some((item) => item.type === 'promote')).toBe(false);
-    expect(scene._churchScrollItems.some((item) => item.text?.includes('Promote'))).toBe(false);
-    const browse = createdTexts.find((obj) => obj.text === '[ Browse Wares ]');
-    expect(browse).toBeDefined();
-    browse.handlers.pointerdown({ button: 0 });
-    expect(scene.closeChurchOverlay).toHaveBeenCalledTimes(1);
-    expect(scene.handleShop).toHaveBeenCalledWith(node, { ruins: true });
-
-    scene.churchOverlay = [makeDisplayObject()];
-    scene._churchNode = node;
-    scene.closeChurchOverlay.mockClear();
-    scene.closeChurchOverlay.mockImplementation(() => {
-      scene.churchOverlay = null;
-    });
-    scene.registry.get.mockReturnValue(null);
-    scene.checkActComplete = vi.fn();
-    controller.leaveChurchNode();
-    expect(scene.runManager.markNodeComplete).toHaveBeenCalledWith(node.id);
-    expect(scene.checkActComplete).toHaveBeenCalledTimes(1);
   });
 });

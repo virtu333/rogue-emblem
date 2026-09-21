@@ -76,7 +76,7 @@
       "lore": "Every hand leaves the shrine with a salve tucked away.",
       "name": "Field Medic",
       "tier": 1,
-      "description": "All units start with a Vulnerary.",
+      "description": "All units, including later recruits, receive a Vulnerary.",
       "weight": 1,
       "boons": [
         {

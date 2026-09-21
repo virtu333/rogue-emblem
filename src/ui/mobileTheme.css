@@ -69,3 +69,17 @@
 #game-wrapper .mobile-btn:active {
   background: var(--re-select);
 }
+
+.re-health:has(.re-health-projection) {
+  position: relative;
+}
+.re-health-projection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--re-accent-text) 0 2px,
+    var(--re-panel) 2px 4px
+  );
+}

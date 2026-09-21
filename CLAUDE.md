@@ -163,7 +163,7 @@ Several files have grown large enough to require active management. When adding 
 - **BattleScene.js (~10,150 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, TutorialController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
-- **NodeMapScene.js (~1,950 lines)** — Church/shop overlays extracted to ChurchController/ShopController (state stays on the scene; methods are delegating shims).
+- **NodeMapScene.js (~1,950 lines)** — ChurchController/ShopController now own lifecycle and persistence only; ChurchMenu/ShopMenu and ArenaMenu are the sole service renderers. Do not restore headless canvas branches for tests—use rendering-only test adapters and real engine commands.
 - **RunManager.js (~3,800 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
 - **RosterOverlay.js (~2,780 lines)** — Trade state machine extracted to RosterTradeController (state stays on the overlay; methods are delegating shims).
 

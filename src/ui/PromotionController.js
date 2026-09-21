@@ -186,7 +186,6 @@ export class PromotionController {
 
     // Show stat gains as a level-up style popup
     const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
-    delete gains.gains.MOV; // MOV isn't shown in level-up popup
     const popup = new LevelUpPopup(
       scene,
       unit,
@@ -195,7 +194,12 @@ export class PromotionController {
       [],
       promotedClassData.growthBonuses || null,
     );
-    await popup.show();
+    scene._playLevelUpSfx?.();
+    try {
+      await popup.show();
+    } finally {
+      scene._stopLevelUpSfx?.();
+    }
     if (sceneEnded(scene)) return true;
 
     // Tell the player about innates lost to the skill cap (never silent)

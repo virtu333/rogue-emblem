@@ -132,6 +132,8 @@ export class BootScene extends Phaser.Scene {
     });
     this._installPreloadStallWatch();
 
+    this.load.image('merchant_caravan', 'assets/sprites/characters/merchant_caravan.png');
+
     // Character sprites (57) - keyed by filename
     const characterSprites = [
       'lordedric',
@@ -729,6 +731,17 @@ export class BootScene extends Phaser.Scene {
     audio.setMusicVolume(settings.getMusicVolume());
     audio.setSFXVolume(settings.getSFXVolume());
     this.registry.set('audio', audio);
+    settings.onHydrate = (data) => {
+      audio.setMusicVolume(data.musicVolume);
+      audio.setSFXVolume(data.sfxVolume);
+    };
+    const hydrateSettings = () => settings.adoptPersisted();
+    this.registry.get('settingsHydrationCleanup')?.();
+    const cleanupSettingsHydration = () =>
+      globalThis.removeEventListener?.('emblem-settings-hydrated', hydrateSettings);
+    this.registry.set('settingsHydrationCleanup', cleanupSettingsHydration);
+    globalThis.addEventListener?.('emblem-settings-hydrated', hydrateSettings);
+    this.game?.events?.once?.('destroy', cleanupSettingsHydration);
 
     // Enable debug audio logging via URL param and start overlap watchdog
     try {
@@ -744,6 +757,7 @@ export class BootScene extends Phaser.Scene {
     if (cloudState) {
       const uid = cloudState.userId;
       settings.onSave = (d) => pushSettings(uid, d);
+      if (settings.data.savedAt) settings.onSave(settings.data);
       this.registry.set('cloud', cloudState);
     }
 

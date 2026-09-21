@@ -59,7 +59,62 @@
     "goldRange": [
       360,
       600
-    ]
+    ],
+    "bossRewards": {
+      "weapons": [
+        "Killing Edge",
+        "Killer Lance",
+        "Killer Axe",
+        "Killer Bow",
+        "Bolganone",
+        "Aura"
+      ],
+      "healing": [],
+      "statBooster": [
+        "Angelic Robe",
+        "Energy Drop",
+        "Spirit Dust",
+        "Secret Book",
+        "Speedwing",
+        "Dracoshield",
+        "Talisman"
+      ],
+      "promotion": [
+        "Master Seal"
+      ],
+      "skillScroll": [],
+      "weaponArtScroll": [],
+      "legendaryWeapon": [],
+      "accessories": [
+        "Goddess Icon",
+        "Shield Ring",
+        "Forest Charm",
+        "Soothing Stone",
+        "Hunter's Cloak",
+        "Gambler's Coin"
+      ],
+      "forge": [
+        "Might Whetstone",
+        "Hit Whetstone",
+        "Weight Whetstone"
+      ],
+      "weights": {
+        "weapon": 25,
+        "healing": 0,
+        "statBooster": 25,
+        "promotion": 10,
+        "skillScroll": 0,
+        "weaponArtScroll": 0,
+        "legendaryWeapon": 0,
+        "accessory": 20,
+        "forge": 20,
+        "gold": 0
+      },
+      "goldRange": [
+        360,
+        600
+      ]
+    }
   },
   "act2": {
     "weapons": [
@@ -333,27 +388,21 @@
       "Bolganone",
       "Aura",
       "Recover",
-      "Physic",
-      "Restore",
-      "Killing Edge",
-      "Witchfire",
-      "Sunflare",
-      "Hammer",
+      "Fortify",
+      "Warp Staff",
+      "Rescue Staff",
+      "Sleep Staff",
+      "Silence Staff",
       "Tomahawk",
       "Spear",
-      "Killer Lance",
-      "Venin Blade",
-      "Killer Axe",
-      "Killer Bow",
       "Tempest Blade",
       "Levin Sword",
-      "Fortify",
-      "Rescue Staff",
-      "Warp Staff"
+      "Restore",
+      "Witchfire",
+      "Sunflare"
     ],
     "healing": [
       "Elixir",
-      "Herb",
       "Remedy"
     ],
     "statBooster": [
@@ -388,28 +437,14 @@
       "Ensnare Scroll"
     ],
     "weaponArtScroll": [
-      "Windsweep Scroll",
-      "Lunge Scroll",
-      "Grounder Scroll",
-      "Hexblade Scroll",
-      "Knightkneeler Scroll",
-      "Vengeance Scroll",
-      "Helm Splitter Scroll",
-      "Wild Abandon Scroll",
-      "Rushing Blow Scroll",
-      "Encloser Scroll",
-      "Ward Arrow Scroll",
-      "Healing Light Scroll",
-      "Seraphim Scroll",
-      "Dragonhaze Scroll",
-      "Longearche Scroll",
-      "Glowing Ember Scroll",
-      "Armored Strike Scroll",
-      "Deadeye Scroll",
-      "Hunter's Volley Scroll",
-      "Burning Quake Scroll",
-      "Nosferatu Scroll",
-      "Silence Strike Scroll"
+      "Courtbreaker Scroll",
+      "Last Bastion Scroll",
+      "Crown Splitter Scroll",
+      "Horizon Shot Scroll",
+      "Starless Flame Scroll",
+      "Aegis Bolt Scroll",
+      "Sanctuary Scroll",
+      "Dawn's Judgment Scroll"
     ],
     "legendaryWeapon": [
       "Ragnarok",
@@ -446,31 +481,27 @@
     "forge": [
       "Silver Whetstone",
       "Silver Whetstone",
-      "Might Whetstone",
-      "Might Whetstone",
-      "Crit Whetstone",
-      "Crit Whetstone",
-      "Hit Whetstone",
-      "Hit Whetstone",
-      "Weight Whetstone",
-      "Weight Whetstone",
+      "Silver Whetstone",
+      "Prismatic Stone",
       "Prismatic Stone",
       "Sundering Imbuing Stone",
       "Warded Imbuing Stone",
       "Venomous Imbuing Stone",
-      "Binding Imbuing Stone"
+      "Binding Imbuing Stone",
+      "Vampiric Imbuing Stone",
+      "Keen Imbuing Stone"
     ],
     "weights": {
-      "weapon": 25,
+      "weapon": 15,
       "healing": 2,
-      "statBooster": 11,
-      "promotion": 2,
+      "statBooster": 10,
+      "promotion": 1,
       "skillScroll": 5,
-      "weaponArtScroll": 5,
-      "legendaryWeapon": 10,
-      "accessory": 15,
-      "forge": 15,
-      "gold": 10
+      "weaponArtScroll": 10,
+      "legendaryWeapon": 18,
+      "accessory": 12,
+      "forge": 20,
+      "gold": 7
     },
     "goldRange": [
       1400,

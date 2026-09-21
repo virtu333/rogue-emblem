@@ -1,8 +1,10 @@
+import { runReferenceEntries } from './runReference.js';
+import { statReferenceEntries } from './statReference.js';
 import { ReferenceMenu, compendiumEntries } from './ReferenceMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // CompendiumOverlay — Encyclopedia data browser for game content
-// 10 tabs with sub-filters, pagination, and search. Depth 870-872.
+// Reference tabs with sub-filters, pagination, and search. Depth 870-872.
 
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { LORE_TEXT_COLOR } from '../utils/constants.js';
@@ -39,6 +41,8 @@ export const TAB_DEFS = [
   { label: 'Affixes', key: 'affixes', filters: ['All', 'T1', 'T2'] },
   // Appended last so existing tab indices (and index-based tests) stay stable.
   { label: 'Foes', key: 'foes', filters: ['All', 'Bosses', 'Classes'] },
+  { label: 'Stats', key: 'stats', filters: ['All', 'Core', 'Derived', 'Growth'] },
+  { label: 'Run', key: 'run', filters: ['All', 'Resources', 'Route', 'Rewards'] },
 ];
 
 const SKILL_FILTER_MAP = {
@@ -60,6 +64,8 @@ const ITEM_GAP = 2;
 // Tabs whose rows carry a lore line get taller rows and fewer per page.
 // Content rows must end at least 10px above the page-navigation baseline.
 export const PER_PAGE_BY_KEY = {
+  run: 5,
+  stats: 5,
   lords: LORD_ITEMS_PER_PAGE,
   weapons: 6,
   items: 6,
@@ -72,6 +78,8 @@ export const PER_PAGE_BY_KEY = {
   foes: 5,
 };
 export const LINES_BY_KEY = {
+  run: 4,
+  stats: 4,
   lords: 3,
   weapons: 3,
   items: 3,
@@ -79,7 +87,7 @@ export const LINES_BY_KEY = {
   classes: 4,
   foes: 4,
 };
-export const ROW_HEIGHT_BY_KEY = { classes: 54, foes: 54 };
+export const ROW_HEIGHT_BY_KEY = { classes: 54, foes: 54, stats: 54, run: 54 };
 
 export function getCompendiumRowHeight(key) {
   return (
@@ -247,6 +255,10 @@ export class CompendiumOverlay {
     const gd = this.gameData;
     if (!gd) return [];
     switch (def.key) {
+      case 'run':
+        return runReferenceEntries();
+      case 'stats':
+        return statReferenceEntries(gd);
       case 'weapons':
         return gd.weapons || [];
       case 'skills':
@@ -310,6 +322,9 @@ export class CompendiumOverlay {
     if (!def.filters || this.activeFilterIndex === 0) return items;
     const filterLabel = def.filters[this.activeFilterIndex];
     switch (def.key) {
+      case 'run':
+      case 'stats':
+        return items.filter((i) => i.type === filterLabel);
       case 'weapons':
         return items.filter((i) => i.type === filterLabel);
       case 'skills': {
@@ -809,6 +824,17 @@ export class CompendiumOverlay {
       const y = startY + i * itemGap;
       const item = items[i];
       switch (def.key) {
+        case 'run':
+        case 'stats':
+          [item.name, ...item.referenceLines].forEach((line, n) =>
+            this._text(
+              left + 25,
+              y + n * 14,
+              line.length > 84 ? `${line.slice(0, 81)}...` : line,
+              n ? UI_PALETTE.muted : UI_PALETTE.text,
+            ),
+          );
+          break;
         case 'weapons':
           this._renderWeapon(item, y, left, rightX);
           break;
@@ -1027,6 +1053,12 @@ export class CompendiumOverlay {
       left + 25,
       y + 28,
       `Skill: ${item.personalSkill || '-'}  Weapon: ${weapon}`,
+      UI_PALETTE.muted,
+    );
+    this._text(
+      left + 25,
+      y + 42,
+      'One random trait per run. See Roster for the current trait.',
       UI_PALETTE.muted,
     );
   }

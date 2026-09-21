@@ -565,11 +565,11 @@ describe('learnSkill', () => {
 });
 
 describe('checkLevelUpSkills class thresholds', () => {
-  it('base class does not learn class skill before level 15', () => {
+  it('base class does not learn class skill before level 10', () => {
     const unit = {
       className: 'Myrmidon',
       tier: 'base',
-      level: 14,
+      level: 9,
       skills: [],
     };
     const learned = checkLevelUpSkills(unit, data.classes);
@@ -577,11 +577,11 @@ describe('checkLevelUpSkills class thresholds', () => {
     expect(unit.skills).not.toContain('vantage');
   });
 
-  it('base class learns class skill at level 15', () => {
+  it('base class learns class skill at level 10', () => {
     const unit = {
       className: 'Myrmidon',
       tier: 'base',
-      level: 15,
+      level: 10,
       skills: [],
     };
     const learned = checkLevelUpSkills(unit, data.classes);

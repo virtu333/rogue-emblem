@@ -621,7 +621,7 @@ describe('awardXP integration — _noXP guard', () => {
           if (onComplete) onComplete();
         },
       },
-      _isReducedEffects: () => true,
+      _reduceMotion: () => true,
       updateHPBar() {},
       gameData: { classes: [], skills: [] },
       getEnemyXpMultiplier: () => 1,

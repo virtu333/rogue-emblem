@@ -1,9 +1,10 @@
+import { presentationText } from '../utils/presentationText.js';
+import { createSeededRng } from '../engine/BlessingEngine.js';
 /**
  * BattleBeatsController -- mid-battle story beats.
  *
  * Three beats, all data-driven from dialogue.json and all safe to miss
- * (missing sections, tutorial battles without a runManager, or reduced
- * effects simply skip -- a beat can never block or crash combat):
+ * (missing sections or tutorial battles without a runManager safely skip):
  *  - checkBossHalfHealth: once per battle, when the boss first drops below
  *    half HP, a brief auto-dismissing dialogue line (farewell-style).
  *    Gated through runManager.shownDialogueKeys so suspend/resume never
@@ -11,7 +12,7 @@
  *  - onCritStrike / onKill: rare floating one-liner quips above a lord
  *    (all lords, both phases). 20% chance on crit or regular kill under a
  *    shared 10s cooldown; a lord's killing blow on a boss always quips.
- *    Skipped entirely in reduced-effects mode.
+ *    Preserved at every effects quality with isolated presentation randomness.
  *  - getBossPreBattleEntries: composes the boss's preBattle entries with
  *    the commander's reply (preBattleReply, variant-gated per commander;
  *    only the loop-aware bosses have one).
@@ -26,7 +27,8 @@ const QUIP_COOLDOWN_MS = 10000; // shared across ALL quips so exchanges never ch
 const QUIP_CHANCE = 0.2;
 
 export class BattleBeatsController {
-  constructor(scene) {
+  constructor(scene, random = createSeededRng(Date.now() >>> 0)) {
+    this._random = random;
     this.scene = scene;
     this._lastQuipAt = -Infinity;
     this._live = new Set(); // quip texts still on screen (for destroy())
@@ -121,15 +123,16 @@ export class BattleBeatsController {
 
   _maybeQuip(lord, poolKey, { chance = 1, guaranteed = false } = {}) {
     const scene = this.scene;
-    if (scene._isReducedEffects?.()) return;
     const now = scene.time?.now ?? 0;
     if (!guaranteed) {
       if (now - this._lastQuipAt < QUIP_COOLDOWN_MS) return;
-      if (Math.random() >= chance) return;
+      if (this._random() >= chance) return;
     }
     const pool = scene.gameData?.dialogue?.lordQuips?.[poolKey]?.[lord.name];
     if (!Array.isArray(pool) || pool.length === 0) return;
-    const line = pool[Math.floor(Math.random() * pool.length)];
+    const line =
+      scene.runManager?.pickNarrativeLine?.(pool, `quip:${poolKey}:${lord.name}`) ||
+      pool[Math.floor(this._random() * pool.length)];
     if (typeof line !== 'string' || !line) return;
     if (guaranteed) {
       // A boss-kill quip replaces any quip already on screen (e.g. the crit
@@ -145,15 +148,14 @@ export class BattleBeatsController {
     try {
       const pos = scene.grid?.gridToPixel?.(lord.col, lord.row);
       if (!pos) return;
-      const quip = scene.add
-        .text(pos.x, pos.y + QUIP_OFFSET_Y, line, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#ffe9a8',
-          fontStyle: 'italic',
-          backgroundColor: '#000000cc',
-          padding: { x: 5, y: 2 },
-        })
+      const quip = presentationText(scene, pos.x, pos.y + QUIP_OFFSET_Y, line, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#ffe9a8',
+        fontStyle: 'italic',
+        backgroundColor: '#000000cc',
+        padding: { x: 5, y: 2 },
+      })
         .setOrigin(0.5)
         .setDepth(QUIP_DEPTH)
         .setAlpha(0);
@@ -165,7 +167,7 @@ export class BattleBeatsController {
       });
       scene.tweens.add({
         targets: quip,
-        y: pos.y + QUIP_OFFSET_Y - 20,
+        y: pos.y + QUIP_OFFSET_Y - (scene._reduceMotion?.() ? 0 : 20),
         alpha: 0,
         delay: 900,
         duration: 1400,

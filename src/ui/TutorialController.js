@@ -6,17 +6,27 @@
 // BattleScene; cross-method calls go through the scene's delegating shims so
 // tests can stub individual methods exactly as before.
 
+import { getConsumableDescription } from '../utils/consumableText.js';
 import { TERRAIN, TILE_SIZE } from '../utils/constants.js';
 import { showImportantHint } from './HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  forecastTutorialLesson,
+  TUTORIAL_LESSONS_KEY,
+  TUTORIAL_HINT_IDS,
+} from './tutorialLessons.js';
 import { VisionRewindController } from './VisionRewindController.js';
 
 export class TutorialController {
   constructor(scene) {
     this.scene = scene;
+    this.taught = new Set();
+    this.lessonOpen = false;
+    this.destroyed = false;
   }
 
   destroy() {
+    this.destroyed = true;
     this.clearGuideHighlights();
   }
 
@@ -27,10 +37,94 @@ export class TutorialController {
     try {
       return await fn();
     } finally {
-      if (scene.battleState === 'TUTORIAL_HINT') {
+      if (
+        !this.destroyed &&
+        !scene._sceneShutdownCleanedUp &&
+        scene.sys?.isActive?.() !== false &&
+        scene.battleState === 'TUTORIAL_HINT'
+      ) {
         scene.battleState = prevState;
       }
     }
+  }
+
+  async showLesson(message, ids) {
+    const scene = this.scene;
+    if (
+      !scene.battleParams?.tutorialMode ||
+      this.lessonOpen ||
+      this.destroyed ||
+      scene._sceneShutdownCleanedUp ||
+      scene.sys?.isActive?.() === false ||
+      !message
+    )
+      return false;
+    this.lessonOpen = true;
+    this.activeLessonId = ids[0];
+    try {
+      await this.withHintState(() => showImportantHint(scene, message));
+      if (this.destroyed || scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false)
+        return false;
+      for (const id of ids) this.taught.add(id);
+      return true;
+    } finally {
+      this.lessonOpen = false;
+      this.activeLessonId = null;
+    }
+  }
+
+  async showFortLesson(unit) {
+    const scene = this.scene;
+    // Update the preview before the lesson points at it, using the arrived tile.
+    scene._mobileTerrainFocus = { col: unit.col, row: unit.row };
+    scene._inputController?.refreshTileInfo?.(unit.col, unit.row);
+    scene._mobileBattleHud?.sync?.();
+    const terrain = scene.grid?.getTerrainAt?.(unit.col, unit.row);
+    const bonuses = terrain
+      ? ` Defense +${Number(terrain.defBonus) || 0}, Avoid +${Number(terrain.avoidBonus) || 0}.`
+      : '';
+    return this.showLesson(
+      `Fort tile reached.${bonuses}\nTerrain bonuses are shown in the terrain preview. Use cover to reduce damage and improve dodging.`,
+      ['battle_terrain'],
+    );
+  }
+
+  showForecastLesson(forecast) {
+    const { message, ids } = forecastTutorialLesson(forecast, this.taught);
+    return this.showLesson(message, ids);
+  }
+
+  showResourceLesson(items) {
+    if (!items?.some((entry) => ['Staff', 'Consumable'].includes(entry.item?.type)))
+      return Promise.resolve(false);
+    if (this.taught.has('battle_staff_scope') && this.taught.has('battle_consumable_supply'))
+      return Promise.resolve(false);
+    const consumable = items.find((entry) => entry.item?.type === 'Consumable')?.item;
+    const effect = getConsumableDescription(consumable);
+    const example = effect ? ` ${consumable.name}: ${effect}.` : '';
+    return this.showLesson(
+      `Staves and consumables have different lifetimes.\nStaff uses refill every battle. Consumable uses are spent permanently.${example} Check the effect and uses before choosing.`,
+      ['battle_staff_scope', 'battle_heal_uses', 'battle_consumable_supply'],
+    );
+  }
+
+  recordCompletion() {
+    this.taught.add('battle_first_turn');
+    const ids = [...this.taught].filter((id) => TUTORIAL_HINT_IDS.has(id));
+    try {
+      localStorage.setItem('emblem_rogue_tutorial_completed', '1');
+      const previous = JSON.parse(localStorage.getItem(TUTORIAL_LESSONS_KEY) || '[]');
+      const all = [
+        ...new Set([
+          ...ids,
+          ...(Array.isArray(previous) ? previous.filter((id) => TUTORIAL_HINT_IDS.has(id)) : []),
+        ]),
+      ];
+      localStorage.setItem(TUTORIAL_LESSONS_KEY, JSON.stringify(all));
+    } catch {
+      /* Optional onboarding state must not block completion. */
+    }
+    for (const id of ids) this.scene.registry.get('hints')?.markSeen(id);
   }
 
   isStrictGateActive() {
@@ -85,10 +179,10 @@ export class TutorialController {
 
   getVisionRewindIntroHint() {
     const scene = this.scene;
-    const eyeRef = scene.isMobileInput ? 'The Eye button' : 'The Eye [R]';
+    const eyeRef = scene.isMobileInput ? 'Rewind' : 'Rewind [R]';
     return (
-      `${eyeRef} spends 1 Vision to rewind the current turn.\n` +
-      'In a real run you start with Vision charges.\n' +
+      `${eyeRef} spends 1 charge to return to the saved player-turn start.\n` +
+      'In a real run, rewind charges last the whole run, not one battle.\n' +
       'Here you have none -- but fate may grant one if a lord falls.'
     );
   }
@@ -160,7 +254,7 @@ export class TutorialController {
         .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x000000, 0)
         .setStrokeStyle(2, color, 1)
         .setDepth(52);
-      if (!scene._isReducedEffects()) {
+      if (!scene._reduceMotion()) {
         scene.tweens.add({
           targets: marker,
           alpha: { from: 0.45, to: 1 },

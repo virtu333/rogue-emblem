@@ -46,17 +46,7 @@ import {
   clearTrackedSceneTimer,
   clearAllSceneTimers,
 } from '../utils/sceneTimers.js';
-import {
-  OVERLAY_CONTENT_DEPTH,
-  SHOP_LIST_TOP_Y,
-  SHOP_LIST_BOTTOM_Y,
-  SHOP_SCROLL_STEP,
-  UNIT_PICKER_SCROLL_STEP,
-  CHURCH_LIST_TOP_Y,
-  CHURCH_VIEW_MAP_Y,
-  CHURCH_LIST_BOTTOM_Y,
-  CHURCH_SCROLL_STEP,
-} from '../ui/nodeMapOverlayLayout.js';
+import { UI_DEPTHS } from '../utils/uiDepths.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -101,7 +91,6 @@ const AURA_CHURCH_DURATION = 1200; // slower = calming
 const AURA_LOCKED_ALPHA_SCALE = 0.85; // visible but dim for locked nodes
 const AURA_DEPTH = -1; // below nodes and edges
 const NODE_DEPTH = 1; // keep nodes above aura layer
-// Shop/church overlay layout constants now live in ../ui/nodeMapOverlayLayout.js
 // (shared with the extracted overlay controllers).
 
 function beginSceneLifecycle(scene) {
@@ -281,18 +270,14 @@ export class NodeMapScene extends Phaser.Scene {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
     };
-    this._onPointerMove = (pointer) => this.onPointerMove(pointer);
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
-    this._onWheel = (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY);
 
     if (keyboard?.on) keyboard.on('keydown-ESC', this._onEsc);
     if (input?.on) {
       input.on('pointerdown', this._onPointerDown);
-      input.on('pointermove', this._onPointerMove);
       input.on('pointerup', this._onPointerUp);
       this._onPointerUpOutside = (pointer) => this.onPointerUpOutside(pointer);
       input.on('pointerupoutside', this._onPointerUpOutside);
-      input.on('wheel', this._onWheel);
     }
   }
 
@@ -325,10 +310,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._unbindDebugToggleHandler?.();
     if (input?.off) {
       if (this._onPointerDown) input.off('pointerdown', this._onPointerDown);
-      if (this._onPointerMove) input.off('pointermove', this._onPointerMove);
       if (this._onPointerUp) input.off('pointerup', this._onPointerUp);
       if (this._onPointerUpOutside) input.off('pointerupoutside', this._onPointerUpOutside);
-      if (this._onWheel) input.off('wheel', this._onWheel);
     }
   }
 
@@ -448,6 +431,7 @@ export class NodeMapScene extends Phaser.Scene {
             try {
               await this.dialogueOverlay.showSequence(
                 adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
+                { category: 'runStart', key: 'runStart' },
               );
             } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
@@ -492,40 +476,21 @@ export class NodeMapScene extends Phaser.Scene {
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
-    if (pending.showFirstRun) {
-      this._storyDialogueActive = true;
-      try {
-        await showImportantHint(
-          this,
-          'Your first run begins here. Home Base upgrades, difficulty,\nand blessings unlock once this run ends — win or lose.',
-        );
-      } finally {
-        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
-          this._storyDialogueActive = false;
-        }
-      }
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
-    }
-    if (pending.showIntro) {
-      this._storyDialogueActive = true;
-      try {
-        await showImportantHint(
-          this,
-          'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.',
-        );
-      } finally {
-        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
-          this._storyDialogueActive = false;
-        }
-      }
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
-    }
-    if (
+    if (pending.showFirstRun || pending.showIntro) {
+      void showMinorHint(
+        this,
+        pending.showFirstRun
+          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Advance commits.'
+          : 'Tap any node to preview it. Advance enters a connected available node. Inspect service nodes to see what this route offers.',
+      );
+    } else if (
       pending.showHpPersist &&
-      isSceneLifecycleActive(this, lifecycleGeneration) &&
       this.registry.get('hints')?.shouldShow('nodemap_hp_persist')
     ) {
-      void showMinorHint(this, 'HP carries between battles. Visit Church or Ruins nodes to heal.');
+      void showMinorHint(
+        this,
+        'HP carries between battles. Consumables can heal from Roster; inspect service nodes for other recovery options.',
+      );
     }
   }
 
@@ -622,7 +587,7 @@ export class NodeMapScene extends Phaser.Scene {
     const cy = cam?.centerY ?? 240;
     const backdrop = this.add
       .rectangle(cx, cy, 420, 86, 0x000000, 0.86)
-      .setDepth(OVERLAY_CONTENT_DEPTH + 120)
+      .setDepth(UI_DEPTHS.NODE_EVENT)
       .setStrokeStyle(2, 0xaa3333)
       .setAlpha(0);
     const label = applyTextResolution(
@@ -634,7 +599,7 @@ export class NodeMapScene extends Phaser.Scene {
       }),
     )
       .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH + 121)
+      .setDepth(UI_DEPTHS.NODE_EVENT + 1)
       .setAlpha(0);
 
     if (this.tweens?.add) {
@@ -700,17 +665,6 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     if (!isTouchPointer(pointer)) return;
 
-    // Touch previews persist after lift. The next unrelated tap dismisses the
-    // preview, and must not also close the service underneath it.
-    const previewTap = this._touchTooltipPointer === pointer;
-    this._touchTooltipPointer = null;
-    if (!previewTap && (this.shopItemTooltip || this.forgeTooltip)) {
-      this._hideShopItemTooltip?.();
-      this._hideForgeTooltip?.();
-      this._touchPreviewedShopEntry = null;
-      this._pointerGesture = { pointer, owned: true };
-    }
-
     // Kind-based latch clearing: game-object pointerdown fires BEFORE scene
     // pointerdown, so _touchDownLatchKind is set by node/shop handlers.
     // Clear only mismatched latches — preserve the one that matches this tap.
@@ -718,135 +672,6 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchDownLatchKind = null;
     if (kind !== 'node') this._touchPreviewedNodeId = null;
     if (kind !== 'shop') this._touchPreviewedShopEntry = null;
-
-    if (this.unitPickerState) {
-      const state = this.unitPickerState;
-      if (
-        pointer.y >= state.viewportTop &&
-        pointer.y <= state.viewportBottom &&
-        (state.maxOffset || 0) > 0
-      ) {
-        this._touchScrollDrag = {
-          type: 'unit-picker',
-          startY: pointer.y,
-          startOffset: state.offset || 0,
-        };
-      }
-      return;
-    }
-
-    if (this.churchOverlay && !this._churchViewingMap) {
-      if ((this.churchScrollMax || 0) <= 0) return;
-      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
-      this._touchScrollDrag = {
-        type: 'church',
-        startY: pointer.y,
-        startOffset: this.churchScrollOffset || 0,
-      };
-      return;
-    }
-
-    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
-    if (this.forgePicker || this.unitPicker) return;
-    if ((this.shopScrollMax || 0) <= 0) return;
-    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
-    this._touchScrollDrag = {
-      type: 'shop',
-      tab: this.activeShopTab,
-      startY: pointer.y,
-      startOffset: this.shopScrollOffsets?.[this.activeShopTab] || 0,
-    };
-  }
-
-  onPointerMove(pointer) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (!isTouchPointer(pointer)) return;
-    const drag = this._touchScrollDrag;
-    if (!drag) return;
-
-    if (drag.type === 'unit-picker') {
-      if (!this.unitPickerState) return;
-      const max = this.unitPickerState.maxOffset || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      if (next === this.unitPickerState.offset) return;
-      this.unitPickerState.offset = next;
-      this.renderUnitPicker();
-      return;
-    }
-
-    if (drag.type === 'church') {
-      if (!this.churchOverlay || this._churchViewingMap) return;
-      const max = this.churchScrollMax || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      if (next === this.churchScrollOffset) return;
-      this.churchScrollOffset = next;
-      this.drawChurchScrollContent();
-      return;
-    }
-
-    if (drag.type === 'shop') {
-      if (!this.shopOverlay || this._shopViewingMap || this.forgePicker || this.unitPicker) return;
-      if (!this.activeShopTab || drag.tab !== this.activeShopTab) return;
-      const max = this.shopScrollMax || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      const current = this.shopScrollOffsets?.[drag.tab] || 0;
-      if (next === current) return;
-      this.shopScrollOffsets[drag.tab] = next;
-      this.drawActiveTabContent();
-    }
-  }
-
-  onWheel(pointer, deltaX, deltaY) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (this.unitPickerState) {
-      const step = Math.sign(deltaY || 0) * UNIT_PICKER_SCROLL_STEP;
-      if (!step) return;
-      const current = this.unitPickerState.offset || 0;
-      const max = this.unitPickerState.maxOffset || 0;
-      const next = Phaser.Math.Clamp(current + step, 0, max);
-      if (next === current) return;
-      this.unitPickerState.offset = next;
-      this.renderUnitPicker();
-      return;
-    }
-
-    if (this.churchOverlay && !this._churchViewingMap) {
-      if (!pointer) return;
-      if ((this.churchScrollMax || 0) <= 0) return;
-      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
-      const step = Math.sign(deltaY || 0) * CHURCH_SCROLL_STEP;
-      if (!step) return;
-      const next = Phaser.Math.Clamp(
-        (this.churchScrollOffset || 0) + step,
-        0,
-        this.churchScrollMax,
-      );
-      if (next === this.churchScrollOffset) return;
-      this.churchScrollOffset = next;
-      this.drawChurchScrollContent();
-      return;
-    }
-
-    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
-    if (this.forgePicker || this.unitPicker) return;
-    if (!pointer) return;
-    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
-    if ((this.shopScrollMax || 0) <= 0) return;
-
-    const step = Math.sign(deltaY || 0) * SHOP_SCROLL_STEP;
-    if (!step) return;
-    const key = this.activeShopTab;
-    const current = this.shopScrollOffsets?.[key] || 0;
-    const next = Phaser.Math.Clamp(current + step, 0, this.shopScrollMax || 0);
-    if (next === current) return;
-    this.shopScrollOffsets[key] = next;
-    this.drawActiveTabContent();
   }
 
   _isPointerOverInteractive(pointer) {
@@ -871,8 +696,6 @@ export class NodeMapScene extends Phaser.Scene {
   canRequestCancel({ allowPause = true } = {}) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
-    if (this.forgePicker) return true;
-    if (this.unitPicker || this.unitPickerState) return true;
     if (this.settingsOverlay?.visible) return true;
     if (this.rosterOverlay?.visible) return true;
     if (this.pauseOverlay?.visible) return true;
@@ -909,14 +732,12 @@ export class NodeMapScene extends Phaser.Scene {
     this._setOverlayVisibility(this.shopTabObjects, visible);
     this._setOverlayVisibility(this.unitPicker, visible);
     this._setOverlayVisibility(this.forgePicker, visible);
-    this._shopController?._setShopRingVisible?.(visible);
   }
 
   _setChurchOverlayVisibility(visible) {
     this._churchController?.nativeMenu?.setVisible(visible);
     this._setOverlayVisibility(this.churchOverlay, visible);
     this._setOverlayVisibility(this.churchContentGroup, visible);
-    this._churchController?._setChurchRingVisible?.(visible);
   }
 
   _showServiceMap(onClose) {
@@ -934,8 +755,6 @@ export class NodeMapScene extends Phaser.Scene {
   _enterShopMapView() {
     if (!this.shopOverlay || this._shopViewingMap) return;
     this._touchScrollDrag = null;
-    this._hideForgeTooltip();
-    this._hideShopItemTooltip();
     this._setShopOverlayVisibility(false);
     this._shopViewingMap = true;
     if (hasDOMHost())
@@ -951,31 +770,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._setChurchOverlayVisibility(false);
     this._churchViewingMap = true;
     this._churchMapViewSuppressCancel = true;
-    if (hasDOMHost()) {
-      this._showServiceMap(() => this._exitChurchMapView());
-      return;
-    }
-    // Persistent "Return to Church" button (not in churchOverlay so it stays visible)
-    this._churchReturnBtn = applyTextResolution(
-      this.add.text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: UI_PALETTE.panel,
-        padding: { x: 12, y: 6 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    this._churchReturnBtn.on('pointerover', () =>
-      this._churchReturnBtn.setColor(UI_PALETTE.accent),
-    );
-    this._churchReturnBtn.on('pointerout', () => this._churchReturnBtn.setColor('#aaddff'));
-    this._churchReturnBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._exitChurchMapView();
-    });
+    this._showServiceMap(() => this._exitChurchMapView());
   }
 
   _exitChurchMapView() {
@@ -992,21 +787,13 @@ export class NodeMapScene extends Phaser.Scene {
 
   requestCancel({ allowPause = true } = {}) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
-      this.dialogueOverlay?.hide();
+      this.dialogueOverlay?.hide(true);
       return true;
     }
     if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return false;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
-      return true;
-    }
-    if (this.forgePicker) {
-      this.closeForgeStatPicker();
-      return true;
-    }
-    if (this.unitPicker || this.unitPickerState) {
-      this.closeUnitPicker();
       return true;
     }
     if (this.settingsOverlay?.visible) {
@@ -1777,7 +1564,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
         this._pendingNodeSelection = node?.id ? { nodeId: node.id } : null;
         if (this.dialogueOverlay?.visible && typeof this.dialogueOverlay.hide === 'function') {
-          this.dialogueOverlay.hide();
+          this.dialogueOverlay.hide(true);
         }
       }
       return;
@@ -1871,7 +1658,7 @@ export class NodeMapScene extends Phaser.Scene {
           isBoss: node.type === NODE_TYPES.BOSS,
           isElite: battleParams?.isElite || false,
         },
-        { reason: TRANSITION_REASONS.ENTER_BATTLE },
+        { reason: TRANSITION_REASONS.ENTER_BATTLE, retryBlocked: true },
       );
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (transitioned === false) {
@@ -1961,10 +1748,6 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).showChurchOverlay(node, options);
   }
 
-  drawChurchScrollContent() {
-    (this._churchController ||= new ChurchController(this)).drawChurchScrollContent();
-  }
-
   leaveChurchNode() {
     (this._churchController ||= new ChurchController(this)).leaveChurchNode();
   }
@@ -2052,72 +1835,12 @@ export class NodeMapScene extends Phaser.Scene {
     return (this._shopController ||= new ShopController(this)).leaveShopNode();
   }
 
-  drawShopTabs() {
-    return (this._shopController ||= new ShopController(this)).drawShopTabs();
-  }
-
-  drawActiveTabContent() {
-    return (this._shopController ||= new ShopController(this)).drawActiveTabContent();
-  }
-
   _getWeaponArtCatalog() {
     return (this._shopController ||= new ShopController(this))._getWeaponArtCatalog();
   }
 
-  drawShopBuyList() {
-    return (this._shopController ||= new ShopController(this)).drawShopBuyList();
-  }
-
-  onBuyItem(entry) {
-    return (this._shopController ||= new ShopController(this)).onBuyItem(entry);
-  }
-
-  drawShopSellList() {
-    return (this._shopController ||= new ShopController(this)).drawShopSellList();
-  }
-
-  drawShopForgeList() {
-    return (this._shopController ||= new ShopController(this)).drawShopForgeList();
-  }
-
-  drawShopScrollHint() {
-    return (this._shopController ||= new ShopController(this)).drawShopScrollHint();
-  }
-
   _getShopItemDetailText(entry) {
     return (this._shopController ||= new ShopController(this))._getShopItemDetailText(entry);
-  }
-
-  _showShopItemTooltip(entry, anchorX, anchorY) {
-    return (this._shopController ||= new ShopController(this))._showShopItemTooltip(
-      entry,
-      anchorX,
-      anchorY,
-    );
-  }
-
-  _hideShopItemTooltip() {
-    return (this._shopController ||= new ShopController(this))._hideShopItemTooltip();
-  }
-
-  showForgeStatPicker(weapon) {
-    return (this._shopController ||= new ShopController(this)).showForgeStatPicker(weapon);
-  }
-
-  closeForgeStatPicker() {
-    return (this._shopController ||= new ShopController(this)).closeForgeStatPicker();
-  }
-
-  _showForgeTooltip(wpn, anchorX, anchorY) {
-    return (this._shopController ||= new ShopController(this))._showForgeTooltip(
-      wpn,
-      anchorX,
-      anchorY,
-    );
-  }
-
-  _hideForgeTooltip() {
-    return (this._shopController ||= new ShopController(this))._hideForgeTooltip();
   }
 
   _saveShopState() {
@@ -2126,25 +1849,6 @@ export class NodeMapScene extends Phaser.Scene {
 
   refreshShop() {
     return (this._shopController ||= new ShopController(this)).refreshShop();
-  }
-
-  drawRerollButton() {
-    return (this._shopController ||= new ShopController(this)).drawRerollButton();
-  }
-
-  showUnitPicker(callback, pickerOptionsOrItem) {
-    return (this._shopController ||= new ShopController(this)).showUnitPicker(
-      callback,
-      pickerOptionsOrItem,
-    );
-  }
-
-  renderUnitPicker() {
-    return (this._shopController ||= new ShopController(this)).renderUnitPicker();
-  }
-
-  closeUnitPicker() {
-    return (this._shopController ||= new ShopController(this)).closeUnitPicker();
   }
 
   showShopBanner(msg, color) {
@@ -2170,7 +1874,8 @@ export class NodeMapScene extends Phaser.Scene {
       const act = this.runManager?.currentAct || 'act1';
       const lines = pool[act] || pool['act3'];
       if (!Array.isArray(lines) || lines.length === 0) return;
-      const line = lines[Math.floor(Math.random() * lines.length)];
+      const line =
+        this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
       this.showShopBanner(line, '#aabbcc');
     } catch (_) {
       /* best-effort flavor */

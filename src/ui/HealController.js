@@ -1,3 +1,4 @@
+import { TutorialController } from './TutorialController.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
 // Cross-cutting seams (finishUnitAction, awardScaledXP, showActionMenu,
@@ -21,7 +22,7 @@ import {
   findRelocateTargets,
   getRelocationDestinations,
 } from '../engine/StaffRelocation.js';
-import { showMinorHint } from './HintDisplay.js';
+import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 
 export class HealController {
@@ -92,6 +93,14 @@ export class HealController {
     const scene = this.scene;
     // Auto-equip staff
     const staff = chosenStaff || scene.getActiveHealStaff(unit);
+    if (staff && scene.battleParams?.tutorialMode && scene._tutorialStrictGateReleased) {
+      const tutorial = (scene._tutorialController ||= new TutorialController(scene));
+      if (!tutorial.taught.has('battle_staff_scope'))
+        return tutorial.showResourceLesson([{ item: staff }]).then((shown) => {
+          if (shown && !scene._sceneShutdownCleanedUp && scene.sys?.isActive?.() !== false)
+            this.startHealTargetSelection(unit, targets, chosenStaff);
+        });
+    }
     this.rememberCombatWeapon(unit);
     if (staff) equipWeapon(unit, staff);
     if (!staff) {
@@ -101,9 +110,10 @@ export class HealController {
 
     // First-heal tutorial hint (one-time per save slot)
     const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('battle_heal_uses')) {
-      showMinorHint(
+    if (hints && !hints.hasSeen('battle_heal_uses')) {
+      showContextualHint(
         scene,
+        'battle_heal_uses',
         'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.',
       );
     }
@@ -202,7 +212,8 @@ export class HealController {
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
 
-      text._menuDescription = staff.special || staff.description;
+      text._menuItem = staff;
+      text._menuDescription = `${staff.special || staff.description || 'Healing staff'} · Uses refill each battle`;
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
@@ -410,7 +421,7 @@ export class HealController {
 
   async animateCure(target) {
     const scene = this.scene;
-    const reduced = scene._isReducedEffects();
+    const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
@@ -429,9 +440,9 @@ export class HealController {
 
     scene.tweens.add({
       targets: cureText,
-      y: pos.y - 36,
+      y: reduced ? pos.y - 16 : pos.y - 36,
       alpha: 0,
-      duration: reduced ? 260 : 600,
+      duration: 600,
       onComplete: () => cureText.destroy(),
     });
 
@@ -442,7 +453,7 @@ export class HealController {
 
   async animateHeal(target, healAmount) {
     const scene = this.scene;
-    const reduced = scene._isReducedEffects();
+    const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     // Flash target green
@@ -462,9 +473,9 @@ export class HealController {
 
     scene.tweens.add({
       targets: healText,
-      y: pos.y - 36,
+      y: reduced ? pos.y - 16 : pos.y - 36,
       alpha: 0,
-      duration: reduced ? 260 : 600,
+      duration: 600,
       onComplete: () => healText.destroy(),
     });
 

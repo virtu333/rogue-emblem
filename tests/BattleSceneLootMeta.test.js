@@ -403,8 +403,8 @@ describe('BattleScene loot meta wiring', () => {
     expect(labels.some((text) => text.includes('5Mt 95Hit 0Crt'))).toBe(true);
     expect(labels.some((text) => text.includes('3Wt Rng1'))).toBe(true);
     expect(labels.some((text) => text.includes('+2 STR'))).toBe(true);
-    expect(labels.some((text) => /Negate(\s+effectiveness|\.\.\.)/.test(text))).toBe(true);
-    expect(labels.some((text) => /Promote a Lv 10\+/.test(text))).toBe(true);
+    expect(labels.some((text) => /Negates(?:\s+weapon|\.\.\.)/.test(text))).toBe(true);
+    expect(labels.some((text) => /Promote eligible|Promote an eligible/.test(text))).toBe(true);
   });
 
   it('uses pre-scaled loot gold amount for display and award (no second multiplier)', () => {
@@ -851,12 +851,12 @@ describe('Loot card hover tooltip lifecycle', () => {
     );
 
     expect(result).toContain('Heavy Blade');
-    expect(result).toContain('HP Cost: 5');
+    expect(result).toContain('Base HP cost: 5 per use');
     expect(result).toContain('Sword');
-    expect(result).toContain('1/turn');
+    expect(result).toContain('1 use per turn');
     expect(result).toContain('A powerful overhead strike.');
-    expect(result).toContain('Mt +8');
-    expect(result).toContain('Hit -10');
+    expect(result).toContain('+8 Attack');
+    expect(result).toContain('-10 Hit');
   });
 
   it('_getLootTooltipText returns skill scroll details', () => {
@@ -883,6 +883,7 @@ describe('Loot card hover tooltip lifecycle', () => {
 
     expect(result).toContain('Vantage Scroll');
     expect(result).toContain('Strike first when below 50% HP.');
-    expect(result).toContain('on-combat-start');
+    expect(result).not.toContain('on-combat-start');
+    expect(result).toContain('Roster → Skills → Teach');
   });
 });

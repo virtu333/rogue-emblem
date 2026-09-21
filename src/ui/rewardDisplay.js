@@ -12,7 +12,9 @@ export function rewardPresentation(choice) {
   let category = 'Weapon';
   if (choice.type === 'gold' || choice.type === 'skip') category = 'Gold';
   else if (choice.type === 'accessory' || item?.type === 'Accessory') category = 'Accessory';
-  else if (item?.type === 'Scroll') category = 'Scroll';
+  else if (item?.teachesWeaponArtId || choice.type === 'weaponArtScroll')
+    category = 'Weapon Art Scroll';
+  else if (item?.type === 'Scroll' || choice.type === 'skillScroll') category = 'Skill Scroll';
   else if (item?.imbueId) category = 'Imbue';
   else if (choice.type === 'forge' || item?.type === 'Whetstone') category = 'Forge';
   else if (item?.effect === 'statBoost') category = 'Booster';
@@ -45,7 +47,7 @@ export function rewardIcon(category) {
   svg.setAttribute('shape-rendering', 'crispEdges');
   svg.classList.add('reward-glyph');
   const path = document.createElementNS(svg.namespaceURI, 'path');
-  path.setAttribute('d', PATHS[category] || PATHS.Supply);
+  path.setAttribute('d', PATHS[category.endsWith('Scroll') ? 'Scroll' : category] || PATHS.Supply);
   path.setAttribute('fill', 'currentColor');
   path.setAttribute('fill-rule', 'evenodd');
   svg.append(path);

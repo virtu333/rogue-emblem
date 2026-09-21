@@ -1,10 +1,10 @@
+import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
-import { SettingsMenu } from './SettingsMenu.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
@@ -76,6 +76,7 @@ export class MobileRewards {
     document.getElementById('game-wrapper').append(this.root);
     for (const obj of this.controller.lootGroup) obj.setVisible(false);
     pushInputScope(this, (action, payload) => {
+      if (action === InputAction.PAUSE) this.openReference('Menu');
       if (action === InputAction.CANCEL) this.back();
       if (action === InputAction.NAVIGATE) this.moveFocus(payload?.dy || payload?.dx || 1);
       if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
@@ -86,7 +87,7 @@ export class MobileRewards {
   }
   tools(header) {
     const tools = node('div', null, 'reward-tools');
-    for (const title of ['Roster', 'Settings']) {
+    for (const title of ['Roster', 'Menu']) {
       const b = this.button(title, () => this.openReference(title));
       b.dataset.focus = title;
       tools.append(b);
@@ -102,23 +103,30 @@ export class MobileRewards {
       this.child?.destroy();
       this.child = null;
       if (!this.visible) return;
+      this.root.hidden = false;
       this.root.inert = false;
       this.root.removeAttribute('aria-hidden');
       if (previous?.isConnected) previous.focus();
     };
-    this.child =
-      title === 'Roster'
-        ? new MobileRosterSheet({
-            scene: this.scene,
-            units: this.scene.runManager.roster,
-            gameData: this.scene.gameData,
-            onClose: close,
-          })
-        : new SettingsMenu(this.scene, close);
+    if (title === 'Menu') {
+      // Pause uses the shared menu depth below rewards. Hide, rather than merely
+      // dim, this parent while its child owns input; keep the step stack intact.
+      this.root.hidden = true;
+      this.scene.showPauseMenu({ onResume: close, fromRewards: true });
+      const pause = this.scene.pauseOverlay;
+      this.child = { destroy: () => pause?.hideForTransition() };
+    } else {
+      this.child = new MobileRosterSheet({
+        scene: this.scene,
+        units: this.scene.runManager.roster,
+        gameData: this.scene.gameData,
+        onClose: close,
+      });
+    }
   }
   moveFocus(delta) {
     if (this.busy) return;
-    const buttons = [...this.root.querySelectorAll('button:not(:disabled)')];
+    const buttons = [...this.root.querySelectorAll('button:not(:disabled),summary')];
     const i = buttons.indexOf(document.activeElement);
     buttons[(i + delta + buttons.length) % buttons.length]?.focus();
   }
@@ -135,6 +143,11 @@ export class MobileRewards {
       node('span', `${scene.runManager.gold} gold`, 'mu-currency active'),
     );
     this.tools(header);
+    if (this.summary) {
+      const earnings = node('details', null, 'mu-help');
+      earnings.append(node('summary', 'Battle earnings · already added'), node('p', this.summary));
+      header.append(earnings);
+    }
     const split = node('div', null, 'mu-split');
     const list = node('div', null, 'mu-list');
     const detail = node('section', null, 'mu-detail');
@@ -169,11 +182,7 @@ export class MobileRewards {
     });
     const c = all[this.selected];
     const copy = node('div', null, 'mu-copy');
-    copy.append(
-      node('h2', label(c)),
-      node('p', rewardPresentation(c).label, 'mu-help'),
-      node('p', this.summary, 'mu-help'),
-    );
+    copy.append(node('h2', label(c)), node('p', rewardPresentation(c).label, 'mu-help'));
     const description =
       c.type === 'skip'
         ? 'Pass on the remaining rewards and add this gold to your vault.'
@@ -181,6 +190,7 @@ export class MobileRewards {
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
     copy.append(node('p', description));
+    appendItemArtDetails(copy, c.item, scene.gameData.weaponArts?.arts || []);
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
       copy.append(node('p', notice, 'mu-help'));
     }

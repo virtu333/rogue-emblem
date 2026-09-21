@@ -82,10 +82,12 @@ function makeOverlayScene() {
           return {
             getMusicVolume: () => 0.5,
             getSFXVolume: () => 0.5,
-            getReducedEffects: () => false,
+            getReduceMotion: () => false,
+            getEffectsQuality: () => 'high',
             setMusicVolume: vi.fn(),
             setSFXVolume: vi.fn(),
-            setReducedEffects: vi.fn(),
+            setReduceMotion: vi.fn(),
+            setEffectsQuality: vi.fn(),
           };
         }
         if (key === 'audio') {

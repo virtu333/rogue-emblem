@@ -4,13 +4,12 @@ import { waitForScene } from './helpers.js';
 test.use({
   ...devices['iPhone SE'],
   viewport: { width: 667, height: 375 },
-  baseURL: 'http://127.0.0.1:3000',
 });
 test.setTimeout(90000);
 test.beforeEach(async ({ page }) => {
   page.setDefaultTimeout(10000);
   // Concurrent source edits must not make Vite refresh an in-progress save test.
-  await page.routeWebSocket(/^ws:\/\/127\.0\.0\.1:3000/, (socket) => socket.close());
+  await page.routeWebSocket(/^ws:\/\/(?:127\.0\.0\.1|localhost):3000/, (socket) => socket.close());
 });
 
 // Fixtures attach only this test's isolated browser profile to a real slot.
@@ -38,13 +37,18 @@ async function resumeSavedRun(page, battle = false) {
     const s = window.__emblemRogueGame.scene.getScene('Title');
     const walk = (nodes) =>
       nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    return s.input.enabled && walk(s.children.list).some((o) => o.text === 'CONTINUE' && o.visible);
+    return (
+      s.input.enabled &&
+      walk(s.children.list).some((o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible)
+    );
   });
   const point = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Title');
     const walk = (nodes) =>
       nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const o = walk(s.children.list).find((o) => o.text === 'CONTINUE' && o.visible);
+    const o = walk(s.children.list).find(
+      (o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible,
+    );
     const b = o.getBounds(),
       r = s.game.canvas.getBoundingClientRect();
     return {
@@ -138,8 +142,10 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   });
   await resumeSavedRun(page);
   const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  if (await notes.isVisible())
-    await notes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  await expect(notes).toBeVisible();
+  await page.waitForTimeout(550);
+  await notes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  await expect(notes).toHaveCount(0);
   await page.locator(`[data-node="${nodeId}"]`).tap();
   await page.getByRole('button', { name: 'Advance', exact: true }).tap();
   await waitForScene(page, 'Battle');
@@ -165,6 +171,10 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
     identity: true,
     usable: true,
   });
+  await expect(notes).toBeVisible(); // First-visit camera teaching note owns map input.
+  await page.waitForTimeout(550);
+  await notes.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(notes).toHaveCount(0);
   await tapUnit(page, 'Reload Veteran');
   await expect(page.getByRole('complementary', { name: 'Battle commands' })).toContainText('Wait');
   await page.screenshot({ path: testInfo.outputPath('reclass-reloaded-deployed.png') });

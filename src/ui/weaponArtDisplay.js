@@ -68,3 +68,42 @@ export function weaponArtUsesText(unit, art, turnNumber) {
   }
   return parts.join(' · ') || 'No usage limit';
 }
+
+/** Static item/reference copy: never carries last battle's usage counters. */
+export function weaponArtDetailLines(art) {
+  if (!art) return ['Weapon art details unavailable.'];
+  const types = art.allowedTypes?.length ? art.allowedTypes : [art.weaponType].filter(Boolean);
+  const rank =
+    { Prof: 'Proficient', Mast: 'Master rank' }[art.requiredRank] ||
+    art.requiredRank ||
+    'Proficient';
+  const limits = [];
+  if (art.perMapLimit)
+    limits.push(
+      `${art.perMapLimit} ${art.perMapLimit === 1 ? 'use' : 'uses'} per battle (reset each battle)`,
+    );
+  if (art.perTurnLimit)
+    limits.push(`${art.perTurnLimit} ${art.perTurnLimit === 1 ? 'use' : 'uses'} per turn`);
+  return [
+    formatWeaponArtEffects(art),
+    `Requires ${types.join(' / ')} · ${rank}.`,
+    `Base HP cost: ${Math.max(0, Number(art.hpCost) || 0)} per use. The user must have more HP than the effective cost.`,
+    limits.join(' · ') || 'No usage limit.',
+    'Active attack: choose Weapon Art in battle, then confirm the attack to spend HP and a use.',
+    'Weapon arts do not gain a follow-up attack from Speed. Arts with multiple strikes use their stated strike count.',
+  ];
+}
+
+export function weaponArtScrollText(scroll, catalog = []) {
+  const art = catalog.find((a) => a.id === scroll?.teachesWeaponArtId);
+  const types = scroll?.allowedWeaponTypes?.length
+    ? scroll.allowedWeaponTypes
+    : art?.allowedTypes?.length
+      ? art.allowedTypes
+      : [art?.weaponType].filter(Boolean);
+  return [
+    `Weapon Art Scroll — adds ${art?.name || 'an active attack'} to one compatible ${types.length ? `${types.join(' / ')} ` : ''}weapon.`,
+    'Stored in Team scrolls. Open Roster → Skills → Bind to weapon. The scroll is consumed only after binding; the art stays on that weapon for this run.',
+    ...weaponArtDetailLines(art),
+  ].join('\n\n');
+}

@@ -1,3 +1,5 @@
+import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
+import { mergeRunRecords } from './RunRecords.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -118,6 +120,10 @@ export class MetaProgressionManager {
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.runsStarted = 0;
+    this.lastDifficulty = null;
+    this.runRecords = [];
+    this.seenDialogueKeys = [];
+    this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
@@ -127,6 +133,9 @@ export class MetaProgressionManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
+        this.lastDifficulty = ['normal', 'hard', 'lunatic'].includes(saved.lastDifficulty)
+          ? saved.lastDifficulty
+          : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
         if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
@@ -159,6 +168,9 @@ export class MetaProgressionManager {
         // Migration: old saves without milestones default to empty
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
         // Migration: old saves without storyFlags default to empty memory
+        if (Array.isArray(saved.hintState?.seen)) this.hintState = saved.hintState;
+        this.runRecords = mergeRunRecords(saved.runRecords || []);
+        this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
       }
     } catch (_) {
@@ -314,6 +326,16 @@ export class MetaProgressionManager {
    * RunManager._applySettledRewardsToMeta (under its appliedToMeta guard).
    * defeatedBy is only counted when the fatal battle was a boss fight.
    */
+  hasSeenDialogue(key) {
+    return this.seenDialogueKeys.includes(key);
+  }
+
+  markDialogueSeen(key) {
+    if (this.hasSeenDialogue(key)) return;
+    this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, [key]);
+    this._save();
+  }
+
   recordRunEnd({
     result,
     act = null,
@@ -321,8 +343,11 @@ export class MetaProgressionManager {
     defeatedBy = null,
     wasBossDefeat = false,
     lordFalls = [],
+    victoryRecord = null,
   } = {}) {
     if (result !== 'victory' && result !== 'defeat') return;
+    if (result === 'victory' && victoryRecord)
+      this.runRecords = mergeRunRecords(this.runRecords, [victoryRecord]);
     const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
     this.storyFlags.lastRun = {
       result,
@@ -903,6 +928,8 @@ export class MetaProgressionManager {
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
+    this.runRecords = [];
+    this.seenDialogueKeys = [];
     this._save();
   }
 
@@ -971,6 +998,13 @@ export class MetaProgressionManager {
     ) {
       this.lordSelection = normalizeLordSelection(disk.lordSelection);
     }
+    if (Number(disk.hintState?.updatedAt) > Number(this.hintState?.updatedAt || 0))
+      this.hintState = disk.hintState;
+    this.runRecords = mergeRunRecords(this.runRecords, disk.runRecords || []);
+    this.seenDialogueKeys = mergeSeenDialogueKeys(
+      this.seenDialogueKeys,
+      disk.seenDialogueKeys || [],
+    );
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -987,11 +1021,20 @@ export class MetaProgressionManager {
         this.storyFlags.lastRun = diskFlags.lastRun;
       }
     }
+    if (['normal', 'hard', 'lunatic'].includes(disk.lastDifficulty))
+      this.lastDifficulty = disk.lastDifficulty;
     this.savedAt = diskSavedAt;
   }
 
-  _save() {
+  rememberDifficulty(id) {
+    if (!['normal', 'hard', 'lunatic'].includes(id)) return { ok: false };
+    return this._save({ lastDifficulty: id });
+  }
+
+  _save({ lastDifficulty } = {}) {
     this._adoptForeignDiskStateIfNewer();
+    if (['normal', 'hard', 'lunatic'].includes(lastDifficulty))
+      this.lastDifficulty = lastDifficulty;
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
@@ -1000,10 +1043,14 @@ export class MetaProgressionManager {
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
+      lastDifficulty: this.lastDifficulty,
       skillAssignments: this.skillAssignments,
       lordSelection: this.lordSelection,
       milestones: [...this.milestones],
       storyFlags: this.storyFlags,
+      runRecords: this.runRecords,
+      seenDialogueKeys: this.seenDialogueKeys,
+      hintState: this.hintState,
       savedAt: this.savedAt,
     };
     let localOk = false;

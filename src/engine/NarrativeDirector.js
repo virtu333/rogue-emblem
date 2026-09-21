@@ -23,6 +23,8 @@ export const KNOWN_WHEN_KEYS = new Set([
   'minRunsCompleted',
   'lastRunResult',
   'lastRunDefeatedByKnown',
+  'lastRunAct',
+  'currentDefeatWasBoss',
   'bossSlainBefore',
   'bossKilledYouBefore',
   'firstClear',
@@ -59,6 +61,8 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
         : 0,
     lastRunResult:
       lastRun?.result === 'victory' || lastRun?.result === 'defeat' ? lastRun.result : 'none',
+    lastRunAct: typeof lastRun?.act === 'string' ? lastRun.act : null,
+    currentDefeatWasBoss: runManager?.defeatContext?.wasBoss === true,
     lastRunDefeatedBy: typeof lastRun?.defeatedBy === 'string' ? lastRun.defeatedBy : null,
     bossName: resolvedBossName,
     bossSlainCount: resolvedBossName ? (meta?.getBossSlainCount?.(resolvedBossName) ?? 0) : 0,
@@ -92,6 +96,12 @@ export function evaluateWhen(when, ctx) {
           break;
         case 'lastRunDefeatedByKnown':
           if (Boolean(ctx.lastRunDefeatedBy) !== value) return false;
+          break;
+        case 'lastRunAct':
+          if (ctx.lastRunAct !== value) return false;
+          break;
+        case 'currentDefeatWasBoss':
+          if (ctx.currentDefeatWasBoss !== value) return false;
           break;
         case 'bossSlainBefore':
           if (ctx.bossSlainCount > 0 !== value) return false;

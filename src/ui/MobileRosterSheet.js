@@ -1,3 +1,6 @@
+import { saveServiceRun } from './serviceSave.js';
+import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { appendItemArtDetails } from './ItemArtDetails.js';
 import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
@@ -5,6 +8,7 @@ import {
   weaponArtCostText,
   weaponArtUsesText,
 } from './weaponArtDisplay.js';
+import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
@@ -59,6 +63,10 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
+
+// Movement between pointerdown and click that still counts as a tap, for touch
+// and pen. Mice hold a line far tighter, so they keep the original 10px.
+const DRAG_SLOP_TOUCH = 24;
 
 export function canShowMobileRoster() {
   return hasDOMHost();
@@ -185,17 +193,10 @@ export class MobileRosterSheet {
     b.type = 'button';
     b.disabled = !!reason;
     if (reason) b.title = reason;
-    let start = null;
-    b.addEventListener('pointerdown', (e) => {
-      start = [e.clientX, e.clientY];
-    });
-    b.addEventListener('click', (e) => {
-      if (start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10 && e.detail) {
-        start = null;
-        return;
-      }
-      start = null;
-      if (!this.destroyed && hasInputFocus(this)) action();
+    bindCancelablePress(b, action, {
+      enabled: () => !this.destroyed && hasInputFocus(this),
+      context: () => `${this.index}:${this.tab}`,
+      threshold: (event) => (event.pointerType === 'mouse' ? 10 : DRAG_SLOP_TOUCH),
     });
     return b;
   }
@@ -224,10 +225,11 @@ export class MobileRosterSheet {
       const face = this.portrait(unit, 'mr-unit-face');
       if (face) b.append(face);
       const info = el('span', null, 'mr-unit-info');
-      info.append(
-        el('strong', unit.name),
-        el('span', `${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`),
-      );
+      // Level rides the name row: the class/HP line already wraps at this column
+      // width for longer class names, and another token would wrap it more often.
+      const nameRow = el('span', null, 'mr-unit-name');
+      nameRow.append(el('strong', unit.name), el('em', `Lv ${getDisplayLevel(unit)}`));
+      info.append(nameRow, el('span', `${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`));
       info.append(createHealthBar(unit));
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -347,7 +349,7 @@ export class MobileRosterSheet {
         this.showHelp('Combat baseline', [
           `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
           'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
-          'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, hit chance and follow-up attacks.',
+          'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit rating and follow-up attacks.',
         ]),
       ),
     );
@@ -474,7 +476,13 @@ export class MobileRosterSheet {
       this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
       for (const scroll of this.run.scrolls || []) {
         const skill = this.gameData.skills.find((s) => s.id === scroll.skillId);
-        const card = this.card(scroll.name, skill?.description || scroll.description || '');
+        const card = this.card(
+          scroll.name,
+          scroll.teachesWeaponArtId
+            ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
+            : skill?.description || scroll.description || '',
+        );
+        card.classList.add('mr-scroll-description');
         if (!scroll.teachesWeaponArtId)
           card.append(this.button('Teach…', () => this.teachScroll(scroll)));
         else card.append(this.button('Bind to weapon…', () => this.bindArt(scroll)));
@@ -729,6 +737,7 @@ export class MobileRosterSheet {
     if (item === unit.weapon) c.append(el('p', 'Equipped', 'mr-equipped'));
     if (item.special) c.append(el('p', item.special));
     if (item.description) c.append(el('p', item.description));
+    appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
     if (item.lore) {
       const d = el('details');
       d.append(el('summary', 'About this item'), el('p', item.lore));
@@ -742,14 +751,47 @@ export class MobileRosterSheet {
       this.button(
         label,
         () => {
+          if (action === 'use' && item.effect === 'statBoost') {
+            this.useBooster(unit, item);
+            return;
+          }
           const result = rosterItemAction(this.run, unit, item, action);
-          if (!result && action === 'heal') this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(result || `${label}: ${item.name}`);
+          if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
+            this.scene.registry.get('audio')?.playSFX('sfx_heal');
+          this.render(
+            result || `${label}: ${item.name}${action === 'use' ? saveServiceRun(this.scene) : ''}`,
+          );
         },
         reason,
       ),
     );
     if (reason) card.append(el('small', reason));
+  }
+  useBooster(unit, item) {
+    if (this.picker || this.destroyed) return;
+    this.picker = new ChoicePicker({
+      scene: this.scene,
+      title: `Use ${item.name}?`,
+      choices: [item],
+      confirmation: true,
+      closeLabel: 'Cancel',
+      label: () =>
+        `${unit.name} · ${item.stat} ${unit.stats[item.stat]} → ${unit.stats[item.stat] + item.value}`,
+      describe: () =>
+        `Permanently increases ${item.stat} by ${item.value}. Consumes one use of ${item.name}.`,
+      blocked: () => rosterItemBlock(this.run, unit, item, 'use'),
+      apply: () => {
+        const reason = rosterItemAction(this.run, unit, item, 'use');
+        if (reason) return { ok: false, reason };
+        const warning = saveServiceRun(this.scene);
+        this.render(`${unit.name}: +${item.value} ${item.stat} from ${item.name}.${warning}`);
+        return { ok: true };
+      },
+      onClose: () => {
+        this.picker = null;
+        if (!this.destroyed) this.root.querySelector('button')?.focus();
+      },
+    });
   }
   gear(unit) {
     this.body.append(el('h3', `Equipment · ${unit.inventory?.length || 0}/5`));
@@ -782,11 +824,14 @@ export class MobileRosterSheet {
     }
     if (!unit.inventory?.length)
       this.card('No equipment', 'This unit is not carrying any weapons.');
-    this.body.append(el('h3', `Consumables · ${unit.consumables?.length || 0}/3`));
+    this.body.append(
+      el('h3', `Consumables · ${unit.consumables?.length || 0}/3`, 'mr-gear-section'),
+    );
     for (const item of unit.consumables || []) {
       const c = this.itemCard(item, unit);
       if (this.run) {
-        if (['heal', 'healFull'].includes(item.effect)) this.action(c, 'Use', unit, item, 'heal');
+        if (['heal', 'healFull', 'cure', 'cureHeal', 'statBoost'].includes(item.effect))
+          this.action(c, 'Use', unit, item, 'use');
         if (['promote', 'reclass'].includes(item.effect)) {
           const reason = rosterClassChangeBlock(this.run, unit, item, this.gameData);
           c.append(
@@ -804,8 +849,11 @@ export class MobileRosterSheet {
     }
     if (!unit.consumables?.length)
       this.card('No consumables', 'Withdraw supplies from the convoy between battles.');
+    this.body.append(
+      el('h3', `Accessories · ${unit.accessory ? 1 : 0}/1 equipped`, 'mr-gear-section'),
+    );
     const a = this.card(
-      'Accessory',
+      'Equipped accessory',
       unit.accessory
         ? `${unit.accessory.name} · ${formatAccessoryDetail(unit.accessory)}`
         : 'No accessory equipped.',
@@ -817,6 +865,8 @@ export class MobileRosterSheet {
             this.render(rosterAccessoryAction(this.run, unit) || 'Accessory returned to the pool.'),
           ),
         );
+      if (this.run.accessories?.length)
+        this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
         const c = this.card(item.name, formatAccessoryDetail(item));
         c.append(

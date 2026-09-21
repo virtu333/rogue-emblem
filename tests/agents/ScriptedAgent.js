@@ -92,25 +92,60 @@ export class ScriptedAgent {
         );
         return moves[0];
       }
+      // After the boss falls, a Lord must still reach the throne. Without
+      // this objective target an empty enemy list makes the default move
+      // repeatedly select the current tile, even with an adjacent throne.
+      const throne = b.battleConfig?.thronePos;
+      if (
+        unit?.isLord &&
+        b.battleConfig?.objective === 'seize' &&
+        throne &&
+        !b.enemyUnits.some((enemy) => enemy.isBoss)
+      ) {
+        const distance = (action) => {
+          const { col, row } = action.payload;
+          if (!b.grid?.findPath) return gridDistance(col, row, throne.col, throne.row);
+          const path = b.grid.findPath(col, row, throne.col, throne.row, unit.moveType);
+          return path
+            ? path
+                .slice(1)
+                .reduce(
+                  (cost, tile) => cost + b.grid.getMoveCost(tile.col, tile.row, unit.moveType),
+                  0,
+                )
+            : Infinity;
+        };
+        const scored = moves.map((action) => ({ action, distance: distance(action) }));
+        scored.sort((a, b) => a.distance - b.distance);
+        return scored[0].action;
+      }
       if (unit) {
         const nearestEnemy = this._findNearestEnemy(unit);
         if (nearestEnemy) {
-          moves.sort((a, b) => {
-            const distA = gridDistance(
-              a.payload.col,
-              a.payload.row,
+          // Legal moves cover this turn; path cost guides later turns around walls.
+          // Ignore temporary unit occupancy for the long route, not terrain.
+          const distance = (action) => {
+            const { col, row } = action.payload;
+            if (!b.grid?.findPath)
+              return gridDistance(col, row, nearestEnemy.col, nearestEnemy.row);
+            const path = b.grid.findPath(
+              col,
+              row,
               nearestEnemy.col,
               nearestEnemy.row,
+              unit.moveType,
             );
-            const distB = gridDistance(
-              b.payload.col,
-              b.payload.row,
-              nearestEnemy.col,
-              nearestEnemy.row,
-            );
-            return distA - distB;
-          });
-          return moves[0];
+            if (!path) return Infinity;
+            return path
+              .slice(1)
+              .reduce(
+                (cost, tile) => cost + b.grid.getMoveCost(tile.col, tile.row, unit.moveType),
+                0,
+              );
+          };
+          const scored = moves.map((action) => ({ action, distance: distance(action) }));
+          scored.sort((a, b) => a.distance - b.distance);
+          return scored[0].action;
         }
       }
       // Default: first move

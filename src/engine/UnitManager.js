@@ -133,6 +133,8 @@ export function learnSkill(unit, skillId) {
 /** Check if unit qualifies for any class-based or personal L20 skill at current level. Returns array of learned skill IDs. */
 export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   const learned = [];
+  // Class curricula are player progression; enemies use assignEnemySkills.
+  if (unit.faction === 'enemy') return learned;
 
   const cls = classesData.find((c) => c.name === unit.className);
   const tryLearn = (skillId) => {
@@ -312,12 +314,17 @@ function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
   const enemyEquipTierShift = isConfigObject
     ? Math.trunc(Number(difficultyConfig.enemyEquipTierShift ?? 0))
     : 0;
-  return { difficultyMod, enemyStatBonus, enemyEquipTierShift };
+  const classStatBonuses = isConfigObject ? difficultyConfig.classStatBonuses : null;
+  return { difficultyMod, enemyStatBonus, enemyEquipTierShift, classStatBonuses };
 }
 
 export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   if (!unit) return unit;
-  const { difficultyMod, enemyStatBonus } = parseEnemyDifficultyConfig(difficultyConfig);
+  const { difficultyMod, enemyStatBonus, classStatBonuses } =
+    parseEnemyDifficultyConfig(difficultyConfig);
+  const classBonus = Number(classStatBonuses?.[unit.className] ?? 0);
+  const flatBonus =
+    enemyStatBonus + (Number.isFinite(classBonus) ? Math.max(0, Math.trunc(classBonus)) : 0);
 
   // Apply multiplier first for backward compatibility with harness fixtures.
   if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
@@ -328,9 +335,9 @@ export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
   }
 
   // Apply flat difficulty stat bonus (HP gets double value).
-  if (enemyStatBonus !== 0) {
+  if (flatBonus !== 0) {
     for (const stat of XP_STAT_NAMES) {
-      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
+      const delta = stat === 'HP' ? flatBonus * 2 : flatBonus;
       unit.stats[stat] = (unit.stats[stat] || 0) + delta;
     }
     unit.currentHP = unit.stats.HP;
@@ -577,6 +584,14 @@ export function createRecruitUnit(
     hpBar: null,
   };
 
+  // Match load-time innate repair on the fresh unit, before optional meta skills
+  // can fill its slots. Promoted recruits retain base-class identity as well.
+  for (const className of [classData.name, classData.promotesFrom].filter(Boolean)) {
+    for (const skillId of getClassInnateSkills(className, options.skillsData)) {
+      learnSkill(unit, skillId);
+    }
+  }
+
   // Apply meta-progression growth bonuses BEFORE leveling
   if (growthBonuses) {
     for (const [stat, bonus] of Object.entries(growthBonuses)) {
@@ -613,6 +628,12 @@ export function createRecruitUnit(
   if (isArcherTypeRecruit) {
     const longbow = allWeapons.find((w) => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
+  }
+
+  // Dedicated axe recruits arrive with a ranged option, like Archer/Sniper.
+  if (classData.name === 'Fighter' || classData.name === 'Warrior') {
+    const handAxe = allWeapons.find((weapon) => weapon.name === 'Hand Axe');
+    if (handAxe) addToInventory(unit, handAxe);
   }
 
   // Ensure already-leveled recruits receive any class learnables at current thresholds.
@@ -851,7 +872,7 @@ export function grantSecondaryWeapons(unit, allWeapons, weaponTier) {
  * Guarantees at least 1 stat gain (uses highest growth as fallback).
  * Returns { gains: {HP:1, STR:0, ...}, newLevel } or null if at cap.
  */
-export function levelUp(unit) {
+export function levelUp(unit, rng = Math.random) {
   const cap = unit.tier === 'promoted' ? PROMOTED_CLASS_LEVEL_CAP : BASE_CLASS_LEVEL_CAP;
   if (unit.level >= cap) return null;
 
@@ -860,7 +881,7 @@ export function levelUp(unit) {
 
   for (const stat of XP_STAT_NAMES) {
     const growth = unit.growths[stat] || 0;
-    const gained = Math.random() * 100 < growth ? 1 : 0;
+    const gained = rng() * 100 < growth ? 1 : 0;
     gains[stat] = gained;
     totalGains += gained;
   }

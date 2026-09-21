@@ -116,4 +116,24 @@ describe('BattleScene level-up audio lifecycle', () => {
     BattleScene.prototype._stopLevelUpSfx.call(scene);
     expect(scene.sound.stopByKey).toHaveBeenCalledTimes(1);
   });
+  it('queues distinct intermediate stats while keeping all earned gains applied', async () => {
+    gainExperienceMock.mockImplementation((unit) => {
+      unit.stats.STR += 2;
+      return {
+        levelUps: [
+          { newLevel: 2, gains: { STR: 1 } },
+          { newLevel: 3, gains: { STR: 1 } },
+        ],
+      };
+    });
+    const { scene } = makeScene();
+    const unit = { name: 'Edric', col: 1, row: 1, stats: { STR: 10 } };
+    scene.playerUnits = [unit];
+    await scene.awardScaledXP(unit, 200);
+    expect(scene._pendingLevelUpPopups.map((p) => p.levelUp.displayStats.STR)).toEqual([11, 12]);
+    expect(unit.stats.STR).toBe(12);
+    await presentQueuedLevelUps(scene);
+    expect(unit.stats.STR).toBe(12);
+    expect(popupShowMock).toHaveBeenCalledTimes(2);
+  });
 });

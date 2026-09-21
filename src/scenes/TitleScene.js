@@ -1,3 +1,5 @@
+import { showRunRecords } from '../ui/RunRecordsMenu.js';
+import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from '../ui/MenuSurface.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -18,6 +20,7 @@ import { backupAllLocalSlots, getCloudSyncStatus, pushMeta } from '../cloud/Clou
 import {
   MAX_SLOTS,
   getSlotCount,
+  getSlotSummary,
   getNextAvailableSlot,
   setActiveSlot,
   getMetaKey,
@@ -729,7 +732,14 @@ export class TitleScene extends Phaser.Scene {
     let menuY = 190;
     const btnDelay = 1000;
     const btnGap = 48;
+    const slotSummaries = Array.from({ length: MAX_SLOTS }, (_, index) =>
+      getSlotSummary(index + 1),
+    );
     const hasSlots = getSlotCount() > 0;
+    let tutorialDone = false;
+    try {
+      tutorialDone = Boolean(localStorage.getItem('emblem_rogue_tutorial_completed'));
+    } catch (_) {}
 
     // Main vertical menu column, collected in display order so the gamepad can
     // drive a focus highlight over them (corner Settings/Log Out stay pointer-only).
@@ -740,7 +750,7 @@ export class TitleScene extends Phaser.Scene {
         this,
         cx,
         menuY,
-        'NEW GAME',
+        !hasSlots && tutorialDone ? 'START FIRST RUN' : 'NEW GAME',
         () => this.runMenuTransition(() => this.handleNewGame()),
         btnDelay,
       ),
@@ -749,20 +759,22 @@ export class TitleScene extends Phaser.Scene {
 
     let delayIdx = 1;
 
-    // CONTINUE button (if slots exist)
+    const activeRuns = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
+    const resumeSlot = activeRuns.length === 1 ? activeRuns[0] : null;
+    // Continue retains the full picker when there is more than one active run.
     if (hasSlots) {
       this._menuButtons.push(
         createMenuButton(
           this,
           cx,
           menuY,
-          'CONTINUE',
+          resumeSlot ? `RESUME · ACT ${resumeSlot.actReached}` : 'CONTINUE',
           () =>
             this.runMenuTransition(() =>
               transitionToScene(
                 this,
                 'SlotPicker',
-                { gameData: this.gameData },
+                { gameData: this.gameData, resumeSlot: resumeSlot?.slot },
                 { reason: TRANSITION_REASONS.CONTINUE },
               ),
             ),
@@ -818,12 +830,29 @@ export class TitleScene extends Phaser.Scene {
                 deployCount: 2,
               },
             },
-            { reason: TRANSITION_REASONS.NEW_GAME },
+            { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
           );
         }),
       btnDelay + delayIdx * 150,
     );
-    this._menuButtons.push(tutBtn);
+    if (!hasSlots && !tutorialDone) {
+      const top = this._menuButtons[0].y;
+      for (const button of this._menuButtons) button.y += btnGap;
+      tutBtn.y = top;
+      const label = tutBtn.list.find((child) => child.text === 'TUTORIAL');
+      if (label) label.y = -6;
+      tutBtn.add(
+        applyTextResolution(
+          this.add.text(0, 12, 'START HERE', {
+            fontFamily: FONT,
+            fontSize: '7px',
+            color: UI_PALETTE.accent,
+            letterSpacing: 1,
+          }),
+        ).setOrigin(0.5),
+      );
+      this._menuButtons.unshift(tutBtn);
+    } else this._menuButtons.push(tutBtn);
     menuY += btnGap;
     delayIdx++;
 
@@ -870,7 +899,7 @@ export class TitleScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         });
       }
-      if (!localStorage.getItem('emblem_rogue_tutorial_completed')) {
+      if (hasSlots && !localStorage.getItem('emblem_rogue_tutorial_completed')) {
         const tutBadge = applyTextResolution(
           this.add.text(135, 0, 'NEW', {
             fontFamily: FONT,
@@ -913,6 +942,41 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
+    if (resumeSlot)
+      this._menuButtons.push(
+        createMenuButton(
+          this,
+          W - 78,
+          H - 30,
+          'SAVE SLOTS',
+          () =>
+            this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
+            ),
+          btnDelay,
+          { width: 130, height: 44, fontSize: '8px', letterSpacing: 1 },
+        ),
+      );
+
+    this._menuButtons.push(
+      createMenuButton(this, W - 80, H - 65, 'RECORDS', () => showRunRecords(this), btnDelay, {
+        width: 130,
+        height: 44,
+        fontSize: '8px',
+        letterSpacing: 1,
+      }),
+    );
+
+    if (resumeSlot && this._menuButtons.length > 1) {
+      const [newGame, resume] = this._menuButtons;
+      [newGame.y, resume.y] = [resume.y, newGame.y];
+      [this._menuButtons[0], this._menuButtons[1]] = [resume, newGame];
+    }
     // Settings — small button in top-left corner
     createMenuButton(
       this,
@@ -1323,7 +1387,11 @@ export class TitleScene extends Phaser.Scene {
     // Stage slot state in registry (meta/hints/activeSlot) the same way
     // SlotPickerScene does before its transition.
     this.registry.set('meta', meta);
-    this.registry.set('hints', new HintManager(nextSlot));
+    this.registry.set(
+      'hints',
+      new HintManager(nextSlot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
     this.registry.set('activeSlot', nextSlot);
     try {
       // A brand-new slot is always fresh: skip Home Base / Difficulty / Blessing

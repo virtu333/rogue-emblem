@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rollTraits,
+  migrateCleverTrait,
   rollAndApplyTraits,
   applyTraitCreationMods,
   getTraitNames,
@@ -37,6 +38,7 @@ describe('traits.json data contract', () => {
     'name',
     'description',
     'creationMods',
+    'eligibleWeaponTypes',
     'combatMods',
     'xpMultiplier',
     'masteryBattlesDelta',
@@ -244,5 +246,30 @@ describe('getTraitNames', () => {
   it('empty string when none', () => {
     expect(getTraitNames({ traits: [] }, traits)).toBe('');
     expect(getTraitNames({}, traits)).toBe('');
+  });
+});
+
+describe('Clever eligibility and save repair', () => {
+  it('only rolls for magic/staff proficiencies', () => {
+    const clever = traits.filter((t) => t.id === 'clever');
+    for (const type of ['Tome', 'Light', 'Staff'])
+      expect(rollTraits(clever, 1, () => 0, { proficiencies: [{ type }] })).toEqual(['clever']);
+    for (const type of ['Lance', 'Sword', 'Bow', 'Axe'])
+      expect(rollTraits(clever, 1, () => 0, { proficiencies: [{ type }] })).toEqual([]);
+  });
+  it('repairs old saves only once and does not reapply to new rolls', () => {
+    const old = { traits: ['clever'], stats: { DEF: 4, MAG: 3 }, growths: { MAG: 20 } };
+    migrateCleverTrait(old);
+    migrateCleverTrait(old);
+    expect(old.stats).toEqual({ DEF: 5, MAG: 3 });
+    expect(old.growths.MAG).toBe(25);
+    const fresh = { traits: ['clever'], stats: { DEF: 5, MAG: 2 }, growths: { MAG: 20 } };
+    applyTraitCreationMods(
+      fresh,
+      traits.find((t) => t.id === 'clever'),
+    );
+    migrateCleverTrait(fresh);
+    expect(fresh.stats).toEqual({ DEF: 5, MAG: 3 });
+    expect(fresh.growths.MAG).toBe(25);
   });
 });

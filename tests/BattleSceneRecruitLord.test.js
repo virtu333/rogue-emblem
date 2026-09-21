@@ -141,7 +141,7 @@ function makeBattleSceneWithLords({
   scene.cancelTouchInspectHold = vi.fn();
   scene._hideMenuTooltip = vi.fn();
   scene._restoreBattleRng = vi.fn();
-  scene._isReducedEffects = vi.fn(() => true);
+  scene._reduceMotion = vi.fn(() => true);
   scene._onDangerClick = vi.fn();
   scene._onRosterClick = vi.fn();
   scene.forceEndTurn = vi.fn();

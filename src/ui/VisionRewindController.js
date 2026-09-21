@@ -321,6 +321,11 @@ export class VisionRewindController {
     this.updateHud();
     scene.refreshEndTurnControl();
     this.playRewindEffect();
+    if (scene.cameras?.main)
+      void scene.showBriefBanner?.(
+        `Returned to player turn ${scene.turnManager.turnNumber}`,
+        '#9ed8ff',
+      );
     // Re-assert current music to trigger orphan scanner (no-op when clean)
     const audio = scene.registry.get('audio');
     if (audio && audio.currentMusicKey) {
@@ -398,7 +403,7 @@ export class VisionRewindController {
 
     this.showDialog({
       title: 'Foresee a different path?',
-      body: `Spend 1 Vision to rewind this turn?\n(${remaining} remaining)`,
+      body: `Spend 1 rewind to return to the start of this player turn?\n(${remaining} left this run)`,
       confirmLabel: 'Confirm',
       cancelLabel: 'Cancel',
       onConfirm: () => this.executeRewind(),
@@ -415,7 +420,7 @@ export class VisionRewindController {
     const seraPresent = visionPool.some((u) => u?.name === 'Sera');
     this.showDialog({
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
-      body: `Reveal another path?\n(${remaining} remaining)`,
+      body: `Reveal another path?\n(${remaining} left this run)`,
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => this.executeRewind(),
@@ -555,7 +560,7 @@ export class VisionRewindController {
   updateHud() {
     if (!this.scene.visionHudText) return;
     const charges = this.getChargesRemaining();
-    this.scene.visionHudText.setText(`Eye: ${charges} (rewind current turn)`);
+    this.scene.visionHudText.setText(`Eye: ${charges} left this run`);
     this.scene.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
     this.scene.updateTopLeftHudLayout();
   }

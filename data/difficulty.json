@@ -20,13 +20,21 @@
       "deployLimitBonus": 0,
       "xpMultiplier": 1,
       "fogChanceBonus": 0,
-      "villageAmbushChance": 0.10,
+      "villageAmbushChance": 0.1,
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1,
-      "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+      "actsIncluded": [
+        "act1",
+        "act2",
+        "act3",
+        "finalBoss"
+      ],
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": -1,
-      "growthBonusMultiplier": 1.0
+      "growthBonusMultiplier": 1.0,
+      "recruitEnemyCountBonus": 0,
+      "act1EnemyCountDeployCap": 3,
+      "classStatBonuses": {}
     },
     "hard": {
       "label": "Hard",
@@ -40,11 +48,19 @@
       "enemyPoisonChance": 0.08,
       "enemyStatusStaffChance": 0,
       "statusStaffConfig": {
-        "act1": 0, "act2": 0, "act3": 0.08, "act4": 0.08, "finalBoss": 0.15,
+        "act1": 0,
+        "act2": 0,
+        "act3": 0.08,
+        "act4": 0.08,
+        "finalBoss": 0.15,
         "maxPerBattle": 1
       },
       "shopCureGating": {
-        "act1": false, "act2": false, "act3": true, "act4": true, "finalBoss": true
+        "act1": false,
+        "act2": false,
+        "act3": true,
+        "act4": true,
+        "finalBoss": true
       },
       "goldMultiplier": 0.9,
       "shopPriceMultiplier": 1.15,
@@ -52,13 +68,24 @@
       "deployLimitBonus": 0,
       "xpMultiplier": 0.9,
       "fogChanceBonus": 0.15,
-      "villageAmbushChance": 0.20,
+      "villageAmbushChance": 0.2,
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.25,
-      "actsIncluded": ["act1", "act2", "act3", "act4"],
+      "actsIncluded": [
+        "act1",
+        "act2",
+        "act3",
+        "act4"
+      ],
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": 3,
-      "growthBonusMultiplier": 0.8
+      "growthBonusMultiplier": 0.8,
+      "recruitEnemyCountBonus": 1,
+      "act1EnemyCountDeployCap": 0,
+      "classStatBonuses": {
+        "Fighter": 1,
+        "Archer": 1
+      }
     },
     "lunatic": {
       "label": "Lunatic",
@@ -72,11 +99,19 @@
       "enemyPoisonChance": 0.2,
       "enemyStatusStaffChance": 0.15,
       "statusStaffConfig": {
-        "act1": 0, "act2": 0.08, "act3": 0.15, "act4": 0.15, "finalBoss": 0.25,
+        "act1": 0,
+        "act2": 0.08,
+        "act3": 0.15,
+        "act4": 0.15,
+        "finalBoss": 0.25,
         "maxPerBattle": 2
       },
       "shopCureGating": {
-        "act1": false, "act2": true, "act3": true, "act4": true, "finalBoss": true
+        "act1": false,
+        "act2": true,
+        "act3": true,
+        "act4": true,
+        "finalBoss": true
       },
       "goldMultiplier": 0.8,
       "shopPriceMultiplier": 1.25,
@@ -87,13 +122,30 @@
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.5,
-      "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
+      "actsIncluded": [
+        "act1",
+        "act2",
+        "act3",
+        "act4",
+        "finalBoss"
+      ],
       "extendedLevelingEnabled": true,
       "churchPromotionLimit": 2,
       "growthBonusMultiplier": 0.5,
       "siegeWeaponConfig": {
-        "act1": 0, "act2": 0, "act3": 0.10, "act4": 0.12, "finalBoss": 0.15,
-        "maxPerBattle": 1, "weaponName": "Bolting"
+        "act1": 0,
+        "act2": 0,
+        "act3": 0.1,
+        "act4": 0.12,
+        "finalBoss": 0.15,
+        "maxPerBattle": 1,
+        "weaponName": "Bolting"
+      },
+      "recruitEnemyCountBonus": 1,
+      "act1EnemyCountDeployCap": 0,
+      "classStatBonuses": {
+        "Fighter": 2,
+        "Archer": 2
       }
     }
   }

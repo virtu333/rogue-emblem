@@ -914,11 +914,21 @@ describe('MapGenerator', () => {
     it('adds +1 enemy for recruit battles when under density cap', () => {
       for (let seed = 1; seed <= 30; seed++) {
         const baseline = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0 }, data),
+          generateBattle(
+            { difficultyId: 'hard', act: 'act1', objective: 'rout', deployCount: 2, row: 0 },
+            data,
+          ),
         );
         const recruit = withSeed(seed, () =>
           generateBattle(
-            { act: 'act1', objective: 'rout', deployCount: 2, row: 0, isRecruitBattle: true },
+            {
+              difficultyId: 'hard',
+              act: 'act1',
+              objective: 'rout',
+              deployCount: 2,
+              row: 0,
+              isRecruitBattle: true,
+            },
             data,
           ),
         );
@@ -929,11 +939,21 @@ describe('MapGenerator', () => {
     it('does not exceed density cap when recruit +1 would overflow cap', () => {
       for (let seed = 1; seed <= 20; seed++) {
         const baseline = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4 }, data),
+          generateBattle(
+            { difficultyId: 'hard', act: 'act1', objective: 'rout', deployCount: 7, row: 4 },
+            data,
+          ),
         );
         const recruit = withSeed(seed, () =>
           generateBattle(
-            { act: 'act1', objective: 'rout', deployCount: 7, row: 4, isRecruitBattle: true },
+            {
+              difficultyId: 'hard',
+              act: 'act1',
+              objective: 'rout',
+              deployCount: 7,
+              row: 4,
+              isRecruitBattle: true,
+            },
             data,
           ),
         );
@@ -3220,5 +3240,36 @@ describe('resolveAnchorUnitClass', () => {
         ).toBe(false);
       }
     });
+  });
+});
+
+describe('healer cap across multi-tile anchors', () => {
+  it('limits all placement paths to one Cleric and assigns healing AI', () => {
+    const deps = structuredClone(data);
+    const template = deps.mapTemplates.rout.find((entry) => entry.id === 'open_field');
+    template.anchors = [{ position: 'center_gap', unit: 'highest_level', count: 3 }];
+    deps.enemies.pools.act2.base = ['Cleric', 'Fighter'];
+    deps.enemies.pools.act2.promoted = [];
+    let anchoredHealers = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle(
+          {
+            act: 'act2',
+            objective: 'rout',
+            templateId: 'open_field',
+            levelRange: [1, 20],
+          },
+          deps,
+        ),
+      );
+      const healers = config.enemySpawns.filter((entry) => entry.className === 'Cleric');
+      expect(healers.length).toBeLessThanOrEqual(1);
+      for (const healer of healers) {
+        expect(healer.aiMode).toBe('heal');
+        if (healer.level === 20) anchoredHealers++;
+      }
+    }
+    expect(anchoredHealers).toBeGreaterThan(0);
   });
 });

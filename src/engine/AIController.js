@@ -1,17 +1,31 @@
+import { hitProbability } from './HitRoll.js';
 // AIController - Enemy AI with boss throne clamping and guard behavior
 // Processes enemies sequentially: move toward nearest player, attack if in range.
 // Boss enemies on seize maps stay within 1 tile of throne.
-// Guard enemies wait until a player enters trigger range, then permanently switch to chase.
+// Guard enemies wait until a player enters trigger range, then return to their post when the threat leaves.
 
-import { gridDistance, isInRange, getWeaponTriangleBonus, isMagical } from './Combat.js';
+import {
+  gridDistance,
+  isInRange,
+  getWeaponTriangleBonus,
+  isMagical,
+  getCombatForecast,
+  getStaffRemainingUses,
+  getEffectiveStaffRange,
+  resolveHeal,
+  spendStaffUse,
+} from './Combat.js';
+import { canEquip } from './UnitManager.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import {
   hasCondition,
   isRooted,
   isSilenced,
+  isSleeping,
   isStatusImmune,
   parseStaffRange,
+  isHealStaff,
 } from './StatusConditionSystem.js';
 import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
@@ -58,8 +72,9 @@ export class AIController {
     const enemies = [...enemyUnits];
 
     for (const enemy of enemies) {
+      if (callbacks.isCurrent?.() === false) break;
       // Skip if already dead (removed during a previous enemy's combat)
-      if (!enemyUnits.includes(enemy)) continue;
+      if (!enemyUnits.includes(enemy) || enemy.hasActed) continue;
       if (playerUnits.length === 0) break;
 
       await this._processOneEnemy(enemy, enemyUnits, playerUnits, npcUnits || [], callbacks);
@@ -70,6 +85,14 @@ export class AIController {
   }
 
   async _processOneEnemy(enemy, allEnemies, playerUnits, npcUnits, callbacks) {
+    if (isSleeping(enemy)) {
+      const decision = { path: null, target: null, reason: 'asleep' };
+      enemy._lastAiDecision = decision;
+      callbacks.onDecision?.(enemy, decision);
+      await callbacks.onUnitDone(enemy);
+      return;
+    }
+
     // Entity boss: stationary, dual weapon, range-2 primary attack
     if (isEntity(enemy)) {
       const decision = this._decideEntityAction(enemy, playerUnits, npcUnits);
@@ -78,7 +101,7 @@ export class AIController {
       if (decision?.target) {
         await callbacks.onAttack(enemy, decision.target);
       }
-      callbacks.onUnitDone(enemy);
+      await callbacks.onUnitDone(enemy);
       return;
     }
 
@@ -91,10 +114,18 @@ export class AIController {
       await callbacks.onMoveUnit(enemy, decision.path);
     }
 
+    if (callbacks.isCurrent?.() === false) return;
+    if (decision.healTarget) {
+      const result = this.applyHealDecision(enemy, decision.healTarget, decision.healStaff);
+      if (result) await callbacks.onHeal?.(enemy, decision.healTarget, result);
+      await callbacks.onUnitDone(enemy);
+      return;
+    }
+
     // Status staff use (separate from normal attack)
     if (decision.statusStaffTarget) {
       await callbacks.onStatusStaff?.(enemy, decision.statusStaffTarget);
-      callbacks.onUnitDone(enemy);
+      await callbacks.onUnitDone(enemy);
       return;
     }
 
@@ -121,7 +152,7 @@ export class AIController {
       await callbacks.onBreak?.(enemy, decision.breakTile);
     }
 
-    callbacks.onUnitDone(enemy);
+    await callbacks.onUnitDone(enemy);
   }
 
   /** Entity AI: stationary, picks best weapon, targets within ENTITY_PRIMARY_ATTACK_RANGE. */
@@ -164,38 +195,24 @@ export class AIController {
    *
    * Special behaviors:
    * - Guard enemies: stay put until a player/NPC is within trigger range,
-   *   then permanently switch to chase mode.
+   *   then return toward the remembered post when the threat leaves.
    * - Boss on seize maps: only consider tiles within 1 manhattan tile of throne.
    *   If no attack available, stay put (don't chase away from throne).
    */
   _decideAction(enemy, allEnemies, playerUnits, npcUnits) {
     const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
-    // --- Guard AI check ---
+    let returnToPost = false;
     if (enemy.aiMode === 'guard') {
-      const attackableUnits = [...playerUnits, ...(npcUnits || [])];
+      enemy.guardPost ||= { col: enemy.col, row: enemy.row };
       const nearestDist = Math.min(
-        ...attackableUnits.map((u) => gridDistance(enemy.col, enemy.row, u.col, u.row)),
+        ...[...playerUnits, ...(npcUnits || [])]
+          .filter((u) => u && u.currentHP > 0 && !u._removing)
+          .map((u) => gridDistance(enemy.guardPost.col, enemy.guardPost.row, u.col, u.row)),
         Infinity,
       );
-      const triggerDist = this.aggressiveMode ? 6 : 3;
-
-      if (nearestDist <= triggerDist) {
-        // Trigger: permanently switch to chase
-        enemy.aiMode = 'chase';
-        aiLog.debug(`Guard triggered at (${enemy.col},${enemy.row}), dist=${nearestDist}`);
-      } else if (!this.aggressiveMode) {
-        // Stay put - no movement, no attack
-        aiLog.debug(`Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
-        return this._finalizeDecision(enemy, {
-          path: null,
-          target: null,
-          reason: 'guard_hold',
-          detail: {
-            nearestDistance: Number.isFinite(nearestDist) ? nearestDist : null,
-            triggerDistance: triggerDist,
-          },
-        });
-      }
+      returnToPost = !this.aggressiveMode && nearestDist > 3;
+      if (returnToPost && enemy.col === enemy.guardPost.col && enemy.row === enemy.guardPost.row)
+        return this._finalizeDecision(enemy, { path: null, target: null, reason: 'guard_hold' });
     }
 
     // Build unit position map (exclude this enemy from blocking)
@@ -278,6 +295,20 @@ export class AIController {
       }
     }
 
+    if (returnToPost) {
+      const distance = (tile) =>
+        gridDistance(tile.col, tile.row, enemy.guardPost.col, enemy.guardPost.row);
+      const best = candidatePlans.reduce(
+        (best, plan) => (distance(plan.finalTile) < distance(best.finalTile) ? plan : best),
+        { finalTile: { col: enemy.col, row: enemy.row }, path: null },
+      );
+      return this._finalizeDecision(enemy, {
+        path: best.path,
+        target: null,
+        reason: 'guard_return',
+      });
+    }
+
     // --- Tile-seeking AI (village bandits) ---
     // Carries its own decision pipeline: bandits beeline for aiTargetTile and
     // never chase player units. Placed after the acid filter so candidates and
@@ -296,6 +327,52 @@ export class AIController {
         ),
       );
     }
+
+    // Healing is a support archetype; explicit village/guard behavior stays prior.
+    if (enemy.aiMode === 'heal' && !isSilenced(enemy)) {
+      let best = null;
+      const staves = (enemy.inventory || []).filter(
+        (staff) =>
+          isHealStaff(staff) && canEquip(enemy, staff) && getStaffRemainingUses(staff, enemy) > 0,
+      );
+      for (const staff of staves) {
+        const range = getEffectiveStaffRange(staff, enemy);
+        for (const candidate of candidatePlans)
+          for (const ally of allEnemies) {
+            if (
+              ally === enemy ||
+              ally.currentHP <= 0 ||
+              ally._removing ||
+              ally.currentHP >= ally.stats.HP * 0.75
+            )
+              continue;
+            const distance = gridDistance(
+              candidate.finalTile.col,
+              candidate.finalTile.row,
+              ally.col,
+              ally.row,
+            );
+            if (distance < range.min || distance > range.max) continue;
+            const result = resolveHeal(staff, enemy, ally);
+            const score = result.healAmount + (ally.isBoss ? 3 : 0);
+            if (!best || score > best.score) best = { candidate, ally, staff, score };
+          }
+      }
+      if (best)
+        return this._finalizeDecision(enemy, {
+          path: best.candidate.path,
+          target: null,
+          healTarget: best.ally,
+          healStaff: best.staff,
+          reason: 'heal_ally',
+        });
+      // Staff-only healers do not approach the player to make zero-damage attacks.
+      if (!enemy.weapon || enemy.weapon.type === 'Staff')
+        return this._finalizeDecision(enemy, { path: null, target: null, reason: 'healer_hold' });
+    }
+
+    if (enemy.aiMode === 'heal' && (!enemy.weapon || enemy.weapon.type === 'Staff'))
+      return this._finalizeDecision(enemy, { path: null, target: null, reason: 'healer_hold' });
 
     // --- Status staff targeting (checked before normal attack) ---
     const staff = enemy.statusStaff;
@@ -380,7 +457,12 @@ export class AIController {
         );
         if (!isInRange(enemy.weapon, dist)) continue;
 
-        const score = this._scoreAttackTarget(enemy, target, forceLowestHpTargeting);
+        const score = this._scoreAttackTarget(
+          enemy,
+          target,
+          forceLowestHpTargeting,
+          candidate.finalTile,
+        );
         if (score > bestScore) {
           bestScore = score;
           bestAttack = { candidate, target };
@@ -1016,14 +1098,69 @@ export class AIController {
     return false;
   }
 
-  _scoreAttackTarget(enemy, target, forceLowestHpTargeting = false) {
+  applyHealDecision(healer, target, staff) {
+    if (
+      !staff ||
+      !healer.inventory?.includes(staff) ||
+      !isHealStaff(staff) ||
+      !canEquip(healer, staff) ||
+      isSilenced(healer) ||
+      isSleeping(healer) ||
+      healer.currentHP <= 0 ||
+      target.currentHP <= 0 ||
+      target._removing ||
+      healer === target ||
+      healer.faction !== target.faction ||
+      getStaffRemainingUses(staff, healer) <= 0
+    )
+      return null;
+    const range = getEffectiveStaffRange(staff, healer);
+    const distance = gridDistance(healer.col, healer.row, target.col, target.row);
+    if (distance < range.min || distance > range.max || target.currentHP >= target.stats.HP)
+      return null;
+    const result = resolveHeal(staff, healer, target);
+    target.currentHP = result.targetHPAfter;
+    spendStaffUse(staff);
+    return result;
+  }
+
+  _terrainAt(tile) {
+    return (
+      this.grid.getTerrainAt?.(tile.col, tile.row) ||
+      this.gameData?.terrain?.[this.grid?.mapLayout?.[tile.row]?.[tile.col]] ||
+      null
+    );
+  }
+
+  _scoreAttackTarget(enemy, target, forceLowestHpTargeting = false, landing = enemy) {
     let score;
-    if (forceLowestHpTargeting) {
-      score = 1000 - (target.currentHP || 0);
-    } else {
-      // Default score: prefer damaged/lower HP targets.
-      const maxHp = target?.stats?.HP || target.currentHP || 0;
-      score = maxHp - (target.currentHP || 0) + (100 - (target.currentHP || 0));
+    if (forceLowestHpTargeting) score = 1000 - (target.currentHP || 0);
+    else {
+      const attacker = { ...enemy, col: landing.col, row: landing.row };
+      const forecast = getCombatForecast(
+        attacker,
+        enemy.weapon,
+        target,
+        target.weapon,
+        gridDistance(landing.col, landing.row, target.col, target.row),
+        this._terrainAt(landing),
+        this._terrainAt(target),
+        { skillsData: this.gameData?.skills || [], imbuesData: this.gameData?.imbues },
+      );
+      const expected = (side) =>
+        Math.max(0, Number(side?.damage) || 0) *
+        hitProbability(side?.hit) *
+        (Number(side?.attackCount) || 0);
+      const dealt = expected(forecast.attacker);
+      const taken = forecast.defender?.canCounter ? expected(forecast.defender) : 0;
+      const hpFraction = Math.max(0, Math.min(1, enemy.currentHP / (enemy.stats?.HP || 1)));
+      const kill = dealt >= target.currentHP && dealt > 0 ? 12 : 0;
+      const woundedTie = Math.max(0, (target.stats?.HP || 0) - target.currentHP) * 0.01;
+      score = dealt + kill - taken * (0.35 + 0.65 * (1 - hpFraction)) + woundedTie;
+      const terrain = this._terrainAt(landing);
+      score +=
+        ((Number(terrain?.avoidBonus) || 0) * 0.002 + (Number(terrain?.defBonus) || 0) * 0.02) *
+        (hpFraction < 0.5 ? 2 : 1);
     }
     // Merchant Caravan: enemies prioritize killing it (unconditional, not
     // gated behind aggressiveMode -- the caravan is the whole point of the

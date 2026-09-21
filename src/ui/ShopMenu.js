@@ -1,3 +1,4 @@
+import { appendItemArtDetails } from './ItemArtDetails.js';
 import { saveServiceRun } from './serviceSave.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -231,6 +232,7 @@ export class ShopMenu {
         'shop-mechanics',
       ),
     );
+    appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || []);
     const forge = getForgeDisplayInfo(item);
     if (forge.level)
       copy.append(

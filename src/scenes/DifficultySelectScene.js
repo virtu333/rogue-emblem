@@ -78,6 +78,10 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.meta = this.registry.get('meta');
     this.selectedIndex = 0;
     this.modes = this._buildModes();
+    const remembered = this.modes.findIndex(
+      (mode) => mode.id === this.meta?.lastDifficulty && !mode.locked,
+    );
+    if (remembered >= 0) this.selectedIndex = remembered;
 
     this.input.keyboard.on('keydown-LEFT', this._onKeyLeft);
     this.input.keyboard.on('keydown-RIGHT', this._onKeyRight);
@@ -178,6 +182,7 @@ export class DifficultySelectScene extends Phaser.Scene {
       { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: hasDOMHost() },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;
+      else this.meta?.rememberDifficulty?.(mode.id);
     });
   }
 

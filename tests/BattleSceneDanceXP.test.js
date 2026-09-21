@@ -41,7 +41,7 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
         if (onComplete) onComplete();
       },
     },
-    _isReducedEffects: () => true,
+    _reduceMotion: () => true,
     commitVisionSnapshotIfPending: () => false,
     hideActionMenu() {},
     undimUnit() {},

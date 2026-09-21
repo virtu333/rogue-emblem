@@ -22,6 +22,7 @@ vi.mock('phaser', () => ({
 vi.mock('../src/ui/HintDisplay.js', () => ({
   showImportantHint: vi.fn(async () => {}),
   showMinorHint: vi.fn(),
+  showContextualHint: vi.fn(),
 }));
 
 vi.mock('../src/utils/errorReporter.js', () => ({
@@ -35,7 +36,7 @@ vi.mock('../src/ui/LevelUpPopup.js', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
-import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { showImportantHint, showContextualHint } from '../src/ui/HintDisplay.js';
 import { TERRAIN } from '../src/utils/constants.js';
 
 afterEach(() => {
@@ -365,11 +366,11 @@ describe('player turn-start input ownership', () => {
     const hint = delayedCallbacks.find((entry) => entry.ms === 1500).cb();
     await Promise.resolve();
     expect(scene.battleState).toBe('TURN_START_RESOLVING');
-    expect(showImportantHint).not.toHaveBeenCalled();
+    expect(showContextualHint).not.toHaveBeenCalled();
     healing.resolve();
     await running;
     await hint;
-    expect(showImportantHint).toHaveBeenCalledOnce();
+    expect(showContextualHint).toHaveBeenCalledOnce();
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });
 

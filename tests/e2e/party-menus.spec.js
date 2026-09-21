@@ -11,6 +11,7 @@ test('deployment locks commander, preserves selections through roster and confir
   await boot(page);
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.runManager.lastDeployment = [];
     s.showDeployScreen(s.runManager.roster, { min: 2, max: 2 }, (units) => {
       window.deployedNames = units.map((u) => u.name);
     });
@@ -120,4 +121,27 @@ test('deployment survives rotation without hiding its confirm control', async ({
     await expect(dialog.getByRole('button', { name: 'Deploy', exact: true })).toBeInViewport();
     expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   }
+});
+
+test('remembered deployment restores survivors, keeps commander, and can clear optional picks', async ({
+  page,
+}, info) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.runManager.lastDeployment = ['Edric', 'Missing recruit', 'Sera'];
+    s.showDeployScreen(s.runManager.roster, { min: 2, max: 2 }, (units) => {
+      window.deployedNames = units.map((u) => u.name);
+    });
+  });
+  const dialog = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  await expect(dialog).toContainText('2 / 2 selected');
+  await dialog.getByRole('button', { name: 'Clear optional selections', exact: true }).tap();
+  await expect(dialog).toContainText('1 / 2 selected');
+  await expect(dialog.getByRole('button', { name: 'Deploy', exact: true })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Same as last battle', exact: true }).tap();
+  await expect(dialog).toContainText('2 / 2 selected');
+  await page.screenshot({ path: info.outputPath('deployment-memory.png') });
+  await dialog.getByRole('button', { name: 'Deploy', exact: true }).tap();
+  expect(await page.evaluate(() => window.deployedNames)).toEqual(['Edric', 'Sera']);
 });

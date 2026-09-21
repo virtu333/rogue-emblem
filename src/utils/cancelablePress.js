@@ -28,11 +28,20 @@ export function bindCancelablePress(
   const down = (event) => {
     canceled =
       !available() || event.isPrimary === false || (event.button != null && event.button !== 0);
-    press = { id: event.pointerId, x: event.clientX, y: event.clientY, context: context() };
+    press = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      context: context(),
+      threshold: typeof threshold === 'function' ? threshold(event) : threshold,
+    };
   };
   const move = (event) => {
     if (!press || press.id !== event.pointerId) return;
-    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > threshold || !inside(event))
+    if (
+      Math.hypot(event.clientX - press.x, event.clientY - press.y) > press.threshold ||
+      !inside(event)
+    )
       canceled = true;
   };
   const up = (event) => {

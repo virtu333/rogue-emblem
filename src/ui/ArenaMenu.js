@@ -101,7 +101,10 @@ export class ArenaMenu {
         el('h3', u.name),
         el('p', `${u.className} · Lv ${getDisplayLevel(u)} · HP ${u.currentHP}/${u.stats.HP}`),
         el('p', u.weapon?.name || 'Unarmed'),
-        el('p', `Damage ${f.damage}${f.doubles ? ' ×2' : ''} · Hit ${f.hit}% · Crit ${f.crit}%`),
+        el(
+          'p',
+          `Damage ${f.damage}${f.doubles ? ' ×2' : ''} · Hit rating ${f.hit} · Crit ${f.crit}%`,
+        ),
       );
       grid.append(card);
     }

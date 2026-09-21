@@ -1,3 +1,4 @@
+import { BATTLE_SPEEDS } from '../utils/combatTiming.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
@@ -33,7 +34,7 @@ export class SettingsMenu {
       },
     );
     volume(
-      'Effects',
+      'Sound effects',
       () => settings.getSFXVolume(),
       (value) => {
         settings.setSFXVolume(value);
@@ -41,21 +42,82 @@ export class SettingsMenu {
         audio?.playSFX('sfx_confirm');
       },
     );
-    const reduced = button(
+    const toggle = (label, read, write, help, values = ['Off', 'On']) => {
+      const control = button(
+        '',
+        () => {
+          write(!read());
+          render();
+        },
+        're-btn re-setting',
+      );
+      const render = () => {
+        const enabled = read();
+        control.textContent = `${label} · ${values[Number(enabled)]}`;
+        control.setAttribute('aria-pressed', String(enabled));
+      };
+      render();
+      list.append(control, element('p', help, 're-muted'));
+    };
+    toggle(
+      'Contextual helpers',
+      () => settings.getHints?.() !== false,
+      (value) => settings.setHints(value),
+      'Show brief first-use explanations. The practice tutorial remains available separately.',
+    );
+    toggle(
+      'Skip seen dialogue',
+      () => settings.getSkipSeenDialogue?.() === true,
+      (value) => settings.setSkipSeenDialogue(value),
+      'Automatically skip run openings and act transitions already read in this save slot. New story variants, bosses and recruitment still appear.',
+    );
+    const hintStatus = element('p', '', 're-muted');
+    hintStatus.setAttribute('role', 'status');
+    list.append(
+      button('Reset hints for this save slot', () => {
+        const hints = scene.registry.get('hints');
+        hints?.reset?.();
+        hintStatus.textContent = hints
+          ? 'Hints reset for this save slot.'
+          : 'Start or select a save slot first.';
+      }),
+      hintStatus,
+    );
+    toggle(
+      'Reduce motion',
+      () => settings.getReduceMotion(),
+      (value) => settings.setReduceMotion(value),
+      'Keep combat information still. Removes lunges, sliding banners and camera shake.',
+    );
+    toggle(
+      'Effects quality',
+      () => settings.getEffectsQuality() === 'high',
+      (value) => settings.setEffectsQuality(value ? 'high' : 'low'),
+      'Low simplifies visual effects. Dialogue and combat information remain visible.',
+      ['Low', 'High'],
+    );
+    const speed = button(
       '',
       () => {
-        settings.setReducedEffects(!settings.getReducedEffects());
-        render();
+        const index = BATTLE_SPEEDS.indexOf(settings.getBattleSpeed());
+        settings.setBattleSpeed(BATTLE_SPEEDS[(index + 1) % BATTLE_SPEEDS.length]);
+        renderSpeed();
       },
       're-btn re-setting',
     );
-    const render = () => {
-      const enabled = settings.getReducedEffects?.() ?? false;
-      reduced.textContent = `Reduced effects · ${enabled ? 'On' : 'Off'}`;
-      reduced.setAttribute('aria-pressed', String(enabled));
+    const renderSpeed = () => {
+      const value = settings.getBattleSpeed();
+      speed.textContent = `Battle speed · ${value[0].toUpperCase()}${value.slice(1)}`;
     };
-    render();
-    list.append(reduced);
+    renderSpeed();
+    list.append(
+      speed,
+      element(
+        'p',
+        'Normal / Fast / Instant. Speeds up combat effects; dialogue and decisions stay at your pace.',
+        're-muted',
+      ),
+    );
     this.surface.body.append(list);
     this.surface.focusContent();
   }

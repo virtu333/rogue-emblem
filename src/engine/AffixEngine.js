@@ -77,6 +77,8 @@ function resolveDifficultyRules(config, difficultyId) {
   const rules = difficulty[difficultyId] || difficulty.normal || null;
   if (!rules) return null;
   return {
+    excludedActs: toArray(rules.excludedActs),
+    excludedAffixes: toArray(rules.excludedAffixes),
     affixChance: Math.max(0, asNumber(rules.affixChance, 0)),
     maxAffixesPerUnit: Math.max(0, Math.trunc(asNumber(rules.maxAffixesPerUnit, 0))),
     tierPool: toArray(rules.tierPool)
@@ -94,6 +96,7 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   const rules = resolveDifficultyRules(config, difficultyId);
   if (
     !rules ||
+    rules.excludedActs.includes(act) ||
     rules.maxAffixesPerUnit <= 0 ||
     rules.affixChance <= 0 ||
     rules.tierPool.length === 0
@@ -105,8 +108,10 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   if (chance <= 0) return enemySpawns;
 
   const tierPool = new Set(rules.tierPool);
-  const allowedAffixes = config.affixes.filter((affix) =>
-    tierPool.has(Math.trunc(asNumber(affix?.tier, 0))),
+  const allowedAffixes = config.affixes.filter(
+    (affix) =>
+      tierPool.has(Math.trunc(asNumber(affix?.tier, 0))) &&
+      !rules.excludedAffixes.includes(affix.id),
   );
   if (allowedAffixes.length === 0) return enemySpawns;
 

@@ -1,3 +1,4 @@
+import { BATTLE_SPEEDS } from '../utils/combatTiming.js';
 import { SettingsMenu } from './SettingsMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
@@ -46,14 +47,14 @@ export class SettingsOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, 300, 250, UI_HEX.panel, 1)
+      .rectangle(cx, cy, 330, 370, UI_HEX.panel, 1)
       .setDepth(901)
       .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
     const title = applyTextResolution(
-      this.scene.add.text(cx, cy - 96, 'Settings', {
+      this.scene.add.text(cx, cy - 156, 'Settings', {
         fontFamily: 'Arial',
         fontSize: '18px',
         color: UI_PALETTE.accent,
@@ -70,7 +71,7 @@ export class SettingsOverlay {
 
     // Music volume row
     this._rows.push(
-      this._addVolumeRow(cx, cy - 46, 'Music', settings.getMusicVolume(), (val) => {
+      this._addVolumeRow(cx, cy - 106, 'Music', settings.getMusicVolume(), (val) => {
         settings.setMusicVolume(val);
         if (audio) audio.setMusicVolume(val);
       }),
@@ -78,7 +79,7 @@ export class SettingsOverlay {
 
     // SFX volume row
     this._rows.push(
-      this._addVolumeRow(cx, cy + 4, 'SFX', settings.getSFXVolume(), (val) => {
+      this._addVolumeRow(cx, cy - 56, 'SFX', settings.getSFXVolume(), (val) => {
         settings.setSFXVolume(val);
         if (audio) {
           audio.setSFXVolume(val);
@@ -90,18 +91,40 @@ export class SettingsOverlay {
     this._rows.push(
       this._addToggleRow(
         cx,
-        cy + 54,
-        'Reduced Effects',
-        settings.getReducedEffects?.() ?? false,
+        cy - 6,
+        'Reduce Motion',
+        settings.getReduceMotion?.() ?? false,
         (enabled) => {
-          if (settings?.setReducedEffects) settings.setReducedEffects(enabled);
+          if (settings?.setReduceMotion) settings.setReduceMotion(enabled);
         },
+      ),
+    );
+
+    this._rows.push(
+      this._addToggleRow(
+        cx,
+        cy + 44,
+        'Effects Quality',
+        settings.getEffectsQuality?.() !== 'low',
+        (high) => settings.setEffectsQuality?.(high ? 'high' : 'low'),
+        ['LOW', 'HIGH'],
+      ),
+    );
+
+    this._rows.push(
+      this._addToggleRow(
+        cx,
+        cy + 94,
+        'Battle Speed',
+        Math.max(0, BATTLE_SPEEDS.indexOf(settings.getBattleSpeed?.())),
+        (index) => settings.setBattleSpeed?.(BATTLE_SPEEDS[index]),
+        ['NORMAL', 'FAST', 'INSTANT'],
       ),
     );
 
     // Close button
     const closeBtn = applyTextResolution(
-      this.scene.add.text(cx, cy + 96, '[ Close ]', {
+      this.scene.add.text(cx, cy + 156, '[ Close ]', {
         fontFamily: 'Arial',
         fontSize: '14px',
         color: UI_PALETTE.text,
@@ -255,8 +278,8 @@ export class SettingsOverlay {
     return { focus: rowRect, adjust: (dir) => update(dir > 0 ? 10 : -10), activate: () => {} };
   }
 
-  _addToggleRow(cx, y, label, initialValue, onChange) {
-    let value = !!initialValue;
+  _addToggleRow(cx, y, label, initialValue, onChange, values = ['OFF', 'ON']) {
+    let value = values.length > 2 ? initialValue : !!initialValue;
 
     // Invisible full-row span so the gamepad ring highlights the whole control.
     const rowRect = this.scene.add.rectangle(cx, y, 250, 26, 0x000000, 0).setDepth(902);
@@ -274,7 +297,7 @@ export class SettingsOverlay {
     this.objects.push(labelText);
 
     const valueText = applyTextResolution(
-      this.scene.add.text(cx + 72, y, value ? 'ON' : 'OFF', {
+      this.scene.add.text(cx + 72, y, values[Number(value)], {
         fontFamily: 'Arial',
         fontSize: '14px',
         color: value ? '#88ff88' : '#ff8888',
@@ -285,8 +308,13 @@ export class SettingsOverlay {
     this.objects.push(valueText);
 
     const update = (delta) => {
-      value = delta === 0 ? !value : delta > 0;
-      valueText.setText(value ? 'ON' : 'OFF');
+      value =
+        values.length > 2
+          ? (Number(value) + (delta < 0 ? -1 : 1) + values.length) % values.length
+          : delta === 0
+            ? !value
+            : delta > 0;
+      valueText.setText(values[Number(value)]);
       valueText.setColor(value ? '#88ff88' : '#ff8888');
       onChange(value);
     };

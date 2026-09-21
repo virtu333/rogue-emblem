@@ -5,7 +5,7 @@
 // lives in engine/CaravanSystem.js; this controller is the Phaser-facing shim.
 
 import { createCaravanUnit, computeCaravanStep, isCaravanAtEdge } from '../engine/CaravanSystem.js';
-import { showMinorHint } from './HintDisplay.js';
+import { showContextualHint } from './HintDisplay.js';
 
 const CARAVAN_RING_COLOR = 0xffcc33;
 
@@ -26,13 +26,11 @@ export class CaravanController {
     scene.addUnitGraphic(unit);
     this._applyCaravanTint(unit);
 
-    const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('battle_caravan')) {
-      showMinorHint(
-        scene,
-        'A merchant caravan is caught in the fighting -- if it survives, it will trade with you.',
-      );
-    }
+    showContextualHint(
+      scene,
+      'battle_caravan',
+      'A merchant caravan is caught in the fighting -- if it survives, it will trade with you.',
+    );
   }
 
   /** Re-tint an already-spawned caravan (e.g. after suspend/resume restore). */

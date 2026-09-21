@@ -999,65 +999,6 @@ describe('Church promotion flavor (Surface 4)', () => {
   });
 });
 
-describe('Shop entry flavor (Surface 5)', () => {
-  function createOverlayObject() {
-    return {
-      setDepth() {
-        return this;
-      },
-      setOrigin() {
-        return this;
-      },
-      setStrokeStyle() {
-        return this;
-      },
-      setInteractive() {
-        return this;
-      },
-      setColor() {
-        return this;
-      },
-      setBackgroundColor() {
-        return this;
-      },
-      on() {
-        return this;
-      },
-      destroy: vi.fn(),
-    };
-  }
-
-  it('triggers flavor banner from showShopOverlay', () => {
-    const scene = {
-      runManager: { currentAct: 'act1', gold: 120 },
-      gameData: {
-        dialogue: {
-          shopFlavor: { act1: ['Merchant eyes your purse.'] },
-        },
-      },
-      registry: { get: vi.fn(() => null) },
-      add: {
-        rectangle: () => createOverlayObject(),
-        text: () => createOverlayObject(),
-      },
-      drawShopTabs: vi.fn(),
-      drawActiveTabContent: vi.fn(),
-      leaveShopNode: vi.fn(),
-      _enterShopMapView: vi.fn(),
-      _hideForgeTooltip: vi.fn(),
-      _hideShopItemTooltip: vi.fn(),
-      _setShopOverlayVisibility: vi.fn(),
-      _openRoster: vi.fn(),
-      showShopBanner: vi.fn(),
-      shopRerollCount: 0,
-    };
-
-    NodeMapScene.prototype.showShopOverlay.call(scene, { id: 'shop-1' }, []);
-
-    expect(scene.showShopBanner).toHaveBeenCalledWith('Merchant eyes your purse.', '#aabbcc');
-  });
-});
-
 describe('Elite victory flavor (Surface 6)', () => {
   function makeEliteVictoryScene(overrides = {}) {
     const order = [];

@@ -10,6 +10,8 @@
 // field); the controller owns only its Phaser marker objects.
 
 import { ESCAPE_EVAC_GOLD_BY_ACT, TILE_SIZE } from '../utils/constants.js';
+import { UI_DEPTHS } from '../utils/uiDepths.js';
+import { UI_HEX, UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 
 export class EscapeObjectiveController {
   constructor(scene) {
@@ -17,36 +19,36 @@ export class EscapeObjectiveController {
     this.markers = [];
   }
 
-  /** Render the escape square markers (pulsing highlight + label). */
+  /** Persistent markers stay legible over terrain, fog and movement highlights. */
   create() {
     const scene = this.scene;
-    const tiles = scene.battleConfig?.escapeTiles || [];
-    for (const tile of tiles) {
+    for (const tile of scene.battleConfig?.escapeTiles || []) {
       const pos = scene.grid.gridToPixel(tile.col, tile.row);
       const highlight = scene.add
-        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x66ff88, 0.28)
-        .setDepth(5);
-      const label = scene.add
-        .text(pos.x, pos.y - 10, 'ESCAPE', {
-          fontFamily: 'monospace',
-          fontSize: '8px',
-          color: '#a6ffb0',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(5);
+        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, UI_HEX.good, 0.3)
+        .setStrokeStyle(2, UI_HEX.accent, 1)
+        .setDepth(UI_DEPTHS.OBJECTIVE_TILE);
+      const label = applyTextResolution(
+        scene.add
+          .text(pos.x, pos.y - 9, 'EXIT', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: UI_PALETTE.accent,
+            backgroundColor: UI_PALETTE.bg,
+            padding: { x: 2, y: 1 },
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(UI_DEPTHS.OBJECTIVE_LABEL),
+      );
       this.markers.push(highlight, label);
-      if (!scene._isReducedEffects?.()) {
-        scene.tweens.add({
-          targets: highlight,
-          alpha: 0.08,
-          duration: 900,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
     }
+  }
+
+  /** Show the whole route without changing selection, movement or turn state. */
+  showExits() {
+    if (!this.scene.battleConfig?.escapeTiles?.length) return false;
+    return this.scene.resetBattleCameraView?.() ?? false;
   }
 
   isOnEscapeTile(unit) {
@@ -71,6 +73,7 @@ export class EscapeObjectiveController {
     const scene = this.scene;
     const { escapedLords, totalLords } = this.getLordProgress();
     let label = `Escape: Only Lords must exit (${escapedLords}/${totalLords})`;
+    label += '\nMove onto an EXIT tile, then choose Escape.';
     const fieldOthers = scene.playerUnits.some((u) => !u.isLord);
     if (fieldOthers) {
       label += `\nOthers are safe; may exit early (+${this.getEvacGold()}g)`;
@@ -110,6 +113,7 @@ export class EscapeObjectiveController {
     scene.preMoveLoc = null;
     scene.battleState = 'PLAYER_IDLE';
     scene.dangerZoneStale = true;
+    scene._pinnedThreats?.invalidate();
     scene.updateObjectiveText();
 
     // Last living lord out → victory (checkBattleEnd owns the rule)
@@ -136,7 +140,7 @@ export class EscapeObjectiveController {
         })
         .setOrigin(0.5)
         .setDepth(320);
-      if (scene._isReducedEffects?.()) {
+      if (scene._reduceMotion?.()) {
         scene.time.delayedCall(700, () => txt.destroy());
       } else {
         scene.tweens.add({

@@ -21,7 +21,17 @@ import {
   gainExperience,
   calculateCombatXP,
   learnSkill,
+  getClassInnateSkills,
 } from './UnitManager.js';
+
+/** Apply class abilities to new mercenaries and older persisted boards. */
+export function grantMercenaryClassSkills(unit, classesData, skillsData) {
+  const classData = classesData?.find((candidate) => candidate.name === unit?.className);
+  if (!classData) return;
+  for (const className of [classData.name, classData.promotesFrom].filter(Boolean)) {
+    for (const skillId of getClassInnateSkills(className, skillsData)) learnSkill(unit, skillId);
+  }
+}
 
 /**
  * Return tier entries where the given actId meets the tier's minAct requirement.
@@ -331,7 +341,7 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
-          { traitsData, rng },
+          { traitsData, skillsData, rng },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -351,10 +361,15 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
-          { traitsData, rng },
+          { traitsData, skillsData, rng },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team
+
+      // Mercenaries need their class abilities on the board and immediately
+      // after hire, not only after save migration repairs them on reload.
+      // Match the loader's current/base-class order and use the shared skill cap.
+      grantMercenaryClassSkills(unit, classesData, skillsData);
 
       // Apply stat bonuses: +value to N random stats
       const bonusCount = mercConfig.statBonus?.count || 2;

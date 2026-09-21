@@ -1044,7 +1044,7 @@ describe('VisionRewindController', () => {
       scene.visionHudText = makeDisplayObject({ text: '' });
       runManager.visionChargesRemaining = 3;
       controller.updateHud();
-      expect(scene.visionHudText.text).toBe('Eye: 3 (rewind current turn)');
+      expect(scene.visionHudText.text).toBe('Eye: 3 left this run');
     });
 
     it('sets cyan color when charges > 0', () => {

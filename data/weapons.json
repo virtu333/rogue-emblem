@@ -1976,5 +1976,149 @@
     "range": "1-4",
     "special": "",
     "price": 0
+  },
+  {
+    "name": "Courtbreaker Scroll",
+    "lore": "An unerring cut passes through the court guard.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Courtbreaker (Weapon Art)",
+    "teachesWeaponArtId": "sword_courtbreaker",
+    "allowedWeaponTypes": [
+      "Sword"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Last Bastion Scroll",
+    "lore": "A braced thrust keeps the wielder guarded through the exchange.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Last Bastion (Weapon Art)",
+    "teachesWeaponArtId": "lance_last_bastion",
+    "allowedWeaponTypes": [
+      "Lance"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Crown Splitter Scroll",
+    "lore": "A heavy blow breaks through the weapon triangle.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Crown Splitter (Weapon Art)",
+    "teachesWeaponArtId": "axe_crown_splitter",
+    "allowedWeaponTypes": [
+      "Axe"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Horizon Shot Scroll",
+    "lore": "A steady aim reaches beyond the enemy line.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Horizon Shot (Weapon Art)",
+    "teachesWeaponArtId": "bow_horizon_shot",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Starless Flame Scroll",
+    "lore": "A forbidden flame burns past magical resistance.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Starless Flame (Weapon Art)",
+    "teachesWeaponArtId": "magic_starless_flame",
+    "allowedWeaponTypes": [
+      "Tome"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Aegis Bolt Scroll",
+    "lore": "A battle ward carries the spell and catches the answer.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Aegis Bolt (Weapon Art)",
+    "teachesWeaponArtId": "magic_aegis_bolt",
+    "allowedWeaponTypes": [
+      "Tome"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Sanctuary Scroll",
+    "lore": "A sheltered ray leaves no opening for a counterattack.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Sanctuary (Weapon Art)",
+    "teachesWeaponArtId": "light_sanctuary",
+    "allowedWeaponTypes": [
+      "Light"
+    ],
+    "price": 3000
+  },
+  {
+    "name": "Dawn's Judgment Scroll",
+    "lore": "The old shrine rite steadies a decisive beam.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Dawn's Judgment (Weapon Art)",
+    "teachesWeaponArtId": "light_dawns_judgment",
+    "allowedWeaponTypes": [
+      "Light"
+    ],
+    "price": 3000
   }
 ]

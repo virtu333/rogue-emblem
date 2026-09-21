@@ -30,7 +30,8 @@
         "Thief",
         "Pegasus Knight",
         "Wyvern Rider",
-        "Zombie"
+        "Zombie",
+        "Cleric"
       ],
       "promoted": [],
       "sunderChance": 0.08,
@@ -51,7 +52,8 @@
         "Thief",
         "Pegasus Knight",
         "Wyvern Rider",
-        "Dragon"
+        "Dragon",
+        "Cleric"
       ],
       "promoted": [
         "Swordmaster",
@@ -83,7 +85,8 @@
         "Mage",
         "Thief",
         "Pegasus Knight",
-        "Wyvern Rider"
+        "Wyvern Rider",
+        "Cleric"
       ],
       "promoted": [
         "Swordmaster",
@@ -119,7 +122,8 @@
         "Myrmidon",
         "Fighter",
         "Cavalier",
-        "Mage"
+        "Mage",
+        "Cleric"
       ],
       "promoted": [
         "Swordmaster",
@@ -204,7 +208,7 @@
         "className": "Swordmaster",
         "level": 17,
         "name": "Blade Lord",
-        "lore": "The dueling halls' perfect product, kept by the empire the way one keeps a proof. Never touched in formal combat — and the sacred ground keeps no forms."
+        "lore": "The dueling halls' perfect product, kept by the empire the way one keeps a proof. Never touched in formal combat \u2014 and the sacred ground keeps no forms."
       },
       {
         "className": "General",

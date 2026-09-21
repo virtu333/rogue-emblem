@@ -8,6 +8,7 @@ import {
 } from '../engine/BattleInformation.js';
 import { UI_COLORS } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { presentationText } from '../utils/presentationText.js';
 
 export class UnitInspectionPanel {
   constructor(scene) {
@@ -40,8 +41,15 @@ export class UnitInspectionPanel {
     const pixelX = screenPos?.x ?? worldPos.x;
     const pixelY = screenPos?.y ?? worldPos.y;
     const details = [...statusDescriptions(unit), statusStaffInfo(unit)?.text].filter(Boolean);
-    const tooltipW = details.length ? Math.min(260, viewW - 8) : 120;
-    const tooltipH = 34 + details.length * 40;
+    const canPin =
+      unit.faction === 'enemy' &&
+      unit.currentHP > 0 &&
+      typeof this.scene.togglePinnedThreat === 'function';
+    const pinned = Boolean(this.scene.isThreatPinned?.(unit));
+    const replacesOldest = canPin && !pinned && this.scene.pinnedThreatEnemies?.size >= 5;
+    const tooltipW = details.length || canPin ? Math.min(260, viewW - 8) : 120;
+    const infoH = 34 + details.length * 40;
+    const tooltipH = infoH + (canPin ? 48 : 0) + (replacesOldest ? 26 : 0);
 
     let tx = pixelX + TILE_SIZE / 2 + 4; // right of unit
     let ty = pixelY - TILE_SIZE / 2 - 4;
@@ -65,36 +73,67 @@ export class UnitInspectionPanel {
     this.objects.push(bg);
 
     // Unit name
-    const nameText = this.scene.add
-      .text(tx + 6, ty + 3, unit.name, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: UI_COLORS.gold,
-      })
-      .setDepth(151);
+    const nameText = presentationText(this.scene, tx + 6, ty + 3, unit.name, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: UI_COLORS.gold,
+    }).setDepth(151);
     this.objects.push(nameText);
 
     const hintLabel = this.scene?.isMobileInput ? 'Tap to View Unit' : 'View Unit [V]';
-    const hintText = this.scene.add
-      .text(tx + 6, ty + 17, hintLabel, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: UI_COLORS.gray,
-      })
-      .setDepth(151);
+    const hintText = presentationText(this.scene, tx + 6, ty + 17, hintLabel, {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: UI_COLORS.gray,
+    }).setDepth(151);
     this.objects.push(hintText);
 
     if (details.length)
       this.objects.push(
-        this.scene.add
-          .text(tx + 6, ty + 32, details.join('\n'), {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: UI_COLORS.gray,
-            wordWrap: { width: tooltipW - 12 },
-          })
-          .setDepth(151),
+        presentationText(this.scene, tx + 6, ty + 32, details.join('\n'), {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: UI_COLORS.gray,
+          wordWrap: { width: tooltipW - 12 },
+        }).setDepth(151),
       );
+    if (canPin) {
+      const buttonY = ty + infoH;
+      const pinButton = this.scene.add
+        .rectangle(tx + 4, buttonY, tooltipW - 8, 44, 0x293f48, 1)
+        .setOrigin(0, 0)
+        .setDepth(152)
+        .setStrokeStyle(1, pinned ? 0xd98b5a : 0x666688)
+        .setInteractive({ useHandCursor: true });
+      pinButton.on('pointerdown', (_pointer, _x, _y, event) => {
+        event?.stopPropagation?.();
+        if (!this.visible || this._unit !== unit || !canInspectUnit(this.scene.grid, unit)) return;
+        this.scene.togglePinnedThreat(unit);
+        this.show(unit, terrain, gameData);
+      });
+      this.objects.push(
+        pinButton,
+        presentationText(
+          this.scene,
+          tx + 10,
+          buttonY + 14,
+          `${pinned ? 'Unpin range' : 'Pin range'}${this.scene.isMobileInput ? '' : ' [T]'}`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: UI_COLORS.gold,
+          },
+        ).setDepth(153),
+      );
+      if (replacesOldest)
+        this.objects.push(
+          presentationText(this.scene, tx + 6, buttonY + 48, '5 pinned: replaces oldest.', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: UI_COLORS.gray,
+          }).setDepth(153),
+        );
+    }
     this.scene?._pinToScreen?.(this.objects);
   }
 

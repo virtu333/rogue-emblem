@@ -19,6 +19,8 @@ const CENTER_COL = Math.floor(NUM_COLUMNS / 2); // 2
 // Acts without an entry use the pool default levelRange from enemies.json
 const ACT_LEVEL_SCALING = {
   act1: { 0: [1, 1], 1: [1, 2], 2: [1, 3], default: [2, 3] },
+  act2: { 0: [3, 5], 1: [4, 6], 2: [5, 7], default: [5, 8] },
+  act4: { 0: [11, 13], 1: [12, 14], 2: [13, 15], default: [14, 17] },
   act3: { 0: [8, 11], 1: [9, 12], 2: [10, 13], 3: [10, 14], default: [11, 15] },
 };
 
@@ -185,7 +187,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     const preferredRows = cfg.preferredRows || [2, 3, 4];
     const excludedRows = new Set(cfg.excludedRows || [0]);
     const bossRow = rows - 1;
-    if (Math.random() < (cfg.spawnChance || 0.4)) {
+    if (Math.random() < (cfg.spawnChanceByAct?.[actId] ?? cfg.spawnChance ?? 0.4)) {
       const eligible = nodes.filter(
         (n) =>
           n.type === NODE_TYPES.BATTLE &&
@@ -303,7 +305,7 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 /**
  * Pick node type based on row position and act.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Act 1: 80% battle, 15% shop, 5% church (fewer distractions early).
+ * Act 1: 70% battle, 20% shop, 10% church (fewer distractions early).
  * Acts 2+: 60% battle, 25% shop, 15% church.
  */
 function pickNodeType(row, totalRows, actId) {
@@ -313,8 +315,8 @@ function pickNodeType(row, totalRows, actId) {
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
   if (actId === 'act1') {
-    if (roll < 0.8) return NODE_TYPES.BATTLE;
-    if (roll < 0.95) return NODE_TYPES.SHOP;
+    if (roll < 0.7) return NODE_TYPES.BATTLE;
+    if (roll < 0.9) return NODE_TYPES.SHOP;
     return NODE_TYPES.CHURCH;
   }
   if (roll < 0.6) return NODE_TYPES.BATTLE;

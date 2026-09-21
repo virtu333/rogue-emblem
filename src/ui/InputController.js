@@ -1,3 +1,4 @@
+import { DangerZoneOverlay } from './DangerZoneOverlay.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
@@ -409,6 +410,53 @@ export class InputController {
     scene.grid.clearAttackHighlights();
   }
 
+  isPlanningSelection() {
+    const s = this.scene;
+    const u = s.selectedUnit;
+    return Boolean(
+      u &&
+      !u.hasMoved &&
+      !u.hasActed &&
+      !u._movementCommitted &&
+      !s.tradeMutatedThisSession &&
+      !s._isTutorialStrictGateActive?.() &&
+      (s.battleState === 'UNIT_SELECTED' || this.isSelectionMenu()),
+    );
+  }
+
+  handlePlanningUnitTap(gp) {
+    const s = this.scene;
+    if (!this.isPlanningSelection()) return false;
+    const target = s.getUnitAt(gp.col, gp.row);
+    if (!target || target === s.selectedUnit || !canInspectUnit(s.grid, target)) return false;
+    if (target.faction === 'player' && !target.hasActed && !isSleeping(target)) {
+      this.clearPlanningInspection();
+      if (this.isSelectionMenu()) s.hideActionMenu();
+      this._selectionMenu = null;
+      s.deselectUnit();
+      this.handleIdleClick(gp);
+      return true;
+    }
+    if (s.isMobileInput) {
+      if (s.inspectionPanel?.visible && s.inspectionPanel._unit === target) {
+        this.clearPlanningInspection();
+      } else {
+        const pixel = s.grid.gridToPixel(gp.col, gp.row);
+        this._showInspectionAtPixel(pixel.x, pixel.y);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  clearPlanningInspection() {
+    if (!this._planningInspection) return;
+    this._planningInspection = false;
+    this._planningThreat?.hide();
+    this.scene.inspectionPanel?.hide();
+    this.scene._mobileBattleHud?.sync?.();
+  }
+
   handleSelectedClick(gp) {
     const scene = this.scene;
     if (scene.selectedUnit?._movementCommitted) {
@@ -433,12 +481,23 @@ export class InputController {
       }
     }
 
+    if (this.handlePlanningUnitTap(gp)) return;
+    this.clearPlanningInspection();
+
     if (gp.col === scene.selectedUnit.col && gp.row === scene.selectedUnit.row) {
       scene.grid.clearHighlights();
       if (scene.selectedUnit.graphic?.clearTint) scene.selectedUnit.graphic.clearTint();
       scene.preMoveLoc = { col: scene.selectedUnit.col, row: scene.selectedUnit.row };
       scene._preFogSnapshot = scene.grid.snapshotFogState();
       scene.showActionMenu(scene.selectedUnit);
+      if (scene.isMobileInput && scene._mobileBattleHud?.available()) {
+        this._selectionMenu = { unit: scene.selectedUnit, objects: scene.actionMenu };
+        scene.grid.showMovementRange?.(
+          scene.movementRange,
+          scene.selectedUnit.col,
+          scene.selectedUnit.row,
+        );
+      }
       return;
     }
 
@@ -470,6 +529,7 @@ export class InputController {
 
   commitSelectionMenu(objects) {
     if (!this.isSelectionMenu() || this._selectionMenu.objects !== objects) return;
+    this.clearPlanningInspection();
     this._selectionMenu = null;
     this.scene.grid.clearHighlights();
     this.scene.selectedUnit.graphic?.clearTint?.();
@@ -480,9 +540,20 @@ export class InputController {
     // A submenu, trade, or post-movement menu must never grant another move.
     if (!this.isSelectionMenu()) return;
     const s = this.scene;
+    if (s._isTutorialStrictGateActive?.()) return;
+    if (this.handlePlanningUnitTap(gp)) return;
+    this.clearPlanningInspection();
     if (gp.col === s.selectedUnit.col && gp.row === s.selectedUnit.row) return;
     const entry = s.movementRange?.get(`${gp.col},${gp.row}`);
-    if (!entry || entry.stoppable === false) return;
+    if (!entry || entry.stoppable === false) {
+      const occupant = s.getUnitAt(gp.col, gp.row);
+      if (occupant && canInspectUnit(s.grid, occupant)) return;
+      this._selectionMenu = null;
+      s.hideActionMenu();
+      s.registry.get('audio')?.playSFX('sfx_cancel');
+      s.deselectUnit();
+      return;
+    }
     this._selectionMenu = null;
     s.hideActionMenu();
     s.battleState = 'UNIT_SELECTED';
@@ -651,12 +722,19 @@ export class InputController {
     }
     if (!canInspectUnit(scene.grid, unit)) return false;
     this._ballistaRangeShown = false;
-    scene.grid.clearAttackHighlights?.();
+    const planning = this.isPlanningSelection();
+    if (!planning) scene.grid.clearAttackHighlights?.();
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
       scene._pinToScreen(scene.inspectionPanel?.objects);
 
+    if (planning) {
+      this._planningInspection = true;
+      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid);
+      this._planningThreat.show(unit.faction === 'enemy' ? scene.calculateDangerZone(unit) : []);
+      scene._mobileBattleHud?.sync?.();
+    }
     if (scene.battleState === 'PLAYER_IDLE') {
       const isPlayer = unit.faction === 'player';
       const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
@@ -702,6 +780,11 @@ export class InputController {
   }
 
   clearInspectionVisuals() {
+    if (this._planningInspection) {
+      this.clearPlanningInspection();
+      this.scene.refreshEndTurnControl();
+      return;
+    }
     const scene = this.scene;
     this._ballistaRangeShown = false;
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
@@ -796,6 +879,7 @@ export class InputController {
   }
 
   destroy() {
+    this._planningThreat?.hide();
     this.scene = null;
   }
 }

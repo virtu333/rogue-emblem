@@ -1,18 +1,11 @@
-import { hasDOMHost } from '../utils/domUI.js';
 import { ArenaMenu } from './ArenaMenu.js';
 import { saveServiceRun } from './serviceSave.js';
 import { relinkWeapon } from '../engine/RunManager.js';
-import { MenuFocusController } from './MenuFocusController.js';
-import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
-import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
-import { InputAction } from '../utils/InputActions.js';
-import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 // ColosseumOverlay.js — Overlay UI for the Colosseum node (Arena + Mercenary Board)
-// Self-contained overlay class following RosterOverlay/PauseOverlay patterns.
-// All Phaser objects pushed to this.objects[] and destroyed in bulk on hide().
+// ArenaMenu owns rendering/input; this controller owns gameplay and visit persistence.
 
 import {
-  getAvailableTiers,
   generateChallenger,
   calculateArenaReward,
   calculateArenaXP,
@@ -20,74 +13,24 @@ import {
   getMaxFights,
   getArenaDistance,
   generateMercenaryCandidates,
+  grantMercenaryClassSkills,
 } from '../engine/ColosseumEngine.js';
 import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
 import {
   gainExperience,
-  getDisplayLevel,
   grantSecondaryWeapons,
   checkLevelUpSkills,
 } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
-import { getTraitNames } from '../engine/TraitSystem.js';
 import { findCommander } from '../engine/Commander.js';
-
-// ── Layout constants (match NodeMapScene overlay pattern) ──
-const BG_DEPTH = 300;
-const PANEL_DEPTH = 301;
-const CONTENT_DEPTH = 302;
-const PANEL_W = 560;
-const PANEL_H = 425;
-const CX = 320;
-const CY = 240;
-
-// ── Shared text styles ──
-const TITLE_STYLE = {
-  fontFamily: 'Arial',
-  fontSize: '18px',
-  color: UI_PALETTE.accent,
-  fontStyle: 'bold',
-};
-const HEADER_STYLE = {
-  fontFamily: 'Arial',
-  fontSize: '14px',
-  color: UI_PALETTE.accent,
-  fontStyle: 'bold',
-};
-const BODY_STYLE = {
-  fontFamily: 'Arial',
-  fontSize: '12px',
-  color: UI_PALETTE.text,
-};
-const SMALL_STYLE = {
-  fontFamily: 'Arial',
-  fontSize: '10px',
-  color: UI_PALETTE.muted,
-};
-const GOLD_STYLE = {
-  fontFamily: 'Arial',
-  fontSize: '13px',
-  color: UI_PALETTE.accent,
-};
-
-function btnStyle(color = UI_PALETTE.accent) {
-  return {
-    fontFamily: 'Arial',
-    fontSize: '14px',
-    color,
-    backgroundColor: UI_PALETTE.raised,
-    padding: { x: 10, y: 5 },
-  };
-}
 
 export class ColosseumOverlay {
   constructor(scene, runManager, gameData) {
     this.scene = scene;
     this.runManager = runManager;
     this.gameData = gameData;
-    this.objects = [];
     this.visible = false;
 
     // Arena state
@@ -96,7 +39,6 @@ export class ColosseumOverlay {
     this._selectedUnit = null;
     this._selectedTier = null;
     this._challenger = null;
-    this._unitSelectPage = 0;
 
     // Mercenary state
     this._mercCandidates = null;
@@ -117,21 +59,20 @@ export class ColosseumOverlay {
       this._fightsPerUnit = state.fightsPerUnit || {};
       this._levelsGainedThisVisit = state.levelsGained || {};
       this._mercCandidates = state.mercCandidates || null;
-      this._mercCandidates?.forEach((candidate) => relinkWeapon(candidate.unit));
+      this._mercCandidates?.forEach((candidate) => {
+        relinkWeapon(candidate.unit);
+        grantMercenaryClassSkills(candidate.unit, this.gameData.classes, this.gameData.skills);
+      });
       this._mercHired = state.mercHired === true;
     }
     this.visible = true;
-    this._unitSelectPage = 0;
 
     const colosseumData = this.gameData.colosseum;
     this._colosseumData = colosseumData;
     this._maxFights = getMaxFights(this._getDifficultyId(), colosseumData);
 
-    if (!hasDOMHost()) this._installInput();
-    else {
-      this._shutdown = () => this.hide();
-      this.scene.events.once('shutdown', this._shutdown);
-    }
+    this._shutdown = () => this.hide();
+    this.scene.events?.once?.('shutdown', this._shutdown);
     this._showMenu();
   }
 
@@ -140,12 +81,6 @@ export class ColosseumOverlay {
     if (!this.visible) return;
     this.visible = false;
     this._clearScreen();
-    this._menuFocus?.destroy();
-    this._menuFocus = null;
-    popInputScope(this);
-    removeOverlay(this.scene, this._overlayToken);
-    this._overlayToken = null;
-    this.scene.input?.keyboard?.off?.('keydown', this._keyHandler);
     this.scene.events?.off?.('shutdown', this._shutdown);
   }
 
@@ -159,364 +94,25 @@ export class ColosseumOverlay {
   // Screen management
   // ────────────────────────────────────────
 
-  _installInput() {
-    if (this._menuFocus) return;
-    this._menuFocus = new MenuFocusController(this.scene);
-    const cancel = () => {
-      // During fight resolution the list is empty; Back must not escape a
-      // partially applied arena result. Otherwise use the current page's exit.
-      const exit = (this._focusRows || []).find((row) =>
-        /Back|Withdraw|Cancel|Leave|Continue/.test(row.label),
-      );
-      exit?.onActivate();
-    };
-    pushInputScope(this, (action, payload) => {
-      if (action === InputAction.NAVIGATE) this._menuFocus.move(payload?.dy || payload?.dx || 1);
-      if (action === InputAction.CONFIRM) this._menuFocus.activate();
-      if (action === InputAction.CANCEL || action === InputAction.PAUSE) cancel();
-    });
-    this._overlayToken = pushOverlay(this.scene, {
-      name: 'colosseum',
-      onCancel: () => {
-        cancel();
-        return true;
-      },
-    });
-    this._keyHandler = (event) => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        this._menuFocus.move(event.key === 'ArrowUp' ? -1 : 1);
-      } else if (event.key === 'Enter' && !event.repeat) {
-        event.preventDefault();
-        this._menuFocus.activate();
-      } else if (event.key === 'Escape' && !event.repeat) {
-        event.preventDefault();
-        cancel();
-      }
-    };
-    this.scene.input?.keyboard?.on?.('keydown', this._keyHandler);
-    this._shutdown = () => this.hide();
-    this.scene.events?.once?.('shutdown', this._shutdown);
-  }
-  _registerButton(button, label, color, callback) {
-    const rows = (this._focusRows ||= []);
-    rows.push({
-      button,
-      label,
-      color,
-      onActivate: () => {
-        if (this.visible && this._focusRows === rows) callback();
-      },
-    });
-    this._menuFocus?.setItems(rows);
-  }
   _clearScreen() {
     this.nativeMenu?.destroy();
     this.nativeMenu = null;
-    this._menuFocus?.clear();
-    this._focusRows = [];
-    for (const obj of this.objects) {
-      if (obj && typeof obj.destroy === 'function') obj.destroy();
-    }
-    this.objects = [];
   }
-
-  _addBg() {
-    if (hasDOMHost()) return;
-    const bg = this.scene.add
-      .rectangle(CX, CY, 640, 480, 0x000000, 0.9)
-      .setDepth(BG_DEPTH)
-      .setInteractive();
-    this.objects.push(bg);
-  }
-
-  _addPanel() {
-    if (hasDOMHost()) return;
-    const panel = this.scene.add
-      .rectangle(CX, CY, PANEL_W, PANEL_H, UI_HEX.sunken, 0.95)
-      .setDepth(PANEL_DEPTH)
-      .setStrokeStyle(2, 0x444444)
-      .setInteractive();
-    this.objects.push(panel);
-  }
-
-  _addTitle(text) {
-    if (hasDOMHost()) return;
-    const t = applyTextResolution(this.scene.add.text(CX, 50, text, TITLE_STYLE))
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(t);
-  }
-
-  _addGold() {
-    if (hasDOMHost()) return;
-    const t = applyTextResolution(
-      this.scene.add.text(CX, 75, `Gold: ${this.runManager.gold}G`, GOLD_STYLE),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(t);
-    return t;
-  }
-
-  _addBtn(x, y, label, color, callback) {
-    const btn = applyTextResolution(this.scene.add.text(x, y, label, btnStyle(color)))
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerover', () => btn.setAlpha(0.8))
-      .on('pointerout', () => btn.setAlpha(1))
-      .on('pointerdown', callback);
-    this.objects.push(btn);
-    this._registerButton(btn, label, color, callback);
-    return btn;
-  }
-
-  // ────────────────────────────────────────
-  // SCREEN: Main Menu
-  // ────────────────────────────────────────
 
   _showMenu() {
     this._clearScreen();
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.menu(this);
-      return;
-    }
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Colosseum');
-    this._addGold();
-
-    this._addBtn(CX, 170, '[ Arena ]', '#44ff44', () => this._showUnitSelect());
-    this._addBtn(CX, 220, '[ Mercenary Board ]', '#66ddff', () => this._showMercBrowse());
-    this._addBtn(CX, 300, '[ Leave ]', '#ff6666', () => this.leave());
-
-    // Flavor text
-    const flavor = applyTextResolution(
-      this.scene.add.text(CX, 120, 'Train your fighters or hire seasoned mercenaries.', {
-        ...BODY_STYLE,
-        fontStyle: 'italic',
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(flavor);
+    this.nativeMenu = ArenaMenu.menu(this);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Unit Select (Arena)
-  // ────────────────────────────────────────
 
   _showUnitSelect() {
     this._clearScreen();
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.units(this);
-      return;
-    }
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Select Fighter');
-    this._addGold();
-
-    const roster = this.runManager.roster || [];
-    const unitsPerPage = 8;
-    const maxPage = Math.max(0, Math.ceil(roster.length / unitsPerPage) - 1);
-    this._unitSelectPage = Math.min(Math.max(this._unitSelectPage || 0, 0), maxPage);
-    const startIndex = this._unitSelectPage * unitsPerPage;
-    const pageRoster = roster.slice(startIndex, startIndex + unitsPerPage);
-
-    const startY = 100;
-    const lineH = 28;
-    let y = startY;
-
-    if (roster.length === 0) {
-      const t = applyTextResolution(this.scene.add.text(CX, 200, 'No units available.', BODY_STYLE))
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(t);
-    } else {
-      // Column headers
-      const hdr = applyTextResolution(
-        this.scene.add.text(65, y, 'Name             Class         Lv  HP    Fights', {
-          ...SMALL_STYLE,
-          fontFamily: 'monospace',
-        }),
-      ).setDepth(CONTENT_DEPTH);
-      this.objects.push(hdr);
-      y += lineH;
-
-      for (const unit of pageRoster) {
-        const fights = this._fightsPerUnit[unit.name] || 0;
-        const eligible = canFight(unit, fights, this._maxFights);
-        const hpStr = `${unit.currentHP}/${unit.stats.HP}`;
-        const fightStr = `${fights}/${this._maxFights}`;
-
-        const name = (unit.name || '???').padEnd(17);
-        const cls = (unit.className || '').padEnd(14);
-        const lv = getDisplayLevel(unit).padStart(2);
-        const hp = hpStr.padStart(6);
-        const ft = fightStr;
-
-        const color = eligible ? UI_PALETTE.text : UI_PALETTE.muted;
-        const line = applyTextResolution(
-          this.scene.add.text(65, y, `${name}${cls}${lv}  ${hp}  ${ft}`, {
-            ...BODY_STYLE,
-            fontFamily: 'monospace',
-            color,
-          }),
-        ).setDepth(CONTENT_DEPTH);
-        this.objects.push(line);
-
-        if (eligible) {
-          line.setInteractive({ useHandCursor: true });
-          line.on('pointerover', () => line.setColor(UI_PALETTE.accent));
-          line.on('pointerout', () => line.setColor(color));
-          const select = () => {
-            this._selectedUnit = unit;
-            this._showTierSelect();
-          };
-          line.on('pointerdown', select);
-          this._registerButton(line, unit.name, color, select);
-        }
-
-        y += lineH;
-      }
-
-      if (roster.length > unitsPerPage) {
-        if (this._unitSelectPage > 0) {
-          this._addBtn(CX - 120, 400, '[ Prev ]', UI_PALETTE.muted, () => {
-            this._unitSelectPage = Math.max(0, this._unitSelectPage - 1);
-            this._showUnitSelect();
-          });
-        }
-        const pageText = applyTextResolution(
-          this.scene.add.text(
-            CX,
-            400,
-            `Page ${this._unitSelectPage + 1}/${maxPage + 1}`,
-            SMALL_STYLE,
-          ),
-        )
-          .setOrigin(0.5)
-          .setDepth(CONTENT_DEPTH);
-        this.objects.push(pageText);
-        if (this._unitSelectPage < maxPage) {
-          this._addBtn(CX + 120, 400, '[ Next ]', UI_PALETTE.muted, () => {
-            this._unitSelectPage = Math.min(maxPage, this._unitSelectPage + 1);
-            this._showUnitSelect();
-          });
-        }
-      }
-    }
-
-    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showMenu());
+    this.nativeMenu = ArenaMenu.units(this);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Tier Select
-  // ────────────────────────────────────────
 
   _showTierSelect(message = null) {
     this._clearScreen();
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.tiers(this, message);
-      return;
-    }
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Select Tier');
-    this._addGold();
-
-    const unit = this._selectedUnit;
-    const info = applyTextResolution(
-      this.scene.add.text(
-        CX,
-        95,
-        `Fighter: ${unit.name} (Lv ${getDisplayLevel(unit)} ${unit.className})`,
-        BODY_STYLE,
-      ),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(info);
-
-    if (message) {
-      const msg = applyTextResolution(
-        this.scene.add.text(CX, 115, message, {
-          ...SMALL_STYLE,
-          color: '#ff8888',
-        }),
-      )
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(msg);
-    }
-
-    const tiers = getAvailableTiers(this._actId, this._colosseumData);
-    const tierColors = {
-      bronze: '#cd7f32',
-      silver: '#c0c0c0',
-      gold: '#ffd700',
-      platinum: '#e5e4e2',
-    };
-
-    let y = 140;
-    for (const [tierName, tier] of tiers) {
-      const canAfford = this._canAffordTier(tier);
-      const color = canAfford ? tierColors[tierName] || UI_PALETTE.text : UI_PALETTE.muted;
-      const label = `[ ${tierName.charAt(0).toUpperCase() + tierName.slice(1)} ]`;
-      const detail = `Win: +${tier.goldReward}G  |  Lose: -${tier.entryFee}G  |  XP: ${tier.xpMultiplier}×`;
-
-      if (canAfford) {
-        this._addBtn(CX, y, label, color, () => {
-          this._selectedTier = { name: tierName, ...tier };
-          this._generateAndShowForecast();
-        });
-      } else {
-        const disabledBtn = applyTextResolution(
-          this.scene.add.text(CX, y, label, {
-            ...btnStyle(color),
-            backgroundColor: UI_PALETTE.panel,
-          }),
-        )
-          .setOrigin(0.5)
-          .setDepth(CONTENT_DEPTH)
-          .setAlpha(0.7);
-        this.objects.push(disabledBtn);
-      }
-
-      const detailText = applyTextResolution(this.scene.add.text(CX, y + 20, detail, SMALL_STYLE))
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(detailText);
-
-      if (!canAfford) {
-        const reasonText = applyTextResolution(
-          this.scene.add.text(
-            CX,
-            y + 36,
-            `Need ${tier.entryFee}G (have ${this.runManager.gold}G)`,
-            {
-              ...SMALL_STYLE,
-              color: '#ff6666',
-            },
-          ),
-        )
-          .setOrigin(0.5)
-          .setDepth(CONTENT_DEPTH);
-        this.objects.push(reasonText);
-      }
-
-      y += canAfford ? 55 : 68;
-    }
-
-    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showUnitSelect());
+    this.nativeMenu = ArenaMenu.tiers(this, message);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Forecast
-  // ────────────────────────────────────────
 
   _generateAndShowForecast() {
     this._settledResult = null;
@@ -550,14 +146,9 @@ export class ColosseumOverlay {
 
   _showForecast() {
     this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Pre-Fight');
-    this._addGold();
 
     const unit = this._selectedUnit;
     const challenger = this._challenger.unit;
-    const tier = this._selectedTier;
 
     // Build forecast
     const distance = getArenaDistance(unit.weapon, challenger.weapon);
@@ -603,91 +194,8 @@ export class ColosseumOverlay {
       { atkMods, defMods, imbuesData: this.gameData.imbues || null },
     );
 
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.forecast(this, forecast);
-      return;
-    }
-
-    // Layout: two columns
-    const leftX = 145;
-    const rightX = 500;
-    let y = 105;
-
-    // Unit column
-    const makeCol = (x, name, cls, lv, hp, wpn, fc) => {
-      const items = [
-        `${name}`,
-        `${cls} Lv ${lv}`,
-        `HP: ${hp}`,
-        `Weapon: ${wpn}`,
-        '',
-        `Atk: ${fc.damage}  Hit: ${fc.hit}%  Crit: ${fc.crit}%`,
-        fc.doubles ? 'Doubles: Yes' : 'Doubles: No',
-      ];
-      for (const line of items) {
-        const t = applyTextResolution(this.scene.add.text(x, y, line, BODY_STYLE))
-          .setOrigin(0.5)
-          .setDepth(CONTENT_DEPTH);
-        this.objects.push(t);
-        y += 18;
-      }
-    };
-
-    y = 105;
-    makeCol(
-      leftX,
-      unit.name,
-      unit.className,
-      unit.level,
-      `${unit.currentHP}/${unit.stats.HP}`,
-      unit.weapon?.name || 'None',
-      forecast.attacker,
-    );
-
-    // VS
-    const vs = applyTextResolution(
-      this.scene.add.text(CX, 160, 'VS', {
-        ...HEADER_STYLE,
-        fontSize: '16px',
-        color: '#ff6666',
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(vs);
-
-    y = 105;
-    makeCol(
-      rightX,
-      challenger.name,
-      challenger.className,
-      challenger.level,
-      `${challenger.currentHP}/${challenger.stats.HP}`,
-      challenger.weapon?.name || 'None',
-      forecast.defender,
-    );
-
-    // Entry fee warning
-    const feeText = applyTextResolution(
-      this.scene.add.text(CX, 310, `Entry fee on loss: ${tier.entryFee}G`, {
-        ...SMALL_STYLE,
-        color: '#ff8888',
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(feeText);
-
-    // Buttons
-    this._addBtn(CX - 80, 370, '[ Fight! ]', '#44ff44', () => this._executeFight());
-    this._addBtn(CX + 80, 370, '[ Withdraw ]', UI_PALETTE.muted, () => this._showTierSelect());
-
-    this._addBtn(CX, 430, '[ Back to Menu ]', UI_PALETTE.muted, () => this._showMenu());
+    this.nativeMenu = ArenaMenu.forecast(this, forecast);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Combat Log
-  // ────────────────────────────────────────
 
   _executeFight() {
     if (this._fightResolved) return;
@@ -777,9 +285,6 @@ export class ColosseumOverlay {
 
   _showCombatLog(events, outcome, tier) {
     this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Combat');
 
     // Format events into text lines
     const lines = [];
@@ -838,58 +343,8 @@ export class ColosseumOverlay {
       color: outcomeColors[outcome],
     });
 
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.log(this, lines, outcome, tier);
-      return;
-    }
-
-    // Render lines with staggered timing
-    const startY = 95;
-    const lineH = 18;
-    const maxVisible = Math.floor((380 - startY) / lineH);
-    const scrollOffset = Math.max(0, lines.length - maxVisible);
-
-    const visibleLines = lines.slice(scrollOffset);
-    const delayPerLine = 350;
-
-    visibleLines.forEach((line, i) => {
-      const timer = this.scene.time.delayedCall(i * delayPerLine, () => {
-        if (!this.visible) return;
-        const y = startY + i * lineH;
-        const t = applyTextResolution(
-          this.scene.add.text(75, y, line.text, {
-            ...BODY_STYLE,
-            color: line.color,
-          }),
-        )
-          .setDepth(CONTENT_DEPTH)
-          .setAlpha(0);
-        this.objects.push(t);
-
-        // Fade in
-        this.scene.tweens.add({
-          targets: t,
-          alpha: 1,
-          duration: 150,
-        });
-      });
-      this.objects.push(timer);
-    });
-
-    // After all lines shown, display "Continue" button
-    const totalDelay = visibleLines.length * delayPerLine + 500;
-    const continueTimer = this.scene.time.delayedCall(totalDelay, () => {
-      if (!this.visible) return;
-      this._addBtn(CX, 430, '[ Continue ]', UI_PALETTE.accent, () =>
-        this._showResult(outcome, tier),
-      );
-    });
-    this.objects.push(continueTimer);
+    this.nativeMenu = ArenaMenu.log(this, lines, outcome, tier);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Result
-  // ────────────────────────────────────────
 
   _settleFight(outcome, tier) {
     if (this._settledResult) return this._settledResult;
@@ -954,159 +409,12 @@ export class ColosseumOverlay {
 
   _showResult(outcome, tier) {
     const { reward, levelUpInfo } = this._settleFight(outcome, tier);
-    const unit = this._selectedUnit;
-    const colosseumData = this._colosseumData;
     this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Result');
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
-      return;
-    }
-
-    // Display
-    let y = 110;
-
-    const outcomeColors = {
-      win: '#44ff44',
-      lose: '#ff4444',
-      draw: UI_PALETTE.accent,
-    };
-    const outcomeLabels = {
-      win: 'Victory!',
-      lose: 'Defeat...',
-      draw: 'Draw — fee refunded.',
-    };
-
-    const outcomeText = applyTextResolution(
-      this.scene.add.text(CX, y, outcomeLabels[outcome], {
-        ...HEADER_STYLE,
-        fontSize: '16px',
-        color: outcomeColors[outcome],
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(outcomeText);
-    y += 35;
-
-    // Fighter status
-    const status = applyTextResolution(
-      this.scene.add.text(CX, y, `${unit.name}: HP ${unit.currentHP}/${unit.stats.HP}`, BODY_STYLE),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(status);
-    y += 30;
-
-    // Gold change
-    const goldSign = reward.goldDelta >= 0 ? '+' : '';
-    const goldColor = reward.goldDelta >= 0 ? UI_PALETTE.accent : '#ff6666';
-    const goldText = applyTextResolution(
-      this.scene.add.text(CX, y, `Gold: ${goldSign}${reward.goldDelta}G`, {
-        ...BODY_STYLE,
-        color: goldColor,
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(goldText);
-    y += 22;
-
-    // XP gained
-    if (reward.xpGained > 0) {
-      const xpText = applyTextResolution(
-        this.scene.add.text(CX, y, `XP: +${reward.xpGained}`, {
-          ...BODY_STYLE,
-          color: '#66ddff',
-        }),
-      )
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(xpText);
-      y += 22;
-    }
-
-    // Level up
-    if (levelUpInfo) {
-      const lvText = applyTextResolution(
-        this.scene.add.text(CX, y, `Level Up! ${levelUpInfo.from} → ${levelUpInfo.to}`, {
-          ...HEADER_STYLE,
-          color: '#44ff44',
-        }),
-      )
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(lvText);
-      y += 22;
-
-      // Show stat gains from level-ups
-      if (levelUpInfo.ups?.length > 0) {
-        for (const lu of levelUpInfo.ups) {
-          if (!lu.gains) continue;
-          const gainStrs = Object.entries(lu.gains)
-            .filter(([, v]) => v > 0)
-            .map(([stat, v]) => `${stat}+${v}`);
-          if (gainStrs.length > 0) {
-            const gainText = applyTextResolution(
-              this.scene.add.text(CX, y, gainStrs.join('  '), {
-                ...SMALL_STYLE,
-                color: '#88ff88',
-              }),
-            )
-              .setOrigin(0.5)
-              .setDepth(CONTENT_DEPTH);
-            this.objects.push(gainText);
-            y += 18;
-          }
-        }
-      }
-    }
-
-    // Diminishing returns warning
-    const drAfter = colosseumData?.arena?.diminishingReturnsAfterLevels ?? 2;
-    const totalLevels = this._levelsGainedThisVisit[unit.name] || 0;
-    if (totalLevels >= drAfter) {
-      const drText = applyTextResolution(
-        this.scene.add.text(CX, y + 10, 'XP diminishing returns active.', {
-          ...SMALL_STYLE,
-          color: '#ff8888',
-        }),
-      )
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(drText);
-    }
-
-    // Buttons
-    const fights = this._fightsPerUnit[unit.name] || 0;
-    const canFightAgain = canFight(unit, fights, this._maxFights) && this._canAffordTier(tier);
-
-    if (canFightAgain) {
-      this._addBtn(CX - 90, 390, '[ Fight Again ]', '#44ff44', () =>
-        this._generateAndShowForecast(),
-      );
-    }
-
-    this._addBtn(canFightAgain ? CX + 90 : CX, 390, '[ Back to Menu ]', UI_PALETTE.muted, () =>
-      this._showMenu(),
-    );
-
-    // Updated gold display
-    this._addGold();
+    this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Mercenary Browse
-  // ────────────────────────────────────────
 
   _showMercBrowse() {
     this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Mercenary Board');
-    this._addGold();
 
     // Generate candidates once per visit
     if (!this._mercCandidates) {
@@ -1161,221 +469,14 @@ export class ColosseumOverlay {
       this._persistVisit();
     }
 
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.mercs(this);
-      return;
-    }
-
-    const candidates = this._mercCandidates;
-    const rosterCount = (this.runManager.roster || []).length;
-    const rosterCap = this._getRosterCap();
-    const rosterFull = rosterCount >= rosterCap;
-
-    if (candidates.length === 0) {
-      const emptyMsg = this._mercGenerationFailed
-        ? 'Mercenary board unavailable. Please try again later.'
-        : 'No mercenaries available.';
-      const t = applyTextResolution(this.scene.add.text(CX, 200, emptyMsg, BODY_STYLE))
-        .setOrigin(0.5)
-        .setDepth(CONTENT_DEPTH);
-      this.objects.push(t);
-    } else {
-      let y = 105;
-      const cardH = 95;
-
-      for (let i = 0; i < candidates.length; i++) {
-        const { unit, hireCost } = candidates[i];
-        const hired = unit._hired;
-        const canAfford = this.runManager.gold >= hireCost;
-        const canHire = !hired && !this._mercHired && canAfford && !rosterFull;
-
-        // Card background
-        const cardBg = this.scene.add
-          .rectangle(CX, y + cardH / 2 - 5, PANEL_W - 40, cardH, 0x1a1a1a)
-          .setDepth(CONTENT_DEPTH)
-          .setStrokeStyle(1, hired ? 0x444444 : 0x666666);
-        this.objects.push(cardBg);
-
-        // Name + class + level
-        const nameText = applyTextResolution(
-          this.scene.add.text(
-            75,
-            y,
-            `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`,
-            {
-              ...BODY_STYLE,
-              color: hired ? UI_PALETTE.muted : UI_PALETTE.text,
-            },
-          ),
-        ).setDepth(CONTENT_DEPTH);
-        this.objects.push(nameText);
-
-        // Key stats
-        const stats = unit.stats;
-        const statLine = `HP:${stats.HP} STR:${stats.STR} MAG:${stats.MAG} SPD:${stats.SPD} DEF:${stats.DEF} RES:${stats.RES}`;
-        const statText = applyTextResolution(
-          this.scene.add.text(75, y + 18, statLine, {
-            ...SMALL_STYLE,
-            color: hired ? '#555555' : UI_PALETTE.muted,
-          }),
-        ).setDepth(CONTENT_DEPTH);
-        this.objects.push(statText);
-
-        // Weapon + skill
-        const weaponName = unit.weapon?.name || 'None';
-        const skillNames = unit.skills?.length > 0 ? unit.skills.join(', ') : 'None';
-        const gearLine = `Weapon: ${weaponName}  |  Skills: ${skillNames}`;
-        const gearText = applyTextResolution(
-          this.scene.add.text(75, y + 34, gearLine, {
-            ...SMALL_STYLE,
-            color: hired ? '#555555' : UI_PALETTE.muted,
-          }),
-        ).setDepth(CONTENT_DEPTH);
-        this.objects.push(gearText);
-
-        // Traits (mercs can roll them — the player decides with this info)
-        const traitNames = getTraitNames(unit, this.gameData.traits);
-        if (traitNames) {
-          const traitText = applyTextResolution(
-            this.scene.add.text(75, y + 50, `Traits: ${traitNames}`, {
-              ...SMALL_STYLE,
-              color: hired ? '#555555' : '#cc99ff',
-            }),
-          ).setDepth(CONTENT_DEPTH);
-          this.objects.push(traitText);
-        }
-
-        // Price + hire button
-        if (hired) {
-          const hiredLabel = applyTextResolution(
-            this.scene.add.text(490, y + 15, 'HIRED', {
-              ...HEADER_STYLE,
-              color: '#44ff44',
-            }),
-          )
-            .setOrigin(0.5)
-            .setDepth(CONTENT_DEPTH);
-          this.objects.push(hiredLabel);
-        } else {
-          const priceColor = canAfford ? UI_PALETTE.accent : '#ff4444';
-          const priceText = applyTextResolution(
-            this.scene.add.text(490, y + 5, `${hireCost}G`, {
-              ...BODY_STYLE,
-              color: priceColor,
-            }),
-          )
-            .setOrigin(0.5)
-            .setDepth(CONTENT_DEPTH);
-          this.objects.push(priceText);
-
-          if (canHire) {
-            this._addBtn(490, y + 35, '[ Hire ]', '#44ff44', () => this._showMercConfirm(i));
-          } else {
-            let reason = '';
-            if (this._mercHired) reason = 'Max 1 hire';
-            else if (rosterFull) reason = 'Roster full';
-            else if (!canAfford) reason = 'Not enough gold';
-
-            const reasonText = applyTextResolution(
-              this.scene.add.text(490, y + 35, reason, {
-                ...SMALL_STYLE,
-                color: '#ff6666',
-              }),
-            )
-              .setOrigin(0.5)
-              .setDepth(CONTENT_DEPTH);
-            this.objects.push(reasonText);
-          }
-        }
-
-        y += cardH + 10;
-      }
-    }
-
-    this._addBtn(CX, 430, '[ Back ]', UI_PALETTE.muted, () => this._showMenu());
+    this.nativeMenu = ArenaMenu.mercs(this);
   }
-
-  // ────────────────────────────────────────
-  // SCREEN: Mercenary Confirm
-  // ────────────────────────────────────────
 
   _showMercConfirm(candidateIdx) {
     this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Hire Mercenary?');
-    this._addGold();
 
-    if (hasDOMHost()) {
-      this.nativeMenu = ArenaMenu.hire(this, candidateIdx);
-      return;
-    }
-
-    const { unit, hireCost } = this._mercCandidates[candidateIdx];
-
-    let y = 120;
-
-    // Unit details
-    const nameText = applyTextResolution(
-      this.scene.add.text(
-        CX,
-        y,
-        `${unit.name}  —  ${unit.className} Lv ${getDisplayLevel(unit)}`,
-        BODY_STYLE,
-      ),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(nameText);
-    y += 25;
-
-    const stats = unit.stats;
-    const statLine = `HP:${stats.HP}  STR:${stats.STR}  MAG:${stats.MAG}  SKL:${stats.SKL}  SPD:${stats.SPD}  DEF:${stats.DEF}  RES:${stats.RES}`;
-    const statText = applyTextResolution(this.scene.add.text(CX, y, statLine, SMALL_STYLE))
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(statText);
-    y += 20;
-
-    const weaponName = unit.weapon?.name || 'None';
-    const skillNames = unit.skills?.length > 0 ? unit.skills.join(', ') : 'None';
-    const gearText = applyTextResolution(
-      this.scene.add.text(CX, y, `Weapon: ${weaponName}  |  Skills: ${skillNames}`, SMALL_STYLE),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(gearText);
-    y += 40;
-
-    // Cost
-    const costText = applyTextResolution(
-      this.scene.add.text(CX, y, `Hire cost: ${hireCost}G`, {
-        ...BODY_STYLE,
-        color: UI_PALETTE.accent,
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(costText);
-    y += 25;
-
-    const afterGold = applyTextResolution(
-      this.scene.add.text(CX, y, `Gold after: ${this.runManager.gold - hireCost}G`, SMALL_STYLE),
-    )
-      .setOrigin(0.5)
-      .setDepth(CONTENT_DEPTH);
-    this.objects.push(afterGold);
-
-    // Buttons
-    this._addBtn(CX - 80, 350, '[ Confirm ]', '#44ff44', () => {
-      this._hireMercenary(candidateIdx);
-    });
-    this._addBtn(CX + 80, 350, '[ Cancel ]', UI_PALETTE.muted, () => this._showMercBrowse());
+    this.nativeMenu = ArenaMenu.hire(this, candidateIdx);
   }
-
-  // ────────────────────────────────────────
-  // Mercenary hire logic
-  // ────────────────────────────────────────
 
   _hireMercenary(candidateIdx) {
     const candidate = this._mercCandidates?.[candidateIdx];
@@ -1400,6 +501,7 @@ export class ColosseumOverlay {
 
     // Add to roster
     unit.faction = 'player';
+    this.runManager.grantRecruitBlessingConsumables?.(unit);
     this.runManager.roster.push(unit);
 
     // Mark as hired

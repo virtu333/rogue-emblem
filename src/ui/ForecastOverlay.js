@@ -1,3 +1,4 @@
+import { forecastProjection, forecastNotes } from './forecastDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 /**
  * ForecastOverlay — extracted from BattleScene.
@@ -44,6 +45,24 @@ export class ForecastOverlay {
     }
     const depth = 200;
     const panelW = 380;
+    const projection = forecastProjection(forecast);
+    const afterCost = weaponArt
+      ? scene._getWeaponArtHpAfterCost(attacker, weaponArt)
+      : forecast.attacker.hp;
+    const notes = [true, false].map((attacking) =>
+      forecastNotes(forecast, attacking, afterCost).map((text) =>
+        applyTextResolution(
+          scene.add.text(0, 0, text, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: UI_PALETTE.text,
+            wordWrap: { width: 178 },
+            lineSpacing: 2,
+          }),
+        ).setDepth(depth + 1),
+      ),
+    );
+    const noteHeight = (side) => notes[side].reduce((height, text) => height + text.height + 5, 0);
 
     // Pre-calculate content height for dynamic panel sizing
     let _atkExtraH = 0;
@@ -60,16 +79,16 @@ export class ForecastOverlay {
     if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 24;
     if (forecast.defender.warnings?.length)
       _defExtraH += 2 + forecast.defender.warnings.length * 14;
-    const panelH = Math.max(152, 152 + Math.max(_atkExtraH, _defExtraH));
+    const panelH = 166 + Math.max(_atkExtraH + noteHeight(0), _defExtraH + noteHeight(1));
     const panelX = (scene.cameras.main.width - panelW) / 2;
     const panelY = scene.cameras.main.height - panelH - 10;
     const halfW = (panelW - 8) / 2; // 186 per side
 
     // Panel background
     const bg = scene.add
-      .rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x111122, 0.95)
+      .rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, UI_HEX.panel, 1)
       .setDepth(depth)
-      .setStrokeStyle(2, 0x4466aa);
+      .setStrokeStyle(2, UI_HEX.line);
     this.displayObjects.push(bg);
 
     // Draw attacker (left) and defender (right)
@@ -77,6 +96,8 @@ export class ForecastOverlay {
       weaponArt,
       gamblerLine,
       validWeapons,
+      notes: notes[0],
+      predictedHP: projection?.attackerHP,
     });
     this._drawSide(
       panelX + halfW + 8,
@@ -86,7 +107,13 @@ export class ForecastOverlay {
       attacker,
       false,
       depth,
-      { weaponArt: null, gamblerLine: null, validWeapons: null },
+      {
+        weaponArt: null,
+        gamblerLine: null,
+        validWeapons: null,
+        notes: notes[1],
+        predictedHP: projection?.defenderHP,
+      },
     );
 
     // Center divider + VS
@@ -198,9 +225,26 @@ export class ForecastOverlay {
     const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
     hpGfx.fillStyle(getHPBarColor(ratio));
     hpGfx.fillRect(barX, barY, Math.round(barW * ratio), barH);
+    if (Number.isFinite(opts.predictedHP)) {
+      const remaining = Math.max(0, Math.min(unit.currentHP, opts.predictedHP));
+      hpGfx.fillStyle(UI_HEX.accent, 0.75);
+      hpGfx.fillRect(
+        barX + Math.round((barW * remaining) / unit.stats.HP),
+        barY,
+        Math.round((barW * (unit.currentHP - remaining)) / unit.stats.HP),
+        barH,
+      );
+    }
     this.displayObjects.push(hpGfx);
 
     y += 16;
+
+    for (const note of opts.notes || []) {
+      note.x = x + 2;
+      note.y = y;
+      this.displayObjects.push(note);
+      y += note.height + 5;
+    }
 
     // Cannot counter case (defender only)
     if (!isAttacker && !info.canCounter) {
@@ -230,7 +274,7 @@ export class ForecastOverlay {
 
     // Stat row 1: Dmg + Hit
     const dmgLabel = applyTextResolution(
-      scene.add.text(x + 2, y, 'Dmg', {
+      scene.add.text(x + 2, y, 'Damage/hit', {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.muted,
@@ -238,7 +282,7 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(dmgLabel);
     const dmgVal = applyTextResolution(
-      scene.add.text(x + 32, y, `${info.damage}`, {
+      scene.add.text(x + 64, y, `${info.damage}`, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.text,
@@ -247,7 +291,7 @@ export class ForecastOverlay {
     this.displayObjects.push(dmgVal);
 
     const hitLabel = applyTextResolution(
-      scene.add.text(x + 80, y, 'Hit', {
+      scene.add.text(x + 94, y, 'Hit rating', {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.muted,
@@ -255,7 +299,7 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(hitLabel);
     const hitVal = applyTextResolution(
-      scene.add.text(x + 108, y, `${info.hit}%`, {
+      scene.add.text(x + 148, y, `${info.hit}`, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.text,
@@ -305,19 +349,15 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(asVal);
 
-    // Doubling indicator
-    if (info.attackCount > 1) {
-      const countText = applyTextResolution(
-        scene.add.text(x + 134, y, `x${info.attackCount}`, {
-          fontFamily: 'Arial',
-          fontSize: '11px',
-          color: UI_PALETTE.accent,
-          fontStyle: 'bold',
-        }),
-      ).setDepth(textDepth);
-      this.displayObjects.push(countText);
-    }
-
+    y += 14;
+    const countText = applyTextResolution(
+      scene.add.text(x + 2, y, `Planned hits: ${info.attackCount || 1}`, {
+        fontFamily: 'Arial',
+        fontSize: '10px',
+        color: UI_PALETTE.accent,
+      }),
+    ).setDepth(textDepth);
+    this.displayObjects.push(countText);
     y += 14;
 
     // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons)

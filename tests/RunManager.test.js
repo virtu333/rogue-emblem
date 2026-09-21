@@ -928,6 +928,27 @@ describe('RunManager', () => {
       expect(rm.visionChargesRemaining).toBe(stateBeforeSecondCall.visionChargesRemaining);
     });
 
+    it.each([0, 3])(
+      'adds one Act 1 boss rewind to %i remaining charges and preserves it across reload/advance',
+      (initialVision) => {
+        rm.startRun();
+        const boss = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
+        rm.visionChargesRemaining = initialVision;
+        expect(rm.completeBattle(rm.getRoster(), boss.id, 0)).toBe(true);
+        expect(rm.visionChargesRemaining).toBe(initialVision + 1);
+        expect(saveRun(rm, null, 1).ok).toBe(true);
+        const restored = loadRun(gameData, 1);
+        expect(restored.visionChargesRemaining).toBe(initialVision + 1);
+        expect(restored.completeBattle(restored.getRoster(), boss.id, 0)).toBe(false);
+        expect(restored.visionChargesRemaining).toBe(initialVision + 1);
+        restored.advanceAct();
+        expect(restored.currentAct).toBe('act2');
+        expect(restored.visionChargesRemaining).toBe(initialVision + 1);
+        expect(saveRun(restored, null, 1).ok).toBe(true);
+        expect(loadRun(gameData, 1).visionChargesRemaining).toBe(initialVision + 1);
+      },
+    );
+
     it('grants +1 vision on first completion of an act2 boss node', () => {
       rm.startRun();
       const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
@@ -967,7 +988,7 @@ describe('RunManager', () => {
       expect(rm.visionChargesRemaining).toBe(initialVision + 1);
     });
 
-    it('does not grant vision for non-boss nodes, act1, or finalBoss', () => {
+    it('does not grant vision for non-boss nodes or finalBoss', () => {
       const nonBossType = new RunManager(gameData);
       nonBossType.startRun();
       const nonBossTypeNode = nonBossType.nodeMap.nodes.find(
@@ -991,18 +1012,6 @@ describe('RunManager', () => {
       const nonBossIdInitialVision = nonBossId.visionChargesRemaining;
       nonBossId.completeBattle(nonBossId.getRoster(), nonBossIdNode.id, 0);
       expect(nonBossId.visionChargesRemaining).toBe(nonBossIdInitialVision);
-
-      const nonTargetAct = new RunManager(gameData);
-      nonTargetAct.startRun();
-      const nonTargetActNode = nonTargetAct.nodeMap.nodes.find(
-        (n) => n.id === nonTargetAct.nodeMap.startNodeId,
-      );
-      nonTargetAct.nodeMap.actId = 'act1';
-      nonTargetAct.nodeMap.bossNodeId = nonTargetActNode.id;
-      nonTargetActNode.type = 'boss';
-      const nonTargetActInitialVision = nonTargetAct.visionChargesRemaining;
-      nonTargetAct.completeBattle(nonTargetAct.getRoster(), nonTargetActNode.id, 0);
-      expect(nonTargetAct.visionChargesRemaining).toBe(nonTargetActInitialVision);
 
       const finalBossAct = new RunManager(gameData);
       finalBossAct.startRun();
@@ -1052,7 +1061,7 @@ describe('RunManager', () => {
       );
       const act3Index = currentActWouldReward.actSequence.indexOf('act3');
       currentActWouldReward.actIndex = act3Index >= 0 ? act3Index : 0;
-      currentActWouldReward.nodeMap.actId = 'act1';
+      currentActWouldReward.nodeMap.actId = 'finalBoss';
       currentActWouldReward.nodeMap.bossNodeId = currentActWouldRewardNode.id;
       currentActWouldRewardNode.type = 'boss';
       const currentActWouldRewardInitialVision = currentActWouldReward.visionChargesRemaining;
@@ -1292,6 +1301,7 @@ describe('RunManager', () => {
       rm.settleEndRunRewards(meta, 'defeat');
       expect(meta.recordRunEnd).toHaveBeenCalledTimes(1);
       expect(meta.recordRunEnd).toHaveBeenCalledWith({
+        victoryRecord: null,
         result: 'defeat',
         act: rm.currentAct,
         difficultyId: 'normal',

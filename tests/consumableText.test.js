@@ -5,7 +5,9 @@ describe('consumableText', () => {
   it('formats consumable descriptions by effect', () => {
     expect(getConsumableDescription({ effect: 'heal', value: 20 })).toBe('Restore 20 HP');
     expect(getConsumableDescription({ effect: 'healFull' })).toBe('Restore HP to full');
-    expect(getConsumableDescription({ effect: 'promote' })).toBe('Promote a Lv 10+ unit');
+    expect(getConsumableDescription({ effect: 'promote' })).toBe(
+      'Promote an eligible level 10+ base-class unit',
+    );
     expect(getConsumableDescription({ effect: 'statBoost', stat: 'STR', value: 2 })).toBe(
       'Permanent +2 STR',
     );
@@ -17,10 +19,10 @@ describe('consumableText', () => {
 
   it('uses correct reclass article for infantry and mounted labels', () => {
     expect(getConsumableDescription({ effect: 'reclass', subEffect: 'infantry' })).toBe(
-      'Reclass to an infantry class',
+      'Reclass to an infantry or armored class',
     );
     expect(getConsumableDescription({ effect: 'reclass', subEffect: 'mounted' })).toBe(
-      'Reclass to a mounted class',
+      'Reclass to a cavalry or flying class',
     );
   });
 

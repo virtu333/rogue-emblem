@@ -584,3 +584,14 @@
 .re-tabs .re-btn {
   box-shadow: none;
 }
+
+/* Item explanations are visible tap targets, including inside rewards/roster. */
+.item-art-details summary {
+  min-height: var(--re-tap);
+  padding: 10px 0;
+  cursor: pointer;
+  color: var(--re-accent);
+}
+.item-art-details p {
+  white-space: pre-line;
+}

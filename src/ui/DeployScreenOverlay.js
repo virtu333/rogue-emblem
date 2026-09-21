@@ -1,3 +1,4 @@
+import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { showDeploymentMenu } from './PartyMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
@@ -43,6 +44,13 @@ export class DeployScreenOverlay {
    * @param {Set<string>|null} initialSelectedNames
    */
   show(roster, limits, onConfirm, initialSelectedNames = null) {
+    if (initialSelectedNames === null && this.runManager?.lastDeployment?.length) {
+      initialSelectedNames = new Set(
+        resolveDeploymentSelection(roster, limits, this.runManager.lastDeployment).map(
+          (unit) => unit.name,
+        ),
+      );
+    }
     if (hasDOMHost()) {
       showDeploymentMenu(this, roster, limits, onConfirm, initialSelectedNames);
       return;

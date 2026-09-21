@@ -11,6 +11,7 @@ import {
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
+import { rollHit } from './HitRoll.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
@@ -721,6 +722,11 @@ export function getCombatForecast(
   // Safety: if attacker has no valid weapon, return zeroed forecast
   if (!atkWeapon || isStaff(atkWeapon)) {
     return {
+      display: {
+        simpleExchange: false,
+        triangle: { damage: 0, hit: 0 },
+        counterReason: 'No attacking combat weapon equipped',
+      },
       attacker: {
         name: attacker.name,
         hp: attacker.currentHP ?? attacker.stats.HP,
@@ -923,7 +929,66 @@ export function getCombatForecast(
     if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
   }
 
+  // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
+    display: {
+      triangle: atkTriangle,
+      counterHasDamageProc: [...(defender.skills || []), defWeapon?._grantedSkill].some((skill) =>
+        ['aether', 'flare', 'seraph_strike'].includes(
+          typeof skill === 'string' ? skill : skill?.id,
+        ),
+      ),
+      counterReason: defCanCounter
+        ? null
+        : isSleeping(defender)
+          ? 'Asleep'
+          : fSilencedNoCounter
+            ? 'Silenced'
+            : atkMods?.preventCounter
+              ? 'Counter prevented by attack'
+              : !defWeapon || isStaff(defWeapon)
+                ? 'No combat weapon equipped'
+                : 'Target is outside weapon range',
+      // Conservative baseline: omit projections for exchanges with changing
+      // HP, ordering or special effects rather than imply a guaranteed outcome.
+      simpleExchange:
+        ![atkMods, defMods].some(
+          (m) => m?.vantage || m?.desperation || m?.drainPercent || hasWeaponArtActivation(m),
+        ) &&
+        !getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData) &&
+        !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
+        !atkWeapon.special &&
+        !defWeapon?.special &&
+        !atkWarnings.length &&
+        !defWarnings.length &&
+        ![
+          [attacker, atkWeapon],
+          [defender, defWeapon],
+        ].some(
+          ([u, weapon]) =>
+            u.accessory?.combatEffects ||
+            (u.affixes || []).some((id) => ['venomous', 'deathburst'].includes(id)) ||
+            [...(u.skills || []), weapon?._grantedSkill].some((s) =>
+              [
+                'miracle',
+                'sol',
+                'luna',
+                'astra',
+                'aether',
+                'flare',
+                'seraph_strike',
+                'lethality',
+                'adept',
+                'cancel',
+                'pavise',
+                'aegis',
+                'dragon_scale',
+                'drain',
+                'zombie_drain',
+              ].includes(typeof s === 'string' ? s : s?.id),
+            ),
+        ),
+    },
     attacker: {
       name: attacker.name,
       hp: attacker.currentHP ?? attacker.stats.HP,
@@ -993,8 +1058,7 @@ function rollStrike(
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
-  const hitRoll = Math.random() * 100;
-  if (hitRoll >= hit) {
+  if (!rollHit(hit)) {
     return {
       type: 'strike',
       attacker: strikerName,

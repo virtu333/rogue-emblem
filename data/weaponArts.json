@@ -2277,6 +2277,197 @@
           }
         ]
       }
+    },
+    {
+      "id": "sword_courtbreaker",
+      "name": "Courtbreaker",
+      "weaponType": "Sword",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "An unerring cut passes through the court guard.",
+      "combatMods": {
+        "atkBonus": 6,
+        "hitBonus": 20,
+        "ignoreTerrainAvoid": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Courtbreaker"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "lance_last_bastion",
+      "name": "Last Bastion",
+      "weaponType": "Lance",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A braced thrust keeps the wielder guarded through the exchange.",
+      "combatMods": {
+        "atkBonus": 5,
+        "defBonus": 8,
+        "resBonus": 8,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Last Bastion"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "axe_crown_splitter",
+      "name": "Crown Splitter",
+      "weaponType": "Axe",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A heavy blow breaks through the weapon triangle.",
+      "combatMods": {
+        "atkBonus": 12,
+        "hitBonus": 10,
+        "ignoreWeaponTriangle": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Crown Splitter"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "bow_horizon_shot",
+      "name": "Horizon Shot",
+      "weaponType": "Bow",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A steady aim reaches beyond the enemy line.",
+      "combatMods": {
+        "rangeBonus": 2,
+        "hitBonus": 25,
+        "atkBonus": 3,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Horizon Shot"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "magic_starless_flame",
+      "name": "Starless Flame",
+      "weaponType": "Tome",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 9,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A forbidden flame burns past magical resistance.",
+      "combatMods": {
+        "ignoreRES": true,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Starless Flame"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "magic_aegis_bolt",
+      "name": "Aegis Bolt",
+      "weaponType": "Tome",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A battle ward carries the spell and catches the answer.",
+      "combatMods": {
+        "atkBonus": 5,
+        "defBonus": 7,
+        "resBonus": 7,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Aegis Bolt"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "light_sanctuary",
+      "name": "Sanctuary",
+      "weaponType": "Light",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A sheltered ray leaves no opening for a counterattack.",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 15,
+        "preventCounter": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Sanctuary"
+          }
+        ]
+      },
+      "scrollOnly": true
+    },
+    {
+      "id": "light_dawns_judgment",
+      "name": "Dawn's Judgment",
+      "weaponType": "Light",
+      "tierAffinity": "Silver",
+      "unlockAct": "act4",
+      "requiredRank": "Prof",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "The old shrine rite steadies a decisive beam.",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 20,
+        "critBonus": 15,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Dawn's Judgment"
+          }
+        ]
+      },
+      "scrollOnly": true
     }
   ]
 }

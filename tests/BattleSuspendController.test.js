@@ -66,7 +66,7 @@ function makeScene(overrides = {}) {
     _latePressureWarningShown: true,
     _bossName: 'Varga',
     reseedBattleRng: vi.fn(),
-    _persistBattleRunState: vi.fn(),
+    _persistBattleRunState: vi.fn(() => ({ ok: true })),
     addUnitGraphic: vi.fn(),
     dimUnit: vi.fn(),
     _addConditionIcon: vi.fn(),
@@ -436,4 +436,47 @@ it('migrates pre-commitment trade saves without spending the remaining action or
   expect(scene.playerUnits.map((u) => u._movementCommitted)).toEqual([true, false, false]);
   expect(scene.playerUnits.every((u) => !u.hasActed)).toBe(true);
   expect(serializeSuspendUnit(scene.playerUnits[0])._movementCommitted).toBe(true);
+});
+
+describe('enemy action presentation checkpoints', () => {
+  it('captures only a completed enemy boundary and resumes the remaining phase directly', () => {
+    const scene = makeScene({ enemyUnits: [makeUnit({ faction: 'enemy', hasActed: true })] });
+    scene.turnManager.currentPhase = 'enemy';
+    const controller = new BattleSuspendController(scene);
+    expect(controller.captureCheckpoint()).toBe(false);
+    scene._enemyActionCheckpoint = true;
+    expect(controller.captureCheckpoint()).toBe(true);
+    const checkpoint = JSON.parse(JSON.stringify(scene.runManager.battleInProgress.checkpoint));
+    expect(checkpoint.phase).toBe('enemy');
+    expect(checkpoint.enemyUnits[0].hasActed).toBe(true);
+    scene.startEnemyPhase = vi.fn();
+    controller.finalizeResume(checkpoint);
+    expect(scene.turnManager.currentPhase).toBe('enemy');
+    expect(scene.battleState).toBe('ENEMY_PHASE');
+    expect(scene.startEnemyPhase).toHaveBeenCalledWith({ resume: true });
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+  });
+});
+
+it('does not serialize live target references from an AI decision', () => {
+  const target = makeUnit();
+  target.graphic = { parent: target, destroy() {} };
+  const enemy = makeUnit({ faction: 'enemy', _lastAiDecision: { target } });
+  expect(() => structuredClone(serializeSuspendUnit(enemy))).not.toThrow();
+  expect(serializeSuspendUnit(enemy)._lastAiDecision).toBeUndefined();
+});
+
+it('preserves the stable seed base across successive resume checkpoints', () => {
+  const uninterrupted = makeScene();
+  const live = new BattleSuspendController(uninterrupted);
+  live.captureCheckpoint();
+  const first = JSON.parse(JSON.stringify(uninterrupted.runManager.battleInProgress.checkpoint));
+  live.captureCheckpoint();
+  const expected = uninterrupted.runManager.battleInProgress.checkpoint.rngSeed;
+  const resumed = makeScene({ visionBaseSeed: first.rngSeed });
+  resumed.runManager.battleInProgress.checkpoint = first;
+  const restored = new BattleSuspendController(resumed);
+  restored.finalizeResume(first);
+  restored.captureCheckpoint();
+  expect(resumed.runManager.battleInProgress.checkpoint.rngSeed).toBe(expected);
 });

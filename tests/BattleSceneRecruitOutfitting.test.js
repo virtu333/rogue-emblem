@@ -123,7 +123,7 @@ function makeBattleSceneWithRecruit(metaEffects = {}) {
   scene.cancelTouchInspectHold = vi.fn();
   scene._hideMenuTooltip = vi.fn();
   scene._restoreBattleRng = vi.fn();
-  scene._isReducedEffects = vi.fn(() => true);
+  scene._reduceMotion = vi.fn(() => true);
   scene._onDangerClick = vi.fn();
   scene._onRosterClick = vi.fn();
   scene.forceEndTurn = vi.fn();
@@ -147,7 +147,8 @@ describe('BattleScene recruit NPC Quartermaster’s Craft path', () => {
 
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
-      expect(recruit.inventory).toHaveLength(1);
+      expect(recruit.inventory).toHaveLength(2);
+      expect(recruit.inventory.find((w) => w.name.startsWith('Hand Axe'))._forgeLevel).toBe(2);
       expect(recruit.weapon._forgeLevel).toBe(2);
       expect(recruit.weapon.name).toMatch(/\+2$/);
       // Equipped weapon is the (mutated-in-place) inventory item
@@ -165,7 +166,8 @@ describe('BattleScene recruit NPC Quartermaster’s Craft path', () => {
 
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
-      expect(recruit.inventory).toHaveLength(2);
+      expect(recruit.inventory).toHaveLength(3);
+      expect(recruit.inventory.some((w) => w.name.startsWith('Hand Axe'))).toBe(true);
       for (const weapon of recruit.inventory) {
         expect(weapon._forgeLevel).toBe(1);
         expect(weapon.name).toMatch(/\+1$/);

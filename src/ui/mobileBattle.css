@@ -318,3 +318,35 @@
 .mb-objective {
   white-space: pre-line;
 }
+
+/* Tutorial notes reserve their own area; the related forecast remains readable. */
+.mb-forecast-backdrop.mb-tutorial-forecast {
+  bottom: calc(100dvh - var(--mb-tutorial-note-top) + 8px);
+  padding-top: max(6px, env(safe-area-inset-top));
+  padding-bottom: 0;
+}
+.mb-tutorial-forecast .mb-forecast {
+  height: 100%;
+  padding: 8px;
+  gap: 0;
+}
+.mb-tutorial-forecast .mb-forecast-sides {
+  flex: 1;
+}
+.mb-tutorial-forecast .mb-forecast-footer,
+.mb-tutorial-forecast .mb-portrait,
+.mb-tutorial-forecast .mb-hp,
+.mb-tutorial-forecast .re-health,
+.mb-tutorial-forecast .mb-eyebrow,
+.mb-tutorial-forecast .mb-detail,
+.mb-tutorial-forecast .mb-stats > div:not(.mb-tutorial-subject),
+.mb-tutorial-forecast .mb-notice:not(.mb-tutorial-subject) {
+  display: none;
+}
+.mb-tutorial-forecast .mb-forecast-side h3 {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+.mb-tutorial-forecast .mb-stats {
+  margin-top: 4px;
+}

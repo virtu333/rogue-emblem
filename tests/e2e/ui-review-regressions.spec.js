@@ -138,3 +138,32 @@ test('late route opens centered on available choices and service preview returns
   await expect(page.locator('.re-node-map')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('last difficulty preselects only while unlocked', async ({ page }) => {
+  await page.goto('/?devScene=homebase&mobilePreview=1');
+  await waitForScene(page, 'HomeBase');
+  await page.evaluate(() => {
+    const m = window.__emblemRogueGame.registry.get('meta');
+    m.lastDifficulty = 'hard';
+    m.milestones.add('beatGame');
+  });
+  await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
+  await waitForScene(page, 'DifficultySelect');
+  expect(
+    await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('DifficultySelect').selectedIndex,
+    ),
+  ).toBe(1);
+  await page.getByRole('button', { name: 'Back', exact: true }).tap();
+  await waitForScene(page, 'HomeBase');
+  await page.evaluate(() =>
+    window.__emblemRogueGame.registry.get('meta').milestones.delete('beatGame'),
+  );
+  await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
+  await waitForScene(page, 'DifficultySelect');
+  expect(
+    await page.evaluate(
+      () => window.__emblemRogueGame.scene.getScene('DifficultySelect').selectedIndex,
+    ),
+  ).toBe(0);
+});

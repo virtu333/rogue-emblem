@@ -35,6 +35,8 @@ test('level result owns input, scrolls on rotation, and settles once through con
   await page.setViewportSize({ width: 375, height: 667 });
   expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await page.setViewportSize({ width: 667, height: 375 });
+  const reveal = dialog.getByRole('button', { name: 'Reveal gains', exact: true });
+  if (await reveal.count()) await reveal.tap();
   await page.screenshot({ path: 'test-results/new-level-up.png' });
   await page.evaluate(async () => {
     const { dispatchInputAction } = await import('/src/utils/inputFocus.js');
@@ -98,9 +100,11 @@ test('rewards expose tier icons and return from roster/settings without losing c
   await expect(page.getByRole('dialog', { name: 'Inspect roster', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(rewards.locator('.reward-legend')).toHaveAttribute('aria-pressed', 'true');
-  await rewards.getByRole('button', { name: 'Settings', exact: true }).tap();
+  await rewards.getByRole('button', { name: 'Menu', exact: true }).tap();
+  await page.getByRole('button', { name: 'Settings', exact: true }).tap();
   await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Resume', exact: true }).tap();
   await expect(rewards.getByRole('button', { name: 'Choose reward', exact: true })).toBeEnabled();
   await page.screenshot({ path: 'test-results/reward-flair-live.png' });
   expect(errors).toEqual([]);

@@ -25,13 +25,23 @@
   border: 1px solid var(--re-accent-text);
   font-weight: 700;
 }
-.mu-screen .mu-buy:not(:disabled):is(:hover, :active),
-.mu-screen .mh-begin:not(:disabled):is(:hover, :active),
-.mobile-battle-hud .mb-primary:not(:disabled):is(:hover, :active),
-.mb-forecast .mb-primary:not(:disabled):is(:hover, :active),
-.mp-actions .mp-primary:is(:hover, :active) {
+.mu-screen .mu-buy:not(:disabled):active,
+.mu-screen .mh-begin:not(:disabled):active,
+.mobile-battle-hud .mb-primary:not(:disabled):active,
+.mb-forecast .mb-primary:not(:disabled):active,
+.mp-actions .mp-primary:active {
   background: var(--re-accent-text);
   color: var(--re-action-ink);
+}
+@media (hover: hover) {
+  .mu-screen .mu-buy:not(:disabled):hover,
+  .mu-screen .mh-begin:not(:disabled):hover,
+  .mobile-battle-hud .mb-primary:not(:disabled):hover,
+  .mb-forecast .mb-primary:not(:disabled):hover,
+  .mp-actions .mp-primary:hover {
+    background: var(--re-accent-text);
+    color: var(--re-action-ink);
+  }
 }
 .mobile-battle-hud {
   border-left: 1px solid var(--re-line-soft);
@@ -440,7 +450,7 @@ html.mobile-preview .re-screen {
     > .re-screen:not([hidden]),
     > .mu-screen,
     > .mr-sheet,
-    > .re-modal-shield,
+    > .re-modal-shield:not(:has(.re-tutorial-note)),
     > .mp-backdrop:not([hidden])
   )
   > .mobile-battle-hud {

@@ -60,12 +60,21 @@
   cursor: pointer;
   touch-action: pan-y;
 }
-.mp-actions button:is(:hover, :focus-visible) {
+.mp-actions button:focus-visible {
   border-color: var(--re-gold);
   color: var(--re-gold-hi);
   background: var(--re-selected);
   outline: 2px solid var(--re-gold);
   outline-offset: -2px;
+}
+@media (hover: hover) {
+  .mp-actions button:hover {
+    border-color: var(--re-gold);
+    color: var(--re-gold-hi);
+    background: var(--re-selected);
+    outline: 2px solid var(--re-gold);
+    outline-offset: -2px;
+  }
 }
 .mp-actions .mp-primary {
   border-color: var(--re-accent-text);

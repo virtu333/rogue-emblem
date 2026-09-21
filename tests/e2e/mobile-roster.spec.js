@@ -146,3 +146,50 @@ test('DOM portraits remain usable after the game loader revokes its image URL', 
   });
   expect(result).toBe(8);
 });
+
+test('roster tolerates thumb drift but rejects scroll and slide-off releases', async ({ page }) => {
+  const sheet = await roster(page);
+  const cards = sheet.locator('.mr-unit-card');
+  await expect(cards.first()).toContainText('Lv');
+  const gesture = async (pointerType, drift, cancel) =>
+    cards.nth(1).evaluate(
+      (b, args) => {
+        const r = b.getBoundingClientRect();
+        const send = (type, dx = 0) =>
+          b.dispatchEvent(
+            new PointerEvent(type, {
+              bubbles: true,
+              pointerId: 7,
+              isPrimary: true,
+              pointerType: args.pointerType,
+              clientX: r.left + 30 + dx,
+              clientY: r.top + 25,
+            }),
+          );
+        send('pointerdown');
+        send('pointermove', args.drift);
+        if (args.cancel) send(args.cancel, args.drift);
+        send('pointerup', args.drift);
+        b.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      },
+      { pointerType, drift, cancel },
+    );
+  for (const [type, drift, cancel] of [
+    ['touch', 30, null],
+    ['touch', 5, 'pointercancel'],
+    ['touch', 5, 'pointerleave'],
+    ['mouse', 16, null],
+  ]) {
+    await gesture(type, drift, cancel);
+    await expect(cards.first()).toHaveAttribute('aria-pressed', 'true');
+  }
+  await gesture('touch', 16, null);
+  await expect(cards.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(sheet.locator('.mr-unit-card[aria-pressed="true"]')).toHaveCount(1);
+  await cards.first().tap();
+  await expect(cards.first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(cards.nth(1)).toHaveAttribute('aria-pressed', 'false');
+  expect(await cards.first().evaluate((b) => getComputedStyle(b).backgroundColor)).not.toBe(
+    await cards.nth(1).evaluate((b) => getComputedStyle(b).backgroundColor),
+  );
+});

@@ -1,35 +1,112 @@
 {
   "recruitLines": {
-    "Fighter": ["Need an axe? I'm with you.", "Point me at something to hit."],
-    "Archer": ["I don't miss. Point me at a target.", "My arrows are yours."],
-    "Mage": ["My spells aren't gentle, but they're effective.", "I've studied enough. Time to fight."],
-    "Cavalier": ["My lance is yours, Commander.", "I rode from the front lines. Where do you need me?"],
-    "Cleric": ["I can mend what's broken. Stay close.", "The wounded need me. Lead on."],
-    "Myrmidon": ["I fight alone. But I'll fight beside you.", "One blade is enough. Mine."],
-    "Thief": ["I go where I please. Right now, I please to go with you.", "Locks, traps, pockets - I handle them all."],
-    "Mercenary": ["Coin's good. Cause is better. You've got both.", "I've fought for worse reasons."],
-    "Pegasus Knight": ["The skies are mine. Let's see what's ahead.", "From above, I've seen what the corruption does."],
-    "Knight": ["I am the shield. You are the sword.", "Nothing gets past me. Nothing."],
-    "Dancer": ["A dance can turn the tide. Watch and see.", "Morale wins wars. I'm here for that."],
-    "Wyvern Rider": ["My wyvern and I answer to no lord. But for this fight - we'll make an exception.", "The skies belong to us."],
-    "Hero": ["I've fought in darker wars than this. What matters is seeing it through.", "Another war. Let's end this one."],
-    "Falcon Knight": ["From above, I've seen what the corruption does. No more.", "Lance and sky. That's all I need."],
-    "Sage": ["The old magic is failing. Perhaps your seer can show us a better path.", "Knowledge is a weapon. I'm well-armed."],
-    "Assassin": ["I don't do speeches. Just tell me who dies.", "Silence is my specialty."],
-    "Sniper": ["One shot. One kill. That's the only math that matters.", "I see the target. That's enough."],
-    "Bishop": ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."],
-    "Chevalier": ["My lance rides where honor demands. Lead, and I follow.", "A knight without a charge is nothing. Give me one."],
-    "Sky Lancer": ["The wind answers to no one. Neither do I.", "From up here, I see everything. Point me at the real threat."],
-    "Sentinel": ["I don't move. I don't flinch. Come at me.", "They'll break against me like waves on stone."]
+    "Fighter": [
+      "Need an axe? I'm with you.",
+      "Point me at something to hit."
+    ],
+    "Archer": [
+      "I don't miss. Point me at a target.",
+      "My arrows are yours."
+    ],
+    "Mage": [
+      "My spells aren't gentle, but they're effective.",
+      "I've studied enough. Time to fight."
+    ],
+    "Cavalier": [
+      "My lance is yours, Commander.",
+      "I rode from the front lines. Where do you need me?"
+    ],
+    "Cleric": [
+      "I can mend what's broken. Stay close.",
+      "The wounded need me. Lead on."
+    ],
+    "Myrmidon": [
+      "I fight alone. But I'll fight beside you.",
+      "One blade is enough. Mine."
+    ],
+    "Thief": [
+      "I go where I please. Right now, I please to go with you.",
+      "Locks, traps, pockets - I handle them all."
+    ],
+    "Mercenary": [
+      "Coin's good. Cause is better. You've got both.",
+      "I've fought for worse reasons."
+    ],
+    "Pegasus Knight": [
+      "The skies are mine. Let's see what's ahead.",
+      "From above, I've seen what the corruption does."
+    ],
+    "Knight": [
+      "I am the shield. You are the sword.",
+      "Nothing gets past me. Nothing."
+    ],
+    "Dancer": [
+      "A dance can turn the tide. Watch and see.",
+      "Morale wins wars. I'm here for that."
+    ],
+    "Wyvern Rider": [
+      "My wyvern and I answer to no lord. But for this fight - we'll make an exception.",
+      "The skies belong to us."
+    ],
+    "Hero": [
+      "I've fought in darker wars than this. What matters is seeing it through.",
+      "Another war. Let's end this one."
+    ],
+    "Falcon Knight": [
+      "From above, I've seen what the corruption does. No more.",
+      "Lance and sky. That's all I need."
+    ],
+    "Sage": [
+      "The old magic is failing. Perhaps your seer can show us a better path.",
+      "Knowledge is a weapon. I'm well-armed."
+    ],
+    "Assassin": [
+      "I don't do speeches. Just tell me who dies.",
+      "Silence is my specialty."
+    ],
+    "Sniper": [
+      "One shot. One kill. That's the only math that matters.",
+      "I see the target. That's enough."
+    ],
+    "Bishop": [
+      "The light fades, but it hasn't gone. Not yet.",
+      "Healing and faith. I bring both."
+    ],
+    "Chevalier": [
+      "My lance rides where honor demands. Lead, and I follow.",
+      "A knight without a charge is nothing. Give me one."
+    ],
+    "Sky Lancer": [
+      "The wind answers to no one. Neither do I.",
+      "From up here, I see everything. Point me at the real threat."
+    ],
+    "Sentinel": [
+      "I don't move. I don't flinch. Come at me.",
+      "They'll break against me like waves on stone."
+    ]
   },
   "lordRecruitLines": {
-    "Edric": ["Rally to me. We're stronger together."],
-    "Kira": ["I see the line to win. Do you?"],
-    "Voss": ["Still standing. That's all that matters."],
-    "Sera": ["I dreamt of this moment. Stay close."],
-    "Rowan": ["My lance is blessed. My aim? That's all me."],
-    "Astrid": ["The sky sees what the ground misses. I'll be your sight."],
-    "Cael": ["I'll hold the line. Don't have too much fun back there."]
+    "Edric": [
+      "Rally to me. We're stronger together."
+    ],
+    "Kira": [
+      "I see the line to win. Do you?"
+    ],
+    "Voss": [
+      "Still standing. That's all that matters."
+    ],
+    "Sera": [
+      "I dreamt of this moment. Stay close."
+    ],
+    "Rowan": [
+      "My lance is blessed. My aim? That's all me."
+    ],
+    "Astrid": [
+      "The sky sees what the ground misses. I'll be your sight."
+    ],
+    "Cael": [
+      "I'll hold the line. Don't have too much fun back there."
+    ]
   },
   "actTransitions": {
     "runStart": {
@@ -42,7 +119,10 @@
       ],
       "variants": [
         {
-          "when": { "lastRunResult": "defeat", "lastRunDefeatedByKnown": true },
+          "when": {
+            "lastRunResult": "defeat",
+            "lastRunDefeatedByKnown": true
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -52,7 +132,9 @@
           ]
         },
         {
-          "when": { "lastRunResult": "defeat" },
+          "when": {
+            "lastRunResult": "defeat"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -62,7 +144,10 @@
           ]
         },
         {
-          "when": { "lastRunResult": "victory", "minRunsCompleted": 10 },
+          "when": {
+            "lastRunResult": "victory",
+            "minRunsCompleted": 10
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -72,7 +157,9 @@
           ]
         },
         {
-          "when": { "lastRunResult": "victory" },
+          "when": {
+            "lastRunResult": "victory"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -93,7 +180,9 @@
       ],
       "variants": [
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Edric",
@@ -103,7 +192,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Kira",
@@ -113,7 +204,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Voss",
@@ -123,7 +216,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -133,7 +228,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Rowan",
@@ -143,7 +240,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Astrid",
@@ -153,7 +252,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Cael",
@@ -174,7 +275,261 @@
       ],
       "variants": [
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Five marches have taught me to count the soldiers behind the banner."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The last defeat cost us enough; keep the column together."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "I know where these patrols turn now."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Mark the road that trapped us last time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Same border, older boots. Keep moving."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Take water before we march; we ran short last time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier returns in every vision, but our choices still matter."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I have kept the names from the path we lost."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "I could ride this road blind by now."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "This time I will check the ford before charging."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "Their watchfires follow the same ridge on every march."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will scout both banks before we cross."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The veterans take the outside of the column."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Close the gap that broke our line last time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -189,7 +544,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -204,7 +561,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -219,7 +578,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -234,7 +595,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -249,7 +612,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -264,7 +629,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -290,7 +657,261 @@
       ],
       "variants": [
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We have reached this ground before; nobody crosses alone."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Carry the wounded clear before we press on."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "The court circle keeps repeating the same preparations."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "I have marked where our last approach failed."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "I remember the smell of this place. Keep your cloth over your mouth."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Rest now; we pushed too hard on the last march."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Each return makes the ritual easier to hear."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will not mistake a clear vision for a safe path again."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Even my horse remembers to slow down here."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "No charge until we know what waits beyond the stones."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "The wind dies at the same stones every time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will land before the updraft turns."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "We know the approach; shields toward the broken arch."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The rear guard stays within sight this time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -305,7 +926,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -320,7 +943,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -335,7 +960,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -350,7 +977,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -365,7 +994,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -380,7 +1011,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -406,7 +1039,261 @@
       ],
       "variants": [
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We have marched too far, too often, to leave anyone behind now."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The last fallen are with us in every step."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "All those returns have shown me where the lieutenant hesitates."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "I kept the losing line; now I know where to turn."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "My hands know this grip. Get on with it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "I owe the dead a better fight."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I can separate my rival’s visions from my own now."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I remember the thread that broke, and I will watch for it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "One more meeting, one steadier lance."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "I will keep a reserve for the second charge."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I have flown every approach; take the low ground beneath me."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will keep the retreat open until everyone is through."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Every march has taught this line how to hold."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunResult": "defeat"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "We brace together where the last line broke."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -421,7 +1308,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -436,7 +1325,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -451,7 +1342,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -466,7 +1359,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -481,7 +1376,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -496,7 +1393,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -512,39 +1411,531 @@
         }
       ]
     },
-    "act3_to_act4": [
-      {
-        "speaker": "Sera",
-        "portrait": "portrait_lord_sera",
-        "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
-      },
-      {
-        "speaker": "Edric",
-        "portrait": "portrait_lord_edric",
-        "line": "Then we go to him."
-      }
-    ],
-    "act4_to_finalBoss": [
-      {
-        "speaker": "Edric",
-        "portrait": "portrait_lord_edric",
-        "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
-      }
-    ],
-    "finalBoss_to_secretAct": [
-      {
-        "speaker": "Sera",
-        "portrait": "portrait_lord_sera",
-        "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
-      }
-    ],
-    "secretAct_start": [
-      {
-        "speaker": "Sera",
-        "portrait": "portrait_lord_sera",
-        "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
-      }
-    ]
+    "act3_to_act4": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+        },
+        {
+          "speaker": "Edric",
+          "portrait": "portrait_lord_edric",
+          "line": "Then we go to him."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Rally at the road to the capital."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Then the emperor has moved ahead of his own seer."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Point me toward the palace."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I must see what the emperor has done."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Saddle up; the road to the throne is open."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will scout the stronghold from above."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Bring the wounded behind my shield."
+            }
+          ]
+        }
+      ]
+    },
+    "act4_to_finalBoss": {
+      "base": [
+        {
+          "speaker": "Edric",
+          "portrait": "portrait_lord_edric",
+          "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We end his command here."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Cut him off from the ritual circle."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Open the gates."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The ritual is louder than his voice."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Keep a lane clear for my charge."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "His towers leave the western approach exposed."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Form up for the breach."
+            }
+          ]
+        }
+      ]
+    },
+    "finalBoss_to_secretAct": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Take ropes and lanterns; we descend together."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Watch the cracks before choosing a foothold."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "I will carry the heavy gear."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Follow my voice if the visions take the light."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Leave the horses with the rear guard."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will scout the descent on foot."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Tie the rope to my shield arm."
+            }
+          ]
+        }
+      ]
+    },
+    "secretAct_start": {
+      "base": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+        }
+      ],
+      "variants": [
+        {
+          "when": {
+            "commander": "Edric"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Keep the banner where the rear can see it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Count your steps; we may need the way back."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "Stay close enough to hear me."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will lead by what I can see here, now."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Steady hands. One thrust at a time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "There is no lift down here; I will stay with the line."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Close ranks around the lantern."
+            }
+          ]
+        }
+      ]
+    }
   },
   "bossEncounters": {
     "Iron Captain": {
@@ -558,7 +1949,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Captain",
@@ -568,7 +1961,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Captain",
@@ -598,12 +1993,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Captain",
                 "portrait": "portrait_boss_iron_captain",
                 "line": "Again... why does it feel like... again..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Stand aside and let the border villages breathe."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Then you know every road we could use."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Twenty years here is long enough."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "I can see the orders you are still waiting for."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Let us test the empire’s border drills."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "Your line ends where the ridge begins."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Your soldiers can still withdraw."
               }
             ]
           }
@@ -621,7 +2106,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Warchief",
@@ -631,7 +2118,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Warchief",
@@ -661,12 +2150,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Warchief",
                 "portrait": "portrait_boss_warchief",
                 "line": "Twice... felled twice by the same blade... what a war this is..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Keep your clans clear of our wounded."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Your reach leaves the flank open."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Raise it, then."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "There is blood enough on this ground."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Mind the point of my lance."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "You will have to look up to find me."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Try the shield before you reach my soldiers."
               }
             ]
           }
@@ -684,7 +2263,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Knight Commander",
@@ -694,7 +2275,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Knight Commander",
@@ -724,12 +2307,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Knight Commander",
                 "portrait": "portrait_boss_knight_commander",
                 "line": "Again the rebellion... again this ending... my faith does not waver..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Your soldiers deserve better orders."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "I have read your cavalry doctrine."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "I have buried men who believed that."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "The emperor cannot promise you a future."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Let us see the empire’s first lance at work."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "Your horses cannot follow me over the ridge."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Brace the line; let the charge come."
               }
             ]
           }
@@ -747,7 +2420,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Archmage",
@@ -757,7 +2432,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Archmage",
@@ -787,12 +2464,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Archmage",
                 "portrait": "portrait_boss_archmage",
                 "line": "Reproducible... my death is... reproducible... what a final datum..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Our people are more than figures in your book."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Show me where your model allows for this."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Put down the book and face us."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Those rifts carry lives you have never counted."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "I prefer a blessing I can hold."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "You missed the approach above your circle."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Study my shield at close range."
               }
             ]
           }
@@ -810,7 +2577,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Blade Lord",
@@ -820,7 +2589,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Blade Lord",
@@ -850,12 +2621,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Blade Lord",
                 "portrait": "portrait_boss_blade_lord",
                 "line": "Cut down... in thread after thread... master, I'm sorry..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Our lives are ours to defend."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "A perfect form still needs room to move."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "I have survived better predictions."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "The lieutenant has hidden other paths from you."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "I will take my chances with the lance."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "Your stance was made for level ground."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Try cutting a path through me."
               }
             ]
           }
@@ -873,7 +2734,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Wall",
@@ -883,7 +2746,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Wall",
@@ -913,12 +2778,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Iron Wall",
                 "portrait": "portrait_boss_iron_wall",
                 "line": "The walls fall... as they always fall... to you..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Let the people behind those walls leave."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Every breach begins at a joint."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "I brought an axe."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "I see the courier you never heard arrive."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Then we test the gate."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "I will look for a way above the parapet."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "I know what it costs to hold alone."
               }
             ]
           }
@@ -936,7 +2891,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Lieutenant",
@@ -946,7 +2903,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Lieutenant",
@@ -969,7 +2928,9 @@
       "preBattleReply": {
         "variants": [
           {
-            "when": { "commander": "Edric" },
+            "when": {
+              "commander": "Edric"
+            },
             "entries": [
               {
                 "speaker": "Edric",
@@ -979,7 +2940,9 @@
             ]
           },
           {
-            "when": { "commander": "Kira" },
+            "when": {
+              "commander": "Kira"
+            },
             "entries": [
               {
                 "speaker": "Kira",
@@ -989,7 +2952,9 @@
             ]
           },
           {
-            "when": { "commander": "Voss" },
+            "when": {
+              "commander": "Voss"
+            },
             "entries": [
               {
                 "speaker": "Voss",
@@ -999,7 +2964,9 @@
             ]
           },
           {
-            "when": { "commander": "Sera" },
+            "when": {
+              "commander": "Sera"
+            },
             "entries": [
               {
                 "speaker": "Sera",
@@ -1009,7 +2976,9 @@
             ]
           },
           {
-            "when": { "commander": "Rowan" },
+            "when": {
+              "commander": "Rowan"
+            },
             "entries": [
               {
                 "speaker": "Rowan",
@@ -1019,7 +2988,9 @@
             ]
           },
           {
-            "when": { "commander": "Astrid" },
+            "when": {
+              "commander": "Astrid"
+            },
             "entries": [
               {
                 "speaker": "Astrid",
@@ -1029,7 +3000,9 @@
             ]
           },
           {
-            "when": { "commander": "Cael" },
+            "when": {
+              "commander": "Cael"
+            },
             "entries": [
               {
                 "speaker": "Cael",
@@ -1050,7 +3023,9 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Lieutenant",
@@ -1073,7 +3048,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Emperor",
@@ -1083,7 +3060,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Emperor",
@@ -1106,7 +3085,9 @@
       "preBattleReply": {
         "variants": [
           {
-            "when": { "commander": "Edric" },
+            "when": {
+              "commander": "Edric"
+            },
             "entries": [
               {
                 "speaker": "Edric",
@@ -1116,7 +3097,9 @@
             ]
           },
           {
-            "when": { "commander": "Kira" },
+            "when": {
+              "commander": "Kira"
+            },
             "entries": [
               {
                 "speaker": "Kira",
@@ -1126,7 +3109,9 @@
             ]
           },
           {
-            "when": { "commander": "Voss" },
+            "when": {
+              "commander": "Voss"
+            },
             "entries": [
               {
                 "speaker": "Voss",
@@ -1136,7 +3121,9 @@
             ]
           },
           {
-            "when": { "commander": "Sera" },
+            "when": {
+              "commander": "Sera"
+            },
             "entries": [
               {
                 "speaker": "Sera",
@@ -1146,7 +3133,9 @@
             ]
           },
           {
-            "when": { "commander": "Rowan" },
+            "when": {
+              "commander": "Rowan"
+            },
             "entries": [
               {
                 "speaker": "Rowan",
@@ -1156,7 +3145,9 @@
             ]
           },
           {
-            "when": { "commander": "Astrid" },
+            "when": {
+              "commander": "Astrid"
+            },
             "entries": [
               {
                 "speaker": "Astrid",
@@ -1166,7 +3157,9 @@
             ]
           },
           {
-            "when": { "commander": "Cael" },
+            "when": {
+              "commander": "Cael"
+            },
             "entries": [
               {
                 "speaker": "Cael",
@@ -1187,7 +3180,9 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "The Emperor",
@@ -1210,7 +3205,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": null,
@@ -1225,7 +3222,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": null,
@@ -1253,7 +3252,9 @@
       "preBattleReply": {
         "variants": [
           {
-            "when": { "commander": "Edric" },
+            "when": {
+              "commander": "Edric"
+            },
             "entries": [
               {
                 "speaker": "Edric",
@@ -1263,7 +3264,9 @@
             ]
           },
           {
-            "when": { "commander": "Kira" },
+            "when": {
+              "commander": "Kira"
+            },
             "entries": [
               {
                 "speaker": "Kira",
@@ -1273,7 +3276,9 @@
             ]
           },
           {
-            "when": { "commander": "Voss" },
+            "when": {
+              "commander": "Voss"
+            },
             "entries": [
               {
                 "speaker": "Voss",
@@ -1283,7 +3288,9 @@
             ]
           },
           {
-            "when": { "commander": "Sera" },
+            "when": {
+              "commander": "Sera"
+            },
             "entries": [
               {
                 "speaker": "Sera",
@@ -1293,7 +3300,9 @@
             ]
           },
           {
-            "when": { "commander": "Rowan" },
+            "when": {
+              "commander": "Rowan"
+            },
             "entries": [
               {
                 "speaker": "Rowan",
@@ -1303,7 +3312,9 @@
             ]
           },
           {
-            "when": { "commander": "Astrid" },
+            "when": {
+              "commander": "Astrid"
+            },
             "entries": [
               {
                 "speaker": "Astrid",
@@ -1313,7 +3324,9 @@
             ]
           },
           {
-            "when": { "commander": "Cael" },
+            "when": {
+              "commander": "Cael"
+            },
             "entries": [
               {
                 "speaker": "Cael",
@@ -1334,7 +3347,9 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Sera",
@@ -1357,7 +3372,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Dark Rider",
@@ -1367,7 +3384,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Dark Rider",
@@ -1397,12 +3416,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Dark Rider",
                 "portrait": "portrait_boss_dark_rider",
                 "line": "Always this crossroads... always your blade... the dark... lied to me..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Those orders go no further."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Couriers follow roads; we can block them."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Get off the horse."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "I hear the circle behind your words."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Let us see which mount holds its nerve."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "The sky gives me another road."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "You will have to ride through my line."
               }
             ]
           }
@@ -1420,7 +3529,9 @@
         ],
         "variants": [
           {
-            "when": { "bossKilledYouBefore": true },
+            "when": {
+              "bossKilledYouBefore": true
+            },
             "entries": [
               {
                 "speaker": "Berserker King",
@@ -1430,7 +3541,9 @@
             ]
           },
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Berserker King",
@@ -1460,12 +3573,102 @@
         ],
         "variants": [
           {
-            "when": { "bossSlainBefore": true },
+            "when": {
+              "bossSlainBefore": true
+            },
             "entries": [
               {
                 "speaker": "Berserker King",
                 "portrait": "portrait_boss_berserker_king",
                 "line": "Again... hah... HAH... what a gift... to die this well... twice..."
+              }
+            ]
+          }
+        ]
+      },
+      "preBattleReply": {
+        "variants": [
+          {
+            "when": {
+              "commander": "Edric"
+            },
+            "entries": [
+              {
+                "speaker": "Edric",
+                "portrait": "portrait_lord_edric",
+                "line": "Keep your hands away from my soldiers."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Kira"
+            },
+            "entries": [
+              {
+                "speaker": "Kira",
+                "portrait": "portrait_lord_kira",
+                "line": "Your charge is already showing its direction."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Voss"
+            },
+            "entries": [
+              {
+                "speaker": "Voss",
+                "portrait": "portrait_lord_voss",
+                "line": "Come within reach."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Sera"
+            },
+            "entries": [
+              {
+                "speaker": "Sera",
+                "portrait": "portrait_lord_sera",
+                "line": "Rage cannot quiet what waits beneath us."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Rowan"
+            },
+            "entries": [
+              {
+                "speaker": "Rowan",
+                "portrait": "portrait_lord_rowan",
+                "line": "Try catching the lance first."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Astrid"
+            },
+            "entries": [
+              {
+                "speaker": "Astrid",
+                "portrait": "portrait_lord_astrid",
+                "line": "I will stay beyond your grasp."
+              }
+            ]
+          },
+          {
+            "when": {
+              "commander": "Cael"
+            },
+            "entries": [
+              {
+                "speaker": "Cael",
+                "portrait": "portrait_lord_cael",
+                "line": "Meet the shield."
               }
             ]
           }
@@ -1484,7 +3687,9 @@
       ],
       "variants": [
         {
-          "when": { "firstClear": true },
+          "when": {
+            "firstClear": true
+          },
           "entries": [
             {
               "speaker": "Edric",
@@ -1504,7 +3709,135 @@
           ]
         },
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "Count everyone before we lower the banner."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the record; the next march may need it."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "A quiet camp. I had forgotten the sound."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will write down what held the visions back this time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "Let the horses drink before anyone raises a toast."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can finally see our whole column from above."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "minRunsCompleted": 5
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+            },
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Set down the shields. I will take the first watch."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1519,7 +3852,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1534,7 +3869,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1549,7 +3886,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1564,7 +3903,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1579,7 +3920,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1594,7 +3937,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1634,7 +3979,1059 @@
       ],
       "variants": [
         {
-          "when": { "commander": "Edric" },
+          "when": {
+            "commander": "Edric",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "{lastFoe} broke our line. I will remember where it opened."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The frontier stopped us before we could raise the villages."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We carried the banner this far together."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We carried the banner this far together."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We carried the banner this far together."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We carried the banner this far together."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "We carried the banner this far together."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "{lastFoe} found the gap in my plan. I have seen it now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "I need a safer opening through the border patrols."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the route we gained; the next plan starts there."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the route we gained; the next plan starts there."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the route we gained; the next plan starts there."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the route we gained; the next plan starts there."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "Keep the route we gained; the next plan starts there."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "{lastFoe} hit harder than I reckoned."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We need better supplies before the next march."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We made a long march of it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We made a long march of it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We made a long march of it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We made a long march of it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "We made a long march of it."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I saw {lastFoe} too late in the weave."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I must look more closely at the first turn in the path."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will remember how far this thread carried us."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will remember how far this thread carried us."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will remember how far this thread carried us."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will remember how far this thread carried us."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will remember how far this thread carried us."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "I gave {lastFoe} a clean opening."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "I rushed the opening charge."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "The long road took more from us than I allowed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "The long road took more from us than I allowed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "The long road took more from us than I allowed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "The long road took more from us than I allowed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "The long road took more from us than I allowed."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I lost sight of {lastFoe} on the approach."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I will scout the frontier before we march again."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can still trace our whole route from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can still trace our whole route from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can still trace our whole route from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can still trace our whole route from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I can still trace our whole route from above."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunDefeatedByKnown": true,
+            "currentDefeatWasBoss": true
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "{lastFoe} got past my shield."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "We reached their commander; that approach is worth remembering."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "act1"
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "Next time we drill the line before crossing the border."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will look for another way through the frontier."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "act2",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The line held through so much before it broke."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "act3",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The line held through so much before it broke."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "act4",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The line held through so much before it broke."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "finalBoss",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The line held through so much before it broke."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunAct": "secretAct",
+            "lastRunDefeatedByKnown": false
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "The line held through so much before it broke."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The next vision can begin with what we learned."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "{lastFoe} broke our line. I will remember where it opened."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Kira",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Kira",
+              "portrait": "portrait_lord_kira",
+              "line": "{lastFoe} found the gap in my plan. I have seen it now."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Voss",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Voss",
+              "portrait": "portrait_lord_voss",
+              "line": "{lastFoe} hit harder than I reckoned."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I saw {lastFoe} too late in the weave."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Rowan",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Rowan",
+              "portrait": "portrait_lord_rowan",
+              "line": "I gave {lastFoe} a clean opening."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Astrid",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Astrid",
+              "portrait": "portrait_lord_astrid",
+              "line": "I lost sight of {lastFoe} on the approach."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Cael",
+            "lastRunDefeatedByKnown": true
+          },
+          "entries": [
+            {
+              "speaker": "Cael",
+              "portrait": "portrait_lord_cael",
+              "line": "{lastFoe} got past my shield."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "I will carry that warning into the next vision."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Edric"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1649,7 +5046,9 @@
           ]
         },
         {
-          "when": { "commander": "Kira" },
+          "when": {
+            "commander": "Kira"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1664,7 +5063,9 @@
           ]
         },
         {
-          "when": { "commander": "Voss" },
+          "when": {
+            "commander": "Voss"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1679,7 +5080,9 @@
           ]
         },
         {
-          "when": { "commander": "Sera" },
+          "when": {
+            "commander": "Sera"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1694,7 +5097,9 @@
           ]
         },
         {
-          "when": { "commander": "Rowan" },
+          "when": {
+            "commander": "Rowan"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1709,7 +5114,9 @@
           ]
         },
         {
-          "when": { "commander": "Astrid" },
+          "when": {
+            "commander": "Astrid"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1724,7 +5131,9 @@
           ]
         },
         {
-          "when": { "commander": "Cael" },
+          "when": {
+            "commander": "Cael"
+          },
           "entries": [
             {
               "speaker": "Sera",
@@ -1919,22 +5328,78 @@
   },
   "lordQuips": {
     "onCrit": {
-      "Edric": ["For the banner!", "Stay down!", "This ends here!"],
-      "Kira": ["Right where I wanted you.", "Checkmate.", "Saw that coming."],
-      "Voss": ["Still standing. You're not.", "Felt that one myself.", "Next."],
-      "Sera": ["I saw this strike land.", "The threads align.", "Fate favors us."],
-      "Rowan": ["Blessed — told you!", "Clean hit. Mostly skill.", "Fate pays up."],
-      "Astrid": ["Death from above!", "Never saw the sky coming.", "The wind strikes true."],
-      "Cael": ["The wall pushes BACK.", "Felt that? Good.", "Shield arm's still strong."]
+      "Edric": [
+        "For the banner!",
+        "Stay down!",
+        "This ends here!"
+      ],
+      "Kira": [
+        "Right where I wanted you.",
+        "Checkmate.",
+        "Saw that coming."
+      ],
+      "Voss": [
+        "Still standing. You're not.",
+        "Felt that one myself.",
+        "Next."
+      ],
+      "Sera": [
+        "I saw this strike land.",
+        "The threads align.",
+        "Fate favors us."
+      ],
+      "Rowan": [
+        "Blessed — told you!",
+        "Clean hit. Mostly skill.",
+        "Fate pays up."
+      ],
+      "Astrid": [
+        "Death from above!",
+        "Never saw the sky coming.",
+        "The wind strikes true."
+      ],
+      "Cael": [
+        "The wall pushes BACK.",
+        "Felt that? Good.",
+        "Shield arm's still strong."
+      ]
     },
     "onKill": {
-      "Edric": ["Rest now. It's over.", "One step closer.", "The banner marches on."],
-      "Kira": ["The line was always mine.", "Piece taken.", "That's the game."],
-      "Voss": ["Buried tougher.", "Still here. You're not.", "One more for the ledger."],
-      "Sera": ["This thread ends here.", "I foresaw your fall.", "The vision holds."],
-      "Rowan": ["Fate called it.", "The lance decides.", "Skill. Definitely skill."],
-      "Astrid": ["Grounded. For good.", "The sky keeps its word.", "Clear skies ahead."],
-      "Cael": ["You broke first.", "The line holds. Always.", "Down and staying down."]
+      "Edric": [
+        "Rest now. It's over.",
+        "One step closer.",
+        "The banner marches on."
+      ],
+      "Kira": [
+        "The line was always mine.",
+        "Piece taken.",
+        "That's the game."
+      ],
+      "Voss": [
+        "Buried tougher.",
+        "Still here. You're not.",
+        "One more for the ledger."
+      ],
+      "Sera": [
+        "This thread ends here.",
+        "I foresaw your fall.",
+        "The vision holds."
+      ],
+      "Rowan": [
+        "Fate called it.",
+        "The lance decides.",
+        "Skill. Definitely skill."
+      ],
+      "Astrid": [
+        "Grounded. For good.",
+        "The sky keeps its word.",
+        "Clear skies ahead."
+      ],
+      "Cael": [
+        "You broke first.",
+        "The line holds. Always.",
+        "Down and staying down."
+      ]
     }
   },
   "churchFlavor": {

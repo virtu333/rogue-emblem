@@ -3,6 +3,7 @@
 // scene shutting down mid-show) left awaiting callers hanging forever.
 
 import { describe, expect, it, vi } from 'vitest';
+import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { LevelUpPopup } from '../src/ui/LevelUpPopup.js';
 
 function makeDisplayObject() {
@@ -127,4 +128,28 @@ describe('LevelUpPopup resolution guarantees', () => {
     expect(await settles(shown)).toBe(true);
     expect(scene.events.off).toHaveBeenCalledWith('shutdown', expect.any(Function));
   });
+});
+
+// A resumed enemy phase starts at the checkpoint seed without re-showing the
+// acknowledged popup. Live play must leave that same stream untouched.
+it('keeps subsequent enemy hit/crit draws identical across a popup/resume boundary', async () => {
+  const original = Math.random;
+  try {
+    const scene = makeScene();
+    scene.add.text = () => {
+      for (let i = 0; i < 31; i++) Math.random(); // Phaser Text UUID allocation
+      return makeDisplayObject();
+    };
+    Math.random = createSeededRng(941);
+    const popup = new LevelUpPopup(scene, unit, gains, true, ['Adept'], { STR: 5 });
+    const shown = popup.show();
+    popup.destroy();
+    await shown;
+    const live = Array.from({ length: 12 }, () => Math.random());
+    Math.random = createSeededRng(941);
+    const resumed = Array.from({ length: 12 }, () => Math.random());
+    expect(live).toEqual(resumed);
+  } finally {
+    Math.random = original;
+  }
 });

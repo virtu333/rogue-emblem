@@ -1,3 +1,4 @@
+import { revivalCatchUpPlan } from './RevivalCatchUp.js';
 import {
   canPromote,
   resolvePromotionTargets,
@@ -42,11 +43,14 @@ export function churchReviveBlock(run, unit) {
 export function reviveAtChurch(run, unit) {
   const reason = churchReviveBlock(run, unit);
   if (reason) return { ok: false, reason };
+  const catchUp = revivalCatchUpPlan(unit, run.roster);
   if (!run.reviveFallenUnit(unit.name, getReviveCost(unit)))
     return { ok: false, reason: 'Revival unavailable.' };
   run.markDialogueShown('revive_convoy_hint');
+  const learned = getSkillDisplayNames(run.lastRevivalResult?.learnedSkills, run.gameData.skills);
+  const dropped = getSkillDisplayNames(run.lastRevivalResult?.droppedSkills, run.gameData.skills);
   return {
     ok: true,
-    message: `${unit.name} revived with 1 HP. Use Heal all, then Roster to re-equip from the convoy.`,
+    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
   };
 }

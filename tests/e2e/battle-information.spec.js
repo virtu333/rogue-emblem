@@ -91,7 +91,7 @@ test('hidden inspection cannot open or cycle to enemies; status staff reach refr
   });
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await expect(hud).toContainText('Sleep · Range 3-5 · 3/3 uses');
-  await expect(hud).toContainText('Outlined: status staff');
+  await expect(hud).toContainText('Purple outline: status staff');
   expect(
     await page.evaluate(() =>
       window.__emblemRogueGame.scene.getScene('Battle').dangerZoneCache.some((t) => t.statusThreat),

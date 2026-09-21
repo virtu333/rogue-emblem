@@ -1,3 +1,4 @@
+import { TutorialController } from './TutorialController.js';
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
@@ -54,12 +55,10 @@ export class PostCombatController {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
-          "Victory! You've completed the tutorial.\nYou're ready for a real run -- good luck!",
+          "Victory! You've completed the tutorial.\nChoose Start first run on the title screen to begin your campaign.",
         );
         if (!scene.scene?.isActive?.()) return;
-        try {
-          localStorage.setItem('emblem_rogue_tutorial_completed', '1');
-        } catch (_) {}
+        (scene._tutorialController ||= new TutorialController(scene)).recordCompletion();
         scene._transitionTutorialToTitle();
       });
     } else if (scene.runManager) {
@@ -102,6 +101,7 @@ export class PostCombatController {
         scene.nodeId,
         scene.goldEarned,
         {
+          turnCount: scene.turnManager?.turnNumber,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
         },
@@ -272,7 +272,7 @@ export class PostCombatController {
             }),
           );
           try {
-            await scene._showStoryDialogueOnce(transKey, entries);
+            await scene._showStoryDialogueOnce(transKey, entries, { category: 'actTransition' });
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
           }
@@ -422,7 +422,10 @@ export class PostCombatController {
     scene._bossRecruitOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      if (selectedUnit) scene.runManager.roster.push(selectedUnit);
+      if (selectedUnit) {
+        scene.runManager.grantRecruitBlessingConsumables?.(selectedUnit);
+        scene.runManager.roster.push(selectedUnit);
+      }
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
       if (scene.runManager.shouldTriggerThirdLord()) {

@@ -1,3 +1,4 @@
+import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
 import {
   getCloudSaveConflict,
   resolveCloudSaveConflict,
@@ -37,9 +38,23 @@ export class SlotPickerScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    this.resumeSlot =
+      Number.isInteger(data.resumeSlot) && data.resumeSlot >= 1 && data.resumeSlot <= MAX_SLOTS
+        ? data.resumeSlot
+        : null;
   }
 
   create() {
+    if (Number.isInteger(this.resumeSlot)) {
+      const slot = this.resumeSlot;
+      this.resumeSlot = null;
+      this._resumeTimer = this.time.delayedCall(0, () => {
+        this._resumeTimer = null;
+        if (this.sys?.isActive?.() === false) return;
+        const summary = getSlotSummary(slot);
+        if (summary?.hasActiveRun && !summary.runCorrupt) void this.selectSlot(slot, summary);
+      });
+    }
     const cx = this.cameras.main.centerX;
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
@@ -66,6 +81,8 @@ export class SlotPickerScene extends Phaser.Scene {
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
 
     this.events.once('shutdown', () => {
+      this._resumeTimer?.remove?.();
+      this._resumeTimer = null;
       this.slotMenu?.destroy();
       this.slotMenu = null;
       this.nativeDialog?.destroy();
@@ -464,7 +481,11 @@ export class SlotPickerScene extends Phaser.Scene {
     }
     this.registry.set('activeSlot', slot);
     this.registry.set('meta', meta);
-    this.registry.set('hints', new HintManager(slot));
+    this.registry.set(
+      'hints',
+      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
 
     try {
       await ensureAudioUnlocked(this);

@@ -72,7 +72,7 @@ function makeBannerScene() {
     delayedCall: vi.fn((_ms, cb) => cb?.()),
   };
   scene._pinToScreen = vi.fn();
-  scene._isReducedEffects = vi.fn(() => false);
+  scene._reduceMotion = vi.fn(() => false);
   return {
     banner,
     scene,

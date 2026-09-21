@@ -125,6 +125,7 @@ export class DebugOverlay {
             if (idx !== -1) scene.enemyUnits.splice(idx, 1);
           }
           scene.dangerZoneStale = true;
+          scene._pinnedThreats?.invalidate();
           scene.updateObjectiveText();
           scene.checkBattleEnd();
           this.hide();

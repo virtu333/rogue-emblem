@@ -69,6 +69,8 @@ const STATIC_HELP_TABS = [
         lines: [
           { text: 'Hit Rate:', color: GOLD },
           { text: '  Weapon Hit + (SKL x 2) + LCK' },
+          { text: 'Attacks average two rolls, for both sides.', color: GRAY },
+          { text: '75 Hit: ~87.5%; 25 Hit: ~12.5% actual.', color: GRAY },
           { text: '' },
           { text: 'Avoid:', color: CYAN },
           { text: '  (SPD x 2) + LCK + Terrain Bonus' },
@@ -401,6 +403,8 @@ const STATIC_HELP_TABS = [
           { text: '  plus rest and revive services.' },
           { text: 'Church:', color: '#e0e0e0' },
           { text: '  Heal, revive allies, and promote.' },
+          { text: 'Colosseum:', color: GOLD },
+          { text: '  Wager on fights or hire mercenaries.' },
           { text: 'Boss:', color: RED },
           { text: '  Powerful boss at end of each act.' },
           { text: '  Defeat to advance to the next act.' },

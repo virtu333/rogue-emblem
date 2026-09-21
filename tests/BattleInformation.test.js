@@ -76,10 +76,17 @@ describe('battle information contracts', () => {
     expect(s.calculateDangerZone()).toContainEqual({
       col: 9,
       row: 2,
+      count: 0,
       statusThreat: true,
       damageThreat: false,
     });
-    expect(s.calculateDangerZone()).toContainEqual({ col: 3, row: 2 });
+    expect(s.calculateDangerZone()).toContainEqual({
+      col: 3,
+      row: 2,
+      count: 1,
+      statusThreat: false,
+      damageThreat: true,
+    });
     unit.statusStaff._usesSpent = 3;
     expect(s.calculateDangerZone().some((t) => t.statusThreat)).toBe(false);
     unit.statusStaff._usesSpent = 0;

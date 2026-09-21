@@ -19,6 +19,11 @@ export default [
     },
   },
   {
+    // Native Node simulation and Vite share this JSON import.
+    files: ['src/engine/ShopEconomy.js'],
+    languageOptions: { ecmaVersion: 2025 },
+  },
+  {
     ignores: [
       'dist/**',
       'ios/App/App/public/**', // Generated Capacitor copy of dist, including vendor bundles.

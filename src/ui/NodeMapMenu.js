@@ -1,3 +1,4 @@
+import { regionName } from './placeDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
@@ -75,6 +76,7 @@ export class NodeMapMenu {
       rm = s.runManager,
       nodes = rm.nodeMap.nodes;
     const available = new Set(rm.getAvailableNodes().map((n) => n.id));
+    for (const node of nodes) if (rm.canReenterShop?.(node.id)) available.add(node.id);
     if (!nodes.some((n) => n.id === this.selected))
       this.selected = nodes.find((n) => available.has(n.id))?.id || nodes[0]?.id;
     const focus = this.root.contains(document.activeElement)
@@ -90,6 +92,8 @@ export class NodeMapMenu {
         `${rm.gold} G · ${rm.difficultyModifiers?.label || 'Normal'}${rm.noMetaMode ? ' · No upgrades' : ''}`,
       ),
     );
+    const region = element('small', regionName(rm.currentAct), 're-muted');
+    header.firstElementChild.append(element('br'), region);
     const layout = element('div', null, 're-node-layout');
     this.scroll = element('div', null, 're-node-scroll');
     const { graph } = createRouteGraph({
@@ -131,17 +135,19 @@ export class NodeMapMenu {
       detail.append(
         element(
           'p',
-          selected.completed
-            ? 'Completed'
-            : available.has(selected.id)
-              ? 'Available route'
-              : 'Reach this node along a connected route.',
+          rm.canReenterShop?.(selected.id)
+            ? 'Shop still open · Stock and prices retained'
+            : selected.completed
+              ? 'Completed'
+              : available.has(selected.id)
+                ? 'Available route'
+                : 'Reach this node along a connected route.',
           're-node-state',
         ),
       );
     }
     const advance = button(
-      'Advance',
+      rm.canReenterShop?.(this.selected) ? 'Re-enter shop' : 'Advance',
       () => {
         if (available.has(this.selected) && !s.isStoryInputLocked?.())
           s.onNodeClick(nodes.find((n) => n.id === this.selected));

@@ -1,5 +1,6 @@
 // BallistaEngine.js — pure functions for ballista map objects (no Phaser deps)
 
+import { rollHit } from './HitRoll.js';
 import { TERRAIN } from '../utils/constants.js';
 
 const BALLISTA_MIGHT = 10;
@@ -89,7 +90,6 @@ export function selectBallistaTarget(ballista, targets) {
  */
 export function resolveBallistaStrike(ballista, target, rng) {
   const damage = Math.max(1, BALLISTA_MIGHT - (target.stats?.RES || 0));
-  const hitRoll = (rng ? rng() : Math.random()) * 100;
-  const didHit = hitRoll < BALLISTA_HIT;
+  const didHit = rollHit(BALLISTA_HIT, rng || Math.random);
   return { damage: didHit ? damage : 0, hit: BALLISTA_HIT, didHit };
 }

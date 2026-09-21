@@ -1,3 +1,14 @@
+import { battlePlace } from './placeDisplay.js';
+import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
+import { syncTutorialForecastLayout } from './tutorialForecastLayout.js';
+import { TutorialController } from './TutorialController.js';
+import {
+  showContextualHint,
+  claimContextualHint,
+  observeContextualHint,
+  isHintTextVisible,
+} from './HintDisplay.js';
+import { forecastProjection, forecastNotes, forecastTeachingHints } from './forecastDisplay.js';
 import {
   canInspectUnit,
   statusDescriptions,
@@ -60,7 +71,12 @@ export class MobileBattleHUD {
     this.phase = el('div', 'mb-phase');
     this.summary = el('div', 'mb-summary');
     this.body = el('div', 'mb-body');
-    this.root.append(this.phase, this.summary, this.body);
+    this.speedHold = el('button', 'mb-button', 'Hold to speed up');
+    this.speedHold.type = 'button';
+    this.speedHold.hidden = true;
+    this.speedHold.setAttribute('aria-pressed', 'false');
+    this.disposeSpeedHold = bindHoldBattleSpeed(this.speedHold, scene);
+    this.root.append(this.phase, this.summary, this.speedHold, this.body);
     this.wrapper.append(this.root);
     for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (event) => event.stopPropagation());
@@ -131,6 +147,22 @@ export class MobileBattleHUD {
 
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
+    if (this.scene.battleParams?.tutorialMode && this.scene._tutorialStrictGateReleased)
+      void (this.scene._tutorialController ||= new TutorialController(
+        this.scene,
+      )).showResourceLesson(items);
+    if (items.some((entry) => entry.item?.type === 'Consumable'))
+      showContextualHint(
+        this.scene,
+        'battle_consumable_supply',
+        'Consumable uses do not refill. Check the effect and remaining uses before spending your run supply.',
+      );
+    else if (items.some((entry) => entry.item?.type === 'Staff'))
+      showContextualHint(
+        this.scene,
+        'battle_staff_scope',
+        'Staff uses refill at the start of every battle. Use healing now when it helps your army.',
+      );
     for (const object of objects || []) object.setVisible?.(false);
     this.scene._hideWeaponDetailTooltip();
     this.lastSnapshot = '';
@@ -182,6 +214,16 @@ export class MobileBattleHUD {
       );
       heading.append(control);
     }
+    const forecastNote = el(
+      'p',
+      'mb-detail',
+      'Hit rating uses the average of two rolls per strike, for both sides: 75 Hit succeeds about 87.5% of the time. Crit uses one roll. Critical hits and special effects can change damage. A defeated unit cannot finish its remaining strikes.',
+    );
+    forecastNote.style.gridColumn = '1 / -1';
+    const explanation = el('details', 'mb-detail');
+    explanation.append(el('summary', '', 'How to read this forecast'), forecastNote);
+    explanation.style.gridColumn = '1 / -1';
+    sides.append(explanation);
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
     footer.append(this.button('Cancel', () => this.scene.requestCancel({ allowPause: false })));
@@ -226,6 +268,30 @@ export class MobileBattleHUD {
     modal.append(panel);
     this.wrapper.append(modal);
     this.modal = modal;
+    if (this.available() && this.scene.battleState === 'SHOWING_FORECAST') {
+      const hp = config.weaponArt
+        ? this.scene._getWeaponArtHpAfterCost(config.attacker, config.weaponArt)
+        : config.forecast.attacker.hp;
+      for (const hint of forecastTeachingHints(config.forecast, hp)) {
+        if (!claimContextualHint(this.scene, hint.id)) continue;
+        const note = el('p', 'mb-detail', hint.text);
+        note.style.gridColumn = '1 / -1';
+        note.setAttribute('role', 'status');
+        sides.append(note);
+        this._stopForecastHint = observeContextualHint(
+          this.scene,
+          hint.id,
+          hint.text,
+          () =>
+            isHintTextVisible(note) &&
+            !modal.hidden &&
+            !modal.inert &&
+            this.scene.battleState === 'SHOWING_FORECAST',
+        );
+        break;
+      }
+    }
+
     // The shared bus dispatches to its top scope only. BattleScene retains its
     // base scope, so one pad press cannot also move/confirm the map cursor.
     let previousControl = null;
@@ -277,13 +343,22 @@ export class MobileBattleHUD {
     side.append(el('h3', '', unit.name));
     side.append(el('div', 'mb-weapon', unit.weapon?.name || 'Unarmed'));
     side.append(el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`));
-    side.append(createHealthBar(unit));
-    if (!attacking && !info.canCounter) side.append(el('p', 'mb-notice', 'Cannot counter'));
-    else {
+    const projection = forecastProjection(config.forecast);
+    side.append(
+      createHealthBar(
+        unit,
+        projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null,
+      ),
+    );
+    const afterCost = config.weaponArt
+      ? this.scene._getWeaponArtHpAfterCost(config.attacker, config.weaponArt)
+      : config.forecast.attacker.hp;
+    if (attacking || info.canCounter) {
       const stats = el('dl', 'mb-stats');
       for (const [name, value] of [
-        ['Damage', `${info.damage} × ${info.attackCount || 1}`],
-        ['Hit', `${info.hit}%`],
+        ['Damage per hit', `${info.damage}`],
+        ['Planned hits', `${info.attackCount || 1}`],
+        ['Hit rating', `${info.hit}`],
         ['Critical', `${info.crit}%`],
         ['Attack speed', info.as],
       ]) {
@@ -293,6 +368,8 @@ export class MobileBattleHUD {
       }
       side.append(stats);
     }
+    for (const note of forecastNotes(config.forecast, attacking, afterCost))
+      side.append(el('p', 'mb-notice', note));
     if (
       unit.weapon &&
       (attacking || info.canCounter) &&
@@ -332,6 +409,8 @@ export class MobileBattleHUD {
   hideForecast() {
     const ownedFocus = this.modal?.contains(document.activeElement);
     popInputScope(this);
+    this._stopForecastHint?.();
+    this._stopForecastHint = null;
     this.modal?.remove();
     this.modal = null;
     this.forecast = null;
@@ -347,10 +426,12 @@ export class MobileBattleHUD {
   sync() {
     const s = this.scene;
     const state = s.battleState || '';
+    const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
     const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_');
     const turnStarting = state === 'TURN_START_RESOLVING';
-    const show = supported && this.available({ allowTurnStart: true });
-    this.root.inert = !show || turnStarting || Boolean(this.modal);
+    const show = tutorialHint || (supported && this.available({ allowTurnStart: true }));
+    this.root.inert = !show || tutorialHint || turnStarting || Boolean(this.modal);
+    this.root.setAttribute('aria-hidden', String(!show));
     // The lab reserves its viewport for the entire battle, including modal/animation states.
     if (this.lab) {
       this.root.classList.toggle('bl-inactive', !show);
@@ -362,7 +443,17 @@ export class MobileBattleHUD {
       s.scale?.getParentBounds();
       s.scale?.refresh();
     }
-    if (this.modal) this.modal.hidden = !show || state !== 'SHOWING_FORECAST';
+    if (this.modal) {
+      this.modal.hidden = !show || (state !== 'SHOWING_FORECAST' && !tutorialHint);
+      this.modal.inert = Boolean(tutorialHint);
+      syncTutorialForecastLayout(this.modal, s, tutorialHint);
+    }
+    this.speedHold.hidden = !show || Boolean(this.modal) || !canHoldBattleSpeed(s);
+    if (this.speedHold.hidden) {
+      s._holdBattleFast = false;
+      this.speedHold.setAttribute('aria-pressed', 'false');
+    }
+    if (tutorialHint) return;
     if (!show) {
       if (!this.lab) this.restoreLabels();
       this.endTurnPending = null;
@@ -378,7 +469,7 @@ export class MobileBattleHUD {
     }
     if (s.dangerZone?.visible && s.dangerZoneStale) s.refreshVisibleDangerZone?.();
     const candidate =
-      s.selectedUnit || (s.inspectionPanel?.visible ? s.inspectionPanel._unit : null);
+      (s.inspectionPanel?.visible ? s.inspectionPanel._unit : null) || s.selectedUnit;
     const unit = canInspectUnit(s.grid, candidate) ? candidate : null;
     const turn = s.turnManager?.turnNumber || 1;
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
@@ -388,13 +479,18 @@ export class MobileBattleHUD {
       remaining,
       unit?.name,
       unit?.currentHP,
+      unit?.col,
+      unit?.row,
       unit?.weapon?.name,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
       s.getBossPressureWarning?.(),
       s.inspectMode,
       s.dangerZone?.visible,
+      Boolean(s.isThreatPinned?.(unit)),
+      s.pinnedThreatEnemies?.size,
       Boolean(this.menu),
+      s._combatSpeedSnapshot !== undefined,
       Boolean(s._inputController?.isSelectionMenu()),
       Boolean(this.endTurnPending),
       s.infoText?.text,
@@ -412,6 +508,9 @@ export class MobileBattleHUD {
     this.lastSnapshot = key;
     this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
     this.summary.replaceChildren();
+    if (s._inputController?._planningInspection && s.selectedUnit) {
+      this.summary.append(el('p', 'mb-detail', `Inspecting · Selected: ${s.selectedUnit.name}`));
+    }
     const focus = state === 'UNIT_ACTION_MENU' && unit ? unit : s._mobileTerrainFocus || unit;
     if (unit) {
       this.summary.append(el('h2', '', unit.name));
@@ -424,6 +523,7 @@ export class MobileBattleHUD {
         this.summary.append(el('p', 'mb-detail', status));
       const staff = statusStaffInfo(unit);
       if (staff) this.summary.append(el('p', 'mb-detail', staff.text));
+      this.appendThreatPinControl(unit);
     } else {
       if (!this.lab)
         this.summary.append(el('h2', '', s.inspectMode ? 'Inspect a unit' : 'Your battlefield'));
@@ -444,7 +544,11 @@ export class MobileBattleHUD {
         card.setAttribute('aria-label', 'Terrain advantages');
         card.append(el('strong', '', terrain.name));
         card.append(
-          el('span', '', `Move ${Number.isFinite(Number(cost)) ? cost : 'blocked'} · ${moveType}`),
+          el(
+            'span',
+            '',
+            `Move cost ${Number.isFinite(Number(cost)) ? cost : 'blocked'} · ${moveType}`,
+          ),
         );
         card.append(
           el('span', '', `Def ${bonus(terrain.defBonus)} · Avoid ${bonus(terrain.avoidBonus)}`),
@@ -465,10 +569,17 @@ export class MobileBattleHUD {
     this.body.append(
       el('p', 'mb-objective', s.objectiveText?.text || s.battleConfig?.objective || 'Battle'),
     );
+    if (
+      s._escapeController &&
+      !this.endTurnPending &&
+      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state)
+    ) {
+      this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
+    }
     const warning = s.getBossPressureWarning?.();
     if (warning) this.body.append(el('p', 'mb-hint', warning));
     if (s.dangerZone?.visible)
-      this.body.append(el('p', 'mb-detail', 'Filled: damage · Outlined: status staff'));
+      this.body.append(el('p', 'mb-detail', 'Darker: more enemies · Purple outline: status staff'));
     if (turnStarting) {
       this.body.append(el('p', 'mb-hint', HINTS.TURN_START_RESOLVING));
       return;
@@ -476,7 +587,10 @@ export class MobileBattleHUD {
     const details = el('details', 'mb-battle-info');
     details.open = expanded;
     details.append(el('summary', '', this.lab ? 'More' : 'Battle info'));
+    const place = battlePlace(s.gameData, s.battleConfig, s.battleParams?.act);
     const info = [
+      place.title,
+      place.lore,
       s.turnCounterText?.text,
       s.visionHudText?.text?.replace(/^Eye:/, 'Rewinds:'),
       s.infoText?.text,
@@ -517,6 +631,7 @@ export class MobileBattleHUD {
           'mb-danger',
         ),
       );
+      if (restoreMenuFocus) this.body.querySelector('button')?.focus({ preventScroll: true });
       return;
     }
     if (!this.lab || !['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state))
@@ -598,12 +713,44 @@ export class MobileBattleHUD {
     }
   }
 
+  appendThreatPinControl(unit) {
+    const s = this.scene;
+    if (
+      unit?.faction !== 'enemy' ||
+      !(unit.currentHP > 0) ||
+      !s.inspectionPanel?.visible ||
+      s.inspectionPanel._unit !== unit ||
+      !canInspectUnit(s.grid, unit) ||
+      typeof s.togglePinnedThreat !== 'function'
+    )
+      return;
+    const pinned = Boolean(s.isThreatPinned?.(unit));
+    const control = this.button(pinned ? 'Unpin range' : 'Pin range', () => {
+      if (
+        s.inspectionPanel?.visible &&
+        s.inspectionPanel._unit === unit &&
+        canInspectUnit(s.grid, unit)
+      )
+        s.togglePinnedThreat(unit);
+    });
+    control.setAttribute('aria-pressed', String(pinned));
+    this.summary.append(control);
+    if (pinned)
+      this.summary.append(el('p', 'mb-detail', 'Red: pinned threat. Pins reset on reload.'));
+    if (!pinned && s.pinnedThreatEnemies?.size >= 5) {
+      this.summary.append(
+        el('p', 'mb-detail', '5 ranges pinned. Pinning this enemy replaces the oldest.'),
+      );
+    }
+  }
+
   restoreLabels() {
     for (const [label, visible] of this.hiddenLabels || []) label.setVisible?.(visible);
     this.hiddenLabels?.clear();
   }
 
   destroy() {
+    this.disposeSpeedHold?.();
     this.lab?.destroy();
     this.restoreLabels();
     this.hideForecast();

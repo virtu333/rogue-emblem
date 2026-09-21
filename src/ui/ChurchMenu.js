@@ -1,3 +1,4 @@
+import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
 import { buildPromotionColumn } from './promotionComparison.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -65,6 +66,7 @@ export class ChurchMenu {
     if (!run.fallenUnits.length) body.append(el('p', 'No fallen allies.'));
     for (const unit of run.fallenUnits) {
       const reason = churchReviveBlock(run, unit);
+      const catchUp = revivalCatchUpPlan(unit, run.roster);
       const b = button(`${unit.name} · ${unit.className} · Revive ${getReviveCost(unit)} G`, () =>
         this.choose({
           title: `Revive ${unit.name}?`,
@@ -72,7 +74,7 @@ export class ChurchMenu {
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${getReviveCost(unit)} gold. Returns with 1 HP. Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => churchReviveBlock(run, u),
           apply: (u) => this.finish(reviveAtChurch(run, u)),
         }),

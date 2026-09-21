@@ -98,10 +98,10 @@ export class MenuSurface {
     this.root.querySelector('button').focus();
   }
   focusContent() {
-    (this.body.querySelector('button:not(:disabled),input,select') || this.root).focus();
+    (this.body.querySelector('button:not(:disabled),input,select,summary') || this.root).focus();
   }
   focusNext(delta) {
-    const items = [...this.root.querySelectorAll('button:not(:disabled),input,select')];
+    const items = [...this.root.querySelectorAll('button:not(:disabled),input,select,summary')];
     const i = items.indexOf(document.activeElement);
     items[(i + delta + items.length) % items.length]?.focus();
   }

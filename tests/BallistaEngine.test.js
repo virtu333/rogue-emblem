@@ -320,3 +320,12 @@ describe('BallistaEngine', () => {
     });
   });
 });
+
+// Ballista attacks share the combat hit-rating contract, not a separate 1RN roll.
+it('uses both supplied RNG draws for ballista accuracy', () => {
+  const draws = [0.9, 0.1];
+  let calls = 0;
+  const result = resolveBallistaStrike({}, { stats: { RES: 2 } }, () => draws[calls++]);
+  expect(calls).toBe(2);
+  expect(result).toEqual({ hit: 85, didHit: true, damage: 8 });
+});

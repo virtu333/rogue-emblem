@@ -1,3 +1,6 @@
+.mu-screen[hidden] {
+  display: none;
+}
 .mu-screen {
   position: fixed;
   inset: 0;
@@ -368,4 +371,8 @@ html.mobile-preview .mu-screen {
 
 .re-battle-trade .re-menu-body {
   overflow-y: auto;
+}
+
+.re-progression-footer .re-btn {
+  width: 100%;
 }

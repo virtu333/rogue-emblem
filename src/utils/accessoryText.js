@@ -64,14 +64,16 @@ function buildOrderedStatEntries(effects) {
 }
 
 function combatConditionLabel(condition) {
-  if (condition === 'below50') return '<50% HP';
-  if (condition === 'above75') return '>75% HP';
-  if (condition === 'on_forest') return '(forest)';
-  if (condition === 'adjacent_ally') return 'adjacent ally';
-  if (condition === 'no_ally_within_2') return 'no ally <=2';
-  if (condition === 'enemies_nearby_2plus') return '2+ enemies <=2';
-  if (condition === 'on_forest_or_mountain') return '(forest/mountain)';
-  if (condition === 'isolated_duel') return 'isolated duel';
+  if (condition === 'below50') return 'below 50% HP';
+  if (condition === 'above75') return 'above 75% HP';
+  if (condition === 'on_forest') return 'on a forest tile';
+  if (condition === 'adjacent_ally') return 'next to an ally';
+  if (condition === 'no_ally_within_2') return 'no ally is within 2 tiles';
+  if (condition === 'enemies_nearby_2plus') return 'at least 2 enemies are within 2 tiles';
+  if (condition === 'on_forest_or_mountain') return 'on a forest or mountain tile';
+  if (condition === 'isolated_duel') {
+    return 'no other unit is within 2 tiles of you or your foe';
+  }
   return '';
 }
 
@@ -109,7 +111,7 @@ function formatTurnStartEffect(accessory) {
   if (healPercent > 0) healParts.push(`${Number(healPercent.toFixed(2))}% HP`);
   if (healParts.length <= 0) return '';
 
-  return `Turn start heal ${healParts.join(' + ')}`;
+  return `At turn start, restore ${healParts.join(' + ')}`;
 }
 
 export function formatAccessoryEffects(accessory, options = {}) {
@@ -139,27 +141,27 @@ export function formatAccessoryCombatEffect(accessory) {
   if (resBonus !== null) parts.push(`+${resBonus} Res`);
 
   const avoidBonus = firstNumericValue(combatEffects?.avoidBonus);
-  if (avoidBonus !== null) parts.push(`+${avoidBonus} Avo`);
+  if (avoidBonus !== null) parts.push(`+${avoidBonus} Avoid`);
 
   const hitBonus = firstNumericValue(combatEffects?.hitBonus);
   if (hitBonus !== null) parts.push(`+${hitBonus} Hit`);
 
-  if (combatEffects?.preventEnemyDouble) parts.push('Block double attacks');
+  if (combatEffects?.preventEnemyDouble) parts.push('Foes cannot make follow-up attacks');
 
   const doubleThresholdReduction = firstNumericValue(combatEffects?.doubleThresholdReduction);
   if (doubleThresholdReduction !== null) {
     const needed = Math.max(0, 5 - doubleThresholdReduction);
-    parts.push(`Double at +${needed} SPD`);
+    parts.push(`Make follow-up attacks with ${needed} more Attack Speed than your foe`);
   }
 
-  if (combatEffects?.negateEffectiveness) parts.push('Negate effectiveness');
-  if (combatEffects?.negateFlierWeakness) parts.push('Negate bow flier weakness');
+  if (combatEffects?.negateEffectiveness) parts.push('Negates weapon effectiveness');
+  if (combatEffects?.negateFlierWeakness) parts.push('Negates flier weakness to bows');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
 
   const xpShare = firstNumericValue(combatEffects?.xpShare);
   if (xpShare !== null && xpShare > 0) {
     const percent = xpShare <= 1 ? xpShare * 100 : xpShare;
-    parts.push(`Share ${Number(percent.toFixed(2))}% XP to adjacent lower-lv allies`);
+    parts.push(`Adjacent lower-level allies gain ${Number(percent.toFixed(2))}% combat XP`);
   }
 
   if (typeof combatEffects?.moveTypeOverride === 'string' && combatEffects.moveTypeOverride) {
@@ -171,17 +173,18 @@ export function formatAccessoryCombatEffect(accessory) {
     combatEffects?.weaponArtHpCostReduction,
   );
   if (weaponArtCostReduction !== null) {
-    parts.push(`Art HP Cost -${weaponArtCostReduction}`);
+    parts.push(`Weapon arts cost ${weaponArtCostReduction} less HP`);
   }
 
   const perHitHeal = firstNumericValue(combatEffects?.perHitHeal);
-  if (perHitHeal !== null) parts.push(`Heal +${perHitHeal}/hit`);
+  if (perHitHeal !== null) parts.push(`Restore ${perHitHeal} HP per hit`);
 
   const bountyGold = firstNumericValue(combatEffects?.goldPerKill, combatEffects?.bountyGoldOnKill);
-  if (bountyGold !== null) parts.push(`+${bountyGold}g/kill`);
+  if (bountyGold !== null) parts.push(`Gain +${bountyGold} gold per kill`);
 
-  if (combatEffects?.moontide) parts.push('Moontide (odd +2 Atk, even +2 Def)');
-  if (combatEffects?.gamblerCoin || combatEffects?.gambler) parts.push('Gambler (+5/-3 Atk)');
+  if (combatEffects?.moontide) parts.push('Odd turns: +2 Atk; even turns: +2 Def');
+  if (combatEffects?.gamblerCoin || combatEffects?.gambler)
+    parts.push('Gambler: each combat, 50% chance of +5 Attack; otherwise -3 Attack.');
 
   const recoilBuffDef = firstNumericValue(combatEffects?.buffDEF);
   const recoilBuffRes = firstNumericValue(combatEffects?.buffRES);
@@ -190,12 +193,12 @@ export function formatAccessoryCombatEffect(accessory) {
   if (recoilBuffRes !== null) recoilParts.push(`+${recoilBuffRes} Res`);
   if (combatEffects?.weaponArtDefBuff || combatEffects?.recoilGuard) {
     if (recoilParts.length > 0) {
-      parts.push(`Recoil Guard (${recoilParts.join('/')} after art)`);
+      parts.push(`${recoilParts.join('/')} after using a weapon art`);
     } else {
-      parts.push('Recoil Guard (art use -> timed buff)');
+      parts.push('Gain a temporary defensive boost after using a weapon art');
     }
   } else if (recoilParts.length > 0) {
-    parts.push(`Timed buff (${recoilParts.join('/')} after art)`);
+    parts.push(`${recoilParts.join('/')} after using a weapon art`);
   }
 
   if (combatEffects?.phoenixBrooch) {
@@ -214,17 +217,17 @@ export function formatAccessoryCombatEffect(accessory) {
           ? `${Number(phoenixThresholdPercent.toFixed(2))}% HP`
           : 'low HP';
       const healText = phoenixHeal !== null ? `heal ${phoenixHeal} HP` : 'heal';
-      parts.push(`Phoenix (once/map: ${healText} at <=${thresholdText})`);
+      parts.push(`Once per map, ${healText} at ${thresholdText} or less`);
     } else {
-      parts.push('Phoenix (once/map under threshold)');
+      parts.push('Once per map, heal at low HP');
     }
   }
   if (turnStartText) parts.push(turnStartText);
 
   const condition = combatConditionLabel(combatEffects?.condition);
   if (parts.length > 0) {
-    const base = parts.join('/');
-    return condition ? `${base} ${condition}` : base;
+    const base = parts.join(' · ');
+    return condition ? `${base} when ${condition}` : base;
   }
 
   return hasCombatEffects ? 'Combat effect' : '';

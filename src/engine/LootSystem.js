@@ -1,4 +1,5 @@
-﻿// LootSystem.js â€” Pure functions: gold calculation, loot generation, shop inventory
+import { actShopPrice } from './ShopEconomy.js';
+// LootSystem.js â€” Pure functions: gold calculation, loot generation, shop inventory
 // No Phaser deps.
 
 import {
@@ -290,7 +291,7 @@ function resolveSpawnTierFromArt(art) {
 }
 
 function isPlayerEligibleSpawnArt(art) {
-  if (!art?.id) return false;
+  if (!art?.id || art.scrollOnly) return false;
   if (art.legacy === true) return false;
   if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) return false;
   if (Array.isArray(art.allowedFactions) && art.allowedFactions.length > 0) {
@@ -880,7 +881,8 @@ export function generateLootChoices(
   weaponArtSpawnConfig = null,
   generateOptions = {},
 ) {
-  const table = lootTables[actId] || lootTables.act3;
+  const baseTable = lootTables[actId] || lootTables.act3;
+  const table = isBoss && baseTable.bossRewards ? baseTable.bossRewards : baseTable;
   const [baseGoldMin, baseGoldMax] = getValidGoldRange(table);
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
   const qualityBonusPercent = normalizeLootNumber(lootWeaponQualityBonus);
@@ -898,7 +900,7 @@ export function generateLootChoices(
     applyMetaWeightBonuses(adjustedWeights, options);
   }
 
-  if (isBoss) {
+  if (isBoss && !baseTable.bossRewards) {
     applyWeightShift(adjustedWeights, BOSS_LOOT_WEIGHT_SHIFT);
   } else if (isElite) {
     applyWeightShift(adjustedWeights, ELITE_LOOT_WEIGHT_SHIFT);
@@ -1173,6 +1175,8 @@ export function generateShopInventory(
       }
     }
   }
+
+  for (const entry of inventory) entry.price = actShopPrice(entry.price, actId);
 
   return inventory;
 }

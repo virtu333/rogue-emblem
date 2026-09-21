@@ -1,3 +1,4 @@
+import { weaponArtScrollText } from './weaponArtDisplay.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobileRewards } from './MobileRewards.js';
@@ -35,7 +36,6 @@ import {
 import { applyTextResolution } from '../utils/uiStyles.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
-import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -1547,30 +1547,7 @@ export class LootScreenController {
 
     // Weapon art scrolls
     if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-      const artId = item.teachesWeaponArtId;
-      const art = artId && scene.gameData?.weaponArts?.arts?.find((a) => a.id === artId);
-      const lines = [];
-      if (art) {
-        lines.push(art.name || artId);
-        const meta = [];
-        if (art.weaponType) meta.push(art.weaponType);
-        if (art.hpCost) meta.push(`HP Cost: ${art.hpCost}`);
-        if (art.requiredRank) meta.push(art.requiredRank);
-        if (meta.length) lines.push(meta.join('  |  '));
-        const limits = [];
-        if (art.perTurnLimit) limits.push(`${art.perTurnLimit}/turn`);
-        if (art.perMapLimit) limits.push(`${art.perMapLimit}/map`);
-        if (limits.length) lines.push(limits.join('  '));
-        if (art.description) lines.push('', art.description);
-        const summary = summarizeWeaponArtEffect(art);
-        if (summary && summary !== 'No combat modifier' && summary !== art.description) {
-          lines.push('', summary);
-        }
-      } else {
-        lines.push('Teaches Weapon Art');
-        if (artId) lines.push(artId);
-      }
-      return lines.join('\n');
+      return weaponArtScrollText(item, scene.gameData?.weaponArts?.arts || []);
     }
 
     // Skill scrolls
@@ -1578,10 +1555,11 @@ export class LootScreenController {
       const skillDef = item.skillId && scene.gameData?.skills?.find((s) => s.id === item.skillId);
       const lines = [];
       lines.push(item.name || 'Skill Scroll');
+      lines.push(
+        'Skill Scroll — teaches a skill to one unit. Stored in Team scrolls; open Roster → Skills → Teach. Consumed only after teaching.',
+      );
       if (skillDef) {
         if (skillDef.description) lines.push('', skillDef.description);
-        if (skillDef.trigger) lines.push(`Trigger: ${skillDef.trigger}`);
-        if (skillDef.activation) lines.push(`Activation: ${skillDef.activation}`);
       } else if (item.special) {
         lines.push('', item.special);
       }

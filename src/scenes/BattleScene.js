@@ -1,3 +1,8 @@
+import { PinnedThreatController } from '../ui/PinnedThreatController.js';
+import { battlePlace } from '../ui/placeDisplay.js';
+import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
+import { presentationText } from '../utils/presentationText.js';
+import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 import { canInspectUnit, statusStaffThreat } from '../engine/BattleInformation.js';
 import { battleContrastEnabled, contrastSpriteKey } from '../ui/BattleContrast.js';
@@ -190,7 +195,7 @@ import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
-import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import {
   generateBossRecruitCandidates,
   getAvailableLords,
@@ -507,6 +512,9 @@ export class BattleScene extends Phaser.Scene {
       this._abilityController.destroy();
       this._abilityController = null;
     }
+    this._combatFx?.destroy?.();
+    this._combatFx = null;
+    this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
       this._procBanner = null;
@@ -531,6 +539,8 @@ export class BattleScene extends Phaser.Scene {
       this._promotionController.destroy();
       this._promotionController = null;
     }
+    this._pinnedThreats?.destroy();
+    this._pinnedThreats = null;
     if (this._inputController) {
       this._inputController.destroy();
       this._inputController = null;
@@ -794,7 +804,7 @@ export class BattleScene extends Phaser.Scene {
       },
     });
     try {
-      timer = this.time?.delayedCall?.(safeDelay, () => {
+      timer = this.time?.delayedCall?.(waitDuration(this, label, safeDelay), () => {
         this._removeManagedSceneTimer(timer);
         guard.resolve();
       });
@@ -837,7 +847,7 @@ export class BattleScene extends Phaser.Scene {
         } catch (_) {}
       },
     });
-    const wrappedConfig = { ...tweenConfig };
+    const wrappedConfig = waitTween(this, label, tweenConfig);
     const originalOnComplete = wrappedConfig.onComplete;
     const originalOnStop = wrappedConfig.onStop;
     wrappedConfig.onComplete = (...args) => {
@@ -952,6 +962,27 @@ export class BattleScene extends Phaser.Scene {
           this._menuFocus?.activate();
         }
       },
+      pinThreat: (event) => {
+        if (
+          event?.repeat ||
+          event?.defaultPrevented ||
+          event?.altKey ||
+          event?.ctrlKey ||
+          event?.metaKey ||
+          !hasInputFocus(this) ||
+          hasOpenOverlay(this) ||
+          this.isStoryInputLocked()
+        )
+          return;
+        if (event?.target?.closest?.('input, textarea, select, button, [contenteditable="true"]'))
+          return;
+        if (!['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState))
+          return;
+        const panel = this.inspectionPanel;
+        if (panel?.visible && this.togglePinnedThreat(panel._unit)) {
+          panel.show(panel._unit, panel._terrain, panel._gameData);
+        }
+      },
       viewUnit: () => {
         if (this.isStoryInputLocked()) return;
         if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
@@ -1019,6 +1050,7 @@ export class BattleScene extends Phaser.Scene {
     };
 
     keyboard.on('keydown', this._gameplayKeyHandlers.menuNavigation);
+    keyboard.on('keydown-T', this._gameplayKeyHandlers.pinThreat);
     keyboard.on('keydown-V', this._gameplayKeyHandlers.viewUnit);
     keyboard.on('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
     keyboard.on('keydown-ESC', this._gameplayKeyHandlers.cancel);
@@ -1034,6 +1066,7 @@ export class BattleScene extends Phaser.Scene {
     const keyboard = this.input?.keyboard;
     if (keyboard?.off && this._gameplayKeyHandlers) {
       keyboard.off('keydown', this._gameplayKeyHandlers.menuNavigation);
+      keyboard.off('keydown-T', this._gameplayKeyHandlers.pinThreat);
       keyboard.off('keydown-V', this._gameplayKeyHandlers.viewUnit);
       keyboard.off('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
       keyboard.off('keydown-ESC', this._gameplayKeyHandlers.cancel);
@@ -1181,6 +1214,7 @@ export class BattleScene extends Phaser.Scene {
       // rewinding to the pre-battle NodeMap auto-save. Placed after the RNG
       // install so the recorded reinforcement seed matches live play.
       if (this.runManager && !this.battleParams?.tutorialMode && !this._resumeCheckpoint) {
+        this.runManager.lastDeployment = (deployedRoster || []).map((unit) => unit.name);
         this.runManager.beginBattleInProgress?.(this.nodeId, {
           battleParams: { ...this.battleParams, battleSeed: this.getReinforcementSeed() },
           isBoss: this.isBoss,
@@ -1399,7 +1433,11 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
-                    { traitsData: this.gameData.traits || null, rng: Math.random },
+                    {
+                      traitsData: this.gameData.traits || null,
+                      skillsData: this.gameData.skills,
+                      rng: Math.random,
+                    },
                   );
                   for (const sid of getClassInnateSkills(
                     baseClassData.name,
@@ -1433,7 +1471,11 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
-                    { traitsData: this.gameData.traits || null, rng: Math.random },
+                    {
+                      traitsData: this.gameData.traits || null,
+                      skillsData: this.gameData.skills,
+                      rng: Math.random,
+                    },
                   );
                   console.warn(
                     'Promoted recruit missing base class mapping:',
@@ -1459,7 +1501,11 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
-                    { traitsData: this.gameData.traits || null, rng: Math.random },
+                    {
+                      traitsData: this.gameData.traits || null,
+                      skillsData: this.gameData.skills,
+                      rng: Math.random,
+                    },
                   );
                   for (const sid of getClassInnateSkills(
                     baseClassData.name,
@@ -1476,7 +1522,11 @@ export class BattleScene extends Phaser.Scene {
                     recruitGrowthBonuses,
                     recruitSkillPool,
                     this.gameData.classes,
-                    { traitsData: this.gameData.traits || null, rng: Math.random },
+                    {
+                      traitsData: this.gameData.traits || null,
+                      skillsData: this.gameData.skills,
+                      rng: Math.random,
+                    },
                   );
                   console.warn(
                     'Promoted recruit roll fallback missing base class mapping:',
@@ -1499,7 +1549,11 @@ export class BattleScene extends Phaser.Scene {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
-                  { traitsData: this.gameData.traits || null, rng: Math.random },
+                  {
+                    traitsData: this.gameData.traits || null,
+                    skillsData: this.gameData.skills,
+                    rng: Math.random,
+                  },
                 );
                 console.warn(
                   'Promoted recruit source not eligible for promotion roll:',
@@ -1516,7 +1570,11 @@ export class BattleScene extends Phaser.Scene {
                 recruitGrowthBonuses,
                 recruitSkillPool,
                 this.gameData.classes,
-                { traitsData: this.gameData.traits || null, rng: Math.random },
+                {
+                  traitsData: this.gameData.traits || null,
+                  skillsData: this.gameData.skills,
+                  rng: Math.random,
+                },
               );
               // Assign base-class innate skills (e.g. Dancer gets 'dance')
               for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
@@ -1799,8 +1857,11 @@ export class BattleScene extends Phaser.Scene {
 
       // Danger zone overlay
       this.dangerZone = new DangerZoneOverlay(this, this.grid);
+      this._pinnedThreats = new PinnedThreatController(this);
+      this.pinnedThreatEnemies = this._pinnedThreats.enemies;
       this.dangerZoneCache = null;
       this.dangerZoneStale = true;
+      this._pinnedThreats?.invalidate();
 
       // Disable browser context menu
       this.input.mouse.disableContextMenu();
@@ -1918,7 +1979,7 @@ export class BattleScene extends Phaser.Scene {
           })
           .setOrigin(0.5)
           .setDepth(4); // depth 4 = above fog (3) but below highlights (5)
-        if (!this._isReducedEffects()) {
+        if (!this._reduceMotion()) {
           this.tweens.add({
             targets: this.recruitFogMarker,
             alpha: { from: 0.4, to: 1.0 },
@@ -1943,8 +2004,12 @@ export class BattleScene extends Phaser.Scene {
         this._pinToScreen(fogLabel);
 
         const hints = this.registry.get('hints');
-        if (hints?.shouldShow('battle_fog')) {
-          showMinorHint(this, 'Fog of War \u2014 enemies beyond vision range are hidden.');
+        if (hints && !hints.hasSeen('battle_fog')) {
+          showContextualHint(
+            this,
+            'battle_fog',
+            'Fog of War \u2014 enemies beyond vision range are hidden.',
+          );
         }
       }
 
@@ -1963,9 +2028,10 @@ export class BattleScene extends Phaser.Scene {
 
       if (this.mobileCameraEnabled) {
         const hints = this.registry.get('hints');
-        if (hints?.shouldShow('battle_mobile_camera')) {
-          showMinorHint(
+        if (hints && !hints.hasSeen('battle_mobile_camera')) {
+          showContextualHint(
             this,
+            'battle_mobile_camera',
             'Use two fingers to pan and pinch to zoom. Pinch out or tap Reset to restore view.',
           );
         }
@@ -2077,12 +2143,13 @@ export class BattleScene extends Phaser.Scene {
     return trimmed;
   }
 
-  async _showStorySequence(entries) {
+  async _showStorySequence(entries, options = {}) {
     if (!Array.isArray(entries) || entries.length <= 0 || !this.dialogueOverlay) return;
     this._storyDialogueActive = true;
     try {
       await this.dialogueOverlay.showSequence(
         adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.()),
+        options,
       );
     } finally {
       this._storyDialogueActive = false;
@@ -2090,12 +2157,12 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async _showStoryDialogueOnce(dialogueKey, entries) {
+  async _showStoryDialogueOnce(dialogueKey, entries, options = {}) {
     if (!this.runManager || typeof dialogueKey !== 'string' || !dialogueKey) return;
     if (this.runManager.hasShownDialogue(dialogueKey)) return;
     if (!Array.isArray(entries) || entries.length <= 0) return;
     this.runManager.markDialogueShown(dialogueKey);
-    await this._showStorySequence(entries);
+    await this._showStorySequence(entries, { ...options, key: dialogueKey });
   }
 
   _clearPostLootTransitionFallback() {
@@ -2208,6 +2275,7 @@ export class BattleScene extends Phaser.Scene {
     return {
       multiplier: this.battleParams.difficultyMod || 1.0,
       enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+      classStatBonuses: this.battleParams.classStatBonuses || {},
       enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
     };
   }
@@ -2602,6 +2670,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (spawned > 0) {
       this.dangerZoneStale = true;
+      this._pinnedThreats?.invalidate();
       if (this.grid.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
       // Village bandits get their own telegraph instead of the generic
@@ -2664,6 +2733,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (changedTiles > 0) {
       this.dangerZoneStale = true;
+      this._pinnedThreats?.invalidate();
       if (this.grid?.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
     }
@@ -2993,6 +3063,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Unit rendering ---
 
   getSpriteKey(unit) {
+    if (unit.isCaravan && this.textures.exists('merchant_caravan')) return 'merchant_caravan';
     const rebuilt = rebuiltSpriteKey(this, unit);
     if (rebuilt) return rebuilt;
     const classKey = unit.className.toLowerCase().replace(/ /g, '_');
@@ -3407,6 +3478,7 @@ export class BattleScene extends Phaser.Scene {
 
   update() {
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
+    this._pinnedThreats?.refresh();
     this._mobileBattleHud?.sync();
     if (!this._uiCamera) return;
     const childCount = this.children?.list?.length || 0;
@@ -4138,7 +4210,7 @@ export class BattleScene extends Phaser.Scene {
     this.refreshEndTurnControl();
   }
 
-  showPauseMenu() {
+  showPauseMenu({ onResume = null, fromRewards = false } = {}) {
     const abandonPayout = this.runManager?.previewEndRunRewards?.();
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
@@ -4270,9 +4342,12 @@ export class BattleScene extends Phaser.Scene {
         this.battleState = this.prePauseState || 'PLAYER_IDLE';
         this.pauseOverlay = null;
         this.refreshEndTurnControl();
+        onResume?.();
       },
       onSaveAndExit: saveExitCb,
-      onSaveAndExitWarning: 'Battle Suspended — Resume From Continue',
+      onSaveAndExitWarning: fromRewards
+        ? 'Completed battle and claimed rewards are saved. Unclaimed rewards will be forfeited. Continue returns to the map.'
+        : 'Battle Suspended — Resume From Continue',
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
@@ -4375,6 +4450,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deselectUnit() {
+    this._inputController?.clearPlanningInspection();
     if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
       this.selectedUnit.graphic.clearTint();
     }
@@ -4671,12 +4747,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
       this.tutorialStep = 4;
       this._clearTutorialGuideHighlights();
-      const infoHint = this.isMobileInput
-        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
-        : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
-      await this._withTutorialHintState(async () => {
-        await showImportantHint(this, infoHint);
-      });
+      await (this._tutorialController ||= new TutorialController(this)).showFortLesson(unit);
       if (!this.scene?.isActive?.()) return;
       this._tutorialStrictGateReleased = true;
     }
@@ -5373,9 +5444,9 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
     (this._combatFx ||= new CombatFxController(this)).playBuff(pos.x, pos.y);
     const sparkle = this.add
-      .circle(pos.x, pos.y, 20, 0x44ff88, this._isReducedEffects() ? 0.4 : 0.6)
+      .circle(pos.x, pos.y, 20, 0x44ff88, this._reduceMotion() ? 0.4 : 0.6)
       .setDepth(200);
-    if (this._isReducedEffects()) {
+    if (this._reduceMotion()) {
       this.time.delayedCall(120, () => sparkle.destroy());
     } else {
       this.tweens.add({
@@ -5818,9 +5889,13 @@ export class BattleScene extends Phaser.Scene {
     (this._weaponArtController ||= new WeaponArtController(this))._wireWeaponArtTooltip(text, art);
   }
 
-  _isReducedEffects() {
+  _reduceMotion() {
     const settings = this.registry?.get?.('settings');
-    return !!settings?.getReducedEffects?.();
+    return !!settings?.getReduceMotion?.();
+  }
+
+  _effectsQuality() {
+    return this.registry?.get?.('settings')?.getEffectsQuality?.() ?? 'high';
   }
 
   showActionMenu(unit) {
@@ -6065,6 +6140,7 @@ export class BattleScene extends Phaser.Scene {
               ballista.owner = 'player';
               ballista.captured = true;
               this.dangerZoneStale = true;
+              this._pinnedThreats?.invalidate();
               if (this.dangerZone?.visible) {
                 this.dangerZoneCache = this.calculateDangerZone();
                 this.dangerZoneStale = false;
@@ -6238,7 +6314,11 @@ export class BattleScene extends Phaser.Scene {
       const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
       const recruitLines = lordLines ||
         this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
-      const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
+      const line =
+        this.runManager?.pickNarrativeLine?.(
+          recruitLines,
+          `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
+        ) || recruitLines[0];
       const portraitKey = this._getPortraitKey(npc);
       await this.dialogueOverlay.show(npc.name, line, portraitKey);
 
@@ -6254,6 +6334,7 @@ export class BattleScene extends Phaser.Scene {
       this.addUnitGraphic(npc);
 
       // Add to player units
+      this.runManager?.grantRecruitBlessingConsumables?.(npc);
       this.playerUnits.push(npc);
       // Recruit can move + act this turn (FE convention); force fresh action flags.
       npc.hasMoved = false;
@@ -7681,18 +7762,11 @@ export class BattleScene extends Phaser.Scene {
     this.forecastObjects = this._forecastOverlay.displayObjects;
     this._pinToScreen(this.forecastObjects);
 
-    if (this.battleParams?.tutorialMode && this.tutorialStep === 4) {
-      this.tutorialStep = 5;
-      await this._withTutorialHintState(async () => {
-        await showImportantHint(
-          this,
-          inputHint(
-            this,
-            'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
-            'The forecast shows damage, hit %, and crit %.\nTap Confirm attack to commit, or Cancel to go back.',
-          ),
-        );
-      });
+    if (this.battleParams?.tutorialMode) {
+      if (this.tutorialStep === 4) this.tutorialStep = 5;
+      await (this._tutorialController ||= new TutorialController(this)).showForecastLesson(
+        forecast,
+      );
     }
   }
 
@@ -7741,6 +7815,17 @@ export class BattleScene extends Phaser.Scene {
    * @returns {Promise<{ result: object, selectedArt: object|null }>}
    */
   async _runCombatResolution(attacker, defender, ctx) {
+    const previous = this._combatSpeedSnapshot;
+    this._combatSpeedSnapshot = battleSpeed(this);
+    try {
+      return await this._runCombatResolutionAtSpeed(attacker, defender, ctx);
+    } finally {
+      this._combatFx?.finishStrike?.(attacker, defender);
+      this._combatSpeedSnapshot = previous;
+    }
+  }
+
+  async _runCombatResolutionAtSpeed(attacker, defender, ctx) {
     const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
 
     // Apply weapon art cost if selected
@@ -8492,7 +8577,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async animateStrike(event, attacker, defender, opts = {}) {
-    const reduced = this._isReducedEffects();
+    const reduced = this._reduceMotion();
     const strikerIsAttacker =
       event.attackerSide === 'attacker' || event.attackerSide === 'defender'
         ? event.attackerSide === 'attacker'
@@ -8525,7 +8610,7 @@ export class BattleScene extends Phaser.Scene {
     const fx = (this._combatFx ||= new CombatFxController(this));
     const audio = this.registry.get('audio');
     if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
-    if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
+    if (audio && !event.miss) this._combatFx.playStrikeSound(this.getWeaponSFX(striker));
     const strikerCat = dominantCategory(split.striker);
     const windUp =
       !opts.followUp && (strikerCat === PROC_CATEGORY.ART || strikerCat === PROC_CATEGORY.OFFENSE);
@@ -8538,29 +8623,28 @@ export class BattleScene extends Phaser.Scene {
     if (event.miss) {
       fx.dodge(target, striker);
       const pos = this.grid.gridToPixel(target.col, target.row);
-      const missText = this.add
-        .text(pos.x, pos.y - 16, 'MISS', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#aaaaaa',
-          fontStyle: 'bold',
-        })
+      const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        fontStyle: 'bold',
+      })
         .setOrigin(0.5)
         .setDepth(300);
       this.tweens.add({
         targets: missText,
-        y: pos.y - 32,
+        y: reduced ? pos.y - 16 : pos.y - 32,
         alpha: 0,
-        duration: reduced ? 220 : 500,
+        duration: 500,
         onComplete: () => missText.destroy(),
       });
-      await this._awaitSceneDelay(reduced ? 200 : 300, { label: 'animate_strike_miss_hold' });
+      await this._awaitSceneDelay(300, { label: 'animate_strike_miss_hold' });
       await fx.lungeBack(striker, target);
       return;
     }
 
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
-    if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+    if (audio) this._combatFx.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     const artStrike = split.striker.some((e) => e.id === 'weapon_art');
     fx.playImpact(event, striker, target, {
       emphasis: artStrike,
@@ -8577,20 +8661,25 @@ export class BattleScene extends Phaser.Scene {
       (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
     }
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const dmgText = this.add
-      .text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
+    const dmgText = presentationText(
+      this,
+      pos.x,
+      pos.y - 16,
+      event.isCrit ? `${event.damage}!` : `${event.damage}`,
+      {
         fontFamily: 'monospace',
         fontSize: '13px',
         color: event.isCrit ? '#ffff00' : '#ffffff',
         fontStyle: 'bold',
-      })
+      },
+    )
       .setOrigin(0.5)
       .setDepth(300);
     this.tweens.add({
       targets: dmgText,
-      y: pos.y - 32,
+      y: reduced ? pos.y - 16 : pos.y - 32,
       alpha: 0,
-      duration: reduced ? 260 : 600,
+      duration: 600,
       onComplete: () => dmgText.destroy(),
     });
 
@@ -8607,20 +8696,19 @@ export class BattleScene extends Phaser.Scene {
       striker.currentHP = event.strikerHealTo;
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = this.add
-        .text(sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#44ff44',
-          fontStyle: 'bold',
-        })
+      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#44ff44',
+        fontStyle: 'bold',
+      })
         .setOrigin(0.5)
         .setDepth(300);
       this.tweens.add({
         targets: healText,
-        y: sPos.y - 28,
+        y: reduced ? sPos.y - 8 : sPos.y - 28,
         alpha: 0,
-        duration: reduced ? 260 : 600,
+        duration: 600,
         onComplete: () => healText.destroy(),
       });
     }
@@ -8629,26 +8717,25 @@ export class BattleScene extends Phaser.Scene {
       striker.currentHP = Math.max(1, striker.currentHP - event.reflectDamage);
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = this.add
-        .text(sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff4444',
-          fontStyle: 'bold',
-        })
+      const refText = presentationText(this, sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ff4444',
+        fontStyle: 'bold',
+      })
         .setOrigin(0.5)
         .setDepth(300);
       this.tweens.add({
         targets: refText,
-        y: sPos.y - 32,
+        y: reduced ? sPos.y - 16 : sPos.y - 32,
         alpha: 0,
-        duration: reduced ? 260 : 600,
+        duration: 600,
         onComplete: () => refText.destroy(),
       });
     }
 
     // Crits hold the impact frame a beat longer for weight
-    await this._awaitSceneDelay(reduced ? 80 : event.isCrit ? 240 : 150, {
+    await this._awaitSceneDelay(event.isCrit ? 240 : 150, {
       label: 'animate_strike_hit_hold',
     });
     if (target.graphic?.clearTint) target.graphic.clearTint();
@@ -8720,7 +8807,7 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({
       targets: text,
       alpha: 0,
-      y: pos.y - 36,
+      y: this._reduceMotion() ? pos.y - 20 : pos.y - 36,
       duration: 1200,
       delay: 400,
       onComplete: () => text.destroy(),
@@ -8729,7 +8816,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show poison damage floating text. */
   async showPoisonDamage(unit, damage) {
-    const reduced = this._isReducedEffects();
+    const reduced = this._reduceMotion();
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
@@ -8746,9 +8833,9 @@ export class BattleScene extends Phaser.Scene {
     await this._awaitSceneTween(
       {
         targets: text,
-        y: pos.y - 32,
+        y: reduced ? pos.y - 16 : pos.y - 32,
         alpha: 0,
-        duration: reduced ? 260 : 600,
+        duration: 600,
         onComplete: () => {
           text.destroy();
         },
@@ -8844,13 +8931,12 @@ export class BattleScene extends Phaser.Scene {
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
-    const xpText = this.add
-      .text(pos.x, pos.y - 20, `+${xp} XP`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#88ccff',
-        fontStyle: 'bold',
-      })
+    const xpText = presentationText(this, pos.x, pos.y - 20, `+${xp} XP`, {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#88ccff',
+      fontStyle: 'bold',
+    })
       .setOrigin(0.5)
       .setDepth(300);
 
@@ -8869,7 +8955,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply every skill grant before any presentation. Informational popups
     // wait for a resolved action/turn checkpoint, never suspend halfway through combat.
-    for (const lvUp of result.levelUps) {
+    for (const lvUp of levelUpDisplayResults(playerUnit.stats, result.levelUps)) {
       // The scene may have shut down while a previous popup was showing (its
       // shutdown hook resolves the await) -- don't build popups on a dead scene.
       if (this.sys?.isActive?.() === false) break;
@@ -8894,11 +8980,11 @@ export class BattleScene extends Phaser.Scene {
    * failures only degrade the lock, never gameplay — warn and continue.
    */
   _persistBattleRunState() {
-    if (!this.runManager) return;
+    if (!this.runManager) return { ok: false, reason: 'missing_run' };
     try {
       const cloud = this.registry?.get?.('cloud');
       const slot = this.registry?.get?.('activeSlot');
-      if (!Number.isInteger(slot)) return; // dev/QA route without a slot — nothing to lock
+      if (!Number.isInteger(slot)) return { ok: false, reason: 'missing_slot' }; // dev/QA route without a slot — nothing to lock
       const result = saveRun(
         this.runManager,
         cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
@@ -8907,8 +8993,10 @@ export class BattleScene extends Phaser.Scene {
       if (!result.ok && result.reason !== 'missing_slot') {
         console.warn('[BattleScene] battle-state save failed:', result.reason);
       }
+      return result;
     } catch (err) {
       console.warn('[BattleScene] battle-state save failed:', err?.message || err);
+      return { ok: false, reason: 'write_error' };
     }
   }
 
@@ -8948,7 +9036,8 @@ export class BattleScene extends Phaser.Scene {
           if (Array.isArray(farewellPool) && farewellPool.length > 0) {
             const cast = resolveDialogueCast(this.runManager?.getStartingLordNames?.());
             const line = adaptDialogueLine(
-              farewellPool[Math.floor(Math.random() * farewellPool.length)],
+              this.runManager?.pickNarrativeLine?.(farewellPool, `farewell:${unit.name}`) ||
+                farewellPool[0],
               cast,
             );
             const portraitKey = this._getPortraitKey(unit);
@@ -9003,6 +9092,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.dangerZoneStale = true;
+    this._pinnedThreats?.invalidate();
     // Detect boss death on seize maps -- show prominent notification
     if (unit.isBoss && unit.faction === 'enemy' && this.battleConfig.objective === 'seize') {
       this._showBossDefeatedBanner();
@@ -9105,6 +9195,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
+    this._pinnedThreats?.invalidate();
     this.dangerZone.hide();
     if (typeof this._expireTimedWeaponArtBuffs === 'function') {
       this._expireTimedWeaponArtBuffs(phase, turn);
@@ -9291,39 +9382,47 @@ export class BattleScene extends Phaser.Scene {
               1500,
               'battle_first_turn_hints',
               async () => {
-                if (!isSceneActiveForAsync()) return;
-                if (hints.shouldShow('battle_first_turn')) {
-                  const inspectHint = this.isMobileInput
-                    ? 'Tap a blue unit to move, then choose an action.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
-                    : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
-                  await showImportantHint(this, inspectHint);
-                }
-                if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
-                  await showImportantHint(
+                if (!isSceneActiveForAsync() || this.battleState !== 'PLAYER_IDLE') return;
+                const objective = this.battleParams.objective;
+                if (objective === 'seize')
+                  showContextualHint(
                     this,
-                    'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
+                    'battle_seize',
+                    'Seize: defeat the boss, then move a Lord onto the throne and choose Seize.',
                   );
-                }
-                if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
-                  await showImportantHint(
+                else if (objective === 'escape')
+                  showContextualHint(
                     this,
-                    'Defeat the boss, then move a Lord\nto the throne and select Seize!',
+                    'battle_escape',
+                    'Escape: bring your Lords to the green exits. The surviving army retreats when the last Lord leaves.',
                   );
-                }
-                if (this.battleParams.objective === 'escape' && hints.shouldShow('battle_escape')) {
-                  await showImportantHint(
+                else if (this.npcUnits.length > 0)
+                  showContextualHint(
                     this,
-                    'Only your Lords must reach the green escape\nsquares! Everyone else retreats safely when\nthe last Lord exits -- or can exit early for\nbonus gold. Pursuers arrive endlessly; do not\ntry to rout them.',
+                    'battle_recruit',
+                    'Move a Lord beside the green recruit and choose Talk.',
                   );
-                }
+                else
+                  showContextualHint(
+                    this,
+                    'battle_par',
+                    'Par is the target turn count. Faster clears earn bonus gold; weigh that reward against keeping your army safe.',
+                  );
+                if (this.getVisionChargesRemaining() > 0)
+                  showContextualHint(
+                    this,
+                    'battle_vision_scope',
+                    'Rewinds last the whole run, not one battle. +1 rewind charge after each act boss; unused charges carry forward. Rewind returns to the start of the current player turn.',
+                  );
               },
               { phase: 'player', turn },
             );
           } else if (hints && turn === 2) {
             this.time.delayedCall(1500, () => {
-              if (hints.shouldShow('battle_danger_zone')) {
-                showMinorHint(
+              if (!hints.hasSeen('battle_danger_zone')) {
+                showContextualHint(
                   this,
+                  'battle_danger_zone',
                   inputHint(
                     this,
                     'Press [D] to show enemy threat range.',
@@ -9452,7 +9551,7 @@ export class BattleScene extends Phaser.Scene {
 
   async processBallistaFire(targetUnits, owner, isCurrent = () => true) {
     if (!this.ballistas || this.ballistas.length === 0) return;
-    const reduced = this._isReducedEffects();
+    const reduced = this._reduceMotion();
     for (const ballista of this.ballistas) {
       if (!isCurrent()) return;
       if (ballista.owner !== owner) continue;
@@ -9476,9 +9575,9 @@ export class BattleScene extends Phaser.Scene {
           await this._awaitSceneTween(
             {
               targets: txt,
-              y: pos.y - 32,
+              y: reduced ? pos.y - 16 : pos.y - 32,
               alpha: 0,
-              duration: reduced ? 260 : 600,
+              duration: 600,
               onComplete: () => {
                 txt.destroy();
               },
@@ -9510,9 +9609,9 @@ export class BattleScene extends Phaser.Scene {
         await this._awaitSceneTween(
           {
             targets: txt,
-            y: pos.y - 32,
+            y: reduced ? pos.y - 16 : pos.y - 32,
             alpha: 0,
-            duration: reduced ? 260 : 600,
+            duration: 600,
             onComplete: () => {
               txt.destroy();
             },
@@ -9875,7 +9974,7 @@ export class BattleScene extends Phaser.Scene {
     await this._awaitSceneDelay(60, { label: 'acid_damage_tail' });
   }
 
-  async startEnemyPhase() {
+  async startEnemyPhase({ resume = false } = {}) {
     // Epoch token: a Vision rewind restores a player-phase snapshot while this
     // async pipeline may still be in flight (AI loop or the tail below). Every
     // step re-checks the epoch so a superseded phase can never act on, or
@@ -9883,13 +9982,16 @@ export class BattleScene extends Phaser.Scene {
     this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
     const phaseEpoch = this._enemyPhaseEpoch;
     const phaseSuperseded = () =>
-      phaseEpoch !== this._enemyPhaseEpoch || this.battleState === 'BATTLE_END';
+      phaseEpoch !== this._enemyPhaseEpoch ||
+      this.battleState === 'BATTLE_END' ||
+      this._sceneShutdownCleanedUp ||
+      this.sys?.isActive?.() === false;
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
       // Merchant Caravan: 1-tile greedy step toward the nearest edge, before
       // enemy AI acts so enemies can react to the caravan's new position.
-      this._caravanController?.stepTurn();
+      if (!resume) this._caravanController?.stepTurn();
       // Debug: skip enemy phase entirely
       if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
         this._debugSkipEnemyPhase = false;
@@ -9909,9 +10011,16 @@ export class BattleScene extends Phaser.Scene {
           this.playerUnits,
           this.npcUnits,
           {
+            isCurrent: () => !phaseSuperseded() && !this.visionDialog,
             onMoveUnit: (enemy, path) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.animateEnemyMove(enemy, path);
+            },
+            onHeal: (_enemy, target, result) => {
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              this.updateHPBar(target);
+              this.showBriefBanner?.(`${target.name} healed ${result.healAmount} HP`, '#88ff88');
+              return Promise.resolve();
             },
             onStatusStaff: (enemy, target) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
@@ -9926,12 +10035,24 @@ export class BattleScene extends Phaser.Scene {
               return this.executeEnemyBreak(enemy, tile);
             },
             onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
-            onUnitDone: (enemy) => {
+            onUnitDone: async (enemy) => {
+              if (phaseSuperseded() || this.visionDialog) return;
               enemy.hasActed = true;
               this.dimUnit(enemy);
               // Village raze: a seek_tile bandit ending its move on the
               // intact village tile burns it down.
               this._villageController?.handleEnemyUnitDone(enemy);
+              if (!phaseSuperseded() && !this.visionDialog && this._pendingLevelUpPopups?.length) {
+                // The completed enemy is marked acted before saving. A reload
+                // resumes only the remaining enemies, never this combat or XP.
+                this._enemyActionCheckpoint = true;
+                try {
+                  this._captureSuspendCheckpoint?.();
+                } finally {
+                  this._enemyActionCheckpoint = false;
+                }
+                await presentQueuedLevelUps(this);
+              }
             },
           },
         );
@@ -10182,31 +10303,44 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showPhaseBanner(phase, turn) {
+    this._phaseBanner?.destroy();
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
-    const color = phase === 'player' ? '#3366cc' : '#cc3333';
+    const color = phase === 'player' ? '#88bbff' : '#ff9999';
+    const place =
+      turn === 1 && phase === 'player'
+        ? battlePlace(this.gameData, this.battleConfig, this.battleParams?.act).title
+        : '';
     const banner = this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, `Turn ${turn} - ${label}`, {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color,
-        backgroundColor: '#000000cc',
-        padding: { x: 16, y: 8 },
-      })
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        `Turn ${turn} - ${label}${place ? `\n${place}` : ''}`,
+        {
+          fontFamily: 'monospace',
+          fontSize: place ? '15px' : '20px',
+          align: 'center',
+          wordWrap: { width: Math.max(160, this.cameras.main.width - 48) },
+          color,
+          backgroundColor: '#000000cc',
+          padding: { x: 16, y: 8 },
+        },
+      )
       .setOrigin(0.5)
       .setAlpha(0)
       .setDepth(500);
+    this._phaseBanner = banner;
     this._pinToScreen(banner);
 
-    if (this._isReducedEffects()) {
+    if (this._reduceMotion()) {
       banner.setAlpha(1);
-      this.time.delayedCall(420, () => banner.destroy());
+      this.time.delayedCall(place ? 2200 : 420, () => banner.destroy());
     } else {
       this.tweens.add({
         targets: banner,
         alpha: 1,
         duration: 300,
         yoyo: true,
-        hold: 800,
+        hold: place ? 1800 : 800,
         onComplete: () => banner.destroy(),
       });
     }
@@ -10342,8 +10476,19 @@ export class BattleScene extends Phaser.Scene {
     this.objectiveText.setColor(color);
   }
 
+  isThreatPinned(unit) {
+    return this.pinnedThreatEnemies?.has(unit) || false;
+  }
+
+  togglePinnedThreat(unit) {
+    const changed = this._pinnedThreats?.toggle(unit) || false;
+    this._mobileBattleHud?.sync();
+    return changed;
+  }
+
   refreshVisibleDangerZone() {
     this.dangerZoneStale = true;
+    this._pinnedThreats?.invalidate();
     if (this.dangerZone?.visible) {
       this.dangerZoneCache = this.calculateDangerZone();
       this.dangerZone.show(this.dangerZoneCache);
@@ -10351,10 +10496,13 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  calculateDangerZone() {
-    const threatened = new Set();
+  calculateDangerZone(onlyEnemy = null) {
+    const threatened = new Map();
+    const addDamageSource = (tiles) => {
+      for (const key of tiles) threatened.set(key, (threatened.get(key) || 0) + 1);
+    };
     const statusThreatened = new Set();
-    for (const enemy of this.enemyUnits) {
+    for (const enemy of onlyEnemy ? [onlyEnemy] : this.enemyUnits) {
       if (enemy.currentHP <= 0 || !canInspectUnit(this.grid, enemy)) continue;
       if (this.grid.fogEnabled) {
         const fogVis = isEntity(enemy)
@@ -10363,6 +10511,8 @@ export class BattleScene extends Phaser.Scene {
         if (!fogVis) continue;
       }
 
+      // Count each enemy once per tile, regardless of movement origins or body size.
+      const enemyThreatened = new Set();
       // Entity: stationary, compute attack range from all body tiles using all weapons
       if (isEntity(enemy)) {
         for (const tile of getFootprint(enemy)) {
@@ -10370,9 +10520,10 @@ export class BattleScene extends Phaser.Scene {
             range: `1-${ENTITY_PRIMARY_ATTACK_RANGE}`,
           });
           for (const t of atkTiles) {
-            threatened.add(`${t.col},${t.row}`);
+            enemyThreatened.add(`${t.col},${t.row}`);
           }
         }
+        addDamageSource(enemyThreatened);
         continue;
       }
 
@@ -10403,26 +10554,30 @@ export class BattleScene extends Phaser.Scene {
         if (enemy.weapon) {
           const atkTiles = this.grid.getAttackRange(mc, mr, enemy.weapon);
           for (const t of atkTiles) {
-            threatened.add(`${t.col},${t.row}`);
+            enemyThreatened.add(`${t.col},${t.row}`);
           }
         }
       }
+      addDamageSource(enemyThreatened);
     }
-    if (this.ballistas?.length > 0) {
+    if (!onlyEnemy && this.ballistas?.length > 0) {
       for (const ballista of this.ballistas) {
         if (ballista.owner !== 'enemy') continue;
         if (this.grid.fogEnabled && !this.grid.isVisible(ballista.col, ballista.row)) continue;
         const tiles = getBallistaDangerTiles(ballista, this.grid.cols, this.grid.rows);
-        for (const t of tiles) {
-          threatened.add(`${t.col},${t.row}`);
-        }
+        // Ballistas remain independent damage sources in the global threat view.
+        addDamageSource(new Set(tiles.map((t) => `${t.col},${t.row}`)));
       }
     }
-    return Array.from(new Set([...threatened, ...statusThreatened])).map((k) => {
+    return Array.from(new Set([...threatened.keys(), ...statusThreatened])).map((k) => {
       const [col, row] = k.split(',').map(Number);
-      return statusThreatened.has(k)
-        ? { col, row, statusThreat: true, damageThreat: threatened.has(k) }
-        : { col, row };
+      return {
+        col,
+        row,
+        count: threatened.get(k) || 0,
+        statusThreat: statusThreatened.has(k),
+        damageThreat: threatened.has(k),
+      };
     });
   }
 

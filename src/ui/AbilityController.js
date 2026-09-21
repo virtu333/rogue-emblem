@@ -448,7 +448,10 @@ export class AbilityController {
       scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', '#cc88ff');
     }
     // Rooted enemies can't move — their threat ranges shrink
-    if (anyRooted) scene.dangerZoneStale = true;
+    if (anyRooted) {
+      scene.dangerZoneStale = true;
+      scene._pinnedThreats?.invalidate();
+    }
   }
 
   destroy() {
