@@ -22,7 +22,7 @@ test('named boss art, promoted lord portraits and roster use the same identity',
     };
   });
   expect(before.name).toBe('Warchief');
-  expect(before.sprite).toBe('rebuilt-boss_warchief');
+  expect(before.sprite).toBe('contrast-rebuilt-boss_warchief');
   expect(before.portrait).toBe('rebuilt-portrait-boss_warchief');
   expect(before.x).toBe(before.pos.x);
   expect(before.y).toBe(before.pos.y);

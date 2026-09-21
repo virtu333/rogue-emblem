@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { runResultMenu } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 // RunCompleteScene — End-of-run screen (victory or defeat)
 
@@ -28,6 +30,8 @@ export class RunCompleteScene extends Phaser.Scene {
   async create() {
     this.cameras.main.setBackgroundColor(UI_PALETTE.bg);
     this.isTransitioning = false;
+    const lifetime = {};
+    this._runResultLifetime = lifetime;
     this._resultMusicKey = this.result === 'victory' ? MUSIC.runWin : MUSIC.defeat;
 
     // Settle rewards BEFORE deleting the run save: once the save is cleared
@@ -61,6 +65,9 @@ export class RunCompleteScene extends Phaser.Scene {
     }
 
     this.events.once('shutdown', () => {
+      this._runResultLifetime = null;
+      this.runResultMenu?.destroy();
+      this.runResultMenu = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
       popInputScope(this);
@@ -71,15 +78,16 @@ export class RunCompleteScene extends Phaser.Scene {
       }
     });
 
-    // Title
-    applyTextResolution(
-      this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
-        fontFamily: 'Arial',
-        fontSize: '32px',
-        color: isVictory ? UI_PALETTE.accent : '#cc3333',
-        fontStyle: 'bold',
-      }),
-    ).setOrigin(0.5);
+    // Canvas fallback only; live browsers use the shared result surface.
+    if (!hasDOMHost())
+      applyTextResolution(
+        this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
+          fontFamily: 'Arial',
+          fontSize: '32px',
+          color: isVictory ? UI_PALETTE.accent : '#cc3333',
+          fontStyle: 'bold',
+        }),
+      ).setOrigin(0.5);
 
     let overlay;
     try {
@@ -94,12 +102,21 @@ export class RunCompleteScene extends Phaser.Scene {
       if (overlay) overlay.destroy();
     }
 
+    if (this._runResultLifetime !== lifetime) return;
+    if (hasDOMHost()) {
+      this.runResultMenu = runResultMenu(this, rewards, meta);
+      return;
+    }
+
     // Rewards were settled above, before the save was cleared.
     const actReached = rm.actIndex + 1;
     const { valor, supply, currencyMultiplier } = rewards;
 
     // Stats
-    const statsLines = [`Battles Won: ${rm.completedBattles}`, `Act Reached: ${actReached} / 4`];
+    const statsLines = [
+      `Battles Won: ${rm.completedBattles}`,
+      `Act Reached: ${actReached} / ${rm.actSequence?.length || 4}`,
+    ];
     const statsText = statsLines.join('\n');
 
     applyTextResolution(

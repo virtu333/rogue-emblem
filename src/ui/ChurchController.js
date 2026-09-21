@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { ChurchMenu } from './ChurchMenu.js';
 import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // ChurchController -- church node overlay flow extracted from NodeMapScene.
@@ -79,6 +81,12 @@ export class ChurchController {
     scene.churchScrollOffset = 0;
     scene.churchScrollMax = 0;
     scene._churchScrollItems = null;
+
+    if (hasDOMHost()) {
+      this.nativeMenu?.destroy();
+      this.nativeMenu = new ChurchMenu(this);
+      return;
+    }
 
     // Tutorial hint for church
     const hints = scene.registry.get('hints');
@@ -747,6 +755,8 @@ export class ChurchController {
     scene.closeChurchOverlay();
     if (node) {
       scene.runManager.markNodeComplete(node.id);
+      const warning = saveServiceRun(scene);
+      if (warning) showMinorHint(scene, warning.trim());
       scene.checkActComplete();
     }
   }
@@ -784,6 +794,7 @@ export class ChurchController {
   }
 
   showChurchMessage(text, color) {
+    if (this.nativeMenu) return this.nativeMenu.render(text);
     const scene = this.scene;
     if (scene.scene?.isActive && !scene.scene.isActive()) return;
     if (!Array.isArray(scene.churchOverlay)) return;
@@ -821,6 +832,7 @@ export class ChurchController {
   }
 
   refreshChurchOverlay(node) {
+    if (this.nativeMenu) return this.nativeMenu.render();
     const scene = this.scene;
     const ruinsMode = scene._churchRuinsMode === true;
     scene.closeChurchOverlay();
@@ -828,6 +840,8 @@ export class ChurchController {
   }
 
   closeChurchOverlay() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     const scene = this.scene;
     this._teardownChurchFocus();
     scene._churchViewingRoster = false;
@@ -873,7 +887,10 @@ export class ChurchController {
   }
 
   destroy() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     this._clearScrollMask();
     this.scene = null;
   }
 }
+import { saveServiceRun } from './serviceSave.js';

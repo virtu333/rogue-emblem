@@ -1,0 +1,200 @@
+{
+  "cantoSetup": {
+    "unit": "Edric",
+    "col": 3,
+    "row": 3,
+    "hasBattleInProgress": true
+  },
+  "cantoBeforeSkip": {
+    "state": "CANTO_MOVING",
+    "turn": 1,
+    "village": {
+      "col": 3,
+      "row": 3,
+      "status": "intact"
+    },
+    "checkpointCalls": 0,
+    "checkpoint": 1,
+    "units": [
+      {
+        "name": "Edric",
+        "hp": 20,
+        "acted": true,
+        "col": 3,
+        "row": 3
+      },
+      {
+        "name": "Sera",
+        "hp": 18,
+        "acted": false,
+        "col": 2,
+        "row": 3
+      },
+      {
+        "name": "Utility",
+        "hp": 16,
+        "acted": false,
+        "col": 4,
+        "row": 4
+      },
+      {
+        "name": "Support",
+        "hp": 16,
+        "acted": false,
+        "col": 3,
+        "row": 4
+      },
+      {
+        "name": "Patient",
+        "hp": 13,
+        "acted": false,
+        "col": 2,
+        "row": 4
+      }
+    ],
+    "charges": 1
+  },
+  "cantoAfterSkip": {
+    "state": "PLAYER_IDLE",
+    "turn": 1,
+    "village": {
+      "col": 3,
+      "row": 3,
+      "status": "intact"
+    },
+    "checkpointCalls": 0,
+    "checkpoint": 1,
+    "units": [
+      {
+        "name": "Edric",
+        "hp": 20,
+        "acted": true,
+        "col": 3,
+        "row": 3
+      },
+      {
+        "name": "Sera",
+        "hp": 18,
+        "acted": false,
+        "col": 2,
+        "row": 3
+      },
+      {
+        "name": "Utility",
+        "hp": 16,
+        "acted": false,
+        "col": 4,
+        "row": 4
+      },
+      {
+        "name": "Support",
+        "hp": 16,
+        "acted": false,
+        "col": 3,
+        "row": 4
+      },
+      {
+        "name": "Patient",
+        "hp": 13,
+        "acted": false,
+        "col": 2,
+        "row": 4
+      }
+    ],
+    "charges": 1
+  },
+  "renewalSetup": {
+    "hp": 10,
+    "maxHP": 50,
+    "skills": ["renewal_aura", "renewal"]
+  },
+  "renewalAfterTurnStart": {
+    "state": "PLAYER_IDLE",
+    "turn": 2,
+    "village": null,
+    "checkpoint": 3,
+    "units": [
+      {
+        "name": "Edric",
+        "hp": 20,
+        "acted": false,
+        "col": 3,
+        "row": 3
+      },
+      {
+        "name": "Sera",
+        "hp": 15,
+        "acted": false,
+        "col": 2,
+        "row": 3
+      },
+      {
+        "name": "Utility",
+        "hp": 16,
+        "acted": false,
+        "col": 4,
+        "row": 4
+      },
+      {
+        "name": "Support",
+        "hp": 16,
+        "acted": false,
+        "col": 3,
+        "row": 4
+      },
+      {
+        "name": "Patient",
+        "hp": 16,
+        "acted": false,
+        "col": 2,
+        "row": 4
+      }
+    ],
+    "charges": 1
+  },
+  "renewalAfterRewind": {
+    "state": "PLAYER_IDLE",
+    "turn": 2,
+    "village": null,
+    "checkpoint": 5,
+    "units": [
+      {
+        "name": "Edric",
+        "hp": 20,
+        "acted": false,
+        "col": 3,
+        "row": 3
+      },
+      {
+        "name": "Sera",
+        "hp": 10,
+        "acted": false,
+        "col": 2,
+        "row": 3
+      },
+      {
+        "name": "Utility",
+        "hp": 16,
+        "acted": false,
+        "col": 4,
+        "row": 4
+      },
+      {
+        "name": "Support",
+        "hp": 16,
+        "acted": false,
+        "col": 3,
+        "row": 4
+      },
+      {
+        "name": "Patient",
+        "hp": 13,
+        "acted": false,
+        "col": 2,
+        "row": 4
+      }
+    ],
+    "charges": 0
+  },
+  "errors": []
+}

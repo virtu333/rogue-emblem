@@ -230,12 +230,13 @@ describe('Run clear callback forwarding across scenes', () => {
         return null;
       }),
     };
-    scene.runManager = { failRun: vi.fn() };
+    scene.runManager = { failRun: vi.fn(), settleEndRunRewards: vi.fn() };
     scene.scene = { start: vi.fn() };
     scene.showNodeMapTransitionRecovery = vi.fn();
 
     NodeMapScene.prototype.showPauseMenu.call(scene);
     await scene.pauseOverlay.onAbandon();
+    expect(scene.runManager.settleEndRunRewards).toHaveBeenCalledWith(null, 'defeat');
 
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);

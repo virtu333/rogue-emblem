@@ -651,26 +651,27 @@ describe('BattleScene trade cancel flow', () => {
     expect(scene.tradeMutatedThisSession).toBe(true);
   });
 
-  it('UNIT_ACTION_MENU cancel with mutated trade reopens action menu (no undo, no finish)', () => {
+  it('UNIT_ACTION_MENU cancel after trading deselects without refunding movement or action', () => {
     const { scene, unit } = setupScene();
     scene.battleState = 'UNIT_ACTION_MENU';
     scene.selectedUnit = unit;
     scene.inEquipMenu = false;
     scene.tradeMutatedThisSession = true;
-    scene.showActionMenu = vi.fn(() => {
-      // Mirror BattleScene.showActionMenu side effect.
-      scene.tradeMutatedThisSession = false;
-    });
-    scene.undoMove = vi.fn();
+    unit._movementCommitted = true;
+    unit.hasMoved = true;
+    unit._movementSpent = 3;
+    // Even a stale/recreated preMoveLoc cannot undo committed movement.
+    scene.preMoveLoc = { col: 0, row: 0 };
+    scene.undoMove = BattleScene.prototype.undoMove;
+    scene.deselectUnit = BattleScene.prototype.deselectUnit;
     scene.finishUnitAction = vi.fn();
 
     BattleScene.prototype.handleCancel.call(scene);
 
-    expect(scene.hideActionMenu).toHaveBeenCalled();
-    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
-    expect(scene.undoMove).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(unit).toMatchObject({ col: 1, row: 1, hasMoved: true, _movementSpent: 3 });
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
-    expect(scene.tradeMutatedThisSession).toBe(true);
   });
 
   it('UNIT_ACTION_MENU cancel without mutation still undoes move', () => {
@@ -1241,8 +1242,15 @@ describe('onPhaseChange condition recovery ordering', () => {
       await skipResult;
     }
     expect(turnStartSpy).toHaveBeenCalledTimes(1);
-    expect(turnStartSpy).toHaveBeenCalledWith(scene.playerUnits, { skipRecovery: true });
-    expect(scene.processBallistaFire).toHaveBeenCalledWith(scene.enemyUnits, 'player');
+    expect(turnStartSpy).toHaveBeenCalledWith(scene.playerUnits, {
+      skipRecovery: true,
+      isCurrent: expect.any(Function),
+    });
+    expect(scene.processBallistaFire).toHaveBeenCalledWith(
+      scene.enemyUnits,
+      'player',
+      expect.any(Function),
+    );
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
 

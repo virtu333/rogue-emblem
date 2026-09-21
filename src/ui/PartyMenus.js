@@ -21,7 +21,7 @@ function unitRow(scene, gameData, unit, action, selected) {
   );
   return row;
 }
-function describeUnit(gameData, unit) {
+export function describeUnit(gameData, unit) {
   const box = element('div');
   box.append(
     element('h3', unit.name),

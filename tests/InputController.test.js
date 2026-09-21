@@ -255,6 +255,9 @@ describe('InputController', () => {
     expect(scene.grid.showMovementRange).toHaveBeenCalledTimes(1);
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
 
+    // Showing a new inspection first clears stale status/attack overlays.
+    // Measure the explicit close independently of that replacement cleanup.
+    scene.grid.clearAttackHighlights.mockClear();
     controller.clearInspectionVisuals();
     expect(scene.inspectionPanel.hide).toHaveBeenCalledTimes(1);
     expect(scene.grid.clearHighlights).toHaveBeenCalledTimes(1);
@@ -518,6 +521,7 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     // tiles always show the Infantry cost (Forest: Inf 2 vs Cav 3).
     const unit = { name: 'Bandit', moveType: 'Cavalry', currentHP: 9, stats: { HP: 9 } };
     const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    scene.grid.fogEnabled = true;
     scene.grid.isVisible = vi.fn(() => false);
     const controller = new InputController(scene);
     controller.refreshTileInfo(2, 3);
@@ -743,5 +747,89 @@ describe('mobile idle tap on non-player units', () => {
 
     expect(showSpy).not.toHaveBeenCalled();
     expect(scene.inspectionPanel.hide).toHaveBeenCalled();
+  });
+});
+
+describe('mobile first-tap unit actions', () => {
+  function setup() {
+    const unit = { faction: 'player', col: 1, row: 1, graphic: { clearTint: vi.fn() } };
+    const scene = makeScene({
+      isMobileInput: true,
+      _mobileBattleHud: { available: () => true },
+      _isTutorialStrictGateActive: () => false,
+      getUnitAt: () => unit,
+      selectUnit: vi.fn(() => {
+        scene.selectedUnit = unit;
+        scene.battleState = 'UNIT_SELECTED';
+      }),
+      showActionMenu: vi.fn(() => {
+        scene.battleState = 'UNIT_ACTION_MENU';
+        scene.actionMenu = [];
+      }),
+      hideActionMenu: vi.fn(),
+      moveUnit: vi.fn(),
+    });
+    scene.grid.snapshotFogState = vi.fn(() => 'fog');
+    scene.movementRange = new Map([['1,0', { stoppable: true }]]);
+    const controller = new InputController(scene);
+    return { unit, scene, controller };
+  }
+
+  it.each(['Forest', 'Mountain', 'Plain'])(
+    'one tap on %s selects actions and refreshes terrain',
+    (name) => {
+      const { unit, scene, controller } = setup();
+      scene.infoText = { setText: vi.fn() };
+      scene.grid.getTerrainAt.mockReturnValue({
+        name,
+        moveCost: { Infantry: 2 },
+        avoidBonus: 20,
+        defBonus: 1,
+      });
+      unit.moveType = 'Infantry';
+      unit.stats = { HP: 20 };
+      vi.spyOn(controller, 'updateTopLeftHudLayout').mockImplementation(() => {});
+      controller.onClick({ x: 48, y: 48 });
+      expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+      expect(scene._mobileTerrainFocus).toEqual({ col: 1, row: 1 });
+      expect(scene.infoText.setText.mock.calls[0][0]).toContain(name);
+      expect(unit.hasMoved).toBeUndefined();
+      expect(unit.hasActed).toBeUndefined();
+      expect(scene.preMoveLoc).toEqual({ col: 1, row: 1 });
+      expect(controller.isSelectionMenu()).toBe(true);
+    },
+  );
+
+  it('allows a destination tap without a second unit tap', () => {
+    const { unit, scene, controller } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    controller.handleActionMenuClick({ col: 1, row: 0 });
+    expect(scene.hideActionMenu).toHaveBeenCalledOnce();
+    expect(scene.moveUnit).toHaveBeenCalledWith(unit, 1, 0);
+    expect(controller.isSelectionMenu()).toBe(false);
+  });
+
+  it.each(['submenu', 'moved', 'traded', 'committed'])(
+    'does not allow movement after %s',
+    (kind) => {
+      const { scene, unit, controller } = setup();
+      controller.handleIdleClick({ col: 1, row: 1 });
+      if (kind === 'submenu') scene.actionMenu = [];
+      if (kind === 'moved') unit.hasMoved = true;
+      if (kind === 'traded') scene.tradeMutatedThisSession = true;
+      if (kind === 'committed') controller.commitSelectionMenu(scene.actionMenu);
+      controller.handleActionMenuClick({ col: 1, row: 0 });
+      expect(scene.moveUnit).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['desktop', 'tutorial', 'acted', 'no-hud'])('preserves %s selection rules', (kind) => {
+    const { scene, unit, controller } = setup();
+    if (kind === 'desktop') scene.isMobileInput = false;
+    if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+    if (kind === 'acted') unit.hasActed = true;
+    if (kind === 'no-hud') scene._mobileBattleHud = null;
+    controller.handleIdleClick({ col: 1, row: 1 });
+    expect(scene.showActionMenu).not.toHaveBeenCalled();
   });
 });

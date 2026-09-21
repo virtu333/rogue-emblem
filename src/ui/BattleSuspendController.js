@@ -13,10 +13,12 @@
 // via scene.* like the other extracted battle controllers.
 
 import { serializeUnit, relinkWeapon } from '../engine/RunManager.js';
+import { captureBattleWorldState, restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 import { hashRewindSeed } from './VisionRewindController.js';
 import { showMinorHint } from './HintDisplay.js';
+import { completeResolvedAction, readActionContinuation } from './BattlePresentationCheckpoint.js';
 
 /**
  * Serialize a unit for the suspend checkpoint. serializeUnit is the
@@ -31,6 +33,7 @@ export function serializeSuspendUnit(unit) {
   if (Number.isFinite(unit.mov)) data.mov = unit.mov;
   data.hasMoved = unit.hasMoved === true;
   data.hasActed = unit.hasActed === true;
+  data._movementCommitted = unit._movementCommitted === true;
   data._miracleUsed = unit._miracleUsed === true;
   data._phoenixBroochUsed = unit._phoenixBroochUsed === true;
   data._movementSpent = Number(unit._movementSpent) || 0;
@@ -98,6 +101,7 @@ export class BattleSuspendController {
       : null;
     return cloneCheckpointPayload({
       version: 1,
+      ...captureBattleWorldState(scene),
       checkpointIndex,
       rngSeed: rngSeed >>> 0,
       turnNumber: scene.turnManager?.turnNumber || 1,
@@ -109,14 +113,12 @@ export class BattleSuspendController {
       nonDeployedUnits: scene.nonDeployedUnits || [],
       visionSnapshot: scene.visionSnapshot || null,
       pendingVisionSnapshot: scene.pendingVisionSnapshot || null,
+      pendingActionCompletion: scene._pendingActionCompletion || null,
       antiTurtleState: scene.antiTurtleState || {},
       fog,
       ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
       zombieTombstones: scene._zombieTombstones || [],
       goldEarned: scene.goldEarned || 0,
-      playerDeathsThisBattle: scene._playerDeathsThisBattle || 0,
-      appliedHybridOverrideTurns: [...(scene.appliedHybridOverrideTurns || [])],
-      latePressureWarningShown: scene._latePressureWarningShown === true,
       bossName: scene._bossName || null,
       caravanExited: scene._caravanExited === true,
       villageState: scene._villageState ? { ...scene._villageState } : null,
@@ -136,6 +138,13 @@ export class BattleSuspendController {
         // The checkpoint crossed a JSON boundary, which breaks the
         // weapon === inventory[i] identity invariant — relink like fromJSON.
         relinkWeapon(unit);
+        // Build 9 checkpoints saved after a trade retained hasMoved but had
+        // no commitment flag. Conservatively keep that movement spent while
+        // preserving the unit's remaining attack/item actions. Explicit flags
+        // in new saves remain authoritative (including false after a refresh).
+        if (unit._movementCommitted === undefined && unit.faction === 'player') {
+          unit._movementCommitted = unit.hasMoved === true && unit.hasActed !== true;
+        }
         targetArr.push(unit);
         scene.addUnitGraphic(unit);
         for (const cond of Array.isArray(unit._conditions) ? unit._conditions : []) {
@@ -167,6 +176,7 @@ export class BattleSuspendController {
     scene.appliedHybridOverrideTurns = new Set(checkpoint.appliedHybridOverrideTurns || []);
     scene._caravanExited = checkpoint.caravanExited === true;
     scene._villageState = checkpoint.villageState ? { ...checkpoint.villageState } : null;
+    restoreBattleWorldState(scene, checkpoint);
   }
 
   /**
@@ -221,16 +231,22 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    const continuation = readActionContinuation(checkpoint.pendingActionCompletion);
+    if (continuation) {
+      completeResolvedAction(scene, continuation);
+      return;
+    }
     try {
       Promise.resolve(showMinorHint(scene, 'Battle resumed.')).catch(() => {});
     } catch (_) {
       /* cosmetic only */
     }
 
-    // An end-of-turn checkpoint (every unit acted) hands straight off to the
+    // An exhausted phase (every living unit acted or sleeps) hands off to the
     // enemy phase — which replays deterministically under the restored seed.
     const allActed =
-      scene.playerUnits.length > 0 && scene.playerUnits.every((u) => u.hasActed === true);
+      scene.playerUnits.length > 0 &&
+      scene.playerUnits.every((u) => u.currentHP <= 0 || u.hasActed === true || isSleeping(u));
     if (allActed) scene.turnManager.endPlayerPhase();
   }
 

@@ -173,7 +173,8 @@ export class HomeBaseScene extends Phaser.Scene {
     this.refundMode = false;
     this.confirmOverlayObjects = [];
 
-    this._onEsc = () => {
+    this._onEsc = (event) => {
+      if (event?.repeat || this.mobileHome?.visible || this.mobileUpgrades?.visible) return;
       // A stacked overlay owns ESC while open; its own handler closes it.
       if (hasOpenOverlay(this)) return;
       this.requestCancel({ allowExit: true });

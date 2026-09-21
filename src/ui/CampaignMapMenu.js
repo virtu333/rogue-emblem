@@ -42,7 +42,7 @@ export class CampaignMapMenu {
         element(
           'p',
           current.id === c.activeNodeId
-            ? 'Current battle'
+            ? 'Current location'
             : current.completed
               ? 'Completed'
               : 'Upcoming encounter',
@@ -50,7 +50,7 @@ export class CampaignMapMenu {
       );
     }
     detail.append(
-      element('p', 'Route overview. Continue your battle to advance.', 're-node-state'),
+      element('p', 'Route overview. Close to return to your current location.', 're-node-state'),
     );
     layout.append(this.scroll, detail);
     this.surface.body.replaceChildren(layout);

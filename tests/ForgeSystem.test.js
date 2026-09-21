@@ -215,10 +215,16 @@ describe('ForgeSystem', () => {
       expect(wpn.weight).toBe(5 + FORGE_BONUSES.weight); // weight bonus is -1
     });
 
-    it('weight floors at 0', () => {
-      const wpn = makeWeapon({ weight: 0 });
-      applyForge(wpn, 'weight');
-      expect(wpn.weight).toBe(0);
+    it('rejects a zero-benefit weight forge without altering the weapon', () => {
+      const wpn = makeWeapon({ weight: 1 });
+      expect(applyForge(wpn, 'weight').success).toBe(true);
+      const before = structuredClone(wpn);
+      expect(canForgeStat(wpn, 'weight')).toBe(false);
+      expect(getForgeCost(wpn, 'weight')).toBe(-1);
+      expect(applyForge(wpn, 'weight')).toEqual({ success: false });
+      expect(wpn).toEqual(before);
+      expect(canForgeStat(wpn, 'might')).toBe(true);
+      expect(applyForge(wpn, 'might').success).toBe(true);
     });
 
     it('updates _forgeLevel', () => {

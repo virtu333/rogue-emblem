@@ -1,3 +1,10 @@
+import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
+import { ContextHelp } from './ContextHelp.js';
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
+import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import { MobileRosterSheet } from './MobileRosterSheet.js';
+import { SettingsMenu } from './SettingsMenu.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
@@ -8,7 +15,7 @@ import {
   REWARD_FORGE_STATS,
 } from '../engine/LootRewardCommands.js';
 import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
-import { canForgeStat } from '../engine/ForgeSystem.js';
+import { forgeStatBlock } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -52,9 +59,10 @@ export class MobileRewards {
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Battle rewards');
-    for (const type of ['pointerdown', 'pointerup', 'click', 'wheel', 'keydown'])
+    for (const type of [...DOM_INPUT_EVENTS, 'keydown'])
       this.root.addEventListener(type, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         this.back();
@@ -74,7 +82,39 @@ export class MobileRewards {
         document.activeElement.click();
     });
     this.render();
-    this.root.querySelector('button')?.focus();
+    this.root.querySelector('.mh-skill:not(:disabled)')?.focus();
+  }
+  tools(header) {
+    const tools = node('div', null, 'reward-tools');
+    for (const title of ['Roster', 'Settings']) {
+      const b = this.button(title, () => this.openReference(title));
+      b.dataset.focus = title;
+      tools.append(b);
+    }
+    header.append(tools);
+  }
+  openReference(title) {
+    if (this.busy || this.child) return;
+    const previous = document.activeElement;
+    this.root.inert = true;
+    this.root.setAttribute('aria-hidden', 'true');
+    const close = () => {
+      this.child?.destroy();
+      this.child = null;
+      if (!this.visible) return;
+      this.root.inert = false;
+      this.root.removeAttribute('aria-hidden');
+      if (previous?.isConnected) previous.focus();
+    };
+    this.child =
+      title === 'Roster'
+        ? new MobileRosterSheet({
+            scene: this.scene,
+            units: this.scene.runManager.roster,
+            gameData: this.scene.gameData,
+            onClose: close,
+          })
+        : new SettingsMenu(this.scene, close);
   }
   moveFocus(delta) {
     if (this.busy) return;
@@ -94,10 +134,15 @@ export class MobileRewards {
       node('h1', 'Battle rewards'),
       node('span', `${scene.runManager.gold} gold`, 'mu-currency active'),
     );
+    this.tools(header);
     const split = node('div', null, 'mu-split');
     const list = node('div', null, 'mu-list');
     const detail = node('section', null, 'mu-detail');
     const all = [...this.choices, { type: 'skip' }];
+    if (!this.controller.isRewardAvailable(this.selected)) {
+      const available = all.findIndex((_, i) => this.controller.isRewardAvailable(i));
+      if (available >= 0) this.selected = available;
+    }
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
@@ -109,14 +154,26 @@ export class MobileRewards {
         this.render();
       });
       b.dataset.focus = `reward-${i}`;
-      b.className = 'mh-skill';
+      b.className = 'mh-skill reward-card';
+      const presentation = rewardPresentation(c);
+      b.style.setProperty('--reward-color', `var(--re-${presentation.token})`);
+      b.classList.toggle('reward-legend', presentation.tier === 'Legend');
+      b.replaceChildren(
+        rewardIcon(presentation.category),
+        node('strong', label(c)),
+        node('small', presentation.label, 'reward-quality'),
+      );
       b.setAttribute('aria-pressed', String(this.selected === i));
       b.disabled = !this.controller.isRewardAvailable(i);
       list.append(b);
     });
     const c = all[this.selected];
     const copy = node('div', null, 'mu-copy');
-    copy.append(node('h2', label(c)), node('p', this.summary, 'mu-help'));
+    copy.append(
+      node('h2', label(c)),
+      node('p', rewardPresentation(c).label, 'mu-help'),
+      node('p', this.summary, 'mu-help'),
+    );
     const description =
       c.type === 'skip'
         ? 'Pass on the remaining rewards and add this gold to your vault.'
@@ -124,6 +181,27 @@ export class MobileRewards {
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
     copy.append(node('p', description));
+    for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
+      copy.append(node('p', notice, 'mu-help'));
+    }
+    for (const mastery of this.masteryNotices || []) {
+      const notice = node(
+        'p',
+        `${mastery.name} mastered ${mastery.className}! ${mastery.perk?.name || ''}${mastery.perk?.mods ? ` — ${formatPerkMods(mastery.perk.mods)}` : ''}`,
+        'mu-help',
+      );
+      notice.setAttribute('role', 'status');
+      copy.append(notice);
+    }
+    if (this.masteryNotices?.length)
+      copy.append(
+        this.button('About class mastery', () => {
+          if (this.child) return;
+          this.child = new ContextHelp(this.scene, this.root, 'Class mastery', MASTERY_HELP, () => {
+            this.child = null;
+          });
+        }),
+      );
     const actions = node('div', null, 'mu-actions');
     actions.append(
       node(
@@ -150,6 +228,7 @@ export class MobileRewards {
     actions.append(claim);
     detail.append(copy, actions);
     split.append(list, detail);
+    if (!header.querySelector('.reward-tools')) this.tools(header);
     this.root.append(header, split);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
   }
@@ -173,6 +252,7 @@ export class MobileRewards {
       this.button('Back', () => this.back()),
     );
     const trail = node('p', ['Rewards', ...this.steps.map((s) => s.title)].join(' › '), 'mu-help');
+    this.tools(header);
     const split = node('div', null, 'mu-split');
     const list = node('div', null, 'mu-list');
     step.selected ??= step.choices[0];
@@ -217,6 +297,7 @@ export class MobileRewards {
     actions.append(confirm);
     detail.append(copy, actions);
     split.append(list, detail);
+    if (!header.querySelector('.reward-tools')) this.tools(header);
     this.root.append(header, trail, split);
   }
   startChoice(choice) {
@@ -275,8 +356,7 @@ export class MobileRewards {
           choices: imbue ? getImbueList(this.scene.gameData.imbues) : REWARD_FORGE_STATS,
           label: (entry) => (imbue ? entry.name : entry.label),
           describe: (entry) => (imbue ? entry.description : 'Permanent weapon upgrade.'),
-          blocked: (entry) =>
-            !imbue && !canForgeStat(weapon, entry.key) ? 'Stat limit reached' : '',
+          blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),
         });
@@ -311,6 +391,8 @@ export class MobileRewards {
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this.child?.destroy();
+    this.child = null;
     popInputScope(this);
     removeOverlay(this.scene, this.overlayToken);
     this.overlayToken = null;

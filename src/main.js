@@ -1,6 +1,11 @@
+import { showUpdateToast } from './ui/UpdateToast.js';
+import { ownRecoveryInput, installDOMDragRelease } from './utils/domInputBoundary.js';
+import { UI_PALETTE } from './utils/uiStyles.js';
+import { installAudioRecovery } from './utils/audioRecovery.js';
 // Emblem Rogue - Entry Point
 
 import Phaser from 'phaser';
+import { installSeedSafeCanvasTextures } from './utils/seedSafeCanvasTextures.js';
 import '@fontsource/press-start-2p/latin-400.css';
 import './ui/styles.css';
 import { BootScene } from './scenes/BootScene.js';
@@ -167,20 +172,24 @@ function showBootRecoveryOverlay(message) {
   overlay.style.zIndex = '99999';
 
   const panel = document.createElement('div');
-  panel.style.background = '#111627';
-  panel.style.border = '1px solid #3a4a6b';
+  panel.style.background = UI_PALETTE.panel;
+  panel.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
   panel.style.padding = '16px';
   panel.style.maxWidth = '420px';
-  panel.style.fontFamily = 'monospace';
-  panel.style.color = '#e0e0e0';
+  panel.style.fontFamily = 'Arial, sans-serif';
+  panel.style.width = 'min(90vw, 460px)';
+  panel.style.maxHeight = '90dvh';
+  panel.style.overflowY = 'auto';
+  panel.style.overflowWrap = 'anywhere';
+  panel.style.color = UI_PALETTE.text;
   panel.style.textAlign = 'center';
   const heading = document.createElement('div');
-  heading.style.cssText = 'font-size:16px; color:#ffcc88; margin-bottom:8px;';
+  heading.style.cssText = `font-size:18px; color:${UI_PALETTE.warn}; margin-bottom:12px;`;
   heading.textContent = 'Startup Taking Too Long';
   panel.appendChild(heading);
 
   const body = document.createElement('div');
-  body.style.cssText = 'font-size:12px; color:#bbbbbb; margin-bottom:12px;';
+  body.style.cssText = `font-size:14px; line-height:1.5; color:${UI_PALETTE.text}; margin-bottom:16px;`;
   body.textContent = message;
   panel.appendChild(body);
 
@@ -188,7 +197,13 @@ function showBootRecoveryOverlay(message) {
   retryBtn.textContent = 'Reload';
   retryBtn.style.margin = '0 8px';
   retryBtn.style.padding = '8px 12px';
-  retryBtn.style.fontFamily = 'monospace';
+  retryBtn.style.font = '14px Arial, sans-serif';
+  retryBtn.style.minHeight = '44px';
+  retryBtn.style.borderRadius = '0';
+  retryBtn.style.background = UI_PALETTE.raised;
+  retryBtn.style.color = UI_PALETTE.text;
+  retryBtn.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
+  retryBtn.style.marginBottom = '8px';
   retryBtn.style.cursor = 'pointer';
   retryBtn.onclick = () => {
     markStartup('boot_watchdog_reload');
@@ -199,7 +214,13 @@ function showBootRecoveryOverlay(message) {
   safeBtn.textContent = 'Reload Safe Mode';
   safeBtn.style.margin = '0 8px';
   safeBtn.style.padding = '8px 12px';
-  safeBtn.style.fontFamily = 'monospace';
+  safeBtn.style.font = '14px Arial, sans-serif';
+  safeBtn.style.minHeight = '44px';
+  safeBtn.style.borderRadius = '0';
+  safeBtn.style.background = UI_PALETTE.raised;
+  safeBtn.style.color = UI_PALETTE.text;
+  safeBtn.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
+  safeBtn.style.marginBottom = '8px';
   safeBtn.style.cursor = 'pointer';
   safeBtn.onclick = () => {
     markStartup('boot_watchdog_safe_reload');
@@ -210,11 +231,15 @@ function showBootRecoveryOverlay(message) {
   panel.appendChild(safeBtn);
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
+  overlay.releaseInput = ownRecoveryInput(overlay);
 }
 
 function hideBootRecoveryOverlay() {
   const overlay = document.getElementById('boot-recovery-overlay');
-  if (overlay) overlay.remove();
+  if (overlay) {
+    overlay.releaseInput?.();
+    overlay.remove();
+  }
 }
 
 // Passive bottom-right toast shown when a freshly deployed service worker is waiting.
@@ -222,39 +247,6 @@ function hideBootRecoveryOverlay() {
 // live run — it activates only when the user chooses. onReload calls updateSW(true),
 // which skipWaiting()s the waiting worker and reloads THIS client. Dismiss hides it for
 // this page load only; onNeedRefresh fires again next load while the worker still waits.
-function showUpdateToast(onReload) {
-  if (document.getElementById('sw-update-toast')) return;
-
-  const toast = document.createElement('div');
-  toast.id = 'sw-update-toast';
-  toast.className = 'sw-update-toast';
-
-  const label = document.createElement('span');
-  label.className = 'sw-update-label';
-  label.textContent = 'UPDATE READY';
-  toast.appendChild(label);
-
-  const restartBtn = document.createElement('button');
-  restartBtn.type = 'button';
-  restartBtn.className = 'sw-update-restart';
-  restartBtn.textContent = 'RESTART';
-  restartBtn.addEventListener('click', () => {
-    restartBtn.disabled = true;
-    onReload();
-  });
-  toast.appendChild(restartBtn);
-
-  const dismissBtn = document.createElement('button');
-  dismissBtn.type = 'button';
-  dismissBtn.className = 'sw-update-dismiss';
-  dismissBtn.setAttribute('aria-label', 'Dismiss update notice');
-  dismissBtn.textContent = '×';
-  dismissBtn.addEventListener('click', () => toast.remove());
-  toast.appendChild(dismissBtn);
-
-  document.body.appendChild(toast);
-}
-
 // Register the service worker exactly once (the in-bundle import stops the plugin from
 // injecting its own registerSW.js). No-ops gracefully in dev where the SW is disabled.
 const updateSW = registerSW({
@@ -296,33 +288,39 @@ function installStartupErrorHooks() {
 }
 
 function installBootWatchdog() {
+  const started = performance.now();
+  let recoveryVisible = false;
   const monitor = window.setInterval(() => {
-    if (!hasReachedStartupTarget()) return;
-    startupViewportGuard.stop('startup_target_reached');
-    hideBootRecoveryOverlay();
-    window.clearInterval(monitor);
-  }, 1000);
-
-  window.setTimeout(() => {
     if (hasReachedStartupTarget()) {
       startupViewportGuard.stop('startup_target_reached');
+      if (recoveryVisible) markStartup('boot_watchdog_recovered_after_timeout');
+      hideBootRecoveryOverlay();
       window.clearInterval(monitor);
       return;
     }
+    if (performance.now() - started < BOOT_WATCHDOG_TIMEOUT_MS) return;
+    const boot = window[GAME_INSTANCE_KEY]?.scene?.getScene?.('Boot');
+    // A slow connection with live byte/file progress is still working. Do not
+    // overlay the loader with reload actions just because boot crossed a timer.
+    if (
+      boot?._preloadComplete === false &&
+      performance.now() - boot._lastPreloadProgressAt < 30000
+    ) {
+      if (recoveryVisible) {
+        hideBootRecoveryOverlay();
+        recoveryVisible = false;
+      }
+      return;
+    }
+    if (recoveryVisible) return;
+    recoveryVisible = true;
     startupViewportGuard.stop('boot_watchdog_timeout');
     markStartup('boot_watchdog_timeout', { timeoutMs: BOOT_WATCHDOG_TIMEOUT_MS });
     const timeoutMessage = devStartupRequested
-      ? 'The game did not reach the requested startup scene in time. Try reload or safe mode.'
-      : 'The game did not reach the title screen in time. Try reload or safe mode.';
+      ? 'Startup has stopped making progress. You can keep waiting, reload, or try safe mode.'
+      : 'Loading has stopped making progress. You can keep waiting, reload, or try safe mode.';
     showBootRecoveryOverlay(timeoutMessage);
-    const recover = window.setInterval(() => {
-      if (!hasReachedStartupTarget()) return;
-      markStartup('boot_watchdog_recovered_after_timeout');
-      hideBootRecoveryOverlay();
-      window.clearInterval(recover);
-      window.clearInterval(monitor);
-    }, 1000);
-  }, BOOT_WATCHDOG_TIMEOUT_MS);
+  }, 1000);
 }
 installStartupErrorHooks();
 
@@ -345,45 +343,14 @@ function configureAudioSessionForPlayback() {
   } catch (_) {}
 }
 
-// iOS suspends/interrupts the context on backgrounding, lock, or when another app grabs
-// audio focus, and never resumes it on its own — so music dies and stays dead. Resume
-// whenever the page returns to the foreground or the context changes state.
-function resumeSharedAudio() {
-  try {
-    if (sharedAudioContext && sharedAudioContext.state !== 'running') {
-      sharedAudioContext.resume().catch(() => {});
-    }
-  } catch (_) {}
-}
-
-let audioRecoveryInstalled = false;
-function installAudioRecovery() {
-  if (audioRecoveryInstalled || !sharedAudioContext) return;
-  audioRecoveryInstalled = true;
-  try {
-    // Only auto-resume state changes while the page is foregrounded: Phaser itself
-    // suspends this shared context on window blur (pause-on-blur muting), and an
-    // unconditional resume here would immediately undo that, leaving music playing
-    // when the player alt-tabs or backgrounds the app. Foreground returns are
-    // already covered by the visibilitychange/pageshow/focus handlers below.
-    sharedAudioContext.addEventListener('statechange', () => {
-      if (document.hidden || !document.hasFocus()) return;
-      resumeSharedAudio();
-    });
-  } catch (_) {}
-  const reactivate = () => {
-    configureAudioSessionForPlayback();
-    resumeSharedAudio();
-  };
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) reactivate();
-  });
-  window.addEventListener('pageshow', reactivate);
-  window.addEventListener('focus', reactivate);
-}
-
+// Foreground recovery is bounded, with a gesture retry when iOS requires it.
 configureAudioSessionForPlayback();
-installAudioRecovery();
+const disposeAudioRecovery = installAudioRecovery(sharedAudioContext, {
+  document,
+  window,
+  configure: configureAudioSessionForPlayback,
+});
+if (import.meta.hot) import.meta.hot.dispose(disposeAudioRecovery);
 
 // Returns a promise that settles when the AudioContext resume settles, bounded to
 // 250ms so a gesture-synchronous boot is never noticeably delayed. Awaiting this
@@ -476,6 +443,7 @@ function bootGame(user) {
     backgroundColor: '#0a0c1e',
     parent: 'game-container',
     scene: [BootScene],
+    callbacks: { preBoot: (game) => installSeedSafeCanvasTextures(game.textures) },
     audio: sharedAudioContext
       ? {
           disableWebAudio: false,
@@ -491,6 +459,7 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  installDOMDragRelease(window[GAME_INSTANCE_KEY]);
   startupViewportGuard.reconcileNow('phaser_boot_complete');
 
   // Global gamepad reader: polls each game step and broadcasts device-independent
@@ -594,6 +563,13 @@ authToggle.addEventListener('click', () => {
 });
 
 async function handleSkip() {
+  if (!document.getElementById('offline-confirm')?.open) {
+    const dialog = document.getElementById('offline-confirm');
+    dialog.showModal();
+    dialog.querySelector('[data-offline-cancel]').focus();
+    return;
+  }
+  document.getElementById('offline-confirm').close();
   // Await the unlock (bounded to 250ms) so the AudioContext is 'running' before
   // bootGame() constructs Phaser — otherwise TitleScene shows a stale "TAP FOR
   // SOUND" hint even though this click already unlocked audio.
@@ -601,6 +577,13 @@ async function handleSkip() {
   activateStartupViewportGuard('offline_skip');
   bootGame(null);
 }
+
+const offlineConfirm = document.getElementById('offline-confirm');
+offlineConfirm.querySelector('[data-offline-cancel]').addEventListener('click', () => {
+  offlineConfirm.close();
+  authSkip.focus();
+});
+offlineConfirm.querySelector('[data-offline-continue]').addEventListener('click', handleSkip);
 
 async function handleSubmit(e) {
   e.preventDefault();

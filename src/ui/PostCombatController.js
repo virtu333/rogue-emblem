@@ -18,6 +18,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
+import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -160,6 +161,12 @@ export class PostCombatController {
           return;
         }
         try {
+          // Enemy-phase counterattack levels are already in the completed-run
+          // save. Present them here when victory skipped the next player turn.
+          if (scene._pendingLevelUpPopups?.length) {
+            await presentQueuedLevelUps(scene);
+            if (!scene.scene?.isActive?.()) return;
+          }
           if (scene.isBoss && scene._bossName && scene.runManager) {
             const bossName = scene._resolveBossDialogueName(scene._bossName);
             const dialogueKey = `boss_defeat_${bossName}`;
@@ -471,6 +478,12 @@ export class PostCombatController {
     const mastered = scene._newlyMasteredUnits;
     if (!Array.isArray(mastered) || mastered.length === 0) return;
     scene._newlyMasteredUnits = null;
+    const rewards = scene._lootController?.mobileRewards;
+    if (rewards?.visible) {
+      rewards.masteryNotices = mastered;
+      rewards.render();
+      return;
+    }
     const cam = scene.cameras.main;
     const lines = mastered
       .slice(0, 3)

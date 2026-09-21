@@ -514,8 +514,8 @@ describe('BattleScene weapon art helpers', () => {
     const text = scene._getWeaponArtStatusLine(unit, art, { canUse: true, reason: null });
 
     expect(text).toContain('HP-3 (18->15)');
-    expect(text).toContain('Turn 1/2');
-    expect(text).toContain('Map 1/4');
+    expect(text).toContain('1/2 turn uses left');
+    expect(text).toContain('3/4 map uses left');
   });
 
   it('renders reduced HP cost in status preview when Blood Gem applies', () => {

@@ -1,3 +1,5 @@
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { element, button } from './MenuSurface.js';
 import { ACT_CONFIG } from '../utils/constants.js';
@@ -17,9 +19,10 @@ export class NodeMapMenu {
     this.root = element('section', null, 're re-screen re-node-map');
     this.root.style.setProperty('--re-z', DOM_UI_DEPTHS.ROUTE);
     this.root.setAttribute('aria-label', 'Campaign route');
-    for (const type of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();

@@ -1,3 +1,4 @@
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -59,7 +60,7 @@ export class InputController {
     const hovered = scene.getUnitAt(col, row);
     // Fog gate BEFORE any per-unit info: a hidden enemy's moveType must not leak
     // through the Move-cost line (e.g. a fogged flier showing Forest "Move: 1").
-    const hoveredVisible = Boolean(hovered && scene.grid.isVisible(col, row));
+    const hoveredVisible = canInspectUnit(scene.grid, hovered);
     const moveType = hoveredVisible ? hovered.moveType : 'Infantry';
     const moveCost = terrain.moveCost[moveType];
     info += ` | Move: ${moveCost}`;
@@ -365,6 +366,27 @@ export class InputController {
       scene.grid.clearHighlights();
       scene.grid.clearAttackHighlights();
       scene.selectUnit(unit);
+      // Native battle controls expose actions immediately, without sacrificing
+      // the existing unit → destination movement gesture. Tutorial movement
+      // gates and the canvas-only UI keep their guided selection flow.
+      if (
+        scene.isMobileInput &&
+        scene._mobileBattleHud?.available() &&
+        scene.battleState === 'UNIT_SELECTED' &&
+        scene.selectedUnit === unit &&
+        !scene._isTutorialStrictGateActive?.()
+      ) {
+        scene.preMoveLoc = { col: unit.col, row: unit.row };
+        scene._preFogSnapshot = scene.grid.snapshotFogState();
+        scene.showActionMenu(unit);
+        this._selectionMenu = { unit, objects: scene.actionMenu };
+      }
+      return;
+    }
+    if (unit?.faction === 'player' && isSleeping(unit)) {
+      const point = scene.grid.gridToPixel(unit.col, unit.row);
+      this._showInspectionAtPixel(point.x, point.y);
+      scene._mobileBattleHud?.sync();
       return;
     }
     // Mobile: touch has no hover or right-click, so a plain tap on a visible
@@ -373,7 +395,7 @@ export class InputController {
       scene.isMobileInput &&
       unit &&
       unit.faction !== 'player' &&
-      !(scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row))
+      canInspectUnit(scene.grid, unit)
     ) {
       if (scene.inspectionPanel?.visible && scene.inspectionPanel._unit === unit) {
         this.clearInspectionVisuals();
@@ -389,6 +411,10 @@ export class InputController {
 
   handleSelectedClick(gp) {
     const scene = this.scene;
+    if (scene.selectedUnit?._movementCommitted) {
+      scene.showActionMenu(scene.selectedUnit);
+      return;
+    }
     if (!scene.selectedUnit) {
       scene.deselectUnit();
       return;
@@ -427,8 +453,40 @@ export class InputController {
     }
   }
 
+  isSelectionMenu() {
+    const s = this.scene;
+    const menu = this._selectionMenu;
+    return Boolean(
+      menu &&
+      s.battleState === 'UNIT_ACTION_MENU' &&
+      s.actionMenu === menu.objects &&
+      s.selectedUnit === menu.unit &&
+      !menu.unit.hasMoved &&
+      !menu.unit._movementCommitted &&
+      !menu.unit.hasActed &&
+      !s.tradeMutatedThisSession,
+    );
+  }
+
+  commitSelectionMenu(objects) {
+    if (!this.isSelectionMenu() || this._selectionMenu.objects !== objects) return;
+    this._selectionMenu = null;
+    this.scene.grid.clearHighlights();
+    this.scene.selectedUnit.graphic?.clearTint?.();
+  }
+
   handleActionMenuClick(gp) {
-    // Clicks during action menu are handled by the menu buttons, not grid clicks
+    // Only the initial, uncommitted native action menu accepts destinations.
+    // A submenu, trade, or post-movement menu must never grant another move.
+    if (!this.isSelectionMenu()) return;
+    const s = this.scene;
+    if (gp.col === s.selectedUnit.col && gp.row === s.selectedUnit.row) return;
+    const entry = s.movementRange?.get(`${gp.col},${gp.row}`);
+    if (!entry || entry.stoppable === false) return;
+    this._selectionMenu = null;
+    s.hideActionMenu();
+    s.battleState = 'UNIT_SELECTED';
+    this.handleSelectedClick(gp);
   }
 
   handleTargetClick(gp) {
@@ -591,7 +649,9 @@ export class InputController {
       }
       return false;
     }
+    if (!canInspectUnit(scene.grid, unit)) return false;
     this._ballistaRangeShown = false;
+    scene.grid.clearAttackHighlights?.();
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
@@ -606,7 +666,8 @@ export class InputController {
       // other factions act next phase, so preview their post-recovery state.
       const rootedForPreview =
         unit.faction === 'player' ? isRooted(unit) : willRemainRootedNextPhase(unit);
-      const mov = rootedForPreview ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
+      const asleepPlayer = unit.faction === 'player' && isSleeping(unit);
+      const mov = rootedForPreview || asleepPlayer ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
       const moveRange = scene.grid.getMovementRange(
         unit.col,
         unit.row,
@@ -618,7 +679,7 @@ export class InputController {
       );
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
 
-      if (unit.weapon) {
+      if (unit.weapon && !asleepPlayer) {
         const attackTiles = new Set();
         for (const [key, entry] of moveRange) {
           if (entry.stoppable === false) continue;
@@ -714,14 +775,19 @@ export class InputController {
   openUnitDetailOverlay() {
     const scene = this.scene;
     const { _unit, _terrain, _gameData } = scene.inspectionPanel;
-    if (!_unit) return;
+    if (!canInspectUnit(scene.grid, _unit)) {
+      scene.inspectionPanel.hide();
+      return;
+    }
     let pool;
     if (scene.enemyUnits?.includes(_unit)) {
-      pool = scene.enemyUnits.filter((u) => u.currentHP > 0);
+      pool = scene.enemyUnits.filter((u) => u.currentHP > 0 && canInspectUnit(scene.grid, u));
     } else if (scene.npcUnits?.includes(_unit)) {
-      pool = scene.npcUnits.filter((u) => u.currentHP > 0);
+      pool = scene.npcUnits.filter((u) => u.currentHP > 0 && canInspectUnit(scene.grid, u));
     } else {
-      pool = (scene.playerUnits || []).filter((u) => u.currentHP > 0);
+      pool = (scene.playerUnits || []).filter(
+        (u) => u.currentHP > 0 && canInspectUnit(scene.grid, u),
+      );
     }
     const rosterIndex = pool.indexOf(_unit) !== -1 ? pool.indexOf(_unit) : 0;
     const rosterOptions = pool.length > 0 ? { rosterUnits: pool, rosterIndex } : undefined;

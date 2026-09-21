@@ -170,17 +170,17 @@ describe('action menu presence (Ability entry)', () => {
     expect(labels).toContain('Wait');
   });
 
-  it('hides Ability once the per-map use is spent', () => {
+  it('shows Ability once the per-map use is spent', () => {
     const unit = makeUnit({ skills: ['ensnare'] });
     markUsed(unit, 'ensnare');
     const enemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 5, row: 7 });
     const scene = makeMenuScene(unit, { enemies: [enemy] });
     const labels = setupActionMenuHarness(scene);
     scene.showActionMenu(unit);
-    expect(labels).not.toContain('Ability');
+    expect(labels).toContain('Ability');
   });
 
-  it('hides Ability while silenced', () => {
+  it('shows Ability while silenced', () => {
     const unit = makeUnit({
       skills: ['blink'],
       _conditions: [{ id: 'silence', turnsRemaining: 2 }],
@@ -188,7 +188,7 @@ describe('action menu presence (Ability entry)', () => {
     const scene = makeMenuScene(unit);
     const labels = setupActionMenuHarness(scene);
     scene.showActionMenu(unit);
-    expect(labels).not.toContain('Ability');
+    expect(labels).toContain('Ability');
   });
 
   it('shows Ability for a rooted unit (root allows acting)', () => {
@@ -202,14 +202,14 @@ describe('action menu presence (Ability entry)', () => {
     expect(labels).toContain('Ability');
   });
 
-  it('hides Ability when no ability has valid targets', () => {
+  it('shows Ability when no ability has valid targets', () => {
     // Ensnare with no enemies in radius; no other abilities
     const unit = makeUnit({ skills: ['ensnare'] });
     const farEnemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 11, row: 11 });
     const scene = makeMenuScene(unit, { enemies: [farEnemy] });
     const labels = setupActionMenuHarness(scene);
     scene.showActionMenu(unit);
-    expect(labels).not.toContain('Ability');
+    expect(labels).toContain('Ability');
   });
 
   it('shows no Ability entry for units without actionAbility skills', () => {
@@ -233,7 +233,9 @@ describe('ability submenu (picker)', () => {
     expect(scene.inEquipMenu).toBe(true);
     const blinkRow = labels.find((l) => l.startsWith('Blink'));
     const ensnareRow = labels.find((l) => l.startsWith('Ensnare'));
-    expect(blinkRow).toContain('Map 0/1');
+    expect(blinkRow).toContain('1/1 uses left');
+    expect(blinkRow).toContain('Ends unit action');
+    expect(ensnareRow).toContain('0/1 uses left');
     expect(ensnareRow).toContain('Used this battle');
   });
 
@@ -462,7 +464,7 @@ describe('ability execution blocks input while resolving', () => {
 });
 
 describe('confirm prompt (self-centered AOE)', () => {
-  it('highlights affected units and clears the preview via the menu sentinel', () => {
+  it('highlights affected units and clears the preview via menu teardown', () => {
     const unit = makeUnit({ skills: ['ensnare'] });
     const near = makeUnit({ name: 'Near', faction: 'enemy', col: 5, row: 7 });
     const far = makeUnit({ name: 'Far', faction: 'enemy', col: 11, row: 11 });
@@ -476,10 +478,10 @@ describe('confirm prompt (self-centered AOE)', () => {
     expect(labels).toContain('Use Ensnare (1 enemy)');
     expect(labels).toContain('Cancel');
 
-    // The harness hideActionMenu stub bypasses destroy(); trigger the
-    // sentinel directly the way the real hideActionMenu would.
+    // Exercise the real teardown rather than the harness's stub.
     scene.grid.clearAttackHighlights.mockClear();
-    for (const obj of scene.actionMenu) obj.destroy?.();
+    BattleScene.prototype.hideActionMenu.call(scene);
+    expect(scene._actionMenuCleanup).toBeNull();
     expect(scene.grid.clearAttackHighlights).toHaveBeenCalled();
   });
 });

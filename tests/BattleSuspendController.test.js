@@ -371,6 +371,39 @@ describe('finalizeResume', () => {
     expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
   });
 
+  it('resumes an all-sleeping turn-start popup checkpoint directly into the enemy phase', () => {
+    const scene = makeScene();
+    scene.playerUnits = [
+      {
+        name: 'Sleeper',
+        currentHP: 20,
+        hasActed: false,
+        _conditions: [{ id: 'sleep', turnsRemaining: 2 }],
+      },
+    ];
+    new BattleSuspendController(scene).finalizeResume(makeCheckpoint());
+    expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
+    expect(scene.reseedBattleRng).toHaveBeenCalledExactlyOnceWith(4242);
+  });
+
+  it.each([
+    true,
+    [],
+    { kind: 'unknown', unitName: 'A' },
+    { kind: 'finish', unitName: {} },
+    { kind: 'combat', unitName: 'A', gambitTriggered: 'yes' },
+    { kind: 'finish', unitName: 'A', skipCanto: 1 },
+  ])('rejects malformed pending continuation %j', (value) => {
+    const scene = makeScene();
+    scene.playerUnits = [{ name: 'A', currentHP: 20, hasActed: false }];
+    scene.finishUnitAction = vi.fn();
+    new BattleSuspendController(scene).finalizeResume(
+      makeCheckpoint({ pendingActionCompletion: value }),
+    );
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
   it('hands an exhausted player phase straight to the enemy replay', () => {
     const scene = makeScene();
     scene.playerUnits = [
@@ -380,4 +413,27 @@ describe('finalizeResume', () => {
     new BattleSuspendController(scene).finalizeResume(makeCheckpoint());
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
+});
+
+it('migrates pre-commitment trade saves without spending the remaining action or overriding new flags', () => {
+  const scene = makeScene();
+  const units = [
+    makeUnit({ name: 'Legacy trader', faction: 'player', hasMoved: true, hasActed: false }),
+    makeUnit({ name: 'Unmoved', faction: 'player', hasMoved: false, hasActed: false }),
+    makeUnit({
+      name: 'New explicit',
+      faction: 'player',
+      hasMoved: true,
+      hasActed: false,
+      _movementCommitted: false,
+    }),
+  ];
+  new BattleSuspendController(scene).applyUnits({
+    playerUnits: JSON.parse(JSON.stringify(units)),
+    enemyUnits: [],
+    npcUnits: [],
+  });
+  expect(scene.playerUnits.map((u) => u._movementCommitted)).toEqual([true, false, false]);
+  expect(scene.playerUnits.every((u) => !u.hasActed)).toBe(true);
+  expect(serializeSuspendUnit(scene.playerUnits[0])._movementCommitted).toBe(true);
 });

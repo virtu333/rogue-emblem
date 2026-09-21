@@ -40,6 +40,14 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
     await page.waitForTimeout(200);
     if (await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').isSceneReady))
       break;
+    const hintContinue = page
+      .getByRole('dialog', { name: 'Field notes', exact: true })
+      .locator('.re-menu-body')
+      .getByRole('button', { name: 'Continue', exact: true });
+    if (await hintContinue.isVisible()) {
+      await hintContinue.tap();
+      continue;
+    }
     const next = page.getByRole('button', { name: 'Continue', exact: true });
     if (await next.isVisible()) {
       await next.tap();
@@ -74,7 +82,7 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
     .poll(() =>
       page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
-        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('rebuilt-'));
+        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('contrast-rebuilt-'));
       }),
     )
     .toBe(true);
@@ -91,6 +99,11 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
       getComputedStyle(document.documentElement).getPropertyValue('--re-t-display').trim(),
     ),
   ).toMatch(/^13px/);
+  const battleHint = page
+    .getByRole('dialog', { name: 'Field notes', exact: true })
+    .locator('.re-menu-body')
+    .getByRole('button', { name: 'Continue', exact: true });
+  if (await battleHint.isVisible()) await battleHint.tap();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').showPauseMenu());
   const resume = page.getByRole('button', { name: 'Resume', exact: true });
   await expect(resume).toBeVisible();

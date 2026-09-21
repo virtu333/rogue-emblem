@@ -1,10 +1,11 @@
+import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
 export class ReferenceMenu {
-  constructor(scene, title, tabs, provider, onClose) {
-    Object.assign(this, { tabs, provider });
+  constructor(scene, title, tabs, provider, onClose, { searchAllTabs = false } = {}) {
+    Object.assign(this, { tabs, provider, searchAllTabs });
     this.tab = 0;
     this.filter = 0;
     this.selected = 0;
@@ -13,12 +14,10 @@ export class ReferenceMenu {
     const search = element('label', null, 're-search');
     this.input = element('input');
     this.input.type = 'search';
-    this.input.placeholder = 'Search';
+    this.input.placeholder = searchAllTabs ? 'Search all help' : 'Search this category';
     this.input.setAttribute('aria-label', `Search ${title.toLowerCase()}`);
     this.input.addEventListener('input', () => {
-      this.query = this.input.value;
-      this.selected = 0;
-      this.render();
+      this.setQuery(this.input.value);
     });
     search.append(this.input);
     this.surface.header.insertBefore(search, this.surface.header.lastChild);
@@ -27,25 +26,11 @@ export class ReferenceMenu {
         this.input.focus();
         return true;
       }
-      if (event.target === this.input) return false;
-      if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-        this.changeTab(event.key === 'ArrowLeft' ? -1 : 1);
-        return true;
-      }
-      if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
-        this.moveEntry(event.key === 'ArrowUp' ? -1 : 1);
-        return true;
-      }
       return false;
     };
-    this.surface.onAction = (action, payload) => {
+    this.surface.onAction = (action) => {
       if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action)) {
         this.changeTab(action === InputAction.PREV_UNIT ? -1 : 1);
-        return true;
-      }
-      if (action === InputAction.NAVIGATE) {
-        if (payload?.dx) this.changeTab(payload.dx);
-        else this.moveEntry(payload?.dy || 1);
         return true;
       }
       return false;
@@ -53,12 +38,42 @@ export class ReferenceMenu {
     this.render();
     this.surface.focusContent();
   }
-  changeTab(delta) {
-    this.tab = (this.tab + delta + this.tabs.length) % this.tabs.length;
+  setQuery(query) {
+    const searching = !!query.trim();
+    if (searching && !this.query.trim())
+      this.searchContext = {
+        tab: this.tab,
+        filter: this.filter,
+        selected: this.selected,
+        listScroll: this.list?.scrollTop || 0,
+        detailScroll: this.detail?.scrollTop || 0,
+      };
+    this.query = query;
+    this.input.value = query;
+    this.selected = 0;
+    const restore = !searching && this.searchContext;
+    if (restore) {
+      Object.assign(this, { tab: restore.tab, filter: restore.filter, selected: restore.selected });
+      this.searchContext = null;
+    }
+    this.render();
+    if (restore) {
+      this.list.scrollTop = restore.listScroll;
+      this.detail.scrollTop = restore.detailScroll;
+    }
+  }
+  selectTab(index) {
+    this.query = '';
+    this.input.value = '';
+    this.searchContext = null;
+    this.tab = index;
     this.filter = 0;
     this.selected = 0;
     this.render();
     this.surface.body.querySelector(`[data-focus="tab-${this.tab}"]`)?.focus();
+  }
+  changeTab(delta) {
+    this.selectTab((this.tab + delta + this.tabs.length) % this.tabs.length);
   }
   moveEntry(delta) {
     this.selected = Math.max(0, Math.min(this.selected + delta, (this.entryCount || 1) - 1));
@@ -93,10 +108,7 @@ export class ReferenceMenu {
     tabs.setAttribute('aria-label', 'Categories');
     this.tabs.forEach((tab, i) => {
       const b = button(tab.label, () => {
-        this.tab = i;
-        this.filter = 0;
-        this.selected = 0;
-        this.render();
+        this.selectTab(i);
       });
       b.dataset.focus = `tab-${i}`;
       b.setAttribute('aria-pressed', String(i === this.tab));
@@ -120,8 +132,21 @@ export class ReferenceMenu {
       body.append(row);
     }
     const query = this.query.trim().toLowerCase();
-    const entries = this.provider(this.tab, this.filter).filter(
-      (entry) => !query || `${entry.name} ${entry.lines.join(' ')}`.toLowerCase().includes(query),
+    const candidates =
+      query && this.searchAllTabs
+        ? this.tabs.flatMap((tab, index) =>
+            this.provider(index, 0).map((entry) => ({
+              ...entry,
+              summary: [tab.label, entry.summary].filter(Boolean).join(' · '),
+            })),
+          )
+        : this.provider(this.tab, this.filter);
+    const entries = candidates.filter(
+      (entry) =>
+        !query ||
+        `${entry.name} ${entry.summary || ''} ${entry.lines.join(' ')} ${(entry.tags || []).join(' ')}`
+          .toLowerCase()
+          .includes(query),
     );
     this.entryCount = entries.length;
     this.selected = Math.min(this.selected, Math.max(0, entries.length - 1));
@@ -129,6 +154,7 @@ export class ReferenceMenu {
     this.list = element('div', null, 're-scroll re-menu');
     this.list.setAttribute('aria-label', 'Entries');
     const detail = element('article', null, 're-scroll re-card re-reference-detail');
+    this.detail = detail;
     entries.forEach((entry, i) => {
       const b = button(
         null,
@@ -152,7 +178,11 @@ export class ReferenceMenu {
       detail.append(
         element(
           'p',
-          query ? 'No matching entries in this category.' : 'Nothing unlocked here yet.',
+          query
+            ? this.searchAllTabs
+              ? 'No matching help entries.'
+              : 'No matching entries in this category.'
+            : 'Nothing unlocked here yet.',
           're-empty',
         ),
       );
@@ -162,7 +192,9 @@ export class ReferenceMenu {
     ])
       this.highlight(el);
     split.append(this.list, detail);
-    body.append(split);
+    const footer = element('footer', null, 're-footer');
+    appendDetailScrollControls(footer, detail);
+    body.append(split, footer);
     this.list.scrollTop = previousScroll;
     if (oldFocus) body.querySelector(`[data-focus="${oldFocus}"]`)?.focus({ preventScroll: true });
   }

@@ -1,3 +1,5 @@
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 const categories = [
@@ -24,6 +26,8 @@ export class MobileUpgradeMenu {
     this.selections = new Map();
     this.launcher = this.button('Upgrades', () => this.open());
     this.launcher.className = 'mu-launch';
+    for (const type of DOM_INPUT_EVENTS)
+      this.launcher.addEventListener(type, (event) => event.stopPropagation());
     document.getElementById('game-wrapper').append(this.launcher);
     if (!options.embedded) this.open();
     else this.launcher.hidden = true;
@@ -45,9 +49,10 @@ export class MobileUpgradeMenu {
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Army upgrades');
-    for (const name of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    for (const name of DOM_INPUT_EVENTS)
       this.root.addEventListener(name, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();

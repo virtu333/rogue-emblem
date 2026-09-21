@@ -1,3 +1,6 @@
+import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
+import { MenuSurface, element, button } from '../ui/MenuSurface.js';
+import { hasDOMHost } from '../utils/domUI.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -11,13 +14,9 @@ import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { signOut } from '../cloud/supabaseClient.js';
+import { backupAllLocalSlots, getCloudSyncStatus, pushMeta } from '../cloud/CloudSync.js';
 import {
-  flushCloudSyncQueues,
-  getCloudSyncStatus,
-  pushAllLocalSlots,
-  pushMeta,
-} from '../cloud/CloudSync.js';
-import {
+  MAX_SLOTS,
   getSlotCount,
   getNextAvailableSlot,
   setActiveSlot,
@@ -373,13 +372,13 @@ function createParticles() {
 
 // --- Menu button builder ---
 
-function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
+function createMenuButton(scene, x, y, label, onClick, _delay, options = {}) {
   const btnW = options.width || 240;
   const btnH = options.height || 42;
   const fontSize = options.fontSize || '11px';
   const letterSpacing = options.letterSpacing !== undefined ? options.letterSpacing : 2;
 
-  const container = scene.add.container(x, y).setDepth(20).setAlpha(0);
+  const container = scene.add.container(x, y).setDepth(20).setAlpha(1);
 
   // Background
   const bg = scene.add.graphics();
@@ -463,6 +462,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   });
 
   hitZone.on('pointerdown', () => {
+    if (scene._titleOverlayOpen?.() || scene.isTransitioning) return;
     // Fire action immediately; don't gate scene transitions on tween completion.
     onClick();
     scene.tweens.add({
@@ -474,15 +474,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     });
   });
 
-  // Entry animation: fade + slide from left
-  scene.tweens.add({
-    targets: container,
-    alpha: { from: 0, to: 1 },
-    x: { from: x - 20, to: x },
-    duration: 400,
-    ease: 'Power2',
-    delay: delay,
-  });
+  // Menu controls are visible and usable immediately; only decorative art fades in.
 
   // Expose the hit zone so gamepad focus can reuse the exact pointer hover/press
   // visuals (emit 'pointerover'/'pointerout'/'pointerdown') instead of duplicating them.
@@ -1004,6 +996,7 @@ export class TitleScene extends Phaser.Scene {
 
   _titleOverlayOpen() {
     return Boolean(
+      this.nativeMenu ||
       this.settingsOverlay?.visible ||
       this.howToPlayOverlay?.visible ||
       this.helpOverlay?.visible ||
@@ -1029,6 +1022,8 @@ export class TitleScene extends Phaser.Scene {
   }
 
   _cleanupTitleOverlaysForShutdown() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     this._hideTitleOverlay('settingsOverlay');
     this._hideTitleOverlay('howToPlayOverlay');
     this._hideTitleOverlay('helpOverlay');
@@ -1044,45 +1039,153 @@ export class TitleScene extends Phaser.Scene {
   /**
    * Logout wipes all local slots (they belong to this account), so local data
    * must reach the cloud first. Push every local slot, wait for the queue, and
-   * if the backup cannot be confirmed require a second explicit click before
-   * destroying the only remaining copy.
+   * if the backup cannot be confirmed preserve local saves until an explicit
+   * destructive confirmation, or retry the entire backup.
    */
   async _handleLogout(cloud) {
-    if (this._logoutInProgress) return;
-
-    if (!this._logoutWipeConfirmed) {
-      this._logoutInProgress = true;
-      this._setLogoutNotice('Backing up to cloud...', '#88aaff');
-      let backupConfirmed = false;
-      try {
-        pushAllLocalSlots(cloud.userId);
-        const flushed = await flushCloudSyncQueues();
-        const status = getCloudSyncStatus();
-        backupConfirmed = flushed && status.mode === 'ok';
-      } catch (_) {
-        backupConfirmed = false;
-      }
-      this._logoutInProgress = false;
-      if (!this.scene?.isActive?.()) return;
-      if (!backupConfirmed) {
-        this._logoutWipeConfirmed = true;
-        this._setLogoutNotice(
-          'Cloud backup failed - local progress will be DELETED.\nClick LOG OUT again to log out anyway.',
-          '#ff6a6a',
+    if (this._logoutInProgress || this.nativeMenu) return;
+    const conflicts = Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
+      getCloudSaveConflict,
+    );
+    if (conflicts.length) {
+      this._setLogoutNotice(
+        'Choose which save to keep in Continue before logging out. Both versions are still safe.',
+        '#ffcc88',
+      );
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Resolve saved versions first');
+        menu.body.append(
+          element(
+            'p',
+            `Slot ${conflicts.join(', ')} has both a device and cloud save. Logging out would remove the unchosen device version. Open Continue to choose which version to keep first.`,
+          ),
         );
-        return;
+        menu.body.append(
+          button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+        );
+        menu.body.append(
+          button('Review saved versions', () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
+            );
+          }),
+        );
+        menu.focusContent();
       }
+      return;
     }
-
     this._logoutInProgress = true;
+    this._setLogoutNotice('Backing up to cloud...', '#88aaff');
+    this._showLogoutProgress('Backing up saves', 'Checking that local progress reached the cloud…');
+    let backupConfirmed = false;
+    try {
+      backupConfirmed = await backupAllLocalSlots(cloud.userId);
+    } catch {
+      /* Keep local data and offer a fresh, explicit decision. */
+    }
+    this._logoutInProgress = false;
+    this._closeTitleMenu();
+    if (!this.scene?.isActive?.()) return;
+    if (!backupConfirmed) {
+      this._setLogoutNotice(
+        'Backup failed. Local progress is still safe. Retry when connected.',
+        '#ff6a6a',
+      );
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Cloud backup failed');
+        menu.body.append(
+          element(
+            'p',
+            'Your local progress has not been deleted. Retry the backup, stay signed in, or explicitly discard all local slots and log out.',
+          ),
+        );
+        menu.body.append(
+          button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+        );
+        menu.body.append(
+          button('Retry backup', () => {
+            this._closeTitleMenu();
+            void this._handleLogout(cloud);
+          }),
+        );
+        menu.body.append(
+          button('Discard local saves and log out', () => {
+            this._closeTitleMenu();
+            const confirm = this._openTitleMenu('Discard local saves?');
+            confirm.body.append(
+              element(
+                'p',
+                'The backup did not finish. Every local save slot will be deleted from this device. Progress not already in the cloud will be lost.',
+              ),
+            );
+            confirm.body.append(
+              button('Keep local saves', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+            );
+            confirm.body.append(
+              button('Delete local saves and log out', () => {
+                this._closeTitleMenu();
+                void this._finishLogout();
+              }),
+            );
+            confirm.focusContent();
+          }),
+        );
+        menu.focusContent();
+      }
+      return;
+    }
+    await this._finishLogout();
+  }
+
+  async _finishLogout() {
+    if (this._logoutInProgress) return;
+    this._logoutInProgress = true;
+    this._showLogoutProgress(
+      'Signing out',
+      'Finishing sign out before clearing this device’s account data…',
+    );
     try {
       await signOut();
-    } catch (_) {}
+    } catch {
+      this._logoutInProgress = false;
+      this._closeTitleMenu();
+      this._setLogoutNotice('Could not log out. Local saves were kept. Please retry.', '#ff6a6a');
+      return;
+    }
+    clearAllSlotData();
     try {
-      clearAllSlotData();
       localStorage.removeItem('emblem_rogue_settings');
-    } catch (_) {}
+    } catch {
+      /* retry on reload */
+    }
     location.reload();
+  }
+
+  _showLogoutProgress(title, message) {
+    if (!hasDOMHost()) return;
+    this._closeTitleMenu();
+    this.nativeMenu = new MenuSurface(this, title, () => {}, { modal: true });
+    this.nativeMenu.header.querySelector('button').disabled = true;
+    this.nativeMenu.body.append(element('p', message));
+    this.nativeMenu.root.setAttribute('aria-busy', 'true');
+  }
+
+  _closeTitleMenu() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
+  }
+
+  _openTitleMenu(title) {
+    this._closeTitleMenu();
+    this.nativeMenu = new MenuSurface(this, title, () => this._closeTitleMenu(), { modal: true });
+    this.nativeMenu.root.classList.add('re-run-flow');
+    return this.nativeMenu;
   }
 
   _setLogoutNotice(message, color) {
@@ -1148,10 +1251,47 @@ export class TitleScene extends Phaser.Scene {
     this._refreshCloudSyncStatusNotice();
   }
 
-  async handleNewGame() {
+  async handleNewGame({ confirmed = false } = {}) {
     const nextSlot = getNextAvailableSlot();
     if (!nextSlot) {
       this.showMessage('All 3 save slots are full.\nDelete a slot from Continue to free space.');
+      return false;
+    }
+
+    if (!confirmed && getSlotCount() > 0) {
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Start another run?');
+        menu.body.append(
+          element(
+            'p',
+            `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Continue to return to them.`,
+          ),
+        );
+        menu.body.append(
+          button(
+            'Keep playing my saves',
+            () => {
+              this._closeTitleMenu();
+              void this.runMenuTransition(() =>
+                transitionToScene(
+                  this,
+                  'SlotPicker',
+                  { gameData: this.gameData },
+                  { reason: TRANSITION_REASONS.CONTINUE },
+                ),
+              );
+            },
+            're-btn re-btn--primary',
+          ),
+        );
+        menu.body.append(
+          button(`Start new run in Slot ${nextSlot}`, () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() => this.handleNewGame({ confirmed: true }));
+          }),
+        );
+        menu.focusContent();
+      } else this.showMessage(`Existing saves are preserved. Choose Continue to return to them.`);
       return false;
     }
 

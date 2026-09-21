@@ -36,8 +36,10 @@ export class HowToPlayOverlay {
         [{ label: 'Guide' }],
         () =>
           HOW_TO_PLAY_PAGES.map((page) => ({
-            name: page.title,
-            lines: page.lines.map((line) => line.text),
+            name: inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+            lines: page.lines.map((line) =>
+              inputHint(this.scene, line.text, line.mobileText ?? line.text),
+            ),
           })),
         () => this.hide(),
       );

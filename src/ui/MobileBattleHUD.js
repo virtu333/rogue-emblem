@@ -1,7 +1,18 @@
+import {
+  canInspectUnit,
+  statusDescriptions,
+  statusStaffInfo,
+} from '../engine/BattleInformation.js';
+import { bindCancelablePress } from '../utils/cancelablePress.js';
+import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
+import { battleItemSummary } from './battleItemSummary.js';
 import { BattlefieldLab, battlefieldLabEnabled } from './BattlefieldLab.js';
 import { createHealthBar } from './healthBar.js';
 import { textureImageSource } from './textureImageSource.js';
-import { hasInputFocus } from '../utils/inputFocus.js';
+import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
 
 const PLAY_STATES = new Set([
@@ -14,6 +25,7 @@ const PLAY_STATES = new Set([
   'CONFIRMING_ATTACK',
   'ENEMY_PHASE',
   'COMBAT_RESOLVING',
+  'TURN_START_RESOLVING',
   'CANTO_MOVING',
 ]);
 const HINTS = {
@@ -24,6 +36,7 @@ const HINTS = {
   CANTO_MOVING: 'Tap a tile to reposition, or choose Menu to finish.',
   ENEMY_PHASE: 'Enemy turn',
   COMBAT_RESOLVING: 'Resolving combat…',
+  TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
 };
 
@@ -43,11 +56,33 @@ export class MobileBattleHUD {
     this.root = el('aside', 'mobile-battle-hud');
     this.root.setAttribute('aria-label', 'Battle commands');
     this.root.hidden = true;
+    this.root.tabIndex = -1;
     this.phase = el('div', 'mb-phase');
     this.summary = el('div', 'mb-summary');
     this.body = el('div', 'mb-body');
     this.root.append(this.phase, this.summary, this.body);
     this.wrapper.append(this.root);
+    for (const type of DOM_INPUT_EVENTS)
+      this.root.addEventListener(type, (event) => event.stopPropagation());
+    this.root.addEventListener('keyup', (event) => event.stopPropagation());
+    this.root.addEventListener('keydown', (event) => {
+      if (ignoreRepeatedActivation(event)) return;
+      if (!this.available()) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.scene.requestCancel();
+        return;
+      }
+      if (!this.menu || this.scene.battleState !== 'UNIT_ACTION_MENU') return;
+      // Keep native Enter/Space activation and Tab, but prevent the scene from
+      // also acting on this key after the DOM control has handled it.
+      event.stopPropagation();
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.scene._menuFocus?.move(event.key === 'ArrowDown' ? 1 : -1);
+      }
+    });
     this.menu = null;
     this.forecast = null;
     this.endTurnPending = null;
@@ -56,11 +91,11 @@ export class MobileBattleHUD {
     if (battlefieldLabEnabled()) this.lab = new BattlefieldLab(this);
   }
 
-  available() {
+  available({ allowTurnStart = false } = {}) {
     const s = this.scene;
     return (
-      hasInputFocus(s) &&
-      !s.isStoryInputLocked() &&
+      (hasInputFocus(s) || (this.modal && hasInputFocus(this))) &&
+      (!s.isStoryInputLocked() || (allowTurnStart && s.battleState === 'TURN_START_RESOLVING')) &&
       !s.pauseOverlay?.visible &&
       !s.unitDetailOverlay?.visible &&
       !s.visionDialog &&
@@ -72,38 +107,41 @@ export class MobileBattleHUD {
   button(label, action, className = '') {
     const button = el('button', `mb-button ${className}`, label);
     button.type = 'button';
-    // Native click handles keyboard activation and cancels a scrolling touch.
-    // Also reject a dragged pointer explicitly, including mouse emulation.
-    let start = null;
-    let dragged = false;
-    button.addEventListener('pointerdown', (event) => {
-      start = { x: event.clientX, y: event.clientY };
-      dragged = false;
-      event.stopPropagation();
-    });
-    button.addEventListener('pointermove', (event) => {
-      if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10)
-        dragged = true;
-    });
-    button.addEventListener('pointercancel', () => {
-      dragged = true;
-    });
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if ((event.detail !== 0 && dragged) || !this.available()) return;
-      action();
-      this.lastSnapshot = '';
-      this.sync();
-    });
+    bindCancelablePress(
+      button,
+      () => {
+        action();
+        this.lastSnapshot = '';
+        this.sync();
+      },
+      { enabled: () => this.available() && (!hasInputFocus(this) || this.modal?.contains(button)) },
+    );
     return button;
+  }
+
+  requestEndTurn() {
+    const s = this.scene;
+    if (!this.available() || !s.canForceEndTurn()) return false;
+    this.endTurnPending = { state: s.battleState, turn: s.turnManager.turnNumber };
+    this.lastSnapshot = '';
+    this.sync();
+    this.body.querySelector('button')?.focus({ preventScroll: true });
+    return true;
   }
 
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
-    for (const object of objects) object.setVisible(false);
+    for (const object of objects || []) object.setVisible?.(false);
+    this.scene._hideWeaponDetailTooltip();
     this.lastSnapshot = '';
     this.sync();
+  }
+
+  focusMenuItem(sourceButton) {
+    const item = this.menu?.items.find((entry) => entry.button === sourceButton);
+    if (!item?.domButton || !this.available()) return;
+    item.domButton.focus({ preventScroll: true });
+    item.domButton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   hideMenu() {
@@ -119,12 +157,31 @@ export class MobileBattleHUD {
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
     panel.setAttribute('aria-label', 'Combat forecast');
-    panel.append(el('h2', '', 'Combat forecast'));
+    const heading = el('header', 'mb-forecast-footer');
+    const title = el('h2', '', 'Combat forecast');
+    title.style.flex = '2';
+    title.style.alignSelf = 'center';
+    heading.append(title);
+    panel.append(heading);
     const sides = el('div', 'mb-forecast-sides');
     sides.append(
       this.forecastSide(config.attacker, config.defender, config.forecast.attacker, true, config),
       this.forecastSide(config.defender, config.attacker, config.forecast.defender, false, config),
     );
+    const scroll = (direction) => {
+      sides.scrollTop += direction * Math.max(48, sides.clientHeight * 0.75);
+    };
+    for (const [label, direction] of [
+      ['Read above', -1],
+      ['Read below', 1],
+    ]) {
+      const control = this.button(label, () => scroll(direction));
+      control.setAttribute(
+        'aria-label',
+        direction < 0 ? 'Scroll forecast up' : 'Scroll forecast down',
+      );
+      heading.append(control);
+    }
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
     footer.append(this.button('Cancel', () => this.scene.requestCancel({ allowPause: false })));
@@ -144,24 +201,61 @@ export class MobileBattleHUD {
     );
     panel.append(footer);
     // The backdrop intercepts taps; only the explicit confirm action commits.
-    for (const type of ['pointerdown', 'pointerup', 'click'])
+    for (const type of DOM_INPUT_EVENTS)
       modal.addEventListener(type, (event) => event.stopPropagation());
+    const moveFocus = (delta) => {
+      const buttons = [...panel.querySelectorAll('button:not(:disabled)')];
+      const index = buttons.indexOf(document.activeElement);
+      buttons[(index + delta + buttons.length) % buttons.length]?.focus({ preventScroll: true });
+    };
+    modal.addEventListener('keyup', (event) => event.stopPropagation());
     modal.addEventListener('keydown', (event) => {
+      if (ignoreRepeatedActivation(event)) return;
       event.stopPropagation();
       if (event.key === 'Escape') {
         event.preventDefault();
         if (this.available()) this.scene.requestCancel({ allowPause: false });
-      } else if (event.key === 'Tab') {
-        const buttons = [...panel.querySelectorAll('button')];
-        const index = buttons.indexOf(document.activeElement);
-        const next = (index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+      } else if (event.key === 'Tab' || event.key.startsWith('Arrow')) {
         event.preventDefault();
-        buttons[next]?.focus();
+        moveFocus(event.shiftKey || ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1);
+      } else if (event.key === 'PageDown' || event.key === 'PageUp') {
+        event.preventDefault();
+        scroll(event.key === 'PageDown' ? 1 : -1);
       }
     });
     modal.append(panel);
     this.wrapper.append(modal);
     this.modal = modal;
+    // The shared bus dispatches to its top scope only. BattleScene retains its
+    // base scope, so one pad press cannot also move/confirm the map cursor.
+    let previousControl = null;
+    pushInputScope(
+      this,
+      (action, payload) => {
+        if (
+          this.forecast !== config ||
+          this.scene.battleState !== 'SHOWING_FORECAST' ||
+          !this.available()
+        )
+          return;
+        if (action === InputAction.NAVIGATE) moveFocus(payload?.dy || payload?.dx || 1);
+        else if (action === InputAction.CONFIRM && panel.contains(document.activeElement))
+          document.activeElement.click();
+        else if ([InputAction.CANCEL, InputAction.PAUSE].includes(action))
+          this.scene.requestCancel({ allowPause: false });
+        else if (action === InputAction.PREV_UNIT) this.scene._cycleForecastWeapon(-1);
+        else if (action === InputAction.NEXT_UNIT) this.scene._cycleForecastWeapon(1);
+      },
+      (isTop) => {
+        if (!isTop && panel.contains(document.activeElement))
+          previousControl = document.activeElement;
+        this.sync();
+        if (isTop && !modal.hidden)
+          (previousControl?.isConnected ? previousControl : footer.querySelector('button'))?.focus({
+            preventScroll: true,
+          });
+      },
+    );
     this.lastSnapshot = '';
     this.sync();
     if (!modal.hidden) footer.querySelector('button')?.focus({ preventScroll: true });
@@ -220,44 +314,45 @@ export class MobileBattleHUD {
         ),
       );
     }
+    if (attacking && config.weaponArt) {
+      side.append(el('p', 'mb-detail', formatWeaponArtEffects(config.weaponArt)));
+      side.append(
+        el(
+          'p',
+          'mb-detail',
+          weaponArtUsesText(unit, config.weaponArt, this.scene.turnManager?.turnNumber),
+        ),
+      );
+    }
     if (attacking && config.gamblerLine) side.append(el('p', 'mb-notice', config.gamblerLine));
     for (const warning of info.warnings || []) side.append(el('p', 'mb-notice', warning));
     return side;
   }
 
   hideForecast() {
+    const ownedFocus = this.modal?.contains(document.activeElement);
+    popInputScope(this);
     this.modal?.remove();
     this.modal = null;
     this.forecast = null;
     this.lastSnapshot = '';
+    // Keep the release/held key inside the DOM boundary after Cancel removes
+    // its button. A rebuilding forecast immediately focuses its new Cancel.
+    if (ownedFocus && hasInputFocus(this.scene) && this.root.isConnected) {
+      this.root.inert = false;
+      this.root.focus({ preventScroll: true });
+    }
   }
 
   sync() {
     const s = this.scene;
     const state = s.battleState || '';
-    // Capture nested weapon/equipment pickers as well as the primary action list.
-    // Their callbacks remain owned by BattleScene, including equip/cancel rules.
-    if (
-      this.lab &&
-      state === 'UNIT_ACTION_MENU' &&
-      s.actionMenu &&
-      this.menu?.objects !== s.actionMenu
-    ) {
-      const items = s.actionMenu
-        .filter((object) => typeof object?._action === 'function')
-        .map((object) => ({ label: object.text, onActivate: object._action }));
-      if (items.length) {
-        this.menu = { items, objects: s.actionMenu, unit: s.selectedUnit };
-        for (const object of s.actionMenu) object.setVisible(false);
-        s._hideWeaponDetailTooltip();
-        this.lastSnapshot = '';
-      }
-    }
     const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_');
-    const show = supported && this.available();
+    const turnStarting = state === 'TURN_START_RESOLVING';
+    const show = supported && this.available({ allowTurnStart: true });
+    this.root.inert = !show || turnStarting || Boolean(this.modal);
     // The lab reserves its viewport for the entire battle, including modal/animation states.
     if (this.lab) {
-      this.root.inert = !show;
       this.root.classList.toggle('bl-inactive', !show);
     }
     if (show !== this.visible) {
@@ -281,7 +376,10 @@ export class MobileBattleHUD {
       if (!this.hiddenLabels.has(label)) this.hiddenLabels.set(label, label.visible);
       label.setVisible(false);
     }
-    const unit = s.selectedUnit || (s.inspectionPanel?.visible ? s.inspectionPanel._unit : null);
+    if (s.dangerZone?.visible && s.dangerZoneStale) s.refreshVisibleDangerZone?.();
+    const candidate =
+      s.selectedUnit || (s.inspectionPanel?.visible ? s.inspectionPanel._unit : null);
+    const unit = canInspectUnit(s.grid, candidate) ? candidate : null;
     const turn = s.turnManager?.turnNumber || 1;
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
     const key = JSON.stringify([
@@ -291,9 +389,13 @@ export class MobileBattleHUD {
       unit?.name,
       unit?.currentHP,
       unit?.weapon?.name,
+      unit?._conditions,
+      statusStaffInfo(unit)?.text,
+      s.getBossPressureWarning?.(),
       s.inspectMode,
       s.dangerZone?.visible,
       Boolean(this.menu),
+      Boolean(s._inputController?.isSelectionMenu()),
       Boolean(this.endTurnPending),
       s.infoText?.text,
       s._mobileTerrainFocus,
@@ -310,7 +412,7 @@ export class MobileBattleHUD {
     this.lastSnapshot = key;
     this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
     this.summary.replaceChildren();
-    const focus = s._mobileTerrainFocus || unit;
+    const focus = state === 'UNIT_ACTION_MENU' && unit ? unit : s._mobileTerrainFocus || unit;
     if (unit) {
       this.summary.append(el('h2', '', unit.name));
       this.summary.append(
@@ -318,6 +420,10 @@ export class MobileBattleHUD {
       );
       const hp = createHealthBar(unit);
       this.summary.append(hp, el('span', 'mb-hp', `${unit.currentHP} / ${unit.stats.HP} HP`));
+      for (const status of statusDescriptions(unit))
+        this.summary.append(el('p', 'mb-detail', status));
+      const staff = statusStaffInfo(unit);
+      if (staff) this.summary.append(el('p', 'mb-detail', staff.text));
     } else {
       if (!this.lab)
         this.summary.append(el('h2', '', s.inspectMode ? 'Inspect a unit' : 'Your battlefield'));
@@ -354,10 +460,19 @@ export class MobileBattleHUD {
       }
     }
     const expanded = this.body.querySelector('.mb-battle-info')?.open || false;
+    const restoreMenuFocus = this.body.contains(document.activeElement);
     this.body.replaceChildren();
     this.body.append(
       el('p', 'mb-objective', s.objectiveText?.text || s.battleConfig?.objective || 'Battle'),
     );
+    const warning = s.getBossPressureWarning?.();
+    if (warning) this.body.append(el('p', 'mb-hint', warning));
+    if (s.dangerZone?.visible)
+      this.body.append(el('p', 'mb-detail', 'Filled: damage · Outlined: status staff'));
+    if (turnStarting) {
+      this.body.append(el('p', 'mb-hint', HINTS.TURN_START_RESOLVING));
+      return;
+    }
     const details = el('details', 'mb-battle-info');
     details.open = expanded;
     details.append(el('summary', '', this.lab ? 'More' : 'Battle info'));
@@ -373,7 +488,13 @@ export class MobileBattleHUD {
     details.append(detailContent);
     if (!this.menu && !this.endTurnPending) this.body.append(details);
     if (this.endTurnPending) {
-      this.body.append(el('p', 'mb-hint', `End your turn? ${remaining} units still have actions.`));
+      this.body.append(
+        el(
+          'p',
+          'mb-hint',
+          `End your turn? ${remaining} ${remaining === 1 ? 'unit still has' : 'units still have'} actions.`,
+        ),
+      );
       const token = this.endTurnPending;
       this.body.append(
         this.button('Keep playing', () => {
@@ -413,27 +534,41 @@ export class MobileBattleHUD {
       );
     if (state === 'UNIT_ACTION_MENU' && this.menu) {
       const menu = this.menu;
-      const list = el('div', 'mb-actions');
+      if (s._inputController?.isSelectionMenu()) {
+        this.body.append(el('p', 'mb-detail', 'Tap a blue tile to move.'));
+      }
+      const list = el('div', s.inEquipMenu ? 'mb-actions mb-submenu' : 'mb-actions');
       for (const item of menu.items) {
-        list.append(
-          this.button(
-            item.label,
-            () => {
-              if (
-                this.menu !== menu ||
-                s.actionMenu !== menu.objects ||
-                s.selectedUnit !== menu.unit ||
-                s.battleState !== 'UNIT_ACTION_MENU'
-              )
-                return;
-              this.hideMenu();
-              item.onActivate();
-            },
-            item.label === 'Attack' ? 'mb-primary' : '',
-          ),
+        const button = this.button(
+          item.label,
+          () => {
+            if (
+              this.menu !== menu ||
+              s.actionMenu !== menu.objects ||
+              s.selectedUnit !== menu.unit ||
+              s.battleState !== 'UNIT_ACTION_MENU' ||
+              item.disabled
+            )
+              return;
+            item.onActivate();
+          },
+          item.label === 'Attack' ? 'mb-primary' : '',
         );
+        const description = item.description || battleItemSummary(item.item, menu.unit);
+        if (description) button.append(el('small', 'mb-item-summary', description));
+        button.disabled = item.disabled;
+        item.domButton = button;
+        button.addEventListener('focus', () => {
+          const index = s._menuFocus?.items.indexOf(item);
+          if (index >= 0) s._menuFocus.index = index;
+          for (const entry of menu.items) {
+            entry.domButton?.classList.toggle('mb-menu-focused', entry === item);
+          }
+        });
+        list.append(button);
       }
       this.body.append(list);
+      if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
       return;
     }
     if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
@@ -459,16 +594,7 @@ export class MobileBattleHUD {
         commands.append(button);
       }
       this.body.append(commands);
-      this.body.append(
-        this.button(
-          'End turn…',
-          () => {
-            if (!s.canForceEndTurn()) return;
-            this.endTurnPending = { state: s.battleState, turn: s.turnManager.turnNumber };
-          },
-          'mb-end-turn',
-        ),
-      );
+      this.body.append(this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn'));
     }
   }
 

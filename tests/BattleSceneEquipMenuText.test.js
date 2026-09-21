@@ -146,7 +146,8 @@ describe('BattleScene equip menu text', () => {
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
     const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
-    expect(labels).toHaveLength(2);
+    expect(labels).toHaveLength(3);
+    expect(labels).toContain('Back');
 
     // Labels are single-line name-only
     for (const label of labels) {

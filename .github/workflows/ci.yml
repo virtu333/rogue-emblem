@@ -62,6 +62,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:smoke
+      - run: npm run test:ux-contracts
       - run: npx playwright test tests/e2e/ui-cohesion.spec.js tests/e2e/ui-cohesion-desktop.spec.js tests/e2e/ui-review-regressions.spec.js tests/e2e/mobile-battle-hud.spec.js tests/e2e/mobile-home-base.spec.js tests/e2e/mobile-run-loop.spec.js
       - run: npm run check:ui-theme
       - run: npm run build

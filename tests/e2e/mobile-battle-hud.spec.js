@@ -171,7 +171,11 @@ test('higher overlays own input and scene shutdown removes the mobile layer', as
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Roster', exact: true }).tap();
   // Keep the map viewport stable while a higher sheet owns input.
-  await expect(hud).toHaveClass(/bl-inactive/);
+  // Covered controls are deliberately hidden from the accessibility tree.
+  await expect(
+    page.getByRole('complementary', { name: 'Battle commands', includeHidden: true }),
+  ).toHaveClass(/bl-inactive/);
+  await expect(hud).toHaveCount(0);
   const roster = page.getByRole('dialog', { name: 'Inspect roster', exact: true });
   await expect(roster).toBeVisible();
   await roster.getByRole('button', { name: 'Close', exact: true }).tap();
@@ -236,9 +240,8 @@ test('real map taps select a unit and open its touch action list', async ({ page
   await page.touchscreen.tap(position.x, position.y);
   await expect
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
-    .toBe('UNIT_SELECTED');
+    .toBe('UNIT_ACTION_MENU');
   await expect(page.locator('.mb-summary h2')).toHaveText(position.name);
-  await page.touchscreen.tap(position.x, position.y);
   await expect(
     page
       .getByRole('complementary', { name: 'Battle commands' })

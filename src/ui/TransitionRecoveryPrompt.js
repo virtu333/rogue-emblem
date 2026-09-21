@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { MenuSurface, element, button } from './MenuSurface.js';
 // TransitionRecoveryPrompt — shared stateless recovery UI for pause transition failures.
 // Used by BattleScene and NodeMapScene when a transition to Title fails.
 
@@ -23,6 +25,59 @@ export function showTransitionRecoveryPrompt(
 ) {
   if (scene[guardKey]?.length) return null;
   if (overlayKey) scene[overlayKey] = null; // clean stale overlay ref
+  if (hasDOMHost()) {
+    let busy = false;
+    const status = element(
+      'p',
+      'The game could not return to the title screen. Retry, or reload the app.',
+    );
+    status.setAttribute('role', 'status');
+    const surface = new MenuSurface(
+      scene,
+      'Return to title',
+      () => {
+        status.textContent = busy ? 'Returning to title…' : 'Choose Retry or Reload to continue.';
+      },
+      { modal: true },
+    );
+    surface.header.querySelector('button').remove();
+    const reload = button('Reload', () => window.location.reload());
+    const retry = button(
+      'Retry',
+      async () => {
+        if (busy) return;
+        busy = true;
+        retry.disabled = true;
+        reload.disabled = true;
+        status.textContent = 'Returning to title…';
+        resetTransitionLocks(scene);
+        try {
+          const ok = await transitionToScene(scene, 'Title', titleData, { reason });
+          if (!ok && !surface.destroyed) forceTitleScene(scene, titleData);
+        } catch (error) {
+          console.error('Return to title failed', error);
+          status.textContent = 'Could not return to title. Try again or Reload.';
+        } finally {
+          busy = false;
+          retry.disabled = false;
+          reload.disabled = false;
+          if (!surface.destroyed) retry.focus();
+        }
+      },
+      're-btn re-btn--primary',
+    );
+    surface.body.append(status, retry, reload);
+    surface.focusContent();
+    const cleanup = () => {
+      surface.destroy();
+      scene[guardKey] = null;
+      scene.events.off('shutdown', cleanup);
+    };
+    scene.events.once('shutdown', cleanup);
+    const group = [{ destroy: cleanup }];
+    scene[guardKey] = group;
+    return group;
+  }
   const cam = scene.cameras.main;
   const group = [];
 
@@ -72,7 +127,7 @@ export function showTransitionRecoveryPrompt(
       .then((ok) => {
         if (!ok) {
           try {
-            scene.scene.start('Title', titleData); // scene-router-bypass
+            forceTitleScene(scene, titleData);
           } catch (err) {
             console.error(`[${sceneName}] pause recovery fallback failed:`, err);
             retryBtn.setText('[ Retry ]');
@@ -109,4 +164,8 @@ export function showTransitionRecoveryPrompt(
 
   scene[guardKey] = group;
   return group;
+}
+
+function forceTitleScene(scene, titleData) {
+  scene.scene.start('Title', titleData); // scene-router-bypass
 }

@@ -19,13 +19,22 @@ export class PauseOverlay {
    */
   constructor(
     scene,
-    { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData, gameData },
+    {
+      onResume,
+      onSaveAndExit,
+      onAbandon,
+      onAbandonWarning,
+      onSaveAndExitWarning,
+      campaignMapData,
+      gameData,
+    },
   ) {
     this.scene = scene;
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;
     this.onAbandon = onAbandon;
+    this.onAbandonWarning = onAbandonWarning;
     this.campaignMapData = campaignMapData || null;
     this.gameData = gameData || null;
     this.objects = [];
@@ -191,7 +200,7 @@ export class PauseOverlay {
         () => {
           if (this.onSaveAndExitWarning) {
             this._showConfirm(
-              this.onSaveAndExitWarning,
+              `Save and return to Title?\n${this.onSaveAndExitWarning}`,
               () => {
                 this.hideForTransition();
                 Promise.resolve()
@@ -201,6 +210,7 @@ export class PauseOverlay {
                   });
               },
               '#88ccff',
+              'Save & return',
             );
             return;
           }
@@ -224,7 +234,8 @@ export class PauseOverlay {
         'Abandon Run',
         () => {
           this._showConfirm(
-            'Abandon this run?\nProgress will be lost.',
+            this.onAbandonWarning ||
+              'Abandon this run?\nRun progress ends. Earned Valor and Supply are kept.',
             () => {
               this.hideForTransition();
               if (this.onAbandon) {
@@ -236,6 +247,7 @@ export class PauseOverlay {
               }
             },
             '#cc5555',
+            'Abandon run',
           );
         },
         '#cc5555',
@@ -319,7 +331,7 @@ export class PauseOverlay {
     this._menuButtons.push(btn);
   }
 
-  _showConfirm(message, onConfirm, confirmColor = '#cc5555') {
+  _showConfirm(message, onConfirm, confirmColor = '#cc5555', confirmLabel = 'Confirm') {
     this._hideConfirm();
     const cx = this.scene.cameras.main.centerX;
     const cy = this.scene.cameras.main.centerY;
@@ -344,7 +356,7 @@ export class PauseOverlay {
     this.confirmObjects.push(msg);
 
     const yesBtn = applyTextResolution(
-      this.scene.add.text(cx - 50, cy + 25, 'Yes', {
+      this.scene.add.text(cx + 65, cy + 25, confirmLabel, {
         fontFamily: 'Arial',
         fontSize: '14px',
         color: confirmColor,
@@ -361,7 +373,7 @@ export class PauseOverlay {
     this.confirmObjects.push(yesBtn);
 
     const cancelBtn = applyTextResolution(
-      this.scene.add.text(cx + 50, cy + 25, 'Cancel', {
+      this.scene.add.text(cx - 95, cy + 25, 'Cancel', {
         fontFamily: 'Arial',
         fontSize: '14px',
         color: UI_PALETTE.text,
@@ -377,8 +389,8 @@ export class PauseOverlay {
     cancelBtn.on('pointerdown', () => this._hideConfirm());
     this.confirmObjects.push(cancelBtn);
 
-    // Hand the focus ring to the modal (Yes first).
-    this._confirmButtons = [yesBtn, cancelBtn];
+    // Cancel is the first action and default focus for every confirmation.
+    this._confirmButtons = [cancelBtn, yesBtn];
     this._focus?.setObjects(this._confirmButtons, true);
   }
 

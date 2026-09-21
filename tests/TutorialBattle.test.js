@@ -107,6 +107,9 @@ function createTutorialTurnPhaseScene({ tutorialStep = 6, isMobileInput = false 
   scene._tutorialVisionIntroShown = false;
   scene.isMobileInput = isMobileInput;
   scene.battleState = 'PLAYER_IDLE';
+  scene.turnManager = { currentPhase: 'player', turnNumber: 3 };
+  scene.refreshEndTurnControl = vi.fn();
+  scene.processBallistaFire = vi.fn();
   scene.scene = { isActive: () => true };
   scene.turnCounterText = {
     setText: vi.fn(),
@@ -436,6 +439,7 @@ describe('TutorialBattle', () => {
       const scene = createTutorialTurnPhaseScene();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
 
       const hintText = showImportantHint.mock.calls.at(-1)[1];
@@ -449,10 +453,12 @@ describe('TutorialBattle', () => {
       const scene = createTutorialTurnPhaseScene();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
       showImportantHint.mockClear();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
 
       expect(showImportantHint).not.toHaveBeenCalled();

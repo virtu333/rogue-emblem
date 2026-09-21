@@ -1,5 +1,14 @@
+import { statusDescriptions, statusStaffInfo } from '../engine/BattleInformation.js';
+import { classChangePreview } from './classChangeDisplay.js';
+import {
+  formatWeaponArtEffects,
+  weaponArtCostText,
+  weaponArtUsesText,
+} from './weaponArtDisplay.js';
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { formatPerkMods } from './rosterDisplay.js';
+import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
+import { ContextHelp } from './ContextHelp.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
@@ -49,7 +58,7 @@ import { getConsumableDescription, formatUses } from '../utils/consumableText.js
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
-import { hasDOMHost } from '../utils/domUI.js';
+import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 
 export function canShowMobileRoster() {
   return hasDOMHost();
@@ -91,9 +100,10 @@ export class MobileRosterSheet {
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', run ? 'Manage roster' : 'Inspect roster');
     this.root.tabIndex = -1;
-    for (const type of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -291,6 +301,14 @@ export class MobileRosterSheet {
     return c;
   }
   stats(unit) {
+    const conditions = statusDescriptions(unit);
+    if (conditions.length)
+      this.card(
+        'Conditions',
+        `${conditions.join('\n')}\nDurations count down when this unit’s side starts its turn.`,
+      );
+    const statusStaff = statusStaffInfo(unit);
+    if (statusStaff) this.card('Status staff', statusStaff.text);
     const terrain = this.terrainForUnit?.(unit);
     const grid = el('dl', null, 'mr-stats');
     for (const [key, value] of Object.entries(unit.stats || {})) {
@@ -317,12 +335,21 @@ export class MobileRosterSheet {
     this.body.append(grid);
     this.card(
       'Proficiencies',
-      (unit.proficiencies || []).map((p) => `${p.type} ${p.rank || ''}`).join(' · ') || 'None',
+      (unit.proficiencies || []).map(proficiencyLabel).join(' · ') || 'None',
     );
     const combat = getStaticCombatStats(unit, unit.weapon);
-    this.card(
-      'Combat',
+    const combatCard = this.card(
+      'Combat baseline',
       `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${terrain ? calculateAvoid(unit, terrain) : unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
+    );
+    combatCard.append(
+      this.button('About combat numbers', () =>
+        this.showHelp('Combat baseline', [
+          `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
+          'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
+          'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, hit chance and follow-up attacks.',
+        ]),
+      ),
     );
     if (terrain)
       this.card(
@@ -334,11 +361,21 @@ export class MobileRosterSheet {
     if (unit.faction !== 'enemy') {
       const mastered = isMastered(unit, this.gameData.classes, this.gameData.traits);
       const perk = getMasteryPerk(unit, this.gameData.classes, this.gameData.traits);
-      this.card(
-        mastered ? `Mastered ★${perk ? ` ${perk.name}` : ''}` : 'Class mastery',
-        mastered
-          ? formatPerkMods(perk?.mods)
-          : `${getMasteryProgress(unit, this.gameData.classes)}/${getMasteryThreshold(unit, this.gameData.traits)}`,
+      const progress = getMasteryProgress(unit, this.gameData.classes);
+      const threshold = getMasteryThreshold(unit, this.gameData.traits);
+      const reward = perk ? `${perk.name} · ${formatPerkMods(perk.mods)}` : 'No class perk';
+      const mastery = this.card(
+        mastered ? 'Class mastered ★' : 'Class mastery',
+        `${progress} / ${threshold} battles · ${mastered ? 'Active' : 'Unlock'}: ${reward}`,
+      );
+      mastery.append(
+        this.button('About class mastery', () =>
+          this.showHelp('Class mastery', [
+            `${unit.name}: ${progress} / ${threshold} battles. ${mastered ? 'Active perk' : 'Unlock'}: ${reward}.`,
+            ...MASTERY_HELP,
+            'Weapon proficiency is separate: Proficient and Master are class-driven weapon ranks, not a weapon-use experience bar.',
+          ]),
+        ),
       );
       for (const trait of getUnitTraits(unit, this.gameData.traits))
         this.card(trait.name, trait.description);
@@ -358,6 +395,10 @@ export class MobileRosterSheet {
         el('summary', 'Growths'),
         el(
           'p',
+          'Each percentage is the chance of gaining +1 in that stat on a level-up. At least one stat increases: if every roll fails, the highest-growth stat gains +1.',
+        ),
+        el(
+          'p',
           Object.entries(unit.growths)
             .map(([stat, value]) => `${stat} ${value}%`)
             .join(' · '),
@@ -370,7 +411,10 @@ export class MobileRosterSheet {
     this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
     for (const id of unit.skills || []) {
       const skill = this.gameData.skills?.find((s) => s.id === id);
-      this.card(skill?.name || id, skill?.description || '');
+      this.card(
+        skill?.name || id,
+        `${skill?.trigger === 'passive-aura' ? 'Passive aura · ' : skill?.trigger === 'passive' ? 'Passive · ' : ''}${skill?.description || ''}`,
+      );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
     this.body.append(el('h3', 'Weapon arts'));
@@ -380,7 +424,7 @@ export class MobileRosterSheet {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
           `${art?.name || id} · ${weapon.name}`,
-          `${art?.description || ''} · HP cost ${art?.hpCost || 0}`,
+          `${formatWeaponArtEffects(art)} · ${weaponArtCostText(unit, art, { weaponArtHpCostDelta: this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0 })}`,
         );
         if (art && this.scene.sys?.settings?.key === 'Battle' && this.scene.turnManager) {
           const check = canUseWeaponArt(unit, weapon, art, {
@@ -391,7 +435,10 @@ export class MobileRosterSheet {
               this.scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
           });
           this.body.lastElementChild.append(
-            el('small', check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')),
+            el(
+              'small',
+              `${check.ok ? 'Ready' : (check.reason || 'Unavailable').replaceAll('_', ' ')} · ${weaponArtUsesText(unit, art, this.scene.turnManager.turnNumber)}`,
+            ),
           );
         } else if (art) {
           const prof = unit.proficiencies?.find((p) => p.type === weapon.type);
@@ -412,6 +459,16 @@ export class MobileRosterSheet {
         count++;
       }
     }
+    if (count)
+      this.body.append(
+        this.button('About weapon arts', () =>
+          this.showHelp('Weapon arts', [
+            'Weapon arts modify the selected attack. Choosing an art does not spend HP or uses; committing its attack does. You must have more HP than the effective cost.',
+            'Map uses reset on a new battle. Turn uses reset on a new turn. Availability can also depend on proficiency, rank, silence and the particular weapon. The art’s displayed HP cost includes your equipped accessory and run modifiers.',
+            'Battle limits shown here are remaining uses. Outside battle, the sheet shows eligibility and effective cost without carrying over a previous battle’s usage.',
+          ]),
+        ),
+      );
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
       this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
@@ -435,72 +492,131 @@ export class MobileRosterSheet {
           return !reason || reason === 'Weapon already has this art.';
         }),
     );
-    const openStep = (title, options, label, describe, blocked, apply, next) => {
-      let selected = null;
+    const artDescription = (id, unit) => {
+      const art = arts.find((entry) => entry.id === id);
+      return art
+        ? `${art.name} · ${weaponArtCostText(unit, art)} · ${art.requiredRank || 'Prof'}\n${formatWeaponArtEffects(art)}`
+        : id;
+    };
+    const sourceLabel = (source) =>
+      ({ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' })[source] || 'Innate';
+    const flow = { weapon: null, replacement: null, weaponScroll: 0, replacementScroll: 0 };
+    const openStep = (options, onApplied, onBack, scrollKey) => {
+      if (this.destroyed) return;
+      let committed = false;
+      const originalApply = options.apply;
       this.picker = new ChoicePicker({
         scene: this.scene,
-        title,
-        choices: options,
-        confirmation: !next,
-        label,
-        describe,
-        blocked,
+        ...options,
+        closeLabel: onBack ? 'Back' : 'Close',
         apply: (choice) => {
-          const result = apply(choice);
-          if (result.ok) selected = choice;
+          const result = originalApply(choice);
+          if (result.ok) committed = true;
           return result;
         },
         onClose: () => {
           this.picker = null;
-          if (!this.destroyed && selected && next) next(selected);
+          if (this.destroyed) return;
+          if (committed) onApplied?.();
+          else if (onBack) onBack();
           else this.root.querySelector('button')?.focus();
         },
       });
+      const picker = this.picker;
+      const list = picker.surface.body.querySelector('.re-choice-list');
+      if (scrollKey && list) {
+        list.scrollTop = flow[scrollKey];
+        // Selection re-renders the list; track scrolling at the stable body.
+        picker.surface.body.addEventListener(
+          'scroll',
+          (event) => {
+            if (event.target.classList.contains('re-choice-list'))
+              flow[scrollKey] = event.target.scrollTop;
+          },
+          true,
+        );
+      }
     };
-    const confirm = ({ unit, weapon }, replacement) => {
-      const oldName = replacement
-        ? arts.find((a) => a.id === replacement.id)?.name || replacement.id
-        : '';
+    const showConfirm = () => {
+      const { unit, weapon } = flow.weapon;
+      const replacement = flow.replacement;
+      const old = replacement ? arts.find((a) => a.id === replacement.id) : null;
       openStep(
-        replacement ? `Replace ${oldName}?` : 'Bind weapon art',
-        [weapon],
-        (w) => w.name,
-        () =>
-          `${scroll.name} · ${unit.name}${replacement ? ` · Replaces ${{ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' }[replacement.source] || 'Innate'} art ${oldName}` : ' · Uses one scroll'}`,
-        () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
-        () => {
-          const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
-          if (result.ok) this.render(`${scroll.name} bound to ${weapon.name}.`);
-          return result;
+        {
+          title: old ? `Replace ${old.name}?` : 'Bind weapon art',
+          choices: [weapon],
+          confirmation: true,
+          label: (w) => w.name,
+          describe: () =>
+            `${unit.name} · Uses one ${scroll.name} on Confirm. Back uses nothing.${replacement ? `\nReplaces ${sourceLabel(replacement.source)} art ${old?.name || replacement.id}.` : ''}`,
+          preview: () =>
+            `${replacement ? `REMOVE\n${artDescription(replacement.id, unit)}\n\n` : ''}ADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
+          blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
+          apply: () => {
+            const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
+            if (result.ok) this.render(`${scroll.name} bound to ${weapon.name}.`);
+            return result;
+          },
         },
+        () => this.root.querySelector('button')?.focus(),
+        replacement ? showReplacement : showWeapons,
       );
     };
-    openStep(
-      `Choose weapon for ${scroll.name}`,
-      choices,
-      (c) => `${c.unit.name} · ${c.weapon.name}`,
-      (c) => `${getWeaponArtBindings(c.weapon).length}/3 art slots`,
-      (c) => rosterArtBlock(this.run, c.unit, c.weapon, scroll, arts),
-      () => ({ ok: true }),
-      (choice) => {
-        const bindings = getWeaponArtBindings(choice.weapon);
-        if (bindings.length < 3) {
-          confirm(choice, null);
-          return;
-        }
-        openStep(
-          'Choose art to replace',
-          bindings.map((b, index) => ({ ...b, index })),
-          (b) => arts.find((a) => a.id === b.id)?.name || b.id,
-          (b) =>
-            `Slot ${b.index + 1} · ${{ meta_innate: 'Meta Innate', scroll: 'Scroll', innate: 'Innate' }[b.source] || 'Innate'}`,
-          () => rosterArtBlock(this.run, choice.unit, choice.weapon, scroll, arts),
-          () => ({ ok: true }),
-          (replacement) => confirm(choice, replacement),
-        );
-      },
-    );
+    const showReplacement = () => {
+      const { unit, weapon } = flow.weapon;
+      const bindings = getWeaponArtBindings(weapon).map((entry, index) => ({ ...entry, index }));
+      const previous = flow.replacement;
+      openStep(
+        {
+          title: 'Choose art to replace',
+          choices: bindings,
+          initialChoice: bindings.find(
+            (b) =>
+              b.index === previous?.index && b.id === previous.id && b.source === previous.source,
+          ),
+          label: (b) => arts.find((a) => a.id === b.id)?.name || b.id,
+          describe: (b) => `Slot ${b.index + 1} · ${sourceLabel(b.source)}`,
+          preview: (b) =>
+            `REMOVE\n${artDescription(b.id, unit)}\n\nADD\n${artDescription(scroll.teachesWeaponArtId?.trim(), unit)}`,
+          blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
+          apply: (choice) => {
+            flow.replacement = choice;
+            return { ok: true };
+          },
+        },
+        showConfirm,
+        showWeapons,
+        'replacementScroll',
+      );
+    };
+    const showWeapons = () =>
+      openStep(
+        {
+          title: `Choose weapon for ${scroll.name}`,
+          choices,
+          initialChoice: flow.weapon,
+          label: (c) => `${c.unit.name} · ${c.weapon.name}`,
+          describe: (c) => `${getWeaponArtBindings(c.weapon).length}/3 art slots`,
+          blocked: (c) => rosterArtBlock(this.run, c.unit, c.weapon, scroll, arts),
+          apply: (choice) => {
+            if (flow.weapon !== choice) flow.replacement = null;
+            flow.weapon = choice;
+            return { ok: true };
+          },
+        },
+        () => {
+          if (getWeaponArtBindings(flow.weapon.weapon).length >= 3) showReplacement();
+          else {
+            flow.replacement = null;
+            showConfirm();
+          }
+        },
+        null,
+        'weaponScroll',
+      );
+    showWeapons();
   }
+
   chooseUnit(title, blocked, apply, describe = (unit) => unit.className) {
     if (this.picker || this.destroyed) return;
     this.picker = new ChoicePicker({
@@ -561,6 +677,7 @@ export class MobileRosterSheet {
       choices,
       label: (choice) => choice.name,
       describe: (choice) => choice.description || choice.roleChange || choice.role || '',
+      preview: (choice) => classChangePreview(unit, item, choice, this.gameData),
       blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
       apply: (choice) => {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
@@ -742,7 +859,15 @@ export class MobileRosterSheet {
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
   }
+  showHelp(title, paragraphs) {
+    if (this.help || this.picker || this.destroyed) return;
+    this.help = new ContextHelp(this.scene, this.root, title, paragraphs, () => {
+      this.help = null;
+    });
+  }
   destroy() {
+    this.help?.destroy();
+    this.help = null;
     this.picker?.destroy();
     this.picker = null;
     if (this.destroyed) return;

@@ -1379,6 +1379,7 @@ describe('NodeMapScene Slice 4', () => {
   it('handleShop skip path clears pending ambush only when node matches pending id', () => {
     const clearAmbushPendingNode = vi.fn();
     const scene = {
+      registry: { get: () => null },
       runManager: {
         consumeSkipFirstShop: vi.fn(() => true),
         markNodeComplete: vi.fn(),

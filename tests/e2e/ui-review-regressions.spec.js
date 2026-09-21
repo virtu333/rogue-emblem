@@ -110,35 +110,31 @@ test('late route opens centered on available choices and service preview returns
   ).toBe(0);
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.registry.set('activeSlot', 1);
     s.showChurchOverlay(s.runManager.nodeMap.nodes[0]);
-    s.showChurchMessage('All units healed!', '#44ff44');
   });
-  const geometry = await page.evaluate(() => {
+  const church = page.getByRole('dialog', { name: 'Church', exact: true });
+  await church.getByRole('button', { name: 'Heal all · Free', exact: true }).tap();
+  await expect(church.getByRole('status')).toHaveText('All units healed.');
+  const routing = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     return {
-      message: s.churchMessage.getBounds(),
-      heal: s._churchController._churchFixed.heal.getBounds(),
       mobile: s.isMobileInput,
-      rowHeight: s._churchController.rowHeight,
       handlerCount: s.game.events.listenerCount('mobile:cancel'),
     };
   });
-  expect(geometry.mobile).toBe(true);
-  expect(geometry.rowHeight).toBeGreaterThanOrEqual(44);
-  expect(geometry.handlerCount).toBe(1);
-  await expect(page.locator('#mobile-left-panel [data-action=cancel]')).toBeVisible();
-  await expect(page.locator('#mobile-right-panel [data-action=roster]')).toBeVisible();
-  expect(geometry.message.y).toBeGreaterThan(geometry.heal.y + geometry.heal.height);
-  await page.evaluate(() =>
-    window.__emblemRogueGame.scene.getScene('NodeMap')._enterChurchMapView(),
-  );
+  expect(routing).toEqual({ mobile: true, handlerCount: 1 });
+  // The native service surface owns navigation; covered canvas rails stay hidden.
+  await expect(page.locator('#mobile-left-panel [data-action=cancel]')).not.toBeVisible();
+  await expect(page.locator('#mobile-right-panel [data-action=roster]')).not.toBeVisible();
+  await church.getByRole('button', { name: 'View map', exact: true }).tap();
   const map = page.getByRole('dialog', { name: 'Campaign map', exact: true });
   await expect(map).toBeVisible();
   await map.getByRole('button', { name: 'Close', exact: true }).tap();
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._churchViewingMap),
   ).toBe(false);
-  await page.locator('#mobile-left-panel [data-action=cancel]').tap();
+  await church.getByRole('button', { name: 'Leave', exact: true }).tap();
   await expect(page.locator('.re-node-map')).toBeVisible();
   expect(errors).toEqual([]);
 });

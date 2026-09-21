@@ -54,7 +54,7 @@ test('rebuilt sprites load with tile anchors and remain aligned after rewind', a
     }));
   });
   for (const u of result) {
-    expect(u.key, JSON.stringify(u)).toMatch(/^rebuilt-/);
+    expect(u.key, JSON.stringify(u)).toMatch(/^contrast-rebuilt-/);
     expect(u.width).toBe(64);
     expect(u.x).toBe(u.pos.x);
     expect(u.y).toBe(u.pos.y);
@@ -65,7 +65,9 @@ test('classic comparison does not load rebuilt textures', async ({ page }) => {
   await waitForScene(page, 'Battle');
   expect(
     await page.evaluate(() =>
-      Object.keys(window.__emblemRogueGame.textures.list).filter((k) => k.startsWith('rebuilt-')),
+      Object.keys(window.__emblemRogueGame.textures.list).filter(
+        (k) => k.startsWith('rebuilt-') && !k.startsWith('rebuilt-portrait-'),
+      ),
     ),
   ).toEqual([]);
 });

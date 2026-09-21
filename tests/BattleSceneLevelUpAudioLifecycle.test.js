@@ -30,6 +30,7 @@ vi.mock('../src/ui/LevelUpPopup.js', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { presentQueuedLevelUps } from '../src/ui/BattlePresentationCheckpoint.js';
 
 function makeTextStub() {
   return {
@@ -85,8 +86,11 @@ describe('BattleScene level-up audio lifecycle', () => {
 
     const { scene, lifecycle } = makeScene();
     const unit = { col: 1, row: 1, stats: {} };
+    scene.playerUnits = [unit];
 
     await BattleScene.prototype.awardScaledXP.call(scene, unit, 50);
+    expect(popupShowMock).not.toHaveBeenCalled();
+    await presentQueuedLevelUps(scene);
 
     expect(lifecycle).toEqual([
       'play:sfx_levelup',
@@ -103,8 +107,10 @@ describe('BattleScene level-up audio lifecycle', () => {
 
     const { scene } = makeScene();
     const unit = { col: 1, row: 1, stats: {} };
+    scene.playerUnits = [unit];
 
     await BattleScene.prototype.awardScaledXP.call(scene, unit, 30);
+    await presentQueuedLevelUps(scene);
 
     expect(scene.sound.stopByKey).toHaveBeenCalledTimes(1);
     BattleScene.prototype._stopLevelUpSfx.call(scene);

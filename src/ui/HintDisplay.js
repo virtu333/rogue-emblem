@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { MenuSurface, element, button } from './MenuSurface.js';
 import { inputHint } from '../utils/inputHint.js';
 // HintDisplay — Two display functions for tutorial hints
 // Important hints require dismiss (Space/Enter/click). Minor hints auto-fade.
@@ -9,6 +11,28 @@ const DEPTH = 965;
  * Returns a Promise that resolves when Space, Enter, or click is pressed.
  */
 export function showImportantHint(scene, message) {
+  if (hasDOMHost())
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        scene.events.off('shutdown', finish);
+        menu.destroy();
+        resolve();
+      };
+      const menu = new MenuSurface(scene, 'Field notes', finish, { modal: true });
+      menu.root.classList.add('re-run-flow');
+      menu.header.querySelector('button').textContent = 'Continue';
+      menu.body.append(element('p', message), button('Continue', finish, 're-btn re-btn--primary'));
+      menu.onKey = (event) => {
+        if (event.key !== ' ') return false;
+        finish();
+        return true;
+      };
+      scene.events.once('shutdown', finish);
+      menu.focusContent();
+    });
   return new Promise((resolve) => {
     const cam = scene.cameras.main;
     const cx = cam.centerX;
@@ -100,6 +124,20 @@ export function showImportantHint(scene, message) {
  * Non-blocking. Returns a Promise for optional chaining.
  */
 export function showMinorHint(scene, message) {
+  if (hasDOMHost())
+    return new Promise((resolve) => {
+      const toast = element('div', message, 're re-hint-toast');
+      toast.setAttribute('role', 'status');
+      document.getElementById('game-wrapper').append(toast);
+      const finish = () => {
+        clearTimeout(timer);
+        scene.events.off('shutdown', finish);
+        toast.remove();
+        resolve();
+      };
+      const timer = setTimeout(finish, 4000);
+      scene.events.once('shutdown', finish);
+    });
   return new Promise((resolve) => {
     const cam = scene.cameras.main;
     const cx = cam.centerX;

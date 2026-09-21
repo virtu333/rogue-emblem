@@ -1,3 +1,5 @@
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -35,9 +37,10 @@ export class MenuSurface {
     );
     this.body = element('div', null, 're-menu-body');
     this.root.append(this.header, this.body);
-    for (const name of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    for (const name of DOM_INPUT_EVENTS)
       this.root.addEventListener(name, (event) => event.stopPropagation());
     this.root.addEventListener('keydown', (event) => {
+      if (ignoreRepeatedActivation(event)) return;
       event.stopPropagation();
       if (this.onKey?.(event)) {
         event.preventDefault();
@@ -82,7 +85,7 @@ export class MenuSurface {
       this.shield = element('div', null, 're-modal-shield');
       this.shield.style.zIndex = DOM_UI_DEPTHS.MENU;
       this.shield.append(this.root);
-      for (const type of ['pointerdown', 'pointerup', 'click', 'wheel'])
+      for (const type of DOM_INPUT_EVENTS)
         this.shield.addEventListener(type, (event) => {
           event.stopPropagation();
           if (event.target === this.shield) {

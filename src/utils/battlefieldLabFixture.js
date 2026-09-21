@@ -2,6 +2,36 @@
 // Terrain indices are resolved by name; combat and movement use the normal engine.
 export function createBattlefieldLabFixture(base, terrain) {
   const id = (name) => terrain.findIndex((entry) => entry.name === name);
+  if (new URLSearchParams(globalThis.location?.search || '').get('preset') === 'combat_actions') {
+    return {
+      ...base,
+      cols: 10,
+      rows: 8,
+      biome: 'grassland',
+      objective: 'rout',
+      mapLayout: Array.from({ length: 8 }, (_, row) =>
+        Array.from({ length: 10 }, (_, col) =>
+          col === 8 && row < 5 ? id('Water') : col === 1 && row === 2 ? id('Forest') : id('Plain'),
+        ),
+      ),
+      playerSpawns: [
+        [3, 3],
+        [2, 3],
+        [4, 4],
+        [3, 4],
+        [2, 4],
+      ].map(([col, row]) => ({ col, row })),
+      enemySpawns: [
+        { col: 4, row: 3, className: 'Knight', level: 1 },
+        { col: 6, row: 4, className: 'Fighter', level: 3 },
+        { col: 9, row: 7, className: 'Archer', level: 1 },
+      ],
+      npcSpawn: null,
+      caravanSpawn: null,
+      villageTile: null,
+      ballistas: [],
+    };
+  }
   const characterReview =
     new URLSearchParams(globalThis.location?.search || '').get('characterReview') === '1';
   const cols = 24;

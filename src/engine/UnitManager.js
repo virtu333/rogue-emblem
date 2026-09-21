@@ -131,13 +131,15 @@ export function learnSkill(unit, skillId) {
 }
 
 /** Check if unit qualifies for any class-based or personal L20 skill at current level. Returns array of learned skill IDs. */
-export function checkLevelUpSkills(unit, classesData) {
+export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   const learned = [];
 
   const cls = classesData.find((c) => c.name === unit.className);
   const tryLearn = (skillId) => {
     const result = learnSkill(unit, skillId);
     if (result.learned) learned.push(skillId);
+    else if (result.reason === 'at_cap' && !droppedSkills.includes(skillId))
+      droppedSkills.push(skillId);
   };
 
   // Class-based learnable skills for current class.
@@ -164,8 +166,7 @@ export function checkLevelUpSkills(unit, classesData) {
     unit._personalSkillL20 &&
     ((unit.tier === 'base' && unit.level >= 20) || (unit.tier === 'promoted' && unit.level >= 10))
   ) {
-    const result = learnSkill(unit, unit._personalSkillL20.skillId);
-    if (result.learned) learned.push(unit._personalSkillL20.skillId);
+    tryLearn(unit._personalSkillL20.skillId);
   }
 
   return learned;
@@ -1235,6 +1236,33 @@ function getEffectiveBaseStats(classData, classesData) {
   return out;
 }
 
+/** Deterministic reclass stats; safe to preview without rolling growths. */
+export function getReclassStats(unit, newClassData, oldClassData, classesData) {
+  const oldBase = getEffectiveBaseStats(oldClassData, classesData);
+  const newBase = getEffectiveBaseStats(newClassData, classesData);
+  const stats = { ...unit.stats };
+  for (const stat of [...XP_STAT_NAMES, 'MOV']) {
+    stats[stat] = Math.max(
+      1,
+      (unit.stats[stat] || 0) + (newBase[stat] || 0) - (oldBase[stat] || 0),
+    );
+  }
+  return stats;
+}
+
+/** Shared reclass skill grants for mutation and a cloned-unit preview. */
+export function applyReclassSkills(unit, classesData, skillsData) {
+  const learnedSkills = [];
+  const droppedSkills = [];
+  for (const sid of getClassInnateSkills(unit.className, skillsData)) {
+    const result = learnSkill(unit, sid);
+    if (result.learned) learnedSkills.push(sid);
+    else if (result.reason === 'at_cap') droppedSkills.push(sid);
+  }
+  if (classesData) learnedSkills.push(...checkLevelUpSkills(unit, classesData, droppedSkills));
+  return { learnedSkills, droppedSkills };
+}
+
 /**
  * Reclass a unit into a new class. Mutates unit in-place.
  * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
@@ -1250,13 +1278,7 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // Promoted classes in classes.json carry NO baseStats of their own — their
   // effective base is promotesFrom.baseStats + promotionBonuses. Without this,
   // a promoted-tier reclass computes a 0 delta for every stat (silent no-op).
-  const oldBase = getEffectiveBaseStats(oldClassData, classesData);
-  const newBase = getEffectiveBaseStats(newClassData, classesData);
-
-  for (const stat of [...XP_STAT_NAMES, 'MOV']) {
-    const delta = (newBase[stat] || 0) - (oldBase[stat] || 0);
-    unit.stats[stat] = Math.max(1, (unit.stats[stat] || 0) + delta);
-  }
+  Object.assign(unit.stats, getReclassStats(unit, newClassData, oldClassData, classesData));
 
   // Preserve HP ratio
   const newMaxHP = unit.stats.HP;
@@ -1303,16 +1325,8 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
     unit.weapon = getCombatWeapons(unit)[0] || null;
   }
 
-  // --- Skills (conservative: add new innates, don't remove old) ---
-  const newInnateSkills = getClassInnateSkills(newClassData.name, skillsData);
-  for (const sid of newInnateSkills) {
-    learnSkill(unit, sid); // respects MAX_SKILLS cap + dedup
-  }
-
-  // --- Check learnable skills at current level ---
-  if (classesData) {
-    checkLevelUpSkills(unit, classesData);
-  }
+  // Retain old skills, but report new grants blocked by the cap.
+  return applyReclassSkills(unit, classesData, skillsData);
 }
 
 // --- Weapon helpers ---

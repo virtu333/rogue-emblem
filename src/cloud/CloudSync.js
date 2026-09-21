@@ -1,3 +1,4 @@
+import { preserveCloudConflict } from '../engine/CloudSaveConflict.js';
 // CloudSync.js — Fire-and-forget cloud save/load via Supabase
 // All methods catch errors and console.warn — never throw.
 // Stores per-slot data as { "1": {...}, "2": {...}, "3": {...} } in a single Supabase row.
@@ -104,8 +105,10 @@ async function fetchTableRow(userId, table) {
   };
 }
 
-function applyRunSlots(runData) {
+function applyRunSlots(runData, metaData) {
   const runSlots = migrateCloudData(runData);
+  const metaSlots = migrateCloudData(metaData);
+  const skipped = new Set();
   for (let i = 1; i <= MAX_SLOTS; i++) {
     const key = getRunKey(i);
     const cloudSlot = runSlots[String(i)];
@@ -117,6 +120,7 @@ function applyRunSlots(runData) {
       try {
         localStorage.setItem(key, JSON.stringify(cloudSlot));
       } catch (e) {
+        skipped.add(i);
         console.warn('[CloudSync] localStorage write failed:', key, e);
       }
       continue;
@@ -126,6 +130,7 @@ function applyRunSlots(runData) {
       try {
         localStorage.setItem(key, JSON.stringify(cloudSlot));
       } catch (e) {
+        skipped.add(i);
         console.warn('[CloudSync] localStorage write failed:', key, e);
       }
       continue;
@@ -133,18 +138,26 @@ function applyRunSlots(runData) {
 
     const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot, i);
     if (!shouldKeepLocal) {
+      if (!preserveCloudConflict(i, localState.value, cloudSlot, metaSlots[String(i)] ?? null)) {
+        skipped.add(i);
+        console.warn('[CloudSync] kept local run because conflict backup could not be saved:', i);
+        continue;
+      }
       try {
         localStorage.setItem(key, JSON.stringify(cloudSlot));
       } catch (e) {
+        skipped.add(i);
         console.warn('[CloudSync] localStorage write failed:', key, e);
       }
     }
   }
+  return skipped;
 }
 
-function applyMetaSlots(metaData) {
+function applyMetaSlots(metaData, skipped = new Set()) {
   const metaSlots = migrateCloudData(metaData);
   for (let i = 1; i <= MAX_SLOTS; i++) {
+    if (skipped.has(i)) continue;
     const key = getMetaKey(i);
     const cloudSlot = metaSlots[String(i)];
     if (cloudSlot == null) continue;
@@ -188,15 +201,19 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     withTimeout(fetchTable(userId, TABLES.settings), timeoutMs),
   ]);
 
+  let skippedRunSlots = new Set();
   if (runRes.status === 'fulfilled') {
-    applyRunSlots(runRes.value);
+    // Apply run/progression as a fetched pair. A partial fetch must not mix
+    // another device's run with this device's progression. Settings are independent.
+    if (metaRes.status === 'fulfilled')
+      skippedRunSlots = applyRunSlots(runRes.value, metaRes.value);
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
     reportCloudFailure('cloud_fetch_table', runRes.reason, { table: TABLES.run });
   }
 
   if (metaRes.status === 'fulfilled') {
-    applyMetaSlots(metaRes.value);
+    if (runRes.status === 'fulfilled') applyMetaSlots(metaRes.value, skippedRunSlots);
   } else {
     console.warn('CloudSync fetch meta_progression:', metaRes.reason);
     reportCloudFailure('cloud_fetch_table', metaRes.reason, { table: TABLES.meta });
@@ -236,6 +253,7 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
     .catch(() => {})
     .then(async () => {
       await writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts);
+      return true;
     })
     .catch((e) => {
       const operation = slotData === null ? 'delete' : 'upsert';
@@ -252,7 +270,7 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
           localSavedAt: e?.localSavedAt ?? null,
           remoteSavedAt: e?.remoteSavedAt ?? null,
         });
-        return;
+        return false;
       }
       if (isFreshLocalBlockedError(e)) {
         reportCloudFailure(CLOUD_UPDATE_SLOT_FRESH_LOCAL_BLOCKED, e, {
@@ -261,7 +279,7 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
           operation,
           maxAttempts,
         });
-        return;
+        return false;
       }
       console.warn(`CloudSync updateSlot ${table}:`, e);
       reportCloudFailure('cloud_update_slot', e, {
@@ -270,11 +288,13 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
         operation,
         maxAttempts,
       });
+      return false;
     })
     .finally(() => {
       if (updateQueues.get(queueKey) === next) updateQueues.delete(queueKey);
     });
   updateQueues.set(queueKey, next);
+  return next;
 }
 
 export function pushRunSave(userId, slot, runData) {
@@ -442,6 +462,52 @@ export function pushAllLocalSlots(userId) {
     if (runState.exists && !runState.parseError && isCloudSlotPayload(runState.value)) {
       pushRunSave(userId, i, runState.value);
     }
+  }
+}
+
+/** Confirm the exact captured local batch was durably written before logout.
+ * Queue settlement and auth status alone do not imply successful network writes.
+ * Capture all payloads before scheduling any writes so failure/timeout leaves the
+ * caller's local recovery copy intact, and later unrelated writes cannot mask it.
+ */
+export async function backupAllLocalSlots(userId, { timeoutMs = FLUSH_QUEUE_TIMEOUT_MS } = {}) {
+  if (!supabase || !userId) return false;
+  const batch = [];
+  try {
+    for (let slot = 1; slot <= MAX_SLOTS; slot++) {
+      for (const [table, key] of [
+        [TABLES.meta, getMetaKey(slot)],
+        [TABLES.run, getRunKey(slot)],
+      ]) {
+        const raw = localStorage.getItem(key);
+        if (raw == null) continue;
+        const value = JSON.parse(raw);
+        if (!isCloudSlotPayload(value)) return false;
+        batch.push({ slot, table, value, key, raw });
+      }
+    }
+  } catch {
+    return false;
+  }
+  if (!batch.length) return true;
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.all(
+        batch.map(({ slot, table, value }) => updateSlotInTable(userId, table, slot, value)),
+      ).then(
+        (results) =>
+          results.every((result) => result === true) &&
+          batch.every(({ key, raw }) => localStorage.getItem(key) === raw),
+      ),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

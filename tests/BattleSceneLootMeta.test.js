@@ -665,9 +665,10 @@ describe('BattleScene loot meta wiring', () => {
 
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
-    expect(rowCalls).toHaveLength(4);
+    expect(rowCalls).toHaveLength(5);
+    expect(rowCalls.at(-1).label).toBe('Back');
     // All rows use fixed height (20px) with pointerdown (clickOnPointerUp disabled)
-    for (const row of rowCalls) {
+    for (const row of rowCalls.filter((row) => row.label !== 'Back')) {
       expect(row.options.hitHeight).toBe(20);
       expect(row.options.clickOnPointerUp).toBeFalsy();
       // Labels are name-only (no stat lines)

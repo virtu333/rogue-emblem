@@ -13,11 +13,19 @@ export class DangerZoneOverlay {
   show(dangerTiles) {
     this.hide();
     this.visible = true;
-    for (const { col, row } of dangerTiles) {
+    for (const { col, row, statusThreat, damageThreat } of dangerTiles) {
       const { x, y } = this.grid.gridToPixel(col, row);
       const rect = this.scene.add
-        .rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, 0xff8800, 0.25)
+        .rectangle(
+          x,
+          y,
+          TILE_SIZE - 1,
+          TILE_SIZE - 1,
+          0xff8800,
+          statusThreat && !damageThreat ? 0 : 0.25,
+        )
         .setDepth(4);
+      if (statusThreat) rect.setStrokeStyle(2, 0xb08bd6);
       this.tiles.push(rect);
     }
   }

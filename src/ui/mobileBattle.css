@@ -20,7 +20,7 @@
   display: none !important;
 }
 .mobile-battle-layout #mobile-left-panel {
-  width: 76px;
+  width: calc(76px + var(--re-safe-left, env(safe-area-inset-left, 0px)));
 }
 .mobile-battle-layout .mobile-btn {
   min-height: 48px;
@@ -81,10 +81,15 @@
   overflow-wrap: anywhere;
   -webkit-tap-highlight-color: transparent;
 }
+.mobile-battle-hud .mb-button:disabled {
+  color: var(--re-muted);
+  cursor: default;
+}
 .mb-button:active {
   background: var(--re-selected);
 }
-.mb-button:focus-visible {
+.mb-button:focus-visible,
+.mb-button.mb-menu-focused {
   outline: 3px solid var(--re-gold);
   outline-offset: -3px;
 }
@@ -296,4 +301,20 @@
   color: var(--re-gold-hi);
   border-bottom: 1px solid var(--re-line-soft);
   padding-bottom: 8px;
+}
+
+.battlefield-lab .mb-actions.mb-submenu {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mb-item-summary {
+  display: block;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 1.4;
+  white-space: pre-line;
+  margin-top: 4px;
+}
+
+.mb-objective {
+  white-space: pre-line;
 }

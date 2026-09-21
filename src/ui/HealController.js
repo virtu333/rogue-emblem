@@ -27,6 +27,21 @@ import { CombatFxController } from './CombatFxController.js';
 export class HealController {
   constructor(scene) {
     this.scene = scene;
+    this.previousCombatWeapons = new WeakMap();
+  }
+
+  rememberCombatWeapon(unit) {
+    if (unit.weapon && unit.weapon.type !== 'Staff' && canEquip(unit, unit.weapon))
+      this.previousCombatWeapons.set(unit, unit.weapon);
+  }
+
+  restoreCombatWeapon(unit) {
+    if (!unit) return;
+    const prior = this.previousCombatWeapons.get(unit);
+    this.previousCombatWeapons.delete(unit);
+    const weapons = Array.isArray(unit.inventory) ? getCombatWeapons(unit) : [];
+    const weapon = weapons.includes(prior) ? prior : weapons[0];
+    if (weapon) equipWeapon(unit, weapon);
   }
 
   getUsableStaves(unit) {
@@ -77,6 +92,7 @@ export class HealController {
     const scene = this.scene;
     // Auto-equip staff
     const staff = chosenStaff || scene.getActiveHealStaff(unit);
+    this.rememberCombatWeapon(unit);
     if (staff) equipWeapon(unit, staff);
     if (!staff) {
       scene.showActionMenu(unit);
@@ -167,9 +183,11 @@ export class HealController {
         async () => {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
+          this.rememberCombatWeapon(unit);
           equipWeapon(unit, staff);
           const healTargets = scene.findHealTargets(unit, staff);
           if (healTargets.length === 0) {
+            this.restoreCombatWeapon(unit);
             const message = isRelocateStaff(staff)
               ? 'No valid allies in range for that staff.'
               : 'No heal targets in range for that staff.';
@@ -184,9 +202,11 @@ export class HealController {
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
 
+      text._menuDescription = staff.special || staff.description;
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
+    scene._registerActionMenu();
   }
 
   handleHealTargetClick(gp) {
@@ -256,10 +276,7 @@ export class HealController {
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -321,10 +338,7 @@ export class HealController {
         await this.animateCure(target);
 
         spendStaffUse(staff);
-        if (getStaffRemainingUses(staff, healer) <= 0) {
-          const combatWpn = getCombatWeapons(healer)[0];
-          if (combatWpn) equipWeapon(healer, combatWpn);
-        }
+        this.restoreCombatWeapon(healer);
 
         try {
           await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -349,10 +363,7 @@ export class HealController {
 
       // Spend a use and check depletion
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -385,10 +396,7 @@ export class HealController {
 
       // Single use spent for all targets
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);

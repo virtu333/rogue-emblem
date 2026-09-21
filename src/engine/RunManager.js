@@ -1,3 +1,4 @@
+import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
 // No Phaser deps.
 
@@ -341,6 +342,8 @@ export class RunManager {
     this.actSequence = [...ACT_SEQUENCE];
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
+    this.lastBattleCasualtyNotices = [];
     this.endRunRewards = null;
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -465,6 +468,8 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
+    this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
@@ -2508,6 +2513,7 @@ export class RunManager {
     const isFirstBattle = this.completedBattles === 0;
     battleParams.fogEnabled = !isFirstBattle && Boolean(node.fogEnabled);
     battleParams.firstBattleFightersOnly = isFirstBattle;
+    battleParams.excludeOpeningCavaliers = restrictOpeningCavaliers(this);
     battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.enemyLevelBonus = this.getDifficultyModifier('enemyLevelBonus', 0);
@@ -2532,14 +2538,16 @@ export class RunManager {
 
   /** Merchant Caravan reward: set when a caravan survives a battle; consumed on next NodeMap entry. */
   getPendingCaravanShop() {
+    if (this.activeCaravanShop) return this.activeCaravanShop;
     return this.pendingCaravanShop && typeof this.pendingCaravanShop === 'object'
       ? this.pendingCaravanShop
       : null;
   }
 
   clearPendingCaravanShop() {
-    if (!this.pendingCaravanShop) return false;
+    if (!this.pendingCaravanShop && !this.activeCaravanShop) return false;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
     return true;
   }
 
@@ -2688,6 +2696,8 @@ export class RunManager {
 
     const inventory = Array.isArray(fallenUnit.inventory) ? fallenUnit.inventory : [];
     const consumables = Array.isArray(fallenUnit.consumables) ? fallenUnit.consumables : [];
+    const carriedCount = inventory.length + consumables.length;
+    const hadAccessory = Boolean(fallenUnit.accessory);
 
     // Handle corrupted legacy data where equipped weapon is absent from inventory
     // or represented by a deep-equal-but-different object reference.
@@ -2738,6 +2748,9 @@ export class RunManager {
     }
 
     relinkWeapon(fallenUnit);
+    const retained = [...fallenUnit.inventory, ...fallenUnit.consumables];
+    const moved = Math.max(0, carriedCount - retained.length);
+    fallenUnit._fallenItemsNotice = `${fallenUnit.name}: ${moved} item${moved === 1 ? '' : 's'} moved to convoy.${hadAccessory ? ' Accessory returned to the team pool.' : ''}${retained.length ? ` Convoy full: ${retained.map((item) => item.name).join(', ')} remain with this ally until revival.` : ''}`;
   }
 
   takeFromConvoy(type, index) {
@@ -2821,10 +2834,12 @@ export class RunManager {
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map((u) => u.name));
     const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
+    this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {
       if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
         const serializedFallen = serializeUnit(fallen);
         this._transferFallenUnitItems(serializedFallen);
+        this.lastBattleCasualtyNotices.push(serializedFallen._fallenItemsNotice);
         this.fallenUnits.push(serializedFallen);
         // Narrative memory: lords who fell in a battle that actually
         // completed (a reverted battle never reaches this point).
@@ -2975,6 +2990,7 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
     return { unlockedArtIds: unlockedNow, displacedSkills };
   }
 
@@ -3246,6 +3262,16 @@ export class RunManager {
     return { ...this.endRunRewards };
   }
 
+  previewEndRunRewards(result = 'defeat') {
+    if (this.endRunRewards) return { ...this.endRunRewards };
+    return calculateCurrencies(
+      this.actIndex,
+      this.completedBattles,
+      result === 'victory',
+      this.getDifficultyModifier('currencyMultiplier', 1) || 1,
+    );
+  }
+
   /** Serialize run state to a plain object for localStorage. */
   toJSON() {
     return {
@@ -3254,6 +3280,7 @@ export class RunManager {
       actIndex: this.actIndex,
       roster: this.roster,
       fallenUnits: this.fallenUnits,
+      lastBattleCasualtyNotices: this.lastBattleCasualtyNotices || [],
       nodeMap: this.nodeMap,
       currentNodeId: this.currentNodeId,
       completedBattles: this.completedBattles,
@@ -3290,6 +3317,7 @@ export class RunManager {
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
+      activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
@@ -3799,7 +3827,13 @@ export class RunManager {
       saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
         ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }
         : null;
+    rm.activeCaravanShop = saved.activeCaravanShop?.shopState
+      ? structuredClone(saved.activeCaravanShop)
+      : null;
     rm.endRunRewards = saved.endRunRewards || null;
+    rm.lastBattleCasualtyNotices = Array.isArray(saved.lastBattleCasualtyNotices)
+      ? saved.lastBattleCasualtyNotices
+      : [];
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)
       : [];

@@ -1,3 +1,6 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { ShopMenu } from './ShopMenu.js';
+import { saveServiceRun } from './serviceSave.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
 // ShopController -- shop node overlay flow extracted from NodeMapScene.
@@ -40,6 +43,7 @@ import {
   applyForge,
   isForged,
   getForgeCost,
+  forgeStatBlock,
   getStatForgeCount,
 } from '../engine/ForgeSystem.js';
 import { isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
@@ -119,6 +123,7 @@ export class ShopController {
       showMinorHint(scene, 'Blessing effect: first shop skipped.');
       scene.runManager.markNodeComplete(node.id);
       if (pendingAmbush) scene._clearPendingAmbushForNode?.(node);
+      this._persistVisit();
       scene.checkActComplete();
       return;
     }
@@ -127,7 +132,7 @@ export class ShopController {
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), scene, 300);
 
     const rm = scene.runManager;
-    const cachedShop = caravan ? null : rm.getShopState?.(node.id);
+    const cachedShop = caravan ? rm.activeCaravanShop?.shopState : rm.getShopState?.(node.id);
     const shopActId = caravan ? options?.caravanActId || rm.currentAct : rm.currentAct;
     let shopItems;
     if (cachedShop) {
@@ -164,6 +169,17 @@ export class ShopController {
       caravan,
       cachedShop,
     });
+    if (caravan) {
+      rm.activeCaravanShop = { actId: shopActId, shopState: null };
+      rm.pendingCaravanShop = null;
+    }
+    this._saveShopState();
+    this._persistVisit();
+  }
+
+  _persistVisit() {
+    const warning = saveServiceRun(this.scene);
+    if (warning) showMinorHint(this.scene, warning.trim());
   }
 
   applyDifficultyShopPricing(items) {
@@ -226,6 +242,17 @@ export class ShopController {
     scene._shopViewingMap = false;
     scene._currentShopHasAmbushDiscount =
       options?.ambushDiscount === true || options?.pendingAmbush === true;
+
+    scene.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
+    scene._shopOriginalSlotCount = cachedShop?.originalSlotCount || scene.shopBuyItems.length;
+    scene._shopNode = node;
+    scene.shopRerollCount = cachedShop?.rerollCount || 0;
+
+    if (hasDOMHost()) {
+      this.nativeMenu?.destroy();
+      this.nativeMenu = new ShopMenu(this);
+      return;
+    }
 
     // Tutorial hint for shop
     const hints = scene.registry.get('hints');
@@ -357,11 +384,6 @@ export class ShopController {
     this._styleMobileButton(shopRosterBtn, 310, 400, 110);
     scene.shopOverlay.push(shopRosterBtn);
 
-    scene.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
-    scene._shopOriginalSlotCount = cachedShop?.originalSlotCount || scene.shopBuyItems.length;
-    scene._shopNode = node;
-    scene.shopRerollCount = cachedShop?.rerollCount || 0;
-
     // Tab bar
     scene.drawShopTabs();
 
@@ -423,9 +445,9 @@ export class ShopController {
     if (isRuins) scene._saveShopState();
     scene.closeShopOverlay();
     if (isCaravan) {
-      // Not tied to a node -- just clear the reward flag. No markNodeComplete,
-      // no shop-state caching (one-time reward, never revisited).
+      // Closing is the durable end of this one-time reward visit.
       scene.runManager?.clearPendingCaravanShop?.();
+      this._persistVisit();
       return;
     }
     if (isRuins && node) {
@@ -436,11 +458,15 @@ export class ShopController {
       scene._clearPendingAmbushForNode?.(node);
       scene.runManager.markNodeComplete(node.id);
       scene.runManager?.clearShopState?.(node.id);
+      this._persistVisit();
       scene.checkActComplete();
     }
   }
 
   drawShopTabs() {
+    if (this.nativeMenu) {
+      return;
+    }
     const scene = this.scene;
     // Destroy old tab objects
     if (scene.shopTabObjects) scene.shopTabObjects.forEach((o) => o.destroy());
@@ -486,6 +512,9 @@ export class ShopController {
   }
 
   drawActiveTabContent() {
+    if (this.nativeMenu) {
+      return this.nativeMenu.render();
+    }
     const scene = this.scene;
     // Clear previous tab content + reset touch preview latch
     scene._touchPreviewedShopEntry = null;
@@ -898,15 +927,16 @@ export class ShopController {
         text.setColor(UI_PALETTE.accent);
         scene._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
       });
-      text.on('pointerout', () => {
+      text.on('pointerout', (pointer) => {
         text.setColor(color);
-        scene._hideShopItemTooltip();
+        if (!isTouchPointer(pointer)) scene._hideShopItemTooltip();
       });
       if (affordable) {
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
           if (isTouchPointer(pointer)) {
             scene._touchDownLatchKind = 'shop';
+            scene._touchTooltipPointer = pointer;
             scene._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
             // Record tap start for scroll-vs-tap validation on pointerup
             text._touchBuyStart = { x: pointer.x, y: pointer.y };
@@ -945,6 +975,7 @@ export class ShopController {
           if (isTouchPointer(pointer)) {
             scene._touchDownLatchKind = 'shop';
             scene._touchPreviewedShopEntry = null; // disarm buy latch on unaffordable tap
+            scene._touchTooltipPointer = pointer;
             scene._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
           }
         });
@@ -1406,9 +1437,12 @@ export class ShopController {
         wpnText.on('pointerover', () => {
           scene._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
         });
-        wpnText.on('pointerout', () => scene._hideForgeTooltip());
+        wpnText.on('pointerout', (pointer) => {
+          if (!isTouchPointer(pointer)) scene._hideForgeTooltip();
+        });
         wpnText.on('pointerdown', (pointer) => {
           if (isTouchPointer(pointer)) {
+            scene._touchTooltipPointer = pointer;
             scene._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
           }
         });
@@ -1507,9 +1541,12 @@ export class ShopController {
         wpnText.on('pointerover', () => {
           scene._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
         });
-        wpnText.on('pointerout', () => scene._hideForgeTooltip());
+        wpnText.on('pointerout', (pointer) => {
+          if (!isTouchPointer(pointer)) scene._hideForgeTooltip();
+        });
         wpnText.on('pointerdown', (pointer) => {
           if (isTouchPointer(pointer)) {
+            scene._touchTooltipPointer = pointer;
             scene._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
           }
         });
@@ -1772,7 +1809,8 @@ export class ShopController {
     for (let i = 0; i < stats.length; i++) {
       const stat = stats[i];
       const statCount = getStatForgeCount(weapon, stat.key);
-      const atStatCap = statCount >= FORGE_STAT_CAP;
+      const statBlock = forgeStatBlock(weapon, stat.key);
+      const atStatCap = !!statBlock;
       const baseCost = getForgeCost(weapon, stat.key);
       const cost = Math.max(1, Math.floor(baseCost * (1 - discount)));
       const affordable = cost > 0 && scene.runManager.gold >= cost;
@@ -1782,7 +1820,11 @@ export class ShopController {
       const affordableColor = scene._currentShopHasAmbushDiscount ? '#88ff88' : UI_PALETTE.text;
       const color = atStatCap ? UI_PALETTE.muted : affordable ? affordableColor : UI_PALETTE.muted;
 
-      const costLabel = atStatCap ? 'MAX' : `${cost}G`;
+      const costLabel = atStatCap
+        ? weapon.weight <= 0 && stat.key === 'weight'
+          ? 'Minimum weight'
+          : 'MAX'
+        : `${cost}G`;
       const btn = applyTextResolution(
         scene.add.text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
           fontFamily: 'Arial',
@@ -1938,17 +1980,24 @@ export class ShopController {
   _saveShopState() {
     const scene = this.scene;
     const node = scene._shopNode;
-    if (!node) return;
-    scene.runManager?.saveShopState?.(node.id, {
+    const state = {
       items: (scene.shopBuyItems || []).map(({ index, ...rest }) => rest),
       forgesUsed: scene.shopForgesUsed || 0,
       rerollCount: scene.shopRerollCount || 0,
       originalSlotCount: scene._shopOriginalSlotCount || 0,
       ambushDiscountActive: scene._currentShopHasAmbushDiscount || false,
-    });
+    };
+    if (scene._currentShopIsCaravan && scene.runManager.activeCaravanShop) {
+      scene.runManager.activeCaravanShop.shopState = state;
+    } else if (node) scene.runManager?.saveShopState?.(node.id, state);
   }
 
   refreshShop() {
+    if (this.nativeMenu) {
+      this.nativeMenu.render();
+      this._saveShopState();
+      return;
+    }
     const scene = this.scene;
     scene._touchPreviewedShopEntry = null;
     scene.shopGoldText.setText(`Gold: ${scene.runManager.gold}G`);
@@ -1982,89 +2031,96 @@ export class ShopController {
       rerollBtn.on('pointerout', () => rerollBtn.setColor(color));
       rerollBtn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
-        scene.runManager.spendGold(cost);
-        scene.shopRerollCount++;
-        const targetCount = Math.max(
-          0,
-          Number(scene._shopOriginalSlotCount) || scene.shopBuyItems.length || 0,
-        );
-        const currentItems = Array.isArray(scene.shopBuyItems) ? scene.shopBuyItems.slice() : [];
-        const hasPurchasedAny = currentItems.length < targetCount;
-        const baseItems = hasPurchasedAny ? currentItems : [];
-        const itemKey = (entry) =>
-          `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
-        const generatePricedItems = () => {
-          const generated = generateShopInventory(
-            scene.runManager.currentAct,
-            scene.gameData.lootTables,
-            scene.gameData.weapons,
-            scene.gameData.consumables,
-            scene.gameData.accessories,
-            scene.runManager.roster,
-            scene.runManager.getWeaponArtSpawnConfig(),
-            {
-              shopCureGating: scene.runManager.difficultyModifiers?.shopCureGating,
-            },
-          );
-          let priced = scene.applyDifficultyShopPricing(generated);
-          if (scene._currentShopIsRuins) {
-            priced = scene.applyRuinsMarkup(priced);
-          }
-          if (scene._currentShopHasAmbushDiscount) {
-            priced = scene.applyAmbushDiscount(priced);
-          }
-          return Array.isArray(priced) ? priced : [];
-        };
-
-        const fillToTarget = (items, preferUnique, fallbackSeedItems = []) => {
-          const result = items.slice(0, targetCount);
-          const deferred = [];
-          const seen = new Set(result.map((entry) => itemKey(entry)).filter(Boolean));
-          const uniquePasses = Math.max(4, targetCount * 4);
-          for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
-            const batch = generatePricedItems();
-            for (const entry of batch) {
-              if (result.length >= targetCount) break;
-              const key = itemKey(entry);
-              if (preferUnique && key && seen.has(key)) {
-                deferred.push(entry);
-                continue;
-              }
-              result.push(entry);
-              if (key) seen.add(key);
-            }
-          }
-          while (result.length < targetCount && deferred.length > 0) {
-            result.push(deferred.shift());
-          }
-          const fallbackPasses = Math.max(4, targetCount * 4);
-          for (let pass = 0; result.length < targetCount && pass < fallbackPasses; pass++) {
-            const batch = generatePricedItems();
-            for (const entry of batch) {
-              if (result.length >= targetCount) break;
-              result.push(entry);
-            }
-          }
-          if (result.length < targetCount) {
-            const seedSource = result.length > 0 ? result : fallbackSeedItems;
-            if (seedSource.length > 0) {
-              const seed = seedSource[0];
-              while (result.length < targetCount) {
-                result.push({ ...seed, item: seed?.item ? { ...seed.item } : seed.item });
-              }
-            }
-          }
-          return result.slice(0, targetCount);
-        };
-
-        const nextItems = fillToTarget(baseItems, hasPurchasedAny, currentItems);
-        scene.shopBuyItems = nextItems.map((entry, i) => ({ ...entry, index: i }));
-        const audio = scene.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        scene.refreshShop();
-        scene.showShopBanner('Shop restocked!', '#aaddff');
+        this.rerollShop();
       });
     }
+  }
+
+  rerollShop() {
+    const scene = this.scene;
+    const cost = SHOP_REROLL_COST + scene.shopRerollCount * SHOP_REROLL_ESCALATION;
+    if (!scene.runManager.spendGold(cost)) return false;
+    scene.shopRerollCount++;
+    const targetCount = Math.max(
+      0,
+      Number(scene._shopOriginalSlotCount) || scene.shopBuyItems.length || 0,
+    );
+    const currentItems = Array.isArray(scene.shopBuyItems) ? scene.shopBuyItems.slice() : [];
+    const hasPurchasedAny = currentItems.length < targetCount;
+    const baseItems = hasPurchasedAny ? currentItems : [];
+    const itemKey = (entry) =>
+      `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
+    const generatePricedItems = () => {
+      const generated = generateShopInventory(
+        scene.runManager.currentAct,
+        scene.gameData.lootTables,
+        scene.gameData.weapons,
+        scene.gameData.consumables,
+        scene.gameData.accessories,
+        scene.runManager.roster,
+        scene.runManager.getWeaponArtSpawnConfig(),
+        {
+          shopCureGating: scene.runManager.difficultyModifiers?.shopCureGating,
+        },
+      );
+      let priced = scene.applyDifficultyShopPricing(generated);
+      if (scene._currentShopIsRuins) {
+        priced = scene.applyRuinsMarkup(priced);
+      }
+      if (scene._currentShopHasAmbushDiscount) {
+        priced = scene.applyAmbushDiscount(priced);
+      }
+      return Array.isArray(priced) ? priced : [];
+    };
+
+    const fillToTarget = (items, preferUnique, fallbackSeedItems = []) => {
+      const result = items.slice(0, targetCount);
+      const deferred = [];
+      const seen = new Set(result.map((entry) => itemKey(entry)).filter(Boolean));
+      const uniquePasses = Math.max(4, targetCount * 4);
+      for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
+        const batch = generatePricedItems();
+        for (const entry of batch) {
+          if (result.length >= targetCount) break;
+          const key = itemKey(entry);
+          if (preferUnique && key && seen.has(key)) {
+            deferred.push(entry);
+            continue;
+          }
+          result.push(entry);
+          if (key) seen.add(key);
+        }
+      }
+      while (result.length < targetCount && deferred.length > 0) {
+        result.push(deferred.shift());
+      }
+      const fallbackPasses = Math.max(4, targetCount * 4);
+      for (let pass = 0; result.length < targetCount && pass < fallbackPasses; pass++) {
+        const batch = generatePricedItems();
+        for (const entry of batch) {
+          if (result.length >= targetCount) break;
+          result.push(entry);
+        }
+      }
+      if (result.length < targetCount) {
+        const seedSource = result.length > 0 ? result : fallbackSeedItems;
+        if (seedSource.length > 0) {
+          const seed = seedSource[0];
+          while (result.length < targetCount) {
+            result.push({ ...seed, item: seed?.item ? { ...seed.item } : seed.item });
+          }
+        }
+      }
+      return result.slice(0, targetCount);
+    };
+
+    const nextItems = fillToTarget(baseItems, hasPurchasedAny, currentItems);
+    scene.shopBuyItems = nextItems.map((entry, i) => ({ ...entry, index: i }));
+    const audio = scene.registry.get('audio');
+    if (audio) audio.playSFX('sfx_gold');
+    scene.refreshShop();
+    scene.showShopBanner('Shop restocked!', '#aaddff');
+    return true;
   }
 
   showUnitPicker(callback, pickerOptionsOrItem) {
@@ -2250,6 +2306,9 @@ export class ShopController {
   }
 
   showShopBanner(msg, color) {
+    if (this.nativeMenu) {
+      return this.nativeMenu.render(msg);
+    }
     const scene = this.scene;
     const banner = applyTextResolution(
       scene.add.text(320, scene.isMobileInput ? 365 : 400, msg, {
@@ -2304,6 +2363,8 @@ export class ShopController {
   }
 
   closeShopOverlay() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     const scene = this.scene;
     scene._shopViewingRoster = false;
     scene._touchPreviewedShopEntry = null;
@@ -2334,6 +2395,8 @@ export class ShopController {
     scene._currentShopIsCaravan = false;
   }
   destroy() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     // Release any input scopes still on the stack (scene shutdown with the shop
     // or a modal open) so they don't leak onto the next scene.
     if (this._forgePickerTeardown) {

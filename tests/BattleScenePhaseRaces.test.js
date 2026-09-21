@@ -28,7 +28,15 @@ vi.mock('../src/utils/errorReporter.js', () => ({
   reportAsyncError: reportAsyncErrorMock,
 }));
 
+vi.mock('../src/ui/LevelUpPopup.js', () => ({
+  LevelUpPopup: class {
+    async show() {}
+  },
+}));
+
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { showImportantHint } from '../src/ui/HintDisplay.js';
+import { TERRAIN } from '../src/utils/constants.js';
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -80,7 +88,7 @@ describe('player turn-start pipeline vs fast End Turn', () => {
     const pipeline = delayedCallbacks.find((entry) => entry.ms === 1200);
     expect(pipeline).toBeDefined();
 
-    // Player presses E during the banner delay: phase is now enemy.
+    // A forced phase replacement supersedes the queued callback.
     scene.turnManager.currentPhase = 'enemy';
     scene.battleState = 'ENEMY_PHASE';
     await pipeline.cb();
@@ -236,5 +244,160 @@ describe('checkBattleEnd idempotence', () => {
     expect(scene.checkBattleEnd()).toBe(true);
     expect(scene.showLordDeathVisionPrompt).toHaveBeenCalledTimes(1);
     expect(scene.onDefeat).not.toHaveBeenCalled();
+  });
+});
+
+describe('player turn-start input ownership', () => {
+  function readyScene() {
+    const setup = makePlayerPhaseScene();
+    setup.scene.turnManager = { currentPhase: 'player', turnNumber: 3, endPlayerPhase: vi.fn() };
+    setup.scene._captureSuspendCheckpoint = vi.fn();
+    return setup;
+  }
+  const pending = () => {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+
+  it('captures queued enemy-phase levels once before presenting them and never reseeds again on dismissal', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    scene.playerUnits = [{ name: 'Veteran', currentHP: 20, skills: [], stats: {} }];
+    scene._pendingLevelUpPopups = [{ unitName: 'Veteran', levelUp: {}, learnedNames: [] }];
+    scene._playLevelUpSfx = vi.fn();
+    scene._stopLevelUpSfx = vi.fn();
+    scene.updateHPBar = vi.fn();
+    scene.onPhaseChange('player', 3);
+    await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene._pendingLevelUpPopups).toEqual([]);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
+  it('blocks End Turn and selection through banner, healing and ballista, then unlocks once', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    const healing = pending();
+    const ballista = pending();
+    scene.processTurnStartEffects = vi.fn(() => healing.promise);
+    scene.processBallistaFire = vi.fn(() => ballista.promise);
+    scene.onPhaseChange('player', 3);
+    expect(scene.battleState).toBe('TURN_START_RESOLVING');
+    expect(scene.canForceEndTurn()).toBe(false);
+    scene.forceEndTurn();
+    scene.selectUnit({ name: 'Sera' });
+    expect(scene.selectedUnit).toBeUndefined();
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+    expect(scene.captureVisionSnapshot).not.toHaveBeenCalled();
+    expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+    const running = delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    await Promise.resolve();
+    scene.forceEndTurn();
+    expect(scene.canForceEndTurn()).toBe(false);
+    healing.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    scene.forceEndTurn();
+    expect(scene.canForceEndTurn()).toBe(false);
+    expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+    ballista.resolve();
+    await running;
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.canForceEndTurn()).toBe(true);
+    expect(scene.processTurnStartEffects).toHaveBeenCalledOnce();
+    expect(scene.processBallistaFire).toHaveBeenCalledOnce();
+    expect(scene.captureVisionSnapshot).toHaveBeenCalledOnce();
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledOnce();
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+  });
+
+  it.each(['defeat', 'rewind', 'shutdown', 'prompt'])(
+    'does not continue or unlock after %s during healing',
+    async (kind) => {
+      const { scene, delayedCallbacks } = readyScene();
+      const healing = pending();
+      scene.processTurnStartEffects = vi.fn(() => healing.promise);
+      scene.onPhaseChange('player', 3);
+      const running = delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+      await Promise.resolve();
+      if (kind === 'defeat') scene.battleState = 'BATTLE_END';
+      if (kind === 'rewind') {
+        scene._enemyPhaseEpoch = 1;
+        scene.battleState = 'PLAYER_IDLE';
+      }
+      if (kind === 'shutdown') scene.scene.isActive = () => false;
+      if (kind === 'prompt') {
+        scene.visionDialog = {};
+        scene.battleState = 'PAUSED';
+      }
+      const state = scene.battleState;
+      healing.resolve();
+      await running;
+      expect(scene.processBallistaFire).not.toHaveBeenCalled();
+      expect(scene.captureVisionSnapshot).not.toHaveBeenCalled();
+      expect(scene.battleState).toBe(state);
+      expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+      expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not restore idle or checkpoint when ballista ends the battle', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    scene.processBallistaFire = vi.fn(async () => {
+      scene.battleState = 'BATTLE_END';
+    });
+    scene.onPhaseChange('player', 3);
+    await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    expect(scene.battleState).toBe('BATTLE_END');
+    expect(scene.captureVisionSnapshot).not.toHaveBeenCalled();
+    expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
+  });
+
+  it('waits for effects before opening first-turn hints', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    scene.turnManager.turnNumber = 1;
+    scene.registry.get = () => ({ shouldShow: () => true });
+    const healing = pending();
+    scene.processTurnStartEffects = vi.fn(() => healing.promise);
+    scene.onPhaseChange('player', 1);
+    const running = delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    const hint = delayedCallbacks.find((entry) => entry.ms === 1500).cb();
+    await Promise.resolve();
+    expect(scene.battleState).toBe('TURN_START_RESOLVING');
+    expect(showImportantHint).not.toHaveBeenCalled();
+    healing.resolve();
+    await running;
+    await hint;
+    expect(showImportantHint).toHaveBeenCalledOnce();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
+  it('stops remaining terrain heals after an await invalidates the turn', async () => {
+    const { scene } = readyScene();
+    const units = [0, 1].map((col) => ({ col, row: 0, currentHP: 10, stats: { HP: 20 } }));
+    scene.grid.mapLayout = [[TERRAIN.Fort, TERRAIN.Fort]];
+    scene.updateHPBar = vi.fn();
+    let current = true;
+    scene.animateHeal = vi.fn(async () => {
+      current = false;
+    });
+    await scene.processTerrainHealing(units, () => current);
+    expect(units[0].currentHP).toBeGreaterThan(10);
+    expect(units[1].currentHP).toBe(10);
+    expect(scene.animateHeal).toHaveBeenCalledOnce();
+  });
+
+  it('reports an effect error and unlocks without capturing a partial-effects checkpoint', async () => {
+    const { scene, delayedCallbacks } = readyScene();
+    scene.processTurnStartEffects = vi.fn(async () => {
+      throw new Error('heal animation failed');
+    });
+    scene.showBriefBanner = vi.fn();
+    scene.onPhaseChange('player', 3);
+    await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.showBriefBanner).toHaveBeenCalled();
+    expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,10 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
     await expect(dialog.getByRole('button', { name: 'Back', exact: true })).toBeDisabled();
     await page.evaluate(() => window.finishReward());
     await expect(dialog.getByRole('button', { name: 'Choose reward', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Choose reward', exact: true })).toBeEnabled();
+    await expect(dialog.locator('button[aria-pressed="true"]')).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
     const result = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const inventory = s.runManager.roster[0].inventory;

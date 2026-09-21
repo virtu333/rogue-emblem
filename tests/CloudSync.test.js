@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getRunKey } from '../src/engine/SlotManager.js';
+import { getRunKey, getMetaKey } from '../src/engine/SlotManager.js';
 
 const store = {};
 const localStorageMock = {
@@ -108,6 +108,32 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[key])).toEqual(cloud);
   });
 
+  it('does not apply remote meta if the corresponding run write fails', async () => {
+    const runKey = getRunKey(1),
+      metaKey = getMetaKey(1);
+    const local = { savedAt: 100, gold: 9 },
+      cloud = { savedAt: 200, gold: 90 };
+    const meta = { savedAt: 100, totalValor: 5 };
+    store[runKey] = JSON.stringify(local);
+    store[metaKey] = JSON.stringify(meta);
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 200, totalValor: 50 } },
+    });
+    const implementation = localStorageMock.setItem.getMockImplementation();
+    localStorageMock.setItem.mockImplementation((key, value) => {
+      if (key === runKey) throw new Error('quota');
+      implementation(key, value);
+    });
+    try {
+      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+      expect(JSON.parse(store[runKey])).toEqual(local);
+      expect(JSON.parse(store[metaKey])).toEqual(meta);
+    } finally {
+      localStorageMock.setItem.mockImplementation(implementation);
+    }
+  });
+
   it('keeps local run slot when local timestamp is valid and cloud timestamp is missing', async () => {
     const key = getRunKey(1);
     const local = { marker: 'local-ts', savedAt: 200 };
@@ -179,6 +205,20 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[key])).toEqual(cloud);
   });
 
+  it('keeps the local run and progression together when the cloud progression fetch fails', async () => {
+    const local = { savedAt: 100, gold: 2 },
+      meta = { savedAt: 100, totalValor: 3 };
+    store[getRunKey(1)] = JSON.stringify(local);
+    store[getMetaKey(1)] = JSON.stringify(meta);
+    mocked.fromMock.mockImplementation((table) =>
+      table === 'meta_progression'
+        ? makeTableApi({ selectError: new Error('offline') })
+        : makeTableApi({ data: table === 'run_saves' ? { 1: { savedAt: 200, gold: 9 } } : null }),
+    );
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store[getRunKey(1)])).toEqual(local);
+    expect(JSON.parse(store[getMetaKey(1)])).toEqual(meta);
+  });
   it('heals malformed local run slot from cloud data', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };

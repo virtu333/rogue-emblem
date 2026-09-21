@@ -1,3 +1,4 @@
+import { createUnit } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
@@ -22,6 +23,7 @@ const DEV_PRESETS = new Set([
   'weapon_arts',
   'late_act',
   'battle_smoke',
+  'combat_actions',
   'soulreaver_mast',
 ]);
 const DEV_QA_SEQUENCE = [
@@ -158,7 +160,12 @@ function createRunPreset(gameData, meta, config) {
     meta?.getActiveEffects({
       weaponArtCatalog: gameData?.weaponArts?.arts || [],
     }) || null;
-  const runManager = new RunManager(gameData, metaEffects);
+  // The synthetic loadout must not depend on a player's saved lord selection.
+  const runEffects =
+    config.preset === 'combat_actions'
+      ? { ...metaEffects, startingLords: { commander: 'Edric', partner: 'Sera' } }
+      : metaEffects;
+  const runManager = new RunManager(gameData, runEffects);
   runManager.startRun({
     runSeed: Number.isFinite(config.seed) ? config.seed : Date.now(),
     difficultyId: config.difficultyId || 'normal',
@@ -213,6 +220,39 @@ function createRunPreset(gameData, meta, config) {
           Math.max(1, commander.currentHP || commander.stats.HP),
         );
       }
+    }
+  }
+
+  if (config.preset === 'combat_actions') {
+    runManager.advanceAct();
+    // Deliberately synthetic loadouts; real combat rules and costs still apply.
+    const item = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+    const edric = runManager.roster.find((u) => u.name === 'Edric');
+    edric.inventory = [item('Iron Sword')];
+    edric.weapon = edric.inventory[0];
+    edric.weapon.weaponArtIds = ['sword_wrath_strike', 'sword_dueling_blade'];
+    edric.currentHP = edric.stats.HP;
+    const sera = runManager.roster.find((u) => u.name === 'Sera');
+    sera.proficiencies = [
+      { type: 'Light', rank: 'Prof' },
+      { type: 'Staff', rank: 'Mast' },
+    ];
+    sera.inventory = ['Lightning', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map(item);
+    sera.weapon = sera.inventory[0];
+    for (const [name, className, skills] of [
+      ['Utility', 'Mage', ['blink', 'rally_cry_skill', 'healing_circle', 'ensnare']],
+      ['Support', 'Dancer', ['dance', 'shove', 'pull']],
+      ['Patient', 'Fighter', []],
+    ]) {
+      const unit = createUnit(
+        gameData.classes.find((c) => c.name === className),
+        1,
+        gameData.weapons,
+        { name },
+      );
+      unit.skills = skills;
+      if (name === 'Patient') unit.currentHP = Math.max(1, unit.stats.HP - 12);
+      runManager.roster.push(unit);
     }
   }
 
@@ -276,6 +316,9 @@ export function buildDevStartupRoute(gameData, registry, config) {
   if (config.sceneKey === 'Title') {
     return { key: 'Title', data: baseData };
   }
+
+  // QA encounters never belong to a real save slot.
+  if (config.preset === 'combat_actions') registry.set('activeSlot', null);
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 

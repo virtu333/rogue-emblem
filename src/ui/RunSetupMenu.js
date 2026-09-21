@@ -1,3 +1,4 @@
+import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 
@@ -13,19 +14,15 @@ export class RunSetupMenu {
     this.surface.header.lastChild.textContent = 'Back';
     this.surface.onKey = (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return false;
-      if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) {
-        this.navigate(['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1);
-        return true;
-      }
       if (kind !== 'blessing' && event.key.toLowerCase() === 'm') {
         scene._toggleMetaMode();
         return true;
       }
       return false;
     };
-    this.surface.onAction = (action, payload) => {
-      if (action === InputAction.NAVIGATE) {
-        this.navigate(payload?.dy || payload?.dx || 1);
+    this.surface.onAction = (action) => {
+      if (action === InputAction.DANGER && kind !== 'blessing' && !scene.isTransitioning) {
+        scene._toggleMetaMode();
         return true;
       }
       return false;
@@ -104,6 +101,7 @@ export class RunSetupMenu {
     }
     split.append(this.list, detail);
     const footer = element('footer', null, 're-footer');
+    appendDetailScrollControls(footer, detail);
     if (!blessing) {
       const meta = button(`Army upgrades: ${s._noMetaUpgrades ? 'Off' : 'On'}`, () =>
         s._toggleMetaMode(),

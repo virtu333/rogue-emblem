@@ -85,7 +85,7 @@ export class BootScene extends Phaser.Scene {
       }),
     ).setOrigin(0.5);
     const progressText = applyTextResolution(
-      this.add.text(320, 240, '0%', {
+      this.add.text(320, 240, 'Preparing downloads…', {
         fontFamily: 'Arial',
         fontSize: '12px',
         color: UI_PALETTE.muted,
@@ -98,13 +98,21 @@ export class BootScene extends Phaser.Scene {
       mobileSafeBoot: this._startupFlags.mobileSafeBoot,
     });
 
-    this.load.on('progress', (value) => {
+    const reportProgress = () => {
       this._lastPreloadProgressAt = performance.now();
-      progressText.setText(`${Math.round(value * 100)}%`);
-    });
+      this._destroyStallUi();
+      progressText.setText(
+        `${this.load.totalComplete || 0} / ${this.load.totalToLoad || 0} files ready`,
+      );
+    };
+    this.load.on('progress', reportProgress);
+    this.load.on('filecomplete', reportProgress);
     this.load.on('fileprogress', (file) => {
-      this._lastPreloadProgressAt = performance.now();
-      if (file?.key) statusText.setText(`Loading ${file.key}...`);
+      reportProgress();
+      if (file?.key)
+        statusText.setText(
+          `Downloading ${file.key}${Number.isFinite(file.percentComplete) ? ` (${Math.round(file.percentComplete * 100)}%)` : ''}…`,
+        );
     });
     this.load.on('loaderror', (file) => {
       if (file?.key) failedFiles.push(file.key);
@@ -507,12 +515,12 @@ export class BootScene extends Phaser.Scene {
 
   _installPreloadStallWatch() {
     this._clearPreloadStallWatch();
-    const stallAfterMs = this._startupFlags.mobileSafeBoot ? 9000 : 13000;
+    const stallAfterMs = 30000;
     this._preloadStallTimer = window.setInterval(() => {
       if (this._preloadComplete) return;
       const elapsed = performance.now() - this._lastPreloadProgressAt;
       if (elapsed < stallAfterMs) return;
-      this._clearPreloadStallWatch();
+      if (this._stallUi.length > 0) return;
       markStartup('boot_preload_stalled', { stalledMs: Math.round(elapsed) });
       this._showPreloadRecoveryUi();
     }, 1000);
@@ -545,7 +553,7 @@ export class BootScene extends Phaser.Scene {
   _showPreloadRecoveryUi() {
     if (this._stallUi.length > 0) return;
     const title = applyTextResolution(
-      this.add.text(320, 306, 'Loading is taking longer than expected.', {
+      this.add.text(320, 306, 'No download progress for 30 seconds. You can keep waiting.', {
         fontFamily: 'Arial',
         fontSize: '11px',
         color: '#ffcc88',

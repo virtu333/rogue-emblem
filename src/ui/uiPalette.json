@@ -20,5 +20,7 @@
   "dangerLine": "#c25a55",
   "hpHigh": "#7fc98c",
   "hpMedium": "#d8c471",
-  "hpLow": "#cf7d77"
+  "hpLow": "#cf7d77",
+  "rarityEpic": "#b08bd6",
+  "rarityLegend": "#d98b5a"
 }

@@ -87,7 +87,7 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Low sweep meant for wings, triple damage to fliers.",
+      "description": "Low sweep meant for wings; triples weapon might against fliers.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [
@@ -777,7 +777,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Overhead blow that splits plate, triple to armored.",
+      "description": "Overhead blow that splits plate; triples weapon might against armored foes.",
       "combatMods": {
         "effectiveness": {
           "moveTypes": [

@@ -113,7 +113,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   // Skip narrative/hint presentation so the test can deterministically reach combat.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-    s.requestCancel();
+    s.requestCancel({ allowPause: false });
   });
   await page.waitForTimeout(1000);
   await enterNode(page, 'battle');
@@ -130,6 +130,9 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
       await deploy.locator('.re-party-row[aria-pressed="false"]').first().tap();
     await confirm.tap();
   }
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
   // UI action follows the same selected-unit menu as a map tap; fixture skips pathfinding.
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -161,7 +164,8 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   if (itemName) {
     await page
       .getByRole('dialog', { name: 'Battle rewards' })
-      .getByRole('button', { name: itemName, exact: true })
+      .locator('.reward-card')
+      .filter({ has: page.getByText(itemName, { exact: true }) })
       .tap();
     await page.getByRole('button', { name: 'Choose reward', exact: true }).tap();
     await page
@@ -190,15 +194,11 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').isMobileInput),
   ).toBe(true);
-  await expect(page.locator('#mobile-left-panel [data-action=cancel]')).toBeVisible();
-  await expect(page.locator('#mobile-right-panel [data-action=roster]')).toBeVisible();
-  const tabSizes = await page.evaluate(() =>
-    window.__emblemRogueGame.scene
-      .getScene('NodeMap')
-      .shopTabObjects.map((tab) => ({ width: tab.width, height: tab.height })),
-  );
-  expect(tabSizes.length).toBeGreaterThan(0);
-  expect(tabSizes.every((tab) => tab.width === 140 && tab.height >= 44)).toBe(true);
+  await expect(page.locator('.shop-menu')).toBeVisible();
+  const tabSizes = await page
+    .locator('.shop-tabs button')
+    .evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().height));
+  expect(tabSizes.every((height) => height >= 44)).toBe(true);
   await page.screenshot({ path: 'test-results/mobile-loop-shop.png' });
   const entry = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
@@ -209,23 +209,18 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     return {
       name: e.item.name,
       price: e.price,
-      label: s.shopContentGroup.find((o) => o.type === 'Text' && o.text.startsWith(e.item.name))
-        ?.text,
     };
   });
   expect(entry).not.toBeNull();
-  await tapText(page, 'NodeMap', entry.label);
-  await tapText(page, 'NodeMap', entry.label);
-  await page.waitForFunction(
-    () => !!window.__emblemRogueGame.scene.getScene('NodeMap').unitPickerState,
-  );
-  const recipient = await page.evaluate(
-    () =>
-      window.__emblemRogueGame.scene
-        .getScene('NodeMap')
-        .unitPicker.find((o) => o._unitPickerIndex === 0)?.text,
-  );
-  await tapText(page, 'NodeMap', recipient);
+  await page
+    .locator('.shop-row')
+    .filter({ has: page.getByText(entry.name, { exact: true }) })
+    .tap();
+  await page.locator('.shop-commit button').tap();
+  await page
+    .getByRole('dialog', { name: `Give ${entry.name} to`, exact: true })
+    .getByRole('button', { name: 'Confirm', exact: true })
+    .tap();
   await expect
     .poll(() =>
       page.evaluate(
@@ -239,13 +234,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
       ),
     )
     .toBe(true);
-  const leave = await page.evaluate(
-    () =>
-      window.__emblemRogueGame.scene
-        .getScene('NodeMap')
-        .children.list.find((o) => o.type === 'Text' && o.visible && /Leave/.test(o.text))?.text,
-  );
-  await tapText(page, 'NodeMap', leave);
+  await page.locator('.shop-menu').getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const sheet = page.getByRole('dialog', { name: 'Manage roster' });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
@@ -287,13 +276,13 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     () => window.__emblemRogueGame.scene.getScene('SlotPicker').input.enabled,
   );
   await page.waitForTimeout(500);
-  await tapText(page, 'SlotPicker', '[ Select ]');
+  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
   await page.waitForTimeout(400);
   const suspended = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('SlotPicker');
-    return s.sys.isActive() && s.children.list.some((o) => o.text === '[ Resume Battle ]');
+    return s.sys.isActive() && !!s.nativeDialog;
   });
-  if (suspended) await tapText(page, 'SlotPicker', '[ Resume Battle ]');
+  if (suspended) await page.getByRole('button', { name: 'Resume Battle', exact: true }).tap();
   await page.waitForFunction(() => {
     const g = window.__emblemRogueGame;
     return g.scene.isActive('NodeMap') || g.scene.isActive('Battle');

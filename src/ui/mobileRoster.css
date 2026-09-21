@@ -378,3 +378,40 @@
     height: 74px;
   }
 }
+
+/* Shared choice previews keep the decision and its consequences together. */
+.re-choice-content {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.re-choice-preview {
+  border-left: 1px solid var(--re-line);
+  padding-left: 12px;
+  overflow-wrap: anywhere;
+}
+.re-choice-preview p {
+  white-space: pre-line;
+  margin: 0;
+}
+.re-choice-picker.has-preview .re-menu-body > small {
+  color: var(--re-muted);
+}
+@media (orientation: portrait) {
+  .re-choice-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(80px, 0.6fr) minmax(120px, 1fr);
+  }
+  .re-choice-preview {
+    border-left: 0;
+    border-top: 1px solid var(--re-line);
+    padding: 8px 0 0;
+  }
+}
+
+.re-choice-picker .re-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

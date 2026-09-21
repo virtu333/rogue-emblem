@@ -1787,3 +1787,97 @@ describe('NodeMap shop gamepad focus entries (real draw fns)', () => {
     expect(createdTexts.find((t) => t.text === 'Edric:')._shopFocusKey).toBeUndefined();
   });
 });
+
+describe('persistent touch details and service gesture ownership', () => {
+  const touch = () => ({ wasTouch: true, button: 0, x: 100, y: 100 });
+
+  it.each([9999, 0])('keeps shop details after lifting a finger (gold=%s)', (gold) => {
+    const entry = { type: 'weapon', price: 500, item: { name: 'Iron Sword' } };
+    const { scene, createdTexts } = makeBuyListScene({ gold, entry });
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+    const pointer = touch();
+    const row = createdTexts[0];
+    row.handlers.pointerdown(pointer);
+    row.handlers.pointerup?.(pointer);
+    row.handlers.pointerout(pointer);
+    expect(scene._showShopItemTooltip).toHaveBeenCalled();
+    expect(scene._hideShopItemTooltip).not.toHaveBeenCalled();
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    row.handlers.pointerout({ button: 0 });
+    expect(scene._hideShopItemTooltip).toHaveBeenCalledOnce();
+  });
+
+  it('keeps both roster and convoy forge details after touchend', () => {
+    const weapon = { name: 'Iron Sword', type: 'Sword', might: 5, price: 500 };
+    const { scene, createdTexts } = makeForgeListScene({
+      unit: { name: 'Edric', inventory: [weapon] },
+      convoy: { weapons: [{ ...weapon, name: 'Iron Lance' }], consumables: [] },
+    });
+    NodeMapScene.prototype.drawShopForgeList.call(scene);
+    scene._hideForgeTooltip.mockClear();
+    const rows = createdTexts.filter((obj) => obj.text?.includes('[0/'));
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      const pointer = touch();
+      row.handlers.pointerdown(pointer);
+      row.handlers.pointerout(pointer);
+    }
+    expect(scene._showForgeTooltip).toHaveBeenCalledTimes(2);
+    expect(scene._hideForgeTooltip).not.toHaveBeenCalled();
+  });
+
+  function boundScene() {
+    const scene = Object.create(NodeMapScene.prototype);
+    scene.input = { on: vi.fn(), off: vi.fn(), hitTestPointer: () => [] };
+    scene._tapMoveThreshold = 12;
+    scene.requestCancel = vi.fn();
+    scene._bindInputHandlers();
+    return scene;
+  }
+
+  it('consumes release owned by a control that destroyed itself on press', () => {
+    const scene = boundScene();
+    const pointer = touch();
+    // Phaser preserves the original hit list even after the object callback destroys it.
+    scene._onPointerDown(pointer, [{ active: false, visible: false }]);
+    scene._onPointerUp(pointer);
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+    expect(scene._pointerGesture).toBeNull();
+    const outside = touch();
+    scene._onPointerDown(outside, []);
+    scene._onPointerUp(outside);
+    expect(scene.requestCancel).toHaveBeenCalledWith({ allowPause: false });
+  });
+
+  it('dismisses a preview on the next outside tap without also closing the service', () => {
+    const scene = boundScene();
+    scene.shopItemTooltip = [{}];
+    scene._hideShopItemTooltip = vi.fn(() => {
+      scene.shopItemTooltip = null;
+    });
+    scene._hideForgeTooltip = vi.fn();
+    scene._touchPreviewedShopEntry = {};
+    const pointer = touch();
+    scene._onPointerDown(pointer, []);
+    scene._onPointerUp(pointer);
+    expect(scene._hideShopItemTooltip).toHaveBeenCalledOnce();
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+    const next = touch();
+    scene._onPointerDown(next, []);
+    scene._onPointerUp(next);
+    expect(scene.requestCancel).toHaveBeenCalledOnce();
+  });
+
+  it('does not immediately dismiss the preview created by that same touch', () => {
+    const scene = boundScene();
+    const pointer = touch();
+    scene.shopItemTooltip = [{}];
+    scene._touchTooltipPointer = pointer;
+    scene._hideShopItemTooltip = vi.fn();
+    scene._onPointerDown(pointer, [{}]);
+    scene._onPointerUp(pointer);
+    expect(scene._hideShopItemTooltip).not.toHaveBeenCalled();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+  });
+});

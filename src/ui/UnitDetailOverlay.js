@@ -1,3 +1,4 @@
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
@@ -89,16 +90,20 @@ export class UnitDetailOverlay {
 
   show(unit, terrain, gameData, rosterOptions) {
     if (this.visible) this.hide();
+    if (!canInspectUnit(this.scene?.grid, unit)) return;
     this.visible = true;
     this._bindSceneCleanup();
     if (gameData) this.gameData = gameData;
     this._activeTab = 'stats';
 
     // Store roster context (clamp index to valid range)
-    this._rosterUnits = rosterOptions?.rosterUnits || null;
+    this._rosterUnits =
+      rosterOptions?.rosterUnits?.filter((u) => canInspectUnit(this.scene?.grid, u)) || null;
     const len = this._rosterUnits?.length || 0;
     this._rosterIndex =
       len > 0 ? Math.max(0, Math.min(rosterOptions?.rosterIndex ?? 0, len - 1)) : 0;
+
+    if (this._rosterUnits?.includes(unit)) this._rosterIndex = this._rosterUnits.indexOf(unit);
 
     if (canShowMobileRoster(this.scene)) {
       this._unit = unit;

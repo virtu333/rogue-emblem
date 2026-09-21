@@ -9,6 +9,7 @@ import {
   reclassUnit,
   addToInventory,
   removeFromConsumables,
+  getCombatWeapons,
 } from './UnitManager.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
@@ -40,6 +41,34 @@ export function applyRosterClassChange(run, unit, item, target, gameData) {
     ? promote(unit, item, canonical, gameData)
     : reclass(unit, item, canonical, gameData);
 }
+// Shared with previews: return catalog entries only, without creating UIDs or
+// consuming RNG. Preserve the existing lord-specific starter-weapon rule.
+export function getClassChangeWeaponGrants(unit, oldTypes, gameData, promotion = false) {
+  const lordWeapons =
+    promotion && gameData.lords.find((l) => l.name === unit.name)?.promotionWeapons;
+  let types;
+  if (lordWeapons) {
+    const type = lordWeapons.match(/(\w+)/)?.[1];
+    const labels = {
+      Swords: 'Sword',
+      Lances: 'Lance',
+      Axes: 'Axe',
+      Bows: 'Bow',
+      Tomes: 'Tome',
+      Staves: 'Staff',
+      Light: 'Light',
+    };
+    types = [labels[type] || type];
+  } else types = unit.proficiencies.filter((p) => !oldTypes.has(p.type)).map((p) => p.type);
+  const names = new Set(unit.inventory.map((w) => w.name));
+  return types
+    .map((type) => gameData.weapons.find((w) => w.type === type && w.tier === 'Iron'))
+    .filter((w) => {
+      if (!w || names.has(w.name)) return false;
+      names.add(w.name);
+      return true;
+    });
+}
 function promote(unit, item, promotedClassData, gameData) {
   const notices = [];
   const lordData = gameData.lords.find((l) => l.name === unit.name);
@@ -57,34 +86,9 @@ function promote(unit, item, promotedClassData, gameData) {
 
   const promotionResult = promoteUnit(unit, promotedClassData, promotionBonuses, gameData.skills);
 
-  // Grant Iron weapons for new proficiency types
-  const lordPromoWeapons = lordData?.promotionWeapons;
-  if (lordPromoWeapons) {
-    const newType = lordPromoWeapons.match(/(\w+)/)?.[1];
-    const typeMap = {
-      Swords: 'Sword',
-      Lances: 'Lance',
-      Axes: 'Axe',
-      Bows: 'Bow',
-      Tomes: 'Tome',
-      Staves: 'Staff',
-      Light: 'Light',
-    };
-    const wpnType = typeMap[newType] || newType;
-    const newWeapon = gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
-    if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-      if (!addToInventory(unit, newWeapon))
-        notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
-    }
-  } else {
-    for (const prof of unit.proficiencies) {
-      if (oldTypes.has(prof.type)) continue;
-      const newWeapon = gameData.weapons.find((w) => w.type === prof.type && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        if (!addToInventory(unit, newWeapon))
-          notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
-      }
-    }
+  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
+    if (!addToInventory(unit, newWeapon))
+      notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
   }
 
   // Consume the Master Seal
@@ -102,21 +106,22 @@ function reclass(unit, sealItem, newClassData, gameData) {
   // Track old proficiency types to detect new ones
   const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
-  reclassUnit(unit, newClassData, oldClassData, gameData.classes, gameData.skills);
+  const result = reclassUnit(unit, newClassData, oldClassData, gameData.classes, gameData.skills);
 
-  // Grant Iron weapons for newly gained proficiency types
-  for (const prof of unit.proficiencies) {
-    if (oldTypes.has(prof.type)) continue;
-    const newWeapon = gameData.weapons.find((w) => w.type === prof.type && w.tier === 'Iron');
-    if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-      if (!addToInventory(unit, newWeapon))
-        notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
-    }
+  for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
+    if (!addToInventory(unit, newWeapon))
+      notices.push(`Bag full: ${newWeapon.name} could not be granted.`);
   }
+
+  // A new proficiency's starter weapon is granted after reclass invalidates
+  // the old equipment. Preserve valid equipment; repair only an empty slot.
+  if (!unit.weapon) unit.weapon = getCombatWeapons(unit)[0] || null;
+  if (!unit.weapon)
+    notices.push('No combat weapon equipped. Equip a compatible weapon before battle.');
 
   // Consume seal
   sealItem.uses = (sealItem.uses ?? 1) - 1;
   if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
 
-  return { ok: true, notices, droppedSkills: [] };
+  return { ok: true, notices, droppedSkills: result?.droppedSkills || [] };
 }

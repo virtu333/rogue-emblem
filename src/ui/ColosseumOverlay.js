@@ -1,3 +1,11 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { ArenaMenu } from './ArenaMenu.js';
+import { saveServiceRun } from './serviceSave.js';
+import { relinkWeapon } from '../engine/RunManager.js';
+import { MenuFocusController } from './MenuFocusController.js';
+import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
+import { InputAction } from '../utils/InputActions.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // ColosseumOverlay.js — Overlay UI for the Colosseum node (Arena + Mercenary Board)
 // Self-contained overlay class following RosterOverlay/PauseOverlay patterns.
@@ -15,7 +23,12 @@ import {
 } from '../engine/ColosseumEngine.js';
 import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
-import { gainExperience, getDisplayLevel, grantSecondaryWeapons } from '../engine/UnitManager.js';
+import {
+  gainExperience,
+  getDisplayLevel,
+  grantSecondaryWeapons,
+  checkLevelUpSkills,
+} from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { getTraitNames } from '../engine/TraitSystem.js';
@@ -99,6 +112,14 @@ export class ColosseumOverlay {
     this._onLeave = onLeave;
     this._node = node;
     this._actId = this.runManager.currentAct;
+    if (node?.colosseumState) {
+      const state = structuredClone(node.colosseumState);
+      this._fightsPerUnit = state.fightsPerUnit || {};
+      this._levelsGainedThisVisit = state.levelsGained || {};
+      this._mercCandidates = state.mercCandidates || null;
+      this._mercCandidates?.forEach((candidate) => relinkWeapon(candidate.unit));
+      this._mercHired = state.mercHired === true;
+    }
     this.visible = true;
     this._unitSelectPage = 0;
 
@@ -106,6 +127,11 @@ export class ColosseumOverlay {
     this._colosseumData = colosseumData;
     this._maxFights = getMaxFights(this._getDifficultyId(), colosseumData);
 
+    if (!hasDOMHost()) this._installInput();
+    else {
+      this._shutdown = () => this.hide();
+      this.scene.events.once('shutdown', this._shutdown);
+    }
     this._showMenu();
   }
 
@@ -114,6 +140,13 @@ export class ColosseumOverlay {
     if (!this.visible) return;
     this.visible = false;
     this._clearScreen();
+    this._menuFocus?.destroy();
+    this._menuFocus = null;
+    popInputScope(this);
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
+    this.scene.input?.keyboard?.off?.('keydown', this._keyHandler);
+    this.scene.events?.off?.('shutdown', this._shutdown);
   }
 
   /** Explicitly leave the colosseum (Leave button). Hides overlay and fires leave callback. */
@@ -126,7 +159,63 @@ export class ColosseumOverlay {
   // Screen management
   // ────────────────────────────────────────
 
+  _installInput() {
+    if (this._menuFocus) return;
+    this._menuFocus = new MenuFocusController(this.scene);
+    const cancel = () => {
+      // During fight resolution the list is empty; Back must not escape a
+      // partially applied arena result. Otherwise use the current page's exit.
+      const exit = (this._focusRows || []).find((row) =>
+        /Back|Withdraw|Cancel|Leave|Continue/.test(row.label),
+      );
+      exit?.onActivate();
+    };
+    pushInputScope(this, (action, payload) => {
+      if (action === InputAction.NAVIGATE) this._menuFocus.move(payload?.dy || payload?.dx || 1);
+      if (action === InputAction.CONFIRM) this._menuFocus.activate();
+      if (action === InputAction.CANCEL || action === InputAction.PAUSE) cancel();
+    });
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'colosseum',
+      onCancel: () => {
+        cancel();
+        return true;
+      },
+    });
+    this._keyHandler = (event) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        this._menuFocus.move(event.key === 'ArrowUp' ? -1 : 1);
+      } else if (event.key === 'Enter' && !event.repeat) {
+        event.preventDefault();
+        this._menuFocus.activate();
+      } else if (event.key === 'Escape' && !event.repeat) {
+        event.preventDefault();
+        cancel();
+      }
+    };
+    this.scene.input?.keyboard?.on?.('keydown', this._keyHandler);
+    this._shutdown = () => this.hide();
+    this.scene.events?.once?.('shutdown', this._shutdown);
+  }
+  _registerButton(button, label, color, callback) {
+    const rows = (this._focusRows ||= []);
+    rows.push({
+      button,
+      label,
+      color,
+      onActivate: () => {
+        if (this.visible && this._focusRows === rows) callback();
+      },
+    });
+    this._menuFocus?.setItems(rows);
+  }
   _clearScreen() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
+    this._menuFocus?.clear();
+    this._focusRows = [];
     for (const obj of this.objects) {
       if (obj && typeof obj.destroy === 'function') obj.destroy();
     }
@@ -134,6 +223,7 @@ export class ColosseumOverlay {
   }
 
   _addBg() {
+    if (hasDOMHost()) return;
     const bg = this.scene.add
       .rectangle(CX, CY, 640, 480, 0x000000, 0.9)
       .setDepth(BG_DEPTH)
@@ -142,6 +232,7 @@ export class ColosseumOverlay {
   }
 
   _addPanel() {
+    if (hasDOMHost()) return;
     const panel = this.scene.add
       .rectangle(CX, CY, PANEL_W, PANEL_H, UI_HEX.sunken, 0.95)
       .setDepth(PANEL_DEPTH)
@@ -151,6 +242,7 @@ export class ColosseumOverlay {
   }
 
   _addTitle(text) {
+    if (hasDOMHost()) return;
     const t = applyTextResolution(this.scene.add.text(CX, 50, text, TITLE_STYLE))
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
@@ -158,6 +250,7 @@ export class ColosseumOverlay {
   }
 
   _addGold() {
+    if (hasDOMHost()) return;
     const t = applyTextResolution(
       this.scene.add.text(CX, 75, `Gold: ${this.runManager.gold}G`, GOLD_STYLE),
     )
@@ -176,6 +269,7 @@ export class ColosseumOverlay {
       .on('pointerout', () => btn.setAlpha(1))
       .on('pointerdown', callback);
     this.objects.push(btn);
+    this._registerButton(btn, label, color, callback);
     return btn;
   }
 
@@ -185,6 +279,10 @@ export class ColosseumOverlay {
 
   _showMenu() {
     this._clearScreen();
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.menu(this);
+      return;
+    }
     this._addBg();
     this._addPanel();
     this._addTitle('Colosseum');
@@ -212,6 +310,10 @@ export class ColosseumOverlay {
 
   _showUnitSelect() {
     this._clearScreen();
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.units(this);
+      return;
+    }
     this._addBg();
     this._addPanel();
     this._addTitle('Arena — Select Fighter');
@@ -270,10 +372,12 @@ export class ColosseumOverlay {
           line.setInteractive({ useHandCursor: true });
           line.on('pointerover', () => line.setColor(UI_PALETTE.accent));
           line.on('pointerout', () => line.setColor(color));
-          line.on('pointerdown', () => {
+          const select = () => {
             this._selectedUnit = unit;
             this._showTierSelect();
-          });
+          };
+          line.on('pointerdown', select);
+          this._registerButton(line, unit.name, color, select);
         }
 
         y += lineH;
@@ -315,6 +419,10 @@ export class ColosseumOverlay {
 
   _showTierSelect(message = null) {
     this._clearScreen();
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.tiers(this, message);
+      return;
+    }
     this._addBg();
     this._addPanel();
     this._addTitle('Arena — Select Tier');
@@ -411,6 +519,8 @@ export class ColosseumOverlay {
   // ────────────────────────────────────────
 
   _generateAndShowForecast() {
+    this._settledResult = null;
+    this._fightResolved = false;
     const unit = this._selectedUnit;
     const tier = this._selectedTier;
     const colosseumData = this._colosseumData;
@@ -492,6 +602,11 @@ export class ColosseumOverlay {
       plainTerrain,
       { atkMods, defMods, imbuesData: this.gameData.imbues || null },
     );
+
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.forecast(this, forecast);
+      return;
+    }
 
     // Layout: two columns
     const leftX = 145;
@@ -575,6 +690,7 @@ export class ColosseumOverlay {
   // ────────────────────────────────────────
 
   _executeFight() {
+    if (this._fightResolved) return;
     const unit = this._selectedUnit;
     const challenger = this._challenger.unit;
     const tier = this._selectedTier;
@@ -583,6 +699,8 @@ export class ColosseumOverlay {
       this._showTierSelect(`Not enough gold to enter (${tier.entryFee}G required).`);
       return;
     }
+    if (!canFight(unit, this._fightsPerUnit[unit.name] || 0, this._maxFights)) return;
+    this._fightResolved = true;
 
     const distance = getArenaDistance(unit.weapon, challenger.weapon);
     const plainTerrain = { avoidBonus: 0, defBonus: 0 };
@@ -651,6 +769,7 @@ export class ColosseumOverlay {
 
     // Track fights
     this._fightsPerUnit[unit.name] = (this._fightsPerUnit[unit.name] || 0) + 1;
+    this._settleFight(outcome, tier);
 
     // Show combat log with auto-advance
     this._showCombatLog(result.events, outcome, tier);
@@ -719,6 +838,11 @@ export class ColosseumOverlay {
       color: outcomeColors[outcome],
     });
 
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.log(this, lines, outcome, tier);
+      return;
+    }
+
     // Render lines with staggered timing
     const startY = 95;
     const lineH = 18;
@@ -767,12 +891,8 @@ export class ColosseumOverlay {
   // SCREEN: Result
   // ────────────────────────────────────────
 
-  _showResult(outcome, tier) {
-    this._clearScreen();
-    this._addBg();
-    this._addPanel();
-    this._addTitle('Arena — Result');
-
+  _settleFight(outcome, tier) {
+    if (this._settledResult) return this._settledResult;
     const unit = this._selectedUnit;
     const challenger = this._challenger.unit;
     const colosseumData = this._colosseumData;
@@ -822,8 +942,27 @@ export class ColosseumOverlay {
           from: fromStr,
           to: toStr,
           ups: xpResult.levelUps,
+          learnedSkills: checkLevelUpSkills(unit, this.gameData.classes),
         };
       }
+    }
+
+    this._settledResult = { reward, levelUpInfo };
+    this._persistVisit();
+    return this._settledResult;
+  }
+
+  _showResult(outcome, tier) {
+    const { reward, levelUpInfo } = this._settleFight(outcome, tier);
+    const unit = this._selectedUnit;
+    const colosseumData = this._colosseumData;
+    this._clearScreen();
+    this._addBg();
+    this._addPanel();
+    this._addTitle('Arena — Result');
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
+      return;
     }
 
     // Display
@@ -1019,6 +1158,12 @@ export class ColosseumOverlay {
           }
         }
       }
+      this._persistVisit();
+    }
+
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.mercs(this);
+      return;
     }
 
     const candidates = this._mercCandidates;
@@ -1161,6 +1306,11 @@ export class ColosseumOverlay {
     this._addTitle('Hire Mercenary?');
     this._addGold();
 
+    if (hasDOMHost()) {
+      this.nativeMenu = ArenaMenu.hire(this, candidateIdx);
+      return;
+    }
+
     const { unit, hireCost } = this._mercCandidates[candidateIdx];
 
     let y = 120;
@@ -1255,6 +1405,7 @@ export class ColosseumOverlay {
     // Mark as hired
     unit._hired = true;
     this._mercHired = true;
+    this._persistVisit();
 
     // Show updated browse screen
     this._showMercBrowse();
@@ -1278,6 +1429,17 @@ export class ColosseumOverlay {
       return this.runManager.getRosterCap();
     }
     return ROSTER_CAP + (this.runManager?.metaEffects?.rosterCapBonus || 0);
+  }
+
+  _persistVisit() {
+    if (this._node)
+      this._node.colosseumState = structuredClone({
+        fightsPerUnit: this._fightsPerUnit,
+        levelsGained: this._levelsGainedThisVisit,
+        mercCandidates: this._mercCandidates,
+        mercHired: this._mercHired,
+      });
+    this._saveWarning = saveServiceRun(this.scene);
   }
 
   _getLordLevel() {

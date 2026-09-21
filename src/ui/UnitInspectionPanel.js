@@ -1,6 +1,11 @@
 // UnitInspectionPanel.js — Minimal tooltip shown on right-click
 // Shows unit name + "View Unit [V]" near the unit. Click or V opens full detail overlay.
 
+import {
+  canInspectUnit,
+  statusDescriptions,
+  statusStaffInfo,
+} from '../engine/BattleInformation.js';
 import { UI_COLORS } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
 
@@ -16,6 +21,7 @@ export class UnitInspectionPanel {
 
   show(unit, terrain, gameData) {
     this.hide();
+    if (!canInspectUnit(this.scene?.grid, unit)) return;
     this.visible = true;
     this._unit = unit;
     this._terrain = terrain;
@@ -33,8 +39,9 @@ export class UnitInspectionPanel {
     const viewH = cam?.height || 480;
     const pixelX = screenPos?.x ?? worldPos.x;
     const pixelY = screenPos?.y ?? worldPos.y;
-    const tooltipW = 120;
-    const tooltipH = 34;
+    const details = [...statusDescriptions(unit), statusStaffInfo(unit)?.text].filter(Boolean);
+    const tooltipW = details.length ? Math.min(260, viewW - 8) : 120;
+    const tooltipH = 34 + details.length * 40;
 
     let tx = pixelX + TILE_SIZE / 2 + 4; // right of unit
     let ty = pixelY - TILE_SIZE / 2 - 4;
@@ -77,6 +84,17 @@ export class UnitInspectionPanel {
       .setDepth(151);
     this.objects.push(hintText);
 
+    if (details.length)
+      this.objects.push(
+        this.scene.add
+          .text(tx + 6, ty + 32, details.join('\n'), {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: UI_COLORS.gray,
+            wordWrap: { width: tooltipW - 12 },
+          })
+          .setDepth(151),
+      );
     this.scene?._pinToScreen?.(this.objects);
   }
 

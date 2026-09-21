@@ -1,3 +1,5 @@
+import { bindCancelablePress } from './cancelablePress.js';
+import { isolateDOMInput } from './domInputBoundary.js';
 // MobileControls.js — HTML overlay virtual controls for mobile
 // Pure DOM, no Phaser imports. Communicates via game.events bridge.
 
@@ -35,6 +37,7 @@ const MAX_CONTEXT_STACK_DEPTH = 8;
 export class MobileControls {
   constructor(game) {
     this.game = game;
+    this._pressEpoch = 0;
     this._baseContext = 'none';
     this._currentContext = 'none';
     this._lastRenderedContext = null;
@@ -50,17 +53,23 @@ export class MobileControls {
     this._rightPanel = document.getElementById('mobile-right-panel');
     this._rotatePrompt = document.getElementById('rotate-prompt');
 
+    this._boundaryCleanups = [this._leftPanel, this._rightPanel, this._rotatePrompt]
+      .filter(Boolean)
+      .map((root) => isolateDOMInput(root, { keyboard: true }));
+
     // Wire left panel buttons (static — never change)
     this._wireLeftPanel();
 
     // Listen for context events from scenes
     this._onSetContext = (data) => {
+      this._pressEpoch++;
       if (data?.resetStack === true) this._contextStack = [];
       this._baseContext = this._normalizeContext(data?.context);
       this._currentContext = this._resolveCurrentContext();
       this._renderRightPanel();
     };
     this._onPushContext = (data) => {
+      this._pressEpoch++;
       // No same-context dedup: every push gets its own entry (keyed by the
       // caller's token when provided). Deduping silently dropped the second
       // of two stacked overlays sharing a context, so its later pop removed
@@ -72,6 +81,7 @@ export class MobileControls {
       this._renderRightPanel();
     };
     this._onPopContext = (data) => {
+      this._pressEpoch++;
       const token = data?.token;
       if (token != null) {
         // Token pop: remove that caller's entry wherever it sits; unknown
@@ -89,6 +99,7 @@ export class MobileControls {
       this._renderRightPanel();
     };
     this._onSetButtonVisible = (data) => {
+      this._pressEpoch++;
       const action = typeof data?.action === 'string' ? data.action : '';
       if (!action) return;
       const wasVisible = this._isButtonVisible(action);
@@ -106,18 +117,22 @@ export class MobileControls {
     game.events.on('mobile:popContext', this._onPopContext);
     game.events.on('mobile:setButtonVisible', this._onSetButtonVisible);
 
-    // Rotate prompt — request fullscreen + landscape lock on tap
-    if (this._rotatePrompt) {
-      this._onRotateTap = () => {
-        const doc = document.documentElement;
-        if (doc.requestFullscreen) {
-          doc
-            .requestFullscreen()
-            .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
-            .catch(() => {});
+    // Unsupported browsers show a plain rotation instruction, without a fake action.
+    this._rotateButton = document.getElementById('rotate-lock');
+    if (this._rotateButton) {
+      const supported =
+        typeof document.documentElement.requestFullscreen === 'function' &&
+        typeof globalThis.screen?.orientation?.lock === 'function';
+      this._rotateButton.hidden = !supported;
+      this._onRotateTap = async () => {
+        try {
+          await document.documentElement.requestFullscreen();
+          await screen.orientation.lock('landscape');
+        } catch {
+          this._rotateButton.hidden = true;
         }
       };
-      this._rotatePrompt.addEventListener('click', this._onRotateTap);
+      if (supported) this._rotateButton.addEventListener('click', this._onRotateTap);
     }
   }
 
@@ -155,7 +170,8 @@ export class MobileControls {
     this._lastRenderedContext = ctx;
 
     // Clear existing buttons
-    for (const { el } of this._rightButtons) {
+    for (const { el, cleanup } of this._rightButtons) {
+      cleanup?.();
       el.remove();
     }
     this._rightButtons = [];
@@ -167,7 +183,7 @@ export class MobileControls {
       if (!this._isButtonVisible(action)) continue;
       const btn = this._createButton(def, action);
       this._rightPanel.appendChild(btn);
-      this._rightButtons.push({ el: btn, action });
+      this._rightButtons.push({ el: btn, action, cleanup: btn._pressCleanup });
     }
   }
 
@@ -189,7 +205,10 @@ export class MobileControls {
     this._panelsShown = shouldShow;
     if (this._leftPanel) this._leftPanel.style.display = shouldShow ? 'flex' : 'none';
     if (this._rightPanel) this._rightPanel.style.display = shouldShow ? 'flex' : 'none';
-    if (changed) this.game.scale?.refresh?.();
+    if (changed) {
+      this._pressEpoch++;
+      this.game.scale?.refresh?.();
+    }
   }
 
   _isButtonVisible(action) {
@@ -222,7 +241,7 @@ export class MobileControls {
     label.textContent = def.label;
     btn.appendChild(label);
 
-    this._addTouchHandler(btn, () => {
+    btn._pressCleanup = this._addTouchHandler(btn, () => {
       this.game.events.emit(`mobile:${action}`);
     });
 
@@ -230,52 +249,14 @@ export class MobileControls {
   }
 
   _addTouchHandler(el, handler) {
-    // Use touchend for action (native button feel), prevent passthrough to canvas
-    let touchStarted = false;
-    let lastTouchTime = 0;
-
-    const onTouchStart = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      touchStarted = true;
-    };
-
-    const onTouchEnd = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (touchStarted) {
-        touchStarted = false;
-        lastTouchTime = Date.now();
-        handler();
-      }
-    };
-
-    const onTouchCancel = () => {
-      touchStarted = false;
-    };
-
-    // Also support mouse click for devtools testing
-    const onClick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      // Only fire if not already handled by touch (ghost-click guard: 400ms)
-      if (!touchStarted && Date.now() - lastTouchTime > 400) handler();
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: false });
-    el.addEventListener('touchcancel', onTouchCancel);
-    el.addEventListener('click', onClick);
-
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchCancel);
-      el.removeEventListener('click', onClick);
-    };
+    return bindCancelablePress(el, handler, {
+      enabled: () => this._isVisible && this._currentContext !== 'none',
+      context: () => this._pressEpoch,
+    });
   }
 
   destroy() {
+    for (const cleanup of this._boundaryCleanups) cleanup();
     this._isVisible = false;
     if (this.game?.events) {
       this.game.events.off('mobile:setContext', this._onSetContext);
@@ -286,8 +267,9 @@ export class MobileControls {
     for (const unlisten of this._leftPanelCleanups) unlisten();
     this._leftPanelCleanups = [];
     this._leftButtons.clear();
-    if (this._rotatePrompt && this._onRotateTap) {
-      this._rotatePrompt.removeEventListener('click', this._onRotateTap);
-    }
+    for (const { cleanup } of this._rightButtons) cleanup?.();
+    this._rightButtons = [];
+    if (this._rotateButton && this._onRotateTap)
+      this._rotateButton.removeEventListener('click', this._onRotateTap);
   }
 }

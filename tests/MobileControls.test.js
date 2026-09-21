@@ -593,10 +593,12 @@ describe('Overlay show/hide idempotency', () => {
 describe('Ghost-click double-fire prevention', () => {
   const originalDocument = globalThis.document;
   const originalScreen = globalThis.screen;
+  const originalComputedStyle = globalThis.getComputedStyle;
 
   afterEach(() => {
     globalThis.document = originalDocument;
     globalThis.screen = originalScreen;
+    globalThis.getComputedStyle = originalComputedStyle;
   });
 
   it('touch sequence (touchstart → touchend → click) fires handler exactly once', () => {
@@ -605,9 +607,17 @@ describe('Ghost-click double-fire prevention', () => {
     globalThis.document = documentMock;
     globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
 
+    globalThis.getComputedStyle = () => ({ visibility: 'visible' });
     const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_idle' });
     const cancelBtn = leftPanel.children.find((c) => c.dataset.action === 'cancel');
 
+    Object.assign(cancelBtn, {
+      isConnected: true,
+      closest: () => null,
+      getClientRects: () => [{}],
+    });
     let fireCount = 0;
     events.on('mobile:cancel', () => {
       fireCount++;

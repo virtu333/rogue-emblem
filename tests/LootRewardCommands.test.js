@@ -48,3 +48,16 @@ it('resolves imbues from the catalog and refuses repeat imbuing', () => {
   expect(weapon.name).toBe('Blessed Iron Sword');
   expect(applyRewardForge(run, data, stone, unit, weapon, 'test').ok).toBe(false);
 });
+
+it.each(['weight', 'choice'])(
+  'rejects a no-op %s reward without mutation and permits a different upgrade',
+  (forgeStat) => {
+    const { weapon, unit, run } = fixture();
+    weapon.weight = 0;
+    const before = JSON.stringify(run);
+    const result = applyRewardForge(run, {}, { forgeStat }, unit, weapon, 'weight');
+    expect(result).toEqual({ ok: false, reason: 'Already at minimum weight.' });
+    expect(JSON.stringify(run)).toBe(before);
+    expect(applyRewardForge(run, {}, { forgeStat: 'choice' }, unit, weapon, 'might').ok).toBe(true);
+  },
+);

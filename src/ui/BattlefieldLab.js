@@ -1,3 +1,4 @@
+import { battleContrastEnabled, softenGrassTexture } from './BattleContrast.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';
@@ -120,6 +121,8 @@ export class BattlefieldLab {
         canvas.width = canvas.height = WEATHERED_TILE_SIZE;
         if (!drawWeatheredTile(canvas.getContext('2d'), art, at, col, row, { biome: grid.biome }))
           continue;
+        if (battleContrastEnabled() && at(col, row) === 'Plain')
+          softenGrassTexture(canvas.getContext('2d'), WEATHERED_TILE_SIZE);
         const key = `battle-lab-${col}-${row}`;
         textures.addCanvas(key, canvas);
         this.textureKeys.push(key);

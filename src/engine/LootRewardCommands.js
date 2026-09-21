@@ -1,5 +1,5 @@
 import { addToInventory, addToConsumables, canEquip, applyStatBoost } from './UnitManager.js';
-import { canForge, canForgeStat, applyForge } from './ForgeSystem.js';
+import { canForge, canForgeStat, forgeStatBlock, applyForge } from './ForgeSystem.js';
 import {
   canImbue,
   isImbueStone,
@@ -53,7 +53,13 @@ export function applyRewardForge(run, gameData, item, unit, weapon, selection) {
   if (!run.roster?.includes(unit) || !unit.inventory?.includes(weapon))
     return { ok: false, reason: 'Weapon is no longer carried by this unit.' };
   if (!rewardWeaponEligible(item, weapon))
-    return { ok: false, reason: 'This weapon can no longer receive this upgrade.' };
+    return {
+      ok: false,
+      reason:
+        !isImbueStone(item) && item.forgeStat !== 'choice'
+          ? forgeStatBlock(weapon, item.forgeStat)
+          : 'This weapon can no longer receive this upgrade.',
+    };
   let result;
   if (isImbueStone(item)) {
     const imbue =
@@ -63,8 +69,8 @@ export function applyRewardForge(run, gameData, item, unit, weapon, selection) {
     result = applyImbue(weapon, imbue);
   } else {
     const stat = item.forgeStat === 'choice' ? selection : item.forgeStat;
-    if (!REWARD_FORGE_STATS.some((entry) => entry.key === stat) || !canForgeStat(weapon, stat))
-      return { ok: false, reason: 'This forge stat is at its limit.' };
+    const reason = forgeStatBlock(weapon, stat);
+    if (reason) return { ok: false, reason };
     result = applyForge(weapon, stat);
   }
   return { ok: result.success, reason: result.success ? '' : 'Upgrade unavailable.' };

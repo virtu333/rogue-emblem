@@ -23,12 +23,14 @@ test('battle information replaces canvas labels and preserves terrain, par and r
 }) => {
   await battle(page);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
-  await page.evaluate(() => {
+  const terrainName = await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
-    b.infoText.setText('Floor | Move: 1\nIndoor tile');
+    b._mobileTerrainFocus = { col: b.playerUnits[0].col, row: b.playerUnits[0].row };
+    return b.grid.getTerrainAt(b._mobileTerrainFocus.col, b._mobileTerrainFocus.row).name;
   });
-  await hud.locator('summary').filter({ hasText: 'Battle info' }).tap();
-  await expect(hud.locator('pre')).toContainText('Indoor tile');
+  await expect(hud.locator('.mb-terrain')).toContainText(terrainName);
+  await expect(hud.locator('.mb-terrain')).toContainText('Avoid');
+  await hud.locator('summary').filter({ hasText: 'More' }).tap();
   await expect(hud.locator('.mb-objective')).not.toBeEmpty();
   expect(
     await page.evaluate(() => {
@@ -39,7 +41,7 @@ test('battle information replaces canvas labels and preserves terrain, par and r
     }),
   ).toBe(true);
   await page.screenshot({ path: 'test-results/mobile-battle-info.png' });
-  await hud.locator('summary').filter({ hasText: 'Battle info' }).tap();
+  await hud.locator('summary').filter({ hasText: 'More' }).tap();
   expect(
     await hud.locator('.mb-command-grid .mb-button').evaluateAll((buttons) =>
       buttons.every((button) => {
@@ -54,7 +56,10 @@ test('pause is scrollable, child settings return correctly, and resume releases 
   page,
 }) => {
   await battle(page);
-  await page.locator('#mobile-left-panel').getByRole('button', { name: /Menu/ }).tap();
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Menu', exact: true })
+    .tap();
   const pause = page.getByRole('dialog', { name: 'Paused' });
   await expect(pause).toBeVisible();
   expect(
@@ -80,7 +85,10 @@ test('abandon retains confirmation and invokes the existing callback only once',
   page,
 }) => {
   await battle(page);
-  await page.locator('#mobile-left-panel').getByRole('button', { name: /Menu/ }).tap();
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Menu', exact: true })
+    .tap();
   await page.evaluate(() => {
     const b = window.__emblemRogueGame.scene.getScene('Battle');
     window.__testAbandons = 0;
@@ -91,10 +99,12 @@ test('abandon retains confirmation and invokes the existing callback only once',
   const pause = page.getByRole('dialog', { name: 'Paused' });
   await pause.getByRole('button', { name: 'Abandon Run', exact: true }).tap();
   await expect(pause.getByText('Abandon this run?', { exact: false })).toBeVisible();
+  await expect(pause.getByRole('button').first()).toHaveText('Cancel');
+  await expect(pause.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await pause.getByRole('button', { name: 'Cancel', exact: true }).tap();
   expect(await page.evaluate(() => window.__testAbandons)).toBe(0);
   await pause.getByRole('button', { name: 'Abandon Run', exact: true }).tap();
-  await pause.getByRole('button', { name: 'Yes', exact: true }).tap();
+  await pause.getByRole('button', { name: 'Abandon run', exact: true }).tap();
   await expect(pause).toHaveCount(0);
   expect(await page.evaluate(() => window.__testAbandons)).toBe(1);
 });
@@ -103,7 +113,10 @@ test('save-exit confirmation cancels safely and hands off once without resuming'
   page,
 }) => {
   await battle(page);
-  await page.locator('#mobile-left-panel').getByRole('button', { name: /Menu/ }).tap();
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Menu', exact: true })
+    .tap();
   await page.evaluate(() => {
     const o = window.__emblemRogueGame.scene.getScene('Battle').pauseOverlay;
     window.__testExit = { saved: 0, resumed: 0 };
@@ -117,10 +130,13 @@ test('save-exit confirmation cancels safely and hands off once without resuming'
   });
   const pause = page.getByRole('dialog', { name: 'Paused' });
   await pause.getByRole('button', { name: 'Save & Return to Title', exact: true }).tap();
+  await expect(pause).toContainText('Save and return to Title?');
+  await expect(pause.getByRole('button').first()).toHaveText('Cancel');
+  await expect(pause.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await pause.getByRole('button', { name: 'Cancel', exact: true }).tap();
   expect(await page.evaluate(() => window.__testExit)).toEqual({ saved: 0, resumed: 0 });
   await pause.getByRole('button', { name: 'Save & Return to Title', exact: true }).tap();
-  await pause.getByRole('button', { name: 'Yes', exact: true }).tap();
+  await pause.getByRole('button', { name: 'Save & return', exact: true }).tap();
   await expect(pause).toHaveCount(0);
   expect(await page.evaluate(() => window.__testExit)).toEqual({ saved: 1, resumed: 0 });
 });

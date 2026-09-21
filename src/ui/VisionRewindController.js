@@ -1,9 +1,12 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { MenuSurface, element, button } from './MenuSurface.js';
 // VisionRewindController — extracted from BattleScene (Chunk 4)
 // Manages vision rewind snapshots, dialog UI, charge tracking, and HUD display.
 // State properties (visionSnapshot, pendingVisionSnapshot, visionDialog, visionBaseSeed,
 // visionHudText) remain on BattleScene; controller accesses via this.scene.*.
 
-import { serializeUnit } from '../engine/RunManager.js';
+import { serializeUnit, relinkWeapon } from '../engine/RunManager.js';
+import { captureBattleWorldState, restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 
 /**
@@ -140,6 +143,7 @@ export class VisionRewindController {
         }
       : null;
     const snapshot = {
+      ...captureBattleWorldState(scene),
       playerUnits: scene.playerUnits.map(stripVisuals),
       enemyUnits: scene.enemyUnits.map(stripVisuals),
       npcUnits: scene.npcUnits.map(stripVisuals),
@@ -193,6 +197,7 @@ export class VisionRewindController {
       targetArr.length = 0;
       for (const unitData of sourceUnits) {
         const unit = structuredClone(unitData);
+        relinkWeapon(unit);
         targetArr.push(unit);
         scene.addUnitGraphic(unit);
         // Conditions rewind with the unit; rebuild their badges (mirrors
@@ -209,11 +214,17 @@ export class VisionRewindController {
     // Off-field escapees rewind too (a unit that escaped this turn returns to
     // the field via playerUnits above), along with the turn's earned gold.
     if (Array.isArray(scene.visionSnapshot.escapedUnits)) {
-      scene.escapedUnits = scene.visionSnapshot.escapedUnits.map((u) => structuredClone(u));
+      scene.escapedUnits = scene.visionSnapshot.escapedUnits.map((data) => {
+        const unit = structuredClone(data);
+        relinkWeapon(unit);
+        return unit;
+      });
     }
     if (Number.isFinite(scene.visionSnapshot.goldEarned)) {
       scene.goldEarned = scene.visionSnapshot.goldEarned;
     }
+
+    restoreBattleWorldState(scene, scene.visionSnapshot);
 
     scene.selectedUnit = null;
     scene.preMoveLoc = null;
@@ -419,6 +430,18 @@ export class VisionRewindController {
     if (scene.visionDialog) this.closeDialog();
     const prevState = scene.battleState;
     scene.battleState = 'PAUSED';
+    if (hasDOMHost()) {
+      scene.visionDialog = { group: [], prevState, onConfirm, onCancel };
+      const surface = new MenuSurface(scene, title, () => this.cancelDialog(), { modal: true });
+      scene.visionDialog.surface = surface;
+      surface.header.querySelector('button').textContent = cancelLabel;
+      surface.body.append(
+        element('p', body),
+        button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary'),
+      );
+      surface.focusContent();
+      return;
+    }
     const group = [];
     const cx = scene.cameras.main.centerX;
     const cy = scene.cameras.main.centerY;
@@ -506,6 +529,7 @@ export class VisionRewindController {
 
   closeDialog() {
     if (!this.scene.visionDialog) return;
+    this.scene.visionDialog.surface?.destroy();
     const prevState = this.scene.visionDialog.prevState || 'PLAYER_IDLE';
     for (const obj of this.scene.visionDialog.group) obj.destroy();
     this.scene.visionDialog = null;

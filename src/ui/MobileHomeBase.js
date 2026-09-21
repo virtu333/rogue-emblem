@@ -1,3 +1,5 @@
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { MobileUpgradeMenu } from './MobileUpgradeMenu.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -51,9 +53,11 @@ export class MobileHomeBase {
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Home base');
-    for (const name of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    this.root.tabIndex = -1;
+    for (const name of DOM_INPUT_EVENTS)
       this.root.addEventListener(name, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -89,7 +93,7 @@ export class MobileHomeBase {
   back({ allowExit = true } = {}) {
     if (this.tab !== 'lords') {
       this.tab = 'lords';
-      this.render();
+      this.render('lords');
     } else if (allowExit) void this.transition('Title');
     else return false;
     return true;
@@ -127,9 +131,10 @@ export class MobileHomeBase {
     if (file) img.src = `${import.meta.env.BASE_URL}assets/portraits/rebuilt/${file}`;
     return img;
   }
-  render() {
+  render(preferredFocus = null) {
     if (!this.visible) return;
-    const focus = document.activeElement?.dataset?.focus;
+    const ownedFocus = this.root.contains(document.activeElement);
+    const focus = preferredFocus || (ownedFocus ? document.activeElement?.dataset?.focus : null);
     const scroll = this.root.querySelector('.mu-list')?.scrollTop || 0;
     const selection = this.scene._getHealedLordSelection();
     const tier = this.meta.getCommanderChoiceTier();
@@ -252,7 +257,7 @@ export class MobileHomeBase {
         const remove = this.button(`Remove ${skill?.name || id}`, () => {
           this.meta.unassignSkill(name, id);
           this.message = 'Skill removed.';
-          this.render();
+          this.render(`skill-${id}`);
         });
         remove.dataset.focus = `remove-${id}`;
         copy.append(remove);
@@ -274,7 +279,7 @@ export class MobileHomeBase {
             this.message = ok
               ? `${skill?.name || id} assigned to ${name}.`
               : 'Unable to assign this skill.';
-            this.render();
+            this.render(ok ? `remove-${id}` : `skill-${id}`);
           },
           active,
         );
@@ -314,10 +319,15 @@ export class MobileHomeBase {
     this.root.append(status);
     list.scrollTop = scroll;
     if (this.pending) for (const b of this.root.querySelectorAll('button')) b.disabled = true;
-    if (focus)
-      [...this.root.querySelectorAll('button')]
-        .find((b) => b.dataset.focus === focus)
-        ?.focus({ preventScroll: true });
+    if (ownedFocus || preferredFocus) {
+      const buttons = [...this.root.querySelectorAll('button:not(:disabled)')];
+      const target =
+        buttons.find((b) => b.dataset.focus === focus) ||
+        buttons.find((b) => b.dataset.focus === this.tab) ||
+        buttons[0] ||
+        this.root;
+      target.focus({ preventScroll: true });
+    }
   }
   destroy() {
     this.hide();

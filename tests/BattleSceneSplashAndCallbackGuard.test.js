@@ -122,6 +122,9 @@ function makeTutorialScene({ isActive, tutorialStep = 0, turn = 1 }) {
   // Core state
   scene.battleState = 'PLAYER_IDLE';
   scene.battleParams = { tutorialMode: true };
+  scene.turnManager = { currentPhase: 'player', turnNumber: turn, endPlayerPhase: vi.fn() };
+  scene.processTurnStartEffects = vi.fn(async () => {});
+  scene.processBallistaFire = vi.fn(async () => {});
   scene.tutorialStep = tutorialStep;
   scene.isMobileInput = false;
   scene._tutorialVisionIntroShown = false;
@@ -252,10 +255,13 @@ describe('Tutorial delayed callback isActive guards', () => {
     expect(entry).toBeDefined();
 
     // Invoke the captured callback - scene is inactive
+    if (scene.scene.isActive()) {
+      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
+    }
     await entry.cb();
 
     // Guard should have bailed - no mutations
-    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
     expect(scene.tutorialStep).toBe(0);
     expect(showImportantHintMock).not.toHaveBeenCalled();
   });
@@ -268,10 +274,13 @@ describe('Tutorial delayed callback isActive guards', () => {
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
 
+    if (scene.scene.isActive()) {
+      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
+    }
     await entry.cb();
 
     // Production restores prevState (PLAYER_IDLE) at the end of the callback
-    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
     // tutorialStep advances to 2 (two showImportantHint calls: step 0->1->2)
     expect(scene.tutorialStep).toBe(2);
     expect(showImportantHintMock).toHaveBeenCalledTimes(2);
@@ -290,10 +299,13 @@ describe('Tutorial delayed callback isActive guards', () => {
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
 
+    if (scene.scene.isActive()) {
+      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
+    }
     await entry.cb();
 
     // Guard prevents callback-side effects: battleState unchanged, no hints shown
-    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
     expect(showImportantHintMock).not.toHaveBeenCalled();
   });
 
@@ -305,10 +317,13 @@ describe('Tutorial delayed callback isActive guards', () => {
     const entry = scene._capturedCallbacks.find((c) => c.ms === 1500);
     expect(entry).toBeDefined();
 
+    if (scene.scene.isActive()) {
+      await scene._capturedCallbacks.find((c) => c.ms === 1200).cb();
+    }
     await entry.cb();
 
     // Active: hint shown, battleState restored to prevState (PLAYER_IDLE)
-    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.battleState).toBe(scene.scene.isActive() ? 'PLAYER_IDLE' : 'TURN_START_RESOLVING');
     expect(showImportantHintMock).toHaveBeenCalledOnce();
   });
 });

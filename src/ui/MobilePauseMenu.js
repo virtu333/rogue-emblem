@@ -1,3 +1,5 @@
+import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
+import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 
@@ -11,9 +13,10 @@ export class MobilePauseMenu {
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Paused');
-    for (const type of ['pointerdown', 'pointerup', 'click', 'wheel'])
+    for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (e) => e.stopPropagation());
     this.root.addEventListener('keydown', (e) => {
+      if (ignoreRepeatedActivation(e)) return;
       e.stopPropagation();
       if (e.key === 'Escape') {
         e.preventDefault();

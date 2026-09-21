@@ -52,10 +52,14 @@ export class HelpOverlay {
         HELP_TABS,
         (tab) =>
           HELP_TABS[tab].pages.map((page) => ({
-            name: page.title,
-            lines: page.lines.map((line) => line.text),
+            name: inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+            lines: page.lines.map((line) =>
+              inputHint(this.scene, line.text, line.mobileText ?? line.text),
+            ),
+            tags: [...(HELP_TABS[tab].tags || []), ...(page.tags || [])],
           })),
         () => this.hide(),
+        { searchAllTabs: true },
       );
       return;
     }

@@ -1,3 +1,5 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { progressionResult } from './ProgressionMenus.js';
 import { inputHint } from '../utils/inputHint.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
@@ -40,6 +42,20 @@ export class LevelUpPopup {
   show() {
     return new Promise((resolve) => {
       this._resolve = resolve;
+      if (hasDOMHost()) {
+        this._onSceneShutdown = () => this.destroy();
+        this.scene.events?.once?.('shutdown', this._onSceneShutdown);
+        this.surface = progressionResult(
+          this.scene,
+          this.unit,
+          this.levelUpResult,
+          this.isPromotion,
+          this.learnedSkills,
+          this.growthBonuses,
+          () => this.destroy(),
+        );
+        return;
+      }
       const cam = this.scene.cameras.main;
       const cx = cam.width / 2;
       const cy = cam.height / 2;
@@ -203,6 +219,8 @@ export class LevelUpPopup {
   }
 
   destroy() {
+    this.surface?.destroy();
+    this.surface = null;
     if (this._onSceneShutdown) {
       this.scene?.events?.off?.('shutdown', this._onSceneShutdown);
       this._onSceneShutdown = null;

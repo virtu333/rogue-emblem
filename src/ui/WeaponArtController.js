@@ -1,3 +1,4 @@
+import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { TOOLTIP_HOVER_DELAY_MS, TOOLTIP_LONG_PRESS_MS } from '../utils/tooltipTiming.js';
 import {
@@ -143,13 +144,16 @@ export class WeaponArtController {
           hitWidth: menuWidth - 12,
           hitHeight: itemHeight,
           clickOnPointerUp: true,
+          disabled: !canUse,
         },
       );
+      text._menuDescription = formatWeaponArtEffects(art);
       this._wireWeaponArtTooltip(text, art);
 
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
+    scene._registerActionMenu();
   }
 
   _showWeaponArtTooltip(anchorText, art) {
@@ -550,14 +554,11 @@ export class WeaponArtController {
         weaponArtHpCostDelta: scene.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       });
     if (check?.ok === false || check?.canUse === false)
-      return this._weaponArtReasonLabel(check.reason);
+      return `${this._weaponArtReasonLabel(check.reason)} · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber)}`;
     const hpCostLabel = this._formatWeaponArtCostLabel(unit, art);
     const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
     const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
-    const { mapCount, turnCount } = this._getWeaponArtUsageCounts(unit, art);
-    const mapLimit = Number(art?.perMapLimit) > 0 ? `${mapCount}/${art.perMapLimit}` : '-';
-    const turnLimit = Number(art?.perTurnLimit) > 0 ? `${turnCount}/${art.perTurnLimit}` : '-';
-    return `HP-${hpCostLabel} (${hpNow}->${hpAfter})  Turn ${turnLimit}  Map ${mapLimit}`;
+    return `HP-${hpCostLabel} (${hpNow}->${hpAfter}) · ${weaponArtUsesText(unit, art, scene.turnManager?.turnNumber)}`;
   }
 
   destroy() {

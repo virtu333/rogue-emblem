@@ -1,3 +1,10 @@
+import {
+  getCloudSaveConflict,
+  resolveCloudSaveConflict,
+  describeSavedRun,
+} from '../engine/CloudSaveConflict.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { slotMenu, slotDialog } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SlotPickerScene — Save slot selection screen
 
@@ -43,14 +50,15 @@ export class SlotPickerScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.title, this, 300);
 
-    applyTextResolution(
-      this.add.text(cx, 40, 'SELECT SAVE SLOT', {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: UI_PALETTE.accent,
-        fontStyle: 'bold',
-      }),
-    ).setOrigin(0.5);
+    if (!hasDOMHost())
+      applyTextResolution(
+        this.add.text(cx, 40, 'SELECT SAVE SLOT', {
+          fontFamily: 'Arial',
+          fontSize: '24px',
+          color: UI_PALETTE.accent,
+          fontStyle: 'bold',
+        }),
+      ).setOrigin(0.5);
 
     this._onPointerDown = (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
@@ -58,6 +66,10 @@ export class SlotPickerScene extends Phaser.Scene {
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
 
     this.events.once('shutdown', () => {
+      this.slotMenu?.destroy();
+      this.slotMenu = null;
+      this.nativeDialog?.destroy();
+      this.nativeDialog = null;
       this.input?.keyboard?.off?.('keydown-ESC', this._onEsc);
       this.input?.off?.('pointerdown', this._onPointerDown);
       this.input?.off?.('pointerup', this._onPointerUp);
@@ -75,6 +87,11 @@ export class SlotPickerScene extends Phaser.Scene {
         this._dialogFocus = null;
       }
     });
+
+    if (hasDOMHost()) {
+      this.slotMenu = slotMenu(this);
+      return;
+    }
 
     this.input.keyboard.on('keydown-ESC', this._onEsc);
     this.input.on('pointerdown', this._onPointerDown);
@@ -198,6 +215,13 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   requestCancel({ allowExit = true } = {}) {
+    if (this.isTransitioning) return false;
+    if (this.nativeDialog) {
+      if (this.slotMenu) this.slotMenu.root.inert = false;
+      this.nativeDialog.destroy();
+      this.nativeDialog = null;
+      return true;
+    }
     if (this.confirmDialog) {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
@@ -218,6 +242,7 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   drawSlots() {
+    if (this.slotMenu) return this.slotMenu.render();
     // Clear previous slot cards if redrawing
     if (this.slotCards) this.slotCards.forEach((o) => o.destroy());
     this.slotCards = [];
@@ -261,10 +286,12 @@ export class SlotPickerScene extends Phaser.Scene {
 
     if (isEmpty) {
       const emptyText = applyTextResolution(
-        this.add.text(x, y, 'Empty', {
+        this.add.text(x, y, 'No save\nChoose New Game\nfrom Title', {
           fontFamily: 'Arial',
-          fontSize: '14px',
-          color: '#555555',
+          fontSize: '12px',
+          color: UI_PALETTE.muted,
+          align: 'center',
+          lineSpacing: 6,
         }),
       ).setOrigin(0.5);
       this.slotCards.push(emptyText);
@@ -369,8 +396,43 @@ export class SlotPickerScene extends Phaser.Scene {
       this._slotFocusEntries.push({ slot, summary, selectBtn, deleteBtn });
     }
   }
+  _showCloudChoice(slot, conflict) {
+    if (this.nativeDialog) return;
+    if (this.slotMenu) this.slotMenu.root.inert = true;
+    const choose = (version) => {
+      const result = resolveCloudSaveConflict(slot, version);
+      if (!result.ok) {
+        this.nativeDialog.body.append(document.createTextNode(result.reason));
+        return;
+      }
+      const cloud = this.registry.get('cloud');
+      if (version === 'local' && cloud) {
+        if (result.run) pushRunSave(cloud.userId, slot, result.run);
+        if (result.meta) pushMeta(cloud.userId, slot, result.meta);
+      }
+      this.requestCancel({ allowExit: false });
+      this.slotMenu?.render();
+      void this.selectSlot(slot, getSlotSummary(slot));
+    };
+    this.nativeDialog = slotDialog(
+      this,
+      'Choose save version',
+      `A newer cloud save differs from this device. Both versions were preserved for this choice.\n\nThis device: ${describeSavedRun(conflict.localRun)}\n\nCloud: ${describeSavedRun(conflict.cloudRun)}\n\nChoosing a version keeps that run and its progression; the other version will be discarded.`,
+      [
+        ['Decide later', () => this.requestCancel({ allowExit: false }), true],
+        ['Use this device save', () => choose('local')],
+        ['Use cloud save', () => choose('cloud')],
+      ],
+    );
+  }
+
   async selectSlot(slot, summary) {
     if (this.isTransitioning) return;
+    const conflict = getCloudSaveConflict(slot);
+    if (conflict && hasDOMHost()) {
+      this._showCloudChoice(slot, conflict);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
 
@@ -482,6 +544,20 @@ export class SlotPickerScene extends Phaser.Scene {
    * dismisses it back to the slot list.
    */
   _showSuspendedBattleChoice(slot, rm) {
+    if (hasDOMHost()) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        'Battle in progress',
+        'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
+        [
+          ['Resume Battle', () => this._continueSuspendedRun(slot, rm, 'battle'), true],
+          ['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')],
+        ],
+      );
+      return;
+    }
     if (this.confirmDialog) {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
@@ -582,6 +658,9 @@ export class SlotPickerScene extends Phaser.Scene {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
     }
+    if (this.slotMenu) this.slotMenu.root.inert = false;
+    this.nativeDialog?.destroy();
+    this.nativeDialog = null;
     try {
       await ensureAudioUnlocked(this);
       const audio = this.registry.get('audio');
@@ -659,6 +738,31 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   confirmDelete(slot) {
+    if (this.isTransitioning) return;
+    if (hasDOMHost()) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        `Delete Slot ${slot}?`,
+        'This deletes the run and all progress in this slot. This cannot be undone.',
+        [
+          ['Cancel', () => this.requestCancel({ allowExit: false }), true],
+          [
+            'Delete save',
+            () => {
+              if (!this.nativeDialog || this.nativeDialog.destroyed) return;
+              deleteSlot(slot);
+              const cloud = this.registry.get('cloud');
+              if (cloud) deleteSlotCloud(cloud.userId, slot);
+              this.requestCancel({ allowExit: false });
+              this.drawSlots();
+            },
+          ],
+        ],
+      );
+      return;
+    }
     // Show confirmation dialog
     if (this.confirmDialog) this.confirmDialog.forEach((o) => o.destroy());
     this.confirmDialog = [];

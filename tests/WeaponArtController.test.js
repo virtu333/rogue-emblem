@@ -60,6 +60,7 @@ function makeScene() {
     showActionMenu: vi.fn(),
     _clampMenuPosition: vi.fn((x, y) => ({ x, y })),
     _pinToScreen: vi.fn(),
+    _registerActionMenu: vi.fn(),
     _hideMenuTooltip: vi.fn(),
     _menuTooltipHoverTimer: null,
     _menuTooltipPressTimer: null,

@@ -1,9 +1,7 @@
 // E2E: gamepad-driven out-of-battle menu navigation (Phase 2 slice 2A).
 //
-// Proves the device-independent action bus reaches a NON-battle scene through the
-// LIFO input-focus stack and drives the SAME _navigate/_confirm/_back the keyboard
-// uses: DifficultySelect (horizontal cards) -> CONFIRM -> BlessingSelect (vertical
-// list) -> CANCEL -> back to DifficultySelect.
+// Proves the real simulated gamepad reader drives the shipping DOM menus and
+// scene transitions through the LIFO input-focus stack.
 
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
@@ -54,8 +52,21 @@ async function tap(page, index) {
   await page.waitForTimeout(80);
 }
 
-const sceneSelectedIndex = (page, key) =>
-  page.evaluate((k) => window.__emblemRogueGame?.scene?.getScene?.(k)?.selectedIndex, key);
+async function focusWithPad(page, control) {
+  for (let i = 0; i < 90; i++) {
+    if (await control.evaluate((el) => el === document.activeElement)) return;
+    await tap(page, BTN.DOWN);
+  }
+  throw new Error('Controller could not reach requested DOM control');
+}
+async function readyRoute(page) {
+  // Drive the real intro dialogue; force-hiding one line races its awaited next line.
+  for (let i = 0; i < 30; i++) {
+    if (await page.locator('.re-node-map').isVisible()) return;
+    await tap(page, BTN.CONFIRM);
+  }
+  await expect(page.locator('.re-node-map')).toBeVisible();
+}
 
 test.afterEach(async ({ page }, testInfo) => {
   await attachSceneCrashArtifacts(page, testInfo);
@@ -68,25 +79,29 @@ test.describe('Gamepad menu navigation', () => {
     await waitForScene(page, 'DifficultySelect');
     await installSimPad(page);
 
-    // Cards are a horizontal row: RIGHT advances selection, LEFT retreats.
-    expect(await sceneSelectedIndex(page, 'DifficultySelect')).toBe(0);
-    await tap(page, BTN.RIGHT);
-    expect(await sceneSelectedIndex(page, 'DifficultySelect')).toBe(1);
-    await tap(page, BTN.LEFT);
-    expect(await sceneSelectedIndex(page, 'DifficultySelect')).toBe(0); // back on Normal (unlocked)
-
-    // CONFIRM on Normal -> BlessingSelect.
+    const difficulty = page.getByRole('dialog', { name: 'Choose difficulty' });
+    const first = difficulty.locator('[data-focus="choice-0"]');
+    const second = difficulty.locator('[data-focus="choice-1"]');
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await focusWithPad(page, second);
+    await tap(page, BTN.CONFIRM);
+    await expect(second).toHaveAttribute('aria-pressed', 'true');
+    await focusWithPad(page, first);
+    await tap(page, BTN.CONFIRM);
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await focusWithPad(page, difficulty.getByRole('button', { name: 'Confirm', exact: true }));
     await tap(page, BTN.CONFIRM);
     await waitForScene(page, 'BlessingSelect');
-
-    // Blessings are a vertical list: DOWN advances selection.
-    expect(await sceneSelectedIndex(page, 'BlessingSelect')).toBe(0);
-    await tap(page, BTN.DOWN);
-    expect(await sceneSelectedIndex(page, 'BlessingSelect')).toBe(1);
-
-    // CANCEL (B) -> _back() returns to DifficultySelect (proves cancel routing).
+    const blessing = page.getByRole('dialog', { name: 'Choose a blessing' });
+    await focusWithPad(page, blessing.locator('[data-focus="choice-1"]'));
+    await tap(page, BTN.CONFIRM);
+    await expect(blessing.locator('[data-focus="choice-1"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await tap(page, BTN.CANCEL);
     await waitForScene(page, 'DifficultySelect');
+    await expect(difficulty).toBeVisible();
   });
 
   test('Title menu focus moves with the pad and CONFIRM activates a button', async ({ page }) => {
@@ -123,156 +138,99 @@ test.describe('Gamepad menu navigation', () => {
     );
   });
 
-  test('NodeMap cursor navigates available nodes and CONFIRM selects via onNodeClick', async ({
-    page,
-  }) => {
+  test('NodeMap: pad selects a DOM route node and Advance uses onNodeClick', async ({ page }) => {
     await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
-    // The cursor is built synchronously in create()/drawMap(); wait for it. (The
-    // isSceneReady flag is gated behind an awaited act-intro dialogue that needs
-    // clicks to advance — its gating is covered by unit tests, so we neutralize it
-    // below rather than drive the dialogue here.)
-    await page.waitForFunction(
-      () =>
-        (window.__emblemRogueGame.scene.getScene('NodeMap')?._nodeCursor?.nodes?.length || 0) > 0,
-      null,
-      { timeout: 12_000 },
-    );
     await installSimPad(page);
-
-    // Spy on onNodeClick so CONFIRM records the node WITHOUT launching a battle /
-    // overlay; dismiss the intro dialogue and open the input gate so the bus reaches
-    // the cursor.
+    await readyRoute(page);
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');
       window.__nodeClicks = [];
-      s.onNodeClick = (node) => window.__nodeClicks.push(node?.id);
-      if (s.dialogueOverlay?.hide) s.dialogueOverlay.hide();
-      s._storyDialogueActive = false;
-      s.isSceneReady = true;
+      s.onNodeClick = (node) => window.__nodeClicks.push(node.id);
     });
-
-    const cur = () =>
-      page.evaluate(() => {
-        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-        return { id: s._nodeCursor?.current()?.id, count: s._nodeCursor?.nodes?.length || 0 };
-      });
-
-    const before = await cur();
-    expect(before.count).toBeGreaterThan(0);
-
-    // If there's more than one choice, the cursor must move between them.
-    if (before.count > 1) {
-      await tap(page, BTN.RIGHT);
-      expect((await cur()).id).not.toBe(before.id);
-    }
-
-    const focusedId = (await cur()).id;
+    const route = page.locator('.re-node-map');
+    const choices = route.locator('button.re-node.is-available');
+    const target = choices.nth((await choices.count()) > 1 ? 1 : 0);
+    await focusWithPad(page, target);
     await tap(page, BTN.CONFIRM);
-    await page.waitForFunction(() => (window.__nodeClicks || []).length > 0, null, {
-      timeout: 8_000,
-    });
-    expect(await page.evaluate(() => window.__nodeClicks)).toContain(focusedId);
+    await expect(target).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => window.__nodeClicks)).toEqual([]);
+    const selected = await target.getAttribute('data-node');
+    await focusWithPad(page, route.getByRole('button', { name: 'Advance', exact: true }));
+    await tap(page, BTN.CONFIRM);
+    expect(await page.evaluate(() => window.__nodeClicks)).toEqual([selected]);
   });
 
-  test('HomeBase: pad navigates buttons, CONFIRM switches tab, L1/R1 cycle tabs', async ({
+  test('HomeBase: pad changes loadout tabs, visits upgrades and returns with B', async ({
     page,
   }) => {
     await page.goto('/?devScene=homebase&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'HomeBase');
-    await page.waitForFunction(
-      () =>
-        (window.__emblemRogueGame.scene.getScene('HomeBase')?._homeFocus?.objects?.length || 0) > 0,
-      null,
-      { timeout: 12_000 },
-    );
     await installSimPad(page);
-
-    const home = () =>
-      page.evaluate(() => {
-        const s = window.__emblemRogueGame.scene.getScene('HomeBase');
-        return { index: s._homeFocus?.index, tab: s.activeTab };
-      });
-
-    // Tabs are the first focusables (top row); index 0 = Recruits, 1 = Lords.
-    expect((await home()).index).toBe(0);
-    await tap(page, BTN.DOWN);
-    expect((await home()).index).toBe(1);
-
-    // CONFIRM on the Lords tab switches the active tab (proves activate->pointerdown).
+    const home = page.getByRole('dialog', { name: 'Home base', exact: true });
+    await expect(home.getByRole('button', { name: 'Upgrades', exact: true })).toBeFocused();
+    const skills = home.getByRole('button', { name: 'Starting skills', exact: true });
+    await focusWithPad(page, skills);
     await tap(page, BTN.CONFIRM);
-    await page.waitForFunction(
-      () => window.__emblemRogueGame.scene.getScene('HomeBase')?.activeTab === 'lord_bonuses',
-      null,
-      { timeout: 6_000 },
+    await expect(skills).toHaveAttribute('aria-pressed', 'true');
+    await tap(page, BTN.CANCEL);
+    await expect(home.getByRole('button', { name: 'Starting lords', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
-
-    // R1/L1 cycle tabs directly.
-    await tap(page, BTN.R1);
-    expect((await home()).tab).toBe('economy');
-    await tap(page, BTN.L1);
-    expect((await home()).tab).toBe('lord_bonuses');
+    await focusWithPad(page, home.getByRole('button', { name: 'Upgrades', exact: true }));
+    await tap(page, BTN.CONFIRM);
+    const upgrades = page.getByRole('dialog', { name: 'Army upgrades', exact: true });
+    const category = upgrades
+      .getByRole('navigation', { name: 'Upgrade categories' })
+      .getByRole('button', { name: 'Lords', exact: true });
+    await focusWithPad(page, category);
+    await tap(page, BTN.CONFIRM);
+    await expect(category).toHaveAttribute('aria-pressed', 'true');
+    await tap(page, BTN.CANCEL);
+    await expect(upgrades).toHaveCount(0);
+    await expect(home).toBeVisible();
   });
 
-  test('NodeMap: ROSTER opens the roster, the pad drives it, CANCEL closes it', async ({
-    page,
-  }) => {
+  test('NodeMap: ROSTER owns pad tabs and unit cycling, B restores route', async ({ page }) => {
     await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
-    await page.waitForFunction(
-      () =>
-        (window.__emblemRogueGame.scene.getScene('NodeMap')?._nodeCursor?.nodes?.length || 0) > 0,
-      null,
-      { timeout: 12_000 },
-    );
     await installSimPad(page);
-
-    // Open the input gate so the bus reaches the node-cursor scope (see the NodeMap
-    // cursor test above for why the intro dialogue is neutralized rather than driven).
-    await page.evaluate(() => {
-      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-      if (s.dialogueOverlay?.hide) s.dialogueOverlay.hide();
-      s._storyDialogueActive = false;
-      s.isSceneReady = true;
-    });
-
-    const roster = () =>
-      page.evaluate(() => {
-        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-        const r = s.rosterOverlay;
-        return {
-          open: Boolean(r?.visible),
-          selection: r?.selection,
-          slots: r?._detailSlots?.length ?? -1,
-          hasRing: Boolean(r?._rosterFocus),
-        };
-      });
-
-    // Y / north opens the roster, which claims the pad (its detail ring is built).
+    await readyRoute(page);
+    const routeSelection = await page
+      .locator('.re-node-map .re-node[aria-pressed="true"]')
+      .getAttribute('data-node');
     await tap(page, BTN.ROSTER);
-    await page.waitForFunction(
-      () => Boolean(window.__emblemRogueGame.scene.getScene('NodeMap')?.rosterOverlay?.visible),
-      null,
-      { timeout: 8_000 },
+    const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+    await expect(roster).toBeVisible();
+    const views = roster.getByRole('navigation', { name: 'Roster views' });
+    await expect(views.getByRole('button', { name: 'Stats', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
-    const opened = await roster();
-    expect(opened.selection).toEqual({ kind: 'unit', index: 0 });
-    expect(opened.hasRing).toBe(true);
-
-    // R1 cycles the selected unit/convoy off the first unit (wraps to convoy with a
-    // lone lord), proving the roster — not the node cursor — now owns the pad.
+    await tap(page, BTN.RIGHT);
+    await expect(views.getByRole('button', { name: 'Skills', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const units = roster.getByRole('navigation', { name: 'Units' }).getByRole('button');
     await tap(page, BTN.R1);
-    expect(JSON.stringify((await roster()).selection)).not.toBe(JSON.stringify(opened.selection));
-
-    // CANCEL (B) closes the roster and pops its scope (overlay is torn down -> null).
-    await tap(page, BTN.CANCEL);
-    await page.waitForFunction(
-      () => !window.__emblemRogueGame.scene.getScene('NodeMap')?.rosterOverlay,
-      null,
-      { timeout: 8_000 },
+    await expect(units.nth((await units.count()) > 1 ? 1 : 0)).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
+    await expect(views.getByRole('button', { name: 'Stats', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await tap(page, BTN.CANCEL);
+    await expect(roster).toHaveCount(0);
+    await expect(page.locator('.re-node-map')).toBeVisible();
+    expect(
+      await page.locator('.re-node-map .re-node[aria-pressed="true"]').getAttribute('data-node'),
+    ).toBe(routeSelection);
   });
 });

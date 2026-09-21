@@ -1,3 +1,4 @@
+import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
 
@@ -150,8 +151,12 @@ export function generateBattle(params, deps) {
   const basePool = enemies.pools[act];
   const filteredPool = {
     ...basePool,
-    base: filterClassPoolByDifficulty(basePool.base || [], diffMode),
-    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode),
+    base: filterClassPoolByDifficulty(basePool.base || [], diffMode).filter((name) =>
+      earlyEnemyAllowed(name, params),
+    ),
+    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode).filter((name) =>
+      earlyEnemyAllowed(name, params),
+    ),
   };
   const pool = firstBattleFightersOnly
     ? { ...filteredPool, base: ['Fighter'], promoted: [] }
@@ -189,7 +194,12 @@ export function generateBattle(params, deps) {
     enemyCount,
     objective,
     act,
-    enemies.bosses,
+    {
+      ...enemies.bosses,
+      [act]: (enemies.bosses[act] || []).filter((boss) =>
+        earlyEnemyAllowed(boss.className, params),
+      ),
+    },
     thronePos,
     adjustedLevelRange,
     classes,

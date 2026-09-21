@@ -33,6 +33,7 @@ export class BattleCameraController {
     this.onViewChanged = typeof options.onViewChanged === 'function' ? options.onViewChanged : null;
 
     this._touches = new Map();
+    this._pan = null;
     this._gestureActive = false;
     this._gestureStartDistance = 0;
     this._gestureStartZoom = this.minZoom;
@@ -60,6 +61,7 @@ export class BattleCameraController {
   clearTouches() {
     const hadTouches = this._touches.size > 0;
     this._touches.clear();
+    this._pan = null;
     this._gestureActive = false;
     this._gestureStartDistance = 0;
     this._pinchOutResetRequested = false;
@@ -190,9 +192,18 @@ export class BattleCameraController {
     if (!allowed) return { consumed: false, beganGesture: false, touchCount };
 
     if (this._touches.size >= 2) {
+      this._pan = null;
       this._beginGesture();
       return { consumed: true, beganGesture: true, touchCount };
     }
+    this._pan = {
+      id: pointer.id,
+      x: pointer.x,
+      y: pointer.y,
+      scrollX: this.camera.scrollX,
+      scrollY: this.camera.scrollY,
+      active: false,
+    };
     return { consumed: false, beganGesture: false, touchCount };
   }
 
@@ -207,6 +218,23 @@ export class BattleCameraController {
     if (this._gestureActive && this._touches.size < 2) {
       this._endGesture();
       return { consumed: true };
+    }
+    if (allowed && this._touches.size === 1 && this._pan?.id === pointer.id && pointer.isDown) {
+      const pan = this._pan;
+      const dx = pointer.x - pan.x,
+        dy = pointer.y - pan.y;
+      // Phaser coordinates scale with the canvas; keep the threshold close to
+      // ten physical CSS pixels on a small phone rather than one tiny map tile.
+      const canvas = pointer.manager?.game?.canvas;
+      const rect = canvas?.getBoundingClientRect?.();
+      const ratio = rect?.width && canvas.width ? canvas.width / rect.width : 1;
+      if (!pan.active && Math.hypot(dx, dy) > 10 * ratio) pan.active = true;
+      if (pan.active) {
+        this.camera.setScroll(pan.scrollX - dx / this.getZoom(), pan.scrollY - dy / this.getZoom());
+        this.clampToBounds();
+        this._emitViewChanged();
+        return { consumed: true };
+      }
     }
     if (!allowed || !this._gestureActive || this._touches.size < 2) return { consumed: false };
 
@@ -239,8 +267,11 @@ export class BattleCameraController {
 
   handlePointerUp(pointer) {
     if (!isTouchPointer(pointer)) return { consumed: false, endedGesture: false };
+    const panned = this._pan?.id === pointer.id && this._pan.active;
+    if (this._pan?.id === pointer.id) this._pan = null;
     this._touches.delete(pointer.id);
     this.pruneInactiveTouches(pointer);
+    if (panned) return { consumed: true, endedGesture: true };
     if (!this._gestureActive) return { consumed: false, endedGesture: false };
 
     if (this._touches.size < 2) {

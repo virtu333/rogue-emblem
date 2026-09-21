@@ -222,6 +222,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.dialogueOverlay = new DialogueOverlay(this);
     this._storyDialogueActive = false;
     this._touchTapDown = null;
+    this._pointerGesture = null;
+    this._touchTooltipPointer = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
     this._shopViewingMap = false;
@@ -249,7 +251,7 @@ export class NodeMapScene extends Phaser.Scene {
       showFirstRun: Boolean(this._isFirstRunFastPath && hints?.shouldShow('firstrun_onboarding')),
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
       showHpPersist: Boolean(
-        hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1,
+        this.runManager.completedBattles >= 1 && hints && !hints.hasSeen('nodemap_hp_persist'),
       ),
     };
   }
@@ -271,8 +273,11 @@ export class NodeMapScene extends Phaser.Scene {
       const handled = this.requestCancel();
       if (handled) consumeEscEvent(this, event);
     };
-    this._onPointerDown = (pointer) => {
+    this._onPointerDown = (pointer, gameObjects = []) => {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
+      // The original hit list survives a button hiding/destroying itself on down.
+      // Remember ownership until release instead of hit-testing replacement UI.
+      this._pointerGesture = { pointer, owned: gameObjects.length > 0 };
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
     };
@@ -515,8 +520,12 @@ export class NodeMapScene extends Phaser.Scene {
       }
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
     }
-    if (pending.showHpPersist && isSceneLifecycleActive(this, lifecycleGeneration)) {
-      void showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
+    if (
+      pending.showHpPersist &&
+      isSceneLifecycleActive(this, lifecycleGeneration) &&
+      this.registry.get('hints')?.shouldShow('nodemap_hp_persist')
+    ) {
+      void showMinorHint(this, 'HP carries between battles. Visit Church or Ruins nodes to heal.');
     }
   }
 
@@ -648,6 +657,9 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    const gesture = this._pointerGesture;
+    const owned = gesture?.pointer === pointer && gesture.owned;
+    this._pointerGesture = null;
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
       this._touchDownLatchKind = null;
       return;
@@ -669,12 +681,14 @@ export class NodeMapScene extends Phaser.Scene {
       this._churchMapViewSuppressCancel = false;
       return;
     }
-    if (this._isPointerOverInteractive(pointer)) return;
+    if (owned || this._isPointerOverInteractive(pointer)) return;
     this._clearTouchPreviewLatches();
     this.requestCancel({ allowPause: false });
   }
 
   onPointerUpOutside(_pointer) {
+    this._pointerGesture = null;
+    this._touchTooltipPointer = null;
     this._touchScrollDrag = null;
     this._touchTapDown = null;
     this._touchDownLatchKind = null;
@@ -685,6 +699,17 @@ export class NodeMapScene extends Phaser.Scene {
   onPointerDown(pointer) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     if (!isTouchPointer(pointer)) return;
+
+    // Touch previews persist after lift. The next unrelated tap dismisses the
+    // preview, and must not also close the service underneath it.
+    const previewTap = this._touchTooltipPointer === pointer;
+    this._touchTooltipPointer = null;
+    if (!previewTap && (this.shopItemTooltip || this.forgeTooltip)) {
+      this._hideShopItemTooltip?.();
+      this._hideForgeTooltip?.();
+      this._touchPreviewedShopEntry = null;
+      this._pointerGesture = { pointer, owned: true };
+    }
 
     // Kind-based latch clearing: game-object pointerdown fires BEFORE scene
     // pointerdown, so _touchDownLatchKind is set by node/shop handlers.
@@ -878,6 +903,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _setShopOverlayVisibility(visible) {
+    this._shopController?.nativeMenu?.setVisible(visible);
     this._setOverlayVisibility(this.shopOverlay, visible);
     this._setOverlayVisibility(this.shopContentGroup, visible);
     this._setOverlayVisibility(this.shopTabObjects, visible);
@@ -887,6 +913,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _setChurchOverlayVisibility(visible) {
+    this._churchController?.nativeMenu?.setVisible(visible);
     this._setOverlayVisibility(this.churchOverlay, visible);
     this._setOverlayVisibility(this.churchContentGroup, visible);
     this._churchController?._setChurchRingVisible?.(visible);
@@ -1051,7 +1078,7 @@ export class NodeMapScene extends Phaser.Scene {
       showMinorHint(
         this,
         result.isQuotaError
-          ? 'Save failed — storage full. Clear browser data to free space.'
+          ? 'Save failed — storage full. Free device space and retry; keep this app’s saved data.'
           : 'Save failed — storage may be unavailable',
       );
     }
@@ -1073,13 +1100,18 @@ export class NodeMapScene extends Phaser.Scene {
 
   showPauseMenu() {
     if (this.pauseOverlay?.visible) return;
+    const payout = this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
+      onAbandonWarning: payout
+        ? `Abandon this run?\nKeep ${payout.valor} Valor and ${payout.supply} Supply. This run and its gold, items and route progress will end.`
+        : null,
       onResume: () => {
         this.pauseOverlay = null;
       },
       onSaveAndExit: async () => {
         try {
-          // Run is already auto-saved on NodeMap entry. Just navigate.
+          // Persist the current map/service state, including an interrupted visit.
+          this.persistRunSave();
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
@@ -1127,6 +1159,7 @@ export class NodeMapScene extends Phaser.Scene {
             slot,
           );
           this.runManager.failRun();
+          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
@@ -1549,7 +1582,7 @@ export class NodeMapScene extends Phaser.Scene {
           showMinorHint(
             this,
             result.isQuotaError
-              ? 'Save failed — storage full. Clear browser data to free space.'
+              ? 'Save failed — storage full. Free device space and retry; keep this app’s saved data.'
               : 'Save failed — storage may be unavailable',
           );
         }
@@ -1910,6 +1943,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
     if (node) {
       this.runManager.markNodeComplete(node.id);
+      this.persistRunSave();
       this.checkActComplete();
     }
     this.drawMap();

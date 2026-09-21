@@ -1,5 +1,55 @@
 # Mobile beta release
 
+## Build 10 — September 20, 2026 — uploaded, distribution pending
+
+Version **0.1.0 (10)** archived at `/tmp/EmblemRogue-Beta-10.xcarchive`; bundle version verified. Upload succeeded at **18:09 Pacific** (`/tmp/build10-upload.log`, `EXPORT SUCCEEDED`). Apple reported the package processing. Browser App Store Connect session expired on the post-upload refresh, so **Public Playtest assignment and Testing status are not yet verified**. Build 9 remains the last confirmed distributed build. Next: sign back in, open build 10, set its What to Test text, add Public Playtest with automatic notifications, and verify Testing.
+
+Changes: both UX contract audits, including service/arena/caravan persistence, resolved combat/promotion presentation checkpoints, movement/Canto/rewind integrity, shared fog/status/danger rules, contextual management information, cancelable touch controls/panning, save identity/conflict recovery and verified logout backup. Arena now grants threshold skills before saving. New optional save fields are backward-compatible; no new remote telemetry. No GitHub commit/push.
+
+Verification: **5,291 unit tests**, **109 harness tests**, all PR simulation slices, **79 headed browser cases without retries**, production offline mobile smoke; formatting, lint (zero errors, 307 warnings), data/reference/theme parity, production build/Capacitor sync and Xcode archive passed. Independent reviewers found and helped fix cloud save-loss and sleeping-resume edge cases before packaging. Physical iOS behavior remains a tester priority.
+
+Reviewer note: `docs/ui-release-review-note.md`. Implementation/evidence: `docs/ux-contract-implementation.md`, `docs/ux-supplement-implementation.md`. Final browser artifacts: `/tmp/build10-final-browser`; tests log: `/tmp/build10-final-browser.log`. Tester notes ready at `/tmp/EmblemRogue-Build10-WhatToTest.txt`. Existing public link: https://testflight.apple.com/join/UeWBYA5n (new build availability pending).
+
+## Build 9 — September 20, 2026
+
+Version 0.1.0 (9) archived at `/tmp/EmblemRogue-Beta-9.xcarchive`; CFBundleVersion and bundle identity verified. Upload succeeded September 20, 2026 at 13:51 Pacific; App Store Connect reports **Testing**, assigned to **Public Playtest**, with automatic tester notifications enabled and 4 invitations. Build ID: `88b75d02-2753-4a7b-9858-d019ff3414ab`. Processing and external review completed. Public link: https://testflight.apple.com/join/UeWBYA5n Upload log: `/tmp/build9-upload.log`.
+
+Changes since build 8: prevent Compendium and other DOM menu taps from reaching covered game controls; isolate the full battle sidebar, compatibility rails and recovery UI; recover a canvas mouse press released over a menu; prevent held Confirm/Back from activating multiple layers; preserve focus when a picker choice becomes unavailable. No save schema or balance changes. No GitHub push.
+
+Verification: 5,201 unit tests; 109 harness tests; all PR simulation slices; data/reference/theme parity; production build and Capacitor sync; lint zero errors (existing warnings); 83 unique headed browser cases across the audit and corrected test reruns; production offline phone smoke passed. Physical iOS validation remains a tester priority.
+
+Tester notes: `/tmp/EmblemRogue-Build9-WhatToTest.txt`. Reviewer handoff: `docs/ui-release-review-note.md`. Detailed evidence: `docs/input-boundary-audit.md` and `docs/compendium-input-fix.md`.
+
+## Build 8 — September 20, 2026
+
+Version 0.1.0 (8) archived at `/tmp/EmblemRogue-Beta-8.xcarchive` with CFBundleVersion verified as 8. Upload succeeded September 20, 2026 at 12:42 Pacific (`/tmp/build8-upload.log`, `EXPORT SUCCEEDED`). Processing and external review completed. App Store Connect reports **Testing**, assigned to **Public Playtest**, with automatic tester notifications enabled. Build ID: `d4b93bb4-fceb-44b4-9d7d-3b29d4cffd72`. Public link: https://testflight.apple.com/join/UeWBYA5n
+
+Changes since build 7: one-tap mobile unit actions on all terrain; contextual combat action descriptions; combat-weapon restoration when staff targeting is cancelled; unavailable abilities remain visible with uses/reasons and a working Back action; approved option 1 contrast outlines across battle sprites, lighter spent-unit tint and quieter Plain terrain. The option 2 density experiment was removed. No sprite size, save schema or balance changes in this checkpoint. No GitHub push.
+
+Verification: 5,198 unit tests, 109 harness tests, all PR simulation slices, reference/data/theme parity, lint zero errors (existing warnings), production build and Capacitor sync. Headed browser release selection: 29 unique checks passed across the main run and corrected sprite-test rerun; production offline phone smoke passed. Two stale test assertions were updated for contrast texture names and independent portrait preload. Independent adversarial review found no outstanding blockers.
+
+Tester notes: `/tmp/EmblemRogue-Build8-WhatToTest.txt`. Reviewer handoff: `docs/ui-release-review-note.md`. Combat coverage: `docs/combat-actions-browser-review.md`. Physical-device thumb input, sprite readability, controller use and carried-over saves remain playtest priorities.
+
+## Build 7 — September 20, 2026
+
+Version 0.1.0 (7) archived and uploaded successfully to App Store Connect at 09:39 Pacific. Archive: `/tmp/EmblemRogue-Beta-7.xcarchive`. Upload log: `/tmp/build7-upload.log` (`EXPORT SUCCEEDED`).
+
+**Distribution complete:** App Store Connect reports **Testing** for 0.1.0 (7), assigned to Public Playtest on September 20, 2026 with automatic tester notifications enabled. What to Test notes were submitted. Build ID: `af6f2a11-503d-47ff-91db-57ab78f9f561`. Public link: https://testflight.apple.com/join/UeWBYA5n
+
+Changes: result-screen teardown crash and post-dialogue shutdown race; native save/resume/result/hint UI; foreground audio recovery; combat-weapon restoration after staff actions; Normal Act 1 Cavalier exclusion until a third unit has joined. No save schema change, no GitHub push.
+
+Verification: 5,183 unit tests; 109 harness tests; PR simulations; lint (zero errors), theme/reference/data parity and production build; 15 headed recovery/progression/scene cases, full mobile run loop and offline production smoke. Independent adversarial review completed and findings fixed.
+
+### What to Test for build 7
+
+- Resume an existing saved battle and start another run after defeat. Save selection, resume choices and results now use the updated interface.
+- Switch to another app and return with music on, and repeat with music muted. If iOS requires it, the next tap should restore audio without resetting the track or volume.
+- Have Sera heal, then receive an enemy attack at a valid tome range. She should re-equip her combat weapon after the staff action.
+- On Normal, early Act 1 encounters should have no Cavaliers until another unit has joined. Existing generated battle saves are unchanged.
+- Report unreadable text, stuck controls, or crashes with the build number and the preceding steps.
+
+Review handoff: `docs/ui-release-review-note.md`. Plan and visible audit: `docs/run-resume-ui-plan.md`.
+
 ## Implemented
 
 - Touch Home Base: commander/partner portraits, unlock states, starting-skill assignments and slot limits, upgrades, Begin Run, and return navigation. Existing meta progression methods own every mutation.
@@ -122,3 +172,95 @@ Build 3 uploaded September 18, 2026 at 14:51 Pacific, approved and verified
 Source commit: `9aeb140`. GitHub retry was blocked by automatic approval review
 pending explicit destination/payload approval; the earlier account-access blocker
 also remains.
+
+## Build 4: native roster, party and rewards
+
+Build 4 completes the rebuilt roster, deployment, recruitment and reward menus, with compact controls and unified styling.
+
+Please test:
+- Roster: promotion/reclass, skill and weapon-art scrolls, equipment, trading and convoy transfers, including full bags and blocked choices.
+- Deployment and recruitment: inspect units, open/close Roster, retain selected units, skip optional recruits and reroll lord choices.
+- Rewards: recipient selection, Back, forge/imbue/booster choices and both picks after elite battles. Try rapid taps and cancellation.
+- Rotate with a menu open; check small-phone text, scrolling, notch clearance and the software keyboard in Compendium.
+- Resume a save from build 3 without uninstalling; complete a battle-to-shop-to-next-battle loop offline.
+
+Known behavior: closing/reloading during rewards retains the win but forfeits unclaimed loot. Saves are local to this device.
+
+Please include phone model, iOS version, screen/action and a screenshot or recording with feedback.
+
+Validation: checkpoint gates passed (5,117 unit tests, 109 harness tests, PR
+simulation slices, parity/theme and browser suites). Independent adversarial
+review found one elite reward focus issue; fixed and all six reward regressions
+passed. Production offline smoke passed after iOS sync.
+
+Distribution status: build 0.1.0 (4) uploaded successfully September 18, 2026
+at 23:14 Pacific. External review submitted with Public Playtest selected and
+automatic tester notifications enabled; App Store Connect reports **Testing**.
+Build ID: `7b6b4e3f-fc71-488d-a81a-02ee09c3d797`.
+Public link: https://testflight.apple.com/join/UeWBYA5n
+No GitHub push requested or performed.
+
+## Build 5: battle interaction and turn-start fixes
+
+Build 5 fixes consumable and battle submenu interactions, adds native progression,
+rewind and trade menus, improves reward icons/reference menus, and repairs Shop
+preview and Colosseum input behavior.
+
+A fast action during the turn banner could previously skip turn-start effects.
+Player controls now unlock after effects finish, with stale-phase checks for
+rewind, defeat and shutdown. Resume also protects generated text texture keys
+against collisions after RNG reseeding, without changing gameplay randomness.
+
+Validation: 5,137 unit tests across 275 files; 109 harness tests; all PR simulation
+slices; data/reference/theme checks; lint zero errors (existing warnings remain);
+production build and offline iPhone smoke. Final combined menu/reward/run-loop
+suite: 13 passed; battle submenu phone/desktop: 9 passed. Independent review also
+verified generated-text rendering/cleanup and the full save/resume loop, with no
+remaining blocking findings.
+
+Tester notes: `/tmp/EmblemRogue-Build5-WhatToTest.txt`.
+Reviewer handoff: `docs/ui-release-review-note.md`.
+Archive: `/tmp/EmblemRogue-Beta-5.xcarchive` (verified CFBundleVersion 5).
+GitHub push skipped as requested. Physical-device playtesting remains the next
+validation step for touch, controller, notch/rotation and carried-over saves.
+
+Upload succeeded September 19, 2026 at 10:07 Pacific. App Store Connect build ID:
+`41819793-220f-4d7b-b88a-af48ee8e9ac3`. Processing completed; external review submitted with Public Playtest selected
+and automatic tester notifications enabled. App Store Connect reports **Testing**.
+Public link: https://testflight.apple.com/join/UeWBYA5n
+
+## Build 6: service readability and gameplay audit
+
+Native Shop Buy/Sell/Forge and recipient confirmations replace scaled canvas
+item tooltips. Church and Colosseum decision screens now use the same readable
+menu kit. Battle equipment/consumable choices include stat/effect summaries.
+Shop transactions/restocks and roster returns persist; promotions/revival retain
+canonical costs, limits and eligibility with stale-choice checks.
+
+Adversarial review added 35 command tests and checked economy parity, input
+ownership, cleanup and save boundaries. Fixed roster/restock save gaps, combined
+forge-discount cap, full-convoy recipient gating, promotion comparison details,
+and arena header labels/stale callbacks. Final browser verification also caught
+and fixed the staff summary's healer context.
+
+Validation: 5,172 unit tests / 277 files; 109 harness tests; all PR simulation
+slices; reference/data parity/theme gates; lint zero errors; production build.
+Final phone service/submenu/progression suite 17 passed, native reward suite six
+passed, complete touch run/shop/next-battle/local-resume passed, three desktop
+checks passed, production offline smoke passed.
+
+Archive `/tmp/EmblemRogue-Beta-6.xcarchive` verified CFBundleVersion 6.
+Tester notes `/tmp/EmblemRogue-Build6-WhatToTest.txt`.
+Coverage/plan `docs/shop-readability-plan.md`; reviewer handoff
+`docs/ui-release-review-note.md`.
+
+Arena intentionally retains save-on-Leave; persisting intermediate arena actions
+also requires persisting per-visit fight/hire/XP limits. No balance/save-schema
+changes. Physical-device testing remains for thumb accuracy, notch/rotation and
+controller behavior. GitHub push skipped as requested.
+
+Upload succeeded September 19, 2026 at 17:12:49 Pacific. App Store Connect build
+ID: `6f7a106e-6713-4b31-a43b-5252f7a83257`. External review submitted with
+Public Playtest selected and automatic tester notifications enabled. App Store
+Connect reports **Testing** for 0.1.0 (6).
+Public link: https://testflight.apple.com/join/UeWBYA5n
