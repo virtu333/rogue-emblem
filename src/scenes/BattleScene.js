@@ -1,3 +1,8 @@
+import {
+  beginWeaponPreview,
+  restoreWeaponPreview,
+  commitWeaponPreview,
+} from '../ui/WeaponPreviewSession.js';
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
@@ -1857,6 +1862,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Danger zone overlay
       this.dangerZone = new DangerZoneOverlay(this, this.grid);
+      this.keepDangerVisible = false;
       this._pinnedThreats = new PinnedThreatController(this);
       this.pinnedThreatEnemies = this._pinnedThreats.enemies;
       this.dangerZoneCache = null;
@@ -2032,7 +2038,7 @@ export class BattleScene extends Phaser.Scene {
           showContextualHint(
             this,
             'battle_mobile_camera',
-            'Use two fingers to pan and pinch to zoom. Pinch out or tap Reset to restore view.',
+            'Use two fingers to pan and pinch to zoom. Pinch out or tap Recenter to restore view.',
           );
         }
       }
@@ -4096,7 +4102,24 @@ export class BattleScene extends Phaser.Scene {
         this.dangerZoneStale = false;
       }
       this.dangerZone.toggle(this.dangerZoneCache);
+      if (!this.dangerZone.visible) this.keepDangerVisible = false;
     }
+  }
+
+  togglePersistentDanger() {
+    if (
+      this.isStoryInputLocked() ||
+      this._isTutorialStrictGateActive?.() ||
+      !['PLAYER_IDLE', 'UNIT_SELECTED'].includes(this.battleState)
+    )
+      return;
+    this.keepDangerVisible = !this.keepDangerVisible;
+    if (this.keepDangerVisible) {
+      this.dangerZoneCache = this.calculateDangerZone();
+      this.dangerZoneStale = false;
+      this.dangerZone.show(this.dangerZoneCache);
+    }
+    this._mobileBattleHud?.sync();
   }
 
   _onRosterClick() {
@@ -4156,6 +4179,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (!this.canForceEndTurn()) return;
     const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
+    restoreWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
@@ -4346,7 +4370,7 @@ export class BattleScene extends Phaser.Scene {
       },
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: fromRewards
-        ? 'Completed battle and claimed rewards are saved. Unclaimed rewards will be forfeited. Continue returns to the map.'
+        ? 'Your battle and remaining rewards are saved. Continue returns to the map, where you can reopen rewards.'
         : 'Battle Suspended — Resume From Continue',
       onAbandon: abandonCb,
       campaignMapData,
@@ -4387,9 +4411,11 @@ export class BattleScene extends Phaser.Scene {
       (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff' || w.type === 'Breath')
     ) {
       this.hideForecast();
+      this.showActionMenu(this.selectedUnit);
       return;
     }
     const target = this.forecastTarget;
+    commitWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
     this.hideForecast();
     this.executeCombat(this.selectedUnit, target);
@@ -4408,7 +4434,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     this.inspectionPanel.hide();
-    this.dangerZone.hide();
+    if (!this.keepDangerVisible) this.dangerZone.hide();
     this._clearCombatRollSession();
     this._clearSelectedWeaponArt();
     this.selectedUnit = unit;
@@ -4450,6 +4476,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deselectUnit() {
+    restoreWeaponPreview(this);
     this._inputController?.clearPlanningInspection();
     if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
       this.selectedUnit.graphic.clearTint();
@@ -5899,6 +5926,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showActionMenu(unit) {
+    restoreWeaponPreview(this);
     this.hideActionMenu();
     this.inEquipMenu = false;
     this.tradeMutatedThisSession = unit._movementCommitted === true;
@@ -6078,6 +6106,7 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           if (label === 'Attack') {
+            beginWeaponPreview(this, unit);
             // Auto-equip first combat weapon if staff is currently equipped
             if (unit.weapon && isStaff(unit.weapon)) {
               const combatWpn = getCombatWeapons(unit)[0];
@@ -6089,6 +6118,7 @@ export class BattleScene extends Phaser.Scene {
             this._clearSelectedWeaponArtIfInvalid(unit);
             this._beginAttackSelection(unit);
           } else if (label.startsWith('Weapon Art')) {
+            beginWeaponPreview(this, unit);
             if (unit.weapon && isStaff(unit.weapon)) {
               const combatWpn = getCombatWeapons(unit)[0];
               if (combatWpn) {
@@ -6175,6 +6205,7 @@ export class BattleScene extends Phaser.Scene {
     });
     this._pinToScreen(this.actionMenu);
     this._registerActionMenu();
+    this._inputController?.registerSelectionMenu(unit);
   }
 
   // Publish each completed menu once. Canvas and DOM share the same guarded
@@ -6325,6 +6356,7 @@ export class BattleScene extends Phaser.Scene {
       // Remove from NPC array
       const npcIdx = this.npcUnits.indexOf(npc);
       if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
+      this.updateObjectiveText();
 
       // Convert faction
       npc.faction = 'player';
@@ -9196,7 +9228,7 @@ export class BattleScene extends Phaser.Scene {
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
-    this.dangerZone.hide();
+    if (!this.keepDangerVisible) this.dangerZone.hide();
     if (typeof this._expireTimedWeaponArtBuffs === 'function') {
       this._expireTimedWeaponArtBuffs(phase, turn);
     }
@@ -9426,7 +9458,7 @@ export class BattleScene extends Phaser.Scene {
                   inputHint(
                     this,
                     'Press [D] to show enemy threat range.',
-                    'Tap Danger to show enemy threat range.',
+                    'Tap Danger to show enemy threat range. Hold Danger to keep it visible while planning; tap again to hide it.',
                   ),
                 );
               }
@@ -10463,7 +10495,7 @@ export class BattleScene extends Phaser.Scene {
       label =
         tombCount > 0
           ? `Rout: ${this.enemyUnits.length} enemies + ${tombCount} reviving`
-          : `Rout: ${this.enemyUnits.length} enemies remaining`;
+          : `Rout: ${this.enemyUnits.length} ${this.enemyUnits.length === 1 ? 'enemy' : 'enemies'} remaining`;
     }
     if (this.npcUnits.length > 0) {
       label += '\nRecruit: Talk to green unit';

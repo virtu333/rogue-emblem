@@ -1,3 +1,4 @@
+import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
@@ -5,11 +6,10 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
-import { getStaticCombatStats } from '../engine/Combat.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
-  rewardTargetBlock,
-  applyRewardTarget,
+  bundleTargetBlock,
+  applyRewardBundle,
   rewardWeaponEligible,
   applyRewardForge,
   REWARD_FORGE_STATS,
@@ -29,11 +29,13 @@ const node = (tag, text, cls = '') => {
 export class MobileRewards {
   constructor(scene, controller, choices, summary, skipGold) {
     Object.assign(this, { scene, controller, choices, summary, skipGold });
-    this.selected = 0;
+    this.selected = controller.record?.draft?.selected || 0;
     this.steps = [];
+    this.overlayScene = controller.host || scene;
     this.onShutdown = () => this.destroy();
     scene.events.once('shutdown', this.onShutdown);
     this.open();
+    this.restoreDraft();
   }
   button(label, action) {
     const b = node('button', label);
@@ -47,7 +49,7 @@ export class MobileRewards {
     if (this.visible || this.scene._lootResolving || this.scene._lootCleanedUp) return;
     this.visible = true;
     this.previousFocus = document.activeElement;
-    this.overlayToken = pushOverlay(this.scene, {
+    this.overlayToken = pushOverlay(this.overlayScene, {
       name: 'rewards',
       onCancel: () => {
         this.back();
@@ -92,10 +94,13 @@ export class MobileRewards {
       b.dataset.focus = title;
       tools.append(b);
     }
+    if (this.controller.leave) tools.append(this.button('View map', () => this.controller.leave()));
     header.append(tools);
   }
   openReference(title) {
     if (this.busy || this.child) return;
+    if (this.controller.saveError) return this.renderSaveFailure();
+    if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
     const previous = document.activeElement;
     this.root.inert = true;
     this.root.setAttribute('aria-hidden', 'true');
@@ -117,7 +122,7 @@ export class MobileRewards {
       this.child = { destroy: () => pause?.hideForTransition() };
     } else {
       this.child = new MobileRosterSheet({
-        scene: this.scene,
+        scene: this.overlayScene,
         units: this.scene.runManager.roster,
         gameData: this.scene.gameData,
         onClose: close,
@@ -131,6 +136,7 @@ export class MobileRewards {
     buttons[(i + delta + buttons.length) % buttons.length]?.focus();
   }
   render() {
+    if (this.controller.saveError) return this.renderSaveFailure();
     if (this.steps.length) return this.renderStep();
     const scene = this.scene;
     const focus = this.root.contains(document.activeElement)
@@ -159,11 +165,12 @@ export class MobileRewards {
     const label = (c) =>
       c.type === 'skip'
         ? `Take ${this.skipGold} gold instead`
-        : c.item?.name ||
+        : (c.item ? `${c.item.name}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : '') ||
           `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
     all.forEach((c, i) => {
       const b = this.button(label(c), () => {
         this.selected = i;
+        this.saveDraft();
         this.render();
       });
       b.dataset.focus = `reward-${i}`;
@@ -207,9 +214,15 @@ export class MobileRewards {
       copy.append(
         this.button('About class mastery', () => {
           if (this.child) return;
-          this.child = new ContextHelp(this.scene, this.root, 'Class mastery', MASTERY_HELP, () => {
-            this.child = null;
-          });
+          this.child = new ContextHelp(
+            this.overlayScene,
+            this.root,
+            'Class mastery',
+            MASTERY_HELP,
+            () => {
+              this.child = null;
+            },
+          );
         }),
       );
     const actions = node('div', null, 'mu-actions');
@@ -242,18 +255,69 @@ export class MobileRewards {
     this.root.append(header, split);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
   }
+  draftKey(choice) {
+    return typeof choice === 'string'
+      ? choice
+      : choice?.uid || `${choice?.id || choice?.key || choice?.name}:${choice?.className || ''}`;
+  }
+  saveDraft() {
+    if (this.restoringDraft || !this.controller.record || this.controller.saveError) return;
+    this.controller.record.draft = {
+      selected: this.selected,
+      path: this.steps.map((step) => ({
+        index: step.choices.indexOf(step.selected),
+        key: this.draftKey(step.selected),
+      })),
+    };
+    if (!this.controller.persist()) this.renderSaveFailure();
+  }
+  restoreDraft() {
+    const draft = this.controller.record?.draft;
+    if (!draft?.path?.length || !this.choices[this.selected]) return;
+    this.restoringDraft = true;
+    try {
+      this.startChoice(this.choices[this.selected]);
+      for (let i = 0; i < draft.path.length; i++) {
+        const step = this.steps[i],
+          saved = draft.path[i];
+        if (!step) break;
+        const choice = step.choices[saved.index];
+        if (this.draftKey(choice) !== saved.key) break;
+        step.selected = choice;
+        if (i < draft.path.length - 1 && !step.final && !step.blocked?.(choice)) step.next(choice);
+      }
+      this.render();
+    } finally {
+      this.restoringDraft = false;
+    }
+  }
+  renderSaveFailure() {
+    this.root.replaceChildren(
+      node('h1', 'Reward save interrupted'),
+      node(
+        'p',
+        this.controller.needsFinish
+          ? 'Your choice is applied in this session but has not been saved. Retry before leaving; reloading now may lose it.'
+          : 'Your latest reward-screen changes have not been saved. Retry before leaving.',
+      ),
+      this.button('Retry save', () => this.controller.retrySave()),
+    );
+  }
   back() {
     if (this.busy || !this.steps.length) return;
     this.steps.pop();
+    this.saveDraft();
     this.render();
     this.root.querySelector('button:not(:disabled)')?.focus();
   }
   pushStep(step) {
     this.steps.push(step);
     this.renderStep();
+    this.saveDraft();
     this.root.querySelector('[aria-pressed="true"]')?.focus();
   }
   renderStep(message = '') {
+    if (this.controller.saveError) return this.renderSaveFailure();
     const step = this.steps.at(-1);
     this.root.replaceChildren();
     const header = node('header', null, 'mu-header');
@@ -270,6 +334,7 @@ export class MobileRewards {
       const reason = step.blocked?.(choice);
       const row = this.button(null, () => {
         step.selected = choice;
+        this.saveDraft();
         this.renderStep();
         this.root.querySelector('[aria-pressed="true"]')?.focus();
       });
@@ -327,19 +392,23 @@ export class MobileRewards {
       const booster = item.type === 'Consumable' && item.effect === 'statBoost';
       this.pushStep({
         title: item.name,
-        choices: [...run.roster, ...(booster ? [] : ['convoy'])],
+        choices: [...run.roster, ...(booster ? [] : ['convoy'])].sort(
+          (a, b) =>
+            Number(!!bundleTargetBlock(run, item, a, choice.quantity || 1)) -
+            Number(!!bundleTargetBlock(run, item, b, choice.quantity || 1)),
+        ),
         label: (unit) => (unit === 'convoy' ? 'Send to Convoy' : unit.name),
-        blocked: (unit) => rewardTargetBlock(run, item, unit),
+        blocked: (unit) => bundleTargetBlock(run, item, unit, choice.quantity || 1),
         describe: (unit) =>
           unit === 'convoy'
             ? 'Store for later.'
             : booster
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'
-                ? `${unit.consumables?.length || 0}/3 consumables`
-                : `Can equip · AS ${getStaticCombatStats(unit, unit.weapon).as} → ${getStaticCombatStats(unit, item).as} if equipped · ${unit.inventory?.length || 0}/5 items`,
+                ? `${unit.consumables?.length || 0}/3 consumables${choice.quantity > 1 ? ` · ${choice.quantity} items; overflow goes to convoy` : ''}`
+                : `Can equip · ${equipmentComparison(unit, item)} · ${unit.inventory?.length || 0}/5 items`,
         final: true,
-        apply: (unit) => applyRewardTarget(run, item, unit),
+        apply: (unit) => applyRewardBundle(run, item, unit, choice.quantity || 1),
       });
     }
   }
@@ -382,6 +451,10 @@ export class MobileRewards {
       const result = await this.controller.applyNativeReward(this.selected, command);
       if (!this.visible) return;
       if (!result.ok) {
+        if (this.controller.saveError) {
+          this.renderSaveFailure();
+          return;
+        }
         this.renderStep(result.reason);
         this.root.querySelector('button:not(:disabled)')?.focus();
         return;
@@ -404,7 +477,7 @@ export class MobileRewards {
     this.child?.destroy();
     this.child = null;
     popInputScope(this);
-    removeOverlay(this.scene, this.overlayToken);
+    removeOverlay(this.overlayScene, this.overlayToken);
     this.overlayToken = null;
     this.root.remove();
     if (this.previousFocus?.isConnected) this.previousFocus.focus();

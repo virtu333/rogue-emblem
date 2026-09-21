@@ -120,7 +120,7 @@ export class MobileBattleHUD {
     );
   }
 
-  button(label, action, className = '') {
+  button(label, action, className = '', onLongPress = null) {
     const button = el('button', `mb-button ${className}`, label);
     button.type = 'button';
     bindCancelablePress(
@@ -130,7 +130,16 @@ export class MobileBattleHUD {
         this.lastSnapshot = '';
         this.sync();
       },
-      { enabled: () => this.available() && (!hasInputFocus(this) || this.modal?.contains(button)) },
+      {
+        enabled: () => this.available() && (!hasInputFocus(this) || this.modal?.contains(button)),
+        onLongPress: onLongPress
+          ? () => {
+              onLongPress();
+              this.lastSnapshot = '';
+              this.sync();
+            }
+          : null,
+      },
     );
     return button;
   }
@@ -488,6 +497,7 @@ export class MobileBattleHUD {
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
       s.dangerZone?.visible,
+      Boolean(s.keepDangerVisible),
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
       Boolean(this.menu),
@@ -612,6 +622,21 @@ export class MobileBattleHUD {
       .join('\n');
     const detailContent = el('div', 'mb-more-content');
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
+    if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
+      detailContent.append(
+        this.button(
+          s.keepDangerVisible ? 'Unpin global Danger' : 'Keep global Danger visible',
+          () => s.togglePersistentDanger(),
+        ),
+      );
+      detailContent.append(
+        el(
+          'p',
+          '',
+          'You can also hold Danger to pin it. Tap Danger to hide it. Resets each battle.',
+        ),
+      );
+    }
     details.append(detailContent);
     if (!this.menu && !this.endTurnPending) this.body.append(details);
     if (this.endTurnPending) {
@@ -702,22 +727,27 @@ export class MobileBattleHUD {
     if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
       const commands = el('div', 'mb-command-grid');
       for (const [label, action, active] of [
-        ['Danger', 'danger', s.dangerZone?.visible],
+        [s.keepDangerVisible ? 'Danger · pinned' : 'Danger', 'danger', s.dangerZone?.visible],
         ['Inspect', 'inspect', s.inspectMode],
         ['Roster', 'roster', null],
         ['Rewind', 'objective', null],
       ]) {
-        const button = this.button(label, () => {
-          if (action === 'inspect' && s.selectedUnit) {
-            const unit = s.selectedUnit;
-            const living = s.playerUnits.filter((u) => u.currentHP > 0);
-            s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
-              rosterUnits: living,
-              rosterIndex: Math.max(0, living.indexOf(unit)),
-            });
-            s.refreshEndTurnControl();
-          } else s.game.events.emit(`mobile:${action}`);
-        });
+        const button = this.button(
+          label,
+          () => {
+            if (action === 'inspect' && s.selectedUnit) {
+              const unit = s.selectedUnit;
+              const living = s.playerUnits.filter((u) => u.currentHP > 0);
+              s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
+                rosterUnits: living,
+                rosterIndex: Math.max(0, living.indexOf(unit)),
+              });
+              s.refreshEndTurnControl();
+            } else s.game.events.emit(`mobile:${action}`);
+          },
+          '',
+          action === 'danger' ? () => s.togglePersistentDanger() : null,
+        );
         if (active != null) button.setAttribute('aria-pressed', String(Boolean(active)));
         commands.append(button);
       }

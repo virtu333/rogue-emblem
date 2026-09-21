@@ -1026,6 +1026,11 @@ export function generateShopInventory(
   const itemCount = Math.max(1, baseCount + bonusItems);
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
+  const recentNames = new Set(generateOptions?.recentItemNames || []);
+  const preferFresh = (pool) => {
+    const fresh = pool.filter((name) => !recentNames.has(name));
+    return fresh.length ? fresh : pool;
+  };
   const inventory = [];
   const usedNames = new Set();
 
@@ -1093,9 +1098,10 @@ export function generateShopInventory(
   // shop with no weapon. Start at a random index and scan the whole pool so a
   // sellable weapon is added whenever one exists.
   if (filteredWeapons.length > 0) {
-    const start = Math.floor(Math.random() * filteredWeapons.length);
-    for (let offset = 0; offset < filteredWeapons.length; offset++) {
-      const weaponName = filteredWeapons[(start + offset) % filteredWeapons.length];
+    const preferred = [...preferFresh(filteredWeapons), ...filteredWeapons];
+    const start = Math.floor(Math.random() * preferFresh(filteredWeapons).length);
+    for (let offset = 0; offset < preferred.length; offset++) {
+      const weaponName = preferred[(start + offset) % preferred.length];
       if (addByName(weaponName)) break;
     }
   }
@@ -1136,13 +1142,21 @@ export function generateShopInventory(
     ...filteredLegendaryWeapons,
     ...filteredForge,
   ];
+  const sellableNames = new Set(
+    [...(allWeapons || []), ...(consumables || []), ...(allAccessories || [])]
+      .filter((item) => item.price > 0)
+      .map((item) => item.name),
+  );
+  const fillPool = combinedPool.filter((name) => sellableNames.has(name));
   const maxAttempts = itemCount * 5;
   let attempts = 0;
 
   while (inventory.length < itemCount && attempts < maxAttempts) {
     attempts++;
     if (combinedPool.length === 0) break;
-    const name = combinedPool[Math.floor(Math.random() * combinedPool.length)];
+    const freshPool = preferFresh(fillPool.filter((name) => !usedNames.has(name)));
+    if (!freshPool.length) break;
+    const name = freshPool[Math.floor(Math.random() * freshPool.length)];
     if (usedNames.has(name)) continue;
 
     const item = findItem(name, allWeapons, consumables, allAccessories);

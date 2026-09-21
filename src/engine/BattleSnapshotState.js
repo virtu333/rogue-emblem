@@ -54,5 +54,6 @@ export function restoreBattleWorldState(scene, snapshot) {
   scene.dangerZoneStale = true;
   scene._pinnedThreats?.invalidate();
   scene.dangerZoneCache = null;
+  scene.keepDangerVisible = false;
   scene.dangerZone?.hide?.();
 }

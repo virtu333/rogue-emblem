@@ -1,3 +1,4 @@
+import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -181,6 +182,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   create() {
+    this._pendingRewards = null;
     const lifecycleGeneration = beginSceneLifecycle(this);
     this._promotionChoicePanelOpen = 0;
 
@@ -232,7 +234,15 @@ export class NodeMapScene extends Phaser.Scene {
 
     this.drawMap();
     this.input.enabled = false;
-    void this.finalizeSceneReady(lifecycleGeneration);
+    void this.finalizeSceneReady(lifecycleGeneration).then(() => {
+      if (
+        this.isSceneReady &&
+        this.scene?.isActive?.() &&
+        this.runManager.isActComplete() &&
+        !this.runManager.pendingBattleReward
+      )
+        this.checkActComplete();
+    });
 
     const hints = this.registry.get('hints');
     this._pendingNodeMapHints = {
@@ -319,6 +329,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
+    this._pendingRewards?.destroy();
+    this._pendingRewards = null;
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -885,7 +897,7 @@ export class NodeMapScene extends Phaser.Scene {
     meta.recordMilestone(milestone);
   }
 
-  showPauseMenu() {
+  showPauseMenu(options = {}) {
     if (this.pauseOverlay?.visible) return;
     const payout = this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
@@ -894,6 +906,7 @@ export class NodeMapScene extends Phaser.Scene {
         : null,
       onResume: () => {
         this.pauseOverlay = null;
+        options.onResume?.();
       },
       onSaveAndExit: async () => {
         try {
@@ -1557,9 +1570,33 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  openPendingRewards() {
+    if (
+      !this.isSceneReady ||
+      this.isStoryInputLocked?.() ||
+      !this.runManager.pendingBattleReward ||
+      this._pendingRewards
+    )
+      return;
+    this._pendingRewards = new PendingRewardController(this, {
+      onLeave: () => {
+        this._pendingRewards = null;
+        this.drawMap();
+      },
+      onComplete: () => {
+        this._pendingRewards = null;
+        this.checkActComplete();
+      },
+    });
+  }
+
   onNodeClick(node) {
     if (this.isTransitioning) return;
     if (this.battleLaunchInFlight) return;
+    if (this.runManager?.pendingBattleReward) {
+      this.openPendingRewards();
+      return;
+    }
     if (!this.isSceneReady) {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
         this._pendingNodeSelection = node?.id ? { nodeId: node.id } : null;
@@ -1894,6 +1931,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   checkActComplete() {
     const rm = this.runManager;
+    if (rm.pendingBattleReward) {
+      this.drawMap();
+      return;
+    }
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
@@ -1911,6 +1952,7 @@ export class NodeMapScene extends Phaser.Scene {
       } else {
         this.showActCompleteBanner(async () => {
           const { unlockedArtIds, displacedSkills } = rm.advanceAct();
+          this.persistRunSave();
           this.drawMap();
           this.showWeaponArtsUnlockedBanner(unlockedArtIds);
           await this._showSkillDisplacementWarning(displacedSkills);

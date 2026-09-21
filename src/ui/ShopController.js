@@ -68,6 +68,11 @@ export class ShopController {
         rm.getWeaponArtSpawnConfig(),
         {
           itemCountBonus: shopItemDelta,
+          recentItemNames: caravan
+            ? []
+            : Object.values(rm.shopStateByNodeId || {}).flatMap((state) =>
+                (state.items || []).map((entry) => entry.item?.name).filter(Boolean),
+              ),
           shopCureGating: rm.difficultyModifiers?.shopCureGating,
           ...(ruins ? { itemCountRange: this._getRuinsItemCountRange(rm.currentAct) } : {}),
           ...(caravan ? { itemCountRange: CARAVAN_SHOP_ITEM_COUNT_RANGE, rareBias: true } : {}),

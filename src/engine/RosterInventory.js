@@ -80,6 +80,10 @@ export function rosterItemAction(run, unit, item, action) {
     if (!(consumable ? addToConsumables : addToInventory)(unit, item))
       return 'Cannot carry this item.';
     run.takeFromConvoy(consumable ? 'consumable' : 'weapon', index);
+    // A revived unit may have no equipped weapon. Preserve deliberate choices.
+    if (!unit.weapon && !consumable && item.type !== 'Staff' && canEquip(unit, item)) {
+      equipWeapon(unit, unit.inventory[unit.inventory.length - 1]);
+    }
   }
   if (action === 'heal' || action === 'use') {
     if (item.effect === 'statBoost') applyStatBoost(unit, item);

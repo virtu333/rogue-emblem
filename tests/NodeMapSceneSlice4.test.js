@@ -238,7 +238,7 @@ describe('NodeMapScene Slice 4', () => {
       scene.gameData.accessories,
       scene.runManager.roster,
       null,
-      { itemCountBonus: 1 },
+      expect.objectContaining({ itemCountBonus: 1, recentItemNames: [] }),
     );
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
     expect(scene.showShopOverlay).toHaveBeenCalledWith(

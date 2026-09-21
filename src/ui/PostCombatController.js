@@ -1,3 +1,6 @@
+import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
+import { PendingRewardController } from './PendingRewardController.js';
+import { hasDOMHost } from '../utils/domUI.js';
 import { TutorialController } from './TutorialController.js';
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
@@ -110,9 +113,10 @@ export class PostCombatController {
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
         : 0;
-      // Persist the completed battle immediately (completeBattle cleared the
-      // anti-refresh lock): a refresh during the loot flow keeps the win —
-      // loot is forfeited — rather than reopening the fight.
+      // Preserve both the win and its unclaimed choices before presentation.
+      if (completionApplied && !scene.runManager.isRunComplete() && hasDOMHost()) {
+        prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+      }
       scene._persistBattleRunState?.();
       scene.time.delayedCall(1500, async () => {
         if (!scene.scene?.isActive?.()) return;
@@ -244,7 +248,7 @@ export class PostCombatController {
     if (scene.isTransitioningOut) return false;
     scene.isTransitioningOut = true;
     try {
-      if (scene.runManager.isActComplete()) {
+      if (scene.runManager.isActComplete() && !scene.runManager.pendingBattleReward) {
         if (scene.runManager.isRunComplete()) {
           scene.runManager.status = 'victory';
           scene.runManager.settleEndRunRewards(scene.registry.get('meta'), 'victory');
@@ -449,6 +453,23 @@ export class PostCombatController {
     });
   }
 
+  rewardContext() {
+    const s = this.scene;
+    return {
+      nodeId: s.nodeId,
+      isElite: s.isElite,
+      isBoss: s.isBoss,
+      goldEarned: s.goldEarned,
+      turnPar: s.turnPar,
+      turnBonusConfig: s.turnBonusConfig,
+      turnNumber: s.turnManager?.turnNumber,
+      victoryPressureState: s._victoryPressureState,
+      completionGoldAward: s._completionGoldAward,
+      battleCompletionAwardedGold: s._battleCompletionAwardedGold,
+      metaEffects: s.runManager?.metaEffects,
+    };
+  }
+
   showLootScreen() {
     const scene = this.scene;
     const audio = scene.registry.get('audio');
@@ -456,6 +477,17 @@ export class PostCombatController {
     scene._elitePicksRemaining = scene.isElite ? ELITE_MAX_PICKS : 1;
     scene._lootCleanedUp = false;
     scene._lootResolving = false;
+    if (hasDOMHost()) {
+      prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+      scene._persistBattleRunState?.();
+      scene._lootController = new PendingRewardController(scene, {
+        onLeave: () => this.transitionAfterBattle(),
+        onComplete: () => this.transitionAfterBattle(),
+      });
+      scene.lootGroup = scene._lootController.lootGroup;
+      this._showMasteryNotice();
+      return;
+    }
 
     scene._lootController = new LootScreenController(scene, scene.runManager, scene.gameData, {
       isElite: scene.isElite,

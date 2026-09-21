@@ -1,5 +1,5 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
-import { getTraitNames } from '../engine/TraitSystem.js';
+import { getUnitTraits } from '../engine/TraitSystem.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { unitPortrait } from './unitPortrait.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -41,8 +41,8 @@ export function describeUnit(gameData, unit) {
   );
   if (unit.proficiencies?.length)
     box.append(element('p', unit.proficiencies.map((p) => `${p.type} ${p.rank}`).join(' · ')));
-  const traits = getTraitNames(unit, gameData.traits);
-  if (traits.length) box.append(element('p', `Traits: ${traits}`));
+  const traits = getUnitTraits(unit, gameData.traits);
+  for (const trait of traits) box.append(element('p', `${trait.name}: ${trait.description || ''}`));
   for (const id of unit.skills || []) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));

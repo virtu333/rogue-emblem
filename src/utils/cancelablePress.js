@@ -5,10 +5,21 @@ import { ignoreRepeatedActivation } from './domInputBoundary.js';
 export function bindCancelablePress(
   element,
   activate,
-  { enabled = () => true, context = () => null, threshold = 10 } = {},
+  {
+    enabled = () => true,
+    context = () => null,
+    threshold = 10,
+    onLongPress = null,
+    holdMs = 550,
+  } = {},
 ) {
   let press = null;
   let canceled = false;
+  let timer = null;
+  const clearHold = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
   const available = () =>
     element.isConnected &&
     !element.disabled &&
@@ -26,6 +37,7 @@ export function bindCancelablePress(
     );
   };
   const down = (event) => {
+    clearHold();
     canceled =
       !available() || event.isPrimary === false || (event.button != null && event.button !== 0);
     press = {
@@ -35,22 +47,33 @@ export function bindCancelablePress(
       context: context(),
       threshold: typeof threshold === 'function' ? threshold(event) : threshold,
     };
+    if (!canceled && onLongPress)
+      timer = setTimeout(() => {
+        timer = null;
+        if (!press || canceled || !available() || context() !== press.context) return;
+        canceled = true; // Consume the eventual click; never also toggle the tap action.
+        onLongPress(event);
+      }, holdMs);
   };
   const move = (event) => {
     if (!press || press.id !== event.pointerId) return;
     if (
       Math.hypot(event.clientX - press.x, event.clientY - press.y) > press.threshold ||
       !inside(event)
-    )
+    ) {
       canceled = true;
+      clearHold();
+    }
   };
   const up = (event) => {
     if (!press || press.id !== event.pointerId) return;
+    clearHold();
     move(event);
     if (!available() || context() !== press.context) canceled = true;
     press = null;
   };
   const cancel = () => {
+    clearHold();
     canceled = true;
     press = null;
   };

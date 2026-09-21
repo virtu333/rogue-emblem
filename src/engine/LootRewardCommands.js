@@ -75,3 +75,37 @@ export function applyRewardForge(run, gameData, item, unit, weapon, selection) {
   }
   return { ok: result.success, reason: result.success ? '' : 'Upgrade unavailable.' };
 }
+
+export function bundleTargetBlock(run, item, target, quantity = 1) {
+  if (quantity === 1) return rewardTargetBlock(run, item, target);
+  if (
+    item.type !== 'Consumable' ||
+    item.effect === 'statBoost' ||
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    quantity > 3
+  )
+    return 'Invalid bundle.';
+  if (target !== 'convoy' && !run.roster.includes(target))
+    return 'Unit is no longer in the roster.';
+  const room =
+    target === 'convoy' ? 0 : Math.max(0, CONSUMABLE_MAX - (target.consumables?.length || 0));
+  const spill = Math.max(0, quantity - room);
+  const convoyRoom = run.getConvoyCapacities().consumables - run.getConvoyCounts().consumables;
+  return spill > convoyRoom
+    ? 'Not enough space for the entire bundle. Make room in the roster or convoy.'
+    : '';
+}
+export function applyRewardBundle(run, item, target, quantity = 1) {
+  if (quantity === 1) return applyRewardTarget(run, item, target);
+  const reason = bundleTargetBlock(run, item, target, quantity);
+  if (reason) return { ok: false, reason };
+  for (let i = 0; i < quantity; i++) {
+    const copy = { ...item };
+    delete copy.uid;
+    if (target !== 'convoy' && (target.consumables?.length || 0) < CONSUMABLE_MAX)
+      addToConsumables(target, copy);
+    else run.addToConvoy(copy);
+  }
+  return { ok: true };
+}

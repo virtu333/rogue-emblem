@@ -380,7 +380,7 @@ export class InputController {
         scene.preMoveLoc = { col: unit.col, row: unit.row };
         scene._preFogSnapshot = scene.grid.snapshotFogState();
         scene.showActionMenu(unit);
-        this._selectionMenu = { unit, objects: scene.actionMenu };
+        this.registerSelectionMenu(unit);
       }
       return;
     }
@@ -491,12 +491,7 @@ export class InputController {
       scene._preFogSnapshot = scene.grid.snapshotFogState();
       scene.showActionMenu(scene.selectedUnit);
       if (scene.isMobileInput && scene._mobileBattleHud?.available()) {
-        this._selectionMenu = { unit: scene.selectedUnit, objects: scene.actionMenu };
-        scene.grid.showMovementRange?.(
-          scene.movementRange,
-          scene.selectedUnit.col,
-          scene.selectedUnit.row,
-        );
+        this.registerSelectionMenu(scene.selectedUnit);
       }
       return;
     }
@@ -510,6 +505,25 @@ export class InputController {
       if (audio) audio.playSFX('sfx_cancel');
       scene.deselectUnit();
     }
+  }
+
+  registerSelectionMenu(unit) {
+    const s = this.scene;
+    this._selectionMenu = null;
+    if (
+      !s.isMobileInput ||
+      !s._mobileBattleHud?.available() ||
+      s.selectedUnit !== unit ||
+      s.battleState !== 'UNIT_ACTION_MENU' ||
+      unit.hasMoved ||
+      unit.hasActed ||
+      unit._movementCommitted ||
+      s.tradeMutatedThisSession ||
+      s._isTutorialStrictGateActive?.()
+    )
+      return;
+    this._selectionMenu = { unit, objects: s.actionMenu };
+    s.grid.showMovementRange?.(s.movementRange, unit.col, unit.row);
   }
 
   isSelectionMenu() {

@@ -21,6 +21,8 @@ vi.mock('../src/engine/UnitManager.js', async () => {
   };
 });
 
+import { InputController } from '../src/ui/InputController.js';
+
 import { BattleScene } from '../src/scenes/BattleScene.js';
 
 beforeEach(() => {
@@ -132,6 +134,44 @@ function makeBaseScene() {
 }
 
 describe('BattleScene equip menu text', () => {
+  it.each(['Item', 'Equip'])('restores pre-move destinations after %s and Back', (label) => {
+    const scene = makeBaseScene();
+    const unit = {
+      col: 1,
+      row: 1,
+      weapon: equipped,
+      inventory: [equipped, secondary],
+      stats: { HP: 20 },
+      currentHP: 10,
+      consumables: [{ name: 'Vulnerary', type: 'Consumable', effect: 'heal', uses: 3 }],
+      skills: [],
+    };
+    scene.selectedUnit = unit;
+    scene.refreshEndTurnControl = vi.fn();
+    scene.isMobileInput = true;
+    scene._isTutorialStrictGateActive = () => false;
+    scene._mobileBattleHud = { available: () => true, showMenu: vi.fn() };
+    scene.grid.showMovementRange = vi.fn();
+    scene.grid.clearHighlights = vi.fn();
+    scene.movementRange = new Map([['2,1', { stoppable: true }]]);
+    scene.getUnitAt = () => null;
+    scene.moveUnit = vi.fn();
+    scene._inputController = new InputController(scene);
+    scene.showActionMenu = BattleScene.prototype.showActionMenu.bind(scene);
+    scene._makeMenuTextButton = vi.fn((_x, _y, text, _style, _color, action) =>
+      makeDisplayObject({ text, _action: action }),
+    );
+    scene.showActionMenu(unit);
+    const menu = scene._mobileBattleHud.showMenu.mock.calls.at(-1)[0];
+    menu.find((item) => item.label === label).onActivate();
+    expect(scene._inputController.isSelectionMenu()).toBe(false);
+    scene.inEquipMenu = true;
+    scene.handleCancel();
+    expect(scene._inputController.isSelectionMenu()).toBe(true);
+    scene._inputController.handleActionMenuClick({ col: 2, row: 1 });
+    expect(scene.moveUnit).toHaveBeenCalledWith(unit, 2, 1);
+  });
+
   it('shows compact name-only labels with equipped marker', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));

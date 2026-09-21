@@ -264,6 +264,7 @@ export function generateMercenaryCandidates(
   colosseumData,
   rng,
   traitsData = null,
+  existingNames = [],
 ) {
   const mercConfig = colosseumData?.mercenaries;
   if (!mercConfig) {
@@ -296,6 +297,7 @@ export function generateMercenaryCandidates(
   const BOOSTABLE_STATS = ['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
   const candidates = [];
+  const usedNames = new Set(existingNames);
   let skippedCount = 0;
   for (let i = 0; i < count; i++) {
     let pickedClass = '?';
@@ -311,7 +313,13 @@ export function generateMercenaryCandidates(
 
       // Pick a name from the name pool or use class name as fallback
       const names = namePool[className] || [className];
-      const name = names[Math.floor(rng() * names.length)];
+      const freshNames = names.filter((name) => !usedNames.has(name));
+      const pool = freshNames.length ? freshNames : names;
+      const baseName = pool[Math.floor(rng() * pool.length)];
+      let name = baseName,
+        suffix = 2;
+      while (usedNames.has(name)) name = `${baseName} ${suffix++}`;
+      usedNames.add(name);
 
       // Level: lord level + random(-1, +1), min 1
       const levelOffset = Math.floor(rng() * 3) - 1; // -1, 0, or 1

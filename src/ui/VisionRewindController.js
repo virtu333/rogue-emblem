@@ -403,7 +403,7 @@ export class VisionRewindController {
 
     this.showDialog({
       title: 'Foresee a different path?',
-      body: `Spend 1 rewind to return to the start of this player turn?\n(${remaining} left this run)`,
+      body: `Spend 1 rewind to return to the start of player turn ${scene.visionSnapshot.turnNumber}?\n(${remaining} left this run)`,
       confirmLabel: 'Confirm',
       cancelLabel: 'Cancel',
       onConfirm: () => this.executeRewind(),

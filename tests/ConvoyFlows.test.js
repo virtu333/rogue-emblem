@@ -597,6 +597,7 @@ describe('convoy scene/UI flows', () => {
         weaponArts: { arts: [{ id: 'sword_precise_cut', name: 'Precise Cut' }] },
       },
       drawMap: vi.fn(),
+      persistRunSave: vi.fn(),
       showActCompleteBanner: (onComplete) => {
         if (onComplete) onComplete();
       },

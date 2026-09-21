@@ -431,6 +431,7 @@ export class ColosseumOverlay {
           this._colosseumData,
           Math.random,
           this.gameData.traits || null,
+          this.runManager.roster.map((unit) => unit.name),
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);

@@ -62,7 +62,7 @@ export function runReferenceEntries() {
       'Rewards',
       'Preview an item before choosing its recipient or upgrade target.',
       'Back returns to the previous reward step without spending it. Claimed rewards are saved.',
-      'Save & Return during rewards forfeits unclaimed choices; the menu warns before leaving.',
+      'Unclaimed rewards stay available from the campaign map after saving and returning. Resolve them before advancing.',
     ],
   ].map(([name, type, ...referenceLines]) => ({ name, type, referenceLines }));
 }

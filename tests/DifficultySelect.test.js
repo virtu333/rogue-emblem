@@ -57,10 +57,10 @@ function buildModes(gd, meta) {
 }
 
 describe('generateModifierSummary', () => {
-  it('includes village ambush chance for Normal mode', () => {
+  it('includes shop ambush chance for Normal mode', () => {
     const normalMode = gameData.difficulty.modes.normal;
     const result = generateModifierSummary(normalMode);
-    expect(result.some((l) => l.includes('village ambush chance'))).toBe(true);
+    expect(result.some((l) => l.includes('shop ambush chance'))).toBe(true);
     expect(result.some((l) => l.includes('10%'))).toBe(true);
   });
 
@@ -73,7 +73,7 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => l.includes('+25% meta currency'))).toBe(true);
     expect(result.some((l) => l.includes('Shop prices +15%'))).toBe(true);
     expect(result.some((l) => l.includes('90% XP earned'))).toBe(true);
-    expect(result.some((l) => l.includes('20% village ambush chance'))).toBe(true);
+    expect(result.some((l) => l.includes('20% shop ambush chance'))).toBe(true);
   });
 
   it('includes extended leveling for Lunatic mode', () => {
@@ -82,7 +82,7 @@ describe('generateModifierSummary', () => {
     expect(result.some((l) => l.includes('Extended leveling past Lv 20'))).toBe(true);
     expect(result.some((l) => l.includes('Enemy stats +2'))).toBe(true);
     expect(result.some((l) => l.includes('weapon tier'))).toBe(true);
-    expect(result.some((l) => l.includes('25% village ambush chance'))).toBe(true);
+    expect(result.some((l) => l.includes('25% shop ambush chance'))).toBe(true);
   });
 
   it('returns empty array for null/undefined input', () => {

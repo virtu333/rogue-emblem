@@ -351,6 +351,8 @@ export class RunManager {
     this.actSequence = [...ACT_SEQUENCE];
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.pendingBattleReward = null;
+    this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
     this.endRunRewards = null;
@@ -479,6 +481,8 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.pendingBattleReward = null;
+    this.reachedFirstActBoss = false;
     this.activeCaravanShop = null;
     this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
@@ -2848,6 +2852,7 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
     this.battleInProgress = {
       nodeId: typeof nodeId === 'string' ? nodeId : null,
       startedAt: Date.now(),
@@ -3335,12 +3340,7 @@ export class RunManager {
 
     const normalizedResult = result === 'victory' ? 'victory' : 'defeat';
     const currencyMultiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
-    const { valor, supply } = calculateCurrencies(
-      this.actIndex,
-      this.completedBattles,
-      normalizedResult === 'victory',
-      currencyMultiplier,
-    );
+    const { valor, supply } = this.previewEndRunRewards(normalizedResult);
 
     this.endRunRewards = {
       result: normalizedResult,
@@ -3356,12 +3356,16 @@ export class RunManager {
 
   previewEndRunRewards(result = 'defeat') {
     if (this.endRunRewards) return { ...this.endRunRewards };
-    return calculateCurrencies(
+    const multiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
+    const reward = calculateCurrencies(
       this.actIndex,
       this.completedBattles,
       result === 'victory',
-      this.getDifficultyModifier('currencyMultiplier', 1) || 1,
+      multiplier,
     );
+    // One milestone per run, settled through the same defeat/abandon/victory path.
+    const milestone = this.reachedFirstActBoss ? Math.floor(15 * multiplier) : 0;
+    return { valor: reward.valor + milestone, supply: reward.supply + milestone };
   }
 
   /** Serialize run state to a plain object for localStorage. */
@@ -3413,6 +3417,8 @@ export class RunManager {
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
+      pendingBattleReward: this.pendingBattleReward || null,
+      reachedFirstActBoss: this.reachedFirstActBoss === true,
       activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
@@ -3934,6 +3940,21 @@ export class RunManager {
     }
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
+    rm.reachedFirstActBoss = saved.reachedFirstActBoss === true;
+    rm.pendingBattleReward =
+      saved.pendingBattleReward?.version === 1 && Array.isArray(saved.pendingBattleReward.choices)
+        ? {
+            ...JSON.parse(JSON.stringify(saved.pendingBattleReward)),
+            claimed: (Array.isArray(saved.pendingBattleReward.claimed)
+              ? saved.pendingBattleReward.claimed
+              : []
+            ).filter(
+              (i) => Number.isInteger(i) && i >= 0 && i < saved.pendingBattleReward.choices.length,
+            ),
+            picksRemaining: saved.pendingBattleReward.picksRemaining === 2 ? 2 : 1,
+            skipGold: Math.max(0, Math.trunc(Number(saved.pendingBattleReward.skipGold) || 0)),
+          }
+        : null;
     rm.pendingCaravanShop =
       saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
         ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }

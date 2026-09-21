@@ -758,9 +758,7 @@ export class MobileRosterSheet {
           const result = rosterItemAction(this.run, unit, item, action);
           if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
             this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(
-            result || `${label}: ${item.name}${action === 'use' ? saveServiceRun(this.scene) : ''}`,
-          );
+          this.render(result || `${label}: ${item.name}${saveServiceRun(this.scene)}`);
         },
         reason,
       ),

@@ -14,6 +14,7 @@ export function rewardPresentation(choice) {
   else if (choice.type === 'accessory' || item?.type === 'Accessory') category = 'Accessory';
   else if (item?.teachesWeaponArtId || choice.type === 'weaponArtScroll')
     category = 'Weapon Art Scroll';
+  else if (item?.type === 'Staff') category = 'Staff';
   else if (item?.type === 'Scroll' || choice.type === 'skillScroll') category = 'Skill Scroll';
   else if (item?.imbueId) category = 'Imbue';
   else if (choice.type === 'forge' || item?.type === 'Whetstone') category = 'Forge';
@@ -30,6 +31,7 @@ export function rewardPresentation(choice) {
   };
 }
 const PATHS = {
+  Staff: 'M7 1h4v2h2v4h-2V4H8v11H6V4h1z',
   Weapon: 'M11 1h4v4l-7 7-2-2zM3 8l5 5-2 2-5-5zM1 13l2-2 2 2-2 2H1z',
   Supply: 'M6 1h4v3H6zM5 5h6v2l2 2v5H3V9l2-2z',
   Booster: 'M6 14V7H2l6-6 6 6h-4v7z',

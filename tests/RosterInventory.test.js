@@ -9,6 +9,20 @@ function fixture() {
   return { run, unit: run.roster[0] };
 }
 describe('roster inventory actions', () => {
+  it('equips a withdrawn combat weapon only when the equipped slot is empty', () => {
+    const { run, unit } = fixture();
+    run.addToConvoy(unit.weapon);
+    unit.inventory = [];
+    unit.weapon = null;
+    const item = run.getConvoyItems().weapons[0];
+    expect(rosterItemAction(run, unit, item, 'withdraw')).toBe('');
+    expect(unit.weapon).toBe(unit.inventory[0]);
+    const equipped = unit.weapon;
+    run.addToConvoy(equipped);
+    expect(rosterItemAction(run, unit, run.getConvoyItems().weapons[0], 'withdraw')).toBe('');
+    expect(unit.weapon).toBe(equipped);
+  });
+
   it('withdraws a cloned convoy snapshot exactly once, preserving identity and uses', () => {
     const { run, unit } = fixture();
     const item = { name: 'Potion', type: 'Consumable', effect: 'heal', value: 10, uses: 2 };

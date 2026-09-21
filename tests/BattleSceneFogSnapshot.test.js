@@ -1519,8 +1519,10 @@ describe('scene-level silence enforcement (hybrid magic/physical)', () => {
 
   it('confirmForecastCombat blocks combat when weapon is magic and unit is silenced', () => {
     const { scene, unit, tome } = setupSilenceScene();
+    scene.showActionMenu = vi.fn();
     unit.weapon = tome;
     scene.confirmForecastCombat();
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
     // Should have hidden forecast but NOT called executeCombat
     expect(scene.hideForecast).toHaveBeenCalled();
     expect(scene.executeCombat).not.toHaveBeenCalled();

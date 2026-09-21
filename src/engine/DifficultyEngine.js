@@ -100,7 +100,7 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
   }
   if (mode.villageAmbushChance > (defaults.villageAmbushChance || 0)) {
-    lines.push(`${Math.round(mode.villageAmbushChance * 100)}% village ambush chance`);
+    lines.push(`${Math.round(mode.villageAmbushChance * 100)}% shop ambush chance`);
   }
   if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);

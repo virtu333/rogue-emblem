@@ -147,15 +147,30 @@ export class NodeMapMenu {
       );
     }
     const advance = button(
-      rm.canReenterShop?.(this.selected) ? 'Re-enter shop' : 'Advance',
+      rm.pendingBattleReward
+        ? 'Return to rewards'
+        : rm.canReenterShop?.(this.selected)
+          ? 'Re-enter shop'
+          : 'Advance',
       () => {
+        if (rm.pendingBattleReward && !s.isStoryInputLocked?.()) {
+          s.openPendingRewards();
+          return;
+        }
         if (available.has(this.selected) && !s.isStoryInputLocked?.())
           s.onNodeClick(nodes.find((n) => n.id === this.selected));
         this.sync();
       },
       're-btn re-btn--primary',
     );
-    advance.disabled = !available.has(this.selected);
+    advance.disabled = !rm.pendingBattleReward && !available.has(this.selected);
+    if (rm.pendingBattleReward)
+      detail.append(
+        element(
+          'p',
+          'Choose your remaining battle rewards before advancing. You can still review your roster and menu.',
+        ),
+      );
     const party = element('div', null, 're-node-party re-scroll');
     for (const unit of (rm.roster || []).filter((u) => u.isLord).slice(0, 2)) {
       const row = button(null, () => s._openRoster(), 're-btn re-node-unit');

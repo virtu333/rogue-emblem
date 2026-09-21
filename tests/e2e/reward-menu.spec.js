@@ -37,7 +37,11 @@ test('reward submenu can consult Compendium, resume, and safely cancel leaving',
         selected: r.selected,
         steps: r.steps.length,
         gold: s.runManager.gold,
-        save: localStorage.getItem('emblem_rogue_slot_1_run'),
+        save: (() => {
+          const saved = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
+          delete saved.savedAt;
+          return saved;
+        })(),
       };
     });
   const before = await state();
@@ -54,7 +58,7 @@ test('reward submenu can consult Compendium, resume, and safely cancel leaving',
   expect(await state()).toEqual(before);
   await rewards.getByRole('button', { name: 'Menu', exact: true }).tap();
   await menu.getByRole('button', { name: 'Save & Return to Title', exact: true }).tap();
-  await expect(menu.getByText(/Unclaimed rewards will be forfeited/)).toBeVisible();
+  await expect(menu.getByText(/Unclaimed rewards stay available/)).toBeVisible();
   await menu.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await menu.getByRole('button', { name: 'Resume', exact: true }).tap();
   expect(await state()).toEqual(before);
@@ -64,8 +68,12 @@ test('reward submenu can consult Compendium, resume, and safely cancel leaving',
   await waitForScene(page, 'Title');
   await expect(rewards).toHaveCount(0);
   await expect(menu).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBe(
-    before.save,
-  );
+  expect(
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
+      delete saved.savedAt;
+      return saved;
+    }),
+  ).toEqual(before.save);
   expect(errors).toEqual([]);
 });

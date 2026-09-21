@@ -467,6 +467,7 @@ describe('silenced magic guard parity', () => {
     scene.executeCombat = vi.fn();
     scene.commitVisionSnapshotIfPending = vi.fn();
 
+    scene.showActionMenu = vi.fn();
     scene.confirmForecastCombat();
 
     // Should block — hideForecast called but executeCombat NOT called
@@ -499,6 +500,7 @@ describe('silenced magic guard parity', () => {
     scene.executeCombat = vi.fn();
     scene.commitVisionSnapshotIfPending = vi.fn();
 
+    scene.showActionMenu = vi.fn();
     scene.confirmForecastCombat();
 
     // Should proceed — executeCombat called
