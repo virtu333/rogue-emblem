@@ -8,6 +8,8 @@ Changes: both UX contract audits, including service/arena/caravan persistence, r
 
 Verification: **5,291 unit tests**, **109 harness tests**, all PR simulation slices, **79 headed browser cases without retries**, production offline mobile smoke; formatting, lint (zero errors, 307 warnings), data/reference/theme parity, production build/Capacitor sync and Xcode archive passed. Independent reviewers found and helped fix cloud save-loss and sleeping-resume edge cases before packaging. Physical iOS behavior remains a tester priority.
 
+GitHub: the branch is published as [PR #64](https://github.com/virtu333/rogue-emblem/pull/64) on September 21, 2026. The first CI run failed only in `e2e-smoke`: three contract specs pinned `http://127.0.0.1:3000` while the shared Playwright server binds `localhost`, which the Linux runner resolves to IPv6. The specs now use the shared base URL, two keyboard-traversal expectations in `ui-review-regressions.spec.js` were updated to the current focus contract, and the reclass reload contract dismisses the first-battle Field notes hint before tapping the map.
+
 Reviewer note: `docs/ui-release-review-note.md`. Implementation/evidence: `docs/ux-contract-implementation.md`, `docs/ux-supplement-implementation.md`. Final browser artifacts: `/tmp/build10-final-browser`; tests log: `/tmp/build10-final-browser.log`. Tester notes ready at `/tmp/EmblemRogue-Build10-WhatToTest.txt`. Existing public link: https://testflight.apple.com/join/UeWBYA5n (new build availability pending).
 
 ## Build 9 — September 20, 2026

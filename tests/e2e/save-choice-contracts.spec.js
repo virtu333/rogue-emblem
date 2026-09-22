@@ -3,7 +3,6 @@ import { waitForGame, waitForScene } from './helpers.js';
 test.use({
   ...devices['iPhone SE'],
   viewport: { width: 667, height: 375 },
-  baseURL: 'http://127.0.0.1:3000',
 });
 test.setTimeout(60000);
 async function fixture(page, conflict = false) {
