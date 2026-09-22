@@ -1,7 +1,7 @@
 # Battle timeline and rewind — investigated implementation plan
 
 Date: September 21, 2026
-Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 is cancelled by Dave (September 21). TestFlight distribution is authorized; physical-phone acceptance remains a tester check.
+Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 is cancelled by Dave (September 21). Build 15 uploaded successfully September 21 at 17:52 Pacific; Public Playtest assignment awaits App Store Connect sign-in. Physical-phone acceptance remains a tester check.
 Source: [original proposal](battle-timeline-rewind-proposal.md). This document supersedes its implementation ordering and safety assumptions; the original remains design history.
 
 ## 1. Outcome and recommended scope
@@ -314,3 +314,8 @@ Code-focused adversarial review caught and resolved: ordinary checkpoint/popup w
 - Production build passed; lint passed with **0 errors / 313 existing warnings**. Changed-file formatting and whitespace checks passed. No data or content balance changed.
 
 Dave authorized distribution September 21. A fresh adversarial spot-check of commit 31242d0 found no blockers; 39 focused tests passed across transactions, integration, and the viewer. Physical-phone acceptance remains a tester check; T5 is cancelled.
+
+
+#### Build 15 distribution
+
+Uploaded version 0.1.0 (15) September 21 at 17:52 Pacific after one Apple server-error retry. Archive assets (818 files), bundle/version and no development-server configuration verified. Release preparation commit: `641e4fc`. Public Playtest assignment and Testing confirmation are pending App Store Connect browser sign-in; upload alone does not mean tester availability. See `docs/testflight-beta.md`.

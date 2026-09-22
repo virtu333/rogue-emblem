@@ -1,5 +1,14 @@
 # Mobile beta release
 
+
+## Timeline release — build 15 (September 21)
+
+Version **0.1.0 (15)** archived at `/tmp/EmblemRogue-Beta-15.xcarchive`. All **818 web assets** match the production distribution; bundle identity/version and absence of a development server verified. Cloud explicitly disabled. Source feature commit: `31242d0`; release preparation: `641e4fc`. Upload succeeded at **17:52 Pacific** (`/tmp/build15-upload-retry.log`, `EXPORT SUCCEEDED`). The initial attempt hit an Apple server-side error before transfer; retrying the same archive succeeded. Apple processing, Public Playtest assignment and Testing confirmation remain pending because the App Store Connect browser session expired. Do not treat upload as confirmation of tester availability.
+
+Scope: free battle history and detached previews, player-action rewinds on Normal/Hard, turn-start rewinds on Lunatic, fixed outcomes for new battles, durable fatal decisions and free defeat reports. Enemy-action rewind destinations cancelled by Dave; enemy history remains review-only. Build also includes the previously uploaded build-14 changes.
+
+Verification: **5,629 unit tests**, **219 timeline checks**, **165 harness tests**, and **four muted headed browser checks** passed in the completed feature wave (counts overlap). A fresh narrow adversarial spot-check found no blockers and passed **39 focused tests** covering atomic charge/target persistence, fatal/Accept Fate quota retry, and preview isolation/fog. No additional product patch was needed. Production build, Capacitor sync, and archive passed. Physical-phone scrolling, touch cancellation, old-save upgrade and long-history performance remain tester checks. Tester notes: `/tmp/EmblemRogue-Build15-WhatToTest.txt`.
+
 ## Build 14 — September 21, 2026
 
 Version **0.1.0 (14)** uploaded successfully at **15:27 Pacific** (`/tmp/build14-upload.log`, `EXPORT SUCCEEDED`). Archive: `/tmp/EmblemRogue-Beta-14.xcarchive`; bundle/version and all 817 archived web assets verified against the built distribution. Cloud explicitly disabled. Source commit: `33e3cca`; remote proposal/test fixes reconciled in `efd4208`, no GitHub push. Apple processing and Public Playtest assignment are pending.
