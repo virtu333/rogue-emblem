@@ -1824,5 +1824,24 @@
         "unlockSkill": "renewal"
       }
     ]
+  },
+  {
+    "id": "legendary_lord_chance",
+    "name": "Legends Awaken",
+    "description": "Legendary lord trait chance: 5% normally, 10% at tier 1, 15% at tier 2. Applies to new runs; replaces the ordinary trait.",
+    "category": "lord_bonuses",
+    "maxLevel": 2,
+    "costs": [
+      300,
+      600
+    ],
+    "effects": [
+      {
+        "legendaryLordChanceBonus": 0.05
+      },
+      {
+        "legendaryLordChanceBonus": 0.1
+      }
+    ]
   }
 ]

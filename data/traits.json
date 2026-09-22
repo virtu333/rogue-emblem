@@ -163,5 +163,83 @@
     "name": "Quick Study",
     "description": "Earns 15% more XP. Grows faster than most.",
     "xpMultiplier": 1.15
+  },
+  {
+    "id": "standard_bearer",
+    "name": "Standard Bearer",
+    "description": "+2 ATK and +2 DEF while adjacent to a living ally.",
+    "rarity": "legendary",
+    "lordName": "Edric",
+    "combatMods": {
+      "atkBonus": 2,
+      "defBonus": 2,
+      "condition": "adjacent_ally"
+    }
+  },
+  {
+    "id": "overflowing_grace",
+    "name": "Overflowing Grace",
+    "description": "Once per player phase, restoring HP to another unit with a healing staff also restores 3 HP to Sera.",
+    "rarity": "legendary",
+    "lordName": "Sera",
+    "staffSelfHeal": 3
+  },
+  {
+    "id": "calculated_opening",
+    "name": "Calculated Opening",
+    "description": "+15 Hit when initiating against a full-health enemy.",
+    "rarity": "legendary",
+    "lordName": "Kira",
+    "combatMods": {
+      "hitBonus": 15,
+      "condition": "initiating_full_hp_foe"
+    }
+  },
+  {
+    "id": "unbroken",
+    "name": "Unbroken",
+    "description": "+2 RES and +10 Hit at half HP or less.",
+    "rarity": "legendary",
+    "lordName": "Voss",
+    "combatMods": {
+      "resBonus": 2,
+      "hitBonus": 10,
+      "condition": "below50"
+    }
+  },
+  {
+    "id": "riding_guard",
+    "name": "Riding Guard",
+    "description": "+2 DEF and +2 RES during combat initiated after spending at least 3 movement cost.",
+    "rarity": "legendary",
+    "lordName": "Rowan",
+    "combatMods": {
+      "defBonus": 2,
+      "resBonus": 2,
+      "condition": "moved_3_plus_initiating"
+    }
+  },
+  {
+    "id": "open_skies",
+    "name": "Open Skies",
+    "description": "+10 Hit and +5 Crit when initiating without an adjacent living ally.",
+    "rarity": "legendary",
+    "lordName": "Astrid",
+    "combatMods": {
+      "hitBonus": 10,
+      "critBonus": 5,
+      "condition": "initiating_no_adjacent_ally"
+    }
+  },
+  {
+    "id": "dread_presence",
+    "name": "Dread Presence",
+    "description": "+10 Hit when defending against an enemy attack.",
+    "rarity": "legendary",
+    "lordName": "Cael",
+    "combatMods": {
+      "hitBonus": 10,
+      "condition": "defending"
+    }
   }
 ]

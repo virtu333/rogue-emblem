@@ -319,6 +319,7 @@ const LORD_SPRITE_KEYS = {
 };
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
+  delete unit._legendaryGraceTurn;
   unit.hasMoved = false;
   unit._movementCommitted = false;
   unit.hasActed = false;

@@ -636,6 +636,7 @@ export class MetaProgressionManager {
       growthBonuses: {},
       lordStatBonuses: {},
       lordGrowthBonuses: {},
+      legendaryLordChanceBonus: 0,
       goldBonus: 0,
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
@@ -677,6 +678,9 @@ export class MetaProgressionManager {
 
       const effect = upgrade.effects[level - 1];
       if (!effect) continue;
+
+      if (Number.isFinite(effect.legendaryLordChanceBonus))
+        effects.legendaryLordChanceBonus += effect.legendaryLordChanceBonus;
 
       // Recruit flat stat bonuses
       if (effect.stat !== undefined) {

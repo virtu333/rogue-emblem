@@ -31,9 +31,22 @@ function findClass(name) {
 }
 
 describe('traits.json data contract', () => {
-  const VALID_CONDITIONS = new Set(['below50', 'above75', 'no_ally_within_2', 'on_forest']);
+  const VALID_CONDITIONS = new Set([
+    'below50',
+    'above75',
+    'no_ally_within_2',
+    'on_forest',
+    'adjacent_ally',
+    'initiating_full_hp_foe',
+    'moved_3_plus_initiating',
+    'initiating_no_adjacent_ally',
+    'defending',
+  ]);
   const VALID_STATS = new Set(['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
   const TOP_FIELDS = new Set([
+    'rarity',
+    'lordName',
+    'staffSelfHeal',
     'id',
     'name',
     'description',

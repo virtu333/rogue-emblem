@@ -1,4 +1,5 @@
 import { TutorialController } from './TutorialController.js';
+import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
 // Cross-cutting seams (finishUnitAction, awardScaledXP, showActionMenu,
@@ -368,9 +369,19 @@ export class HealController {
       // Apply heal
       target.currentHP = result.targetHPAfter;
       scene.updateHPBar(target);
+      const selfHeal = applyLegendaryStaffHeal(
+        healer,
+        target,
+        result.healAmount,
+        scene.gameData?.traits,
+        scene.turnManager?.turnNumber,
+        scene.turnManager?.currentPhase,
+      );
+      if (selfHeal) scene.updateHPBar(healer);
 
       // Animate
       await scene.animateHeal(target, result.healAmount);
+      if (selfHeal) await scene.animateHeal(healer, selfHeal);
 
       // Spend a use and check depletion
       spendStaffUse(staff);
@@ -402,7 +413,17 @@ export class HealController {
         const result = resolveHeal(staff, healer, target, healOpts);
         target.currentHP = result.targetHPAfter;
         scene.updateHPBar(target);
+        const selfHeal = applyLegendaryStaffHeal(
+          healer,
+          target,
+          result.healAmount,
+          scene.gameData?.traits,
+          scene.turnManager?.turnNumber,
+          scene.turnManager?.currentPhase,
+        );
+        if (selfHeal) scene.updateHPBar(healer);
         await scene.animateHeal(target, result.healAmount);
+        if (selfHeal) await scene.animateHeal(healer, selfHeal);
       }
 
       // Single use spent for all targets

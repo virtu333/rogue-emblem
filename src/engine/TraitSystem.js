@@ -38,6 +38,7 @@ function rollTraitCount(rng) {
 export function rollTraits(traitsData, count, rng = Math.random, unit = null) {
   if (!Array.isArray(traitsData) || traitsData.length === 0 || count <= 0) return [];
   const pool = traitsData
+    .filter((t) => !t.lordName || (unit?.isLord && unit.name === t.lordName))
     .filter(
       (t) =>
         !t.eligibleWeaponTypes ||
@@ -101,7 +102,12 @@ export function rollAndApplyTraits(unit, traitsData, rng = Math.random) {
   if (!Array.isArray(traitsData) || traitsData.length === 0) return unit;
   const roll = typeof rng === 'function' ? rng : Math.random;
   const count = rollTraitCount(roll);
-  const ids = rollTraits(traitsData, count, roll, unit);
+  const ids = rollTraits(
+    traitsData.filter((t) => t.rarity !== 'legendary'),
+    count,
+    roll,
+    unit,
+  );
   unit.traits = ids;
   for (const id of ids) {
     const trait = traitsData.find((t) => t.id === id);
@@ -136,9 +142,18 @@ export function migrateCleverTrait(unit) {
 /** Lord traits preserve mastery identity and respect weapon-type eligibility.
  * Existing saves are never re-rolled; an already assigned trait is retained.
  */
-export function rollAndApplyLordTrait(unit, traitsData, rng = Math.random) {
+export function rollAndApplyLordTrait(unit, traitsData, rng = Math.random, legendaryChance = 0.05) {
   if (!unit?.isLord || unit.traits?.length) return unit;
-  const pool = (traitsData || []).filter((trait) => !['lazy', 'reckless'].includes(trait.id));
+  const legendary = (traitsData || []).filter(
+    (t) => t.rarity === 'legendary' && t.lordName === unit.name,
+  );
+  const chance = Math.min(0.15, Math.max(0, Number(legendaryChance) || 0));
+  const useLegendary = legendary.length > 0 && chance > 0 && rng() < chance;
+  const pool = useLegendary
+    ? legendary
+    : (traitsData || []).filter(
+        (trait) => trait.rarity !== 'legendary' && !['lazy', 'reckless'].includes(trait.id),
+      );
   const ids = rollTraits(pool, 1, rng, unit);
   unit.traits = ids;
   for (const id of ids)
@@ -147,4 +162,28 @@ export function rollAndApplyLordTrait(unit, traitsData, rng = Math.random) {
       pool.find((trait) => trait.id === id),
     );
   return unit;
+}
+
+/** Apply only after a staff actually heals another unit. Usage belongs to the
+ * battle unit, so canonical checkpoints restore it alongside HP. */
+export function applyLegendaryStaffHeal(healer, target, healed, traitsData, turn, phase) {
+  if (
+    phase !== 'player' ||
+    !Number.isInteger(turn) ||
+    turn < 1 ||
+    healer === target ||
+    healed <= 0 ||
+    healer.currentHP <= 0 ||
+    healer._legendaryGraceTurn === turn
+  )
+    return 0;
+  const amount = getUnitTraits(healer, traitsData).reduce(
+    (max, t) => Math.max(max, t.staffSelfHeal || 0),
+    0,
+  );
+  const actual = Math.max(0, Math.min(amount, healer.stats.HP - healer.currentHP));
+  if (!actual) return 0;
+  healer.currentHP += actual;
+  healer._legendaryGraceTurn = turn;
+  return actual;
 }

@@ -233,6 +233,23 @@ export function getSkillCombatMods(
       const trait = traitsData.find((t) => t?.id === traitId);
       const cmods = trait?.combatMods;
       if (!cmods) continue;
+      if (cmods.condition === 'defending' && isInitiating) continue;
+      if (
+        cmods.condition === 'initiating_full_hp_foe' &&
+        (!isInitiating || opponent.currentHP !== opponent.stats.HP)
+      )
+        continue;
+      if (
+        cmods.condition === 'moved_3_plus_initiating' &&
+        (!isInitiating || (unit._movementSpent || 0) < 3)
+      )
+        continue;
+      if (
+        cmods.condition === 'initiating_no_adjacent_ally' &&
+        (!isInitiating ||
+          isAccessoryConditionMet('adjacent_ally', unit, opponent, allies, enemies, terrain))
+      )
+        continue;
       const condMet = isAccessoryConditionMet(
         cmods.condition,
         unit,

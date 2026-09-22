@@ -756,6 +756,32 @@ describe('RunManager', () => {
   });
 
   describe('completeBattle', () => {
+    it('refills per-battle equipment only on completion and preserves that recovery on reload', () => {
+      rm.startRun();
+      const staff = structuredClone(gameData.weapons.find((w) => w.name === 'Heal'));
+      staff._usesSpent = 3;
+      const roster = rm.getRoster();
+      roster[1].inventory = [staff];
+      roster[1].weapon = staff;
+      roster[1].consumables = [{ name: 'Vulnerary', uses: 1 }];
+      rm.roster = roster.map(serializeUnit);
+      rm.convoy.weapons = [{ ...staff }];
+      rm.convoy.consumables = [{ name: 'Vulnerary', uses: 2 }];
+      const before = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), gameData);
+      expect(before.roster[1].inventory[0]._usesSpent).toBe(3);
+      expect(before.convoy.weapons[0]._usesSpent).toBe(3);
+      expect(rm.completeBattle(roster, 'missing-node')).toBe(false);
+      expect(rm.roster[1].inventory[0]._usesSpent).toBe(3);
+      rm.completeBattle(roster, rm.nodeMap.startNodeId);
+      const after = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), gameData);
+      expect(after.roster[1].inventory[0]._usesSpent).toBe(0);
+      expect(after.roster[1].weapon._usesSpent).toBe(0);
+      expect(after.convoy.weapons[0]._usesSpent).toBe(0);
+      expect(after.roster[1].consumables[0].uses).toBe(1);
+      expect(after.convoy.consumables[0].uses).toBe(2);
+      expect(staff._usesSpent).toBe(3); // Live battle/history input is untouched.
+    });
+
     it('updates roster with surviving units', () => {
       rm.startRun();
       const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);

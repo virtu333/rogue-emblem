@@ -379,8 +379,13 @@ export class MobileRosterSheet {
           ]),
         ),
       );
-      for (const trait of getUnitTraits(unit, this.gameData.traits))
-        this.card(trait.name, trait.description);
+      const traits = getUnitTraits(unit, this.gameData.traits);
+      if (traits.length) this.body.append(el('h3', 'Traits'));
+      for (const trait of traits)
+        this.card(
+          `${trait.rarity === 'legendary' ? 'Legendary · ' : ''}${trait.name}`,
+          trait.description,
+        );
     }
     for (const id of unit.affixes || []) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
@@ -711,7 +716,7 @@ export class MobileRosterSheet {
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {
       const range = getEffectiveStaffRange(item, unit);
-      return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}`;
+      return `Staff · Range ${range.min === range.max ? range.max : `${range.min}–${range.max}`} · Uses ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)}${item.perBattleUses ? ' · Refills after battle' : ''}`;
     }
     return `${item.type} · Might ${item.might ?? '—'} · Hit ${item.hit ?? '—'} · Crit ${item.crit ?? '—'} · Weight ${item.weight ?? '—'} · Range ${item.range ?? '—'}`;
   }

@@ -240,6 +240,16 @@ export function compendiumEntries(controller, tab, filter) {
     };
     view._wrapLore = (text) => (text ? [text] : []);
     view._renderItems([item], 0, 0, 560);
+    if ((controller.gameData.lords || []).includes(item)) {
+      for (const trait of controller.gameData.traits || []) {
+        if (trait.lordName === item.name && trait.rarity === 'legendary')
+          lines.push(
+            `Legendary trait: ${trait.name}`,
+            trait.description,
+            '5% chance on a new lord; Valor upgrades raise this to 10% / 15%. Replaces the ordinary trait.',
+          );
+      }
+    }
     return {
       name: item.name || 'Unknown',
       summary: [item.type, item.tier, item.className].filter(Boolean).join(' · '),

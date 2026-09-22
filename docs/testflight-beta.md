@@ -1,5 +1,18 @@
 # Mobile beta release
 
+## Legendary lord traits and staff recovery — build 16 (September 21)
+
+Version **0.1.0 (16)** archived at `/tmp/EmblemRogue-Beta-16.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Upload/distribution not yet confirmed.
+Scope: refill per-battle staff uses at victory, seven lord-specific legendary traits,
+5% new-run chance with 300/600 Valor upgrades to 10%/15%, readable trait labels and
+Compendium explanations. Existing lord traits are preserved; portraits unchanged.
+
+Verification: 5,646 unit tests / 335 files, plus two new passing production staff-heal
+cases; 219 timeline tests; 56 journey tests; 24 focused legendary/healing tests;
+one muted headed mobile roster/Compendium/recovery case. Data schemas/parity and
+production build pass. Targeted lint: zero errors, 11 existing warnings. Counts overlap.
+
+
 
 ## Timeline release — build 15 (September 21)
 
