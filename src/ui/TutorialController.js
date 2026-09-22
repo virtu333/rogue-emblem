@@ -182,7 +182,7 @@ export class TutorialController {
     const eyeRef = scene.isMobileInput ? 'Rewind' : 'Rewind [R]';
     return (
       `${eyeRef} spends 1 charge to return to the saved player-turn start.\n` +
-      'In a real run, rewind charges last the whole run, not one battle.\n' +
+      'In a real run, Rewind also opens a free battle timeline. Select to preview; a separate confirmation spends a charge. Charges last the whole run.\n' +
       'Here you have none -- but fate may grant one if a lord falls.'
     );
   }

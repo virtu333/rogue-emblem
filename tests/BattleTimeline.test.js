@@ -75,7 +75,9 @@ describe('bounded battle timeline', () => {
   it('keeps recovery/event entries separate from stable destinations', () => {
     let history = append(createBattleTimeline(), 1, 'turn_start');
     history = append(history, 1, 'recovery', {
-      snapshot: state(1, 'player', { pendingActionCompletion: { unitId: 'u1' } }),
+      snapshot: state(1, 'player', {
+        pendingActionCompletion: { kind: 'finish', unitName: 'Edric', unitId: 'u1' },
+      }),
     });
     history = append(history, 1, 'enemy_action');
     expect(canRewindToEntry(history, 1)).toBe(true);
@@ -83,7 +85,9 @@ describe('bounded battle timeline', () => {
     expect(canRewindToEntry(history, 3, { allowPlayerActions: true })).toBe(false);
     expect(() =>
       append(history, 1, 'player_action', {
-        snapshot: state(1, 'player', { pendingActionCompletion: {} }),
+        snapshot: state(1, 'player', {
+          pendingActionCompletion: { kind: 'finish', unitName: 'Edric', unitId: 'u1' },
+        }),
       }),
     ).toThrow('Unsettled');
     expect(() => append(history, 1, 'enemy_action', { destination: true })).toThrow('Unsettled');

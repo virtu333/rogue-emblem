@@ -565,16 +565,32 @@ export class SlotPickerScene extends Phaser.Scene {
    * dismisses it back to the slot list.
    */
   _showSuspendedBattleChoice(slot, rm) {
+    if (rm._battleRecoveryInvalid) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        'Battle save needs recovery',
+        'This battle checkpoint could not be read safely. Your saved data has been kept. Please report this issue before starting a new run in this slot.',
+        [],
+      );
+      return;
+    }
+    const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
     if (hasDOMHost()) {
       this.nativeDialog?.destroy();
       if (this.slotMenu) this.slotMenu.root.inert = true;
       this.nativeDialog = slotDialog(
         this,
         'Battle in progress',
-        'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
+        fatal
+          ? 'A fatal battle outcome awaits your decision. Resume to review the timeline or accept defeat.'
+          : 'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
         [
           ['Resume Battle', () => this._continueSuspendedRun(slot, rm, 'battle'), true],
-          ['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')],
+          ...(!fatal
+            ? [['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')]]
+            : []),
         ],
       );
       return;
@@ -653,9 +669,10 @@ export class SlotPickerScene extends Phaser.Scene {
     makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
       this._continueSuspendedRun(slot, rm, 'battle'),
     );
-    makeButton(cx + 92, '[ Continue from Map ]', UI_PALETTE.text, () =>
-      this._continueSuspendedRun(slot, rm, 'map'),
-    );
+    if (!fatal)
+      makeButton(cx + 92, '[ Continue from Map ]', UI_PALETTE.text, () =>
+        this._continueSuspendedRun(slot, rm, 'map'),
+      );
 
     this.confirmDialog = objects;
     this._setDialogFocus(focusButtons);
@@ -673,6 +690,13 @@ export class SlotPickerScene extends Phaser.Scene {
 
   async _continueSuspendedRun(slot, rm, mode) {
     if (this.isTransitioning) return;
+    if (
+      rm._battleRecoveryInvalid ||
+      (mode === 'map' && rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending')
+    ) {
+      this._showSuspendedBattleChoice(slot, rm);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
     if (this.confirmDialog) {
@@ -706,6 +730,22 @@ export class SlotPickerScene extends Phaser.Scene {
           { reason: TRANSITION_REASONS.CONTINUE },
         );
       } else {
+        const reset = clearBattleInProgressInSave(
+          cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        );
+        if (!reset?.ok) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, rm);
+          return;
+        }
+        const domain = bip.entryBattleState;
+        if (domain) {
+          rm.convoy = structuredClone(domain.convoy);
+          rm.accessories = structuredClone(domain.accessories);
+          rm.gold = domain.gold;
+        }
         // Full revert: refund entry-time Vision charges and RNG seed in
         // memory, mirror it into the raw save, then resume from the map.
         if (Number.isFinite(bip?.visionChargesAtEntry)) {
@@ -718,7 +758,6 @@ export class SlotPickerScene extends Phaser.Scene {
           rm.rngSeed = bip.rngSeedAtEntry;
         }
         rm.clearBattleInProgress();
-        clearBattleInProgressInSave(cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
         transitioned = await transitionToScene(
           this,
           'NodeMap',

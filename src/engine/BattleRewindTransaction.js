@@ -1,3 +1,4 @@
+import { persistWithTimelineFallback } from './BattleTimelinePersistence.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { isBattleRngState } from './BattleRng.js';
 
@@ -17,7 +18,12 @@ export function prepareBattleRewind(
     return { ok: false, reason: 'stale_branch' };
   if (!Number.isInteger(run.visionChargesRemaining) || run.visionChargesRemaining <= 0)
     return { ok: false, reason: 'no_charges' };
-  if (!validateBattleState(target) || target.phase !== 'player' || target.pendingActionCompletion)
+  if (
+    !validateBattleState(target) ||
+    target.recoveryKind === 'fatal_pending' ||
+    target.phase !== 'player' ||
+    target.pendingActionCompletion
+  )
     return { ok: false, reason: 'invalid_target' };
   const policy = flag.rewindPolicy || 'legacy-v1';
   if (target.rewindPolicy !== policy) return { ok: false, reason: 'incompatible_policy' };
@@ -41,14 +47,19 @@ export function prepareBattleRewind(
     pendingVisionSnapshot: null,
   };
   candidate.battleInProgress.timeline = structuredClone(history);
+  const rewindMarker = history?.entries?.at(-1);
+  candidate.battleInProgress.timelineCurrentEntryId =
+    rewindMarker?.kind === 'rewind' ? (rewindMarker.facts?.[0]?.targetId ?? null) : null;
   return { ok: true, candidate };
 }
 
 export function persistBattleRewind(prepared, write) {
   if (!prepared?.ok) return prepared;
   try {
-    const result = write(prepared.candidate);
-    return result?.ok === true ? prepared : { ok: false, reason: result?.reason || 'write_error' };
+    const result = persistWithTimelineFallback(prepared.candidate, write);
+    return result.ok
+      ? { ...prepared, candidate: result.candidate }
+      : { ok: false, reason: result.reason || 'write_error' };
   } catch {
     return { ok: false, reason: 'write_error' };
   }

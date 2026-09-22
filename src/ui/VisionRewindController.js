@@ -1,3 +1,13 @@
+import { validateBattleState } from '../engine/BattleStateSnapshot.js';
+import { isSleeping } from '../engine/StatusConditionSystem.js';
+import { persistFatalDecision } from './BattleFatalDecision.js';
+import { BattleTimelineView } from './BattleTimelineView.js';
+import {
+  branchBattleTimeline,
+  canRewindToEntry,
+  getEntryState,
+  hydrateBattleTimeline,
+} from '../engine/BattleTimeline.js';
 import { presentationText } from '../utils/presentationText.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
@@ -100,6 +110,16 @@ export class VisionRewindController {
       scene._battleRewindPolicy === 'fixed-v1'
         ? captureBattleState(scene, { rngSeed: this.runManager?.rngSeed ?? scene.visionBaseSeed })
         : {
+            ...captureBattleState(scene, {
+              rngSeed: this.runManager?.rngSeed ?? scene.visionBaseSeed,
+            }),
+            runBattleState: this.runManager
+              ? structuredClone({
+                  convoy: this.runManager.convoy || { weapons: [], consumables: [] },
+                  accessories: this.runManager.accessories || [],
+                  gold: this.runManager.gold || 0,
+                })
+              : null,
             nextEntityId: scene._nextBattleEntityId || 1,
             ...captureBattleWorldState(scene),
             playerUnits: scene.playerUnits.map(stripVisuals),
@@ -304,8 +324,12 @@ export class VisionRewindController {
       scene.visionSnapshot.decisionRngState || scene.visionSnapshot.rngState || null;
     scene._pendingActionCompletion = null;
     scene._pendingLevelUpPopups = [];
+    scene._timelineFacts = [];
     scene._commanderKillerName = null;
     this._rewindFatalOrigin = false;
+    scene._fatalDecision = null;
+    scene._fatalCapturePending = false;
+    scene._defeatDecision = null;
     scene._clearCombatRollSession?.();
 
     scene.updateObjectiveText();
@@ -335,6 +359,12 @@ export class VisionRewindController {
     if (audio && audio.currentMusicKey) {
       audio.playMusic(audio.currentMusicKey, scene, 0);
     }
+    if (
+      committed &&
+      scene.playerUnits.length &&
+      scene.playerUnits.every((unit) => unit.currentHP <= 0 || unit.hasActed || isSleeping(unit))
+    )
+      scene.turnManager.endPlayerPhase();
     return true;
   }
 
@@ -366,32 +396,18 @@ export class VisionRewindController {
 
   canUseNow() {
     const scene = this.scene;
-    const allowedStates = new Set([
-      'PLAYER_IDLE',
-      'UNIT_SELECTED',
-      'UNIT_ACTION_MENU',
-      'SHOWING_FORECAST',
-      'SELECTING_TARGET',
-      'SELECTING_HEAL_TARGET',
-      'SELECTING_CURE_TARGET',
-      'SELECTING_STAFF_ALLY',
-      'SELECTING_STAFF_TILE',
-      'SELECTING_SHOVE_TARGET',
-      'SELECTING_PULL_TARGET',
-      'SELECTING_TRADE_TARGET',
-      'SELECTING_SWAP_TARGET',
-      'SELECTING_DANCE_TARGET',
-      'SELECTING_ABILITY_TILE',
-      'TRADING',
-      'CANTO_MOVING',
-    ]);
+    const allowedStates = new Set(['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU']);
     return (
       scene.turnManager?.currentPhase === 'player' &&
       allowedStates.has(scene.battleState) &&
+      (scene.battleState !== 'UNIT_ACTION_MENU' ||
+        scene._inputController?.isSelectionMenu?.() === true) &&
+      !scene._pendingActionCompletion &&
+      !scene._pendingLevelUpPopups?.length &&
       !scene.pauseOverlay?.visible &&
       !scene.visionDialog &&
-      this.getChargesRemaining() > 0 &&
-      !!scene.visionSnapshot
+      ((hasDOMHost() && Boolean(scene._battleTimeline?.entries?.length)) ||
+        (this.getChargesRemaining() > 0 && !!scene.visionSnapshot))
     );
   }
 
@@ -401,9 +417,21 @@ export class VisionRewindController {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return false;
     if (!force && !this.canUseNow()) return false;
+    if (hasDOMHost() && scene._battleTimeline?.entries?.length) return this.openTimeline();
     if (!scene.visionSnapshot) return false;
     const remaining = this.getChargesRemaining();
     if (remaining <= 0) return false;
+    if (this.runManager && !scene.visionSnapshot.runBattleState) {
+      this.showDialog({
+        title: 'Earlier rewind unavailable',
+        body: 'This older save does not contain enough inventory history to restore that turn safely. Your charges are unchanged. New turn-start points will be recorded as you play.',
+        confirmLabel: 'Return to battle',
+        cancelLabel: 'Back',
+        onConfirm: () => {},
+        onCancel: () => {},
+      });
+      return true;
+    }
 
     const intent = this.createRewindIntent(scene.visionSnapshot);
     this.showDialog({
@@ -417,20 +445,110 @@ export class VisionRewindController {
     return true;
   }
 
+  openTimeline({ fatal = false } = {}) {
+    const scene = this.scene;
+    const history =
+      scene._battleTimeline || hydrateBattleTimeline(this.runManager?.battleInProgress?.timeline);
+    if (!hasDOMHost() || !history?.entries?.length) return false;
+    this.closeDialog();
+    const prevState = scene.battleState;
+    const close = () => {
+      this.closeDialog();
+      if (fatal) this.returnToFatalDecision();
+    };
+    scene.visionDialog = { group: [], prevState, onCancel: close };
+    scene.battleState = 'PAUSED';
+    const view = new BattleTimelineView(scene, {
+      history,
+      charges: this.getChargesRemaining(),
+      difficulty: this.runManager?.difficultyId || 'normal',
+      allowPlayerActions: true,
+      currentEntryId: scene._timelineCurrentEntryId,
+      fatal,
+      onClose: close,
+      onRewind: (id) => {
+        if (
+          id === scene._timelineCurrentEntryId ||
+          !canRewindToEntry(history, id, {
+            difficulty: this.runManager?.difficultyId || 'normal',
+            allowPlayerActions: true,
+          }) ||
+          this.getChargesRemaining() <= 0
+        )
+          return;
+        const target = getEntryState(history, id);
+        const intent = this.createRewindIntent(target);
+        const branch = branchBattleTimeline(history, id);
+        const row = history.entries.find((entry) => entry.id === id);
+        this.closeDialog();
+        this.showDialog({
+          title: 'Rewind to this point?',
+          body: `Return to turn ${target.turnNumber}, ${row.kind === 'turn_start' ? 'start of player phase' : 'after this player action'}?${row.preview?.enemiesActNext ? ' Enemies will act next.' : ''} This spends 1 rewind charge. Later actions will be removed.`,
+          confirmLabel: 'Spend 1 rewind',
+          cancelLabel: 'Back',
+          onConfirm: () => this.executeRewind(target, branch, intent),
+          onCancel: () => this.openTimeline({ fatal }),
+        });
+      },
+    });
+    scene.visionDialog.surface = view;
+    return true;
+  }
+
+  returnToFatalDecision() {
+    if (!this.showLordDeathPrompt()) this.scene.onDefeat();
+  }
+
   showLordDeathPrompt() {
     const remaining = this.getChargesRemaining();
-    if (remaining <= 0 || !this.scene.visionSnapshot) return false;
+    if (remaining <= 0) return false;
+    const anchor = this.scene.visionSnapshot;
+    const usableAnchor = Boolean(
+      anchor &&
+      (!this.runManager?.battleInProgress || anchor.runBattleState) &&
+      (this.scene._battleRewindPolicy !== 'fixed-v1' || validateBattleState(anchor)),
+    );
+    const hasUsableTimeline = () =>
+      hasDOMHost() &&
+      this.scene._battleTimeline?.entries?.some((entry) =>
+        canRewindToEntry(this.scene._battleTimeline, entry.id, {
+          difficulty: this.runManager?.difficultyId || 'normal',
+          allowPlayerActions: this.scene._battleRewindPolicy === 'fixed-v1',
+        }),
+      );
+    if (!usableAnchor && !hasUsableTimeline()) return false;
+    if (this.runManager?.battleInProgress) {
+      const result = persistFatalDecision(this.scene);
+      if (!result.ok) {
+        this.showDialog({
+          title: 'Battle could not be saved',
+          body: 'The battle is paused. Retry saving before choosing what happens next. Closing the app now may return to the last saved point.',
+          confirmLabel: 'Retry save',
+          cancelLabel: 'Retry save',
+          onConfirm: () => this.returnToFatalDecision(),
+          onCancel: () => this.returnToFatalDecision(),
+        });
+        return true;
+      }
+      // Storage-pressure recovery may discard optional history. Do not offer
+      // a rewind button with neither a surviving destination nor a fallback.
+      if (!usableAnchor && !hasUsableTimeline()) return false;
+    }
     // Flavor follows Sera: generic copy when she isn't part of this run.
     const visionPool = this.runManager?.roster || this.scene.playerUnits || [];
     const seraPresent = visionPool.some((u) => u?.name === 'Sera');
     this._rewindFatalOrigin = true;
-    const intent = this.createRewindIntent(this.scene.visionSnapshot);
+    const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
     this.showDialog({
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `Reveal another path?\n(${remaining} left this run)`,
-      confirmLabel: 'Rewind',
+      confirmLabel:
+        hasDOMHost() && this.scene._battleTimeline?.entries?.length ? 'Review timeline' : 'Rewind',
       cancelLabel: 'Accept Fate',
-      onConfirm: () => this.executeRewind(intent.target, null, intent),
+      onConfirm: () => {
+        if (!this.openTimeline({ fatal: true }) && intent)
+          this.executeRewind(intent.target, null, intent);
+      },
       onCancel: () => {
         this._rewindFatalOrigin = false;
         this.scene.onDefeat();
@@ -599,7 +717,7 @@ export class VisionRewindController {
           cancelLabel: 'Cancel',
           onConfirm: () => this.executeRewind(target, history, intent),
           onCancel: () => {
-            if (this._rewindFatalOrigin) this.showLordDeathPrompt();
+            if (this._rewindFatalOrigin) this.returnToFatalDecision();
           },
         });
         return false;
@@ -611,6 +729,7 @@ export class VisionRewindController {
       scene.visionSnapshot = state;
       scene.pendingVisionSnapshot = null;
       scene._battleTimeline = candidate.battleInProgress.timeline;
+      scene._timelineCurrentEntryId = candidate.battleInProgress.timelineCurrentEntryId;
       this.lastRewindError = null;
       // Reconstruction is after durability. Never refund/retry the debit if
       // rendering fails; reload adopts the already-committed checkpoint.
@@ -637,6 +756,7 @@ export class VisionRewindController {
   _prepareTarget(anchor) {
     const scene = this.scene;
     const policy = this.runManager.battleInProgress?.rewindPolicy || 'legacy-v1';
+    if (!anchor?.runBattleState) return null;
     if (policy === 'fixed-v1') return structuredClone(anchor);
     // Old anchors lack the canonical envelope. Upgrade a detached copy once;
     // preserve their original reroll policy throughout this battle.

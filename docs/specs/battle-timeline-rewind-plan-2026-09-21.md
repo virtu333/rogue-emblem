@@ -1,7 +1,7 @@
 # Battle timeline and rewind — investigated implementation plan
 
 Date: September 21, 2026
-Status: approved September 21; implementation in progress. Fixed outcomes accepted for new battles; T5 remains a later release.
+Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 remains a later release. Phone acceptance and TestFlight distribution are pending check-in.
 Source: [original proposal](battle-timeline-rewind-proposal.md). This document supersedes its implementation ordering and safety assumptions; the original remains design history.
 
 ## 1. Outcome and recommended scope
@@ -235,7 +235,7 @@ Add a dedicated timeline test command to `package.json` and explicitly include i
 4. Keep battle button **Rewind**; screen **Battle timeline**; Vision stays explanatory flavor/resource terminology.
 5. Keep the full-map restart option and its existing refund policy separate from paid rewind.
 
-Recommendations are defaults for discussion, not implemented behavior. The main design choice needing agreement is fixed randomness; the rest follows the existing economy and the mobile-first safety goal.
+Dave approved these decisions before execution, including fixed randomness for new battles. The implementation record below distinguishes shipped behavior, verification evidence, and remaining release checks.
 
 ## 8. Adversarial review disposition
 
@@ -274,3 +274,41 @@ Paid run rewinds now prepare a detached run record, write the target/domain/char
 The bounded pure history module is ready for recorder integration: 32 tests cover pruning, references, migration, revision/ID behavior and representative inventory budgets. T3 wires it into production boundaries and supplies the viewer; it is not exposed by the T2 foundation alone.
 
 Review regressions cover fatal-failure cancellation and repeated confirmation. Real save-service tests verify one slot write contains both target and charge spend, plus write/quota failure, stale intent, incompatible policy/cursor, and full-map reset domain rollback. Further feature-level adversarial review remains required after T3/T4.
+
+
+### T3/T4 — timeline viewer, player-action rewind and fatal recovery
+
+Implemented the first feature release locally. The battle Rewind control opens a free, isolated historical preview, including when charges are exhausted. Event-time fog filtering applies to map markers, terrain knowledge, unit lists, and combat text. Selecting a row never reconstructs the live board. A separate confirmation commits a selected destination and exactly one charge together. Normal/Hard support completed player actions; Lunatic and legacy-policy battles retain turn-start destinations. Enemy actions appear in history but are never rewind destinations in this release.
+
+History is produced at existing completed player/enemy action and turn-start boundaries, with recovery fragments for interrupted actions. Combat rows use actual strike outcomes; completion records include resulting HP, level, position, inventory, equipment and status changes. Escape, refresh, death and terminal defeat have explicit facts. A resumed action fragment keeps its durable row ID and is finalized once. Some utility actions use their resulting state changes plus a generic completion label; the history is a factual action summary, not a full animation transcript or AI explanation. The preview uses an independent small board with terrain abbreviations and numbered visible-unit markers; it deliberately does not redraw the live Phaser battlefield.
+
+Fatal decisions freeze only after settled effects, preserve the original commander ID, and write a dedicated fatal recovery checkpoint before offering choices. Reload returns to the decision; map restart cannot bypass it. Accept Fate writes a detached terminal result before publishing defeat or settlement. A failed fatal/terminal save stays paused and offers Retry. With no charges or compatible destination, defeat proceeds to a free, read-only battle report. Optional history is pruned under storage pressure before sacrificing the authoritative recovery write; the already-selected paid rewind target and debit remain in that recovery record. If quota pruning removes the only fatal destination and there is no fallback anchor, the normal no-destination defeat path runs rather than leaving a frozen screen.
+
+Malformed current checkpoints retain the raw save and lead to recovery guidance. Corrupt optional history is independently discarded. An unsupported declared checkpoint version is not treated as a legacy record. Old rewind anchors that lack the battle-owned inventory domain are unavailable until a complete new turn-start point exists; we do not invent past inventory from current inventory.
+
+Interaction starts from idle or pre-move selection. Nested target/forecast/trade menus, post-move action menus, Canto and pending progression reveals must finish first. Returning from review restores the prior input ownership. Keyboard/controller focus selects a preview only; the separate confirmation remains required. Portrait uses the application's existing rotation guard; returning to landscape is tested. A portrait-specific gameplay redesign is outside this release.
+
+#### Review dispositions
+
+Code-focused adversarial review caught and resolved: ordinary checkpoint/popup writes overwriting fatal state; publishing defeat before its save succeeded; incomplete malformed-state validation; optional history blocking authoritative saves; premature/misplaced death facts; Canto Wait bypassing the shared completion boundary; a missing old anchor hiding valid timeline destinations; corrupt null units throwing before the recovery screen; and quota fallback during Retry stranding a paused fatal decision. Each persistence/recovery finding has a targeted regression. No outstanding code-review blocker remains.
+
+#### Verification and release boundaries
+
+- Dedicated `test:timeline` explicitly participates in the lifecycle merge gate; the timeline browser spec is included in `test:ux-contracts`.
+- Seeded bounded journeys use a separate chooser stream, resolved actor/entry IDs, a failure trace and action counts. Each exercises Wait, detached preview, failed write/retry, a paid rewind, actual reload without a save, scene reconstruction, and continued play on the new branch. Coverage is asserted; repeatedly browsing Back cannot satisfy it. This is a bounded feature regression tier, not an exhaustive campaign fuzzer.
+- Real combat tests compare hit/crit/skill results after rewind and after reload, with intervening forecast browsing. Existing battle-speed tests remain the pacing regression gate; the new browser cases run Instant for focused navigation.
+- Muted headed Chromium checks cover tap/selection without mutation, cancel/confirm, normal Title → Slot Picker → saved battle resume, zero-charge review, rotation and return at 667×375, anchorless fatal reload, Back to the decision, accepted defeat, and the free terminal report at 640×480. They use an isolated local origin/profile and synthetic battle setup, with real UI and save flows afterward.
+- Broad unit and harness runs, focused timeline gates, production build, lint and format checks are recorded in the completion entry below. Broad runs exposed the existing unseeded Colosseum probability-tolerance test twice. Its regression now uses a fixed chooser seed and 5,000 trials with the same acceptance bounds; the final broad run passed. No combat balance was changed to mask that fluctuation.
+- Still required before claiming phone acceptance: physical iPhone touch scrolling/slide-off, notch/rotation, an existing on-device save upgrade, and long-history responsiveness. Desktop Chromium does not prove those device behaviors.
+- T5 enemy-action destinations remain deferred. This change has not been uploaded to TestFlight; check in with Dave first.
+
+
+#### Completion verification — September 21
+
+- Unit suite: **5,629 passed across 334 files** (`/tmp/timeline-unit-accepted.log`).
+- Timeline gate: **219 passed across eight files**, including three seeded multi-step rewind/reload journeys (`/tmp/timeline-gate-verified.log`). These overlap the unit/harness totals and are not additional unique tests.
+- Harness suite: **165 passed across 11 files**; journey subset: **56 passed** (`/tmp/timeline-harness-final.log`, `/tmp/timeline-journey-final.log`).
+- Muted headed browser: **four passed**, including zero-charge defeat report at the base resolution (`/tmp/timeline-browser-verified.log`). Portrait testing verifies the rotation guard and return to landscape, not a portrait gameplay screen.
+- Production build passed; lint passed with **0 errors / 313 existing warnings**. Changed-file formatting and whitespace checks passed. No data or content balance changed.
+
+Local completion is ready for Dave's check-in. Physical-phone acceptance and distribution remain pending; T5 is intentionally outside this first release.

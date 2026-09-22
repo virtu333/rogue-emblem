@@ -121,6 +121,8 @@ export class EscapeObjectiveController {
 
     // Same ordering contract as finishUnitAction: lock the resolved action
     // into the suspend checkpoint before the phase may flip to enemy replay.
+    scene._timelineBoundary = 'player_action';
+    scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} escaped.`];
     scene._captureSuspendCheckpoint?.();
     scene.turnManager.unitActed(unit);
   }

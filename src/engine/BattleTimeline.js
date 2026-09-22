@@ -199,6 +199,31 @@ export function appendBattleTimeline(
   return retain(next);
 }
 
+/** Finish the latest durable action fragment in place. Its stable row ID is
+ * the merge key across reload; no second damage/XP row is invented on resume. */
+export function finishBattleTimelineAction(history, entry) {
+  const previous = history.entries.at(-1);
+  if (
+    !previous ||
+    previous.kind !== 'recovery' ||
+    previous.phase !== entry.phase ||
+    previous.turnNumber !== entry.turnNumber
+  )
+    return appendBattleTimeline(history, entry);
+  const base = clone(history);
+  base.entries.pop();
+  if (previous.snapshotId) delete base.snapshots[previous.snapshotId];
+  base.nextEntryId = previous.id;
+  const next = appendBattleTimeline(base, {
+    ...entry,
+    facts: [
+      ...new Set([...previous.facts.filter((fact) => fact !== 'Action resolved.'), ...entry.facts]),
+    ].slice(0, 256),
+  });
+  next.nextEntryId = Math.max(next.nextEntryId, history.nextEntryId);
+  return next;
+}
+
 /** Detached return value protects historical state from callers. */
 export function getEntryState(history, entryId) {
   const entry = history.entries.find((e) => e.id === entryId);

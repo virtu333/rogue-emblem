@@ -4,7 +4,7 @@ Source: `docs/improvement-opportunities-2026-09-20.md`. Scope per Dave: the effe
 
 ## Next project — battle timeline and rewind (September 21)
 
-Dave requested investigation and a proposed plan, including adversarial review, before implementation. The [investigated timeline/rewind plan](specs/battle-timeline-rewind-plan-2026-09-21.md) is the current planning artifact. It replaces the original timeline proposal's unsafe live-preview approach and persistence-last ordering. Recommended sequence: canonical state/identity → durable transaction/RNG/history → isolated viewer → player-action destinations/death flow → separately verified enemy-action destinations. No timeline gameplay changes are implemented by this documentation update.
+Dave approved execution of the [investigated timeline/rewind plan](specs/battle-timeline-rewind-plan-2026-09-21.md). T1–T4 are now implemented locally: canonical state and identities, durable rewind transactions with fixed outcomes, free historical previews, player-action destinations, and fatal-decision recovery. Code-focused adversarial review and focused muted browser checks are complete; see that plan's execution record for exact verification and phone-only release checks. Enemy-action destinations (T5) remain separate. The deferred-timeline notes in prior wave records below describe those earlier releases, not the current status.
 
 The entries below are historical checkpoints. For release status use `testflight-beta.md`; for the completed fresh-player wave see the final implementation and release-verification sections below. Older upload/commit/browser restrictions in this historical text are superseded by Dave's later explicit instructions.
 

@@ -27,12 +27,14 @@ export function readActionContinuation(value) {
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
 export function captureResolvedAction(scene, continuation) {
+  if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   scene.commitVisionSnapshotIfPending?.();
   scene._pendingActionCompletion = continuation;
   scene._captureSuspendCheckpoint?.();
 }
 
 export async function presentQueuedLevelUps(scene, continuation = null) {
+  if (scene._fatalDecision || scene._fatalCapturePending || scene._defeatDecision) return;
   const queue = scene._pendingLevelUpPopups || [];
   if (!queue.length) return;
   scene._pendingLevelUpPopups = [];
@@ -85,5 +87,11 @@ export function completeResolvedAction(scene, continuation) {
   scene.grid.clearAttackHighlights();
   scene.attackTargets = [];
   scene.commitVisionSnapshotIfPending?.();
+  scene._timelineBoundary = 'player_action';
+  if (continuation.gambitTriggered)
+    scene._timelineFacts = [
+      ...(scene._timelineFacts || []),
+      "Commander's Gambit refreshed nearby allies.",
+    ];
   scene._captureSuspendCheckpoint?.();
 }

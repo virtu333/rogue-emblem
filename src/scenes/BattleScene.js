@@ -1,3 +1,5 @@
+import { hydrateBattleTimeline } from '../engine/BattleTimeline.js';
+import { combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
 import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
 import {
   beginWeaponPreview,
@@ -1036,12 +1038,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.isStoryInputLocked()) return;
         if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
           this.grid.clearHighlights();
-          this.cantoRange = null;
-          const unit = this.selectedUnit;
-          this.dimUnit(unit);
-          this.selectedUnit = null;
-          this.battleState = 'PLAYER_IDLE';
-          this.turnManager.unitActed(unit);
+          completeBattleAction(this, this.selectedUnit);
         }
       },
       previousForecastWeapon: () => {
@@ -1215,6 +1212,14 @@ export class BattleScene extends Phaser.Scene {
       this.aiPhaseStatsHistory = [];
       this.lastEnemyPhaseAiStats = null;
       this.currentEnemyPhaseAiStats = null;
+      this._battleTimeline = hydrateBattleTimeline(this.runManager?.battleInProgress?.timeline);
+      this._timelineCurrentEntryId =
+        this.runManager?.battleInProgress?.timelineCurrentEntryId || null;
+      this._fatalDecision = null;
+      this._fatalCapturePending = false;
+      this._defeatDecision = null;
+      this._timelineFacts = [];
+      this._timelineBoundary = null;
       this.initializeVisionState();
       this._battleRewindPolicy = this._resumeCheckpoint
         ? this.runManager?.battleInProgress?.rewindPolicy || 'legacy-v1'
@@ -1294,7 +1299,14 @@ export class BattleScene extends Phaser.Scene {
       // Commander flag must exist before the first checkBattleEnd — the
       // defeat/escape checks are strict on it, and tutorial/standalone
       // rosters (and legacy resume checkpoints) never pass through RunManager.
-      stampCommanderFlag([...this.playerUnits, ...(this.escapedUnits || [])]);
+      if (this._resumeCheckpoint?.commanderEntityId) {
+        this._battleCommanderId = this._resumeCheckpoint.commanderEntityId;
+        for (const unit of [...this.playerUnits, ...(this.escapedUnits || [])])
+          unit.isCommander = unit.battleEntityId === this._battleCommanderId;
+      } else {
+        const commander = stampCommanderFlag([...this.playerUnits, ...(this.escapedUnits || [])]);
+        this._battleCommanderId = commander?.battleEntityId || null;
+      }
 
       // Create enemies from generated spawns
       if (!this._resumeCheckpoint) {
@@ -1899,12 +1911,7 @@ export class BattleScene extends Phaser.Scene {
             if (this.isStoryInputLocked()) return;
             if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
               this.grid.clearHighlights();
-              this.cantoRange = null;
-              const unit = this.selectedUnit;
-              this.dimUnit(unit);
-              this.selectedUnit = null;
-              this.battleState = 'PLAYER_IDLE';
-              this.turnManager.unitActed(unit);
+              completeBattleAction(this, this.selectedUnit);
               this.refreshEndTurnControl();
             } else {
               this.requestCancel();
@@ -4238,6 +4245,8 @@ export class BattleScene extends Phaser.Scene {
     // Lock the end-of-turn state before handing off to the enemy phase — a
     // refresh during the enemy turn resumes here and replays it on the same
     // RNG stream.
+    this._timelineFacts = [...(this._timelineFacts || []), 'End Turn. Enemies act next.'];
+    this._timelineBoundary = 'player_action';
     if (cantoUnit) {
       // End Turn also skips a pending Canto. Settle its village/save obligations
       // once; all units are acted, so unitActed performs the phase transition.
@@ -7914,6 +7923,12 @@ export class BattleScene extends Phaser.Scene {
       skillCtx,
     );
 
+    if (this.runManager?.battleInProgress)
+      this._timelineFacts = [
+        ...(this._timelineFacts || []),
+        ...combatTimelineFacts(this, attacker, defender, result),
+      ];
+
     // Animate events. Consecutive strikes by the same side (Astra flurries,
     // brave doubles, Adept bonus strikes) animate at follow-up tempo.
     let prevStrikeSide = null;
@@ -8010,6 +8025,13 @@ export class BattleScene extends Phaser.Scene {
         await this.removeUnit(attacker, { killer: defender });
       }
 
+      if (
+        this._fatalDecision ||
+        this._fatalCapturePending ||
+        this._defeatDecision ||
+        this.battleState === 'BATTLE_END'
+      )
+        return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
       const continuation = {
@@ -8033,7 +8055,12 @@ export class BattleScene extends Phaser.Scene {
       } catch (cleanupErr) {
         console.error('[BattleScene] combat cleanup error:', cleanupErr);
       }
-      if (this.battleState !== 'BATTLE_END') {
+      if (
+        this.battleState !== 'BATTLE_END' &&
+        !this._fatalDecision &&
+        !this._fatalCapturePending &&
+        !this._defeatDecision
+      ) {
         // Consume the attacker's action to prevent double-acting after error
         const shouldConsumeAction =
           attacker?.faction === 'player' && attacker.currentHP > 0 && !attacker.hasActed;
@@ -8053,7 +8080,7 @@ export class BattleScene extends Phaser.Scene {
         this.attackTargets = [];
         this.selectedUnit = null;
         if (shouldConsumeAction) {
-          this.turnManager?.unitActed(attacker);
+          completeBattleAction(this, attacker, { skipDim: true });
         }
       }
     } finally {
@@ -9064,10 +9091,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Suspend-checkpoint shim (see BattleSuspendController). */
-  _captureSuspendCheckpoint() {
-    return (this._battleSuspendController ||= new BattleSuspendController(
-      this,
-    )).captureCheckpoint();
+  _captureSuspendCheckpoint(options) {
+    return (this._battleSuspendController ||= new BattleSuspendController(this)).captureCheckpoint(
+      options,
+    );
   }
 
   async removeUnit(unit, options = {}) {
@@ -9077,8 +9104,16 @@ export class BattleScene extends Phaser.Scene {
     // attribute the run's end. Ephemeral scene state — a Vision rewind simply
     // orphans it, and any later fatal death overwrites it before it is read.
     if (unit.isCommander && unit.faction === 'player') {
+      this._battleCommanderId ||= unit.battleEntityId;
       this._commanderKillerName = typeof killer?.name === 'string' ? killer.name : null;
     }
+    if (
+      this.runManager?.battleInProgress &&
+      (unit.faction === 'player' ||
+        !this.grid?.fogEnabled ||
+        this.grid.isVisible?.(unit.col, unit.row))
+    )
+      this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -9201,6 +9236,7 @@ export class BattleScene extends Phaser.Scene {
         await this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' });
       }
     } finally {
+      this.grid?.clearTemporaryTerrainsBySource?.(unit);
       if (hasAoEDeathEffect) {
         this._deathAffixChainDepth = Math.max(0, (this._deathAffixChainDepth || 1) - 1);
         if (this._deathAffixChainDepth === 0 && this.battleState !== 'BATTLE_END') {
@@ -9404,7 +9440,8 @@ export class BattleScene extends Phaser.Scene {
               this.turnManager.endPlayerPhase();
             } else {
               // Only a fully resolved turn start is safe to resume.
-              if (!presentedLevelUps) this._captureSuspendCheckpoint?.();
+              this._timelineBoundary = 'turn_start';
+              this._captureSuspendCheckpoint?.({ preserveRng: presentedLevelUps });
             }
           } finally {
             // Errors still resolving this phase settle after the recovery below.
@@ -9474,8 +9511,8 @@ export class BattleScene extends Phaser.Scene {
                 if (this.getVisionChargesRemaining() > 0)
                   showContextualHint(
                     this,
-                    'battle_vision_scope',
-                    'Rewinds last the whole run, not one battle. +1 rewind charge after each act boss; unused charges carry forward. Rewind returns to the start of the current player turn.',
+                    'battle_vision_scope_v2',
+                    'Open Rewind to review the battle timeline for free. Select an event to preview, then confirm to spend 1 charge. Normal and Hard allow completed player actions; Lunatic allows turn starts. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },
@@ -10105,7 +10142,8 @@ export class BattleScene extends Phaser.Scene {
               // Village raze: a seek_tile bandit ending its move on the
               // intact village tile burns it down.
               this._villageController?.handleEnemyUnitDone(enemy);
-              if (!phaseSuperseded() && !this.visionDialog && this._pendingLevelUpPopups?.length) {
+              if (!phaseSuperseded() && !this.visionDialog) {
+                this._timelineBoundary = 'enemy_action';
                 // The completed enemy is marked acted before saving. A reload
                 // resumes only the remaining enemies, never this combat or XP.
                 this._enemyActionCheckpoint = true;
@@ -10311,6 +10349,13 @@ export class BattleScene extends Phaser.Scene {
         await this._applyEntitySplash(enemy, target);
       }
 
+      if (
+        this._fatalDecision ||
+        this._fatalCapturePending ||
+        this._defeatDecision ||
+        this.battleState === 'BATTLE_END'
+      )
+        return;
       await (this._battleBeats ||= new BattleBeatsController(this)).checkBossHalfHealth();
 
       this.checkBattleEnd();
@@ -10351,8 +10396,6 @@ export class BattleScene extends Phaser.Scene {
       await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
-        this.checkBattleEnd();
-        if (this.battleState === 'BATTLE_END') return;
       }
     }
   }
@@ -10465,7 +10508,13 @@ export class BattleScene extends Phaser.Scene {
     // Idempotence: once the battle has ended (or a lord-death Vision prompt is
     // awaiting the player's decision) a late call from an in-flight pipeline
     // must not re-trigger defeat or stack a second prompt.
-    if (this.battleState === 'BATTLE_END') return true;
+    if (
+      this.battleState === 'BATTLE_END' ||
+      this._fatalDecision ||
+      this._fatalCapturePending ||
+      this._defeatDecision
+    )
+      return true;
     if (this.visionDialog) return true;
     // Commander defeat = immediate loss (permadeath rule -- other lords can
     // fall). An escaped commander is alive and safe, not fallen. Strict flag
@@ -10475,7 +10524,7 @@ export class BattleScene extends Phaser.Scene {
     const commanderAlive = this.playerUnits.some((u) => u.isCommander) || commanderEscaped;
     const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
     if (!commanderAlive || fieldEmpty) {
-      if (this.turnManager?.currentPhase === 'enemy' && this.showLordDeathVisionPrompt()) {
+      if (this.showLordDeathVisionPrompt()) {
         return true;
       }
       this.onDefeat();

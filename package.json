@@ -43,7 +43,7 @@
     "sim:fullrun:harness:slices:list": "node tests/sim/fullrun-slice-runner.js --list",
     "sim:fullrun:harness:triage": "node tests/sim/fullrun-slice-triage.js",
     "sim:fullrun:triage": "node tests/sim/fullrun-slice-triage.js",
-    "test:merge-gate:scene-lifecycle": "npm run test:unit && npm run test:harness && npm run test:journey && npm run sim:fullrun:pr && npm run test:e2e",
+    "test:merge-gate:scene-lifecycle": "npm run test:unit && npm run test:harness && npm run test:journey && npm run test:timeline && npm run sim:fullrun:pr && npm run test:e2e",
     "fuzz": "node tests/agents/fuzz-runner.js --seeds 100 --scenario act1_rout_basic",
     "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode reporting --timeout-rate-threshold 5 --use-default-scenario-budgets",
     "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets",
@@ -60,11 +60,12 @@
     "ios:open": "cap open ios",
     "predev": "node tools/buildUITheme.js",
     "check:ui-theme": "node tools/buildUITheme.js --check",
-    "test:ux-contracts": "playwright test tests/e2e/battle-contracts.spec.js tests/e2e/battle-information.spec.js tests/e2e/reload-contracts.spec.js tests/e2e/save-choice-contracts.spec.js tests/e2e/mobile-shell-contracts.spec.js tests/e2e/management-contracts.spec.js tests/e2e/forecast-input-contract.spec.js tests/e2e/contextual-help.spec.js tests/e2e/journey-contracts.spec.js --workers=2",
+    "test:ux-contracts": "playwright test tests/e2e/battle-contracts.spec.js tests/e2e/battle-information.spec.js tests/e2e/reload-contracts.spec.js tests/e2e/save-choice-contracts.spec.js tests/e2e/mobile-shell-contracts.spec.js tests/e2e/management-contracts.spec.js tests/e2e/forecast-input-contract.spec.js tests/e2e/contextual-help.spec.js tests/e2e/journey-contracts.spec.js tests/e2e/battle-timeline.spec.js --workers=2",
     "fuzz:journey": "node tests/agents/journey-runner.js",
     "test:journey": "vitest run tests/harness/JourneyPersistence.test.js tests/harness/JourneyFuzz.test.js tests/harness/JourneyCombat.test.js",
     "fuzz:journey:soak": "node tests/agents/journey-runner.js --soak-seconds 300",
-    "test:e2e:presentation": "playwright test tests/e2e/battle-speed.spec.js tests/e2e/effects-settings.spec.js tests/e2e/forecast-parity.spec.js tests/e2e/progression-reveal.spec.js tests/e2e/selection-planning.spec.js tests/e2e/tutorial-lessons.spec.js tests/e2e/hint-reading.spec.js tests/e2e/reward-menu.spec.js tests/e2e/shop-reentry.spec.js tests/e2e/compendium-stats.spec.js tests/e2e/escape-exits.spec.js tests/e2e/item-explanations-revival.spec.js tests/e2e/playtest-followups.spec.js tests/e2e/seen-dialogue.spec.js tests/e2e/enemy-healing.spec.js tests/e2e/enemy-planning.spec.js tests/e2e/threat-pins.spec.js"
+    "test:e2e:presentation": "playwright test tests/e2e/battle-speed.spec.js tests/e2e/effects-settings.spec.js tests/e2e/forecast-parity.spec.js tests/e2e/progression-reveal.spec.js tests/e2e/selection-planning.spec.js tests/e2e/tutorial-lessons.spec.js tests/e2e/hint-reading.spec.js tests/e2e/reward-menu.spec.js tests/e2e/shop-reentry.spec.js tests/e2e/compendium-stats.spec.js tests/e2e/escape-exits.spec.js tests/e2e/item-explanations-revival.spec.js tests/e2e/playtest-followups.spec.js tests/e2e/seen-dialogue.spec.js tests/e2e/enemy-healing.spec.js tests/e2e/enemy-planning.spec.js tests/e2e/threat-pins.spec.js",
+    "test:timeline": "vitest run tests/BattleStateSnapshot.test.js tests/BattleRng.test.js tests/BattleRewindTransaction.test.js tests/BattleTimeline.test.js tests/BattleTimelineIntegration.test.js tests/BattleTimelineView.test.js tests/VisionRewindController.test.js tests/harness/JourneyCombat.test.js"
   },
   "lint-staged": {
     "*.js": [

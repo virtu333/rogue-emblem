@@ -1,3 +1,7 @@
+import { persistBattleDefeat } from './BattleFatalDecision.js';
+import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { recordBattleTimeline } from './BattleTimelineRecorder.js';
+import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
 import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
 import { PendingRewardController } from './PendingRewardController.js';
 import { hasDOMHost } from '../utils/domUI.js';
@@ -574,6 +578,37 @@ export class PostCombatController {
   onDefeat() {
     const scene = this.scene;
     if (scene.battleState === 'BATTLE_END') return;
+    if (scene.runManager?.battleInProgress) {
+      try {
+        scene._timelineFacts = [...(scene._timelineFacts || []), 'Defeat. The run has ended.'];
+        recordBattleTimeline(
+          scene,
+          captureBattleState(scene, { rngSeed: scene.runManager.rngSeed }),
+        );
+        scene.runManager.lastBattleReport = readOnlyBattleReport(scene._battleTimeline);
+      } catch (error) {
+        console.warn('[Timeline] terminal report unavailable:', error);
+      }
+    }
+    const defeatBossName = scene.isBoss ? scene._resolveBossDialogueName?.(scene._bossName) : null;
+    const defeatContext = {
+      defeatedBy: defeatBossName || scene._commanderKillerName || null,
+      wasBoss: Boolean(defeatBossName),
+    };
+    if (scene.runManager?.battleInProgress || scene._defeatDecision) {
+      const result = persistBattleDefeat(scene, defeatContext);
+      if (!result.ok) {
+        scene.showVisionDialog({
+          title: 'Defeat could not be saved',
+          body: 'The battle is paused. Retry saving to finish this run. Closing the app now may return to the previous saved decision.',
+          confirmLabel: 'Retry save',
+          cancelLabel: 'Retry save',
+          onConfirm: () => this.onDefeat(),
+          onCancel: () => this.onDefeat(),
+        });
+        return;
+      }
+    }
     scene._reinforcementsPendingThisTurn = false;
     scene.battleState = 'BATTLE_END';
     scene.clearInspectionVisuals();
@@ -608,18 +643,10 @@ export class PostCombatController {
       // Narrative memory: attribute the run's end. A defeat inside a boss
       // battle is credited to the boss; otherwise to whoever felled the
       // commander (may be null for e.g. field-empty losses).
-      const defeatBossName = scene.isBoss
-        ? scene._resolveBossDialogueName?.(scene._bossName)
-        : null;
-      scene.runManager.failRun({
-        defeatedBy: defeatBossName || scene._commanderKillerName || null,
-        wasBoss: Boolean(defeatBossName),
-      });
-      // Persist the defeat (status + cleared suspend flag) immediately:
-      // refreshing during the banner must not rewind to the pre-fatal
-      // checkpoint — the reload routes to the game-over flow instead.
-      // Retreating is sanctioned only BEFORE a death resolves.
-      scene._persistBattleRunState?.();
+      if (!scene._defeatDecision?.durable) {
+        scene.runManager.failRun(defeatContext);
+        scene._persistBattleRunState?.();
+      }
       scene.time.delayedCall(2000, async () => {
         if (!scene.scene?.isActive?.()) return;
         // Clear any stale transition locks -- the 2s delay gives legitimate

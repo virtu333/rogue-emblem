@@ -193,8 +193,8 @@ function makeTutorialScene({ isActive, tutorialStep = 0, turn = 1 }) {
 // of rollSplashTiles/rollSplashDamage.
 // ---------------------------------------------------------------------------
 
-describe('_applyEntitySplash short-circuits on battle end', () => {
-  it('stops processing after first lethal splash kills Edric', async () => {
+describe('_applyEntitySplash resolves before terminal decision', () => {
+  it('resolves every splash victim before the caller checks commander death', async () => {
     const edric = makeUnit('Edric', 4, 5);
     edric.currentHP = 1; // will die from splash
     const ally = makeUnit('Ally', 5, 5);
@@ -224,16 +224,13 @@ describe('_applyEntitySplash short-circuits on battle end', () => {
     // Call the REAL production method
     await BattleScene.prototype._applyEntitySplash.call(scene, entity, primaryTarget);
 
-    // Edric was killed -> battle ended
-    expect(scene.battleState).toBe('BATTLE_END');
-    expect(scene.removeUnit).toHaveBeenCalledTimes(1);
+    // The decision must describe the fully resolved attack, not a partial
+    // splash roll that would continue changing the board behind its modal.
+    expect(scene.battleState).toBe('ENEMY_PHASE');
+    expect(scene.removeUnit).toHaveBeenCalledTimes(2);
     expect(scene.removeUnit).toHaveBeenCalledWith(edric, { killer: entity });
-
-    // checkBattleEnd was called after the lethal splash (regression anchor)
-    expect(scene.checkBattleEnd).toHaveBeenCalled();
-
-    // Ally was NOT damaged - loop bailed out
-    expect(ally.currentHP).toBe(10);
+    expect(scene.checkBattleEnd).not.toHaveBeenCalled();
+    expect(ally.currentHP).toBe(0);
   });
 });
 

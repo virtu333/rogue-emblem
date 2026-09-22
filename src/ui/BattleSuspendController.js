@@ -1,3 +1,6 @@
+import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
+import { resumeFatalDecision } from './BattleFatalDecision.js';
+import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 // BattleSuspendController — mid-battle suspend/resume (anti-refresh).
 //
 // The battle continuously persists a "suspend checkpoint" into the run save
@@ -40,11 +43,17 @@ export class BattleSuspendController {
    * degrade the suspend lock, never gameplay.
    * @returns {boolean} true when a checkpoint was captured and persisted
    */
-  captureCheckpoint() {
+  captureCheckpoint({ preserveRng = false } = {}) {
     const scene = this.scene;
     const rm = scene.runManager;
     if (!rm?.battleInProgress) return false; // tutorial/standalone or battle already settled
-    if (scene.battleState === 'BATTLE_END') return false;
+    if (
+      scene.battleState === 'BATTLE_END' ||
+      scene._fatalDecision ||
+      scene._fatalCapturePending ||
+      scene._defeatDecision
+    )
+      return false;
     const enemyBoundary =
       scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
     if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary) return false;
@@ -52,13 +61,34 @@ export class BattleSuspendController {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
       const fixed = scene._battleRewindPolicy === 'fixed-v1';
-      const seed = fixed ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
+      const seed = fixed || preserveRng ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
       // Reseed at the checkpoint so live play and any resume from it share
       // the exact same RNG stream from this point on.
-      if (!fixed) scene.reseedBattleRng(seed);
+      if (!fixed && !preserveRng) scene.reseedBattleRng(seed);
       if (fixed) scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
-      rm.setBattleCheckpoint(this._buildCheckpoint(index, seed));
-      const persisted = scene._persistBattleRunState?.();
+      const checkpoint = this._buildCheckpoint(index, seed);
+      rm.setBattleCheckpoint(checkpoint);
+      try {
+        // Optional history failure must never prevent the latest recovery save.
+        const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
+        recordBattleTimeline(scene, state);
+      } catch (error) {
+        console.warn('[Timeline] optional history unavailable:', error?.message || error);
+      }
+      let persisted = scene._persistBattleRunState?.();
+      if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
+        const fallback = persistWithTimelineFallback(
+          rm.toJSON(),
+          (candidate) => scene._persistBattleRunState(candidate),
+          persisted,
+        );
+        persisted = fallback;
+        if (fallback.ok) {
+          rm.battleInProgress = fallback.candidate.battleInProgress;
+          scene._battleTimeline = rm.battleInProgress.timeline;
+          scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
+        }
+      }
       return persisted?.ok === true;
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
@@ -211,6 +241,10 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    if (checkpoint.recoveryKind === 'fatal_pending') {
+      resumeFatalDecision(scene, checkpoint);
+      return;
+    }
     if (enemyResume) {
       scene.battleState = 'ENEMY_PHASE';
       const resume = () => scene.startEnemyPhase({ resume: true });

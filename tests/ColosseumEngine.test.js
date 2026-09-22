@@ -949,12 +949,19 @@ describe('ColosseumEngine', () => {
 
     it('spawns late-act colosseum with ~70% frequency', () => {
       let spawned = 0;
-      const trials = 500;
-      for (let i = 0; i < trials; i++) {
-        const map = generateNodeMap('act2', { name: 'Test', rows: 8 }, gameData.mapTemplates, {
-          colosseumConfig: colosseumData.nodeGeneration,
-        });
-        if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
+      const trials = 5000;
+      // Pin the sample and reduce sampling noise. Route repair can remove an
+      // attempted arena, so keep the existing final-placement tolerance.
+      const random = vi.spyOn(Math, 'random').mockImplementation(makeRng(42));
+      try {
+        for (let i = 0; i < trials; i++) {
+          const map = generateNodeMap('act2', { name: 'Test', rows: 8 }, gameData.mapTemplates, {
+            colosseumConfig: colosseumData.nodeGeneration,
+          });
+          if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
+        }
+      } finally {
+        random.mockRestore();
       }
       const rate = spawned / trials;
       // Act 2+ override is 0.70; reject the old 0.55 frequency.

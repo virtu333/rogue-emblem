@@ -1,3 +1,4 @@
+import { BattleTimelineView } from './BattleTimelineView.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
@@ -37,6 +38,19 @@ export function runResultMenu(scene, rewards, meta) {
     button('Home Base', () => leave(true), 're-btn re-btn--primary'),
     button('Title', () => leave(false)),
   );
+  if (rm.lastBattleReport?.entries?.length)
+    actions.append(
+      button('Battle report', () => {
+        menu.root.inert = true;
+        new BattleTimelineView(scene, {
+          history: rm.lastBattleReport,
+          charges: 0,
+          onClose: () => {
+            menu.root.inert = false;
+          },
+        });
+      }),
+    );
   menu.body.append(actions);
   menu.focusContent();
   return menu;

@@ -9,6 +9,8 @@ export function completeBattleAction(scene, unit, { skipDim = false } = {}) {
   scene._preFogSnapshot = null;
   scene.cantoRange = null;
   scene.battleState = 'PLAYER_IDLE';
+  scene._timelineBoundary = 'player_action';
+  scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} finished their action.`];
   scene._captureSuspendCheckpoint?.();
   scene.turnManager.unitActed(unit);
 }

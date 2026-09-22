@@ -1,3 +1,5 @@
+import { validateBattleState } from './BattleStateSnapshot.js';
+import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
 import { migrateCleverTrait, rollAndApplyLordTrait } from './TraitSystem.js';
@@ -3441,6 +3443,7 @@ export class RunManager {
       thirdLordJoined: this.thirdLordJoined || false,
       thirdLordRerolled: this.thirdLordRerolled || false,
       battleInProgress: this.battleInProgress || null,
+      lastBattleReport: this.lastBattleReport || null,
     };
   }
 
@@ -3695,6 +3698,7 @@ export class RunManager {
       }
     }
     rm.status = saved.status;
+    rm.lastBattleReport = hydrateBattleTimeline(saved.lastBattleReport);
     rm.actIndex = saved.actIndex;
     rm.roster = Array.isArray(saved.roster)
       ? saved.roster.filter((u) => rm._isValidSerializedUnit(u))
@@ -4080,10 +4084,30 @@ export class RunManager {
     // One combined pool: the commander may be among the escaped units.
     if (rm.battleInProgress) {
       const checkpoint = rm.battleInProgress.checkpoint;
-      stampCommanderFlag([
+      if (checkpoint.version !== undefined && checkpoint.version !== 2) {
+        rm._battleRecoveryInvalid = true;
+      } else if (checkpoint.version === 2) {
+        const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
+        // Keep the raw save and battle flag intact for recovery; the slot UI
+        // must not turn a malformed fatal record into a free map restart.
+        rm._battleRecoveryInvalid = !validateBattleState(state);
+      }
+      rm.battleInProgress.timeline = hydrateBattleTimeline(rm.battleInProgress.timeline);
+      // Never migrate a rejected checkpoint: even walking its unit arrays may
+      // throw, hiding the raw save from the recovery UI.
+      if (rm._battleRecoveryInvalid) return rm;
+      for (const key of ['visionSnapshot', 'pendingVisionSnapshot']) {
+        if (checkpoint[key]?.version === 2 && !validateBattleState(checkpoint[key]))
+          checkpoint[key] = null;
+      }
+      const pool = [
         ...(Array.isArray(checkpoint.playerUnits) ? checkpoint.playerUnits : []),
         ...(Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []),
-      ]);
+      ];
+      if (checkpoint.commanderEntityId) {
+        for (const unit of pool)
+          unit.isCommander = unit.battleEntityId === checkpoint.commanderEntityId;
+      } else stampCommanderFlag(pool);
     }
 
     return rm;

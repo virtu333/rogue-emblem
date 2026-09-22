@@ -505,17 +505,33 @@ describe('VisionRewindController', () => {
       expect(controller.canUseNow()).toBe(false);
     });
 
+    it.each(['UNIT_SELECTED', 'UNIT_ACTION_MENU'])(
+      'returns true for pre-move state %s',
+      (state) => {
+        scene.battleState = state;
+        scene._inputController = { isSelectionMenu: () => true };
+        expect(controller.canUseNow()).toBe(true);
+      },
+    );
+
     it.each([
-      'UNIT_SELECTED',
-      'UNIT_ACTION_MENU',
       'SHOWING_FORECAST',
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
       'TRADING',
       'CANTO_MOVING',
-    ])('returns true for allowed state %s', (state) => {
+    ])('waits for the action or nested menu to finish in %s', (state) => {
       scene.battleState = state;
-      expect(controller.canUseNow()).toBe(true);
+      expect(controller.canUseNow()).toBe(false);
+    });
+
+    it('does not stack timeline over post-move action menus or pending popups', () => {
+      scene.battleState = 'UNIT_ACTION_MENU';
+      scene._inputController = { isSelectionMenu: () => false };
+      expect(controller.canUseNow()).toBe(false);
+      scene.battleState = 'PLAYER_IDLE';
+      scene._pendingLevelUpPopups = [{}];
+      expect(controller.canUseNow()).toBe(false);
     });
   });
 
@@ -766,6 +782,7 @@ describe('VisionRewindController', () => {
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        runBattleState: { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 },
         playerUnits: [{ name: 'A', stats: {}, currentHP: 20, skills: [], col: 0, row: 0 }],
         enemyUnits: [],
         npcUnits: [],
@@ -838,7 +855,9 @@ describe('VisionRewindController', () => {
     });
 
     it('cancel after fatal rewind save failure returns to the fatal prompt', () => {
-      scene._persistBattleRunState.mockReturnValue({ ok: false, reason: 'quota' });
+      scene._persistBattleRunState
+        .mockReturnValueOnce({ ok: true })
+        .mockReturnValue({ ok: false, reason: 'quota' });
       controller.showLordDeathPrompt();
       controller.confirmDialog();
       controller.cancelDialog();

@@ -368,7 +368,7 @@ describe('state registration for SELECTING_ABILITY_TILE', () => {
     expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
   });
 
-  it('Vision rewind stays available during ability tile selection', () => {
+  it('timeline review waits until ability tile selection is finished or canceled', () => {
     const scene = {
       turnManager: { currentPhase: 'player' },
       battleState: 'SELECTING_ABILITY_TILE',
@@ -378,7 +378,7 @@ describe('state registration for SELECTING_ABILITY_TILE', () => {
     };
     const ctrl = new VisionRewindController(scene);
     ctrl.getChargesRemaining = () => 1;
-    expect(ctrl.canUseNow()).toBe(true);
+    expect(ctrl.canUseNow()).toBe(false);
   });
 });
 

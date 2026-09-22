@@ -272,7 +272,8 @@ describe('player turn-start input ownership', () => {
     scene.updateHPBar = vi.fn();
     scene.onPhaseChange('player', 3);
     await delayedCallbacks.find((entry) => entry.ms === 1200).cb();
-    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(2);
+    expect(scene._captureSuspendCheckpoint).toHaveBeenLastCalledWith({ preserveRng: true });
     expect(scene._pendingLevelUpPopups).toEqual([]);
     expect(scene.battleState).toBe('PLAYER_IDLE');
   });

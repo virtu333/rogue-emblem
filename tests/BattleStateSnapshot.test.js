@@ -10,6 +10,11 @@ import { serializeBattleUnit, restoreEquippedReference } from '../src/engine/Bat
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { createUnit } from '../src/engine/UnitManager.js';
+import {
+  appendBattleTimeline,
+  createBattleTimeline,
+  hydrateBattleTimeline,
+} from '../src/engine/BattleTimeline.js';
 import classes from '../data/classes.json';
 import weapons from '../data/weapons.json';
 
@@ -179,6 +184,149 @@ describe('canonical battle state', () => {
     const cyclic = { ...state };
     cyclic.self = cyclic;
     expect(validateBattleState(cyclic)).toBe(false);
+  });
+
+  it('accepts production world state before and after JSON, including absent-objective distances', () => {
+    const scene = fixture();
+    const unit = scene.playerUnits[0];
+    scene.grid.fogEnabled = true;
+    scene.grid.visibleSet = new Set(['0,0']);
+    scene.grid.everSeenSet = new Set(['0,0', '1,0']);
+    scene.grid.temporaryTerrains = [
+      {
+        key: '1,1',
+        col: 1,
+        row: 1,
+        originalIndex: 0,
+        temporaryIndex: 1,
+        remainingTurns: 2,
+        sourceUnit: unit,
+      },
+    ];
+    scene.ballistas = [{ col: 2, row: 2, owner: 'enemy', captured: false }];
+    scene.antiTurtleState = {
+      noProgressTurns: 2,
+      aggressiveMode: false,
+      turnEnrageActive: false,
+      bestEnemyCount: 3,
+      bestEscapedCount: 0,
+      bestLordThroneDistance: Infinity,
+      bestLordEscapeDistance: Infinity,
+    };
+    scene._zombieTombstones = [
+      {
+        col: 3,
+        row: 3,
+        turnsRemaining: 2,
+        snapshot: {
+          className: unit.className,
+          level: unit.level,
+          stats: unit.stats,
+          skills: unit.skills,
+          weapon: unit.weapon,
+          inventory: unit.inventory,
+          proficiencies: unit.proficiencies,
+          moveType: unit.moveType,
+          mov: unit.mov,
+        },
+      },
+    ];
+    scene._pendingActionCompletion = {
+      kind: 'combat',
+      unitName: unit.name,
+      unitId: unit.battleEntityId,
+      gambitTriggered: false,
+    };
+    scene._villageState = { col: 4, row: 4, status: 'visited', rewardItemUid: 'reward-1' };
+    const state = captureBattleState(scene, { rngSeed: 42 });
+    expect(validateBattleState(state)).toBe(true);
+    expect(validateBattleState(JSON.parse(JSON.stringify(state)))).toBe(true);
+    state.temporaryTerrains[0].sourceRef = null; // source died or escaped
+    expect(validateBattleState(state)).toBe(true);
+  });
+
+  it.each([
+    ['fog iterator', { fog: { visible: 3, everSeen: [] } }],
+    ['fog coordinate', { fog: { visible: ['99,0'], everSeen: [] } }],
+    ['fog memory', { fog: { visible: [], everSeen: {} } }],
+    ['ballista collection', { ballistas: {} }],
+    ['ballista element', { ballistas: [null] }],
+    ['ballista position', { ballistas: [{ col: -1, row: 0, owner: 'enemy', captured: false }] }],
+    ['ballista faction', { ballistas: [{ col: 1, row: 0, owner: 'bad', captured: false }] }],
+    ['tombstone collection', { zombieTombstones: {} }],
+    [
+      'tombstone snapshot',
+      { zombieTombstones: [{ col: 0, row: 0, turnsRemaining: 1, snapshot: null }] },
+    ],
+    ['temporary terrain collection', { temporaryTerrains: 'bad' }],
+    [
+      'temporary terrain source',
+      {
+        temporaryTerrains: [
+          {
+            key: '0,0',
+            col: 0,
+            row: 0,
+            originalIndex: 0,
+            temporaryIndex: 1,
+            remainingTurns: 2,
+            sourceRef: { group: 'playerUnits', index: 999 },
+          },
+        ],
+      },
+    ],
+    [
+      'temporary terrain group',
+      {
+        temporaryTerrains: [
+          {
+            key: '0,0',
+            col: 0,
+            row: 0,
+            originalIndex: 0,
+            temporaryIndex: 1,
+            remainingTurns: 2,
+            sourceRef: { group: 'constructor', index: 0 },
+          },
+        ],
+      },
+    ],
+    ['pressure collection', { antiTurtleState: [] }],
+    ['pressure count', { antiTurtleState: { noProgressTurns: '2' } }],
+    ['pressure flag', { antiTurtleState: { aggressiveMode: 'false' } }],
+    ['pressure distance', { antiTurtleState: { bestLordEscapeDistance: -1 } }],
+    ['continuation kind', { pendingActionCompletion: { kind: 'replay', unitName: 'Fighter' } }],
+    [
+      'continuation flag',
+      { pendingActionCompletion: { kind: 'finish', unitName: 'Fighter', skipCanto: 'false' } },
+    ],
+    [
+      'continuation identity',
+      { pendingActionCompletion: { kind: 'finish', unitName: 'Fighter', unitId: 1 } },
+    ],
+    ['village state', { villageState: { col: 0, row: 0, status: 'unknown' } }],
+    ['override iterator', { appliedHybridOverrideTurns: {} }],
+    ['random cursor', { decisionRngState: { algorithm: 'mulberry32-v1', cursor: -1 } }],
+  ])('rejects malformed %s before optional history becomes a rewind target', (_, patch) => {
+    const state = captureBattleState(fixture(), { rngSeed: 42 });
+    const history = appendBattleTimeline(createBattleTimeline({ policy: 'legacy-v1' }), {
+      kind: 'turn_start',
+      turnNumber: state.turnNumber,
+      phase: 'player',
+      snapshot: state,
+      destination: true,
+    });
+    Object.assign(history.snapshots.s1, patch);
+    expect(validateBattleState(history.snapshots.s1)).toBe(false);
+    expect(hydrateBattleTimeline(history)).toBeNull();
+    // Rejecting optional history never mutates the separate latest recovery.
+    expect(validateBattleState(state)).toBe(true);
+  });
+
+  it('rejects null condition records that would throw during resumed status checks', () => {
+    const state = captureBattleState(fixture(), { rngSeed: 42 });
+    state.playerUnits[0]._conditions = [null];
+    expect(validateBattleState(state)).toBe(false);
   });
 
   it.each([20, 40])(
