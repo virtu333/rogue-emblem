@@ -110,7 +110,7 @@ for (const mobile of [false, true])
         expect(contents).toContain('Hit rating');
         expect(contents).toContain('100');
         expect(contents).not.toContain('100%');
-        expect(contents).toContain('Planned hits: 2');
+        expect(contents).toContain('Planned hits: 2x');
         const bounds = await page.evaluate(() => {
           const s = window.__emblemRogueGame.scene.getScene('Battle');
           return s._forecastOverlay.displayObjects

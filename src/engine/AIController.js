@@ -366,13 +366,50 @@ export class AIController {
           healStaff: best.staff,
           reason: 'heal_ally',
         });
-      // Staff-only healers do not approach the player to make zero-damage attacks.
-      if (!enemy.weapon || enemy.weapon.type === 'Staff')
-        return this._finalizeDecision(enemy, { path: null, target: null, reason: 'healer_hold' });
     }
 
-    if (enemy.aiMode === 'heal' && (!enemy.weapon || enemy.weapon.type === 'Staff'))
+    if (enemy.aiMode === 'heal' && (!enemy.weapon || enemy.weapon.type === 'Staff')) {
+      // Stay with combat allies even when nobody needs healing yet (or the
+      // healer is temporarily silenced). Never chase players with a staff.
+      const allies = allEnemies
+        .filter(
+          (ally) =>
+            ally &&
+            ally !== enemy &&
+            ally.faction === enemy.faction &&
+            ally.currentHP > 0 &&
+            !ally._removing &&
+            ally.aiMode !== 'heal',
+        )
+        .sort((a, b) => {
+          const wounded = (unit) => (unit.currentHP < unit.stats.HP * 0.75 ? 0 : 1);
+          return (
+            wounded(a) - wounded(b) ||
+            gridDistance(enemy.col, enemy.row, a.col, a.row) -
+              gridDistance(enemy.col, enemy.row, b.col, b.row)
+          );
+        });
+      for (const ally of allies) {
+        if (gridDistance(enemy.col, enemy.row, ally.col, ally.row) <= 1) break;
+        const tile = this._findPathAwareChaseTile(
+          { ...enemy, weapon: { range: '1' } },
+          ally,
+          candidatePlans.map((plan) => plan.tile),
+          unitPositions,
+          moveRange,
+        );
+        const plan =
+          tile &&
+          candidatePlans.find((plan) => plan.tile.col === tile.col && plan.tile.row === tile.row);
+        if (plan?.path)
+          return this._finalizeDecision(enemy, {
+            path: plan.path,
+            target: null,
+            reason: 'healer_follow',
+          });
+      }
       return this._finalizeDecision(enemy, { path: null, target: null, reason: 'healer_hold' });
+    }
 
     // --- Status staff targeting (checked before normal attack) ---
     const staff = enemy.statusStaff;

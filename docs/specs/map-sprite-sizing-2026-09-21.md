@@ -95,3 +95,13 @@ and do not block the current brightness/size patch on this exploration.
 Brightness and sizing changes released in **0.1.0 (17)** on September 21. App Store
 Connect confirms **Testing** in Public Playtest. Brighter colors with charcoal
 outlines are the production default; GBA/3D-reference exploration stays backlog.
+
+## Sprite style exploration checkpoint
+
+Exploration is paused at Dave's request. Concepts, source pairs, actual browser
+captures and restart instructions are preserved in
+[the sprite exploration archive](../art/sprite-exploration-2026-09-21/README.md).
+Latest direction: revisit **A · Detailed pixel art**, especially its map-scale
+figures; generate standalone sprites in that style next time. Earlier B illustrated
+studies remain useful references. Keep starting lords simpler than the ornate
+promoted-looking concept designs. No exploratory assets replaced shipping art.

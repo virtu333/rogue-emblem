@@ -1,3 +1,5 @@
+import { BattleHistorySession } from './BattleHistorySession.js';
+import { resetHistoryRecording } from './BattleHistoryRecorder.js';
 import { validateBattleState } from '../engine/BattleStateSnapshot.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { persistFatalDecision } from './BattleFatalDecision.js';
@@ -62,6 +64,10 @@ export class VisionRewindController {
   // ── Initialization ──────────────────────────────────────────
 
   initialize() {
+    this._historySession?.destroy({ resume: false });
+    this._historySession = null;
+    this._historyReturnState = null;
+    this._historySelection = null;
     if (this.runManager) {
       const baseSeed = Number.isFinite(this.runManager.rngSeed)
         ? this.runManager.rngSeed >>> 0
@@ -325,6 +331,7 @@ export class VisionRewindController {
     scene._pendingActionCompletion = null;
     scene._pendingLevelUpPopups = [];
     scene._timelineFacts = [];
+    resetHistoryRecording(scene);
     scene._commanderKillerName = null;
     this._rewindFatalOrigin = false;
     scene._fatalDecision = null;
@@ -451,8 +458,12 @@ export class VisionRewindController {
       scene._battleTimeline || hydrateBattleTimeline(this.runManager?.battleInProgress?.timeline);
     if (!hasDOMHost() || !history?.entries?.length) return false;
     this.closeDialog();
-    const prevState = scene.battleState;
+    const prevState = this._historyReturnState || scene.battleState;
+    this._historyReturnState = prevState;
+    if (!this._historySession && history.presentation?.records.length && scene.game?.scene)
+      this._historySession = new BattleHistorySession(scene);
     const close = () => {
+      this.endHistorySession();
       this.closeDialog();
       if (fatal) this.returnToFatalDecision();
     };
@@ -460,6 +471,8 @@ export class VisionRewindController {
     scene.battleState = 'PAUSED';
     const view = new BattleTimelineView(scene, {
       history,
+      session: this._historySession,
+      selectedId: this._historySelection,
       charges: this.getChargesRemaining(),
       difficulty: this.runManager?.difficultyId || 'normal',
       allowPlayerActions: true,
@@ -480,6 +493,11 @@ export class VisionRewindController {
         const intent = this.createRewindIntent(target);
         const branch = branchBattleTimeline(history, id);
         const row = history.entries.find((entry) => entry.id === id);
+        this._historySelection = view.selectedId;
+        this._historySession?.rememberView({
+          historyOpen: !view.list.hidden,
+          scrollTop: view.list.scrollTop,
+        });
         this.closeDialog();
         this.showDialog({
           title: 'Rewind to this point?',
@@ -493,6 +511,14 @@ export class VisionRewindController {
     });
     scene.visionDialog.surface = view;
     return true;
+  }
+
+  endHistorySession() {
+    this._historySession?.destroy();
+    this._historySession = null;
+    if (this._historyReturnState) this.scene.battleState = this._historyReturnState;
+    this._historyReturnState = null;
+    this._historySelection = null;
   }
 
   returnToFatalDecision() {
@@ -663,7 +689,8 @@ export class VisionRewindController {
     const prevState = this.scene.visionDialog.prevState || 'PLAYER_IDLE';
     for (const obj of this.scene.visionDialog.group) obj.destroy();
     this.scene.visionDialog = null;
-    this.scene.battleState = prevState;
+    this.scene.battleState =
+      this._historySession && !this._historySession.destroyed ? 'PAUSED' : prevState;
     this.scene.refreshEndTurnControl();
   }
 
@@ -686,7 +713,10 @@ export class VisionRewindController {
     if (this.runManager && !this.runManager.battleInProgress) return false;
     if (!target || this._rewindCommitting) return false;
     const host = this._chargeHost();
-    if (host.visionChargesRemaining <= 0) return false;
+    if (host.visionChargesRemaining <= 0) {
+      this.endHistorySession();
+      return false;
+    }
     // Tutorial has no run record. It retains its existing in-memory teaching
     // rewind; every persisted game uses the same transaction below.
     if (!this.runManager) {
@@ -707,8 +737,12 @@ export class VisionRewindController {
         scene._persistBattleRunState(candidate),
       );
       if (!result.ok) {
-        if (['stale_battle', 'stale_branch', 'battle_closed', 'no_charges'].includes(result.reason))
+        if (
+          ['stale_battle', 'stale_branch', 'battle_closed', 'no_charges'].includes(result.reason)
+        ) {
+          this.endHistorySession();
           return false;
+        }
         this.lastRewindError = result.reason;
         this.showDialog({
           title: 'Rewind was not saved',
@@ -717,12 +751,17 @@ export class VisionRewindController {
           cancelLabel: 'Cancel',
           onConfirm: () => this.executeRewind(target, history, intent),
           onCancel: () => {
+            this.endHistorySession();
             if (this._rewindFatalOrigin) this.returnToFatalDecision();
           },
         });
         return false;
       }
       const candidate = result.candidate;
+      // Durability is established. Release the presentation scene without
+      // restoring old UI/gameplay state; reconstruction owns the host now.
+      this._historyReturnState = null;
+      this._historySelection = null;
       host.visionChargesRemaining = candidate.visionChargesRemaining;
       host.visionCount = candidate.visionCount;
       this.runManager.battleInProgress = candidate.battleInProgress;
@@ -734,6 +773,8 @@ export class VisionRewindController {
       // Reconstruction is after durability. Never refund/retry the debit if
       // rendering fails; reload adopts the already-committed checkpoint.
       try {
+        this._historySession?.destroy();
+        this._historySession = null;
         return this._applySnapshot({ committed: true });
       } catch (error) {
         scene.battleState = 'PAUSED';

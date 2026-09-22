@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
 // Cry, Healing Circle, Ensnare). Owns the ability submenu (patterned on
@@ -251,6 +252,7 @@ export class AbilityController {
           { label: 'ability_blink_fade_out' },
         );
       }
+      observeHistoryAction(scene, 'relocated', unit, null, skill.name);
       unit.col = tile.col;
       unit.row = tile.row;
       scene.updateUnitPosition(unit);
@@ -391,6 +393,7 @@ export class AbilityController {
       const pos = scene.grid.gridToPixel(ally.col, ally.row);
       (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
     }
+    for (const ally of affected) observeHistoryAction(scene, 'rallied', unit, ally, skill.name);
     // Reuse the tier-5 timed-buff pipeline: entries land in
     // unit._battleTimedWeaponArtBuffs and expire via the shared phase sweep.
     await scene._applyTier5AllyBuffStep(
@@ -418,6 +421,7 @@ export class AbilityController {
       ally.currentHP = Math.min(maxHp, oldHP + amount);
       const healed = ally.currentHP - oldHP;
       if (healed <= 0) continue;
+      observeHistoryAction(scene, 'healed', unit, ally, `${healed} HP`, { amount: healed });
       scene.updateHPBar(ally);
       const pos = scene.grid.gridToPixel(ally.col, ally.row);
       (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
@@ -442,6 +446,7 @@ export class AbilityController {
         scene.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
         continue;
       }
+      observeHistoryAction(scene, 'rooted', unit, enemy, skill.name);
       anyRooted = true;
       scene._addConditionIcon(enemy, 'root');
       (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y);

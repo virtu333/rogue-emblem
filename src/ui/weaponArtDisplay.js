@@ -1,4 +1,10 @@
-import { getEffectiveWeaponArtHpCost } from '../engine/WeaponArtSystem.js';
+import {
+  getEffectiveWeaponArtHpCost,
+  getWeaponArtTier2Effects,
+  getWeaponArtTier5Effects,
+  getWeaponArtMissEffects,
+  getWeaponArtKillEffects,
+} from '../engine/WeaponArtSystem.js';
 
 const MOD_LABELS = {
   atkBonus: 'Attack',
@@ -10,6 +16,81 @@ const MOD_LABELS = {
   spdBonus: 'Speed',
   rangeBonus: 'range',
 };
+
+/** Mechanical details shared by item overviews, scrolls and battle art panels. */
+export function weaponArtSecondaryDetails(art) {
+  const parts = [];
+  const effects = getWeaponArtTier2Effects(art);
+  const who = (target) => (target === 'attacker' ? 'user' : 'target');
+  for (const e of effects.afterCombatDamage || [])
+    parts.push(
+      `After a hit: ${e.amount} extra damage to ${who(e.target)} after combat${e.nonLethal ? ' (cannot kill)' : ''}`,
+    );
+  for (const e of effects.afterCombatDebuff || [])
+    parts.push(
+      `After a hit: ${who(e.target)} ${e.stat} ${e.amount} after combat for the rest of this battle`,
+    );
+  for (const e of effects.inflictStatus || []) {
+    const meaning = {
+      root: 'cannot move, but can act',
+      silence: 'cannot use magic or staves',
+      sleep: 'cannot move or act',
+      acid: 'takes damage over time',
+    }[e.status];
+    parts.push(
+      `After a hit: ${e.status} on ${who(e.target)} for ${e.durationPhases} phase(s) (${meaning})`,
+    );
+  }
+  for (const e of effects.postCombatMove || []) {
+    const movement = {
+      advance: `advance ${e.distance} tile(s) toward the target`,
+      retreat: `retreat ${e.distance} tile(s) away from the target`,
+      swap: 'swap positions with the target',
+      push: `push the target ${e.distance} tile(s) away`,
+      through: `move ${e.distance} tile(s) through the target`,
+    }[e.mode];
+    parts.push(
+      `After a hit: ${movement} after combat against an adjacent target, if terrain, occupied tiles and Root permit`,
+    );
+  }
+  for (const e of effects.pierceThrough || [])
+    parts.push(
+      `After a hit: also damages up to ${e.maxTargets} enemy directly behind the target for the damage of each landed strike`,
+    );
+  for (const e of effects.setHp || [])
+    parts.push(
+      `After combat: surviving ${who(e.target)} HP is set to ${e.value}, even if every strike misses`,
+    );
+  const { aoeSplash, allyBuff } = getWeaponArtTier5Effects(art);
+  if (aoeSplash) {
+    const amount =
+      aoeSplash.damageKind === 'fixed'
+        ? `${aoeSplash.fixedDamage} damage`
+        : `${Math.round(aoeSplash.damageMultiplier * 100)}% of the first landed strike's damage`;
+    parts.push(
+      `After a hit: deals ${amount} to ${aoeSplash.maxTargets ? `up to ${aoeSplash.maxTargets} other enemies` : 'other enemies'} within ${aoeSplash.radius} tile(s) of the target${aoeSplash.nonLethal ? ' (cannot kill)' : ' (can kill)'}`,
+    );
+  }
+  const stats = (values) =>
+    Object.entries(values)
+      .map(([stat, value]) => `${value >= 0 ? '+' : ''}${value} ${stat}`)
+      .join(', ');
+  if (allyBuff)
+    parts.push(
+      `After a hit: allies within ${allyBuff.range} tile(s) of the user gain ${stats(allyBuff.stats)} for ${allyBuff.durationPhases} phase(s)${allyBuff.includeSelf ? ', including the user' : '; excludes the user'}`,
+    );
+  const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
+  if (selfDamageOnMiss)
+    parts.push(
+      `Each missed strike costs the user ${selfDamageOnMiss} HP after combat (cannot kill)`,
+    );
+  const { killBuff } = getWeaponArtKillEffects(art);
+  if (killBuff)
+    parts.push(
+      `On kill: user gains ${stats(killBuff.stats)} for ${killBuff.durationPhases} phase(s)`,
+    );
+  return parts;
+}
 
 // Authored prose retains complex positional/conditional effects; numeric combat
 // modifiers are displayed explicitly so flavor text never hides an art's benefit.
@@ -46,6 +127,8 @@ export function formatWeaponArtEffects(art) {
     halfPhysicalDamage: 'Halves physical damage',
   }))
     if (mods[key]) parts.push(label);
+  if (mods.vengeance) parts.push('Adds the user’s missing HP to damage');
+  parts.push(...weaponArtSecondaryDetails(art));
   return [parts.join(' · '), art.description].filter(Boolean).join('. ');
 }
 

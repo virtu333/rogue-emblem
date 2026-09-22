@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // PromotionController -- Master Seal promotion flow extracted from BattleScene.
 // Owns target resolution, the promotion choice panel, applying the promotion,
 // and the banner/popup/dropped-skills sequencing. Cross-cutting seams
@@ -134,6 +135,7 @@ export class PromotionController {
       scene.gameData.skills,
     );
     markPromotionApplied();
+    observeHistoryAction(scene, 'promoted', unit, null, promotedClassData.name);
     // Commit the seal with the promotion, before any dismissible/awaited UI.
     seal.uses = (seal.uses ?? 1) - 1;
     if (seal.uses <= 0) removeFromConsumables(unit, seal);

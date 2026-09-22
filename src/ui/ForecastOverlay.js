@@ -351,7 +351,7 @@ export class ForecastOverlay {
 
     y += 14;
     const countText = applyTextResolution(
-      scene.add.text(x + 2, y, `Planned hits: ${info.attackCount || 1}`, {
+      scene.add.text(x + 2, y, `Planned hits: ${info.attackCount || 1}x`, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.accent,

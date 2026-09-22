@@ -148,7 +148,7 @@ test.describe('phone Canto and rewind contracts', () => {
     }, testInfo) => {
       const errors = await boot(page, true);
       const village = ending === 'move' ? { col: 2, row: 2 } : { col: 3, row: 3 };
-      await page.evaluate((pos) => {
+      const maxHP = await page.evaluate((pos) => {
         const s = window.__emblemRogueGame.scene.getScene('Battle'),
           u = s.playerUnits.find((u) => u.name === 'Edric');
         u.skills.push('canto');
@@ -165,6 +165,7 @@ test.describe('phone Canto and rewind contracts', () => {
           s.gameData.terrain.findIndex((t) => t.name === 'Village'),
         );
         s._villageController._renderMarker();
+        return u.stats.HP;
       }, village);
       const before = await summary(page);
       await tile(page, 3, 3, true);
@@ -188,7 +189,7 @@ test.describe('phone Canto and rewind contracts', () => {
         col: village.col,
         row: village.row,
         hasActed: true,
-        currentHP: 20,
+        currentHP: maxHP,
       });
       expect(after.units.find((u) => u.name === 'Edric').consumables[0].uses).toBe(2);
       await page.screenshot({ path: testInfo.outputPath('canto-village-saved.png') });
@@ -199,6 +200,17 @@ test.describe('phone Canto and rewind contracts', () => {
     page,
   }, testInfo) => {
     const errors = await boot(page, true);
+    // Rewind now commits an exact saved branch; give this dev fixture a real slot.
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+      const meta = s.registry.get('meta');
+      meta.storageKey = getMetaKey(1);
+      meta._save();
+      s.registry.set('activeSlot', 1);
+      setActiveSlot(1);
+      s._captureSuspendCheckpoint();
+    });
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle'),
         u = s.playerUnits.find((u) => u.name === 'Sera');
@@ -227,7 +239,10 @@ test.describe('phone Canto and rewind contracts', () => {
     await action(page, 'Wait', true);
     await idle(page);
     await hud.getByRole('button', { name: 'Rewind', exact: true }).tap();
-    await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
+    const timeline = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+    await timeline.getByRole('button', { name: 'Previous turn', exact: true }).tap();
+    await timeline.getByRole('button', { name: 'Rewind… · 1 charge', exact: true }).tap();
+    await page.getByRole('button', { name: 'Spend 1 rewind', exact: true }).tap();
     await idle(page);
     const rewound = await summary(page);
     expect(rewound.turn).toBe(2);

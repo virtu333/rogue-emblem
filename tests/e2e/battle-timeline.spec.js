@@ -78,8 +78,12 @@ test('timeline preview is free; cancellation preserves action; confirmed rewind 
   const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
   await expect(view).toBeVisible();
   const before = await digest(page);
+  if (!(await view.locator('.bt-entry').first().isVisible()))
+    await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
   await view.locator('.bt-entry').last().tap();
+  if (!(await view.locator('.bt-entry').first().isVisible()))
+    await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
   await expect(view.locator('.bt-entry').first()).toHaveAttribute('aria-pressed', 'true');
   await expect(view.locator('.bt-entry[aria-pressed="true"]')).toHaveCount(1);
@@ -89,6 +93,8 @@ test('timeline preview is free; cancellation preserves action; confirmed rewind 
   const confirm = page.getByRole('dialog', { name: 'Rewind to this point?', exact: true });
   await confirm.getByRole('button', { name: 'Back', exact: true }).tap();
   expect(await digest(page)).toEqual(before);
+  if (!(await view.locator('.bt-entry').first().isVisible()))
+    await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
   await view.getByRole('button', { name: 'Rewind… · 1 charge', exact: true }).tap();
   await confirm.getByRole('button', { name: 'Spend 1 rewind', exact: true }).tap();
@@ -165,6 +171,8 @@ test('zero charges still allows review, rotation and return to landscape, and ke
   await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
   const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
   const before = await digest(page);
+  if (!(await view.locator('.bt-entry').first().isVisible()))
+    await view.getByRole('button', { name: 'History', exact: true }).tap();
   await view.locator('.bt-entry').first().tap();
   await expect(view.locator('.bt-reason')).toContainText('No rewind charges');
   await expect(view.locator('.bt-rewind')).toBeDisabled();
@@ -248,5 +256,252 @@ test('a loss with no charges settles immediately and still offers a free report 
   await expect(view.locator('.bt-summary')).toContainText('Defeat. The run has ended.');
   await expect(view.locator('.bt-rewind')).toBeInViewport();
   await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  expect(errors).toEqual([]);
+});
+
+test('main-map scrubbing settles exactly, owns a separate camera, and releases its scene on cancel', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  await page.setViewportSize({ width: 640, height: 480 });
+  // Exercise the production movement path and completion boundary, then use only
+  // viewer controls. This fixture leaves a second ally available to act.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits[0];
+    s.selectUnit(u);
+    const target = [...s.movementRange.keys()]
+      .map((k) => k.split(',').map(Number))
+      .find(
+        ([col, row]) =>
+          !s.getUnitAt(col, row) && Math.abs(col - u.col) + Math.abs(row - u.row) === 1,
+      );
+    if (!target) throw Error('No adjacent movement fixture');
+    s.moveUnit(u, ...target);
+  });
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'UNIT_ACTION_MENU',
+  );
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Wait', exact: true })
+    .tap();
+  await page.evaluate(() =>
+    window.__emblemRogueGame.scene
+      .getScene('Battle')
+      .registry.get('settings')
+      .setBattleSpeed('normal'),
+  );
+  const before = await digest(page);
+  const camera = await page.evaluate(() => {
+    const c = window.__emblemRogueGame.scene.getScene('Battle').cameras.main;
+    return [c.scrollX, c.scrollY, c.zoom];
+  });
+  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  await expect(view.locator('.bt-map-viewport')).toBeVisible();
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return s.visionDialog?.surface?.session?.scene?.renderer?.frame;
+  });
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const v = s.visionDialog.surface;
+      return {
+        paused: s.scene.isPaused(),
+        distinct: v.session.scene.cameras.main !== s.cameras.main,
+        path: v.entries.at(-1).beats.some((b) => b.path?.length > 1),
+        busy: v.busy,
+      };
+    }),
+  ).toEqual({ paused: true, distinct: true, path: true, busy: false });
+  await view.getByRole('button', { name: 'Previous action', exact: true }).tap();
+  await expect(view.locator('.bt-rewind')).toBeDisabled();
+  // A newer selection cancels the preceding animation rather than queuing it.
+  await view.getByRole('button', { name: 'Next action', exact: true }).tap();
+  await view.getByRole('button', { name: 'Previous action', exact: true }).tap();
+  await page.waitForFunction(() => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog.surface;
+    return (
+      !v.busy &&
+      JSON.stringify(v.session.scene.renderer.frame) ===
+        JSON.stringify(v.entries.find((e) => e.id === v.selectedId).preview)
+    );
+  });
+  await page.screenshot({ path: '/tmp/battle-history-map-640.png' });
+  await view.getByRole('button', { name: 'Zoom in', exact: true }).tap();
+  await view.getByRole('button', { name: 'Map', exact: true }).tap();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Escape');
+  await expect(view).toBeVisible();
+  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  await expect(view).toHaveCount(0);
+  expect(await digest(page)).toEqual(before);
+  expect(
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const c = s.cameras.main;
+      return {
+        camera: [c.scrollX, c.scrollY, c.zoom],
+        active: s.scene.isActive(),
+        visible: s.scene.isVisible(),
+        historyScenes: Object.keys(s.game.scene.keys).filter((k) => k.startsWith('BattleHistory-'))
+          .length,
+      };
+    }),
+  ).toEqual({ camera, active: true, visible: true, historyScenes: 0 });
+  expect(errors).toEqual([]);
+});
+
+test('recorded combat identifies the observed attacker and victim and reverses a death without gameplay', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const a = s.playerUnits[0],
+      d = s.enemyUnits[0];
+    a.col = 1;
+    a.row = 5;
+    d.col = 2;
+    d.row = 5;
+    a.stats.STR = 50;
+    a.stats.SKL = 50;
+    a.stats.HP = 80;
+    a.currentHP = 80;
+    a.skills = [];
+    a.xp = 0;
+    a.weapon = { ...a.weapon, hit: 200 };
+    d.currentHP = 1;
+    d.stats.DEF = 0;
+    d.stats.SPD = 0;
+    d.skills = [];
+    d.affixes = [];
+    s.updateUnitPosition(a);
+    s.updateUnitPosition(d);
+    s._timelineBoundary = 'turn_start';
+    s._captureSuspendCheckpoint();
+    s.selectedUnit = a;
+    await s.executeCombat(a, d);
+  });
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  const before = await digest(page);
+  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  await page.waitForFunction(() => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
+    return v?.session?.scene?.renderer?.frame && !v.busy;
+  });
+  const recorded = await page.evaluate(() => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog.surface;
+    const row = v.entries.find((e) => e.id === v.selectedId);
+    return {
+      dead: row.beats.find((b) => b.type === 'defeated')?.targetId,
+      attacker: row.actorId,
+      hit: row.beats.find((b) => b.outcome?.damage > 0),
+      units: v.session.scene.renderer.frame.units.map((u) => u.id),
+    };
+  });
+  expect(recorded.dead).toBeTruthy();
+  expect(recorded.hit.actorId).toBe(recorded.attacker);
+  expect(recorded.hit.actorPosition).toMatchObject({ col: 1, row: 5 });
+  expect(recorded.hit.targetPosition).toMatchObject({ col: 2, row: 5 });
+  expect(recorded.units).not.toContain(recorded.dead);
+  await expect(view.locator('.bt-details summary')).toContainText('attacked');
+  await page.screenshot({ path: '/tmp/battle-history-combat-phone.png' });
+  await view.getByRole('button', { name: 'Previous action', exact: true }).tap();
+  await page.waitForFunction((dead) => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog.surface;
+    return !v.busy && v.session.scene.renderer.frame.units.some((u) => u.id === dead && u.hp === 1);
+  }, recorded.dead);
+  expect(await digest(page)).toEqual(before);
+  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  expect(errors).toEqual([]);
+});
+
+test('fifty history sessions release textures, shutdown listeners and input ownership', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  const before = await digest(page);
+  const counters = () =>
+    page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { activeInputOwner } = await import('/src/utils/inputFocus.js');
+      return {
+        textures: Object.keys(s.textures.list),
+        shutdown: s.events.listenerCount('shutdown'),
+        scenes: Object.keys(s.game.scene.keys).filter((k) => k.startsWith('BattleHistory-')).length,
+        active: s.scene.isActive(),
+        battleInput: activeInputOwner() === s,
+      };
+    });
+  let baseline;
+  for (let i = 0; i < 50; i++) {
+    await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+    await page.waitForFunction(() => {
+      const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
+      return v?.session?.scene?.renderer?.frame && !v.busy;
+    });
+    await page
+      .getByRole('dialog', { name: 'Battle timeline', exact: true })
+      .getByRole('button', { name: 'Back', exact: true })
+      .tap();
+    if (i === 0) baseline = await counters();
+  }
+  const { textures, ...finalState } = await counters();
+  const { textures: initialTextures, ...initialState } = baseline;
+  // Transient host textures may expire, but repeated history must retain none.
+  expect(textures.filter((key) => !initialTextures.includes(key))).toEqual([]);
+  expect(textures.filter((key) => key.startsWith('BattleHistory-'))).toEqual([]);
+  expect(finalState).toEqual(initialState);
+  expect(baseline).toMatchObject({ scenes: 0, active: true, battleInput: true });
+  expect(await digest(page)).toEqual(before);
+  expect(errors).toEqual([]);
+});
+
+test('history status labels and animated HP cues never consume battle randomness', async ({
+  page,
+}) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.playerUnits[0]._conditions = [{ id: 'silence', turnsRemaining: 2 }];
+    s._captureSuspendCheckpoint();
+  });
+  const before = await digest(page);
+  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await page.waitForFunction(() => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
+    return v?.session?.scene?.renderer?.frame && !v.busy;
+  });
+  expect(await digest(page)).toEqual(before);
+  await page.evaluate(async () => {
+    const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog.surface;
+    const renderer = v.session.scene.renderer;
+    const frame = structuredClone(renderer.frame);
+    const from = structuredClone(frame);
+    from.units[0].hp = Math.max(1, frame.units[0].hp - 1);
+    await new Promise((resolve) =>
+      renderer.show(
+        frame,
+        {
+          from,
+          animate: true,
+          beats: [{ actorId: frame.units[0].id, type: 'healed' }],
+        },
+        resolve,
+      ),
+    );
+  });
+  expect(await digest(page)).toEqual(before);
+  await page
+    .getByRole('dialog', { name: 'Battle timeline', exact: true })
+    .getByRole('button', { name: 'Back', exact: true })
+    .tap();
+  expect(await digest(page)).toEqual(before);
   expect(errors).toEqual([]);
 });

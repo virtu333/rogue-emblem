@@ -241,7 +241,7 @@ describe('ForecastOverlay', () => {
         validWeapons: [],
       });
 
-      const doubleText = overlay.displayObjects.find((o) => o.text === 'Planned hits: 2');
+      const doubleText = overlay.displayObjects.find((o) => o.text === 'Planned hits: 2x');
       expect(doubleText).toBeTruthy();
     });
 

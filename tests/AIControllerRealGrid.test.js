@@ -283,3 +283,67 @@ describe('AIController vs real Grid — seek_tile (village bandits)', () => {
     expect(decision.target).toBe(target);
   });
 });
+
+describe('staff-only healer support movement', () => {
+  function supportFixture() {
+    const grid = gridFromNames(Array.from({ length: 5 }, () => Array(12).fill('Plain')));
+    const ai = new AIController(grid, gameData);
+    const staff = structuredClone(gameData.weapons.find((w) => w.name === 'Heal'));
+    const cleric = enemy({
+      col: 0,
+      row: 2,
+      mov: 3,
+      aiMode: 'heal',
+      weapon: staff,
+      inventory: [staff],
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+    });
+    const ally = enemy({ col: 7, row: 2 });
+    return { ai, cleric, ally, staff };
+  }
+  it('advances toward healthy combat allies without attacking or spending a staff use', () => {
+    const { ai, cleric, ally, staff } = supportFixture();
+    const decision = ai._decideAction(cleric, [cleric, ally], [], []);
+    expect(decision.reason).toBe('healer_follow');
+    expect(decision.path.at(-1)).toMatchObject({ col: 3, row: 2 });
+    expect(decision.target).toBeNull();
+    expect(decision.healTarget).toBeUndefined();
+    expect(staff._usesSpent || 0).toBe(0);
+  });
+  it('continues following when silenced or out of staff uses', () => {
+    const { ai, cleric, ally, staff } = supportFixture();
+    cleric._conditions = [{ id: 'silence', turnsRemaining: 2 }];
+    expect(ai._decideAction(cleric, [cleric, ally], [], []).reason).toBe('healer_follow');
+    cleric._conditions = [];
+    staff._usesSpent = 99;
+    expect(ai._decideAction(cleric, [cleric, ally], [], []).reason).toBe('healer_follow');
+  });
+  it('holds beside allies, when alone, and when rooted', () => {
+    const { ai, cleric, ally } = supportFixture();
+    ally.col = 1;
+    expect(ai._decideAction(cleric, [cleric, ally], [], []).path).toBeNull();
+    expect(ai._decideAction(cleric, [cleric], [], []).path).toBeNull();
+    ally.col = 7;
+    cleric._conditions = [{ id: 'root', turnsRemaining: 2 }];
+    expect(ai._decideAction(cleric, [cleric, ally], [], []).path).toBeNull();
+  });
+  it('routes around walls to follow and ignores dead allies', () => {
+    const { cleric, ally } = supportFixture();
+    const rows = Array.from({ length: 5 }, () => Array(12).fill('Plain'));
+    rows[1][2] = rows[2][2] = rows[3][2] = 'Wall';
+    const ai = new AIController(gridFromNames(rows), gameData);
+    const decision = ai._decideAction(cleric, [cleric, ally], [], []);
+    expect(decision.reason).toBe('healer_follow');
+    expect(decision.path.every((tile) => rows[tile.row][tile.col] !== 'Wall')).toBe(true);
+    ally.currentHP = 0;
+    expect(ai._decideAction(cleric, [cleric, ally], [], []).path).toBeNull();
+  });
+  it('heals before following when a wounded ally is reachable', () => {
+    const { ai, cleric, ally } = supportFixture();
+    ally.col = 3;
+    ally.currentHP = 1;
+    const decision = ai._decideAction(cleric, [cleric, ally], [], []);
+    expect(decision.reason).toBe('heal_ally');
+    expect(decision.healTarget).toBe(ally);
+  });
+});

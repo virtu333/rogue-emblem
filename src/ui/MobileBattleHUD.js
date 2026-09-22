@@ -366,7 +366,7 @@ export class MobileBattleHUD {
       const stats = el('dl', 'mb-stats');
       for (const [name, value] of [
         ['Damage per hit', `${info.damage}`],
-        ['Planned hits', `${info.attackCount || 1}`],
+        ['Planned hits', `${info.attackCount || 1}x`],
         ['Hit rating', `${info.hit}`],
         ['Critical', `${info.crit}%`],
         ['Attack speed', info.as],
@@ -653,6 +653,30 @@ export class MobileBattleHUD {
           this.endTurnPending = null;
         }),
       );
+      for (const ready of (s.playerUnits || []).filter(
+        (u) => u.currentHP > 0 && !u.hasActed && !u._removing,
+      )) {
+        this.body.append(
+          this.button(`Show ${ready.name}`, () => {
+            if (
+              this.endTurnPending !== token ||
+              s.battleState !== token.state ||
+              s.turnManager?.turnNumber !== token.turn ||
+              ready.hasActed ||
+              ready.currentHP <= 0 ||
+              ready._removing
+            )
+              return;
+            this.endTurnPending = null;
+            const point = s.grid.gridToPixel(ready.col, ready.row);
+            s._battleCamera?.clearTouches();
+            s.cameras.main.centerOn(point.x, point.y);
+            s._battleCamera?.clampToBounds();
+            s._mobileTerrainFocus = { col: ready.col, row: ready.row };
+            s._syncMobileResetViewButton?.();
+          }),
+        );
+      }
       this.body.append(
         this.button(
           'End turn now',

@@ -477,3 +477,86 @@ describe('production timeline boundaries and recovery', () => {
     expect(restored._battleRecoveryInvalid).toBe(false);
   });
 });
+
+describe('battlefield presentation integration', () => {
+  it('preserves A trade → C action → A action chronology and parent identity across reload', async () => {
+    const { scene, run } = fixture();
+    const { BattleTradeMenu } = await import('../src/ui/BattleTradeMenu.js');
+    const { rememberHistoryPath } = await import('../src/ui/BattleHistoryRecorder.js');
+    const { hydrateBattleTimeline } = await import('../src/engine/BattleTimeline.js');
+    const { historyFrameAt } = await import('../src/engine/BattleHistoryPresentation.js');
+    const [a, c] = scene.playerUnits;
+    const origin = { col: a.col, row: a.row };
+    rememberHistoryPath(scene, a, [origin, { col: a.col + 1, row: a.row }]);
+    a.col++;
+    const item = { name: 'Vulnerary', uses: 3 };
+    a.consumables = [item];
+    c.consumables = [];
+    scene.battleState = 'TRADING';
+    BattleTradeMenu.prototype.transfer.call({
+      scene,
+      left: a,
+      right: c,
+      selection: { owner: a, recipient: c, item, key: 'consumables', cap: 3 },
+      render() {},
+      surface: { focusContent() {} },
+    });
+    let archive = scene._battleTimeline.presentation;
+    expect(archive).not.toBeNull();
+    const trade = archive.records.at(-1);
+    expect(trade.kind).toBe('recovery');
+    expect(trade.beats[0].path).toEqual([origin, { col: a.col, row: a.row }]);
+    expect(trade.beats[1].type).toBe('traded with');
+    // The optional parent registry is recovered from the same persisted history.
+    scene._battleTimeline = hydrateBattleTimeline(
+      JSON.parse(JSON.stringify(scene._battleTimeline)),
+    );
+    run.battleInProgress.timeline = scene._battleTimeline;
+    completeBattleAction(scene, c);
+    const afterC = structuredClone(scene._battleTimeline);
+    const cId = scene._timelineCurrentEntryId;
+    completeBattleAction(scene, a);
+    archive = scene._battleTimeline.presentation;
+    const last = archive.records.at(-1);
+    expect(last.actorId).toBe(a.battleEntityId);
+    expect(last.parentId).toBe(trade.parentId);
+    expect(archive.records.map((r) => r.actorId).filter(Boolean)).toEqual([
+      a.battleEntityId,
+      c.battleEntityId,
+      a.battleEntityId,
+    ]);
+    const branch = branchBattleTimeline(scene._battleTimeline, cId);
+    expect(branch.presentation.records.at(-1).parents[a.battleEntityId]).toBe(trade.parentId);
+    expect(historyFrameAt(branch.presentation, branch.presentation.records.length - 1)).toEqual(
+      historyFrameAt(afterC.presentation, afterC.presentation.records.length - 1),
+    );
+    expect(branch.presentation.nextId).toBe(archive.nextId);
+  });
+
+  it('keeps a committed debit and exposes reload when presentation teardown fails', () => {
+    const { scene, run } = fixture();
+    const controller = scene._visionController;
+    const target = scene._battleTimeline.entries[0].id;
+    const state = getEntryState(scene._battleTimeline, target);
+    const dialog = vi.spyOn(controller, 'showDialog').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    controller._historySession = {
+      destroy() {
+        throw new Error('renderer teardown failed');
+      },
+    };
+    expect(
+      controller.executeRewind(state, branchBattleTimeline(scene._battleTimeline, target)),
+    ).toBe(false);
+    expect(run.visionChargesRemaining).toBe(2);
+    expect(JSON.parse(storage.getItem('emblem_rogue_slot_1_run')).visionChargesRemaining).toBe(2);
+    expect(dialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Rewind saved',
+        confirmLabel: 'Reload',
+        cancelLabel: 'Reload',
+      }),
+    );
+    expect(scene.battleState).toBe('PAUSED');
+  });
+});

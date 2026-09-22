@@ -1,3 +1,10 @@
+import {
+  historyUnitVisible,
+  observeHistoryAction,
+  rememberHistoryPath,
+  discardHistoryPath,
+  resetHistoryRecording,
+} from '../ui/BattleHistoryRecorder.js';
 import { hydrateBattleTimeline } from '../engine/BattleTimeline.js';
 import { combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
 import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
@@ -20,7 +27,7 @@ import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
 import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
-import { rebuiltSpriteKey } from '../ui/RebuiltSprites.js';
+import { battleUnitSpriteKey } from '../ui/BattleUnitVisuals.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { battlefieldLabEnabled } from '../ui/BattlefieldLab.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
@@ -312,11 +319,6 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 
-// Lords with tier-specific battle sprites (others use one name-keyed sprite
-// at both tiers). Add entries here as promoted variants get produced.
-const LORD_SPRITE_KEYS = {
-  Edric: { base: 'lordedric', promoted: 'greatlordedric' },
-};
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   delete unit._legendaryGraceTurn;
@@ -1220,6 +1222,7 @@ export class BattleScene extends Phaser.Scene {
       this._fatalCapturePending = false;
       this._defeatDecision = null;
       this._timelineFacts = [];
+      resetHistoryRecording(this);
       this._timelineBoundary = null;
       this.initializeVisionState();
       this._battleRewindPolicy = this._resumeCheckpoint
@@ -2684,6 +2687,7 @@ export class BattleScene extends Phaser.Scene {
       if (!spec) continue;
       const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
       if (enemy) {
+        observeHistoryAction(this, 'arrived as a reinforcement', enemy);
         spawned++;
         if (enemy.aiMode === 'seek_tile') banditSpawned++;
         // Repeating pursuit waves are constant pressure, not added objectives —
@@ -3091,28 +3095,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Unit rendering ---
 
   getSpriteKey(unit) {
-    if (unit.isCaravan && this.textures.exists('merchant_caravan')) return 'merchant_caravan';
-    const rebuilt = rebuiltSpriteKey(this, unit);
-    if (rebuilt) return rebuilt;
-    const classKey = unit.className.toLowerCase().replace(/ /g, '_');
-    if (unit.faction === 'enemy') {
-      const defaultEnemySpriteKey = `enemy_${classKey}`;
-      if (unit.isBoss && unit.name === 'The Emperor' && this.textures?.exists?.('enemy_emperor')) {
-        return 'enemy_emperor';
-      }
-      return defaultEnemySpriteKey;
-    }
-    // Lords with tier-specific sprites use the lookup table; others fall
-    // through to the single name-keyed sprite, then the class sprite.
-    if (unit.isLord) {
-      const tierKeys = LORD_SPRITE_KEYS[unit.name];
-      const tierKey = unit.tier === 'promoted' ? tierKeys?.promoted : tierKeys?.base;
-      if (tierKey && this.textures.exists(tierKey)) return tierKey;
-      const lordKey = unit.name.toLowerCase();
-      if (this.textures.exists(lordKey)) return lordKey;
-    }
-    // NPCs use player sprites (same as non-lord player units)
-    return classKey;
+    return battleUnitSpriteKey(this, unit);
   }
 
   getWeaponSFX(unit) {
@@ -4526,6 +4509,7 @@ export class BattleScene extends Phaser.Scene {
       rollbackMovementSpent,
     } = {},
   ) {
+    discardHistoryPath(this, unit);
     const prefix = `[${context}]`;
     if (context === 'handleCantoClick') this._resetCantoPreInitFaultTracking();
     if (error) {
@@ -4719,6 +4703,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      rememberHistoryPath(this, unit, finalPath);
       unit.col = finalDest.col;
       unit.row = finalDest.row;
       unit.hasMoved = true;
@@ -5154,6 +5139,7 @@ export class BattleScene extends Phaser.Scene {
       duration: 80,
       ease: 'Linear',
       onComplete: () => {
+        observeHistoryAction(this, 'shoved', unit, target.ally);
         target.ally.col = target.destCol;
         target.ally.row = target.destRow;
         this.updateUnitPosition(target.ally);
@@ -5188,6 +5174,7 @@ export class BattleScene extends Phaser.Scene {
       duration: 80,
       ease: 'Linear',
       onComplete: () => {
+        observeHistoryAction(this, 'pulled', unit, target.ally);
         unit.col = target.retreatCol;
         unit.row = target.retreatRow;
         target.ally.col = allyDestCol;
@@ -5220,6 +5207,13 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_hit');
     if (removed) {
+      observeHistoryAction(
+        this,
+        'broke terrain',
+        unit,
+        null,
+        `column ${target.col + 1}, row ${target.row + 1}`,
+      );
       const pos = this.grid.gridToPixel(target.col, target.row);
       this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
     }
@@ -5343,6 +5337,7 @@ export class BattleScene extends Phaser.Scene {
                 this.preMoveLoc = null;
                 this.commitVisionSnapshotIfPending();
               }
+              observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
               this._captureSuspendCheckpoint?.();
               this.cleanupTradeUI();
               this.showBattleTradeUI(unitA, unitB);
@@ -5385,6 +5380,7 @@ export class BattleScene extends Phaser.Scene {
               this.preMoveLoc = null;
               this.commitVisionSnapshotIfPending();
             }
+            observeHistoryAction(this, 'traded with', unitA, unitB, item.name);
             this._captureSuspendCheckpoint?.();
             this.cleanupTradeUI();
             this.showBattleTradeUI(unitA, unitB);
@@ -5470,6 +5466,7 @@ export class BattleScene extends Phaser.Scene {
       duration: 120,
       ease: 'Quad.easeInOut',
       onComplete: () => {
+        observeHistoryAction(this, 'swapped with', unit, target.ally);
         const allyWasActed = target.ally.hasActed;
         unit.col = allyOldCol;
         unit.row = allyOldRow;
@@ -5516,6 +5513,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
+    observeHistoryAction(this, 'danced for', unit, target.ally);
     // Reset target's action state
     target.ally.hasMoved = false;
     target.ally._movementCommitted = false;
@@ -5722,6 +5720,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      rememberHistoryPath(this, unit, cantoFinalPath, false);
       unit.col = destCol;
       unit.row = destRow;
       try {
@@ -6199,6 +6198,7 @@ export class BattleScene extends Phaser.Scene {
             if (ballista) {
               ballista.owner = 'player';
               ballista.captured = true;
+              observeHistoryAction(this, 'captured a ballista', unit);
               this.dangerZoneStale = true;
               this._pinnedThreats?.invalidate();
               if (this.dangerZone?.visible) {
@@ -6332,6 +6332,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
+    discardHistoryPath(this, unit);
     // Return unit to original position
     const { col, row } = this.preMoveLoc;
     unit.col = col;
@@ -6390,6 +6391,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Convert faction
       npc.faction = 'player';
+      observeHistoryAction(this, 'recruited', lord, npc);
 
       // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
       this.removeUnitGraphic(npc);
@@ -7013,6 +7015,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
+      observeHistoryAction(this, 'used', unit, null, item.name);
       // Decrement uses, remove if depleted
       item.uses--;
       if (item.uses <= 0) removeFromConsumables(unit, item);
@@ -7228,6 +7231,7 @@ export class BattleScene extends Phaser.Scene {
     const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
+    observeHistoryAction(this, 'reclassed', unit, null, newClassData.name);
 
     // Refresh sprite
     this.removeUnitGraphic(unit);
@@ -7929,6 +7933,22 @@ export class BattleScene extends Phaser.Scene {
         ...(this._timelineFacts || []),
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
+
+    observeHistoryAction(this, 'attacked', attacker, defender);
+    for (const event of result.events || []) {
+      if (event.type !== 'strike') continue;
+      const striker = event.attackerSide === 'defender' ? defender : attacker;
+      const target = striker === attacker ? defender : attacker;
+      observeHistoryAction(
+        this,
+        event.miss ? 'missed' : event.isCrit ? 'critically hit' : 'hit',
+        striker,
+        target,
+        event.miss ? '' : `${event.damage} damage`,
+        { damage: event.damage || 0, miss: Boolean(event.miss), critical: Boolean(event.isCrit) },
+      );
+    }
+    this._historyActor = historyUnitVisible(this, attacker) ? attacker.battleEntityId : null;
 
     // Animate events. Consecutive strikes by the same side (Astra flurries,
     // brave doubles, Adept bonus strikes) animate at follow-up tempo.
@@ -9115,6 +9135,8 @@ export class BattleScene extends Phaser.Scene {
         this.grid.isVisible?.(unit.col, unit.row))
     )
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
+    if (killer) observeHistoryAction(this, 'defeated', killer, unit);
+    else observeHistoryAction(this, 'fell', unit);
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -9807,6 +9829,7 @@ export class BattleScene extends Phaser.Scene {
       };
       this.enemyUnits.push(unit);
       this.addUnitGraphic(unit);
+      observeHistoryAction(this, 'revived', unit);
       await this.showBriefBanner(`${unit.className} has risen!`, '#cc66cc');
     }
     if (revived.length > 0) this.checkBattleEnd();
@@ -9880,6 +9903,8 @@ export class BattleScene extends Phaser.Scene {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if (this.grid.setTemporaryTerrain) {
       this.grid.setTemporaryTerrain(pick.col, pick.row, effect.terrainType, effect.duration, unit);
+      if (!this.grid.fogEnabled || this.grid.isVisible(pick.col, pick.row))
+        observeHistoryAction(this, 'created terrain', unit, null, effect.terrainType);
       // Visual feedback
       const pos = this.grid.gridToPixel(pick.col, pick.row);
       this.showMinorHintAt(pos.x, pos.y, 'Wall!', '#ffffff');
@@ -10119,6 +10144,7 @@ export class BattleScene extends Phaser.Scene {
             },
             onHeal: (_enemy, target, result) => {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
+              observeHistoryAction(this, 'healed', _enemy, target, `${result.healAmount} HP`);
               this.updateHPBar(target);
               this.showBriefBanner?.(`${target.name} healed ${result.healAmount} HP`, '#88ff88');
               return Promise.resolve();
@@ -10144,6 +10170,8 @@ export class BattleScene extends Phaser.Scene {
               // intact village tile burns it down.
               this._villageController?.handleEnemyUnitDone(enemy);
               if (!phaseSuperseded() && !this.visionDialog) {
+                if (!(this._historyBeats || []).length) observeHistoryAction(this, 'waited', enemy);
+                this._historyActor = historyUnitVisible(this, enemy) ? enemy.battleEntityId : null;
                 this._timelineBoundary = 'enemy_action';
                 // The completed enemy is marked acted before saving. A reload
                 // resumes only the remaining enemies, never this combat or XP.
@@ -10222,6 +10250,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this._isSceneActiveForAsync()) return;
     }
 
+    rememberHistoryPath(this, enemy, finalPath, false);
     const dest = finalPath[finalPath.length - 1];
     enemy.col = dest.col;
     enemy.row = dest.row;
@@ -10233,6 +10262,14 @@ export class BattleScene extends Phaser.Scene {
     const staff = enemy.statusStaff;
     if (!staff) return;
     const result = resolveStatusStaff(staff, enemy, target);
+    observeHistoryAction(
+      this,
+      result.immune ? 'was blocked by' : result.hit ? 'afflicted' : 'missed',
+      enemy,
+      target,
+      result.hit ? result.conditionId : '',
+      { miss: !result.hit },
+    );
     spendStaffUse(staff);
     if (result.immune) {
       await this.showBriefBanner(
@@ -10403,7 +10440,9 @@ export class BattleScene extends Phaser.Scene {
 
   async executeEnemyBreak(enemy, tile) {
     if (!tile) return;
-    this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
+    const removed = this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
+    if (removed && (!this.grid.fogEnabled || this.grid.isVisible(tile.col, tile.row)))
+      observeHistoryAction(this, 'broke terrain', enemy);
     const pos = this.grid.gridToPixel(tile.col, tile.row);
     this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
     await this._awaitSceneDelay(120, { label: 'enemy_break_hold' });

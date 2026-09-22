@@ -1,6 +1,98 @@
 .bt-timeline .re-menu-body {
   overflow: hidden;
 }
+
+.bt-battlefield.re-screen {
+  background: transparent;
+  gap: 4px;
+  padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+}
+.bt-battlefield .re-header,
+.bt-battlefield .bt-help,
+.bt-battlefield .bt-footer,
+.bt-battlefield .bt-navigation,
+.bt-battlefield .bt-preview > :not(.bt-map-viewport) {
+  background: var(--re-bg);
+}
+.bt-battlefield .bt-help {
+  font-size: 12px;
+}
+.bt-battlefield .bt-layout {
+  display: flex;
+  position: relative;
+  gap: 0;
+}
+.bt-battlefield .bt-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.bt-battlefield .bt-preview h3 {
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+.bt-map-viewport {
+  flex: 1;
+  min-height: 110px;
+  touch-action: none;
+  cursor: grab;
+}
+.bt-navigation,
+.bt-map-controls {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.bt-navigation .re-btn,
+.bt-map-controls .re-btn {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.bt-battlefield .bt-history {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(330px, 80%);
+  z-index: 1;
+  background: var(--re-bg);
+}
+.bt-battlefield .bt-history[hidden] {
+  display: none;
+}
+.bt-details {
+  max-height: 35%;
+  overflow: auto;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+.bt-details summary {
+  cursor: pointer;
+}
+.bt-inspection {
+  margin: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.bt-inspection:empty {
+  display: none;
+}
+.bt-battlefield .bt-footer {
+  padding: 3px 8px;
+}
+.bt-battlefield .bt-footer .bt-reason {
+  font-size: 12px;
+}
+.bt-battlefield .bt-rewind {
+  min-height: 40px;
+}
+.bt-battlefield .re-menu-body {
+  gap: 3px;
+}
 .bt-timeline .re-header {
   flex-wrap: wrap;
 }
@@ -147,4 +239,33 @@
     flex-direction: column;
     gap: 6px;
   }
+}
+
+/* A historical map owns the canvas while the live scene is paused. */
+html.touch-ui #game-wrapper.battlefield-lab.battle-history-active {
+  grid-template-columns: minmax(0, 1fr);
+}
+#game-wrapper.battle-history-active > .mobile-battle-hud {
+  display: none;
+}
+html.mobile-preview .bt-battlefield.re-screen {
+  width: 100%;
+  height: 100dvh;
+}
+.bt-battlefield .bt-history {
+  z-index: var(--re-depth-lab);
+}
+
+.bt-battlefield .bt-preview.bt-legacy-preview {
+  background: var(--re-bg);
+  overflow: auto;
+}
+.bt-battlefield .bt-map-viewport {
+  position: relative;
+}
+.bt-battlefield .bt-map-controls {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: var(--re-bg);
 }

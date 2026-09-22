@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { TutorialController } from './TutorialController.js';
 import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
 // HealController -- staff heal flow extracted from BattleScene.
@@ -279,6 +280,7 @@ export class HealController {
       const staff = healer.weapon; // Should already be equipped
 
       await this.animateRelocate(ally, dest);
+      observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
       // A long-range landing can change fog visibility.
       if (scene.grid.fogEnabled) {
@@ -343,6 +345,7 @@ export class HealController {
         // Restore-style staff: cleanse instead of heal. A slept ally cured
         // during player phase can act this turn (selection reads conditions live).
         clearAllConditions(target);
+        observeHistoryAction(scene, 'cured', healer, target, staff.name);
         scene._removeAllConditionIcons(target);
         // Un-dim only sleepers that can still act — keep the acted-grey on
         // allies that already moved this phase (same pattern as Swap).
@@ -368,6 +371,9 @@ export class HealController {
 
       // Apply heal
       target.currentHP = result.targetHPAfter;
+      observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
+        amount: result.healAmount,
+      });
       scene.updateHPBar(target);
       const selfHeal = applyLegendaryStaffHeal(
         healer,
@@ -412,6 +418,9 @@ export class HealController {
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);
         target.currentHP = result.targetHPAfter;
+        observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
+          amount: result.healAmount,
+        });
         scene.updateHPBar(target);
         const selfHeal = applyLegendaryStaffHeal(
           healer,

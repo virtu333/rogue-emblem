@@ -160,3 +160,14 @@ describe('WeaponArt visibility helpers', () => {
     expect(lines).toEqual(['Art: Curved Shot - Hit +15, Range +1']);
   });
 });
+
+it('Phantom Rush summary exposes reduced strike damage without a post-combat HP penalty', async () => {
+  const { loadGameData } = await import('./testData.js');
+  const art = loadGameData().weaponArts.arts.find((a) => a.id === 'legend_phantom_rush');
+  const summary = summarizeWeaponArtEffect(art);
+  expect(summary).toContain('3 strikes at 60% damage each');
+  expect(summary).toContain('retreat 1');
+  expect(summary).not.toContain('HP set');
+  expect(art.hpCost).toBe(8);
+  expect(art.description).toContain('enemies can still counterattack');
+});

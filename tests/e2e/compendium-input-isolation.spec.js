@@ -3,16 +3,16 @@ import { waitForScene } from './helpers.js';
 
 test.use({ ...devices['iPhone 13'] });
 
-async function titlePoint(page, index) {
-  return page.evaluate((index) => {
+async function titlePoint(page, label) {
+  return page.evaluate((label) => {
     const s = window.__emblemRogueGame.scene.getScene('Title');
-    const button = s._menuButtons.at(index);
+    const button = s._menuButtons.find((b) => b.list?.some((o) => o.text === label));
     const r = s.game.canvas.getBoundingClientRect();
     return {
       x: r.x + (button.x * r.width) / s.scale.width,
       y: r.y + (button.y * r.height) / s.scale.height,
     };
-  }, index);
+  }, label);
 }
 
 for (const width of [667, 844]) {
@@ -30,7 +30,7 @@ for (const width of [667, 844]) {
         input === 'touch' ? target.tap(options) : target.click(options);
       const pressPoint = async (p) =>
         input === 'touch' ? page.touchscreen.tap(p.x, p.y) : page.mouse.click(p.x, p.y);
-      await pressPoint(await titlePoint(page, -1));
+      await pressPoint(await titlePoint(page, 'COMPENDIUM'));
       const dialog = page.getByRole('dialog', { name: 'Compendium', exact: true });
       await expect(dialog).toBeVisible();
       // Observe Phaser input itself: a title-only guard must not mask an event leak.
@@ -63,7 +63,7 @@ for (const width of [667, 844]) {
       await expect(dialog.locator('.re-reference-detail h3')).toHaveText('Sera');
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
-      await pressPoint(await titlePoint(page, 1));
+      await pressPoint(await titlePoint(page, 'SAVE SLOTS'));
       await waitForScene(page, 'SlotPicker');
       expect(errors).toEqual([]);
     });

@@ -1,3 +1,4 @@
+import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecorder.js';
 // CaravanController -- Merchant Caravan battle-scene wiring, extracted per the
 // BattleScene decomposition rule (never inline multi-step flows). Owns spawn,
 // the 1-tile-per-turn greedy movement toward the nearest map edge, exit
@@ -77,6 +78,7 @@ export class CaravanController {
       occupied,
     );
     if (step) {
+      rememberHistoryPath(scene, unit, [{ col: unit.col, row: unit.row }, step], false);
       unit.col = step.col;
       unit.row = step.row;
       const pos = scene.grid.gridToPixel(unit.col, unit.row);
@@ -112,6 +114,7 @@ export class CaravanController {
 
   _handleExit(unit) {
     const scene = this.scene;
+    observeHistoryAction(scene, 'escaped', unit);
     scene._caravanExited = true;
     const idx = scene.npcUnits.indexOf(unit);
     if (idx !== -1) scene.npcUnits.splice(idx, 1);

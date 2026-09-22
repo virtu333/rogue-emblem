@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
@@ -72,6 +73,7 @@ export function completeResolvedAction(scene, continuation) {
         (ally !== unit && gridDistance(unit.col, unit.row, ally.col, ally.row) > 1)
       )
         continue;
+      observeHistoryAction(scene, 'refreshed', unit, ally, `Commander's Gambit`);
       ally.hasActed = false;
       ally.hasMoved = false;
       ally._movementCommitted = false;

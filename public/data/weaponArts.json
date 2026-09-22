@@ -483,7 +483,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Strike and step back a tile before the counter.",
+      "description": "Strike, then retreat 1 tile after combat if a hit lands and space permits. The enemy can still counterattack before you retreat.",
       "effects": {
         "afterCombat": [
           {
@@ -1723,11 +1723,11 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 5,
+      "hpCost": 8,
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Brave Sword blurs into three cuts, then leaves you at 5 HP.",
+      "description": "Replaces the normal Brave Sword attack with 3 strikes at 60% damage each, with +8 Attack, +10 Hit and +10 Crit. No Speed follow-up; enemies can still counterattack. After landing a hit, retreat 1 tile if space permits. Costs 8 HP upfront (before cost reductions); no additional HP penalty after combat.",
       "allowedFactions": [
         "player"
       ],
@@ -1740,11 +1740,6 @@
             "type": "move",
             "mode": "retreat",
             "distance": 1
-          },
-          {
-            "type": "set_hp",
-            "target": "attacker",
-            "value": 5
           }
         ]
       },

@@ -208,7 +208,7 @@ Each legendary weapon has 1 unique fixed signature art. These cannot be taught v
 
 | Weapon | Art Name | HP Cost | Effect |
 |--------|----------|---------|--------|
-| Brave Sword | Phantom Rush | 15 | 2 hits at full damage; user can move 1 tile in any passable direction after combat and attack again (2 hits at full damage). User set to 5 HP after resolution. |
+| Brave Sword | Phantom Rush | 8 | Three strikes at 60% damage; +8 Attack, +10 Hit, +10 Crit. No Speed follow-up. On hit, retreat 1 tile after combat if possible. Normal counters apply; no post-combat HP penalty. (Updated September 21.) |
 | Brave Lance | Piercing Charge | 14 | 2 hits at full damage that pierce through the target, also hitting the enemy directly behind (if any) for full damage. |
 | Brave Axe | Galeforce Assault | 18 | 2 hits at full damage; user can move 1 tile and attack again (2 hits). User set to 5 HP. Allies within 2 tiles gain +3 STR for 1 turn. |
 | Brave Bow | Barrage | 14 | 2 hits at full damage against target + all enemies adjacent to target take 1 hit at 50% damage. |

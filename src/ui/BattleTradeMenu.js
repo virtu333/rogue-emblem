@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { addToInventory, removeFromInventory, hasProficiency } from '../engine/UnitManager.js';
@@ -108,6 +109,13 @@ export class BattleTradeMenu {
       scene.preMoveLoc = null;
       scene.commitVisionSnapshotIfPending();
     }
+    observeHistoryAction(
+      scene,
+      'traded with',
+      this.left,
+      this.left === owner ? recipient : owner,
+      item.name,
+    );
     scene._captureSuspendCheckpoint?.();
     this.selection = null;
     this.applying = false;

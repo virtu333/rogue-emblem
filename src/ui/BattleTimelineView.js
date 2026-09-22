@@ -1,3 +1,6 @@
+import { historyDisplayEntries, groupHistoryEntries } from '../engine/BattleHistoryPresentation.js';
+import { BattleHistorySession } from './BattleHistorySession.js';
+import { InputAction } from '../utils/InputActions.js';
 import { canRewindToEntry } from '../engine/BattleTimeline.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { MenuSurface, element } from './MenuSurface.js';
@@ -15,6 +18,11 @@ const phaseName = (phase) => (phase === 'enemy' ? 'Enemy' : 'Player');
 const strings = (values) =>
   Array.isArray(values) ? values.filter((value) => typeof value === 'string').slice(0, 256) : [];
 const eventTitle = (entry) => {
+  const primary =
+    entry.beats?.find(
+      (b) => entry.actorId && b.actorId === entry.actorId && !['moved', 'changed'].includes(b.type),
+    ) || entry.beats?.find((b) => entry.actorId && b.actorId === entry.actorId);
+  if (primary?.label) return primary.label;
   const facts = strings(entry.facts);
   const generic = (line) =>
     Object.values(KIND_LABELS).includes(line.replace(/[.!]$/, '')) ||
@@ -41,6 +49,8 @@ export class BattleTimelineView {
       onRewind,
       currentEntryId = null,
       fatal = false,
+      session = null,
+      selectedId = null,
     },
   ) {
     Object.assign(this, {
@@ -53,16 +63,28 @@ export class BattleTimelineView {
       currentEntryId,
       fatal,
     });
+    this.scene = scene;
+    this.entries = groupHistoryEntries(historyDisplayEntries(history));
+    this.session =
+      session ||
+      (this.entries.some((e) => e.preview?.version === 2) && scene.game?.scene
+        ? new BattleHistorySession(scene)
+        : null);
+    this.ownsSession = !session;
     this.cleanups = [];
+    this.renderCleanups = [];
     this.rows = new Map();
     this.surface = new MenuSurface(scene, 'Battle timeline', () => this.close());
     this.root = this.surface.root;
     this.root.classList.add('bt-timeline');
+    if (this.session) this.root.classList.add('bt-battlefield');
     const destroySurface = this.surface.destroy.bind(this.surface);
     this.surface.destroy = () => {
       if (this.destroyed) return;
       this.destroyed = true;
-      for (const cleanup of this.cleanups.splice(0)) cleanup();
+      for (const cleanup of [...this.cleanups.splice(0), ...this.renderCleanups.splice(0)])
+        cleanup();
+      if (this.ownsSession) this.session?.destroy();
       destroySurface();
     };
     this.surface.header.querySelector('button').textContent = fatal ? 'Back to decision' : 'Back';
@@ -80,8 +102,8 @@ export class BattleTimelineView {
     this.reason = element('p', null, 'bt-reason');
     this.reason.setAttribute('role', 'status');
     this.rewindButton = this.press('Rewind… · 1 charge', () => {
-      const selected = this.history.entries.find((entry) => entry.id === this.selectedId);
-      if (selected && !this.disabledReason(selected)) this.onRewind?.(selected.id);
+      const selected = this.entries.find((entry) => entry.id === this.selectedId);
+      if (selected && !this.busy && !this.disabledReason(selected)) this.onRewind?.(selected.id);
     });
     this.rewindButton.classList.add('bt-rewind');
     this.footer.append(this.reason, this.rewindButton);
@@ -96,17 +118,97 @@ export class BattleTimelineView {
       this.layout,
       this.footer,
     );
+    if (this.session) {
+      this.help = this.surface.body.querySelector?.('.bt-help');
+      if (this.help) this.help.textContent = 'Viewing history · reviewing is free';
+      this.navigation = element('nav', null, 'bt-navigation');
+      for (const [label, fn] of [
+        ['Previous turn', () => this.stepTurn(-1)],
+        ['Previous action', () => this.step(-1)],
+        ['Next action', () => this.step(1)],
+        ['Next turn', () => this.stepTurn(1)],
+        [
+          'History',
+          () => {
+            this.list.hidden = !this.list.hidden;
+            this.session.layout();
+          },
+        ],
+      ])
+        this.navigation.append(this.press(label, fn));
+      this.list.hidden = true;
+      this.surface.body.insertBefore(this.navigation, this.footer);
+      this.surface.focusNext = (delta) => {
+        const controls = [...this.root.querySelectorAll('button:not(:disabled),summary')].filter(
+          (el) => el.getClientRects().length,
+        );
+        const at = controls.indexOf(document.activeElement);
+        controls[(at + delta + controls.length) % controls.length]?.focus();
+      };
+      this.surface.onKey = (e) => {
+        if (e.key === 'PageUp' || e.key === 'PageDown') {
+          this.stepTurn(e.key === 'PageUp' ? -1 : 1);
+          return true;
+        }
+        if (this.mapMode && e.key === 'Escape') {
+          this.mapMode = false;
+          return true;
+        }
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && this.mapMode) {
+          this.session.pan(
+            e.key === 'ArrowLeft' ? -32 : e.key === 'ArrowRight' ? 32 : 0,
+            e.key === 'ArrowUp' ? -32 : e.key === 'ArrowDown' ? 32 : 0,
+          );
+          return true;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          this.step(e.key === 'ArrowLeft' ? -1 : 1);
+          return true;
+        }
+        return false;
+      };
+      this.surface.onAction = (action, payload) => {
+        if (action === InputAction.PREV_UNIT || action === InputAction.NEXT_UNIT) {
+          this.stepTurn(action === InputAction.PREV_UNIT ? -1 : 1);
+          return true;
+        }
+        if (this.mapMode && action === InputAction.CANCEL) {
+          this.mapMode = false;
+          return true;
+        }
+        if (this.mapMode && action === InputAction.NAVIGATE) {
+          this.session.pan((payload?.dx || 0) * 32, (payload?.dy || 0) * 32);
+          return true;
+        }
+        return false;
+      };
+    }
     this.renderRows();
-    const latest = this.history.entries.at(-1);
-    const initial = this.rows.get(currentEntryId) || this.rows.get(latest?.id);
-    if (initial) initial.focus();
-    else this.showEmpty();
+    if (this.session?.returnUi) {
+      this.list.hidden = !this.session.returnUi.historyOpen;
+      this.list.scrollTop = this.session.returnUi.scrollTop;
+      this.session.returnUi = null;
+    }
+    const latest = this.entries.at(-1);
+    const initial =
+      this.rows.get(selectedId) || this.rows.get(currentEntryId) || this.rows.get(latest?.id);
+    if (initial) {
+      if (this.session)
+        this.select(
+          this.rows.has(selectedId)
+            ? selectedId
+            : this.rows.has(currentEntryId)
+              ? currentEntryId
+              : latest?.id,
+        );
+      else initial.focus();
+    } else this.showEmpty();
   }
 
-  press(label, activate) {
+  press(label, activate, ephemeral = false) {
     const control = element('button', label, 're-btn');
     control.type = 'button';
-    this.cleanups.push(
+    (ephemeral ? this.renderCleanups : this.cleanups).push(
       bindCancelablePress(control, activate, {
         enabled: () => !this.destroyed,
         context: () => this.selectedId,
@@ -117,10 +219,10 @@ export class BattleTimelineView {
   }
 
   renderRows() {
-    if (this.history.earlierHistoryUnavailable)
+    if (this.history.earlierHistoryUnavailable || this.history.presentation?.earlierUnavailable)
       this.list.append(element('p', 'Earlier history unavailable.', 'bt-history-note'));
     let group = null;
-    for (const entry of this.history.entries) {
+    for (const entry of this.entries) {
       const heading = `Turn ${entry.turnNumber} · ${phaseName(entry.phase)} phase`;
       if (heading !== group) {
         group = heading;
@@ -160,13 +262,40 @@ export class BattleTimelineView {
       (this.history.policy === 'legacy-v1' || !this.allowPlayerActions)
     )
       return 'This battle allows rewinding to turn starts only.';
+    if (entry.reviewOnly && entry.kind === 'player_action')
+      return 'Review only. Rewind state is no longer retained.';
     return 'View only. This event is not an available rewind destination.';
   }
 
   select(entryId) {
     if (this.destroyed) return;
-    const entry = this.history.entries.find((item) => item.id === entryId);
+    const entry = this.entries.find((item) => item.id === entryId);
     if (!entry) return;
+    if (this.session && entry.preview?.version !== 2) {
+      this.session.hide();
+      this.busy = false;
+    }
+    if (this.session)
+      this.previewPanel.classList.toggle('bt-legacy-preview', entry.preview?.version !== 2);
+    const before = this.entries.find((e) => e.id === this.selectedId);
+    const beforeIndex = this.entries.indexOf(before),
+      index = this.entries.indexOf(entry);
+    const settings = this.session ? this.scene.registry?.get?.('settings') : null;
+    this.transition = {
+      from: before?.preview?.version === 2 ? before.preview : null,
+      beats: index < beforeIndex ? before?.beats || [] : entry.beats || [],
+      reverse: index < beforeIndex,
+      label: index < beforeIndex ? `Undoing: ${eventTitle(before)}` : '',
+      animate:
+        !this.busy &&
+        !(index < beforeIndex
+          ? before?.gap || before?.endpointOnly
+          : entry.gap || entry.endpointOnly) &&
+        Math.abs(index - beforeIndex) === 1 &&
+        before?.preview?.version === 2 &&
+        settings?.getBattleSpeed?.() !== 'instant' &&
+        settings?.getReduceMotion?.() !== true,
+    };
     this.selectedId = entryId;
     for (const [id, row] of this.rows) row.setAttribute('aria-pressed', String(id === entryId));
     const reason = this.disabledReason(entry);
@@ -176,23 +305,100 @@ export class BattleTimelineView {
         ? 'Enemies act next from this point. Rewinding costs 1 charge.'
         : 'Rewind opens a confirmation. It costs 1 charge.');
     this.rewindButton.disabled = Boolean(reason);
+    for (const cleanup of this.renderCleanups.splice(0)) cleanup();
     this.previewPanel.replaceChildren(
-      element('h3', `Preview · Turn ${entry.turnNumber} · ${phaseName(entry.phase)} phase`),
+      element(
+        'h3',
+        `${this.session ? 'Viewing history' : 'Preview'} · Turn ${entry.turnNumber} · ${phaseName(entry.phase)} phase`,
+      ),
     );
     const preview = entry.preview;
     const summary = element('div', null, 'bt-summary');
     const facts = strings(entry.facts);
     const details = facts.length ? facts : [KIND_LABELS[entry.kind] || 'Battle event'];
     for (const line of details) summary.append(element('p', line));
+    if (this.session) {
+      const heading = element('summary', `After: ${eventTitle(entry)}`);
+      const disclosure = element('details', null, 'bt-details');
+      disclosure.append(heading, summary);
+      this.previewPanel.append(disclosure);
+    }
     const context = strings(preview?.summary).filter(
       (line) => !details.includes(line) && !/^Turn \d+ · (Player|Enemy) phase$/.test(line),
     );
     for (const line of context) summary.append(element('p', line, 'bt-history-note'));
     this.renderBoard(preview);
-    this.previewPanel.insertBefore(summary, this.previewPanel.querySelector('.bt-board-key'));
+    if (!this.session)
+      this.previewPanel.insertBefore(summary, this.previewPanel.querySelector('.bt-board-key'));
+  }
+
+  step(delta) {
+    const index = this.entries.findIndex((e) => e.id === this.selectedId);
+    const entry = this.entries[Math.max(0, Math.min(this.entries.length - 1, index + delta))];
+    if (entry && entry.id !== this.selectedId) this.select(entry.id);
+  }
+
+  stepTurn(delta) {
+    const index = this.entries.findIndex((e) => e.id === this.selectedId);
+    const candidates = this.entries.filter(
+      (e, i) => e.kind === 'turn_start' && (delta < 0 ? i < index : i > index),
+    );
+    const entry = delta < 0 ? candidates.at(-1) : candidates[0];
+    if (entry) this.select(entry.id);
   }
 
   renderBoard(preview) {
+    if (this.session && preview?.version === 2) {
+      const map = element('div', null, 'bt-map-viewport');
+      map.setAttribute(
+        'aria-label',
+        'Historical battlefield. Drag to pan; select a unit to inspect recorded information.',
+      );
+      this.previewPanel.append(map);
+      const controls = element('div', null, 'bt-map-controls');
+      for (const [label, fn] of [
+        [
+          'Map',
+          () => {
+            this.mapMode = !this.mapMode;
+            this.inspection.textContent = this.mapMode
+              ? 'Map controls: directions pan; Cancel returns to history.'
+              : '';
+          },
+        ],
+        ['Zoom in', () => this.session.zoom(1.25)],
+        ['Zoom out', () => this.session.zoom(0.8)],
+        ['Focus action', () => this.session.focus(this.transition.beats)],
+      ])
+        controls.append(this.press(label, fn, true));
+      this.inspection = element('p', '', 'bt-inspection');
+      this.inspection.setAttribute('role', 'status');
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel'])
+        controls.addEventListener(type, (e) => e.stopPropagation());
+      map.append(controls);
+      this.previewPanel.append(this.inspection);
+      if (preview.tiles.some((t) => !t.known && t.fog === 'explored'))
+        this.inspection.textContent = 'Earlier terrain appearance unavailable on shaded tiles.';
+      this.session.onInspect = (text) => {
+        if (!this.destroyed) this.inspection.textContent = text;
+      };
+      if (this.transition.animate && this.transition.reverse)
+        this.inspection.textContent = this.transition.label;
+      this.session.attach(map);
+      this.busy = true;
+      this.rewindButton.disabled = true;
+      this.session.show(preview, this.transition, (ok) => {
+        if (this.destroyed) return;
+        this.busy = false;
+        if (this.inspection.textContent === this.transition.label) this.inspection.textContent = '';
+        const entry = this.entries.find((e) => e.id === this.selectedId);
+        this.rewindButton.disabled = !ok || Boolean(this.disabledReason(entry));
+        if (!ok)
+          this.inspection.textContent =
+            'The map preview could not load. Return to the battle and try again.';
+      });
+      return;
+    }
     if (
       !preview ||
       !Number.isInteger(preview.cols) ||

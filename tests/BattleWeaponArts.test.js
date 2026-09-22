@@ -1925,7 +1925,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneDefender.row).toBe(headlessDefender.row);
   });
 
-  it('applies Phantom Rush retreat plus set-to-5 with scene/headless parity', async () => {
+  it('applies Phantom Rush retreat without a post-combat HP penalty with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_phantom_rush');
     const sceneAttacker = {
@@ -2003,7 +2003,7 @@ describe('BattleScene weapon art helpers', () => {
 
     expect(sceneAttacker.col).toBe(1);
     expect(sceneAttacker.row).toBe(2);
-    expect(sceneAttacker.currentHP).toBe(5);
+    expect(sceneAttacker.currentHP).toBe(14);
     expect(sceneAttacker.col).toBe(headlessAttacker.col);
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);

@@ -69,7 +69,7 @@ test('real touch movement, attack cancellation, combat and next turn remain play
   await tapTile(page, 6, 2);
   await expect
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
-    .toBe('UNIT_SELECTED');
+    .toBe('UNIT_ACTION_MENU');
   await tapTile(page, 10, 2);
   await expect
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
@@ -188,6 +188,10 @@ for (const template of [
     await tapTile(page, before.unit.col, before.unit.row);
     await expect
       .poll(() => page.evaluate(() => window.__sceneState.battle.state))
+      .toBe('UNIT_ACTION_MENU');
+    await page.getByRole('button', { name: 'Back', exact: true }).tap();
+    await expect
+      .poll(() => page.evaluate(() => window.__sceneState.battle.state))
       .toBe('UNIT_SELECTED');
     await page.getByRole('button', { name: 'Back', exact: true }).tap();
     await expect
@@ -242,6 +246,7 @@ test('touch Inspect opens ally and enemy details directly and selected-unit insp
     ).toBe(false);
   }
   await tapTile(page, 6, 2);
+  await page.getByRole('button', { name: 'Back', exact: true }).tap();
   await page.getByRole('button', { name: 'Inspect', exact: true }).tap();
   const dialog = page.getByRole('dialog', { name: 'Inspect roster' });
   await expect(dialog).toBeVisible();
@@ -256,11 +261,13 @@ test('terrain advantages update on touch without persistent tutorial copy', asyn
   await tapTile(page, 2, 1);
   const terrain = page.locator('.mb-terrain');
   await expect(terrain).toContainText('Forest');
-  await expect(terrain).toContainText('Move 2');
+  await expect(terrain).toContainText('Move cost 2');
   await expect(terrain).toContainText('Def +1 · Avoid +20');
   await tapTile(page, 6, 2);
   await expect(terrain).toContainText('Plain');
   await expect(terrain).toContainText('Def +0 · Avoid +0');
+  await page.getByRole('button', { name: 'Back', exact: true }).tap();
+  await page.getByRole('button', { name: 'Back', exact: true }).tap();
   await expect(page.locator('.mb-hint')).toHaveCount(0);
   for (const name of ['Roster', 'Rewind'])
     await expect(page.getByRole('button', { name, exact: true })).toBeVisible();

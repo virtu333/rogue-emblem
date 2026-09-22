@@ -18,7 +18,28 @@ export function persistWithTimelineFallback(candidate, write, firstResult = null
   ) {
     candidate = structuredClone(candidate);
     const flag = candidate.battleInProgress;
+    // Try dropping only the optional archive before losing core destinations.
+    if (flag.timeline.presentation) {
+      flag.timeline.presentationNextId = Math.max(
+        flag.timeline.presentationNextId || 1,
+        flag.timeline.presentation.nextId,
+      );
+      flag.timeline.presentation = null;
+      flag.timeline.presentationGeneration = (flag.timeline.presentationGeneration || 0) + 1;
+      result = attempt(candidate);
+      if (result.ok || !(result.reason === 'quota' || result.isQuotaError))
+        return { ...result, candidate };
+    }
+    const previous = flag.timeline;
     flag.timeline = createBattleTimeline({ policy: flag.rewindPolicy || 'legacy-v1' });
+    for (const key of [
+      'revision',
+      'nextEntryId',
+      'presentationNextId',
+      'presentationGeneration',
+      'currentTurn',
+    ])
+      flag.timeline[key] = previous[key] || flag.timeline[key];
     flag.timeline.earlierHistoryUnavailable = true;
     flag.timelineCurrentEntryId = null;
     result = attempt(candidate);

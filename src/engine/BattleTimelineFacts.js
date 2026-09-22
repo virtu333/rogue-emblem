@@ -1,8 +1,11 @@
+import { getFootprint } from './EntitySystem.js';
 // Presentation projection is captured at the event's visibility, never at the
 // later viewer's visibility. No live objects or hidden-unit identifiers escape.
 export function timelineUnitVisible(state, unit) {
   return (
-    unit.faction === 'player' || !state.fog || state.fog.visible.includes(`${unit.col},${unit.row}`)
+    unit.faction === 'player' ||
+    !state.fog ||
+    getFootprint(unit).some((p) => state.fog.visible.includes(`${p.col},${p.row}`))
   );
 }
 export function battleTimelinePreview(state, terrain = []) {
@@ -83,7 +86,7 @@ export function combatTimelineFacts(scene, attacker, defender, result) {
   const visible = (unit) =>
     unit.faction === 'player' ||
     !scene.grid?.fogEnabled ||
-    scene.grid.isVisible?.(unit.col, unit.row) === true;
+    getFootprint(unit).some((p) => scene.grid.isVisible?.(p.col, p.row) === true);
   const name = (unit) => (visible(unit) ? unit.name : 'Unseen enemy');
   const facts = [];
   for (const event of result.events || []) {

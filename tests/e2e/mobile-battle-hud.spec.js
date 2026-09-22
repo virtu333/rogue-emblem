@@ -140,7 +140,7 @@ test('forecast requires explicit confirmation, keeps engine numbers and cancels 
       .locator('dl > div')
       .filter({ has: page.getByText('Planned hits', { exact: true }) })
       .locator('dd'),
-  ).toHaveText(expected.hits);
+  ).toHaveText(`${expected.hits}x`);
   await page.screenshot({ path: 'test-results/mobile-battle-forecast.png' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect(dialog).toHaveCount(0);
@@ -284,4 +284,46 @@ test('small landscape canvas fits its container when touch panels are present', 
       }),
     )
     .toBe(true);
+});
+
+test('end-turn prompt locates a ready unit without spending its action', async ({ page }) => {
+  await bootBattle(page);
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  const name = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const unit = s.playerUnits.find((u) => u.currentHP > 0 && !u.hasActed);
+    const opposite = s.grid.gridToPixel(
+      unit.col < s.grid.cols / 2 ? s.grid.cols - 1 : 0,
+      unit.row < s.grid.rows / 2 ? s.grid.rows - 1 : 0,
+    );
+    s.cameras.main.setZoom(s._battleCamera?.maxZoom || 3);
+    s.cameras.main.centerOn(opposite.x, opposite.y);
+    s._battleCamera?.clampToBounds();
+    return unit.name;
+  });
+  await page.waitForFunction((name) => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const unit = s.playerUnits.find((u) => u.name === name);
+    const point = s.grid.gridToPixel(unit.col, unit.row);
+    return !s.cameras.main.worldView.contains(point.x, point.y);
+  }, name);
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
+  await hud.getByRole('button', { name: `Show ${name}`, exact: true }).tap();
+  await expect(hud.getByRole('button', { name: 'End turn now' })).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate((name) => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const unit = s.playerUnits.find((u) => u.name === name);
+        const point = s.grid.gridToPixel(unit.col, unit.row);
+        const view = s.cameras.main.worldView;
+        return {
+          ready: !unit.hasActed,
+          visible: view.contains(point.x, point.y),
+          state: s.battleState,
+        };
+      }, name),
+    )
+    .toEqual({ ready: true, visible: true, state: 'PLAYER_IDLE' });
 });

@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // EscapeObjectiveController — Escape battle objective (markers + escape flow).
 //
 // Victory rule (hybrid): every living lord must exit via an escape square —
@@ -121,6 +122,8 @@ export class EscapeObjectiveController {
 
     // Same ordering contract as finishUnitAction: lock the resolved action
     // into the suspend checkpoint before the phase may flip to enemy replay.
+    observeHistoryAction(scene, 'escaped', unit);
+    scene._historyActor = unit.battleEntityId;
     scene._timelineBoundary = 'player_action';
     scene._timelineFacts = [...(scene._timelineFacts || []), `${unit.name} escaped.`];
     scene._captureSuspendCheckpoint?.();

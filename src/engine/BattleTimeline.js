@@ -1,6 +1,11 @@
+import {
+  retainHistoryPresentation,
+  hydrateHistoryPresentation,
+  branchHistoryPresentation,
+} from './BattleHistoryPresentation.js';
 import { serializedBytes, validateBattleState } from './BattleStateSnapshot.js';
 
-export const BATTLE_TIMELINE_VERSION = 1;
+export const BATTLE_TIMELINE_VERSION = 2;
 export const DEFAULT_TIMELINE_LIMITS = Object.freeze({
   previousTurns: 3,
   maxEntries: 500,
@@ -84,6 +89,9 @@ export function createBattleTimeline({ policy = 'fixed-v1', limits } = {}) {
     limits: limitsOf(limits),
     entries: [],
     snapshots: {},
+    presentation: null,
+    presentationNextId: 1,
+    presentationGeneration: 0,
   };
 }
 
@@ -104,6 +112,10 @@ function pruneUnreferenced(history) {
 }
 function retain(history, protectedSnapshotId = null) {
   const { previousTurns, maxEntries, maxBytes } = history.limits;
+  history.presentationNextId = Math.max(
+    history.presentationNextId || 1,
+    history.presentation?.nextId || 1,
+  );
   const before = history.entries.length;
   history.entries = history.entries.filter(
     (entry) => entry.turnNumber >= history.currentTurn - previousTurns,
@@ -117,6 +129,17 @@ function retain(history, protectedSnapshotId = null) {
   }
   if (history.entries.length !== before) history.earlierHistoryUnavailable = true;
   pruneUnreferenced(history);
+  // Optional artwork/animation can never evict an otherwise retained target.
+  const hadPresentation = Boolean(history.presentation);
+  history.presentation = retainHistoryPresentation(
+    history.presentation,
+    Math.max(
+      0,
+      Math.min(128 * 1024, maxBytes - serializedBytes({ ...history, presentation: null })),
+    ),
+  );
+  if (hadPresentation && !history.presentation)
+    history.presentationGeneration = (history.presentationGeneration || 0) + 1;
   // Prefer turn-start anchors over action snapshots under byte pressure.
   const candidates = history.entries.filter(
     (e) => e.snapshotId && e.snapshotId !== protectedSnapshotId,
@@ -256,6 +279,7 @@ export function branchBattleTimeline(history, targetId) {
     throw new TypeError('Unavailable rewind destination');
   const next = clone(history);
   next.entries = next.entries.filter((entry) => entry.id <= targetId);
+  next.presentation = branchHistoryPresentation(next.presentation, targetId);
   next.currentTurn = target.turnNumber;
   next.revision++;
   const markerId = next.nextEntryId++;
@@ -282,7 +306,7 @@ export function hydrateBattleTimeline(payload, { limits } = {}) {
   try {
     if (
       !record(payload) ||
-      payload.version !== BATTLE_TIMELINE_VERSION ||
+      ![1, BATTLE_TIMELINE_VERSION].includes(payload.version) ||
       !POLICIES.includes(payload.policy) ||
       !integer(payload.revision) ||
       !integer(payload.nextEntryId, 1) ||
@@ -294,8 +318,28 @@ export function hydrateBattleTimeline(payload, { limits } = {}) {
       Object.keys(payload.snapshots).length > 500
     )
       return null;
+    // Invalid optional animation must not discard valid authoritative history.
+    payload = {
+      ...payload,
+      version: BATTLE_TIMELINE_VERSION,
+      presentation: hydrateHistoryPresentation(payload.presentation, payload.entries),
+      presentationNextId: integer(payload.presentationNextId, 1) ? payload.presentationNextId : 1,
+      presentationGeneration: integer(payload.presentationGeneration)
+        ? payload.presentationGeneration
+        : 0,
+    };
+    if (
+      payload.presentation?.records.some(
+        (r) =>
+          r.revision > payload.revision ||
+          r.anchorId >= payload.nextEntryId ||
+          (r.entryId !== null && r.entryId >= payload.nextEntryId),
+      )
+    )
+      payload.presentation = null;
     const storedLimits = limitsOf(payload.limits);
-    if (serializedBytes(payload) > DEFAULT_TIMELINE_LIMITS.maxBytes) return null;
+    if (serializedBytes({ ...payload, presentation: null }) > DEFAULT_TIMELINE_LIMITS.maxBytes)
+      return null;
     let previousId = 0;
     let previousRevision = 0;
     let previousTurn = 1;

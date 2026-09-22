@@ -102,3 +102,27 @@ Remaining consistency targets: Settings, Help/Compendium/Campaign Map, tutorial/
 - Check side-pane weapon lists/forecast comfort and default zoom on a physical landscape iPhone.
 - Author additional multi-bank shoreline corners and reduce visible ground texture repetition.
 - Retain class readability when refreshing unit sprites; do not substitute a single shared character across classes.
+
+
+## September 21 follow-up
+
+### Promotion ceremony — backlog, not implemented
+- Dim the screen; showcase the current sprite, then reveal the promoted sprite and class through a short glow/silhouette transition.
+- Animate stat gains sequentially with before/after values and ascending notes; prominently explain new skills, weapon access, and movement changes.
+- Target 3–4 seconds of skippable animation. Tap completes animation; a separate Continue closes an untimed summary. Honor mute/reduced motion/Instant settings.
+- Use current art first; reserve ornate lord designs for promoted variants. Optional character lines and return-to-map glow later.
+- Apply promotion once; presentation must never repeat mutations after skip, reload, or resume. Coordinate with the separate rewind implementation before touching shared lifecycle code.
+
+### Map framing and ready units
+- First patch: end-turn confirmation lists a Show [name] button for each unit with actions left; centers that unit without spending an action or changing zoom.
+- Consider persistent off-screen ally arrows, a ready-unit counter with Next unit navigation, and a contextual “Overview shows the whole map” hint. Prefer actionable navigation over a generic instruction to zoom.
+
+### Weapon-art clarity and Phantom Rush
+- Audit shared details for numeric bonuses, multi-strike damage, positional effects, status durations, area damage, ally buffs, and drawbacks.
+- Phantom Rush: 8 base HP upfront, removing the forced post-combat 5 HP. Three 60%-damage strikes, bonuses, and hit-gated retreat remain. A provisional balance adjustment, to compare with normal Brave Sword attacks in play.
+
+### Holy Knight movement — reviewed, no balance change
+- User clarified the class was Holy Knight, not Chevalier. Holy Knight already has Canto and +1 MOV on promotion (Rowan 5 → 6). Terrain costs and movement spent before acting reduce reachable tiles/Canto distance.
+
+
+Verification for this follow-up: 148 focused unit/integration tests passed across the weapon-art and item-detail suites; six muted headless mobile browser checks passed, including locating a deliberately off-screen ready unit without spending its action. The locator check waits for the camera render frame. Data validation and all 27 runtime JSON mirrors passed. No full-suite/release claim; the separate rewind work remains in progress.

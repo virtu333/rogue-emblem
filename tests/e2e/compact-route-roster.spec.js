@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 
+test.use({ hasTouch: true, isMobile: true, viewport: { width: 844, height: 390 } });
+
 test('horizontal route retains selection and scroll through roster on landscape phones', async ({
   page,
 }, testInfo) => {
