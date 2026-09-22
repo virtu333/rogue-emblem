@@ -2,7 +2,7 @@
 
 ## Battlefield rewind and combat clarity — build 18 (September 21)
 
-Source commit: `28712fc`. Version **0.1.0 (18)** archived at `/tmp/EmblemRogue-Beta-18.xcarchive`. All 819 web assets match a fresh build of the committed source. Bundle/version verified, no development server override, cloud explicitly disabled. Archive succeeded; upload pending.
+Source commit: `28712fc`. Version **0.1.0 (18)** archived at `/tmp/EmblemRogue-Beta-18.xcarchive`. All 819 web assets match a fresh build of the committed source. Bundle/version verified, no development server override, cloud explicitly disabled. Upload succeeded at **23:35 Pacific** (`/tmp/build18-upload.log`, `EXPORT SUCCEEDED`). Apple processing and external submission completed. App Store Connect reports **Testing**; Public Playtest assigned (four testers), notes saved, automatic notifications enabled. Build ID: `0b494398-b8e0-4824-b20e-3ca6517b1b37`.
 
 Scope: battlefield history with action/turn stepping, recorded movement/combat cues, historical fog and safe rewind handoff; repeated-session texture cleanup and history text RNG isolation. Recent updates include explicit planned-hit counts, advancing enemy clerics, detailed weapon-art mechanics, Phantom Rush's 8 HP upfront cost, and an offscreen ready-unit locator. Sprite experiments are archived documentation only.
 

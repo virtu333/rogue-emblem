@@ -615,3 +615,7 @@ Implementation is complete in the workspace. Release readiness still requires tr
 The subsequent review found and fixed a history-rendering RNG regression missed by the original Instant/condition-free browser fixtures. All history text now uses the presentation-only text helper. The new failing-before/passing-after browser case checks status labels and animated HP cues against the live RNG, save and unit state.
 
 The recent end-turn locator also retains Keep playing as its default focus. The updated evidence and explicit broad-browser baseline comparison are recorded in [the release review](../battlefield-rewind-release-review-2026-09-21.md). No enemy-action rewind destinations were added.
+
+## 18. Release
+
+Reviewed implementation committed as `28712fc`; build preparation `4c65c06`. Build 0.1.0 (18) uploaded to TestFlight September 21, 2026. App Store Connect reports Testing; see [release record](../testflight-beta.md) and [review disposition](../battlefield-rewind-release-review-2026-09-21.md). Physical-device validation and the documented broader browser-suite debt remain outstanding.
