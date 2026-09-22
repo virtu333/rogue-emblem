@@ -1,5 +1,13 @@
 # Mobile beta release
 
+## Sprite readability — build 17 (September 21)
+
+Version **0.1.0 (17)** archived at `/tmp/EmblemRogue-Beta-17.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Source changes: `d194606`, `a32fb2c`; accepted art direction: `1ffdeae`. Upload/distribution pending.
+
+Scope: consistent flyer/mage sizing, brighter player Archer/Myrmidon/Duelist/Knight colors with dark outlines, larger player Fighter/enemy Knight, corrected base Sera/Berserker King crop and feet. Blue outlines remain development-only. Tile sizes and gameplay unchanged.
+
+Verification: three palette safety tests freshly passed; three muted headed sprite cases passed on the final source, including movement/rewind anchors and thirteen class/tier examples. Controlled terrain comparisons visually inspected. Targeted lint, production build, Capacitor sync and archive passed. Initial development signing attempt failed because no device profile is available; the documented unsigned-archive/distribution-export workflow succeeded at archive time. Tester notes: `/tmp/EmblemRogue-Build17-WhatToTest.txt`.
+
 ## Legendary lord traits and staff recovery — build 16 (September 21)
 
 Version **0.1.0 (16)** archived at `/tmp/EmblemRogue-Beta-16.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Upload succeeded at **19:02 Pacific** (`/tmp/build16-upload.log`, `EXPORT SUCCEEDED`). Source commit: `49c7402`. Apple processing and external submission completed. App Store Connect confirms **Testing**, assigned to **Public Playtest** (four testers), with tester notes saved and automatic notifications enabled. Build ID: `97d2bc3b-a7a1-4733-8ced-3174ca1af136`. Public link: https://testflight.apple.com/join/UeWBYA5n.
