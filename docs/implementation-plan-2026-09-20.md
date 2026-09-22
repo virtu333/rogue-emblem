@@ -299,6 +299,8 @@ Random combat-journey integration is still open despite targeted checkpoint cont
 
 **Flagged by Dave for a future dig (priority within backlog):** ~~per-enemy threat range + threat-intensity stepping~~ (promoted to Slice U7, Sep 21); enemy-phase camera follow; branch-foreclosure dimming on the node map.
 
+**Art readability follow-up (Dave, Sep 21):** brighter colors accepted as the current default; blue outlines remain experimental. Backlog a small original GBA-inspired map-sprite comparison and study 3D tactics references for silhouette/terrain separation and faction markers (not a 3D migration). Test both factions at phone scale before expanding. Scope and acceptance criteria: [map sprite sizing](specs/map-sprite-sizing-2026-09-21.md#accepted-direction-and-future-art-exploration).
+
 **Gameplay:** shrine node / mid-run blessings — design sketch in the appendix below; biggest deferred item, revisit after the G-wave lands; aggro leash + group activation; percent-based weapon-art HP costs; roster-cap-vs-deploy bench role; enemy retreat behavior; distinct lord trait pool; Normal act4/Hard finalBoss `actsIncluded` question (needs Dave's call).
 
 **Deferred by decision (Dave, Sep 20):** weapon durability — cut entirely, not just deferred. Imbue downsides — only revisit as part of a larger package, e.g. an ascension system (post-win stacked difficulty tiers, currently absent as a post-win hook) where higher ascensions unlock stronger imbue effects that carry downsides, or a tier above the current six imbues; no standalone nerf pass.

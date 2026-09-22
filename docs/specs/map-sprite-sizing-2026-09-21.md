@@ -67,3 +67,25 @@ comparisons, not a full gameplay run.
 Verification: three palette safety tests, three muted headed sprite/rewind cases
 (including the added Fighter/Knight/Sera probes), targeted lint and production
 build pass. No new TestFlight release for this trial.
+
+## Accepted direction and future art exploration
+
+Dave chose **brighter colors** on September 21. Keep the charcoal contour; blue
+outer edges remain a development comparison, not the shipping default. The
+current renderer already matches this choice.
+
+Backlog: compare original GBA-inspired map sprites against the current brightened
+art. Explore simpler silhouettes, fewer intentional colors, strong blue/red
+faction accents, and consistent class/body scale. Use the supplied GBA screenshots
+as visual references, not replacement game assets.
+
+Also study the supplied 3D tactics screenshot for readable silhouettes, separation
+from terrain, faction bases/colors, and selection emphasis. This is a reference
+direction, not a commitment to a 3D engine or asset migration.
+
+Start with Archer, Myrmidon, Duelist, Knight and one mounted class; compare both
+factions on grass, forest and stone at actual phone zoom, including acted,
+selected and danger-overlay states. Judge class recognition, faction recognition
+and occupied-tile clarity before expanding to the full roster. Keep tiles and
+gameplay fixed during the art comparison. Schedule separately from portrait work
+and do not block the current brightness/size patch on this exploration.
