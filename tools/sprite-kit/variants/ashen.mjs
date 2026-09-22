@@ -1,0 +1,293 @@
+// Direction B — "Ashen": Souls-leaning. ~4 heads tall, small faces mostly lost in
+// hood or helm shadow, long tattered cloth, ash/iron/rust materials. Faction colour
+// survives as a narrow, saturated tabard or stole rather than a whole costume.
+import { stamp, column } from '../grid.mjs';
+
+const edric = [
+  // Worn travelling cloak hanging behind, shredded at the hem.
+  stamp(12, 9, [
+    '.....uoOu',
+    '....uoOOu',
+    '...uoOOou',
+    '...uoOoou',
+    '..uoOoou',
+    '..uoOoou',
+    '..uoOou',
+    '.uoOoou',
+    '.uoOou',
+    '.uoOou',
+    'uoOoou',
+    'uoOou',
+    'uoOou',
+    'uoOou',
+    'uo.ou',
+    'u..o.',
+    '...u.',
+  ]),
+  // Slim legs under the coat, tall boots.
+  stamp(18, 20, [
+    '.uoOoOu',
+    '.uO..uOo',
+    '.uO..uOo',
+    '.uO..uOo',
+    '.uO..uOo',
+    '.uO...uOo',
+    '.uO...uOo',
+    '.bL...bLl',
+    '.bL...bLl',
+    '.bL...bLl',
+    '.bL...bLl',
+    'bbL...bLl',
+    'BbB...bbLl',
+  ]),
+  // Long teal coat over a dark tunic, split below the belt.
+  stamp(17, 9, [
+    '....zz...',
+    '.fcCUuCcf',
+    'fcCFUuFCc',
+    'fcCFUuCcf',
+    'fcCFUuCcf',
+    '.fcFUuCc',
+    '.fcCUuCc',
+    '.bLLGyLb',
+    '.fcCUuCcf',
+    '.fcCUuCcf',
+    'fcCFU.Ccf',
+    'fcCF..Ccf',
+    'fcCf..fcf',
+    'fcf....cf',
+    'vf......f',
+  ]),
+  stamp(16, 15, ['sz']),
+  // Near pauldron and sleeve, hand on the grip.
+  stamp(23, 9, ['.imMi', 'iMWMi', '.iMmi', '.uOo', '.uOo', '.uOo', '..bL', '..bL']),
+  // Head: small, 3/4 right, fringe shading the eyes.
+  stamp(16, 1, [
+    '..nnhn',
+    '.nhhHhn',
+    'nhHYhhhn',
+    'nhhhhhhhn',
+    'nhhhnzeSe',
+    '.nhhhsSSSs',
+    '.nhnnzszs',
+    '..nn.zzz',
+  ]),
+  // Longsword held point-down past the near leg.
+  stamp(23, 16, [
+    'EygGj',
+    '..iW',
+    '..iMW',
+    '..iMW',
+    '...iMW',
+    '...iMW',
+    '...iMW',
+    '....iMW',
+    '....iMW',
+    '....iMW',
+    '.....iW',
+    '.....iW',
+  ]),
+];
+
+const knight = [
+  // Spear planted upright in the near hand.
+  column(28, 4, 32, 'd'),
+  stamp(27, 1, ['.W.', 'mWM', 'iMi']),
+  // Armoured legs.
+  stamp(17, 21, [
+    '.imMi.imMi',
+    '.imMi.imMi',
+    '.iMWi.iMWi',
+    '.imMi.imMi',
+    '.imMi.imMi',
+    '.imMi..imMi',
+    '.imMi..imMi',
+    '.imMi..imMi',
+    '.imMi..imMi',
+    'IimMi..imMMi',
+    'IIiiI..IiimmI',
+  ]),
+  // Plate over mail; long faction tabard, frayed at the hem.
+  stamp(16, 9, [
+    '..iimmii..',
+    '.imMfcCmmi.',
+    'imMmfFCmMmi',
+    'imMmfFCmmMi',
+    'imMmfFCmmi',
+    '.imMfFCmmi',
+    '.imMfCCmmi',
+    '.bLLfCCLLb',
+    '.imifCCimi',
+    '.imifCCimi',
+    '.imifCCimi',
+    '.iimfCCimi',
+    '..iifcfiii',
+    '....f.f',
+  ]),
+  // Near pauldron, arm and gauntlet on the spear.
+  stamp(23, 9, ['.imMi', 'imMWMi', 'iMWWMi', '.imMi', '.imi', '.iMi', '.imMMi', '..iMi']),
+  // Bucket helm: eye slit and breathing holes, no face.
+  stamp(16, 1, [
+    '.imMMmi.',
+    'imMWWMmi',
+    'iMWWMMmi',
+    'IIIIIIiI',
+    'imMWMmmi',
+    'imMWIMIi',
+    'imMMmmmi',
+    '.iimmii.',
+  ]),
+  // Tower shield on the far arm: iron-bound planks, faction stripe.
+  stamp(10, 9, [
+    '.iMMMi.',
+    'iMdDdMi',
+    'iMdDdMi',
+    'iMdcdMi',
+    'iMcCcMi',
+    'iMdcdMi',
+    'iMdcdMi',
+    'iMMMMMi',
+    'iMdcdMi',
+    'iMdcdMi',
+    'iMdcdMi',
+    'iMdcdMi',
+    'iMdDdMi',
+    'iMMMMMi',
+    'iMdDdMi',
+    'iMdDdMi',
+    '.iiiii.',
+  ]),
+];
+
+const mage = [
+  // Catalyst staff in the near hand: dark wood, small cold light at the tip.
+  column(28, 5, 32, 't'),
+  stamp(27, 2, ['.@', 'a*a', '.@', '.d']),
+  // Long robe, pooling at the ground, ragged at the hem; faction stole down the front.
+  stamp(14, 9, [
+    '....uoOOou',
+    '...uoOOOoou',
+    '...uoOfFoou',
+    '...uoOcCoou',
+    '...uoOcCoou',
+    '..uoOOcCoou',
+    '..uoOOcCooou',
+    '..bLLLcCLLb',
+    '..uoOOcCooou',
+    '.uoOOOcCoooou',
+    '.uoOOOcCoooou',
+    '.uoOOOcCoooou',
+    'uoOOOocCooooou',
+    'uoOOOocCooooou',
+    'uoOOOocCooooou',
+    'uoOOoofcoooou',
+    'uoOoouf.uoooou',
+    'uoOou.....uoou',
+    '.u.o.......u.o',
+  ]),
+  // Near sleeve reaching for the staff.
+  stamp(23, 12, ['uoOu', '.uoOu', '..uoO', '...zs']),
+  // Tall hood, face in shadow; `eye` pixels are the only features.
+  stamp(16, 1, [
+    '..uoOu',
+    '.uoOOou',
+    'uoOOOOou',
+    'uoOouUkUu',
+    'uoOoukeke',
+    'uoOoukkzk',
+    'uoOou.kk',
+    '.uoOou',
+  ]),
+];
+
+const fighter = [
+  // Great axe in the near hand: long haft, broad single-bit head raised past the shoulder.
+  stamp(27, 3, [
+    '.Dd',
+    '.Dd',
+    '.Dd',
+    '.Dd',
+    '.Dd',
+    '.Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+    'Dd',
+  ]),
+  stamp(29, 1, ['..iW', '.imW', 'imMW', 'imMWW', 'imMWW', 'imMWW', 'imMW', '.imW', '..iW']),
+  // Heavy legs, wrapped shins.
+  stamp(15, 21, [
+    '.uoOOoOOu',
+    '.uoOo.uoOu',
+    '.uoOo.uoOu',
+    '.uoOo..uoOu',
+    '.bLlb..bLlb',
+    '.lLlb..lLlb',
+    '.bLlb..bLlb',
+    '.lLlb..lLlb',
+    '.bLlb..bLlb',
+    'BbbbB..bbLlb',
+    '.......BbbbbB',
+  ]),
+  // Broad torso: leather jerkin crossed by a wide faction baldric, faction loincloth.
+  stamp(13, 9, [
+    '...BblLLlbB..',
+    '..bcCLLLLLlb.',
+    '.blfcCLLLLllb',
+    '.blLfcCLLlLlb',
+    '.bllLfcCLLllb',
+    '..blLLfcCLlb',
+    '..blLLLfcClb',
+    '..BbbbGyfcbB',
+    '...bfcCCcfb',
+    '...bfcCcfb',
+    '....fcCcf',
+    '....fc.cf',
+  ]),
+  stamp(12, 8, ['..uoOOOoOOou..', '.uoOOROOOROOOu.', 'uoOoOOoOOoOOoou', '.u.o..u..o..u']),
+  // Arms: far arm hanging with a wrapped fist, near arm gripping the haft.
+  stamp(12, 11, ['.zs', 'zsS', 'zsS', 'zsS', '.zs', '.bLl']),
+  stamp(25, 11, ['zsS', 'zsSs', '.zsS', '.zsS', '.bLLl', '.bLLl']),
+  // Kettle helm: a wide iron brim throws the face into shadow.
+  stamp(15, 1, [
+    '...imMi',
+    '..imMWMi',
+    '.imMWWMmi',
+    'IimmMmmmiI',
+    '..kkkekek',
+    '..kzzkzzk',
+    '...kzzzk',
+    '....zzz',
+  ]),
+];
+
+export default {
+  label: 'B · Ashen',
+  note: 'Souls-leaning: ~4 heads tall, faces in shadow, tattered cloth, ash and iron.',
+  grade: { sat: 0.7, val: 0.86, keep: ['faction', 'glow', 'spark', 'eye', 'ink'] },
+  rim: { dx: 1, color: [170, 186, 204], amount: 0.3 },
+  subjects: [
+    {
+      key: 'lord_edric',
+      stamps: edric,
+      factions: ['player'],
+      alias: { hair: 'hairBrown', faction: 'teal', cloth: 'ash' },
+    },
+    { key: 'knight', stamps: knight, alias: { metal: 'iron', wood: 'rust' } },
+    { key: 'mage', stamps: mage, alias: { cloth: 'ash', skin: 'skinPale' } },
+    { key: 'fighter', stamps: fighter, alias: { cloth: 'fur', metal: 'iron' } },
+  ],
+};

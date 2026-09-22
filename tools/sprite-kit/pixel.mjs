@@ -32,6 +32,16 @@ export const RAMPS = {
   azure: ['#141c36', '#233f73', '#3669ad', '#5b97d6', '#a3cdf0'],
   crimson: ['#26101a', '#5e1822', '#9c2e2a', '#cf5536', '#f09a6a'],
   teal: ['#0f2a2e', '#1d5256', '#2f8083', '#56b0a8', '#a6e0cf'],
+  // Grid-only helpers: a catch-light and an explicit ink line.
+  spark: ['#f8f4ea', '#f8f4ea', '#f8f4ea', '#f8f4ea', '#f8f4ea'],
+  ink: ['#140f18', '#140f18', '#140f18', '#140f18', '#140f18'],
+  // Darker, desaturated materials for the Souls-leaning directions.
+  ash: ['#16151b', '#2b2a31', '#46444c', '#6b6770', '#9a948f'],
+  rust: ['#1a1316', '#35262a', '#5a3f38', '#86624e', '#b89270'],
+  bone: ['#2c2622', '#574c42', '#8a7c6a', '#bcae96', '#e4d9c2'],
+  wine: ['#1c0c14', '#3e1420', '#6a2230', '#98353a', '#c8604e'],
+  slate: ['#10151c', '#1e2835', '#34445a', '#557089', '#8fb0c4'],
+  skinPale: ['#3a2430', '#6e4a4e', '#a67a6e', '#d2a88e', '#eed4bc'],
 };
 export const OUTLINE = hex('#140f18');
 export const EYE = hex('#1a1220');
@@ -186,7 +196,9 @@ export class PixelSprite {
   // `grade` optionally mutes every material except the listed accents, e.g.
   // { sat: 0.7, val: 0.85, keep: ['faction'] } for a grimmer read that still
   // leaves the side colour at full strength.
-  render(alias = {}, grade = null) {
+  //
+  // `rim` adds a thin back-light on one silhouette edge: { dx: 1, color: [r,g,b], amount }.
+  render(alias = {}, grade = null, rim = null) {
     const out = new Uint8ClampedArray(this.w * this.h * 4);
     const graded = (rgb, m) => {
       if (!grade || grade.keep?.includes(m)) return rgb;
@@ -223,6 +235,8 @@ export class PixelSprite {
             s = Math.max(0, Math.min(4, s));
           }
           color = graded(ramp(m)[s], m);
+          if (rim && m !== 'eye' && this.at(x + rim.dx, y) === -1)
+            color = mixRgb(color, rim.color, rim.amount);
         } else {
           // Selective outline: tinted by the neighbouring material, lighter on the lit side.
           const probes = [
