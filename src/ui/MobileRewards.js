@@ -10,6 +10,7 @@ import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
   bundleTargetBlock,
   applyRewardBundle,
+  applyAccessoryReward,
   rewardWeaponEligible,
   applyRewardForge,
   REWARD_FORGE_STATS,
@@ -111,7 +112,11 @@ export class MobileRewards {
       this.root.hidden = false;
       this.root.inert = false;
       this.root.removeAttribute('aria-hidden');
-      if (previous?.isConnected) previous.focus();
+      if (title === 'Roster') {
+        if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
+        this.render();
+        this.root.querySelector('[data-focus="Roster"]')?.focus();
+      } else if (previous?.isConnected) previous.focus();
     };
     if (title === 'Menu') {
       // Pause uses the shared menu depth below rewards. Hide, rather than merely
@@ -124,6 +129,7 @@ export class MobileRewards {
       this.child = new MobileRosterSheet({
         scene: this.overlayScene,
         units: this.scene.runManager.roster,
+        run: this.scene.runManager,
         gameData: this.scene.gameData,
         onClose: close,
       });
@@ -235,12 +241,7 @@ export class MobileRewards {
     );
     const claim = this.button(c.type === 'skip' ? 'Take gold' : 'Choose reward', () => {
       if (!this.controller.isRewardAvailable(this.selected)) return;
-      if (
-        c.type === 'skip' ||
-        c.type === 'gold' ||
-        c.type === 'accessory' ||
-        c.item?.type === 'Scroll'
-      ) {
+      if (c.type === 'skip' || c.type === 'gold' || c.item?.type === 'Scroll') {
         this.hide();
         this.controller.activateReward(this.selected);
       } else this.startChoice(c);
@@ -378,7 +379,19 @@ export class MobileRewards {
   startChoice(choice) {
     const item = choice.item;
     const run = this.scene.runManager;
-    if (choice.type === 'forge') {
+    if (choice.type === 'accessory') {
+      this.pushStep({
+        title: `Equip ${item.name}`,
+        choices: [...run.roster, 'pool'],
+        label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
+        describe: (unit) =>
+          unit === 'pool'
+            ? 'Choose who equips it later.'
+            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`,
+        final: true,
+        apply: (unit) => applyAccessoryReward(run, item, unit),
+      });
+    } else if (choice.type === 'forge') {
       this.pushStep({
         title: item.name,
         choices: run.roster,

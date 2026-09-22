@@ -110,7 +110,7 @@ export class ArenaMenu {
     }
     m.surface.body.append(grid);
     m.text(
-      `One combat exchange: if both fighters survive, it is a draw. Only a win earns XP. A loss costs ${c._selectedTier.entryFee} gold; a draw costs no gold and grants no XP. Your fighter keeps any HP lost, but cannot fall below 1 HP.`,
+      `One combat exchange: if both fighters survive, it is a draw. Wins earn full XP; draws earn 25% of normal combat XP (before the tier modifier). A loss costs ${c._selectedTier.entryFee} gold; a draw costs no gold. Your fighter keeps any HP lost, but cannot fall below 1 HP.`,
     );
     m.action('Fight', () => c._executeFight());
     return m.focus();

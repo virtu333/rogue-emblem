@@ -58,7 +58,7 @@ test('reward submenu can consult Compendium, resume, and safely cancel leaving',
   expect(await state()).toEqual(before);
   await rewards.getByRole('button', { name: 'Menu', exact: true }).tap();
   await menu.getByRole('button', { name: 'Save & Return to Title', exact: true }).tap();
-  await expect(menu.getByText(/Unclaimed rewards stay available/)).toBeVisible();
+  await expect(menu.getByText(/Your battle and remaining rewards are saved/)).toBeVisible();
   await menu.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await menu.getByRole('button', { name: 'Resume', exact: true }).tap();
   expect(await state()).toEqual(before);

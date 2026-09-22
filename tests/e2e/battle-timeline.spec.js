@@ -410,7 +410,7 @@ test('recorded combat identifies the observed attacker and victim and reverses a
   expect(recorded.hit.actorPosition).toMatchObject({ col: 1, row: 5 });
   expect(recorded.hit.targetPosition).toMatchObject({ col: 2, row: 5 });
   expect(recorded.units).not.toContain(recorded.dead);
-  await expect(view.locator('.bt-details summary')).toContainText('attacked');
+  await expect(view.locator('.bt-details summary')).toContainText('defeated');
   await page.screenshot({ path: '/tmp/battle-history-combat-phone.png' });
   await view.getByRole('button', { name: 'Previous action', exact: true }).tap();
   await page.waitForFunction((dead) => {

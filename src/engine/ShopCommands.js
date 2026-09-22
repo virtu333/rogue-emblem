@@ -1,3 +1,4 @@
+import { rosterAccessoryAction } from './RosterInventory.js';
 import {
   addToInventory,
   addToConsumables,
@@ -59,6 +60,13 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   if (reason) return { ok: false, reason };
   const pool =
     entry.type === 'scroll' ? 'scrolls' : entry.type === 'accessory' ? 'accessories' : null;
+  if (
+    pool === 'accessories' &&
+    recipient != null &&
+    recipient !== 'pool' &&
+    !run.roster.includes(recipient)
+  )
+    return { ok: false, reason: 'Choose a current roster member.' };
   const supply = entry.item.type === 'Consumable';
   if (!pool && recipient !== 'convoy' && !run.roster.includes(recipient))
     return { ok: false, reason: 'Choose a current roster member.' };
@@ -72,7 +80,10 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   if (!run.spendGold(entry.price)) return { ok: false, reason: 'Not enough gold.' };
   let added;
   if (pool) {
-    (run[pool] ||= []).push(structuredClone(entry.item));
+    const copy = structuredClone(entry.item);
+    (run[pool] ||= []).push(copy);
+    if (pool === 'accessories' && recipient != null && recipient !== 'pool')
+      rosterAccessoryAction(run, recipient, copy);
     added = true;
   } else if (convoy) added = run.addToConvoy(entry.item);
   else
@@ -89,7 +100,7 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   stock.splice(stock.indexOf(entry), 1);
   return {
     ok: true,
-    message: `${entry.item.name} → ${pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
+    message: `${entry.item.name} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,
   };
 }
 export function shopSellBlock(run, row) {

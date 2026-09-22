@@ -62,7 +62,13 @@
       "growths": {
         "SPD": -5
       }
-    }
+    },
+    "eligibleWeaponTypes": [
+      "Sword",
+      "Lance",
+      "Axe",
+      "Bow"
+    ]
   },
   {
     "id": "clever",

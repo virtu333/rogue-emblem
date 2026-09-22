@@ -1,3 +1,4 @@
+import { rosterAccessoryAction } from './RosterInventory.js';
 import { addToInventory, addToConsumables, canEquip, applyStatBoost } from './UnitManager.js';
 import { canForge, canForgeStat, forgeStatBlock, applyForge } from './ForgeSystem.js';
 import {
@@ -32,7 +33,7 @@ export function rewardTargetBlock(run, item, target) {
   // Loot recipients retain the existing equip eligibility rule. Roster trading
   // separately allows carrying an unusable weapon.
   return !consumable && !canEquip(target, item)
-    ? `Needs ${item.rankRequired || 'proficiency'}`
+    ? `Needs ${item.type} proficiency${item.rankRequired ? ` (${item.rankRequired})` : ''}`
     : '';
 }
 export function applyRewardTarget(run, item, target) {
@@ -107,5 +108,15 @@ export function applyRewardBundle(run, item, target, quantity = 1) {
       addToConsumables(target, copy);
     else run.addToConvoy(copy);
   }
+  return { ok: true };
+}
+
+// Claim and equip in the same reward transaction; replaced gear returns to the pool.
+export function applyAccessoryReward(run, item, target) {
+  if (target !== 'pool' && !run.roster?.includes(target))
+    return { ok: false, reason: 'Unit is no longer in the roster.' };
+  const copy = structuredClone(item);
+  (run.accessories ||= []).push(copy);
+  if (target !== 'pool') rosterAccessoryAction(run, target, copy);
   return { ok: true };
 }

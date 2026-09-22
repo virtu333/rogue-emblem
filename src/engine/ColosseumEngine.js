@@ -172,18 +172,15 @@ export function calculateArenaReward(tier, outcome, baseXP, levelsGainedThisVisi
   if (outcome === 'lose') {
     return { goldDelta: -tier.entryFee, xpGained: 0 };
   }
-  if (outcome === 'draw') {
-    return { goldDelta: 0, xpGained: 0 };
-  }
-
-  // Win
-  let xp = Math.round(baseXP * tier.xpMultiplier);
+  // Draws still train the fighter; visit limits and diminishing returns apply.
+  const drawMultiplier = outcome === 'draw' ? (colosseumData?.arena?.drawXpMultiplier ?? 0.25) : 1;
+  let xp = Math.round(baseXP * tier.xpMultiplier * drawMultiplier);
   if (levelsGainedThisVisit >= drAfterLevels) {
     xp = Math.round(xp * drFactor);
   }
   xp = Math.max(1, xp);
 
-  return { goldDelta: tier.goldReward, xpGained: xp };
+  return { goldDelta: outcome === 'draw' ? 0 : tier.goldReward, xpGained: xp };
 }
 
 /**
@@ -430,6 +427,7 @@ export function generateMercenaryCandidates(
         difficultyMode,
         colosseumData,
         rng,
+        unit.className,
       );
       candidates.push({ unit, hireCost });
     } catch (err) {
@@ -460,7 +458,14 @@ export function generateMercenaryCandidates(
  * @param {Function} rng
  * @returns {number}
  */
-export function getMercenaryPrice(actId, isPromoted, difficultyMode, colosseumData, rng) {
+export function getMercenaryPrice(
+  actId,
+  isPromoted,
+  difficultyMode,
+  colosseumData,
+  rng,
+  className = null,
+) {
   const mercConfig = colosseumData?.mercenaries;
   if (!mercConfig) return 500;
 
@@ -472,6 +477,7 @@ export function getMercenaryPrice(actId, isPromoted, difficultyMode, colosseumDa
     price = Math.round(price * (mercConfig.promotedMultiplier || 1.5));
   }
 
+  price = Math.round(price * (mercConfig.classPriceMultipliers?.[className] ?? 1));
   const diffConfig = colosseumData?.difficulty?.[difficultyMode];
   if (diffConfig?.mercenaryPriceMultiplier) {
     price = Math.round(price * diffConfig.mercenaryPriceMultiplier);

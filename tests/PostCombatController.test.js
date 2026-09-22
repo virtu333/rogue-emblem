@@ -142,10 +142,11 @@ describe('PostCombatController', () => {
       { name: 'Rec1', className: 'Fighter', faction: 'player', stats: {}, inventory: [] },
     ];
 
+    scene.runManager.roster = [{ name: 'Rec1' }, { name: 'Edric' }];
     new PostCombatController(scene).onVictory();
 
     const [allUnits] = scene.runManager.completeBattle.mock.calls[0];
-    expect(allUnits.map((u) => u.name)).toEqual(expect.arrayContaining(['Edric', 'Rec1']));
+    expect(allUnits.map((u) => u.name)).toEqual(['Rec1', 'Edric']);
   });
 
   it('onVictory persists the run right after completeBattle (anti-refresh win lock)', () => {

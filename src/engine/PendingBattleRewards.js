@@ -43,7 +43,7 @@ export function prepareBattleRewards(run, data, ctx) {
       imbues: data.imbues || null,
     },
   );
-  for (const choice of choices) if (choice.item?.name === 'Vulnerary') choice.quantity = 2;
+  for (const choice of choices) if (choice.item?.name === 'Vulnerary') choice.quantity = 3;
   for (const choice of choices)
     if (choice.type === 'gold')
       choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));

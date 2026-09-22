@@ -114,7 +114,7 @@ it.each(['scroll', 'accessory'])('native %s purchase identifies the correct team
   d.scene.shopBuyItems = [entry];
   const menu = d.shop.nativeMenu;
   menu.buy(entry);
-  expect(menu.child.options.apply(true).ok).toBe(true);
+  expect(menu.child.options.apply(type === 'accessory' ? 'pool' : true).ok).toBe(true);
   expect(menu.status).toContain(type === 'scroll' ? 'Scroll pool' : 'Accessory pool');
   d.assertPersisted('pool purchase');
 });

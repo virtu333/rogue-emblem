@@ -252,3 +252,18 @@ it('does not spend gold or mutate a zero-weight weapon and leaves other forge st
   expect(options.forgesUsed).toBe(0);
   expect(forgeShopWeapon(run, weapon, 'might', options).ok).toBe(true);
 });
+
+it('buy and equip swaps the old accessory back to the pool and cannot buy twice', () => {
+  const old = clone(data.accessories[0]);
+  unit.accessory = old;
+  const entry = entryFor(clone(data.accessories[1]), 'accessory');
+  const stock = [entry];
+  const gold = run.gold;
+  expect(purchaseShopItem(run, stock, entry, clone(unit)).ok).toBe(false);
+  expect(run.gold).toBe(gold);
+  expect(purchaseShopItem(run, stock, entry, unit).ok).toBe(true);
+  expect(unit.accessory.name).toBe(entry.item.name);
+  expect(run.accessories).toContain(old);
+  expect(purchaseShopItem(run, stock, entry, unit).ok).toBe(false);
+  expect(run.gold).toBe(gold - entry.price);
+});

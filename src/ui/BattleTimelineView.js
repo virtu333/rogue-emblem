@@ -17,11 +17,16 @@ const KIND_LABELS = {
 const phaseName = (phase) => (phase === 'enemy' ? 'Enemy' : 'Player');
 const strings = (values) =>
   Array.isArray(values) ? values.filter((value) => typeof value === 'string').slice(0, 256) : [];
-const eventTitle = (entry) => {
+export const eventTitle = (entry) => {
   const primary =
+    entry.beats?.find((b) => ['defeated', 'fell'].includes(b.type)) ||
+    entry.beats?.find((b) => b.type === 'visited the village') ||
+    entry.beats?.find((b) => b.outcome?.miss || b.outcome?.critical) ||
+    entry.beats?.find((b) => b.outcome) ||
     entry.beats?.find(
       (b) => entry.actorId && b.actorId === entry.actorId && !['moved', 'changed'].includes(b.type),
-    ) || entry.beats?.find((b) => entry.actorId && b.actorId === entry.actorId);
+    ) ||
+    entry.beats?.find((b) => entry.actorId && b.actorId === entry.actorId);
   if (primary?.label) return primary.label;
   const facts = strings(entry.facts);
   const generic = (line) =>
@@ -30,7 +35,10 @@ const eventTitle = (entry) => {
       line,
     );
   return (
-    facts.find((line) => line.trim() && !generic(line)) || KIND_LABELS[entry.kind] || 'Battle event'
+    facts.find((line) => /(?: fell| defeated .+)\.$/.test(line)) ||
+    facts.find((line) => line.trim() && !generic(line)) ||
+    KIND_LABELS[entry.kind] ||
+    'Battle event'
   );
 };
 const coordinate = (value, size) => Number.isInteger(value) && value >= 0 && value < size;
@@ -132,6 +140,7 @@ export class BattleTimelineView {
           () => {
             this.list.hidden = !this.list.hidden;
             this.session.layout();
+            if (!this.list.hidden) this.revealSelected();
           },
         ],
       ])
@@ -203,6 +212,10 @@ export class BattleTimelineView {
         );
       else initial.focus();
     } else this.showEmpty();
+  }
+
+  revealSelected() {
+    if (!this.list.hidden) this.rows.get(this.selectedId)?.scrollIntoView?.({ block: 'nearest' });
   }
 
   press(label, activate, ephemeral = false) {
@@ -298,6 +311,7 @@ export class BattleTimelineView {
     };
     this.selectedId = entryId;
     for (const [id, row] of this.rows) row.setAttribute('aria-pressed', String(id === entryId));
+    this.revealSelected();
     const reason = this.disabledReason(entry);
     this.reason.textContent =
       reason ||
@@ -315,7 +329,7 @@ export class BattleTimelineView {
     const preview = entry.preview;
     const summary = element('div', null, 'bt-summary');
     const facts = strings(entry.facts);
-    const details = facts.length ? facts : [KIND_LABELS[entry.kind] || 'Battle event'];
+    const details = [...new Set([eventTitle(entry), ...facts])];
     for (const line of details) summary.append(element('p', line));
     if (this.session) {
       const heading = element('summary', `After: ${eventTitle(entry)}`);

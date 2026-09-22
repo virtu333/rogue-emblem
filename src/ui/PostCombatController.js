@@ -89,7 +89,10 @@ export class PostCombatController {
       }
       scene._newlyMasteredUnits = newlyMastered;
       const surviving = liveSurvivors.map((u) => serializeUnit(u));
-      const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])];
+      const rosterOrder = new Map((scene.runManager.roster || []).map((u, i) => [u.name, i]));
+      const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])].sort(
+        (a, b) => (rosterOrder.get(a.name) ?? Infinity) - (rosterOrder.get(b.name) ?? Infinity),
+      );
       const turnPressure = scene.getTurnPressureState();
       const completionGoldAward = Math.max(
         0,

@@ -1,5 +1,5 @@
 import { generateShopInventory } from '../src/engine/LootSystem.js';
-import { applyRewardBundle } from '../src/engine/LootRewardCommands.js';
+import { applyRewardBundle, applyAccessoryReward } from '../src/engine/LootRewardCommands.js';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 vi.mock('../src/ui/MobileRewards.js', () => ({
   MobileRewards: class {
@@ -140,13 +140,13 @@ it('Vulnerary bundle spills to convoy with distinct IDs and cannot partially gra
     unit = run.roster[0];
   const item = s.gameData.consumables.find((c) => c.name === 'Vulnerary');
   unit.consumables = [structuredClone(item), structuredClone(item)];
-  expect(applyRewardBundle(run, item, unit, 2).ok).toBe(true);
+  expect(applyRewardBundle(run, item, unit, 3).ok).toBe(true);
   expect(unit.consumables.length).toBe(3);
-  expect(run.convoy.consumables.length).toBe(1);
+  expect(run.convoy.consumables.length).toBe(2);
   expect(unit.consumables[2].uid).not.toBe(run.convoy.consumables[0].uid);
   while (run.canAddToConvoy(item)) run.addToConvoy(item);
   const before = JSON.stringify(run.toJSON());
-  expect(applyRewardBundle(run, item, unit, 2).ok).toBe(false);
+  expect(applyRewardBundle(run, item, unit, 3).ok).toBe(false);
   expect(JSON.stringify(run.toJSON())).toBe(before);
 });
 
@@ -175,4 +175,17 @@ it('seen stock falls back to valid repeats instead of unresolvable fresh names',
   } finally {
     random.mockRestore();
   }
+});
+
+it('accessory reward equips and persists exactly once through the claim transaction', () => {
+  const s = setup(),
+    run = s.runManager,
+    unit = run.roster[0];
+  const item = s.gameData.accessories[0];
+  run.pendingBattleReward.choices[0] = { type: 'accessory', item };
+  const c = new PendingRewardController(s, { onLeave() {}, onComplete() {} });
+  expect(c.applyNativeReward(0, () => applyAccessoryReward(run, item, unit)).ok).toBe(true);
+  expect(unit.accessory.name).toBe(item.name);
+  expect(c.applyNativeReward(0, () => applyAccessoryReward(run, item, unit)).ok).toBe(false);
+  expect(run.accessories.filter((a) => a.name === item.name)).toHaveLength(0);
 });

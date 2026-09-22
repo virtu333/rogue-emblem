@@ -14,6 +14,7 @@ const dom = vi.hoisted(() => {
       attributes: {},
       style: { setProperty: vi.fn() },
       isConnected: true,
+      scrollIntoView: vi.fn(),
       disabled: false,
       classList: { add: vi.fn() },
       append(...children) {
@@ -74,7 +75,7 @@ vi.mock('../src/ui/MenuSurface.js', () => ({
     }
   },
 }));
-import { BattleTimelineView } from '../src/ui/BattleTimelineView.js';
+import { BattleTimelineView, eventTitle } from '../src/ui/BattleTimelineView.js';
 
 const text = (node) => [node.textContent, ...node.children.map(text)].join(' ');
 const preview = {
@@ -154,6 +155,7 @@ describe('Battle timeline view', () => {
     const view = make({ currentEntryId: 2 });
     expect(dom.state.activeElement).toBe(view.rows.get(2));
     expect(view.selectedId).toBe(2);
+    expect(view.rows.get(2).scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
     expect(view.rewindButton.disabled).toBe(true);
     expect(view.onRewind).not.toHaveBeenCalled();
   });
@@ -168,7 +170,7 @@ describe('Battle timeline view', () => {
     ];
     h.entries[2].preview.summary = ['Turn 1 · Enemy phase', '20 battle gold'];
     const view = make({ history: h });
-    expect(text(view.rows.get(3))).toContain('Archer critically hit Sera for 18 damage.');
+    expect(text(view.rows.get(3))).toContain('Sera fell.');
     expect(text(view.rows.get(3))).not.toContain('Turn 1');
     expect(text(view.previewPanel)).toContain('Sera missed Archer.');
     expect(text(view.previewPanel)).toContain('Sera fell.');
@@ -289,4 +291,18 @@ describe('Battle timeline view', () => {
     expect(view.onClose).toHaveBeenCalledOnce();
     expect(view.onRewind).not.toHaveBeenCalled();
   });
+});
+
+it('prioritizes recorded casualties, village rewards, and strike outcomes over movement', () => {
+  const moved = { type: 'moved', actorId: 'a', label: 'Cavalier moved.' };
+  const attacked = { type: 'attacked', actorId: 'a', label: 'Cavalier attacked Elara.' };
+  const hit = { type: 'hit', label: 'Cavalier hit Elara for 11 damage.', outcome: { damage: 11 } };
+  const fell = { type: 'defeated', label: 'Cavalier defeated Elara.' };
+  expect(eventTitle({ actorId: 'a', beats: [moved, attacked, hit, fell] })).toBe(fell.label);
+  expect(eventTitle({ actorId: 'a', beats: [moved, attacked, hit] })).toBe(hit.label);
+  const village = {
+    type: 'visited the village',
+    label: 'Cinder visited the village · Village saved! +250g, Vulnerary sent to convoy.',
+  };
+  expect(eventTitle({ actorId: 'a', beats: [moved, village] })).toBe(village.label);
 });

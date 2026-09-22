@@ -46,7 +46,8 @@
       }
     },
     "defeatHP": 1,
-    "lordXpMultiplierOverride": null
+    "lordXpMultiplierOverride": null,
+    "drawXpMultiplier": 0.25
   },
   "mercenaries": {
     "candidateCount": [
@@ -79,7 +80,10 @@
     },
     "promotedMultiplier": 1.5,
     "crossActPoolAccess": true,
-    "maxHiresPerVisit": 1
+    "maxHiresPerVisit": 1,
+    "classPriceMultipliers": {
+      "Dancer": 2
+    }
   },
   "difficulty": {
     "hard": {

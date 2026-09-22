@@ -107,7 +107,11 @@ export class ShopMenu {
     if (!this.surface || this.surface.destroyed) return;
     if (message != null) this.status = message;
     const body = this.surface.body;
-    const scroll = body.querySelector('.shop-stock')?.scrollTop || 0;
+    const scroll =
+      this.renderedTab === this.scene.activeShopTab
+        ? body.querySelector('.shop-stock')?.scrollTop || 0
+        : 0;
+    this.renderedTab = this.scene.activeShopTab;
     const focus = document.activeElement?.dataset.shopFocus;
     body.replaceChildren();
     this.gold.textContent = `${this.run.gold} G`;
@@ -340,7 +344,23 @@ export class ShopMenu {
     });
   }
   buy(entry) {
-    if (entry.type === 'scroll' || entry.type === 'accessory') {
+    if (entry.type === 'accessory') {
+      this.picker({
+        title: `Buy and equip ${entry.item.name}`,
+        choices: [...this.run.roster, 'pool'],
+        label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
+        describe: (unit) =>
+          `${entry.price} gold · ` +
+          (unit === 'pool'
+            ? 'Equip later.'
+            : `Equip now${unit.accessory ? `; ${unit.accessory.name} returns to the shared pool` : ''}.`),
+        blocked: () => shopBuyBlock(this.run, this.scene.shopBuyItems, entry),
+        apply: (unit) =>
+          this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit)),
+      });
+      return;
+    }
+    if (entry.type === 'scroll') {
       this.confirm(
         `Buy ${entry.item.name}?`,
         `${entry.price} gold · Added to the team ${entry.type} pool.`,

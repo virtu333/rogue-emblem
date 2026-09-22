@@ -286,3 +286,11 @@ describe('Clever eligibility and save repair', () => {
     expect(fresh.growths.MAG).toBe(25);
   });
 });
+
+it('Brawny requires a physical proficiency but remains eligible for hybrid units', () => {
+  const pool = traits.filter((t) => t.id === 'brawny');
+  expect(rollTraits(pool, 1, () => 0, { proficiencies: [{ type: 'Tome' }] })).toEqual([]);
+  expect(
+    rollTraits(pool, 1, () => 0, { proficiencies: [{ type: 'Tome' }, { type: 'Sword' }] }),
+  ).toEqual(['brawny']);
+});

@@ -290,10 +290,11 @@ describe('ColosseumEngine', () => {
       expect(reward.xpGained).toBe(0);
     });
 
-    it('refunds fee on draw', () => {
+    it('charges no gold and awards modest training XP on draw', () => {
       const reward = calculateArenaReward(silverTier, 'draw', 50, 0, colosseumData);
       expect(reward.goldDelta).toBe(0);
-      expect(reward.xpGained).toBe(0);
+      expect(reward.xpGained).toBe(13);
+      expect(calculateArenaReward(silverTier, 'draw', 50, 2, colosseumData).xpGained).toBe(7);
     });
 
     it('applies XP multiplier for gold tier', () => {
@@ -969,4 +970,11 @@ describe('ColosseumEngine', () => {
       expect(rate).toBeLessThan(0.78);
     });
   });
+});
+
+it('prices Dance utility above ordinary mercenaries without extra random rolls', () => {
+  const normal = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Mage');
+  const dancer = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Dancer');
+  expect(normal).toBe(400);
+  expect(dancer).toBe(800);
 });
