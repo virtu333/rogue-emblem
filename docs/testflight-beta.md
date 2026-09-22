@@ -2,7 +2,7 @@
 
 ## Sprite readability — build 17 (September 21)
 
-Version **0.1.0 (17)** archived at `/tmp/EmblemRogue-Beta-17.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Source changes: `d194606`, `a32fb2c`; accepted art direction: `1ffdeae`. Upload/distribution pending.
+Version **0.1.0 (17)** archived at `/tmp/EmblemRogue-Beta-17.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Source changes: `d194606`, `a32fb2c`; accepted art direction: `1ffdeae`. Upload succeeded at **19:59 Pacific** (`/tmp/build17-upload.log`, `EXPORT SUCCEEDED`). Apple processing and external submission completed. App Store Connect confirms **Testing**, assigned to **Public Playtest** (four testers), with notes saved and automatic notifications enabled. Build ID: `9a81db30-da6d-4fcd-9dc6-5862fa8e57b0`. Public link: https://testflight.apple.com/join/UeWBYA5n.
 
 Scope: consistent flyer/mage sizing, brighter player Archer/Myrmidon/Duelist/Knight colors with dark outlines, larger player Fighter/enemy Knight, corrected base Sera/Berserker King crop and feet. Blue outlines remain development-only. Tile sizes and gameplay unchanged.
 

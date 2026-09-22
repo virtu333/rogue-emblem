@@ -89,3 +89,9 @@ selected and danger-overlay states. Judge class recognition, faction recognition
 and occupied-tile clarity before expanding to the full roster. Keep tiles and
 gameplay fixed during the art comparison. Schedule separately from portrait work
 and do not block the current brightness/size patch on this exploration.
+
+## Release
+
+Brightness and sizing changes released in **0.1.0 (17)** on September 21. App Store
+Connect confirms **Testing** in Public Playtest. Brighter colors with charcoal
+outlines are the production default; GBA/3D-reference exploration stays backlog.
