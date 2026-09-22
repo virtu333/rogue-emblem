@@ -778,9 +778,14 @@ export function applyRecruitWeaponForge(unit, forgeCount = 0, rng = Math.random)
     }
     const applyCount = Math.min(count, shuffled.length);
     let applied = false;
-    for (let i = 0; i < applyCount; i++) {
-      const result = applyForge(weapon, shuffled[i]);
-      if (result?.success) applied = true;
+    let completed = 0;
+    for (const stat of shuffled) {
+      if (completed >= applyCount) break;
+      const result = applyForge(weapon, stat);
+      if (result?.success) {
+        applied = true;
+        completed++;
+      }
     }
     if (applied) forgedWeapons++;
   }
@@ -1383,7 +1388,7 @@ export function getDefaultWeapon(proficiencies, allWeapons) {
 }
 
 /** Get weapon by specific tier for enemy scaling. */
-function getWeaponByTier(proficiencies, allWeapons, targetTier) {
+export function getWeaponByTier(proficiencies, allWeapons, targetTier) {
   if (!proficiencies || proficiencies.length === 0) return null;
   // Prefer first non-Staff proficiency, same as getDefaultWeapon.
   const combatProf = proficiencies.find((p) => p.type !== 'Staff');

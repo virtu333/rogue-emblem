@@ -592,13 +592,6 @@ export class MobileBattleHUD {
     this.body.append(
       el('p', 'mb-objective', s.objectiveText?.text || s.battleConfig?.objective || 'Battle'),
     );
-    if (
-      s._escapeController &&
-      !this.endTurnPending &&
-      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state)
-    ) {
-      this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
-    }
     const warning = s.getBossPressureWarning?.();
     if (warning) this.body.append(el('p', 'mb-hint', warning));
     if (s.dangerZone?.visible)
@@ -609,7 +602,7 @@ export class MobileBattleHUD {
     }
     const details = el('details', 'mb-battle-info');
     details.open = expanded;
-    details.append(el('summary', '', this.lab ? 'More' : 'Battle info'));
+    details.append(el('summary', '', 'Battle details'));
     const place = battlePlace(s.gameData, s.battleConfig, s.battleParams?.act);
     const info = [
       place.title,
@@ -638,7 +631,7 @@ export class MobileBattleHUD {
       );
     }
     details.append(detailContent);
-    if (!this.menu && !this.endTurnPending) this.body.append(details);
+
     if (this.endTurnPending) {
       this.body.append(
         el(
@@ -745,6 +738,8 @@ export class MobileBattleHUD {
         list.append(button);
       }
       this.body.append(list);
+      if (s._escapeController)
+        this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
       if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
       return;
     }
@@ -777,7 +772,10 @@ export class MobileBattleHUD {
       }
       this.body.append(commands);
       this.body.append(this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn'));
+      if (s._escapeController)
+        this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
     }
+    if (!this.menu && !this.endTurnPending) this.body.append(details);
   }
 
   appendThreatPinControl(unit) {

@@ -405,3 +405,46 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     }
   });
 });
+
+describe('Act 3 node readiness integration', () => {
+  it.each([false, true])('adds the package once for a base recruit (lord=%s)', (lord) => {
+    const gameData = loadGameData();
+    const runRoster = makeLordRestrictedRoster(gameData, 'Kira');
+    const spawn = (act) => {
+      let calls = 0;
+      const spy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        calls++;
+        if (calls === 2) return lord ? 0 : 0.99;
+        return 0.99; // fail promotion; fixed growths and levels
+      });
+      try {
+        const scene = makeBattleSceneWithLords({ act, npcClassName: 'Hero', runRoster });
+        scene.roster = [
+          {
+            name: 'Edric',
+            isLord: true,
+            tier: 'promoted',
+            level: 6,
+            className: 'Great Lord',
+            col: 0,
+            row: 0,
+          },
+        ];
+        BattleScene.prototype.beginBattle.call(scene, scene.roster);
+        return scene.npcUnits[0];
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const boosted = spawn('act3');
+    const baseline = spawn('act4');
+    expect(boosted.tier).toBe('base');
+    expect(boosted.isLord).toBe(lord);
+    expect(boosted.className).toBe(baseline.className);
+    expect(boosted.stats.HP - baseline.stats.HP).toBe(2);
+    expect(boosted.stats.SPD - baseline.stats.SPD).toBe(1);
+    expect(boosted.stats[lord ? 'MAG' : 'STR'] - baseline.stats[lord ? 'MAG' : 'STR']).toBe(2);
+    expect(boosted.stats.DEF + boosted.stats.RES - baseline.stats.DEF - baseline.stats.RES).toBe(1);
+    if (lord) expect(boosted.weapon.tier).toBe('Silver');
+  });
+});

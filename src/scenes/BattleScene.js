@@ -223,7 +223,11 @@ import {
   rollRecruitPromotion,
   getFailBaseLevel,
 } from '../engine/RecruitPromotion.js';
-import { resolveRecruitScalingTargets, resolveTeamAverageLevel } from '../engine/RecruitScaling.js';
+import {
+  resolveRecruitScalingTargets,
+  resolveTeamAverageLevel,
+  applyAct3RecruitBonus,
+} from '../engine/RecruitScaling.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
 import {
   adaptDialogueEntries,
@@ -1408,6 +1412,7 @@ export class BattleScene extends Phaser.Scene {
               npcSpawn.level,
               metaEffects,
               {
+                act,
                 promoteLord: canPromoteLord && lordRoll.promote,
                 classes: this.gameData.classes || [],
                 skills: this.gameData.skills || [],
@@ -1416,6 +1421,7 @@ export class BattleScene extends Phaser.Scene {
                 baseLevelOverride: null,
               },
             );
+            applyAct3RecruitBonus(npc, act);
             npc.faction = 'npc';
             npc.col = npcSpawn.col;
             npc.row = npcSpawn.row;
@@ -1611,6 +1617,7 @@ export class BattleScene extends Phaser.Scene {
               }
             }
 
+            applyAct3RecruitBonus(npc, act);
             const npcSpawnTier = npc.weapon?.tier || 'Iron';
             if (this.runManager?.metaEffects?.lethalArmoryTier) {
               grantLethalArmoryWeapon(

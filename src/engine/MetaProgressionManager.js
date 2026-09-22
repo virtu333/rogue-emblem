@@ -71,6 +71,15 @@ function normalizeStoryFlags(raw) {
   };
 }
 
+const PRE_BALANCE_COSTS = {
+  recruit_weapon_forge: [800, 1400],
+  weapon_forge: [150, 325, 550],
+  lethal_armory_killer: [900],
+  lethal_armory_silver: [1400],
+  recruit_field_supplies: [375],
+  master_of_arms: [600],
+};
+
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
 const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
@@ -114,6 +123,8 @@ export class MetaProgressionManager {
     this.onSave = null;
     this.upgradesData = upgradesData;
     this.storageKey = storageKey;
+    this.balanceRevision = 1;
+    this.solRefundBasis = 600;
     this.totalValor = 0;
     this.totalSupply = 0;
     this.savedAt = 0;
@@ -172,6 +183,22 @@ export class MetaProgressionManager {
         this.runRecords = mergeRunRecords(saved.runRecords || []);
         this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
+        this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
+        if (!saved.balanceRevision) {
+          if (this.getUpgradeLevel('unlock_sol') > 0) this.solRefundBasis = 400;
+          for (const [id, oldCosts] of Object.entries(PRE_BALANCE_COSTS)) {
+            const upgrade = this.upgradesData.find((u) => u.id === id);
+            if (!upgrade) continue;
+            let credit = 0;
+            for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
+              credit += Math.max(0, oldCosts[i] - upgrade.costs[i]);
+            }
+            if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
+            else this.totalSupply += credit;
+          }
+          // The next normal save persists credit and marker atomically without making
+          // a read-only load appear newer than a pending cloud merge.
+        }
       }
     } catch (_) {
       /* incognito / quota exceeded */
@@ -454,6 +481,7 @@ export class MetaProgressionManager {
     } else {
       this.totalSupply -= cost;
     }
+    if (id === 'unlock_sol') this.solRefundBasis = cost;
     this.purchasedUpgrades[id] = this.getUpgradeLevel(id) + 1;
     this._save();
     return true;
@@ -867,7 +895,7 @@ export class MetaProgressionManager {
       }
     }
 
-    const refundAmount = upgrade.costs[level - 1];
+    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
     return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
@@ -884,7 +912,7 @@ export class MetaProgressionManager {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     const level = this.getUpgradeLevel(id);
     const currency = this.getCurrencyForUpgrade(id);
-    const refundAmount = upgrade.costs[level - 1];
+    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
 
     // Deduct fee + refund tier cost
     if (currency === 'valor') {
@@ -1042,6 +1070,8 @@ export class MetaProgressionManager {
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
+      balanceRevision: this.balanceRevision,
+      solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,

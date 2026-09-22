@@ -9,7 +9,7 @@ import {
   BASE_CLASS_LEVEL_CAP,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
-import { resolveRecruitScalingTargets } from './RecruitScaling.js';
+import { resolveRecruitScalingTargets, applyAct3RecruitBonus } from './RecruitScaling.js';
 import { DEFAULT_STARTING_LORD_NAMES, resolveStartingLordNames } from './Commander.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
@@ -20,6 +20,7 @@ import {
 import {
   createRecruitUnit,
   createLordUnit,
+  getWeaponByTier,
   promoteUnit,
   levelUp,
   getClassInnateSkills,
@@ -258,6 +259,23 @@ export function createBossLordUnit(
     }
   }
 
+  // Recruited lords get level-scaled equipment, with an act floor for late arrivals.
+  // Starting lords still use createLordUnit and retain their original loadout.
+  const act = recruitContext?.act;
+  const equipmentLevel = Math.max(
+    cappedLevel,
+    act === 'act3' || act === 'act4' ? 13 : act === 'act2' ? 6 : 1,
+  );
+  const tier = equipmentLevel >= 13 ? 'Silver' : equipmentLevel >= 6 ? 'Steel' : 'Iron';
+  const weapon = getWeaponByTier(unit.proficiencies, allWeapons, tier);
+  if (weapon) {
+    const previous = unit.weapon;
+    unit.weapon = ensureItemUid(structuredClone(weapon));
+    const index = unit.inventory.indexOf(previous);
+    if (index >= 0) unit.inventory[index] = unit.weapon;
+    else unit.inventory.unshift(unit.weapon);
+  }
+
   // Give a Vulnerary
   unit.consumables.push(
     ensureItemUid(
@@ -418,6 +436,7 @@ export function generateBossRecruitCandidates(
     );
     if (unit) {
       if (!isClassAvailable(unit.className)) continue;
+      applyAct3RecruitBonus(unit, poolKey);
       unit.name = makeUniqueRecruitName(unit.name, takenNames);
       takenNames.add(unit.name);
       takenClassNames.add(unit.className);
@@ -460,6 +479,7 @@ export function generateBossRecruitCandidates(
         recruitTargetLevel,
         metaEffects,
         {
+          act: poolKey,
           promoteLord: canPromoteLord && lordRoll.promote,
           classes,
           skills,
@@ -468,6 +488,7 @@ export function generateBossRecruitCandidates(
           baseLevelOverride: null,
         },
       );
+      applyAct3RecruitBonus(unit, poolKey);
       unit.name = chosenLord.name || unit.name;
       takenNames.add(unit.name);
       const lordCandidate = {

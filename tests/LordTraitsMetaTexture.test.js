@@ -85,11 +85,11 @@ describe('advanced starting-skill unlocks', () => {
       expect(run.roster.find((u) => u.name === 'Edric').skills).toContain(skill);
     },
   );
-  it('keeps total progression cost within three percent of the preceding curve', () => {
+  it('keeps the reduced supply progression total within the prior ceiling', () => {
     const total = data.metaUpgrades
       .filter((u) => u.id !== 'legendary_lord_chance')
       .reduce((sum, u) => sum + u.costs.reduce((a, b) => a + b, 0), 0);
-    expect(total).toBe(54928);
+    expect(total).toBe(52628);
     expect(total / 53428).toBeLessThan(1.03);
   });
 });

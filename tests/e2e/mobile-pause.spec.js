@@ -30,7 +30,7 @@ test('battle information replaces canvas labels and preserves terrain, par and r
   });
   await expect(hud.locator('.mb-terrain')).toContainText(terrainName);
   await expect(hud.locator('.mb-terrain')).toContainText('Avoid');
-  await hud.locator('summary').filter({ hasText: 'More' }).tap();
+  await hud.locator('summary').filter({ hasText: 'Battle details' }).tap();
   await expect(hud.locator('.mb-objective')).not.toBeEmpty();
   expect(
     await page.evaluate(() => {
@@ -41,7 +41,7 @@ test('battle information replaces canvas labels and preserves terrain, par and r
     }),
   ).toBe(true);
   await page.screenshot({ path: 'test-results/mobile-battle-info.png' });
-  await hud.locator('summary').filter({ hasText: 'More' }).tap();
+  await hud.locator('summary').filter({ hasText: 'Battle details' }).tap();
   expect(
     await hud.locator('.mb-command-grid .mb-button').evaluateAll((buttons) =>
       buttons.every((button) => {

@@ -805,6 +805,7 @@ export class RunManager {
 
       let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost);
       const needsV2Cost =
+        id !== 'swift_instinct' &&
         blessing.tier >= 2 &&
         !rolledCost &&
         Array.isArray(blessing.costs) &&
@@ -2488,8 +2489,10 @@ export class RunManager {
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
           const forgeCount = Math.min(forgeLevels, shuffled.length);
-          for (let i = 0; i < forgeCount; i++) {
-            applyForge(w, shuffled[i]);
+          let completed = 0;
+          for (const stat of shuffled) {
+            if (completed >= forgeCount) break;
+            if (applyForge(w, stat)?.success) completed++;
           }
         }
       }

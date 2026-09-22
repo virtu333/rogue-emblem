@@ -550,7 +550,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     result.heal = result.modifiedDamage;
     result.activated.push({ id: 'flare', name: 'Flare' });
   } else if (selectedOffensiveProcId === 'luna') {
-    result.modifiedDamage = Math.floor(normalDamage * 1.5);
+    result.luna = true;
     result.activated.push({ id: 'luna', name: 'Luna' });
   } else if (selectedOffensiveProcId === 'sol') {
     result.heal = normalDamage;

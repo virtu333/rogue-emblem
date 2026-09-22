@@ -3571,7 +3571,7 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold + 500);
+    expect(rm.gold).toBe(baseGold + 750);
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier);
   });
 

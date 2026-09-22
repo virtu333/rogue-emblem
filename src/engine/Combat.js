@@ -672,7 +672,7 @@ export function calculateDamage(
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
   let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
-  if (!targetsRES && hasSunderEffect(atkWeapon)) {
+  if (options?.halveDefense || (!targetsRES && hasSunderEffect(atkWeapon))) {
     def = Math.floor(def / 2);
   }
   // Divine Flare: RES-targeting strikes pierce resistance entirely
@@ -856,6 +856,7 @@ export function getCombatForecast(
     !isSleeping(defender) &&
     canCounter(defender, defWeapon, distance);
   const combatSkillState = { adeptUsed: new Set() };
+  let defLunaDmg = 0;
   let defDmg = 0,
     defHit = 0,
     defCrit = 0,
@@ -1104,6 +1105,10 @@ function rollStrike(
     if (skillResult.aetherLuna) aetherLuna = true;
     if (skillResult.lethal) {
       finalDmg = targetHP; // instant kill
+    } else if (skillResult.luna) {
+      finalDmg = isCrit
+        ? Math.floor(strikeSkills.lunaDamage * critMultiplier)
+        : strikeSkills.lunaDamage;
     } else if (skillResult.modifiedDamage !== finalDmg) {
       finalDmg = skillResult.modifiedDamage;
     }
@@ -1308,6 +1313,25 @@ export function resolveCombat(
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkDmg = Math.floor(atkDmg * atkMods.damageMultiplier);
   atkDmg = Math.max(0, atkDmg);
+  let atkLunaDmg = Math.max(
+    0,
+    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
+      targetsRES: atkMods?.targetsRES,
+      halveDefense: true,
+      effectivenessMultiplier: atkEffectiveness,
+      ignoreTriangle,
+      ignoreRES: atkMods?.ignoreRES,
+    }) +
+      (atkMods?.atkBonus || 0) -
+      (defMods?.defBonus || 0) -
+      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      defWeaponDefBonus,
+  );
+  atkLunaDmg += getCombatStatScalingBonus(attacker, atkMods);
+  if (atkMods?.vengeance) atkLunaDmg += getMissingHp(attacker);
+  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
+  if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);
+  atkLunaDmg = Math.max(0, atkLunaDmg);
   let atkHit = Math.max(
     0,
     Math.min(
@@ -1371,6 +1395,7 @@ export function resolveCombat(
   const atkBrave = atkWeapon?.special?.includes('twice consecutively') ?? false;
   const defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
 
+  let defLunaDmg = 0;
   let defDmg = 0,
     defHit = 0,
     defCrit = 0;
@@ -1395,6 +1420,27 @@ export function resolveCombat(
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     if (defMods?.damageMultiplier > 1) defDmg = Math.floor(defDmg * defMods.damageMultiplier);
     defDmg = Math.max(0, defDmg);
+    defLunaDmg = Math.max(
+      0,
+      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
+        targetsRES: defMods?.targetsRES,
+        halveDefense: true,
+        effectivenessMultiplier: defEffectiveness,
+        ignoreTriangle,
+        ignoreRES: defMods?.ignoreRES,
+      }) +
+        (defMods?.atkBonus || 0) -
+        (atkMods?.defBonus || 0) -
+        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        atkWeaponDefBonus,
+    );
+    defLunaDmg += getCombatStatScalingBonus(defender, defMods);
+    if (defMods?.vengeance) defLunaDmg += getMissingHp(defender);
+    if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon))
+      defLunaDmg = Math.floor(defLunaDmg / 2);
+    if (defMods?.damageMultiplier > 1)
+      defLunaDmg = Math.floor(defLunaDmg * defMods.damageMultiplier);
+    defLunaDmg = Math.max(0, defLunaDmg);
     defHit = Math.max(
       0,
       Math.min(
@@ -1415,6 +1461,7 @@ export function resolveCombat(
   const isMelee = distance === 1;
   const atkStrikeSkills = skillCtx?.rollStrikeSkills
     ? {
+        lunaDamage: atkLunaDmg,
         striker: attacker,
         target: defender,
         rollStrikeSkills: skillCtx.rollStrikeSkills,
@@ -1431,6 +1478,7 @@ export function resolveCombat(
   const defStrikeSkills =
     skillCtx?.rollStrikeSkills && defCanCounter
       ? {
+          lunaDamage: defLunaDmg,
           striker: defender,
           target: attacker,
           rollStrikeSkills: skillCtx.rollStrikeSkills,
@@ -1608,19 +1656,26 @@ export function resolveCombat(
   ) {
     let count = braveCount;
     let phaseDmg = dmg;
+    let phaseMultiplier = null;
     const artMultiHit = (isAtkDef ? atkMods : defMods)?.multiHit;
     if (artMultiHit) {
       count = artMultiHit.count;
+      phaseMultiplier = artMultiHit.damageMultiplier;
       phaseDmg = Math.max(1, Math.floor(dmg * artMultiHit.damageMultiplier));
     } else if (skillCtx?.checkAstra) {
       const astra = skillCtx.checkAstra(unit, skillCtx.skillsData);
       if (astra.triggered) {
         count = astra.strikeCount;
+        phaseMultiplier = astra.damageMult;
         phaseDmg = Math.max(1, Math.floor(dmg * astra.damageMult));
         events.push({ type: 'skill', name: astra.name, unit: aName });
       }
     }
+    const originalLunaDamage = strikeSkills?.lunaDamage;
+    if (strikeSkills && phaseMultiplier !== null)
+      strikeSkills.lunaDamage = Math.max(1, Math.floor(originalLunaDamage * phaseMultiplier));
     strike(aName, tName, hit, phaseDmg, crit, isAtkDef, count, strikeSkills, weapon?.special || '');
+    if (strikeSkills) strikeSkills.lunaDamage = originalLunaDamage;
   }
 
   // Determine phase order — Vantage, Desperation modify order

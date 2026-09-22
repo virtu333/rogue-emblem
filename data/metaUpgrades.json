@@ -1238,7 +1238,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      375
+      250
     ],
     "requires": {
       "upgrades": [
@@ -1331,7 +1331,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      900
+      600
     ],
     "requires": {
       "upgrades": [
@@ -1354,7 +1354,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      1400
+      900
     ],
     "requires": {
       "upgrades": [
@@ -1377,7 +1377,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      600
+      350
     ],
     "requires": {
       "milestones": [
@@ -1432,12 +1432,12 @@
   {
     "id": "recruit_weapon_forge",
     "name": "Quartermaster's Craft",
-    "description": "Recruits who join your army carry forged weapons (+1 forge per tier)",
+    "description": "Non-lord recruits join with 1 random forge improvement per tier on each combat weapon",
     "category": "capacity",
     "maxLevel": 2,
     "costs": [
-      800,
-      1400
+      400,
+      700
     ],
     "requires": {
       "upgrades": [
@@ -1462,13 +1462,13 @@
   {
     "id": "weapon_forge",
     "name": "Honed Blades",
-    "description": "Lords' starting weapons gain forge levels",
+    "description": "Starting lords’ combat weapons gain 1 random forge improvement per tier",
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
       150,
-      325,
-      550
+      250,
+      400
     ],
     "effects": [
       {
@@ -1652,7 +1652,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      400
+      600
     ],
     "effects": [
       {
@@ -1663,7 +1663,7 @@
   {
     "id": "unlock_luna",
     "name": "Luna",
-    "description": "SKL% chance to halve DEF/RES",
+    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -1678,7 +1678,7 @@
   {
     "id": "unlock_astra",
     "name": "Astra",
-    "description": "SKL/2% chance for 5 consecutive hits",
+    "description": "SKL/2% chance to strike 5 times at half damage",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

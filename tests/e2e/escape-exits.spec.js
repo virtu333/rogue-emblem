@@ -65,6 +65,8 @@ for (const width of [667, 844]) {
         });
       });
     expect(await markersInView()).toBe(false);
+    const commandOrder = await hud.locator('button').allTextContents();
+    expect(commandOrder.indexOf('Show exits')).toBeGreaterThan(commandOrder.indexOf('End turn…'));
     await hud.getByRole('button', { name: 'Show exits', exact: true }).tap();
     await expect.poll(markersInView).toBe(true);
     await page.screenshot({ path: info.outputPath('escape-overview.png') });
