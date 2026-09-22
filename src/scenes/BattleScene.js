@@ -4109,7 +4109,7 @@ export class BattleScene extends Phaser.Scene {
 
   _onDangerClick() {
     if (this.isStoryInputLocked()) return;
-    if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
+    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)) {
       if (this.dangerZoneStale || !this.dangerZoneCache) {
         this.dangerZoneCache = this.calculateDangerZone();
         this.dangerZoneStale = false;
@@ -4123,7 +4123,7 @@ export class BattleScene extends Phaser.Scene {
     if (
       this.isStoryInputLocked() ||
       this._isTutorialStrictGateActive?.() ||
-      !['PLAYER_IDLE', 'UNIT_SELECTED'].includes(this.battleState)
+      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)
     )
       return;
     this.keepDangerVisible = !this.keepDangerVisible;

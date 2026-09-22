@@ -1,3 +1,5 @@
+import { ContextHelp } from './ContextHelp.js';
+import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
 import { syncTutorialForecastLayout } from './tutorialForecastLayout.js';
@@ -70,13 +72,22 @@ export class MobileBattleHUD {
     this.root.tabIndex = -1;
     this.phase = el('div', 'mb-phase');
     this.summary = el('div', 'mb-summary');
+    this.objective = el('div', 'mb-objective-slot');
+    this.terrain = el('div', 'mb-terrain-slot');
     this.body = el('div', 'mb-body');
     this.speedHold = el('button', 'mb-button', 'Hold to speed up');
     this.speedHold.type = 'button';
     this.speedHold.hidden = true;
     this.speedHold.setAttribute('aria-pressed', 'false');
     this.disposeSpeedHold = bindHoldBattleSpeed(this.speedHold, scene);
-    this.root.append(this.phase, this.summary, this.speedHold, this.body);
+    this.root.append(
+      this.phase,
+      this.objective,
+      this.terrain,
+      this.summary,
+      this.speedHold,
+      this.body,
+    );
     this.wrapper.append(this.root);
     for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (event) => event.stopPropagation());
@@ -433,6 +444,7 @@ export class MobileBattleHUD {
   }
 
   sync() {
+    if (this.help && !this.help.destroyed) return;
     const s = this.scene;
     const state = s.battleState || '';
     const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
@@ -518,6 +530,40 @@ export class MobileBattleHUD {
       this.endTurnPending = null;
     this.lastSnapshot = key;
     this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
+    this.phase.append(
+      el(
+        'div',
+        'mb-counters',
+        sidebarCounters(s.turnCounterText?.text, s.getVisionChargesRemaining?.()),
+      ),
+    );
+    this.objective.replaceChildren();
+    const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
+    const objective = this.button(
+      compactBattleObjective(objectiveText),
+      () => {
+        this.help = new ContextHelp(
+          s,
+          this.root,
+          'Battle objective',
+          objectiveText.split('\n'),
+          () => {
+            this.help = null;
+            this.lastSnapshot = '';
+            this.sync();
+            this.objective.querySelector('button')?.focus({ preventScroll: true });
+          },
+        );
+      },
+      'mb-objective',
+    );
+    objective.setAttribute(
+      'aria-label',
+      `Objective details: ${compactBattleObjective(objectiveText)}`,
+    );
+    objective.append(el('span', 'mb-info-cue', 'ⓘ'));
+    this.objective.append(objective);
+    this.terrain.replaceChildren();
     this.summary.replaceChildren();
     if (s._inputController?._planningInspection && s.selectedUnit) {
       this.summary.append(el('p', 'mb-detail', `Inspecting · Selected: ${s.selectedUnit.name}`));
@@ -528,32 +574,16 @@ export class MobileBattleHUD {
       this.summary.append(
         el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
       );
-      const hp = createHealthBar(unit);
-      this.summary.append(hp, el('span', 'mb-hp', `${unit.currentHP} / ${unit.stats.HP} HP`));
-      for (const status of statusDescriptions(unit))
-        this.summary.append(el('p', 'mb-detail', status));
-      const staff = statusStaffInfo(unit);
-      if (staff) this.summary.append(el('p', 'mb-detail', staff.text));
-      if (s.inspectionPanel?.visible && s.inspectionPanel._unit === unit) {
-        this.summary.append(
-          this.button('View unit details', () => {
-            if (
-              s.inspectionPanel?.visible &&
-              s.inspectionPanel._unit === unit &&
-              canInspectUnit(s.grid, unit)
-            )
-              s.openUnitDetailOverlay();
-          }),
-        );
-      }
-      this.appendThreatPinControl(unit);
+      this.summary.append(el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`));
+      const conditions = statusDescriptions(unit);
+      if (conditions.length) this.summary.append(el('p', 'mb-status', conditions.join(' · ')));
     } else {
       if (!this.lab)
         this.summary.append(el('h2', '', s.inspectMode ? 'Inspect a unit' : 'Your battlefield'));
       if (!this.lab || !focus)
         this.summary.append(el('div', 'mb-detail', `${remaining} units ready`));
     }
-    if (this.lab && focus) {
+    if (focus) {
       const terrain = s.grid.getTerrainAt(focus.col, focus.row);
       if (terrain) {
         const visibleUnit = s.grid.isVisible(focus.col, focus.row)
@@ -567,35 +597,35 @@ export class MobileBattleHUD {
         card.setAttribute('aria-label', 'Terrain advantages');
         card.append(el('strong', '', terrain.name));
         card.append(
-          el(
-            'span',
-            '',
-            `Move cost ${Number.isFinite(Number(cost)) ? cost : 'blocked'} · ${moveType}`,
-          ),
+          el('span', '', `Move ${Number.isFinite(Number(cost)) ? cost : 'blocked'} · ${moveType}`),
         );
         card.append(
           el('span', '', `Def ${bonus(terrain.defBonus)} · Avoid ${bonus(terrain.avoidBonus)}`),
         );
         if (terrain.special) {
-          const effect = terrain.special.replace(
-            'Slide: non-flying units slide in entry direction until non-Ice tile',
-            'Slide straight until off ice (non-flying).',
+          const help = this.button(
+            'Terrain details ⓘ',
+            () => {
+              this.help = new ContextHelp(s, this.root, terrain.name, [terrain.special], () => {
+                this.help = null;
+                this.lastSnapshot = '';
+                this.sync();
+              });
+            },
+            'mb-terrain-help',
           );
-          card.append(el('small', '', effect));
+          card.append(help);
         }
-        this.summary.append(card);
+        this.terrain.append(card);
       }
     }
     const expanded = this.body.querySelector('.mb-battle-info')?.open || false;
     const restoreMenuFocus = this.body.contains(document.activeElement);
     this.body.replaceChildren();
-    this.body.append(
-      el('p', 'mb-objective', s.objectiveText?.text || s.battleConfig?.objective || 'Battle'),
-    );
+
     const warning = s.getBossPressureWarning?.();
     if (warning) this.body.append(el('p', 'mb-hint', warning));
-    if (s.dangerZone?.visible)
-      this.body.append(el('p', 'mb-detail', 'Darker: more enemies · Purple outline: status staff'));
+
     if (turnStarting) {
       this.body.append(el('p', 'mb-hint', HINTS.TURN_START_RESOLVING));
       return;
@@ -614,8 +644,16 @@ export class MobileBattleHUD {
       .filter(Boolean)
       .join('\n');
     const detailContent = el('div', 'mb-more-content');
+    if (s.dangerZone?.visible)
+      detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
+    if (s.pinnedThreatEnemies?.size >= 5)
+      detailContent.append(
+        el('p', '', '5 ranges pinned. Pinning another enemy replaces the oldest.'),
+      );
+    const staffInfo = statusStaffInfo(unit);
+    if (staffInfo) detailContent.append(el('p', '', staffInfo.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
-    if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
+    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state)) {
       detailContent.append(
         this.button(
           s.keepDangerVisible ? 'Unpin global Danger' : 'Keep global Danger visible',
@@ -689,7 +727,7 @@ export class MobileBattleHUD {
       if (restoreMenuFocus) this.body.querySelector('button')?.focus({ preventScroll: true });
       return;
     }
-    if (!this.lab || !['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state))
+    if (!this.lab || !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state))
       this.body.append(
         el(
           'p',
@@ -704,6 +742,12 @@ export class MobileBattleHUD {
       );
     if (state === 'UNIT_ACTION_MENU' && this.menu) {
       const menu = this.menu;
+      if (s._inputController?._planningInspection && unit) {
+        const inspection = el('div', 'mb-command-grid');
+        inspection.append(this.button('View unit details', () => s.openUnitDetailOverlay()));
+        this.appendThreatPinControl(unit, inspection);
+        this.body.append(inspection);
+      }
       if (s._inputController?.isSelectionMenu()) {
         this.body.append(el('p', 'mb-detail', 'Tap a blue tile to move.'));
       }
@@ -739,18 +783,40 @@ export class MobileBattleHUD {
       }
       this.body.append(list);
       if (s._escapeController)
-        this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
+        this.body.append(
+          this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
+        );
+      const danger = this.button(
+        s.keepDangerVisible ? 'Danger · pinned' : 'Danger',
+        () => s._onDangerClick(),
+        'mb-secondary',
+        () => s.togglePersistentDanger(),
+      );
+      danger.setAttribute('aria-label', s.keepDangerVisible ? 'Danger · pinned' : 'Danger');
+      danger.append(
+        el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
+      );
+      this.body.append(danger, details);
       if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
       return;
     }
     if (['PLAYER_IDLE', 'UNIT_SELECTED'].includes(state)) {
       const commands = el('div', 'mb-command-grid');
+      const secondary = el('div', 'mb-command-grid mb-secondary-grid');
+      const inspecting = s.inspectionPanel?.visible && s.inspectionPanel._unit === unit && unit;
+      if (inspecting) {
+        const view = this.button('View unit', () => s.openUnitDetailOverlay());
+        view.setAttribute('aria-label', 'View unit details');
+        commands.append(view);
+        this.appendThreatPinControl(unit, commands);
+      }
       for (const [label, action, active] of [
         [s.keepDangerVisible ? 'Danger · pinned' : 'Danger', 'danger', s.dangerZone?.visible],
         ['Inspect', 'inspect', s.inspectMode],
         ['Roster', 'roster', null],
         ['Rewind', 'objective', null],
       ]) {
+        if (inspecting && action === 'inspect') continue;
         const button = this.button(
           label,
           () => {
@@ -767,18 +833,31 @@ export class MobileBattleHUD {
           '',
           action === 'danger' ? () => s.togglePersistentDanger() : null,
         );
+        if (action === 'danger') {
+          button.setAttribute('aria-label', label);
+          button.append(
+            el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
+          );
+        }
         if (active != null) button.setAttribute('aria-pressed', String(Boolean(active)));
-        commands.append(button);
+        (inspecting && ['roster', 'objective'].includes(action) ? secondary : commands).append(
+          button,
+        );
       }
+      const endTurn = this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn');
+      if (inspecting) commands.append(endTurn);
       this.body.append(commands);
-      this.body.append(this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn'));
+      if (inspecting) this.body.append(secondary);
+      else this.body.append(endTurn);
       if (s._escapeController)
-        this.body.append(this.button('Show exits', () => s._escapeController.showExits()));
+        this.body.append(
+          this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
+        );
     }
     if (!this.menu && !this.endTurnPending) this.body.append(details);
   }
 
-  appendThreatPinControl(unit) {
+  appendThreatPinControl(unit, container = this.summary) {
     const s = this.scene;
     if (
       unit?.faction !== 'enemy' ||
@@ -799,14 +878,13 @@ export class MobileBattleHUD {
         s.togglePinnedThreat(unit);
     });
     control.setAttribute('aria-pressed', String(pinned));
-    this.summary.append(control);
-    if (pinned)
-      this.summary.append(el('p', 'mb-detail', 'Red: pinned threat. Pins reset on reload.'));
-    if (!pinned && s.pinnedThreatEnemies?.size >= 5) {
-      this.summary.append(
-        el('p', 'mb-detail', '5 ranges pinned. Pinning this enemy replaces the oldest.'),
-      );
-    }
+    control.setAttribute(
+      'aria-description',
+      !pinned && s.pinnedThreatEnemies?.size >= 5
+        ? '5 ranges pinned. Pinning this enemy replaces the oldest.'
+        : 'Keep this enemy’s threat visible during planning. Pins reset on reload.',
+    );
+    container.append(control);
   }
 
   restoreLabels() {
@@ -815,6 +893,7 @@ export class MobileBattleHUD {
   }
 
   destroy() {
+    this.help?.destroy();
     this.disposeSpeedHold?.();
     this.lab?.destroy();
     this.restoreLabels();

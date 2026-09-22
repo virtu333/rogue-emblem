@@ -37,7 +37,11 @@ for (const width of [667, 844]) {
       );
     });
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
-    await expect(hud).toContainText('Move onto an EXIT tile, then choose Escape.');
+    await hud.getByRole('button', { name: /^Objective details:/ }).tap();
+    await expect(page.getByRole('dialog', { name: 'Battle objective', exact: true })).toContainText(
+      'Move onto an EXIT tile, then choose Escape.',
+    );
+    await page.keyboard.press('Escape');
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       await s._mobileBattleHud.lab.artReady;

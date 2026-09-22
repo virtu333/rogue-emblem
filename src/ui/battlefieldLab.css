@@ -269,3 +269,113 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
     padding-top: 3px;
   }
 }
+
+/* Compact command rail: persistent objective/terrain, stable bottom navigation. */
+html.touch-ui .battlefield-lab .mobile-battle-hud {
+  padding: 6px;
+  gap: 4px;
+}
+.battlefield-lab .mb-phase {
+  padding-bottom: 0;
+  border: 0;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.mb-counters {
+  font: 12px/1.2 var(--re-body);
+  color: var(--re-muted);
+  margin-top: 3px;
+  letter-spacing: 0;
+}
+.battlefield-lab .mb-objective.mb-button {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 0;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-bottom: 1px solid var(--re-line-soft);
+  font-size: 12px;
+}
+.mb-info-cue {
+  flex-shrink: 0;
+}
+.battlefield-lab .mb-terrain {
+  margin: 0;
+  padding: 3px 5px;
+  border: 0;
+  border-left: 2px solid var(--re-gold);
+  background: var(--re-panel);
+  color: var(--re-text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+.battlefield-lab .mb-terrain-help.mb-button {
+  grid-column: 1 / -1;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  text-align: left;
+}
+.battlefield-lab .mb-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 4px;
+}
+.battlefield-lab .mb-summary h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.battlefield-lab .mb-summary .mb-hp {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--re-good);
+}
+.battlefield-lab .mb-summary .mb-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.battlefield-lab .mb-summary .mb-status {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  margin: 0;
+  color: var(--re-warn);
+}
+.battlefield-lab .mb-body {
+  gap: 4px;
+}
+.battlefield-lab .mb-body .mb-button {
+  min-height: 38px;
+  padding: 5px;
+}
+.battlefield-lab .mb-command-grid,
+.battlefield-lab .mb-actions {
+  gap: 4px;
+}
+.mb-hold-cue {
+  display: block;
+  font-size: 11px;
+  font-weight: normal;
+  line-height: 1.1;
+}
+.battlefield-lab .mb-body .mb-secondary,
+.battlefield-lab .mb-secondary-grid .mb-button {
+  min-height: 28px;
+  padding: 3px;
+  font-size: 12px;
+}
+.battlefield-lab .mb-battle-info summary {
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.battlefield-lab .bl-tools .mb-button {
+  min-height: 44px;
+}

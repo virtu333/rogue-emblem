@@ -88,7 +88,7 @@ describe('inspection threat pin controls', () => {
     const control = hud.summary.children[0];
     expect(control.text).toBe('Pin range');
     expect(control.attributes['aria-pressed']).toBe('false');
-    expect(hud.summary.children[1].textContent).toContain('replaces the oldest');
+    expect(control.attributes['aria-description']).toContain('replaces the oldest');
     control.action();
     expect(s.togglePinnedThreat).toHaveBeenCalledOnce();
     hud.summary.children = [];
