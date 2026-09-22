@@ -1,5 +1,9 @@
 # Mobile beta release
 
+## Balance and battle commands — build 19 (September 22)
+
+Source commit: `c3c18b7`. Version **0.1.0 (19)** archived at `/tmp/EmblemRogue-Beta-19.xcarchive`; all 819 web assets match dist. Upload succeeded at 00:49 Pacific after retrying an Apple checksum/network failure. App Store Connect confirms **Testing**, assigned to Public Playtest (four testers), notes saved and automatic notifications enabled. Verification: 5,708 unit tests, 165 harness tests, 24 targeted mobile browser cases, all four PR simulation slices, data validation/parity, production build and native sync. Physical iPhone acceptance remains outstanding. Details: [balance release](balance-release-2026-09-22.md).
+
 ## Battlefield rewind and combat clarity — build 18 (September 21)
 
 Source commit: `28712fc`. Version **0.1.0 (18)** archived at `/tmp/EmblemRogue-Beta-18.xcarchive`. All 819 web assets match a fresh build of the committed source. Bundle/version verified, no development server override, cloud explicitly disabled. Upload succeeded at **23:35 Pacific** (`/tmp/build18-upload.log`, `EXPORT SUCCEEDED`). Apple processing and external submission completed. App Store Connect reports **Testing**; Public Playtest assigned (four testers), notes saved, automatic notifications enabled. Build ID: `0b494398-b8e0-4824-b20e-3ca6517b1b37`.
