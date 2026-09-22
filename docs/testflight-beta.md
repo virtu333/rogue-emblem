@@ -1,5 +1,11 @@
 # Mobile beta release
 
+## Compact sidebar and playtest fixes — build 20 (September 22)
+
+Source commits: `2f1c0fe`, `e7048cf`. Version **0.1.0 (20)** archived at `/tmp/EmblemRogue-Beta-20.xcarchive`; all 819 web assets match the production build. Bundle identity/build, no development server, and explicit local-only cloud setting verified. Includes compact persistent terrain/objective/counters, selection-sensitive commands, Danger hold guidance, reward/equipment flows, outcome-first history labels and the targeted balance follow-ups.
+
+Verification: 5,715 unit tests, 165 harness tests, eight sidebar/planning/escape browser cases, twelve preceding playtest-follow-up browser cases, production build/native sync and fresh production offline smoke passed. Targeted lint has zero errors. Physical iPhone acceptance remains outstanding. Tester notes: `/tmp/EmblemRogue-Build20-WhatToTest.txt`. Upload/distribution status will be recorded after Apple confirmation. GitHub push skipped.
+
 ## Balance and battle commands — build 19 (September 22)
 
 Source commit: `c3c18b7`. Version **0.1.0 (19)** archived at `/tmp/EmblemRogue-Beta-19.xcarchive`; all 819 web assets match dist. Upload succeeded at 00:49 Pacific after retrying an Apple checksum/network failure. App Store Connect confirms **Testing**, assigned to Public Playtest (four testers), notes saved and automatic notifications enabled. Verification: 5,708 unit tests, 165 harness tests, 24 targeted mobile browser cases, all four PR simulation slices, data validation/parity, production build and native sync. Physical iPhone acceptance remains outstanding. Details: [balance release](balance-release-2026-09-22.md).
