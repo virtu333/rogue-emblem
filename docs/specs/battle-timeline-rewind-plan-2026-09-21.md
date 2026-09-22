@@ -1,7 +1,7 @@
 # Battle timeline and rewind — investigated implementation plan
 
 Date: September 21, 2026
-Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 is cancelled by Dave (September 21). Build 15 uploaded successfully September 21 at 17:52 Pacific; Public Playtest assignment awaits App Store Connect sign-in. Physical-phone acceptance remains a tester check.
+Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 is cancelled by Dave (September 21). Build 15 uploaded successfully September 21 at 17:52 Pacific; App Store Connect confirms Testing in Public Playtest, with notes saved and automatic notifications enabled. Physical-phone acceptance remains a tester check.
 Source: [original proposal](battle-timeline-rewind-proposal.md). This document supersedes its implementation ordering and safety assumptions; the original remains design history.
 
 ## 1. Outcome and recommended scope
@@ -318,4 +318,4 @@ Dave authorized distribution September 21. A fresh adversarial spot-check of com
 
 #### Build 15 distribution
 
-Uploaded version 0.1.0 (15) September 21 at 17:52 Pacific after one Apple server-error retry. Archive assets (818 files), bundle/version and no development-server configuration verified. Release preparation commit: `641e4fc`. Public Playtest assignment and Testing confirmation are pending App Store Connect browser sign-in; upload alone does not mean tester availability. See `docs/testflight-beta.md`.
+Uploaded version 0.1.0 (15) September 21 at 17:52 Pacific after one Apple server-error retry. Archive assets (818 files), bundle/version and no development-server configuration verified. Release preparation commit: `641e4fc`. After sign-in was restored, Public Playtest assignment and external submission completed; App Store Connect confirms Testing. Tester notes are saved and automatic notifications enabled. Build ID: `7fc13e09-f2b0-4050-8899-3404c57db150`. See `docs/testflight-beta.md`.
