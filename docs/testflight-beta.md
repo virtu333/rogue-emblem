@@ -4,7 +4,7 @@
 
 Source commits: `2f1c0fe`, `e7048cf`. Version **0.1.0 (20)** archived at `/tmp/EmblemRogue-Beta-20.xcarchive`; all 819 web assets match the production build. Bundle identity/build, no development server, and explicit local-only cloud setting verified. Includes compact persistent terrain/objective/counters, selection-sensitive commands, Danger hold guidance, reward/equipment flows, outcome-first history labels and the targeted balance follow-ups.
 
-Verification: 5,715 unit tests, 165 harness tests, eight sidebar/planning/escape browser cases, twelve preceding playtest-follow-up browser cases, production build/native sync and fresh production offline smoke passed. Targeted lint has zero errors. Physical iPhone acceptance remains outstanding. Tester notes: `/tmp/EmblemRogue-Build20-WhatToTest.txt`. Upload/distribution status will be recorded after Apple confirmation. GitHub push skipped.
+Verification: 5,715 unit tests, 165 harness tests, eight sidebar/planning/escape browser cases, twelve preceding playtest-follow-up browser cases, production build/native sync and fresh production offline smoke passed. Targeted lint has zero errors. Physical iPhone acceptance remains outstanding. Tester notes: `/tmp/EmblemRogue-Build20-WhatToTest.txt`. Upload succeeded at **11:05 Pacific** (`/tmp/build20-upload.log`, `EXPORT SUCCEEDED`). Apple reported the uploaded package is processing. Public Playtest assignment and tester notes remain pending because the App Store Connect browser session expired and requires user sign-in. GitHub push skipped.
 
 ## Balance and battle commands — build 19 (September 22)
 
