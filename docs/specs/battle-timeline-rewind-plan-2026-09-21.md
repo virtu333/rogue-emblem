@@ -1,14 +1,14 @@
 # Battle timeline and rewind — investigated implementation plan
 
 Date: September 21, 2026
-Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 remains a later release. Phone acceptance and TestFlight distribution are pending check-in.
+Status: T1–T4 implemented locally September 21, with verification and adversarial review. Fixed outcomes accepted for new battles; T5 is cancelled by Dave (September 21). TestFlight distribution is authorized; physical-phone acceptance remains a tester check.
 Source: [original proposal](battle-timeline-rewind-proposal.md). This document supersedes its implementation ordering and safety assumptions; the original remains design history.
 
 ## 1. Outcome and recommended scope
 
 Give players a readable account of what happened, a safe board preview, and a deliberate way to spend one rewind charge to return to an earlier completed action. Preserve the game's punishing decisions: reading is free; reversing a committed action is not.
 
-Recommended first release: both-phase history and previews, existing turn-start rewind, and completed **player-action** rewind destinations on Normal/Hard. Lunatic initially keeps turn-start destinations. Enemy-action destinations follow as a separate slice using existing enemy-resume support. Persistence, migration, and failed-write handling are prerequisites, not a final optional phase.
+Recommended first release: both-phase history and previews, existing turn-start rewind, and completed **player-action** rewind destinations on Normal/Hard. Lunatic initially keeps turn-start destinations. Enemy actions remain review-only; enemy-action rewind destinations are out of scope by Dave’s September 21 decision. Persistence, migration, and failed-write handling are prerequisites, not a final optional phase.
 
 No general browser playthrough in this investigation. Implementation will receive focused, muted browser contracts and a physical-phone check before release. Cloud expansion, native-store migration, balance changes, free undo, and a new charge economy are outside this project.
 
@@ -201,7 +201,9 @@ Each slice is a local reviewable commit. Keep the released game playable between
 - Teach preview versus commit, one-charge cost and fixed outcomes. No free undo; no enemy-action landings yet.
 - Gate: lethal player counterattack/enemy attack/terrain/death-affix cases, Back→fatal prompt, refresh in prompt/viewer/confirmation, dead commander with surviving lord on load, fatal/terminal save failure and retry, zero-charge terminal report, duplicate Accept Fate/rewind, Canto/trade/dance/Gambit, final escape/victory boundary, repeated rewind→reload. Independent adversarial review and muted browser verification. **Recommended first complete feature release.**
 
-### T5 — Enemy-action destinations (separate follow-up release)
+### T5 — Enemy-action destinations (cancelled September 21)
+
+Dave chose to skip this feature. The original design below is retained for history, not planned work.
 
 - Extend current completed-enemy boundary using ordered persistent IDs and acted flags; explicit stage is `enemy_actions`. Do not offer checkpoints inside caravan movement, terrain damage, reinforcement insertion, turn transition or pending popups.
 - Reuse `startEnemyPhase({resume:true})` semantics and validate ordering rather than creating a second AI controller. Determine whether extra order metadata is required from real tests; names are never sufficient.
@@ -229,7 +231,7 @@ Add a dedicated timeline test command to `package.json` and explicitly include i
 
 ## 7. Decisions proposed for Dave
 
-1. First release through T4; enemy-action rewind in T5 afterward.
+1. Release through T4; enemy-action rewind cancelled by Dave on September 21.
 2. Fixed outcomes for repeated identical inputs; no paid reroll, no free same-phase undo.
 3. Keep current charge economy; Normal/Hard action destinations, Lunatic turn starts.
 4. Keep battle button **Rewind**; screen **Battle timeline**; Vision stays explanatory flavor/resource terminology.
@@ -300,7 +302,7 @@ Code-focused adversarial review caught and resolved: ordinary checkpoint/popup w
 - Muted headed Chromium checks cover tap/selection without mutation, cancel/confirm, normal Title → Slot Picker → saved battle resume, zero-charge review, rotation and return at 667×375, anchorless fatal reload, Back to the decision, accepted defeat, and the free terminal report at 640×480. They use an isolated local origin/profile and synthetic battle setup, with real UI and save flows afterward.
 - Broad unit and harness runs, focused timeline gates, production build, lint and format checks are recorded in the completion entry below. Broad runs exposed the existing unseeded Colosseum probability-tolerance test twice. Its regression now uses a fixed chooser seed and 5,000 trials with the same acceptance bounds; the final broad run passed. No combat balance was changed to mask that fluctuation.
 - Still required before claiming phone acceptance: physical iPhone touch scrolling/slide-off, notch/rotation, an existing on-device save upgrade, and long-history responsiveness. Desktop Chromium does not prove those device behaviors.
-- T5 enemy-action destinations remain deferred. This change has not been uploaded to TestFlight; check in with Dave first.
+- T5 enemy-action destinations are cancelled. Dave authorized distribution after a narrow adversarial spot-check.
 
 
 #### Completion verification — September 21
@@ -311,4 +313,4 @@ Code-focused adversarial review caught and resolved: ordinary checkpoint/popup w
 - Muted headed browser: **four passed**, including zero-charge defeat report at the base resolution (`/tmp/timeline-browser-verified.log`). Portrait testing verifies the rotation guard and return to landscape, not a portrait gameplay screen.
 - Production build passed; lint passed with **0 errors / 313 existing warnings**. Changed-file formatting and whitespace checks passed. No data or content balance changed.
 
-Local completion is ready for Dave's check-in. Physical-phone acceptance and distribution remain pending; T5 is intentionally outside this first release.
+Dave authorized distribution September 21. A fresh adversarial spot-check of commit 31242d0 found no blockers; 39 focused tests passed across transactions, integration, and the viewer. Physical-phone acceptance remains a tester check; T5 is cancelled.
