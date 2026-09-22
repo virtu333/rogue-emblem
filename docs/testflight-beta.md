@@ -1,5 +1,13 @@
 # Mobile beta release
 
+## Battlefield rewind and combat clarity — build 18 (September 21)
+
+Source commit: `28712fc`. Version **0.1.0 (18)** archived at `/tmp/EmblemRogue-Beta-18.xcarchive`. All 819 web assets match a fresh build of the committed source. Bundle/version verified, no development server override, cloud explicitly disabled. Archive succeeded; upload pending.
+
+Scope: battlefield history with action/turn stepping, recorded movement/combat cues, historical fog and safe rewind handoff; repeated-session texture cleanup and history text RNG isolation. Recent updates include explicit planned-hit counts, advancing enemy clerics, detailed weapon-art mechanics, Phantom Rush's 8 HP upfront cost, and an offscreen ready-unit locator. Sprite experiments are archived documentation only.
+
+Verification: 5,681 unit tests, 165 harness tests, all four PR simulation slices, 47 focused browser cases plus production offline WebKit smoke, schema/parity, lint and production build passed. The broad browser suite is not green: 25 unresolved cases reproduce on the shipped baseline; two additional initial input failures passed isolated checks. Physical iPhone acceptance checks remain. Full findings and evidence: [release review](battlefield-rewind-release-review-2026-09-21.md).
+
 ## Sprite readability — build 17 (September 21)
 
 Version **0.1.0 (17)** archived at `/tmp/EmblemRogue-Beta-17.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Source changes: `d194606`, `a32fb2c`; accepted art direction: `1ffdeae`. Upload succeeded at **19:59 Pacific** (`/tmp/build17-upload.log`, `EXPORT SUCCEEDED`). Apple processing and external submission completed. App Store Connect confirms **Testing**, assigned to **Public Playtest** (four testers), with notes saved and automatic notifications enabled. Build ID: `9a81db30-da6d-4fcd-9dc6-5862fa8e57b0`. Public link: https://testflight.apple.com/join/UeWBYA5n.
