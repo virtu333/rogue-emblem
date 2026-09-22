@@ -17,7 +17,9 @@ export function contrastSpriteKey(scene, sourceKey) {
   if (!source || typeof document === 'undefined') return sourceKey;
   // Slightly reduce the tallest silhouettes inside the same tile-centered
   // texture. Keep the foot baseline fixed so HP bars and hit coordinates agree.
+  // Rebuilt mage/Astrid sizes are already normalized by spritePlacement.
   const compact =
+    !/^rebuilt-(enemy_mage|lord_astrid(?:_promoted)?)$/.test(sourceKey) &&
     /^(rebuilt-)?(lord_astrid|astrid|myrmidon|enemy_myrmidon|enemy_mage|fighter|enemy_fighter)$/.test(
       sourceKey,
     );

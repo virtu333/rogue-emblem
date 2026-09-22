@@ -67,7 +67,7 @@
   },
   "enemy_mage": {
     "file": "enemy_mage.png",
-    "kind": "infantry",
+    "kind": "mage",
     "bounds": {
       "x": 343,
       "y": 70,
@@ -89,7 +89,7 @@
   },
   "enemy_pegasus_knight": {
     "file": "enemy_pegasus_knight.png",
-    "kind": "mounted",
+    "kind": "flyer",
     "bounds": {
       "x": 16,
       "y": 78,
@@ -276,7 +276,7 @@
   },
   "lord_astrid": {
     "file": "lord_astrid.png",
-    "kind": "mounted",
+    "kind": "flyer",
     "bounds": {
       "x": 0,
       "y": 19,
@@ -375,7 +375,7 @@
   },
   "lord_astrid_promoted": {
     "file": "lord_astrid_promoted.png",
-    "kind": "mounted",
+    "kind": "flyer",
     "bounds": {
       "x": 0,
       "y": 19,
@@ -394,5 +394,93 @@
       "height": 1254
     },
     "source": "coverage/champion.png"
+  },
+  "enemy_wyvern_rider": {
+    "texture": "enemy_wyvern_rider",
+    "kind": "flyer",
+    "bounds": {
+      "x": 5,
+      "y": 0,
+      "width": 39,
+      "height": 39
+    },
+    "source": "enemies/wyvern_rider.png"
+  },
+  "enemy_wyvern_lord": {
+    "texture": "enemy_wyvern_lord",
+    "kind": "flyer",
+    "bounds": {
+      "x": 5,
+      "y": 0,
+      "width": 39,
+      "height": 39
+    },
+    "source": "enemies/wyvern_lord.png"
+  },
+  "enemy_falcon_knight": {
+    "texture": "enemy_falcon_knight",
+    "kind": "flyer",
+    "bounds": {
+      "x": 4,
+      "y": 0,
+      "width": 41,
+      "height": 40
+    },
+    "source": "enemies/falcon_knight.png"
+  },
+  "wyvern_rider": {
+    "texture": "wyvern_rider",
+    "kind": "flyer",
+    "bounds": {
+      "x": 5,
+      "y": 0,
+      "width": 39,
+      "height": 39
+    },
+    "source": "characters/wyvern_rider.png"
+  },
+  "wyvern_lord": {
+    "texture": "wyvern_lord",
+    "kind": "flyer",
+    "bounds": {
+      "x": 5,
+      "y": 0,
+      "width": 39,
+      "height": 39
+    },
+    "source": "characters/wyvern_lord.png"
+  },
+  "pegasus_knight": {
+    "texture": "pegasus_knight",
+    "kind": "flyer",
+    "bounds": {
+      "x": 3,
+      "y": 1,
+      "width": 42,
+      "height": 39
+    },
+    "source": "characters/pegasus_knight.png"
+  },
+  "falcon_knight": {
+    "texture": "falcon_knight",
+    "kind": "flyer",
+    "bounds": {
+      "x": 4,
+      "y": 0,
+      "width": 41,
+      "height": 40
+    },
+    "source": "characters/falcon_knight.png"
+  },
+  "mage": {
+    "texture": "mage",
+    "kind": "mage",
+    "bounds": {
+      "x": 12,
+      "y": 0,
+      "width": 24,
+      "height": 40
+    },
+    "source": "characters/mage.png"
   }
 }

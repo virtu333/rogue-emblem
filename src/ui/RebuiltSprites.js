@@ -10,8 +10,8 @@ export function rebuiltSpritesEnabled() {
 // rewind and HP-bar path continues using the existing tile-centre coordinates.
 export function spritePlacement(bounds, kind = 'infantry') {
   const canvas = kind === 'entity' ? 128 : 64;
-  const maxWidth = kind === 'entity' ? 94 : kind === 'mounted' ? 46 : 38;
-  const maxHeight = kind === 'entity' ? 90 : kind === 'mounted' ? 40 : 34;
+  const maxWidth = kind === 'entity' ? 94 : kind === 'flyer' ? 40 : kind === 'mounted' ? 46 : 38;
+  const maxHeight = kind === 'entity' ? 90 : kind === 'mage' ? 30 : kind === 'mounted' ? 40 : 34;
   const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
   const width = Math.max(1, Math.round(bounds.width * scale));
   const height = Math.max(1, Math.round(bounds.height * scale));
@@ -22,6 +22,7 @@ export function spritePlacement(bounds, kind = 'infantry') {
 export function preloadRebuiltSprites(scene) {
   if (!rebuiltSpritesEnabled()) return;
   for (const [key, entry] of Object.entries(manifest)) {
+    if (entry.texture) continue; // Reuse an already-loaded class texture.
     if (!scene.textures.exists(`rebuilt-source-${key}`))
       scene.load.image(
         `rebuilt-source-${key}`,
@@ -34,8 +35,9 @@ export function prepareRebuiltSprites(scene) {
   if (!rebuiltSpritesEnabled()) return;
   for (const [key, entry] of Object.entries(manifest)) {
     const target = `rebuilt-${key}`;
-    if (scene.textures.exists(target) || !scene.textures.exists(`rebuilt-source-${key}`)) continue;
-    const source = scene.textures.get(`rebuilt-source-${key}`).getSourceImage();
+    const sourceKey = entry.texture || `rebuilt-source-${key}`;
+    if (scene.textures.exists(target) || !scene.textures.exists(sourceKey)) continue;
+    const source = scene.textures.get(sourceKey).getSourceImage();
     const box = entry.bounds;
     const placement = spritePlacement(box, entry.kind);
     const canvas = document.createElement('canvas');
@@ -66,6 +68,8 @@ export function rebuiltSpriteKey(scene, unit) {
     else key = `enemy_${unit.className.toLowerCase().replace(/ /g, '_')}`;
   } else if (unit.isLord) {
     key = `lord_${unit.name.toLowerCase()}${unit.tier === 'promoted' ? '_promoted' : ''}`;
+  } else {
+    key = unit.className?.toLowerCase().replace(/ /g, '_');
   }
 
   const texture = `rebuilt-${key}`;
