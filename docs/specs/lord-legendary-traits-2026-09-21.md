@@ -45,9 +45,7 @@ dead and escaped units, and count Manhattan adjacency. HP thresholds reuse
 existing trait/personal-skill rules. Rowan uses the existing movement-cost
 condition rather than inventing a separate distance measurement.
 
-Cael requires checking whether Intimidate source provenance is already retained.
-If it is not, prefer a simpler defensive alternative (+10 Hit when defending)
-over broadening the debuff model just for one trait.
+Cael uses the approved defensive alternative (+10 Hit when defending). Intimidate source provenance is not retained, so this release does not broaden the debuff model for that one trait.
 
 ## Approved roll and progression
 
@@ -98,3 +96,5 @@ traits to older traitless lords. None is necessary to ship the staff recovery fi
 - Portrait assets unchanged; existing saves retain their traits.
 
 - Strengthened headed test initially failed because the dev fixture had already completed its start node. Corrected to require successful completion of an unfinished battle; full/full displayed staff uses and legendary text then passed. No product change was needed.
+
+- Released as **0.1.0 (16)** to Public Playtest on September 21, 2026. App Store Connect confirms **Testing**; source commit `49c7402`. Tester notes saved and automatic notifications enabled.

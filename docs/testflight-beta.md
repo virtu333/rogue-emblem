@@ -2,7 +2,7 @@
 
 ## Legendary lord traits and staff recovery — build 16 (September 21)
 
-Version **0.1.0 (16)** archived at `/tmp/EmblemRogue-Beta-16.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Upload/distribution not yet confirmed.
+Version **0.1.0 (16)** archived at `/tmp/EmblemRogue-Beta-16.xcarchive`; all 818 web assets match dist, bundle/version verified, no development server override, cloud explicitly disabled. Upload succeeded at **19:02 Pacific** (`/tmp/build16-upload.log`, `EXPORT SUCCEEDED`). Source commit: `49c7402`. Apple processing and external submission completed. App Store Connect confirms **Testing**, assigned to **Public Playtest** (four testers), with tester notes saved and automatic notifications enabled. Build ID: `97d2bc3b-a7a1-4733-8ced-3174ca1af136`. Public link: https://testflight.apple.com/join/UeWBYA5n.
 Scope: refill per-battle staff uses at victory, seven lord-specific legendary traits,
 5% new-run chance with 300/600 Valor upgrades to 10%/15%, readable trait labels and
 Compendium explanations. Existing lord traits are preserved; portraits unchanged.
