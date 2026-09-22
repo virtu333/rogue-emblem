@@ -11,7 +11,16 @@ export function rebuiltSpritesEnabled() {
 export function spritePlacement(bounds, kind = 'infantry') {
   const canvas = kind === 'entity' ? 128 : 64;
   const maxWidth = kind === 'entity' ? 94 : kind === 'flyer' ? 40 : kind === 'mounted' ? 46 : 38;
-  const maxHeight = kind === 'entity' ? 90 : kind === 'mage' ? 30 : kind === 'mounted' ? 40 : 34;
+  const maxHeight =
+    kind === 'entity'
+      ? 90
+      : kind === 'mage'
+        ? 30
+        : kind === 'heavy'
+          ? 36
+          : kind === 'mounted'
+            ? 40
+            : 34;
   const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
   const width = Math.max(1, Math.round(bounds.width * scale));
   const height = Math.max(1, Math.round(bounds.height * scale));

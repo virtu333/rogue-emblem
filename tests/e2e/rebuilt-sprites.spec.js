@@ -106,6 +106,9 @@ test('flyers and mages share visible size and foot anchors across factions', asy
       ['Player pegasus', 'Pegasus Knight', 'player'],
       ['Enemy mage', 'Mage', 'enemy'],
       ['Player mage', 'Mage', 'player'],
+      ['Player fighter', 'Fighter', 'player'],
+      ['Enemy knight', 'Knight', 'enemy'],
+      ['Sera', 'Light Sage', 'player', true],
     ];
     const sheet = document.createElement('div');
     sheet.style.cssText =
@@ -151,7 +154,7 @@ test('flyers and mages share visible size and foot anchors across factions', asy
     expect(unit.bottom, JSON.stringify(unit)).toBeGreaterThanOrEqual(43);
     expect(unit.bottom, JSON.stringify(unit)).toBeLessThanOrEqual(44);
     expect(unit.height, JSON.stringify(unit)).toBeLessThanOrEqual(
-      unit.name.includes('mage') ? 32 : 36,
+      unit.name === 'Enemy knight' ? 38 : unit.name.includes('mage') ? 32 : 36,
     );
     expect(unit.width, JSON.stringify(unit)).toBeLessThanOrEqual(42);
   }

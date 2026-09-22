@@ -1,3 +1,4 @@
+import { liftPlayerPalette, usesPlayerPaletteLift } from './SpriteReadability.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 
 // Development-only A/B switch; production always uses the readability pass.
@@ -7,7 +8,7 @@ export function battleContrastEnabled() {
   return detectMobileRuntime() || (import.meta.env.DEV && query.get('battleLab') === '1');
 }
 
-// Cache a one-source-pixel charcoal contour. Original colors, texture dimensions,
+// Cache a one-source-pixel contour and a targeted player palette lift. Texture dimensions,
 // anchors, and display sizing are preserved; no blur or extra render objects.
 export function contrastSpriteKey(scene, sourceKey) {
   if (!battleContrastEnabled()) return sourceKey;
@@ -19,7 +20,7 @@ export function contrastSpriteKey(scene, sourceKey) {
   // texture. Keep the foot baseline fixed so HP bars and hit coordinates agree.
   // Rebuilt mage/Astrid sizes are already normalized by spritePlacement.
   const compact =
-    !/^rebuilt-(enemy_mage|lord_astrid(?:_promoted)?)$/.test(sourceKey) &&
+    !/^rebuilt-(fighter|enemy_mage|lord_astrid(?:_promoted)?)$/.test(sourceKey) &&
     /^(rebuilt-)?(lord_astrid|astrid|myrmidon|enemy_myrmidon|enemy_mage|fighter|enemy_fighter)$/.test(
       sourceKey,
     );
@@ -42,6 +43,23 @@ export function contrastSpriteKey(scene, sourceKey) {
     );
     source = fitted;
   }
+  const lift =
+    usesPlayerPaletteLift(sourceKey) &&
+    !(
+      import.meta.env.DEV &&
+      new URLSearchParams(globalThis.location?.search || '').get('spritePalette') === 'original'
+    );
+  if (lift) {
+    const colored = document.createElement('canvas');
+    colored.width = source.width;
+    colored.height = source.height;
+    const paint = colored.getContext('2d');
+    paint.drawImage(source, 0, 0);
+    const pixels = paint.getImageData(0, 0, colored.width, colored.height);
+    liftPlayerPalette(pixels.data);
+    paint.putImageData(pixels, 0, 0);
+    source = colored;
+  }
   const canvas = document.createElement('canvas');
   canvas.width = source.width;
   canvas.height = source.height;
@@ -56,7 +74,11 @@ export function contrastSpriteKey(scene, sourceKey) {
     ctx.drawImage(source, x, y);
   }
   ctx.globalCompositeOperation = 'source-in';
-  ctx.fillStyle = 'rgba(24, 34, 35, 0.82)';
+  const blueEdge =
+    lift &&
+    import.meta.env.DEV &&
+    new URLSearchParams(globalThis.location?.search || '').get('spriteEdge') === 'blue';
+  ctx.fillStyle = blueEdge ? 'rgba(80, 155, 235, 0.9)' : 'rgba(24, 34, 35, 0.82)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(source, 0, 0);

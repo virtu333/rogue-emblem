@@ -78,7 +78,7 @@
   },
   "enemy_knight": {
     "file": "enemy_knight.png",
-    "kind": "infantry",
+    "kind": "heavy",
     "bounds": {
       "x": 335,
       "y": 33,
@@ -179,10 +179,10 @@
     "file": "boss_berserker_king.png",
     "kind": "infantry",
     "bounds": {
-      "x": 0,
-      "y": 19,
-      "width": 1100,
-      "height": 1383
+      "x": 109,
+      "y": 247,
+      "width": 988,
+      "height": 1046
     },
     "source": "boss-lofi/boss_berserker_king-v2.png"
   },
@@ -254,12 +254,12 @@
   },
   "lord_sera": {
     "file": "lord_sera.png",
-    "kind": "infantry",
+    "kind": "mage",
     "bounds": {
-      "x": 41,
-      "y": 57,
-      "width": 1151,
-      "height": 1197
+      "x": 274,
+      "y": 164,
+      "width": 786,
+      "height": 963
     },
     "source": "coverage/light_sage.png"
   },
@@ -482,5 +482,16 @@
       "height": 40
     },
     "source": "characters/mage.png"
+  },
+  "fighter": {
+    "texture": "fighter",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 0,
+      "width": 23,
+      "height": 40
+    },
+    "source": "characters/fighter.png"
   }
 }

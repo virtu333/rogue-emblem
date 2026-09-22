@@ -37,3 +37,33 @@ updated the fixture rather than bypassing that contract.
 
 Production build and targeted ESLint pass. Screenshot: /tmp/sprite-size-comparison.png.
 This patch is local; it has not been packaged into a new TestFlight build.
+
+## Visibility trial follow-up
+
+User correction: retain Enemy Fighter's stocky size; enlarge Player Fighter and
+slightly enlarge Enemy Knight. Implemented Player Fighter with the 34px infantry
+profile (no second compact pass), and Enemy Knight with a 36px heavy profile.
+
+Archer, Myrmidon, Duelist and Knight player textures receive a cached midtone lift
+with slightly stronger saturation/blue accents. Preserve alpha, darkest ink,
+bright highlights, warm hue and source PNGs. Enemy versions do not receive this
+palette adjustment. The existing charcoal contour remains the default.
+Development comparisons: `spritePalette=original` disables the lift;
+`spriteEdge=blue` replaces the contour with blue for these four classes only.
+These switches are not exposed in production settings.
+
+Fixed the two clearest stale crop bounds (base Sera and Berserker King), using
+visible alpha >10/255 to exclude near-invisible padding. Sera fits a 30px mage
+profile; Berserker King retains the 34px infantry profile. Both now share the
+normal foot baseline. Other lord/boss padding candidates remain for later review;
+this is not a blanket automatic recrop.
+
+Compared all three palette modes on actual weathered Plain/Forest/Floor textures.
+Brighter-only is subtler; blue edges give stronger forest separation but a more
+highlighted appearance. Trial screenshot: /tmp/sprite-readability-trial.png.
+Size screenshot: /tmp/sprite-review-focus-0.png. These are controlled texture
+comparisons, not a full gameplay run.
+
+Verification: three palette safety tests, three muted headed sprite/rewind cases
+(including the added Fighter/Knight/Sera probes), targeted lint and production
+build pass. No new TestFlight release for this trial.
