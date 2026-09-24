@@ -241,6 +241,7 @@ export const BIOMES = {
       outline: R('ink', 1),
       cap: null,
       ember: true,
+      litShift: -1, // keep lit basalt darker than the pale ash ground
     },
     flowers: null,
     tufts: 'dry',

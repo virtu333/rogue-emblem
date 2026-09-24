@@ -206,6 +206,7 @@ function rockTone(S, x, y, lit, t, seed, edgeDist) {
   if (lit) tone = tilt > 0.62 ? 6 : tilt < 0.18 ? 4 : 5;
   else tone = tilt > 0.75 ? 3 : tilt < 0.2 ? 1 : 2;
   if (lit && edgeDist < 1.6 && t < 0.6) tone = 6; // sunlit ridge line
+  if (lit) tone += S.style.rock.litShift || 0; // rock must stay apart from pale ground
   if (f & 0x8000) tone = Math.max(0, tone - (lit ? 2 : 1));
   if (t > 0.82) tone = Math.max(0, tone - 1); // occlusion near the ground
   // strata ticks on the lit face
