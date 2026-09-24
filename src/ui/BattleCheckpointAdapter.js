@@ -29,6 +29,7 @@ export function captureBattleState(scene, { checkpointIndex = 0, rngSeed = 0 } =
     escapedUnits: (scene.escapedUnits || []).map(serializeBattleUnit),
     nonDeployedUnits: (scene.nonDeployedUnits || []).map(serializeBattleUnit),
     pendingActionCompletion: scene._pendingActionCompletion || null,
+    pendingCommittedAction: scene._pendingCommittedAction || null,
     antiTurtleState: scene.antiTurtleState || {},
     fog,
     ballistas: scene.ballistas || [],

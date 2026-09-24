@@ -270,7 +270,11 @@ import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { TutorialController } from '../ui/TutorialController.js';
-import { registerBattleEntity, resetBattleIdentities } from '../engine/BattleEntityIdentity.js';
+import {
+  registerBattleEntity,
+  resetBattleIdentities,
+  findBattleEntity,
+} from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -410,6 +414,7 @@ export class BattleScene extends Phaser.Scene {
     this._levelUpSfxKey = null;
     this._pendingLevelUpPopups = [];
     this._pendingActionCompletion = null;
+    this._pendingCommittedAction = null;
     this.pauseTransitionRecovery = null;
     this._sceneShutdownCleanupRegistered = false;
     this._sceneShutdownCleanedUp = false;
@@ -8016,9 +8021,82 @@ export class BattleScene extends Phaser.Scene {
     return { result, selectedArt };
   }
 
+  /**
+   * Save the confirmed attack before any roll is revealed (see
+   * readCommittedAction). Every later checkpoint in this action is taken after
+   * the result is applied, so the intent is cleared as soon as that happens.
+   */
+  _commitCombatIntent(attacker, defender) {
+    this._pendingCommittedAction = null;
+    if (!this.runManager?.battleInProgress || this.battleParams?.tutorialMode) return;
+    if (attacker?.faction !== 'player' || this.turnManager?.currentPhase !== 'player') return;
+    if (!attacker.battleEntityId || !defender?.battleEntityId) return;
+    const art =
+      this._selectedWeaponArt?.unitName === attacker.name ? this._selectedWeaponArt : null;
+    this._pendingCommittedAction = {
+      kind: 'attack',
+      unitId: attacker.battleEntityId,
+      unitName: attacker.name,
+      targetId: defender.battleEntityId,
+      weaponArt: art ? { artId: art.artId, weaponIndex: art.weaponIndex } : null,
+    };
+    this._captureSuspendCheckpoint?.({ commitIntent: true });
+  }
+
+  /**
+   * Resume a battle whose checkpoint holds a confirmed-but-unresolved attack:
+   * replay that exact attack (same target, weapon and art) from the restored
+   * RNG state, so a refresh during combat reproduces the outcome rather than
+   * handing the player a fresh choice. Returns false when the intent no longer
+   * applies (units gone or the attacker already acted) so normal resume runs.
+   */
+  resumeCommittedAttack(intent) {
+    const attacker = findBattleEntity(this, { unitId: intent.unitId }, ['playerUnits']);
+    const defender = findBattleEntity(this, { unitId: intent.targetId }, [
+      'enemyUnits',
+      'npcUnits',
+    ]);
+    if (
+      !attacker ||
+      !defender ||
+      attacker.hasActed ||
+      attacker.currentHP <= 0 ||
+      defender.currentHP <= 0
+    ) {
+      this._pendingCommittedAction = null;
+      return false;
+    }
+    this._selectedWeaponArt = intent.weaponArt
+      ? {
+          unitName: attacker.name,
+          artId: intent.weaponArt.artId,
+          weaponIndex: intent.weaponArt.weaponIndex,
+        }
+      : null;
+    this.selectedUnit = attacker;
+    this.battleState = 'COMBAT_RESOLVING';
+    this.refreshEndTurnControl?.();
+    try {
+      Promise.resolve(showMinorHint(this, 'Battle resumed. Finishing your attack.')).catch(
+        () => {},
+      );
+    } catch (_) {
+      /* cosmetic only */
+    }
+    const run = () => this.executeCombat(attacker, defender);
+    if (typeof this._scheduleSafeDelayedAsync === 'function')
+      this._scheduleSafeDelayedAsync(400, 'resume_committed_attack', run, {
+        phase: 'player',
+        turn: this.turnManager?.turnNumber,
+      });
+    else void run();
+    return true;
+  }
+
   async executeCombat(attacker, defender) {
     this.battleState = 'COMBAT_RESOLVING';
     this.grid.clearAttackHighlights();
+    this._commitCombatIntent(attacker, defender);
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
@@ -8026,6 +8104,9 @@ export class BattleScene extends Phaser.Scene {
     try {
       const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
       const { result } = await this._runCombatResolution(attacker, defender, ctx);
+      // The outcome is applied to live state now; every checkpoint from here
+      // on reflects it, so none may carry the pre-roll intent.
+      this._pendingCommittedAction = null;
 
       if (attacker.faction === 'player' && attacker.currentHP > 0) {
         const damageDealt = Math.max(
@@ -8084,6 +8165,7 @@ export class BattleScene extends Phaser.Scene {
       if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
       completeResolvedAction(this, continuation);
     } catch (err) {
+      this._pendingCommittedAction = null;
       console.error('[BattleScene] combat error:', err);
       // Best-effort: reconcile dead units to prevent zombie state
       try {

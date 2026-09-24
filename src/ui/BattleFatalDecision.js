@@ -23,6 +23,8 @@ export function persistFatalDecision(scene) {
       state.commanderEntityId = scene._battleCommanderId || null;
       state.commanderKillerName = scene._commanderKillerName || null;
       state.pendingActionCompletion = null;
+      state.pendingCommittedAction = null;
+      scene._pendingCommittedAction = null;
       scene._timelineBoundary = 'recovery';
       scene._timelineFacts = [
         ...(scene._timelineFacts || []),
