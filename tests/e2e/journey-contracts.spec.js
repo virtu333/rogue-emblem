@@ -220,15 +220,17 @@ test('HP persistence hint waits for the first battle and shows only once', async
       s.runManager.completedBattles = battles;
       s.scene.restart({ gameData: s.gameData, runManager: s.runManager });
     }, battles);
+    // Over 12 words, so hintReadingPolicy presents it as a modal Field notes dialog.
+    const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
+    if (battles === 1) {
+      await expect(notes).toContainText(
+        'HP carries between battles. Consumables can heal from Roster',
+      );
+      await page.waitForTimeout(550);
+      await notes.getByRole('button', { name: 'Continue', exact: true }).tap();
+    }
+    await expect(notes).toHaveCount(0);
     await expect(page.locator('.re-node-map')).toBeVisible();
-    if (battles === 1)
-      await expect(
-        page.getByRole('status').filter({ hasText: 'HP carries between battles.' }),
-      ).toContainText('HP carries between battles. Visit Church or Ruins');
-    else
-      await expect(
-        page.getByRole('status').filter({ hasText: 'HP carries between battles.' }),
-      ).toHaveCount(0);
   }
 });
 

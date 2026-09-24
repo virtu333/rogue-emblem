@@ -14,22 +14,13 @@ export class RunSetupMenu {
     this.surface.header.lastChild.textContent = 'Back';
     this.surface.onKey = (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return false;
-      if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) {
-        this.navigate(['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1);
-        return true;
-      }
       if (kind !== 'blessing' && event.key.toLowerCase() === 'm') {
         scene._toggleMetaMode();
         return true;
       }
       return false;
     };
-    this.surface.onAction = (action, payload) => {
-      if (action === InputAction.NAVIGATE) {
-        const delta = payload?.dx || payload?.dy;
-        if (delta) this.navigate(Math.sign(delta));
-        return true;
-      }
+    this.surface.onAction = (action) => {
       if (action === InputAction.DANGER && kind !== 'blessing' && !scene.isTransitioning) {
         scene._toggleMetaMode();
         return true;
