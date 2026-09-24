@@ -501,10 +501,10 @@ function paintFloor(S, x, y, i, wall = 0) {
   let t = stone;
   if (y === y1 - 1 || x === x1 - 1) t = mortarOf[stone] ?? mortarLo;
   else if (id % 17 === 0 && x - x0 === y - y0 + 1) t = mortarOf[stone] ?? mortarLo;
-  else if (S.nz.vn(x, y, 40, S.seed + 96) > 0.66) {
+  else if (S.nz.vn(x, y, 40, S.seed + 96) > 0.72) {
     // settled, cracked stretches of paving: a sparse hairline network
     const w = worley(x, y, 11, S.seed + 97);
-    if (w.d2 - w.d1 < 0.55) t = mortarOf[stone] ?? mortarLo;
+    if (w.d2 - w.d1 < 0.45) t = mortarOf[stone] ?? mortarLo;
   }
   // Grime, moss or drifted snow gathers where the floor meets a wall.
   // Only in patches along the foot of a wall (below it or beside it), so it
