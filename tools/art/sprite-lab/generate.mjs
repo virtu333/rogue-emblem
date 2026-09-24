@@ -399,18 +399,20 @@ if (want('recruits')) {
     )
   ).png(join(OUT, 'recruits_3x.png'));
   // phone-scale: the six side by side on terrain
-  const cellsOpen = [
-    [2, 2],
-    [4, 2],
-    [6, 2],
-    [2, 4],
-    [4, 4],
-    [6, 4],
-  ];
+  // two rows of three on open ground, one cell apart
+  const crop = [1, 1, 8, 5];
+  const open = openCells(board.map, ...crop);
+  const picked = [];
+  for (const [c, r] of open) {
+    if (picked.length >= 6) break;
+    if (picked.some(([pc, pr]) => Math.abs(pc - c) < 2 && Math.abs(pr - r) < 2)) continue;
+    if (board.map.names[r][c] !== 'Plain' || r === crop[1]) continue;
+    picked.push([c, r]);
+  }
   const sc = stage(
     board,
-    [1, 1, 8, 5],
-    phone.map((u, i) => ({ ...u, col: 1 + cellsOpen[i][0], row: 1 + cellsOpen[i][1] - 1 })),
+    crop,
+    phone.map((u, i) => ({ ...u, col: picked[i][0], row: picked[i][1] })),
   );
   await sc.png(join(OUT, 'recruits_phone.png'));
   log('recruits');
