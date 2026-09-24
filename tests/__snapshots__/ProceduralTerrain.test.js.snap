@@ -2,11 +2,11 @@
 
 exports[`procedural terrain: determinism and output > pins a snapshot hash per biome (update deliberately when the art changes) 1`] = `
 {
-  "castle": "80825dd8",
-  "grassland": "a6fa2e21",
-  "swamp": "e456ecf9",
-  "tundra": "ab64cc4d",
-  "void": "fc7be5",
-  "volcano": "126f6736",
+  "castle": "167b5c9f",
+  "grassland": "1b5bdf9a",
+  "swamp": "30a8566d",
+  "tundra": "d4b20ad5",
+  "void": "2236e2fb",
+  "volcano": "9ac425f4",
 }
 `;

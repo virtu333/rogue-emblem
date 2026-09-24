@@ -88,10 +88,19 @@ export function crop(src, w, h, x, y, cw, ch) {
   return out;
 }
 
+/**
+ * Encode a sharp pipeline to `path`, by extension: lossless WebP for
+ * `.webp` (pixel art must stay exact; about half the size of PNG), PNG
+ * otherwise.
+ */
+export function saveImage(pipeline, path) {
+  return path.endsWith('.webp')
+    ? pipeline.webp({ lossless: true, effort: 6 }).toFile(path)
+    : pipeline.png({ compressionLevel: 9 }).toFile(path);
+}
+
 export async function writePng(path, rgba, w, h) {
-  await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
-    .png({ compressionLevel: 9 })
-    .toFile(path);
+  await saveImage(sharp(rgba, { raw: { width: w, height: h, channels: 4 } }), path);
 }
 
 export async function readRgba(path) {

@@ -135,7 +135,7 @@ function trunk(s, x, baseY, top, cols, flare = true) {
 // returns its sprite. HEIGHT estimates each species' height (px above the
 // foot) for a size, so the planner can pick sizes that fit.
 const HEIGHT = {
-  broadleaf: (z, dense) => (dense ? 0.6 : 2 + z * 1.2) + (3.2 + z * 5.3) * 1.9,
+  broadleaf: (z, dense) => (dense ? 0.6 : 2 + z * 1.2) + (3.5 + z * 5.4) * 1.9,
   birch: (z) => 3 + z * 1.2 + (2.6 + z * 4) * 1.95,
   willow: (z) => 1 + z + (3 + z * 5) * 1.9,
   poplar: (z) => 9 + z * 8,
@@ -156,9 +156,9 @@ const HEIGHT = {
 
 /** Half-width (px either side of the trunk) for a size, for planning. */
 const HALF_W = {
-  broadleaf: (z) => (3.2 + z * 5.3) * 1.12 + 1,
+  broadleaf: (z) => (3.5 + z * 5.4) * 1.12 + 1,
   birch: (z) => (2.6 + z * 4) * 0.95 + 1,
-  willow: (z) => (3.2 + z * 5.3) * 1.25 + 1,
+  willow: (z) => (3.5 + z * 5.4) * 1.25 + 1,
   poplar: (z) => 3.4 + z * 1.8,
   pine: (z) => 4 + z * 2.4,
   fir: (z) => 4.8 + z * 2.8,
@@ -178,7 +178,7 @@ const HALF_W = {
 function broadleaf(S, t) {
   const st = S.style;
   const leaf = t.leaf || st.leaf;
-  const Rr = 3.2 + t.size * 5.3;
+  const Rr = 3.5 + t.size * 5.4;
   const s = new Sprite(t.c, t.r, 'tree', t.baseY);
   const trunkH = t.dense ? (t.size < 0.5 ? 0 : 1) : t.size < 0.3 ? 1 : t.size < 0.65 ? 2 : 3;
   const cy = t.baseY - trunkH - Math.round(Rr * 0.9);
@@ -538,9 +538,9 @@ const isForest = (S, c, r) => S.name(c, r) === 'Forest'; // map edges extend out
 const BROAD = new Set(['broadleaf', 'willow', 'fir']);
 
 /** Probability that a foot position grows something, by forest cells in its 2x2 block. */
-const GROW = [0, 0.3, 0.62, 0.84, 0.95];
+const GROW = [0, 0.28, 0.74, 0.9, 0.97];
 /** Mean size of what grows there. */
-const SIZE = [0, 0.45, 0.62, 0.76, 0.88];
+const SIZE = [0, 0.58, 0.72, 0.82, 0.9];
 
 /**
  * The context-free core of a cell: one large tree, a pair or a trio. It
@@ -553,18 +553,18 @@ function corePlan(S, c, r, broad) {
   const u = 6 + h(1) * 12,
     v = 17.5 + h(2) * 5;
   // a slim species needs company to read as a stand
-  if (broad && roll < 0.45) return [{ u, v, size: 0.8 + h(3) * 0.2 }];
+  if (broad && roll < 0.45) return [{ u, v, size: 0.86 + h(3) * 0.14 }];
   const du = 4.5 + h(4) * 2,
     dv = (h(5) - 0.5) * 5;
   if (roll < 0.85)
     return [
-      { u: Math.max(5, u - du), v: v - Math.abs(dv) - 1, size: 0.58 + h(6) * 0.2 },
-      { u: Math.min(19, u + du), v: v - Math.abs(dv) + dv, size: 0.52 + h(7) * 0.2 },
+      { u: Math.max(5, u - du), v: v - Math.abs(dv) - 1, size: 0.68 + h(6) * 0.2 },
+      { u: Math.min(19, u + du), v: v - Math.abs(dv) + dv, size: 0.64 + h(7) * 0.2 },
     ].sort((a, b) => a.v - b.v);
   return [
-    { u: 12 + (h(8) - 0.5) * 4, v: 13 + h(9) * 2, size: 0.5 + h(10) * 0.15 },
-    { u: 6 + h(11) * 2, v: 21 + h(12) * 2, size: 0.45 + h(13) * 0.15 },
-    { u: 16 + h(14) * 2, v: 20 + h(15) * 2.5, size: 0.42 + h(3) * 0.15 },
+    { u: 12 + (h(8) - 0.5) * 4, v: 13 + h(9) * 2, size: 0.58 + h(10) * 0.14 },
+    { u: 6 + h(11) * 2, v: 21 + h(12) * 2, size: 0.55 + h(13) * 0.14 },
+    { u: 16 + h(14) * 2, v: 20 + h(15) * 2.5, size: 0.52 + h(3) * 0.14 },
   ];
 }
 
@@ -687,7 +687,7 @@ export function forestParts(S, c, r) {
     // nearer the open side a tree stays lower
     if (!vert && sy < 0) size -= 0.12;
     size = Math.max(0.08, Math.min(1, size));
-    const under = size < 0.3 || rand2(c + k * 5, r, seed + 5) < (d <= 2 ? 0.25 : 0.08);
+    const under = size < 0.3 || rand2(c + k * 5, r, seed + 5) < (d <= 2 ? 0.15 : 0.05);
     const kind = pick(under ? flora.under : flora.canopy, rand2(c * 8 + k, r, seed + 6));
     const lim = {
       left: side ? TREE_OVERHANG.side : 2,

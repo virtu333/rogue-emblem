@@ -3,7 +3,7 @@
 // renderer (src/art/terrain). Displayed at 2x (each art pixel = 4x4 px).
 import sharp from 'sharp';
 import { renderBattlefieldTerrain } from '../../../../src/art/terrain/index.js';
-import { upscaleNearest, resultImage } from './image.mjs';
+import { upscaleNearest, resultImage, saveImage } from './image.mjs';
 
 const SHOW = 2; // display zoom on top of the 48px/cell texture
 
@@ -175,8 +175,10 @@ export async function buildSheet(path, seed = 4242) {
     }
   }
   if (col) y += rowH + pad;
-  await sharp({ create: { width: maxW, height: y, channels: 4, background: '#0e0c14' } })
-    .composite(comps)
-    .png({ compressionLevel: 9 })
-    .toFile(path);
+  await saveImage(
+    sharp({ create: { width: maxW, height: y, channels: 4, background: '#0e0c14' } }).composite(
+      comps,
+    ),
+    path,
+  );
 }

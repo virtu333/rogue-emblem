@@ -107,9 +107,9 @@ export const BIOMES = {
     trees: {
       canopy: [
         ['broadleaf', 5],
-        ['pine', 1.1],
-        ['poplar', 0.9],
-        ['birch', 0.9],
+        ['pine', 0.7],
+        ['poplar', 0.6],
+        ['birch', 0.6],
       ],
       under: [
         ['bush', 3],
@@ -130,6 +130,7 @@ export const BIOMES = {
       cap: null,
     },
     flowers: [R('ink', 10), R('ember', 5), R('blood', 5)],
+    path: [R('meadow', 8), R('earth', 5)],
     tufts: true,
   },
   tundra: {
@@ -144,6 +145,7 @@ export const BIOMES = {
       blade: R('earth', 4),
       shade: R('snow', 3),
       stretch: [0.35, 1.7],
+      drift: { period: 14, len: 12, patch: 0.56 },
     },
     rockGround: {
       dark: R('snow', 4),
@@ -199,6 +201,7 @@ export const BIOMES = {
       blade: R('earth', 4),
       shade: R('ash', 4),
       stretch: [0.6, 1.2],
+      drift: { period: 11, len: 8, patch: 0.6 },
     },
     rockGround: {
       dark: R('ash', 5),
@@ -286,6 +289,7 @@ export const BIOMES = {
       cap: null,
     },
     flowers: [R('ink', 10)],
+    path: [R('earth', 4), R('earth', 5)],
     tufts: true,
   },
   castle: {
