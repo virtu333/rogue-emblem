@@ -84,17 +84,21 @@ export function jitteredPoints(x0, y0, x1, y1, spacing, seed, jitter = 0.8) {
 
 /**
  * Worley / Voronoi: distance to the nearest and second-nearest feature
- * point on a jittered lattice. Used for lava crust plates, ice cracks and
- * rock facets. Returns a shared scratch object (no allocation per call):
+ * point on a jittered lattice, the nearest point's id and its offset from
+ * (x, y) (ox, oy). Used for lava crust plates, ice cracks, rock facets and
+ * leaf clumps. Returns a shared scratch object (no allocation per call):
  * read its fields before the next call.
  */
-const WORLEY = { d1: 0, d2: 0, id: 0 };
+const WORLEY = { d1: 0, d2: 0, id: 0, ox: 0, oy: 0 };
 export function worley(x, y, spacing, seed) {
   const gx = Math.floor(x / spacing),
     gy = Math.floor(y / spacing);
   let d1 = 1e9,
     d2 = 1e9,
-    id = 0;
+    bx = 0,
+    by = 0,
+    ox = 0,
+    oy = 0;
   for (let j = -1; j <= 1; j++)
     for (let i = -1; i <= 1; i++) {
       const cx = gx + i,
@@ -107,12 +111,17 @@ export function worley(x, y, spacing, seed) {
       if (d < d1) {
         d2 = d1;
         d1 = d;
-        id = hash2(cx, cy, seed + 5);
+        bx = cx;
+        by = cy;
+        ox = dx;
+        oy = dy;
       } else if (d < d2) d2 = d;
     }
   WORLEY.d1 = d1;
   WORLEY.d2 = d2;
-  WORLEY.id = id;
+  WORLEY.id = hash2(bx, by, seed + 5);
+  WORLEY.ox = ox;
+  WORLEY.oy = oy;
   return WORLEY;
 }
 

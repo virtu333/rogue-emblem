@@ -40,7 +40,12 @@ const OBJECTS = ['.......', '.X.X.X.', '.......'];
 // [title, terrain, biome, layout]
 const PANELS = [
   ['Plain (grassland)', 'Plain', 'grassland', ['.XXXX..', 'XXXXXXX', '.XXX...']],
-  ['Forest (grassland)', 'Forest', 'grassland', SURFACE],
+  [
+    'Forest (grassland: broadleaf, pine, poplar, birch, shrubs, logs)',
+    'Forest',
+    'grassland',
+    SURFACE,
+  ],
   ['Mountain (grassland)', 'Mountain', 'grassland', SURFACE],
   ['Fort', 'Fort', 'grassland', OBJECTS],
   ['Throne (castle)', 'Throne', 'castle', ['.......', '.X...X.', '.......']],
@@ -59,10 +64,25 @@ const PANELS = [
   ['Acidic Swamp', 'Acidic Swamp', 'swamp', SURFACE],
   ['Acidic Bog', 'Acidic Bog', 'swamp', SURFACE],
   // biome variants of the shared terrains
-  ['Forest (tundra: pine + fir)', 'Forest', 'tundra', ['.XX....', 'XXX..X.', '.......']],
+  [
+    'Forest (tundra: pine, fir, bare birch, spruceling)',
+    'Forest',
+    'tundra',
+    ['.XX....', 'XXX..X.', '.......'],
+  ],
   ['Mountain (tundra)', 'Mountain', 'tundra', SURFACE],
-  ['Forest + Mountain (volcano)', 'Mountain', 'volcano', ['.FF....', 'XXX.FX.', '.......']],
-  ['Forest (swamp: willow + cypress)', 'Forest', 'swamp', ['.XX....', 'XXX..X.', '.......']],
+  [
+    'Forest + Mountain (volcano: dead, snag, scorched pine)',
+    'Mountain',
+    'volcano',
+    ['.FF....', 'XXX.FX.', '.......'],
+  ],
+  [
+    'Forest (swamp: willow, cypress, snag, shrub)',
+    'Forest',
+    'swamp',
+    ['.XX....', 'XXX..X.', '.......'],
+  ],
   ['Wall + Pillar (void)', 'Wall', 'void', ['XXX....', 'XXX.I.I', '.......']],
   ['Fort + Pillar + Forest (castle)', 'Fort', 'castle', ['.......', '.X.I.F.', '.......']],
 ];

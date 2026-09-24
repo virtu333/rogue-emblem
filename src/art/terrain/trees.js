@@ -35,11 +35,33 @@ const LIGHT = (() => {
 
 // ------------------------------------------------------------------ crowns
 /**
+ * Leaf-clump texture: small Voronoi bumps in world space that catch the
+ * light on their upper-left side (bit 1) with dark gaps between them
+ * (bit 2). Overlapping crowns share it, so the default bump size is
+ * memoised per map (a pure function of the pixel and the seed).
+ */
+function leafBump(S, x, y, BS) {
+  const cached = BS === 3.3 && x >= 0 && y >= 0 && x < S.W && y < S.H;
+  const i = y * S.W + x;
+  if (cached) {
+    if (!S._leaves) S._leaves = new Uint8Array(S.W * S.H);
+    const v = S._leaves[i];
+    if (v) return v;
+  }
+  const seed = S.seed + 450 + Math.round(BS * 10);
+  const w = worley(x, y * 1.15, BS, seed);
+  // lit when the bump's centre lies to the lower right (the pixel faces the light)
+  const v = 4 | (w.ox + w.oy > 0.3 ? 1 : 0) | (w.d2 - w.d1 < 0.55 ? 2 : 0);
+  if (cached) S._leaves[i] = v;
+  return v;
+}
+
+/**
  * A lobed, leafy crown: overlapping spherical lobes (lower lobes in front),
  * lit from the upper left, with a leaf-clump texture of small bumps that
  * each catch the light on their upper-left side.
  */
-function crown(s, cx, cy, Rr, seed, leaf, o = {}) {
+function crown(S, s, cx, cy, Rr, seed, leaf, o = {}) {
   const sqx = o.squashX ?? 1,
     sqy = o.squashY ?? 0.92;
   const lobes = [{ x: cx, y: cy + Rr * 0.08, r: Rr * 0.8 }];
@@ -66,17 +88,22 @@ function crown(s, cx, cy, Rr, seed, leaf, o = {}) {
     y1 = Math.ceil(cy + Rr * 1.1);
   const bumps = Rr >= 3.4;
   const BS = o.bump ?? 3.3;
-  for (let y = y0; y <= y1; y++)
+  const isx = 1 / sqx,
+    isy = 1 / sqy;
+  for (const L of lobes) L.r2 = L.r * L.r;
+  const yEnd = o.maxY !== undefined ? Math.min(y1, o.maxY) : y1;
+  for (let y = y0; y <= yEnd; y++)
     for (let x = x0; x <= x1; x++) {
-      if (o.maxY !== undefined && y > o.maxY) continue;
       let best = null,
         bestS = 0;
-      for (const L of lobes) {
-        const dx = (x + 0.5 - L.x) / sqx,
-          dy = (y + 0.5 - L.y) / sqy;
-        const dd = L.r - Math.sqrt(dx * dx + dy * dy);
-        const score = dd + (L.y - cy) * 0.1;
-        if (dd > 0 && (best === null || score > bestS)) {
+      for (let q = 0; q < lobes.length; q++) {
+        const L = lobes[q];
+        const dx = (x + 0.5 - L.x) * isx,
+          dy = (y + 0.5 - L.y) * isy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= L.r2) continue;
+        const score = L.r - Math.sqrt(d2) + (L.y - cy) * 0.1;
+        if (best === null || score > bestS) {
           best = L;
           bestS = score;
         }
@@ -88,14 +115,9 @@ function crown(s, cx, cy, Rr, seed, leaf, o = {}) {
       let I = nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2];
       I -= ((y - cy) / Rr) * 0.22; // whole crown: top lit, underside dark
       if (bumps) {
-        const w = worley(x, y * 1.15, BS, seed + 50);
-        const id = w.id,
-          d1 = w.d1,
-          seam = w.d2 - w.d1;
-        const a = worley(x + 1, (y + 1) * 1.15, BS, seed + 50);
-        if (a.id === id && a.d1 < d1) I += 0.13;
-        else I -= 0.1;
-        if (seam < 0.55 && I < 0.45) I -= 0.18;
+        const b = leafBump(S, x, y, BS);
+        I += b & 1 ? 0.13 : -0.1;
+        if (b & 2 && I < 0.45) I -= 0.18;
       }
       const tone =
         I > 0.95 ? 8 : I > 0.74 ? 7 : I > 0.52 ? 6 : I > 0.3 ? 5 : I > 0.06 ? 4 : I > -0.2 ? 3 : 2;
@@ -183,7 +205,7 @@ function broadleaf(S, t) {
   const trunkH = t.dense ? (t.size < 0.5 ? 0 : 1) : t.size < 0.3 ? 1 : t.size < 0.65 ? 2 : 3;
   const cy = t.baseY - trunkH - Math.round(Rr * 0.9);
   trunk(s, t.x, t.baseY, Math.round(cy), st.trunk, t.size > 0.45);
-  crown(s, t.x + 1, cy, Rr, t.seed, leaf, { strands: t.strands, maxY: t.baseY, ...t.crown });
+  crown(S, s, t.x + 1, cy, Rr, t.seed, leaf, { strands: t.strands, maxY: t.baseY, ...t.crown });
   s.outline({ dark: leaf[1], rim: true });
   return s;
 }
@@ -201,7 +223,7 @@ function birch(S, t) {
     s.set(t.x, y, mark ? R('ink', 4) : bark[1]);
     s.set(t.x + 1, y, mark ? R('ink', 3) : bark[0]);
   }
-  crown(s, t.x + 1, cy, Rr, t.seed, leaf, { squashX: 0.82, maxY: t.baseY, bump: 2.6 });
+  crown(S, s, t.x + 1, cy, Rr, t.seed, leaf, { squashX: 0.82, maxY: t.baseY, bump: 2.6 });
   s.outline({ dark: leaf[1] });
   return s;
 }
@@ -404,7 +426,7 @@ function sapling(S, t, conif = false) {
   const stem = 1 + Math.round(t.size * 2);
   const cy = t.baseY - stem - Rr * 0.85;
   for (let y = Math.round(cy); y <= t.baseY; y++) s.set(t.x, y, S.style.trunk[1]);
-  crown(s, t.x + 0.5, cy, Rr, t.seed, leaf, { maxY: t.baseY - 1, squashX: 0.9 });
+  crown(S, s, t.x + 0.5, cy, Rr, t.seed, leaf, { maxY: t.baseY - 1, squashX: 0.9 });
   s.outline({ dark: leaf[1] });
   return s;
 }
@@ -414,7 +436,7 @@ function bush(S, t) {
   const leaf = S.style.shrub || S.style.leaf;
   const s = new Sprite(t.c, t.r, 'tree', t.baseY);
   const Rr = 2.2 + t.size * 1.8;
-  crown(s, t.x + 1, t.baseY - Rr * 0.62, Rr, t.seed, leaf, {
+  crown(S, s, t.x + 1, t.baseY - Rr * 0.62, Rr, t.seed, leaf, {
     squashX: 1.25,
     squashY: 0.7,
     maxY: t.baseY,

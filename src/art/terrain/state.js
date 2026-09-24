@@ -57,6 +57,8 @@ export class TerrainState {
     this.rendered = false;
     this.nz = createNoiseCache(Math.max(this.W, this.H));
     this._floor = null;
+    this._facets = null; // memoised rock facets (mountains.js), pure per pixel
+    this._leaves = null; // memoised leaf-clump texture (trees.js), pure per pixel
   }
 
   _groundFor(c, r) {

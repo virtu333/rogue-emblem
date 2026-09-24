@@ -78,12 +78,20 @@ export function buildCellObject(S, c, r) {
   parts.forEach((p, k) => (p.order = k));
   parts.sort(partOrder);
   if (parts.length === 1) return { sprite: parts[0], parts };
-  const sprite = new Sprite(c, r, kind, r * CELL + CELL - 1);
-  for (const p of parts) {
-    sprite.drawOver(p);
-    sprite.clipped += p.clipped;
-  }
-  return { sprite, parts };
+  let sprite = null; // composited on demand (the renderer never needs it)
+  return {
+    parts,
+    get sprite() {
+      if (!sprite) {
+        sprite = new Sprite(c, r, kind, r * CELL + CELL - 1);
+        for (const p of parts) {
+          sprite.drawOver(p);
+          sprite.clipped += p.clipped;
+        }
+      }
+      return sprite;
+    },
+  };
 }
 
 function cellObject(S, c, r) {

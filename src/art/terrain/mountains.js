@@ -176,19 +176,37 @@ function profile(shape, t, flip) {
 }
 
 // ------------------------------------------------------------------ rock
-function rockTone(S, x, y, lit, t, seed, edgeDist) {
-  // Facets: Voronoi plates, each a flat plane with its own tilt. A dark
-  // crease runs along the lower / right edge of every plate.
+// Facets: Voronoi plates, each a flat plane with its own tilt, and a dark
+// crease along the lower / right edge of every plate. The plates are a pure
+// function of the world pixel and the seed, and neighbouring parts (massif,
+// shoulders, valleys) paint over the same pixels, so they are memoised per
+// map (like the noise lattices): FACET_TILT[i] is the plate's tilt in
+// thousandths + 1, and bit 0x8000 marks a crease pixel.
+function facet(S, x, y) {
+  const inside = x >= 0 && y >= 0 && x < S.W && y < S.H;
+  const i = y * S.W + x;
+  if (inside) {
+    if (!S._facets) S._facets = new Uint16Array(S.W * S.H);
+    const v = S._facets[i];
+    if (v) return v;
+  }
   const w = worley(x, y * 1.25, 5.5, S.seed + 320);
-  const facet = w.id,
+  const id = w.id,
     seam = w.d2 - w.d1;
-  const tilt = (facet % 1000) / 1000;
+  let v = (id % 1000) + 1;
+  if (seam < 0.9 && worley(x + 1, (y + 1) * 1.25, 5.5, S.seed + 320).id !== id) v |= 0x8000;
+  if (inside) S._facets[i] = v;
+  return v;
+}
+
+function rockTone(S, x, y, lit, t, seed, edgeDist) {
+  const f = facet(S, x, y);
+  const tilt = ((f & 0x7fff) - 1) / 1000;
   let tone;
   if (lit) tone = tilt > 0.62 ? 6 : tilt < 0.18 ? 4 : 5;
   else tone = tilt > 0.75 ? 3 : tilt < 0.2 ? 1 : 2;
   if (lit && edgeDist < 1.6 && t < 0.6) tone = 6; // sunlit ridge line
-  if (seam < 0.9 && worley(x + 1, (y + 1) * 1.25, 5.5, S.seed + 320).id !== facet)
-    tone = Math.max(0, tone - (lit ? 2 : 1));
+  if (f & 0x8000) tone = Math.max(0, tone - (lit ? 2 : 1));
   if (t > 0.82) tone = Math.max(0, tone - 1); // occlusion near the ground
   // strata ticks on the lit face
   if (lit && t > 0.3 && t < 0.8 && (y + Math.round(x / 3)) % 5 === 0) {
@@ -199,13 +217,9 @@ function rockTone(S, x, y, lit, t, seed, edgeDist) {
 
 /** Quiet, shadowed rock between peaks: facets in two close tones. */
 function valleyTone(S, x, y) {
-  const w = worley(x, y * 1.25, 5.5, S.seed + 320);
-  const facet = w.id,
-    seam = w.d2 - w.d1;
-  const tilt = (facet % 1000) / 1000;
-  let tone = tilt > 0.8 ? 3 : 2;
-  if (seam < 0.9 && worley(x + 1, (y + 1) * 1.25, 5.5, S.seed + 320).id !== facet) tone = 1;
-  return tone;
+  const f = facet(S, x, y);
+  if (f & 0x8000) return 1;
+  return ((f & 0x7fff) - 1) / 1000 > 0.8 ? 3 : 2;
 }
 
 function rockColour(S, tone, lit, x, y, t, seed, cap) {

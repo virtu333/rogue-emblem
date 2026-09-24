@@ -220,17 +220,15 @@ function paintOpenGround(S, x, y, s, wearNear, wood = 0) {
     (S.nz.vn(x, y, 3, S.seed + 13) - 0.5) * 0.05;
   let t = n < 0.28 ? s.dark : n > 0.72 ? s.light : s.base;
   const dr = s.drift;
-  if (dr) {
-    // Wind-shaped drifts (snow) and dunes (ash): long, gently curving crests
-    // with a lit lip and a soft shadow below, only in some stretches.
-    const wave = y + Math.sin(x / dr.len + S.nz.fbm(x, y, 30, S.seed + 15, 2) * 5) * 3;
+  // Wind-shaped drifts (snow) and dunes (ash): long, gently curving crests
+  // with a lit lip and a soft shadow below, only in some stretches, broken
+  // into dashes so they read as wind-shaped ground, not as contour lines.
+  // (Cheapest tests first: most pixels are outside a drift stretch.)
+  if (dr && S.nz.fbm(x, y, 38, S.seed + 16, 2) > dr.patch && S.nz.vn(x, y, 7, S.seed + 19) > 0.4) {
+    const wave = y + Math.sin(x / dr.len + S.nz.vn(x, y, 30, S.seed + 15) * 5) * 3;
     const band = ((wave % dr.period) + dr.period) % dr.period;
-    // crests break up into dashes so they read as wind-shaped ground, not
-    // as contour lines
-    if (S.nz.fbm(x, y, 38, S.seed + 16, 2) > dr.patch && S.nz.vn(x, y, 7, S.seed + 19) > 0.4) {
-      if (band < 1) t = dr.crest === false ? t : s.light;
-      else if (band < 2.2) t = s.dark;
-    }
+    if (band < 1) t = dr.crest === false ? t : s.light;
+    else if (band < 2.2) t = s.dark;
   }
   if (wood > 0.5) {
     // Forest floor: the heart of a wood is in canopy shade, so the gaps
@@ -503,7 +501,7 @@ function paintFloor(S, x, y, i, wall = 0) {
   let t = stone;
   if (y === y1 - 1 || x === x1 - 1) t = mortarOf[stone] ?? mortarLo;
   else if (id % 17 === 0 && x - x0 === y - y0 + 1) t = mortarOf[stone] ?? mortarLo;
-  else if (S.nz.fbm(x, y, 40, S.seed + 96, 2) > 0.63) {
+  else if (S.nz.vn(x, y, 40, S.seed + 96) > 0.66) {
     // settled, cracked stretches of paving: a sparse hairline network
     const w = worley(x, y, 11, S.seed + 97);
     if (w.d2 - w.d1 < 0.55) t = mortarOf[stone] ?? mortarLo;
