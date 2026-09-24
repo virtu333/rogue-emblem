@@ -21,6 +21,8 @@
     "imagen:generate": "node tools/imagen-pipeline/generate.js",
     "imagen:generate:dry": "node tools/imagen-pipeline/generate.js --dry-run",
     "imagen:process": "node tools/imagen-pipeline/process.js",
+    "sprites:candidates": "node tools/sprite-kit/generate.mjs",
+    "sprites:variants": "node tools/sprite-kit/generate-variants.mjs",
     "test": "vitest run",
     "test:all": "vitest run",
     "test:unit": "vitest run --exclude 'tests/harness/**' --exclude 'tests/sim/**' --exclude 'tests/agents/**' --exclude 'tests/fixtures/**' --exclude 'tests/artifacts/**'",
