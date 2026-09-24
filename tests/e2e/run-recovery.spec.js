@@ -10,11 +10,15 @@ async function boot(page) {
   return errors;
 }
 async function result(page, dialogue = false) {
-  await page.evaluate((dialogue) => {
+  await page.evaluate(async (dialogue) => {
     const g = window.__emblemRogueGame,
       s = g.scene.getScene('Battle');
     const data = { ...s.gameData, dialogue: { ...s.gameData.dialogue } };
     if (!dialogue) data.dialogue.runComplete = null;
+    // The scene chunk is only preloaded opportunistically by Battle; starting
+    // an unregistered key is a silent no-op, so wait for it as the game does.
+    const { ensureSceneLoaded } = await import('/src/utils/sceneLoader.js');
+    await ensureSceneLoaded(s, 'RunComplete');
     s.scene.start('RunComplete', { gameData: data, runManager: s.runManager, result: 'defeat' });
   }, dialogue);
   await waitForScene(page, 'RunComplete');
