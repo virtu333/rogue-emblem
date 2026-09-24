@@ -9,14 +9,15 @@ import { PLATE_W, PLATE_H, HOLLOW_SUN_VARIANTS } from '../src/art/keyart/hollowS
 import { buildTitleMenu, pickResumeSlot } from '../src/ui/titleMenuModel.js';
 
 describe('title key art variant', () => {
-  it('is dusk by default, rising after the first victory, ashfall once Hard is unlocked', () => {
+  it('is dusk by default, rising after a Normal victory, ashfall after a Hard victory', () => {
     expect(selectTitleVariant([])).toBe('dusk');
     expect(selectTitleVariant(new Set(['reachedAct1']))).toBe('dusk');
-    expect(selectTitleVariant(['beatAct1'])).toBe('rising');
-    expect(selectTitleVariant(new Set(['reachedAct2']))).toBe('rising');
-    expect(selectTitleVariant(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame'])).toBe('ashfall');
-    // Hard unlock wins even without the earlier milestones (e.g. a migrated slot).
-    expect(selectTitleVariant((id) => id === 'beatGame')).toBe('ashfall');
+    // Act milestones alone are not a victory.
+    expect(selectTitleVariant(['beatAct1', 'reachedAct2', 'beatAct3'])).toBe('dusk');
+    expect(selectTitleVariant(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame'])).toBe('rising');
+    expect(selectTitleVariant(['beatGame', 'beatHard'])).toBe('ashfall');
+    // The Hard victory wins even without the earlier milestones (e.g. a migrated slot).
+    expect(selectTitleVariant((id) => id === 'beatHard')).toBe('ashfall');
     expect(selectTitleVariant(null)).toBe('dusk');
     expect(selectTitleVariant(undefined)).toBe('dusk');
   });
@@ -29,10 +30,10 @@ describe('title key art variant', () => {
     const store = new Map([
       ['emblem_rogue_slot_1_meta', JSON.stringify({ milestones: ['reachedAct1'] })],
       ['emblem_rogue_slot_2_meta', '{not json'],
-      ['emblem_rogue_slot_3_meta', JSON.stringify({ milestones: ['beatAct1', 7, null] })],
+      ['emblem_rogue_slot_3_meta', JSON.stringify({ milestones: ['beatGame', 7, null] })],
     ]);
     const storage = { getItem: (k) => store.get(k) ?? null };
-    expect([...readSlotMilestones(storage)].sort()).toEqual(['beatAct1', 'reachedAct1']);
+    expect([...readSlotMilestones(storage)].sort()).toEqual(['beatGame', 'reachedAct1']);
     expect(selectTitleVariant(readSlotMilestones(storage))).toBe('rising');
     expect(readSlotMilestones({ getItem: () => null }).size).toBe(0);
     expect(

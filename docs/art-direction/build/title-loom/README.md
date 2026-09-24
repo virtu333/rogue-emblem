@@ -17,8 +17,8 @@ http://127.0.0.1:<port> [chromium]` (`ONLY=<regex>` limits the set). Phones are 
 | File                                                  | What                                                                                               |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `title_dusk_phone.png`                                | 844×390, fresh profile: dusk, Tutorial promoted with "Start here", How to Play marked new          |
-| `title_rising_phone.png`                              | 844×390 after the first victory (Act I boss felled): rising variant, returning-player menu         |
-| `title_ashfall_phone.png`                             | 844×390 once Hard is unlocked (`beatGame`): ashfall variant                                        |
+| `title_rising_phone.png`                              | 844×390 after a Normal victory (`beatGame`): rising variant, returning-player menu         |
+| `title_ashfall_phone.png`                             | 844×390 after a Hard victory (`beatHard`): ashfall variant                                        |
 | `title_*_phone_small.png`                             | The same three at 667×375                                                                          |
 | `title_*_desktop.png`                                 | The same three at 960×720 (4:3 stage over the letterboxed canvas, 320×240 crop at 3x)              |
 | `title_resume_phone.png`, `title_resume_phone_small.png` | The longest menu: one suspended run (Resume · Act n leads), New Game, Save Slots, Tutorial (new) |
@@ -42,8 +42,8 @@ Notes:
   tap-for-sound, version, alpha tag, local-save note and logout/cloud notices are unchanged
   in behaviour (`src/ui/titleMenuModel.js` is the tested model).
 - **Variants** (`src/art/keyart/titleVariant.js`): dusk by default, rising once any slot
-  records the first victory (`beatAct1` / `reachedAct2`), ashfall once Hard is unlocked
-  (`beatGame`, the DifficultySelect gate).
+  records a Normal victory (`beatGame`), ashfall once it records a Hard victory
+  (`beatHard`). Owner decision 2026-09-24.
 - **Motion**: 30 fps, paused while the page is hidden or an opaque screen covers the title,
   one frozen frame under reduced motion (OS setting or the in-game Reduce Motion), all
   canvases released on scene shutdown.

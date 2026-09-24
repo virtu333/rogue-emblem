@@ -2,15 +2,14 @@
 // the pre-Phaser auth screen can use it too).
 //
 //   dusk     default: totality at dusk.
-//   rising   after the player's first victory — the Act I boss has fallen at least once
-//            ('beatAct1' is recorded at run end, 'reachedAct2' the moment Act II opens).
-//   ashfall  once Hard is unlocked ('beatGame', the same gate DifficultySelectScene uses):
-//            the colder, later hour.
+//   rising   after the first full victory on Normal ('beatGame' — also the Hard unlock
+//            gate DifficultySelectScene uses): the sun climbs back over the quarry.
+//   ashfall  after beating the game on Hard ('beatHard'): the colder, later hour.
 // Milestones are per save slot; the title is global, so any slot counts.
 
 export const TITLE_VARIANTS = Object.freeze(['dusk', 'rising', 'ashfall']);
-export const HARD_UNLOCK_MILESTONE = 'beatGame';
-export const FIRST_VICTORY_MILESTONES = Object.freeze(['beatAct1', 'reachedAct2']);
+export const NORMAL_VICTORY_MILESTONE = 'beatGame';
+export const HARD_VICTORY_MILESTONE = 'beatHard';
 
 function toPredicate(milestones) {
   if (typeof milestones === 'function') return (id) => !!milestones(id);
@@ -25,8 +24,8 @@ function toPredicate(milestones) {
  */
 export function selectTitleVariant(milestones) {
   const has = toPredicate(milestones);
-  if (has(HARD_UNLOCK_MILESTONE)) return 'ashfall';
-  if (FIRST_VICTORY_MILESTONES.some((id) => has(id))) return 'rising';
+  if (has(HARD_VICTORY_MILESTONE)) return 'ashfall';
+  if (has(NORMAL_VICTORY_MILESTONE)) return 'rising';
   return 'dusk';
 }
 

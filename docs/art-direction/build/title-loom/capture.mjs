@@ -205,20 +205,20 @@ async function campaignInBattle(browser, name, viewport, phone) {
 
 const shots = [
   ['title_dusk_phone', (b) => title(b, 'title_dusk_phone', PHONE, true, null)],
-  ['title_rising_phone', (b) => title(b, 'title_rising_phone', PHONE, true, 'beatAct1')],
-  ['title_ashfall_phone', (b) => title(b, 'title_ashfall_phone', PHONE, true, 'beatGame')],
+  ['title_rising_phone', (b) => title(b, 'title_rising_phone', PHONE, true, 'beatGame')],
+  ['title_ashfall_phone', (b) => title(b, 'title_ashfall_phone', PHONE, true, 'beatHard')],
   ['title_dusk_phone_small', (b) => title(b, 'title_dusk_phone_small', PHONE_SMALL, true, null)],
   [
     'title_rising_phone_small',
-    (b) => title(b, 'title_rising_phone_small', PHONE_SMALL, true, 'beatAct1'),
+    (b) => title(b, 'title_rising_phone_small', PHONE_SMALL, true, 'beatGame'),
   ],
   [
     'title_ashfall_phone_small',
-    (b) => title(b, 'title_ashfall_phone_small', PHONE_SMALL, true, 'beatGame'),
+    (b) => title(b, 'title_ashfall_phone_small', PHONE_SMALL, true, 'beatHard'),
   ],
   ['title_dusk_desktop', (b) => title(b, 'title_dusk_desktop', DESKTOP, false, null)],
-  ['title_rising_desktop', (b) => title(b, 'title_rising_desktop', DESKTOP, false, 'beatAct1')],
-  ['title_ashfall_desktop', (b) => title(b, 'title_ashfall_desktop', DESKTOP, false, 'beatGame')],
+  ['title_rising_desktop', (b) => title(b, 'title_rising_desktop', DESKTOP, false, 'beatGame')],
+  ['title_ashfall_desktop', (b) => title(b, 'title_ashfall_desktop', DESKTOP, false, 'beatHard')],
   ['title_resume_phone', (b) => titleResume(b, 'title_resume_phone', PHONE, true)],
   [
     'title_resume_phone_small',

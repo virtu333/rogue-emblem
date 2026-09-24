@@ -124,8 +124,8 @@ test('fresh profile promotes the tutorial with NEW badges only where they apply'
 
 for (const [milestone, variant] of [
   [null, 'dusk'],
-  ['beatAct1', 'rising'],
-  ['beatGame', 'ashfall'],
+  ['beatGame', 'rising'],
+  ['beatHard', 'ashfall'],
 ]) {
   test(`key art variant is ${variant}${milestone ? ` after ${milestone}` : ' by default'}`, async ({
     page,
