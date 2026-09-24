@@ -1,5 +1,10 @@
 # Procedural terrain — production build review
 
+> **Superseded by [`../terrain-v2/`](../terrain-v2/README.md)** (natural variation,
+> "mostly fit" rule). This folder is kept as the record of the first runtime; its
+> `before/` study captures are still the "study" reference for v2. The capture tool
+> now writes to `terrain-v2/` by default (`--out` to override, `--png` for PNG).
+
 This is the productionized version of the terrain study in `../../board/terrain/`,
 which the owner approved with fixes. The runtime renderer is `src/art/terrain/`.
 Its integration contract is in `src/art/terrain/README.md`.

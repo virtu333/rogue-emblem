@@ -138,7 +138,8 @@ if (rects.length) texture.refresh();   // CanvasTexture re-upload (~1 ms)
 
 - `repaintTerrainCanvas(canvas, result, [{ col, row }], { mapLayout, terrainData })`
   does the same for known cells. `name` in a cell entry overrides the layout.
-- Cost: about 1.5 to 3 ms CPU per changed cell (it repaints 72×72 art px).
+- Cost: about 2 to 4 ms CPU per changed cell (it repaints 72×72 art px and
+  rebuilds the objects of the 3×3 neighbourhood).
   No-op edits cost nothing.
 - `syncTerrainCanvas` diffs the whole layout, which costs microseconds. Use
   it after snapshot restores so the terrain can never drift from the grid.
