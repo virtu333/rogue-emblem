@@ -50,12 +50,15 @@ export class TerrainState {
     this.anim = new Uint8Array(n); // palette-cycling class (see shimmer.js)
     this.idx = new Uint8Array(n); // final palette indices
     this.owner = new Uint16Array(n); // 1 + cell index of the object covering the pixel
-    // Per-cell object cache (trees / peaks / structures depend only on
-    // their own cell, so a cell's entry is dropped only when it changes).
+    // Per-cell object cache. Objects depend on their cell's 3x3
+    // neighbourhood (forest density, ridges to neighbouring peaks), so a
+    // change drops the cached objects of the whole neighbourhood.
     this.objects = new Array(this.cols * this.rows).fill(undefined);
     this.rendered = false;
     this.nz = createNoiseCache(Math.max(this.W, this.H));
     this._floor = null;
+    this._facets = null; // memoised rock facets (mountains.js), pure per pixel
+    this._leaves = null; // memoised leaf-clump texture (trees.js), pure per pixel
   }
 
   _groundFor(c, r) {
@@ -106,7 +109,9 @@ export class TerrainState {
     if (this.names[r][c] === name) return false;
     this.names[r][c] = name;
     this.ground[r * this.cols + c] = this._groundFor(c, r);
-    this.objects[r * this.cols + c] = undefined;
+    for (let j = -1; j <= 1; j++)
+      for (let i = -1; i <= 1; i++)
+        if (this.inMap(c + i, r + j)) this.objects[(r + j) * this.cols + c + i] = undefined;
     return true;
   }
 }

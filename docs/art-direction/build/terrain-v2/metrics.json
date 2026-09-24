@@ -1,0 +1,370 @@
+{
+  "average": {
+    "before": {
+      "groundL": 44,
+      "groundStd": 10.26,
+      "micro": 4.53,
+      "edge": 19.11,
+      "edgeVisible": 61.79,
+      "pop": 4.24,
+      "local": 18.02
+    },
+    "prev": {
+      "groundL": 51.29,
+      "groundStd": 12.47,
+      "micro": 5.11,
+      "edge": 23.59,
+      "edgeVisible": 73.54,
+      "pop": 4.62,
+      "local": 24.88
+    },
+    "after": {
+      "groundL": 51.51,
+      "groundStd": 12.48,
+      "micro": 5.06,
+      "edge": 23.67,
+      "edgeVisible": 73.81,
+      "pop": 4.68,
+      "local": 25.21
+    },
+    "weathered": {
+      "groundL": 51.55,
+      "groundStd": 10.75,
+      "micro": 5.86,
+      "edge": 22.33,
+      "edgeVisible": 69.88,
+      "pop": 3.93,
+      "local": 24.21
+    }
+  },
+  "maps": {
+    "river": {
+      "template": "river_crossing",
+      "biome": "grassland",
+      "units": 8,
+      "after": {
+        "groundL": 49.9,
+        "groundStd": 11.4,
+        "micro": 4.8,
+        "edge": 23.1,
+        "edgeVisible": 77.8,
+        "pop": 4.86,
+        "local": 23.5
+      },
+      "before": {
+        "groundL": 43.7,
+        "groundStd": 12.2,
+        "micro": 4.1,
+        "edge": 20.2,
+        "edgeVisible": 71.5,
+        "pop": 4.88,
+        "local": 18.7
+      },
+      "prev": {
+        "groundL": 49.7,
+        "groundStd": 11.1,
+        "micro": 4.8,
+        "edge": 22.9,
+        "edgeVisible": 78.7,
+        "pop": 4.8,
+        "local": 22.6
+      },
+      "weathered": {
+        "groundL": 48.2,
+        "groundStd": 10,
+        "micro": 4.6,
+        "edge": 21.3,
+        "edgeVisible": 75.7,
+        "pop": 4.63,
+        "local": 21.5
+      }
+    },
+    "chokepoint": {
+      "template": "chokepoint",
+      "biome": "grassland",
+      "units": 9,
+      "after": {
+        "groundL": 49.5,
+        "groundStd": 12.1,
+        "micro": 4.9,
+        "edge": 25.1,
+        "edgeVisible": 82.7,
+        "pop": 5.14,
+        "local": 25.1
+      },
+      "before": {
+        "groundL": 45.9,
+        "groundStd": 10.2,
+        "micro": 4.3,
+        "edge": 21.6,
+        "edgeVisible": 76.9,
+        "pop": 4.98,
+        "local": 21.1
+      },
+      "prev": {
+        "groundL": 48.8,
+        "groundStd": 12.3,
+        "micro": 5,
+        "edge": 24.8,
+        "edgeVisible": 79.7,
+        "pop": 4.98,
+        "local": 24.4
+      },
+      "weathered": {
+        "groundL": 53.1,
+        "groundStd": 10.8,
+        "micro": 5.1,
+        "edge": 22.5,
+        "edgeVisible": 78.4,
+        "pop": 4.39,
+        "local": 23.4
+      }
+    },
+    "castle": {
+      "template": "great_hall",
+      "biome": "castle",
+      "units": 9,
+      "after": {
+        "groundL": 53.2,
+        "groundStd": 13.8,
+        "micro": 5.5,
+        "edge": 24.8,
+        "edgeVisible": 77.2,
+        "pop": 4.47,
+        "local": 26.5
+      },
+      "before": {
+        "groundL": 44.9,
+        "groundStd": 9.4,
+        "micro": 4.7,
+        "edge": 20.1,
+        "edgeVisible": 68.8,
+        "pop": 4.31,
+        "local": 17.3
+      },
+      "prev": {
+        "groundL": 53.2,
+        "groundStd": 13.7,
+        "micro": 5.5,
+        "edge": 24.8,
+        "edgeVisible": 77.5,
+        "pop": 4.52,
+        "local": 26.5
+      },
+      "weathered": {
+        "groundL": 59.2,
+        "groundStd": 10.2,
+        "micro": 8.6,
+        "edge": 24.3,
+        "edgeVisible": 72.5,
+        "pop": 2.85,
+        "local": 29.3
+      }
+    },
+    "mire": {
+      "template": "mire_crossing",
+      "biome": "swamp",
+      "units": 9,
+      "after": {
+        "groundL": 46.5,
+        "groundStd": 9.1,
+        "micro": 4,
+        "edge": 20.3,
+        "edgeVisible": 69.4,
+        "pop": 5.04,
+        "local": 19.6
+      },
+      "before": {
+        "groundL": 36.7,
+        "groundStd": 9,
+        "micro": 3.6,
+        "edge": 14.9,
+        "edgeVisible": 42.7,
+        "pop": 4.11,
+        "local": 11
+      },
+      "prev": {
+        "groundL": 45.9,
+        "groundStd": 9.3,
+        "micro": 4.1,
+        "edge": 19.6,
+        "edgeVisible": 67.1,
+        "pop": 4.77,
+        "local": 18.9
+      },
+      "weathered": {
+        "groundL": 43.9,
+        "groundStd": 11.7,
+        "micro": 4.5,
+        "edge": 20,
+        "edgeVisible": 65.7,
+        "pop": 4.48,
+        "local": 18.8
+      }
+    },
+    "caldera": {
+      "template": "caldera",
+      "biome": "volcano",
+      "units": 9,
+      "after": {
+        "groundL": 37.7,
+        "groundStd": 12.8,
+        "micro": 4.7,
+        "edge": 16.2,
+        "edgeVisible": 51.9,
+        "pop": 3.43,
+        "local": 13.9
+      },
+      "before": {
+        "groundL": 28.6,
+        "groundStd": 9.2,
+        "micro": 5,
+        "edge": 11.6,
+        "edgeVisible": 25.4,
+        "pop": 2.32,
+        "local": 5.6
+      },
+      "prev": {
+        "groundL": 37.6,
+        "groundStd": 12.9,
+        "micro": 4.8,
+        "edge": 16.2,
+        "edgeVisible": 51.7,
+        "pop": 3.39,
+        "local": 13.8
+      },
+      "weathered": {
+        "groundL": 36.8,
+        "groundStd": 7.4,
+        "micro": 4.1,
+        "edge": 14.4,
+        "edgeVisible": 45.8,
+        "pop": 3.49,
+        "local": 11.8
+      }
+    },
+    "frozen": {
+      "template": "glacier_fortress",
+      "biome": "tundra",
+      "units": 8,
+      "after": {
+        "groundL": 69.8,
+        "groundStd": 15.3,
+        "micro": 6,
+        "edge": 33.1,
+        "edgeVisible": 86,
+        "pop": 5.53,
+        "local": 40.4
+      },
+      "before": {
+        "groundL": 60.3,
+        "groundStd": 13.6,
+        "micro": 5.9,
+        "edge": 26.8,
+        "edgeVisible": 81.1,
+        "pop": 4.53,
+        "local": 32
+      },
+      "prev": {
+        "groundL": 69.8,
+        "groundStd": 15.3,
+        "micro": 6.3,
+        "edge": 33.1,
+        "edgeVisible": 85.6,
+        "pop": 5.28,
+        "local": 40.3
+      },
+      "weathered": {
+        "groundL": 64.6,
+        "groundStd": 15,
+        "micro": 6.2,
+        "edge": 29.2,
+        "edgeVisible": 76.9,
+        "pop": 4.68,
+        "local": 36.8
+      }
+    },
+    "ambush": {
+      "template": "forest_ambush",
+      "biome": "grassland",
+      "units": 9,
+      "after": {
+        "groundL": 49.5,
+        "groundStd": 12.5,
+        "micro": 5.6,
+        "edge": 20.2,
+        "edgeVisible": 63.9,
+        "pop": 3.64,
+        "local": 24.5
+      },
+      "before": {
+        "groundL": 46.5,
+        "groundStd": 9.9,
+        "micro": 4.3,
+        "edge": 18.8,
+        "edgeVisible": 64.2,
+        "pop": 4.38,
+        "local": 20.8
+      },
+      "prev": {
+        "groundL": 49,
+        "groundStd": 12.6,
+        "micro": 5.6,
+        "edge": 20.5,
+        "edgeVisible": 66.4,
+        "pop": 3.66,
+        "local": 24.1
+      },
+      "weathered": {
+        "groundL": 47.8,
+        "groundStd": 11.3,
+        "micro": 5.3,
+        "edge": 19.8,
+        "edgeVisible": 63.8,
+        "pop": 3.71,
+        "local": 22.7
+      }
+    },
+    "ruins": {
+      "template": "castle_ruins",
+      "biome": "castle",
+      "units": 7,
+      "after": {
+        "groundL": 56,
+        "groundStd": 12.8,
+        "micro": 5,
+        "edge": 26.6,
+        "edgeVisible": 81.6,
+        "pop": 5.36,
+        "local": 28.2
+      },
+      "before": {
+        "groundL": 45.4,
+        "groundStd": 8.6,
+        "micro": 4.3,
+        "edge": 18.9,
+        "edgeVisible": 63.7,
+        "pop": 4.43,
+        "local": 17.7
+      },
+      "prev": {
+        "groundL": 56.3,
+        "groundStd": 12.6,
+        "micro": 4.8,
+        "edge": 26.8,
+        "edgeVisible": 81.6,
+        "pop": 5.53,
+        "local": 28.4
+      },
+      "weathered": {
+        "groundL": 58.8,
+        "groundStd": 9.6,
+        "micro": 8.5,
+        "edge": 27.1,
+        "edgeVisible": 80.2,
+        "pop": 3.19,
+        "local": 29.4
+      }
+    }
+  }
+}

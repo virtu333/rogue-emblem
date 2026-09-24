@@ -3,26 +3,30 @@
 // src/art/terrain (single source of truth) from Node.
 //
 //   node tools/art/procedural-terrain/generate.mjs [--out DIR] [--maps river,castle]
-//        [--no-weathered] [--no-sheet] [--no-closeup] [--no-metrics]
+//        [--prev DIR] [--png] [--no-weathered] [--no-sheet] [--no-closeup] [--no-metrics]
 //
-// Outputs (default DIR = docs/art-direction/build/terrain):
-//   <map>_after.png           full map, 48px per cell (24 art px x2)
-//   <map>_compare_phone.png   16x10 crop at exactly 34px per cell with units:
-//                             study renderer (before) | runtime (after) | weathered atlases
-//   <map>_overlay_phone.png   runtime crop with movement + danger overlays
-//   terrain_sheet.png         all terrain types x3 variants + transitions
-//   fit_closeup.png           objects vs their cells, with units, 3x
+// Outputs (default DIR = docs/art-direction/build/terrain-v2; lossless WebP,
+// or PNG with --png):
+//   <map>_after.*             full map, 48px per cell (24 art px x2)
+//   <map>_compare_phone.*     16x10 crop at exactly 34px per cell with units:
+//                             study | previous runtime | runtime (now) | weathered atlases
+//   <map>_overlay_phone.*     runtime crop with movement + danger overlays
+//   terrain_sheet.*           all terrain types x3 variants + transitions
+//   fit_closeup.*             objects vs their cells, with units, 3x
 //   metrics.json              readability metrics per map and renderer
 //
-// "before" images are the study captures kept in <DIR>/before/
-// (<map>_before.png at 48px per cell, closeup_<key>.png).
+// Reference images, all at 48px per cell:
+//   study captures      docs/art-direction/build/terrain/before/
+//                       (<map>_before.png, closeup_<key>.png)
+//   previous runtime    --prev DIR, default <DIR>/prev/ (<map>_prev.*,
+//                       closeup_<key>.*), skipped when missing
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import { STUDY_MAPS, generateStudyMap, terrainSeed } from './lib/maps.mjs';
 import { renderBattlefieldTerrain } from '../../../src/art/terrain/index.js';
-import { readRgba, resultImage, writePng } from './lib/image.mjs';
+import { readRgba, resultImage, writePng, saveImage } from './lib/image.mjs';
 import { phoneGround, drawUnits, drawOverlays, stageUnits, diamond } from './lib/phone.mjs';
 import { loadWeatheredAtlases, renderWeathered } from './lib/weathered.mjs';
 import { readabilityMetrics } from './lib/metrics.mjs';
@@ -35,8 +39,10 @@ const opt = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : fallback;
 };
-const OUT = opt('--out', join(ROOT, 'docs/art-direction/build/terrain'));
+const OUT = opt('--out', join(ROOT, 'docs/art-direction/build/terrain-v2'));
 const BEFORE = join(ROOT, 'docs/art-direction/build/terrain/before');
+const PREV = opt('--prev', join(OUT, 'prev'));
+const EXT = args.includes('--png') ? 'png' : 'webp';
 const only = opt('--maps', null)?.split(',');
 const withWeathered = !args.includes('--no-weathered');
 const withSheet = !args.includes('--no-sheet');
@@ -66,10 +72,16 @@ async function panels(path, list) {
     });
     x += img.w + gap;
   }
-  await sharp({ create: { width: W, height: H, channels: 4, background: '#16131e' } })
-    .composite(comps)
-    .png({ compressionLevel: 9 })
-    .toFile(path);
+  await saveImage(
+    sharp({ create: { width: W, height: H, channels: 4, background: '#16131e' } }).composite(comps),
+    path,
+  );
+}
+
+/** First existing reference image among the extensions, or null. */
+function firstExisting(base) {
+  for (const ext of ['png', 'webp']) if (existsSync(`${base}.${ext}`)) return `${base}.${ext}`;
+  return null;
 }
 
 /** Phone view of a 48px/cell render: returns ground, composed image, mask. */
@@ -92,13 +104,18 @@ for (const spec of STUDY_MAPS.filter((s) => !only || only.includes(s.key))) {
   });
   const ms = performance.now() - t0;
   const after = resultImage(res);
-  await writePng(join(OUT, `${spec.key}_after.png`), after.data, after.w, after.h);
+  await writePng(join(OUT, `${spec.key}_after.${EXT}`), after.data, after.w, after.h);
   const units = stageUnits(map, ...map.crop);
   const views = { after: await stagePhone(after.data, map, units) };
-  const beforePath = join(BEFORE, `${spec.key}_before.png`);
-  if (existsSync(beforePath)) {
+  const beforePath = firstExisting(join(BEFORE, `${spec.key}_before`));
+  if (beforePath) {
     const b = await readRgba(beforePath);
     views.before = await stagePhone(b.data, map, units);
+  }
+  const prevPath = firstExisting(join(PREV, `${spec.key}_prev`));
+  if (prevPath) {
+    const p = await readRgba(prevPath);
+    views.prev = await stagePhone(p.data, map, units);
   }
   if (art) {
     const w = renderWeathered(map.names, map.biome, art);
@@ -106,11 +123,12 @@ for (const spec of STUDY_MAPS.filter((s) => !only || only.includes(s.key))) {
   }
   const list = [];
   if (views.before)
-    list.push({ img: views.before.composed, label: `before: study  ${spec.key} (${map.biome})` });
-  list.push({ img: views.after.composed, label: `after: runtime src/art/terrain  34px/cell` });
+    list.push({ img: views.before.composed, label: `study  ${spec.key} (${map.biome})` });
+  if (views.prev) list.push({ img: views.prev.composed, label: 'previous runtime' });
+  list.push({ img: views.after.composed, label: `runtime now  34px/cell` });
   if (views.weathered)
     list.push({ img: views.weathered.composed, label: 'weathered atlases  34px/cell' });
-  await panels(join(OUT, `${spec.key}_compare_phone.png`), list);
+  await panels(join(OUT, `${spec.key}_compare_phone.${EXT}`), list);
 
   // Movement / danger overlays over the runtime terrain: do cells still read?
   const ov = phoneGround(after.data, map.cols, map.rows, map.crop);
@@ -120,7 +138,7 @@ for (const spec of STUDY_MAPS.filter((s) => !only || only.includes(s.key))) {
   const danger = enemies.flatMap((u) => diamond(u.col, u.row, 5, map.cols, map.rows));
   drawOverlays(ov, ov.origin, { move, danger });
   await drawUnits(ov, ov.origin, units);
-  await writePng(join(OUT, `${spec.key}_overlay_phone.png`), ov.data, ov.w, ov.h);
+  await writePng(join(OUT, `${spec.key}_overlay_phone.${EXT}`), ov.data, ov.w, ov.h);
 
   if (withMetrics) {
     metrics[spec.key] = { template: map.templateId, biome: map.biome, units: units.length };
@@ -139,7 +157,7 @@ for (const spec of STUDY_MAPS.filter((s) => !only || only.includes(s.key))) {
 }
 if (withMetrics && Object.keys(metrics).length) {
   const avg = {};
-  for (const which of ['before', 'after', 'weathered']) {
+  for (const which of ['before', 'prev', 'after', 'weathered']) {
     const rows = Object.values(metrics)
       .map((m) => m[which])
       .filter(Boolean);
@@ -156,11 +174,14 @@ if (withMetrics && Object.keys(metrics).length) {
   console.table(avg);
 }
 if (withSheet) {
-  await buildSheet(join(OUT, 'terrain_sheet.png'));
-  console.log('terrain_sheet.png');
+  await buildSheet(join(OUT, `terrain_sheet.${EXT}`));
+  console.log(`terrain_sheet.${EXT}`);
 }
 if (withCloseup) {
-  await buildCloseup(join(OUT, 'fit_closeup.png'), BEFORE);
-  console.log('fit_closeup.png');
+  await buildCloseup(join(OUT, `fit_closeup.${EXT}`), [
+    { dir: BEFORE, label: 'study' },
+    { dir: PREV, label: 'previous runtime' },
+  ]);
+  console.log(`fit_closeup.${EXT}`);
 }
 console.log(`-> ${OUT}`);

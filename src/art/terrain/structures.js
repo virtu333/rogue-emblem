@@ -350,65 +350,156 @@ function ballista(S, c, r) {
 }
 
 // ---------------------------------------------------------------- pillar
+// Columns stay inside their cell (only the capital may rise PILLAR_CAP px
+// above it) but vary: intact, cracked, broken off or a bare stump with its
+// fallen drum beside it; fluted or plain; square or stepped plinth; ivy and
+// moss in green biomes, snow in the tundra, soot and embers in the volcano.
 function pillar(S, c, r) {
   const ox = c * CELL,
     oy = r * CELL;
+  const h = (k) => rand2(c * 7 + k, r * 3 - k, S.seed + 500);
   const s = new Sprite(c, r, 'pillar', oy + 22, { a: 0.55, b: 0.3 });
   const St = stoneFor(S);
-  const broken = rand2(c, r, S.seed + 500) < 0.3;
+  const roll = h(0);
+  const state = roll < 0.5 ? 'intact' : roll < 0.7 ? 'cracked' : roll < 0.89 ? 'broken' : 'stump';
+  const snapped = state === 'broken' || state === 'stump';
+  const fluted = h(1) < 0.7;
+  const stepped = h(2) < 0.35;
+  const sx = 8 + (h(3) < 0.25 ? (h(4) < 0.5 ? -1 : 1) : 0); // shaft's left column
   // cylinder shading across the 8-px shaft: rim, highlight, body, core shadow
   const shaft = [St(3), St(5), St(5), St(4), St(4), St(3), St(2), St(1)];
-  const top = broken ? 6 + (hash2(c, r, S.seed) % 4) : 3;
-  // plinth
+  const top =
+    state === 'broken'
+      ? 4 + (hash2(c, r, S.seed) % 5)
+      : state === 'stump'
+        ? 11 + (hash2(c, r, S.seed) % 3)
+        : 3;
+  const green = S.biome === 'grassland' || S.biome === 'swamp' || S.biome === 'castle';
+
+  // plinth (square, or stepped with a lower course)
+  const px0 = sx - 3,
+    px1 = sx + 11;
   for (let y = 19; y < 23; y++)
-    for (let x = 5; x < 19; x++)
-      s.set(
-        ox + x,
-        oy + y,
+    for (let x = px0; x < px1; x++) {
+      if (!stepped && y === 22 && (x === px0 || x === px1 - 1) && h(5) < 0.5) continue; // chipped
+      const col =
         y === 19
-          ? x < 12
+          ? x < sx + 4
             ? St(5)
             : St(4)
           : y === 22
             ? St(1)
-            : x < 7
+            : x < px0 + 2
               ? St(4)
-              : x > 16
+              : x > px1 - 3
                 ? St(2)
-                : St(3),
-      );
+                : St(3);
+      s.set(ox + x, oy + y, col);
+    }
+  if (stepped)
+    for (let x = px0 - 1; x <= px1; x++) {
+      s.set(ox + x, oy + 22, x < sx + 2 ? St(4) : St(2));
+      s.set(ox + x, oy + 23, St(1));
+    }
   // shaft with fluting and drum joints
+  const joint = 5 + (hash2(c, r, S.seed + 501) % 3);
+  const slant = h(12) < 0.5;
   for (let y = top; y < 19; y++)
     for (let u = 0; u < 8; u++) {
-      if (broken && y < top + 2 && (u + y) % 3 === 0) continue;
+      // a slanted, ragged fracture (not a crenellation)
+      if (
+        snapped &&
+        y <
+          top +
+            Math.min(3, Math.round((slant ? u : 7 - u) * 0.4) + (hash2(u, c + r, S.seed + 505) % 2))
+      )
+        continue;
       let col = shaft[u];
-      if ((u === 3 || u === 5) && y > top + 1) col = shaft[u + 1];
-      if ((y - top) % 6 === 5) col = St(Math.max(1, [3, 4, 4, 3, 3, 2, 1, 1][u] - 1));
-      s.set(ox + 8 + u, oy + y, col);
+      if (fluted && (u === 3 || u === 5) && y > top + 1) col = shaft[u + 1];
+      if ((y - top) % joint === joint - 1) col = St(Math.max(1, [3, 4, 4, 3, 3, 2, 1, 1][u] - 1));
+      s.set(ox + sx + u, oy + y, col);
     }
-  if (!broken) {
-    // capital: abacus slab + echinus, one pixel of cap above the cell at most
-    for (let x = 6; x < 18; x++) {
-      s.set(ox + x, oy - PILLAR_CAP + 1, x < 12 ? St(5) : St(4));
-      s.set(ox + x, oy + 1, x < 8 ? St(4) : x > 15 ? St(1) : St(3));
-    }
-    for (let x = 7; x < 17; x++) s.set(ox + x, oy + 2, x < 10 ? St(4) : x > 14 ? St(2) : St(3));
+  if (snapped) {
+    // broken face: the lit top of the stone and a darker fracture
+    for (let u = 0; u < 8; u++)
+      for (let y = top; y < top + 5; y++)
+        if (s.has(ox + sx + u, oy + y)) {
+          s.set(ox + sx + u, oy + y, u < 4 ? St(5) : St(4));
+          break;
+        }
   } else {
-    // rubble at the foot
-    for (const [dx, dy, k] of [
-      [19, 21, 3],
-      [20, 21, 2],
-      [19, 20, 4],
-      [3, 21, 3],
-      [4, 21, 2],
-    ])
-      s.set(ox + dx, oy + dy, St(k));
+    // capital: abacus slab + echinus, one pixel of cap above the cell at most
+    const chip = state === 'cracked' ? (h(6) < 0.5 ? sx - 2 : sx + 9) : -99;
+    for (let x = sx - 2; x < sx + 10; x++) {
+      if (Math.abs(x - chip) < 2) continue;
+      s.set(ox + x, oy - PILLAR_CAP + 1, x < sx + 4 ? St(5) : St(4));
+      s.set(ox + x, oy + 1, x < sx ? St(4) : x > sx + 7 ? St(1) : St(3));
+    }
+    for (let x = sx - 1; x < sx + 9; x++)
+      s.set(ox + x, oy + 2, x < sx + 2 ? St(4) : x > sx + 6 ? St(2) : St(3));
+    if (S.biome === 'tundra')
+      for (let x = sx - 2; x < sx + 9; x++)
+        if (Math.abs(x - chip) >= 2) s.set(ox + x, oy, R('snow', 7));
   }
-  if (S.biome === 'tundra' && !broken) for (let x = 6; x < 17; x++) s.set(ox + x, oy, R('snow', 7));
-  // a little moss at the base
-  if (S.biome !== 'void' && S.biome !== 'volcano') {
-    s.set(ox + 7, oy + 18, R('foliage', 5));
-    s.set(ox + 6, oy + 18, R('foliage', 4));
+  if (state === 'cracked') {
+    // a hairline crack running down the shaft
+    let u = 2 + (hash2(c, r, S.seed + 502) % 4);
+    for (let y = 5 + (hash2(r, c, S.seed) % 4); y < 17; y++) {
+      if (hash2(u, y, S.seed + 503) % 3 === 0) u += hash2(y, u, S.seed) % 2 ? 1 : -1;
+      if (u < 0 || u > 7) break;
+      s.set(ox + sx + u, oy + y, S.biome === 'volcano' && y % 4 === 0 ? R('ember', 3) : St(1));
+    }
+  }
+  if (snapped) {
+    // the fallen drum lies beside the column, with rubble
+    const left = h(7) < 0.5;
+    const dx = left ? 0 : CELL - 7;
+    if (state === 'stump' || h(8) < 0.6)
+      for (let v = 0; v < 4; v++)
+        for (let u = 0; u < 7; u++) {
+          const corner = (v === 0 || v === 3) && (u === 0 || u === 6);
+          if (corner) continue;
+          const col =
+            u === (left ? 0 : 6)
+              ? St(4)
+              : v === 0
+                ? St(5)
+                : v === 3
+                  ? St(1)
+                  : v === 1
+                    ? St(4)
+                    : St(3);
+          s.set(ox + dx + u, oy + 19 + v, col);
+        }
+    for (const [ux, uy, k] of [
+      [left ? 20 : 2, 21, 3],
+      [left ? 21 : 3, 21, 2],
+      [left ? 20 : 3, 20, 4],
+      [left ? 17 : 5, 22, 2],
+    ])
+      s.set(ox + ux, oy + uy, St(k));
+  }
+  if (snapped && S.biome === 'tundra')
+    for (let u = 1; u < 7; u++)
+      if (s.has(ox + sx + u, oy + top + 1)) s.set(ox + sx + u, oy + top + 1, R('snow', 7));
+  if (green) {
+    // moss on the plinth, and on some columns ivy climbing the lit side
+    s.set(ox + sx - 1, oy + 18, R('foliage', 5));
+    s.set(ox + sx - 2, oy + 18, R('foliage', 4));
+    if (h(9) < 0.45) {
+      let u = h(10) < 0.5 ? 0 : 1;
+      const reach = top + 2 + Math.floor(h(11) * (18 - top - 4));
+      for (let y = 18; y > reach; y--) {
+        s.set(ox + sx + u, oy + y, (y + c) % 3 ? R('foliage', 4) : R('foliage', 6));
+        if ((y + r) % 3 === 0) s.set(ox + sx + u + 1, oy + y, R('foliage', 5));
+        if (hash2(y, c, S.seed + 504) % 4 === 0) u = Math.min(2, u + 1);
+      }
+    }
+  } else if (S.biome === 'volcano') {
+    // soot creeping up from the base
+    for (let u = 0; u < 8; u++)
+      for (let y = 15 + (hash2(u, c, S.seed) % 3); y < 19; y++)
+        if (s.has(ox + sx + u, oy + y)) s.set(ox + sx + u, oy + y, R('ash', u < 3 ? 3 : 2));
   }
   s.outline({ dark: R('ink', 2) });
   return s;

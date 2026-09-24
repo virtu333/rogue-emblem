@@ -15,8 +15,10 @@ import { hash2, jitteredPoints, worley } from './noise.js';
 import { G, HARD, MATERIAL_COUNT } from './biomes.js';
 import { ART_CELL as CELL } from './state.js';
 import { ANIM } from './shimmer.js';
+import { cornerShares, fieldAt } from './fields.js';
 
 const BLUR = 5; // box radius in art px: corner rounding + wobble range
+const sat = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export const EDGE_CAP = 12;
 export const DECAL_REACH = 5;
 
@@ -196,22 +198,59 @@ function wearAt(S, x, y) {
       const dx = (x - cx) * 0.9,
         dy = (y - cy) * 1.3;
       w = Math.max(w, 1 - Math.sqrt(dx * dx + dy * dy) / 15);
+      // A worn footpath leaves the door and wanders down into the cell
+      // below, fading out before it reaches the next one.
+      const doorY = (r + j) * CELL + CELL - 2;
+      const run = y - doorY;
+      if (run > 0 && run < 26) {
+        const phase = (hash2(c + i, r + j, S.seed + 17) % 628) / 100;
+        const xc = cx + Math.sin(run / 6 + phase) * 2.6 * Math.min(1, run / 8);
+        const width = 2.4 - run * 0.04;
+        trailOut = Math.max(trailOut, (1 - Math.abs(x + 0.5 - xc) / width) * (1 - run / 30));
+      }
     }
   return w;
 }
+let trailOut = 0;
 
-function paintOpenGround(S, x, y, s, wearNear) {
+function paintOpenGround(S, x, y, s, wearNear, wood = 0) {
   const st = s.stretch;
   const n =
     S.nz.fbm(st ? x * st[0] : x, st ? y * st[1] : y, 44, S.seed + 11, 2) +
     (S.nz.vn(x, y, 3, S.seed + 13) - 0.5) * 0.05;
   let t = n < 0.28 ? s.dark : n > 0.72 ? s.light : s.base;
+  const dr = s.drift;
+  // Wind-shaped drifts (snow) and dunes (ash): long, gently curving crests
+  // with a lit lip and a soft shadow below, only in some stretches, broken
+  // into dashes so they read as wind-shaped ground, not as contour lines.
+  // (Cheapest tests first: most pixels are outside a drift stretch.)
+  if (dr && S.nz.fbm(x, y, 38, S.seed + 16, 2) > dr.patch && S.nz.vn(x, y, 7, S.seed + 19) > 0.4) {
+    const wave = y + Math.sin(x / dr.len + S.nz.vn(x, y, 30, S.seed + 15) * 5) * 3;
+    const band = ((wave % dr.period) + dr.period) % dr.period;
+    if (band < 1) t = dr.crest === false ? t : s.light;
+    else if (band < 2.2) t = s.dark;
+  }
+  if (wood > 0.5) {
+    // Forest floor: the heart of a wood is in canopy shade, so the gaps
+    // between crowns read as depth, not as open grass.
+    const k = wood + (S.nz.vn(x, y, 3, S.seed + 14) - 0.5) * 0.18;
+    if (k > 0.8) t = s.shade ?? down(s.dark, 1);
+    else if (k > 0.62) t = s.dark;
+  }
+  trailOut = 0;
   const wear = wearNear ? wearAt(S, x, y) : 0;
   if (wear > 0) {
     const k = wear + (S.nz.vn(x, y, 5, S.seed + 12) - 0.5) * 0.5;
     const dirt = S.style.dirt || [R('soil', 5), R('soil', 6)];
     if (k > 0.55) t = dirt[1];
     else if (k > 0.42) t = dirt[0];
+  }
+  if (trailOut > 0) {
+    // the footpath: pale, trodden earth, patchy where grass grows back
+    const k = trailOut + (S.nz.vn(x, y, 3, S.seed + 18) - 0.5) * 0.3;
+    const path = S.style.path || S.style.dirt || [R('soil', 5), R('soil', 6)];
+    if (k > 0.5) t = path[1];
+    else if (k > 0.3) t = path[0];
   }
   return t;
 }
@@ -232,14 +271,18 @@ function paintLandLip(S, x, y, i, t) {
 // class in animOut (avoids a per-pixel allocation).
 let animOut = 0;
 
-function paintWater(S, x, y, i) {
+function paintWater(S, x, y, i, open = 0) {
   const seed = S.seed;
   const dAny = S.dAny(i);
   const d = Math.min(dAny, 10) + (S.nz.fbm(x, y, 12, seed + 21, 2) - 0.5) * 2.5;
+  // Depth: shallow at the shore, darker toward the middle of wide water
+  // (`open` is the share of water cells around, see fields.js).
+  const depth = open + (S.nz.fbm(x, y, 36, seed + 24, 2) - 0.5) * 0.5;
   let t = R('tide', 4);
   let anim = 0;
   if (d <= 2.5) t = R('tide', 5);
-  else if (dAny >= 9 && S.nz.fbm(x, y, 36, seed + 24, 2) < 0.46) t = R('tide', 3);
+  else if (dAny >= 9 && depth > 1.08) t = R('tide', 2);
+  else if (dAny >= 9 && (depth > 0.84 || S.nz.fbm(x, y, 36, seed + 24, 2) < 0.4)) t = R('tide', 3);
   else if (
     d > 4 &&
     y % 3 === 0 &&
@@ -429,7 +472,16 @@ function floorLayout(S) {
   return (S._floor = { rowA, rowB, rowK, kMin, stoneA, stoneB, stoneS });
 }
 
-function paintFloor(S, x, y, i) {
+const GRIME = {
+  castle: [R('foliage', 4), R('rock', 4)],
+  grassland: [R('foliage', 4), R('rock', 4)],
+  swamp: [R('foliage', 4), R('marsh', 4)],
+  tundra: [R('snow', 7), R('snow', 5)],
+  volcano: [R('ash', 3), R('ash', 4)],
+  void: [R('unlight', 1), R('ink', 3)],
+};
+
+function paintFloor(S, x, y, i, wall = 0) {
   // Mortar is only half a value step darker than its stone, so a big hall
   // reads as one quiet plane (open terrain) instead of a brick texture.
   const [mortarLo, base, alt, lit] = S.masonry.floor;
@@ -449,6 +501,26 @@ function paintFloor(S, x, y, i) {
   let t = stone;
   if (y === y1 - 1 || x === x1 - 1) t = mortarOf[stone] ?? mortarLo;
   else if (id % 17 === 0 && x - x0 === y - y0 + 1) t = mortarOf[stone] ?? mortarLo;
+  else if (S.nz.vn(x, y, 40, S.seed + 96) > 0.72) {
+    // settled, cracked stretches of paving: a sparse hairline network
+    const w = worley(x, y, 11, S.seed + 97);
+    if (w.d2 - w.d1 < 0.45) t = mortarOf[stone] ?? mortarLo;
+  }
+  // Grime, moss or drifted snow gathers where the floor meets a wall.
+  // Only in patches along the foot of a wall (below it or beside it), so it
+  // never reads as an outline around the masonry.
+  if (wall > 0.2) {
+    const patch = S.nz.vn(x, y, 13, S.seed + 98);
+    if (patch > 0.52) {
+      const reach = Math.round((patch - 0.52) * 9 * Math.min(1, wall * 2));
+      if (Math.min(S.dU[i], S.dL[i], S.dR[i]) <= reach) {
+        const g = GRIME[S.biome] || GRIME.castle;
+        const n = S.nz.vn(x, y, 2, S.seed + 99);
+        if (n > 0.55) t = g[0];
+        else if (n > 0.35) t = g[1];
+      }
+    }
+  }
   // Edge of the paving next to open ground: a dark kerb line.
   const { W, H, mat } = S;
   const soft = (k) => k !== G.FLOOR && k !== G.WALL;
@@ -546,8 +618,25 @@ export function passGround(S, x0, y0, x1, y1) {
       lavaNear[(r - r0) * fw + c - c0] = lava;
       wearNear[(r - r0) * fw + c - c0] = wear;
     }
+  // Region fields (see fields.js), one per cell kind: the share of woodland
+  // around a forest cell's corners, of water around a water cell's, of wall
+  // around a floor cell's. Zero where the cell has no field.
+  const corners = new Float32Array(fw * (r1 - r0 + 1) * 4);
+  const isWood = (c, r) => (S.name(c, r) === 'Forest' ? 1 : 0);
+  const isWater = (c, r) => (S.groundAt(c, r) === G.WATER ? 1 : 0);
+  const isWall = (c, r) => (S.inMap(c, r) && S.groundAt(c, r) === G.WALL ? 1 : 0);
+  for (let r = r0; r <= r1; r++)
+    for (let c = c0; c <= c1; c++) {
+      const o = ((r - r0) * fw + c - c0) * 4,
+        g = S.ground[r * cols + c];
+      if (S.names[r][c] === 'Forest') cornerShares(isWood, c, r, corners, o);
+      else if (g === G.WATER) cornerShares(isWater, c, r, corners, o);
+      else if (g === G.FLOOR) cornerShares(isWall, c, r, corners, o);
+    }
+  const field = (f, x, v) => fieldAt(corners, f * 4, x % CELL, v);
   for (let y = y0; y < y1; y++) {
-    const rr = ((y / CELL) | 0) - r0;
+    const rr = ((y / CELL) | 0) - r0,
+      v = y % CELL;
     for (let x = x0; x < x1; x++) {
       const i = y * W + x,
         m = mat[i],
@@ -556,9 +645,11 @@ export function passGround(S, x0, y0, x1, y1) {
       animOut = 0;
       switch (m) {
         case G.GRASS:
-        case G.FOREST:
-          t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.ground, wearNear[f]));
+        case G.FOREST: {
+          const wood = S.names[rr + r0][(x / CELL) | 0] === 'Forest' ? field(f, x, v) : 0;
+          t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.ground, wearNear[f], wood));
           break;
+        }
         case G.ROCK:
           t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.rockGround, wearNear[f]));
           break;
@@ -566,7 +657,7 @@ export function passGround(S, x0, y0, x1, y1) {
           t = paintLandLip(S, x, y, i, paintSand(S, x, y));
           break;
         case G.WATER:
-          t = paintWater(S, x, y, i);
+          t = paintWater(S, x, y, i, field(f, x, v));
           break;
         case G.ICE:
           t = paintIce(S, x, y, i);
@@ -586,7 +677,7 @@ export function passGround(S, x0, y0, x1, y1) {
           break;
         }
         case G.FLOOR:
-          t = paintFloor(S, x, y, i);
+          t = paintFloor(S, x, y, i, field(f, x, v));
           break;
         case G.WALL:
           t = paintWall(S, x, y);
@@ -675,7 +766,11 @@ export function passDecals(S, x0, y0, x1, y1) {
     for (const p of pts(10, seed + 211)) {
       const i = p.y * W + p.x,
         m = mat[i];
-      const limit = m === G.SAND ? 0.25 : style.tufts === 'dry' ? 0.12 : 0.26;
+      // Clustered, not sprinkled: a low-frequency field makes lush patches
+      // (many tufts) and bare ones (almost none) at the same average.
+      const lush = sat((S.nz.fbm(p.x, p.y, 72, seed + 250, 2) - 0.36) / 0.28);
+      const limit =
+        m === G.SAND ? 0.25 : (style.tufts === 'dry' ? 0.12 : 0.26) * (0.2 + 1.6 * lush * lush);
       if (!(m === G.GRASS || m === G.ROCK || m === G.SAND || m === G.BOG) || p.r > limit) continue;
       if (S.dAny(i) < 2 && m !== G.SAND) continue;
       if (m === G.SAND && S.dAny(i) > 4) continue; // grass creeps in at sand edges only
@@ -694,12 +789,14 @@ export function passDecals(S, x0, y0, x1, y1) {
       );
     }
   }
-  // Small stones and flowers on open ground.
+  // Small stones on open ground: a scatter everywhere, gathered into stony
+  // patches by a low-frequency field (and plentiful on rocky ground).
   for (const p of pts(13, seed + 221)) {
     const i = p.y * W + p.x,
       m = mat[i];
     if (!(openGround(m) || m === G.SAND) || S.dAny(i) < 3) continue;
-    if (p.r < (m === G.ROCK ? 0.4 : 0.04)) {
+    const stony = sat((S.nz.fbm(p.x, p.y, 56, seed + 270, 2) - 0.58) / 0.14);
+    if (p.r < (m === G.ROCK ? 0.4 : 0.012 + stony * 0.22)) {
       const stone = style.pebble || [R('ink', 8), R('ink', 7)];
       stamp(
         p.x,
@@ -708,17 +805,25 @@ export function passDecals(S, x0, y0, x1, y1) {
         (ch, cur) => (ch === 'a' ? stone[0] : ch === 'b' ? stone[1] : down(cur, 1)),
         (mm) => mm === m,
       );
-    } else if (style.flowers && m === G.GRASS && p.r > 0.97) {
-      const col = style.flowers[hash2(p.gx, p.gy, seed + 222) % style.flowers.length];
+    }
+  }
+  // Wildflowers grow in drifts of one colour, not as a uniform sprinkle.
+  if (style.flowers)
+    for (const p of pts(7, seed + 223)) {
+      const i = p.y * W + p.x;
+      if (mat[i] !== G.GRASS || S.dAny(i) < 3) continue;
+      const drift = sat((S.nz.fbm(p.x, p.y, 64, seed + 260, 2) - 0.6) / 0.12);
+      if (p.r > drift * 0.16) continue;
+      const k = Math.floor(S.nz.vn(p.x, p.y, 48, seed + 261) * style.flowers.length * 0.999);
+      const col = style.flowers[k];
       stamp(
         p.x,
         p.y,
-        ['f.f', '.f.'],
+        p.r < drift * 0.07 ? ['f.f', '.f.'] : ['f'],
         () => col,
-        (mm) => mm === m,
+        (mm) => mm === G.GRASS,
       );
     }
-  }
   // Water ripples: short horizontal strokes, one ramp step lighter.
   for (const p of pts(8, seed + 231)) {
     const i = p.y * W + p.x;

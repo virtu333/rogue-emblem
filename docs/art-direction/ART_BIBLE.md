@@ -22,7 +22,7 @@ decoration, lit actors over a restrained world, faction color as an area).
 | Art production | Procedural in code first (UI plates, light, particles, terrain, key art). Existing assets may be used and hand-edited. |
 | Region names | Act I region is **Border Marches** (`regions.json`), not "Border Quarries". |
 | Title | **The Hollow Sun** key art and subtitle. |
-| Terrain objects | Trees and columns must fit their cell footprint (owner feedback on the terrain study). |
+| Terrain objects | Trees and peaks mostly fit their cell (≤ 4 art px over the top and sides, 1–2 px down; canopies only 2 px into open ground); columns and structures fit exactly. Varied, not stamped: forests and ranges follow the shape of the region (owner feedback on the terrain study and the first runtime). |
 
 ## World → image
 
@@ -85,7 +85,7 @@ Lanes are warp threads; walked route is a plied gold rope with knots; reachable 
 
 ## Terrain
 
-Procedural (`tools/art/procedural-terrain` → runtime). No cell grid: shores, canopies, ridges, lava flow across cells; one light direction; biomes change material, not tint. Units must pop: quiet, lighter ground; objects (trees, pillars) stay within their cell footprint.
+Procedural (`tools/art/procedural-terrain` → runtime). No cell grid: shores, canopies, ridges, lava flow across cells; one light direction; biomes change material, not tint. Units must pop: quiet, lighter ground; objects mostly fit their cell (trees and peaks may spill a few pixels, columns and structures never) and vary naturally: dense wood interiors, sparse edges, lone copses, ranges joined by ridges.
 
 ## Motion
 
