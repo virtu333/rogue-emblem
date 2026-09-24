@@ -108,6 +108,10 @@ test.describe('Gamepad menu navigation', () => {
     await page.goto('/?devScene=title&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'Title');
+    // The key art plate builds once, just after the title's first paint. The sim pad's
+    // release is a page task queued behind that build, so a tap during it reads as a
+    // held direction (DAS repeat); a real pad is read live on the next step.
+    await expect(page.locator('.re-title-art.re-keyart-ready')).toHaveCount(1);
     await installSimPad(page);
 
     const focus = () =>

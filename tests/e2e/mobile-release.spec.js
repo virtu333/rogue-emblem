@@ -18,22 +18,12 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   });
   await page.goto('/');
   await page.waitForFunction(() => window.__emblemRogueGame?.scene?.isActive('Title'));
-  await page.waitForTimeout(1300);
-  const p = await page.evaluate(() => {
-    const g = window.__emblemRogueGame,
-      s = g.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const b = walk(s.children.list)
-        .find((o) => o.text === 'NEW GAME')
-        .getBounds(),
-      r = g.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(p.x, p.y);
+  // The production title is the DOM key-art screen: the art must mount from the
+  // bundle (no network), then New Game is a real 44px button.
+  await expect(page.locator('.re-title-art.re-keyart-ready canvas')).toHaveCount(1);
+  const newGame = page.getByRole('button', { name: 'New Game', exact: true });
+  await expect(newGame).toBeVisible();
+  await newGame.tap();
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'));
   // The first-run fast path intentionally starts here; advance the visible narrative.
   for (let i = 0; i < 24; i++) {
