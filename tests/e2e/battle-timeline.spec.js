@@ -130,19 +130,7 @@ async function reloadSavedBattle(page) {
   await page.reload();
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1400);
-  const point = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const object = walk(s.children.list).find((o) => o.text === 'SAVE SLOTS' && o.visible);
-    const b = object.getBounds(),
-      r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(point.x, point.y);
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).tap();
   await waitForScene(page, 'SlotPicker');
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();

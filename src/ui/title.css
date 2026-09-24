@@ -1,0 +1,416 @@
+/* The Hollow Sun title (TitleScreen.js) and the key-art lockup it shares with the
+   auth screen (index.html). ART_BIBLE: Cinzel for the logo only, gold for the
+   player's agency, reliquary plates for the menu. Tokens only. */
+
+.re-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ───────── Backdrop canvas (keyArtBackdrop.js) ───────── */
+.re-keyart-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+  pointer-events: none;
+}
+.re-keyart-ready > .re-keyart-canvas {
+  opacity: 1;
+}
+
+/* ───────── Lockup ───────── */
+.re-keyart-lockup {
+  --rt-h1: 38px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.re-keyart-title {
+  margin: 0;
+  font: 700 var(--rt-h1) / 1 var(--re-display);
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+  color: var(--re-text);
+  background: linear-gradient(
+    180deg,
+    var(--re-parchment) 0%,
+    var(--re-text) 55%,
+    var(--re-parchment-dim) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 var(--re-shade-deep));
+}
+.re-keyart-rule {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin: calc(var(--rt-h1) * 0.26) 0 calc(var(--rt-h1) * 0.24);
+}
+.re-keyart-rule span {
+  flex: 1;
+  height: 1px;
+}
+.re-keyart-rule span:first-child {
+  background: linear-gradient(90deg, transparent, var(--re-accent));
+}
+.re-keyart-rule span:last-child {
+  background: linear-gradient(90deg, var(--re-accent), transparent);
+}
+.re-keyart-rule i {
+  width: 5px;
+  height: 5px;
+  background: var(--re-accent-text);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px var(--re-ember-glow);
+}
+.re-keyart-sub {
+  margin: 0;
+  font: 500 14px/1.2 var(--re-display);
+  letter-spacing: 0.34em;
+  color: var(--re-muted);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 var(--re-shade-deep);
+}
+
+/* ───────── Title screen ───────── */
+.re-title {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-z, var(--re-depth-title));
+  overflow: hidden;
+  background: var(--re-void);
+  color: var(--re-text);
+  font-family: var(--re-body);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.re-title--stage {
+  inset: auto;
+}
+html.mobile-preview .re-title--phone {
+  width: min(844px, 100vw);
+  height: min(390px, 100dvh);
+  margin: auto;
+}
+.re-title-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--re-void);
+}
+/* Legibility: a quiet ink falloff under the lockup/menu column and the footer. */
+.re-title-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--re-shade) 0%, transparent 38%),
+    linear-gradient(0deg, var(--re-shade) 0%, transparent 24%);
+}
+.re-title-stage {
+  position: absolute;
+  inset: 0;
+}
+.re-title--phone .re-title-stage {
+  --rt-gl: max(clamp(16px, 6.4vw, 54px), calc(env(safe-area-inset-left, 0px) + 12px));
+  --rt-gr: max(clamp(16px, 6.4vw, 54px), calc(env(safe-area-inset-right, 0px) + 12px));
+  --rt-top: max(clamp(14px, 9vh, 46px), env(safe-area-inset-top, 0px));
+  --rt-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  --rt-h1: clamp(28px, 9.6vh, 42px);
+  /* Narrower on small phones so the column stays clear of the figure. */
+  --rt-col: clamp(184px, 25.6vw, 216px);
+  --rt-ref: 118px;
+}
+/* Desktop: a 640x480 design box scaled to the letterboxed game canvas. */
+.re-title--stage .re-title-stage {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 640px;
+  height: 480px;
+  transform: scale(var(--re-title-k, 1));
+  transform-origin: 0 0;
+  --rt-gl: 34px;
+  --rt-gr: 34px;
+  --rt-top: 40px;
+  --rt-bottom: 16px;
+  --rt-h1: 34px;
+  --rt-col: 190px;
+  --rt-ref: 122px;
+}
+
+.re-title-lead {
+  position: absolute;
+  left: var(--rt-gl);
+  top: var(--rt-top);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.re-title-lead .re-keyart-lockup {
+  --rt-h1: inherit;
+}
+.re-title-run {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: var(--rt-col);
+  margin-top: 16px;
+}
+.re-title-reference {
+  position: absolute;
+  right: var(--rt-gr);
+  bottom: var(--rt-bottom);
+  display: grid;
+  grid-template-columns: repeat(2, var(--rt-ref));
+  gap: 6px;
+}
+
+/* Reliquary plates over the art. */
+.re-title .re-title-btn,
+.re-title .re-title-corner-btn {
+  position: relative;
+  min-height: var(--re-tap);
+  margin: 0;
+  padding: 0 14px;
+  gap: 8px;
+  font: 9px/1.25 var(--re-pixel);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--re-text);
+  background: linear-gradient(180deg, var(--re-shade-edge), var(--re-shade-deep));
+  border: 1px solid var(--re-line);
+  box-shadow: inset 0 1px 0 var(--re-raised-haze);
+}
+.re-title .re-title-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.re-title-reference .re-title-btn {
+  justify-content: center;
+  text-align: center;
+  padding: 0 8px;
+  font-size: 8px;
+}
+.re-title .re-title-btn:is(:hover, :focus-visible, .is-focused):not(.is-primary),
+.re-title .re-title-corner-btn:is(:hover, :focus-visible) {
+  color: var(--re-accent-text);
+  border-color: var(--re-accent);
+  box-shadow:
+    inset 2px 0 0 var(--re-accent),
+    inset 0 1px 0 var(--re-raised-haze);
+}
+.re-title .re-title-btn.is-primary {
+  color: var(--re-void);
+  border-color: var(--re-accent-text);
+  box-shadow: inset 0 1px 0 var(--re-ember-pale-haze);
+}
+.re-title .re-title-btn.is-primary:is(:hover, :focus-visible, .is-focused) {
+  background: var(--re-ember-fill-hi);
+  box-shadow:
+    inset 0 0 0 1px var(--re-ember-deep),
+    0 0 14px var(--re-ember-haze);
+}
+.re-title .re-title-btn:focus-visible,
+.re-title .re-title-corner-btn:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -4px;
+}
+.re-title .re-title-btn.is-primary:focus-visible {
+  outline-color: var(--re-void);
+}
+.re-title .re-title-btn:active {
+  transform: translateY(1px);
+}
+.re-title-btn.has-sub {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  min-height: 50px;
+}
+.re-title-subtext {
+  font: 7px/1 var(--re-pixel);
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+.re-title-label {
+  min-width: 0;
+}
+.re-title-badge {
+  margin-left: auto;
+  padding: 3px 5px 2px;
+  font: 7px/1 var(--re-pixel);
+  letter-spacing: 0.06em;
+  color: var(--re-accent-text);
+  background: var(--re-shade-deep);
+  border: 1px solid var(--re-gilt);
+}
+.re-title-reference .re-title-btn.has-badge {
+  padding-top: 12px;
+}
+.re-title-reference .re-title-badge {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  margin: 0;
+  padding: 2px 3px 1px;
+}
+
+/* Corner: sound hint, account, settings. */
+.re-title-corner {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  right: var(--rt-gr);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.re-title--stage .re-title-corner {
+  top: 12px;
+}
+.re-title .re-title-corner-btn {
+  padding: 0 12px;
+  font-size: 8px;
+}
+.re-title-user {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 11px/1.2 var(--re-body);
+  color: var(--re-muted);
+}
+.re-title-sound {
+  margin: 0 4px 0 0;
+  padding: 6px 8px 5px;
+  font: 8px/1 var(--re-pixel);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+  background: var(--re-shade-deep);
+  border: 1px solid var(--re-line-soft);
+}
+.re-title-sound[hidden] {
+  display: none;
+}
+.re-title-notices {
+  position: absolute;
+  top: 64px;
+  right: var(--rt-gr);
+  max-width: min(46%, 320px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+  pointer-events: none;
+}
+.re-title-notice {
+  margin: 0;
+  padding: 4px 8px;
+  font: 11px/1.35 var(--re-body);
+  color: var(--re-info);
+  background: var(--re-shade-deep);
+}
+.re-title-notice[hidden] {
+  display: none;
+}
+.re-title-notice.is-warn {
+  color: var(--re-warn);
+}
+.re-title-notice.is-bad {
+  color: var(--re-bad);
+}
+
+.re-title-foot {
+  position: absolute;
+  left: var(--rt-gl);
+  bottom: var(--rt-bottom);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  max-width: calc(100% - var(--rt-gl) - var(--rt-gr) - 2 * var(--rt-ref) - 24px);
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-muted);
+  text-shadow: 0 1px 0 var(--re-void);
+}
+.re-title-version {
+  font: 7px/1 var(--re-pixel);
+  color: var(--re-muted-dim);
+}
+.re-title-alpha {
+  padding: 3px 5px 2px;
+  font: 7px/1 var(--re-pixel);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--re-bad);
+  border: 1px solid var(--re-blood-deep);
+  background: var(--re-shade-deep);
+}
+.re-title-message {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--rt-bottom) + 52px);
+  transform: translateX(-50%);
+  max-width: min(90%, 440px);
+  margin: 0;
+  padding: 8px 12px;
+  font: 12px/1.4 var(--re-body);
+  text-align: center;
+  white-space: pre-line;
+  color: var(--re-bad);
+  background: var(--re-shade-deep);
+  border: 1px solid var(--re-danger-line);
+}
+.re-title-message[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .re-title-badge,
+  .re-title-sound {
+    animation: re-title-breathe 1.6s ease-in-out infinite alternate;
+  }
+}
+.re-title.is-still .re-title-badge,
+.re-title.is-still .re-title-sound {
+  animation: none;
+}
+@keyframes re-title-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-keyart-canvas {
+    transition: none;
+  }
+}
+
+/* Desktop letterbox beside the 4:3 title stage reads as ink, not the boot navy. */
+#game-wrapper:has(> .re-title) #game-container {
+  background: var(--re-void);
+}

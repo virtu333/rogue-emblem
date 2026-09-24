@@ -33,7 +33,7 @@ export function runReferenceEntries() {
       'Route nodes',
       'Route',
       'Tap any node to preview it without advancing.',
-      'Only connected available nodes can be entered. Advance commits the selection.',
+      'Only connected available nodes can be entered. Travel commits the selection.',
       'Completed shops can be reopened while they remain your current node; stock is retained.',
     ],
     [

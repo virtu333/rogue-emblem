@@ -105,12 +105,7 @@ test('records show persisted roster detail without navigating away from the titl
   });
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1300);
-  await page.evaluate(() =>
-    window.__emblemRogueGame.scene
-      .getScene('Title')
-      ._menuButtons.find((b) => b.list.some((t) => t.text === 'RECORDS'))
-      ._hitZone.emit('pointerdown'),
-  );
+  await page.getByRole('button', { name: 'Records', exact: true }).tap();
   const dialog = page.getByRole('dialog', { name: 'Victory records' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /Slot 1/ }).tap();

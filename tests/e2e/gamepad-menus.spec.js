@@ -108,6 +108,10 @@ test.describe('Gamepad menu navigation', () => {
     await page.goto('/?devScene=title&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'Title');
+    // The key art plate builds once, just after the title's first paint. The sim pad's
+    // release is a page task queued behind that build, so a tap during it reads as a
+    // held direction (DAS repeat); a real pad is read live on the next step.
+    await expect(page.locator('.re-title-art.re-keyart-ready')).toHaveCount(1);
     await installSimPad(page);
 
     const focus = () =>
@@ -138,7 +142,7 @@ test.describe('Gamepad menu navigation', () => {
     );
   });
 
-  test('NodeMap: pad selects a DOM route node and Advance uses onNodeClick', async ({ page }) => {
+  test('NodeMap: pad selects a DOM route node and Travel uses onNodeClick', async ({ page }) => {
     await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
@@ -157,7 +161,7 @@ test.describe('Gamepad menu navigation', () => {
     await expect(target).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.__nodeClicks)).toEqual([]);
     const selected = await target.getAttribute('data-node');
-    await focusWithPad(page, route.getByRole('button', { name: 'Advance', exact: true }));
+    await focusWithPad(page, route.getByRole('button', { name: 'Travel', exact: true }));
     await tap(page, BTN.CONFIRM);
     expect(await page.evaluate(() => window.__nodeClicks)).toEqual([selected]);
   });

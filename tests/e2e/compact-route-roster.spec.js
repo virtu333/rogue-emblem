@@ -20,10 +20,12 @@ test('horizontal route retains selection and scroll through roster on landscape 
     await nodes.first().evaluate((e) => e.getBoundingClientRect().width),
   ).toBeGreaterThanOrEqual(44);
   expect(await route.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  if (page.viewportSize().width < 700) {
+  // The Loom keeps its side pane as a column at every phone width (no bottom bar).
+  {
     const graphBox = await scroll.boundingBox();
     const panelBox = await page.locator('.re-node-side').boundingBox();
-    expect(panelBox.y).toBeGreaterThanOrEqual(graphBox.y + graphBox.height);
+    expect(panelBox.x).toBeGreaterThanOrEqual(graphBox.x + graphBox.width);
+    expect(panelBox.width).toBeGreaterThanOrEqual(180);
   }
   const boss = route.locator('.re-node[aria-label^="Boss battle"]').last();
   await boss.tap();

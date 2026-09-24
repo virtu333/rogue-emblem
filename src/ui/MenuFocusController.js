@@ -62,6 +62,13 @@ export class MenuFocusController {
     this._render();
   }
 
+  /** Follow focus that moved by other means (keyboard, pointer) to item `i`. */
+  focusIndex(i) {
+    if (!Number.isInteger(i) || i < 0 || i >= this.items.length || i === this.index) return;
+    this.index = i;
+    this._render();
+  }
+
   /** Invoke the focused item's callback. Returns true if something was activated. */
   activate() {
     if (!this.isActive) return false;

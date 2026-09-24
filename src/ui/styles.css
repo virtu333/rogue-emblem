@@ -15,5 +15,9 @@
 /* Ceremonies: boss cards, fate bands, cut-ins, act titles, the boss bar. */
 @import './ceremony.css';
 
+/* Route map (the Loom) and title key art. */
+@import './loom.css';
+@import './title.css';
+
 /* Reliquary detail layer last: decorates every kit surface (visual-only). */
 @import './reliquary.css';

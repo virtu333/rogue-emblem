@@ -50,6 +50,7 @@ export const UI_DEPTHS = {
 export const DOM_UI_DEPTHS = {
   LAB: 30,
   BOSSBAR: 40, // Boss bar docked on the map; under every menu and ceremony.
+  TITLE: 390, // Title key art, lockup and menu (below every menu and dialogue)
   ROUTE: 400,
   LAUNCH: 920,
   UPGRADE: 950,

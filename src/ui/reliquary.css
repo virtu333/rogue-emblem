@@ -40,6 +40,8 @@
 .mu-screen .mh-begin,
 .battlefield-lab .mb-primary {
   background: var(--re-ember-fill);
+  /* Solid fallback under the gradient: contrast audits read background-color. */
+  background-color: var(--re-accent);
   border-color: var(--re-accent-text);
   color: var(--re-action-ink);
   text-shadow: 0 1px 0 rgba(255, 240, 189, 0.3);
@@ -50,6 +52,7 @@
 .mp-actions .mp-primary:active,
 .mu-screen .mh-begin:not(:disabled):active {
   background: var(--re-ember-fill-hi);
+  background-color: var(--re-accent-text);
   color: var(--re-action-ink);
 }
 @media (hover: hover) {
@@ -59,6 +62,7 @@
   .mp-actions .mp-primary:hover,
   .mu-screen .mh-begin:not(:disabled):hover {
     background: var(--re-ember-fill-hi);
+    background-color: var(--re-accent-text);
     color: var(--re-action-ink);
   }
 }

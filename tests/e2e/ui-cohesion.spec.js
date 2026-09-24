@@ -20,9 +20,9 @@ test('route art, dialogue portraits, reference search and settings use touch UI'
   await expect(page.locator('.re-node-map')).toBeVisible();
   const future = page.locator('.re-node[aria-label*="Future"]').first();
   await future.tap();
-  await expect(page.getByRole('button', { name: 'Advance', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Travel', exact: true })).toBeDisabled();
   await page.locator('.re-node.is-available').first().tap();
-  await expect(page.getByRole('button', { name: 'Advance', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Travel', exact: true })).toBeEnabled();
   await page.screenshot({ path: 'test-results/cohesion-node-map.png' });
   await page.locator('.re-node-map').getByRole('button', { name: 'Menu', exact: true }).tap();
   await page.getByRole('button', { name: 'Compendium', exact: true }).tap();
@@ -53,8 +53,8 @@ for (const width of [640, 667])
     await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
     const route = page.locator('.re-node-map');
     await expect(route).toBeVisible();
-    const advance = route.getByRole('button', { name: 'Advance', exact: true });
-    const box = await advance.boundingBox();
+    const travel = route.getByRole('button', { name: 'Travel', exact: true });
+    const box = await travel.boundingBox();
     expect(box.x + box.width).toBeLessThanOrEqual(width);
     expect(box.height).toBeGreaterThanOrEqual(44);
     await page.screenshot({ path: `test-results/cohesion-route-${width}.png` });
@@ -85,7 +85,7 @@ test('in-battle campaign overview is read-only and returns to pause', async ({ p
     () => window.__emblemRogueGame.scene.getScene('Battle').runManager.currentNodeId,
   );
   if (await map.locator('.re-node').count()) await map.locator('.re-node').first().tap();
-  await expect(map.getByRole('button', { name: 'Advance', exact: true })).toHaveCount(0);
+  await expect(map.getByRole('button', { name: 'Travel', exact: true })).toHaveCount(0);
   expect(
     await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').runManager.currentNodeId,

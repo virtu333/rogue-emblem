@@ -254,7 +254,8 @@ test.describe('Journey: full run loop', () => {
     // SceneRouter has a short transition cooldown after boot.
     await page.waitForTimeout(1_000);
 
-    await clickSceneLabel(page, 'Title', 'NEW GAME');
+    // The title menu is DOM (TitleScreen); click its real button.
+    await page.getByRole('button', { name: 'New Game', exact: true }).click();
     await waitForScene(page, 'HomeBase');
     await page.waitForTimeout(700);
 

@@ -122,4 +122,21 @@ describe('destroyed Phaser objects', () => {
     expect(item.onBlur).not.toHaveBeenCalled();
     expect(item.onActivate).not.toHaveBeenCalled();
   });
+
+  it('focusIndex follows focus moved by keyboard or pointer without re-activating', () => {
+    const c = new MenuFocusController({});
+    const items = makeItems(['New Game', 'Save Slots', 'Records']);
+    c.setItems(items);
+    c.focusIndex(2);
+    expect(c.index).toBe(2);
+    expect(items[2].button.color).toBe(FOCUS);
+    expect(items[0].button.color).toBe(DEFAULT);
+    for (const bad of [-1, 3, 1.5, NaN, undefined]) {
+      c.focusIndex(bad);
+      expect(c.index).toBe(2);
+    }
+    c.move(1);
+    expect(c.index).toBe(0);
+    expect(items.every((it) => it.onActivate.mock.calls.length === 0)).toBe(true);
+  });
 });

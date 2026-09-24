@@ -25,32 +25,25 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?mobilePreview=1&battleLab=1');
   await waitForScene(page, 'Title');
-  await page.waitForFunction(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    return s._menuButtons?.length && s.input.enabled && s._menuButtons[0].alpha === 1;
+  // The title is DOM: the promoted tutorial leads the run column with its subtitle
+  // inside the same 44px+ tap target.
+  const tutorial = page.getByRole('button', { name: /^Tutorial/ });
+  await expect(tutorial).toBeVisible();
+  await expect(tutorial).toHaveClass(/is-primary/);
+  await expect(tutorial.locator('.re-title-subtext')).toHaveText('Start here');
+  const fits = await tutorial.evaluate((b) => {
+    const box = b.getBoundingClientRect();
+    return (
+      [...b.querySelectorAll('span')].every((s) => {
+        const r = s.getBoundingClientRect();
+        return (
+          r.left >= box.left && r.right <= box.right && r.top >= box.top && r.bottom <= box.bottom
+        );
+      }) && box.height >= 44
+    );
   });
-  const p = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (ns) => ns.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const t = walk(s.children.list).find((o) => o.text === 'TUTORIAL');
-    if (!t) throw new Error('Fresh profile should promote tutorial');
-    const b = t.getBounds(),
-      hit = t.parentContainer._hitZone.getBounds(),
-      subtitle = t.parentContainer.list.find((child) => child.text === 'START HERE'),
-      r = s.game.canvas.getBoundingClientRect();
-    if (
-      !subtitle ||
-      b.left < hit.left ||
-      b.right > hit.right ||
-      subtitle.getBounds().right > hit.right
-    )
-      throw new Error('Tutorial recommendation must fit its tap target');
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(p.x, p.y);
+  if (!fits) throw new Error('Tutorial recommendation must fit its tap target');
+  await tutorial.tap();
   await waitForScene(page, 'Battle');
   const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
   await expect(note).toContainText('Welcome to the tutorial');
@@ -149,11 +142,7 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
   await expect(note).toContainText('completed the tutorial');
   await note.getByRole('button', { name: 'Continue', exact: true }).tap();
   await waitForScene(page, 'Title');
-  await page.waitForFunction(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title'),
-      walk = (ns) => ns.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    return walk(s.children.list).some((o) => o.text === 'START FIRST RUN');
-  });
+  await expect(page.getByRole('button', { name: 'Start First Run', exact: true })).toBeVisible();
   const taught = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('emblem_rogue_tutorial_lessons')),
   );

@@ -22,5 +22,14 @@
   "hpMedium": "#dca044",
   "hpLow": "#cc4038",
   "rarityEpic": "#a863cc",
-  "rarityLegend": "#e08a44"
+  "rarityLegend": "#e08a44",
+  "lineDim": "#58505e",
+  "mutedDim": "#766b77",
+  "parchment": "#f4ecdb",
+  "parchmentDim": "#bdb0aa",
+  "emberDeep": "#4f2c16",
+  "emberPale": "#fff0bd",
+  "bloodDeep": "#6e1a28",
+  "verdigrisDeep": "#2d6450",
+  "void": "#07060b"
 }

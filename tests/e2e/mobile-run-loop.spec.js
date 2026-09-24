@@ -2,37 +2,6 @@ import { test, expect, devices } from '@playwright/test';
 import { waitForGame, waitForScene, collectErrors } from './helpers.js';
 test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 
-async function tapText(page, key, text) {
-  await page.waitForFunction(
-    ({ key, text }) => {
-      const s = window.__emblemRogueGame.scene.getScene(key);
-      const walk = (nodes) =>
-        nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-      return walk(s.children.list).some((o) => o.type === 'Text' && o.visible && o.text === text);
-    },
-    { key, text },
-    { timeout: 10000 },
-  );
-  const point = await page.evaluate(
-    ({ key, text }) => {
-      const s = window.__emblemRogueGame.scene.getScene(key);
-      const walk = (nodes) =>
-        nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-      const o = walk(s.children.list).find(
-        (o) => o.type === 'Text' && o.visible && o.text === text,
-      );
-      const b = o.getBounds(),
-        r = s.game.canvas.getBoundingClientRect();
-      return {
-        x: r.x + (b.centerX * r.width) / s.scale.width,
-        y: r.y + (b.centerY * r.height) / s.scale.height,
-      };
-    },
-    { key, text },
-  );
-  console.log('Tap', key, text);
-  await page.touchscreen.tap(point.x, point.y);
-}
 async function enterNode(page, desired) {
   for (let i = 0; i < 12; i++) {
     const blocked = await page.evaluate(() => {
@@ -60,7 +29,7 @@ async function enterNode(page, desired) {
     return n.id;
   }, desired);
   await page.locator(`[data-node="${nodeId}"]`).tap();
-  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
+  await page.getByRole('button', { name: 'Travel', exact: true }).tap();
 }
 
 test('touch run: loadout, battle action, rewards, shop, equipment, next battle and local resume', async ({
@@ -275,7 +244,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   });
   expect(restored).toEqual({ gold: saved.gold, act: saved.act, roster: saved.roster });
   await page.waitForTimeout(1300);
-  await tapText(page, 'Title', 'SAVE SLOTS');
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).tap();
   await waitForScene(page, 'SlotPicker');
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('SlotPicker').input.enabled,
