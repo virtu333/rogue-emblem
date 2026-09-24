@@ -360,6 +360,7 @@ export class BattleScene extends Phaser.Scene {
     this.isBoss = data.isBoss || false;
     this.isElite = data.isElite || false;
     this._resumeCheckpoint = data.resumeCheckpoint || null;
+    this._fatalResumeParked = false;
     this._battleSuspendController = null;
     this.escapedUnits = [];
     this._escapeController = null;
@@ -2097,9 +2098,8 @@ export class BattleScene extends Phaser.Scene {
           );
         } catch (err) {
           // A checkpoint that cannot be restored must not trap the player in
-          // a resume loop — drop the suspend so continue reverts to the map.
-          this.runManager?.clearBattleInProgress?.();
-          this._persistBattleRunState?.();
+          // a resume loop — revert it (or park a fatal one) and persist.
+          this._abandonUnrestorableResume();
           throw err;
         }
         this._resumeCheckpoint = null;
@@ -2109,12 +2109,12 @@ export class BattleScene extends Phaser.Scene {
       this.refreshEndTurnControl();
     } catch (err) {
       console.error('BattleScene.beginBattle failed:', err);
+      let fatalResumeParked = this._fatalResumeParked === true;
       if (this._resumeCheckpoint) {
         // Unrestorable checkpoint — scrub the suspend so the next continue
         // goes back to the map instead of retrying a broken resume forever.
         this._resumeCheckpoint = null;
-        this.runManager?.clearBattleInProgress?.();
-        this._persistBattleRunState?.();
+        fatalResumeParked = this._abandonUnrestorableResume() === 'fatal';
       }
       const reason = String(err?.message || 'unknown_error').slice(0, 140);
       const cam = this.cameras.main;
@@ -2130,7 +2130,9 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(999);
       this.time.delayedCall(2000, () => {
         toast.destroy();
-        if (this.runManager) {
+        // A parked fatal checkpoint must be settled from the slot screen; the
+        // route map would let a new battle overwrite the recorded defeat.
+        if (this.runManager && !fatalResumeParked) {
           void transitionToScene(
             this,
             'NodeMap',
@@ -9097,6 +9099,27 @@ export class BattleScene extends Phaser.Scene {
    * Persist the run mid-battle (anti-refresh casualty lock). Quota/storage
    * failures only degrade the lock, never gameplay — warn and continue.
    */
+  /**
+   * Resume failed partway (applyUnits may already have loaded the
+   * checkpoint's convoy/gold into the run). Non-fatal: apply the sanctioned
+   * entry revert so the save matches "Continue from Map". Fatal: keep the
+   * recorded defeat, mark the checkpoint unrestorable so the slot screen
+   * offers to settle it, and never hand out a free map restart.
+   * @returns {'reverted'|'fatal'|'none'}
+   */
+  _abandonUnrestorableResume() {
+    const rm = this.runManager;
+    if (!rm?.battleInProgress) return 'none';
+    let outcome = 'reverted';
+    if (!rm.revertBattleInProgressToEntry()) {
+      if (rm.battleInProgress?.checkpoint) rm.battleInProgress.checkpoint.restoreFailed = true;
+      outcome = 'fatal';
+      this._fatalResumeParked = true;
+    }
+    this._persistBattleRunState?.();
+    return outcome;
+  }
+
   _persistBattleRunState(candidate = null) {
     if (!this.runManager) return { ok: false, reason: 'missing_run' };
     try {

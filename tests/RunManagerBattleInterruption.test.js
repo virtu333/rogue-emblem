@@ -203,4 +203,116 @@ describe('RunManager suspended battle (anti-refresh)', () => {
       expect(clearBattleInProgressInSave(null, undefined).ok).toBe(false);
     });
   });
+
+  describe('checkpoints written by older builds (pre-v2)', () => {
+    // Shape written by 17fdc78 (before the canonical battle state): no entry
+    // snapshot on the flag, version 1 checkpoint, village reward uid recorded.
+    function writeLegacySuspendedSave({ villageUid = null } = {}) {
+      rm.visionChargesRemaining = 1;
+      rm.visionCount = 1;
+      rm.rngSeed = 999;
+      rm.beginBattleInProgress('node_3');
+      delete rm.battleInProgress.entryBattleState;
+      delete rm.battleInProgress.rewindPolicy;
+      rm.battleInProgress.visionChargesAtEntry = 2;
+      rm.battleInProgress.visionCountAtEntry = 0;
+      rm.battleInProgress.rngSeedAtEntry = 1111;
+      if (villageUid)
+        rm.addToConvoy({ name: 'Vulnerary', type: 'Consumable', uses: 3, uid: villageUid });
+      rm.setBattleCheckpoint(
+        makeCheckpoint({
+          villageState: villageUid ? { status: 'visited', rewardItemUid: villageUid } : null,
+        }),
+      );
+      expect(saveRun(rm, null, 1).ok).toBe(true);
+    }
+
+    it('loads as recoverable-by-revert instead of a dead end', () => {
+      writeLegacySuspendedSave();
+      const loaded = RunManager.fromJSON(JSON.parse(store[getRunKey(1)]), gameData);
+      expect(loaded.battleInProgress).toBeTruthy();
+      expect(loaded._battleRecoveryInvalid).toBe(true);
+      expect(loaded._battleRecoveryLegacy).toBe(true);
+    });
+
+    it('treats an unversioned checkpoint as legacy rather than resuming it unchecked', () => {
+      rm.beginBattleInProgress('node_3');
+      rm.setBattleCheckpoint(makeCheckpoint({ version: undefined }));
+      const loaded = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(loaded._battleRecoveryInvalid).toBe(true);
+      expect(loaded._battleRecoveryLegacy).toBe(true);
+    });
+
+    it('does not mark a malformed v2 checkpoint as legacy', () => {
+      rm.beginBattleInProgress('node_3');
+      rm.setBattleCheckpoint(makeCheckpoint({ version: 2 }));
+      const loaded = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(loaded._battleRecoveryInvalid).toBe(true);
+      expect(loaded._battleRecoveryLegacy).not.toBe(true);
+    });
+
+    it('treats a checkpoint whose resume already threw as unrestorable', () => {
+      rm.beginBattleInProgress('node_3');
+      rm.setBattleCheckpoint(makeCheckpoint({ version: 2, restoreFailed: true }));
+      const loaded = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(loaded._battleRecoveryInvalid).toBe(true);
+    });
+
+    it('the raw-save revert refunds entry values and scrubs the legacy village reward', () => {
+      writeLegacySuspendedSave({ villageUid: 'village-item-1' });
+      expect(JSON.parse(store[getRunKey(1)]).convoy.consumables.map((i) => i.uid)).toContain(
+        'village-item-1',
+      );
+
+      expect(clearBattleInProgressInSave(null, 1).ok).toBe(true);
+
+      const after = JSON.parse(store[getRunKey(1)]);
+      expect(after.battleInProgress).toBeNull();
+      expect(after.visionChargesRemaining).toBe(2);
+      expect(after.visionCount).toBe(0);
+      expect(after.rngSeed).toBe(1111);
+      expect(after.convoy.consumables.map((i) => i.uid)).not.toContain('village-item-1');
+      expect(RunManager.fromJSON(after, gameData).battleInProgress).toBeNull();
+    });
+
+    it('the in-memory revert matches the raw-save revert', () => {
+      writeLegacySuspendedSave({ villageUid: 'village-item-2' });
+      const loaded = RunManager.fromJSON(JSON.parse(store[getRunKey(1)]), gameData);
+
+      expect(loaded.revertBattleInProgressToEntry()).toBe(true);
+
+      expect(loaded.battleInProgress).toBeNull();
+      expect(loaded.visionChargesRemaining).toBe(2);
+      expect(loaded.visionCount).toBe(0);
+      expect(loaded.rngSeed).toBe(1111);
+      expect(loaded.convoy.consumables.map((i) => i.uid)).not.toContain('village-item-2');
+    });
+  });
+
+  describe('revertBattleInProgressToEntry', () => {
+    it('restores the entry convoy, accessories and gold written mid-battle', () => {
+      rm.gold = 500;
+      rm.beginBattleInProgress('node_3');
+      rm.gold = 900;
+      rm.addToConvoy({ name: 'Vulnerary', type: 'Consumable', uses: 3, uid: 'mid-battle' });
+      rm.setBattleCheckpoint(makeCheckpoint({ version: 2 }));
+
+      expect(rm.revertBattleInProgressToEntry()).toBe(true);
+
+      expect(rm.gold).toBe(500);
+      expect(rm.convoy.consumables.map((i) => i.uid)).not.toContain('mid-battle');
+      expect(rm.battleInProgress).toBeNull();
+    });
+
+    it('refuses to revert a fatal-pending checkpoint', () => {
+      rm.beginBattleInProgress('node_3');
+      rm.setBattleCheckpoint(makeCheckpoint({ version: 2, recoveryKind: 'fatal_pending' }));
+      expect(rm.revertBattleInProgressToEntry()).toBe(false);
+      expect(rm.battleInProgress).toBeTruthy();
+    });
+
+    it('is a no-op without a suspended battle', () => {
+      expect(rm.revertBattleInProgressToEntry()).toBe(false);
+    });
+  });
 });

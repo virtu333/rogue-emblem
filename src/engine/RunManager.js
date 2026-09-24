@@ -2903,6 +2903,31 @@ export class RunManager {
   }
 
   /**
+   * Sanctioned full revert ("Continue from Map") applied to live memory:
+   * restore the entry-time convoy/accessories/gold, refund entry Vision and
+   * RNG, then drop the suspend flag. Mirrors clearBattleInProgressInSave so
+   * the in-memory run and the raw save agree. Refuses a fatal-pending
+   * checkpoint: that outcome must be decided, never reverted for free.
+   * @returns {boolean} true when a suspended battle was reverted
+   */
+  revertBattleInProgressToEntry() {
+    const flag = this.battleInProgress;
+    if (!flag || typeof flag !== 'object') return false;
+    if (flag.checkpoint?.recoveryKind === 'fatal_pending') return false;
+    const patch = battleEntryRevertPatch(flag);
+    if (patch.convoy) this.convoy = patch.convoy;
+    if (patch.accessories) this.accessories = patch.accessories;
+    if (patch.gold !== undefined) this.gold = patch.gold;
+    if (patch.visionChargesRemaining !== undefined)
+      this.visionChargesRemaining = patch.visionChargesRemaining;
+    if (patch.visionCount !== undefined) this.visionCount = patch.visionCount;
+    if (patch.rngSeed !== undefined) this.rngSeed = patch.rngSeed;
+    if (patch.removeConvoyUid) this.removeFromConvoyByUid(patch.removeConvoyUid);
+    this.battleInProgress = null;
+    return true;
+  }
+
+  /**
    * Called after a battle victory. Serializes surviving units back to roster.
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
@@ -4106,9 +4131,18 @@ export class RunManager {
     // One combined pool: the commander may be among the escaped units.
     if (rm.battleInProgress) {
       const checkpoint = rm.battleInProgress.checkpoint;
-      if (checkpoint.version !== undefined && checkpoint.version !== 2) {
+      if (checkpoint.restoreFailed === true) {
+        // A resume of this checkpoint already threw; retrying would loop.
         rm._battleRecoveryInvalid = true;
-      } else if (checkpoint.version === 2) {
+      } else if (checkpoint.version !== 2) {
+        // Written by an older build (v1 before the canonical battle state,
+        // or unversioned). It cannot be resumed, but it predates fatal
+        // decisions, so the sanctioned map revert is always safe for it.
+        rm._battleRecoveryInvalid = true;
+        rm._battleRecoveryLegacy =
+          checkpoint.version === undefined ||
+          (Number.isFinite(checkpoint.version) && checkpoint.version < 2);
+      } else {
         const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
         // Keep the raw save and battle flag intact for recovery; the slot UI
         // must not turn a malformed fatal record into a free map restart.
@@ -4250,6 +4284,32 @@ export function saveRun(runManager, onSave, slotNumber) {
 }
 
 /**
+ * Fields a "Continue from Map" revert restores from a battle-in-progress flag.
+ * Pure: reads the flag, returns clones. Pre-v2 flags carry no entry snapshot;
+ * the only mid-battle run write that era made was the village reward item,
+ * whose uid the legacy checkpoint recorded, so it is scrubbed by uid instead.
+ */
+export function battleEntryRevertPatch(flag) {
+  const patch = {};
+  if (!flag || typeof flag !== 'object') return patch;
+  const entry = flag.entryBattleState;
+  if (entry && typeof entry === 'object') {
+    if (entry.convoy && typeof entry.convoy === 'object')
+      patch.convoy = structuredClone(entry.convoy);
+    if (Array.isArray(entry.accessories)) patch.accessories = structuredClone(entry.accessories);
+    if (Number.isFinite(entry.gold)) patch.gold = entry.gold;
+  } else {
+    const uid = flag.checkpoint?.villageState?.rewardItemUid;
+    if (typeof uid === 'string' && uid) patch.removeConvoyUid = uid;
+  }
+  if (Number.isFinite(flag.visionChargesAtEntry))
+    patch.visionChargesRemaining = flag.visionChargesAtEntry;
+  if (Number.isFinite(flag.visionCountAtEntry)) patch.visionCount = flag.visionCountAtEntry;
+  if (Number.isFinite(flag.rngSeedAtEntry)) patch.rngSeed = flag.rngSeedAtEntry;
+  return patch;
+}
+
+/**
  * Scrub the suspended battle from the persisted save without re-serializing
  * live state ("Continue from map" — the sanctioned FE-reset full revert).
  * Entry-time Vision charges and RNG seed recorded on the flag are restored so
@@ -4266,22 +4326,23 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     if (!parsed || typeof parsed !== 'object') return { ok: false, reason: 'corrupt' };
     if (parsed.battleInProgress == null) return { ok: true, reason: 'already_clear' };
     const flag = parsed.battleInProgress;
-    if (flag.checkpoint?.recoveryKind === 'fatal_pending')
+    if (flag?.checkpoint?.recoveryKind === 'fatal_pending')
       return { ok: false, reason: 'fatal_pending' };
-    const entry = flag.entryBattleState;
-    if (entry && typeof entry === 'object') {
-      if (entry.convoy) parsed.convoy = entry.convoy;
-      if (Array.isArray(entry.accessories)) parsed.accessories = entry.accessories;
-      if (Number.isFinite(entry.gold)) parsed.gold = entry.gold;
-    }
-    if (Number.isFinite(flag?.visionChargesAtEntry)) {
-      parsed.visionChargesRemaining = flag.visionChargesAtEntry;
-    }
-    if (Number.isFinite(flag?.visionCountAtEntry)) {
-      parsed.visionCount = flag.visionCountAtEntry;
-    }
-    if (Number.isFinite(flag?.rngSeedAtEntry)) {
-      parsed.rngSeed = flag.rngSeedAtEntry;
+    const patch = battleEntryRevertPatch(flag);
+    if (patch.convoy) parsed.convoy = patch.convoy;
+    if (patch.accessories) parsed.accessories = patch.accessories;
+    if (patch.gold !== undefined) parsed.gold = patch.gold;
+    if (patch.visionChargesRemaining !== undefined)
+      parsed.visionChargesRemaining = patch.visionChargesRemaining;
+    if (patch.visionCount !== undefined) parsed.visionCount = patch.visionCount;
+    if (patch.rngSeed !== undefined) parsed.rngSeed = patch.rngSeed;
+    if (patch.removeConvoyUid && parsed.convoy && typeof parsed.convoy === 'object') {
+      for (const bucket of ['consumables', 'weapons']) {
+        if (Array.isArray(parsed.convoy[bucket]))
+          parsed.convoy[bucket] = parsed.convoy[bucket].filter(
+            (item) => item?.uid !== patch.removeConvoyUid,
+          );
+      }
     }
     parsed.battleInProgress = null;
     parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
