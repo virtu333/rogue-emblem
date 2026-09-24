@@ -26,6 +26,8 @@ const ADDED = {
   foliage: '#141f22 #1b2b2a #243a30 #2f4832 #3b5535 #4a6238 #58703c #6a7f43 #82904d #9ea05b #bdb570',
   // Meadow grass: muted olive so actors, not the ground, carry saturation.
   meadow: '#2f3a2e #3d4933 #4b5739 #5a653f #6a7346 #7c824e #92935a #aba66a',
+  // Rock: violet shadows -> mauve-brown -> warm tan lights (dusk key light).
+  rock: '#221d2a #332c3a #463d49 #5b5054 #74655e #8e7b69 #a99276 #c4ab88',
   // Soil, bank earth, wood and thatch. Darks lean violet-brown.
   soil: '#221a19 #33261f #463426 #5c4430 #74573b #8e6d4a #aa875c #c6a474',
   // Dusk snow: cool violet shadows, warm cream tops.

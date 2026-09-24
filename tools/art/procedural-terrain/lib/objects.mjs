@@ -233,9 +233,9 @@ function buildForest(M, out) {
 // crests), rendered front-to-back per screen column like a voxel terrain.
 // That gives true facets lit from the upper-left, occlusion lines where a
 // near peak overlaps a far one, and ranges that merge across cells.
-const MT_K = 0.9; // vertical exaggeration (screen px per unit of height)
+const MT_K = 0.95; // vertical exaggeration (screen px per unit of height)
 const MT_LIGHT = (() => {
-  const v = [-0.8, -0.4, 0.62],
+  const v = [-0.75, -0.2, 0.7],
     n = Math.hypot(...v);
   return v.map((k) => k / n);
 })();
@@ -249,18 +249,20 @@ function mountainPeaks(M) {
       const h = (k) => rand2(c, r, M.seed + 300 + k);
       const roll = h(0);
       let local;
-      if (roll < 0.4) local = [[12 + (h(1) - 0.5) * 5, 14 + (h(2) - 0.5) * 4, 19 + h(3) * 4, 11]];
+      // [x, y, height, radius] in cell-local art px. Broad, low massifs:
+      // a tall narrow cone reads as a shark fin at phone scale.
+      if (roll < 0.4) local = [[12 + (h(1) - 0.5) * 4, 13 + (h(2) - 0.5) * 3, 13 + h(3) * 3, 12.5]];
       else if (roll < 0.85) {
         const flip = h(4) < 0.5 ? -1 : 1;
         local = [
-          [12 - flip * (5 + h(1) * 2), 12 + h(2) * 3, 17 + h(3) * 4, 9.5],
-          [12 + flip * (5 + h(5) * 2), 16 + h(6) * 3, 12 + h(7) * 4, 8.5],
+          [12 - flip * (4 + h(1) * 2), 12 + h(2) * 2, 12.5 + h(3) * 3, 11],
+          [12 + flip * (5 + h(5) * 2), 16 + h(6) * 2, 9 + h(7) * 3, 9.5],
         ];
       } else
         local = [
-          [6 + h(1) * 2, 15 + h(2) * 2, 12 + h(3) * 3, 8],
-          [12 + (h(5) - 0.5) * 3, 10 + h(6) * 2, 17 + h(7) * 4, 9],
-          [18 - h(8) * 2, 16 + h(9) * 2, 11 + h(10) * 3, 8],
+          [6 + h(1) * 2, 15 + h(2) * 2, 9 + h(3) * 2, 9],
+          [12 + (h(5) - 0.5) * 3, 11 + h(6) * 2, 13 + h(7) * 3, 10.5],
+          [18 - h(8) * 2, 16 + h(9) * 2, 8.5 + h(10) * 2, 9],
         ];
       for (const [px, py, H, rad] of local) {
         // keep the cone inside the cell on sides without mountain neighbours
@@ -284,6 +286,17 @@ function mountainHeight(M, peaks, x, y) {
     const near = (u < 2 && isMt(c - 1, r)) || (u > CELL - 3 && isMt(c + 1, r)) || (v < 2 && isMt(c, r - 1)) || (v > CELL - 3 && isMt(c, r + 1));
     if (!near) return 0;
   }
+  // Taper toward cell sides without a mountain neighbour so the foot of the
+  // range curves into the grass instead of being cut flat on the grid line.
+  const u = x - c * CELL,
+    v = y - r * CELL;
+  let taper = 1;
+  if (isMt(c, r)) {
+    if (!isMt(c, r + 1)) taper = Math.min(taper, (CELL + 1 - v) / 7);
+    if (!isMt(c - 1, r)) taper = Math.min(taper, (u + 2) / 6);
+    if (!isMt(c + 1, r)) taper = Math.min(taper, (CELL + 1 - u) / 6);
+  }
+  taper = Math.max(0, Math.min(1, taper));
   let h = 0;
   const jitter = 1 + (valueNoise(x, y, 4, M.seed + 310) - 0.5) * 0.38;
   for (const p of peaks) {
@@ -291,13 +304,14 @@ function mountainHeight(M, peaks, x, y) {
       dy = (y + 0.5 - p.y) * 1.08;
     if (Math.abs(dx) > p.rad * 1.5 || Math.abs(dy) > p.rad * 1.5) continue;
     const ang = Math.atan2(dy, dx);
-    const lobes = 1 + 0.16 * Math.sin(ang * 3 + p.x) + 0.1 * Math.sin(ang * 5 + p.y);
+    // radiating spurs: the angular lobes become ridges with lit/shaded flanks
+    const lobes = 1 + 0.22 * Math.sin(ang * 3 + p.x) + 0.13 * Math.sin(ang * 5 + p.y * 0.7);
     const d = (Math.hypot(dx, dy) / (p.rad * lobes)) * jitter;
     if (d >= 1) continue;
-    h = Math.max(h, p.H * Math.pow(1 - d, 1.2));
+    h = Math.max(h, p.H * Math.pow(1 - d, 1.05));
   }
-  if (h > 0) h += (1 - Math.abs(2 * valueNoise(x, y, 5, M.seed + 311) - 1)) * 1.6 * Math.min(1, h / 10);
-  return h;
+  if (h > 0) h += (1 - Math.abs(2 * valueNoise(x, y, 6, M.seed + 311) - 1)) * 2.2 * Math.min(1, h / 8);
+  return h * (taper * taper * (3 - 2 * taper));
 }
 
 function buildMountains(M, out) {
@@ -319,7 +333,7 @@ function buildMountains(M, out) {
     let ybuf = SH;
     for (let y = H - 1; y >= 0; y--) {
       const h = hmap[y * W + x];
-      if (h < 0.35) continue;
+      if (h < 1.6) continue; // the foot is just the ground under it
       const ys = Math.round(y + TOP - h * MT_K);
       if (ys >= ybuf) continue;
       const gx = (hAt(x + 1, y) - hAt(x - 1, y)) / 2,
@@ -337,21 +351,15 @@ function buildMountains(M, out) {
       ybuf = ys;
     }
   }
-  const snowAt = (h, x, y) => st.cap && h > 11 + valueNoise(x, y, 5, M.seed + 312) * 4;
+  const snowAt = (h, x, y) => st.cap && h > 9.5 + valueNoise(x, y, 5, M.seed + 312) * 4;
   const colorOf = (i, x, ys) => {
     const s = tone[i] / 100,
       h = hBuf[i];
-    let lvl = s < -0.05 ? 0 : s < 0.2 ? 1 : s < 0.4 ? 2 : s < 0.58 ? 3 : s < 0.76 ? 4 : 5;
-    // crag marks: sparse darker notches on steep lit faces
-    if (lvl >= 3 && valueNoise(x, ys, 2.5, M.seed + 313) > 0.78) lvl -= 1;
-    if (h < 2.2) {
-      // grassy foot, so the range rises out of the ground
-      const g = M.style.ground;
-      return [g.shade, g.dark, g.dark, g.base, g.light, g.light][lvl];
-    }
-    if (snowAt(h, x, ys)) return [st.cap.shade[0], st.cap.shade[1], st.cap.shade[1], st.cap.lit[1], st.cap.lit[2], st.cap.lit[2]][lvl];
-    const pal = [st.shade[1], st.shade[2], st.shade[3], st.lit[1], st.lit[2], st.lit[3]];
-    let c = pal[lvl];
+    let lvl = s < 0.05 ? 0 : s < 0.28 ? 1 : s < 0.46 ? 2 : s < 0.62 ? 3 : s < 0.78 ? 4 : 5;
+    // crag marks: sparse darker notches on lit faces
+    if (lvl >= 3 && valueNoise(x, ys, 2.5, M.seed + 313) > 0.8) lvl -= 1;
+    if (snowAt(h, x, ys)) return st.cap.ramp[lvl];
+    let c = st.ramp[lvl + 1];
     if (st.ember && lvl <= 1 && h < 8 && hash2(x, ys, M.seed + 314) % 17 === 0) c = R('ember', 2);
     return c;
   };
@@ -449,43 +457,89 @@ function fort(M, c, r) {
   return s;
 }
 
-function village(M, c, r) {
-  const ox = c * CELL,
-    oy = r * CELL;
-  const s = new Sprite(ox + 12, oy + 21, { a: 0.5, b: 0.25 });
-  const E = (k) => R('ember', k),
-    I = (k) => R('ink', k);
-  // walls
-  rect(s, ox, oy, 4, 11, 20, 21, (x, y) => {
-    if (y === 20) return R('soil', 1);
-    if (y === 11) return I(7);
-    if (x === 4 || x === 19 || x === 12) return R('soil', 2);
-    if (y === 15) return R('soil', 3);
-    return x < 12 ? I(9) : I(8);
+// Small landmark structures are hand-authored masks (one letter per art
+// pixel) shaded procedurally, so they read as deliberate icons while still
+// varying per cell (roof material, lit window, clutter side).
+function drawMask(s, ox, oy, rows, colorAt) {
+  rows.forEach((row, v) => {
+    [...row].forEach((ch, u) => {
+      if (ch === '.' || ch === ' ') return;
+      const col = colorAt(ch, u, v);
+      if (col != null) s.set(ox + u, oy + v, col);
+    });
   });
-  // door
-  rect(s, ox, oy, 7, 15, 10, 20, (x) => (x === 9 ? R('soil', 1) : R('soil', 2)));
-  // lit window (dusk: someone is home)
-  rect(s, ox, oy, 14, 12, 18, 15, (x, y) => (x === 14 || x === 17 || y === 12 ? R('soil', 2) : y === 14 ? E(4) : E(5)));
-  // hipped roof
-  for (let y = 1; y <= 10; y++) {
-    const inset = Math.max(0, 4 - (y - 1));
-    for (let x = 3 + inset; x < 21 - inset; x++) {
-      let col;
-      if (y === 10) col = E(1);
-      else if (y === 1) col = E(4);
-      else if (x < 3 + inset + 2) col = E(3);
-      else if (x >= 21 - inset - 2) col = E(1);
-      else col = y % 2 === 0 ? E(1) : E(2);
-      s.set(ox + x, oy + y, col);
+}
+
+const HOUSE = [
+  '......KKKKKKKKKK...SS.',
+  '.....RRRRRRRRRRRR..SS.',
+  '....RRRRRRRRRRRRRR.SS.',
+  '...RRRRRRRRRRRRRRRRSS.',
+  '..RRRRRRRRRRRRRRRRRRR.',
+  '.RRRRRRRRRRRRRRRRRRRRR',
+  'RRRRRRRRRRRRRRRRRRRRRR',
+  'EEEEEEEEEEEEEEEEEEEEEE',
+  '.TWWWWWWWTWWWWWWWWWWT.',
+  '.TWWWWWWWTWWFFFFWWWWT.',
+  '.TWWDDDWWTWWFGGFWWWWT.',
+  '.TTTDDDTTTTTFggFTTTTT.',
+  '.TWWDDDWWTWWFFFFWWWWT.',
+  '.TWWDDdWWTWWWWWWWWWWT.',
+  '.BBBDDdBBBBBBBBBBBBBB.',
+];
+
+function village(M, c, r) {
+  const ox = c * CELL + 1,
+    oy = r * CELL + 6;
+  const s = new Sprite(c * CELL + 12, r * CELL + 20, { a: 0.5, b: 0.25 });
+  const roll = rand2(c, r, M.seed + 520);
+  // roof material: terracotta, thatch or slate
+  const roof = roll < 0.5 ? [R('ember', 1), R('ember', 2), R('ember', 3), R('ember', 4)] : roll < 0.85 ? [R('earth', 2), R('earth', 3), R('earth', 4), R('earth', 5)] : [R('stone', 1), R('stone', 2), R('stone', 3), R('stone', 4)];
+  const lit = rand2(c, r, M.seed + 521) < 0.75;
+  const width = HOUSE[0].length;
+  drawMask(s, ox, oy, HOUSE, (ch, u, v) => {
+    switch (ch) {
+      case 'K':
+        return roof[3];
+      case 'R': {
+        // hip ends: lit on the left diagonal, shaded on the right one
+        const row = HOUSE[v],
+          first = row.indexOf('R'),
+          last = row.lastIndexOf('R');
+        if (u - first < 2) return roof[2];
+        if (last - u < 2) return roof[0];
+        // shingle courses, staggered
+        if (v % 2 === 0) return roof[0];
+        return (u + (v % 4 === 1 ? 0 : 2)) % 4 === 0 ? roof[0] : u < width * 0.45 ? roof[2] : roof[1];
+      }
+      case 'E':
+        return R('ink', 3);
+      case 'W':
+        return v === 8 ? R('ink', 7) : u < 9 ? R('ink', 9) : R('ink', 8);
+      case 'T':
+        return R('soil', 2);
+      case 'D':
+        return R('soil', 3);
+      case 'd':
+        return R('soil', 1);
+      case 'F':
+        return R('soil', 1);
+      case 'G':
+        return lit ? R('ember', 5) : R('steel', 1);
+      case 'g':
+        return lit ? R('ember', 4) : R('steel', 0);
+      case 'S':
+        return v === 0 ? R('stone', 4) : u === 19 ? R('stone', 3) : R('stone', 2);
+      case 'B':
+        return R('soil', 1);
     }
-  }
-  // chimney
-  rect(s, ox, oy, 15, -2, 17, 2, (x, y) => (y === -2 ? R('stone', 4) : x === 15 ? R('stone', 3) : R('stone', 2)));
-  // barrel + fence post: lived-in clutter
-  rect(s, ox, oy, 20, 17, 22, 21, (x, y) => (y === 18 ? R('soil', 1) : x === 20 ? R('soil', 4) : R('soil', 3)));
-  rect(s, ox, oy, 1, 16, 2, 21, R('soil', 3));
-  s.set(ox + 1, oy + 16, R('soil', 5));
+    return null;
+  });
+  // clutter on one side: barrel or wood pile
+  const side = rand2(c, r, M.seed + 522) < 0.5;
+  const bx = side ? c * CELL + 20 : c * CELL + 1;
+  for (let v = 0; v < 4; v++)
+    for (let u = 0; u < 3; u++) s.set(bx + u, r * CELL + 17 + v, v === 1 ? R('soil', 1) : u === 0 ? R('soil', 5) : R('soil', 3));
   s.outline({ dark: R('ink', 3) });
   return s;
 }
@@ -526,77 +580,112 @@ function pillar(M, c, r) {
   return s;
 }
 
+const THRONE = [
+  '....GggggG....',
+  '...gCCCCCCg...',
+  '...gCccccCg...',
+  '...gCccccCg...',
+  '...gCccccCg...',
+  '...gCccccCg...',
+  '...gCccccCg...',
+  '.AAgCCCCCCgAA.',
+  '.AaasssssssaA.',
+  '.ll........ll.',
+];
+
 function throne(M, c, r) {
   const ox = c * CELL,
     oy = r * CELL;
   const s = new Sprite(ox + 12, oy + 22, { a: 0.35, b: 0.18 });
   const S = (k) => R('stone', k);
-  // dais with two steps
-  rect(s, ox, oy, 2, 6, 22, 22, (x, y) => {
-    if (y < 17) return y === 6 ? S(5) : x === 2 ? S(5) : x === 21 ? S(3) : S(4);
-    if (y === 17) return S(5);
-    if (y < 19) return S(3);
-    if (y === 19) return S(4);
-    return S(2);
+  // dais: top plate, lip, two steps
+  rect(s, ox, oy, 1, 7, 23, 22, (x, y) => {
+    if (y < 16) return y === 7 ? S(5) : x === 1 ? S(5) : x === 22 ? S(3) : S(4);
+    if (y === 16) return S(5);
+    if (y < 18) return S(3);
+    if (y === 18) return S(4);
+    if (y < 21) return S(2);
+    return S(1);
   });
-  // carpet runner down the steps
-  rect(s, ox, oy, 9, 11, 15, 24, (x, y) => (x === 9 || x === 14 ? R('ember', 3) : y === 18 || y === 20 ? R('blood', 1) : R('blood', 2)));
-  // chair
-  rect(s, ox, oy, 7, -3, 17, 12, (x, y) => {
-    if (y === -3) return x === 7 || x === 16 ? R('ember', 4) : x > 8 && x < 15 ? R('ember', 3) : null;
-    if (x === 7 || x === 16) return R('ember', 3);
-    if (x === 8 || x === 15) return R('soil', 1);
-    if (y < 8) return y === -2 ? R('ember', 2) : x < 11 ? R('blood', 3) : R('blood', 2);
-    if (y < 10) return R('blood', 3);
-    return R('soil', 1);
+  // carpet from the chair to the cell edge, gold-trimmed
+  rect(s, ox, oy, 9, 15, 15, 24, (x, y) => (x === 9 || x === 14 ? R('ember', 3) : y === 17 || y === 20 ? R('blood', 1) : x < 12 ? R('blood', 3) : R('blood', 2)));
+  // the chair sits on the dais: seat on the top plate, back rising above it
+  drawMask(s, ox + 5, oy + 1, THRONE, (ch, u, v) => {
+    switch (ch) {
+      case 'G':
+        return R('ember', 5);
+      case 'g':
+        return u < 7 ? R('ember', 4) : R('ember', 3);
+      case 'C':
+        return u < 7 ? R('blood', 3) : R('blood', 2);
+      case 'c':
+        return u < 7 ? R('blood', 4) : R('blood', 3);
+      case 's':
+        return R('blood', 3);
+      case 'A':
+        return v === 7 ? R('soil', 5) : R('soil', 3);
+      case 'a':
+        return R('soil', 1);
+      case 'l':
+        return R('soil', 1);
+    }
+    return null;
   });
-  for (const [k, v] of [...s.px]) if (v[2] === null) s.px.delete(k);
   s.outline({ dark: R('ink', 2) });
   return s;
 }
 
+const BALLISTA = [
+  '..........HH..........',
+  '.........HhhH.........',
+  '..........bb..........',
+  'LL........bb........LL',
+  '.LAA......bb......AAL.',
+  '..aAAA....bb....AAAa..',
+  '...aaAAA..bb..AAAaa...',
+  '.....aaAAAXXAAAaa.....',
+  '......ss..XX..ss......',
+  '........ssXXss........',
+  '....PPPPPPXXPPPPPP....',
+  '....pP....XX....Pp....',
+  '....QP....XX....PQ....',
+  '...QQq...QXXQ...qQQ...',
+  '...q.q...q..q...q.q...',
+];
+
 function ballista(M, c, r) {
-  const ox = c * CELL,
-    oy = r * CELL;
-  const s = new Sprite(ox + 12, oy + 21, { a: 0.45, b: 0.22 });
-  const W = (k) => R('soil', k);
-  // axle + two spoked wheels
-  rect(s, ox, oy, 5, 18, 19, 20, (x, y) => (y === 18 ? W(4) : W(1)));
-  for (const wx of [2, 17])
-    rect(s, ox, oy, wx, 15, wx + 5, 22, (x, y) => {
-      const u = x - wx,
-        v = y - 15;
-      if ((u === 0 || u === 4) && (v === 0 || v === 6)) return null;
-      if (u === 2 && v === 3) return W(6);
-      if (u === 0 || v === 0) return W(4);
-      if (u === 4 || v === 6) return W(1);
-      return u === 2 || v === 3 ? W(3) : W(2);
-    });
-  // stock
-  rect(s, ox, oy, 11, 4, 13, 19, (x) => (x === 11 ? W(5) : W(2)));
-  // bow arms: thick arc curving back at the tips, iron-capped
-  for (let x = 3; x <= 20; x++) {
-    const d = Math.abs(x - 11.5);
-    const y = 6 + Math.round((d * d) / 20);
-    s.set(ox + x, oy + y, W(5));
-    s.set(ox + x, oy + y + 1, W(2));
-    s.set(ox + x, oy + y + 2, W(1));
-    if (d > 7) {
-      s.set(ox + x, oy + y, R('stone', 4));
-      s.set(ox + x, oy + y + 1, R('stone', 2));
+  const ox = c * CELL + 1,
+    oy = r * CELL + 6;
+  const s = new Sprite(c * CELL + 12, r * CELL + 20, { a: 0.45, b: 0.22 });
+  drawMask(s, ox, oy, BALLISTA, (ch, u) => {
+    switch (ch) {
+      case 'H':
+        return R('steel', 5);
+      case 'h':
+        return R('steel', 3);
+      case 'b':
+        return u === 10 ? R('soil', 7) : R('soil', 5);
+      case 'L':
+        return R('stone', 4);
+      case 'A':
+        return R('soil', 4);
+      case 'a':
+        return R('soil', 1);
+      case 'X':
+        return u === 10 ? R('stone', 4) : R('stone', 2);
+      case 's':
+        return R('ink', 9);
+      case 'P':
+        return R('soil', 5);
+      case 'p':
+        return R('soil', 2);
+      case 'Q':
+        return R('soil', 3);
+      case 'q':
+        return R('soil', 1);
     }
-  }
-  // string drawn back to the nock
-  for (let x = 4; x <= 19; x++) {
-    const d = Math.abs(x - 11.5);
-    const y = Math.round(14 - d * 0.55);
-    if (!s.has(ox + x, oy + y)) s.set(ox + x, oy + y, R('ink', 8));
-  }
-  // bolt with a steel head
-  rect(s, ox, oy, 11, 1, 13, 6, (x, y) => (y < 3 ? (x === 11 ? R('steel', 5) : R('steel', 3)) : W(6)));
-  s.set(ox + 10, oy + 3, R('steel', 4));
-  s.set(ox + 13, oy + 3, R('steel', 2));
-  for (const [k, v] of [...s.px]) if (v[2] === null) s.px.delete(k);
+    return null;
+  });
   s.outline({ dark: R('ink', 3) });
   return s;
 }

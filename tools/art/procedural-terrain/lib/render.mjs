@@ -80,10 +80,10 @@ const AMP = {
   [G.WATER]: 0.17,
   [G.ICE]: 0.3,
   [G.LAVA]: 0.2,
-  [G.SWAMP]: 0.36,
-  [G.BOG]: 0.38,
-  [G.ASWAMP]: 0.36,
-  [G.ABOG]: 0.38,
+  [G.SWAMP]: 0.46,
+  [G.BOG]: 0.5,
+  [G.ASWAMP]: 0.46,
+  [G.ABOG]: 0.5,
 };
 // Noise period per material: liquids get long, gentle curves; soft ground
 // gets a shorter, more organic wobble.
@@ -220,8 +220,14 @@ function resolveMaterials(M) {
 }
 
 // ---------------------------------------------------------------- pass 2
+// Edge distances compare material *classes*: swamp and acid swamp are the
+// same water, bog and acid bog the same mud, so no bank is drawn between them.
+const CLASS = new Uint8Array(16).map((_, k) => k);
+CLASS[G.ASWAMP] = G.SWAMP;
+CLASS[G.ABOG] = G.BOG;
 function computeEdges(M) {
-  const { W, H, mat, dU, dD, dL, dR } = M;
+  const { W, H, dU, dD, dL, dR } = M;
+  const mat = M.mat.map((k) => CLASS[k]);
   const CAP = 15;
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -238,7 +244,7 @@ function computeEdges(M) {
 }
 
 // ---------------------------------------------------------------- pass 3
-const STRUCTURES = new Set(['Fort', 'Village', 'Ballista']);
+const STRUCTURES = new Set(['Fort', 'Village']);
 
 function wearAt(M, x, y) {
   // Trampled ground around lived-in structures.
@@ -257,8 +263,9 @@ function wearAt(M, x, y) {
 }
 
 function paintOpenGround(M, x, y, s, i) {
-  const n = fbm(x, y, 40, M.seed + 11, 2);
-  let t = n < 0.32 ? s.dark : n > 0.7 ? s.light : s.base;
+  const [sx, sy] = s.stretch || [1, 1];
+  const n = fbm(x * sx, y * sy, 40, M.seed + 11, 2) + (valueNoise(x, y, 3, M.seed + 13) - 0.5) * 0.07;
+  let t = n < 0.3 ? s.dark : n > 0.74 ? s.light : s.base;
   const wear = wearAt(M, x, y);
   if (wear > 0) {
     const k = wear + (valueNoise(x, y, 5, M.seed + 12) - 0.5) * 0.5;
@@ -276,8 +283,8 @@ function paintWater(M, x, y, i) {
   const deep = fbm(x, y, 40, M.seed + 24, 2);
   let t = R('steel', 2);
   if (d <= 2.5) t = R('steel', 3);
-  else if (deep < 0.3 && d > 6) t = R('steel', 1);
-  else if (sheen > 0.7 && d > 4 && (x + y) % 2 === 0) t = R('steel', 3);
+  else if (M.dAny(i) >= 13 && deep < 0.5) t = R('steel', 1); // deep channel, only mid-river
+  else if (sheen > 0.66 && d > 4 && y % 3 === 0 && valueNoise(x, y, 3, M.seed + 25) > 0.35) t = R('steel', 3);
   const u = M.dU[i],
     l = M.dL[i],
     dd = M.dD[i],
@@ -299,7 +306,7 @@ function paintLandLip(M, x, y, i, t) {
   // the land (bank edge facing away from the light), bright lip on the
   // north bank top edge (catches the low sun).
   const W = M.W;
-  const liquid = (k) => k === G.WATER || k === G.SWAMP || k === G.ASWAMP;
+  const liquid = (k) => k === G.WATER;
   const below = y < M.H - 1 && liquid(M.mat[i + W]);
   const above = y > 0 && liquid(M.mat[i - W]);
   const right = x < W - 1 && liquid(M.mat[i + 1]);
@@ -326,10 +333,10 @@ function paintSand(M, x, y, i) {
 
 function paintIce(M, x, y, i) {
   const n = fbm(x, y, 26, M.seed + 41, 2);
-  let t = n < 0.5 ? R('steel', 3) : R('steel', 4);
+  let t = n < 0.3 ? R('steel', 3) : n > 0.7 ? R('steel', 5) : R('steel', 4);
   // Long diagonal gleams ("/" strokes) lit from the upper left, sparse.
   const g = (x + y + Math.floor(valueNoise(x, y, 12, M.seed + 42) * 6)) % 15;
-  if (g === 0 && fbm(x, y, 9, M.seed + 43) > 0.6) t = R('steel', 5);
+  if (g === 0 && fbm(x, y, 9, M.seed + 43) > 0.6) t = up(t, 1);
   // Partial crack network: dark hairlines, never a full grid.
   const w = worley(x, y, 16, M.seed + 44);
   if (w.d2 - w.d1 < 0.9 && fbm(x, y, 13, M.seed + 45) > 0.5) t = down(t, 1);
@@ -356,7 +363,7 @@ function paintLava(M, x, y, i) {
   else if (edge < 1.9 && heat > 0.35) t = R('ember', 1);
   // a few molten vents where seams meet
   const vent = fbm(x, y, 6, M.seed + 53, 1);
-  if (vent > 0.82 && heat > 0.5 && inner > 3) t = vent > 0.88 ? R('ember', 5) : R('ember', 3);
+  if (vent > 0.86 && heat > 0.6 && inner > 4) t = vent > 0.9 ? R('ember', 5) : R('ember', 3);
   return t;
 }
 
@@ -367,14 +374,15 @@ function paintSwamp(M, x, y, i, acid) {
   let t = n < 0.55 ? R('verdigris', 1) : n < 0.78 ? R('foliage', 3) : R('foliage', 4);
   if (acid) {
     const a = fbm(x, y, 11, M.seed + 71, 2);
-    if (a > 0.72) t = R('acid', 3);
-    else if (a > 0.62) t = R('acid', 2);
-    else if (a > 0.54) t = R('acid', 1);
+    if (a > 0.74) t = R('acid', 3);
+    else if (a > 0.6) t = R('acid', 2);
+    else if (a > 0.5) t = R('acid', 1);
   }
+  // Soft marsh edge: a shaded band under the north/west bank and a
+  // broken muddy scum line on the lit side, no hard outline.
   const u = M.dU[i];
-  if (u <= 1) return R('soil', 2);
-  if (u <= 3 || M.dL[i] <= 2) t = down(t, 1);
-  if ((M.dD[i] === 1 || M.dR[i] === 1) && valueNoise(x, y, 4, M.seed + 63) > 0.4) t = acid ? R('acid', 2) : R('earth', 3);
+  if (u <= 2 || M.dL[i] <= 1) t = down(t, 1);
+  if ((M.dD[i] === 1 || M.dR[i] === 1) && valueNoise(x, y, 4, M.seed + 63) > 0.5) t = R('earth', 2);
   return t;
 }
 
@@ -425,32 +433,29 @@ function floorLayout(M) {
   return { rowsY, rowOf, cuts };
 }
 
+// Mortar is only half a value step darker than its stone, so a big hall
+// reads as one quiet plane (open terrain) instead of a brick texture.
 function paintFloor(M, x, y, i, F) {
-  const [mortar, base, alt, lit] = M.masonry.floor;
+  const [mortarLo, base, alt, lit] = M.masonry.floor;
+  const mortarOf = M.masonry.floorMortar;
   const ri = F.rowOf[y],
     [y0, y1, rk] = F.rowsY[ri];
   const row = F.cuts[ri],
     si = row.at[x],
     [x0, x1] = row.list[si];
   const id = hash2(rk, si, M.seed + 94);
-  let t;
-  if (y === y1 - 1 || x === x1 - 1) t = mortar;
-  else {
-    const h = (id % 100) / 100;
-    t = h < 0.6 ? base : h < 0.86 ? alt : lit;
-    // Occasional hairline crack across a stone.
-    if (id % 13 === 0 && x - x0 === y - y0 + 1) t = mortar;
-    // Worn, lit chip on the upper-left corner of lit stones.
-    if (t === lit && x === x0 && y === y0) t = up(lit, 1);
-  }
-  // Large, soft grime / light variation so big halls are not flat.
-  const g = fbm(x, y, 44, M.seed + 95, 2);
-  if (g < 0.32) t = down(t, 1);
+  const h = (id % 100) / 100;
+  // large, soft light/dark drift chooses between base and alt stones
+  const drift = fbm(x, y, 44, M.seed + 95, 2);
+  let stone = h < 0.84 ? (drift < 0.28 ? alt : base) : h < 0.97 ? alt : lit;
+  let t = stone;
+  if (y === y1 - 1 || x === x1 - 1) t = mortarOf[stone] ?? mortarLo;
+  else if (id % 17 === 0 && x - x0 === y - y0 + 1) t = mortarOf[stone] ?? mortarLo; // hairline crack
   // Edge of the paving next to open ground: a dark kerb line.
   const W = M.W;
   const nonFloor = (k) => k !== G.FLOOR && k !== G.WALL;
   if ((x > 0 && nonFloor(M.mat[i - 1])) || (y > 0 && nonFloor(M.mat[i - W])) || (x < W - 1 && nonFloor(M.mat[i + 1])) || (y < M.H - 1 && nonFloor(M.mat[i + W])))
-    t = mortar;
+    t = mortarLo;
   return t;
 }
 
@@ -494,12 +499,11 @@ function paintWall(M, x, y) {
   const course = Math.floor(y / 7),
     off = course % 2 ? 5 : 0;
   let t;
-  if (y % 7 === 6 || (x + off) % 10 === 9) t = T[0];
+  if (y % 7 === 6 || (x + off) % 10 === 9) t = T[5];
   else {
     const h = hash2(Math.floor((x + off) / 10), course, M.seed + 102) % 10;
-    t = h < 7 ? T[1] : T[2];
+    t = h < 8 ? T[1] : T[2];
   }
-  if (fbm(x, y, 30, M.seed + 103) < 0.3) t = down(t, 1);
   // Parapets with merlons on exposed long edges.
   const merlonRow = (vv, from) => {
     const p = (x + 1) % 5;
@@ -688,8 +692,8 @@ function paintDecals(M) {
   for (const p of jitteredPoints(0, 0, W, H, 7, seed + 241)) {
     const i = p.y * W + p.x,
       m = M.mat[i];
-    if (m === G.SWAMP && M.dAny(i) >= 3 && p.r < 0.3) {
-      stampIf(M, p.x - 1, p.y - 1, ['.hh.', 'hbb.', '.bbd'], (ch, cur) => (ch === 'h' ? R('foliage', 7) : ch === 'b' ? R('foliage', 6) : R('foliage', 3)), (mm) => mm === G.SWAMP);
+    if (m === G.SWAMP && M.dAny(i) >= 3 && p.r < 0.2) {
+      stampIf(M, p.x - 1, p.y - 1, ['.hh.', 'hbb.', '.bbd'], (ch, cur) => (ch === 'h' ? R('foliage', 6) : ch === 'b' ? R('foliage', 5) : R('foliage', 2)), (mm) => mm === G.SWAMP);
     } else if ((m === G.SWAMP || m === G.ASWAMP) && M.dAny(i) <= 4 && p.r < 0.75) {
       // reed cluster
       const n = 2 + (p.r * 7) % 3;
@@ -702,17 +706,17 @@ function paintDecals(M) {
           M.idx[Y * W + X] = j === h - 1 ? R('earth', 5) : j === 0 ? R('foliage', 2) : R('earth', 4);
         }
       }
-    } else if (m === G.ASWAMP && p.r < 0.5) {
-      stampIf(M, p.x - 1, p.y - 1, ['.h.', 'hdh', '.h.'], (ch) => (ch === 'h' ? R('acid', 4) : R('acid', 1)), (mm) => mm === G.ASWAMP);
-    } else if ((m === G.BOG || m === G.ABOG) && M.dAny(i) >= 3 && p.r < 0.45) {
-      const acid = m === G.ABOG && p.r < 0.3;
+    } else if (m === G.ASWAMP && p.r < 0.4 && M.dAny(i) >= 2) {
+      stampIf(M, p.x - 1, p.y - 1, p.r < 0.15 ? ['hh', 'hd'] : ['h'], (ch) => (ch === 'h' ? R('acid', 4) : R('acid', 2)), (mm) => mm === G.ASWAMP);
+    } else if ((m === G.BOG || m === G.ABOG) && M.dAny(i) >= 3 && p.r < 0.3) {
+      const acid = m === G.ABOG && p.r < 0.2;
       const rows = p.r < 0.2 ? ['.ddd.', 'dwwwl', '.lll.'] : ['.dd.', 'dwwl', '.ll.'];
       stampIf(
         M,
         p.x - 2,
         p.y - 1,
         rows,
-        (ch, cur) => (ch === 'd' ? (acid ? R('acid', 1) : R('steel', 0)) : ch === 'w' ? (acid ? R('acid', 3) : R('steel', 1)) : acid ? R('acid', 4) : up(cur, 1)),
+        (ch, cur) => (ch === 'd' ? (acid ? R('acid', 1) : R('verdigris', 0)) : ch === 'w' ? (acid ? R('acid', 3) : R('verdigris', 1)) : acid ? R('acid', 2) : up(cur, 1)),
         (mm) => mm === m,
       );
     }
