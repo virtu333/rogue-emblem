@@ -83,7 +83,9 @@ const sleep = (page, ms) => page.waitForTimeout(ms);
 const shot = async (page, name) => {
   // WebP keeps the committed review set small (~6 MB instead of ~27 MB as PNG).
   const path = `${outDir}/${name}-${tag}.webp`;
-  await sharp(await page.screenshot()).webp({ quality: 88, effort: 6 }).toFile(path);
+  await sharp(await page.screenshot())
+    .webp({ quality: 88, effort: 6 })
+    .toFile(path);
   console.log('shot', path);
 };
 const waitScene = (page, key) =>
