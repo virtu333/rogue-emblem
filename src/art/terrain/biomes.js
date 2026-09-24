@@ -104,12 +104,25 @@ export const BIOMES = {
     defaultGround: G.GRASS,
     ground: { dark: g(5), base: g(6), light: g(7), hi: g(8), blade: g(8), shade: g(4) },
     rockGround: { dark: g(5), base: g(6), light: g(7), hi: g(8), blade: g(8) },
-    trees: [
-      { kind: 'broadleaf', weight: 3 },
-      { kind: 'poplar', weight: 1 },
-    ],
+    trees: {
+      canopy: [
+        ['broadleaf', 5],
+        ['pine', 1.1],
+        ['poplar', 0.9],
+        ['birch', 0.9],
+      ],
+      under: [
+        ['bush', 3],
+        ['sapling', 2],
+        ['log', 0.4],
+        ['stump', 0.25],
+      ],
+    },
     leaf: ramp('foliage', [0, 1, 2, 3, 4, 5, 6, 7, 8]),
     leaf2: ramp('foliage', [0, 0, 1, 2, 3, 4, 5, 6, 7]),
+    conifer: ramp('foliage', [0, 0, 1, 1, 2, 3, 4, 5, 6]),
+    birch: ramp('foliage', [1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    moss: R('foliage', 6),
     trunk: [R('soil', 1), R('soil', 3)],
     rock: {
       ramp: ramp('rock', [1, 2, 3, 4, 5, 6, 7, 8]),
@@ -140,10 +153,19 @@ export const BIOMES = {
       blade: R('earth', 4),
       stretch: [0.35, 1.7],
     },
-    trees: [
-      { kind: 'pine', weight: 3 },
-      { kind: 'fir', weight: 2 },
-    ],
+    trees: {
+      canopy: [
+        ['pine', 4],
+        ['fir', 3],
+        ['bare', 0.7],
+      ],
+      under: [
+        ['spruceling', 2],
+        ['stump', 0.3],
+      ],
+    },
+    bark: ramp('ink', [2, 3, 4, 5, 6, 7, 8, 9, 10]),
+    shrub: [R('steel', 0), f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7)],
     leaf: [R('steel', 0), f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7)],
     leaf2: ramp('ink', [3, 4, 5, 6, 7, 8, 9, 10, 11]),
     trunk: [R('ink', 4), R('ink', 9)],
@@ -186,11 +208,20 @@ export const BIOMES = {
       blade: R('earth', 4),
       stretch: [0.6, 1.2],
     },
-    trees: [
-      { kind: 'dead', weight: 2 },
-      { kind: 'snag', weight: 1 },
-    ],
+    trees: {
+      canopy: [
+        ['dead', 3],
+        ['snag', 2],
+        ['charpine', 1.2],
+      ],
+      under: [
+        ['thorn', 2],
+        ['stump', 0.6],
+        ['log', 0.4],
+      ],
+    },
     leaf: ramp('ash', [0, 1, 2, 3, 4, 5, 6, 7, 8]),
+    bark: ramp('ash', [0, 1, 2, 3, 4, 5, 6, 7, 8]),
     leaf2: ramp('ash', [0, 1, 2, 3, 4, 5, 6, 7, 8]),
     trunk: [R('ash', 1), R('ash', 4)],
     rock: {
@@ -223,11 +254,21 @@ export const BIOMES = {
       shade: g(3),
     },
     rockGround: { dark: g(4), base: g(5), light: g(6), hi: g(7), blade: R('earth', 5) },
-    trees: [
-      { kind: 'willow', weight: 2 },
-      { kind: 'cypress', weight: 1 },
-    ],
-    leaf: [f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7), R('earth', 5)],
+    trees: {
+      canopy: [
+        ['willow', 3],
+        ['cypress', 2],
+        ['snag', 0.7],
+      ],
+      under: [
+        ['bush', 2],
+        ['sapling', 1],
+        ['log', 0.5],
+      ],
+    },
+    bark: ramp('rock', [0, 1, 2, 3, 3, 4, 5, 6, 7]),
+    moss: R('foliage', 6),
+    leaf: [f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7), f(8)],
     leaf2: ramp('marsh', [0, 1, 1, 2, 3, 4, 5, 6, 7]),
     trunk: [R('soil', 1), R('soil', 3)],
     rock: {
@@ -256,12 +297,21 @@ export const BIOMES = {
       light: R('soil', 6),
       hi: R('soil', 7),
     },
-    trees: [
-      { kind: 'broadleaf', weight: 2 },
-      { kind: 'poplar', weight: 1 },
-    ],
+    trees: {
+      canopy: [
+        ['broadleaf', 3],
+        ['poplar', 2],
+        ['birch', 1],
+      ],
+      under: [
+        ['bush', 3],
+        ['sapling', 1],
+      ],
+    },
     leaf: ramp('foliage', [0, 1, 2, 3, 4, 5, 6, 7, 8]),
     leaf2: ramp('foliage', [0, 0, 1, 2, 3, 4, 5, 6, 7]),
+    birch: ramp('foliage', [1, 2, 3, 4, 5, 6, 7, 8, 9]),
+    moss: R('foliage', 6),
     trunk: [R('soil', 1), R('soil', 3)],
     rock: {
       ramp: [
@@ -296,10 +346,13 @@ export const BIOMES = {
       light: R('ink', 5),
       hi: R('ink', 6),
     },
-    trees: [
-      { kind: 'dead', weight: 2 },
-      { kind: 'snag', weight: 1 },
-    ],
+    trees: {
+      canopy: [
+        ['dead', 3],
+        ['snag', 2],
+      ],
+      under: [['thorn', 2]],
+    },
     leaf: ramp('ink', [1, 2, 3, 4, 5, 6, 7, 8, 9]),
     leaf2: ramp('unlight', [0, 1, 1, 2, 2, 3, 3, 4, 5]),
     trunk: [R('ink', 2), R('ink', 6)],

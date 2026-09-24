@@ -2,11 +2,30 @@
 // (the cell plus a FRAME_PAD margin) so building and compositing are cheap
 // typed-array work. Each sprite knows its ground line (baseY) so it can cast
 // a low-sun shadow toward the bottom-right.
+//
+// Locality. A part's look may depend on some of the cells around its owner
+// (its "deps", e.g. whether the neighbours are forest too). Every pixel it
+// paints, sprite or shadow, must then land in a cell whose own 3x3
+// neighbourhood contains all of those deps, so that `repaintCells` can keep
+// recomputing only the 3x3 neighbourhood of a changed cell. `setDeps`
+// records the deps and derives the cells the part may paint into (`allow`,
+// offsets from the owner); `fitTo` / `shadowBox` turn that into pixel boxes.
 import { down, up } from './palette.js';
 import { ART_CELL as CELL } from './state.js';
 
 export const FRAME_PAD = 4;
 export const FRAME = CELL + 2 * FRAME_PAD;
+
+/**
+ * Cells (offsets from the owner) a part may paint into when its look depends
+ * on the owner-relative cell rectangle [di0..di1] x [dj0..dj1]: exactly the
+ * cells whose own 3x3 neighbourhood covers that rectangle.
+ */
+export function allowFromDeps(di0, di1, dj0, dj1) {
+  return Object.freeze({ i0: di1 - 1, i1: di0 + 1, j0: dj1 - 1, j1: dj0 + 1 });
+}
+/** A part that depends on its own cell only may paint into every neighbour. */
+export const ALLOW_ALL = allowFromDeps(0, 0, 0, 0);
 
 export class Sprite {
   /**
@@ -26,6 +45,46 @@ export class Sprite {
     this.oy = r * CELL - FRAME_PAD;
     this.px = new Uint8Array(FRAME * FRAME); // palette index + 1, 0 = empty
     this.clipped = 0;
+    this.allow = ALLOW_ALL;
+    this.order = 0; // tie-break for parts with the same ground line
+  }
+  /** Record which owner-relative cells this part's look depends on. */
+  setDeps(di0, di1, dj0, dj1) {
+    this.allow = allowFromDeps(di0, di1, dj0, dj1);
+    return this;
+  }
+  /**
+   * The world art-px box this part may occupy: its own cell, grown by the
+   * given overhang only toward neighbours it is allowed to paint into.
+   * @param {{left:number,right:number,top:number,bottom:number}} lim
+   */
+  allowedBox(lim) {
+    const a = this.allow,
+      x = this.c * CELL,
+      y = this.r * CELL;
+    return [
+      x - (a.i0 < 0 ? lim.left : 0),
+      y - (a.j0 < 0 ? lim.top : 0),
+      x + CELL + (a.i1 > 0 ? lim.right : 0),
+      y + CELL + (a.j1 > 0 ? lim.bottom : 0),
+    ];
+  }
+  /** Shift into, then clip to, allowedBox(lim) (planning fit + safety net). */
+  fitTo(lim) {
+    const box = this.allowedBox(lim);
+    this.shiftToFit(...box);
+    this.clipTo(...box);
+    return this;
+  }
+  /** World art-px box the part's cast shadow may fall into (whole allowed cells). */
+  shadowBox() {
+    const a = this.allow;
+    return [
+      (this.c + a.i0) * CELL,
+      (this.r + a.j0) * CELL,
+      (this.c + a.i1 + 1) * CELL,
+      (this.r + a.j1 + 1) * CELL,
+    ];
   }
   set(x, y, col) {
     const lx = x - this.ox,

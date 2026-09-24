@@ -15,6 +15,7 @@ import { hash2, jitteredPoints, worley } from './noise.js';
 import { G, HARD, MATERIAL_COUNT } from './biomes.js';
 import { ART_CELL as CELL } from './state.js';
 import { ANIM } from './shimmer.js';
+import { cornerShares, fieldAt } from './fields.js';
 
 const BLUR = 5; // box radius in art px: corner rounding + wobble range
 export const EDGE_CAP = 12;
@@ -200,12 +201,19 @@ function wearAt(S, x, y) {
   return w;
 }
 
-function paintOpenGround(S, x, y, s, wearNear) {
+function paintOpenGround(S, x, y, s, wearNear, wood = 0) {
   const st = s.stretch;
   const n =
     S.nz.fbm(st ? x * st[0] : x, st ? y * st[1] : y, 44, S.seed + 11, 2) +
     (S.nz.vn(x, y, 3, S.seed + 13) - 0.5) * 0.05;
   let t = n < 0.28 ? s.dark : n > 0.72 ? s.light : s.base;
+  if (wood > 0.5) {
+    // Forest floor: the heart of a wood is in canopy shade, so the gaps
+    // between crowns read as depth, not as open grass.
+    const k = wood + (S.nz.vn(x, y, 3, S.seed + 14) - 0.5) * 0.18;
+    if (k > 0.8) t = s.shade ?? down(s.dark, 1);
+    else if (k > 0.62) t = s.dark;
+  }
   const wear = wearNear ? wearAt(S, x, y) : 0;
   if (wear > 0) {
     const k = wear + (S.nz.vn(x, y, 5, S.seed + 12) - 0.5) * 0.5;
@@ -546,8 +554,16 @@ export function passGround(S, x0, y0, x1, y1) {
       lavaNear[(r - r0) * fw + c - c0] = lava;
       wearNear[(r - r0) * fw + c - c0] = wear;
     }
+  // Region fields (see fields.js): woodland share around each cell corner.
+  const woodCorners = new Float32Array(fw * (r1 - r0 + 1) * 4);
+  const isWood = (c, r) => (S.name(c, r) === 'Forest' ? 1 : 0);
+  for (let r = r0; r <= r1; r++)
+    for (let c = c0; c <= c1; c++)
+      if (S.names[r][c] === 'Forest')
+        cornerShares(isWood, c, r, woodCorners, ((r - r0) * fw + c - c0) * 4);
   for (let y = y0; y < y1; y++) {
-    const rr = ((y / CELL) | 0) - r0;
+    const rr = ((y / CELL) | 0) - r0,
+      v = y % CELL;
     for (let x = x0; x < x1; x++) {
       const i = y * W + x,
         m = mat[i],
@@ -556,9 +572,11 @@ export function passGround(S, x0, y0, x1, y1) {
       animOut = 0;
       switch (m) {
         case G.GRASS:
-        case G.FOREST:
-          t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.ground, wearNear[f]));
+        case G.FOREST: {
+          const wood = woodCorners[f * 4] > 0 ? fieldAt(woodCorners, f * 4, x % CELL, v) : 0;
+          t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.ground, wearNear[f], wood));
           break;
+        }
         case G.ROCK:
           t = paintLandLip(S, x, y, i, paintOpenGround(S, x, y, style.rockGround, wearNear[f]));
           break;

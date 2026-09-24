@@ -20,6 +20,7 @@ import { renderAll } from '../src/art/terrain/pipeline.js';
 import { renderTerrainSliced, packResult, unpackResult } from '../src/art/terrain/async.js';
 import { warmTerrainRenderer, createShimmerOverlay } from '../src/art/terrain/canvas.js';
 import { G, groundOf, HARD } from '../src/art/terrain/biomes.js';
+import { massifPlan } from '../src/art/terrain/mountains.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { mulberry32 } from '../src/art/terrain/noise.js';
 import { loadGameData } from './testData.js';
@@ -211,56 +212,231 @@ describe('procedural terrain: coverage', { timeout: 120000 }, () => {
 describe('procedural terrain: objects fit their cells (owner rule)', { timeout: 120000 }, () => {
   const objectTerrain = ['Forest', 'Mountain', 'Fort', 'Village', 'Throne', 'Ballista', 'Pillar'];
 
+  /** Layout that clusters `pool` names, so every cell sees lone, edge and interior cases. */
+  function clustered(cols, rows, seed, pool) {
+    const rnd = mulberry32(seed);
+    return Array.from({ length: rows }, () => []).map((row, r, all) => {
+      for (let c = 0; c < cols; c++) {
+        const prev = c > 0 && rnd() < 0.45 ? row[c - 1] : null;
+        const above = r > 0 && rnd() < 0.4 ? all[r - 1][c] : null;
+        row.push(prev || above || pool[Math.floor(rnd() * pool.length)]);
+      }
+      return row;
+    });
+  }
+
+  function checkFit(S, c, r, label) {
+    const o = buildCellObject(S, c, r);
+    if (!o) return 0;
+    const lim = OBJECT_LIMITS[o.sprite.kind];
+    const x0 = c * ART_CELL - lim.left,
+      x1 = (c + 1) * ART_CELL + lim.right,
+      y0 = r * ART_CELL - lim.top,
+      y1 = (r + 1) * ART_CELL + lim.bottom;
+    let n = 0;
+    o.sprite.forEach((x, y) => {
+      n++;
+      if (x < x0 || x >= x1 || y < y0 || y >= y1)
+        throw new Error(`${label} (${c},${r}) pixel ${x},${y} outside its cell`);
+    });
+    expect(n, label).toBeGreaterThan(20);
+    // Shapes are planned to fit; the clip is only a safety net.
+    expect(o.sprite.clipped / n, `${label} clipped`).toBeLessThan(0.04);
+    return 1;
+  }
+
   it('every opaque object pixel stays within the allowed overhang of its own cell', () => {
     let checked = 0;
     for (const biome of BIOME_NAMES)
       for (const name of objectTerrain)
         for (let seed = 1; seed <= 6; seed++) {
+          // a uniform block (interior + edges) ...
           const names = Array.from({ length: 5 }, () => Array(6).fill(name));
           const S = new TerrainState({ names, biome, seed: seed * 7919 });
           for (let r = 0; r < 5; r++)
-            for (let c = 0; c < 6; c++) {
-              const o = buildCellObject(S, c, r);
-              expect(o, `${biome} ${name}`).not.toBeNull();
-              const lim = OBJECT_LIMITS[o.sprite.kind];
-              const x0 = c * ART_CELL - lim.left,
-                x1 = (c + 1) * ART_CELL + lim.right,
-                y0 = r * ART_CELL - lim.top,
-                y1 = (r + 1) * ART_CELL + lim.bottom;
-              let n = 0;
-              o.sprite.forEach((x, y) => {
-                n++;
-                if (x < x0 || x >= x1 || y < y0 || y >= y1)
-                  throw new Error(`${biome} ${name} (${c},${r}) pixel ${x},${y} outside its cell`);
-              });
-              expect(n).toBeGreaterThan(20);
-              // Shapes are planned to fit; the clip is only a safety net.
-              expect(o.sprite.clipped / n, `${biome} ${name} clipped`).toBeLessThan(0.04);
-              checked++;
-            }
+            for (let c = 0; c < 6; c++) checked += checkFit(S, c, r, `${biome} ${name}`);
         }
     expect(checked).toBe(BIOME_NAMES.length * objectTerrain.length * 6 * 30);
+    // ... and mixed layouts (lone cells, ranges, forest edges, neighbours of every kind)
+    for (const biome of BIOME_NAMES)
+      for (let seed = 1; seed <= 4; seed++) {
+        const names = clustered(9, 7, seed * 31 + biome.length, [
+          'Plain',
+          'Forest',
+          'Forest',
+          'Mountain',
+          'Mountain',
+          'Pillar',
+          'Water',
+        ]);
+        const S = new TerrainState({ names, biome, seed });
+        for (let r = 0; r < 7; r++)
+          for (let c = 0; c < 9; c++) checkFit(S, c, r, `${biome} mixed ${names[r][c]}`);
+      }
   });
 
-  it('limits: canopies <= 2 px, peaks <= 2 px up, columns <= 1 px cap, structures inside', () => {
-    expect(OBJECT_LIMITS.tree).toEqual({ left: 2, right: 2, top: 2, bottom: 0 });
-    expect(OBJECT_LIMITS.mountain.top).toBeLessThanOrEqual(2);
+  it('limits ("mostly fit"): canopies and peaks <= 4 px over the top and sides, 1-2 px down; columns <= 1 px cap; structures inside', () => {
+    expect(OBJECT_LIMITS.tree).toEqual({ left: 4, right: 4, top: 4, bottom: 2 });
+    expect(OBJECT_LIMITS.mountain).toEqual({ left: 3, right: 3, top: 4, bottom: 1 });
     expect(OBJECT_LIMITS.pillar).toEqual({ left: 0, right: 0, top: 1, bottom: 0 });
     expect(OBJECT_LIMITS.structure).toEqual({ left: 0, right: 0, top: 0, bottom: 0 });
   });
 
   it('a unit cell above an object cell keeps its bottom half clear of the object', () => {
     // The unit's feet / ring sit in the lower half of its cell; the object
-    // below may reach at most 2 art px into the cell above.
-    const names = [
-      ['Plain', 'Plain', 'Plain', 'Plain'],
-      ['Forest', 'Pillar', 'Mountain', 'Fort'],
-    ];
-    const res = render(names, 'grassland', 5);
-    const { owner, W } = res.state;
-    for (let y = 0; y < ART_CELL; y++)
-      for (let x = 0; x < W; x++)
-        if (owner[y * W + x]) expect(y).toBeGreaterThanOrEqual(ART_CELL - 2);
+    // below may reach at most OBJECT_LIMITS.top (4) art px into the cell above.
+    for (const biome of BIOME_NAMES)
+      for (let seed = 1; seed <= 5; seed++) {
+        const names = [
+          ['Plain', 'Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+          ['Forest', 'Pillar', 'Mountain', 'Fort', 'Forest', 'Mountain'],
+          ['Forest', 'Forest', 'Mountain', 'Plain', 'Forest', 'Mountain'],
+        ];
+        const res = render(names, biome, seed);
+        const { owner, W } = res.state;
+        for (let y = 0; y < ART_CELL; y++)
+          for (let x = 0; x < W; x++)
+            if (owner[y * W + x]) expect(y).toBeGreaterThanOrEqual(ART_CELL - 4);
+      }
+  });
+
+  it('open ground stays open: trees reach at most 2 px into a non-forest cell, objects cover little of it', () => {
+    let worstShare = 0;
+    for (const biome of BIOME_NAMES)
+      for (let seed = 1; seed <= 5; seed++) {
+        const names = clustered(10, 8, seed * 17 + biome.length, [
+          'Plain',
+          'Plain',
+          'Forest',
+          'Forest',
+          'Mountain',
+          'Water',
+        ]);
+        const res = render(names, biome, seed);
+        const S = res.state;
+        for (let r = 0; r < S.rows; r++)
+          for (let c = 0; c < S.cols; c++) {
+            if (names[r][c] !== 'Plain' && names[r][c] !== 'Water') continue;
+            let other = 0;
+            for (let y = r * ART_CELL; y < (r + 1) * ART_CELL; y++)
+              for (let x = c * ART_CELL; x < (c + 1) * ART_CELL; x++) {
+                const w = S.owner[y * S.W + x];
+                if (!w) continue;
+                other++;
+                const oc = (w - 1) % S.cols,
+                  or = ((w - 1) / S.cols) | 0;
+                if (names[or][oc] !== 'Forest') continue;
+                // depth into this cell from the owner's side
+                const dx = oc < c ? x - c * ART_CELL + 1 : oc > c ? (c + 1) * ART_CELL - x : 0;
+                const dy = or < r ? y - r * ART_CELL + 1 : or > r ? (r + 1) * ART_CELL - y : 0;
+                expect(Math.max(dx, dy), `${biome} tree into open (${c},${r})`).toBeLessThanOrEqual(
+                  2,
+                );
+              }
+            worstShare = Math.max(worstShare, other / (ART_CELL * ART_CELL));
+          }
+      }
+    expect(worstShare).toBeLessThan(0.1);
+  });
+});
+
+describe('procedural terrain: natural variation (owner feedback)', { timeout: 120000 }, () => {
+  function ownCover(S, c, r) {
+    const id = r * S.cols + c + 1;
+    let n = 0;
+    for (let y = r * ART_CELL; y < (r + 1) * ART_CELL; y++)
+      for (let x = c * ART_CELL; x < (c + 1) * ART_CELL; x++) if (S.owner[y * S.W + x] === id) n++;
+    return n / (ART_CELL * ART_CELL);
+  }
+
+  it('forest cells are not one stamp: tree counts and layouts vary, interiors are denser than edges', () => {
+    for (const biome of ['grassland', 'tundra', 'swamp', 'castle'])
+      for (let seed = 1; seed <= 3; seed++) {
+        const names = Array.from({ length: 7 }, (_, r) =>
+          Array.from({ length: 9 }, (_, c) =>
+            r >= 1 && r <= 5 && c >= 1 && c <= 7 ? 'Forest' : 'Plain',
+          ),
+        );
+        const res = render(names, biome, seed);
+        const S = res.state;
+        const counts = new Set(),
+          masks = new Set();
+        let interior = 0,
+          nInterior = 0,
+          edge = 0,
+          nEdge = 0;
+        for (let r = 1; r <= 5; r++)
+          for (let c = 1; c <= 7; c++) {
+            const o = buildCellObject(new TerrainState({ names, biome, seed }), c, r);
+            counts.add(o.parts.length);
+            const bits = [];
+            o.sprite.forEach((x, y) => bits.push((x - c * ART_CELL) * 64 + y - r * ART_CELL));
+            masks.add(bits.join(','));
+            const cover = ownCover(S, c, r);
+            expect(cover, `${biome} forest (${c},${r}) reads as cover`).toBeGreaterThan(0.2);
+            if (r > 1 && r < 5 && c > 1 && c < 7) {
+              interior += cover;
+              nInterior++;
+            } else {
+              edge += cover;
+              nEdge++;
+            }
+          }
+        expect(counts.size, `${biome} tree counts`).toBeGreaterThanOrEqual(3);
+        expect(masks.size, `${biome} layouts`).toBe(35);
+        expect(interior / nInterior, `${biome} interior denser`).toBeGreaterThan(edge / nEdge);
+      }
+  });
+
+  it('a lone forest cell is a tree or a small copse that still reads as cover', () => {
+    for (const biome of BIOME_NAMES)
+      for (let seed = 1; seed <= 12; seed++) {
+        const names = [
+          ['Plain', 'Plain', 'Plain'],
+          ['Plain', 'Forest', 'Plain'],
+          ['Plain', 'Plain', 'Plain'],
+        ];
+        const res = render(names, biome, seed);
+        const o = buildCellObject(res.state, 1, 1);
+        expect(o.parts.length).toBeGreaterThanOrEqual(1);
+        expect(o.parts.length).toBeLessThanOrEqual(6);
+        const dead = biome === 'volcano' || biome === 'void';
+        expect(ownCover(res.state, 1, 1), `${biome} lone forest`).toBeGreaterThan(
+          dead ? 0.06 : 0.2,
+        );
+      }
+  });
+
+  it('mountains vary in shape and join their neighbours into ranges', () => {
+    const shapes = new Set();
+    for (const biome of BIOME_NAMES)
+      for (let seed = 1; seed <= 3; seed++) {
+        const names = [
+          ['Plain', 'Plain', 'Plain', 'Plain', 'Plain'],
+          ['Plain', 'Mountain', 'Mountain', 'Mountain', 'Plain'],
+          ['Plain', 'Mountain', 'Mountain', 'Plain', 'Plain'],
+          ['Plain', 'Plain', 'Plain', 'Plain', 'Mountain'],
+        ];
+        const res = render(names, biome, seed);
+        const S = res.state;
+        for (const [c, r] of [
+          [1, 1],
+          [2, 1],
+          [3, 1],
+          [1, 2],
+          [2, 2],
+          [4, 3],
+        ])
+          shapes.add(massifPlan(S, c, r).kind);
+        // the shared border of two mountain neighbours is rock, not a seam of ground
+        const W = S.W;
+        let rock = 0;
+        const x = 2 * ART_CELL;
+        for (let y = ART_CELL + 12; y < 2 * ART_CELL; y++)
+          for (const xx of [x - 1, x]) if (S.owner[y * W + xx]) rock++;
+        expect(rock, `${biome} ridge between (1,1) and (2,1)`).toBeGreaterThan(12);
+      }
+    expect(shapes.size).toBeGreaterThanOrEqual(4);
   });
 });
 

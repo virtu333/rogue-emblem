@@ -1,59 +1,238 @@
-// Mountain cells: one to three faceted peaks drawn inside the cell.
+// Mountain cells: a characterful massif that mostly fits the cell, joined to
+// neighbouring mountain cells by ridges, with boulders and scree where it
+// meets open ground.
 //
-// Each peak is a silhouette with crag-jagged slopes, split by a ridge line
-// into a lit west face and a shaded east face (key light low from the
-// upper-left). Spur creases run down both faces and strata ticks break the
-// lit face, so the rock reads as carved facets instead of the study's
-// voxel columns (which streaked vertically). Neighbouring mountain cells sit
-// on a shared scree ground, so ranges still read as ranges.
+// A cell's mountain is built from parts with different deps (see
+// Sprite.setDeps), so the renderer stays 3x3-local:
+//
+//   - the massif depends on the cell alone: one of several archetypes (spire,
+//     monolith dome, leaning crag, twin summit, flat-topped butte), jittered
+//     in position, height and width. It may rise MOUNTAIN_OVERHANG.top px
+//     above the cell and spill a pixel or two sideways;
+//   - a shoulder toward an east / west mountain neighbour runs from the
+//     massif's flank to a saddle on the shared border. The saddle is keyed by
+//     the border itself, so the two cells' shoulders meet exactly and a range
+//     reads as one ridge;
+//   - the foot depends on the cell below: rock continues down into the next
+//     peak of a north-south range, or boulders and scree gather at the base
+//     facing open ground (and, per side, facing open ground east or west).
+//
+// Rock is shaded as faceted planes (Voronoi plates with their own tilt), lit
+// on the west face and shaded on the east face, with creases, spurs and
+// strata ticks, so it reads as carved stone rather than vertical streaks.
 import { R } from './palette.js';
-import { rand2, valueNoise, worley } from './noise.js';
+import { rand2, hash2, valueNoise, worley } from './noise.js';
 import { Sprite } from './sprite.js';
 import { ART_CELL as CELL } from './state.js';
 
-export const MOUNTAIN_OVERHANG = { side: 1, top: 2 };
+export const MOUNTAIN_OVERHANG = Object.freeze({ side: 3, top: 4, bottom: 1 });
+const LIM = {
+  left: MOUNTAIN_OVERHANG.side,
+  right: MOUNTAIN_OVERHANG.side,
+  top: MOUNTAIN_OVERHANG.top,
+  bottom: MOUNTAIN_OVERHANG.bottom,
+};
+const SHADOW = { a: 0.45, b: 0.22 };
+const isMountain = (S, c, r) => S.name(c, r) === 'Mountain'; // edges extend outward
 
-function peakLayout(S, c, r) {
-  const h = (k) => rand2(c, r, S.seed + 300 + k);
-  const roll = h(0);
-  const flip = h(9) < 0.5;
-  let peaks;
-  // Massifs fill the cell: feet reach the cell sides, summits the top edge.
-  if (roll < 0.35) {
-    peaks = [{ ax: 11 + h(1) * 2, ay: 0.5 + h(2), lx: -0.5, rx: 23.5, by: 23 }];
-  } else if (roll < 0.8) {
-    peaks = [
-      { ax: 7 + h(1) * 1.5, ay: 0.5 + h(2), lx: -0.5, rx: 15.5, by: 17 },
-      { ax: 15.5 + h(3) * 1.5, ay: 5 + h(4) * 2, lx: 4, rx: 24, by: 23 },
-    ];
-  } else {
-    peaks = [
-      { ax: 16.5 + h(1), ay: 0.5 + h(2), lx: 9, rx: 24, by: 14 },
-      { ax: 6 + h(3) * 1.5, ay: 3.5 + h(4) * 1.5, lx: -0.5, rx: 13.5, by: 19 },
-      { ax: 14 + h(5) * 1.5, ay: 8.5 + h(6) * 1.5, lx: 4.5, rx: 23.5, by: 23 },
-    ];
+// ------------------------------------------------------------- archetypes
+const ARCHETYPES = {
+  grassland: [
+    ['spire', 2],
+    ['dome', 3],
+    ['crag', 2],
+    ['twin', 2],
+    ['butte', 1],
+  ],
+  tundra: [
+    ['spire', 4],
+    ['crag', 2],
+    ['twin', 2],
+    ['dome', 1],
+  ],
+  volcano: [
+    ['spire', 2],
+    ['crag', 3],
+    ['butte', 2],
+    ['dome', 1],
+  ],
+  swamp: [
+    ['dome', 4],
+    ['crag', 1],
+    ['twin', 1],
+  ],
+  castle: [
+    ['crag', 3],
+    ['spire', 2],
+    ['dome', 1],
+    ['twin', 1],
+  ],
+  void: [
+    ['crag', 3],
+    ['spire', 3],
+    ['twin', 1],
+  ],
+};
+
+function pick(list, roll) {
+  let total = 0;
+  for (const [, w] of list) total += w;
+  roll *= total;
+  for (const [k, w] of list) {
+    roll -= w;
+    if (roll < 0) return k;
+  }
+  return list[0][0];
+}
+
+/** Context-free massif plan of one cell (cell-local art px, v down). */
+export function massifPlan(S, c, r) {
+  const h = (k) => rand2(c * 13 + k, r * 7 - k, S.seed + 300);
+  const kind = pick(ARCHETYPES[S.biome] || ARCHETYPES.grassland, h(0));
+  const flip = h(1) < 0.5;
+  const scale = 0.8 + h(2) * 0.2; // lone foothill .. full massif
+  const base = 21.5 + h(3) * 1.5;
+  // summit 20..27 px above the foot, at most MOUNTAIN_OVERHANG.top above the cell
+  const height = Math.min(base + MOUNTAIN_OVERHANG.top - 0.5, (20 + h(4) * 7) * scale);
+  const ax = 12 + (h(5) - 0.5) * 6;
+  const wide = 0.82 + h(6) * 0.3;
+  const peaks = [];
+  const add = (p) => peaks.push({ base, jag: 1, ...p });
+  switch (kind) {
+    case 'twin':
+      add({
+        shape: 'spire',
+        ax: ax - 3.5,
+        ay: base - height,
+        wl: 8 * wide,
+        wr: 6.5 * wide,
+      });
+      add({
+        shape: 'spire',
+        ax: ax + 4.5,
+        ay: base - height * (0.62 + h(7) * 0.16),
+        wl: 6.5 * wide,
+        wr: 7.5 * wide,
+      });
+      break;
+    case 'dome':
+      add({ shape: 'dome', ax, ay: base - height * 0.96, wl: 9 * wide, wr: 9 * wide });
+      break;
+    case 'crag':
+      add({
+        shape: 'crag',
+        ax: ax - 2,
+        ay: base - height,
+        wl: 7 * wide,
+        wr: 10.5 * wide,
+        jag: 1.6,
+      });
+      break;
+    case 'butte':
+      add({
+        shape: 'butte',
+        ax,
+        ay: base - height * 0.8,
+        wl: 9.5 * wide,
+        wr: 9.5 * wide,
+        crater: S.biome === 'volcano',
+      });
+      break;
+    default:
+      add({ shape: 'spire', ax, ay: base - height, wl: 9 * wide, wr: 9 * wide });
   }
   if (flip)
     for (const p of peaks) {
-      const { ax, lx, rx } = p;
-      p.ax = CELL - 1 - ax;
-      p.lx = CELL - 1 - rx;
-      p.rx = CELL - 1 - lx;
+      p.ax = CELL - p.ax;
+      [p.wl, p.wr] = [p.wr, p.wl];
+      p.flip = true;
     }
-  return peaks;
+  return { kind, peaks, base, ax: flip ? CELL - ax : ax, height };
 }
 
+/** Half-width fractions (left, right) at t = 0 (summit) .. 1 (foot). */
+function profile(shape, t, flip) {
+  switch (shape) {
+    case 'dome': {
+      const f = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));
+      return [f, f];
+    }
+    case 'crag': {
+      // one steep face, one long slope with a ledge
+      const steep = Math.pow(t, 0.55),
+        long = Math.min(1, Math.pow(t, 1.25) + (t > 0.35 && t < 0.5 ? 0.12 : 0));
+      return flip ? [long, steep] : [steep, long];
+    }
+    case 'butte': {
+      const f =
+        t < 0.12 ? 0.32 + t * 1.2 : Math.min(1, 0.46 + Math.pow((t - 0.12) / 0.88, 0.7) * 0.6);
+      return [f, f];
+    }
+    default: {
+      const f = Math.pow(t, 0.8);
+      return [f, f];
+    }
+  }
+}
+
+// ------------------------------------------------------------------ rock
+function rockTone(S, x, y, lit, t, seed, edgeDist) {
+  // Facets: Voronoi plates, each a flat plane with its own tilt. A dark
+  // crease runs along the lower / right edge of every plate.
+  const w = worley(x, y * 1.25, 5.5, S.seed + 320);
+  const facet = w.id,
+    seam = w.d2 - w.d1;
+  const tilt = (facet % 1000) / 1000;
+  let tone;
+  if (lit) tone = tilt > 0.62 ? 6 : tilt < 0.18 ? 4 : 5;
+  else tone = tilt > 0.75 ? 3 : tilt < 0.2 ? 1 : 2;
+  if (lit && edgeDist < 1.6 && t < 0.6) tone = 6; // sunlit ridge line
+  if (seam < 0.9 && worley(x + 1, (y + 1) * 1.25, 5.5, S.seed + 320).id !== facet)
+    tone = Math.max(0, tone - (lit ? 2 : 1));
+  if (t > 0.82) tone = Math.max(0, tone - 1); // occlusion near the ground
+  // strata ticks on the lit face
+  if (lit && t > 0.3 && t < 0.8 && (y + Math.round(x / 3)) % 5 === 0) {
+    if (valueNoise(x, y, 3, seed + 8) > 0.62) tone = Math.max(1, tone - 1);
+  }
+  return tone;
+}
+
+/** Quiet, shadowed rock between peaks: facets in two close tones. */
+function valleyTone(S, x, y) {
+  const w = worley(x, y * 1.25, 5.5, S.seed + 320);
+  const facet = w.id,
+    seam = w.d2 - w.d1;
+  const tilt = (facet % 1000) / 1000;
+  let tone = tilt > 0.8 ? 3 : 2;
+  if (seam < 0.9 && worley(x + 1, (y + 1) * 1.25, 5.5, S.seed + 320).id !== facet) tone = 1;
+  return tone;
+}
+
+function rockColour(S, tone, lit, x, y, t, seed, cap) {
+  const st = S.style.rock;
+  const ramp = st.ramp;
+  let col = ramp[Math.max(0, Math.min(ramp.length - 1, tone))];
+  if (cap && st.cap) {
+    const c = st.cap.ramp;
+    col = lit
+      ? c[Math.min(c.length - 1, (tone >= 4 ? 5 : 4) - (tone < 3 ? 1 : 0))]
+      : c[tone <= 1 ? 1 : 2];
+  } else if (st.ember && !lit && t > 0.45 && valueNoise(x, y, 2, seed + 9) > 0.83) {
+    col = R('ember', 2);
+  } else if (st.moss && lit && t > 0.55 && valueNoise(x, y, 4, seed + 10) > 0.7) {
+    col = st.moss;
+  }
+  return col;
+}
+
+// ---------------------------------------------------------------- massif
 function paintPeak(S, s, c, r, p, k) {
   const ox = c * CELL,
     oy = r * CELL;
-  const st = S.style.rock;
-  const ramp = st.ramp; // 8 tones dark -> light
-  const cap = st.cap?.ramp;
   const seed = S.seed + 330 + k * 17 + c * 7 + r * 13;
   const ay = Math.round(p.ay),
-    by = p.by;
+    by = Math.round(p.base);
   const span = Math.max(1, by - ay);
-  // spur creases: [start t on the ridge, horizontal drift per row]
   const spurs = [];
   const nSpur = 2 + Math.floor(rand2(c + k, r, seed) * 2);
   for (let q = 0; q < nSpur; q++)
@@ -63,40 +242,37 @@ function paintPeak(S, s, c, r, p, k) {
       slope: 0.7 + rand2(q, k, seed + 2) * 0.5,
       len: Math.round(span * (0.25 + rand2(q, k, seed + 3) * 0.2)),
     });
+  const capDepth = 3 + rand2(c, r, seed + 12) * 3;
   for (let y = ay; y <= by; y++) {
     const t = (y - ay) / span;
-    const f = Math.pow(t, 0.72); // bulky shoulders, not a tent
-    const jag = Math.min(1, t * 3);
-    const jl = (valueNoise(y, 3, 2.3, seed + 4) - 0.5) * 3.2 * jag;
-    const jr = (valueNoise(y, 7, 2.3, seed + 5) - 0.5) * 3 * jag;
-    // the foot rounds off so the base is not a flat grid line
-    const foot = t > 0.86 ? (t - 0.86) * 9 : 0;
-    const xl = Math.round(p.ax - (p.ax - p.lx) * f + jl + foot);
-    const xr = Math.round(p.ax + (p.rx - p.ax) * f + jr - foot);
-    const xm = p.ax + (p.rx - p.ax) * 0.2 * t + (valueNoise(y, 11, 3, seed + 6) - 0.5) * 1.2;
-    const capLine = ay + 3.5 + (valueNoise(y, 13, 3, seed + 7) - 0.5) * 2;
+    const [fl, fr] = profile(p.shape, t, p.flip);
+    const jagK = Math.min(1, t * 3) * p.jag;
+    const jl = (valueNoise(y, 3, 2.3, seed + 4) - 0.5) * 3 * jagK;
+    const jr = (valueNoise(y, 7, 2.3, seed + 5) - 0.5) * 2.8 * jagK;
+    const foot = t > 0.88 ? (t - 0.88) * 10 : 0; // the base rounds off
+    const xl = Math.round(p.ax - p.wl * fl + jl + foot);
+    const xr = Math.round(p.ax + p.wr * fr + jr - foot);
+    // ridge line: lit west face | shaded east face
+    let xm = p.ax + (xr - p.ax) * 0.18 * t + (valueNoise(y, 11, 3, seed + 6) - 0.5) * 1.2;
+    if (p.shape === 'dome' || p.shape === 'butte') xm = p.ax - (p.ax - xl) * 0.12 + 1;
+    const capLine = ay + capDepth + (valueNoise(y, 13, 3, seed + 7) - 0.5) * 2;
     for (let x = xl; x <= xr; x++) {
+      // a ragged foot, not a ruled base line
+      if (y >= by - 1 && valueNoise(x, y, 2, seed + 14) > (y === by ? 0.55 : 0.8)) continue;
       const lit = x + 0.5 < xm;
-      // Rock facets: Voronoi plates, each a flat plane with its own tilt,
-      // lit on the west face and shaded on the east face. A dark crease
-      // runs along the lower / right edge of every plate.
       const wx = ox + x,
         wy = oy + y;
-      const w = worley(wx, wy * 1.25, 5.5, seed + 20);
-      const facet = w.id,
-        seam = w.d2 - w.d1;
-      const tilt = (facet % 1000) / 1000;
-      let tone;
-      if (lit) {
-        tone = tilt > 0.62 ? 5 : tilt < 0.18 ? 3 : 4;
-        if (xm - (x + 0.5) < 1.6 && t < 0.6) tone = 5;
-      } else {
-        tone = tilt > 0.75 ? 3 : tilt < 0.2 ? 1 : 2;
+      let tone = rockTone(S, wx, wy, lit, t, seed, Math.abs(xm - (x + 0.5)));
+      if (p.shape === 'dome') {
+        // rounded monolith: the light wraps, the far flank falls away
+        const nx = (x + 0.5 - p.ax) / Math.max(2, (xr - xl) / 2);
+        if (nx < -0.55 && t < 0.7) tone = Math.min(tone + 1, 6);
+        else if (nx > 0.6) tone = Math.max(0, tone - 1);
       }
-      if (seam < 0.9 && worley(wx + 1, (wy + 1) * 1.25, 5.5, seed + 20).id !== facet)
-        tone = Math.max(0, tone - (lit ? 2 : 1));
-      if (t > 0.8) tone = Math.max(0, tone - 1); // occlusion near the ground
-      // spur creases: a dark notch with a lit lip above-left of it
+      if (p.crater && y <= ay + 1 && x > xl + 1 && x < xr - 1) {
+        s.set(ox + x, oy + y, y === ay ? R('ember', 3) : R('ink', 2));
+        continue;
+      }
       for (const sp of spurs) {
         if (y < sp.y0 || y > sp.y0 + sp.len) continue;
         const along = y - sp.y0;
@@ -104,32 +280,19 @@ function paintPeak(S, s, c, r, p, k) {
         if (Math.abs(x + 0.5 - cx) < 0.6) tone = lit ? 3 : 1;
         else if (Math.abs(x + 0.5 - (cx - 1)) < 0.6 && lit) tone = Math.max(tone, 5);
       }
-      // strata ticks on the lit face
-      if (lit && t > 0.3 && t < 0.8 && (y + Math.round(x / 3)) % 5 === 0) {
-        if (valueNoise(x, y, 3, seed + 8) > 0.62) tone = Math.max(1, tone - 1);
-      }
-      let col = ramp[Math.max(0, Math.min(ramp.length - 1, tone))];
-      if (cap && y < capLine + (lit ? 0.6 : -0.6) && t < 0.55) {
-        col = lit ? cap[(x + 0.5 > xm - 1.6 ? 5 : 4) - (tone < 4 ? 1 : 0)] : cap[tone <= 1 ? 1 : 2];
-      } else if (st.ember && !lit && t > 0.45 && valueNoise(x, y, 2, seed + 9) > 0.83) {
-        col = R('ember', 2);
-      }
-      s.set(ox + x, oy + y, col);
+      const cap = y < capLine + (lit ? 0.6 : -0.6) && t < 0.55;
+      s.set(wx, wy, rockColour(S, tone, lit, wx, wy, t, seed, cap));
     }
   }
 }
 
-/** The peaks of one mountain cell as a single sprite. */
-export function mountainSprite(S, c, r) {
-  const peaks = peakLayout(S, c, r);
+function massifPart(S, c, r, plan) {
   const st = S.style.rock;
-  const ox = c * CELL,
-    oy = r * CELL;
-  const composite = new Sprite(c, r, 'mountain', oy + CELL - 1, { a: 0.45, b: 0.22 });
-  peaks.forEach((p, k) => {
-    const s = new Sprite(c, r, 'mountain', oy + p.by);
+  const oy = r * CELL;
+  const composite = new Sprite(c, r, 'mountain', oy + Math.round(plan.base), SHADOW);
+  plan.peaks.forEach((p, k) => {
+    const s = new Sprite(c, r, 'mountain', oy + Math.round(p.base));
     paintPeak(S, s, c, r, p, k);
-    // selective outline: dark on bottom/right, warm rim on the top/left edge
     s.outline({ dark: st.outline, rim: true });
     if (k > 0) {
       // occlusion line where this nearer peak overlaps the one behind
@@ -142,11 +305,222 @@ export function mountainSprite(S, c, r) {
     }
     composite.drawOver(s);
   });
-  composite.clipTo(
-    ox - MOUNTAIN_OVERHANG.side,
-    oy - MOUNTAIN_OVERHANG.top,
-    ox + CELL + MOUNTAIN_OVERHANG.side,
-    oy + CELL,
-  );
-  return composite;
+  return composite.fitTo(LIM);
+}
+
+// ------------------------------------------------------------- shoulders
+/** Saddle on the vertical border between columns cb-1 and cb of row r. */
+function saddle(S, cb, r) {
+  const h = (k) => rand2(cb * 5 + k, r * 11, S.seed + 350);
+  return { v: 12 + h(0) * 5, base: 21.5 + h(1) * 1.5, seed: hash2(cb, r, S.seed + 351) };
+}
+
+/**
+ * Shoulder of cell (c, r) toward its east (dir 1) or west (dir -1) mountain
+ * neighbour: from the massif flank to the saddle on the shared border, and a
+ * couple of px past it (the neighbour's shoulder starts there too).
+ */
+function shoulderPart(S, c, r, plan, dir) {
+  const st = S.style.rock;
+  const ox = c * CELL,
+    oy = r * CELL;
+  const sd = saddle(S, dir > 0 ? c + 1 : c, r);
+  const edgeX = dir > 0 ? ox + CELL : ox; // world x of the shared border
+  const fromX = ox + plan.ax;
+  const fromV = plan.peaks[0].ay + (plan.base - plan.peaks[0].ay) * 0.38;
+  const s = new Sprite(c, r, 'mountain', oy + Math.round(sd.base) - 1, SHADOW);
+  s.setDeps(Math.min(0, dir), Math.max(0, dir), 0, 0);
+  const reach = MOUNTAIN_OVERHANG.side - 1;
+  const xa = dir > 0 ? Math.floor(fromX) : edgeX - reach,
+    xb = dir > 0 ? edgeX + reach : Math.ceil(fromX);
+  const seed = sd.seed;
+  for (let x = xa; x < xb; x++) {
+    // 0 at the massif, 1 at the border (and beyond: flat saddle)
+    const k = Math.max(0, Math.min(1, (x + 0.5 - fromX) / (edgeX - fromX)));
+    const e = k * k * (3 - 2 * k);
+    // crest: world-x keyed near the border, so both sides agree there
+    const crest =
+      oy + fromV + (sd.v - fromV) * e + (valueNoise(x, r * 97, 3, seed) - 0.5) * 2.2 * e;
+    const bottom = oy + plan.base + (sd.base - plan.base) * e;
+    const cy = Math.round(crest),
+      by = Math.round(bottom);
+    for (let y = cy; y <= by; y++) {
+      const t = (y - cy) / Math.max(1, by - cy);
+      // a ridge's south face: lit near the crest, facets, dark toward the foot
+      let tone = rockTone(S, x, y, t < 0.35, 0.3 + t * 0.6, seed, y - cy);
+      if (y === cy) tone = Math.min(6, tone + 1);
+      s.set(x, y, rockColour(S, tone, t < 0.35, x, y, t, seed, y - cy < 2 && sd.v < 10));
+    }
+  }
+  s.outline({ dark: st.outline, rim: true });
+  return s.fitTo(LIM);
+}
+
+// ------------------------------------------------------------------ foot
+function boulder(s, x, y, w, h, ramp, outline) {
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const corner = (i === 0 || i === w - 1) && (j === 0 || j === h - 1) && w > 2;
+      if (corner) continue;
+      const lit = i < w / 2 && j < h / 2;
+      const col = j === h - 1 ? ramp[1] : lit ? ramp[5] : i >= w - 1 ? ramp[2] : ramp[3];
+      s.set(x + i, y + j, col);
+    }
+  s.set(x + w, y + h - 1, outline);
+}
+
+/** Below the massif: rock running on into the next peak, or boulders + scree. */
+function footPart(S, c, r, plan) {
+  const st = S.style.rock;
+  const ox = c * CELL,
+    oy = r * CELL;
+  const below = isMountain(S, c, r + 1);
+  const s = new Sprite(c, r, 'mountain', oy + CELL, SHADOW);
+  s.setDeps(0, 0, 0, 1);
+  const seed = S.seed + 370 + c * 31 + r * 17;
+  if (below) {
+    // The lower slopes run on, spreading, into the next peak of the range
+    // (which rises over this cell's bottom edge). Drawn over the massif's
+    // base line so the two read as one mountainside.
+    let xl = Infinity,
+      xr = -Infinity;
+    for (const p of plan.peaks) {
+      xl = Math.min(xl, p.ax - p.wl * 0.85);
+      xr = Math.max(xr, p.ax + p.wr * 0.85);
+    }
+    const y0 = oy + Math.round(plan.base) - 1;
+    for (let y = y0; y <= oy + CELL; y++) {
+      const spread = (y - y0) * 0.6;
+      const x0 = Math.round(ox + xl - spread + (valueNoise(y, 1, 3, seed) - 0.5) * 2),
+        x1 = Math.round(ox + xr + spread + (valueNoise(y, 5, 3, seed) - 0.5) * 2);
+      for (let x = x0; x <= x1; x++) {
+        const lit = x < ox + plan.ax - 1;
+        const tone = Math.max(0, rockTone(S, x, y, lit, 0.7, seed, 9) - 1);
+        s.set(x, y, rockColour(S, tone, lit, x, y, 0.7, seed, false));
+      }
+    }
+  } else {
+    // boulders and scree at the foot, spilling a pixel onto the ground below
+    const n = 2 + (hash2(c, r, seed) % 3);
+    for (let k = 0; k < n; k++) {
+      const bx = ox + 2 + Math.floor(rand2(c * 4 + k, r, seed + 2) * 18);
+      const w = 2 + (hash2(k, c, seed + 3) % 3),
+        h = w > 3 ? 3 : 2;
+      boulder(s, bx, oy + CELL - h + (k % 2), w, h, st.ramp, st.outline);
+    }
+  }
+  s.outline({ dark: st.outline });
+  return s.fitTo(LIM);
+}
+
+/** Boulders at the side of the base, toward open ground east or west. */
+function sidePart(S, c, r, plan, dir) {
+  const st = S.style.rock;
+  const ox = c * CELL,
+    oy = r * CELL;
+  const seed = S.seed + 390 + c * 23 + r * 7 + dir;
+  if (rand2(c, r, seed) < 0.35) return null;
+  const s = new Sprite(c, r, 'mountain', oy + Math.round(plan.base), SHADOW);
+  s.setDeps(Math.min(0, dir), Math.max(0, dir), 0, 0);
+  const n = 1 + (hash2(c, r, seed + 1) % 2);
+  for (let k = 0; k < n; k++) {
+    const w = 2 + (hash2(k, r, seed + 2) % 2);
+    const bx =
+      dir > 0
+        ? ox + CELL - w - (k * 3 + (hash2(k, c, seed) % 2))
+        : ox + k * 3 + (hash2(k, c, seed) % 2);
+    const by = oy + Math.round(plan.base) - 2 - k * 2;
+    boulder(s, bx, by, w, 2, st.ramp, st.outline);
+  }
+  s.outline({ dark: st.outline });
+  return s.fitTo(LIM);
+}
+
+/**
+ * With a mountain to the north: the rock between the two massifs, so a
+ * north-south range reads as one mountainside instead of stacked walls.
+ */
+function backPart(S, c, r, plan) {
+  const st = S.style.rock;
+  const ox = c * CELL,
+    oy = r * CELL;
+  const seed = S.seed + 380 + c * 29 + r * 13;
+  const s = new Sprite(c, r, 'mountain', oy + 9, SHADOW);
+  s.setDeps(0, 0, -1, 0);
+  const x0 = 3 + rand2(c, r, seed) * 3,
+    x1 = 21 - rand2(c, r, seed + 1) * 3;
+  const y1 = 8 + rand2(c, r, seed + 2) * 4;
+  for (let y = oy - 1; y <= oy + y1; y++) {
+    const t = (y - oy + 1) / (y1 + 1);
+    const round = t > 0.7 ? (t - 0.7) * 12 : 0;
+    const a = Math.round(ox + x0 + round + (valueNoise(y, 3, 3, seed) - 0.5) * 3),
+      b = Math.round(ox + x1 - round + (valueNoise(y, 9, 3, seed) - 0.5) * 3);
+    for (let x = a; x <= b; x++) {
+      const tone = valleyTone(S, x, y) + (x < ox + plan.ax - 3 ? 1 : 0);
+      const lit = tone >= 4;
+      s.set(x, y, rockColour(S, tone, lit, x, y, 0, seed, false));
+    }
+  }
+  s.outline({ dark: st.outline });
+  return s.fitTo(LIM);
+}
+
+/**
+ * Where the range continues both sideways (sx) and vertically (sy), the
+ * corner between them is rock too: a shadowed valley behind the peaks, so
+ * a block of mountain cells reads as one massif, not a lattice of ridges.
+ */
+function valleyPart(S, c, r, plan, sx, sy) {
+  const st = S.style.rock;
+  const ox = c * CELL,
+    oy = r * CELL;
+  const seed = S.seed + 395 + c * 19 + r * 23 + sx * 3 + sy;
+  const s = new Sprite(c, r, 'mountain', oy + (sy < 0 ? 4 : 14), SHADOW);
+  s.setDeps(Math.min(0, sx), Math.max(0, sx), Math.min(0, sy), Math.max(0, sy));
+  const u0 = sx > 0 ? 11 : 0,
+    u1 = sx > 0 ? CELL - 1 : 13;
+  const v0 = sy < 0 ? 0 : 10,
+    v1 = sy < 0 ? 15 : CELL - 1;
+  // Without a mountain in the diagonal cell this is a concave corner of the
+  // range: round it off instead of filling the square.
+  const concave = !isMountain(S, c + sx, r + sy);
+  const cu = sx > 0 ? CELL : 0,
+    cv = sy > 0 ? CELL : 0;
+  for (let v = v0; v <= v1; v++)
+    for (let u = u0; u <= u1; u++) {
+      // ragged toward the cell centre
+      const du = sx > 0 ? u - 11 : 13 - u,
+        dv = sy < 0 ? 15 - v : v - 10;
+      const n = valueNoise(u + ox, v + oy, 3, seed);
+      if (Math.min(du, dv) < 3 * n) continue;
+      if (concave && Math.hypot(u + 0.5 - cu, v + 0.5 - cv) < 9 + n * 3) continue;
+      const x = ox + u,
+        y = oy + v;
+      const tone = valleyTone(S, x, y);
+      const lit = false;
+      s.set(x, y, rockColour(S, tone, lit, x, y, 0, seed, false));
+    }
+  s.outline({ dark: st.outline });
+  return s.fitTo(LIM);
+}
+
+/** All parts of one mountain cell. */
+export function mountainParts(S, c, r) {
+  const plan = massifPlan(S, c, r);
+  const parts = [];
+  if (isMountain(S, c, r - 1)) parts.push(backPart(S, c, r, plan));
+  for (const sx of [-1, 1])
+    for (const sy of [-1, 1])
+      if (isMountain(S, c + sx, r) && isMountain(S, c, r + sy))
+        parts.push(valleyPart(S, c, r, plan, sx, sy));
+  for (const dir of [-1, 1]) {
+    if (isMountain(S, c + dir, r)) parts.push(shoulderPart(S, c, r, plan, dir));
+    else {
+      const p = sidePart(S, c, r, plan, dir);
+      if (p) parts.push(p);
+    }
+  }
+  parts.push(massifPart(S, c, r, plan));
+  parts.push(footPart(S, c, r, plan));
+  return parts.filter((p) => p.count() > 0);
 }
