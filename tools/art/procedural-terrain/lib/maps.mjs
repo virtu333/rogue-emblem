@@ -2,16 +2,17 @@
 // Math.random is swapped for a seeded PRNG only for the duration of the call,
 // exactly like tests/MapGenerator.test.js does.
 import { generateBattle } from '../../../../src/engine/MapGenerator.js';
+import { mulberry32 } from '../../../../src/art/terrain/noise.js';
 import { loadGameData } from '../../../../tests/testData.js';
-import { mulberry32 } from './noise.mjs';
 
 let data = null;
-function gameData() {
+export function gameData() {
   return (data ||= loadGameData());
 }
 
-// The study set: one map per biome family. Seeds were picked by scanning for
-// layouts that exercise the most terrain types / transitions.
+// The study set (one map per biome family) plus two production checks.
+// Seeds were picked by scanning for layouts that exercise the most terrain
+// types / transitions. `crop` is the top-left cell of the 16x10 phone view.
 export const STUDY_MAPS = [
   {
     key: 'river',
@@ -55,6 +56,22 @@ export const STUDY_MAPS = [
     seed: 1,
     crop: [1, 1],
   },
+  {
+    key: 'ambush',
+    label: 'Grassland forest ambush (dense woods)',
+    params: { act: 'act2', objective: 'rout', templateId: 'forest_ambush' },
+    seed: 5,
+    crop: [0, 0],
+    extra: true,
+  },
+  {
+    key: 'ruins',
+    label: 'Castle ruins (pillars, broken walls)',
+    params: { act: 'act3', objective: 'rout', templateId: 'castle_ruins' },
+    seed: 2,
+    crop: [1, 1],
+    extra: true,
+  },
 ];
 
 export function generateStudyMap(spec) {
@@ -71,6 +88,7 @@ export function generateStudyMap(spec) {
   return {
     ...spec,
     names,
+    mapLayout: config.mapLayout,
     cols: config.cols,
     rows: config.rows,
     biome: config.biome || 'grassland',
@@ -78,6 +96,11 @@ export function generateStudyMap(spec) {
     enemySpawns: config.enemySpawns || [],
     templateId: config.templateId,
   };
+}
+
+/** Terrain seed used for a study map (kept from the study for comparability). */
+export function terrainSeed(spec) {
+  return spec.seed * 1000 + 7;
 }
 
 export function terrainNames() {

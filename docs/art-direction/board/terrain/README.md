@@ -1,5 +1,12 @@
 # Procedural terrain study
 
+> **Productionized.** The runtime renderer now lives in `src/art/terrain/`, which includes the
+> owner fixes: objects fit their cells, the ground is quieter and lighter, the wetland is
+> reworked, peaks are faceted, and borders are tighter. `tools/art/procedural-terrain/generate.mjs`
+> imports it and writes to `docs/art-direction/build/terrain/`. That folder has before/after
+> captures, metrics, perf numbers and a preview page. The images in this folder are the frozen
+> study record; the commands below describe the study as it was.
+
 **Question:** should battle terrain move from the AI-generated weathered atlases (`assets/terrain/weathered/*.png`) to terrain painted procedurally in code?
 
 **What this is:** a working generator that paints all 19 terrain types, with no atlas images. It renders six real layouts from the game's own `MapGenerator` next to the same layouts drawn by the current atlas renderer. It is a static art study. The game code is untouched.
