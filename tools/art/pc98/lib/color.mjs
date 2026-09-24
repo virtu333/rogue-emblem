@@ -140,7 +140,7 @@ export function rgbToLab100(r, g, b) {
   const x = (0.4124564 * lr + 0.3575761 * lg + 0.1804375 * lb) / 0.95047;
   const y = 0.2126729 * lr + 0.7151522 * lg + 0.072175 * lb;
   const z = (0.0193339 * lr + 0.119192 * lg + 0.9503041 * lb) / 1.08883;
-  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
   const fx = f(x);
   const fy = f(y);
   const fz = f(z);

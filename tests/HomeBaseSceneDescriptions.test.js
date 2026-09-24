@@ -676,6 +676,10 @@ describe('HomeBaseScene Skills layout', () => {
 
     const portraitFrames = rectangles.filter((obj) => obj.width === 40 && obj.height === 40);
     expect(portraitFrames).toHaveLength(2);
-    expect(scene.textures.exists).toHaveBeenCalledTimes(2);
+    // Each lord's portrait is looked up once (the PC-98 canvas atlas is
+    // consulted first, then the portrait texture).
+    expect(scene.textures.exists).toHaveBeenCalledWith('portrait_lord_edric');
+    expect(scene.textures.exists).toHaveBeenCalledWith('portrait_lord_sera');
+    expect(scene.textures.exists).toHaveBeenCalledTimes(4);
   });
 });

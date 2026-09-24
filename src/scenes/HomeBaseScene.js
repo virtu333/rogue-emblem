@@ -24,6 +24,7 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { portraitCanvasFrame } from '../ui/portraitArt.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats', label: 'Recruits' },
@@ -1307,9 +1308,10 @@ export class HomeBaseScene extends Phaser.Scene {
       // Portrait slot remains legible for transparent or unusually framed art.
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
       this.add.rectangle(cx + 40, y + 40, 40, 40, UI_HEX.panel, 1).setStrokeStyle(1, UI_HEX.line);
-      if (this.textures.exists(portraitKey)) {
+      const face = portraitCanvasFrame(this, portraitKey, 40);
+      if (face) {
         this.add
-          .image(cx + 20, y + 20, portraitKey)
+          .image(cx + 20, y + 20, face.key, face.frame)
           .setDisplaySize(40, 40)
           .setOrigin(0);
       }
@@ -1761,10 +1763,11 @@ export class HomeBaseScene extends Phaser.Scene {
           .setStrokeStyle(1, isBlocked ? UI_HEX.line : UI_HEX.line)
           .setDepth(902),
       );
-      if (this.textures.exists(portraitKey)) {
+      const face = portraitCanvasFrame(this, portraitKey, 32);
+      if (face) {
         objects.push(
           this.add
-            .image(cx, yOff + 20, portraitKey)
+            .image(cx, yOff + 20, face.key, face.frame)
             .setDisplaySize(32, 32)
             .setDepth(902),
         );

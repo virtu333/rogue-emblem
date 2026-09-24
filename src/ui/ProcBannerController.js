@@ -22,6 +22,7 @@ import { UI_PALETTE } from '../utils/uiStyles.js';
 import { battleSpeed } from '../utils/combatTiming.js';
 import { cutInContent } from './ceremonyContent.js';
 import { CeremonyLayer, canRenderCeremony, ceremonyPortrait, el, fitText } from './ceremonyDom.js';
+import { portraitCanvasFrame } from './portraitArt.js';
 
 const CHIP_DEPTH = 301; // world-space, just above floating damage text (300)
 const BANNER_DEPTH = 500; // screen-space; >= 500 auto-pins to the mobile UI camera
@@ -201,8 +202,9 @@ export class ProcBannerController {
 
     const px = fromLeft ? 70 : w - 70;
     let textX = fromLeft ? px + 46 : px - 46;
-    if (portraitKey && scene.textures.exists(portraitKey)) {
-      parts.push(scene.add.image(px, 0, portraitKey).setDisplaySize(64, 64));
+    const face = portraitCanvasFrame(scene, portraitKey, 64);
+    if (face) {
+      parts.push(scene.add.image(px, 0, face.key, face.frame).setDisplaySize(64, 64));
     } else {
       textX = fromLeft ? 24 : w - 24;
     }
@@ -291,7 +293,10 @@ export class ProcBannerController {
     const band = el('div', 'ce-cutin');
     const portrait = ceremonyPortrait(scene, unit);
     if (portrait?.src) {
-      const eyes = el('div', `ce-cutin-eyes${portrait.rebuilt ? '' : ' is-legacy'}`);
+      const eyes = el(
+        'div',
+        `ce-cutin-eyes${portrait.pc98 ? ' is-pc98' : portrait.rebuilt ? '' : ' is-legacy'}`,
+      );
       eyes.style.backgroundImage = `url("${portrait.src}")`;
       eyes.style.setProperty('--ce-eye', String(portrait.framing.eye));
       eyes.style.setProperty('--ce-cx', String(portrait.framing.cx));

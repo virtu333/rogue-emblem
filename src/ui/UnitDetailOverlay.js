@@ -44,6 +44,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
+import { portraitCanvasFrame } from './portraitArt.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -224,10 +225,10 @@ export class UnitDetailOverlay {
     this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
 
     // Portrait (top-right)
-    const portraitKey = this._getPortraitKey(unit);
-    if (portraitKey && this.scene.textures.exists(portraitKey)) {
+    const face = portraitCanvasFrame(this.scene, this._getPortraitKey(unit), 48);
+    if (face) {
       const portrait = this.scene.add
-        .image(left + OVERLAY_W - 36, y + 24, portraitKey)
+        .image(left + OVERLAY_W - 36, y + 24, face.key, face.frame)
         .setDisplaySize(48, 48)
         .setDepth(DEPTH_TEXT);
       this._unitObjects.push(portrait);

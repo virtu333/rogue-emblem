@@ -1,6 +1,36 @@
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { textureImageSource } from './textureImageSource.js';
+import {
+  pc98PortraitElement,
+  pickPortraitSize,
+  portraitFaction,
+  portraitIdForUnit,
+  usePc98,
+} from './portraitArt.js';
+
+// PC-98 variant per portrait class, matching its CSS box (mobileRoster.css):
+// roster list faces 32px; the roster summary 40px, 64px on large desktops.
+export const ROSTER_DESKTOP_QUERY = '(min-width: 1000px) and (min-height: 600px)';
+const PC98_SLOTS = Object.freeze({
+  'mr-unit-face': { size: 32 },
+  'mr-portrait': { size: 40, media: [[ROSTER_DESKTOP_QUERY, 64]] },
+});
+
+function removeOnError(node) {
+  const img = node.tagName === 'PICTURE' ? node.querySelector('img') : node;
+  img?.addEventListener('error', () => node.remove(), { once: true });
+  return node;
+}
+
 export function unitPortrait(scene, gameData, unit, className, portraitKey) {
+  if (usePc98()) {
+    const id = portraitIdForUnit(unit, gameData);
+    if (!id) return null;
+    const slot = PC98_SLOTS[className] || { size: pickPortraitSize(48) };
+    return removeOnError(
+      pc98PortraitElement({ id, faction: portraitFaction(unit, id), className, ...slot }),
+    );
+  }
   const normalize = (name) => name.toLowerCase().replace(/ /g, '_');
   const named = gameData.lords?.some((lord) => lord.name === unit.name);
   const base = gameData.classes?.find((entry) => entry.name === unit.className)?.promotesFrom;

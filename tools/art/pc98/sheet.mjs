@@ -43,7 +43,10 @@ async function before(id, size) {
 async function after(id, size, z = 1, faction = runtime.portraits[id].faction) {
   const plate = join(PC98, 'plates', `${faction}-${size}.png`);
   const fig = join(PC98, String(size), `${id}.png`);
-  const img = await sharp(plate).composite([{ input: fig }]).png().toBuffer();
+  const img = await sharp(plate)
+    .composite([{ input: fig }])
+    .png()
+    .toBuffer();
   return z === 1
     ? img
     : sharp(img)
@@ -63,7 +66,9 @@ async function grid(file, cells, cellW, cellH, cols) {
         top: Math.floor(i / cols) * cellH + part.top,
       });
   });
-  await sharp({ create: { width: cols * cellW, height: rows * cellH, channels: 4, background: BG } })
+  await sharp({
+    create: { width: cols * cellW, height: rows * cellH, channels: 4, background: BG },
+  })
     .composite(comps)
     .webp({ lossless: true })
     .toFile(join(OUT, file));

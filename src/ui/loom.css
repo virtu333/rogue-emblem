@@ -656,7 +656,7 @@
   border-radius: 2px;
   object-fit: cover;
   object-position: 50% 10%;
-  image-rendering: auto;
+  image-rendering: pixelated;
   background: var(--re-raised);
   box-shadow: 0 0 0 1px var(--re-line-soft);
 }
@@ -724,8 +724,8 @@
     font-size: 15px;
   }
   .re-loom-screen .re-node-unit img {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
   }
   .re-loom-screen .re-node-unit {
     gap: 5px;

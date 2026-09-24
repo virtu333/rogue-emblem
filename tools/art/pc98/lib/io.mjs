@@ -2,7 +2,10 @@
 import sharp from 'sharp';
 
 export async function readRgba(file) {
-  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(file)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   return { rgba: new Uint8Array(data), w: info.width, h: info.height };
 }
 

@@ -219,7 +219,11 @@ function refine(samples, weights, centres, fixed, iterations) {
  * Small, saturated details the clusters missed (irises, gems, a lip tint):
  * accent samples far from every centre in both distance and hue.
  */
-export function findAccents(accentSamples, centres, { maxAccents = 2, minCount = 5, seed = 3 } = {}) {
+export function findAccents(
+  accentSamples,
+  centres,
+  { maxAccents = 2, minCount = 5, seed = 3 } = {},
+) {
   const far = [];
   for (let i = 0; i < accentSamples.length / 3; i++) {
     const p = [accentSamples[i * 3], accentSamples[i * 3 + 1], accentSamples[i * 3 + 2]];

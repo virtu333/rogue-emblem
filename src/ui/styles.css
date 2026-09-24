@@ -21,3 +21,6 @@
 
 /* Reliquary detail layer last: decorates every kit surface (visual-only). */
 @import './reliquary.css';
+
+/* PC-98 portraits: pixel-true figures over faction plates. */
+@import './portraits.css';

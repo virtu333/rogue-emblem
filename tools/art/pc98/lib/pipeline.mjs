@@ -237,7 +237,7 @@ export function bake(figure, plate, tones) {
   // Merge duplicate colours (a figure colour equal to a plate tone).
   const key = (c) => c.join(',');
   const first = new Map();
-  const remap = palette.map((c, i) => {
+  const remap = palette.map((c) => {
     if (!first.has(key(c))) first.set(key(c), first.size);
     return first.get(key(c));
   });

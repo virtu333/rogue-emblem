@@ -7,6 +7,7 @@ import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { createHealthBar } from './healthBar.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { textureImageSource } from './textureImageSource.js';
 import { createRouteGraph } from './RouteGraph.js';
 import { createLoomHeading, renderLoomCard } from './LoomPanels.js';
@@ -190,7 +191,12 @@ export class NodeMapMenu {
     for (const unit of (rm.roster || []).filter((u) => u.isLord).slice(0, 2)) {
       const row = button(null, () => s._openRoster(), 're-btn re-node-unit');
       const key = rebuiltPortraitKey(s, unit);
-      if (key) {
+      const pc98Id = usePc98() ? portraitIdForUnit(unit, s.gameData || {}) : null;
+      if (pc98Id) {
+        row.append(
+          pc98PortraitElement({ id: pc98Id, size: 32, faction: portraitFaction(unit, pc98Id) }),
+        );
+      } else if (key) {
         const img = element('img');
         img.src = textureImageSource(s.textures.get(key));
         img.alt = '';

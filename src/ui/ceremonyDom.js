@@ -19,6 +19,13 @@ import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
 import { textureImageSource } from './textureImageSource.js';
 import { portraitFraming } from './ceremonyContent.js';
+import {
+  PC98_MASTER,
+  pc98FigureUrl,
+  portraitFaction,
+  portraitIdForUnit,
+  usePc98,
+} from './portraitArt.js';
 import { DISPLAY_FONT_PROBE } from '../utils/loadGameFont.js';
 
 export function el(tag, className = '', text = null) {
@@ -77,6 +84,26 @@ export function frameScale(rect) {
 }
 
 /**
+ * Integer pixel scale for PC-98 portraits (dither must not be resampled):
+ * the scale nearest the fluid --ce-scale.
+ */
+export function portraitPixelScale(rect) {
+  return Math.max(1, Math.round(frameScale(rect)));
+}
+
+/**
+ * Integer scale for the 192px boss bust: nearest the 190px design size at
+ * --ce-scale, but never wider than the 36% of the frame the card allows.
+ */
+export function bustPixelScale(rect, master = 192) {
+  const scale = frameScale(rect);
+  let k = Math.max(1, Math.round((190 * scale) / master));
+  const width = rect?.width || 0;
+  while (k > 1 && master * k > width * 0.36) k--;
+  return k;
+}
+
+/**
  * A positioned element that follows its frame. `blocking` layers take
  * pointer input (tap to skip); others let every touch through to the map.
  */
@@ -114,6 +141,8 @@ export class CeremonyLayer {
     style.width = `${Math.round(rect.width)}px`;
     style.height = `${Math.round(rect.height)}px`;
     style.setProperty('--ce-scale', String(frameScale(rect)));
+    style.setProperty('--ce-px', String(portraitPixelScale(rect)));
+    style.setProperty('--ce-bust-px', String(bustPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
     style.setProperty('--ce-h', `${Math.round(rect.height)}px`);
     for (const fn of this._fitters || []) fn();
@@ -269,13 +298,27 @@ export function skipHint() {
 }
 
 /**
- * The approved portrait for a unit as a URL the DOM can load directly:
- * rebuilt art (lords, bosses, rebuilt generics) from its asset path, else
- * the legacy 128px texture. `id` keys the eye-line framing.
+ * The approved portrait for a unit as a URL the DOM can load directly.
+ * PC-98 art (default): the 192px transparent figure for the unit's portrait
+ * id (rebuilt source preferred), with its eye-line framing and plate
+ * faction. Classic art: rebuilt art from its asset path, else the legacy
+ * 128px texture. `id` keys the eye-line framing.
  */
 export function ceremonyPortrait(scene, unit) {
   if (!scene || !unit) return null;
   try {
+    if (usePc98()) {
+      const id = portraitIdForUnit(unit, scene.gameData || {});
+      if (!id) return null;
+      return {
+        id,
+        src: pc98FigureUrl(id, PC98_MASTER),
+        framing: portraitFraming(id),
+        rebuilt: true,
+        pc98: true,
+        faction: portraitFaction(unit, id),
+      };
+    }
     const key = rebuiltPortraitKey(scene, unit);
     const id = key?.replace(/^rebuilt-portrait-/, '');
     const file = id && portraitManifest[id]?.file;

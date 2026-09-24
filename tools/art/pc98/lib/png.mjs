@@ -61,7 +61,12 @@ export function encodeIndexedPng(w, h, indices, palette, alpha = []) {
   ihdr[11] = 0;
   ihdr[12] = 0;
   const plte = Buffer.alloc(palette.length * 3);
-  palette.forEach((c, i) => plte.set(c.map((v) => Math.round(v)), i * 3));
+  palette.forEach((c, i) =>
+    plte.set(
+      c.map((v) => Math.round(v)),
+      i * 3,
+    ),
+  );
   const chunks = [
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
