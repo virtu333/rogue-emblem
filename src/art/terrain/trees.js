@@ -249,9 +249,14 @@ function conifer(S, t, kind) {
   s.set(x, baseY - 1, R('soil', 2));
   s.set(x + 1, baseY, R('soil', 1));
   const height = Math.round(HEIGHT[kind](t.size));
-  const tiers = Math.max(2, Math.min(5, 2 + Math.round(height / 6)));
+  // each tree its own build: slimmer or fuller, more or fewer tiers
+  const tiers = Math.max(
+    2,
+    Math.min(5, 1 + Math.round(height / 6) + (hash2(t.x, t.baseY, t.seed) % 2)),
+  );
   const top = baseY - height + (kind === 'charpine' ? 2 : 0);
-  const halfW = (fir ? 3.8 : 3) + t.size * (fir ? 2.8 : 2.4);
+  const halfW =
+    ((fir ? 3.8 : 3) + t.size * (fir ? 2.8 : 2.4)) * (0.82 + rand2(t.x, t.seed, 3) * 0.3);
   const span = baseY - 1 - top;
   // Bottom tier first: each tier's hem hangs over the tier below it, so
   // snow shows along the lit upper edges of the boughs, not as caps.
