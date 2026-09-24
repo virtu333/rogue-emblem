@@ -206,7 +206,7 @@ test.describe('victory band and act title', () => {
     await expect(card).toHaveCount(0);
     await expect(page.locator('.re-node-map')).toBeVisible();
     await page.locator('.re-node.is-available').first().tap();
-    await expect(page.getByRole('button', { name: 'Advance', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Travel', exact: true })).toBeEnabled();
     expect(errors).toEqual([]);
   });
 });
