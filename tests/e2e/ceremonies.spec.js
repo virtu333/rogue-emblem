@@ -55,6 +55,13 @@ test.describe('boss encounter, bar and resume', () => {
     await waitForScene(page, 'Battle');
     const card = page.locator('.ce-boss-layer');
     await expect(card).toBeVisible({ timeout: 30000 });
+    // The card dismisses itself after its hold (scene time). Slow the scene
+    // clock while it is inspected so a loaded machine measures it first.
+    const setTimeScale = (scale) =>
+      page.evaluate((k) => {
+        window.__emblemRogueGame.scene.getScene('Battle').time.timeScale = k;
+      }, scale);
+    await setTimeScale(0.1);
     const bossName = await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').enemyUnits.find((u) => u.isBoss).name,
     );
@@ -68,13 +75,17 @@ test.describe('boss encounter, bar and resume', () => {
     expect(await rail.evaluate((el) => el.inert)).toBe(true);
     expect((await battle(page)).locked).toBe(true);
     // Everything fits at 667×375.
-    for (const selector of ['.ce-boss-name', '.ce-boss-epithet', '.ce-kicker'])
-      expect(
-        await card.locator(selector).evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
-      ).toBe(true);
+    const overflowing = await card.evaluate((root) =>
+      ['.ce-boss-name', '.ce-boss-epithet', '.ce-kicker'].filter((selector) => {
+        const node = root.querySelector(selector);
+        return !node || node.scrollWidth > node.clientWidth + 1;
+      }),
+    );
+    expect(overflowing).toEqual([]);
     await page.waitForTimeout(400);
     await page.keyboard.press('Enter');
-    await expect(card).toHaveCount(0);
+    await expect(card).toHaveCount(0, { timeout: 10000 });
+    await setTimeScale(1);
     await passStory(page);
 
     const bar = page.locator('.ce-bossbar');
@@ -161,6 +172,9 @@ test.describe('victory band and act title', () => {
     await passStory(page);
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
+      // The band moves on by itself after 1.5 s of scene time; slow the scene
+      // clock so a loaded machine still taps first and the tap is what ends it.
+      s.time.timeScale = 0.2;
       for (const enemy of [...s.enemyUnits]) {
         enemy.currentHP = 0;
         await s.removeUnit(enemy, { killer: s.playerUnits[0] });
@@ -172,7 +186,7 @@ test.describe('victory band and act title', () => {
     await expect(band.locator('.ce-band-sub')).toContainText(/Turn \d+ · Par \d+ · Rank [SABC]/);
     await page.waitForTimeout(300);
     await band.tap();
-    await expect(band).toHaveCount(0);
+    await expect(band).toHaveCount(0, { timeout: 5000 });
     expect(errors).toEqual([]);
   });
 
@@ -209,13 +223,20 @@ test.describe('desktop', () => {
     await waitForScene(page, 'Battle');
     await passStory(page);
     const canvas = await page.locator('canvas').boundingBox();
-    await page.evaluate(() => {
+    // Measure in the same task that opens the band: it closes itself after a
+    // short hold, which a loaded machine can outlast between two round trips.
+    const { word, box } = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       s.showPhaseBanner('enemy', 2);
+      // The turn's own band may still be closing underneath; ours is newest.
+      const layer = [...document.querySelectorAll('.ce-phase-layer')].at(-1);
+      const r = layer?.getBoundingClientRect();
+      return {
+        word: layer?.querySelector('.ce-phase-word')?.textContent || null,
+        box: r ? { x: r.x, width: r.width } : null,
+      };
     });
-    const phase = page.locator('.ce-phase-layer');
-    await expect(phase.locator('.ce-phase-word')).toHaveText('ENEMY PHASE');
-    const box = await phase.boundingBox();
+    expect(word).toBe('ENEMY PHASE');
     expect(Math.round(box.x)).toBe(Math.round(canvas.x));
     expect(Math.round(box.width)).toBe(Math.round(canvas.width));
     expect(canvas.x).toBeGreaterThan(100); // truly letterboxed at 1280×720
