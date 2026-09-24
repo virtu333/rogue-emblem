@@ -225,6 +225,10 @@ export class Grid {
     this.pathTiles = [];
     this.attackHighlightTiles = [];
     this.temporaryTerrains = [];
+    // Presentation hooks: bumped/notified whenever a cell's terrain is rebuilt so
+    // painted terrain and night light can follow. Never read by game rules.
+    this.terrainRevision = 0;
+    this._terrainListeners = new Set();
 
     // Fog of war
     this.fogEnabled = fogEnabled;
@@ -277,7 +281,23 @@ export class Grid {
     if (!Number.isInteger(terrainIndex) || !this.terrainData[terrainIndex]) return false;
     this.mapLayout[row][col] = terrainIndex;
     this._rerenderTile(col, row);
+    this.terrainRevision = (this.terrainRevision || 0) + 1;
+    for (const listener of this._terrainListeners || []) {
+      try {
+        listener(col, row);
+      } catch (err) {
+        console.warn('[Grid] terrain listener failed:', err?.message || err);
+      }
+    }
     return true;
+  }
+
+  /** Presentation-only: observe terrain cell changes. Returns an unsubscribe. */
+  addTerrainListener(listener) {
+    if (typeof listener !== 'function') return () => {};
+    this._terrainListeners ||= new Set();
+    this._terrainListeners.add(listener);
+    return () => this._terrainListeners.delete(listener);
   }
 
   setTemporaryTerrain(col, row, terrainName, duration = 1, sourceUnit = null) {

@@ -5,6 +5,12 @@ export const UI_HEX = Object.fromEntries(
 );
 // Centralized UI style constants for consistent look across all panels
 
+// Canvas font stacks matching the DOM tokens (--re-pixel / --re-body in mobileTheme.css).
+export const UI_FONT_FAMILIES = Object.freeze({
+  pixel: "'Press Start 2P', monospace",
+  body: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+});
+
 export const UI_FONTS = {
   header: {
     fontFamily: 'Press Start 2P',

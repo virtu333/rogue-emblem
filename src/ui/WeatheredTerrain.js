@@ -60,12 +60,16 @@ export function drawWeatheredTile(ctx, art, at, x, y, options = {}) {
     const img = art[sheet],
       w = img.width / columns,
       h = img.height / rows;
+    // The 4×4 generated sheets' cell borders drift a few pixels from an even split;
+    // a small inset keeps a neighbouring cell (e.g. water under grass) from bleeding
+    // a seam into every tile edge. The 3×2 hazard sheet is cut exactly.
+    const inset = columns === 4 ? Math.round(Math.min(w, h) * 0.016) : 0;
     ctx.drawImage(
       img,
-      (index % columns) * w,
-      Math.floor(index / columns) * h,
-      w,
-      h,
+      (index % columns) * w + inset,
+      Math.floor(index / columns) * h + inset,
+      w - inset * 2,
+      h - inset * 2,
       0,
       0,
       size,

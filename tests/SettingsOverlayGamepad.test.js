@@ -63,6 +63,8 @@ function makeSettingsState() {
     setReduceMotion: (v) => (state.reduced = v),
     getEffectsQuality: () => state.quality || 'high',
     setEffectsQuality: (v) => (state.quality = v),
+    getAtmosphere: () => state.atmosphere || 'full',
+    setAtmosphere: (v) => (state.atmosphere = v),
   };
 }
 
@@ -83,11 +85,12 @@ function makeOverlay() {
 }
 
 describe('SettingsOverlay gamepad focus', () => {
-  it('show() claims the input stack and builds 6 rows; hide() releases it', () => {
+  it('show() claims the input stack and builds 7 rows; hide() releases it', () => {
     const { overlay } = makeOverlay();
     overlay.show();
     expect(activeInputOwner()).toBe(overlay);
-    expect(overlay._rows.length).toBe(6); // Music, SFX, Reduced Effects, Close
+    // Music, SFX, Reduce Motion, Effects Quality, Battle Speed, Atmosphere, Close
+    expect(overlay._rows.length).toBe(7);
     expect(overlay._focus).toBeTruthy();
     overlay.hide();
     expect(activeInputOwner()).toBe(null);
@@ -107,7 +110,7 @@ describe('SettingsOverlay gamepad focus', () => {
     expect(overlay._focus.objects[0]).toBe(overlay._rows[1].focus);
 
     for (let i = 0; i < 10; i++) dispatchInputAction(InputAction.NAVIGATE, { dy: 1 });
-    expect(overlay._focusIndex).toBe(5); // clamps at Close (last)
+    expect(overlay._focusIndex).toBe(6); // clamps at Close (last)
   });
 
   it('d-pad right/left adjust the focused volume slider without moving the ring', () => {
@@ -151,11 +154,25 @@ describe('SettingsOverlay gamepad focus', () => {
     expect(settings.state.reduced).toBe(true);
   });
 
+  it('d-pad cycles the Atmosphere row through Full / Reduced / Off', () => {
+    const { overlay, settings } = makeOverlay();
+    overlay.show();
+    for (let i = 0; i < 5; i++) dispatchInputAction(InputAction.NAVIGATE, { dy: 1 });
+    expect(overlay._focusIndex).toBe(5);
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 });
+    expect(settings.state.atmosphere).toBe('reduced');
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 });
+    expect(settings.state.atmosphere).toBe('off');
+    dispatchInputAction(InputAction.NAVIGATE, { dx: 1 });
+    expect(settings.state.atmosphere).toBe('full');
+    overlay.hide();
+  });
+
   it('CONFIRM on the Close row closes the overlay', () => {
     const { overlay } = makeOverlay();
     overlay.show();
-    for (let i = 0; i < 5; i++) dispatchInputAction(InputAction.NAVIGATE, { dy: 1 }); // -> Close
-    expect(overlay._focusIndex).toBe(5);
+    for (let i = 0; i < 6; i++) dispatchInputAction(InputAction.NAVIGATE, { dy: 1 }); // -> Close
+    expect(overlay._focusIndex).toBe(6);
     dispatchInputAction(InputAction.CONFIRM);
     expect(overlay.visible).toBe(false);
     expect(activeInputOwner()).toBe(null);

@@ -1,4 +1,6 @@
 import { BATTLE_SPEEDS } from '../utils/combatTiming.js';
+import { resolveAtmosphereMode } from '../art/atmosphereConfig.js';
+import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
@@ -95,6 +97,35 @@ export class SettingsMenu {
       (value) => settings.setEffectsQuality(value ? 'high' : 'low'),
       'Low simplifies visual effects. Dialogue and combat information remain visible.',
       ['Low', 'High'],
+    );
+    // Atmosphere: the battlefield's act mood (grade, vignette, night darkness). Shows the
+    // effective mode; while untouched it follows the device default.
+    const atmosphereLabels = { full: 'Full', reduced: 'Reduced', off: 'Off' };
+    const atmosphereOrder = ['full', 'reduced', 'off'];
+    const effectiveAtmosphere = () =>
+      resolveAtmosphereMode(settings.getAtmosphere?.() || 'auto', {
+        mobile: detectMobileRuntime(),
+      }).mode;
+    const atmosphere = button(
+      '',
+      () => {
+        const index = atmosphereOrder.indexOf(effectiveAtmosphere());
+        settings.setAtmosphere?.(atmosphereOrder[(index + 1) % atmosphereOrder.length]);
+        renderAtmosphere();
+      },
+      're-btn re-setting',
+    );
+    const renderAtmosphere = () => {
+      atmosphere.textContent = `Atmosphere · ${atmosphereLabels[effectiveAtmosphere()]}`;
+    };
+    renderAtmosphere();
+    list.append(
+      atmosphere,
+      element(
+        'p',
+        'Full / Reduced / Off. Light, color and night darkness on the battlefield. Reduced saves battery: no grain, lighter nights. Default: Reduced on phones, Full on desktop; Low effects quality caps it at Reduced.',
+        're-muted',
+      ),
     );
     const speed = button(
       '',

@@ -163,7 +163,7 @@ for (const template of [
         layout: JSON.stringify(b.grid.mapLayout),
         names: b.grid.mapLayout.flat().map((i) => b.grid.terrainData[i].name),
         unit: { col: b.playerUnits[0].col, row: b.playerUnits[0].row },
-        allPainted: b.grid.tiles.flat().every((t) => t.texture.key.startsWith('battle-lab-')),
+        allPainted: b.grid.tiles.flat().every((t) => t.texture.key === b._battlefieldTerrain?.key),
       };
     });
     expect(before.allPainted).toBe(true);

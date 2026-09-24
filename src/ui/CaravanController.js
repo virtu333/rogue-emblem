@@ -8,6 +8,7 @@ import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecord
 import { createCaravanUnit, computeCaravanStep, isCaravanAtEdge } from '../engine/CaravanSystem.js';
 import { showContextualHint } from './HintDisplay.js';
 import { UI_HEX } from '../utils/uiStyles.js';
+import { RING_OFFSET_Y, restyleFactionRing } from './FactionRings.js';
 
 const CARAVAN_RING_COLOR = UI_HEX.accent;
 
@@ -42,7 +43,8 @@ export class CaravanController {
   }
 
   _applyCaravanTint(unit) {
-    // Distinct gold ring so the caravan doesn't read as a recruit NPC (green).
+    // Distinct merchant ring so the caravan doesn't read as a recruit NPC (green).
+    if (restyleFactionRing(this.scene, unit)) return;
     if (unit.factionIndicator?.setStrokeStyle) {
       unit.factionIndicator.setStrokeStyle(2, CARAVAN_RING_COLOR, 0.9);
     }
@@ -93,7 +95,7 @@ export class CaravanController {
       }
       if (unit.factionIndicator) {
         unit.factionIndicator.x = pos.x;
-        unit.factionIndicator.y = pos.y + 6;
+        unit.factionIndicator.y = pos.y + RING_OFFSET_Y;
       }
       if (unit.hpBar) {
         const barY = pos.y - 14;
