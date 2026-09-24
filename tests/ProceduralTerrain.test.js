@@ -17,6 +17,7 @@ import {
   shimmerFrame,
 } from '../src/art/terrain/index.js';
 import { renderAll } from '../src/art/terrain/pipeline.js';
+import { renderTerrainSliced, packResult, unpackResult } from '../src/art/terrain/async.js';
 import { G, groundOf, HARD } from '../src/art/terrain/biomes.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { mulberry32 } from '../src/art/terrain/noise.js';
@@ -409,5 +410,54 @@ describe('procedural terrain: shimmer', () => {
     const h = fnv(res.state.idx);
     renderAll(res.state);
     expect(fnv(res.state.idx)).toBe(h);
+  });
+});
+
+describe('procedural terrain: non-blocking painting', { timeout: 60000 }, () => {
+  it('time-sliced painting yields between slices and equals the sync render', async () => {
+    const names = randomNames(9, 8, 41);
+    let yields = 0;
+    let clock = 0;
+    const res = await renderTerrainSliced(
+      { names, biome: 'swamp', seed: 12 },
+      {
+        budgetMs: 3,
+        // deterministic fake clock: every check advances 1 ms
+        now: () => clock++,
+        yieldFn: async () => {
+          yields++;
+        },
+      },
+    );
+    expect(yields).toBeGreaterThan(10);
+    expect(res.stats.slices).toBe(yields + 1);
+    expect(fnv(res.pixels)).toBe(fnv(render(names, 'swamp', 12).pixels));
+  });
+
+  it('aborts cleanly', async () => {
+    const ctrl = new AbortController();
+    const p = renderTerrainSliced(
+      { names: randomNames(6, 6, 2), biome: 'grassland', seed: 1 },
+      {
+        budgetMs: 0,
+        signal: ctrl.signal,
+        yieldFn: async () => ctrl.abort(),
+      },
+    );
+    await expect(p).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('a result packed for postMessage unpacks into a repaintable result', () => {
+    const names = randomNames(8, 6, 17);
+    const a = render(names, 'tundra', 3);
+    const packed = packResult(a);
+    expect(packed.transfer.length).toBeGreaterThan(5);
+    const { transfer: _t, ...message } = packed;
+    const b = unpackResult(structuredClone(message));
+    const edit = [{ col: 3, row: 2, name: 'Mountain' }];
+    repaintCells(b, edit);
+    const changed = names.map((r) => [...r]);
+    changed[2][3] = 'Mountain';
+    expect(fnv(b.pixels)).toBe(fnv(render(changed, 'tundra', 3).pixels));
   });
 });
