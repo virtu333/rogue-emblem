@@ -162,6 +162,8 @@ describe('battle outcomes', () => {
     });
     expect(felledContent({ objective: 'rout', remaining: 1 }).sub).toBe('1 foe remains');
     expect(felledContent({ objective: 'rout', remaining: 3 }).sub).toBe('3 foes remain');
+    expect(felledContent({ objective: 'escape', remaining: 3 }).sub).toBe('Make for the exit');
+    expect(felledContent({ objective: 'defend', remaining: 3 }).sub).toBe('');
     expect(shouldShowFelled({ objective: 'seize', remaining: 0 })).toBe(true);
     expect(shouldShowFelled({ objective: 'rout', remaining: 0 })).toBe(false);
     expect(shouldShowFelled({ objective: 'rout', remaining: 0, reviving: 1 })).toBe(true);

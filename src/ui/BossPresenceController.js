@@ -113,6 +113,7 @@ export class BossPresenceController {
       { type: 'sync', boss: this._snapshot(boss), enraged, status, silent, concealed },
       { silent },
     );
+    this._updateSuppression();
   }
 
   /** updateHPBar hook: only the tracked boss matters. */

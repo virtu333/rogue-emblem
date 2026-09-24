@@ -159,7 +159,9 @@ export function defeatContent({ commanderName } = {}) {
 export function felledContent({ objective, remaining = 0 }) {
   let sub = '';
   if (objective === 'seize') sub = 'Seize the throne with a Lord';
-  else if (remaining > 0) sub = `${remaining} ${remaining === 1 ? 'foe remains' : 'foes remain'}`;
+  else if (objective === 'escape') sub = 'Make for the exit';
+  else if (objective === 'rout' && remaining > 0)
+    sub = `${remaining} ${remaining === 1 ? 'foe remains' : 'foes remain'}`;
   return { word: 'FOE VANQUISHED', sub };
 }
 

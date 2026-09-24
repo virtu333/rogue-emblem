@@ -15,6 +15,7 @@ import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { stageFateDecision } from './FateDecisionStage.js';
 // VisionRewindController — extracted from BattleScene (Chunk 4)
 // Manages vision rewind snapshots, dialog UI, charge tracking, and HUD display.
 // State properties (visionSnapshot, pendingVisionSnapshot, visionDialog, visionBaseSeed,
@@ -361,6 +362,7 @@ export class VisionRewindController {
     }
     this.updateHud();
     scene.refreshEndTurnControl();
+    scene._bossPresence?.sync?.({ silent: true });
     this.playRewindEffect();
     if (scene.cameras?.main)
       void scene.showBriefBanner?.(
@@ -527,6 +529,22 @@ export class VisionRewindController {
     this._historySelection = null;
   }
 
+  /** The commander this decision is about (presentation only). */
+  _fallenCommander() {
+    const scene = this.scene;
+    if (scene._fallenCommander?.name) return scene._fallenCommander;
+    const commanderName = this.runManager?.getStartingLordNames?.()?.[0];
+    const pool = [
+      ...(scene.playerUnits || []),
+      ...(scene.escapedUnits || []),
+      ...(this.runManager?.roster || []),
+    ];
+    const unit =
+      pool.find((u) => u?.isCommander) ||
+      (commanderName ? pool.find((u) => u?.name === commanderName) : null);
+    return unit ? { name: unit.name, className: unit.className } : null;
+  }
+
   returnToFatalDecision() {
     if (!this.showLordDeathPrompt()) this.scene.onDefeat();
   }
@@ -572,6 +590,15 @@ export class VisionRewindController {
     this._rewindFatalOrigin = true;
     const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
     this.showDialog({
+      fate: {
+        fallen: this._fallenCommander(),
+        sera:
+          (this.scene.playerUnits || []).find((u) => u?.name === 'Sera') ||
+          visionPool.find((u) => u?.name === 'Sera') ||
+          null,
+        seraPresent,
+        remaining,
+      },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `Reveal another path?\n(${remaining} left this run)`,
       confirmLabel:
@@ -598,6 +625,7 @@ export class VisionRewindController {
     onConfirm,
     onCancel,
     accent = UI_HEX.line,
+    fate = null,
   }) {
     const scene = this.scene;
     if (scene.visionDialog) this.closeDialog();
@@ -612,6 +640,17 @@ export class VisionRewindController {
         element('p', body),
         button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary'),
       );
+      // Lord death: the same decision, staged as the FALLEN ceremony.
+      if (fate) {
+        try {
+          stageFateDecision(scene, surface, {
+            ...fate,
+            reducedMotion: Boolean(scene._reduceMotion?.()),
+          });
+        } catch (error) {
+          console.warn('[Vision] fate staging unavailable:', error);
+        }
+      }
       surface.focusContent();
       return;
     }

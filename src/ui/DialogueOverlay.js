@@ -48,12 +48,16 @@ export class DialogueOverlay {
    * @returns {Promise<void>}
    */
   async showSequence(entries, options = {}) {
+    this.lastSequenceSkippedAsSeen = false;
     if (!Array.isArray(entries) || entries.length <= 0 || this._destroyed) return;
     const seenKey = seenDialogueKey(options.category, options.key, entries);
     const meta = this.scene?.registry?.get?.('meta');
     const settings = this.scene?.registry?.get?.('settings');
-    if (seenKey && settings?.getSkipSeenDialogue?.() && meta?.hasSeenDialogue?.(seenKey))
+    if (seenKey && settings?.getSkipSeenDialogue?.() && meta?.hasSeenDialogue?.(seenKey)) {
+      // Ceremonies that frame a sequence (act titles) hold on their own instead.
+      this.lastSequenceSkippedAsSeen = true;
       return true;
+    }
     this._sequenceSkipRequested = false;
     let completed = true;
     for (let i = 0; i < entries.length; i++) {
