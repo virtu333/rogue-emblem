@@ -252,6 +252,7 @@ export class BattleSuspendController {
         scene._scheduleSafeDelayedAsync(0, 'enemy_phase_resume', resume, {
           phase: 'enemy',
           turn: scene.turnManager.turnNumber,
+          onError: (err) => scene._recoverEnemyPhaseError?.(scene.turnManager.turnNumber, err),
         });
       else return resume();
       return;

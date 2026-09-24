@@ -421,6 +421,7 @@ export class BattleScene extends Phaser.Scene {
     this._managedSceneTimers = new Set();
     this._lifecycleAwaitGuards = new Set();
     this._reinforcementsPendingThisTurn = false;
+    this._enemyPhaseReinforcedTurn = null;
     this.lootSettingsOverlay = null;
     this.lootRosterVisible = false;
     this.defeatRecoveryPrompt = null;
@@ -9618,7 +9619,7 @@ export class BattleScene extends Phaser.Scene {
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
         },
-        { phase: 'enemy', turn },
+        { phase: 'enemy', turn, onError: (err) => this._recoverEnemyPhaseError(turn, err) },
       );
     }
     this.refreshEndTurnControl();
@@ -10133,6 +10134,47 @@ export class BattleScene extends Phaser.Scene {
     await this._awaitSceneDelay(60, { label: 'acid_damage_tail' });
   }
 
+  /**
+   * An exception anywhere in the enemy-phase pipeline (turn-start effects, AI,
+   * animations, the tail) used to leave battleState at ENEMY_PHASE with cancel
+   * and End Turn disabled and no visible error — a permanent lock, replayed on
+   * every resume. Hand the turn back to the player instead: re-sync sprites,
+   * finish the tail's bookkeeping, then end the phase (or the battle).
+   * No-op when something else already owns the flow (battle end, a Vision
+   * prompt, a rewind that replaced this phase, or scene shutdown).
+   */
+  _recoverEnemyPhaseError(turn, err = null) {
+    if (!this._isSceneActiveForAsync?.() || this._sceneShutdownCleanedUp) return false;
+    if (this.battleState === 'BATTLE_END' || this.visionDialog) return false;
+    if (this.turnManager?.currentPhase !== 'enemy' || this.turnManager.turnNumber !== turn)
+      return false;
+    console.error('[BattleScene] enemy phase interrupted; returning control to player:', err);
+    // Supersede the failed phase so any of its still-pending awaits bail.
+    this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
+    this._enemyActionCheckpoint = false;
+    for (const unit of [...(this.playerUnits || []), ...(this.enemyUnits || [])]) {
+      try {
+        if (unit?.graphic) this.updateUnitPosition(unit);
+      } catch (_) {
+        /* best effort: a broken sprite must not block recovery */
+      }
+    }
+    try {
+      if (this._enemyPhaseReinforcedTurn !== turn) {
+        this._enemyPhaseReinforcedTurn = turn;
+        this.applyReinforcementsForTurn(turn);
+      }
+    } catch (reinforceErr) {
+      console.warn('[BattleScene] reinforcements skipped after enemy phase error:', reinforceErr);
+    }
+    this._reinforcementsPendingThisTurn = false;
+    if (this.checkBattleEnd() || this.battleState === 'BATTLE_END' || this.visionDialog)
+      return true;
+    this.turnManager.endEnemyPhase();
+    this.showBriefBanner?.('Enemy phase interrupted. Your turn.', '#ffcc88');
+    return true;
+  }
+
   async startEnemyPhase({ resume = false } = {}) {
     // Epoch token: a Vision rewind restores a player-phase snapshot while this
     // async pipeline may still be in flight (AI loop or the tail below). Every
@@ -10156,6 +10198,7 @@ export class BattleScene extends Phaser.Scene {
         this._debugSkipEnemyPhase = false;
         if (this.battleState !== 'BATTLE_END') {
           this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          this._enemyPhaseReinforcedTurn = this.turnManager.turnNumber;
           this._reinforcementsPendingThisTurn = false;
           const ended = this.checkBattleEnd();
           if (!ended && this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
@@ -10233,6 +10276,7 @@ export class BattleScene extends Phaser.Scene {
         // this phase entirely.
         if (!phaseSuperseded() && !this.visionDialog) {
           this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          this._enemyPhaseReinforcedTurn = this.turnManager.turnNumber;
           this._reinforcementsPendingThisTurn = false;
           const ended = this.checkBattleEnd();
           if (!ended && !phaseSuperseded() && !this.visionDialog) {
