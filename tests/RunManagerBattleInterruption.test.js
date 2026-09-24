@@ -251,10 +251,12 @@ describe('RunManager suspended battle (anti-refresh)', () => {
       expect(loaded._battleRecoveryLegacy).not.toBe(true);
     });
 
-    it('treats a checkpoint whose resume already threw as unrestorable', () => {
+    it('flags a checkpoint whose resume already threw without skipping validation', () => {
       rm.beginBattleInProgress('node_3');
       rm.setBattleCheckpoint(makeCheckpoint({ version: 2, restoreFailed: true }));
       const loaded = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(loaded._battleRecoveryRestoreFailed).toBe(true);
+      // Still malformed on its own merits; restoreFailed alone never is.
       expect(loaded._battleRecoveryInvalid).toBe(true);
     });
 

@@ -3358,6 +3358,18 @@ export class RunManager {
 
   _applySettledRewardsToMeta(meta, summary) {
     if (!meta || !summary || summary.appliedToMeta) return;
+    // The run save can fail right after a payout, leaving appliedToMeta unset
+    // on disk; meta remembers paid runs so a reload never pays twice. Legacy
+    // ids are derived from the seed and may collide, so they are not tracked.
+    const runId =
+      typeof this.runRecordId === 'string' && !this.runRecordId.startsWith('legacy-')
+        ? this.runRecordId
+        : null;
+    if (runId && meta.hasSettledRun?.(runId)) {
+      summary.appliedToMeta = true;
+      return;
+    }
+    if (runId) meta.markRunSettled?.(runId);
     meta.addValor(summary.valor);
     meta.addSupply(summary.supply);
     meta.incrementRunsCompleted();
@@ -4151,10 +4163,11 @@ export class RunManager {
     // One combined pool: the commander may be among the escaped units.
     if (rm.battleInProgress) {
       const checkpoint = rm.battleInProgress.checkpoint;
-      if (checkpoint.restoreFailed === true) {
-        // A resume of this checkpoint already threw; retrying would loop.
-        rm._battleRecoveryInvalid = true;
-      } else if (checkpoint.version !== 2) {
+      // A resume of this checkpoint already threw once. The failure may have
+      // been transient, so it stays resumable, but the slot screen also
+      // offers to settle the recorded defeat instead of forcing more retries.
+      rm._battleRecoveryRestoreFailed = checkpoint.restoreFailed === true;
+      if (checkpoint.version !== 2) {
         // Written by an older build (v1 before the canonical battle state,
         // or unversioned). It cannot be resumed, but it predates fatal
         // decisions, so the sanctioned map revert is always safe for it.

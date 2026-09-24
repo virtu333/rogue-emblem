@@ -3,13 +3,15 @@
 // valor/supply (and runsCompleted) a second time. settleAndPersistEndRun
 // persists the settled record immediately, so the reload settle is a no-op.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const store = {};
+let failRunWrites = false;
 Object.defineProperty(globalThis, 'localStorage', {
   value: {
     getItem: (k) => store[k] ?? null,
     setItem: (k, v) => {
+      if (failRunWrites && k.endsWith('_run')) throw new Error('QuotaExceededError');
       store[k] = String(v);
     },
     removeItem: (k) => {
@@ -62,6 +64,44 @@ describe('settleAndPersistEndRun', () => {
     expect(final.totalValor).toBe(first.valor);
     expect(final.totalSupply).toBe(afterFirst.totalSupply);
     expect(final.runsCompleted).toBe(afterFirst.runsCompleted);
+  });
+
+  it('pays once even when the settled run itself could not be written', () => {
+    const rm = finishRun(gd);
+    rm.status = 'victory';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    failRunWrites = true;
+    let first;
+    try {
+      first = settleAndPersistEndRun(rm, freshMeta(gd), 'victory', { slot: 1 });
+    } finally {
+      failRunWrites = false;
+    }
+    const afterFirst = freshMeta(gd);
+    expect(afterFirst.totalValor).toBe(first.valor);
+
+    // The slot still holds the unsettled run; reloading settles it again.
+    const reloaded = loadRun(gd, 1);
+    expect(reloaded.endRunRewards?.appliedToMeta).not.toBe(true);
+    reloaded.status = 'victory';
+    settleAndPersistEndRun(reloaded, freshMeta(gd), 'victory', { slot: 1 });
+
+    const final = freshMeta(gd);
+    expect(final.totalValor).toBe(first.valor);
+    expect(final.totalSupply).toBe(afterFirst.totalSupply);
+    expect(final.runsCompleted).toBe(afterFirst.runsCompleted);
+    expect(loadRun(gd, 1).endRunRewards?.appliedToMeta).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('still pays a different run in full', () => {
+    const meta = freshMeta(gd);
+    meta.markRunSettled('some-earlier-run');
+    const rm = finishRun(gd);
+    rm.status = 'victory';
+    const rewards = settleAndPersistEndRun(rm, meta, 'victory', { slot: 1 });
+    expect(freshMeta(gd).totalValor).toBe(rewards.valor);
+    expect(freshMeta(gd).hasSettledRun(rm.runRecordId)).toBe(true);
   });
 
   it('persists the defeat outcome so an abandon interrupted before clearing is not replayable', () => {

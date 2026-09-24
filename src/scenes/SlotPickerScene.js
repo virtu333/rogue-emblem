@@ -567,26 +567,33 @@ export class SlotPickerScene extends Phaser.Scene {
   _suspendedBattleOptions(rm) {
     const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
     const invalid = rm._battleRecoveryInvalid === true;
+    const restoreFailed = rm._battleRecoveryRestoreFailed === true;
     return {
       fatal,
       invalid,
+      restoreFailed,
       legacy: invalid && rm._battleRecoveryLegacy === true,
       canResume: !invalid,
       canRevert: !fatal,
-      canAcceptDefeat: invalid && fatal,
+      canAcceptDefeat: fatal && (invalid || restoreFailed),
     };
   }
 
   _suspendedBattleCopy(options) {
-    if (options.legacy)
-      return {
-        title: 'Battle saved by an older version',
-        body: 'This battle was saved before an update and can no longer be resumed exactly. Continue from Map restarts it from the route map with your pre-battle Vision charges restored. The rest of this slot is unchanged.',
-      };
     if (options.invalid && options.fatal)
       return {
         title: 'Battle save needs recovery',
         body: 'Your commander fell in this battle, but its timeline could not be read safely, so it cannot be reviewed or rewound. Accept defeat to end this run and collect its rewards.',
+      };
+    if (options.fatal && options.restoreFailed)
+      return {
+        title: 'Battle save needs recovery',
+        body: 'Your commander fell in this battle, and it could not be reopened last time. Resume to try again, or accept defeat to end this run and collect its rewards.',
+      };
+    if (options.legacy)
+      return {
+        title: 'Battle saved by an older version',
+        body: 'This battle was saved before an update and can no longer be resumed exactly. Continue from Map restarts it from the route map with your pre-battle Vision charges restored. The rest of this slot is unchanged.',
       };
     if (options.invalid)
       return {

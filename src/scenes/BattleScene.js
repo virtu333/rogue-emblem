@@ -2137,22 +2137,28 @@ export class BattleScene extends Phaser.Scene {
         fatalResumeParked = this._abandonUnrestorableResume() === 'fatal';
       }
       const reason = String(err?.message || 'unknown_error').slice(0, 140);
+      // A parked fatal checkpoint must be settled from the slot screen; the
+      // route map would let a new battle overwrite the recorded defeat.
+      const toMap = Boolean(this.runManager) && !fatalResumeParked;
       const cam = this.cameras.main;
       const toast = this.add
-        .text(cam.centerX, cam.centerY, `Battle failed to load (${reason}). Returning to map...`, {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color: '#ff4444',
-          backgroundColor: '#000000',
-          padding: { x: 10, y: 6 },
-        })
+        .text(
+          cam.centerX,
+          cam.centerY,
+          `Battle failed to load (${reason}). Returning to ${toMap ? 'map' : 'title'}...`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#ff4444',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 6 },
+          },
+        )
         .setOrigin(0.5)
         .setDepth(999);
       this.time.delayedCall(2000, () => {
         toast.destroy();
-        // A parked fatal checkpoint must be settled from the slot screen; the
-        // route map would let a new battle overwrite the recorded defeat.
-        if (this.runManager && !fatalResumeParked) {
+        if (toMap) {
           void transitionToScene(
             this,
             'NodeMap',
@@ -2163,7 +2169,12 @@ export class BattleScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.BACK },
           );
         } else {
-          void transitionToScene(this, 'Title', undefined, { reason: TRANSITION_REASONS.BACK });
+          void transitionToScene(
+            this,
+            'Title',
+            { gameData: this.gameData },
+            { reason: TRANSITION_REASONS.BACK },
+          );
         }
       });
     }

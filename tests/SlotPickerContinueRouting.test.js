@@ -317,6 +317,21 @@ describe('SlotPickerScene continue routing', () => {
       expect(dialogButtons(scene)).toContain('[ Accept defeat ]');
     });
 
+    it('offers a retry beside Accept defeat after a fatal resume failed once', async () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryRestoreFailed = true;
+      rm.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Resume Battle ]', '[ Accept defeat ]']);
+      expect(scene._dialogObjects.some((o) => /try again/.test(o.text || ''))).toBe(true);
+
+      await scene._continueSuspendedRun(2, rm, 'map');
+      expect(clearBattleInProgressInSaveMock).not.toHaveBeenCalled();
+      expect(transitionToSceneMock).not.toHaveBeenCalled();
+    });
+
     it('never offers a map revert for a readable fatal checkpoint', () => {
       const scene = makeScene();
       const rm = makeSuspendedRm();

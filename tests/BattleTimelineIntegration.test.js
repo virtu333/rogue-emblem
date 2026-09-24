@@ -187,6 +187,13 @@ describe('production timeline boundaries and recovery', () => {
     expect(resumed._battleCommanderName).toBe(commander.name);
     expect(clearBattleInProgressInSave(null, 1).reason).toBe('fatal_pending');
     expect(run.visionChargesRemaining).toBe(3);
+    // A resume that threw once stays resumable (the failure may be transient).
+    const raw = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'));
+    raw.battleInProgress.checkpoint.restoreFailed = true;
+    storage.setItem('emblem_rogue_slot_1_run', JSON.stringify(raw));
+    const retried = loadRun(driver.data, 1);
+    expect(retried._battleRecoveryInvalid).toBe(false);
+    expect(retried._battleRecoveryRestoreFailed).toBe(true);
   });
   it('failed fatal save freezes once and retries the same settled candidate', () => {
     const { scene, driver } = fixture();

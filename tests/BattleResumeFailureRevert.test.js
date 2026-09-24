@@ -52,7 +52,7 @@ describe('BattleScene._abandonUnrestorableResume', () => {
     expect(scene._fatalResumeParked).toBe(true);
     expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
     const reloaded = RunManager.fromJSON(rm.toJSON(), loadGameData());
-    expect(reloaded._battleRecoveryInvalid).toBe(true);
+    expect(reloaded._battleRecoveryRestoreFailed).toBe(true);
     expect(reloaded.battleInProgress.checkpoint.recoveryKind).toBe('fatal_pending');
   });
 
