@@ -401,6 +401,7 @@ export class BattleScene extends Phaser.Scene {
     this._storyDialogueActive = false;
     this._bossName = null;
     this._commanderKillerName = null;
+    this._battleCommanderName = null;
     this._postLootTransitionStarted = false;
     this._postLootTransitionCompleted = false;
     this._postLootTransitionStartedAt = 0;
@@ -2892,8 +2893,9 @@ export class BattleScene extends Phaser.Scene {
     (this._visionController ||= new VisionRewindController(this, this.runManager)).confirmDialog();
   }
 
+  /** Back/ESC request against the open Vision dialog (see dismissDialog). */
   cancelVisionDialog() {
-    (this._visionController ||= new VisionRewindController(this, this.runManager)).cancelDialog();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).dismissDialog();
   }
 
   closeVisionDialog() {
@@ -9156,6 +9158,7 @@ export class BattleScene extends Phaser.Scene {
     // orphans it, and any later fatal death overwrites it before it is read.
     if (unit.isCommander && unit.faction === 'player') {
       this._battleCommanderId ||= unit.battleEntityId;
+      this._battleCommanderName = typeof unit.name === 'string' ? unit.name : null;
       this._commanderKillerName = typeof killer?.name === 'string' ? killer.name : null;
     }
     if (

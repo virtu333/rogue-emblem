@@ -760,6 +760,61 @@ describe('VisionRewindController', () => {
       runManager.visionChargesRemaining = 1;
       expect(controller.showLordDeathPrompt()).toBe(false);
     });
+
+    it('back/ESC never accepts fate; only the explicit choice ends the run', () => {
+      scene.visionSnapshot = { id: 'snap' };
+      scene.onDefeat = vi.fn();
+      runManager.visionChargesRemaining = 1;
+      controller.showLordDeathPrompt();
+      expect(scene.visionDialog.dismissible).toBe(false);
+
+      expect(controller.dismissDialog()).toBe(true);
+      expect(controller.dismissDialog()).toBe(true);
+      expect(scene.onDefeat).not.toHaveBeenCalled();
+      expect(scene.visionDialog).toBeTruthy();
+
+      controller.cancelDialog();
+      expect(scene.onDefeat).toHaveBeenCalledOnce();
+      expect(scene.visionDialog).toBeNull();
+    });
+
+    it('names the fallen commander and states the consequence', () => {
+      scene.visionSnapshot = { id: 'snap' };
+      scene._battleCommanderName = 'Edric';
+      runManager.visionChargesRemaining = 1;
+      const texts = [];
+      const add = scene.add.text;
+      scene.add.text = (...args) => {
+        texts.push(args[2]);
+        return add(...args);
+      };
+      controller.showLordDeathPrompt();
+      const body = texts.find((t) => /has fallen/.test(t || ''));
+      expect(body).toMatch(/Edric has fallen/);
+      expect(body).toMatch(/ends this run/);
+      expect(body).toMatch(/1 rewind left/);
+    });
+  });
+
+  describe('dismissDialog', () => {
+    it('cancels a dismissible dialog', () => {
+      const onCancel = vi.fn();
+      controller.showDialog({
+        title: 'T',
+        body: 'B',
+        confirmLabel: 'Y',
+        cancelLabel: 'N',
+        onConfirm: vi.fn(),
+        onCancel,
+      });
+      expect(controller.dismissDialog()).toBe(true);
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(scene.visionDialog).toBeNull();
+    });
+
+    it('reports nothing to dismiss when no dialog is open', () => {
+      expect(controller.dismissDialog()).toBe(false);
+    });
   });
 
   // ── executeRewind ───────────────────────────────────────

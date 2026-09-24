@@ -221,6 +221,13 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
       window.__emblemRogueGame.scene.getScene('Battle').playerUnits.some((u) => u.isCommander),
     ),
   ).toBe(false);
+  // Back/ESC must never stand in for Accept Fate: the run ends only on the
+  // explicit choice.
+  await page.keyboard.press('Escape');
+  await expect(decision).toBeVisible();
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState),
+  ).not.toBe('BATTLE_END');
   await page.getByRole('button', { name: 'Accept Fate', exact: true }).tap();
   await waitForScene(page, 'RunComplete');
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
