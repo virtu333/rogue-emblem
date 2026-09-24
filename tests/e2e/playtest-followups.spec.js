@@ -41,6 +41,8 @@ test('enemy combat pauses for its level-up and has a durable enemy checkpoint', 
       enemy.skills = [];
       enemy.stats.DEF = 0;
       enemy.stats.SPD = 0;
+      // SKL 100 gives the counter a ~50% crit; a crit kill would drop this enemy.
+      enemy.stats.LCK = 200;
       enemy.weapon = { ...enemy.weapon, type: 'Sword', range: '1', might: 0, hit: 0, crit: 0 };
       enemy.hasActed = false;
     }

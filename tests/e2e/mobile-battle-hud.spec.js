@@ -62,13 +62,16 @@ test('commands have readable targets, toggle feedback and reversible end-turn co
   expect(await page.evaluate(() => window.__sceneState.battle.state)).toBe('PLAYER_IDLE');
   await hud.getByRole('button', { name: 'Keep playing' }).tap();
   await expect(hud.getByRole('button', { name: 'End turn…', exact: true })).toBeVisible();
-  const metrics = await hud.getByRole('button').evaluateAll((buttons) =>
-    buttons.map((b) => ({
-      height: b.getBoundingClientRect().height,
-      font: parseFloat(getComputedStyle(b).fontSize),
-    })),
-  );
-  expect(metrics.every((m) => m.height >= 44)).toBe(true);
+  // Compact sidebar contract (docs/battle-sidebar-2026-09-22.md): main commands keep a 38px
+  // minimum so End turn stays visible at 667x375; bottom navigation keeps 44px.
+  const heights = (loc) =>
+    loc.evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().height));
+  const commandHeights = await heights(hud.locator('.mb-body button'));
+  expect(commandHeights.length).toBeGreaterThan(0);
+  expect(commandHeights.every((h) => h >= 38)).toBe(true);
+  const navHeights = await heights(hud.locator('.bl-tools button'));
+  expect(navHeights.length).toBe(4);
+  expect(navHeights.every((h) => h >= 44)).toBe(true);
   const commandFonts = await hud
     .locator('.mb-body button')
     .evaluateAll((buttons) => buttons.map((b) => parseFloat(getComputedStyle(b).fontSize)));

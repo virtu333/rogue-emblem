@@ -12,59 +12,58 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 test.describe('Accessory UI smoke', () => {
-  test('shop scroll/accessory purchases show correct pool banners', async ({ page }) => {
+  test('shop scroll/accessory purchases land in the shared pools', async ({ page }) => {
     const errors = collectErrors(page);
 
     await page.goto('/?devScene=nodemap&preset=weapon_arts');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
+    const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+    if (await skip.isVisible().catch(() => false)) await skip.click();
 
-    const result = await page.evaluate(() => {
-      const game = window.__emblemRogueGame;
-      const nodeMap = game?.scene?.getScene?.('NodeMap');
-      if (!nodeMap) return null;
-
-      const rm = nodeMap.runManager;
-      const beforeScrolls = Array.isArray(rm.scrolls) ? rm.scrolls.length : 0;
-      const beforeAccessories = Array.isArray(rm.accessories) ? rm.accessories.length : 0;
-
-      const captured = [];
-      nodeMap.showShopBanner = (msg, color) => {
-        captured.push({ msg, color });
-      };
-      nodeMap.refreshShop = () => {};
-
-      const scrollEntry = { type: 'scroll', price: 100, item: { name: 'Sol Scroll' } };
-      const accessoryEntry = {
-        type: 'accessory',
-        price: 100,
-        item: { name: 'Goddess Icon', effects: { LCK: 5 } },
-      };
-
-      nodeMap.shopBuyItems = [scrollEntry, accessoryEntry];
-      nodeMap.onBuyItem(scrollEntry);
-      nodeMap.onBuyItem(accessoryEntry);
-
-      const afterScrolls = Array.isArray(rm.scrolls) ? rm.scrolls.length : 0;
-      const afterAccessories = Array.isArray(rm.accessories) ? rm.accessories.length : 0;
-      return {
-        captured,
-        scrollDelta: afterScrolls - beforeScrolls,
-        accessoryDelta: afterAccessories - beforeAccessories,
-      };
+    const before = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      const n = s.runManager.getAvailableNodes()[0];
+      n.type = 'shop';
+      n.isAmbush = false;
+      s.runManager.gold = 10000;
+      s.onNodeClick(n);
+      s.shopBuyItems = [
+        { type: 'scroll', price: 100, item: { name: 'Sol Scroll', type: 'Scroll' } },
+        {
+          type: 'accessory',
+          price: 100,
+          item: { name: 'Goddess Icon', type: 'Accessory', effects: { LCK: 5 } },
+        },
+      ];
+      s._shopController.refreshShop();
+      const rm = s.runManager;
+      return { scrolls: rm.scrolls?.length || 0, accessories: rm.accessories?.length || 0 };
     });
 
-    expect(result).toBeTruthy();
-    expect(result.scrollDelta).toBe(1);
-    expect(result.accessoryDelta).toBe(1);
-    expect(result.captured).toContainEqual({
-      msg: 'Got Sol Scroll! Added to Scroll Pool.',
-      color: '#88ff88',
+    const shop = page.getByRole('dialog', { name: 'Village', exact: true });
+    await expect(shop).toBeVisible();
+    const status = shop.getByRole('status');
+
+    await shop.locator('.shop-row', { hasText: 'Sol Scroll' }).click();
+    await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();
+    const confirm = page.getByRole('dialog', { name: 'Buy Sol Scroll?', exact: true });
+    await confirm.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(status).toContainText('Sol Scroll → Scroll pool.');
+
+    await shop.locator('.shop-row', { hasText: 'Goddess Icon' }).click();
+    await shop.getByRole('button', { name: 'Buy · 100 G', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Buy and equip Goddess Icon', exact: true });
+    await picker.getByRole('button', { name: /Keep in shared pool/ }).click();
+    await picker.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(status).toContainText('Goddess Icon → Accessory pool.');
+
+    const after = await page.evaluate(() => {
+      const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+      return { scrolls: rm.scrolls?.length || 0, accessories: rm.accessories?.length || 0 };
     });
-    expect(result.captured).toContainEqual({
-      msg: 'Got Goddess Icon! Added to Accessory Pool.',
-      color: '#88ff88',
-    });
+    expect(after.scrolls - before.scrolls).toBe(1);
+    expect(after.accessories - before.accessories).toBe(1);
 
     await assertNoInvariantErrors(page);
     expect(errors).toEqual([]);
