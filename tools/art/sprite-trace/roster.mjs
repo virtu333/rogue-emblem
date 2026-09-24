@@ -36,8 +36,49 @@ export const ROSTER = {
     pegasus_e: { src: S('pegasus-knight'), figure: 2, kind: 'flyer', main: 'red', hair: null, armor: true },
     swordmaster_a: { src: S('swordmaster'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
     swordmaster_b: { src: S('swordmaster'), figure: 1, kind: 'infantry', main: 'blue', hair: 'red' },
+    swordmaster_e: { src: S('swordmaster'), figure: 2, kind: 'infantry', main: 'red', hair: 'black' },
     // --- bosses -------------------------------------------------------------------
     boss_blade_lord: { src: R('boss_blade_lord'), kind: 'boss', main: 'red', hair: 'black', armor: true },
     boss_iron_wall: { src: R('boss_iron_wall'), kind: 'boss', main: 'red', hair: null, armor: true },
   },
+};
+
+// Runtime textures to bake (keys follow RebuiltSprites / BattleUnitVisuals naming).
+// source = roster id; faction = treatment; keepMain = keep the design's own cloth
+// (lords' identity colours, bosses' own heraldry); recruits = seeded identities.
+const CLASSES = [
+  ['myrmidon', 'myrmidon'],
+  ['mercenary', 'mercenary'],
+  ['thief', 'thief'],
+  ['fighter', 'fighter'],
+  ['knight', 'knight'],
+  ['archer', 'archer'],
+  ['mage', 'mage'],
+  ['cleric', 'cleric'],
+  ['cavalier', 'cavalier'],
+  ['pegasus_knight', 'pegasus'],
+];
+
+export const BAKE = [
+  { key: 'lord_edric', source: 'edric', faction: 'player', keepMain: true },
+  { key: 'lord_edric_promoted', source: 'edric_promoted', faction: 'player', keepMain: true },
+  { key: 'lord_sera', source: 'sera', faction: 'player', keepMain: true },
+  { key: 'lord_kira', source: 'kira', faction: 'player', keepMain: true },
+  ...CLASSES.flatMap(([cls, id]) => [
+    { key: cls, source: `${id}_a`, faction: 'player' },
+    { key: `enemy_${cls}`, source: `${id}_e`, faction: 'enemy' },
+    { key: `enemy_${cls}~corrupt`, source: `${id}_e`, faction: 'corrupted', corrupt: true },
+    { key: `npc_${cls}`, source: `${id}_a`, faction: 'npc' },
+  ]),
+  { key: 'swordmaster', source: 'swordmaster_a', faction: 'player' },
+  { key: 'enemy_swordmaster', source: 'swordmaster_e', faction: 'enemy' },
+  { key: 'boss_blade_lord', source: 'boss_blade_lord', faction: 'enemy', keepMain: true },
+  { key: 'boss_iron_wall', source: 'boss_iron_wall', faction: 'enemy', keepMain: true },
+];
+
+/** Seeded recruit identities baked for the review: six people, base and promoted. */
+export const RECRUITS = {
+  count: 6,
+  seedPrefix: '20260924:recruit:',
+  lines: [{ base: ['myrmidon_a', 'myrmidon_b'], promoted: ['swordmaster_a', 'swordmaster_b'], key: 'myrmidon', promotedKey: 'swordmaster' }],
 };

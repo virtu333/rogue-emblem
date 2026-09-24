@@ -11,6 +11,8 @@ export function battleContrastEnabled() {
 // anchors, and display sizing are preserved; no blur or extra render objects.
 export function contrastSpriteKey(scene, sourceKey) {
   if (!battleContrastEnabled()) return sourceKey;
+  // Traced sprites carry their own selective outline and light; no halo or lift.
+  if (sourceKey.startsWith('traced-')) return sourceKey;
   const key = `contrast-${sourceKey}`;
   if (scene.textures.exists(key)) return key;
   let source = scene.textures.get(sourceKey)?.getSourceImage();

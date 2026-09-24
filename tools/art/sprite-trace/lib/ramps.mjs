@@ -33,6 +33,11 @@ export const BIBLE_RAMPS = {
   hairAsh: R('#3a2a1e #6e5530 #a88a48 #d6bb6e #f2e2a0'),
   hairSilver: R('#2e293a #58505e #978b94 #ddd0bd #f4ecdb'),
   hairSlate: R('#101a2e #1e2638 #343c52 #56607a #8a93aa'),
+  // identity accents (headbands): never a faction hue
+  rustCloth: R('#22120f #45231a #6b3a26 #93573a #b97d57'),
+  oliveCloth: R('#1d1a12 #34301d #4f4a2a #6e6a3b #938c55'),
+  ashCloth: R('#16131e #2e293a #403949 #58505e #766b77'),
+  plumCloth: R('#1c111a #3e2d39 #5b4552 #7d6270 #a88d98'),
   glowGold: R('#80461f #dca044 #f3cb6c #fff0bd #ffffff'),
   glowUnlight: R('#2c1645 #763aa0 #a863cc #dcaaf0 #f4e4ff'),
 };

@@ -238,12 +238,17 @@ export function removeSpecks(sp, maxSize = 2) {
     }
     if (diagonal || !count.size) continue;
     const [top] = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    let shade = 2;
     for (const c of comp) {
       const x = c % sp.w,
         y = (c / sp.w) | 0;
       const nb = N8.map(([dx, dy]) => [x + dx, y + dy]).find(([X, Y]) => sp.at(X, Y) === top);
-      sp.set(x, y, top, sp.shadeAt(nb[0], nb[1]));
+      if (nb) {
+        shade = sp.shadeAt(nb[0], nb[1]);
+        break;
+      }
     }
+    for (const c of comp) sp.set(c % sp.w, (c / sp.w) | 0, top, shade);
     changed++;
   }
   return changed;

@@ -8,9 +8,23 @@ describe('resolveBattlefieldArtFlags', () => {
         terrain: true,
         sprites: true,
         contrast: true,
+        traced: false,
         terrainRenderer: null,
       });
     }
+    // the traced review sprites are a dev-only switch
+    expect(resolveBattlefieldArtFlags('?spriteArt=traced', { dev: false }).traced).toBe(false);
+  });
+
+  it('dev ?spriteArt=traced keeps the sprite presentation on and selects traced sprites', () => {
+    expect(resolveBattlefieldArtFlags('?spriteArt=traced', { dev: true })).toMatchObject({
+      sprites: true,
+      contrast: true,
+      traced: true,
+    });
+    expect(
+      resolveBattlefieldArtFlags('?spriteArt=traced&battlefieldArt=classic', { dev: true }),
+    ).toMatchObject({ sprites: false, traced: false });
   });
 
   it('dev escape hatches switch pieces back to classic independently', () => {

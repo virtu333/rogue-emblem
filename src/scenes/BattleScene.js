@@ -28,6 +28,7 @@ import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
 import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
 import { battleUnitSpriteKey } from '../ui/BattleUnitVisuals.js';
+import { startTracedIdle } from '../ui/TracedSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
@@ -1755,6 +1756,7 @@ export class BattleScene extends Phaser.Scene {
       this._combatRollSession = null;
 
       this._setupBattleCameraSystem();
+      startTracedIdle(this);
 
       // Turn manager
       this.turnManager = new TurnManager({
@@ -3261,7 +3263,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.textures.exists(spriteKey)) {
       unit.graphic = this.add.image(pos.x, pos.y, contrastSpriteKey(this, spriteKey));
       const src = this.textures.get(spriteKey).getSourceImage();
-      if (spriteKey.startsWith('rebuilt-')) {
+      if (spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-')) {
         unit.graphic.setDisplaySize(64, 64);
       } else if (src && src.width > TILE_SIZE && src.width <= TILE_SIZE * 1.5) {
         // Hi-res overhang sprite (48px art on 32px tiles). The anchor is
@@ -3276,6 +3278,7 @@ export class BattleScene extends Phaser.Scene {
       }
       if (
         !spriteKey.startsWith('rebuilt-') &&
+        !spriteKey.startsWith('traced-') &&
         battlefieldSpriteArtEnabled() &&
         unit.graphic.displayHeight > TILE_SIZE * 1.15
       ) {

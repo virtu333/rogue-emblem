@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "density": 1.5,
+  "cell": 96,
+  "footRow": 66,
+  "frames": ["idle0", "idle1", "idle2", "idle3", "windup", "strike"],
+  "sprites": {
+    "lord_edric": {
+      "x": 0,
+      "y": 0,
+      "kind": "infantry"
+    },
+    "lord_edric_promoted": {
+      "x": 576,
+      "y": 0,
+      "kind": "infantry"
+    },
+    "lord_sera": {
+      "x": 1152,
+      "y": 0,
+      "kind": "mage"
+    },
+    "lord_kira": {
+      "x": 0,
+      "y": 96,
+      "kind": "infantry"
+    },
+    "myrmidon": {
+      "x": 576,
+      "y": 96,
+      "kind": "infantry"
+    },
+    "enemy_myrmidon": {
+      "x": 1152,
+      "y": 96,
+      "kind": "infantry"
+    },
+    "enemy_myrmidon~corrupt": {
+      "x": 0,
+      "y": 192,
+      "kind": "infantry"
+    },
+    "npc_myrmidon": {
+      "x": 576,
+      "y": 192,
+      "kind": "infantry"
+    },
+    "mercenary": {
+      "x": 1152,
+      "y": 192,
+      "kind": "infantry"
+    },
+    "enemy_mercenary": {
+      "x": 0,
+      "y": 288,
+      "kind": "infantry"
+    },
+    "enemy_mercenary~corrupt": {
+      "x": 576,
+      "y": 288,
+      "kind": "infantry"
+    },
+    "npc_mercenary": {
+      "x": 1152,
+      "y": 288,
+      "kind": "infantry"
+    },
+    "thief": {
+      "x": 0,
+      "y": 384,
+      "kind": "crouch"
+    },
+    "enemy_thief": {
+      "x": 576,
+      "y": 384,
+      "kind": "crouch"
+    },
+    "enemy_thief~corrupt": {
+      "x": 1152,
+      "y": 384,
+      "kind": "crouch"
+    },
+    "npc_thief": {
+      "x": 0,
+      "y": 480,
+      "kind": "crouch"
+    },
+    "fighter": {
+      "x": 576,
+      "y": 480,
+      "kind": "infantry"
+    },
+    "enemy_fighter": {
+      "x": 1152,
+      "y": 480,
+      "kind": "infantry"
+    },
+    "enemy_fighter~corrupt": {
+      "x": 0,
+      "y": 576,
+      "kind": "infantry"
+    },
+    "npc_fighter": {
+      "x": 576,
+      "y": 576,
+      "kind": "infantry"
+    },
+    "knight": {
+      "x": 1152,
+      "y": 576,
+      "kind": "heavy"
+    },
+    "enemy_knight": {
+      "x": 0,
+      "y": 672,
+      "kind": "heavy"
+    },
+    "enemy_knight~corrupt": {
+      "x": 576,
+      "y": 672,
+      "kind": "heavy"
+    },
+    "npc_knight": {
+      "x": 1152,
+      "y": 672,
+      "kind": "heavy"
+    },
+    "archer": {
+      "x": 0,
+      "y": 768,
+      "kind": "infantry"
+    },
+    "enemy_archer": {
+      "x": 576,
+      "y": 768,
+      "kind": "infantry"
+    },
+    "enemy_archer~corrupt": {
+      "x": 1152,
+      "y": 768,
+      "kind": "infantry"
+    },
+    "npc_archer": {
+      "x": 0,
+      "y": 864,
+      "kind": "infantry"
+    },
+    "mage": {
+      "x": 576,
+      "y": 864,
+      "kind": "mage"
+    },
+    "enemy_mage": {
+      "x": 1152,
+      "y": 864,
+      "kind": "mage"
+    },
+    "enemy_mage~corrupt": {
+      "x": 0,
+      "y": 960,
+      "kind": "mage"
+    },
+    "npc_mage": {
+      "x": 576,
+      "y": 960,
+      "kind": "mage"
+    },
+    "cleric": {
+      "x": 1152,
+      "y": 960,
+      "kind": "mage"
+    },
+    "enemy_cleric": {
+      "x": 0,
+      "y": 1056,
+      "kind": "mage"
+    },
+    "enemy_cleric~corrupt": {
+      "x": 576,
+      "y": 1056,
+      "kind": "mage"
+    },
+    "npc_cleric": {
+      "x": 1152,
+      "y": 1056,
+      "kind": "mage"
+    },
+    "cavalier": {
+      "x": 0,
+      "y": 1152,
+      "kind": "mounted"
+    },
+    "enemy_cavalier": {
+      "x": 576,
+      "y": 1152,
+      "kind": "mounted"
+    },
+    "enemy_cavalier~corrupt": {
+      "x": 1152,
+      "y": 1152,
+      "kind": "mounted"
+    },
+    "npc_cavalier": {
+      "x": 0,
+      "y": 1248,
+      "kind": "mounted"
+    },
+    "pegasus_knight": {
+      "x": 576,
+      "y": 1248,
+      "kind": "flyer"
+    },
+    "enemy_pegasus_knight": {
+      "x": 1152,
+      "y": 1248,
+      "kind": "flyer"
+    },
+    "enemy_pegasus_knight~corrupt": {
+      "x": 0,
+      "y": 1344,
+      "kind": "flyer"
+    },
+    "npc_pegasus_knight": {
+      "x": 576,
+      "y": 1344,
+      "kind": "flyer"
+    },
+    "swordmaster": {
+      "x": 1152,
+      "y": 1344,
+      "kind": "infantry"
+    },
+    "enemy_swordmaster": {
+      "x": 0,
+      "y": 1440,
+      "kind": "infantry"
+    },
+    "boss_blade_lord": {
+      "x": 576,
+      "y": 1440,
+      "kind": "boss"
+    },
+    "boss_iron_wall": {
+      "x": 1152,
+      "y": 1440,
+      "kind": "boss"
+    },
+    "myrmidon#0": {
+      "x": 0,
+      "y": 1536,
+      "kind": "infantry"
+    },
+    "swordmaster#0": {
+      "x": 576,
+      "y": 1536,
+      "kind": "infantry"
+    },
+    "myrmidon#1": {
+      "x": 1152,
+      "y": 1536,
+      "kind": "infantry"
+    },
+    "swordmaster#1": {
+      "x": 0,
+      "y": 1632,
+      "kind": "infantry"
+    },
+    "myrmidon#2": {
+      "x": 576,
+      "y": 1632,
+      "kind": "infantry"
+    },
+    "swordmaster#2": {
+      "x": 1152,
+      "y": 1632,
+      "kind": "infantry"
+    },
+    "myrmidon#3": {
+      "x": 0,
+      "y": 1728,
+      "kind": "infantry"
+    },
+    "swordmaster#3": {
+      "x": 576,
+      "y": 1728,
+      "kind": "infantry"
+    },
+    "myrmidon#4": {
+      "x": 1152,
+      "y": 1728,
+      "kind": "infantry"
+    },
+    "swordmaster#4": {
+      "x": 0,
+      "y": 1824,
+      "kind": "infantry"
+    },
+    "myrmidon#5": {
+      "x": 576,
+      "y": 1824,
+      "kind": "infantry"
+    },
+    "swordmaster#5": {
+      "x": 1152,
+      "y": 1824,
+      "kind": "infantry"
+    }
+  }
+}
