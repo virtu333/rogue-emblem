@@ -191,7 +191,7 @@ import {
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
-import { clearSavedRun, saveRun } from '../engine/RunManager.js';
+import { clearSavedRun, saveRun, settleAndPersistEndRun } from '../engine/RunManager.js';
 import {
   calculateKillReward,
   generateLootChoices,
@@ -4293,14 +4293,19 @@ export class BattleScene extends Phaser.Scene {
           try {
             const cloud = this.registry.get('cloud');
             const slot = this.registry.get('activeSlot');
+            this.clearBattleScopedDeltas(this.playerUnits);
+            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+            // Settle (and persist the settled record) before dropping the
+            // save, so the rewards are never lost with it nor paid twice.
+            this.runManager.failRun();
+            settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+              onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+              slot,
+            });
             clearSavedRun(
               cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
               slot,
             );
-            this.clearBattleScopedDeltas(this.playerUnits);
-            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-            this.runManager.failRun();
-            this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);

@@ -4389,6 +4389,23 @@ export function hasSavedRun(slotNumber) {
   }
 }
 
+/**
+ * Settle end-of-run rewards into meta, then immediately persist the run with
+ * endRunRewards.appliedToMeta so a reload before RunComplete clears the save
+ * re-reads the settled record instead of paying valor/supply a second time.
+ * Without a slot (dev/QA routes, tutorial) there is nothing to persist.
+ * @returns {object} the settled rewards summary
+ */
+export function settleAndPersistEndRun(runManager, meta, result, { onSave = null, slot } = {}) {
+  const rewards = runManager.settleEndRunRewards(meta, result);
+  if (isValidSlotNumber(slot)) {
+    const saved = saveRun(runManager, onSave, slot);
+    if (!saved?.ok)
+      console.warn('[RunManager] settled run could not be persisted:', saved?.reason || saved);
+  }
+  return rewards;
+}
+
 export function clearSavedRun(onClear, slotNumber) {
   const { slot, usedFallback, persistedActiveSlot } = resolveSlotNumberForClear(slotNumber);
   if (!slot) {

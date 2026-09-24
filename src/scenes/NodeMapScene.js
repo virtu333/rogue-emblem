@@ -9,7 +9,12 @@ import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
-import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
+import {
+  RunManager,
+  saveRun,
+  clearSavedRun,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
@@ -954,12 +959,17 @@ export class NodeMapScene extends Phaser.Scene {
         try {
           const cloud = this.registry.get('cloud');
           const slot = this.registry.get('activeSlot');
+          // Settle (and persist the settled record) before dropping the save,
+          // so the rewards are never lost with it nor paid twice on reload.
+          this.runManager.failRun();
+          settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+            onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+            slot,
+          });
           clearSavedRun(
             cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
             slot,
           );
-          this.runManager.failRun();
-          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
@@ -1946,7 +1956,12 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
-        rm.settleEndRunRewards(this.registry.get('meta'), 'victory');
+        const cloud = this.registry.get('cloud');
+        const slot = this.registry.get('activeSlot');
+        settleAndPersistEndRun(rm, this.registry.get('meta'), 'victory', {
+          onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        });
         void transitionToScene(
           this,
           'RunComplete',
