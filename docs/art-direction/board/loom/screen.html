@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <title>The Loom · Screen</title>
+    <link rel="preload" href="fonts/PressStart2P.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="fonts/Cinzel-latin-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="loom.css" />
+  </head>
+  <body>
+    <main class="screen" id="screen" aria-label="Campaign route">
+      <header class="hdr">
+        <div class="hdr-title">
+          <h1 id="act-title"></h1>
+          <div class="hdr-sub" id="act-sub"></div>
+        </div>
+        <div class="hdr-meta">
+          <span class="hdr-gold" id="gold"></span>
+          <span class="hdr-diff" id="diff">NORMAL</span>
+        </div>
+      </header>
+      <div class="body">
+        <div class="loom-wrap" id="loom-wrap">
+          <div class="loom" id="loom" aria-label="Route threads">
+            <div class="loom-inner" id="loom-inner">
+              <canvas id="weave"></canvas>
+              <canvas id="fx"></canvas>
+            </div>
+          </div>
+          <div class="loom-frame" aria-hidden="true"></div>
+        </div>
+        <aside class="pane" aria-label="Route actions">
+          <div class="pane-actions">
+            <button class="btn" type="button">MENU</button>
+            <button class="btn" type="button">ROSTER</button>
+          </div>
+          <section class="inspect" id="inspect" aria-live="polite"></section>
+          <button class="travel" id="travel" type="button"></button>
+          <div class="party" id="party"></div>
+        </aside>
+      </div>
+    </main>
+    <script src="graph-data.js"></script>
+    <script src="loom.js"></script>
+  </body>
+</html>
