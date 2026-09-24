@@ -1098,7 +1098,59 @@ export class MetaProgressionManager {
     return this._save({ lastDifficulty: id });
   }
 
+  /**
+   * Apply a finished run's payout as one write: currencies, completion
+   * counters, milestones, narrative memory and the paid-run marker land on
+   * disk together or not at all. The individual mutators' saves are deferred
+   * while `apply` runs; if the single write fails, the in-memory state rolls
+   * back so nothing reads as paid that is not on disk (the caller keeps the
+   * run save and retries later).
+   * @param {(meta: MetaProgressionManager) => void} apply
+   * @returns {{ ok: boolean }}
+   */
+  applyRunPayout(apply) {
+    const before = this._captureState();
+    this._deferSaves = (this._deferSaves || 0) + 1;
+    try {
+      apply(this);
+    } catch (err) {
+      this._deferSaves -= 1;
+      this._restoreState(before);
+      throw err;
+    }
+    this._deferSaves -= 1;
+    const result = this._save();
+    if (!result.ok) this._restoreState(before);
+    return result;
+  }
+
+  _captureState() {
+    return structuredClone({
+      totalValor: this.totalValor,
+      totalSupply: this.totalSupply,
+      purchasedUpgrades: this.purchasedUpgrades,
+      runsCompleted: this.runsCompleted,
+      runsStarted: this.runsStarted,
+      lastDifficulty: this.lastDifficulty,
+      skillAssignments: this.skillAssignments,
+      lordSelection: this.lordSelection,
+      milestones: [...this.milestones],
+      storyFlags: this.storyFlags,
+      runRecords: this.runRecords,
+      settledRunIds: this.settledRunIds,
+      seenDialogueKeys: this.seenDialogueKeys,
+      hintState: this.hintState,
+      savedAt: this.savedAt,
+    });
+  }
+
+  _restoreState(state) {
+    Object.assign(this, { ...state, milestones: new Set(state.milestones) });
+  }
+
   _save({ lastDifficulty } = {}) {
+    // Inside applyRunPayout: the payout's one write happens when it finishes.
+    if (this._deferSaves > 0) return { ok: true, deferred: true };
     this._adoptForeignDiskStateIfNewer();
     if (['normal', 'hard', 'lunatic'].includes(lastDifficulty))
       this.lastDifficulty = lastDifficulty;

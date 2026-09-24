@@ -109,3 +109,84 @@ describe('BattleScene.resumeCommittedAttack', () => {
     expect(scene._scheduleSafeDelayedAsync).not.toHaveBeenCalled();
   });
 });
+
+describe("Gambler's Coin across a legacy resume", () => {
+  // Legacy battles roll the Coin from the live battle stream (Math.random is
+  // the battle RNG during combat). The forecast's roll must survive a resume.
+  const coin = { accessory: { combatEffects: { gamblerCoin: true } } };
+  const seededStream = (values) => {
+    let i = 0;
+    const fn = () => values[i++ % values.length];
+    fn.draws = () => i;
+    return fn;
+  };
+
+  function legacyScene(stream) {
+    const edric = {
+      ...coin,
+      name: 'Edric',
+      battleEntityId: 'u1',
+      faction: 'player',
+      currentHP: 20,
+      hasActed: false,
+      col: 2,
+      row: 3,
+    };
+    const brigand = {
+      name: 'Brigand',
+      battleEntityId: 'u2',
+      faction: 'enemy',
+      currentHP: 18,
+      col: 3,
+      row: 3,
+    };
+    const scene = makeScene({
+      playerUnits: [edric],
+      enemyUnits: [brigand],
+      _battleRewindPolicy: 'legacy',
+      _combatRollSession: null,
+    });
+    scene._gamblerRandom = () => stream;
+    return { scene, edric, brigand };
+  }
+
+  it('the committed attack keeps the rolled modifier and resume reuses it without a new draw', async () => {
+    // First draw 0.9 loses the flip (-3); a re-roll would draw 0.1 and win (+5).
+    const live = seededStream([0.9, 0.1]);
+    const before = legacyScene(live);
+    before.scene._ensureCombatRollSession(before.edric, before.brigand);
+    expect(before.scene._getGamblerAtkDelta(before.edric)).toBe(-3); // forecast roll
+    before.scene._commitCombatIntent(before.edric, before.brigand);
+    const saved = before.scene._pendingCommittedAction;
+    expect(saved.gamblerAtkDelta).toEqual({ attacker: -3, defender: null });
+
+    // Round-trip through the checkpoint reader, then resume in a fresh scene
+    // whose stream continues from the checkpoint (next draw would be 0.1).
+    const { readCommittedAction } = await import('../src/ui/BattlePresentationCheckpoint.js');
+    const intent = readCommittedAction(JSON.parse(JSON.stringify(saved)));
+    expect(intent.gamblerAtkDelta).toEqual({ attacker: -3, defender: null });
+    const resumedStream = seededStream([0.1, 0.9]);
+    const after = legacyScene(resumedStream);
+    let seen = null;
+    after.scene.executeCombat = vi.fn(async (attacker, defender) => {
+      after.scene._ensureCombatRollSession(attacker, defender);
+      seen = after.scene._getGamblerAtkDelta(attacker);
+    });
+    expect(after.scene.resumeCommittedAttack(intent)).toBe(true);
+    const [, , run] = after.scene._scheduleSafeDelayedAsync.mock.calls[0];
+    await run();
+    expect(seen).toBe(-3);
+    expect(resumedStream.draws()).toBe(0); // later combat rolls are not shifted
+  });
+
+  it('records no modifier when the attacker has no Coin, and old intents still read', async () => {
+    const { scene } = legacyScene(seededStream([0.5]));
+    scene.playerUnits[0].accessory = null;
+    scene._commitCombatIntent(scene.playerUnits[0], scene.enemyUnits[0]);
+    expect(scene._pendingCommittedAction).not.toHaveProperty('gamblerAtkDelta');
+    const { readCommittedAction } = await import('../src/ui/BattlePresentationCheckpoint.js');
+    const legacyIntent = { kind: 'attack', unitId: 'u1', unitName: 'Edric', targetId: 'u2' };
+    expect(readCommittedAction(legacyIntent)).toEqual({ ...legacyIntent, weaponArt: null });
+    expect(readCommittedAction({ ...legacyIntent, gamblerAtkDelta: { attacker: 'x' } })).toBeNull();
+  });
+});

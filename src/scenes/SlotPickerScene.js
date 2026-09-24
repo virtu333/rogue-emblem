@@ -496,15 +496,23 @@ export class SlotPickerScene extends Phaser.Scene {
       if (summary.hasActiveRun) {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
-        if (rm && rm.status !== 'defeat' && rm.battleInProgress?.checkpoint) {
+        if (rm?.endRunRewards) {
+          // A finished run kept because its payout had not reached disk:
+          // RunComplete retries the payout, then clears the save.
+          transitioned = await transitionToScene(
+            this,
+            'RunComplete',
+            { gameData: this.gameData, runManager: rm, result: rm.endRunRewards.result },
+            { reason: TRANSITION_REASONS.CONTINUE },
+          );
+        } else if (rm && rm.status !== 'defeat' && rm.battleInProgress?.checkpoint) {
           // Suspended mid-battle — let the player choose how to continue
           // before any transition starts.
           this.isTransitioning = false;
           if (this.input) this.input.enabled = true;
           this._showSuspendedBattleChoice(slot, rm);
           return;
-        }
-        if (rm && rm.status === 'defeat') {
+        } else if (rm && rm.status === 'defeat') {
           // An interrupted battle settled into a loss on load (the commander fell with
           // no Vision charge to spend) — show the game-over flow instead of
           // resuming; RunComplete settles rewards and clears the save.

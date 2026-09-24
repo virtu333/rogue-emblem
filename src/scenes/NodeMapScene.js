@@ -13,6 +13,7 @@ import {
   saveRun,
   clearSavedRun,
   settleAndPersistEndRun,
+  endRunPayoutPending,
 } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -989,10 +990,12 @@ export class NodeMapScene extends Phaser.Scene {
             onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
             slot,
           });
-          clearSavedRun(
-            cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-            slot,
-          );
+          // A payout that did not reach disk keeps the save so it can retry.
+          if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+            clearSavedRun(
+              cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+              slot,
+            );
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });

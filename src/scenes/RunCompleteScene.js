@@ -1,12 +1,12 @@
 import { hasDOMHost } from '../utils/domUI.js';
-import { runResultMenu } from '../ui/RunFlowMenus.js';
+import { PAYOUT_PENDING_NOTE, runResultMenu } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 // RunCompleteScene — End-of-run screen (victory or defeat)
 
 import Phaser from 'phaser';
-import { clearSavedRun } from '../engine/RunManager.js';
+import { clearSavedRun, endRunPayoutPending, saveRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
-import { deleteRunSave } from '../cloud/CloudSync.js';
+import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
@@ -53,7 +53,16 @@ export class RunCompleteScene extends Phaser.Scene {
 
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
-    clearSavedRun(cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null, slot);
+    if (endRunPayoutPending(rm, meta)) {
+      // The payout did not reach disk: keep the settled run so the next
+      // Continue from this slot comes back here and retries it.
+      saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+    } else {
+      clearSavedRun(
+        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+        slot,
+      );
+    }
 
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
@@ -178,6 +187,20 @@ export class RunCompleteScene extends Phaser.Scene {
         align: 'center',
       }),
     ).setOrigin(0.5);
+
+    if (endRunPayoutPending(rm, meta)) {
+      curY += 18;
+      applyTextResolution(
+        this.add.text(cx, curY, PAYOUT_PENDING_NOTE, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.warn,
+          align: 'center',
+          wordWrap: { width: 420 },
+        }),
+      ).setOrigin(0.5, 0);
+      curY += 16;
+    }
 
     if (meta) {
       curY += 20;
