@@ -10,6 +10,7 @@
 // DPR 2, ?mobilePreview=1). CHROMIUM_PATH overrides the browser binary.
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
+import sharp from 'sharp';
 
 const args = Object.fromEntries(
   process.argv
@@ -80,8 +81,9 @@ async function newPage({ reduced = false, speed = 'normal' } = {}) {
 }
 const sleep = (page, ms) => page.waitForTimeout(ms);
 const shot = async (page, name) => {
-  const path = `${outDir}/${name}-${tag}.png`;
-  await page.screenshot({ path });
+  // WebP keeps the committed review set small (~6 MB instead of ~27 MB as PNG).
+  const path = `${outDir}/${name}-${tag}.webp`;
+  await sharp(await page.screenshot()).webp({ quality: 88, effort: 6 }).toFile(path);
   console.log('shot', path);
 };
 const waitScene = (page, key) =>

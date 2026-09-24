@@ -1,7 +1,7 @@
 # Ceremonies — build captures
 
 Captures of the Ink & Ember ceremonies (see `docs/art-direction/ART_BIBLE.md` →
-Ceremonies), taken from the running game. Each file is `<shot>-<W>x<H>.png` at
+Ceremonies), taken from the running game. Each file is `<shot>-<W>x<H>.webp` at
 three viewports:
 
 - `844x390` — iPhone landscape (`mobilePreview=1`, DPR 2): map area plus the live command rail
