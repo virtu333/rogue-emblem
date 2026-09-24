@@ -1,9 +1,9 @@
-import { battlefieldLabEnabled } from './BattlefieldLab.js';
+import { battlefieldSpriteArtEnabled } from './battlefieldArtFlags.js';
 import manifest from './RebuiltSpriteManifest.json';
 
+// Shared by phones and desktop (one battlefield). Dev: ?spriteArt=classic.
 export function rebuiltSpritesEnabled() {
-  const query = new URLSearchParams(globalThis.location?.search || '');
-  return battlefieldLabEnabled() && !(import.meta.env.DEV && query.get('spriteArt') === 'classic');
+  return battlefieldSpriteArtEnabled();
 }
 
 // Source pixels stay untouched. Render into a tile-centred texture so every movement,

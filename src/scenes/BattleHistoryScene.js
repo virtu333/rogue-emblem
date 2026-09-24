@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { battleContrastEnabled } from '../ui/BattleContrast.js';
+import { battlefieldTerrainArtEnabled } from '../ui/battlefieldArtFlags.js';
 import { loadWeatheredArt } from '../ui/WeatheredTerrain.js';
 import { BattleHistoryRenderer } from '../ui/BattleHistoryRenderer.js';
 
@@ -17,7 +17,7 @@ export class BattleHistoryScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.renderer.destroy());
     // Removing a scene emits destroy directly, without a preceding shutdown.
     this.events.once('destroy', () => this.renderer.destroy());
-    if (battleContrastEnabled()) {
+    if (battlefieldTerrainArtEnabled()) {
       terrainArt ||= loadWeatheredArt(`${import.meta.env.BASE_URL}assets/terrain/weathered`).catch(
         () => null,
       );
