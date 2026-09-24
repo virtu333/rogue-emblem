@@ -63,7 +63,7 @@ if (want('sprites')) {
         kind: RECIPES[cls].kind,
       });
     }
-  writeFileSync(join(OUT, 'sprites', 'manifest.json'), JSON.stringify(manifest, null, 2));
+  writeFileSync(join(OUT, 'sprites', 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   log('sprites', manifest.sprites.length);
 }
 
