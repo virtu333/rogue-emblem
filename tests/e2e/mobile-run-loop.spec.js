@@ -165,7 +165,12 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     await page
       .getByRole('dialog', { name: 'Battle rewards' })
       .locator('.reward-card')
-      .filter({ has: page.getByText(itemName, { exact: true }) })
+      // Bundled rewards render as "Name ×N" (e.g. Vulnerary ×3 since 2f1c0fe).
+      .filter({
+        has: page.getByText(
+          new RegExp(`^${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( ×\\d+)?$`),
+        ),
+      })
       .tap();
     await page.getByRole('button', { name: 'Choose reward', exact: true }).tap();
     await page
@@ -270,7 +275,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   });
   expect(restored).toEqual({ gold: saved.gold, act: saved.act, roster: saved.roster });
   await page.waitForTimeout(1300);
-  await tapText(page, 'Title', 'CONTINUE');
+  await tapText(page, 'Title', 'SAVE SLOTS');
   await waitForScene(page, 'SlotPicker');
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('SlotPicker').input.enabled,

@@ -23,28 +23,13 @@ export class ReferenceMenu {
     this.surface.header.insertBefore(search, this.surface.header.lastChild);
     this.surface.onKey = (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return false;
-      if (event.target !== this.input) {
-        if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
-          this.moveEntry(event.key === 'ArrowUp' ? -1 : 1);
-          return true;
-        }
-        if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-          this.changeTab(event.key === 'ArrowLeft' ? -1 : 1);
-          return true;
-        }
-      }
       if (event.key === '/' && event.target !== this.input) {
         this.input.focus();
         return true;
       }
       return false;
     };
-    this.surface.onAction = (action, payload) => {
-      if (action === InputAction.NAVIGATE) {
-        if (payload?.dy) this.moveEntry(Math.sign(payload.dy));
-        else if (payload?.dx) this.changeTab(Math.sign(payload.dx));
-        return true;
-      }
+    this.surface.onAction = (action) => {
       if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action)) {
         this.changeTab(action === InputAction.PREV_UNIT ? -1 : 1);
         return true;

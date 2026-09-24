@@ -191,9 +191,10 @@ test('zero-weight reward is blocked without claiming, and a useful stat remains 
   await expect(dialog).toBeVisible();
   await page.evaluate(() => {
     const scene = window.__emblemRogueGame.scene.getScene('Battle');
-    scene.isElite = true;
-    scene._elitePicksRemaining = 2;
     const c = scene._lootController;
+    // Elite picks live on the durable pending-reward record since 33e3cca.
+    c.record.picksRemaining = 2;
+    c.scene._elitePicksRemaining = 2;
     const weapon = scene.runManager.roster[0].inventory[0];
     weapon.weight = 0;
     c.mobileRewards.choices[0] = {
@@ -217,7 +218,7 @@ test('zero-weight reward is blocked without claiming, and a useful stat remains 
         changed:
           JSON.stringify(scene.runManager.roster[0].inventory[0]) !== window.rewardWeaponBefore,
         claimed: scene._lootController.claimed.size,
-        picks: scene._elitePicksRemaining,
+        picks: scene._lootController.record.picksRemaining,
       };
     }),
   ).toEqual({ changed: false, claimed: 0, picks: 2 });

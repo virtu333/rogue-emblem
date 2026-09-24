@@ -150,13 +150,12 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await page.getByRole('button', { name: 'Advance', exact: true }).tap();
   await waitForScene(page, 'Battle');
   await battleIdle(page); // This small roster follows the normal automatic deployment path.
-  // A resumed slot with no seen hints shows the first-battle Field notes shortly
-  // after controls unlock; dismiss it so the unit tap below reaches the map.
-  const battleNotes = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  await battleNotes.waitFor({ timeout: 3000 }).catch(() => {});
-  if (await battleNotes.isVisible())
-    await battleNotes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
-  await expect(battleNotes).toHaveCount(0);
+  // A resumed slot with no seen hints shows the first-battle camera Field notes
+  // shortly after controls unlock; it owns map input until dismissed.
+  await expect(notes).toBeVisible();
+  await page.waitForTimeout(550);
+  await notes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  await expect(notes).toHaveCount(0);
   const deployed = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const { canEquip } = await import('/src/engine/UnitManager.js');
@@ -178,10 +177,6 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
     identity: true,
     usable: true,
   });
-  await expect(notes).toBeVisible(); // First-visit camera teaching note owns map input.
-  await page.waitForTimeout(550);
-  await notes.getByRole('button', { name: 'Continue', exact: true }).tap();
-  await expect(notes).toHaveCount(0);
   await tapUnit(page, 'Reload Veteran');
   await expect(page.getByRole('complementary', { name: 'Battle commands' })).toContainText('Wait');
   await page.screenshot({ path: testInfo.outputPath('reclass-reloaded-deployed.png') });
