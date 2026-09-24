@@ -75,7 +75,7 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
         .find((n) => n.type === 'battle').id,
   );
   await page.locator(`[data-node="${nodeId}"]`).tap();
-  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
+  await page.getByRole('button', { name: 'Travel', exact: true }).tap();
   await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('Battle'));
   await expect(page.locator('#game-wrapper')).toHaveAttribute('data-terrain-art', 'weathered');
   await expect

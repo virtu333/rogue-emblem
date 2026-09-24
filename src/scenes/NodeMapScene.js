@@ -491,8 +491,8 @@ export class NodeMapScene extends Phaser.Scene {
       void showMinorHint(
         this,
         pending.showFirstRun
-          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Advance commits.'
-          : 'Tap any node to preview it. Advance enters a connected available node. Inspect service nodes to see what this route offers.',
+          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.'
+          : 'Tap any node to preview it. Travel enters a connected available node. Inspect service nodes to see what this route offers.',
       );
     } else if (
       pending.showHpPersist &&

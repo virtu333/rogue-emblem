@@ -60,7 +60,7 @@ async function enterNode(page, desired) {
     return n.id;
   }, desired);
   await page.locator(`[data-node="${nodeId}"]`).tap();
-  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
+  await page.getByRole('button', { name: 'Travel', exact: true }).tap();
 }
 
 test('touch run: loadout, battle action, rewards, shop, equipment, next battle and local resume', async ({

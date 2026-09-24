@@ -138,7 +138,7 @@ test.describe('Gamepad menu navigation', () => {
     );
   });
 
-  test('NodeMap: pad selects a DOM route node and Advance uses onNodeClick', async ({ page }) => {
+  test('NodeMap: pad selects a DOM route node and Travel uses onNodeClick', async ({ page }) => {
     await page.goto('/?devScene=nodemap&preset=fresh&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
@@ -157,7 +157,7 @@ test.describe('Gamepad menu navigation', () => {
     await expect(target).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.__nodeClicks)).toEqual([]);
     const selected = await target.getAttribute('data-node');
-    await focusWithPad(page, route.getByRole('button', { name: 'Advance', exact: true }));
+    await focusWithPad(page, route.getByRole('button', { name: 'Travel', exact: true }));
     await tap(page, BTN.CONFIRM);
     expect(await page.evaluate(() => window.__nodeClicks)).toEqual([selected]);
   });

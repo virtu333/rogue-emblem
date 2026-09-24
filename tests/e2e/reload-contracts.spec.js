@@ -147,7 +147,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await notes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
   await expect(notes).toHaveCount(0);
   await page.locator(`[data-node="${nodeId}"]`).tap();
-  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
+  await page.getByRole('button', { name: 'Travel', exact: true }).tap();
   await waitForScene(page, 'Battle');
   await battleIdle(page); // This small roster follows the normal automatic deployment path.
   // A resumed slot with no seen hints shows the first-battle camera Field notes
