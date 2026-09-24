@@ -1,6 +1,14 @@
 import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
+import {
+  PC98_ATLAS_SIZES,
+  legacyKeyAliasesRebuilt,
+  legacyPortraitUrl,
+  pc98AtlasData,
+  pc98AtlasKey,
+  portraitArtMode,
+} from '../ui/portraitArt.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
 import { preloadTracedSprites, prepareTracedSprites } from '../ui/TracedSprites.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
@@ -365,19 +373,34 @@ export class BootScene extends Phaser.Scene {
       'enemy_wyvern_rider',
       'enemy_zombie',
     ];
-    if (this._startupFlags.reducedPreload) {
-      this._deferredAssetGroups.push('portraits');
-      for (const name of portraits) {
-        this._deferredAssets.push({
-          type: 'image',
-          key: `portrait_${name}`,
-          src: `assets/portraits/${name}.png`,
+    // PC-98 portrait pass (src/ui/portraitArt.js): same keys, PC-98 files;
+    // names that also have rebuilt art alias the rebuilt texture; canvas
+    // draws small portraits from per-size atlases.
+    const portraitMode = portraitArtMode();
+    const portraitAssets = portraits
+      .filter((name) => !legacyKeyAliasesRebuilt(name, portraitMode))
+      .map((name) => ({
+        type: 'image',
+        key: `portrait_${name}`,
+        src: legacyPortraitUrl(name, portraitMode),
+        group: 'portraits',
+      }));
+    if (portraitMode === 'pc98')
+      for (const size of PC98_ATLAS_SIZES)
+        portraitAssets.push({
+          type: 'atlas',
+          key: pc98AtlasKey(size),
+          src: `assets/portraits/pc98/atlas/${size}.png`,
+          data: pc98AtlasData(size),
           group: 'portraits',
         });
-      }
+    if (this._startupFlags.reducedPreload) {
+      this._deferredAssetGroups.push('portraits');
+      this._deferredAssets.push(...portraitAssets);
     } else {
-      for (const name of portraits) {
-        this.load.image(`portrait_${name}`, `assets/portraits/${name}.png`);
+      for (const asset of portraitAssets) {
+        if (asset.type === 'atlas') this.load.atlas(asset.key, asset.src, asset.data);
+        else this.load.image(asset.key, asset.src);
       }
     }
 

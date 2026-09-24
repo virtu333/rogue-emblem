@@ -399,7 +399,10 @@ export class CeremonyController {
 /** Boss card DOM (exported for review tooling and tests). */
 export function buildBossCard(content, portrait) {
   const entity = content.kind === 'entity';
-  const card = el('div', `ce-boss${entity ? ' ce-boss--entity' : ''}`);
+  const card = el(
+    'div',
+    `ce-boss${entity ? ' ce-boss--entity' : ''}${portrait?.pc98 ? ' is-pc98' : ''}`,
+  );
   const band = el('div', 'ce-boss-band');
   const bust = el('div', 'ce-boss-bust');
   if (portrait?.src) {
@@ -412,6 +415,7 @@ export function buildBossCard(content, portrait) {
       img.decoding = 'async';
       img.src = portrait.src;
       if (!portrait.rebuilt) img.classList.add('is-legacy');
+      if (portrait.pc98) img.classList.add('pc98-portrait');
       bust.append(img);
     }
   }

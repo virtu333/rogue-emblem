@@ -58,16 +58,19 @@ test('named boss art, promoted lord portraits and roster use the same identity',
     .tap();
   const sheet = page.getByRole('dialog', { name: 'Inspect roster' });
   await expect(sheet.locator('.mr-portrait')).toBeVisible();
-  expect(
-    await page.evaluate(async () => {
-      const { textureImageSource } = await import('/src/ui/textureImageSource.js');
-      const b = window.__emblemRogueGame.scene.getScene('Battle');
-      return (
-        document.querySelector('.mr-portrait').src ===
-        textureImageSource(b.textures.get('rebuilt-portrait-lord_edric_promoted'))
-      );
-    }),
-  ).toBe(true);
+  // The roster shows the same identity as the texture: the PC-98 render of
+  // the promoted lord (40px summary variant on a phone).
+  const shown = await page.evaluate(() => {
+    const img = document.querySelector('.mr-portrait');
+    return {
+      id: img.dataset.portraitId,
+      src: img.getAttribute('src'),
+      size: img.dataset.portraitSize,
+    };
+  });
+  expect(shown.id).toBe('lord_edric_promoted');
+  expect(shown.src).toMatch(/assets\/portraits\/pc98\/40\/lord_edric_promoted\.png$/);
+  expect(shown.size).toBe('40');
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(sheet).toHaveCount(0);
 });

@@ -7,6 +7,7 @@ import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils
  */
 import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/Combat.js';
 import { isForged } from '../engine/ForgeSystem.js';
+import { portraitCanvasFrame } from './portraitArt.js';
 
 export class ForecastOverlay {
   /**
@@ -154,11 +155,11 @@ export class ForecastOverlay {
     let y = panelY + 6;
 
     // Portrait (40x40) -- attacker on left edge, defender on right edge
-    const portraitKey = scene._getPortraitKey(unit);
-    if (portraitKey && scene.textures.exists(portraitKey)) {
+    const face = portraitCanvasFrame(scene, scene._getPortraitKey(unit), 40);
+    if (face) {
       const px = isAttacker ? x + 2 : x + sideW - 42;
       const portrait = scene.add
-        .image(px + 20, y + 20, portraitKey)
+        .image(px + 20, y + 20, face.key, face.frame)
         .setDisplaySize(40, 40)
         .setDepth(textDepth);
       this.displayObjects.push(portrait);

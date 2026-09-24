@@ -14,9 +14,11 @@ import {
   el,
   fitText,
   frameScale,
+  portraitPixelScale,
   hairline,
   measureFrame,
 } from './ceremonyDom.js';
+import { pc98PortraitElement } from './portraitArt.js';
 
 /**
  * @param {object} scene
@@ -48,7 +50,16 @@ export function stageFateDecision(scene, surface, options) {
 
   const card = el('div', 'ce-offer');
   const portrait = seraPresent ? ceremonyPortrait(scene, sera) : null;
-  if (portrait?.src) {
+  if (portrait?.pc98) {
+    card.append(
+      pc98PortraitElement({
+        id: portrait.id,
+        size: 48,
+        faction: portrait.faction,
+        className: 'ce-offer-face',
+      }),
+    );
+  } else if (portrait?.src) {
     const face = el('img', 'ce-offer-face');
     face.src = portrait.src;
     face.alt = '';
@@ -83,6 +94,7 @@ export function stageFateDecision(scene, surface, options) {
     style.width = `${Math.round(rect.width)}px`;
     style.height = `${Math.round(rect.height)}px`;
     style.setProperty('--ce-scale', String(frameScale(rect)));
+    style.setProperty('--ce-px', String(portraitPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
     fitText(word, { min: 20 });
   };

@@ -70,6 +70,7 @@ import { DEPTH_PICKER, DETAIL_X, DETAIL_WIDTH } from './rosterOverlayShared.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
+import { portraitCanvasFrame } from './portraitArt.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1034,10 +1035,10 @@ export class RosterOverlay {
     );
 
     // Portrait
-    const portraitKey = this._getPortraitKey(unit);
-    if (portraitKey && this.scene.textures.exists(portraitKey)) {
+    const face = portraitCanvasFrame(this.scene, this._getPortraitKey(unit), 48);
+    if (face) {
       const portrait = this.scene.add
-        .image(DETAIL_X + DETAIL_WIDTH - 36, y + 20, portraitKey)
+        .image(DETAIL_X + DETAIL_WIDTH - 36, y + 20, face.key, face.frame)
         .setDisplaySize(48, 48)
         .setDepth(DEPTH_TEXT);
       this.detailObjects.push(portrait);

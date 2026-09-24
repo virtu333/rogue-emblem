@@ -9,6 +9,7 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
+import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -124,10 +125,19 @@ export class MobileHomeBase {
       this.render();
     }
   }
-  portrait(lord) {
+  portrait(lord, size = 48) {
+    const id = `lord_${lord.name.toLowerCase()}`;
+    if (usePc98() && hasPc98(id))
+      return pc98PortraitElement({
+        id,
+        size,
+        faction: 'ember',
+        className: 'mh-portrait',
+        alt: lord.name,
+      });
     const img = node('img', 'mh-portrait');
     img.alt = lord.name;
-    const file = portraitManifest[`lord_${lord.name.toLowerCase()}`]?.file;
+    const file = portraitManifest[id]?.file;
     if (file) img.src = `${import.meta.env.BASE_URL}assets/portraits/rebuilt/${file}`;
     return img;
   }
@@ -188,7 +198,7 @@ export class MobileHomeBase {
     const copy = node('div', 'mu-copy');
     if (lord) {
       const identity = node('div', 'mh-identity');
-      identity.append(this.portrait(lord), node('h2', '', `${lord.name} · ${lord.class}`));
+      identity.append(this.portrait(lord, 64), node('h2', '', `${lord.name} · ${lord.class}`));
       copy.append(
         identity,
         node('p', '', lord.personalSkill),
