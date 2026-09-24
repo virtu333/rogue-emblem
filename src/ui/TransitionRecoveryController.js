@@ -1,6 +1,10 @@
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { clearSavedRun, settleAndPersistEndRun } from '../engine/RunManager.js';
+import {
+  clearSavedRun,
+  endRunPayoutPending,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 
 export class TransitionRecoveryController {
@@ -112,10 +116,12 @@ export class TransitionRecoveryController {
           onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
           slot,
         });
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
+      // A payout that did not reach disk keeps the save so it can retry.
+      if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
+        clearSavedRun(
+          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          slot,
+        );
       const audio = scene.registry.get('audio');
       if (audio) audio.stopMusic(scene, 0);
       resetTransitionLocks(scene);
@@ -251,10 +257,12 @@ export class TransitionRecoveryController {
           onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
           slot,
         });
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
+      // A payout that did not reach disk keeps the save so it can retry.
+      if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
+        clearSavedRun(
+          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          slot,
+        );
       const audio = scene.registry.get('audio');
       if (audio) audio.stopMusic(scene, 0);
       resetTransitionLocks(scene);

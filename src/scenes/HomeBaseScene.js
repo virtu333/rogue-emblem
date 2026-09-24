@@ -24,6 +24,8 @@ import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { BoundingFocusController } from '../ui/BoundingFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { retryPendingEndRunPayout } from '../engine/RunManager.js';
+import { deleteRunSave } from '../cloud/CloudSync.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats', label: 'Recruits' },
@@ -163,6 +165,12 @@ export class HomeBaseScene extends Phaser.Scene {
     this.events.once('shutdown', () => HomeBaseScene.prototype._onSceneShutdown.call(this));
 
     this.meta = this.registry.get('meta');
+    // A finished run whose rewards could not be written is kept; credit it
+    // before anything here can start a new run over its save.
+    const cloud = this.registry.get('cloud');
+    retryPendingEndRunPayout(this.gameData, this.meta, this.registry.get('activeSlot'), {
+      onClear: cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+    });
     this.activeTab = 'recruit_stats';
     this.tabScrollOffsets = {};
     this.tabScrollMax = 0;

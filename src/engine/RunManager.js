@@ -3369,50 +3369,62 @@ export class RunManager {
       summary.appliedToMeta = true;
       return;
     }
-    if (runId) meta.markRunSettled?.(runId);
-    meta.addValor(summary.valor);
-    meta.addSupply(summary.supply);
-    meta.incrementRunsCompleted();
-    // Stamp first-clear BEFORE beatGame is recorded — RunComplete dialogue
-    // reads it off endRunRewards after the milestone already exists.
-    summary.firstClear =
-      summary.result === 'victory' &&
-      this.actIndex >= 3 &&
-      (typeof meta.hasMilestone === 'function' ? !meta.hasMilestone('beatGame') : false);
-    if (this.actIndex >= 1) meta.recordMilestone('beatAct1');
-    if (this.actIndex >= 2) meta.recordMilestone('beatAct2');
-    if (this.actIndex >= 3) meta.recordMilestone('beatAct3');
-    if (summary.result === 'victory' && this.actIndex >= 3) meta.recordMilestone('beatGame');
-    if (summary.result === 'victory' && this.difficultyId === 'hard')
-      meta.recordMilestone('beatHard');
-    if (summary.result === 'victory' && this.difficultyId === 'lunatic')
-      meta.recordMilestone('beatLunatic');
-    // Narrative memory flush — exactly-once under this guard, like currencies.
-    meta.recordRunEnd?.({
-      result: summary.result,
-      victoryRecord:
-        summary.result === 'victory'
-          ? {
-              id: this.runRecordId || `legacy-${this.runSeed}`,
-              endedAt: Date.now(),
-              difficulty: this.difficultyId,
-              seed: this.runSeed,
-              actsCleared: this.actIndex + 1,
-              totalTurns: this.totalTurns,
-              roster: this.roster.map(({ name, className, level, isLord }) => ({
-                name,
-                className,
-                level,
-                isLord,
-              })),
-            }
-          : null,
-      act: this.currentAct,
-      difficultyId: this.difficultyId || 'normal',
-      defeatedBy: this.defeatContext?.defeatedBy || null,
-      wasBossDefeat: this.defeatContext?.wasBoss === true,
-      lordFalls: Array.isArray(this.runLordFalls) ? this.runLordFalls : [],
-    });
+    // One write carries the currencies, records and paid marker; only mark the
+    // summary applied once it is on disk, so a failed meta write leaves the
+    // payout to retry instead of recording it as paid.
+    const pay = (m) => {
+      if (runId) m.markRunSettled?.(runId);
+      m.addValor(summary.valor);
+      m.addSupply(summary.supply);
+      m.incrementRunsCompleted();
+      // Stamp first-clear BEFORE beatGame is recorded — RunComplete dialogue
+      // reads it off endRunRewards after the milestone already exists.
+      summary.firstClear =
+        summary.result === 'victory' &&
+        this.actIndex >= 3 &&
+        (typeof m.hasMilestone === 'function' ? !m.hasMilestone('beatGame') : false);
+      if (this.actIndex >= 1) m.recordMilestone('beatAct1');
+      if (this.actIndex >= 2) m.recordMilestone('beatAct2');
+      if (this.actIndex >= 3) m.recordMilestone('beatAct3');
+      if (summary.result === 'victory' && this.actIndex >= 3) m.recordMilestone('beatGame');
+      if (summary.result === 'victory' && this.difficultyId === 'hard')
+        m.recordMilestone('beatHard');
+      if (summary.result === 'victory' && this.difficultyId === 'lunatic')
+        m.recordMilestone('beatLunatic');
+      // Narrative memory flush — exactly-once under this guard, like currencies.
+      m.recordRunEnd?.({
+        result: summary.result,
+        victoryRecord:
+          summary.result === 'victory'
+            ? {
+                id: this.runRecordId || `legacy-${this.runSeed}`,
+                endedAt: Date.now(),
+                difficulty: this.difficultyId,
+                seed: this.runSeed,
+                actsCleared: this.actIndex + 1,
+                totalTurns: this.totalTurns,
+                roster: this.roster.map(({ name, className, level, isLord }) => ({
+                  name,
+                  className,
+                  level,
+                  isLord,
+                })),
+              }
+            : null,
+        act: this.currentAct,
+        difficultyId: this.difficultyId || 'normal',
+        defeatedBy: this.defeatContext?.defeatedBy || null,
+        wasBossDefeat: this.defeatContext?.wasBoss === true,
+        lordFalls: Array.isArray(this.runLordFalls) ? this.runLordFalls : [],
+      });
+    };
+    if (typeof meta.applyRunPayout === 'function') {
+      const saved = meta.applyRunPayout(pay);
+      if (!saved?.ok) {
+        console.warn('[RunManager] end-of-run payout not saved; will retry');
+        return;
+      }
+    } else pay(meta);
     summary.appliedToMeta = true;
   }
 
@@ -4420,6 +4432,32 @@ export function hasSavedRun(slotNumber) {
   } catch (_) {
     return false;
   }
+}
+
+/**
+ * True while a settled run's payout has not reached meta on disk (the meta
+ * write failed). The run save must then be kept: it is the only record the
+ * payout can be retried from (RunComplete retries on the next Continue).
+ */
+export function endRunPayoutPending(runManager, meta) {
+  const rewards = runManager?.endRunRewards;
+  return Boolean(meta && rewards && rewards.appliedToMeta !== true);
+}
+
+/**
+ * Retry a kept run's pending payout (its meta write failed at run end), then
+ * drop the save once paid. Called where the player lands between runs, so a
+ * new run never replaces a save whose rewards were not credited yet.
+ * @returns {boolean} true when a pending payout was paid and the save cleared
+ */
+export function retryPendingEndRunPayout(gameData, meta, slot, { onClear = null } = {}) {
+  if (!meta || !isValidSlotNumber(slot)) return false;
+  const rm = loadRun(gameData, slot);
+  if (!rm?.endRunRewards) return false;
+  rm.settleEndRunRewards(meta, rm.endRunRewards.result);
+  if (endRunPayoutPending(rm, meta)) return false;
+  clearSavedRun(onClear, slot);
+  return true;
 }
 
 /**

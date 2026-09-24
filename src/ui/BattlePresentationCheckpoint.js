@@ -48,12 +48,24 @@ export function readCommittedAction(value) {
       return null;
     weaponArt = { artId: art.artId, weaponIndex: art.weaponIndex };
   }
+  // Gambler's Coin modifiers the forecast already rolled (null = not rolled).
+  let gamblerAtkDelta = null;
+  if (value.gamblerAtkDelta != null) {
+    const g = value.gamblerAtkDelta;
+    const side = (v) => v === null || v === undefined || (Number.isInteger(v) && Math.abs(v) <= 99);
+    if (typeof g !== 'object' || Array.isArray(g) || !side(g.attacker) || !side(g.defender))
+      return null;
+    const pick = (v) => (Number.isInteger(v) ? v : null);
+    if (pick(g.attacker) !== null || pick(g.defender) !== null)
+      gamblerAtkDelta = { attacker: pick(g.attacker), defender: pick(g.defender) };
+  }
   return {
     kind: 'attack',
     unitId: value.unitId,
     unitName: value.unitName,
     targetId: value.targetId,
     weaponArt,
+    ...(gamblerAtkDelta ? { gamblerAtkDelta } : {}),
   };
 }
 

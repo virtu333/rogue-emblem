@@ -191,7 +191,12 @@ import {
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
-import { clearSavedRun, saveRun, settleAndPersistEndRun } from '../engine/RunManager.js';
+import {
+  clearSavedRun,
+  endRunPayoutPending,
+  saveRun,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import {
   calculateKillReward,
   generateLootChoices,
@@ -4331,10 +4336,12 @@ export class BattleScene extends Phaser.Scene {
               onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
               slot,
             });
-            clearSavedRun(
-              cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-              slot,
-            );
+            // A payout that did not reach disk keeps the save so it can retry.
+            if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+              clearSavedRun(
+                cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+                slot,
+              );
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
@@ -8064,7 +8071,28 @@ export class BattleScene extends Phaser.Scene {
       targetId: defender.battleEntityId,
       weaponArt: art ? { artId: art.artId, weaponIndex: art.weaponIndex } : null,
     };
+    // Gambler's Coin: the forecast already rolled the attack modifier. Legacy
+    // battles roll it from the live battle stream, so a resume must reuse the
+    // chosen value, not roll again (which would also shift every later roll).
+    const deltas = this._ensureCombatRollSession?.(attacker, defender)?.gamblerAtkDeltaByUnit;
+    const chosen = (unit) =>
+      deltas instanceof Map && Number.isInteger(deltas.get(unit)) ? deltas.get(unit) : null;
+    const gambler = { attacker: chosen(attacker), defender: chosen(defender) };
+    if (gambler.attacker !== null || gambler.defender !== null)
+      this._pendingCommittedAction.gamblerAtkDelta = gambler;
     this._captureSuspendCheckpoint?.({ commitIntent: true });
+  }
+
+  /** Put a committed attack's already-rolled Gambler's Coin modifiers back in play. */
+  _restoreCommittedGamblerDeltas(intent, attacker, defender) {
+    const saved = intent?.gamblerAtkDelta;
+    if (!saved) return;
+    const session = this._ensureCombatRollSession?.(attacker, defender);
+    if (!(session?.gamblerAtkDeltaByUnit instanceof Map)) return;
+    if (Number.isInteger(saved.attacker))
+      session.gamblerAtkDeltaByUnit.set(attacker, saved.attacker);
+    if (Number.isInteger(saved.defender))
+      session.gamblerAtkDeltaByUnit.set(defender, saved.defender);
   }
 
   /**
@@ -8107,7 +8135,11 @@ export class BattleScene extends Phaser.Scene {
     } catch {
       /* cosmetic only */
     }
-    const run = () => this.executeCombat(attacker, defender);
+    const run = () => {
+      // Seed the roll session right before the attack reads it.
+      this._restoreCommittedGamblerDeltas(intent, attacker, defender);
+      return this.executeCombat(attacker, defender);
+    };
     if (typeof this._scheduleSafeDelayedAsync === 'function')
       this._scheduleSafeDelayedAsync(400, 'resume_committed_attack', run, {
         phase: 'player',
