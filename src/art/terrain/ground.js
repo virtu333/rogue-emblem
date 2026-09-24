@@ -323,34 +323,42 @@ function paintLava(S, x, y, i) {
 }
 
 function paintSwamp(S, x, y, i, acid) {
-  // Marsh water: the same olive family as bog mud (one value step darker),
-  // told apart by texture - flat water with horizontal glints and algae
-  // drifts - so a swamp / bog patchwork reads as one wetland.
+  // Marsh water: murky olive pools in the same family as bog mud, told apart
+  // by what makes water read as water - horizontal glints, a dark bank line
+  // on the north / west edge and a mud lip on the lit south / east edge - so
+  // a swamp / bog patchwork reads as one wetland with legible pools.
   const seed = S.seed;
   const n = S.nz.fbm(x, y, 18, seed + 61, 2);
-  let t = n < 0.5 ? R('marsh', 4) : n < 0.8 ? R('marsh', 5) : R('marsh', 3);
+  let t = n < 0.4 ? R('marsh', 3) : n < 0.84 ? R('marsh', 4) : R('marsh', 5);
   let anim = 0;
   if (
     y % 3 === 1 &&
     S.nz.fbm(x * 0.35, y * 1.4, 12, seed + 64, 2) > 0.62 &&
-    S.nz.vn(x, y, 3, seed + 65) > 0.4
+    S.nz.vn(x, y, 3, seed + 65) > 0.36
   )
-    t = R('marsh', 6);
+    t = R('marsh', 6); // glints stay still: the tide cycle is for open water
   if (acid) {
     const a = S.nz.fbm(x, y, 10, seed + 71, 2);
-    if (a > 0.7) {
+    if (a > 0.74) {
       t = R('acid', 3);
       anim = ANIM.ACID;
-    } else if (a > 0.6) t = R('acid', 2);
-    else if (a > 0.53) t = R('acid', 1);
+    } else if (a > 0.66) {
+      t = R('acid', 2);
+      anim = 0;
+    } else if (a > 0.58) {
+      t = R('acid', 1);
+      anim = 0;
+    }
   }
-  // Soft marsh edge: a shaded band under the north / west bank and a
-  // broken lit mud rim on the lit side, no hard outline.
-  if (S.dU[i] <= 2 || S.dL[i] <= 1) {
+  const u = S.dU[i];
+  if (u === 1 || S.dL[i] === 1) {
+    t = R('marsh', 1);
+    anim = 0;
+  } else if (u <= 3 || S.dL[i] <= 2) {
     t = down(t, 1);
     anim = 0;
-  } else if ((S.dD[i] === 1 || S.dR[i] === 1) && S.nz.vn(x, y, 4, seed + 63) > 0.5) {
-    t = R('marsh', 7);
+  } else if ((S.dD[i] === 1 || S.dR[i] === 1) && S.nz.vn(x, y, 4, seed + 63) > 0.3) {
+    t = R('earth', 3);
     anim = 0;
   }
   animOut = anim;
@@ -358,11 +366,12 @@ function paintSwamp(S, x, y, i, acid) {
 }
 
 function paintBog(S, x, y, acid) {
-  // Olive mud: broad wet hollows and drier rises, no crack network (it read
-  // as paving next to swamp). Puddles and tussocks come from the decals.
+  // Brown-olive mud: broad wet hollows and drier rises, no crack network
+  // (it read as paving next to swamp). Puddles and tussocks come from the
+  // decals.
   const seed = S.seed;
   const n = S.nz.fbm(x, y, 22, seed + 81, 2) + (S.nz.vn(x, y, 4, seed + 83) - 0.5) * 0.06;
-  let t = n < 0.32 ? R('marsh', 5) : n < 0.78 ? R('marsh', 6) : R('marsh', 7);
+  let t = n < 0.3 ? R('marsh', 5) : n < 0.76 ? R('earth', 3) : R('earth', 4);
   let anim = 0;
   if (acid) {
     const a = S.nz.fbm(x, y, 9, seed + 82, 2);
@@ -760,7 +769,7 @@ export function passDecals(S, x0, y0, x1, y1) {
         (ch) => (ch === 'h' ? R('acid', 4) : R('acid', 2)),
         (mm) => mm === G.ASWAMP,
       );
-    } else if ((m === G.BOG || m === G.ABOG) && S.dAny(i) >= 3 && p.r < 0.34) {
+    } else if ((m === G.BOG || m === G.ABOG) && S.dAny(i) >= 3 && p.r < 0.2) {
       const acid = m === G.ABOG && p.r < 0.22;
       const rows = p.r < 0.2 ? ['.ddd.', 'dwwwl', '.lll.'] : ['.dd.', 'dwwl', '.ll.'];
       stamp(

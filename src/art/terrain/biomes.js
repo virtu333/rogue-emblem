@@ -121,6 +121,8 @@ export const BIOMES = {
   },
   tundra: {
     defaultGround: G.GRASS,
+    dirt: [R('snow', 3), R('snow', 2)],
+    pebble: [R('stone', 4), R('stone', 3)],
     ground: {
       dark: R('snow', 4),
       base: R('snow', 5),
@@ -164,21 +166,24 @@ export const BIOMES = {
   },
   volcano: {
     defaultGround: G.GRASS,
+    dirt: [R('ash', 5), R('ash', 4)],
+    pebble: [R('ash', 8), R('ash', 5)],
+    // one step lighter than the study: dark units must still read on ash
     ground: {
-      dark: R('ash', 4),
-      base: R('ash', 5),
-      light: R('ash', 6),
-      hi: R('ash', 7),
-      blade: R('earth', 3),
-      shade: R('ash', 3),
+      dark: R('ash', 5),
+      base: R('ash', 6),
+      light: R('ash', 7),
+      hi: R('ash', 8),
+      blade: R('earth', 4),
+      shade: R('ash', 4),
       stretch: [0.6, 1.2],
     },
     rockGround: {
-      dark: R('ash', 4),
-      base: R('ash', 5),
-      light: R('ash', 6),
-      hi: R('ash', 7),
-      blade: R('earth', 3),
+      dark: R('ash', 5),
+      base: R('ash', 6),
+      light: R('ash', 7),
+      hi: R('ash', 8),
+      blade: R('earth', 4),
       stretch: [0.6, 1.2],
     },
     trees: [
@@ -208,6 +213,7 @@ export const BIOMES = {
   },
   swamp: {
     defaultGround: G.GRASS,
+    dirt: [R('earth', 4), R('earth', 3)],
     ground: {
       dark: g(4),
       base: g(5),
@@ -324,11 +330,12 @@ export const MASONRY = {
   default: {
     // Warm taupe flagstones (dusk / torch light) against cool slate walls:
     // hue *and* value separate open floor from blocking masonry.
-    floor: [R('rock', 4), R('rock', 6), R('rock', 5), R('rock', 7)],
+    // variation drifts lighter, not darker, so the hall stays a lit stage
+    floor: [R('rock', 5), R('rock', 6), R('rock', 7), R('rock', 8)],
     floorMortar: {
       [R('rock', 6)]: R('rock', 5),
-      [R('rock', 5)]: R('rock', 4),
       [R('rock', 7)]: R('rock', 6),
+      [R('rock', 8)]: R('rock', 7),
     },
     wallTop: [R('stone', 2), R('stone', 3), R('ink', 6), R('stone', 4), R('stone', 5), R('ink', 6)],
     wallFace: [R('stone', 0), R('stone', 1), R('stone', 2), R('ink', 5), R('stone', 3)],

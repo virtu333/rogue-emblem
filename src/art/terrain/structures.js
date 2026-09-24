@@ -207,18 +207,23 @@ function village(S, c, r) {
 }
 
 // ---------------------------------------------------------------- throne
+// A gilt high-backed chair (the Hollow Sun set in its velvet back) on a
+// low two-step dais with a carpet running down to the cell edge.
 const THRONE = [
   '.......GG.......',
-  '......gGGg......',
-  '.....gCCCCg.....',
-  '....gCccccCg....',
-  '....gCccccCg....',
-  '....gCccccCg....',
-  '....gCccccCg....',
-  '....gCccccCg....',
-  '..AAgCCCCCCgAA..',
-  '..AaasssssssaA..',
-  '..ll........ll..',
+  '......GggG......',
+  '.....GgrrgG.....',
+  '....GgrRRrgG....',
+  '....GrRRRRrG....',
+  '....GrRoooRG....',
+  '....GrRokoRG....',
+  '....GrRoooRG....',
+  '....GrRRRRrG....',
+  '....GrRRRRrG....',
+  '..AAGrRRRRrGAA..',
+  '..AagssssssgaA..',
+  '..AaGSSSSSSGaA..',
+  '..ll.l....l.ll..',
 ];
 
 function throne(S, c, r) {
@@ -227,44 +232,51 @@ function throne(S, c, r) {
   const s = new Sprite(c, r, 'structure', oy + 22, { a: 0.35, b: 0.18 });
   const St = stoneFor(S);
   // dais: top plate, lip, two steps
-  for (let y = 9; y < 23; y++)
-    for (let x = 1; x < 23; x++) {
+  for (let y = 14; y < 23; y++)
+    for (let x = 2; x < 22; x++) {
       let col;
-      if (y < 17) col = y === 9 ? St(5) : x === 1 ? St(5) : x === 22 ? St(2) : St(4);
-      else if (y === 17) col = St(5);
-      else if (y < 20) col = x < 3 ? St(4) : St(3);
-      else if (y === 20) col = St(4);
-      else col = y === 22 ? St(1) : St(2);
+      if (y < 17) col = y === 14 ? St(5) : x === 2 ? St(5) : x === 21 ? St(2) : St(4);
+      else if (y === 17) col = St(2);
+      else if (y < 20) col = y === 18 ? St(4) : x < 4 ? St(4) : St(3);
+      else col = y === 20 ? St(3) : y === 22 ? St(1) : St(2);
+      if (y >= 18 && (x === 2 || x === 21)) continue; // steps are narrower
       s.set(ox + x, oy + y, col);
     }
-  // carpet from the chair to the cell edge, gold-trimmed
-  for (let y = 16; y < 23; y++)
+  // carpet from the chair down the steps to the cell edge, gold-trimmed
+  for (let y = 15; y < 24; y++)
     for (let x = 9; x < 15; x++)
       s.set(
         ox + x,
         oy + y,
         x === 9 || x === 14
           ? R('ember', 3)
-          : y === 18 || y === 21
+          : y === 17 || y === 20
             ? R('blood', 1)
             : x < 12
               ? R('blood', 3)
               : R('blood', 2),
       );
-  drawMask(s, ox + 4, oy, THRONE, (ch, u, v) => {
+  drawMask(s, ox + 4, oy, THRONE, (ch, u) => {
+    const left = u < 8;
     switch (ch) {
       case 'G':
-        return R('ember', 5);
+        return left ? R('ember', 4) : R('ember', 3);
       case 'g':
-        return u < 8 ? R('ember', 4) : R('ember', 3);
-      case 'C':
-        return u < 8 ? R('blood', 3) : R('blood', 2);
-      case 'c':
-        return v < 4 ? R('blood', 4) : u < 8 ? R('blood', 4) : R('blood', 3);
+        return R('ember', 5);
+      case 'r':
+        return left ? R('blood', 4) : R('blood', 3);
+      case 'R':
+        return left ? R('blood', 3) : R('blood', 2);
+      case 'o':
+        return R('ember', 5);
+      case 'k':
+        return R('ink', 1);
       case 's':
-        return R('blood', 3);
+        return R('blood', 4);
+      case 'S':
+        return R('blood', 2);
       case 'A':
-        return v === 8 ? R('ember', 4) : R('soil', 4);
+        return left ? R('ember', 3) : R('soil', 4);
       case 'a':
         return R('soil', 2);
       case 'l':
@@ -281,19 +293,19 @@ function throne(S, c, r) {
 const BALLISTA = [
   '..........HH..........',
   '.........HhhH.........',
-  '..........bb..........',
-  'LL........bb........LL',
-  '.LAA......bb......AAL.',
-  '..aAAA....bb....AAAa..',
-  '...aaAAA..bb..AAAaa...',
-  '.....aaAAAXXAAAaa.....',
-  '......ss..XX..ss......',
+  '.........bbbb.........',
+  'LL.......bbbb.......LL',
+  'LLAA.....bbbb.....AALL',
+  '.aAAAA...bbbb...AAAAa.',
+  '..aaAAAA.bbbb.AAAAaa..',
+  '....aaAAAXXXXAAAaa....',
+  '......ssAXXXXAss......',
   '........ssXXss........',
   '...PPPPPPPXXPPPPPPP...',
-  '...pPPPPPPXXPPPPPPp...',
-  '...OoO....XX....OoO...',
-  '..OoooO..QXXQ..OoooO..',
-  '...OoO...q..q...OoO...',
+  '..pPPPPPPPXXPPPPPPPp..',
+  '..OoO.....XX.....OoO..',
+  '.OoooO...QXXQ...OoooO.',
+  '..OoO...QqqqqQ...OoO..',
 ];
 
 function ballista(S, c, r) {
@@ -307,7 +319,7 @@ function ballista(S, c, r) {
       case 'h':
         return R('steel', 3);
       case 'b':
-        return u === 10 ? R('soil', 7) : R('soil', 5);
+        return u === 9 ? R('soil', 7) : u === 12 ? R('soil', 3) : R('soil', 5);
       case 'L':
         return R('stone', 5);
       case 'A':
@@ -315,7 +327,7 @@ function ballista(S, c, r) {
       case 'a':
         return R('soil', 2);
       case 'X':
-        return u === 10 ? R('stone', 4) : R('stone', 2);
+        return u <= 10 ? R('stone', 4) : R('stone', 2);
       case 's':
         return R('ink', 9);
       case 'P':
