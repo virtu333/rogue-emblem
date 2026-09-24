@@ -391,3 +391,93 @@ export function stampEyes(sp, box, { facing = 1 } = {}) {
     }
   return false;
 }
+
+/**
+ * Art direction on a traced design: shorten the longest blade to `keep` of its length
+ * (measured from the hilt, the end nearer the body) and taper the new tip to one pixel.
+ * Used where the owner asked for a sword brought in (base Edric).
+ */
+export function shortenBlade(sp, keep = 0.8) {
+  const pts = [];
+  for (let i = 0; i < sp.w * sp.h; i++)
+    if (sp.slot[i] === SLOT.metal) pts.push([i % sp.w, (i / sp.w) | 0]);
+  if (pts.length < 6) return false;
+  const mx = pts.reduce((a, p) => a + p[0], 0) / pts.length,
+    my = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  let sxx = 0,
+    syy = 0,
+    sxy = 0;
+  for (const [x, y] of pts) {
+    sxx += (x - mx) ** 2;
+    syy += (y - my) ** 2;
+    sxy += (x - mx) * (y - my);
+  }
+  const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  let ux = Math.cos(ang),
+    uy = Math.sin(ang);
+  // orient the axis from the hilt (closer to the body centre) to the tip
+  const body = sp.bounds((s) => !WEAPON_SLOTS.has(s));
+  const bcx = body.x + body.width / 2,
+    bcy = body.y + body.height / 2;
+  if ((mx - bcx) * ux + (my - bcy) * uy < 0) {
+    ux = -ux;
+    uy = -uy;
+  }
+  const proj = pts.map(([x, y]) => (x - mx) * ux + (y - my) * uy);
+  const lo = Math.min(...proj),
+    hi = Math.max(...proj);
+  const cut = lo + (hi - lo) * keep;
+  pts.forEach(([x, y], k) => {
+    const t = proj[k];
+    const perp = Math.abs(-(x - mx) * uy + (y - my) * ux);
+    if (t > cut) sp.set(x, y, SLOT.empty, 0);
+    else if (t > cut - 2 && perp > 0.75) sp.set(x, y, SLOT.empty, 0); // taper the tip
+  });
+  return true;
+}
+
+/** Recolour a slot to another material (e.g. mute a lord's gold trim to leather). */
+export function remapSlot(sp, from, to, shadeShift = 0) {
+  for (let i = 0; i < sp.w * sp.h; i++)
+    if (sp.slot[i] === from) {
+      sp.slot[i] = to;
+      sp.shade[i] = Math.max(0, Math.min(4, sp.shade[i] + shadeShift));
+    }
+}
+
+/**
+ * Face read at map size: inside the face, dark line work (lash lines, brow and
+ * bang-shadow outlines) merges with the eyes into a mask. Lines with skin on two or
+ * more sides become the skin's shadow step; lines under the hair become hair shadow.
+ * Eyes stay the darkest thing on the face. `box` = target head box.
+ */
+export function clearFace(sp, box) {
+  const [x0, y0, x1, y1] = box.map(Math.round);
+  let fx0 = Infinity,
+    fy0 = Infinity,
+    fx1 = -1,
+    fy1 = -1;
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++)
+      if (sp.at(x, y) === SLOT.skin) {
+        fx0 = Math.min(fx0, x);
+        fx1 = Math.max(fx1, x);
+        fy0 = Math.min(fy0, y);
+        fy1 = Math.max(fy1, y);
+      }
+  if (fx1 < 0) return 0;
+  const snap = sp.clone();
+  let n = 0;
+  for (let y = fy0 - 1; y <= fy1; y++)
+    for (let x = fx0; x <= fx1; x++) {
+      if (snap.at(x, y) !== SLOT.ink) continue;
+      if (N4.some(([dx, dy]) => !snap.at(x + dx, y + dy))) continue; // silhouette edge
+      const skin = N4.filter(([dx, dy]) => snap.at(x + dx, y + dy) === SLOT.skin).length;
+      const hairAbove = snap.at(x, y - 1) === SLOT.hair;
+      if (skin >= 2) sp.set(x, y, SLOT.skin, 1);
+      else if (hairAbove) sp.set(x, y, SLOT.hair, 0);
+      else continue;
+      n++;
+    }
+  return n;
+}

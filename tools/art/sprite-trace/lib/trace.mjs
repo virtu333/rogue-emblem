@@ -5,9 +5,11 @@
 import { recoverGrid } from './grid.mjs';
 import { largestComponent } from './figures.mjs';
 import { segment } from './segment.mjs';
-import { prepareNative, reduce, reduceMerge, absorbTextureLines } from './reduce.mjs';
+import { prepareNative, reduce, reduceMerge, absorbTextureLines, thinLines } from './reduce.mjs';
 import {
   quantize,
+  shortenBlade,
+  remapSlot,
   tidyEyes,
   stampEyes,
   removeSpecks,
@@ -18,8 +20,9 @@ import {
   pixelPerfect,
   keyLight,
   ensureEyes,
+  clearFace,
 } from './cleanup.mjs';
-import { rampFromSamples, rampLab } from './ramps.mjs';
+import { rampFromSamples, rampLab, nearestStep } from './ramps.mjs';
 import { SLOT, SLOTS, BODY_EXCLUDE } from './slots.mjs';
 import { fitScale, placement } from './place.mjs';
 import { abstractNative, conditionRamp } from './simplify.mjs';
@@ -53,7 +56,45 @@ export function recoverFigure(crop, opts = {}) {
  * Trace a native figure into an IndexedSprite placed in its texture.
  * recipe: segmentation recipe + { kind, scaleBias? } ; opts: { density }
  */
-export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' } = {}) {
+/** Keep only the largest gold-thread cluster (the belt/buckle); the rest becomes leather. */
+function muteTrim(sp) {
+  const seen = new Uint8Array(sp.w * sp.h);
+  let best = null;
+  const comps = [];
+  for (let i = 0; i < sp.w * sp.h; i++) {
+    if (sp.slot[i] !== SLOT.trim || seen[i]) continue;
+    const comp = [i];
+    seen[i] = 1;
+    for (let k = 0; k < comp.length; k++) {
+      const x = comp[k] % sp.w,
+        y = (comp[k] / sp.w) | 0;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const j = (y + dy) * sp.w + x + dx;
+        if (sp.inside(x + dx, y + dy) && !seen[j] && sp.slot[j] === SLOT.trim) {
+          seen[j] = 1;
+          comp.push(j);
+        }
+      }
+    }
+    comps.push(comp);
+    if (!best || comp.length > best.length) best = comp;
+  }
+  const keep = new Set(best || []);
+  const tmp = sp.clone();
+  remapSlot(tmp, SLOT.trim, SLOT.leather, 0);
+  for (let i = 0; i < sp.w * sp.h; i++)
+    if (sp.slot[i] === SLOT.trim && !keep.has(i)) {
+      sp.slot[i] = tmp.slot[i];
+      sp.shade[i] = tmp.shade[i];
+    }
+}
+
+export function traceNative(native, recipe = {}, { density = 1.5, mode = null } = {}) {
   const seg = segment(native, recipe);
   const prep = prepareNative(seg, { peel: recipe.peel !== false, thick: recipe.thick !== false });
   const { w, h } = seg;
@@ -92,13 +133,29 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
 
   if (s < (recipe.textureBelow ?? 0.8)) absorbTextureLines(prep, w, h);
   const abst = abstractNative(seg, prep, s, recipe.abstract || {});
-  const red = (mode === 'area' ? reduce : reduceMerge)(
+  // Two reducers: near 1:1 the artist's exact pixels survive best (priority-merge
+  // decimation); under strong reduction an area vote over abstracted materials is cleaner.
+  const heavy = s < (recipe.heavyBelow ?? 0.55);
+  const useMode = recipe.mode || mode || (heavy ? 'area' : 'merge');
+  const red = (useMode === 'area' ? reduce : reduceMerge)(
     { ...seg, lab: abst.lab },
     { fill: abst.fill, dark: abst.dark },
     s,
     { head: seg.head, ...(recipe.reduce || {}) },
   );
   const sp = quantize(red, rampLabs);
+  // trace thin trims, thread and weapon lines as continuous one-pixel lines
+  if (recipe.lines !== false && useMode === 'area') {
+    const LINE_SLOTS = [SLOT.linen, SLOT.trim, SLOT.metal, SLOT.wood, SLOT.glow];
+    const weaponish = new Set([SLOT.metal, SLOT.wood, SLOT.glow]);
+    for (const t of thinLines(w, h, abst.fill, abst.lab, s, red.mapPoint, LINE_SLOTS)) {
+      const cur = sp.at(t.x, t.y);
+      if (!sp.inside(t.x, t.y) || cur === SLOT.eye) continue;
+      if (!cur && !weaponish.has(t.slot)) continue; // trims never grow the silhouette
+      const ramp = rampLabs[t.slot];
+      sp.set(t.x, t.y, t.slot, ramp ? nearestStep(ramp, t.lab) : 3);
+    }
+  }
 
   // native eye centroids -> target coordinates (at least one eye pixel per face)
   const eyePts = [];
@@ -141,9 +198,10 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
   // cleanup (order matters: shapes first, then shading, then line work, light last)
   fillPinholes(sp);
   removeSpurs(sp);
-  removeOrphans(sp);
-  removeSpecks(sp, recipe.speck ?? 2);
-  calmShades(sp, 2);
+  // cleanup strength follows the reduction: near 1:1 the source's own clusters are kept
+  if (recipe.orphans ?? heavy) removeOrphans(sp);
+  removeSpecks(sp, recipe.speck ?? (heavy ? 2 : 1));
+  calmShades(sp, recipe.calm ?? (heavy ? 2 : 0));
   pixelPerfect(sp, SLOT.ink);
   if (recipe.eyes !== false) {
     ensureEyes(sp, eyePts);
@@ -151,10 +209,14 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
     if (seg.face) {
       const [a, b] = red.mapPoint(seg.head[0], seg.head[1]);
       const [c, d] = red.mapPoint(seg.head[2], seg.head[3]);
+      if (recipe.clearFace !== false) clearFace(sp, [a, b, c, d]);
       stampEyes(sp, [a, b, c, d]);
     }
   }
-  if (recipe.keyLight !== false) keyLight(sp);
+  // art-direction notes on a design (owner review): bring a sword in, mute gold trim
+  if (recipe.bladeKeep) shortenBlade(sp, recipe.bladeKeep);
+  if (recipe.muteTrim) muteTrim(sp);
+  if (recipe.keyLight ?? heavy) keyLight(sp);
 
   // place into the texture
   const fb = sp.bounds();

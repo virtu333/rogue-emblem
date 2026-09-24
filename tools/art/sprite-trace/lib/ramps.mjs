@@ -14,7 +14,8 @@ export const BIBLE_RAMPS = {
   unlight: R('#170c24 #2c1645 #4a2270 #763aa0 #a863cc'),
   gold: R('#4f2c16 #80461f #b3702c #dca044 #f3cb6c'),
   ironTrim: R('#1a1a20 #2b2c33 #40414a #5a5b63 #7a7a80'),
-  silver: R('#211d2b #403949 #766b77 #bdb0aa #f4ecdb'),
+  // player plate: bright ink-ramp silver (lit actor); the enemy's iron keeps no bright step
+  silver: R('#2e293a #58505e #978b94 #ddd0bd #f4ecdb'),
   iron: R('#16131e #2b2c33 #40414a #5a5b63 #7a7a80'),
   bladeP: R('#211d2b #58505e #978b94 #ddd0bd #f4ecdb'),
   bladeE: R('#16131e #40414a #766b77 #bdb0aa #ddd0bd'),
@@ -38,6 +39,7 @@ export const BIBLE_RAMPS = {
   oliveCloth: R('#1d1a12 #34301d #4f4a2a #6e6a3b #938c55'),
   ashCloth: R('#16131e #2e293a #403949 #58505e #766b77'),
   plumCloth: R('#1c111a #3e2d39 #5b4552 #7d6270 #a88d98'),
+  boneCloth: R('#403949 #766b77 #a89a8c #cfc0a8 #ece0c8'),
   glowGold: R('#80461f #dca044 #f3cb6c #fff0bd #ffffff'),
   glowUnlight: R('#2c1645 #763aa0 #a863cc #dcaaf0 #f4e4ff'),
 };

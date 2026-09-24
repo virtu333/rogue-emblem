@@ -219,13 +219,27 @@ const hueToward = (h, target, t) => {
 };
 
 /**
- * Condition a 5-step display ramp: clamp/stretch lightness into the slot's range with
- * a minimum step spacing, then hue-shift shadows toward violet-blue and lights toward
- * warm (the Art Bible rule), preserving the material's own hue and chroma otherwise.
+ * Condition a 5-step display ramp (mild, the default): the reference artist's values are
+ * kept; only a near-black darkest step is lifted off pure black (so dark cloth still
+ * reads against the outline and the acted/corrupted grades have room) and a blown top
+ * step is capped, with a minimum step spacing so every shade reads. `{ strong: true }`
+ * also stretches the ramp into the slot's range and applies the Art Bible hue shift
+ * (shadows toward violet-blue, lights toward warm) — used by the earlier study and kept
+ * for comparison; it flattens detailed references, so it is off by default.
  */
-export function conditionRamp(ramp, slot, { shift = 1 } = {}) {
-  const [lo, hi] = RANGE[slot] || [14, 88];
+export function conditionRamp(ramp, slot, { strong = false, shift = 1 } = {}) {
   const l = ramp.map((c) => lch(rgbToLab(c)));
+  if (!strong) {
+    const lo = slot === SLOT.skin ? 30 : 9;
+    const hi = slot === SLOT.metal || slot === SLOT.glow || slot === SLOT.armor ? 98 : 95;
+    const Ls = l.map((v) => Math.min(hi, Math.max(lo, v[0])));
+    for (let k = 1; k < Ls.length; k++) Ls[k] = Math.max(Ls[k], Ls[k - 1] + 4);
+    return l.map(([, C, h], k) => {
+      const rad = (h * Math.PI) / 180;
+      return labToRgb([Math.min(99, Ls[k]), C * Math.cos(rad), C * Math.sin(rad)]);
+    });
+  }
+  const [lo, hi] = RANGE[slot] || [14, 88];
   let Ls = l.map((v) => v[0]);
   // stretch into [lo, hi] keeping order, then enforce spacing >= 7
   const a = Ls[0],

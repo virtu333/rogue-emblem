@@ -32,7 +32,7 @@ export const HAIRS = [
   'hairSlate',
 ];
 export const SKINS = ['skinFair', 'skinWarm', 'skinOlive', 'skinTan', 'skinDeep'];
-export const BANDS = [null, null, 'rustCloth', 'oliveCloth', 'ashCloth', 'plumCloth'];
+export const BANDS = [null, null, 'rustCloth', 'oliveCloth', 'boneCloth', 'plumCloth'];
 
 /** rollIdentity(seed, designs = 2) -> { design, hair, skin, band } */
 export function rollIdentity(seed, designs = 2) {
@@ -65,9 +65,16 @@ export function addHeadband(sp) {
   if (faceTop < 0) return sp;
   const out = sp.clone();
   const y = faceTop - 1;
-  for (let x = hair.x; x < hair.x + hair.width; x++) {
-    if (out.at(x, y) === SLOT.hair) out.set(x, y, SLOT.accent, 2);
-    // the band wraps: one pixel lower at the back of the head
+  let back = -1;
+  for (let x = hair.x; x < hair.x + hair.width; x++)
+    if (out.at(x, y) === SLOT.hair) {
+      out.set(x, y, SLOT.accent, 3);
+      if (back < 0) back = x;
+    }
+  // the knot's tails hang at the back of the head (the figure faces right)
+  if (back >= 0) {
+    out.set(back - 1, y + 1, SLOT.accent, 2);
+    out.set(back - 1, y + 2, SLOT.accent, 1);
   }
   return out;
 }

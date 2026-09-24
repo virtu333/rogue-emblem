@@ -448,3 +448,91 @@ export function reduceMerge(seg, prep, s, opts = {}) {
   out.mapPoint = (x, y) => [mapAxis(cols.groups, x), mapAxis(rows.groups, y)];
   return out;
 }
+
+/**
+ * Thin structures (at most two native pixels wide) of line-like materials — trims,
+ * hems, gold thread, blades, shafts — lose area contests and come out as broken
+ * blotches. Trace them instead: every pixel of a long thin run is mapped to the target
+ * grid (`mapPoint`), giving a continuous one-pixel line. Returns [{ x, y, slot, lab }].
+ */
+export function thinLines(w, h, fill, lab, s, mapPoint, slots, { minLength = null } = {}) {
+  const n = w * h;
+  const out = [];
+  const minLen = minLength ?? Math.max(4, Math.ceil(2.2 / s));
+  for (const slot of slots) {
+    const M = new Uint8Array(n);
+    let any = false;
+    for (let p = 0; p < n; p++)
+      if (fill[p] === slot) {
+        M[p] = 1;
+        any = true;
+      }
+    if (!any) continue;
+    // chamfer distance to the outside of M
+    const d = new Float32Array(n);
+    for (let p = 0; p < n; p++) d[p] = M[p] ? 99 : 0;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        if (!d[p]) continue;
+        d[p] = Math.min(d[p], x > 0 ? d[p - 1] + 1 : 1, y > 0 ? d[p - w] + 1 : 1);
+      }
+    for (let y = h - 1; y >= 0; y--)
+      for (let x = w - 1; x >= 0; x--) {
+        const p = y * w + x;
+        if (!d[p]) continue;
+        d[p] = Math.min(d[p], x < w - 1 ? d[p + 1] + 1 : 1, y < h - 1 ? d[p + w] + 1 : 1);
+      }
+    // thin: no pixel of the run within 1 px is 2+ deep
+    const thin = new Uint8Array(n);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        if (!M[p]) continue;
+        let deep = false;
+        for (let dy = -1; dy <= 1 && !deep; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const X = x + dx,
+              Y = y + dy;
+            if (X >= 0 && Y >= 0 && X < w && Y < h && d[Y * w + X] >= 2) {
+              deep = true;
+              break;
+            }
+          }
+        if (!deep) thin[p] = 1;
+      }
+    // long runs only (8-connected)
+    const seen = new Uint8Array(n);
+    for (let p0 = 0; p0 < n; p0++) {
+      if (!thin[p0] || seen[p0]) continue;
+      const comp = [p0];
+      seen[p0] = 1;
+      for (let k = 0; k < comp.length; k++) {
+        const x = comp[k] % w,
+          y = (comp[k] / w) | 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const X = x + dx,
+              Y = y + dy;
+            if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+            const q = Y * w + X;
+            if (thin[q] && !seen[q]) {
+              seen[q] = 1;
+              comp.push(q);
+            }
+          }
+      }
+      if (comp.length < minLen) continue;
+      for (const p of comp) {
+        const [X, Y] = mapPoint((p % w) + 0.5, ((p / w) | 0) + 0.5);
+        out.push({
+          x: Math.floor(X),
+          y: Math.floor(Y),
+          slot,
+          lab: [lab[p * 3], lab[p * 3 + 1], lab[p * 3 + 2]],
+        });
+      }
+    }
+  }
+  return out;
+}

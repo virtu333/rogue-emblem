@@ -1,8 +1,23 @@
 // Roster: which reference figure each traced sprite comes from, and the per-figure
-// segmentation recipe (see lib/segment.mjs). References:
-//   S = the reviewed class sheets (Player A / Player B / Enemy, left to right)
-//   R = the approved rebuilt lords and bosses (assets/sprites/rebuilt)
-const S = (name) => `docs/art/class-sprite-review-2026-09-22/sheets/${name}.png`;
+// segmentation recipe (see lib/segment.mjs). Source priority (owner direction,
+// 2026-09-24): the newest "detailed map sprite" candidates first, then the latest
+// revision of each class sheet, then the original class sheets, then rebuilt art.
+//
+//   C   docs/art/sprite-candidates-2026-09-22/sources — newest map-scale candidates (Edric,
+//       Sera, player Archer, enemy Knight), generated against the owner's on-map reference
+//   L   class-sprite-review-2026-09-22/legibility-v2/sheets — sword-class silhouette revision
+//   P2  .../player-set-2/sheets, P3 .../player-set-3/sheets — later player design passes
+//   RV  .../revision/sheets — archer revision (with an enemy design)
+//   S   .../sheets — the original reviewed class sheets (Player A / Player B / Enemy)
+//   R   assets/sprites/rebuilt — approved rebuilt lords and bosses
+// `figures` = number of figures on a sheet (split on transparent gutters, left to right).
+const CS = 'docs/art/class-sprite-review-2026-09-22';
+const C = (name) => `docs/art/sprite-candidates-2026-09-22/sources/${name}.png`;
+const L = (name) => `${CS}/legibility-v2/sheets/${name}.png`;
+const P2 = (name) => `${CS}/player-set-2/sheets/${name}.png`;
+const P3 = (name) => `${CS}/player-set-3/sheets/${name}.png`;
+const RV = (name) => `${CS}/revision/sheets/${name}.png`;
+const S = (name) => `${CS}/sheets/${name}.png`;
 const R = (name) => `assets/sprites/rebuilt/${name}.png`;
 
 // Mount overrides (normalised boxes): the horse / pegasus body is its own material so
@@ -19,8 +34,17 @@ const PEGASUS = [
 
 export const ROSTER = {
   sources: {
-    // --- lords (approved identities) ---------------------------------------------
-    edric: { src: R('lord_edric'), kind: 'infantry', main: 'teal', hair: 'brown' },
+    // --- lords ---------------------------------------------------------------------------
+    // owner note on this candidate: less gold trim on the base lord, sword brought in
+    edric: {
+      src: C('edric'),
+      kind: 'infantry',
+      main: 'teal',
+      hair: 'brown',
+      armor: true,
+      muteTrim: true,
+      bladeKeep: 0.8,
+    },
     edric_promoted: {
       src: R('lord_edric_promoted'),
       kind: 'infantry',
@@ -28,54 +52,94 @@ export const ROSTER = {
       hair: 'brown',
       armor: true,
     },
-    sera: { src: R('lord_sera'), kind: 'mage', main: 'purple', hair: 'red' },
+    sera: { src: C('sera'), kind: 'mage', main: 'purple', hair: 'red' },
     kira: { src: R('lord_kira'), kind: 'infantry', main: 'purple', hair: 'silver' },
-    // --- generic classes (A = player design, B = second player design, E = enemy) ---
-    myrmidon_a: { src: S('myrmidon'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
-    myrmidon_b: { src: S('myrmidon'), figure: 1, kind: 'infantry', main: 'blue', hair: 'silver' },
-    myrmidon_e: { src: S('myrmidon'), figure: 2, kind: 'infantry', main: 'red', hair: 'black' },
-    mercenary_a: { src: S('mercenary'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
+    // --- sword classes: legibility-v2 silhouettes -------------------------------------------
+    myrmidon_a: { src: L('myrmidon'), figure: 0, kind: 'infantry', main: 'blue', hair: 'black' },
+    myrmidon_b: { src: L('myrmidon'), figure: 1, kind: 'infantry', main: 'blue', hair: 'silver' },
+    myrmidon_e: { src: L('myrmidon'), figure: 2, kind: 'infantry', main: 'red', hair: 'silver' },
+    mercenary_a: { src: L('mercenary'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
+    mercenary_b: { src: L('mercenary'), figure: 1, kind: 'infantry', main: 'blue', hair: 'black' },
     mercenary_e: {
-      src: S('mercenary'),
+      src: L('mercenary'),
       figure: 2,
       kind: 'infantry',
       main: 'red',
       hair: null,
       armor: true,
+      eyes: false,
     },
-    thief_a: { src: S('thief'), figure: 0, kind: 'crouch', main: 'blue', hair: 'brown' },
-    thief_e: { src: S('thief'), figure: 2, kind: 'crouch', main: 'red', hair: null },
-    fighter_a: { src: S('fighter'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
+    thief_a: { src: L('thief'), figure: 0, kind: 'crouch', main: 'blue', hair: null },
+    thief_b: { src: L('thief'), figure: 1, kind: 'crouch', main: 'blue', hair: 'green' },
+    thief_e: { src: L('thief'), figure: 2, kind: 'crouch', main: 'red', hair: null },
+    // --- later player designs (player-set-2/3, candidates); enemies from the newest sheet
+    //     that has one ---------------------------------------------------------------------
+    fighter_a: {
+      src: P2('fighter'),
+      figure: 0,
+      figures: 2,
+      kind: 'infantry',
+      main: 'blue',
+      hair: 'red',
+    },
+    fighter_b: {
+      src: P2('fighter'),
+      figure: 1,
+      figures: 2,
+      kind: 'infantry',
+      main: 'blue',
+      hair: 'black',
+    },
     fighter_e: { src: S('fighter'), figure: 2, kind: 'infantry', main: 'red', hair: null },
     knight_a: {
-      src: S('knight'),
+      src: P2('knight'),
       figure: 0,
+      figures: 2,
       kind: 'heavy',
       main: 'blue',
-      hair: 'brown',
+      hair: 'silver',
+      armor: true,
+    },
+    knight_b: {
+      src: P2('knight'),
+      figure: 1,
+      figures: 2,
+      kind: 'heavy',
+      main: 'blue',
+      hair: null,
       armor: true,
     },
     knight_e: {
-      src: S('knight'),
-      figure: 2,
+      src: C('knight'),
       kind: 'heavy',
       main: 'red',
       hair: null,
       armor: true,
       eyes: false,
     },
-    archer_a: { src: S('archer'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
-    archer_e: { src: S('archer'), figure: 2, kind: 'infantry', main: 'red', hair: null },
-    mage_a: { src: S('mage'), figure: 0, kind: 'mage', main: 'blue', hair: 'brown' },
+    archer_a: { src: C('archer'), kind: 'infantry', main: 'blue', hair: 'brown' },
+    archer_b: { src: RV('archer'), figure: 1, kind: 'infantry', main: 'blue', hair: 'black' },
+    archer_e: {
+      src: RV('archer'),
+      figure: 2,
+      kind: 'infantry',
+      main: 'red',
+      hair: null,
+      eyes: false,
+    },
+    mage_a: { src: P2('mage'), figure: 0, figures: 2, kind: 'mage', main: 'blue', hair: 'green' },
+    mage_b: { src: P2('mage'), figure: 1, figures: 2, kind: 'mage', main: 'blue', hair: 'silver' },
     mage_e: { src: S('mage'), figure: 2, kind: 'mage', main: 'red', hair: null },
-    cleric_a: { src: S('cleric'), figure: 0, kind: 'mage', main: 'blue', hair: 'brown' },
+    cleric_a: { src: P2('cleric'), figure: 0, figures: 2, kind: 'mage', main: 'blue', hair: null },
+    cleric_b: { src: P2('cleric'), figure: 1, figures: 2, kind: 'mage', main: 'blue', hair: 'red' },
     cleric_e: { src: S('cleric'), figure: 2, kind: 'mage', main: 'red', hair: null },
     cavalier_a: {
-      src: S('cavalier'),
+      src: P3('cavalier'),
       figure: 0,
+      figures: 2,
       kind: 'mounted',
       main: 'blue',
-      hair: 'brown',
+      hair: 'black',
       armor: true,
       rects: HORSE,
     },
@@ -91,11 +155,12 @@ export const ROSTER = {
       rects: HORSE,
     },
     pegasus_a: {
-      src: S('pegasus-knight'),
+      src: P3('pegasus-knight'),
       figure: 0,
+      figures: 2,
       kind: 'flyer',
       main: 'blue',
-      hair: 'brown',
+      hair: 'black',
       armor: true,
       rects: PEGASUS,
     },
@@ -110,12 +175,14 @@ export const ROSTER = {
       head: [0.45, 0.02, 0.62, 0.25],
       rects: PEGASUS,
     },
+    // --- promotion line for the seeded recruits (original sheet: no later revision) --------
     swordmaster_a: {
       src: S('swordmaster'),
       figure: 0,
       kind: 'infantry',
       main: 'blue',
       hair: 'brown',
+      head: [0.44, 0.0, 0.64, 0.2],
     },
     swordmaster_b: {
       src: S('swordmaster'),
@@ -123,6 +190,7 @@ export const ROSTER = {
       kind: 'infantry',
       main: 'blue',
       hair: 'red',
+      head: [0.3, 0.0, 0.62, 0.24],
     },
     swordmaster_e: {
       src: S('swordmaster'),
@@ -131,7 +199,7 @@ export const ROSTER = {
       main: 'red',
       hair: 'black',
     },
-    // --- bosses -------------------------------------------------------------------
+    // --- bosses (rebuilt art) --------------------------------------------------------------
     boss_blade_lord: {
       src: R('boss_blade_lord'),
       kind: 'boss',
@@ -146,6 +214,46 @@ export const ROSTER = {
       hair: null,
       armor: true,
     },
+    // --- earlier sources of the same units, kept for the source-comparison sheet -----------
+    edric_rebuilt: { src: R('lord_edric'), kind: 'infantry', main: 'teal', hair: 'brown' },
+    sera_rebuilt: { src: R('lord_sera'), kind: 'mage', main: 'purple', hair: 'red' },
+    myrmidon_v1: { src: S('myrmidon'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
+    knight_v1: {
+      src: S('knight'),
+      figure: 2,
+      kind: 'heavy',
+      main: 'red',
+      hair: null,
+      armor: true,
+      eyes: false,
+    },
+    knight_v1a: {
+      src: S('knight'),
+      figure: 0,
+      kind: 'heavy',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+    },
+    pegasus_v1: {
+      src: S('pegasus-knight'),
+      figure: 0,
+      kind: 'flyer',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+      rects: PEGASUS,
+    },
+    cavalier_v1: {
+      src: S('cavalier'),
+      figure: 0,
+      kind: 'mounted',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+      rects: HORSE,
+    },
+    archer_v1: { src: S('archer'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
   },
 };
 

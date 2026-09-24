@@ -280,7 +280,14 @@ export function segment(native, recipe = {}) {
   const mainFam = recipe.main ? FAMILIES[recipe.main] : null;
   const hairFam = recipe.hair ? FAMILIES[HAIR[recipe.hair] || recipe.hair] : null;
   const rules = [
-    [SLOT.trim, (p) => FAMILIES.gold(px(p)) && !(recipe.hair === 'blond' && inHead(p))],
+    [
+      SLOT.trim,
+      (p) =>
+        FAMILIES.gold(px(p)) &&
+        !(recipe.hair === 'blond' && inHead(p)) &&
+        // in the face, warm highlights are skin unless they are unmistakably gold
+        !(inHead(p) && FAMILIES.skin(px(p)) && C[p] < 44),
+    ],
     [
       SLOT.main,
       (p) =>
@@ -472,7 +479,7 @@ export function segment(native, recipe = {}) {
     const cand = new Uint8Array(n);
     const isDarkOrIris = (p) =>
       opaque[p] &&
-      slot[p] !== SLOT.skin &&
+      (slot[p] !== SLOT.skin || L[p] < 40) &&
       ((L[p] < 38 && C[p] < 26) || (C[p] > 20 && hueDist(H[p], 60) > 45 && L[p] < 70));
     // seeds: dark/iris pixels with skin directly below — the lower lid sits on the cheek,
     // which the hairline never does
