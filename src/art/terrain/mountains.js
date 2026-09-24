@@ -454,9 +454,9 @@ function backPart(S, c, r, plan) {
 }
 
 /**
- * Where the range continues both sideways (sx) and vertically (sy), the
- * corner between them is rock too: a shadowed valley behind the peaks, so
- * a block of mountain cells reads as one massif, not a lattice of ridges.
+ * Inside a 2x2 block of mountain cells the corner between the peaks is rock
+ * too: a shadowed valley behind them, so a block reads as one massif, not a
+ * lattice of ridges around holes of grass.
  */
 function valleyPart(S, c, r, plan, sx, sy) {
   const st = S.style.rock;
@@ -469,19 +469,13 @@ function valleyPart(S, c, r, plan, sx, sy) {
     u1 = sx > 0 ? CELL - 1 : 13;
   const v0 = sy < 0 ? 0 : 10,
     v1 = sy < 0 ? 15 : CELL - 1;
-  // Without a mountain in the diagonal cell this is a concave corner of the
-  // range: round it off instead of filling the square.
-  const concave = !isMountain(S, c + sx, r + sy);
-  const cu = sx > 0 ? CELL : 0,
-    cv = sy > 0 ? CELL : 0;
   for (let v = v0; v <= v1; v++)
     for (let u = u0; u <= u1; u++) {
       // ragged toward the cell centre
       const du = sx > 0 ? u - 11 : 13 - u,
         dv = sy < 0 ? 15 - v : v - 10;
       const n = valueNoise(u + ox, v + oy, 3, seed);
-      if (Math.min(du, dv) < 3 * n) continue;
-      if (concave && Math.hypot(u + 0.5 - cu, v + 0.5 - cv) < 9 + n * 3) continue;
+      if (Math.min(du, dv) < 4 * n) continue;
       const x = ox + u,
         y = oy + v;
       const tone = valleyTone(S, x, y);
@@ -499,7 +493,7 @@ export function mountainParts(S, c, r) {
   if (isMountain(S, c, r - 1)) parts.push(backPart(S, c, r, plan));
   for (const sx of [-1, 1])
     for (const sy of [-1, 1])
-      if (isMountain(S, c + sx, r) && isMountain(S, c, r + sy))
+      if (isMountain(S, c + sx, r) && isMountain(S, c, r + sy) && isMountain(S, c + sx, r + sy))
         parts.push(valleyPart(S, c, r, plan, sx, sy));
   for (const dir of [-1, 1]) {
     if (isMountain(S, c + dir, r)) parts.push(shoulderPart(S, c, r, plan, dir));

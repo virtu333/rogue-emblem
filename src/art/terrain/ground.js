@@ -228,7 +228,7 @@ function paintOpenGround(S, x, y, s, wearNear, wood = 0) {
     // crests break up into dashes so they read as wind-shaped ground, not
     // as contour lines
     if (S.nz.fbm(x, y, 38, S.seed + 16, 2) > dr.patch && S.nz.vn(x, y, 7, S.seed + 19) > 0.4) {
-      if (band < 1) t = s.light;
+      if (band < 1) t = dr.crest === false ? t : s.light;
       else if (band < 2.2) t = s.dark;
     }
   }
@@ -509,13 +509,18 @@ function paintFloor(S, x, y, i, wall = 0) {
     if (w.d2 - w.d1 < 0.55) t = mortarOf[stone] ?? mortarLo;
   }
   // Grime, moss or drifted snow gathers where the floor meets a wall.
+  // Only in patches along the foot of a wall (below it or beside it), so it
+  // never reads as an outline around the masonry.
   if (wall > 0.2) {
-    const reach = 1 + Math.round(S.nz.vn(x, y, 5, S.seed + 98) * 3 * Math.min(1, wall * 2));
-    if (S.dAny(i) <= reach) {
-      const g = GRIME[S.biome] || GRIME.castle;
-      const n = S.nz.vn(x, y, 2, S.seed + 99);
-      if (n > 0.55) t = g[0];
-      else if (n > 0.3) t = g[1];
+    const patch = S.nz.vn(x, y, 13, S.seed + 98);
+    if (patch > 0.52) {
+      const reach = Math.round((patch - 0.52) * 9 * Math.min(1, wall * 2));
+      if (Math.min(S.dU[i], S.dL[i], S.dR[i]) <= reach) {
+        const g = GRIME[S.biome] || GRIME.castle;
+        const n = S.nz.vn(x, y, 2, S.seed + 99);
+        if (n > 0.55) t = g[0];
+        else if (n > 0.35) t = g[1];
+      }
     }
   }
   // Edge of the paving next to open ground: a dark kerb line.
@@ -810,13 +815,13 @@ export function passDecals(S, x0, y0, x1, y1) {
       const i = p.y * W + p.x;
       if (mat[i] !== G.GRASS || S.dAny(i) < 3) continue;
       const drift = sat((S.nz.fbm(p.x, p.y, 64, seed + 260, 2) - 0.6) / 0.12);
-      if (p.r > drift * 0.22) continue;
+      if (p.r > drift * 0.16) continue;
       const k = Math.floor(S.nz.vn(p.x, p.y, 48, seed + 261) * style.flowers.length * 0.999);
       const col = style.flowers[k];
       stamp(
         p.x,
         p.y,
-        p.r < drift * 0.12 ? ['f.f', '.f.'] : ['f'],
+        p.r < drift * 0.07 ? ['f.f', '.f.'] : ['f'],
         () => col,
         (mm) => mm === G.GRASS,
       );

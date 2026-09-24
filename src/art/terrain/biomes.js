@@ -201,7 +201,7 @@ export const BIOMES = {
       blade: R('earth', 4),
       shade: R('ash', 4),
       stretch: [0.6, 1.2],
-      drift: { period: 11, len: 8, patch: 0.6 },
+      drift: { period: 12, len: 9, patch: 0.64, crest: false },
     },
     rockGround: {
       dark: R('ash', 5),
@@ -342,7 +342,7 @@ export const BIOMES = {
       light: R('ink', 5),
       hi: R('ink', 6),
       blade: R('unlight', 3),
-      shade: R('unlight', 0),
+      shade: R('unlight', 1), // forest floor stays off black
     },
     rockGround: {
       dark: R('ink', 3),
