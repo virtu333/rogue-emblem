@@ -1,18 +1,29 @@
 // hollowSun.js — "The Hollow Sun" procedural title key art (pure Canvas2D, no Phaser).
 //
-// A wide low-resolution pixel plate (PLATE_W x PLATE_H) rendered with hue-shifted
-// ramps and ordered (Bayer) dithering. Static layers are rasterised once into
-// offscreen canvases; only cheap things animate (corona shimmer, thread glints,
-// banner/scarf flutter, ash + gold motes, star twinkle).
+// The goddess's name was not forgotten; it was spent. The sky keeps the hole where she
+// was: a black disc with a thin gold corona. From a diamond-ring bead on its rim, Sera's
+// gold threads (the rewoven timelines, i.e. the player's runs) arc down to a lone
+// figure on a promontory. One severed thread hangs loose. Below: a ruined old-kingdom
+// keep draped in imperial crimson, the border quarries with the Empire's standards on
+// the rim, and a ring of standing stones (the sacred ground) in the valley mist.
+//
+// Rendering: one wide low-res plate (PLATE_W x PLATE_H) built from the palette ramps
+// below with ordered (Bayer 4x4) dithering. Static layers are rasterised once into
+// offscreen canvases (sky / land / foreground); per frame only cheap things animate:
+// corona shimmer (prebaked frames), thread glints, bead flare, banner + cape flutter,
+// drifting mist, crows, ash, gold motes, star twinkle. Deterministic for a given seed.
 //
 // Usage:
-//   const scene = createHollowSunScene({ seed: 7 });
-//   // (a) raw plate, caller scales it:   scene.render(plateCtx, timeMs)
-//   // (b) convenience cover-crop blit:   scene.draw(ctx, timeMs, ctx.canvas.width, ctx.canvas.height)
+//   const scene = createHollowSunScene({ seed: 7, variant: 'dusk', reducedMotion });
+//   scene.render(plateCtx, timeMs);          // raw 424x240 plate; caller scales it, or
+//   scene.draw(ctx, timeMs, viewW, viewH);   // cover-crop + nearest-neighbour blit
+//   scene.frame(viewW, viewH)                // -> { sx, sy, sw, sh, scale } crop maths
+//   scene.toView(px, py, frame)              // plate coords -> view coords (for DOM/UI)
 //
-// The plate is designed to crop gracefully: 844x390 (phone landscape) sees the
-// full width at 2x (422x195), 640x480 sees the full height at 2x (320x240).
-// Everything important lives inside the intersection of those crops.
+// Cropping: 844x390 (phone landscape) sees the full width at 2x (422x195); 640x480
+// sees the full height at 2x (320x240). Everything important sits inside their
+// intersection (plate x 52..372, y 20..215). The upper-left sky is kept calm for the
+// title lockup; the dark foreground band is kept calm for menus.
 
 export const PLATE_W = 424;
 export const PLATE_H = 240;
@@ -42,17 +53,21 @@ export const PALETTE = {
   unlight: ['#170c24', '#2c1645', '#4a2270', '#763aa0', '#a863cc', '#dcaaf0'],
 };
 
+const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+
+/** Pack '#rrggbb' as an opaque pixel for a Uint32 view over ImageData (RGBA bytes). */
 function pack(hex) {
   const n = parseInt(hex.slice(1), 16);
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0; // little-endian RGBA in a Uint32
+  return LITTLE_ENDIAN
+    ? ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0
+    : ((r << 24) | (g << 16) | (b << 8) | 255) >>> 0;
 }
 
 const INK = PALETTE.ink.map(pack);
 const EMB = PALETTE.ember.map(pack);
-const BLD = PALETTE.blood.map(pack);
 const STL = PALETTE.steel.map(pack);
 const UNL = PALETTE.unlight.map(pack);
 
@@ -335,30 +350,6 @@ function bezier(p0, p1, p2, p3) {
 // Composition (plate space). Crop intersection (always visible): x 52..372, y 20..215.
 // ---------------------------------------------------------------------------
 const VARIANTS = {
-  // Alternate composition: a vast hollow sun rising behind the quarry hill, very close
-  // to the figure. More monumental, less sky for the lockup.
-  rising: {
-    sun: { x: 318, y: 124, r: 40 },
-    // hangs from the upper-right rim and drifts clear of the disc and the fate threads
-    severed: {
-      at: 302,
-      path: [
-        [12, 4],
-        [24, 16],
-        [25, 34],
-      ],
-    },
-    horizon: 172,
-    zenith: 0.4,
-    horizonL: 8.2,
-    skyCurve: 2.2,
-    haloL: 3.0,
-    streamerL: 3.2,
-    glowBandL: 0.9,
-    stars: 110,
-    ash: 70,
-    motes: 6,
-  },
   // Default: totality at dusk. All-round horizon glow, violet zenith, sun upper-right.
   dusk: {
     sun: { x: 292, y: 68, r: 22 },
@@ -388,6 +379,30 @@ const VARIANTS = {
     ash: 170,
     ashBright: true,
     motes: 8,
+  },
+  // Alternate composition: a vast hollow sun rising behind the quarry hill, very close
+  // to the figure. More monumental, less sky for the lockup.
+  rising: {
+    sun: { x: 318, y: 124, r: 40 },
+    // hangs from the upper-right rim and drifts clear of the disc and the fate threads
+    severed: {
+      at: 302,
+      path: [
+        [12, 4],
+        [24, 16],
+        [25, 34],
+      ],
+    },
+    horizon: 172,
+    zenith: 0.4,
+    horizonL: 8.2,
+    skyCurve: 2.2,
+    haloL: 3.0,
+    streamerL: 3.2,
+    glowBandL: 0.9,
+    stars: 110,
+    ash: 70,
+    motes: 6,
   },
 };
 
@@ -723,11 +738,12 @@ export function createHollowSunScene(opts = {}) {
   // ruined old-kingdom keep on the hill
   const keepBanners = [];
   {
-    const K = INK[3];
-    const KL = INK[4];
-    const LIP = INK[5];
+    // one step darker than the hill so the ruin holds against the violet band of sky
+    const K = INK[2];
+    const KL = INK[3];
+    const LIP = INK[4];
     const ground = (x) => Math.floor(midTop[clamp(x, 0, W - 1)]);
-    const skyHole = (x, y, bias = -0.4) => back.set(x, y, pick(SKYR, skyL(x, y) + bias, x, y));
+    const skyHole = (x, y, bias = 0.5) => back.set(x, y, pick(SKYR, skyL(x, y) + bias, x, y));
     // main tower (broken on a diagonal, crenels survive on the high side)
     const tx = 82;
     const tw = 14;
@@ -774,7 +790,7 @@ export function createHollowSunScene(opts = {}) {
       for (let x = 69; x < 78; x++) {
         const ax = x - 73;
         const ay = y - (base - 6);
-        if (ay > 0 || ax * ax + ay * ay * 1.3 < 17) skyHole(x, y, -0.8);
+        if (ay > 0 || ax * ax + ay * ay * 1.3 < 17) skyHole(x, y, 0);
       }
     // wall to the second tower
     for (let x = tx + tw + 1; x < 118; x++) {
@@ -1058,13 +1074,21 @@ export function createHollowSunScene(opts = {}) {
   }
 
   // ============================================================ render
+  let destroyed = false;
   function render(ctx, timeMs = 0) {
-    const t = (reducedMotion ? frozenTime : timeMs) / 1000;
+    if (destroyed) return;
+    // Callers pass rAF / Phaser clocks; never trust them to be finite or non-negative.
+    const ms = reducedMotion ? frozenTime : Number(timeMs);
+    const t = Number.isFinite(ms) && ms > 0 ? ms / 1000 : 0;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(skyCanvas, 0, 0);
     for (const s of twinkles)
       dot(ctx, s.x, s.y, hex(Math.sin(t * 1.7 + s.ph * 3) > 0.6 ? s.c : s.base));
-    ctx.drawImage(coronaFrames[Math.floor(t * 4) % CORONA_FRAMES], SUN.x - cBox, SUN.y - cBox);
+    ctx.drawImage(
+      coronaFrames[Math.floor(t * 4) % CORONA_FRAMES] ?? coronaFrames[0],
+      SUN.x - cBox,
+      SUN.y - cBox,
+    );
     ctx.drawImage(backCanvas, 0, 0);
     for (const m of mistLayers) {
       const off = Math.floor((t * m.speed) % W);
@@ -1173,6 +1197,8 @@ export function createHollowSunScene(opts = {}) {
    * Integer scale when that crops at most ~12% more; otherwise fractional.
    */
   function frame(viewW, viewH, { anchorX = 0.5, anchorY = 0.44 } = {}) {
+    viewW = Math.max(1, viewW || 0);
+    viewH = Math.max(1, viewH || 0);
     let s = Math.max(viewW / W, viewH / H);
     const si = Math.ceil(s - 1e-6);
     if (si / s <= 1.12) s = si;
@@ -1187,7 +1213,13 @@ export function createHollowSunScene(opts = {}) {
     };
   }
 
-  function draw(ctx, timeMs, viewW = ctx.canvas.width, viewH = ctx.canvas.height, frameOpts) {
+  function draw(
+    ctx,
+    timeMs,
+    viewW = opts.width ?? ctx.canvas.width,
+    viewH = opts.height ?? ctx.canvas.height,
+    frameOpts,
+  ) {
     render(plateCtx, timeMs);
     const f = frame(viewW, viewH, frameOpts);
     ctx.imageSmoothingEnabled = false;
@@ -1198,20 +1230,47 @@ export function createHollowSunScene(opts = {}) {
   return {
     width: W,
     height: H,
-    anchors: { sun: { ...SUN }, hand: { ...hand }, figure: { ...FIGURE_FEET } },
+    variant: VARIANTS[opts.variant] ? opts.variant : 'dusk',
+    // Plate-space anchors for laying out UI over the art.
+    anchors: {
+      sun: { ...SUN },
+      hand: { ...hand },
+      figure: { ...FIGURE_FEET },
+      calmSky: { x: 24, y: 8, w: 216, h: 76 }, // title lockup zone (upper-left sky)
+      calmGround: { x: 52, y: 200, w: 320, h: 40 }, // dark foreground band (menus, 4:3)
+    },
     render,
     draw,
     frame,
+    toView(px, py, f) {
+      return { x: (px - f.sx) * f.scale, y: (py - f.sy) * f.scale };
+    },
     setReducedMotion(v) {
       reducedMotion = !!v;
     },
     get reducedMotion() {
       return reducedMotion;
     },
+    /** Release the offscreen canvases (helps iOS reclaim canvas memory). */
     destroy() {
-      coronaFrames.length = 0;
+      destroyed = true;
+      for (const c of [
+        skyCanvas,
+        backCanvas,
+        frontCanvas,
+        threadCanvas,
+        plateCanvas,
+        ...coronaFrames,
+        ...figureFrames,
+        ...mistLayers.map((m) => m.canvas),
+      ]) {
+        c.width = 0;
+        c.height = 0;
+      }
     },
   };
 }
+
+export const HOLLOW_SUN_VARIANTS = Object.keys(VARIANTS);
 
 export default createHollowSunScene;

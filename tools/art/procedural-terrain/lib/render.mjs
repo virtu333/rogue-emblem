@@ -77,14 +77,17 @@ const AMP = {
   [G.FOREST]: 0.24,
   [G.ROCK]: 0.24,
   [G.SAND]: 0.28,
-  [G.WATER]: 0.13,
-  [G.ICE]: 0.16,
+  [G.WATER]: 0.17,
+  [G.ICE]: 0.3,
   [G.LAVA]: 0.2,
-  [G.SWAMP]: 0.24,
-  [G.BOG]: 0.26,
-  [G.ASWAMP]: 0.24,
-  [G.ABOG]: 0.26,
+  [G.SWAMP]: 0.36,
+  [G.BOG]: 0.38,
+  [G.ASWAMP]: 0.36,
+  [G.ABOG]: 0.38,
 };
+// Noise period per material: liquids get long, gentle curves; soft ground
+// gets a shorter, more organic wobble.
+const PERIOD = { [G.WATER]: 22, [G.ICE]: 12, [G.SWAMP]: 13, [G.ASWAMP]: 13, [G.BOG]: 12, [G.ABOG]: 12, [G.LAVA]: 13 };
 const BLUR = 8; // box radius in art px: corner rounding + wobble range
 
 export class TerrainContext {
@@ -186,7 +189,7 @@ function resolveMaterials(M) {
         bestS = -1e9;
       for (let g = 1; g < 16; g++) {
         if (scores[g] < 0) continue;
-        const n = fbm(x, y, 10, seed * 31 + g * 977, 2) - 0.5;
+        const n = fbm(x, y, PERIOD[g] ?? 10, seed * 31 + g * 977, 2) - 0.5;
         const s = scores[g] + (AMP[g] ?? 0.2) * 2 * n + (g === own ? 0.001 : 0);
         if (s > bestS) {
           bestS = s;
@@ -254,8 +257,8 @@ function wearAt(M, x, y) {
 }
 
 function paintOpenGround(M, x, y, s, i) {
-  const n = fbm(x, y, 36, M.seed + 11, 2);
-  let t = n < 0.36 ? s.dark : n > 0.64 ? s.light : s.base;
+  const n = fbm(x, y, 40, M.seed + 11, 2);
+  let t = n < 0.32 ? s.dark : n > 0.7 ? s.light : s.base;
   const wear = wearAt(M, x, y);
   if (wear > 0) {
     const k = wear + (valueNoise(x, y, 5, M.seed + 12) - 0.5) * 0.5;
@@ -268,11 +271,13 @@ function paintOpenGround(M, x, y, s, i) {
 
 function paintWater(M, x, y, i) {
   const d = Math.min(M.dAny(i), 12) + (fbm(x, y, 12, M.seed + 21, 2) - 0.5) * 2.5;
-  const big = fbm(x, y, 44, M.seed + 22, 2);
+  // Stretched noise gives horizontal sheen bands instead of blobs.
+  const sheen = fbm(x * 0.3, y * 1.5, 14, M.seed + 22, 2);
+  const deep = fbm(x, y, 40, M.seed + 24, 2);
   let t = R('steel', 2);
   if (d <= 2.5) t = R('steel', 3);
-  else if (big < 0.34) t = R('steel', 1);
-  else if (big > 0.72 && d > 4) t = R('steel', 3);
+  else if (deep < 0.3 && d > 6) t = R('steel', 1);
+  else if (sheen > 0.7 && d > 4 && (x + y) % 2 === 0) t = R('steel', 3);
   const u = M.dU[i],
     l = M.dL[i],
     dd = M.dD[i],
@@ -321,63 +326,66 @@ function paintSand(M, x, y, i) {
 
 function paintIce(M, x, y, i) {
   const n = fbm(x, y, 26, M.seed + 41, 2);
-  let t = n < 0.4 ? R('steel', 3) : R('steel', 4);
-  // Long diagonal gleams ("/" strokes) lit from the upper left.
-  const g = (x + y + Math.floor(valueNoise(x, y, 12, M.seed + 42) * 6)) % 13;
-  if (g === 0 && fbm(x, y, 9, M.seed + 43) > 0.55) t = R('steel', 5);
-  // Crack network (worley ridges), partial so it never reads as a grid.
-  const w = worley(x, y, 15, M.seed + 44);
-  if (w.d2 - w.d1 < 1.0 && fbm(x, y, 11, M.seed + 45) > 0.42) t = R('steel', 5);
-  else if (w.d2 - w.d1 < 2.0 && w.d2 - w.d1 >= 1.0 && fbm(x, y, 11, M.seed + 45) > 0.42 && (x + y) % 2 === 0) t = down(t, 1);
+  let t = n < 0.5 ? R('steel', 3) : R('steel', 4);
+  // Long diagonal gleams ("/" strokes) lit from the upper left, sparse.
+  const g = (x + y + Math.floor(valueNoise(x, y, 12, M.seed + 42) * 6)) % 15;
+  if (g === 0 && fbm(x, y, 9, M.seed + 43) > 0.6) t = R('steel', 5);
+  // Partial crack network: dark hairlines, never a full grid.
+  const w = worley(x, y, 16, M.seed + 44);
+  if (w.d2 - w.d1 < 0.9 && fbm(x, y, 13, M.seed + 45) > 0.5) t = down(t, 1);
   // Edges: ice sits slightly lower than the ground, north edge shadowed.
   if (M.dU[i] <= 2) t = M.dU[i] === 1 ? R('steel', 2) : down(t, 1);
-  else if (M.dL[i] === 1) t = R('steel', 3);
+  else if (M.dL[i] === 1) t = R('steel', 2);
   else if (M.dD[i] === 1 || M.dR[i] === 1) t = R('steel', 5);
   return t;
 }
 
 function paintLava(M, x, y, i) {
-  const w = worley(x, y, 8.5, M.seed + 51);
+  // Cooled basalt crust in bevelled plates; only some seams are live.
+  const S = 9;
+  const w = worley(x, y, S, M.seed + 51);
   const edge = w.d2 - w.d1;
   const inner = M.dAny(i);
-  // Plate: bevelled basalt, lit upper-left, dark lower-right.
   const plate = [R('ash', 1), R('ash', 2), R('ash', 3)];
   let t = plate[1];
-  const wx = worley(x - 1, y - 1, 8.5, M.seed + 51);
-  if (wx.id !== w.id) t = plate[2];
-  const wy = worley(x + 1, y + 1, 8.5, M.seed + 51);
-  if (wy.id !== w.id) t = plate[0];
-  const heat = Math.min(1, (inner - 1) / 4) * (0.55 + fbm(x, y, 18, M.seed + 52) * 0.9);
-  if (edge < 0.9 * heat + 0.1 && heat > 0.25) t = heat > 0.8 ? R('ember', 5) : heat > 0.55 ? R('ember', 4) : R('blood', 4);
-  else if (edge < 2.1 * heat && heat > 0.3) t = heat > 0.7 ? R('ember', 2) : R('ember', 1);
-  else if (edge < 3.2 * heat && heat > 0.5 && (x + y) % 2 === 0) t = R('ember', 1);
+  if (worley(x - 1, y - 1, S, M.seed + 51).id !== w.id) t = plate[2];
+  if (worley(x + 1, y + 1, S, M.seed + 51).id !== w.id) t = plate[0];
+  const live = fbm(x, y, 20, M.seed + 52, 2);
+  const heat = Math.min(1, (inner - 1) / 3) * Math.max(0, (live - 0.38) * 2.6);
+  if (edge < 0.85 && heat > 0.15) t = heat > 0.9 ? R('ember', 4) : heat > 0.55 ? R('ember', 3) : R('blood', 3);
+  else if (edge < 1.9 && heat > 0.35) t = R('ember', 1);
+  // a few molten vents where seams meet
+  const vent = fbm(x, y, 6, M.seed + 53, 1);
+  if (vent > 0.82 && heat > 0.5 && inner > 3) t = vent > 0.88 ? R('ember', 5) : R('ember', 3);
   return t;
 }
 
 function paintSwamp(M, x, y, i, acid) {
-  const n = fbm(x, y, 18, M.seed + (acid ? 71 : 61), 2);
-  let t;
+  const n = fbm(x, y, 18, M.seed + 61, 2);
+  // Murky water with drifting algae; acid swamp shares the water but
+  // carries glowing scum so it reads as a hazard, not a different lake.
+  let t = n < 0.55 ? R('verdigris', 1) : n < 0.78 ? R('foliage', 3) : R('foliage', 4);
   if (acid) {
-    t = n < 0.42 ? R('acid', 1) : n < 0.66 ? R('acid', 2) : R('acid', 3);
-    const b = fbm(x, y, 7, M.seed + 72);
-    if (b > 0.72) t = R('acid', 4);
-  } else {
-    t = n < 0.45 ? R('verdigris', 1) : n < 0.7 ? R('verdigris', 2) : R('foliage', 3);
+    const a = fbm(x, y, 11, M.seed + 71, 2);
+    if (a > 0.72) t = R('acid', 3);
+    else if (a > 0.62) t = R('acid', 2);
+    else if (a > 0.54) t = R('acid', 1);
   }
   const u = M.dU[i];
   if (u <= 1) return R('soil', 2);
-  if (u <= 3 || M.dL[i] <= 2) t = acid ? down(t, 1) : R('verdigris', 0);
-  if ((M.dD[i] === 1 || M.dR[i] === 1) && valueNoise(x, y, 4, M.seed + 63) > 0.4) t = acid ? R('acid', 4) : R('earth', 3);
+  if (u <= 3 || M.dL[i] <= 2) t = down(t, 1);
+  if ((M.dD[i] === 1 || M.dR[i] === 1) && valueNoise(x, y, 4, M.seed + 63) > 0.4) t = acid ? R('acid', 2) : R('earth', 3);
   return t;
 }
 
 function paintBog(M, x, y, i, acid) {
+  // Olive-brown mud: wet dark hollows, drier crust on the lit rises.
   const n = fbm(x, y, 16, M.seed + 81, 2);
-  let t = n < 0.38 ? R('soil', 2) : n < 0.68 ? R('soil', 3) : R('soil', 4);
+  let t = n < 0.36 ? R('soil', 2) : n < 0.7 ? R('earth', 2) : R('earth', 3);
   if (acid) {
     const a = fbm(x, y, 9, M.seed + 82, 2);
-    if (a > 0.66) t = a > 0.76 ? R('acid', 3) : R('acid', 2);
-    else if (a > 0.6) t = R('acid', 0); // glow halo on mud
+    if (a > 0.7) t = a > 0.78 ? R('acid', 3) : R('acid', 2);
+    else if (a > 0.64) t = R('acid', 0); // glow halo on mud
   }
   return t;
 }
@@ -483,12 +491,12 @@ function paintWall(M, x, y) {
   }
   // Rampart top.
   const topH = southOpen ? CELL - FACE_H : CELL;
-  const course = Math.floor(y / 6),
-    off = course % 2 ? 4 : 0;
+  const course = Math.floor(y / 7),
+    off = course % 2 ? 5 : 0;
   let t;
-  if (y % 6 === 5 || (x + off) % 8 === 7) t = T[0];
+  if (y % 7 === 6 || (x + off) % 10 === 9) t = T[0];
   else {
-    const h = hash2(Math.floor((x + off) / 8), course, M.seed + 102) % 10;
+    const h = hash2(Math.floor((x + off) / 10), course, M.seed + 102) % 10;
     t = h < 7 ? T[1] : T[2];
   }
   if (fbm(x, y, 30, M.seed + 103) < 0.3) t = down(t, 1);
@@ -635,7 +643,8 @@ function paintDecals(M) {
     for (const p of jitteredPoints(0, 0, W, H, 10, seed + 211)) {
       const i = p.y * W + p.x,
         m = M.mat[i];
-      if (!(m === G.GRASS || m === G.ROCK || m === G.SAND || m === G.BOG) || p.r > (m === G.SAND ? 0.3 : 0.4)) continue;
+      const limit = m === G.SAND ? 0.3 : style.tufts === 'dry' ? 0.14 : 0.4;
+      if (!(m === G.GRASS || m === G.ROCK || m === G.SAND || m === G.BOG) || p.r > limit) continue;
       if (M.dAny(i) < 2 && m !== G.SAND) continue;
       if (m === G.SAND && M.dAny(i) > 4) continue; // grass creeps in at sand edges only
       const s = m === G.ROCK ? style.rockGround : style.ground;
@@ -659,7 +668,7 @@ function paintDecals(M) {
       m = M.mat[i];
     if (!(openGround(m) || m === G.SAND) || M.dAny(i) < 3) continue;
     if (p.r < (m === G.ROCK ? 0.4 : 0.05)) {
-      const stone = M.biome === 'volcano' ? [R('ash', 5), R('ash', 4)] : M.biome === 'tundra' ? [R('stone', 4), R('stone', 3)] : [R('ink', 9), R('ink', 8)];
+      const stone = M.biome === 'volcano' ? [R('ash', 5), R('ash', 4)] : M.biome === 'tundra' ? [R('stone', 4), R('stone', 3)] : [R('ink', 8), R('ink', 7)];
       stampIf(M, p.x, p.y, p.r < 0.06 ? ['ab.', 'bbd'] : ['a.', 'bd'], (ch, cur) => (ch === 'a' ? stone[0] : ch === 'b' ? stone[1] : down(cur, 1)), (mm) => mm === m);
     } else if (style.flowers && m === G.GRASS && p.r > 0.965) {
       const col = style.flowers[hash2(p.gx, p.gy, seed + 222) % style.flowers.length];

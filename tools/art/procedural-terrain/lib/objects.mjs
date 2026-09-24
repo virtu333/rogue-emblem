@@ -206,7 +206,7 @@ function buildForest(M, out) {
   };
   const kind = M.style.tree;
   const make = (x, y, rr, gx, gy) => {
-    if (kind === 'pine' || (kind === 'broadleaf' && rr < 0.12)) return pine(M, x, y, 13 + Math.round(rr * 30) % 5, seed + gx * 7 + gy);
+    if (kind === 'pine') return pine(M, x, y, 13 + Math.round(rr * 30) % 5, seed + gx * 7 + gy);
     if (kind === 'dead') return deadTree(M, x, y, 10 + (hash2(gx, gy, seed) % 4), seed);
     return broadleaf(M, x, y, 6.5 + rr * 2.5, seed + gx * 131 + gy * 17, { strands: kind === 'willow' });
   };
@@ -229,72 +229,178 @@ function buildForest(M, out) {
 }
 
 // -------------------------------------------------------------- mountains
-function peak(M, ax, ay, by, wl, wr, seed, secondary = false) {
-  const st = M.style.rock;
-  const s = new Sprite(ax, by, { a: 0.45, b: 0.2 });
-  const hgt = by - ay;
-  for (let y = ay; y <= by; y++) {
-    const t = (y - ay) / hgt;
-    const jagL = (valueNoise(0, y, 3, seed + 1) - 0.5) * 2.6 * Math.min(1, t * 3);
-    const jagR = (valueNoise(9, y, 3, seed + 2) - 0.5) * 2.2 * Math.min(1, t * 3);
-    const spread = Math.pow(t, 0.85);
-    const xl = Math.round(ax - wl * spread + jagL),
-      xr = Math.round(ax + wr * spread + jagR);
-    const ridge = ax + (y - ay) * 0.22 + (valueNoise(4, y, 4, seed + 3) - 0.5) * 2;
-    const capLine = 0.34 + (valueNoise(ax, y, 3, seed + 4) - 0.5) * 0.2;
-    for (let x = xl; x <= xr; x++) {
-      let c;
-      const lit = x < ridge;
-      if (lit) {
-        const k = t < 0.3 ? 3 : t < 0.62 ? 2 : 1;
-        c = st.lit[k];
-        // strata: short dark ledges on the lit face
-        const band = (y + Math.floor((x - xl) * 0.35)) % 5;
-        if (band === 0 && hash2(Math.floor(x / 3), y, seed + 5) % 3 === 0 && x > xl + 1 && x < ridge - 1) c = st.lit[Math.max(0, k - 1)];
-        if (Math.abs(x - ridge) < 1 && t < 0.8) c = st.lit[3];
-      } else {
-        const k = t < 0.4 ? 2 : t < 0.75 ? 1 : 0;
-        c = st.shade[k + 1];
-        const band = (y + Math.floor((xr - x) * 0.4)) % 6;
-        if (band === 0 && hash2(Math.floor(x / 3), y, seed + 6) % 3 === 0 && x > ridge + 1) c = st.shade[Math.min(3, k + 2)];
-        if (x >= xr - 1) c = st.shade[0];
+// Mountains are a real heightfield (cones with jittered radius + ridged
+// crests), rendered front-to-back per screen column like a voxel terrain.
+// That gives true facets lit from the upper-left, occlusion lines where a
+// near peak overlaps a far one, and ranges that merge across cells.
+const MT_K = 0.9; // vertical exaggeration (screen px per unit of height)
+const MT_LIGHT = (() => {
+  const v = [-0.8, -0.4, 0.62],
+    n = Math.hypot(...v);
+  return v.map((k) => k / n);
+})();
+
+function mountainPeaks(M) {
+  const isMt = (c, r) => M.inMap(c, r) && M.name(c, r) === 'Mountain';
+  const peaks = [];
+  for (let r = 0; r < M.rows; r++)
+    for (let c = 0; c < M.cols; c++) {
+      if (!isMt(c, r)) continue;
+      const h = (k) => rand2(c, r, M.seed + 300 + k);
+      const roll = h(0);
+      let local;
+      if (roll < 0.4) local = [[12 + (h(1) - 0.5) * 5, 14 + (h(2) - 0.5) * 4, 19 + h(3) * 4, 11]];
+      else if (roll < 0.85) {
+        const flip = h(4) < 0.5 ? -1 : 1;
+        local = [
+          [12 - flip * (5 + h(1) * 2), 12 + h(2) * 3, 17 + h(3) * 4, 9.5],
+          [12 + flip * (5 + h(5) * 2), 16 + h(6) * 3, 12 + h(7) * 4, 8.5],
+        ];
+      } else
+        local = [
+          [6 + h(1) * 2, 15 + h(2) * 2, 12 + h(3) * 3, 8],
+          [12 + (h(5) - 0.5) * 3, 10 + h(6) * 2, 17 + h(7) * 4, 9],
+          [18 - h(8) * 2, 16 + h(9) * 2, 11 + h(10) * 3, 8],
+        ];
+      for (const [px, py, H, rad] of local) {
+        // keep the cone inside the cell on sides without mountain neighbours
+        let x = c * CELL + px,
+          y = r * CELL + py;
+        const room = Math.min(isMt(c - 1, r) ? 99 : px + 1, isMt(c + 1, r) ? 99 : CELL + 1 - px, isMt(c, r + 1) ? 99 : CELL + 1 - py);
+        peaks.push({ x, y, H, rad: Math.min(rad, room + 2) });
       }
-      if (st.cap && t < capLine) c = lit ? st.cap.lit[t < capLine * 0.5 ? 2 : 1] : st.cap.shade[1];
-      if (st.ember && !lit && t > 0.7 && hash2(x, y, seed + 7) % 23 === 0) c = R('ember', 2);
-      s.set(x, y, c);
     }
+  return peaks;
+}
+
+function mountainHeight(M, peaks, x, y) {
+  const c = Math.floor(x / CELL),
+    r = Math.floor(y / CELL);
+  const isMt = (cc, rr) => M.inMap(cc, rr) && M.name(cc, rr) === 'Mountain';
+  if (!isMt(c, r)) {
+    // allow a 2px skirt onto neighbouring cells so the base is not a square
+    const u = x - c * CELL,
+      v = y - r * CELL;
+    const near = (u < 2 && isMt(c - 1, r)) || (u > CELL - 3 && isMt(c + 1, r)) || (v < 2 && isMt(c, r - 1)) || (v > CELL - 3 && isMt(c, r + 1));
+    if (!near) return 0;
   }
-  // boulders at the foot
-  if (!secondary)
-    for (const side of [-1, 1]) {
-      const bx = Math.round(ax + side * (side < 0 ? wl : wr) * 0.95),
-        byy = by - 1;
-      if (hash2(bx, byy, seed + 8) % 2) continue;
-      s.set(bx, byy - 1, st.lit[2]);
-      s.set(bx + 1, byy - 1, st.lit[1]);
-      s.set(bx, byy, st.lit[1]);
-      s.set(bx + 1, byy, st.shade[1]);
-      s.set(bx + 2, byy, st.shade[0]);
-    }
-  s.outline({ dark: st.outline });
-  return s;
+  let h = 0;
+  const jitter = 1 + (valueNoise(x, y, 4, M.seed + 310) - 0.5) * 0.38;
+  for (const p of peaks) {
+    const dx = x + 0.5 - p.x,
+      dy = (y + 0.5 - p.y) * 1.08;
+    if (Math.abs(dx) > p.rad * 1.5 || Math.abs(dy) > p.rad * 1.5) continue;
+    const ang = Math.atan2(dy, dx);
+    const lobes = 1 + 0.16 * Math.sin(ang * 3 + p.x) + 0.1 * Math.sin(ang * 5 + p.y);
+    const d = (Math.hypot(dx, dy) / (p.rad * lobes)) * jitter;
+    if (d >= 1) continue;
+    h = Math.max(h, p.H * Math.pow(1 - d, 1.2));
+  }
+  if (h > 0) h += (1 - Math.abs(2 * valueNoise(x, y, 5, M.seed + 311) - 1)) * 1.6 * Math.min(1, h / 10);
+  return h;
 }
 
 function buildMountains(M, out) {
-  const seed = M.seed;
-  for (let r = 0; r < M.rows; r++)
-    for (let c = 0; c < M.cols; c++) {
-      if (M.name(c, r) !== 'Mountain') continue;
-      const h = (k) => rand2(c, r, seed + 300 + k);
-      const ax = c * CELL + 12 + Math.round((h(1) - 0.5) * 6);
-      const ay = r * CELL - 2 - Math.round(h(2) * 5);
-      const by = r * CELL + 21;
-      if (h(5) < 0.6) {
-        const side = h(6) < 0.5 ? -1 : 1;
-        out.push(peak(M, ax + side * 8, r * CELL + 6 + Math.round(h(7) * 3), by - 1, 7, 7, seed + c * 17 + r * 3 + 1, true));
+  const peaks = mountainPeaks(M);
+  if (!peaks.length) return;
+  const { W, H } = M;
+  const st = M.style.rock;
+  const hmap = new Float32Array(W * H);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) hmap[y * W + x] = mountainHeight(M, peaks, x, y);
+  const hAt = (x, y) => hmap[Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))];
+  // screen buffers
+  const TOP = 12; // allow peaks to rise above the map's first row
+  const SH = H + TOP;
+  const gyBuf = new Int32Array(W * SH).fill(-1);
+  const tone = new Int16Array(W * SH).fill(-1);
+  const hBuf = new Float32Array(W * SH);
+  for (let x = 0; x < W; x++) {
+    let ybuf = SH;
+    for (let y = H - 1; y >= 0; y--) {
+      const h = hmap[y * W + x];
+      if (h < 0.35) continue;
+      const ys = Math.round(y + TOP - h * MT_K);
+      if (ys >= ybuf) continue;
+      const gx = (hAt(x + 1, y) - hAt(x - 1, y)) / 2,
+        gyy = (hAt(x, y + 1) - hAt(x, y - 1)) / 2;
+      const n = [-gx, -gyy, 1],
+        nl = Math.hypot(...n);
+      let s = (n[0] * MT_LIGHT[0] + n[1] * MT_LIGHT[1] + n[2] * MT_LIGHT[2]) / nl;
+      s += (h / 22) * 0.12; // summits a touch brighter
+      for (let k = ys; k < Math.min(ybuf, y + TOP + 1); k++) {
+        const i = k * W + x;
+        gyBuf[i] = y;
+        hBuf[i] = h;
+        tone[i] = Math.round(s * 100);
       }
-      out.push(peak(M, ax, ay, by, 11 + Math.round(h(3) * 2), 10 + Math.round(h(4) * 3), seed + c * 31 + r * 7));
+      ybuf = ys;
     }
+  }
+  const snowAt = (h, x, y) => st.cap && h > 11 + valueNoise(x, y, 5, M.seed + 312) * 4;
+  const colorOf = (i, x, ys) => {
+    const s = tone[i] / 100,
+      h = hBuf[i];
+    let lvl = s < -0.05 ? 0 : s < 0.2 ? 1 : s < 0.4 ? 2 : s < 0.58 ? 3 : s < 0.76 ? 4 : 5;
+    // crag marks: sparse darker notches on steep lit faces
+    if (lvl >= 3 && valueNoise(x, ys, 2.5, M.seed + 313) > 0.78) lvl -= 1;
+    if (h < 2.2) {
+      // grassy foot, so the range rises out of the ground
+      const g = M.style.ground;
+      return [g.shade, g.dark, g.dark, g.base, g.light, g.light][lvl];
+    }
+    if (snowAt(h, x, ys)) return [st.cap.shade[0], st.cap.shade[1], st.cap.shade[1], st.cap.lit[1], st.cap.lit[2], st.cap.lit[2]][lvl];
+    const pal = [st.shade[1], st.shade[2], st.shade[3], st.lit[1], st.lit[2], st.lit[3]];
+    let c = pal[lvl];
+    if (st.ember && lvl <= 1 && h < 8 && hash2(x, ys, M.seed + 314) % 17 === 0) c = R('ember', 2);
+    return c;
+  };
+  // per-cell sprites (so trees in front/behind still sort correctly)
+  const sprites = new Map();
+  const spriteFor = (c, r) => {
+    const k = `${c},${r}`;
+    if (!sprites.has(k)) {
+      const s = new Sprite(c * CELL + 12, (r + 1) * CELL - 2, null);
+      s.ground = [];
+      sprites.set(k, s);
+    }
+    return sprites.get(k);
+  };
+  for (let ys = 0; ys < SH; ys++)
+    for (let x = 0; x < W; x++) {
+      const i = ys * W + x;
+      if (gyBuf[i] < 0) continue;
+      let col = colorOf(i, x, ys);
+      const gy = gyBuf[i];
+      const below = ys + 1 < SH ? gyBuf[i + W] : -1;
+      const right = x + 1 < W ? gyBuf[i + 1] : -1;
+      const left = x > 0 ? gyBuf[i - 1] : -1;
+      const above = ys > 0 ? gyBuf[i - W] : -1;
+      // outer silhouette: dark on bottom/right, nothing on top/left
+      if (below < 0 || right < 0) col = st.outline;
+      // occlusion: this pixel sits just behind a nearer peak -> dark line
+      else if ((below >= 0 && below - gy > 3) || (left >= 0 && left - gy > 4) || (right >= 0 && right - gy > 4)) col = down(col, 2);
+      // summit rim light where the top silhouette meets the sky/ground behind
+      else if ((above < 0 || gy - above > 3) && tone[i] > 20) col = up(col, 1);
+      const y = ys - TOP;
+      const s = spriteFor(Math.floor(x / CELL), Math.floor(gy / CELL));
+      s.set(x, y, col);
+      s.ground.push([x, gy, hBuf[i]]);
+    }
+  for (const s of sprites.values()) {
+    s.castShadow = function (MM) {
+      for (const [x, gy, h] of this.ground) {
+        const X = Math.round(x + h * 0.55),
+          Y = Math.round(gy + h * 0.3);
+        for (const XX of [X, X + 1]) {
+          if (XX < 0 || Y < 0 || XX >= MM.W || Y >= MM.H) continue;
+          const i = Y * MM.W + XX;
+          if (MM.mat[i] !== G.WALL) MM.shadow[i] = Math.max(MM.shadow[i], 1);
+        }
+      }
+    };
+    out.push(s);
+  }
 }
 
 // ------------------------------------------------------------ structures

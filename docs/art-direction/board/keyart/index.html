@@ -217,6 +217,7 @@
     <script type="module">
       import {
         createHollowSunScene,
+        HOLLOW_SUN_VARIANTS,
         PLATE_W,
         PLATE_H,
       } from '../../../../src/art/keyart/hollowSun.js';
@@ -236,7 +237,8 @@
       function lockupEl() {
         const d = document.createElement('div');
         d.className = 'lockup';
-        d.innerHTML = `<h1>ROGUE EMBLEM</h1><div class="rule"><span></span><i></i><span></span></div><p class="sub">${subtitle}</p>`;
+        d.innerHTML = `<h1>ROGUE EMBLEM</h1><div class="rule"><span></span><i></i><span></span></div><p class="sub"></p>`;
+        d.querySelector('.sub').textContent = subtitle;
         return d;
       }
 
@@ -261,9 +263,9 @@
           'beforeend',
           `<header>
             <h2>The Hollow Sun &middot; title key art</h2>
-            <p class="note">Procedural pixel plate (${PLATE_W}&times;${PLATE_H}), nearest-neighbour upscaled and cover-cropped per framing. Gold is reserved for the corona and Sera's threads.</p>
+            <p class="note">Procedural pixel plate (${PLATE_W}&times;${PLATE_H}), nearest-neighbour upscaled and cover-cropped per framing. Gold is reserved for the corona and Sera's threads. Variants: <b>dusk</b> (default), <b>ashfall</b> (colder night, heavy ash), <b>rising</b> (alternate composition: a vast sun rising behind the quarry). Query params: <code>?view=phone|desktop|plate&amp;variant=&amp;seed=&amp;t=&lt;ms&gt;&amp;reduced=1&amp;lockup=0</code>.</p>
             <div class="controls">
-              <label>variant <select id="variant"><option value="dusk">dusk</option><option value="ashfall">ashfall</option></select></label>
+              <label>variant <select id="variant">${HOLLOW_SUN_VARIANTS.map((v) => `<option value="${v}">${v}</option>`).join('')}</select></label>
               <label>seed <input id="seed" type="number" value="${seed}" style="width:5em"></label>
               <label><input id="rm" type="checkbox" ${reduced ? 'checked' : ''}> reduced motion</label>
               <label><input id="lk" type="checkbox" ${showLockup ? 'checked' : ''}> lockup</label>
@@ -354,7 +356,7 @@
       } else {
         const t0 = performance.now();
         const loop = (now) => {
-          drawAll(now - t0);
+          drawAll(Math.max(0, now - t0));
           window.__keyartReady = true;
           requestAnimationFrame(loop);
         };

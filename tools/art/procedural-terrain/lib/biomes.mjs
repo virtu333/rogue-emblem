@@ -24,14 +24,15 @@ export const HARD = new Set([G.FLOOR, G.WALL]);
 export const LIQUID = new Set([G.WATER, G.SWAMP, G.ASWAMP]);
 
 const f = (i) => R('foliage', i);
+const g = (i) => R('meadow', i);
 
 export const BIOMES = {
   grassland: {
     defaultGround: G.GRASS,
     // Open ground: 3 quiet tones + highlight for lit clumps.
-    ground: { dark: f(5), base: f(6), light: f(7), hi: f(8), blade: f(8), shade: f(4) },
-    forestFloor: { dark: f(4), base: f(5), light: f(6), hi: f(7), blade: f(7), shade: f(3) },
-    rockGround: { dark: f(5), base: f(6), light: R('earth', 3), hi: R('earth', 4), shade: f(4) },
+    ground: { dark: g(3), base: g(4), light: g(5), hi: g(6), blade: g(6), shade: g(2) },
+    forestFloor: { dark: g(2), base: g(3), light: g(4), hi: g(5), blade: g(5), shade: g(1) },
+    rockGround: { dark: g(3), base: g(4), light: R('earth', 3), hi: R('earth', 4), shade: g(2) },
     tree: 'broadleaf',
     leaf: [f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7), f(8)],
     rock: {
@@ -78,7 +79,7 @@ export const BIOMES = {
   },
   swamp: {
     defaultGround: G.GRASS,
-    ground: { dark: f(3), base: f(4), light: R('earth', 3), hi: R('earth', 4), blade: R('earth', 5), shade: f(2) },
+    ground: { dark: g(2), base: g(3), light: g(4), hi: R('earth', 4), blade: R('earth', 5), shade: g(1) },
     forestFloor: { dark: f(2), base: f(3), light: f(4), hi: R('earth', 3), blade: R('earth', 4), shade: f(1) },
     rockGround: { dark: R('earth', 2), base: R('earth', 3), light: R('earth', 4), hi: R('earth', 5), shade: R('earth', 1) },
     tree: 'willow',
@@ -94,7 +95,7 @@ export const BIOMES = {
   },
   castle: {
     defaultGround: G.FLOOR,
-    ground: { dark: f(4), base: f(5), light: f(6), hi: f(7), blade: f(8), shade: f(3) },
+    ground: { dark: g(3), base: g(4), light: g(5), hi: g(6), blade: g(6), shade: g(2) },
     forestFloor: { dark: f(2), base: f(3), light: f(4), hi: f(5), blade: f(6), shade: f(1) },
     rockGround: { dark: R('soil', 3), base: R('soil', 4), light: R('soil', 5), hi: R('soil', 6), shade: R('soil', 2) },
     tree: 'broadleaf',
@@ -131,7 +132,9 @@ export const MASONRY = {
   default: {
     floor: [R('stone', 3), R('stone', 4), R('ink', 7), R('ink', 8)], // [mortar, base, alt, lit]
     floorMortar: R('stone', 3),
-    wallTop: [R('stone', 1), R('stone', 2), R('stone', 3), R('stone', 4), R('stone', 5)],
+    // [joint, base, alt, merlon, rim]: the rampart top sits one value step
+    // below the paving, the face two, so floor / top / face read as planes.
+    wallTop: [R('stone', 2), R('stone', 3), R('ink', 6), R('stone', 4), R('stone', 5)],
     wallFace: [R('stone', 0), R('stone', 1), R('stone', 2), R('ink', 5), R('stone', 3)],
   },
   void: {
