@@ -1,7 +1,7 @@
 // Minimal RGBA raster helpers on top of sharp. No smoothing anywhere except
 // the explicit area-average resampler used for the phone-scale previews.
 import sharp from 'sharp';
-import { PALETTE } from './palette.mjs';
+import { PALETTE } from '../../../../src/art/terrain/palette.js';
 
 export function indexToRgba(idx, w, h) {
   const out = Buffer.alloc(w * h * 4);
@@ -144,6 +144,29 @@ export function strokeEllipse(dst, dw, dh, cx, cy, rx, ry, stroke, rgb, alpha) {
       const d = (y * dw + x) * 4;
       for (let c = 0; c < 3; c++) dst[d + c] = Math.round(rgb[c] * a + dst[d + c] * (1 - a));
     }
+}
+
+/** Alpha-blended rectangle with fractional bounds (coverage-weighted edges). */
+export function fillRectAlpha(dst, dw, dh, x, y, w, h, rgb, alpha) {
+  for (let j = Math.max(0, Math.floor(y)); j < Math.min(dh, Math.ceil(y + h)); j++) {
+    const cy = Math.min(j + 1, y + h) - Math.max(j, y);
+    for (let i = Math.max(0, Math.floor(x)); i < Math.min(dw, Math.ceil(x + w)); i++) {
+      const cx = Math.min(i + 1, x + w) - Math.max(i, x);
+      const a = alpha * cx * cy;
+      if (a <= 0) continue;
+      const d = (j * dw + i) * 4;
+      for (let c = 0; c < 3; c++) dst[d + c] = Math.round(rgb[c] * a + dst[d + c] * (1 - a));
+    }
+  }
+}
+
+/** Wrap a renderer result (Uint8ClampedArray) as a Buffer-backed RGBA image. */
+export function resultImage(res) {
+  return {
+    data: Buffer.from(res.pixels.buffer, res.pixels.byteOffset, res.pixels.byteLength),
+    w: res.width,
+    h: res.height,
+  };
 }
 
 /** Solid fill rectangle (used for sheet backgrounds). */
