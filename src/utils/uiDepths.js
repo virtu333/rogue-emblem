@@ -49,9 +49,11 @@ export const UI_DEPTHS = {
 // DOM surfaces have their own stacking context above the Phaser canvas.
 export const DOM_UI_DEPTHS = {
   LAB: 30,
+  BOSSBAR: 40, // Boss bar docked on the map; under every menu and ceremony.
   ROUTE: 400,
   LAUNCH: 920,
   UPGRADE: 950,
+  CEREMONY: 980, // Bands, cards and cut-ins; dialogue, forecasts and menus sit above.
   FORECAST: 1000,
   PAUSE: 1100,
   DIALOGUE: 1200,
