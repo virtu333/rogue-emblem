@@ -152,11 +152,15 @@ export function absorbTextureLines(prep, w, h, passes = 2) {
  */
 export function reduce(seg, prep, s, opts = {}) {
   const { w, h } = seg;
-  const W = Math.ceil(w * s) + 2,
-    H = Math.ceil(h * s) + 2;
+  // s may be anisotropic ({ x, y }) when a sheet's fake pixels were not square
+  const sx = typeof s === 'number' ? s : s.x,
+    sy = typeof s === 'number' ? s : s.y;
+  const W = Math.ceil(w * sx) + 2,
+    H = Math.ceil(h * sy) + 2;
   const alphaMin = opts.alphaMin ?? 0.5;
   const thinMin = opts.thinMin ?? 0.3;
-  const inv = 1 / s;
+  const invx = 1 / sx,
+    invy = 1 / sy;
   const head = opts.head || null; // native head box: skin there wins close contests (faces read)
   const faceBoost = opts.faceBoost ?? 1.6;
 
@@ -170,10 +174,10 @@ export function reduce(seg, prep, s, opts = {}) {
     const acc = full ? new Float64Array(32 * 4) : null;
     for (let Y = 0; Y < H; Y++)
       for (let X = 0; X < W; X++) {
-        const ax = (X - 1) * inv - ox,
-          bx = ax + inv,
-          ay = (Y - 1) * inv - oy,
-          by = ay + inv;
+        const ax = (X - 1) * invx - ox,
+          bx = ax + invx,
+          ay = (Y - 1) * invy - oy,
+          by = ay + invy;
         cov.fill(0);
         score.fill(0);
         if (acc) acc.fill(0);
@@ -187,7 +191,7 @@ export function reduce(seg, prep, s, opts = {}) {
             const p = y * w + x;
             const sl = prep.fill[p];
             if (!sl) continue;
-            const a = (fx * fy) / (inv * inv);
+            const a = (fx * fy) / (invx * invy);
             cov[sl] += a;
             const inHead = head && x >= head[0] && x < head[2] && y >= head[1] && y < head[3];
             score[sl] += a * (inHead && (sl === SLOT.skin || sl === SLOT.eye) ? faceBoost : 1);
@@ -232,8 +236,8 @@ export function reduce(seg, prep, s, opts = {}) {
   const phases = opts.phases ?? 4;
   for (let i = 0; i < phases; i++)
     for (let j = 0; j < phases; j++) {
-      const ox = (i / phases) * inv,
-        oy = (j / phases) * inv;
+      const ox = (i / phases) * invx,
+        oy = (j / phases) * invy;
       const { crisp } = sample(ox, oy, false);
       if (crisp > bestCrisp + 1e-9) {
         bestCrisp = crisp;
@@ -249,7 +253,7 @@ export function reduce(seg, prep, s, opts = {}) {
     dark: out.dark,
     offset: bestPhase,
     scale: s,
-    mapPoint: (x, y) => [(x + bestPhase[0]) * s + 1, (y + bestPhase[1]) * s + 1],
+    mapPoint: (x, y) => [(x + bestPhase[0]) * sx + 1, (y + bestPhase[1]) * sy + 1],
   };
 }
 
@@ -411,8 +415,10 @@ export function reduceMerge(seg, prep, s, opts = {}) {
     dark: Float32Array.from(prep.dark),
     src: null,
   };
-  const rows = decimateAxis(base, 'y', s, opts);
-  const cols = decimateAxis(rows.img, 'x', s, opts);
+  const sx = typeof s === 'number' ? s : s.x,
+    sy = typeof s === 'number' ? s : s.y;
+  const rows = decimateAxis(base, 'y', sy, opts);
+  const cols = decimateAxis(rows.img, 'x', sx, opts);
   const r = cols.img;
   const W = r.w + 2,
     H = r.h + 2;
@@ -458,7 +464,8 @@ export function reduceMerge(seg, prep, s, opts = {}) {
 export function thinLines(w, h, fill, lab, s, mapPoint, slots, { minLength = null } = {}) {
   const n = w * h;
   const out = [];
-  const minLen = minLength ?? Math.max(4, Math.ceil(2.2 / s));
+  const sm = typeof s === 'number' ? s : Math.min(s.x, s.y);
+  const minLen = minLength ?? Math.max(4, Math.ceil(2.2 / sm));
   for (const slot of slots) {
     const M = new Uint8Array(n);
     let any = false;

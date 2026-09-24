@@ -20,13 +20,21 @@ for (const id of ids.split(',')) {
   const r = await readRaster(base.src);
   const box =
     base.figure != null ? splitFigures(r, base.figures ?? 3)[base.figure] : r.alphaBounds(64);
-  const { native } = recoverFigure(r.crop(box.x, box.y, box.width, box.height), base.recover || {});
+  const { native, pitch } = recoverFigure(
+    r.crop(box.x, box.y, box.width, box.height),
+    base.recover || {},
+  );
+  const aspect = pitch.y / pitch.x;
   const cells = [];
   let H = 0;
   const imgs = [];
   for (const v of variants) {
     const e = { ...base, ...v };
-    const t = traceNative(native, e, { density: v.density || density, mode: v.mode || 'area' });
+    const t = traceNative(native, e, {
+      density: v.density || density,
+      mode: v.mode || null,
+      aspect,
+    });
     const img = render(t.sprite, { ramps: t.ramps, eye: t.eye, outline: e.peel !== false });
     const b = img.alphaBounds(0);
     const c = bg(img.crop(b.x - 1, b.y - 1, b.width + 2, b.height + 2)).scale(Z);

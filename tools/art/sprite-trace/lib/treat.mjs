@@ -140,13 +140,21 @@ export function splitImage(img, seed = 1) {
   return out;
 }
 
-/** Hit flash: opaque pixels to paper white; the dark contour turns crimson so the silhouette survives. */
+/**
+ * Hit flash: the figure turns paper white; its outermost ring (the outline) turns
+ * crimson so the silhouette survives the flash on pale ground.
+ */
 export function hitFlash(img) {
-  return img.map(([r, g, b, a]) => {
-    if (!a) return [0, 0, 0, 0];
-    const l = 0.299 * r + 0.587 * g + 0.114 * b;
-    return l < 40 ? [110, 26, 40, a] : [244, 236, 219, a];
-  });
+  const { w, h } = img;
+  const out = new Raster(w, h);
+  const a = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : img.d[(y * w + x) * 4 + 3]);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (!a(x, y)) continue;
+      const edge = !a(x - 1, y) || !a(x + 1, y) || !a(x, y - 1) || !a(x, y + 1);
+      out.set(x, y, edge ? [110, 26, 40, 255] : [244, 236, 219, 255]);
+    }
+  return out;
 }
 
 /** The game's current acted state: multiplicative tint 0xb8b8b8. */

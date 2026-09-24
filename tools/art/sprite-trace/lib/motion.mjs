@@ -87,13 +87,13 @@ export function attackFrames(sp, { body, waist, facing = 1 } = {}) {
     () => -facing,
     -2,
   );
-  const lean = (y) => facing * (y >= wy ? 2 : Math.round(1 + (2 * (wy - y)) / span));
+  const lean = (y) => facing * (y >= wy ? 2 : Math.round(2 + (2 * (wy - y)) / span));
   const strike = shift(sp, upper, lean, 1);
   const strikeW = shift(
     strike,
     (x, y, s) => WEAPON_SLOTS.has(s),
-    () => facing * 2,
-    0,
+    () => facing * 3,
+    1,
   );
   return [windupW, strikeW];
 }

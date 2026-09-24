@@ -94,7 +94,7 @@ function muteTrim(sp) {
     }
 }
 
-export function traceNative(native, recipe = {}, { density = 1.5, mode = null } = {}) {
+export function traceNative(native, recipe = {}, { density = 1.5, mode = null, aspect = 1 } = {}) {
   const seg = segment(native, recipe);
   const prep = prepareNative(seg, { peel: recipe.peel !== false, thick: recipe.thick !== false });
   const { w, h } = seg;
@@ -128,19 +128,24 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null } 
     bbox(w, h, (p) => prep.fill[p]);
   const full = bbox(w, h, (p) => prep.fill[p]);
   const kind = recipe.kind || 'infantry';
-  let s = fitScale(body.height, full.width, full.height, kind, density);
+  // `aspect` = a native pixel's height / width in the reviewed sheet (1 unless the sheet
+  // was resized anisotropically): the sprite keeps the proportions the owner reviewed
+  const asp = Math.max(0.5, Math.min(2, recipe.aspect ?? aspect ?? 1));
+  let s = fitScale(body.height * asp, full.width, full.height * asp, kind, density);
   s *= recipe.scaleBias ?? 1;
+  const sxy = Math.abs(asp - 1) < 0.02 ? s : { x: s, y: s * asp };
 
   if (s < (recipe.textureBelow ?? 0.8)) absorbTextureLines(prep, w, h);
   const abst = abstractNative(seg, prep, s, recipe.abstract || {});
   // Two reducers: near 1:1 the artist's exact pixels survive best (priority-merge
   // decimation); under strong reduction an area vote over abstracted materials is cleaner.
   const heavy = s < (recipe.heavyBelow ?? 0.55);
-  const useMode = recipe.mode || mode || (heavy ? 'area' : 'merge');
+  // (decimation only removes lines: an enlargement, s >= 1, always uses the area vote)
+  const useMode = recipe.mode || mode || (heavy || s >= 1 ? 'area' : 'merge');
   const red = (useMode === 'area' ? reduce : reduceMerge)(
     { ...seg, lab: abst.lab },
     { fill: abst.fill, dark: abst.dark },
-    s,
+    sxy,
     { head: seg.head, ...(recipe.reduce || {}) },
   );
   const sp = quantize(red, rampLabs);
@@ -148,7 +153,7 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null } 
   if (recipe.lines !== false && useMode === 'area') {
     const LINE_SLOTS = [SLOT.linen, SLOT.trim, SLOT.metal, SLOT.wood, SLOT.glow];
     const weaponish = new Set([SLOT.metal, SLOT.wood, SLOT.glow]);
-    for (const t of thinLines(w, h, abst.fill, abst.lab, s, red.mapPoint, LINE_SLOTS)) {
+    for (const t of thinLines(w, h, abst.fill, abst.lab, sxy, red.mapPoint, LINE_SLOTS)) {
       const cur = sp.at(t.x, t.y);
       if (!sp.inside(t.x, t.y) || cur === SLOT.eye) continue;
       if (!cur && !weaponish.has(t.slot)) continue; // trims never grow the silhouette
@@ -191,7 +196,7 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null } 
         ey0 = Math.min(ey0, (q / w) | 0);
         ey1 = Math.max(ey1, (q / w) | 0);
       }
-      eyePts.push([...red.mapPoint(cx - 0.5, cy - 0.5), (ey1 - ey0 + 1) * s >= 1.3]);
+      eyePts.push([...red.mapPoint(cx - 0.5, cy - 0.5), (ey1 - ey0 + 1) * s * asp >= 1.3]);
     }
   }
 
@@ -227,6 +232,7 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null } 
     kind,
     density,
     scale: s,
+    aspect: asp,
     native: { w, h },
     eye,
     slots: [...new Set(placed.slot)].filter(Boolean).map((i) => SLOTS[i]),

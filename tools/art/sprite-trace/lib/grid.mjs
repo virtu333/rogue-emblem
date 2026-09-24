@@ -253,20 +253,11 @@ export function sampleCells(r, xs, ys, { alphaMin = 128, coverage = 0.5 } = {}) 
 }
 
 /**
- * Full grid recovery of one figure. `box` should be the figure's alpha bounds.
- * Returns { native, pitch: {x, y}, confidence, cuts: {xs, ys}, purity, mode }.
- * When confidence is low the image is treated as an illustration and area-
- * downscaled to the nominal pitch instead (mode 'downscale').
+ * Estimate the (per-axis) block pitch of a region. Returns { x, y, confidence }.
+ * Use it on a whole sheet so every figure of the sheet shares one grid (the sheet's
+ * anisotropy is a property of the sheet, not of a figure).
  */
-export function recoverGrid(r, box = null, opts = {}) {
-  const b = box || r.alphaBounds(10) || { x: 0, y: 0, width: r.w, height: r.h };
-  const pad = 2;
-  const bb = {
-    x: Math.max(0, b.x - pad),
-    y: Math.max(0, b.y - pad),
-    width: Math.min(r.w - Math.max(0, b.x - pad), b.width + pad * 2),
-    height: Math.min(r.h - Math.max(0, b.y - pad), b.height + pad * 2),
-  };
+export function estimateGridPitch(r, bb, opts = {}) {
   const px = edgeProfile(r, 'x', bb);
   const py = edgeProfile(r, 'y', bb);
   const lags = Math.min(40, Math.floor(Math.min(px.E.length, py.E.length) / 3));
@@ -295,6 +286,30 @@ export function recoverGrid(r, box = null, opts = {}) {
     if (joint.pitch) pX = pY = joint.pitch;
   }
   const confidence = Math.max(ex.confidence, ey.confidence);
+  return { x: pX, y: pY, confidence };
+}
+
+/**
+ * Full grid recovery of one figure. `box` should be the figure's alpha bounds.
+ * Returns { native, pitch: {x, y}, confidence, cuts: {xs, ys}, purity, mode }.
+ * When confidence is low the image is treated as an illustration and area-
+ * downscaled to the nominal pitch instead (mode 'downscale').
+ */
+export function recoverGrid(r, box = null, opts = {}) {
+  const b = box || r.alphaBounds(10) || { x: 0, y: 0, width: r.w, height: r.h };
+  const pad = 2;
+  const bb = {
+    x: Math.max(0, b.x - pad),
+    y: Math.max(0, b.y - pad),
+    width: Math.min(r.w - Math.max(0, b.x - pad), b.width + pad * 2),
+    height: Math.min(r.h - Math.max(0, b.y - pad), b.height + pad * 2),
+  };
+  const px = edgeProfile(r, 'x', bb);
+  const py = edgeProfile(r, 'y', bb);
+  const est = opts.pitch || estimateGridPitch(r, bb, opts);
+  let pX = est.x,
+    pY = est.y;
+  const confidence = est.confidence;
   if (opts.forcePitch) pX = pY = opts.forcePitch;
   if (confidence < (opts.minConfidence ?? 0.25) && !opts.forcePitch) {
     const p = opts.fallbackPitch || Math.max(2, (pX + pY) / 2 || 4);

@@ -29,11 +29,6 @@ mkdirSync(`${OUT}/anim`, { recursive: true });
 const INK = [20, 20, 24, 255];
 const PAPER = '#ddd0bd';
 const label = (t, width, size = 11) => textRaster(t, { size, bg: '#16131e', color: PAPER, width });
-const grid = (tiles, per, gap = 4) => {
-  const rows = [];
-  for (let i = 0; i < tiles.length; i += per) rows.push(hstack(tiles.slice(i, i + per), gap, INK));
-  return vstack(rows, gap, INK);
-};
 const tight = (img, pad = 2) => {
   const b = img.alphaBounds(0);
   return img.crop(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2);
@@ -307,8 +302,8 @@ if (want('pipeline')) {
     const t = await traceId(id);
     const raw = traceNative(
       native,
-      { ...e, keyLight: false, eyes: false, speck: 0 },
-      { density: 1.5 },
+      { ...e, keyLight: false, eyes: false, speck: 0, calm: 0, orphans: false },
+      { density: 1.5, aspect: pitch.y / pitch.x },
     );
     const fit = (img) => flat(img).resizeNearest(Math.round((img.w * H) / img.h), H);
     const steps = [
@@ -352,7 +347,7 @@ if (want('density')) {
     hstack(await Promise.all([label('', 110), ...heads.map((h) => label(h, DEVICE, 10))]), 4, INK),
   );
   for (const id of ['edric', 'myrmidon_a', 'knight_e']) {
-    const { native } = await loadNative(id);
+    const { native, pitch } = await loadNative(id);
     const e = ROSTER.sources[id];
     const cells = [await label(id, 110)];
     // the rebuilt runtime path: nearest-sample the 1024 px source into the 64 px placement
@@ -375,7 +370,7 @@ if (want('density')) {
     const bgFor = (size) => grass96.resizeNearest(size, size);
     cells.push(on(bgFor(64), r64).resizeNearest(DEVICE, DEVICE));
     for (const D of [1, 1.5, 2]) {
-      const t = traceNative(native, e, { density: D });
+      const t = traceNative(native, e, { density: D, aspect: pitch.y / pitch.x });
       const pal = paletteFor(t, {
         faction: e.main === 'red' ? 'enemy' : 'player',
         keepMain: id === 'edric',

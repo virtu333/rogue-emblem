@@ -17,8 +17,11 @@ for (const id of want) {
   if (!e) throw new Error(`unknown id ${id}`);
   const r = await readRaster(e.src);
   const box = e.figure != null ? splitFigures(r, e.figures ?? 3)[e.figure] : r.alphaBounds(64);
-  const { native } = recoverFigure(r.crop(box.x, box.y, box.width, box.height), e.recover || {});
-  const t = traceNative(native, e, { density, mode: mode || 'area' });
+  const { native, pitch } = recoverFigure(
+    r.crop(box.x, box.y, box.width, box.height),
+    e.recover || {},
+  );
+  const t = traceNative(native, e, { density, mode: mode || null, aspect: pitch.y / pitch.x });
   const img = render(t.sprite, { ramps: t.ramps, eye: t.eye });
   const size = img.w;
   const bg = (im) =>

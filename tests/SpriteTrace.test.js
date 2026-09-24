@@ -228,6 +228,17 @@ describe('trace', () => {
     }
   });
 
+  it('keeps the reviewed proportions when a sheet had non-square pixels', () => {
+    const base = figureNative();
+    const tall = base.resizeNearest(base.w, Math.round(base.h * 1.5)); // rows 1.5x too many
+    const ta = traceNative(base, recipe),
+      tb = traceNative(tall, recipe, { aspect: 1 / 1.5 });
+    const a = render(ta.sprite, { ramps: ta.ramps }).alphaBounds(0);
+    const b = render(tb.sprite, { ramps: tb.ramps }).alphaBounds(0);
+    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(a.height - b.height)).toBeLessThanOrEqual(2);
+  });
+
   it('fits the body height, not the weapon, to the kind', () => {
     // a tall lance must not shrink its wielder
     expect(fitScale(60, 40, 75, 'infantry', 1.5)).toBeCloseTo(49 / 60, 5);
