@@ -114,9 +114,9 @@ for (const row of grid.tiles) for (const tile of row) tile.setVisible(false);
 
 The alternative keeps `BattlefieldLab.paintTerrain`'s shape: slice the
 canvas into one 48×48 texture per cell. Take the cell's rectangle
-(`cellRect(result, col, row)`) of the **full** canvas. Canopy and cap
-overhangs (≤ 2 art px) are already baked into the neighbouring cells'
-rectangles, so slicing loses nothing.
+(`cellRect(result, col, row)`) of the **full** canvas. Canopy, peak and cap
+overhangs (≤ 4 art px, see `OBJECT_LIMITS`) are already baked into the
+neighbouring cells' rectangles, so slicing loses nothing.
 
 Movement, danger and attack highlights, fog, the night light layer
 (`BattleLightLayer`), rings and units all draw above the terrain as they do
@@ -189,20 +189,32 @@ for 20×13 maps.
 - **Coverage.** Every terrain in `data/terrain.json` renders in every biome.
   Every `mapTemplates.json` template also renders through the real
   `generateBattle`, which covers all six biomes.
-- **Owner rule, objects fit their cells.** Every opaque object pixel stays
-  within `OBJECT_LIMITS` of its own cell:
-  - trees: canopy up to 2 art px on the sides and top, and nothing below the
-    cell;
-  - peaks: 1 px on the sides and 2 px on top;
-  - column capitals: 1 px on top;
+- **Owner rule, objects mostly fit their cells.** Every opaque object pixel
+  stays within `OBJECT_LIMITS` of its own cell (left / right / top / bottom,
+  art px; 1 art px = 1.42 CSS px at 34 px per cell):
+  - trees 4 / 4 / 4 / 2: canopy may spill 4 px toward more forest but only
+    2 px into open ground (tested), and a trunk foot 1–2 px downward;
+  - peaks 3 / 3 / 4 / 1: summits may rise 4 px, scree 1 px down;
+  - column capitals 0 / 0 / 1 / 0;
   - structures: none.
 
   Shapes are planned to fit, so the safety clip removes under 4% of any
-  sprite. An object below never reaches the lower half of the cell above
-  it, where a unit's feet and ring sit.
+  sprite (trees: none). An object below never reaches the lower half of the
+  cell above it, where a unit's feet and ring sit; objects cover under 10%
+  of any open neighbour.
+- **Natural variation.** Forest cells are never one stamp: tree counts and
+  layouts differ cell to cell, interiors are denser than edges, a lone
+  forest cell is a tree or a small copse that still reads as cover, and
+  mountains come in at least four archetypes whose neighbours join by
+  ridges (tested).
 - **Locality.** Changing one cell changes only its 3×3 neighbourhood, in
   every intermediate buffer. Incremental repaint equals a full render for
-  single, clustered, far-apart and edge edits.
+  single, clustered, far-apart and edge edits. Objects that look at their
+  neighbours keep this by construction: each part records the cells its
+  look depends on (`Sprite.setDeps`) and paints, sprite and shadow, only
+  into cells whose own 3×3 neighbourhood contains them. A tree decided from
+  the 2×2 block at its cell's north-west corner may spill north and west
+  only; a context-free part may spill anywhere.
 - **Borders stay on the grid.** Soft materials drift at most 3 art px off
   the true cell line, which is ≤ 3 CSS px at phone scale.
 - **Consistency across paths.** Time-sliced painting equals the sync paint,
@@ -218,12 +230,26 @@ for 20×13 maps.
 2. `edges`: directional distance to a different material class, capped at
    12.
 3. `ground`: the painters (open ground, water, sand, ice, lava, swamp, bog,
-   flagstones, walls) and the emissive spill from lava.
+   flagstones, walls) and the emissive spill from lava. Region fields
+   (`fields.js`: the share of forest / water / wall cells around each cell
+   corner, interpolated per pixel, continuous across borders and 3×3-local)
+   shade the heart of a wood, deepen wide water and gather moss or snow at
+   the foot of walls. Low-frequency world noise adds drift crests on snow
+   and ash; footpaths leave fort and village doors.
 4. `decals`: clumps, tufts, pebbles, flowers, ripples, reeds, lily pads,
-   puddles and bubbles. Every stamp is within 5 px of its origin.
+   puddles and bubbles. Every stamp is within 5 px of its origin. Tufts,
+   stones and flowers are clustered by low-frequency fields.
 5. `bridges`: decks derived from the cell's own 3×3 neighbourhood.
-6. `objects`: wall and object shadows toward the bottom-right, then the
-   per-cell sprites, back to front.
+6. `objects`: wall and object shadows toward the bottom-right, then every
+   object part of the cells around, depth-sorted by ground line.
+   - forests (`trees.js`): a context-free core (one large tree, a pair or a
+     trio) plus well-spaced foot positions whose growth, size and species
+     come from the 2×2 block at their quadrant's corner;
+   - mountains (`mountains.js`): a context-free massif archetype, shoulders
+     to a border-keyed saddle toward east / west mountain neighbours, a
+     ridge spine from the peak to the north, valleys inside 2×2 blocks, and
+     boulders facing open ground;
+   - columns and landmarks (`structures.js`).
 
 The locality budget is 7 + 12 + 5 ≤ 24 art px. A full render runs each pass
 over row bands, which makes the time slicing possible. A repaint runs each

@@ -283,8 +283,8 @@ function paintWater(S, x, y, i, open = 0) {
   let t = R('tide', 4);
   let anim = 0;
   if (d <= 2.5) t = R('tide', 5);
-  else if (dAny >= 9 && depth > 0.98) t = R('tide', 2);
-  else if (dAny >= 9 && (depth > 0.72 || S.nz.fbm(x, y, 36, seed + 24, 2) < 0.4)) t = R('tide', 3);
+  else if (dAny >= 9 && depth > 1.08) t = R('tide', 2);
+  else if (dAny >= 9 && (depth > 0.84 || S.nz.fbm(x, y, 36, seed + 24, 2) < 0.4)) t = R('tide', 3);
   else if (
     d > 4 &&
     y % 3 === 0 &&
