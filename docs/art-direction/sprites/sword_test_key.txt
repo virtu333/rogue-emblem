@@ -1,0 +1,6 @@
+#1: thief (player)
+#2: myrmidon (enemy)
+#3: mercenary (player)
+#4: myrmidon (player)
+#5: thief (enemy)
+#6: mercenary (enemy)
