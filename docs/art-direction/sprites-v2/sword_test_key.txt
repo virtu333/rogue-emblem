@@ -1,0 +1,6 @@
+1: enemy_thief
+2: mercenary
+3: enemy_myrmidon
+4: thief
+5: enemy_mercenary
+6: myrmidon

@@ -2,6 +2,7 @@ import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
+import { preloadTracedSprites, prepareTracedSprites } from '../ui/TracedSprites.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
@@ -56,6 +57,7 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     preloadRebuiltSprites(this);
+    preloadTracedSprites(this);
     preloadRebuiltPortraits(this);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
@@ -671,6 +673,7 @@ export class BootScene extends Phaser.Scene {
 
   async create() {
     prepareRebuiltSprites(this);
+    prepareTracedSprites(this);
     markStartup('boot_create_start');
     this._clearPreloadStallWatch();
     this._destroyStallUi();

@@ -1,4 +1,5 @@
 import { rebuiltSpriteKey } from './RebuiltSprites.js';
+import { tracedSpriteKey } from './TracedSprites.js';
 
 const LORD_SPRITE_KEYS = {
   Edric: { base: 'lordedric', promoted: 'greatlordedric' },
@@ -6,6 +7,8 @@ const LORD_SPRITE_KEYS = {
 
 export function battleUnitSpriteKey(scene, unit) {
   if (unit.isCaravan && scene.textures.exists('merchant_caravan')) return 'merchant_caravan';
+  const traced = tracedSpriteKey(scene, unit);
+  if (traced) return traced;
   const rebuilt = rebuiltSpriteKey(scene, unit);
   if (rebuilt) return rebuilt;
   const classKey = unit.className.toLowerCase().replace(/ /g, '_');

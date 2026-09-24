@@ -8,6 +8,7 @@
 //   ?battlefieldArt=classic  everything classic
 //   ?terrainArt=classic      classic terrain tiles (?terrainArt=<id> picks a renderer)
 //   ?spriteArt=classic       classic unit sprites
+//   ?spriteArt=traced        traced map sprites (tools/art/sprite-trace) where baked, else rebuilt
 //   ?battleContrast=original no contour / palette lift / grass softening
 
 function readSearch(search) {
@@ -24,10 +25,12 @@ export function resolveBattlefieldArtFlags(search = '', { dev = false } = {}) {
   const terrain = all && terrainChoice !== 'classic';
   const sprites = all && devValue('spriteArt') !== 'classic';
   const contrast = sprites && devValue('battleContrast') !== 'original';
+  const traced = sprites && devValue('spriteArt') === 'traced';
   return {
     terrain,
     sprites,
     contrast,
+    traced,
     terrainRenderer: terrain && terrainChoice ? terrainChoice : null,
   };
 }
@@ -48,6 +51,11 @@ export function battlefieldTerrainArtEnabled(search) {
 
 export function battlefieldSpriteArtEnabled(search) {
   return flags(search).sprites;
+}
+
+/** Dev review of the traced map sprites (?spriteArt=traced); never on in production. */
+export function battlefieldTracedSpritesEnabled(search) {
+  return flags(search).traced;
 }
 
 export function battlefieldContrastEnabled(search) {
