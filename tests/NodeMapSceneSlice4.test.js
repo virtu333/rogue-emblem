@@ -436,6 +436,54 @@ describe('NodeMapScene Slice 4', () => {
     expect(withSettings.rosterOverlay).toBeNull();
   });
 
+  it.each(['isTransitioning', 'battleLaunchInFlight', '_sceneShuttingDown'])(
+    'ignores roster requests while %s (battle launch uncovers the rail button)',
+    (flag) => {
+      RosterOverlayMock.mockClear();
+      const scene = {
+        rosterOverlay: null,
+        shopOverlay: null,
+        churchOverlay: null,
+        pauseOverlay: null,
+        settingsOverlay: null,
+        runManager: {},
+        gameData: {},
+        registry: { get: () => null },
+        [flag]: true,
+      };
+      NodeMapScene.prototype._openRoster.call(scene);
+      expect(scene.rosterOverlay).toBeNull();
+      expect(RosterOverlayMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not redraw the map when the roster is closed by scene shutdown', () => {
+    RosterOverlayMock.mockClear();
+    const scene = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      runManager: { toJSON: () => ({}) },
+      gameData: {},
+      registry: { get: () => null },
+      sys: { isActive: () => true },
+      drawMap: vi.fn(),
+    };
+    NodeMapScene.prototype._openRoster.call(scene);
+    const { onClose } = RosterOverlayMock.mock.calls[0][3];
+
+    scene._sceneShuttingDown = true;
+    expect(() => onClose()).not.toThrow();
+    expect(scene.drawMap).not.toHaveBeenCalled();
+    expect(scene.rosterOverlay).toBeNull();
+
+    scene._sceneShuttingDown = false;
+    onClose();
+    expect(scene.drawMap).toHaveBeenCalledTimes(1);
+  });
+
   it('requestCancel restores hidden shop overlay before leaving', () => {
     const shopObj = makeDisplayObject().setInteractive({ useHandCursor: true });
     shopObj.visible = false;

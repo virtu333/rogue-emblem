@@ -1364,6 +1364,10 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _openRoster() {
+    // Advance hides the route menu, uncovering the mobile rail's Roster button
+    // for the ~2s battle launch. An overlay opened now would be torn down by
+    // shutdown mid-transition, so ignore it until the scene is stable again.
+    if (this.isTransitioning || this.battleLaunchInFlight || this._sceneShuttingDown) return;
     if (this.rosterOverlay?.visible) return;
     if (this.shopOverlay && !this._shopViewingRoster) return;
     if (this.churchOverlay && !this._churchViewingMap && !this._churchViewingRoster) return;
@@ -1386,6 +1390,10 @@ export class NodeMapScene extends Phaser.Scene {
               : 'Save failed — storage may be unavailable',
           );
         }
+        // Closed by scene shutdown: the camera and display list are already
+        // being torn down, so redrawing would throw inside the shutdown event
+        // and stall the next scene's start.
+        if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
         if (!this.shopOverlay && !this.churchOverlay) {
           this.drawMap();
         }
