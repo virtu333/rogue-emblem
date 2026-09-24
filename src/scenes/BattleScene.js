@@ -8080,7 +8080,7 @@ export class BattleScene extends Phaser.Scene {
       Promise.resolve(showMinorHint(this, 'Battle resumed. Finishing your attack.')).catch(
         () => {},
       );
-    } catch (_) {
+    } catch {
       /* cosmetic only */
     }
     const run = () => this.executeCombat(attacker, defender);
@@ -10242,7 +10242,7 @@ export class BattleScene extends Phaser.Scene {
     for (const unit of [...(this.playerUnits || []), ...(this.enemyUnits || [])]) {
       try {
         if (unit?.graphic) this.updateUnitPosition(unit);
-      } catch (_) {
+      } catch {
         /* best effort: a broken sprite must not block recovery */
       }
     }
