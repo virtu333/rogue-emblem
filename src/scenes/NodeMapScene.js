@@ -47,6 +47,7 @@ import {
   clearAllSceneTimers,
 } from '../utils/sceneTimers.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
+import { CeremonyController } from '../ui/CeremonyController.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -338,6 +339,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._pendingNodeMapHints = null;
     this._storyDialogueActive = false;
     this._promotionChoicePanelOpen = 0;
+    this._ceremonies?.destroy();
+    this._ceremonies = null;
 
     this._churchMessageTimer = null;
     this._churchFlavorTimer = null;
@@ -439,11 +442,28 @@ export class NodeMapScene extends Phaser.Scene {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
             this.persistRunSave();
+            // The run opens on its act title (once: after the run-start mark).
+            const actCard = hasDOMHost()
+              ? (this._ceremonies ||= new CeremonyController(this)).showActCard({
+                  actId: this.runManager.currentAct,
+                  withLines: true,
+                })
+              : null;
             try {
               await this.dialogueOverlay.showSequence(
                 adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
                 { category: 'runStart', key: 'runStart' },
               );
+              // Lines read over the title already gave it its time (it fades
+              // out on its own); a sequence skipped as seen leaves the title to
+              // hold, skippable, on its own.
+              if (actCard && isSceneLifecycleActive(this, lifecycleGeneration)) {
+                if (this.dialogueOverlay?.lastSequenceSkippedAsSeen) await actCard.finish();
+                else void actCard.close();
+              } else actCard?.destroy();
+            } catch (err) {
+              actCard?.destroy();
+              throw err;
             } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
                 this._storyDialogueActive = false;

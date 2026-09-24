@@ -198,8 +198,8 @@ test('battlefield place text and merchant sprite are readable on a small phone',
   await expect(
     page.locator('.mb-more-content').getByText(/Old Kingdom Roads — Dark Champion Keep/),
   ).toBeVisible();
-  await page.waitForFunction(
-    () => window.__emblemRogueGame.scene.getScene('Battle')._phaseBanner?.alpha === 1,
+  await expect(page.locator('.ce-phase-layer .ce-phase-sub')).toHaveText(
+    /Old Kingdom Roads — Dark Champion Keep/,
   );
   await page.screenshot({ path: info.outputPath('place-and-merchant.png') });
   expect(errors).toEqual([]);

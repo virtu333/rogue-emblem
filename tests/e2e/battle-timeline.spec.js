@@ -208,7 +208,9 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
     await s.removeUnit(commander, { killer: s.enemyUnits[0] });
     s.checkBattleEnd();
   });
-  const decision = page.getByRole('button', { name: 'Review timeline', exact: true });
+  // The fatal decision is staged as FALLEN with Sera's offer beneath it.
+  await expect(page.locator('.ce-fate .ce-band-word')).toHaveText('FALLEN');
+  const decision = page.getByRole('button', { name: 'Rewind · 3 left', exact: true });
   await expect(decision).toBeVisible();
   await decision.tap();
   const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
@@ -221,7 +223,7 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
       window.__emblemRogueGame.scene.getScene('Battle').playerUnits.some((u) => u.isCommander),
     ),
   ).toBe(false);
-  await page.getByRole('button', { name: 'Accept Fate', exact: true }).tap();
+  await page.getByRole('button', { name: 'Accept fate', exact: true }).tap();
   await waitForScene(page, 'RunComplete');
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
   if (await farewell.isVisible()) await farewell.tap();

@@ -7,8 +7,10 @@ import { presentationText } from '../utils/presentationText.js';
  *    proc belongs to (striker for offense/arts, target for defense procs)
  *  - showSkillBanner: full-width sliding banner for pre-combat 'skill'
  *    events (Astra, Vantage, Desperation)
- *  - showCutIn: portrait cut-in strip for crits and Legendary weapon arts,
- *    throttled so multi-strike exchanges can't chain them
+ *  - showCutIn: diagonal cut-in for crits and Legendary weapon arts (DOM:
+ *    the attacker's eyes strip, speed lines, the word in Cinzel; canvas
+ *    strip as the no-DOM fallback), throttled so multi-strike exchanges
+ *    can't chain them, skipped at Instant speed, static in reduced motion
  *
  * Banners and cut-ins are screen-anchored (depth >= 500 auto-pins to the UI
  * camera on mobile); chips live in world space above their unit. All awaited
@@ -17,6 +19,9 @@ import { presentationText } from '../utils/presentationText.js';
 
 import { themeFor, dominantCategory, classifySkillEventName } from './ProcVisualTheme.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
+import { battleSpeed } from '../utils/combatTiming.js';
+import { cutInContent } from './ceremonyContent.js';
+import { CeremonyLayer, canRenderCeremony, ceremonyPortrait, el, fitText } from './ceremonyDom.js';
 
 const CHIP_DEPTH = 301; // world-space, just above floating damage text (300)
 const BANNER_DEPTH = 500; // screen-space; >= 500 auto-pins to the mobile UI camera
@@ -162,13 +167,26 @@ export class ProcBannerController {
    * CUTIN_THROTTLE_MS so multi-strike exchanges can't chain them.
    * `side` is 'left' (player) or 'right' (enemy).
    */
-  async showCutIn({ unitName, portraitKey, label, category, side }) {
+  async showCutIn({ unitName, portraitKey, label, category, side, unit = null, weaponName = '' }) {
     const scene = this.scene;
+    // Instant speed resolves combat without punctuation: no cut-in at all.
+    if (battleSpeed(scene) === 'instant') return;
     // Keep the readable crit/art identity at low quality; only its motion is omitted.
     const staticPresentation = this._reduced() || scene._effectsQuality?.() === 'low';
     const now = scene.time?.now ?? 0;
     if (now - this._lastCutInAt < CUTIN_THROTTLE_MS) return;
     this._lastCutInAt = now;
+    if (canRenderCeremony()) {
+      return this._showCutInDOM({
+        unit,
+        unitName,
+        weaponName,
+        label,
+        category,
+        side,
+        staticPresentation,
+      });
+    }
 
     const cam = scene.cameras.main;
     const w = cam.width;
@@ -237,6 +255,93 @@ export class ProcBannerController {
         alpha: 0,
         duration: staticPresentation ? 0 : 140,
         ease: 'Cubic.easeIn',
+        onComplete: kill,
+      },
+      { label: 'proc_cutin_out', onCancel: kill },
+    );
+    kill();
+  }
+
+  /**
+   * The diagonal DOM cut-in: the attacker's eyes strip, speed lines, the word
+   * in Cinzel and "NAME · WEAPON" in pixel type. It runs on exactly the same
+   * awaited tweens/delay (labels, durations, speed scaling, lifecycle guards)
+   * as the canvas strip, driving CSS variables instead of a container, so
+   * combat resolution waits no longer than it always has.
+   */
+  async _showCutInDOM({ unit, unitName, weaponName, label, category, side, staticPresentation }) {
+    const scene = this.scene;
+    const fromLeft = side !== 'right';
+    const content = cutInContent({
+      label,
+      unitName: unitName || unit?.name,
+      weaponName: weaponName || unit?.weapon?.name,
+      isArt: category === 'art',
+    });
+    const layer = this._track(
+      new CeremonyLayer(scene, {
+        frame: 'map',
+        className: `ce-cutin-layer ce-cutin-layer--${fromLeft ? 'player' : 'enemy'}${
+          staticPresentation ? ' is-static' : ''
+        }`,
+        label: [content.word, content.small].filter(Boolean).join('. '),
+      }),
+    );
+    const root = layer.root;
+    const band = el('div', 'ce-cutin');
+    const portrait = ceremonyPortrait(scene, unit);
+    if (portrait?.src) {
+      const eyes = el('div', `ce-cutin-eyes${portrait.rebuilt ? '' : ' is-legacy'}`);
+      eyes.style.backgroundImage = `url("${portrait.src}")`;
+      eyes.style.setProperty('--ce-eye', String(portrait.framing.eye));
+      eyes.style.setProperty('--ce-cx', String(portrait.framing.cx));
+      band.append(eyes);
+    } else band.classList.add('is-faceless');
+    const word = el('div', 'ce-cutin-word');
+    const big = el('div', 'ce-cutin-big', content.word);
+    word.append(big);
+    if (content.small) word.append(el('div', 'ce-cutin-small', content.small));
+    band.append(word);
+    root.append(el('div', 'ce-cutin-flash'), band);
+    layer.addFitter(() => fitText(big, { min: 16 }));
+
+    const motion = { in: staticPresentation ? 1 : 0, out: 0 };
+    const paint = () => {
+      root.style.setProperty('--ce-in', String(motion.in));
+      root.style.setProperty('--ce-out', String(motion.out));
+    };
+    paint();
+
+    let dead = false;
+    const kill = () => {
+      if (dead) return;
+      dead = true;
+      this._kill(layer);
+    };
+
+    await scene._awaitSceneTween(
+      {
+        targets: motion,
+        in: 1,
+        duration: staticPresentation ? 0 : 140,
+        ease: 'Cubic.easeOut',
+        onUpdate: paint,
+        onComplete: paint,
+      },
+      { label: 'proc_cutin_in', onCancel: kill },
+    );
+    motion.in = 1;
+    paint();
+    if (dead || layer.destroyed) return;
+    await scene._awaitSceneDelay(240, { label: 'proc_cutin_hold' });
+    if (dead || layer.destroyed) return;
+    await scene._awaitSceneTween(
+      {
+        targets: motion,
+        out: 1,
+        duration: staticPresentation ? 0 : 140,
+        ease: 'Cubic.easeIn',
+        onUpdate: paint,
         onComplete: kill,
       },
       { label: 'proc_cutin_out', onCancel: kill },

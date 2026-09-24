@@ -15,6 +15,7 @@ import { buildNarrativeContext, selectDialogueEntries } from '../engine/Narrativ
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { CeremonyController } from '../ui/CeremonyController.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -68,6 +69,8 @@ export class RunCompleteScene extends Phaser.Scene {
       this._runResultLifetime = null;
       this.runResultMenu?.destroy();
       this.runResultMenu = null;
+      this._ceremonies?.destroy();
+      this._ceremonies = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
       popInputScope(this);
@@ -90,8 +93,15 @@ export class RunCompleteScene extends Phaser.Scene {
       ).setOrigin(0.5);
 
     let overlay;
+    let card = null;
     try {
       const dialogueEntries = this._getRunCompleteDialogue();
+      // THE THREAD IS CUT (or its gold counterpart) frames the farewell lines.
+      card = hasDOMHost()
+        ? (this._ceremonies = new CeremonyController(this)).showRunEnd(this._runEndContext(), {
+            withLines: Boolean(dialogueEntries),
+          })
+        : null;
       if (dialogueEntries) {
         overlay = new DialogueOverlay(this);
         await overlay.showSequence(dialogueEntries);
@@ -100,6 +110,14 @@ export class RunCompleteScene extends Phaser.Scene {
       console.warn('[RunCompleteScene] Dialogue failed, continuing:', err);
     } finally {
       if (overlay) overlay.destroy();
+    }
+    if (card && this._runResultLifetime === lifetime) {
+      try {
+        if (overlay) void card.close();
+        else await card.finish();
+      } catch (err) {
+        console.warn('[RunCompleteScene] Result card failed, continuing:', err);
+      }
     }
 
     if (this._runResultLifetime !== lifetime) return;
@@ -295,6 +313,33 @@ export class RunCompleteScene extends Phaser.Scene {
       }
       return false;
     }
+  }
+
+  /** Where and when the run ended, for the result card (presentation only). */
+  _runEndContext() {
+    const rm = this.runManager;
+    let commander;
+    try {
+      commander = rm?.getStartingLordNames?.()?.[0] || null;
+    } catch {
+      commander = null;
+    }
+    const report = rm?.lastBattleReport;
+    const lastEntry = Array.isArray(report?.entries) ? report.entries.at(-1) : null;
+    const turn = Number.isFinite(lastEntry?.turnNumber)
+      ? lastEntry.turnNumber
+      : Number.isFinite(report?.currentTurn)
+        ? report.currentTurn
+        : null;
+    return {
+      result: this.result,
+      commander,
+      actId: rm?.currentAct,
+      // The report's last turn is where the run died; an abandoned run has none.
+      turn: this.result !== 'victory' && rm?.defeatContext ? turn : null,
+      defeatContext: rm?.defeatContext || null,
+      battlesWon: rm?.completedBattles,
+    };
   }
 
   _getRunCompleteDialogue() {

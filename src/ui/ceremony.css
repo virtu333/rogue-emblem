@@ -1,0 +1,1163 @@
+/* Ceremonies — Souls staging, anime cut-ins (docs/art-direction/ART_BIBLE.md).
+   DOM over the map frame (phones keep the command rail live), Cinzel for the
+   ceremonial word only, Press Start 2P for short labels. Reduced motion and
+   Instant speed add .is-static: the end state appears at once. Geometry is
+   authored at the phone design size and grows with --ce-scale on desktop. */
+
+:root {
+  /* Art ramps (ART_BIBLE palette) used only by ceremonies. */
+  --ce-ink-0: #07060b;
+  --ce-ink-1: #0e0c14;
+  --ce-ink-2: #16131e;
+  --ce-bone: #ddd0bd;
+  --ce-ivory: #f4ecdb;
+  --ce-gold-3: #b3702c;
+  --ce-gold-4: #dca044;
+  --ce-gold-5: #f3cb6c;
+  --ce-gold-6: #fff0bd;
+  --ce-blood-1: #44111c;
+  --ce-blood-2: #6e1a28;
+  --ce-blood-3: #9e2632;
+  --ce-blood-4: #cc4038;
+  --ce-blood-5: #ec7a5c;
+  --ce-ember-hi: #ffd08a;
+  --ce-ember: #e8782e;
+  --ce-ember-lo: #b3452a;
+  --ce-ember-text: #ffb070;
+  --ce-unlight-2: #2c1645;
+  --ce-unlight-3: #4a2270;
+  --ce-unlight-4: #a863cc;
+  --ce-unlight-5: #dcaaf0;
+  --ce-veil: rgba(7, 6, 11, 0.55);
+  --ce-veil-soft: rgba(7, 6, 11, 0.35);
+  --ce-veil-heavy: rgba(7, 6, 11, 0.7);
+  --ce-band-fill: rgba(7, 6, 11, 0.94);
+  --ce-glow-gold: rgba(243, 203, 108, 0.45);
+  --ce-glow-blood: rgba(204, 64, 56, 0.55);
+  --ce-glow-unlight: rgba(168, 99, 204, 0.55);
+}
+
+.ce-layer {
+  --ce-scale: 1;
+  --ce-exit: 300ms;
+  position: fixed;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--ce-bone);
+  font-family: var(--re-body);
+  contain: layout paint;
+  -webkit-tap-highlight-color: transparent;
+}
+.ce-layer.is-blocking {
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ce-layer.is-leaving {
+  transition: opacity var(--ce-exit) ease-in;
+  opacity: 0;
+}
+.ce-layer.is-static,
+.ce-layer.is-static *,
+.ce-layer.is-static *::before,
+.ce-layer.is-static *::after,
+.ce-fate.is-static,
+.ce-fate.is-static *,
+.ce-fate.is-static *::before,
+.ce-fate.is-static *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+.ce-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--ce-veil);
+  animation: ce-fade 300ms ease-out both;
+}
+.ce-dim--soft {
+  background: var(--ce-veil-soft);
+}
+.ce-dim--heavy {
+  background: var(--ce-veil-heavy);
+}
+
+/* Gilt hairline with a centre knot. */
+.ce-hairline {
+  position: relative;
+  height: 1px;
+  width: calc(300px * var(--ce-scale));
+  max-width: 80%;
+  margin: calc(12px * var(--ce-scale)) auto 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ce-gold-3) 18%,
+    var(--ce-gold-4) 50%,
+    var(--ce-gold-3) 82%,
+    transparent
+  );
+  transform-origin: 50% 50%;
+  animation: ce-draw 600ms 250ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-hairline::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--ce-gold-5);
+  box-shadow:
+    0 0 0 1px var(--ce-ink-0),
+    0 0 8px var(--ce-glow-gold);
+}
+.ce-hairline--crimson {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ce-blood-2) 18%,
+    var(--ce-blood-4) 50%,
+    var(--ce-blood-2) 82%,
+    transparent
+  );
+}
+.ce-hairline--crimson::after {
+  background: var(--ce-blood-5);
+  box-shadow:
+    0 0 0 1px var(--ce-ink-0),
+    0 0 8px var(--ce-glow-blood);
+}
+
+.ce-skip {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-muted);
+  opacity: 0.85;
+  animation: ce-fade 400ms 900ms both;
+}
+.ce-kicker {
+  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  letter-spacing: 2px;
+  color: var(--ce-blood-5);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────── Boss encounter */
+.ce-boss-layer {
+  --ce-bust: min(calc(190px * var(--ce-scale)), calc(var(--ce-w) * 0.36));
+  --ce-band-h: calc(128px * var(--ce-scale));
+}
+.ce-boss-layer .ce-dim {
+  -webkit-backdrop-filter: saturate(0.5);
+  backdrop-filter: saturate(0.5);
+}
+.ce-boss {
+  position: absolute;
+  inset: 0;
+}
+.ce-boss-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - var(--ce-band-h) / 2);
+  height: var(--ce-band-h);
+  background: linear-gradient(
+    90deg,
+    rgba(7, 6, 11, 0.98) 0%,
+    rgba(14, 12, 20, 0.95) 55%,
+    rgba(34, 9, 15, 0.92) 100%
+  );
+  border-top: 1px solid var(--ce-blood-3);
+  border-bottom: 1px solid var(--ce-blood-3);
+  box-shadow:
+    0 0 0 1px var(--ce-ink-0),
+    0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: ce-wipe 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-boss-bust {
+  position: absolute;
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  bottom: 0;
+  width: var(--ce-bust);
+  height: var(--ce-bust);
+  animation: ce-bust-in 620ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-boss-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  filter: drop-shadow(-3px 0 0 var(--ce-glow-blood)) saturate(0.9);
+}
+.ce-boss-text {
+  position: absolute;
+  left: calc(var(--ce-bust) + 16px + env(safe-area-inset-left, 0px));
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.ce-boss-text > * {
+  animation: ce-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-boss-text > :nth-child(1) {
+  animation-delay: 180ms;
+}
+.ce-boss-text > :nth-child(2) {
+  animation-delay: 260ms;
+}
+.ce-boss-text > :nth-child(3) {
+  animation-delay: 380ms;
+}
+.ce-boss-name {
+  font: 700 calc(34px * var(--ce-scale)) / 1.05 var(--re-display);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow:
+    0 2px 0 var(--ce-ink-0),
+    0 0 18px rgba(204, 64, 56, 0.35);
+  margin: calc(6px * var(--ce-scale)) 0 calc(2px * var(--ce-scale));
+}
+.ce-boss-epithet {
+  font: 500 calc(14px * var(--ce-scale)) / 1.3 var(--re-display);
+  letter-spacing: 0.14em;
+  color: var(--ce-gold-5);
+  font-variant: small-caps;
+}
+.ce-boss-text .ce-hairline {
+  width: min(calc(260px * var(--ce-scale)), 100%);
+  max-width: none;
+  margin: calc(10px * var(--ce-scale)) 0 0;
+  transform-origin: 0 50%;
+  animation-delay: 520ms;
+}
+.ce-boss-text .ce-hairline::after {
+  left: 0;
+}
+
+/* The Entity has no words: the image splits and drains; only "· · ·". */
+.ce-boss-layer--entity .ce-dim {
+  background: radial-gradient(ellipse at 50% 50%, rgba(44, 22, 69, 0.5), rgba(7, 6, 11, 0.92) 72%);
+}
+.ce-boss--entity .ce-boss-band {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(7, 6, 11, 0.9) 12%,
+    rgba(23, 12, 36, 0.9) 50%,
+    rgba(7, 6, 11, 0.9) 88%,
+    transparent
+  );
+  border-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ce-unlight-3) 25%,
+      var(--ce-unlight-4) 50%,
+      var(--ce-unlight-3) 75%,
+      transparent
+    )
+    1;
+  animation: ce-fade 700ms ease-out both;
+}
+/* The image fills the band and bleeds past it, fading at every edge. */
+.ce-boss--entity .ce-boss-bust {
+  left: 0;
+  right: 0;
+  width: auto;
+  height: calc(var(--ce-band-h) * 1.7);
+  bottom: calc(var(--ce-band-h) * -0.35);
+  -webkit-mask-image: radial-gradient(ellipse 34% 50% at 50% 50%, #000 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 34% 50% at 50% 50%, #000 45%, transparent 100%);
+  animation: ce-fade 900ms ease-out both;
+}
+.ce-boss--entity .ce-boss-portrait {
+  object-fit: cover;
+  object-position: 62% 40%;
+  -webkit-mask-image: none;
+  mask-image: none;
+  filter: none;
+}
+.ce-boss--entity .ce-split--base {
+  animation: ce-drain 2800ms ease-in both;
+}
+/* Two torn slices drift off the image in unlight violet. */
+.ce-boss--entity .ce-split--a,
+.ce-boss--entity .ce-split--b {
+  opacity: 0.9;
+  filter: sepia(1) hue-rotate(228deg) saturate(2.4) brightness(0.55);
+}
+.ce-boss--entity .ce-split--a {
+  clip-path: inset(30% 0 57% 0);
+  animation: ce-split-a 2800ms cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+.ce-boss--entity .ce-split--b {
+  clip-path: inset(55% 0 33% 0);
+  animation: ce-split-b 2800ms cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+.ce-layer.is-static .ce-boss--entity .ce-split--a {
+  transform: translateX(calc(-12px * var(--ce-scale)));
+}
+.ce-layer.is-static .ce-boss--entity .ce-split--b {
+  transform: translateX(calc(12px * var(--ce-scale)));
+}
+.ce-layer.is-static .ce-boss--entity .ce-split--base {
+  filter: saturate(0.15) brightness(0.7);
+}
+.ce-boss--entity .ce-boss-text {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: calc(10px * var(--ce-scale));
+  align-items: center;
+}
+.ce-boss-mark {
+  font: 700 calc(52px * var(--ce-scale)) / 0.6 var(--re-display);
+  letter-spacing: 0.35em;
+  margin-right: -0.35em;
+  color: var(--ce-unlight-5);
+  text-shadow:
+    0 0 18px var(--ce-glow-unlight),
+    0 0 2px var(--ce-ink-0),
+    0 2px 0 var(--ce-ink-0);
+  animation: ce-fade 1200ms 900ms both;
+}
+
+/* ─────────────────────────────────────────────── Fate bands */
+.ce-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(40% - 52px * var(--ce-scale));
+  min-height: calc(104px * var(--ce-scale));
+  padding: calc(10px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
+    calc(10px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ce-band-fill) 14%,
+    var(--ce-band-fill) 86%,
+    transparent
+  );
+  animation: ce-band-in 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-band-word {
+  max-width: 86%;
+  font: 700 calc(46px * var(--ce-scale)) / 1.05 var(--re-display);
+  letter-spacing: 0.26em;
+  margin-right: -0.26em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.ce-band-sub {
+  max-width: 100%;
+  margin-top: calc(8px * var(--ce-scale));
+  font: 500 calc(14px * var(--ce-scale)) / 1.3 var(--re-display);
+  letter-spacing: 0.2em;
+  color: var(--ce-bone);
+  text-align: center;
+  animation: ce-fade 400ms 180ms both;
+}
+.ce-band--gold .ce-band-word,
+.ce-band--felled .ce-band-word {
+  color: var(--ce-gold-5);
+  text-shadow:
+    0 0 22px var(--ce-glow-gold),
+    0 2px 0 var(--ce-ink-0);
+}
+.ce-band--felled .ce-band-word {
+  color: var(--ce-ivory);
+  text-shadow:
+    0 0 20px var(--ce-glow-blood),
+    0 2px 0 var(--ce-ink-0);
+}
+.ce-band--felled .ce-band-sub {
+  color: var(--ce-gold-5);
+}
+.ce-band--crimson .ce-band-word {
+  color: var(--ce-blood-4);
+  text-shadow:
+    0 0 22px var(--ce-glow-blood),
+    0 2px 0 var(--ce-ink-0);
+}
+
+/* ─────────────────────────────────────────────── Lord falls (decision) */
+/* The fatal decision is a MenuSurface modal; these classes restage it as a
+   FALLEN band with Sera's offer beneath, over the map frame. The rail stays
+   visible (inert) under a light veil. */
+.re-modal-shield.ce-fate-shield {
+  background: transparent;
+}
+.ce-fate-veil {
+  position: fixed;
+  inset: 0;
+  background: var(--ce-veil-soft);
+  pointer-events: none;
+}
+.re-live-menu.ce-fate {
+  --ce-scale: 1;
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  display: block;
+  color: var(--ce-bone);
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--ce-veil);
+  overflow: hidden;
+  animation: ce-fade 300ms ease-out both;
+  clip-path: none;
+}
+.ce-fate > .re-header {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+}
+.ce-fate > .re-menu-body {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+.ce-fate .ce-band {
+  top: calc(28% - 52px * var(--ce-scale));
+}
+.ce-offer {
+  position: absolute;
+  left: 50%;
+  top: calc(28% + 60px * var(--ce-scale));
+  transform: translateX(-50%);
+  width: min(calc(440px * var(--ce-scale)), calc(100% - 24px));
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(14, 12, 20, 0.97);
+  border: 1px solid var(--re-line);
+  clip-path: polygon(
+    5px 0,
+    calc(100% - 5px) 0,
+    100% 5px,
+    100% calc(100% - 5px),
+    calc(100% - 5px) 100%,
+    5px 100%,
+    0 calc(100% - 5px),
+    0 5px
+  );
+  animation: ce-offer-in 460ms 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-offer-face {
+  width: calc(52px * var(--ce-scale));
+  height: calc(52px * var(--ce-scale));
+  object-fit: cover;
+  image-rendering: pixelated;
+  grid-row: span 2;
+  background: radial-gradient(circle at 70% 30%, var(--ce-gold-3), var(--ce-ink-2) 70%);
+}
+.ce-offer-line {
+  margin: 0;
+  font: italic calc(13px * var(--ce-scale)) / 1.4 var(--re-body);
+  color: var(--ce-bone);
+}
+.ce-offer-line b {
+  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font-style: normal;
+  color: var(--ce-gold-5);
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.ce-offer:not(:has(.ce-offer-face)) .ce-offer-line,
+.ce-offer:not(:has(.ce-offer-face)) .ce-offer-actions {
+  grid-column: 1 / -1;
+}
+.ce-offer-actions {
+  display: flex;
+  gap: 8px;
+}
+.ce-offer-actions .re-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--re-tap);
+  font: 600 calc(13px * var(--ce-scale)) / 1.2 var(--re-body);
+}
+#game-wrapper:has(> .ce-fate-shield) > .mobile-battle-hud {
+  visibility: visible;
+}
+
+/* ─────────────────────────────────────────────── Phase banner */
+.ce-phase {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 30px * var(--ce-scale));
+  padding: calc(6px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
+    calc(7px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(7, 6, 11, 0.86) 20%,
+    rgba(7, 6, 11, 0.86) 80%,
+    transparent
+  );
+  border-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ce-gold-3) 30%,
+      var(--ce-gold-3) 70%,
+      transparent
+    )
+    1;
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+  animation: ce-phase-in 300ms ease-out both;
+}
+.ce-phase--enemy {
+  border-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--ce-blood-3) 30%,
+      var(--ce-blood-3) 70%,
+      transparent
+    )
+    1;
+}
+.ce-phase-kicker {
+  font: calc(8px * var(--ce-scale)) / 1.5 var(--re-pixel);
+  letter-spacing: 2px;
+  color: var(--re-muted);
+  text-transform: uppercase;
+}
+.ce-phase-word {
+  max-width: 100%;
+  font: 700 calc(22px * var(--ce-scale)) / 1.15 var(--re-display);
+  letter-spacing: 0.24em;
+  margin-right: -0.24em;
+  text-align: center;
+}
+.ce-phase--player .ce-phase-word {
+  color: var(--ce-gold-5);
+  text-shadow:
+    0 0 14px var(--ce-glow-gold),
+    0 2px 0 var(--ce-ink-0);
+}
+.ce-phase--enemy .ce-phase-word {
+  color: var(--ce-blood-5);
+  text-shadow:
+    0 0 14px var(--ce-glow-blood),
+    0 2px 0 var(--ce-ink-0);
+}
+.ce-phase-sub {
+  max-width: 100%;
+  margin-top: 2px;
+  font: calc(12px * var(--ce-scale)) / 1.35 var(--re-body);
+  color: var(--ce-bone);
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────── Critical / weapon-art cut-in */
+.ce-cutin-layer {
+  --ce-cut-h: calc(116px * var(--ce-scale));
+  --ce-in: 0;
+  --ce-out: 0;
+  --ce-slide: -120px;
+}
+.ce-cutin-layer--enemy {
+  --ce-slide: 120px;
+}
+.ce-cutin-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 62% 50%, rgba(255, 240, 189, 0.18), transparent 60%);
+  opacity: calc(var(--ce-in) * (1 - var(--ce-out)));
+}
+.ce-cutin-layer--enemy .ce-cutin-flash {
+  background: radial-gradient(ellipse at 38% 50%, rgba(204, 64, 56, 0.2), transparent 60%);
+}
+.ce-cutin {
+  position: absolute;
+  left: -40px;
+  right: -40px;
+  top: calc(50% - var(--ce-cut-h) * 0.62);
+  height: var(--ce-cut-h);
+  transform: translateX(
+      calc((1 - var(--ce-in)) * var(--ce-slide) - var(--ce-out) * var(--ce-slide) / 3)
+    )
+    skewY(-7deg);
+  opacity: calc(var(--ce-in) * (1 - var(--ce-out)));
+  background: linear-gradient(
+    90deg,
+    rgba(7, 6, 11, 0.97) 0%,
+    rgba(22, 19, 30, 0.97) 60%,
+    rgba(110, 26, 40, 0.95) 100%
+  );
+  border-top: 2px solid var(--ce-gold-5);
+  border-bottom: 2px solid var(--ce-blood-4);
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+}
+.ce-cutin-layer--enemy .ce-cutin {
+  transform: translateX(
+      calc((1 - var(--ce-in)) * var(--ce-slide) - var(--ce-out) * var(--ce-slide) / 3)
+    )
+    skewY(7deg);
+  background: linear-gradient(
+    270deg,
+    rgba(7, 6, 11, 0.97) 0%,
+    rgba(30, 12, 18, 0.97) 55%,
+    rgba(110, 26, 40, 0.95) 100%
+  );
+  border-top-color: var(--ce-blood-4);
+  border-bottom-color: var(--ce-blood-2);
+}
+.ce-cutin::before {
+  /* speed lines */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 9px,
+    rgba(255, 240, 189, 0.07) 9px 10px,
+    transparent 10px 17px,
+    rgba(255, 240, 189, 0.12) 17px 18px
+  );
+  -webkit-mask-image: linear-gradient(90deg, transparent 20%, #000 60%);
+  mask-image: linear-gradient(90deg, transparent 20%, #000 60%);
+  animation: ce-speed 520ms linear both;
+}
+.ce-cutin-layer--enemy .ce-cutin::before {
+  -webkit-mask-image: linear-gradient(270deg, transparent 20%, #000 60%);
+  mask-image: linear-gradient(270deg, transparent 20%, #000 60%);
+}
+.ce-cutin-eyes {
+  --ce-eye: 0.36;
+  --ce-cx: 0.52;
+  --ce-pw: calc(var(--ce-cut-h) / 0.3);
+  position: absolute;
+  left: calc(40px + env(safe-area-inset-left, 0px));
+  top: -30px;
+  bottom: -30px;
+  width: min(calc(420px * var(--ce-scale)), 58%);
+  transform: skewY(7deg);
+  background-repeat: no-repeat;
+  background-size: var(--ce-pw) var(--ce-pw);
+  background-position: calc(var(--ce-cx) * 100%)
+    calc(30px + var(--ce-cut-h) * 0.4 - var(--ce-eye) * var(--ce-pw));
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 60%, transparent 100%);
+}
+.ce-cutin-eyes.is-legacy {
+  --ce-pw: calc(var(--ce-cut-h) * 1.6);
+}
+.ce-cutin-layer--enemy .ce-cutin-eyes {
+  left: auto;
+  right: calc(40px + env(safe-area-inset-right, 0px));
+  transform: skewY(-7deg);
+  -webkit-mask-image: linear-gradient(270deg, #000 60%, transparent 100%);
+  mask-image: linear-gradient(270deg, #000 60%, transparent 100%);
+  filter: saturate(0.8);
+}
+.ce-cutin-word {
+  position: absolute;
+  right: calc(70px + env(safe-area-inset-right, 0px));
+  left: 42%;
+  top: calc(var(--ce-cut-h) * 0.22);
+  transform: skewY(7deg);
+  text-align: right;
+}
+.ce-cutin-layer--enemy .ce-cutin-word {
+  left: calc(70px + env(safe-area-inset-left, 0px));
+  right: 42%;
+  transform: skewY(-7deg);
+  text-align: left;
+}
+/* No portrait (rank-and-file enemies): the word takes the centre. */
+.ce-cutin.is-faceless .ce-cutin-word,
+.ce-cutin-layer--enemy .ce-cutin.is-faceless .ce-cutin-word {
+  left: 10%;
+  right: 10%;
+  text-align: center;
+}
+.ce-cutin.is-faceless::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+}
+.ce-cutin-big {
+  font: 900 calc(40px * var(--ce-scale)) / 1.05 var(--re-display);
+  letter-spacing: 0.15em;
+  margin-right: -0.15em;
+  color: var(--ce-gold-5);
+  white-space: nowrap;
+  text-shadow:
+    0 0 16px rgba(243, 203, 108, 0.5),
+    3px 3px 0 var(--ce-blood-3);
+}
+.ce-cutin-layer--enemy .ce-cutin-big {
+  margin-right: 0;
+  color: var(--ce-ivory);
+  text-shadow:
+    0 0 16px var(--ce-glow-blood),
+    3px 3px 0 var(--ce-blood-2);
+}
+.ce-cutin-small {
+  margin-top: calc(8px * var(--ce-scale));
+  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  letter-spacing: 2px;
+  color: var(--ce-bone);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────── Act title and run end */
+.ce-story-layer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  background: radial-gradient(ellipse at 50% 45%, rgba(14, 12, 20, 0.88), rgba(7, 6, 11, 0.98) 75%);
+  animation: ce-fade 500ms ease-out both;
+}
+/* With story lines to follow, the title sits above the dialogue panel. */
+.ce-story-layer.has-lines {
+  justify-content: flex-start;
+  padding-top: max(calc(28px * var(--ce-scale)), 7vh);
+}
+.ce-act,
+.ce-runend {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: calc(760px * var(--ce-scale));
+  text-align: center;
+}
+.ce-act-kicker {
+  font: calc(8px * var(--ce-scale)) / 1.5 var(--re-pixel);
+  letter-spacing: 3px;
+  color: var(--ce-gold-4);
+  text-transform: uppercase;
+  animation: ce-fade 500ms 100ms both;
+}
+.ce-act-title {
+  max-width: 100%;
+  margin: calc(10px * var(--ce-scale)) 0 calc(2px * var(--ce-scale));
+  font: 700 calc(30px * var(--ce-scale)) / 1.1 var(--re-display);
+  letter-spacing: 0.17em;
+  margin-right: -0.17em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow: 0 2px 0 var(--ce-ink-0);
+  animation: ce-rise 700ms 250ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-act-grade {
+  font: 500 calc(14px * var(--ce-scale)) / 1.3 var(--re-display);
+  letter-spacing: 0.22em;
+  color: var(--re-muted);
+  font-variant: small-caps;
+  animation: ce-fade 600ms 520ms both;
+}
+.ce-act .ce-hairline {
+  width: calc(280px * var(--ce-scale));
+  animation-delay: 650ms;
+}
+.ce-runend-word {
+  max-width: 100%;
+  font: 700 calc(30px * var(--ce-scale)) / 1.1 var(--re-display);
+  letter-spacing: 0.3em;
+  margin-right: -0.3em;
+  color: var(--ce-bone);
+  text-shadow: 0 2px 0 var(--ce-ink-0);
+  animation: ce-fade 900ms 100ms both;
+}
+.ce-runend--holds .ce-runend-word {
+  color: var(--ce-gold-5);
+  text-shadow:
+    0 0 22px var(--ce-glow-gold),
+    0 2px 0 var(--ce-ink-0);
+}
+.ce-thread {
+  position: relative;
+  width: min(calc(360px * var(--ce-scale)), 86%);
+  height: 14px;
+  margin: calc(18px * var(--ce-scale)) 0 calc(10px * var(--ce-scale));
+}
+.ce-thread span {
+  position: absolute;
+  top: 6px;
+  height: 2px;
+  width: 47%;
+  background: linear-gradient(90deg, transparent, var(--ce-gold-4));
+  box-shadow: 0 0 8px rgba(220, 160, 68, 0.6);
+}
+.ce-thread-a {
+  left: 0;
+  animation: ce-thread-a 1200ms 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-thread-b {
+  right: 0;
+  top: 8px;
+  transform: rotate(4deg);
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--ce-gold-3), transparent) !important;
+  opacity: 0.55;
+  animation: ce-thread-b 1200ms 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* The thread holds: one unbroken gold line. */
+.ce-runend--holds .ce-thread-a {
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ce-gold-4) 20%,
+    var(--ce-gold-5) 50%,
+    var(--ce-gold-4) 80%,
+    transparent
+  );
+}
+.ce-runend--holds .ce-thread-b {
+  display: none;
+}
+.ce-runend-sub {
+  max-width: 100%;
+  font: 500 calc(14px * var(--ce-scale)) / 1.35 var(--re-display);
+  letter-spacing: 0.16em;
+  color: var(--ce-bone);
+  animation: ce-fade 700ms 700ms both;
+}
+.ce-runend-meta {
+  max-width: 100%;
+  margin-top: calc(6px * var(--ce-scale));
+  font: calc(8px * var(--ce-scale)) / 1.6 var(--re-pixel);
+  letter-spacing: 2px;
+  color: var(--re-muted);
+  text-transform: uppercase;
+  animation: ce-fade 700ms 850ms both;
+}
+.ce-story-layer .ce-skip {
+  animation-delay: 1200ms;
+}
+
+/* Story lines play over the title: the dialogue drops its scrim (the card is
+   the backdrop) and, while the title lands, holds its panel back a beat. */
+#game-wrapper:has(> .ce-story-layer:not(.is-leaving)) > .re-dialogue {
+  background: transparent;
+}
+#game-wrapper:has(> .ce-story-layer.is-revealing) > .re-dialogue .re-panel {
+  animation: ce-late 420ms 700ms ease-out both;
+}
+
+/* ─────────────────────────────────────────────── Boss bar */
+.ce-bossbar-layer {
+  --ce-bar-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+/* Desktop draws its command row inside the canvas; dock above it. */
+.ce-bossbar-layer--desktop {
+  --ce-bar-bottom: calc(76px * var(--ce-scale));
+}
+.ce-bossbar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--ce-bar-bottom);
+  transform: translateX(-50%);
+  width: min(calc(460px * var(--ce-scale)), calc(100% - 44px));
+  transition: opacity 240ms ease;
+}
+.ce-bossbar[hidden] {
+  display: none;
+}
+.ce-bossbar.is-entering {
+  animation: ce-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ce-bossbar.is-suppressed {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 160ms ease,
+    visibility 0s 160ms;
+}
+.ce-bossbar.is-leaving {
+  opacity: 0;
+  transition: opacity 900ms ease-in;
+}
+.ce-bossbar.is-static,
+.ce-bossbar.is-static * {
+  transition: none !important;
+}
+.ce-bossbar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 3px;
+  text-shadow:
+    0 1px 0 var(--ce-ink-0),
+    0 0 6px var(--ce-ink-0);
+}
+.ce-bossbar-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 700 calc(14px * var(--ce-scale)) / 1.2 var(--re-display);
+  letter-spacing: 0.1em;
+  font-variant: small-caps;
+  color: var(--ce-ivory);
+}
+.ce-bossbar-hp {
+  flex: none;
+  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  color: var(--ce-bone);
+}
+.ce-bossbar-track {
+  position: relative;
+  height: calc(7px * var(--ce-scale));
+  background: var(--ce-ink-1);
+  border: 1px solid var(--ce-ink-0);
+  box-shadow:
+    0 0 0 1px var(--ce-gold-3),
+    0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.ce-bossbar-track::before,
+.ce-bossbar-track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: var(--ce-gold-5);
+  transform: translateY(-50%) rotate(45deg);
+  box-shadow: 0 0 0 1px var(--ce-ink-0);
+}
+.ce-bossbar-track::before {
+  left: -5px;
+}
+.ce-bossbar-track::after {
+  right: -5px;
+}
+.ce-bossbar-lost {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ce-gold-5);
+  opacity: 0.6;
+  transition: width 650ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ce-bossbar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(
+    180deg,
+    var(--ce-blood-5) 0 1px,
+    var(--ce-blood-4) 1px 3px,
+    var(--ce-blood-3) 3px
+  );
+  transition:
+    width 120ms ease-out,
+    background 400ms ease;
+}
+.ce-bossbar.is-ember .ce-bossbar-fill {
+  background: linear-gradient(
+    180deg,
+    var(--ce-ember-hi) 0 1px,
+    var(--ce-ember) 1px 3px,
+    var(--ce-ember-lo) 3px
+  );
+  box-shadow: 0 0 10px rgba(232, 120, 46, 0.8);
+}
+.ce-bossbar.is-unlight .ce-bossbar-fill {
+  background: linear-gradient(
+    180deg,
+    var(--ce-unlight-5) 0 1px,
+    var(--ce-unlight-4) 1px 3px,
+    var(--ce-unlight-3) 3px
+  );
+}
+.ce-bossbar.is-unlight .ce-bossbar-name {
+  color: var(--ce-unlight-5);
+  letter-spacing: 0.3em;
+}
+.ce-bossbar-status {
+  margin-top: 4px;
+  font: calc(7px * var(--ce-scale)) / 1.2 var(--re-pixel);
+  letter-spacing: 1px;
+  color: var(--ce-gold-4);
+  text-align: right;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 var(--ce-ink-0);
+}
+.ce-bossbar.is-ember .ce-bossbar-status {
+  color: var(--ce-ember-text);
+}
+.ce-bossbar-status[hidden] {
+  display: none;
+}
+/* Menus, forecasts, sheets and story dialogue need the space. */
+#game-wrapper:has(
+    > .re-screen:not([hidden]),
+    > .re-modal-shield,
+    > .mb-forecast-backdrop:not([hidden]),
+    > .mp-backdrop:not([hidden]),
+    > .mr-sheet,
+    > .mu-screen
+  )
+  > .ce-bossbar-layer {
+  visibility: hidden;
+}
+
+/* ─────────────────────────────────────────────── Motion */
+@keyframes ce-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ce-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes ce-draw {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+}
+@keyframes ce-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes ce-bust-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+@keyframes ce-band-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes ce-phase-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.6);
+  }
+}
+@keyframes ce-offer-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+@keyframes ce-late {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes ce-speed {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 -36px;
+  }
+}
+@keyframes ce-drain {
+  from {
+    filter: saturate(1) brightness(1);
+  }
+  to {
+    filter: saturate(0.15) brightness(0.7);
+  }
+}
+@keyframes ce-split-a {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  30% {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-12px * var(--ce-scale)));
+  }
+}
+@keyframes ce-split-b {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  30% {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(12px * var(--ce-scale)));
+  }
+}
+@keyframes ce-thread-a {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+}
+@keyframes ce-thread-b {
+  from {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  60% {
+    transform: rotate(0deg);
+    opacity: 0.9;
+  }
+}

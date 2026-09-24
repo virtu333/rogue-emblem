@@ -12,5 +12,8 @@
 
 @import './runFlow.css';
 
+/* Ceremonies: boss cards, fate bands, cut-ins, act titles, the boss bar. */
+@import './ceremony.css';
+
 /* Reliquary detail layer last: decorates every kit surface (visual-only). */
 @import './reliquary.css';

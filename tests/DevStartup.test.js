@@ -30,7 +30,22 @@ describe('dev startup helpers', () => {
       devTools: true,
       qaStep: null,
       qaDescription: null,
+      nodeType: null,
     });
+  });
+
+  it('devNode=boss routes straight into the act boss battle (ceremony review)', () => {
+    const config = parseDevStartupConfig('?devScene=battle&preset=late_act&seed=7&devNode=boss', {
+      devMode: true,
+    });
+    expect(config.nodeType).toBe('boss');
+    const route = buildDevStartupRoute(loadGameData(), createRegistry(), config);
+    expect(route.key).toBe('Battle');
+    expect(route.data.isBoss).toBe(true);
+    expect(route.data.battleParams.objective).toBe('seize');
+    expect(parseDevStartupConfig('?devScene=battle&devNode=shop', { devMode: true }).nodeType).toBe(
+      null,
+    );
   });
 
   it('ignores unknown scene aliases', () => {

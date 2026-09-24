@@ -285,6 +285,9 @@ import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
+import { CeremonyController } from '../ui/CeremonyController.js';
+import { BossPresenceController } from '../ui/BossPresenceController.js';
+import { shouldShowFelled } from '../ui/ceremonyContent.js';
 import { ProcBannerController } from '../ui/ProcBannerController.js';
 import {
   splitStrikeActivations,
@@ -404,6 +407,9 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialPermadeathHintShown = false;
     this._tutorialLordRewindPromptPending = null;
     this._storyDialogueActive = false;
+    this._ceremonies = null;
+    this._bossPresence = null;
+    this._fallenCommander = null;
     this._bossName = null;
     this._commanderKillerName = null;
     this._postLootTransitionStarted = false;
@@ -541,6 +547,10 @@ export class BattleScene extends Phaser.Scene {
       this._procBanner.destroy();
       this._procBanner = null;
     }
+    this._ceremonies?.destroy();
+    this._ceremonies = null;
+    this._bossPresence?.destroy();
+    this._bossPresence = null;
     if (this._battleBeats) {
       this._battleBeats.destroy();
       this._battleBeats = null;
@@ -2081,6 +2091,8 @@ export class BattleScene extends Phaser.Scene {
         this._bindDevToggleKey();
       }
 
+      await this._presentBossEncounter();
+
       if (this.isBoss && this._bossName && this.runManager) {
         const bossName = this._resolveBossDialogueName(this._bossName);
         const dialogueKey = `boss_pre_${bossName}`;
@@ -2109,7 +2121,9 @@ export class BattleScene extends Phaser.Scene {
           throw err;
         }
         this._resumeCheckpoint = null;
+        this._bossPresence?.sync({ silent: true });
       } else {
+        this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
       this.refreshEndTurnControl();
@@ -2168,9 +2182,38 @@ export class BattleScene extends Phaser.Scene {
   isStoryInputLocked() {
     return Boolean(
       this._storyDialogueActive ||
+      this._ceremonies?.isBlocking?.() ||
       this.dialogueOverlay?.visible ||
       this.battleState === 'TURN_START_RESOLVING',
     );
+  }
+
+  /**
+   * Boss presence at battle start: the boss bar (restored silently on resume)
+   * and, on a fresh boss battle only, the encounter card before the
+   * pre-battle lines. Never replays on resume/reload.
+   */
+  async _presentBossEncounter() {
+    this._bossPresence?.destroy();
+    this._bossPresence = new BossPresenceController(this).create();
+    // Resume: the bar is raised silently once the checkpoint is fully restored.
+    if (this._resumeCheckpoint) return;
+    if (!this.isBoss || !this._bossName || !this.runManager) return;
+    try {
+      await this._getCeremonies().showBossIntro({
+        unit: (this.enemyUnits || []).find((unit) => unit.isBoss),
+        actId: this.battleParams?.act,
+      });
+    } catch (err) {
+      console.warn('[BattleScene] boss encounter card failed:', err);
+    }
+  }
+
+  /** Scene-owned ceremony presenter (DOM); callers fall back when absent. */
+  _getCeremonies() {
+    if (!this._ceremonies || this._ceremonies.destroyed)
+      this._ceremonies = new CeremonyController(this);
+    return this._ceremonies;
   }
 
   _resolveBossDialogueName(name) {
@@ -3035,6 +3078,7 @@ export class BattleScene extends Phaser.Scene {
     this.antiTurtleState.turnEnrageActive = turnEnrageActive;
     this.aiController?.setAggressiveMode?.(shouldAggro);
     if (becameEnraged) this._playBossEnrageFx();
+    this._bossPresence?.sync();
   }
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
@@ -3335,6 +3379,7 @@ export class BattleScene extends Phaser.Scene {
     unit.hpBar.fill.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
     unit.hpBar.fill.setSize(fillWidth, barHeight);
     unit.hpBar.fill.setFillStyle(getHPBarColor(ratio));
+    if (unit.isBoss) this._bossPresence?.onUnitHp(unit);
   }
 
   removeUnitGraphic(unit) {
@@ -8739,7 +8784,9 @@ export class BattleScene extends Phaser.Scene {
     // skipped for follow-up strikes so flurries can't chain cut-ins).
     if (!event.miss && !opts.followUp && (event.isCrit || legendaryArt)) {
       await banners.showCutIn({
+        unit: striker,
         unitName: striker.name,
+        weaponName: striker.weapon?.name || '',
         portraitKey: this._getPortraitKey(striker),
         label: legendaryArt ? legendaryArt.name : 'CRITICAL HIT',
         category: legendaryArt ? 'art' : 'offense',
@@ -9181,6 +9228,9 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) {
         this.playerUnits.splice(idx, 1);
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
+        // Presentation only: the FALLEN band names the commander that fell.
+        if (unit.isCommander)
+          this._fallenCommander = { name: unit.name, className: unit.className };
         // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
         if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
@@ -9244,9 +9294,18 @@ export class BattleScene extends Phaser.Scene {
     }
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
-    // Detect boss death on seize maps -- show prominent notification
-    if (unit.isBoss && unit.faction === 'enemy' && this.battleConfig.objective === 'seize') {
-      this._showBossDefeatedBanner();
+    // Boss death: the bar drains away; FOE VANQUISHED when the battle goes on
+    // (seize maps always -- the throne is still to take).
+    if (unit.isBoss && unit.faction === 'enemy') {
+      this._bossPresence?.onBossDefeated();
+      if (
+        shouldShowFelled({
+          objective: this.battleConfig.objective,
+          remaining: this.enemyUnits.length,
+          reviving: this._zombieTombstones?.length || 0,
+        })
+      )
+        this._showBossDefeatedBanner();
     }
     this.updateObjectiveText();
 
@@ -10494,12 +10553,19 @@ export class BattleScene extends Phaser.Scene {
 
   showPhaseBanner(phase, turn) {
     this._phaseBanner?.destroy();
+    this._phaseBanner = null;
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
     const color = phase === 'player' ? UI_PALETTE.info : '#ff9999';
     const place =
       turn === 1 && phase === 'player'
         ? battlePlace(this.gameData, this.battleConfig, this.battleParams?.act).title
         : '';
+    this._bossPresence?.sync();
+    const band = hasDOMHost() ? this._getCeremonies().showPhase({ phase, turn, place }) : null;
+    if (band) {
+      this._phaseBanner = band;
+      return;
+    }
     const banner = this.add
       .text(
         this.cameras.main.centerX,
@@ -10537,6 +10603,19 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showBossDefeatedBanner() {
+    const objective = this.battleConfig?.objective;
+    const felled = hasDOMHost()
+      ? this._getCeremonies().showBossFelled({
+          objective,
+          remaining: this.enemyUnits?.length || 0,
+        })
+      : null;
+    if (felled) {
+      this._pulseObjectiveText();
+      return;
+    }
+    // Canvas fallback keeps its seize-only prompt.
+    if (objective !== 'seize') return;
     const banner = this.add
       .text(
         this.cameras.main.centerX,
@@ -10564,8 +10643,11 @@ export class BattleScene extends Phaser.Scene {
       hold: 1800,
       onComplete: () => banner.destroy(),
     });
+    this._pulseObjectiveText();
+  }
 
-    // Pulse the objective text to draw attention
+  /** Pulse the desktop objective text to draw attention to the new goal. */
+  _pulseObjectiveText() {
     if (this.objectiveText) {
       this.tweens.add({
         targets: this.objectiveText,

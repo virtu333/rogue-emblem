@@ -45,21 +45,47 @@ export class PostCombatController {
     scene.battleState = 'BATTLE_END';
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, scene, 0);
-    const victoryBanner = scene.add
-      .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'VICTORY!', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: UI_PALETTE.accentText,
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    scene._victoryBanner = victoryBanner;
-    scene._pinToScreen(victoryBanner);
+    scene._bossPresence?.hide?.();
+    // The objective's word (ROUTED / SEIZED / ...) as a gold band; a tap moves
+    // the flow on early. The canvas text remains the no-DOM fallback.
+    let continueVictory = null;
+    const band = hasDOMHost()
+      ? scene._getCeremonies?.()?.showVictory(this.victoryBandContext(), {
+          onSkip: () => continueVictory?.(),
+        })
+      : null;
+    if (band) scene._victoryBanner = band;
+    else {
+      const victoryBanner = scene.add
+        .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'VICTORY!', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: UI_PALETTE.accentText,
+          backgroundColor: '#000000dd',
+          padding: { x: 24, y: 12 },
+        })
+        .setOrigin(0.5)
+        .setDepth(600);
+      scene._victoryBanner = victoryBanner;
+      scene._pinToScreen(victoryBanner);
+    }
+    // One continuation, fired by the timer or by skipping the band.
+    const afterVictoryBand = (continuation) => {
+      let started = false;
+      let timer = null;
+      const run = () => {
+        if (started) return undefined;
+        started = true;
+        timer?.remove?.(false);
+        band?.release();
+        return continuation();
+      };
+      continueVictory = run;
+      timer = scene.time.delayedCall(1500, run);
+    };
 
     if (scene.battleParams.tutorialMode) {
-      scene.time.delayedCall(1500, async () => {
+      afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
@@ -126,7 +152,7 @@ export class PostCombatController {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
       }
       scene._persistBattleRunState?.();
-      scene.time.delayedCall(1500, async () => {
+      afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
@@ -286,10 +312,31 @@ export class PostCombatController {
               runManager: scene.runManager,
             }),
           );
+          // ACT n · region · grade, once per act (it shares the dialogue's
+          // once-gate), with the story lines playing over it.
+          const actCard =
+            hasDOMHost() && !scene.runManager.hasShownDialogue?.(transKey)
+              ? scene._getCeremonies?.()?.showActCard({
+                  actId: toAct,
+                  withLines: Array.isArray(entries) && entries.length > 0,
+                })
+              : null;
           try {
             await scene._showStoryDialogueOnce(transKey, entries, { category: 'actTransition' });
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
+          }
+          if (actCard) {
+            try {
+              const linesRead =
+                Array.isArray(entries) &&
+                entries.length > 0 &&
+                !scene.dialogueOverlay?.lastSequenceSkippedAsSeen;
+              if (linesRead) void actCard.close();
+              else await actCard.finish();
+            } catch (err) {
+              console.warn('[BattleScene] act card failed:', err);
+            }
           }
           const ok2 = await transitionToScene(
             scene,
@@ -464,6 +511,25 @@ export class PostCombatController {
     });
   }
 
+  /** Turn · par · rank for the victory band (presentation only). */
+  victoryBandContext() {
+    const s = this.scene;
+    const turn = s.turnManager?.turnNumber;
+    let rating = null;
+    try {
+      if (Number.isFinite(s.turnPar) && s.turnBonusConfig && Number.isFinite(turn))
+        rating = getRating(turn, s.turnPar, s.turnBonusConfig)?.rating || null;
+    } catch {
+      rating = null;
+    }
+    return {
+      objective: s.battleConfig?.objective,
+      turn,
+      par: Number.isFinite(s.turnPar) ? s.turnPar : null,
+      rating,
+    };
+  }
+
   rewardContext() {
     const s = this.scene;
     return {
@@ -622,17 +688,25 @@ export class PostCombatController {
     scene.hideActionMenu();
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, scene, 0);
-    const defeatBanner = scene.add
-      .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'DEFEAT', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: UI_PALETTE.bad,
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    scene._pinToScreen(defeatBanner);
+    scene._bossPresence?.hide?.();
+    const band = hasDOMHost()
+      ? scene._getCeremonies?.()?.showDefeat({
+          commanderName: scene._fallenCommander?.name || null,
+        })
+      : null;
+    if (!band) {
+      const defeatBanner = scene.add
+        .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'DEFEAT', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: UI_PALETTE.bad,
+          backgroundColor: '#000000dd',
+          padding: { x: 24, y: 12 },
+        })
+        .setOrigin(0.5)
+        .setDepth(600);
+      scene._pinToScreen(defeatBanner);
+    }
 
     if (scene.battleParams.tutorialMode) {
       scene.time.delayedCall(1500, async () => {

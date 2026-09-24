@@ -450,8 +450,11 @@ export class MobileBattleHUD {
     const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
     const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_');
     const turnStarting = state === 'TURN_START_RESOLVING';
-    const show = tutorialHint || (supported && this.available({ allowTurnStart: true }));
-    this.root.inert = !show || tutorialHint || turnStarting || Boolean(this.modal);
+    // A blocking ceremony covers the map only: the rail stays in view, inert.
+    const ceremony = Boolean(s._ceremonies?.isBlocking?.());
+    const show =
+      tutorialHint || (supported && (ceremony || this.available({ allowTurnStart: true })));
+    this.root.inert = !show || tutorialHint || turnStarting || ceremony || Boolean(this.modal);
     this.root.setAttribute('aria-hidden', String(!show));
     // The lab reserves its viewport for the entire battle, including modal/animation states.
     if (this.lab) {
