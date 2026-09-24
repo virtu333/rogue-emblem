@@ -1,0 +1,17 @@
+{
+  "portraits": {
+    "enemy_dancer": { "crop": [4, 4, 4, 4] },
+    "generic_bow_knight": { "crop": [9, 9, 9, 9] },
+    "enemy_entity": { "keepBackground": true, "faction": "unlight" },
+    "generic_knight": { "segment": { "erode": 1, "enclosed": 12 } },
+    "enemy_warrior": {
+      "crop": [2, 2, 2, 2],
+      "segment": { "step": 0.05, "global": 0.12, "erode": 1, "enclosed": 12 }
+    },
+    "generic_great_knight": { "segment": { "step": 0.05, "global": 0.16 } },
+    "generic_trickster": { "segment": { "step": 0.06, "global": 0.14 } },
+    "generic_thief": { "segment": { "step": 0.05, "global": 0.14 } },
+    "generic_hunter": { "segment": { "step": 0.06, "global": 0.2 } },
+    "generic_dancer": { "segment": { "step": 0.04, "global": 0.1 } }
+  }
+}

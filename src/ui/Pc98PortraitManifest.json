@@ -1,0 +1,483 @@
+{
+  "version": 1,
+  "generator": "tools/art/pc98/build.mjs",
+  "sizes": [192, 96, 64, 48, 40, 32],
+  "masterSize": 192,
+  "factions": ["ember", "steel", "blood", "verdigris", "unlight"],
+  "atlas": {
+    "sizes": [32, 40, 48, 64],
+    "columns": 10
+  },
+  "portraits": {
+    "boss_archmage": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 0
+    },
+    "boss_berserker_king": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 1
+    },
+    "boss_blade_lord": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 2
+    },
+    "boss_dark_rider": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 3
+    },
+    "boss_iron_captain": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 4
+    },
+    "boss_iron_wall": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 5
+    },
+    "boss_knight_commander": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 6
+    },
+    "boss_the_emperor": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 7
+    },
+    "boss_the_entity": {
+      "source": "rebuilt",
+      "faction": "unlight",
+      "frame": 8
+    },
+    "boss_the_lieutenant": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 9
+    },
+    "boss_warchief": {
+      "source": "rebuilt",
+      "faction": "blood",
+      "frame": 10
+    },
+    "enemy_archer": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 11
+    },
+    "enemy_assassin": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 12
+    },
+    "enemy_battle_monk": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 13
+    },
+    "enemy_berserker": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 14
+    },
+    "enemy_bishop": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 15
+    },
+    "enemy_bow_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 16
+    },
+    "enemy_cavalier": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 17
+    },
+    "enemy_cleric": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 18
+    },
+    "enemy_dancer": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 19
+    },
+    "enemy_dark_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 20
+    },
+    "enemy_dragon": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 21
+    },
+    "enemy_dragon_lord": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 22
+    },
+    "enemy_duelist": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 23
+    },
+    "enemy_entity": {
+      "source": "legacy",
+      "faction": "unlight",
+      "frame": 24
+    },
+    "enemy_falcon_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 25
+    },
+    "enemy_fighter": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 26
+    },
+    "enemy_general": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 27
+    },
+    "enemy_great_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 28
+    },
+    "enemy_hero": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 29
+    },
+    "enemy_hunter": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 30
+    },
+    "enemy_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 31
+    },
+    "enemy_mage": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 32
+    },
+    "enemy_mercenary": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 33
+    },
+    "enemy_myrmidon": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 34
+    },
+    "enemy_paladin": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 35
+    },
+    "enemy_pegasus_knight": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 36
+    },
+    "enemy_revenant": {
+      "source": "legacy",
+      "faction": "unlight",
+      "frame": 37
+    },
+    "enemy_sage": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 38
+    },
+    "enemy_sniper": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 39
+    },
+    "enemy_swordmaster": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 40
+    },
+    "enemy_thief": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 41
+    },
+    "enemy_trickster": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 42
+    },
+    "enemy_warlock": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 43
+    },
+    "enemy_warrior": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 44
+    },
+    "enemy_wyvern_lord": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 45
+    },
+    "enemy_wyvern_rider": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 46
+    },
+    "enemy_zombie": {
+      "source": "legacy",
+      "faction": "unlight",
+      "frame": 47
+    },
+    "generic_archer": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 48
+    },
+    "generic_assassin": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 49
+    },
+    "generic_battle_monk": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "frame": 50
+    },
+    "generic_berserker": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 51
+    },
+    "generic_bishop": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 52
+    },
+    "generic_bow_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 53
+    },
+    "generic_cavalier": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 54
+    },
+    "generic_cleric": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 55
+    },
+    "generic_dancer": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 56
+    },
+    "generic_dark_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 57
+    },
+    "generic_duelist": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 58
+    },
+    "generic_falcon_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 59
+    },
+    "generic_fighter": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "frame": 60
+    },
+    "generic_general": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 61
+    },
+    "generic_great_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 62
+    },
+    "generic_hero": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 63
+    },
+    "generic_hunter": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 64
+    },
+    "generic_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 65
+    },
+    "generic_mage": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 66
+    },
+    "generic_mercenary": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 67
+    },
+    "generic_myrmidon": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 68
+    },
+    "generic_paladin": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 69
+    },
+    "generic_pegasus_knight": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 70
+    },
+    "generic_sage": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 71
+    },
+    "generic_sniper": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "frame": 72
+    },
+    "generic_swordmaster": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 73
+    },
+    "generic_thief": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 74
+    },
+    "generic_trickster": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 75
+    },
+    "generic_warlock": {
+      "source": "rebuilt",
+      "faction": "steel",
+      "frame": 76
+    },
+    "generic_warrior": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 77
+    },
+    "generic_wyvern_lord": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 78
+    },
+    "generic_wyvern_rider": {
+      "source": "legacy",
+      "faction": "steel",
+      "frame": 79
+    },
+    "lord_astrid": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 80
+    },
+    "lord_astrid_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 81
+    },
+    "lord_cael": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 82
+    },
+    "lord_cael_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 83
+    },
+    "lord_edric": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 84
+    },
+    "lord_edric_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 85
+    },
+    "lord_kira": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 86
+    },
+    "lord_kira_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 87
+    },
+    "lord_rowan": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 88
+    },
+    "lord_rowan_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 89
+    },
+    "lord_sera": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 90
+    },
+    "lord_sera_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 91
+    },
+    "lord_voss": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 92
+    },
+    "lord_voss_promoted": {
+      "source": "rebuilt",
+      "faction": "ember",
+      "frame": 93
+    }
+  }
+}
