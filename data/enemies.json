@@ -174,12 +174,14 @@
         "className": "Cavalier",
         "level": 3,
         "name": "Iron Captain",
+        "epithet": "Warden of the Unrelieved Line",
         "lore": "Twenty years on the border under orders that never changed and relief that never came. He holds the line because the line is all the empire ever left him."
       },
       {
         "className": "Fighter",
         "level": 3,
         "name": "Warchief",
+        "epithet": "Breaker of the Old Treaties",
         "lore": "The border clans buried the old kingdom's treaties with the old kingdom, and answer the empire's new terms with none of their own."
       }
     ],
@@ -188,18 +190,21 @@
         "className": "Paladin",
         "level": 12,
         "name": "Knight Commander",
+        "epithet": "First Lance of the Second Push",
         "lore": "First lance of the imperial second push. He wrote the cavalry doctrine the war colleges still teach, and has read the casualty tables it cost."
       },
       {
         "className": "Sage",
         "level": 12,
         "name": "Archmage",
+        "epithet": "Keeper of the Middle Pages",
         "lore": "He keeps the ritual's middle pages and swears the summoning can still be steered. First of the court circle to say so, he has said it since long past the hour it could be."
       },
       {
         "className": "Dark Knight",
         "level": 12,
         "name": "Dark Rider",
+        "epithet": "Bearer of the Sealed Orders",
         "lore": "Between the ritual sites he carries the court circle's sealed orders, and the roads empty ahead of him. The horse was black when this began; the rider has since outdone it."
       }
     ],
@@ -208,18 +213,21 @@
         "className": "Swordmaster",
         "level": 17,
         "name": "Blade Lord",
+        "epithet": "Proof of the Dueling Halls",
         "lore": "The dueling halls' perfect product, kept by the empire the way one keeps a proof. Never touched in formal combat \u2014 and the sacred ground keeps no forms."
       },
       {
         "className": "General",
         "level": 17,
         "name": "Iron Wall",
+        "epithet": "Holder of the Breach",
         "lore": "Held the breach at the old capital until the order to fall back rotted unread in a courier's bag. The empire made his stand its doctrine."
       },
       {
         "className": "Berserker",
         "level": 17,
         "name": "Berserker King",
+        "epithet": "Crowned by Frightened Acclaim",
         "lore": "Founder of the berserk school and its own cautionary tale, crowned by the acclaim of everyone too frightened to object. The corruption changed nothing in him."
       }
     ],
@@ -228,6 +236,7 @@
         "className": "General",
         "level": 20,
         "name": "The Emperor",
+        "epithet": "Who Sold the Empire's Future",
         "lore": "Traded the empire's future for the ritual's promise, and still reads the arithmetic as running in his favor."
       }
     ],
@@ -236,6 +245,7 @@
         "className": "Hero",
         "level": 20,
         "name": "The Lieutenant",
+        "epithet": "From the Far Side of the Glass",
         "difficultyFilter": [
           "normal",
           "hard"
