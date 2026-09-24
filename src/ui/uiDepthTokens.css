@@ -1,6 +1,7 @@
 /* Generated from src/utils/uiDepths.js. */
 :root {
   --re-depth-lab: 30;
+  --re-depth-title: 390;
   --re-depth-route: 400;
   --re-depth-launch: 920;
   --re-depth-upgrade: 950;

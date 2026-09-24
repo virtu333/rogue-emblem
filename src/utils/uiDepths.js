@@ -49,6 +49,7 @@ export const UI_DEPTHS = {
 // DOM surfaces have their own stacking context above the Phaser canvas.
 export const DOM_UI_DEPTHS = {
   LAB: 30,
+  TITLE: 390, // Title key art, lockup and menu (below every menu and dialogue)
   ROUTE: 400,
   LAUNCH: 920,
   UPGRADE: 950,

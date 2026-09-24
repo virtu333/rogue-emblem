@@ -48,6 +48,22 @@
     var(--re-gilt-lo) 70%,
     transparent
   );
+  /* Loom + key art: alpha variants of palette colors (no color-mix on iOS 15). */
+  --re-ember-glow: rgba(220, 160, 68, 0.38);
+  --re-ember-glow-soft: rgba(243, 203, 108, 0.28);
+  --re-ember-haze: rgba(220, 160, 68, 0.18);
+  --re-ember-pale-haze: rgba(255, 240, 189, 0.3);
+  --re-gilt-haze: rgba(128, 70, 31, 0.28);
+  --re-raised-haze: rgba(33, 29, 43, 0.55);
+  --re-shade: rgba(7, 6, 11, 0.6);
+  --re-shade-deep: rgba(7, 6, 11, 0.9);
+  --re-shade-edge: rgba(7, 6, 11, 0.72);
+  --re-ember-fill-deep: linear-gradient(
+    180deg,
+    var(--re-accent-text) 0%,
+    var(--re-accent) 55%,
+    var(--re-gilt) 100%
+  );
 }
 .re-health {
   display: block;
