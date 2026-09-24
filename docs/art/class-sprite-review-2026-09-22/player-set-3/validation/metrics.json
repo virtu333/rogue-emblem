@@ -1,0 +1,202 @@
+[
+  {
+    "id": "cavalier",
+    "class": "Cavalier",
+    "variant": 1,
+    "alphaPixels": 257237,
+    "bounds": {
+      "x": 157,
+      "y": 90,
+      "width": 617,
+      "height": 742
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 4,
+      "width": 33,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cavalier",
+    "class": "Cavalier",
+    "variant": 2,
+    "alphaPixels": 247252,
+    "bounds": {
+      "x": 932,
+      "y": 90,
+      "width": 617,
+      "height": 742
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 4,
+      "width": 33,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "pegasus-knight",
+    "class": "Pegasus Knight",
+    "variant": 1,
+    "alphaPixels": 247523,
+    "bounds": {
+      "x": 74,
+      "y": 155,
+      "width": 739,
+      "height": 663
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "pegasus-knight",
+    "class": "Pegasus Knight",
+    "variant": 2,
+    "alphaPixels": 252040,
+    "bounds": {
+      "x": 960,
+      "y": 140,
+      "width": 739,
+      "height": 678
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 37,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-rider",
+    "class": "Wyvern Rider",
+    "variant": 1,
+    "alphaPixels": 269372,
+    "bounds": {
+      "x": 101,
+      "y": 135,
+      "width": 775,
+      "height": 648
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 11,
+      "width": 40,
+      "height": 33
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-rider",
+    "class": "Wyvern Rider",
+    "variant": 2,
+    "alphaPixels": 263914,
+    "bounds": {
+      "x": 1025,
+      "y": 162,
+      "width": 775,
+      "height": 621
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 12,
+      "width": 40,
+      "height": 32
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dancer",
+    "class": "Dancer",
+    "variant": 1,
+    "alphaPixels": 234778,
+    "bounds": {
+      "x": 101,
+      "y": 150,
+      "width": 599,
+      "height": 771
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dancer",
+    "class": "Dancer",
+    "variant": 2,
+    "alphaPixels": 210262,
+    "bounds": {
+      "x": 861,
+      "y": 179,
+      "width": 553,
+      "height": 742
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 10,
+      "width": 25,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 1,
+    "alphaPixels": 233767,
+    "bounds": {
+      "x": 193,
+      "y": 112,
+      "width": 619,
+      "height": 711
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 2,
+    "alphaPixels": 209584,
+    "bounds": {
+      "x": 990,
+      "y": 148,
+      "width": 578,
+      "height": 675
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  }
+]

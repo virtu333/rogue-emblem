@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><title>Archer mood study</title
+  ><style>
+    body {
+      background: #10212b;
+      color: #efead8;
+      font: 17px system-ui;
+      margin: 28px auto;
+      max-width: 1200px;
+      padding: 0 20px;
+    }
+    h1 {
+      color: #e3c681;
+    }
+    button,
+    a {
+      color: #efead8;
+    }
+    button {
+      background: #284954;
+      border: 1px solid #718a90;
+      padding: 12px;
+      margin: 4px;
+      cursor: pointer;
+    }
+    #map {
+      width: 100%;
+      image-rendering: pixelated;
+    }
+    .cards {
+      display: flex;
+      gap: 20px;
+    }
+    .card {
+      flex: 1;
+      background: #243d45;
+      padding: 20px;
+    }
+    .sprite {
+      width: 192px;
+      height: 192px;
+      image-rendering: pixelated;
+    }
+    .source {
+      width: 100%;
+    }
+    p {
+      line-height: 1.5;
+    }
+    small {
+      color: #b1c4c8;
+    }
+  </style>
+  <h1>Archer: palette, proportion and posture</h1>
+  <p>
+    Three treatments of the same veteran archer. A changes the palette; B also changes proportions
+    and readiness; C explores a compact drawn-bow pose. These are exploratory generations, not
+    perfectly controlled pixel edits.
+  </p>
+  <p>
+    <b>Top:</b> unchanged Edric, Sera and Pegasus anchors. <b>Lower row, left to right:</b> A muted,
+    B ready attempt, C drawn bow. These are staged art probes in the actual game renderer; no
+    gameplay assets were replaced.
+  </p>
+  <div id="controls">
+    <button data-view="new">New · grass</button
+    ><button data-view="before">Previous candidates · grass</button
+    ><button data-view="floor">New · stone</button><button data-view="gray">Grayscale</button
+    ><button data-view="silhouette">Silhouettes</button>
+  </div>
+  <img id="map" src="validation/map-new.png" />
+  <p>
+    Compare weapon recognition, body proportions and separation from terrain. Captures use the same
+    positions and current class sizing. Grayscale tests value separation; black silhouettes test
+    pose and equipment shape.
+  </p>
+  <p>
+    <b>Result:</b> A achieves the muted palette. B and C converged on similar aiming poses and
+    retained brighter blue than requested; the smaller-head direction was only partly achieved. They
+    are useful pose samples, not three cleanly separated styles.
+  </p>
+  <div class="cards">
+    <section class="card">
+      <h2>A · Muted</h2>
+      <img class="sprite" src="sprites/archer-muted-1.png" />
+      <p>Compact proportions with restrained steel-blue cloth.</p>
+      <a href="sheets/archer-muted.png">Generated source</a>
+    </section>
+    <section class="card">
+      <h2>B · Ready attempt</h2>
+      <img class="sprite" src="sprites/archer-ready-1.png" />
+      <p>Requested a ready stance; output drifted into aiming.</p>
+      <a href="sheets/archer-ready.png">Generated source</a>
+    </section>
+    <section class="card">
+      <h2>C · Action</h2>
+      <img class="sprite" src="sprites/archer-draw-1.png" />
+      <p>Bow drawn, stronger arm angles and forward intent.</p>
+      <a href="sheets/archer-draw.png">Generated source</a>
+    </section>
+  </div>
+  <p>
+    <small
+      >Generated with built-in imagegen. Coarse-pixel prompting is an experiment, not a guarantee of
+      a mathematically uniform native pixel grid. Existing runtime nearest-neighbor sizing is
+      retained. No claim of acted-state verification.</small
+    >
+  </p>
+  <p><a href="catalog.json">Exact prompts</a> · <a href="README.md">Method and findings</a></p>
+  <script>
+    document
+      .querySelectorAll('button')
+      .forEach(
+        (b) =>
+          (b.onclick = () =>
+            (document.querySelector('#map').src = 'validation/map-' + b.dataset.view + '.png')),
+      );
+  </script>
+</html>

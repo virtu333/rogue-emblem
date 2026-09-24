@@ -1,0 +1,1239 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Rogue Emblem — class sprite review</title>
+    <style>
+      body {
+        margin: 0;
+        background: #10212b;
+        color: #f1e9d5;
+        font: 16px system-ui;
+      }
+      header {
+        padding: 28px;
+        position: sticky;
+        top: 0;
+        background: #10212bee;
+        z-index: 1;
+        border-bottom: 1px solid #47616a;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      input,
+      select {
+        padding: 10px;
+        font: inherit;
+        background: #203b47;
+        color: inherit;
+        border: 1px solid #759195;
+        border-radius: 5px;
+      }
+      main {
+        padding: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        gap: 20px;
+      }
+      article {
+        background: #20343f;
+        padding: 18px;
+        border: 1px solid #52636a;
+        border-radius: 8px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 21px;
+      }
+      img {
+        width: 100%;
+        display: block;
+        background: repeating-conic-gradient(#243944 0% 25%, #293f49 0% 50%) 0/24px 24px;
+        image-rendering: pixelated;
+      }
+      .detail {
+        color: #aac0c7;
+      }
+      a {
+        color: #dabf78;
+      }
+      article[hidden] {
+        display: none;
+      }
+      aside {
+        padding: 20px 28px;
+        background: #172d37;
+      }
+      aside img {
+        max-width: 200px;
+      }
+      button {
+        font: inherit;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Class sprite review — September 22</h1>
+      <p>
+        132 candidate designs across 52 class entries. Review art only; not installed in the game.
+      </p>
+      <input id="search" placeholder="Find a class…" /><select id="tier">
+        <option value="">All tiers</option>
+        <option>base</option>
+        <option>promoted</option>
+        <option>boss</option>
+      </select>
+      <p class="detail">
+        Click any sheet for full size. Player pair = distinct recruits; named lord pair = same
+        character alternatives.
+      </p>
+    </header>
+    <aside>
+      <strong>Base Edric correction</strong>
+      <p>Plain tunic, leather equipment and teal cloak; full armor reserved for promotion.</p>
+      <a href="edric-base-revised.png"
+        ><img src="edric-base-revised.png" alt="Revised unarmored Edric"
+      /></a>
+      <p>
+        <a href="README.md">Read findings and limits</a> ·
+        <a href="catalog.json">Exact generation prompts</a>
+      </p>
+    </aside>
+    <main>
+      <article data-tier="base" data-name="myrmidon">
+        <h2>Myrmidon</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/myrmidon.png"
+          ><img loading="lazy" src="sheets/myrmidon.png" alt="Myrmidon sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/myrmidon-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/myrmidon-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/myrmidon-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="knight">
+        <h2>Knight</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/knight.png"
+          ><img loading="lazy" src="sheets/knight.png" alt="Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (P) · Armored</p>
+      </article>
+      <article data-tier="base" data-name="fighter">
+        <h2>Fighter</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/fighter.png"
+          ><img loading="lazy" src="sheets/fighter.png" alt="Fighter sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/fighter-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/fighter-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/fighter-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Axes (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="cavalier">
+        <h2>Cavalier</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/cavalier.png"
+          ><img loading="lazy" src="sheets/cavalier.png" alt="Cavalier sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cavalier-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cavalier-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cavalier-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (P) · Cavalry</p>
+      </article>
+      <article data-tier="base" data-name="archer">
+        <h2>Archer</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/archer.png"
+          ><img loading="lazy" src="sheets/archer.png" alt="Archer sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/archer-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/archer-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/archer-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="mage">
+        <h2>Mage</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/mage.png"
+          ><img loading="lazy" src="sheets/mage.png" alt="Mage sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mage-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mage-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mage-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Tomes (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="cleric">
+        <h2>Cleric</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/cleric.png"
+          ><img loading="lazy" src="sheets/cleric.png" alt="Cleric sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cleric-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cleric-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/cleric-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Staves (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="thief">
+        <h2>Thief</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/thief.png"
+          ><img loading="lazy" src="sheets/thief.png" alt="Thief sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/thief-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/thief-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/thief-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="dancer">
+        <h2>Dancer</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/dancer.png"
+          ><img loading="lazy" src="sheets/dancer.png" alt="Dancer sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dancer-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dancer-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dancer-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="pegasus knight">
+        <h2>Pegasus Knight</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/pegasus-knight.png"
+          ><img
+            loading="lazy"
+            src="sheets/pegasus-knight.png"
+            alt="Pegasus Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/pegasus-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/pegasus-knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/pegasus-knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (P) · Flying</p>
+      </article>
+      <article data-tier="base" data-name="wyvern rider">
+        <h2>Wyvern Rider</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/wyvern-rider.png"
+          ><img loading="lazy" src="sheets/wyvern-rider.png" alt="Wyvern Rider sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-rider-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-rider-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-rider-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (P) · Flying</p>
+      </article>
+      <article data-tier="base" data-name="mercenary">
+        <h2>Mercenary</h2>
+        <p>Player A · Player B · Enemy · base</p>
+        <a href="sheets/mercenary.png"
+          ><img loading="lazy" src="sheets/mercenary.png" alt="Mercenary sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mercenary-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mercenary-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/mercenary-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="swordmaster">
+        <h2>Swordmaster</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/swordmaster.png"
+          ><img loading="lazy" src="sheets/swordmaster.png" alt="Swordmaster sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/swordmaster-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/swordmaster-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/swordmaster-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="general">
+        <h2>General</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/general.png"
+          ><img loading="lazy" src="sheets/general.png" alt="General sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/general-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/general-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/general-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Axes (P) · Armored</p>
+      </article>
+      <article data-tier="promoted" data-name="warrior">
+        <h2>Warrior</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/warrior.png"
+          ><img loading="lazy" src="sheets/warrior.png" alt="Warrior sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warrior-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warrior-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warrior-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Axes (M), Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="paladin">
+        <h2>Paladin</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/paladin.png"
+          ><img loading="lazy" src="sheets/paladin.png" alt="Paladin sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/paladin-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/paladin-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/paladin-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Swords (P) · Cavalry</p>
+      </article>
+      <article data-tier="promoted" data-name="sniper">
+        <h2>Sniper</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/sniper.png"
+          ><img loading="lazy" src="sheets/sniper.png" alt="Sniper sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sniper-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sniper-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sniper-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Bows (M) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="sage">
+        <h2>Sage</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/sage.png"
+          ><img loading="lazy" src="sheets/sage.png" alt="Sage sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sage-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sage-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sage-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Tomes (M), Staves (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="bishop">
+        <h2>Bishop</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/bishop.png"
+          ><img loading="lazy" src="sheets/bishop.png" alt="Bishop sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bishop-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bishop-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bishop-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Staves (M), Light (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="assassin">
+        <h2>Assassin</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/assassin.png"
+          ><img loading="lazy" src="sheets/assassin.png" alt="Assassin sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/assassin-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/assassin-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/assassin-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="bard">
+        <h2>Bard</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/bard.png"
+          ><img loading="lazy" src="sheets/bard.png" alt="Bard sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bard-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bard-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bard-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Staves (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="falcon knight">
+        <h2>Falcon Knight</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/falcon-knight.png"
+          ><img
+            loading="lazy"
+            src="sheets/falcon-knight.png"
+            alt="Falcon Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/falcon-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/falcon-knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/falcon-knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Swords (P) · Flying</p>
+      </article>
+      <article data-tier="promoted" data-name="wyvern lord">
+        <h2>Wyvern Lord</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/wyvern-lord.png"
+          ><img loading="lazy" src="sheets/wyvern-lord.png" alt="Wyvern Lord sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-lord-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-lord-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/wyvern-lord-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Axes (P) · Flying</p>
+      </article>
+      <article data-tier="promoted" data-name="hero">
+        <h2>Hero</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/hero.png"
+          ><img loading="lazy" src="sheets/hero.png" alt="Hero sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hero-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hero-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hero-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Axes (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="lord">
+        <h2>Lord</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/lord.png"
+          ><img loading="lazy" src="sheets/lord.png" alt="Lord sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/lord-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/lord-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="tactician">
+        <h2>Tactician</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/tactician.png"
+          ><img loading="lazy" src="sheets/tactician.png" alt="Tactician sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/tactician-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/tactician-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Tomes (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="ranger">
+        <h2>Ranger</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/ranger.png"
+          ><img loading="lazy" src="sheets/ranger.png" alt="Ranger sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/ranger-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/ranger-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Swords (P), Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="light sage">
+        <h2>Light Sage</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/light-sage.png"
+          ><img loading="lazy" src="sheets/light-sage.png" alt="Light Sage sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/light-sage-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/light-sage-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Light (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="great lord">
+        <h2>Great Lord</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/great-lord.png"
+          ><img loading="lazy" src="sheets/great-lord.png" alt="Great Lord sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/great-lord-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/great-lord-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Swords (M), Lances (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="grandmaster">
+        <h2>Grandmaster</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/grandmaster.png"
+          ><img loading="lazy" src="sheets/grandmaster.png" alt="Grandmaster sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/grandmaster-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/grandmaster-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Tomes (M), Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="vanguard">
+        <h2>Vanguard</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/vanguard.png"
+          ><img loading="lazy" src="sheets/vanguard.png" alt="Vanguard sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/vanguard-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/vanguard-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Swords (M), Axes (P), Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="light priestess">
+        <h2>Light Priestess</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/light-priestess.png"
+          ><img
+            loading="lazy"
+            src="sheets/light-priestess.png"
+            alt="Light Priestess sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/light-priestess-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/light-priestess-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Light (M), Staves (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="chevalier">
+        <h2>Chevalier</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/chevalier.png"
+          ><img loading="lazy" src="sheets/chevalier.png" alt="Chevalier sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/chevalier-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/chevalier-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Lances (P) · Cavalry</p>
+      </article>
+      <article data-tier="promoted" data-name="holy knight">
+        <h2>Holy Knight</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/holy-knight.png"
+          ><img loading="lazy" src="sheets/holy-knight.png" alt="Holy Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/holy-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/holy-knight-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Lances (M), Staves (P), Light (P) · Cavalry</p>
+      </article>
+      <article data-tier="base" data-name="sky lancer">
+        <h2>Sky Lancer</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/sky-lancer.png"
+          ><img loading="lazy" src="sheets/sky-lancer.png" alt="Sky Lancer sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sky-lancer-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sky-lancer-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Lances (P) · Flying</p>
+      </article>
+      <article data-tier="promoted" data-name="seraph knight">
+        <h2>Seraph Knight</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/seraph-knight.png"
+          ><img
+            loading="lazy"
+            src="sheets/seraph-knight.png"
+            alt="Seraph Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/seraph-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/seraph-knight-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Lances (M), Light (P) · Flying</p>
+      </article>
+      <article data-tier="base" data-name="sentinel">
+        <h2>Sentinel</h2>
+        <p>Named lord: design A · design B · base</p>
+        <a href="sheets/sentinel.png"
+          ><img loading="lazy" src="sheets/sentinel.png" alt="Sentinel sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sentinel-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/sentinel-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Axes (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="champion">
+        <h2>Champion</h2>
+        <p>Named lord: design A · design B · promoted</p>
+        <a href="sheets/champion.png"
+          ><img loading="lazy" src="sheets/champion.png" alt="Champion sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/champion-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/champion-2.png"
+            alt="Map-size variant 2"
+          />
+        </div>
+        <p class="detail">Axes (M), Lances (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="duelist">
+        <h2>Duelist</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/duelist.png"
+          ><img loading="lazy" src="sheets/duelist.png" alt="Duelist sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/duelist-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/duelist-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/duelist-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Lances (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="great knight">
+        <h2>Great Knight</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/great-knight.png"
+          ><img loading="lazy" src="sheets/great-knight.png" alt="Great Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/great-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/great-knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/great-knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Axes (P), Swords (P) · Cavalry</p>
+      </article>
+      <article data-tier="promoted" data-name="berserker">
+        <h2>Berserker</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/berserker.png"
+          ><img loading="lazy" src="sheets/berserker.png" alt="Berserker sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/berserker-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/berserker-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/berserker-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Axes (M) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="dark knight">
+        <h2>Dark Knight</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/dark-knight.png"
+          ><img loading="lazy" src="sheets/dark-knight.png" alt="Dark Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dark-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dark-knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dark-knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Lances (M), Tomes (P) · Cavalry</p>
+      </article>
+      <article data-tier="promoted" data-name="bow knight">
+        <h2>Bow Knight</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/bow-knight.png"
+          ><img loading="lazy" src="sheets/bow-knight.png" alt="Bow Knight sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bow-knight-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bow-knight-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/bow-knight-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Bows (M), Swords (P) · Cavalry</p>
+      </article>
+      <article data-tier="promoted" data-name="warlock">
+        <h2>Warlock</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/warlock.png"
+          ><img loading="lazy" src="sheets/warlock.png" alt="Warlock sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warlock-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warlock-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/warlock-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Tomes (M) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="battle monk">
+        <h2>Battle Monk</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/battle-monk.png"
+          ><img loading="lazy" src="sheets/battle-monk.png" alt="Battle Monk sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/battle-monk-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/battle-monk-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/battle-monk-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Staves (M), Axes (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="trickster">
+        <h2>Trickster</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/trickster.png"
+          ><img loading="lazy" src="sheets/trickster.png" alt="Trickster sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/trickster-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/trickster-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/trickster-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Staves (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="hunter">
+        <h2>Hunter</h2>
+        <p>Player A · Player B · Enemy · promoted</p>
+        <a href="sheets/hunter.png"
+          ><img loading="lazy" src="sheets/hunter.png" alt="Hunter sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hunter-1.png"
+            alt="Map-size variant 1"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hunter-2.png"
+            alt="Map-size variant 2"
+          /><img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/hunter-3.png"
+            alt="Map-size variant 3"
+          />
+        </div>
+        <p class="detail">Swords (M), Bows (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="zombie">
+        <h2>Zombie</h2>
+        <p>Enemy only · base</p>
+        <a href="sheets/zombie.png"
+          ><img loading="lazy" src="sheets/zombie.png" alt="Zombie sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/zombie-1.png"
+            alt="Map-size variant 1"
+          />
+        </div>
+        <p class="detail">Axes (P) · Infantry</p>
+      </article>
+      <article data-tier="promoted" data-name="revenant">
+        <h2>Revenant</h2>
+        <p>Enemy only · promoted</p>
+        <a href="sheets/revenant.png"
+          ><img loading="lazy" src="sheets/revenant.png" alt="Revenant sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/revenant-1.png"
+            alt="Map-size variant 1"
+          />
+        </div>
+        <p class="detail">Axes (M), Swords (P) · Infantry</p>
+      </article>
+      <article data-tier="base" data-name="dragon">
+        <h2>Dragon</h2>
+        <p>Enemy only · base</p>
+        <a href="sheets/dragon.png"
+          ><img loading="lazy" src="sheets/dragon.png" alt="Dragon sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dragon-1.png"
+            alt="Map-size variant 1"
+          />
+        </div>
+        <p class="detail">Breath (P) · Flying</p>
+      </article>
+      <article data-tier="promoted" data-name="dragon lord">
+        <h2>Dragon Lord</h2>
+        <p>Enemy only · promoted</p>
+        <a href="sheets/dragon-lord.png"
+          ><img loading="lazy" src="sheets/dragon-lord.png" alt="Dragon Lord sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/dragon-lord-1.png"
+            alt="Map-size variant 1"
+          />
+        </div>
+        <p class="detail">Breath (M) · Flying</p>
+      </article>
+      <article data-tier="boss" data-name="entity">
+        <h2>Entity</h2>
+        <p>Enemy only · boss</p>
+        <a href="sheets/entity.png"
+          ><img loading="lazy" src="sheets/entity.png" alt="Entity sprite review sheet"
+        /></a>
+        <div style="display: flex; gap: 8px">
+          <img
+            style="width: 96px; height: 96px; object-fit: contain"
+            src="sprites/entity-1.png"
+            alt="Map-size variant 1"
+          />
+        </div>
+        <p class="detail">Swords (M), Tomes (M) · Infantry</p>
+      </article>
+    </main>
+    <script>
+      const f = () =>
+        document
+          .querySelectorAll('article')
+          .forEach(
+            (a) =>
+              (a.hidden =
+                !a.dataset.name.includes(document.querySelector('#search').value.toLowerCase()) ||
+                (document.querySelector('#tier').value &&
+                  a.dataset.tier !== document.querySelector('#tier').value)),
+          );
+      document.querySelector('#search').oninput = f;
+      document.querySelector('#tier').onchange = f;
+    </script>
+  </body>
+</html>

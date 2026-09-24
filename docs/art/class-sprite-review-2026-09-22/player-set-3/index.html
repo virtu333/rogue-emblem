@@ -1,0 +1,176 @@
+<!doctype html><meta charset="utf-8" /><meta
+  name="viewport"
+  content="width=device-width,initial-scale=1"
+/><title>Player sprite set 3</title
+><style>
+  body {
+    margin: 24px auto;
+    max-width: 1200px;
+    padding: 0 18px;
+    background: #10212b;
+    color: #eee7d9;
+    font: 17px system-ui;
+  }
+  h1,
+  h2 {
+    color: #dfc78c;
+  }
+  a {
+    color: #94d9ff;
+  }
+  button {
+    font: inherit;
+    padding: 9px;
+    margin: 3px;
+    background: #284650;
+    color: #fff;
+    border: 1px solid #789797;
+    cursor: pointer;
+  }
+  button[aria-pressed='true'] {
+    background: #517568;
+    border-color: #dfc78c;
+  }
+  img {
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
+  .scroll {
+    overflow: auto;
+  }
+  .map {
+    max-width: none;
+    width: 1170px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: #213a43;
+    padding: 16px;
+  }
+  .native img {
+    width: 64px;
+    height: 64px;
+    max-width: none;
+  }
+  small {
+    color: #bbc9c9;
+  }
+  section {
+    margin: 30px 0;
+  }
+</style>
+<h1>Player sprite set 3</h1>
+<p>
+  Cavalier, Pegasus Knight, Wyvern Rider, Dancer and near-white-bow Archer — two player appearances
+  each. Edric and Sera are unchanged comparison anchors.
+</p>
+<p>
+  <a href="../legibility-v2/PRINCIPLES.md">Development principles</a> ·
+  <a href="catalog.json">Exact prompts and class briefs</a> ·
+  <a href="../legibility-v2/index.html">Sword-class review</a>
+</p>
+<h2>Map comparison</h2>
+<p>
+  Both rows read left to right:
+  <b>Cavalier · Pegasus Knight · Wyvern Rider · Dancer · Archer.</b> Player A is in the middle row;
+  Player B is in the lower row. The lords are above.
+</p>
+<div id="controls"></div>
+<p id="caption"></p>
+<label
+  ><input
+    type="checkbox"
+    onchange="
+      document.querySelector('#map').style.cssText = this.checked
+        ? 'width:100%;max-width:100%'
+        : 'width:1170px;max-width:none'
+    "
+  />
+  Fit to window (changes apparent scale)</label
+>
+<div class="scroll"><img id="map" class="map" src="validation/map-new.png" /></div>
+<small
+  >Real game renderer and camera at 1170×540. Art probes are staged; HUD counts belong to the
+  original fixture. Stone is a presentation-only floor overlay. No production assets, saves or
+  mechanics changed.</small
+>
+<h2>Class shapes and identities</h2>
+<ul>
+  <li>Cavalier: chestnut horse and four grounded legs.</li>
+  <li>Pegasus: ivory feathered wing and horse head.</li>
+  <li>Wyvern: angular reptilian head and membrane wing.</li>
+  <li>Dancer: raised open hand and curved blue sash.</li>
+  <li>Archer: near-white recurved bow; same people as set 2.</li>
+</ul>
+<p>
+  The new recruits broaden East, Southeast, South and West Asian-inspired appearances through skin
+  undertones, facial structure and hair, while keeping the same game's clothing language. These are
+  generation design briefs, not claims that ancestry can be inferred reliably from tiny sprites.
+</p>
+<p>
+  Size standardization remains a later pass. In particular, compare rider visibility against mount
+  size, and the Archer's body size against infantry. The two mount rows have extra spacing for this
+  first review; dense formation testing remains pending.
+</p>
+<h2>Map observations</h2>
+<p>
+  The near-white bow reads more clearly than the wooden version. Pegasus feathers and Wyvern
+  membranes retain different shapes. Dancer is less immediately recognizable than the weapon-bearing
+  classes and remains a review question. Rider faces lose substantial detail at this scale, so
+  appearance diversity is easier to assess in source sheets. Size consistency is still deferred.
+</p>
+<h2>Native textures and source sheets</h2>
+<p>64×64 anchored textures at 1× below. Click a sheet for the full source.</p>
+<div class="grid" id="cards"></div>
+<h2>Verification limits</h2>
+<p>
+  Static grass/swamp, stone, grayscale and silhouette review. Animation, fog, range overlays, live
+  acted-state behavior and real-device testing are still pending. Samples are not production-ready
+  animation sets.
+</p>
+<script>
+  const choices = [
+    ['map-new', 'New player set'],
+    ['map-before', 'Previous candidates'],
+    ['map-floor', 'Stone floor'],
+    ['map-gray', 'Grayscale'],
+    ['map-silhouette', 'Silhouettes'],
+  ];
+  for (const [id, label] of choices) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.onclick = () => {
+      document.querySelector('#map').src = 'validation/' + id + '.png';
+      document.querySelector('#caption').textContent = label;
+      for (const x of document.querySelectorAll('#controls button'))
+        x.setAttribute('aria-pressed', x === b);
+    };
+    document.querySelector('#controls').append(b);
+  }
+  document.querySelector('#controls button').click();
+  for (const id of ['cavalier', 'pegasus-knight', 'wyvern-rider', 'dancer', 'archer']) {
+    const c = document.createElement('section');
+    c.className = 'card';
+    c.innerHTML =
+      '<h3>' +
+      id +
+      '</h3><div class="native">' +
+      [1, 2]
+        .map(
+          (v) => '<img alt="' + id + ' player ' + v + '" src="sprites/' + id + '-' + v + '.png">',
+        )
+        .join('') +
+      '</div><a href="sheets/' +
+      id +
+      '.png"><img alt="' +
+      id +
+      ' source sheet" src="sheets/' +
+      id +
+      '.png"></a>';
+    document.querySelector('#cards').append(c);
+  }
+</script>

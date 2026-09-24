@@ -1,0 +1,26 @@
+[
+  {
+    "id": "archer-muted",
+    "name": "A · Muted palette",
+    "move": "Infantry",
+    "count": 1,
+    "prompt": "Use case: style-transfer. One original Rogue Emblem archer map sprite, using attached sprite as identity and coarse-pixel reference. Keep older dark-brown-skinned gray-haired male archer, blue cloth, cream sleeves, brown leather, large near-white bow clearly separated from torso. Full body isolated on true transparent background. This must look like a nearest-neighbor enlargement of approximately 32x36 logical pixels: broad connected square color clusters, minimal shading, no micro-detail, antialiasing, gradients, ground, base, text or shadows. Preserve recognition at 34 pixels tall. PALETTE experiment: preserve original compact big-head proportions and upright relaxed pose as closely as possible. Replace electric cobalt with moderately desaturated STEEL BLUE midtone, slate-blue shadows. Keep ivory bow, cream sleeve and gray hair bright. Two shades per material. Do not darken skin. Mature restrained medieval palette, avoid all-navy darkness.",
+    "mode": "built-in imagegen"
+  },
+  {
+    "id": "archer-ready",
+    "name": "B · Grounded ready stance",
+    "move": "Infantry",
+    "count": 1,
+    "prompt": "Use case: style-transfer. One original Rogue Emblem archer map sprite, using attached sprite as identity and coarse-pixel reference. Keep older dark-brown-skinned gray-haired male archer, blue cloth, cream sleeves, brown leather, large near-white bow clearly separated from torso. Full body isolated on true transparent background. This must look like a nearest-neighbor enlargement of approximately 32x36 logical pixels: broad connected square color clusters, minimal shading, no micro-detail, antialiasing, gradients, ground, base, text or shadows. Preserve recognition at 34 pixels tall. GROUNDED experiment: same restrained steel-blue palette, smaller head and stronger shoulders, roughly 3.5 heads tall rather than chibi. Firm offset feet, weight forward slightly, bent knees, bow angled outward and one hand preparing an arrow. Calm battle-ready adult soldier. Short practical tunic, no flowing cape. Keep bow white and broad cloth blocks legible. Restrained expression, no giant eye or cute face. Pose compact enough for one map tile.",
+    "mode": "built-in imagegen"
+  },
+  {
+    "id": "archer-draw",
+    "name": "C · Bow drawn",
+    "move": "Infantry",
+    "count": 1,
+    "prompt": "Use case: style-transfer. One original Rogue Emblem archer map sprite, using attached sprite as identity and coarse-pixel reference. Keep older dark-brown-skinned gray-haired male archer, blue cloth, cream sleeves, brown leather, large near-white bow clearly separated from torso. Full body isolated on true transparent background. This must look like a nearest-neighbor enlargement of approximately 32x36 logical pixels: broad connected square color clusters, minimal shading, no micro-detail, antialiasing, gradients, ground, base, text or shadows. Preserve recognition at 34 pixels tall. ACTION experiment: restrained steel-blue palette, mature 3.5-head proportions, forceful side-on three-quarter pose drawing ivory bow toward left, elbow pulled back, knees bent, feet firmly planted. Strong triangular negative space between arms, torso and bow; arrow horizontal. Aggressive focused veteran, no cute giant eyes. Compact silhouette, weapon not excessively long; no sweeping cape. Coarse bold pixel clusters, bright bow and cream sleeves, minimal interior detail.",
+    "mode": "built-in imagegen"
+  }
+]

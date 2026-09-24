@@ -1,0 +1,29 @@
+[
+  {
+    "id": "archer",
+    "name": "Archer",
+    "move": "Infantry",
+    "detail": "Older dark-brown-skinned archer with a solid short gray hair shape. Simple blue tunic, cream sleeves, brown boots. BIG near-white curved bow held beside body, clear open gap between bow and torso, quiver as one simple shape. Bow is strongest recognition cue. No cape or sword.",
+    "count": 1,
+    "prompt": "Use case: stylized-concept. Create ONE original Rogue Emblem tactical map sprite, not a portrait or battle illustration. Reference image is ONLY for coarse map-sprite pixel language, not characters or logo. Render as a huge nearest-neighbor enlargement of a tiny approximately 32x32-pixel sprite: visibly LARGE UNIFORM SQUARE PIXEL BLOCKS, very sparse detail, 2.5 heads tall, about 12-16 solid colors, only two shades per material, chunky deliberate connected clusters. No fine pixel noise, tiny trims, gradients, antialiasing or painterly texture. Three-quarter standing full body, entire weapon visible, compact feet and readable silhouette. True transparent background, no shadow, base, lettering, border or other characters. Bright cobalt/steel blue player cloth, ivory weapon highlights and dark navy contour. Older dark-brown-skinned archer with a solid short gray hair shape. Simple blue tunic, cream sleeves, brown boots. BIG near-white curved bow held beside body, clear open gap between bow and torso, quiver as one simple shape. Bow is strongest recognition cue. No cape or sword.",
+    "mode": "built-in imagegen"
+  },
+  {
+    "id": "mage",
+    "name": "Mage",
+    "move": "Infantry",
+    "detail": "Tan-skinned young mage with moss-green fringe, small bent blue pointed cap, short triangular bright blue robe and visible boots. One large OPEN IVORY BOOK held in front to side, pages as just two bright blocks, no writing. No staff, no cape, no magical haze. Silhouette narrow at head, wide at hem.",
+    "count": 1,
+    "prompt": "Use case: stylized-concept. Create ONE original Rogue Emblem tactical map sprite, not a portrait or battle illustration. Reference image is ONLY for coarse map-sprite pixel language, not characters or logo. Render as a huge nearest-neighbor enlargement of a tiny approximately 32x32-pixel sprite: visibly LARGE UNIFORM SQUARE PIXEL BLOCKS, very sparse detail, 2.5 heads tall, about 12-16 solid colors, only two shades per material, chunky deliberate connected clusters. No fine pixel noise, tiny trims, gradients, antialiasing or painterly texture. Three-quarter standing full body, entire weapon visible, compact feet and readable silhouette. True transparent background, no shadow, base, lettering, border or other characters. Bright cobalt/steel blue player cloth, ivory weapon highlights and dark navy contour. Tan-skinned young mage with moss-green fringe, small bent blue pointed cap, short triangular bright blue robe and visible boots. One large OPEN IVORY BOOK held in front to side, pages as just two bright blocks, no writing. No staff, no cape, no magical haze. Silhouette narrow at head, wide at hem.",
+    "mode": "built-in imagegen"
+  },
+  {
+    "id": "knight",
+    "name": "Knight",
+    "move": "Armored",
+    "detail": "Olive-skinned older knight in simple open-faced steel helmet. Squat broad square armor silhouette, large BLUE RECTANGULAR SHIELD with one ivory band; upright short lance with WHITE triangular head, barely above helmet. Broad bright gray armor blocks, visible boots, no cape, no sword, no decorative heraldry.",
+    "count": 1,
+    "prompt": "Use case: stylized-concept. Create ONE original Rogue Emblem tactical map sprite, not a portrait or battle illustration. Reference image is ONLY for coarse map-sprite pixel language, not characters or logo. Render as a huge nearest-neighbor enlargement of a tiny approximately 32x32-pixel sprite: visibly LARGE UNIFORM SQUARE PIXEL BLOCKS, very sparse detail, 2.5 heads tall, about 12-16 solid colors, only two shades per material, chunky deliberate connected clusters. No fine pixel noise, tiny trims, gradients, antialiasing or painterly texture. Three-quarter standing full body, entire weapon visible, compact feet and readable silhouette. True transparent background, no shadow, base, lettering, border or other characters. Bright cobalt/steel blue player cloth, ivory weapon highlights and dark navy contour. Olive-skinned older knight in simple open-faced steel helmet. Squat broad square armor silhouette, large BLUE RECTANGULAR SHIELD with one ivory band; upright short lance with WHITE triangular head, barely above helmet. Broad bright gray armor blocks, visible boots, no cape, no sword, no decorative heraldry.",
+    "mode": "built-in imagegen"
+  }
+]

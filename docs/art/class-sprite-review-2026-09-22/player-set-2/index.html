@@ -1,0 +1,172 @@
+<!doctype html><meta charset="utf-8" /><meta
+  name="viewport"
+  content="width=device-width,initial-scale=1"
+/><title>Player sprite set 2</title
+><style>
+  body {
+    margin: 24px auto;
+    max-width: 1200px;
+    padding: 0 18px;
+    background: #10212b;
+    color: #eee7d9;
+    font: 17px system-ui;
+  }
+  h1,
+  h2 {
+    color: #dfc78c;
+  }
+  a {
+    color: #94d9ff;
+  }
+  button {
+    font: inherit;
+    padding: 9px;
+    margin: 3px;
+    background: #284650;
+    color: #fff;
+    border: 1px solid #789797;
+    cursor: pointer;
+  }
+  button[aria-pressed='true'] {
+    background: #517568;
+    border-color: #dfc78c;
+  }
+  img {
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
+  .scroll {
+    overflow: auto;
+  }
+  .map {
+    max-width: none;
+    width: 1170px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: #213a43;
+    padding: 16px;
+  }
+  .native img {
+    width: 64px;
+    height: 64px;
+    max-width: none;
+  }
+  small {
+    color: #bbc9c9;
+  }
+  section {
+    margin: 30px 0;
+  }
+</style>
+<h1>Player sprite set 2</h1>
+<p>
+  <a href="../player-set-3/index.html">Next set: mounted units, Dancer, near-white-bow Archer</a>
+</p>
+<p>
+  Archer, Mage, Cleric, Fighter and Knight — two player appearances each. Edric, Sera and Pegasus
+  Knight are unchanged comparison anchors.
+</p>
+<p>
+  <a href="../legibility-v2/PRINCIPLES.md">Development principles</a> ·
+  <a href="catalog.json">Exact prompts and class briefs</a> ·
+  <a href="../legibility-v2/index.html">Sword-class review</a>
+</p>
+<h2>Map comparison</h2>
+<p>
+  Both rows read left to right: <b>Archer · Mage · Cleric · Fighter · Knight.</b> Player A is in the
+  middle row; Player B is in the lower row. The lords and Pegasus Knight are above.
+</p>
+<div id="controls"></div>
+<p id="caption"></p>
+<label
+  ><input
+    type="checkbox"
+    onchange="
+      document.querySelector('#map').style.cssText = this.checked
+        ? 'width:100%;max-width:100%'
+        : 'width:1170px;max-width:none'
+    "
+  />
+  Fit to window (changes apparent scale)</label
+>
+<div class="scroll"><img id="map" class="map" src="validation/map-new.png" /></div>
+<small
+  >Real game renderer and camera at 1170×540. Art probes are staged; HUD counts belong to the
+  original fixture. Stone is a presentation-only floor overlay. No production assets, saves or
+  mechanics changed.</small
+>
+<h2>Class shapes to review</h2>
+<ul>
+  <li><b>Archer:</b> pale bow curve and white fletching; cropped cape.</li>
+  <li><b>Mage:</b> short triangular robe, small bent cap, open ivory pages.</li>
+  <li><b>Cleric:</b> tall ivory robe, blue stole, ring-headed staff.</li>
+  <li><b>Fighter:</b> bare arms, broad stance, bright crescent axe.</li>
+  <li><b>Knight:</b> boxy steel armor, large blue shield, upright lance.</li>
+</ul>
+<p>
+  Hair, skin tone, age and headgear vary across recruits. Class recognition should survive those
+  variations.
+</p>
+<h2>Initial map observations</h2>
+<p>
+  Cleric ivory robes, Fighter axe heads and Knight shields read clearly in this staged view. Mage is
+  the smallest-looking figure; its cap, book and cyan accent need your review at normal viewing
+  size. Archer bow curves are visible, but individual faces remain secondary at map scale. These are
+  qualitative observations, not a recognition test.
+</p>
+<h2>Native textures and source sheets</h2>
+<p>64×64 anchored textures at 1× below. Click a sheet for the full source.</p>
+<div class="grid" id="cards"></div>
+<h2>Verification limits</h2>
+<p>
+  Static grass/swamp, stone, grayscale and silhouette review. Animation, fog, range overlays, live
+  acted-state behavior and real-device testing are still pending. Samples are not production-ready
+  animation sets.
+</p>
+<script>
+  const choices = [
+    ['map-new', 'New player set'],
+    ['map-before', 'Previous candidates'],
+    ['map-floor', 'Stone floor'],
+    ['map-gray', 'Grayscale'],
+    ['map-silhouette', 'Silhouettes'],
+  ];
+  for (const [id, label] of choices) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.onclick = () => {
+      document.querySelector('#map').src = 'validation/' + id + '.png';
+      document.querySelector('#caption').textContent = label;
+      for (const x of document.querySelectorAll('#controls button'))
+        x.setAttribute('aria-pressed', x === b);
+    };
+    document.querySelector('#controls').append(b);
+  }
+  document.querySelector('#controls button').click();
+  for (const id of ['archer', 'mage', 'cleric', 'fighter', 'knight']) {
+    const c = document.createElement('section');
+    c.className = 'card';
+    c.innerHTML =
+      '<h3>' +
+      id +
+      '</h3><div class="native">' +
+      [1, 2]
+        .map(
+          (v) => '<img alt="' + id + ' player ' + v + '" src="sprites/' + id + '-' + v + '.png">',
+        )
+        .join('') +
+      '</div><a href="sheets/' +
+      id +
+      '.png"><img alt="' +
+      id +
+      ' source sheet" src="sheets/' +
+      id +
+      '.png"></a>';
+    document.querySelector('#cards').append(c);
+  }
+</script>

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 1,
+    "alphaPixels": 123404,
+    "bounds": {
+      "x": 158,
+      "y": 63,
+      "width": 376,
+      "height": 728
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 22,
+      "y": 6,
+      "width": 20,
+      "height": 38
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 2,
+    "alphaPixels": 125221,
+    "bounds": {
+      "x": 749,
+      "y": 62,
+      "width": 378,
+      "height": 729
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 22,
+      "y": 6,
+      "width": 20,
+      "height": 38
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 3,
+    "alphaPixels": 126321,
+    "bounds": {
+      "x": 1334,
+      "y": 62,
+      "width": 378,
+      "height": 729
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 22,
+      "y": 6,
+      "width": 20,
+      "height": 38
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 1,
+    "alphaPixels": 113985,
+    "bounds": {
+      "x": 170,
+      "y": 125,
+      "width": 430,
+      "height": 531
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 2,
+    "alphaPixels": 109670,
+    "bounds": {
+      "x": 862,
+      "y": 130,
+      "width": 430,
+      "height": 526
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 3,
+    "alphaPixels": 112306,
+    "bounds": {
+      "x": 1576,
+      "y": 129,
+      "width": 419,
+      "height": 527
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 1,
+    "alphaPixels": 99740,
+    "bounds": {
+      "x": 244,
+      "y": 202,
+      "width": 421,
+      "height": 433
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 17,
+      "width": 26,
+      "height": 27
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 2,
+    "alphaPixels": 102047,
+    "bounds": {
+      "x": 875,
+      "y": 202,
+      "width": 421,
+      "height": 433
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 17,
+      "width": 26,
+      "height": 27
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 3,
+    "alphaPixels": 100430,
+    "bounds": {
+      "x": 1534,
+      "y": 202,
+      "width": 427,
+      "height": 433
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 17,
+      "width": 27,
+      "height": 27
+    },
+    "edgeWarning": false
+  }
+]

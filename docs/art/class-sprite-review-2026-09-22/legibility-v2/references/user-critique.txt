@@ -1,0 +1,70 @@
+Your mockup is close. The main clarity problem is value, not detail: your units sit in the same mid-dark range as the terrain. Most of the rules below come from that.
+
+## What's working and what isn't in the mockup
+
+- **The enemies read better than your own units.** Saturated red stands out against olive and swamp. The blue team is mostly navy and brown, so it blends into the dark grass and bog. It should be the other way round, because the player looks for their own units first.
+- **The infantry look too alike.** The four standing units on the left are roughly the same shape, around 4 heads tall, with a thin weapon line. The red-haired mages and the cavalry stand out because they have a unique color block or a unique shape.
+- **Proportions are realistic.** That suits the Dark Souls tone, but at 32px it leaves very few pixels for the head, the weapon and the team color, which are what tell units apart.
+- **The terrain is noisy.** Grass tufts, rock specks and bog texture are as contrasty as the sprites, so the sprites have to compete with the ground.
+
+## Principles
+
+**1. Dark world, lit actors.** This is the most important rule for your tone. Put the darkness in the environment, lighting, UI and portraits, and keep units in a higher value and saturation band. Octopath (your last reference) does this: a dim, desaturated room with characters lit and rim-highlighted. Darkest Dungeon is the best tonal match for you. It's grim and gothic, but its silhouettes are very high contrast. Grimness comes from materials and shapes, not from low contrast.
+
+**2. Use value bands.** Terrain gets a narrow mid-dark range. Units get the extremes: a near-black outline plus bright highlights on the face, metal and team color. Run a grayscale test: if a unit disappears into the swamp in grayscale, it will disappear in color on a phone.
+
+**3. Silhouette first.** Fill each sprite solid black. You should still be able to name the class. Exaggerate the one thing that identifies each class:
+- Knight: a boxy mass
+- Lance: a long vertical line
+- Archer: the bow curve
+- Mage: a hood or hat spike
+- Fighter: a wide axe head
+- Thief: a small, hunched shape
+- Cleric: a staff with a bright top
+
+The ideal is that the 21 base classes have 21 distinct silhouettes.
+
+**4. Chunkier proportions, but not chibi.** Go to about 2.5–3 heads tall instead of 4. The GBA sprites are about 2 heads, which is too cute for your tone. At 2.5–3 heads you get a readable head and weapon and still keep a grounded, somber look.
+
+**5. Make team color a big block, not trim.** Put the team color on the largest cloth area (cloak, tabard or hood) and pick a blue that stays blue in shadow. Steel or teal blue works; navy doesn't. Add a second channel for colorblind players and for moments when color alone fails. Options:
+- a colored ellipse or base under the feet (like your Awakening reference)
+- a colored outline (selout)
+- a small team pip
+
+**6. Outline so sprites work on dark tiles.** A pure-black outline disappears on dark terrain. Two ways to fix it:
+- Use a colored dark outline that is lighter on the lit side.
+- Add a 1px soft drop shadow or light rim under the feet.
+
+Also avoid pure black inside the sprite.
+
+**7. Hue-shift your ramps.** Shift shadows toward purple or blue and highlights toward warm yellow. This is how you keep a muted, bleak palette without the mud. It's also how a 32-color master palette stays rich. Give each sprite about 10–14 colors, with one saturated accent (hair, gem, flame, team cloth).
+
+**8. Give each unit one focal point.** A lit face, hair, a glowing staff tip or helmet glint gives the eye somewhere to land. Your mages work for exactly this reason.
+
+**9. Keep one pixel grid.** With Imagen-sourced art, the usual problems are:
+- mixed pixel density
+- stray anti-aliasing
+- half-pixel noise
+
+Force every sprite through the same steps: quantize to the master palette, snap to the native 32px grid, add an outline pass, then clean up clusters by hand.
+
+**10. Keep a consistent footprint and anchor.** Put feet at the same baseline, a few pixels above the bottom of the tile. Weapons can overhang a little, but mounts and wide axes shouldn't cover the neighboring tile's unit.
+
+**11. Leave room for state changes.** "Moved" (grayed out), selected, status effects and affixes all change a sprite's look. That only reads if the default sprite is already saturated. If units start muddy, you can't tell moved from not moved.
+
+**12. Tone down the terrain.** Lower the contrast inside each tile and keep the contrast at the edges between terrain types. Make tufts and specks subtler and fewer.
+
+## Where the dark vibe should go
+- **Enemies:** asymmetric and hollowed-out, torn cloth, glowing eyes on elites and affixed units, a desaturated red that shifts toward rust.
+- **Bosses:** a bigger silhouette or a subtle aura.
+- **Screen:** vignette, fog of war, cool ambient light with warm torch and lava accents.
+- **Portraits and UI:** most of the mood lives here. Map sprites carry information; portraits carry tone.
+
+## A quick review checklist for each sprite
+1. Grayscale on the darkest terrain: swamp or bog, lava, castle floor.
+2. Solid-black silhouette test against the other classes.
+3. 1x zoom on a phone screen, since the mobile build puts this at its worst.
+4. Colorblind filter (deuteranopia): can you still tell blue from red?
+5. The "moved" grayed-out version is still distinct from the terrain.
+
+I can build a sprite review sheet as a dev page or a script. It would render every sprite on every terrain type in color, grayscale, silhouette, moved state and a deuteranopia filter, so you can check each art batch from the Imagen pipeline before it goes into the game.

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "edric",
+    "name": "Edric",
+    "className": "Lord",
+    "faction": "player",
+    "isLord": true,
+    "kind": "infantry",
+    "oldKey": "rebuilt-lord_edric",
+    "bounds": {
+      "x": 307,
+      "y": 254,
+      "width": 648,
+      "height": 688
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "transparentFraction": 0.8625817500355988
+  },
+  {
+    "id": "sera",
+    "name": "Sera",
+    "className": "Light Sage",
+    "faction": "player",
+    "isLord": true,
+    "kind": "mage",
+    "oldKey": "rebuilt-lord_sera",
+    "bounds": {
+      "x": 366,
+      "y": 226,
+      "width": 620,
+      "height": 806
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 23,
+      "height": 30
+    },
+    "transparentFraction": 0.7945830112492117
+  },
+  {
+    "id": "archer",
+    "name": "Archer",
+    "className": "Archer",
+    "faction": "player",
+    "kind": "infantry",
+    "oldKey": "archer",
+    "bounds": {
+      "x": 374,
+      "y": 215,
+      "width": 662,
+      "height": 785
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "transparentFraction": 0.810997120573597
+  },
+  {
+    "id": "knight",
+    "name": "Knight",
+    "className": "Knight",
+    "faction": "enemy",
+    "kind": "heavy",
+    "oldKey": "rebuilt-enemy_knight",
+    "bounds": {
+      "x": 230,
+      "y": 173,
+      "width": 893,
+      "height": 878
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 8,
+      "width": 37,
+      "height": 36
+    },
+    "transparentFraction": 0.6966997396204154
+  }
+]

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><title>Sprite-first study</title
+  ><style>
+    body {
+      background: #10212b;
+      color: #efead8;
+      font: 17px system-ui;
+      margin: 28px auto;
+      max-width: 1200px;
+      padding: 0 20px;
+    }
+    h1 {
+      color: #e3c681;
+    }
+    button,
+    a {
+      color: #efead8;
+    }
+    button {
+      background: #284954;
+      border: 1px solid #718a90;
+      padding: 12px;
+      margin: 4px;
+      cursor: pointer;
+    }
+    #map {
+      width: 100%;
+      image-rendering: pixelated;
+    }
+    .cards {
+      display: flex;
+      gap: 20px;
+    }
+    .card {
+      flex: 1;
+      background: #243d45;
+      padding: 20px;
+    }
+    .sprite {
+      width: 192px;
+      height: 192px;
+      image-rendering: pixelated;
+    }
+    .source {
+      width: 100%;
+    }
+    p {
+      line-height: 1.5;
+    }
+    small {
+      color: #b1c4c8;
+    }
+  </style>
+  <h1>Sprite-first: shape before detail</h1>
+  <p>
+    Three original samples designed as coarse map sprites. The test is whether broad color masses,
+    minimal shading and distinct equipment survive reduction better than detailed illustrations.
+  </p>
+  <p>
+    <b>Top:</b> unchanged Edric, Sera and Pegasus anchors. <b>Lower row, left to right:</b> Archer,
+    Mage, Knight. These are staged art probes in the actual game renderer; no gameplay assets were
+    replaced.
+  </p>
+  <div id="controls">
+    <button data-view="new">New · grass</button
+    ><button data-view="before">Previous candidates · grass</button
+    ><button data-view="floor">New · stone</button><button data-view="gray">Grayscale</button
+    ><button data-view="silhouette">Silhouettes</button>
+  </div>
+  <img id="map" src="validation/map-new.png" />
+  <p>
+    Compare weapon recognition, body proportions and separation from terrain. Captures use the same
+    positions and current class sizing. Grayscale tests value separation; black silhouettes test
+    pose and equipment shape.
+  </p>
+  <div class="cards">
+    <section class="card">
+      <h2>Archer</h2>
+      <img class="sprite" src="sprites/archer-1.png" />
+      <p>Open ivory bow curve, blue torso, exposed sleeves. Bow separates from the body.</p>
+      <a href="sheets/archer.png">Generated source</a>
+    </section>
+    <section class="card">
+      <h2>Mage</h2>
+      <img class="sprite" src="sprites/mage-1.png" />
+      <p>Triangular blue robe, bent cap, large ivory book. No staff or long cape.</p>
+      <a href="sheets/mage.png">Generated source</a>
+    </section>
+    <section class="card">
+      <h2>Knight</h2>
+      <img class="sprite" src="sprites/knight-1.png" />
+      <p>Broad square shield, bright armor planes and upright lance.</p>
+      <a href="sheets/knight.png">Generated source</a>
+    </section>
+  </div>
+  <p>
+    <small
+      >Generated with built-in imagegen. Coarse-pixel prompting is an experiment, not a guarantee of
+      a mathematically uniform native pixel grid. Existing runtime nearest-neighbor sizing is
+      retained. No claim of acted-state verification.</small
+    >
+  </p>
+  <p><a href="catalog.json">Exact prompts</a> · <a href="README.md">Method and findings</a></p>
+  <script>
+    document
+      .querySelectorAll('button')
+      .forEach(
+        (b) =>
+          (b.onclick = () =>
+            (document.querySelector('#map').src = 'validation/map-' + b.dataset.view + '.png')),
+      );
+  </script>
+</html>

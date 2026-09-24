@@ -1,0 +1,108 @@
+<!doctype html><meta charset="utf-8" /><title>Sprite map review</title
+><style>
+  body {
+    background: #10212b;
+    color: #eee6d2;
+    font: 17px system-ui;
+    margin: 24px auto;
+    max-width: 1200px;
+    padding: 0 20px;
+  }
+  img {
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
+  section {
+    margin: 36px 0;
+  }
+  a {
+    color: #8dd3ff;
+  }
+  button {
+    font: inherit;
+    padding: 8px;
+  }
+  h1,
+  h2 {
+    color: #e3c98a;
+  }
+  .sheet {
+    background: #243e46;
+  }
+</style>
+<h1>Sprites in the map renderer</h1>
+<p>
+  <a href="legibility/index.html"
+    >NEW: Sword-class legibility experiment and development principles</a
+  >
+</p>
+<p>
+  Controlled art review: actual game map, mobile HUD, normal camera and tile sizes. Unit positions
+  are staged; HUD counts still describe the original test fixture. No shipping assets changed.
+</p>
+<section>
+  <h2>Map comparison</h2>
+  <p>
+    <button onclick="swap('map-existing.png')">Existing art</button>
+    <button onclick="swap('map-candidates.png')">Initial candidates</button>
+    <button onclick="swap('map-diversity-v2.png')">Revised archers</button>
+  </p>
+  <p id="caption">Revised archers</p>
+  <img id="map" src="validation/map-diversity-v2.png" />
+  <p>
+    Upper-left row: Edric, Sera, Archer A, Archer B. Middle-left: two Myrmidons and two Mages. Lower
+    row: Fighter, Knight, Pegasus Knight, Wyvern Rider. Enemies are at upper right. Compare at full
+    size before zooming.
+  </p>
+</section>
+<section>
+  <h2>Archer diversity test</h2>
+  <img class="sheet" src="archer-diversity-v2.png" />
+  <p>
+    Gray-haired, dark-skinned veteran and black-haired, olive-skinned recruit. The aim is distinct
+    head shapes and silhouettes, not simply recoloring the same hairstyle. This is one trial pair;
+    the full roster has not been regenerated.
+  </p>
+</section>
+<section>
+  <h2>Entity correction</h2>
+  <img class="sheet" style="width: 420px" src="entity-corrected-v2.png" />
+  <p>
+    Stationary 3×3 boss: ivory/lavender tendrils, multiple amber eyes, broad rooted mass. Matches
+    Eldritch Grasp / Twisting Vortex and splash mechanics. The humanoid candidate is rejected. The
+    128×128 renderer texture is saved in revision/sprites/entity-1.png; boss-scale scene validation
+    remains to do.
+  </p>
+</section>
+<section>
+  <h2>Next art pass</h2>
+  <ul>
+    <li>Keep named lord identities fixed. Preserve each recruit identity through promotion.</li>
+    <li>
+      Distribute black, dark brown, ash gray, sandy blond, auburn and occasional muted fantasy hair
+      across classes. Do not default every pair to brown-haired man / red-haired woman.
+    </li>
+    <li>
+      Vary skin tones, age, hair silhouette, build and practical clothing while retaining clear
+      class weapons and blue faction accents.
+    </li>
+    <li>
+      Map readability first: bows, shields and mounts read well; the small robed/caped figures still
+      need more silhouette separation.
+    </li>
+    <li>
+      These still frames do not validate acted tint, fog, animations, selection overlays or every
+      map biome.
+    </li>
+  </ul>
+</section>
+<p>
+  <a href="index.html">Full class gallery</a> ·
+  <a href="revision-prompts.json">Exact prompts (built-in image generation)</a>
+</p>
+<script>
+  function swap(file) {
+    document.querySelector('#map').src = 'validation/' + file;
+    document.querySelector('#caption').textContent = file.replace('.png', '').replaceAll('-', ' ');
+  }
+</script>
