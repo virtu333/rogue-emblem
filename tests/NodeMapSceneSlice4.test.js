@@ -484,6 +484,37 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.drawMap).toHaveBeenCalledTimes(1);
   });
 
+  it('never writes an ended run back to its slot when the roster closes', () => {
+    RosterOverlayMock.mockClear();
+    const toJSON = vi.fn(() => ({}));
+    const scene = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      runManager: { status: 'active', toJSON },
+      gameData: {},
+      registry: { get: (key) => (key === 'activeSlot' ? 1 : null) },
+      sys: { isActive: () => true },
+      drawMap: vi.fn(),
+    };
+    NodeMapScene.prototype._openRoster.call(scene);
+    const { onClose } = RosterOverlayMock.mock.calls[0][3];
+
+    // Abandon settled and cleared the save while the roster was open.
+    scene.runManager.status = 'defeat';
+    scene._sceneShuttingDown = true;
+    onClose();
+    expect(toJSON).not.toHaveBeenCalled();
+    expect(scene.drawMap).not.toHaveBeenCalled();
+
+    scene.runManager.status = 'active';
+    scene._sceneShuttingDown = false;
+    onClose();
+    expect(toJSON).toHaveBeenCalled();
+  });
+
   it('requestCancel restores hidden shop overlay before leaving', () => {
     const shopObj = makeDisplayObject().setInteractive({ useHandCursor: true });
     shopObj.visible = false;

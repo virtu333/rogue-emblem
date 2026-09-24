@@ -914,6 +914,9 @@ export class NodeMapScene extends Phaser.Scene {
         options.onResume?.();
       },
       onSaveAndExit: async () => {
+        // Leaving for good (the recovery prompt only offers Retry/Reload):
+        // hiding the pause menu must not reopen the route menu or Roster.
+        this.isTransitioning = true;
         try {
           // Persist the current map/service state, including an interrupted visit.
           this.persistRunSave();
@@ -956,6 +959,7 @@ export class NodeMapScene extends Phaser.Scene {
         }
       },
       onAbandon: async () => {
+        this.isTransitioning = true;
         try {
           const cloud = this.registry.get('cloud');
           const slot = this.registry.get('activeSlot');
@@ -1385,6 +1389,13 @@ export class NodeMapScene extends Phaser.Scene {
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
         this.rosterOverlay = null;
+        // An ended run was already settled, persisted, and (on abandon)
+        // cleared; writing it back would resurrect the slot.
+        if (this.runManager?.status && this.runManager.status !== 'active') {
+          if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
+          if (!this.shopOverlay && !this.churchOverlay) this.drawMap();
+          return;
+        }
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
         const result = saveRun(
@@ -1955,6 +1966,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
+        this.isTransitioning = true;
         rm.status = 'victory';
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
@@ -1971,7 +1983,9 @@ export class NodeMapScene extends Phaser.Scene {
             result: 'victory',
           },
           { reason: TRANSITION_REASONS.VICTORY },
-        );
+        ).then((started) => {
+          if (!started && !this._sceneShuttingDown) this.isTransitioning = false;
+        });
       } else {
         this.showActCompleteBanner(async () => {
           const { unlockedArtIds, displacedSkills } = rm.advanceAct();

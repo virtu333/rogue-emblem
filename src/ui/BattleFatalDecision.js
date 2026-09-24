@@ -22,6 +22,7 @@ export function persistFatalDecision(scene) {
       state.recoveryKind = 'fatal_pending';
       state.commanderEntityId = scene._battleCommanderId || null;
       state.commanderKillerName = scene._commanderKillerName || null;
+      state.commanderName = scene._battleCommanderName || null;
       state.pendingActionCompletion = null;
       state.pendingCommittedAction = null;
       scene._pendingCommittedAction = null;
@@ -68,6 +69,11 @@ export function persistFatalDecision(scene) {
 export function resumeFatalDecision(scene, checkpoint) {
   scene._battleCommanderId = checkpoint.commanderEntityId;
   scene._commanderKillerName = checkpoint.commanderKillerName || null;
+  // Older fatal checkpoints predate commanderName; the run knows its commander.
+  scene._battleCommanderName =
+    (typeof checkpoint.commanderName === 'string' && checkpoint.commanderName) ||
+    scene.runManager?.getCommanderName?.() ||
+    null;
   scene._fatalDecision = { durable: true, candidate: null };
   scene._pendingActionCompletion = null;
   scene._pendingLevelUpPopups = [];

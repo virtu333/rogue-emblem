@@ -341,6 +341,18 @@ export function resetUnitForBattle(unit) {
   }
 }
 
+function resetPlayerUnitsForTurn(scene, turn) {
+  for (const u of scene.playerUnits) {
+    u.hasMoved = false;
+    u._movementCommitted = false;
+    u.hasActed = false;
+    u._movementSpent = 0;
+    u._gambitUsedThisTurn = false;
+    resetWeaponArtTurnUsage(u, { turnNumber: turn });
+    scene.undimUnit(u);
+  }
+}
+
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -427,6 +439,7 @@ export class BattleScene extends Phaser.Scene {
     this._lifecycleAwaitGuards = new Set();
     this._reinforcementsPendingThisTurn = false;
     this._enemyPhaseReinforcedTurn = null;
+    this._playerTurnStartPipelineTurn = null;
     this.lootSettingsOverlay = null;
     this.lootRosterVisible = false;
     this.defeatRecoveryPrompt = null;
@@ -9262,10 +9275,21 @@ export class BattleScene extends Phaser.Scene {
     const deathCol = unit.col;
     const deathRow = unit.row;
 
-    const audio = this.registry.get('audio');
-    if (audio) audio.playSFX('sfx_death');
-    await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
-    this.removeUnitGraphic(unit);
+    // Presentation only: a failed fade must never keep a fallen unit (above
+    // all the commander) on the board. Its retry would return early on
+    // _removing, and checkBattleEnd would never see the death.
+    try {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_death');
+      await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
+    } catch (fadeErr) {
+      console.warn('[BattleScene] death animation failed; removing unit anyway:', fadeErr);
+    }
+    try {
+      this.removeUnitGraphic(unit);
+    } catch (graphicErr) {
+      console.warn('[BattleScene] unit graphic cleanup failed:', graphicErr);
+    }
     // Splice in-place so TurnManager's reference stays valid
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
@@ -9398,6 +9422,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Phase management ---
 
   onPhaseChange(phase, turn) {
+    this._playerTurnStartPipelineTurn = null;
     this._playerTurnStartToken?.settle?.();
     const turnStartToken = {};
     this._playerTurnStartToken = turnStartToken;
@@ -9445,16 +9470,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (phase === 'player') {
-      // Reset player units for new turn
-      for (const u of this.playerUnits) {
-        u.hasMoved = false;
-        u._movementCommitted = false;
-        u.hasActed = false;
-        u._movementSpent = 0;
-        u._gambitUsedThisTurn = false;
-        resetWeaponArtTurnUsage(u, { turnNumber: turn });
-        this.undimUnit(u);
-      }
+      resetPlayerUnitsForTurn(this, turn);
       // Input stays locked through the banner AND every awaited effect.
       this.battleState = 'TURN_START_RESOLVING';
       const isCurrentTurnStart = () =>
@@ -9610,6 +9626,9 @@ export class BattleScene extends Phaser.Scene {
           },
         },
       );
+      // From here the pipeline (or its onError) owns handing this turn to
+      // the player; an enemy-phase recovery must not also do it.
+      this._playerTurnStartPipelineTurn = turn;
 
       if (!shouldAutoAdvance) {
         // Tutorial hints (after phase banner fades)
@@ -9680,6 +9699,9 @@ export class BattleScene extends Phaser.Scene {
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      // A fresh enemy phase (including one replayed after a Vision rewind)
+      // has not applied its reinforcements yet.
+      this._enemyPhaseReinforcedTurn = null;
       this.updateAntiTurtlePressure(turn);
       this.grid.tickTemporaryTerrains?.();
       for (const u of this.enemyUnits) {
@@ -10233,19 +10255,17 @@ export class BattleScene extends Phaser.Scene {
   _recoverEnemyPhaseError(turn, err = null) {
     if (!this._isSceneActiveForAsync?.() || this._sceneShutdownCleanedUp) return false;
     if (this.battleState === 'BATTLE_END' || this.visionDialog) return false;
+    // The tail's endEnemyPhase() advances turn/phase before onPhaseChange runs,
+    // so a throw inside the player handoff lands here already in turn + 1.
+    if (this.turnManager?.currentPhase === 'player' && this.turnManager.turnNumber === turn + 1)
+      return this._recoverPlayerHandoff(turn + 1, err);
     if (this.turnManager?.currentPhase !== 'enemy' || this.turnManager.turnNumber !== turn)
       return false;
     console.error('[BattleScene] enemy phase interrupted; returning control to player:', err);
     // Supersede the failed phase so any of its still-pending awaits bail.
     this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
     this._enemyActionCheckpoint = false;
-    for (const unit of [...(this.playerUnits || []), ...(this.enemyUnits || [])]) {
-      try {
-        if (unit?.graphic) this.updateUnitPosition(unit);
-      } catch {
-        /* best effort: a broken sprite must not block recovery */
-      }
-    }
+    this._settleUnitSpritesAfterError();
     try {
       if (this._enemyPhaseReinforcedTurn !== turn) {
         this._enemyPhaseReinforcedTurn = turn;
@@ -10257,9 +10277,87 @@ export class BattleScene extends Phaser.Scene {
     this._reinforcementsPendingThisTurn = false;
     if (this.checkBattleEnd() || this.battleState === 'BATTLE_END' || this.visionDialog)
       return true;
-    this.turnManager.endEnemyPhase();
+    try {
+      this.turnManager.endEnemyPhase();
+    } catch (handoffErr) {
+      if (this.turnManager?.currentPhase !== 'player') throw handoffErr;
+      return this._recoverPlayerHandoff(this.turnManager.turnNumber, handoffErr);
+    }
     this.showBriefBanner?.('Enemy phase interrupted. Your turn.', '#ffcc88');
     return true;
+  }
+
+  /**
+   * A throw inside onPhaseChange('player') leaves the turn advanced but the
+   * board still locked in ENEMY_PHASE (or TURN_START_RESOLVING) with no
+   * pipeline scheduled to unlock it. Give the player the turn directly,
+   * skipping the turn-start effects that could not be scheduled.
+   */
+  _recoverPlayerHandoff(playerTurn, err = null) {
+    if (this.battleState === 'BATTLE_END' || this.visionDialog) return false;
+    if (this.battleState !== 'ENEMY_PHASE' && this.battleState !== 'TURN_START_RESOLVING')
+      return false;
+    if (this._playerTurnStartPipelineTurn === playerTurn) return false;
+    console.error('[BattleScene] player phase handoff failed; unlocking the turn:', err);
+    this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
+    this._enemyActionCheckpoint = false;
+    this._reinforcementsPendingThisTurn = false;
+    this._playerTurnStartToken?.settle?.();
+    this._playerTurnStartPipelineTurn = playerTurn;
+    this._settleUnitSpritesAfterError();
+    try {
+      resetPlayerUnitsForTurn(this, playerTurn);
+    } catch (resetErr) {
+      console.warn('[BattleScene] player unit reset incomplete after handoff error:', resetErr);
+      for (const u of this.playerUnits || []) {
+        u.hasMoved = false;
+        u.hasActed = false;
+      }
+    }
+    if (!this._tutorialLordRewindPromptPending) this.captureVisionSnapshot?.();
+    this.updateVisionHud?.();
+    this.battleState = 'PLAYER_IDLE';
+    this.refreshEndTurnControl?.();
+    // Checkpoint the unlocked turn so a reload does not replay into the
+    // failed handoff from the previous enemy-phase checkpoint.
+    try {
+      this._timelineBoundary = 'turn_start';
+      this._captureSuspendCheckpoint?.();
+    } catch (checkpointErr) {
+      console.warn('[BattleScene] checkpoint skipped after handoff error:', checkpointErr);
+    }
+    this.showBriefBanner?.('Turn start interrupted. Your turn.', '#ffcc88');
+    return true;
+  }
+
+  /** Stop in-flight unit tweens, then snap every sprite to its logical tile. */
+  _settleUnitSpritesAfterError() {
+    try {
+      this._combatFx?.finishStrike?.();
+    } catch {
+      /* best effort */
+    }
+    for (const unit of [
+      ...(this.playerUnits || []),
+      ...(this.enemyUnits || []),
+      ...(this.npcUnits || []),
+    ]) {
+      try {
+        if (!unit?.graphic) continue;
+        const parts = [
+          unit.graphic,
+          unit.label,
+          unit.factionIndicator,
+          unit.hpBar?.bg,
+          unit.hpBar?.fill,
+          ...(unit.affixPips || []),
+        ].filter(Boolean);
+        this.tweens?.killTweensOf?.(parts);
+        this.updateUnitPosition(unit);
+      } catch {
+        /* best effort: a broken sprite must not block recovery */
+      }
+    }
   }
 
   async startEnemyPhase({ resume = false } = {}) {
@@ -10284,8 +10382,10 @@ export class BattleScene extends Phaser.Scene {
       if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
         this._debugSkipEnemyPhase = false;
         if (this.battleState !== 'BATTLE_END') {
-          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          // Mark before applying: a throw mid-wave must not let the error
+          // recovery spawn the same wave a second time.
           this._enemyPhaseReinforcedTurn = this.turnManager.turnNumber;
+          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
           this._reinforcementsPendingThisTurn = false;
           const ended = this.checkBattleEnd();
           if (!ended && this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
@@ -10362,8 +10462,10 @@ export class BattleScene extends Phaser.Scene {
         // Vision prompt, and a rewind clicked during the animations invalidates
         // this phase entirely.
         if (!phaseSuperseded() && !this.visionDialog) {
-          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          // Mark before applying: a throw mid-wave must not let the error
+          // recovery spawn the same wave a second time.
           this._enemyPhaseReinforcedTurn = this.turnManager.turnNumber;
+          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
           this._reinforcementsPendingThisTurn = false;
           const ended = this.checkBattleEnd();
           if (!ended && !phaseSuperseded() && !this.visionDialog) {

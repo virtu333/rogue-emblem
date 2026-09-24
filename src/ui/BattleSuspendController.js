@@ -269,11 +269,12 @@ export class BattleSuspendController {
     if (enemyResume) {
       scene.battleState = 'ENEMY_PHASE';
       const resume = () => scene.startEnemyPhase({ resume: true });
+      const resumeTurn = scene.turnManager.turnNumber;
       if (scene._scheduleSafeDelayedAsync)
         scene._scheduleSafeDelayedAsync(0, 'enemy_phase_resume', resume, {
           phase: 'enemy',
-          turn: scene.turnManager.turnNumber,
-          onError: (err) => scene._recoverEnemyPhaseError?.(scene.turnManager.turnNumber, err),
+          turn: resumeTurn,
+          onError: (err) => scene._recoverEnemyPhaseError?.(resumeTurn, err),
         });
       else return resume();
       return;

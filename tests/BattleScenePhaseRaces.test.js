@@ -501,6 +501,107 @@ describe('enemy-phase error recovery', () => {
     expect(scene.turnManager.endEnemyPhase).not.toHaveBeenCalled();
   });
 
+  // TurnManager.endEnemyPhase advances turn/phase, then calls onPhaseChange.
+  function handoffThatThrows(scene) {
+    return vi.fn(() => {
+      scene.turnManager.turnNumber += 1;
+      scene.turnManager.currentPhase = 'player';
+      throw new Error('phase banner failed');
+    });
+  }
+
+  it('unlocks the player turn when the handoff itself throws', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.turnManager.endEnemyPhase = handoffThatThrows(scene);
+    scene.playerUnits[0].hasActed = true;
+    scene.playerUnits[0].hasMoved = true;
+    scene.undimUnit = vi.fn();
+    scene.captureVisionSnapshot = vi.fn();
+    scene.updateVisionHud = vi.fn();
+    scene._captureSuspendCheckpoint = vi.fn();
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+    expect(scene.turnManager.turnNumber).toBe(5);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.playerUnits[0].hasActed).toBe(false);
+    expect(scene.playerUnits[0].hasMoved).toBe(false);
+    expect(scene.captureVisionSnapshot).toHaveBeenCalled();
+    expect(scene._timelineBoundary).toBe('turn_start');
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene.refreshEndTurnControl).toHaveBeenCalled();
+    // The tail already spawned this turn's wave; the recovery must not repeat it.
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks the turn when its own endEnemyPhase call fails the handoff', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'ENEMY_PHASE';
+    scene.turnManager.endEnemyPhase = handoffThatThrows(scene);
+    scene.captureVisionSnapshot = vi.fn();
+    scene.updateVisionHud = vi.fn();
+    scene.undimUnit = vi.fn();
+
+    expect(scene._recoverEnemyPhaseError(4, new Error('ai'))).toBe(true);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.turnManager.turnNumber).toBe(5);
+  });
+
+  it('leaves the handoff to a player pipeline that was already scheduled', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'TURN_START_RESOLVING';
+    scene.turnManager.currentPhase = 'player';
+    scene.turnManager.turnNumber = 5;
+    scene._playerTurnStartPipelineTurn = 5;
+
+    expect(scene._recoverEnemyPhaseError(4, new Error('late refresh'))).toBe(false);
+    expect(scene.battleState).toBe('TURN_START_RESOLVING');
+  });
+
+  it('marks the wave spawned before applying it, so a mid-wave throw never spawns it twice', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    let spawned = 0;
+    scene.applyReinforcementsForTurn = vi.fn(() => {
+      spawned += 2;
+      throw new Error('reinforcement banner failed');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledTimes(1);
+    expect(spawned).toBe(2);
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies reinforcements again when a rewind replays the same enemy turn', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    // Turn 4's first enemy phase finished normally before the rewind.
+    scene._enemyPhaseReinforcedTurn = 4;
+    scene.aiController.processEnemyPhase = vi.fn(async () => {
+      throw new Error('replayed phase failed');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledWith(4);
+  });
+
+  it('stops in-flight unit tweens before snapping sprites back to their tiles', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'ENEMY_PHASE';
+    const order = [];
+    scene.tweens = { killTweensOf: vi.fn(() => order.push('kill')) };
+    scene._combatFx = { finishStrike: vi.fn(() => order.push('finish')) };
+    scene.updateUnitPosition = vi.fn(() => order.push('sync'));
+
+    scene._recoverEnemyPhaseError(4, new Error('mid-move'));
+
+    expect(scene._combatFx.finishStrike).toHaveBeenCalledTimes(1);
+    expect(scene.tweens.killTweensOf).toHaveBeenCalledWith([scene.playerUnits[0].graphic]);
+    expect(order).toEqual(['finish', 'kill', 'sync', 'kill', 'sync']);
+  });
+
   it.each([
     ['the battle already ended', (s) => (s.battleState = 'BATTLE_END')],
     ['a Vision prompt owns the flow', (s) => (s.visionDialog = {})],
@@ -514,5 +615,45 @@ describe('enemy-phase error recovery', () => {
     expect(scene._recoverEnemyPhaseError(4, new Error('late'))).toBe(false);
     expect(scene.turnManager.endEnemyPhase).not.toHaveBeenCalled();
     expect(scene.applyReinforcementsForTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeUnit presentation failures', () => {
+  it('still removes a fallen commander when the death animation throws', async () => {
+    const commander = {
+      faction: 'player',
+      isCommander: true,
+      isLord: true,
+      name: 'Edric',
+      battleEntityId: 'p1',
+      col: 1,
+      row: 1,
+      currentHP: 0,
+    };
+    const scene = Object.assign(Object.create(BattleScene.prototype), {
+      registry: { get: () => null },
+      playerUnits: [commander],
+      enemyUnits: [],
+      npcUnits: [],
+      battleConfig: { objective: 'rout' },
+      gameData: { affixes: { affixes: [] }, dialogue: {} },
+      grid: { clearTemporaryTerrainsBySource: vi.fn() },
+      updateObjectiveText: vi.fn(),
+      removeUnitGraphic: vi.fn(() => {
+        throw new Error('graphic already destroyed');
+      }),
+      _combatFx: {
+        deathFade: vi.fn(async () => {
+          throw new Error('tween manager gone');
+        }),
+      },
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await scene.removeUnit(commander);
+
+    expect(scene.playerUnits).toEqual([]);
+    expect(commander._removing).toBe(false);
+    expect(scene._battleCommanderName).toBe('Edric');
   });
 });

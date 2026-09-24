@@ -163,6 +163,7 @@ describe('production timeline boundaries and recovery', () => {
   it('fatal checkpoint reload preserves dead commander identity and never starts AI', () => {
     const { driver, scene, run } = fixture();
     const commander = scene.playerUnits.shift();
+    scene._battleCommanderName = commander.name;
     scene.turnManager.currentPhase = 'enemy';
     expect(persistFatalDecision(scene).ok).toBe(true);
     const restoredRun = loadRun(driver.data, 1);
@@ -181,6 +182,9 @@ describe('production timeline boundaries and recovery', () => {
     expect(resumed.startEnemyPhase).not.toHaveBeenCalled();
     expect(resumed.turnManager.endPlayerPhaseCalls).toBe(0);
     expect(resumed._fatalDecision.durable).toBe(true);
+    // The reloaded prompt names the fallen commander, not "Your commander".
+    expect(cp.commanderName).toBe(commander.name);
+    expect(resumed._battleCommanderName).toBe(commander.name);
     expect(clearBattleInProgressInSave(null, 1).reason).toBe('fatal_pending');
     expect(run.visionChargesRemaining).toBe(3);
   });
