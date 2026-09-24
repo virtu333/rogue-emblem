@@ -13,6 +13,10 @@ export const UI_DEPTHS = {
   DAMAGE_NUMBERS: 80,
   FOG_OVERLAY: 90,
   FOG_LABEL: 100,
+  // Screen UI floor for the battle scene: objects at or above this depth are HUD,
+  // menus, banners and overlays; below it is the world (terrain, fog, light, ranges,
+  // rings, units). The desktop atmosphere grade applies to the world only.
+  SCREEN_UI: 100,
   UNIT_INSPECTION: 150,
   FORECAST_PANEL: 200,
 
