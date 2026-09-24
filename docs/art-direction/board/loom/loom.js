@@ -130,6 +130,11 @@
   const weave = $('weave');
   const fx = $('fx');
   if (desktop) screen.classList.add('is-desktop');
+  // Board-only: simulate iPhone landscape safe areas (47px sides, 21px home indicator).
+  if (qs.get('safe') === '1') {
+    screen.style.setProperty('--sim-safe-x', '47px');
+    screen.style.setProperty('--sim-safe-b', '21px');
+  }
 
   const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
   // Proposed display titles (Cinzel). act1 uses the lore-guide canon "border quarries";
@@ -162,7 +167,8 @@
     const padR = 50;
     const padT = 42;
     const padB = 30;
-    const minDx = desktop ? 48 : 52;
+    MEDAL = parseFloat(getComputedStyle(loom).getPropertyValue('--medal')) || 40;
+    const minDx = MEDAL + 26;
     const span = D.rows - 1;
     let dx = Math.max(minDx, (W - padL - padR) / span);
     dx = Math.min(dx, 96);
@@ -173,6 +179,7 @@
       D.nodes.map((n) => [n.id, { x: offX + padL + n.row * dx, y: padT + n.col * dy }]),
     );
     L = { W, H, innerW, dx, dy, padL: offX + padL, padT, pos };
+    window.__loom = { L, edges };
   }
 
   // ── Geometry helpers for threads
@@ -237,7 +244,8 @@
       }
     return pts[pts.length - 1];
   }
-  const radiusOf = (n) => (n.type === 'boss' ? 29 : 25);
+  let MEDAL = 40;
+  const radiusOf = (n) => (n.type === 'boss' ? MEDAL + 8 : MEDAL) / 2 + 5;
   function rng(seed) {
     let a = seed >>> 0;
     return () => {
@@ -300,25 +308,24 @@
     }
     const fade = rowFade(e.b.row);
     if (e.kind === 'future') {
-      // Possible futures: two loose, untwisted fibres. Thin and desaturated.
+      // Possible futures: one thin, desaturated thread with a faint body. Undyed.
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.strokeStyle = C.ink3;
+      ctx.lineWidth = 3;
+      strand(ctx, pts, (s) => 0.5 * Math.sin(s * 0.16 + ph));
+      ctx.globalAlpha = 0.72 * fade;
+      ctx.strokeStyle = C.ink7;
       ctx.lineWidth = 1.1;
-      ctx.strokeStyle = C.ink8;
-      ctx.globalAlpha = 0.62 * fade;
-      strand(ctx, pts, (s) => 0.7 * Math.sin(s * 0.19 + ph));
-      ctx.strokeStyle = C.ink6;
-      ctx.globalAlpha = 0.7 * fade;
-      ctx.lineWidth = 0.9;
-      strand(ctx, pts, (s) => -0.9 * Math.sin(s * 0.13 + ph * 1.7) + 0.5);
+      strand(ctx, pts, (s) => 0.5 * Math.sin(s * 0.16 + ph));
       ctx.globalAlpha = 1;
-      if (e.b.elite) fracture(ctx, pts, len, false, fade);
       return;
     }
     // Cut: the thread frays out into broken fibres and parts where the choice was made.
     const mid = len * (0.42 + r() * 0.16);
     const gap = 4 + r() * 3;
-    ctx.strokeStyle = C.ink5;
+    ctx.strokeStyle = C.ink6;
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.85 * fade;
+    ctx.globalAlpha = 0.8 * fade;
     const wob = (s) => 0.6 * Math.sin(s * 0.2 + ph);
     const sL = mid - gap / 2;
     const sR = mid + gap / 2;
@@ -372,6 +379,7 @@
   }
   // The Lieutenant's mark: the thread cracks crimson just before an elite node.
   function fracture(ctx, pts, len, live, fade = 1) {
+    if (pts.length < 2) return;
     // a clean break 5–15px before the medal, bridged by one crimson kink
     const s0 = Math.max(0, len - 15);
     const s1 = Math.max(0, len - 5);
@@ -484,21 +492,6 @@
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
 
-    // 4. heddle ruler: row numerals along the top beam
-    ctx.font = '8px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    for (let row = 0; row < D.rows; row++) {
-      const x = L.padL + row * L.dx;
-      const doneRow = row <= frontierRow;
-      const nextRow = row === frontierRow + 1;
-      ctx.fillStyle = nextRow ? C.gold5 : doneRow ? C.gold2 : C.ink6;
-      ctx.globalAlpha = nextRow || doneRow ? 1 : rowFade(row) * 0.9;
-      ctx.fillText(ROMAN[row], x, 15);
-      ctx.fillRect(Math.round(x) - 0.5, 20, 1, nextRow ? 4 : 2);
-    }
-    ctx.globalAlpha = 1;
-
     // 5. threads — fraying first, gold last so the player's path always sits on top
     const order = { cut: 0, future: 1, woven: 2, live: 3 };
     L.paths = new Map();
@@ -546,12 +539,27 @@
       ctx.fillRect(x0, 0, W - x0, H);
     }
 
+    // 6b. heddle ruler (above the dissolve so progress stays legible): row numerals along the top beam
+    ctx.font = '8px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    for (let row = 0; row < D.rows; row++) {
+      const x = L.padL + row * L.dx;
+      const doneRow = row <= frontierRow;
+      const nextRow = row === frontierRow + 1;
+      ctx.fillStyle = nextRow ? C.gold5 : doneRow ? C.gold2 : C.ink6;
+      ctx.globalAlpha = nextRow || doneRow ? 1 : Math.max(0.5, rowFade(row));
+      ctx.fillText(ROMAN[row], x, 15);
+      ctx.fillRect(Math.round(x) - 0.5, 20, 1, nextRow ? 4 : 2);
+    }
+    ctx.globalAlpha = 1;
+
     // 7. the Hollow Sun: a black eclipse with a gold corona at the act's end
     const boss = byId[D.bossNodeId];
     const b = pos.get(boss.id);
     const cor = ctx.createRadialGradient(b.x, b.y, 22, b.x, b.y, 78);
-    cor.addColorStop(0, 'rgba(255,240,189,0.55)');
-    cor.addColorStop(0.08, 'rgba(243,203,108,0.34)');
+    cor.addColorStop(0, 'rgba(255,240,189,0.45)');
+    cor.addColorStop(0.08, 'rgba(243,203,108,0.26)');
     cor.addColorStop(0.3, 'rgba(179,112,44,0.13)');
     cor.addColorStop(0.65, 'rgba(79,44,22,0.05)');
     cor.addColorStop(1, 'rgba(7,6,11,0)');
@@ -566,7 +574,7 @@
       const r1 = 27;
       const r2 = 34 + rr() * (i % 3 ? 10 : 22);
       ctx.strokeStyle = i % 3 ? C.gold3 : C.gold4;
-      ctx.globalAlpha = i % 3 ? 0.22 : 0.34;
+      ctx.globalAlpha = i % 3 ? 0.16 : 0.26;
       ctx.lineWidth = i % 3 ? 0.8 : 1;
       ctx.beginPath();
       ctx.moveTo(b.x + Math.cos(ang) * r1, b.y + Math.sin(ang) * r1);
@@ -608,7 +616,7 @@
     if (sel && selState === 'future') {
       const reach = canReach(sel.id);
       ctx.save();
-      ctx.setLineDash([2, 3.5]);
+      ctx.setLineDash([3, 4]);
       ctx.lineDashOffset = reduceMotion ? 0 : -t * 9;
       ctx.lineCap = 'round';
       for (const e of edges) {
@@ -617,8 +625,8 @@
         if (e.kind === 'future' && !steps.has(e.a.id)) continue;
         const pts = L.paths.get(`${e.a.id}>${e.b.id}`);
         ctx.strokeStyle = C.gold5;
-        ctx.globalAlpha = 0.6;
-        ctx.lineWidth = 1.3;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 1.5;
         strand(ctx, pts, () => 0);
       }
       ctx.restore();
@@ -691,10 +699,11 @@
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'crack');
     svg.setAttribute('viewBox', '0 0 46 46');
+    // A hairline fracture entering from the rim (the Lieutenant's mark), not a bolt.
+    const crack = 'M36.2 4.4 L34.6 9.1 L30.9 10.3 L30.6 13.2 M34.6 9.1 L38.1 10';
     svg.innerHTML =
-      '<path d="M35.5 5.5 L32.2 10.4 L35.4 12.6 L31.4 17.8" fill="none" stroke="#07060b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M35.5 5.5 L32.2 10.4 L35.4 12.6 L31.4 17.8" fill="none" stroke="#cc4038" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M8.2 33.5 L11.6 32.6 L12.4 35.6" fill="none" stroke="#9e2632" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>';
+      `<path d="${crack}" fill="none" stroke="#07060b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<path d="${crack}" fill="none" stroke="#cc4038" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>`;
     return svg;
   }
 
@@ -726,7 +735,9 @@
       );
       const medal = document.createElement('span');
       medal.className = 'medal';
-      medal.append(nodeArt(frameOf(n), n.type === 'boss' ? 34 : 29));
+      medal.append(
+        nodeArt(frameOf(n), Math.round(n.type === 'boss' ? (MEDAL + 8) * 0.7 : MEDAL * 0.72)),
+      );
       b.append(medal);
       if (n.elite) b.append(crackSvg());
       if (st === 'current') {
@@ -742,7 +753,9 @@
       }
       if (st === 'future' || st === 'cut') {
         const fade = n.type === 'boss' ? 1 : rowFade(n.row);
-        b.style.opacity = String(st === 'cut' ? Math.min(0.75, fade) : Math.max(0.55, fade));
+        b.style.opacity = String(
+          st === 'cut' ? Math.max(0.45, Math.min(0.75, fade)) : Math.max(0.55, fade),
+        );
       }
       b.addEventListener('click', () => select(n.id));
       inner.append(b);
@@ -809,7 +822,7 @@
     if (n.fog) tags.append(el('span', 'tag warn', 'Fog'));
     if (n.village) tags.append(el('span', 'tag good', 'Village'));
     if (n.caravan) tags.append(el('span', 'tag good', 'Caravan'));
-    if (n.elite) tags.append(el('span', 'tag bad', 'Elite spoils'));
+    if (n.elite) tags.append(el('span', 'tag bad', 'Loot: pick 2 of 4'));
     if (tags.childElementCount) box.append(tags);
 
     const text =
@@ -824,7 +837,7 @@
       live: ['', 'Within reach · the next knot'],
       current: ['done', 'The party rests here'],
       done: ['done', 'Woven · already walked'],
-      future: ['future', `A possible future · ${d} steps out`],
+      future: ['future', `Possible future · ${d} steps`],
       cut: ['cut', 'A frayed thread · out of reach'],
     }[st];
     box.append(el('p', `insp-state ${line[0]}`, line[1]));
@@ -854,8 +867,8 @@
       img.alt = '';
       const info = el('span', 'chip-info');
       const name = el('span', 'chip-name');
-      name.append(el('span', null, u.name), el('span', 'hp', `${hp}/${max}`));
-      info.append(name, el('span', 'chip-class', u.className));
+      name.append(el('span', null, u.name), el('span', 'chip-class', u.className));
+      info.append(name, el('span', 'hp', `${hp}/${max} HP`));
       const bar = el('span', `bar${hp / max < 0.5 ? ' mid' : ''}`);
       const fill = el('i');
       fill.style.width = `${Math.round((hp / max) * 100)}%`;

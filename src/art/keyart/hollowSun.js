@@ -71,6 +71,21 @@ const SKY = [
   INK[10],
   INK[11],
 ];
+// Alternate night ramp: steel-blue zenith for the colder "ashfall" hour.
+const SKY_STEEL = [
+  INK[0],
+  INK[1],
+  STL[0],
+  STL[1],
+  INK[4],
+  INK[5],
+  INK[6],
+  INK[7],
+  INK[8],
+  INK[9],
+  INK[10],
+  INK[11],
+];
 // Reverse lookup so animated fillRect calls can reuse the packed palette.
 const HEX_OF = new Map();
 for (const ramp of Object.values(PALETTE)) for (const h of ramp) HEX_OF.set(pack(h), h);
@@ -261,6 +276,47 @@ function curvePixels(fn, steps = 600) {
   return clean;
 }
 
+/** Clean 1px midpoint circle, as offsets from the centre (8-connected, no doubles). */
+function circlePixels(r) {
+  const seen = new Set();
+  const out = [];
+  const add = (x, y) => {
+    const k = `${x},${y}`;
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push([x, y]);
+    }
+  };
+  let x = r;
+  let y = 0;
+  let err = 1 - r;
+  while (x >= y) {
+    for (const [a, b] of [
+      [x, y],
+      [y, x],
+      [-y, x],
+      [-x, y],
+      [-x, -y],
+      [-y, -x],
+      [y, -x],
+      [x, -y],
+    ])
+      add(a, b);
+    y++;
+    if (err < 0) err += 2 * y + 1;
+    else {
+      x--;
+      err += 2 * (y - x) + 1;
+    }
+  }
+  return out;
+}
+
+const angDiff = (a, b) => {
+  let d = Math.abs(a - b) % (Math.PI * 2);
+  return d > Math.PI ? Math.PI * 2 - d : d;
+};
+
 function bezier(p0, p1, p2, p3) {
   return (t) => {
     const u = 1 - t;
@@ -279,6 +335,30 @@ function bezier(p0, p1, p2, p3) {
 // Composition (plate space). Crop intersection (always visible): x 52..372, y 20..215.
 // ---------------------------------------------------------------------------
 const VARIANTS = {
+  // Alternate composition: a vast hollow sun rising behind the quarry hill, very close
+  // to the figure. More monumental, less sky for the lockup.
+  rising: {
+    sun: { x: 318, y: 124, r: 40 },
+    // hangs from the upper-right rim and drifts clear of the disc and the fate threads
+    severed: {
+      at: 302,
+      path: [
+        [12, 4],
+        [24, 16],
+        [25, 34],
+      ],
+    },
+    horizon: 172,
+    zenith: 0.4,
+    horizonL: 8.2,
+    skyCurve: 2.2,
+    haloL: 3.0,
+    streamerL: 3.2,
+    glowBandL: 0.9,
+    stars: 110,
+    ash: 70,
+    motes: 6,
+  },
   // Default: totality at dusk. All-round horizon glow, violet zenith, sun upper-right.
   dusk: {
     sun: { x: 292, y: 68, r: 22 },
@@ -291,10 +371,11 @@ const VARIANTS = {
     glowBandL: 1.0,
     stars: 90,
     ash: 70,
-    motes: 9,
+    motes: 6,
   },
   // Ashfall: later, colder, heavier ash; the glow has sunk to a thin line.
   ashfall: {
+    sky: 'steel',
     sun: { x: 292, y: 62, r: 22 },
     horizon: 172,
     zenith: 0.15,
@@ -304,68 +385,64 @@ const VARIANTS = {
     streamerL: 3.8,
     glowBandL: 0.7,
     stars: 150,
-    ash: 150,
-    motes: 12,
+    ash: 170,
+    ashBright: true,
+    motes: 8,
   },
 };
 
 const FIGURE_FEET = { x: 172, y: 171 };
 
-// Lone figure, seen from behind, reaching up toward the hollow sun.
-// '#' silhouette, 'r' warm rim (corona light), 'h' hand (where the threads converge).
-const FIGURE = [
-  '..............h',
-  '.............#.',
-  '............#..',
-  '.....r#....#...',
-  '....###r..#....',
-  '....####.#.....',
-  '....####.#.....',
-  '...#######.....',
-  '...########....',
-  '...#######.....',
-  '..########.....',
-  '..#########....',
-  '..#########....',
-  '..##########...',
-  '.###########...',
-  '.############..',
-  '.####.####.....',
-  '..##...##......',
+// Lone figure, seen from behind: one arm raised to the hollow sun, cape streaming
+// right on the wind. Three frames differ only in the cape tail.
+// '#' silhouette, 'h' hand (where the threads converge).
+const FIGURE_BODY = [
+  '...........h....',
+  '..........#.....',
+  '..........#.....',
+  '.........#......',
+  '....##...#......',
+  '...####..#......',
+  '...####.#.......',
+  '....##..#.......',
+  '..#######.......',
+  '..#########.....',
+  '..###########...',
 ];
-// Scarf + cloak-hem tatters streaming right with the wind (figure-local coords).
-const FLUTTER = [
+const FIGURE_CAPE = [
   [
-    [9, 7],
-    [10, 7],
-    [11, 8],
-    [12, 8],
-    [13, 8],
-    [12, 16],
-    [13, 15],
-    [14, 15],
+    '...###########..',
+    '...####.#######.',
+    '...###....######',
+    '...###......###.',
+    '...###.......#.#',
   ],
   [
-    [9, 7],
-    [10, 7],
-    [11, 7],
-    [12, 8],
-    [13, 9],
-    [12, 16],
-    [13, 16],
-    [14, 16],
+    '...###########..',
+    '...####.########',
+    '...###....#####.',
+    '...###......####',
+    '...###........#.',
   ],
   [
-    [9, 7],
-    [10, 8],
-    [11, 8],
-    [12, 8],
-    [13, 7],
-    [12, 15],
-    [13, 16],
-    [14, 17],
+    '...############.',
+    '...####.#######.',
+    '...###....#####.',
+    '...###.....####.',
+    '...###......#..#',
   ],
 ];
+const FIGURE_LEGS = [
+  '...##.#.........',
+  '...##.#.........',
+  '...##.#.........',
+  '...##..#........',
+  '...##..#........',
+  '..###..##.......',
+];
+const FIGURE_FRAMES = FIGURE_CAPE.map((cape) => [...FIGURE_BODY, ...cape, ...FIGURE_LEGS]);
+const FIGURE_W = 16;
+const FIGURE_H = FIGURE_FRAMES[0].length;
 
 // ---------------------------------------------------------------------------
 // Scene factory
@@ -379,9 +456,27 @@ export function createHollowSunScene(opts = {}) {
   const H = PLATE_H;
   const SUN = V.sun;
   const HZ = V.horizon;
+  const SKYR = V.sky === 'steel' ? SKY_STEEL : SKY;
 
   const noise = makeNoise(seed * 31 + 1);
   const rng = mulberry32(seed * 7919 + 3);
+
+  // Figure + hand are fixed by the sprite; the diamond-ring bead faces the hand.
+  const figOrigin = { x: FIGURE_FEET.x - 4, y: FIGURE_FEET.y - FIGURE_H };
+  const hand = (() => {
+    for (let j = 0; j < FIGURE_BODY.length; j++) {
+      const i = FIGURE_BODY[j].indexOf('h');
+      if (i >= 0) return { x: figOrigin.x + i, y: figOrigin.y + j };
+    }
+    return { x: figOrigin.x, y: figOrigin.y };
+  })();
+  const toHand = Math.atan2(hand.y - SUN.y, hand.x - SUN.x);
+  const beadAng = toHand - (10 * Math.PI) / 180;
+  const bead = {
+    x: Math.round(SUN.x + Math.cos(beadAng) * SUN.r),
+    y: Math.round(SUN.y + Math.sin(beadAng) * SUN.r),
+  };
+  const sr = SUN.r / 22; // corona scale relative to the reference sun
 
   // ============================================================ geometry
   // Far ranges part around the figure so the brightest glow sits behind its head.
@@ -395,22 +490,19 @@ export function createHollowSunScene(opts = {}) {
 
   // Mid layer: keep hill (left), valley + sacred ground (centre), quarry hill (right).
   const midTop = new Float32Array(W);
-  const BENCH_X = [304, 293, 283, 272, 262, 250]; // quarry staircase, right -> left
-  const BENCH_Y = [149, 157, 165, 173, 180, 186];
   for (let x = 0; x < W; x++) {
     let y;
     if (x < 40) y = 158;
     else if (x < 156)
       y = 160 - Math.sin(((x - 40) / 116) * Math.PI) ** 0.7 * 13 + smooth(96, 156, x) * 6;
-    else if (x < 250) y = 170 + smooth(156, 200, x) * 16 + (noise.fbm1(x * 0.1) - 0.5) * 2;
-    else if (x < BENCH_X[0]) {
-      // x in [BENCH_X[k+1], BENCH_X[k])
-      const k = BENCH_X.findIndex((bx, i) => x >= (BENCH_X[i + 1] ?? 0) && x < bx);
-      y = BENCH_Y[Math.max(0, k)];
-    } else
-      y = 145 - Math.sin(((x - 304) / 120) * Math.PI) * 5 + (noise.fbm1(x * 0.05 + 30) - 0.5) * 8;
-    const rough = x >= 250 && x < BENCH_X[0] ? 0 : (noise.n1(x * 0.6 + 40) - 0.5) * 1.4;
-    midTop[x] = y + rough;
+    else if (x < 244) y = 170 + smooth(156, 200, x) * 16 + (noise.fbm1(x * 0.1) - 0.5) * 2;
+    else
+      y =
+        186 -
+        smooth(244, 312, x) * 42 -
+        Math.sin((clamp(x - 312, 0, 112) / 112) * Math.PI) * 4 +
+        (noise.fbm1(x * 0.06 + 30) - 0.5) * 7;
+    midTop[x] = y + (noise.n1(x * 0.6 + 40) - 0.5) * 1.4;
   }
 
   // Foreground: left crag, the figure's promontory, a cliff, low right rise.
@@ -443,19 +535,19 @@ export function createHollowSunScene(opts = {}) {
         a: ang,
         w: 0.05 + rng() * 0.16,
         amp: along ? 0.8 + rng() * 0.4 : 0.35 + rng() * 0.4,
-        len: along ? 26 + rng() * 26 : 10 + rng() * 14,
+        len: (along ? 26 + rng() * 26 : 10 + rng() * 14) * sr,
       });
     }
     for (let i = 0; i < STREAM_N; i++) {
       const a = (i / STREAM_N) * Math.PI * 2;
       let amp = 0.18;
-      let len = 8;
+      let len = 8 * sr;
       for (const p of peaks) {
         let d = Math.abs(a - p.a) % (Math.PI * 2);
         if (d > Math.PI) d = Math.PI * 2 - d;
         const g = Math.exp(-((d / p.w) ** 2));
         amp += p.amp * g;
-        len = Math.max(len, 8 + (p.len - 8) * g);
+        len = Math.max(len, 8 * sr + (p.len - 8 * sr) * g);
       }
       streamAmp[i] = Math.min(1.3, amp);
       streamLen[i] = len;
@@ -475,13 +567,16 @@ export function createHollowSunScene(opts = {}) {
     const d = Math.hypot(dx, dy);
     if (d > SUN.r) {
       const out = d - SUN.r;
-      L += V.haloL * Math.exp(-out / 24) + 1.3 * Math.exp(-out / 75);
+      L += V.haloL * Math.exp(-out / (24 * sr)) + 1.3 * Math.exp(-out / (75 * sr));
       const ai =
         Math.floor(
           (((Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2)) * STREAM_N,
         ) % STREAM_N;
       L += V.streamerL * streamAmp[ai] * Math.exp(-out / streamLen[ai]);
     }
+    // white-hot bloom around the diamond-ring bead
+    const db = Math.hypot(x - bead.x, y - bead.y);
+    L += 4.2 * Math.exp(-((db / 3.6) ** 2)) + 1.6 * Math.exp(-((db / 11) ** 2));
     // two broken stratus bands, dark against the glow
     for (let b = 0; b < 2; b++) {
       const yc = [131, 150][b] + (noise.fbm1(x * 0.012 + b * 20) - 0.5) * 10;
@@ -497,10 +592,13 @@ export function createHollowSunScene(opts = {}) {
     return L;
   }
 
-  // ============================================================ static back plate
-  const back = new Raster(W, H);
+  // ============================================================ static plates
+  // skyR: sky, stars, the disc.  back: all land (transparent sky) so the animated
+  // corona can sit between them.  front: foreground ridge + sword (mist goes under it).
+  const skyR = new Raster(W, H);
   for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) back.set(x, y, pick(SKY, skyL(x, y), x, y));
+    for (let x = 0; x < W; x++) skyR.set(x, y, pick(SKYR, skyL(x, y), x, y));
+  const back = new Raster(W, H);
 
   // stars — sparse, only in the dark upper sky
   const twinkles = [];
@@ -511,17 +609,17 @@ export function createHollowSunScene(opts = {}) {
     if (L > 3.4) continue;
     if (Math.hypot(x - SUN.x, y - SUN.y) < SUN.r + 30) continue;
     const bright = rng();
-    const c = SKY[clamp(Math.floor(L) + (bright > 0.88 ? 4 : bright > 0.55 ? 3 : 2), 0, 8)];
-    back.set(x, y, c);
+    const c = SKYR[clamp(Math.floor(L) + (bright > 0.88 ? 4 : bright > 0.55 ? 3 : 2), 0, 8)];
+    skyR.set(x, y, c);
     if (bright > 0.9 && twinkles.length < 8)
-      twinkles.push({ x, y, c: SKY[clamp(Math.floor(L) + 6, 0, 9)], base: c, ph: rng() * 6.28 });
+      twinkles.push({ x, y, c: SKYR[clamp(Math.floor(L) + 6, 0, 9)], base: c, ph: rng() * 6.28 });
   }
 
   // hollow sun disc — the hole where the goddess was
   for (let y = SUN.y - SUN.r - 1; y <= SUN.y + SUN.r + 1; y++) {
     for (let x = SUN.x - SUN.r - 1; x <= SUN.x + SUN.r + 1; x++) {
       const d = Math.hypot(x - SUN.x, y - SUN.y);
-      if (d < SUN.r - 0.5) back.set(x, y, INK[0]);
+      if (d < SUN.r - 0.3) skyR.set(x, y, INK[0]);
     }
   }
 
@@ -529,11 +627,11 @@ export function createHollowSunScene(opts = {}) {
   for (let x = 0; x < W; x++) {
     for (let y = Math.floor(farA[x]); y < H; y++) {
       const depth = y - farA[x];
-      back.set(x, y, pick(SKY, 7.0 + smooth(2, 30, depth) * 0.9, x, y));
+      back.set(x, y, pick(SKYR, 7.0 + smooth(2, 30, depth) * 0.9, x, y));
     }
     for (let y = Math.floor(farB[x]); y < H; y++) {
       const depth = y - farB[x];
-      back.set(x, y, pick(SKY, 6.0 + smooth(3, 24, depth) * 1.0, x, y));
+      back.set(x, y, pick(SKYR, 6.0 + smooth(3, 24, depth) * 1.0, x, y));
     }
   }
 
@@ -554,44 +652,47 @@ export function createHollowSunScene(opts = {}) {
     }
   }
 
-  // quarry: terraced benches cut across the hill face, lit lips, striated risers
+  // quarry: a pale stepped gash cut into the dark hill — lit bench lips, broken risers
   {
-    const lips = [
-      { y: 157, x0: 293, x1: 368 },
-      { y: 165, x0: 283, x1: 356 },
-      { y: 173, x0: 272, x1: 344 },
-      { y: 180, x0: 262, x1: 330 },
-    ];
-    for (const l of lips) {
-      const end = l.x1 + Math.floor((noise.n1(l.y * 0.7) - 0.5) * 10);
-      for (let x = l.x0; x < end; x++) {
-        const fade = smooth(end, end - 12, x);
-        if (fade > bayer(x, l.y)) back.set(x, l.y, INK[5]);
-        if (fade > bayer(x, l.y + 1) + 0.2) back.set(x, l.y + 1, INK[1]);
-        // riser striations (tool marks)
-        if ((x * 7 + l.y) % 6 === 0 && fade > 0.5)
-          for (let j = 2; j < 6; j++) back.set(x, l.y - j, j & 1 ? INK[2] : INK[3]);
+    let y0 = 149;
+    const benches = [];
+    for (let b = 0; b < 5; b++) {
+      const h = 6 + Math.floor(hash2(b, 17, seed) * 4);
+      benches.push({
+        y0,
+        h,
+        L: 268 + b * 6 + Math.floor((noise.n1(b * 3.1 + 7) - 0.5) * 8),
+        R: 350 - b * 8 + Math.floor((noise.n1(b * 2.3 + 1) - 0.5) * 12),
+      });
+      y0 += h;
+    }
+    benches.forEach(({ y0, h, L, R }, b) => {
+      for (let x = L; x <= R; x++) {
+        const cap = midTop[x] + 2 + (noise.n1(x * 0.8 + b) - 0.5) * 2;
+        // irregular vertical cracks / tool marks
+        const crack = hash2(x, b, seed) < 0.16;
+        const crackLen = 2 + Math.floor(hash2(x, b + 9, seed) * (h - 2));
+        for (let y = y0; y < y0 + h; y++) {
+          if (y < cap) continue;
+          const r = y - y0;
+          let c;
+          if (x === L) c = INK[1];
+          else if (x === R || x === R - 1) c = INK[2];
+          else if (r === 0) c = x % 9 < 7 ? INK[5] : INK[4];
+          else if (crack && r > 1 && r <= crackLen) c = INK[2];
+          else c = pick(INK, 3.7 - r * 0.25 + smooth(176, 190, y) * 0.9, x, y);
+          back.set(x, y, c);
+        }
       }
-    }
-    // staircase lips + risers on the left flank
-    for (let k = 0; k < BENCH_X.length - 1; k++) {
-      const y = BENCH_Y[k];
-      for (let x = BENCH_X[k + 1]; x < BENCH_X[k]; x++) back.set(x, y, INK[5]);
-      for (let yy = y; yy < BENCH_Y[k + 1]; yy++) back.set(BENCH_X[k + 1], yy, INK[4]);
-    }
-  }
-  // quarry derrick (timber A-frame + boom + hanging block) on the hilltop
-  {
-    const bx = 334;
-    const by = Math.floor(midTop[bx]);
-    const D = INK[3];
-    for (let i = 0; i < 17; i++) {
-      back.set(bx - Math.round(i * 0.18), by - i, D);
-      back.set(bx + 5 - Math.round(i * 0.12), by - i, D);
-    }
-    for (let i = 0; i < 24; i++) back.set(bx + 3 - i, by - 16 + Math.round(i * 0.3), D); // boom
-    for (let i = 0; i < 6; i++) back.set(bx - 20, by - 9 + i, D); // rope
-    back.rect(bx - 21, by - 3, 3, 2, D); // block
+      // cut blocks waiting on the bench
+      for (let k = 0; k < 2; k++) {
+        const bx = L + 5 + Math.floor(hash2(b, k, seed) * Math.max(1, R - L - 12));
+        if (y0 - 2 < midTop[bx] + 2) continue;
+        back.rect(bx, y0 - 2, 3, 1, INK[5]);
+        back.rect(bx, y0 - 1, 3, 1, INK[3]);
+        if (k === 0) back.rect(bx + 3, y0 - 1, 2, 1, INK[4]);
+      }
+    });
   }
 
   // sacred ground: a ring of standing stones in the valley mist
@@ -626,7 +727,7 @@ export function createHollowSunScene(opts = {}) {
     const KL = INK[4];
     const LIP = INK[5];
     const ground = (x) => Math.floor(midTop[clamp(x, 0, W - 1)]);
-    const skyHole = (x, y, bias = -0.4) => back.set(x, y, pick(SKY, skyL(x, y) + bias, x, y));
+    const skyHole = (x, y, bias = -0.4) => back.set(x, y, pick(SKYR, skyL(x, y) + bias, x, y));
     // main tower (broken on a diagonal, crenels survive on the high side)
     const tx = 82;
     const tw = 14;
@@ -716,62 +817,103 @@ export function createHollowSunScene(opts = {}) {
     rimStandards.push({ x, y: y - h, len: 6 - i });
   }
 
-  // foreground ridge — near-black, with a backlit 1px rim and grass
+  // foreground ridge (separate layer so valley mist can drift between it and the rest)
+  const front = new Raster(W, H);
   for (let x = 0; x < W; x++) {
     const top = Math.floor(fgTop[x]);
     for (let y = top; y < H; y++) {
       const depth = y - top;
-      back.set(x, y, depth === 0 ? INK[3] : pick(INK, 1.2 - smooth(0, 22, depth) * 1.1, x, y));
+      front.set(x, y, depth === 0 ? INK[3] : pick(INK, 1.2 - smooth(0, 22, depth) * 1.1, x, y));
     }
     if (!(x > 156 && x < 190) && hash2(x, 1, seed) > 0.7) {
       const bh = 1 + Math.floor(hash2(x, 2, seed) * 3);
       for (let j = 1; j <= bh; j++)
-        back.set(x + (j === bh && hash2(x, 5, seed) > 0.5 ? 1 : 0), top - j, INK[2]);
+        front.set(x + (j === bh && hash2(x, 5, seed) > 0.5 ? 1 : 0), top - j, INK[2]);
     }
   }
 
-  // figure + planted sword
-  const FIG_H = FIGURE.length;
-  const figOrigin = { x: FIGURE_FEET.x - 4, y: FIGURE_FEET.y - FIG_H };
-  let hand = { x: 0, y: 0 };
-  for (let j = 0; j < FIG_H; j++) {
-    for (let i = 0; i < FIGURE[j].length; i++) {
-      const ch = FIGURE[j][i];
-      const x = figOrigin.x + i;
-      const y = figOrigin.y + j;
-      if (ch === '#') back.set(x, y, INK[0]);
-      else if (ch === 'r') back.set(x, y, EMB[1]);
-      else if (ch === 'h') hand = { x, y };
-    }
-  }
+  // planted sword, leaning, left of the figure
   {
-    const x = figOrigin.x - 2;
-    const y = FIGURE_FEET.y;
-    for (let j = 0; j < 10; j++) back.set(x, y - j, INK[0]);
-    back.set(x + 1, y - 5, INK[4]); // cold edge glint
-    back.set(x + 1, y - 6, INK[3]);
-    for (let i = -2; i <= 2; i++) back.set(x + i, y - 8, INK[0]);
-    back.set(x, y - 10, INK[0]);
-    back.set(x, y - 11, INK[0]);
-    back.set(x, y - 12, INK[2]);
+    const bx = figOrigin.x;
+    const by = FIGURE_FEET.y + 1;
+    const tip = [bx - 3, by - 13];
+    const blade = curvePixels((t) => [bx + (tip[0] - bx) * t, by + (tip[1] - by) * t], 60);
+    for (const [x, y] of blade) front.set(x, y, INK[0]);
+    front.set(blade[5][0] + 1, blade[5][1], STL[1]); // one cold glint on the blade
+    const [gx, gy] = blade[blade.length - 3];
+    for (const [dx, dy] of [
+      [-2, -1],
+      [-1, -1],
+      [1, 0],
+      [2, 0],
+    ])
+      front.set(gx + dx, gy + dy, INK[0]); // crossguard, perpendicular-ish to the blade
+    front.set(tip[0], tip[1] - 1, INK[0]); // grip
+    front.set(tip[0], tip[1] - 2, INK[1]); // pommel
   }
 
+  // the figure is prebaked into small frame canvases (cape flutter)
+  const figureFrames = FIGURE_FRAMES.map((rows) => {
+    const r = new Raster(FIGURE_W, FIGURE_H);
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i++) {
+        if (row[i] === '#') r.set(i, j, INK[0]);
+      }
+    });
+    return r.toCanvas();
+  });
+
+  const skyCanvas = skyR.toCanvas();
   const backCanvas = back.toCanvas();
+  const frontCanvas = front.toCanvas();
+
+  // drifting valley mist: two horizontally tileable dithered bands at different speeds
+  const mistLayers = [
+    { y0: 174, y1: 194, peak: 184, cover: 0.42, speed: 1.6, seed: 1 },
+    { y0: 186, y1: 210, peak: 197, cover: 0.34, speed: 2.8, seed: 2 },
+  ].map((m) => {
+    const r = new Raster(W, H);
+    const dens = (x, y) => {
+      const f = (xx) => noise.fbm2(xx * 0.028 + m.seed * 50, y * 0.14, 3);
+      return f(x) * (1 - x / W) + f(x - W) * (x / W); // seamless wrap at W
+    };
+    for (let y = m.y0; y < m.y1; y++) {
+      const band = Math.exp(-(((y - m.peak) / ((m.y1 - m.y0) * 0.3)) ** 2));
+      for (let x = 0; x < W; x++) {
+        const d = smooth(0.42, 0.72, dens(x, y)) * band * m.cover;
+        if (d > bayer(x, y)) r.set(x, y, y < 186 ? INK[6] : INK[5]);
+      }
+    }
+    return { canvas: r.toCanvas(), speed: m.speed };
+  });
 
   // ============================================================ fate threads
+  // Spun from the diamond-ring bead. Control vectors are authored for the reference
+  // sun (292,68 r22) and rotated/scaled to whatever sun->hand geometry a variant uses.
+  const REF = { ang: Math.atan2(149 - 68, 179 - 292), len: Math.hypot(149 - 68, 179 - 292) };
+  const xf = (() => {
+    const len = Math.hypot(hand.y - SUN.y, hand.x - SUN.x);
+    const rot = toHand - REF.ang;
+    const k = len / REF.len;
+    const c = Math.cos(rot) * k;
+    const sn = Math.sin(rot) * k;
+    return ([x, y]) => [x * c - y * sn, x * sn + y * c];
+  })();
   const threads = [];
   {
     const spec = [
-      { a: 152, out: [-40, 2], inn: [18, -34], amp: 2.0, waves: 2.0 },
-      { a: 139, out: [-38, 10], inn: [22, -30], amp: 2.5, waves: 1.5 },
-      { a: 127, out: [-30, 16], inn: [26, -24], amp: 1.8, waves: 2.5 },
-      { a: 116, out: [-22, 22], inn: [30, -18], amp: 2.2, waves: 1.0 },
+      { a: 150, out: [-46, -2], inn: [8, -42], amp: 0.9, waves: 1.0 },
+      { a: 137, out: [-38, 8], inn: [18, -36], amp: 1.2, waves: 1.5 },
+      { a: 123, out: [-26, 18], inn: [30, -26], amp: 0.8, waves: 1.0 },
     ];
     for (const [i, s] of spec.entries()) {
-      const a = (s.a * Math.PI) / 180;
-      const p0 = [SUN.x + Math.cos(a) * (SUN.r + 0.5), SUN.y + Math.sin(a) * (SUN.r + 0.5)];
-      const p1 = [p0[0] + s.out[0], p0[1] + s.out[1]];
-      const p2 = [hand.x + s.inn[0], hand.y + s.inn[1]];
+      // every thread is spun from the diamond-ring bead, a few px apart on the rim
+      const a = beadAng + ((s.a - 137) * Math.PI) / 180 / 3;
+      const p0 = [SUN.x + Math.cos(a) * (SUN.r + 1), SUN.y + Math.sin(a) * (SUN.r + 1)];
+      const o = xf(s.out);
+      const n = xf(s.inn);
+      const p1 = [p0[0] + o[0], p0[1] + o[1]];
+      const p2 = [hand.x + n[0], hand.y + n[1]];
       const p3 = [hand.x, hand.y];
       const b = bezier(p0, p1, p2, p3);
       const ph = i * 1.7;
@@ -786,14 +928,20 @@ export function createHollowSunScene(opts = {}) {
       };
       threads.push({ path: curvePixels(fn, 900), severed: false });
     }
-    // the severed thread — a timeline cut loose, drifting
-    const a = (188 * Math.PI) / 180;
+    // the severed thread — a timeline cut loose, hanging from the rim
+    const sev = V.severed ?? {
+      at: 72,
+      path: [
+        [3, 16],
+        [-7, 28],
+        [-3, 44],
+      ],
+    };
+    const a = (sev.at * Math.PI) / 180;
     const p0 = [SUN.x + Math.cos(a) * (SUN.r + 0.5), SUN.y + Math.sin(a) * (SUN.r + 0.5)];
+    const [q1, q2, q3] = sev.path.map(([dx, dy]) => [p0[0] + dx, p0[1] + dy]);
     threads.push({
-      path: curvePixels(
-        bezier(p0, [p0[0] - 30, p0[1] - 5], [p0[0] - 58, p0[1] + 8], [p0[0] - 72, p0[1] + 34]),
-        600,
-      ),
+      path: curvePixels(bezier(p0, q1, q2, q3), 600),
       severed: true,
     });
   }
@@ -824,43 +972,56 @@ export function createHollowSunScene(opts = {}) {
   const threadCanvas = threadRaster.toCanvas();
 
   // ============================================================ prebaked corona frames
-  const CORONA_FRAMES = 12;
+  // Diamond-ring bead where the threads leave the rim: the ring thickens and
+  // brightens toward it, as if the last of the light leaks out there.
+  const CORONA_FRAMES = 16;
   const cBox = SUN.r + 4;
+  const ringOuter = circlePixels(SUN.r);
+  const ringInner = circlePixels(SUN.r - 1);
+  const ringHalo = circlePixels(SUN.r + 1);
   const coronaFrames = [];
   for (let f = 0; f < CORONA_FRAMES; f++) {
     const r = new Raster(cBox * 2 + 1, cBox * 2 + 1);
     const ph = (f / CORONA_FRAMES) * Math.PI * 2;
-    for (let y = -cBox; y <= cBox; y++) {
-      for (let x = -cBox; x <= cBox; x++) {
-        const d = Math.hypot(x, y);
-        const a = Math.atan2(y, x);
-        const lx = x + cBox;
-        const ly = y + cBox;
-        const wave = 0.5 + 0.5 * Math.sin(a * 5 + ph) * Math.sin(a * 3 - ph * 2 + 1.3);
-        if (d >= SUN.r - 0.5 && d < SUN.r + 0.6) {
-          r.set(lx, ly, wave > 0.82 ? EMB[6] : wave > 0.25 ? EMB[5] : EMB[4]);
-        } else if (d >= SUN.r + 0.6 && d < SUN.r + 1.7) {
-          if (wave + bayer(lx, ly) * 0.9 > 1.05) r.set(lx, ly, EMB[4]);
-        }
-      }
+    const shimmer = (a) => 0.5 + 0.5 * Math.sin(a * 7 + ph) * Math.sin(a * 3 - ph * 2 + 1.3);
+    for (const [x, y] of ringHalo) {
+      const a = Math.atan2(y, x);
+      const near = Math.cos(Math.min(Math.PI, angDiff(a, beadAng)));
+      if (near + shimmer(a) * 0.5 + bayer(x + cBox, y + cBox) * 0.6 > 1.25)
+        r.set(x + cBox, y + cBox, EMB[3]);
+    }
+    for (const [x, y] of ringOuter) {
+      const a = Math.atan2(y, x);
+      const near = 0.5 + 0.5 * Math.cos(angDiff(a, beadAng)); // 1 at the bead, 0 opposite
+      const v = near * 0.7 + shimmer(a) * 0.45;
+      r.set(x + cBox, y + cBox, v > 0.95 ? EMB[6] : v > 0.35 ? EMB[5] : EMB[4]);
+    }
+    for (const [x, y] of ringInner) {
+      const a = Math.atan2(y, x);
+      const dd = angDiff(a, beadAng);
+      if (dd < 0.75) r.set(x + cBox, y + cBox, dd < 0.25 ? EMB[5] : EMB[4]);
+      else if (dd < 1.2 && bayer(x + cBox, y + cBox) < 0.5) r.set(x + cBox, y + cBox, EMB[3]);
     }
     coronaFrames.push(r.toCanvas());
   }
-
-  // diamond-ring bead where the threads leave the rim
-  const beadAng = (134 * Math.PI) / 180;
-  const bead = {
-    x: Math.round(SUN.x + Math.cos(beadAng) * SUN.r),
-    y: Math.round(SUN.y + Math.sin(beadAng) * SUN.r),
-  };
 
   // ============================================================ particles
   const ash = [];
   for (let i = 0; i < V.ash; i++)
     ash.push({ x: rng() * W, y: rng() * H, z: rng(), ph: rng() * 6.28, sp: 0.6 + rng() * 0.8 });
+  // a few crows wheeling over the dead keep
+  const birds = [];
+  for (let i = 0; i < 3; i++)
+    birds.push({
+      r: 9 + rng() * 16,
+      sp: 0.22 + rng() * 0.16,
+      ph: rng() * 6.28,
+      ry: 0.3 + rng() * 0.15,
+    });
+  const BIRD_C = { x: 100, y: 82 };
   const motes = [];
   for (let i = 0; i < V.motes; i++)
-    motes.push({ ph: rng(), dx: 6 + rng() * 22, sp: 0.8 + rng() * 0.6, sway: rng() * 6.28 });
+    motes.push({ ph: rng(), dx: (rng() - 0.5) * 34, sp: 0.7 + rng() * 0.6, sway: rng() * 6.28 });
 
   // ============================================================ animated drawing helpers
   const E = PALETTE.ember;
@@ -900,15 +1061,43 @@ export function createHollowSunScene(opts = {}) {
   function render(ctx, timeMs = 0) {
     const t = (reducedMotion ? frozenTime : timeMs) / 1000;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(backCanvas, 0, 0);
-
+    ctx.drawImage(skyCanvas, 0, 0);
     for (const s of twinkles)
       dot(ctx, s.x, s.y, hex(Math.sin(t * 1.7 + s.ph * 3) > 0.6 ? s.c : s.base));
-
     ctx.drawImage(coronaFrames[Math.floor(t * 4) % CORONA_FRAMES], SUN.x - cBox, SUN.y - cBox);
+    ctx.drawImage(backCanvas, 0, 0);
+    for (const m of mistLayers) {
+      const off = Math.floor((t * m.speed) % W);
+      ctx.drawImage(m.canvas, off, 0);
+      ctx.drawImage(m.canvas, off - W, 0);
+    }
+    ctx.drawImage(frontCanvas, 0, 0);
 
     for (const b of keepBanners) drawBanner(ctx, b, t);
     rimStandards.forEach((s, i) => drawStandard(ctx, s, t, i));
+
+    // crows
+    for (const b of birds) {
+      const a = t * b.sp + b.ph;
+      const x = Math.round(BIRD_C.x + Math.cos(a) * b.r);
+      const y = Math.round(BIRD_C.y + Math.sin(a) * b.r * b.ry);
+      const lift = Math.floor(t * 2.6 + b.ph) % 3 === 0 ? 0 : 1;
+      dot(ctx, x, y, I[1]);
+      dot(ctx, x - 1, y - lift, I[1]);
+      dot(ctx, x + 1, y - lift, I[1]);
+    }
+
+    // gold motes lifting from the ground around the figure, drifting up and right
+    for (const m of motes) {
+      const life = (t * 0.07 * m.sp + m.ph) % 1;
+      const x = FIGURE_FEET.x + m.dx + life * 16 + Math.sin(t * 1.1 + m.sway) * 2;
+      const y = FIGURE_FEET.y - 2 - life * 64;
+      dot(ctx, x, y, life < 0.1 ? E[3] : life < 0.4 ? E[4] : life < 0.75 ? E[3] : E[2]);
+    }
+
+    // the figure (cape flutter: 3 frames, irregular cadence so it reads as wind)
+    const gust = Math.floor(t * 5 + Math.sin(t * 0.7) * 2);
+    ctx.drawImage(figureFrames[((gust % 3) + 3) % 3], figOrigin.x, figOrigin.y);
 
     // threads + glints travelling sun -> hand
     ctx.drawImage(threadCanvas, 0, 0);
@@ -926,20 +1115,24 @@ export function createHollowSunScene(opts = {}) {
 
     // diamond-ring bead
     {
-      const arm = 2 + Math.round((0.5 + 0.5 * Math.sin(t * 2.1)) * 2);
-      dot(ctx, bead.x, bead.y, E[6]);
-      for (let k = 1; k <= arm; k++) {
-        const c = k === 1 ? E[5] : k < arm ? E[4] : E[3];
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2.1);
+      const arm = 3 + Math.round(pulse * 3);
+      for (let k = arm; k >= 1; k--) {
+        const c = k === 1 ? E[6] : k <= 2 ? E[5] : k < arm ? E[4] : E[3];
         dot(ctx, bead.x - k, bead.y, c);
         dot(ctx, bead.x + k, bead.y, c);
         dot(ctx, bead.x, bead.y - k, c);
         dot(ctx, bead.x, bead.y + k, c);
       }
+      for (const [dx, dy] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1],
+      ])
+        dot(ctx, bead.x + dx, bead.y + dy, pulse > 0.5 ? E[4] : E[3]);
+      dot(ctx, bead.x, bead.y, E[6]);
     }
-
-    // scarf + hem flutter
-    for (const [fx, fy] of FLUTTER[Math.floor(t * 5) % FLUTTER.length])
-      dot(ctx, figOrigin.x + fx, figOrigin.y + fy, I[0]);
 
     // the hand, where every thread converges
     {
@@ -951,19 +1144,21 @@ export function createHollowSunScene(opts = {}) {
       }
     }
 
-    // gold motes lifting off the hand, drifting toward the sun
-    for (const m of motes) {
-      const life = (t * 0.12 * m.sp + m.ph) % 1;
-      const x = hand.x + m.dx * life + Math.sin(t * 1.3 + m.sway) * 1.5;
-      const y = hand.y - 2 - life * 46;
-      dot(ctx, x, y, life < 0.15 ? E[5] : life < 0.5 ? E[4] : life < 0.8 ? E[3] : E[2]);
-    }
-
     // ash — drifting right on the wind, three depths
     for (const a of ash) {
       const x = (((a.x + t * (4 + a.z * 12) * a.sp + Math.sin(t * 0.8 + a.ph) * 3) % W) + W) % W;
       const y = (((a.y + t * (2 + a.z * 5) * a.sp) % H) + H) % H;
-      const c = a.z < 0.45 ? I[4] : a.z < 0.8 ? I[6] : I[7];
+      const c = V.ashBright
+        ? a.z < 0.4
+          ? I[5]
+          : a.z < 0.8
+            ? I[7]
+            : I[8]
+        : a.z < 0.45
+          ? I[4]
+          : a.z < 0.8
+            ? I[6]
+            : I[7];
       dot(ctx, x, y, c);
       if (a.z > 0.94) dot(ctx, x + 1, y, c);
     }

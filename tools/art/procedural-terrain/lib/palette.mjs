@@ -23,7 +23,7 @@ const BRIEF = {
 // toward blue/violet, highlights toward warm yellow.
 const ADDED = {
   // Grass and canopy. Darks lean blue-green, lights lean ochre.
-  foliage: '#141f22 #1b2d2b #253d30 #304d33 #3d5d36 #4b6c39 #5b7b3d #6e8a43 #86994d #a3a95c #c2bb72',
+  foliage: '#141f22 #1b2b2a #243a30 #2f4832 #3b5535 #4a6238 #58703c #6a7f43 #82904d #9ea05b #bdb570',
   // Soil, bank earth, wood and thatch. Darks lean violet-brown.
   soil: '#221a19 #33261f #463426 #5c4430 #74573b #8e6d4a #aa875c #c6a474',
   // Dusk snow: cool violet shadows, warm cream tops.

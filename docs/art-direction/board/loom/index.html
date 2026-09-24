@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Loom</title>
+    <link rel="stylesheet" href="loom.css" />
+    <style>
+      html,
+      body {
+        overflow: auto;
+        height: auto;
+      }
+      body {
+        padding: 40px 32px 64px;
+        background: radial-gradient(90% 60% at 50% 0%, #16131e 0%, #07060b 70%), #07060b;
+        color: var(--ink-10);
+      }
+      .board-head {
+        max-width: 1180px;
+        margin: 0 auto 28px;
+      }
+      .board-head h1 {
+        margin: 0;
+        font: 700 34px/1.1 var(--title);
+        letter-spacing: 0.05em;
+        color: var(--ink-11);
+      }
+      .board-head h1 span {
+        color: var(--gold-5);
+      }
+      .board-head p {
+        max-width: 760px;
+        margin: 12px 0 0;
+        font: 15px/1.55 var(--body);
+        color: var(--ink-9);
+      }
+      .kicker {
+        font: 9px/1 var(--pixel);
+        letter-spacing: 0.08em;
+        color: var(--ink-7);
+        margin-bottom: 12px;
+      }
+      .frames {
+        max-width: 1880px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 36px 28px;
+        justify-content: center;
+      }
+      figure {
+        margin: 0;
+      }
+      .device {
+        padding: 10px;
+        border-radius: 34px;
+        background: linear-gradient(145deg, #2e293a, #16131e 40%, #0e0c14);
+        box-shadow:
+          0 0 0 1px #403949,
+          0 30px 60px rgba(0, 0, 0, 0.6);
+      }
+      .device.desk {
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .device iframe {
+        display: block;
+        border: 0;
+        border-radius: 24px;
+        background: #07060b;
+      }
+      .device.desk iframe {
+        border-radius: 3px;
+      }
+      figcaption {
+        margin-top: 12px;
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        font: 13px/1.45 var(--body);
+        color: var(--ink-8);
+        max-width: 864px;
+      }
+      figcaption b {
+        flex: none;
+        font: 8px/1.6 var(--pixel);
+        letter-spacing: 0.06em;
+        color: var(--gold-5);
+      }
+      .notes {
+        max-width: 1180px;
+        margin: 48px auto 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px 32px;
+      }
+      .notes h2 {
+        margin: 0 0 8px;
+        font: 9px/1.4 var(--pixel);
+        letter-spacing: 0.06em;
+        color: var(--gold-4);
+      }
+      .notes p,
+      .notes li {
+        font: 13.5px/1.5 var(--body);
+        color: var(--ink-9);
+        margin: 0 0 6px;
+      }
+      .notes ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .ramp {
+        display: flex;
+        margin: 6px 0 10px;
+        height: 18px;
+        border-radius: 2px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1px #211d2b;
+      }
+      .ramp i {
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="board-head">
+      <div class="kicker">EMBLEM ROGUE · ART DIRECTION · NODE MAP</div>
+      <h1>The <span>Loom</span></h1>
+      <p>
+        Sera sees possible futures as gold threads. The campaign map becomes her loom: the route
+        already walked is woven gold, the choices within reach glow, the futures past them are
+        undyed thread, and roads the party has passed by fray apart. The act ends at the Hollow Sun.
+        The graph comes from the game's real <code>NodeMapGenerator</code> (act 1, seed 6), so every
+        node, lane and edge is one the game can produce.
+      </p>
+    </header>
+
+    <main class="frames">
+      <figure>
+        <div class="device">
+          <iframe
+            src="screen.html?state=choice"
+            width="844"
+            height="390"
+            title="Phone, first choice"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>844×390</b>After the opening battle. Three gold threads leave the knot the party tied;
+          glints run toward each choice. The selected choice pulls taut and fills the inspect card.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe
+            src="screen.html?state=mid"
+            width="844"
+            height="390"
+            title="Phone, mid-act elite selected"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>MID-ACT</b>Four knots tied. The route not taken frays behind the party. An elite battle
+          is selected: the Lieutenant's crimson break sits on its thread and medal.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe
+            src="screen.html?state=future"
+            width="844"
+            height="390"
+            title="Phone, future node inspected"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>VISION</b>A node two steps out is inspected. Every route that reaches it is traced in
+          gold dashes; Travel stays locked until one of its threads is within reach.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe
+            src="screen.html?state=cut"
+            width="844"
+            height="390"
+            title="Phone, unreachable node inspected"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>FRAYED</b>A node on a road the party passed by can still be read, but its threads are
+          broken and grey, and the card says why.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe
+            src="screen.html?state=choice&amp;safe=1"
+            width="844"
+            height="390"
+            title="Phone with safe areas"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>SAFE AREAS</b>844×390 with iPhone landscape insets (47px sides, 21px bottom). Medals
+          step down to 36px and the loom scrolls on its own, anchored on the choices.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe src="screen.html?state=mid" width="667" height="375" title="Small phone"></iframe>
+        </div>
+        <figcaption>
+          <b>667×375</b>The side pane stays on the right (184px). The loom scrolls, anchored on the
+          party.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device desk">
+          <iframe
+            src="screen.html?state=future&amp;frame=desktop"
+            width="640"
+            height="480"
+            title="Desktop 640×480"
+          ></iframe>
+        </div>
+        <figcaption>
+          <b>640×480</b>Desktop framing. Taller lanes and a stacked party list with class names.
+        </figcaption>
+      </figure>
+      <figure>
+        <div class="device">
+          <iframe src="screen.html?state=start" width="844" height="390" title="Act start"></iframe>
+        </div>
+        <figcaption>
+          <b>ACT START</b>The run's thread enters from the left beam. Past the first rows the loom
+          dissolves into dithered dark, where only the Hollow Sun still shows.
+        </figcaption>
+      </figure>
+    </main>
+
+    <section class="notes">
+      <div>
+        <h2>THREAD STATES</h2>
+        <ul>
+          <li>
+            <b>Woven</b>: a plied gold rope with no glow, for the route already walked. A gold knot
+            marks each cleared node.
+          </li>
+          <li>
+            <b>Within reach</b>: a bright rope with a warm glow and moving glints. The selected
+            thread gets a pale core.
+          </li>
+          <li>
+            <b>Possible future</b>: a single thin grey thread that fades out two rows past the
+            party.
+          </li>
+          <li>
+            <b>Frayed</b>: a broken thread whose ends shorten into dashes. Used for roads that can
+            no longer be reached.
+          </li>
+          <li><b>Vision</b>: gold dashes along every route to an inspected future node.</li>
+          <li>
+            <b>Fracture</b>: a crimson break on a thread and medal for elite battles, and cracks in
+            the Hollow Sun's corona.
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h2>PALETTE IN USE</h2>
+        <p>Ink carries the whole frame. Gold is used only for the path and for actions.</p>
+        <div class="ramp">
+          <i style="background: #07060b"></i><i style="background: #0e0c14"></i
+          ><i style="background: #16131e"></i><i style="background: #211d2b"></i
+          ><i style="background: #2e293a"></i><i style="background: #403949"></i
+          ><i style="background: #58505e"></i><i style="background: #766b77"></i
+          ><i style="background: #978b94"></i><i style="background: #bdb0aa"></i
+          ><i style="background: #ddd0bd"></i><i style="background: #f4ecdb"></i>
+        </div>
+        <div class="ramp">
+          <i style="background: #2a170e"></i><i style="background: #4f2c16"></i
+          ><i style="background: #80461f"></i><i style="background: #b3702c"></i
+          ><i style="background: #dca044"></i><i style="background: #f3cb6c"></i
+          ><i style="background: #fff0bd"></i>
+        </div>
+        <div class="ramp">
+          <i style="background: #22090f"></i><i style="background: #44111c"></i
+          ><i style="background: #6e1a28"></i><i style="background: #9e2632"></i
+          ><i style="background: #cc4038"></i><i style="background: #ec7a5c"></i>
+        </div>
+        <p>
+          Blood marks the Lieutenant's fractures and elite battles. Verdigris is used for HP and
+          helpful map features. Steel is used for fog.
+        </p>
+      </div>
+      <div>
+        <h2>TYPE</h2>
+        <p>
+          <b>Cinzel 700</b> is used only for the act title. <b>Press Start 2P</b> (8–10px) is used
+          for short labels: node kinds, row numerals and buttons. Prose uses the system sans at
+          11–13px, per the UI cohesion plan.
+        </p>
+        <p>
+          Nodes use the approved weathered node sheet through the same atlas rectangles as
+          <code>NodeArt.js</code>.
+        </p>
+      </div>
+    </section>
+  </body>
+</html>

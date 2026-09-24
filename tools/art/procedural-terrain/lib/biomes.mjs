@@ -29,9 +29,9 @@ export const BIOMES = {
   grassland: {
     defaultGround: G.GRASS,
     // Open ground: 3 quiet tones + highlight for lit clumps.
-    ground: { dark: f(4), base: f(5), light: f(6), hi: f(7), blade: f(8), shade: f(3) },
-    forestFloor: { dark: f(2), base: f(3), light: f(4), hi: f(5), blade: f(6), shade: f(1) },
-    rockGround: { dark: R('soil', 3), base: R('soil', 4), light: R('soil', 5), hi: R('soil', 6), shade: R('soil', 2) },
+    ground: { dark: f(5), base: f(6), light: f(7), hi: f(8), blade: f(8), shade: f(4) },
+    forestFloor: { dark: f(4), base: f(5), light: f(6), hi: f(7), blade: f(7), shade: f(3) },
+    rockGround: { dark: f(5), base: f(6), light: R('earth', 3), hi: R('earth', 4), shade: f(4) },
     tree: 'broadleaf',
     leaf: [f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7), f(8)],
     rock: {

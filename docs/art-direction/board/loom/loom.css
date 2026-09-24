@@ -82,8 +82,10 @@ button {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 6px;
-  padding: max(8px, env(safe-area-inset-top)) max(var(--gutter), env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
+  padding: max(8px, env(safe-area-inset-top))
+    max(var(--gutter), env(safe-area-inset-right), var(--sim-safe-x, 0px))
+    max(10px, env(safe-area-inset-bottom), var(--sim-safe-b, 0px))
+    max(var(--gutter), env(safe-area-inset-left), var(--sim-safe-x, 0px));
   background: radial-gradient(120% 90% at 30% 55%, var(--ink-1) 0%, var(--ink-0) 70%), var(--ink-0);
 }
 
@@ -160,6 +162,7 @@ button {
 }
 
 .loom-wrap {
+  container: loom / inline-size;
   position: relative;
   min-height: 0;
   min-width: 0;
@@ -279,8 +282,8 @@ button {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font: 7px/1 var(--pixel);
-  letter-spacing: 0.04em;
+  font: 8px/1 var(--pixel);
+  letter-spacing: 0;
   color: var(--gold-5);
   text-shadow:
     0 1px 0 var(--ink-0),
@@ -293,9 +296,11 @@ button {
 }
 .node .crack {
   position: absolute;
-  inset: -3px;
-  width: 46px;
-  height: 46px;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--medal) + 6px);
+  height: calc(var(--medal) + 6px);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   overflow: visible;
 }
@@ -662,23 +667,31 @@ button {
 }
 .chip-name {
   display: flex;
-  justify-content: space-between;
-  gap: 4px;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font: 700 11px/1.1 var(--body);
   color: var(--ink-11);
+  white-space: nowrap;
+  overflow: hidden;
 }
-.chip-name .hp {
+.chip-class {
+  display: none;
+  font: 400 10px/1.1 var(--body);
+  color: var(--ink-7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip-info .hp {
+  display: block;
+  margin-top: 2px;
   font: 600 10px/1.1 var(--body);
   font-variant-numeric: tabular-nums;
   color: var(--ink-8);
 }
-.chip-class {
-  display: none;
-  font: 10px/1.2 var(--body);
-  color: var(--ink-7);
-}
 .bar {
-  margin-top: 5px;
+  display: block;
+  margin-top: 4px;
   height: 4px;
   border-radius: 1px;
   background: var(--ink-3);
@@ -699,7 +712,6 @@ button {
 @media (max-width: 700px) {
   :root {
     --pane-w: 184px;
-    --medal: 36px;
   }
   .hdr-title h1 {
     font-size: 15px;
@@ -712,15 +724,11 @@ button {
     gap: 5px;
     padding-right: 5px;
   }
-  .chip-name .hp {
-    display: none;
-  }
 }
 
 /* Desktop 640×480 framing (the canvas design target) */
 .screen.is-desktop {
   --pane-w: 184px;
-  --medal: 36px;
   --gutter: 14px;
   padding: 12px 14px 12px;
   gap: 10px;
@@ -729,13 +737,17 @@ button {
   grid-template-columns: minmax(0, 1fr);
 }
 .screen.is-desktop .chip-class {
-  display: block;
-}
-.screen.is-desktop .chip-name .hp {
   display: inline;
 }
 .screen.is-desktop .inspect {
   padding: 11px 11px 10px 12px;
+}
+
+/* Narrow looms (667px phones, notch insets, the 640 desktop) use smaller medals. */
+@container loom (max-width: 560px) {
+  .loom {
+    --medal: 36px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
