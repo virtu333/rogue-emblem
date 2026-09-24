@@ -97,9 +97,17 @@ async function settleBattle(page) {
           .at(-1)
           ?.emit('pointerdown');
       });
-    } else if (await button(page, 'Skip conversation').isVisible().catch(() => false))
+    } else if (
+      await button(page, 'Skip conversation')
+        .isVisible()
+        .catch(() => false)
+    )
       await button(page, 'Skip conversation').click();
-    else if (await button(page, 'Continue').isVisible().catch(() => false))
+    else if (
+      await button(page, 'Continue')
+        .isVisible()
+        .catch(() => false)
+    )
       await button(page, 'Continue').click();
     else if (st.state === 'PLAYER_IDLE' && !st.locked && st.turn >= 1) break;
     await sleep(page, 200);
@@ -119,21 +127,38 @@ const scenarios = {
     let shots = 0;
     for (let i = 0; i < 20 && shots < 2; i++) {
       const img = page.locator('.re-dialogue img');
-      if (await img.first().isVisible().catch(() => false)) {
+      if (
+        await img
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
         await sleep(page, 500);
         await shot(page, `dialogue-${shots + 1}`);
         shots++;
       }
-      if (await button(page, 'Continue').isVisible().catch(() => false))
+      if (
+        await button(page, 'Continue')
+          .isVisible()
+          .catch(() => false)
+      )
         await button(page, 'Continue').click();
       else await page.mouse.click(40, 40).catch(() => {});
       await sleep(page, 700);
     }
     // The route map's party chips.
     for (let i = 0; i < 12; i++) {
-      if (await button(page, 'Skip conversation').isVisible().catch(() => false))
+      if (
+        await button(page, 'Skip conversation')
+          .isVisible()
+          .catch(() => false)
+      )
         await button(page, 'Skip conversation').click();
-      else if (await button(page, 'Continue').isVisible().catch(() => false))
+      else if (
+        await button(page, 'Continue')
+          .isVisible()
+          .catch(() => false)
+      )
         await button(page, 'Continue').click();
       else break;
       await sleep(page, 400);
@@ -207,7 +232,10 @@ const scenarios = {
       const a = s.playerUnits.find((u) => u.name === 'Edric') || s.playerUnits[0];
       const d = [...s.enemyUnits].sort(
         (p, q) =>
-          Math.abs(p.col - a.col) + Math.abs(p.row - a.row) - Math.abs(q.col - a.col) - Math.abs(q.row - a.row),
+          Math.abs(p.col - a.col) +
+          Math.abs(p.row - a.row) -
+          Math.abs(q.col - a.col) -
+          Math.abs(q.row - a.row),
       )[0];
       s.selectedUnit = a;
       void s.showForecast(a, d);

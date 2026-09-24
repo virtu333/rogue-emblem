@@ -110,7 +110,7 @@ export function paletteWeights(img, face) {
 export function reducePalette(palette, samples, weights, k, { protectFamilies = true } = {}) {
   let pal = palette.slice();
   const n = weights.length;
-  while (pal.length > k) {
+  while (pal.length > k && pal.some((p) => !p.keep)) {
     const labs = pal.map((p) => p.lab);
     const owner = new Int16Array(n);
     for (let i = 0; i < n; i++)
@@ -118,6 +118,7 @@ export function reducePalette(palette, samples, weights, k, { protectFamilies = 
     let best = -1;
     let bestCost = Infinity;
     for (let r = 0; r < pal.length; r++) {
+      if (pal[r].keep) continue;
       const rest = labs.filter((_, i) => i !== r);
       let cost = 0;
       for (let i = 0; i < n; i++) {
@@ -154,6 +155,7 @@ export function renderFigure(rgba, size, options = {}) {
   const {
     colours = 13,
     palette: masterPalette = null,
+    keepPalette = [],
     keep = [],
     smooth = 0,
     cel = { sigmaS: 1.1, sigmaR: 0.045, iterations: 1 },
@@ -178,7 +180,12 @@ export function renderFigure(rgba, size, options = {}) {
   const { samples, weights, accentSamples } = paletteWeights(img, face);
   let palette;
   if (masterPalette) {
-    const labs = masterPalette.map((rgb) => ({ rgb, lab: rgbToOklab(rgb[0], rgb[1], rgb[2]) }));
+    const kept = new Set(keepPalette.map((c) => c.join(',')));
+    const labs = masterPalette.map((rgb) => ({
+      rgb,
+      lab: rgbToOklab(rgb[0], rgb[1], rgb[2]),
+      keep: kept.has(rgb.join(',')),
+    }));
     palette = reducePalette(labs, samples, weights, colours);
   } else {
     palette = choosePalette(samples, weights, { k: colours, keep, seed, accentSamples });
@@ -219,6 +226,7 @@ export function renderFigure(rgba, size, options = {}) {
     alpha: [0, ...paletteRgb.map(() => 255)],
     colours: paletteRgb.length,
     figurePalette: palette.map((p) => p.rgb.slice()),
+    keepPalette: palette.filter((p) => p.keep).map((p) => p.rgb.slice()),
     mask: img.mask,
   };
 }

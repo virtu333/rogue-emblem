@@ -145,6 +145,7 @@ for (const id of todo) {
       ...tier,
       keep: s.o.keep || [],
       palette: master ? master.figurePalette : null,
+      keepPalette: master ? master.keepPalette : [],
       smooth: smoothFor(size, s.native * c.side),
       face: faceEllipse(framingInCrop(framing, c), size),
       seed,

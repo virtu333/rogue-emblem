@@ -299,7 +299,8 @@ export function choosePalette(samples, weights, options = {}) {
     const key = rgb.join(',');
     if (seen.has(key)) return;
     seen.add(key);
-    out.push({ rgb, lab: rgbToOklab(rgb[0], rgb[1], rgb[2]) });
+    // Identity colours (accents, forced swatches) survive smaller sizes too.
+    out.push({ rgb, lab: rgbToOklab(rgb[0], rgb[1], rgb[2]), keep: fixed[idx] });
   });
   out.sort((p, q) => p.lab[0] - q.lab[0] || p.rgb.join().localeCompare(q.rgb.join()));
   return out.slice(0, Math.max(k, forced.length));
