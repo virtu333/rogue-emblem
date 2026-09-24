@@ -131,15 +131,19 @@ export function createNoiseCache(maxDim) {
     if (!L) {
       // Covers the map (twice over for long periods, which stretched noise
       // uses) plus a margin; anything outside falls back to hashing, with
-      // the same float32 rounding so both paths agree bit for bit.
+      // the same float32 rounding so both paths agree bit for bit. Rows are
+      // filled on first use, so a small repaint never pays for a whole field.
       const n = Math.ceil((maxDim * (period >= 8 ? 2 : 1.05)) / period) + 2 * PAD + 2;
-      const v = new Float32Array(n * n);
-      for (let gy = 0; gy < n; gy++)
-        for (let gx = 0; gx < n; gx++) v[gy * n + gx] = rand2(gx - PAD, gy - PAD, seed);
-      L = { n, v };
+      L = { n, v: new Float32Array(n * n), filled: new Uint8Array(n), seed };
       bySeed.set(seed, L);
     }
     return L;
+  }
+  function fillRow(L, iy) {
+    const { n, v, seed } = L;
+    const gy = iy - PAD;
+    for (let gx = 0; gx < n; gx++) v[iy * n + gx] = rand2(gx - PAD, gy, seed);
+    L.filled[iy] = 1;
   }
   function vn(x, y, period, seed = 0) {
     const L = lattice(period, seed);
@@ -157,6 +161,8 @@ export function createNoiseCache(maxDim) {
       c = Math.fround(rand2(x0, y0 + 1, seed));
       d = Math.fround(rand2(x0 + 1, y0 + 1, seed));
     } else {
+      if (!L.filled[iy]) fillRow(L, iy);
+      if (!L.filled[iy + 1]) fillRow(L, iy + 1);
       const k = iy * n + ix,
         v = L.v;
       a = v[k];

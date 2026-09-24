@@ -6,7 +6,7 @@ exports[`procedural terrain: determinism and output > pins a snapshot hash per b
   "grassland": "9e829a6d",
   "swamp": "20458bf7",
   "tundra": "54b05555",
-  "void": "a34d7ab9",
+  "void": "fb202efc",
   "volcano": "3968db10",
 }
 `;

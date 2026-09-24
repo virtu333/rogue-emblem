@@ -341,11 +341,12 @@ export const MASONRY = {
     wallFace: [R('stone', 0), R('stone', 1), R('stone', 2), R('ink', 5), R('stone', 3)],
   },
   void: {
-    floor: [R('ink', 3), R('ink', 5), R('ink', 4), R('unlight', 2)],
+    // one step lighter than the study so the final battle's units separate
+    floor: [R('ink', 4), R('ink', 6), R('ink', 5), R('unlight', 3)],
     floorMortar: {
+      [R('ink', 6)]: R('ink', 5),
       [R('ink', 5)]: R('ink', 4),
-      [R('ink', 4)]: R('ink', 3),
-      [R('unlight', 2)]: R('unlight', 1),
+      [R('unlight', 3)]: R('unlight', 2),
     },
     wallTop: [R('ink', 1), R('ink', 2), R('ink', 3), R('ink', 4), R('unlight', 3), R('ink', 1)],
     wallFace: [R('ink', 0), R('ink', 1), R('ink', 2), R('ink', 2), R('ink', 3)],

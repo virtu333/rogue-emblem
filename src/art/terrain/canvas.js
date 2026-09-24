@@ -7,6 +7,7 @@ import {
   repaintCells,
   syncTerrainLayout,
   namesFromLayout,
+  PAINTED_TERRAIN,
 } from './index.js';
 import { renderTerrainSliced, unpackResult } from './async.js';
 import { collectShimmer, shimmerFrame } from './shimmer.js';
@@ -116,6 +117,24 @@ function paintInWorker(options, signal) {
   });
 }
 
+// After a worker paint the main thread has never run the renderer, so the
+// first mid-battle repaint would run cold code. Warm it once, when idle, on
+// a tiny map that touches every painter (~5-30 ms, off the critical path).
+let warmed = false;
+export function warmTerrainRenderer() {
+  if (warmed) return;
+  warmed = true;
+  const row = PAINTED_TERRAIN;
+  const names = [0, 1, 2].map((k) => row.map((_, i) => row[(i + k * 7) % row.length]));
+  for (const biome of ['grassland', 'volcano']) renderBattlefieldTerrain({ names, biome, seed: 1 });
+}
+function warmWhenIdle() {
+  if (warmed) return;
+  const run = () => warmTerrainRenderer();
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 5000 });
+  else setTimeout(run, 500);
+}
+
 /**
  * Paint without blocking the main thread noticeably: in a module Worker when
  * possible, otherwise in <= budgetMs slices on the main thread.
@@ -125,6 +144,8 @@ function paintInWorker(options, signal) {
  * @param {'auto'|'worker'|'sliced'} [o.mode='auto']
  * @param {number} [o.budgetMs=8]
  * @param {AbortSignal} [o.signal]  e.g. aborted when the battle scene shuts down
+ * @param {boolean} [o.warm=true]    after a worker paint, warm the main-thread
+ *   renderer in idle time so the first repaintCells is not cold
  * @returns {Promise<{canvas, result}>}  result.stats describes how it ran
  */
 export async function paintTerrainCanvasAsync(options, o = {}) {
@@ -140,7 +161,8 @@ export async function paintTerrainCanvasAsync(options, o = {}) {
   if (!result) {
     result = await renderTerrainSliced(options, o);
     result.stats.mode = 'sliced';
-  }
+    warmed = true;
+  } else if (o.warm !== false) warmWhenIdle();
   if (o.signal?.aborted) {
     const e = new Error('Terrain painting aborted');
     e.name = 'AbortError';

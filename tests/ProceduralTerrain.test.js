@@ -18,6 +18,7 @@ import {
 } from '../src/art/terrain/index.js';
 import { renderAll } from '../src/art/terrain/pipeline.js';
 import { renderTerrainSliced, packResult, unpackResult } from '../src/art/terrain/async.js';
+import { warmTerrainRenderer, createShimmerOverlay } from '../src/art/terrain/canvas.js';
 import { G, groundOf, HARD } from '../src/art/terrain/biomes.js';
 import { generateBattle } from '../src/engine/MapGenerator.js';
 import { mulberry32 } from '../src/art/terrain/noise.js';
@@ -445,6 +446,12 @@ describe('procedural terrain: non-blocking painting', { timeout: 60000 }, () => 
       },
     );
     await expect(p).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('browser adapter: idle warm-up and reduced-motion opt-out work without a DOM', () => {
+    expect(() => warmTerrainRenderer()).not.toThrow();
+    const res = render([['Water', 'Water', 'Lava Crack']], 'volcano', 2);
+    expect(createShimmerOverlay(res, { reducedMotion: true })).toBeNull();
   });
 
   it('a result packed for postMessage unpacks into a repaintable result', () => {
