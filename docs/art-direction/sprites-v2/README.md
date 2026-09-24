@@ -303,3 +303,20 @@ node tools/art/sprite-trace/cli.mjs recover <sheet.png> --figure 0 --out native.
 node tools/art/sprite-trace/cli.mjs trace <sheet.png> --figure 0 --recipe '{"main":"blue","hair":"brown"}' --out s.png --zoom 4
 node tools/art/sprite-trace/dev/measure-budget.mjs       # PIXEL_BUDGET table
 ```
+
+## Verification (2026-09-24)
+
+- `npx vitest run --exclude 'tests/e2e/**'`: 380 files, 6172 tests pass, including
+  `tests/SpriteTrace.test.js` (grid recovery on synthetic sheets, determinism, palette and slot
+  mapping, foot anchor and bounds, pixel aspect) and `tests/TracedSprites.test.js`.
+- `npx eslint . --ignore-pattern '.claude/**'`: 0 errors. `npm run format:check` and
+  `npm run build` pass.
+- `cli.mjs bake` re-run gives a byte-identical atlas and manifest.
+- Playwright on the dev server (port 3302): `traced-sprites`, `character-art`,
+  `scene-transitions`, `rebuilt-sprites` and 11 of 12 `mobile-battle-hud` tests pass.
+- Two known failures come from specs that are behind upstream changes. Neither spec, nor any
+  CSS, nor `BattlefieldArt.js` is touched by this branch.
+  - `mobile-battle-hud` "commands have readable targets": the 38 px sidebar-button
+    minimum fails on the CSS inherited from upstream.
+  - All 17 `battlefield-lab` tests fail in `boot()`: they expect
+    `data-terrain-art="weathered"`, but b1f59c1 made `procedural` the default renderer.
