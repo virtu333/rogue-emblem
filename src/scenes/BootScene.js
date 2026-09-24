@@ -2,6 +2,7 @@ import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
+import { retainPortraitDownloads } from '../ui/textureImageSource.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
@@ -55,6 +56,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    retainPortraitDownloads(this.load);
     preloadRebuiltSprites(this);
     preloadRebuiltPortraits(this);
     this._startupFlags = getStartupFlags();

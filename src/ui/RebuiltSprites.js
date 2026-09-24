@@ -1,52 +1,37 @@
 import { battlefieldLabEnabled } from './BattlefieldLab.js';
 import manifest from './RebuiltSpriteManifest.json';
+import { spritePlacement } from './rebuiltSpritePlacement.js';
+
+export { spritePlacement };
 
 export function rebuiltSpritesEnabled() {
   const query = new URLSearchParams(globalThis.location?.search || '');
   return battlefieldLabEnabled() && !(import.meta.env.DEV && query.get('spriteArt') === 'classic');
 }
 
-// Source pixels stay untouched. Render into a tile-centred texture so every movement,
-// rewind and HP-bar path continues using the existing tile-centre coordinates.
-export function spritePlacement(bounds, kind = 'infantry') {
-  const canvas = kind === 'entity' ? 128 : 64;
-  const maxWidth = kind === 'entity' ? 94 : kind === 'flyer' ? 40 : kind === 'mounted' ? 46 : 38;
-  const maxHeight =
-    kind === 'entity'
-      ? 90
-      : kind === 'mage'
-        ? 30
-        : kind === 'heavy'
-          ? 36
-          : kind === 'mounted'
-            ? 40
-            : 34;
-  const scale = Math.min(maxWidth / bounds.width, maxHeight / bounds.height);
-  const width = Math.max(1, Math.round(bounds.width * scale));
-  const height = Math.max(1, Math.round(bounds.height * scale));
-  const footY = kind === 'entity' ? 106 : 44;
-  return { canvas, x: Math.round((canvas - width) / 2), y: footY - height, width, height };
-}
-
+// Most entries are pre-rendered to their final 64/128px texture by
+// tools/bakeRebuiltSprites.mjs; the ~1250px sources never ship.
 export function preloadRebuiltSprites(scene) {
   if (!rebuiltSpritesEnabled()) return;
   for (const [key, entry] of Object.entries(manifest)) {
-    if (entry.texture) continue; // Reuse an already-loaded class texture.
-    if (!scene.textures.exists(`rebuilt-source-${key}`))
+    if (entry.texture) continue; // Built at runtime from an already-loaded class texture.
+    if (!scene.textures.exists(`rebuilt-${key}`))
       scene.load.image(
-        `rebuilt-source-${key}`,
+        `rebuilt-${key}`,
         `${import.meta.env.BASE_URL}assets/sprites/rebuilt/${entry.file}`,
       );
   }
 }
 
+// Source pixels stay untouched. Render into a tile-centred texture so every movement,
+// rewind and HP-bar path continues using the existing tile-centre coordinates.
 export function prepareRebuiltSprites(scene) {
   if (!rebuiltSpritesEnabled()) return;
   for (const [key, entry] of Object.entries(manifest)) {
+    if (!entry.texture) continue;
     const target = `rebuilt-${key}`;
-    const sourceKey = entry.texture || `rebuilt-source-${key}`;
-    if (scene.textures.exists(target) || !scene.textures.exists(sourceKey)) continue;
-    const source = scene.textures.get(sourceKey).getSourceImage();
+    if (scene.textures.exists(target) || !scene.textures.exists(entry.texture)) continue;
+    const source = scene.textures.get(entry.texture).getSourceImage();
     const box = entry.bounds;
     const placement = spritePlacement(box, entry.kind);
     const canvas = document.createElement('canvas');

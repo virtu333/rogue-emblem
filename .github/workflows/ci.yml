@@ -31,6 +31,7 @@ jobs:
       - run: npm run validate:data
       - run: npm run check:data-parity
       - run: npm run check:ui-theme
+      - run: npm run check:sprites
       - run: npm run check:reference
       - run: npm run build
       - run: npm run test:unit

@@ -68,6 +68,12 @@ test('named boss art, promoted lord portraits and roster use the same identity',
       );
     }),
   ).toBe(true);
+  // The DOM portrait reuses the downloaded file rather than a re-encoded PNG.
+  const portrait = await sheet.locator('.mr-portrait').evaluate(async (img) => {
+    await img.decode();
+    return { blob: img.src.startsWith('blob:'), width: img.naturalWidth };
+  });
+  expect(portrait).toEqual({ blob: true, width: 512 });
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(sheet).toHaveCount(0);
 });
