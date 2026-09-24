@@ -15,7 +15,7 @@ switch (`?spriteArt=traced`). Default sprites, gameplay, data and saves are unch
 
 | File | What it shows |
 |---|---|
-| [`ingame/`](ingame) | **The real game**, 14 staged units on the six biome lab maps (grass, forest, stone, snow, swamp, lava), 844×390 and 667×375. DPR 3 rows: rebuilt today · traced · traced with a device-resolution canvas. DPR 1 rows: rebuilt · traced. `forest_ambush_844x390_select.webp` adds selection and danger overlays. |
+| [`ingame/`](ingame) | **The real game**, 14 staged units on the six biome lab maps (grass, forest, stone, snow, swamp, lava), 844×390 and 667×375. DPR 3 rows: rebuilt today · traced · traced with a device-resolution canvas. DPR 1 rows: rebuilt · traced. `forest_ambush_844x390_select.webp` (DPR 3, rebuilt vs traced + device backing) puts sprites under the blue movement-range overlay. The danger-zone call drew no tiles for the staged cast, so danger-overlay contrast is not covered. |
 | [`sources_3x.webp`](sources_3x.webp) | Edric, Sera, Myrmidon, Archer and the enemy Knight in four versions: today's game texture, the hand-authored sprite-kit candidate, traced from an earlier source, and traced from the chosen source |
 | [`lineup_3x.webp`](lineup_3x.webp), [`lineup_1x.webp`](lineup_1x.webp) | Ten classes × player / enemy / corrupted / NPC, plus the lords, the promotion and two bosses, on the game's own grass |
 | [`pipeline.webp`](pipeline.webp) | The method, step by step, for Edric, the Knight and the enemy Myrmidon |

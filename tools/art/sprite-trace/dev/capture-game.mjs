@@ -177,7 +177,7 @@ async function capture(map, [vw, vh], dpr, variant) {
             if (Math.abs(dc) + Math.abs(dr) <= 2) reach.push({ col: u.col + dc, row: u.row + dr });
         const reachable = new Map(reach.map((t) => [`${t.col},${t.row}`, t]));
         b.grid.showMovementRange?.(reachable, u.col, u.row);
-        b.dangerZone?.show?.();
+        b.dangerZone?.show?.(b.calculateDangerZone());
       }
       // camera: tactical zoom (34 CSS px per tile), centred on the staged window
       const cam = b.cameras.main;

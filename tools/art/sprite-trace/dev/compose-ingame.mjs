@@ -13,16 +13,19 @@ const groups = new Map();
 for (const f of files) {
   const m = f.match(/^(.+)_(\d+x\d+)_dpr(\d)_(.+)\.webp$/);
   if (!m) continue;
-  const [, map, vp, dpr, variant] = m;
-  const k = `${map}_${vp}`;
+  const [, map, vp, dpr, rawVariant] = m;
+  // selection / danger-overlay captures get their own sheet
+  const select = rawVariant.endsWith('_select');
+  const variant = rawVariant.replace(/_select$/, '');
+  const k = `${map}_${vp}${select ? '_select' : ''}`;
   if (!groups.has(k)) groups.set(k, []);
   groups.get(k).push({ f, dpr: +dpr, variant });
 }
 const ORDER = ['rebuilt', 'traced', 'traced-device'];
 const NAMES = {
-  rebuilt: 'current rebuilt sprites',
-  traced: 'traced sprites (D=1.5), current 480-px canvas',
-  'traced-device': 'traced sprites, canvas backing = device pixels (?renderScale=device)',
+  rebuilt: 'rebuilt (current)',
+  traced: 'traced D=1.5, 480-px canvas',
+  'traced-device': 'traced, device-pixel backing (?renderScale=device)',
 };
 for (const [k, list] of groups) {
   const blocks = [];
