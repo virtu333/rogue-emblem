@@ -90,13 +90,15 @@ describe('legendary lord creation and persistence', () => {
     expect(restored.legendaryLordChance).toBe(0.15);
     expect(restored.roster.map((u) => u.traits)).toEqual(run.roster.map((u) => u.traits));
     restored.metaEffects.legendaryLordChanceBonus = 0;
-    const random = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    // Traits roll from the lord-trait stream; force a roll under the frozen
+    // 15% chance (0.1) that a recomputed 5% chance would reject.
+    const traitRng = vi.spyOn(restored, '_lordTraitRng').mockReturnValue(() => 0.1);
     try {
       const third = unit('Rowan');
       restored.resolveThirdLord(third);
       expect(third.traits).toEqual(['riding_guard']);
     } finally {
-      random.mockRestore();
+      traitRng.mockRestore();
     }
     delete saved.legendaryLordChance;
     saved.roster.forEach((u) => delete u.traits);
@@ -170,5 +172,30 @@ describe('Overflowing Grace checkpoint contract', () => {
     expect(heal(resumed, 2, 2)).toBe(2);
     expect(resumed.currentHP).toBe(20);
     expect(serializeUnit(resumed)._legendaryGraceTurn).toBeUndefined();
+  });
+});
+
+describe('seeded lord traits', () => {
+  it('a seeded run rolls the same starting lord traits every time', () => {
+    const roll = () => {
+      const run = new RunManager(data);
+      run.startRun({ runSeed: 42, applyBlessingsAtStart: false });
+      return run.roster.map((u) => [u.name, u.traits]);
+    };
+    const first = roll();
+    for (let i = 0; i < 5; i++) expect(roll()).toEqual(first);
+  });
+
+  it('the trait stream does not consume the ambient random stream', () => {
+    const spy = vi.spyOn(Math, 'random');
+    try {
+      const run = new RunManager(data);
+      run.startRun({ runSeed: 7, applyBlessingsAtStart: false });
+      const calls = spy.mock.calls.length;
+      run.resolveThirdLord(unit('Rowan'));
+      expect(spy.mock.calls.length).toBe(calls);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

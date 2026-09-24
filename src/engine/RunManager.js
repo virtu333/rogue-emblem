@@ -470,11 +470,12 @@ export class RunManager {
       0.15,
       0.05 + Math.max(0, Number(this.metaEffects?.legendaryLordChanceBonus) || 0),
     );
-    this.roster = this.createInitialRoster();
+    // Seed first: starting lords roll their traits from the run seed.
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();
       this.runSeed = Number(initialSeed);
     }
+    this.roster = this.createInitialRoster();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
@@ -1936,10 +1937,24 @@ export class RunManager {
     }
   }
 
+  /**
+   * Lord traits come from their own stream keyed by run seed and lord name, so
+   * a seeded run is reproducible without shifting any other random stream.
+   */
+  _lordTraitRng(unit) {
+    if (!Number.isFinite(this.runSeed)) return Math.random;
+    return createSeededRng(hashStringToUint32(`lord-trait:${this.runSeed >>> 0}:${unit?.name}`));
+  }
+
   resolveThirdLord(unit) {
     this.thirdLordJoined = true;
     if (unit) {
-      rollAndApplyLordTrait(unit, this.gameData.traits, Math.random, this.legendaryLordChance);
+      rollAndApplyLordTrait(
+        unit,
+        this.gameData.traits,
+        this._lordTraitRng(unit),
+        this.legendaryLordChance,
+      );
       this.grantRecruitBlessingConsumables(unit);
       this.roster.push(unit);
     }
@@ -2315,7 +2330,12 @@ export class RunManager {
     }
 
     // Traits stack after meta bonuses, and after Sera gains her Staff proficiency.
-    rollAndApplyLordTrait(unit, this.gameData.traits, Math.random, this.legendaryLordChance);
+    rollAndApplyLordTrait(
+      unit,
+      this.gameData.traits,
+      this._lordTraitRng(unit),
+      this.legendaryLordChance,
+    );
 
     if (isCommander) {
       // Commander's extra combat weapon defaults to the Steel-tier weapon of

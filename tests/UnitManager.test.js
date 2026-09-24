@@ -34,6 +34,7 @@ import {
   getDefaultWeapon,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
+import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import {
   XP_BASE_COMBAT,
   XP_KILL_BONUS,
@@ -174,10 +175,16 @@ describe('createEnemyUnit', () => {
     const enemy = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
     // Level 5+ in finalBoss should get 65% chance for combat skill
     // Test probabilistically: run 100 times, expect ~50-80 with skills (binomial)
+    // Seeded so the binomial check cannot flake (unseeded it failed ~1% of runs).
     let withSkills = 0;
-    for (let i = 0; i < 100; i++) {
-      const e = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
-      if (e.skills.length > 0) withSkills++;
+    const random = vi.spyOn(Math, 'random').mockImplementation(createSeededRng(65));
+    try {
+      for (let i = 0; i < 100; i++) {
+        const e = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
+        if (e.skills.length > 0) withSkills++;
+      }
+    } finally {
+      random.mockRestore();
     }
     expect(withSkills).toBeGreaterThan(50); // 65% ± margin
     expect(withSkills).toBeLessThan(80);
