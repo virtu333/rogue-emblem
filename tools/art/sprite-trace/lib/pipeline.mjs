@@ -72,7 +72,12 @@ export function recruitEntries(line = RECRUITS.lines[0], count = RECRUITS.count)
       seed,
       identity: id,
       base: { key: `${line.key}#${i}`, source: line.base[id.design], faction: 'player', identity },
-      promoted: { key: `${line.promotedKey}#${i}`, source: line.promoted[id.design], faction: 'player', identity },
+      promoted: {
+        key: `${line.promotedKey}#${i}`,
+        source: line.promoted[id.design],
+        faction: 'player',
+        identity,
+      },
     });
   }
   return out;

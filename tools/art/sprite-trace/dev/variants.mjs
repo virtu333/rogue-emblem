@@ -13,11 +13,13 @@ const Z = +zArg || 6;
 const density = +dArg || 1.5;
 const variants = (variantsArg || '{}').split(';').map((v) => JSON.parse(v || '{}'));
 const rows = [];
-const bg = (im) => new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
+const bg = (im) =>
+  new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
 for (const id of ids.split(',')) {
   const base = ROSTER.sources[id];
   const r = await readRaster(base.src);
-  const box = base.figure != null ? splitFigures(r, base.figures ?? 3)[base.figure] : r.alphaBounds(64);
+  const box =
+    base.figure != null ? splitFigures(r, base.figures ?? 3)[base.figure] : r.alphaBounds(64);
   const { native } = recoverFigure(r.crop(box.x, box.y, box.width, box.height), base.recover || {});
   const cells = [];
   let H = 0;
@@ -33,7 +35,11 @@ for (const id of ids.split(',')) {
   }
   cells.push(bg(native).resizeNearest(Math.round((native.w * H) / native.h), H));
   for (const [c, v] of imgs) {
-    const label = await textRaster(JSON.stringify(v).slice(0, 60), { size: 10, bg: '#18181c', width: c.w });
+    const label = await textRaster(JSON.stringify(v).slice(0, 60), {
+      size: 10,
+      bg: '#18181c',
+      width: c.w,
+    });
     cells.push(vstack([c, label]));
   }
   rows.push(hstack(cells, 8, [24, 24, 28, 255]));

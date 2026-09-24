@@ -53,7 +53,10 @@ export function rampFromSamples(labs, steps = 5) {
   if (!labs.length) return null;
   const Ls = labs.map((l) => l[0]).sort((a, b) => a - b);
   // init centres at quantiles
-  let centres = Array.from({ length: steps }, (_, k) => Ls[Math.floor(((k + 0.5) / steps) * (Ls.length - 1))]);
+  let centres = Array.from(
+    { length: steps },
+    (_, k) => Ls[Math.floor(((k + 0.5) / steps) * (Ls.length - 1))],
+  );
   let assign = new Int32Array(labs.length);
   for (let it = 0; it < 30; it++) {
     for (let i = 0; i < labs.length; i++) {
@@ -75,7 +78,7 @@ export function rampFromSamples(labs, steps = 5) {
     }
     centres = centres.map((c, k) => (acc[k][1] ? acc[k][0] / acc[k][1] : c));
   }
-  const groups = centres.map((c, k) => ({ L: c, n: 0, lab: [0, 0, 0] }));
+  const groups = centres.map((c) => ({ L: c, n: 0, lab: [0, 0, 0] }));
   for (let i = 0; i < labs.length; i++) {
     const g = groups[assign[i]];
     g.n++;
@@ -102,7 +105,8 @@ export function rampFromSamples(labs, steps = 5) {
     // extend toward the wider gap end: darker by 12 L (cooler) or lighter by 12 L (warmer)
     const lo = filled[0].lab,
       hi = filled[filled.length - 1].lab;
-    if (lo[0] > 100 - hi[0]) filled.unshift({ lab: [Math.max(3, lo[0] - 12), lo[1] * 0.85, lo[2] * 0.85 - 3], n: 0 });
+    if (lo[0] > 100 - hi[0])
+      filled.unshift({ lab: [Math.max(3, lo[0] - 12), lo[1] * 0.85, lo[2] * 0.85 - 3], n: 0 });
     else filled.push({ lab: [Math.min(97, hi[0] + 12), hi[1] * 0.85, hi[2] * 0.85 + 3], n: 0 });
   }
   return filled.slice(0, steps).map((g) => labToRgb(g.lab));

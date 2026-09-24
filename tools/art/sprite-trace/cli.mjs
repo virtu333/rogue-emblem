@@ -25,7 +25,9 @@ const flag = (name, def = null) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : def;
 };
-const positional = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
+const positional = args.filter(
+  (a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')),
+);
 
 async function figureCrop(file) {
   const r = await readRaster(file);
@@ -34,7 +36,8 @@ async function figureCrop(file) {
   return r.crop(box.x, box.y, box.width, box.height);
 }
 
-const bg = (im, c = [92, 104, 84, 255]) => new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, c).draw(im, 0, 0);
+const bg = (im, c = [92, 104, 84, 255]) =>
+  new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, c).draw(im, 0, 0);
 
 if (cmd === 'recover') {
   const res = recoverFigure(await figureCrop(positional[0]));
@@ -63,11 +66,25 @@ if (cmd === 'recover') {
   const tiles = [];
   for (const e of entries) {
     const { still } = await bakeFrames(e, { density });
-    const label = await textRaster(e.key, { size: 10, bg: '#18181c', width: still.w * Z });
-    tiles.push(vstack([bg(still).scale(Z), label]));
+    let img = still;
+    if (args.includes('--tight')) {
+      // crop to the sprite (full height kept so feet stay aligned)
+      const b = still.alphaBounds(0);
+      img = still.crop(b.x - 2, 0, b.width + 4, still.h);
+      const top = Math.max(0, Math.min(...[still.alphaBounds(0).y]) - 2);
+      img = img.crop(0, top, img.w, img.h - top);
+    }
+    const label = await textRaster(e.key, {
+      size: 10,
+      bg: '#18181c',
+      width: Math.max(img.w * Z, 60),
+    });
+    tiles.push(vstack([bg(img).scale(Z), label]));
   }
   const rows = [];
-  for (let i = 0; i < tiles.length; i += 8) rows.push(hstack(tiles.slice(i, i + 8), 4, [24, 24, 28, 255]));
+  const per = +flag('per', 8);
+  for (let i = 0; i < tiles.length; i += per)
+    rows.push(hstack(tiles.slice(i, i + per), 4, [24, 24, 28, 255]));
   await writePng(vstack(rows, 4, [24, 24, 28, 255]), positional[0]);
 } else if (cmd === 'bake') {
   const density = +flag('density', 1.5);
@@ -83,8 +100,15 @@ if (cmd === 'recover') {
   const { atlas, manifest } = packAtlas(baked, { density });
   mkdirSync(dirname(atlasPath), { recursive: true });
   await writePng(atlas, atlasPath);
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`baked ${baked.length} sprites (${atlas.w}x${atlas.h}) -> ${atlasPath}, ${manifestPath}`);
+  const prettier = await import('prettier');
+  const options = (await prettier.resolveConfig(manifestPath)) || {};
+  writeFileSync(
+    manifestPath,
+    await prettier.format(JSON.stringify(manifest), { ...options, parser: 'json' }),
+  );
+  console.log(
+    `baked ${baked.length} sprites (${atlas.w}x${atlas.h}) -> ${atlasPath}, ${manifestPath}`,
+  );
 } else {
   console.log(
     'usage: cli.mjs recover|trace|lineup|bake ... (see the header of tools/art/sprite-trace/cli.mjs)',

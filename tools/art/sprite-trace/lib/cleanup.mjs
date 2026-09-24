@@ -48,7 +48,10 @@ export function removeOrphans(sp) {
       const s = snap.at(x, y);
       if (!s || protectedSlot(s)) continue;
       if (N4.some(([dx, dy]) => snap.at(x + dx, y + dy) === s)) continue;
-      if ((s === SLOT.trim || WEAPON_SLOTS.has(s) || s === SLOT.ink) && N8.some(([dx, dy]) => snap.at(x + dx, y + dy) === s))
+      if (
+        (s === SLOT.trim || WEAPON_SLOTS.has(s) || s === SLOT.ink) &&
+        N8.some(([dx, dy]) => snap.at(x + dx, y + dy) === s)
+      )
         continue;
       const count = new Map();
       for (const [dx, dy] of N8) {
@@ -57,7 +60,8 @@ export function removeOrphans(sp) {
       }
       if (!count.size) continue;
       const [top] = [...count.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
-      const n = N4.map(([dx, dy]) => [x + dx, y + dy]).find(([X, Y]) => snap.at(X, Y) === top) ||
+      const n =
+        N4.map(([dx, dy]) => [x + dx, y + dy]).find(([X, Y]) => snap.at(X, Y) === top) ||
         N8.map(([dx, dy]) => [x + dx, y + dy]).find(([X, Y]) => snap.at(X, Y) === top);
       sp.set(x, y, top, snap.shadeAt(n[0], n[1]));
       changed++;
@@ -105,11 +109,15 @@ export function calmShades(sp, passes = 1) {
         if (!s || s === SLOT.ink || protectedSlot(s)) continue;
         const sh = snap.shadeAt(x, y);
         if ((s === SLOT.metal || s === SLOT.armor || s === SLOT.trim) && sh >= 4) continue;
-        const nb = N4.filter(([dx, dy]) => snap.at(x + dx, y + dy) === s).map(([dx, dy]) => snap.shadeAt(x + dx, y + dy));
+        const nb = N4.filter(([dx, dy]) => snap.at(x + dx, y + dy) === s).map(([dx, dy]) =>
+          snap.shadeAt(x + dx, y + dy),
+        );
         if (nb.length < 3 || nb.includes(sh)) continue;
         const count = {};
         for (const v of nb) count[v] = (count[v] || 0) + 1;
-        const top = +Object.entries(count).sort((a, b) => b[1] - a[1] || Math.abs(a[0] - sh) - Math.abs(b[0] - sh))[0][0];
+        const top = +Object.entries(count).sort(
+          (a, b) => b[1] - a[1] || Math.abs(a[0] - sh) - Math.abs(b[0] - sh),
+        )[0][0];
         sp.shade[y * sp.w + x] = top;
       }
   }
@@ -159,7 +167,16 @@ export function pixelPerfect(sp, slot = SLOT.ink) {
  */
 export function keyLight(sp, { rim = 1, core = 1 } = {}) {
   const snap = sp.clone();
-  const lit = new Set([SLOT.main, SLOT.sub, SLOT.leather, SLOT.armor, SLOT.linen, SLOT.mount, SLOT.accent, SLOT.hair]);
+  const lit = new Set([
+    SLOT.main,
+    SLOT.sub,
+    SLOT.leather,
+    SLOT.armor,
+    SLOT.linen,
+    SLOT.mount,
+    SLOT.accent,
+    SLOT.hair,
+  ]);
   for (let y = 0; y < sp.h; y++)
     for (let x = 0; x < sp.w; x++) {
       const s = snap.at(x, y);
@@ -185,7 +202,12 @@ export function ensureEyes(sp, points) {
     const near = N8.some(([dx, dy]) => sp.at(X + dx, Y + dy) === SLOT.eye);
     if (sp.at(X, Y) !== SLOT.eye && !near) sp.set(X, Y, SLOT.eye, 0);
     // anime-style eyes read as a 1x2 dark stroke at this size
-    if (tall && sp.at(X, Y) === SLOT.eye && sp.at(X, Y + 1) === SLOT.skin && sp.at(X, Y - 1) !== SLOT.eye)
+    if (
+      tall &&
+      sp.at(X, Y) === SLOT.eye &&
+      sp.at(X, Y + 1) === SLOT.skin &&
+      sp.at(X, Y - 1) !== SLOT.eye
+    )
       sp.set(X, Y + 1, SLOT.eye, 0);
   }
 }
@@ -252,4 +274,120 @@ export function removeSpecks(sp, maxSize = 2) {
     changed++;
   }
   return changed;
+}
+
+/**
+ * Eyes at map size are a 1x2 dark stroke per eye. Larger reduced eye blobs (under-bang
+ * shadows, lashes) keep only their lower facing-side stroke; the rest returns to the
+ * hair above or the skin around it, so the face reads as a face, not a mask.
+ */
+export function tidyEyes(sp, { facing = 1, maxEyes = 2 } = {}) {
+  const seen = new Uint8Array(sp.w * sp.h);
+  const comps = [];
+  for (let i = 0; i < sp.w * sp.h; i++) {
+    if (sp.slot[i] !== SLOT.eye || seen[i]) continue;
+    const comp = [i];
+    seen[i] = 1;
+    for (let k = 0; k < comp.length; k++) {
+      const x = comp[k] % sp.w,
+        y = (comp[k] / sp.w) | 0;
+      for (const [dx, dy] of N8) {
+        const X = x + dx,
+          Y = y + dy;
+        if (!sp.inside(X, Y)) continue;
+        const j = Y * sp.w + X;
+        if (!seen[j] && sp.slot[j] === SLOT.eye) {
+          seen[j] = 1;
+          comp.push(j);
+        }
+      }
+    }
+    comps.push(comp);
+  }
+  // biggest comps first; extra comps beyond maxEyes dissolve too
+  comps.sort((a, b) => b.length - a.length);
+  const keep = new Set();
+  comps.forEach((comp, n) => {
+    if (n >= maxEyes) return;
+    let anchor = comp[0];
+    for (const i of comp) {
+      const y = (i / sp.w) | 0,
+        ay = (anchor / sp.w) | 0;
+      const x = i % sp.w,
+        ax = anchor % sp.w;
+      if (y > ay || (y === ay && (facing > 0 ? x > ax : x < ax))) anchor = i;
+    }
+    keep.add(anchor);
+    if (comp.includes(anchor - sp.w)) keep.add(anchor - sp.w);
+  });
+  for (const comp of comps)
+    for (const i of comp) {
+      if (keep.has(i)) continue;
+      const x = i % sp.w,
+        y = (i / sp.w) | 0;
+      const above = sp.at(x, y - 1);
+      let to = SLOT.skin,
+        shade = 3;
+      if (above === SLOT.hair || above === SLOT.ink) {
+        to = SLOT.hair;
+        shade = 1;
+      } else {
+        const nb = N4.map(([dx, dy]) => [x + dx, y + dy]).find(
+          ([X, Y]) => sp.at(X, Y) === SLOT.skin,
+        );
+        if (nb) shade = sp.shadeAt(nb[0], nb[1]);
+      }
+      sp.set(x, y, to, shade);
+    }
+}
+
+/**
+ * Face read: after tidyEyes, an eye must sit in skin (a dark stroke with skin on at
+ * least two sides). If the reduction left none — bangs and lid shadow merged into
+ * the hair — stamp the map-sprite convention for a right-facing 3/4 face: the near
+ * eye as a 1x2 stroke about 60% across the face, a row below the hairline; the far eye
+ * two pixels behind it when the face is wide enough. `box` = target head box.
+ */
+export function stampEyes(sp, box, { facing = 1 } = {}) {
+  const [x0, y0, x1, y1] = box.map(Math.round);
+  const inBox = (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+  const skinSides = (x, y) => N4.filter(([dx, dy]) => sp.at(x + dx, y + dy) === SLOT.skin).length;
+  let good = 0;
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) {
+      if (sp.at(x, y) !== SLOT.eye) continue;
+      if (skinSides(x, y) >= 2 || (skinSides(x, y) >= 1 && sp.at(x, y + 1) === SLOT.eye)) good++;
+    }
+  if (good) return false;
+  // largest skin run in the head box = the face
+  let fx0 = Infinity,
+    fy0 = Infinity,
+    fx1 = -1,
+    fy1 = -1;
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++)
+      if (sp.at(x, y) === SLOT.skin) {
+        fx0 = Math.min(fx0, x);
+        fx1 = Math.max(fx1, x);
+        fy0 = Math.min(fy0, y);
+        fy1 = Math.max(fy1, y);
+      }
+  if (fx1 < 0) return false;
+  const fw = fx1 - fx0 + 1,
+    fh = fy1 - fy0 + 1;
+  if (fw < 2 || fh < 2) return false;
+  const row = fy0 + Math.max(0, Math.round(fh * 0.2));
+  const col = facing > 0 ? fx0 + Math.round((fw - 1) * 0.6) : fx1 - Math.round((fw - 1) * 0.6);
+  const place = (x, y) => {
+    if (sp.at(x, y) === SLOT.skin && inBox(x, y)) sp.set(x, y, SLOT.eye, 0);
+  };
+  // find the first skin pixel at/below the target row in that column
+  for (let y = row; y <= fy1; y++)
+    if (sp.at(col, y) === SLOT.skin) {
+      place(col, y);
+      if (fh >= 5 && sp.at(col, y + 1) === SLOT.skin && y + 1 < fy1) place(col, y + 1);
+      if (fw >= 6) place(col - 2 * facing, y);
+      return true;
+    }
+  return false;
 }

@@ -34,7 +34,12 @@ for (const spec of specs) {
   const Z = +(process.env.ZOOM || 3);
   if (process.env.HEAD) {
     const pad = 3;
-    const box = [Math.max(0, x0 - pad), Math.max(0, y0 - pad), x1 - x0 + pad * 2, y1 - y0 + pad * 2];
+    const box = [
+      Math.max(0, x0 - pad),
+      Math.max(0, y0 - pad),
+      x1 - x0 + pad * 2,
+      y1 - y0 + pad * 2,
+    ];
     a = a.crop(...box);
     b = b.crop(...box);
   }

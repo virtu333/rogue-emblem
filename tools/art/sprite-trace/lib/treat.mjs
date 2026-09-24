@@ -13,7 +13,13 @@ export const FACTIONS = {
   enemy: { main: 'lacquer', trim: 'ironTrim', metal: 'bladeE', armor: 'iron' },
   npc: { main: 'verdigris', trim: 'gold', metal: 'bladeP', armor: 'silver' },
   // corrupted: the enemy kit, then the unlight grade drains it
-  corrupted: { main: 'lacquer', trim: 'ironTrim', metal: 'bladeE', armor: 'iron', glow: 'glowUnlight' },
+  corrupted: {
+    main: 'lacquer',
+    trim: 'ironTrim',
+    metal: 'bladeE',
+    armor: 'iron',
+    glow: 'glowUnlight',
+  },
 };
 
 /**
@@ -21,13 +27,17 @@ export const FACTIONS = {
  * base: { ramps: {slot: ramp}, eye } from traceNative.
  * opts: { faction, keepMain, identity: { hair, skin, accent } (ramp names), grade }
  */
-export function paletteFor(base, { faction = null, keepMain = false, identity = null, grade = null } = {}) {
+export function paletteFor(
+  base,
+  { faction = null, keepMain = false, identity = null, grade = null } = {},
+) {
   const ramps = { ...base.ramps };
   const f = faction && FACTIONS[faction];
   if (f)
     for (const [slot, name] of Object.entries(f)) {
       if (slot === 'main' && keepMain) continue;
-      if (slot === 'glow' || ramps[SLOT[slot]] || slot === 'main') ramps[SLOT[slot]] = BIBLE_RAMPS[name];
+      if (slot === 'glow' || ramps[SLOT[slot]] || slot === 'main')
+        ramps[SLOT[slot]] = BIBLE_RAMPS[name];
     }
   if (identity) {
     if (identity.hair) ramps[SLOT.hair] = BIBLE_RAMPS[identity.hair] || identity.hair;
@@ -140,4 +150,9 @@ export function hitFlash(img) {
 }
 
 /** The game's current acted state: multiplicative tint 0xb8b8b8. */
-export const multiplyActed = ([r, g, b, a]) => [(r * 0xb8) / 255, (g * 0xb8) / 255, (b * 0xb8) / 255, a];
+export const multiplyActed = ([r, g, b, a]) => [
+  (r * 0xb8) / 255,
+  (g * 0xb8) / 255,
+  (b * 0xb8) / 255,
+  a,
+];

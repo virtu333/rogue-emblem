@@ -5,11 +5,29 @@
 const S = (name) => `docs/art/class-sprite-review-2026-09-22/sheets/${name}.png`;
 const R = (name) => `assets/sprites/rebuilt/${name}.png`;
 
+// Mount overrides (normalised boxes): the horse / pegasus body is its own material so
+// faction and corruption treatments leave a white pegasus white and a bay horse bay.
+const HORSE = [
+  { slot: 'mount', box: [0, 0.5, 1, 1], from: ['leather', 'sub', 'skin', 'hair'] },
+  { slot: 'mount', box: [0.7, 0.25, 1, 0.55], from: ['leather', 'sub', 'skin', 'hair'] },
+];
+const PEGASUS = [
+  { slot: 'mount', box: [0, 0.5, 1, 1], from: ['armor', 'linen', 'skin', 'metal'] },
+  { slot: 'mount', box: [0, 0.2, 0.42, 0.62], from: ['armor', 'linen', 'skin', 'metal'] },
+  { slot: 'mount', box: [0.62, 0.15, 0.9, 0.55], from: ['armor', 'linen', 'skin', 'hair'] },
+];
+
 export const ROSTER = {
   sources: {
     // --- lords (approved identities) ---------------------------------------------
     edric: { src: R('lord_edric'), kind: 'infantry', main: 'teal', hair: 'brown' },
-    edric_promoted: { src: R('lord_edric_promoted'), kind: 'infantry', main: 'teal', hair: 'brown', armor: true },
+    edric_promoted: {
+      src: R('lord_edric_promoted'),
+      kind: 'infantry',
+      main: 'teal',
+      hair: 'brown',
+      armor: true,
+    },
     sera: { src: R('lord_sera'), kind: 'mage', main: 'purple', hair: 'red' },
     kira: { src: R('lord_kira'), kind: 'infantry', main: 'purple', hair: 'silver' },
     // --- generic classes (A = player design, B = second player design, E = enemy) ---
@@ -17,29 +35,117 @@ export const ROSTER = {
     myrmidon_b: { src: S('myrmidon'), figure: 1, kind: 'infantry', main: 'blue', hair: 'silver' },
     myrmidon_e: { src: S('myrmidon'), figure: 2, kind: 'infantry', main: 'red', hair: 'black' },
     mercenary_a: { src: S('mercenary'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
-    mercenary_e: { src: S('mercenary'), figure: 2, kind: 'infantry', main: 'red', hair: null, armor: true },
+    mercenary_e: {
+      src: S('mercenary'),
+      figure: 2,
+      kind: 'infantry',
+      main: 'red',
+      hair: null,
+      armor: true,
+    },
     thief_a: { src: S('thief'), figure: 0, kind: 'crouch', main: 'blue', hair: 'brown' },
     thief_e: { src: S('thief'), figure: 2, kind: 'crouch', main: 'red', hair: null },
     fighter_a: { src: S('fighter'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
     fighter_e: { src: S('fighter'), figure: 2, kind: 'infantry', main: 'red', hair: null },
-    knight_a: { src: S('knight'), figure: 0, kind: 'heavy', main: 'blue', hair: 'brown', armor: true },
-    knight_e: { src: S('knight'), figure: 2, kind: 'heavy', main: 'red', hair: null, armor: true },
+    knight_a: {
+      src: S('knight'),
+      figure: 0,
+      kind: 'heavy',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+    },
+    knight_e: {
+      src: S('knight'),
+      figure: 2,
+      kind: 'heavy',
+      main: 'red',
+      hair: null,
+      armor: true,
+      eyes: false,
+    },
     archer_a: { src: S('archer'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
     archer_e: { src: S('archer'), figure: 2, kind: 'infantry', main: 'red', hair: null },
     mage_a: { src: S('mage'), figure: 0, kind: 'mage', main: 'blue', hair: 'brown' },
     mage_e: { src: S('mage'), figure: 2, kind: 'mage', main: 'red', hair: null },
     cleric_a: { src: S('cleric'), figure: 0, kind: 'mage', main: 'blue', hair: 'brown' },
     cleric_e: { src: S('cleric'), figure: 2, kind: 'mage', main: 'red', hair: null },
-    cavalier_a: { src: S('cavalier'), figure: 0, kind: 'mounted', main: 'blue', hair: 'brown', armor: true },
-    cavalier_e: { src: S('cavalier'), figure: 2, kind: 'mounted', main: 'red', hair: null, armor: true },
-    pegasus_a: { src: S('pegasus-knight'), figure: 0, kind: 'flyer', main: 'blue', hair: 'brown', armor: true },
-    pegasus_e: { src: S('pegasus-knight'), figure: 2, kind: 'flyer', main: 'red', hair: null, armor: true },
-    swordmaster_a: { src: S('swordmaster'), figure: 0, kind: 'infantry', main: 'blue', hair: 'brown' },
-    swordmaster_b: { src: S('swordmaster'), figure: 1, kind: 'infantry', main: 'blue', hair: 'red' },
-    swordmaster_e: { src: S('swordmaster'), figure: 2, kind: 'infantry', main: 'red', hair: 'black' },
+    cavalier_a: {
+      src: S('cavalier'),
+      figure: 0,
+      kind: 'mounted',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+      rects: HORSE,
+    },
+    cavalier_e: {
+      src: S('cavalier'),
+      figure: 2,
+      kind: 'mounted',
+      main: 'red',
+      hair: null,
+      armor: true,
+      eyes: false,
+      head: [0.3, 0.1, 0.5, 0.3],
+      rects: HORSE,
+    },
+    pegasus_a: {
+      src: S('pegasus-knight'),
+      figure: 0,
+      kind: 'flyer',
+      main: 'blue',
+      hair: 'brown',
+      armor: true,
+      rects: PEGASUS,
+    },
+    pegasus_e: {
+      src: S('pegasus-knight'),
+      figure: 2,
+      kind: 'flyer',
+      main: 'red',
+      hair: null,
+      armor: true,
+      eyes: false,
+      head: [0.45, 0.02, 0.62, 0.25],
+      rects: PEGASUS,
+    },
+    swordmaster_a: {
+      src: S('swordmaster'),
+      figure: 0,
+      kind: 'infantry',
+      main: 'blue',
+      hair: 'brown',
+    },
+    swordmaster_b: {
+      src: S('swordmaster'),
+      figure: 1,
+      kind: 'infantry',
+      main: 'blue',
+      hair: 'red',
+    },
+    swordmaster_e: {
+      src: S('swordmaster'),
+      figure: 2,
+      kind: 'infantry',
+      main: 'red',
+      hair: 'black',
+    },
     // --- bosses -------------------------------------------------------------------
-    boss_blade_lord: { src: R('boss_blade_lord'), kind: 'boss', main: 'red', hair: 'black', armor: true },
-    boss_iron_wall: { src: R('boss_iron_wall'), kind: 'boss', main: 'red', hair: null, armor: true },
+    boss_blade_lord: {
+      src: R('boss_blade_lord'),
+      kind: 'boss',
+      main: 'red',
+      hair: 'black',
+      armor: true,
+    },
+    boss_iron_wall: {
+      src: R('boss_iron_wall'),
+      kind: 'boss',
+      main: 'red',
+      hair: null,
+      armor: true,
+    },
   },
 };
 
@@ -80,5 +186,12 @@ export const BAKE = [
 export const RECRUITS = {
   count: 6,
   seedPrefix: '20260924:recruit:',
-  lines: [{ base: ['myrmidon_a', 'myrmidon_b'], promoted: ['swordmaster_a', 'swordmaster_b'], key: 'myrmidon', promotedKey: 'swordmaster' }],
+  lines: [
+    {
+      base: ['myrmidon_a', 'myrmidon_b'],
+      promoted: ['swordmaster_a', 'swordmaster_b'],
+      key: 'myrmidon',
+      promotedKey: 'swordmaster',
+    },
+  ],
 };

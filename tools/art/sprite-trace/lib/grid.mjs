@@ -62,7 +62,11 @@ export function autocorr(E, maxLag = 28) {
 function peakNear(ac, center, radius) {
   // highest local maximum within [center-radius, center+radius], parabolic refined
   let best = null;
-  for (let l = Math.max(2, Math.floor(center - radius)); l <= Math.min(ac.length - 2, Math.ceil(center + radius)); l++) {
+  for (
+    let l = Math.max(2, Math.floor(center - radius));
+    l <= Math.min(ac.length - 2, Math.ceil(center + radius));
+    l++
+  ) {
     if (ac[l] < ac[l - 1] || ac[l] < ac[l + 1]) continue;
     if (best && ac[l] <= ac[best]) continue;
     best = l;
@@ -83,29 +87,61 @@ function peakNear(ac, center, radius) {
  * Returns { pitch, confidence } — confidence = peak - dip (~0 for illustrations).
  */
 export function pitchFromAutocorr(ac, { min = 2, max = 26 } = {}) {
+  const at = (x) => {
+    if (x >= ac.length - 1) return 0;
+    const i = Math.floor(x),
+      f = x - i;
+    return ac[i] * (1 - f) + ac[i + 1] * f;
+  };
+  // candidates: every local maximum (parabolic-refined) inside [min, max]
+  const cands = [];
+  for (let l = Math.max(2, Math.floor(min)); l <= Math.min(max, ac.length - 2); l++)
+    if (ac[l] > 0 && ac[l] >= ac[l - 1] && ac[l] >= ac[l + 1]) {
+      const pk = peakNear(ac, l, 0.5) || { lag: l, value: ac[l] };
+      cands.push(pk);
+    }
+  if (!cands.length) return { pitch: 0, confidence: 0, dipLag: 1 };
+  // harmonic support: a real block grid also correlates at 2p and 3p (blend pairs and
+  // sub-harmonics do not), decaying with drift
+  const score = (p) => at(p) + 0.5 * Math.max(0, at(2 * p)) + 0.25 * Math.max(0, at(3 * p));
+  let best = cands[0],
+    bs = -Infinity;
+  for (const c of cands) {
+    const v = score(c.lag);
+    if (v > bs) {
+      bs = v;
+      best = c;
+    }
+  }
+  // prefer the fundamental when best is a clean multiple of a strong earlier peak
+  const top = best;
+  for (const c of cands) {
+    if (c.lag >= best.lag) continue;
+    const ratio = top.lag / c.lag;
+    const k = Math.round(ratio);
+    if (k >= 2 && k <= 3 && Math.abs(ratio - k) < 0.32 && c.value >= 0.6 * top.value) {
+      best = c;
+      break; // candidates are in increasing lag order: the smallest divisor wins
+    }
+  }
+  // refine with harmonics
+  let num = best.lag * best.value,
+    den = best.value;
+  for (let k = 2; k <= 3; k++) {
+    const pk = peakNear(ac, best.lag * k, Math.max(1, best.lag * 0.2));
+    if (pk && pk.value > 0) {
+      num += (pk.lag / k) * pk.value * k;
+      den += pk.value * k;
+    }
+  }
   let dip = Infinity,
     dipLag = 1;
-  for (let l = 1; l < ac.length - 1; l++) {
+  for (let l = 1; l <= Math.floor(best.lag); l++)
     if (ac[l] < dip) {
       dip = ac[l];
       dipLag = l;
     }
-    // first prominent local maximum after a dip
-    if (l >= min && l <= max && ac[l] >= ac[l - 1] && ac[l] >= ac[l + 1] && ac[l] - dip > 0.12) {
-      const p1 = peakNear(ac, l, 0.5) || { lag: l, value: ac[l] };
-      let num = p1.lag * p1.value,
-        den = p1.value;
-      for (let k = 2; k <= 3; k++) {
-        const pk = peakNear(ac, p1.lag * k, Math.max(1, p1.lag * 0.2));
-        if (pk && pk.value > 0) {
-          num += (pk.lag / k) * pk.value * k;
-          den += pk.value * k;
-        }
-      }
-      return { pitch: num / den, confidence: Math.max(0, Math.min(1, p1.value - dip)), dipLag };
-    }
-  }
-  return { pitch: 0, confidence: 0, dipLag };
+  return { pitch: num / den, confidence: Math.max(0, Math.min(1, best.value - dip)), dipLag };
 }
 
 /** Back-compat single-axis estimate. */
@@ -243,6 +279,12 @@ export function recoverGrid(r, box = null, opts = {}) {
     ey = pitchFromAutocorr(acy, opts);
   let pX = ex.pitch,
     pY = ey.pitch;
+  // block aspect beyond 1.6 means one axis locked onto a harmonic: re-estimate that
+  // axis below 1.6x the other
+  if (pX && pY && pX / pY > 1.6)
+    pX = pitchFromAutocorr(acx, { ...opts, max: pY * 1.6 }).pitch || pY;
+  else if (pX && pY && pY / pX > 1.6)
+    pY = pitchFromAutocorr(acy, { ...opts, max: pX * 1.6 }).pitch || pX;
   if (!pX || ex.confidence < 0.15) pX = pY;
   if (!pY || ey.confidence < 0.15) pY = pX;
   if (pX && pY && Math.abs(pX - pY) / Math.max(pX, pY) < 0.08) {
@@ -260,7 +302,14 @@ export function recoverGrid(r, box = null, opts = {}) {
       H = Math.max(1, Math.round(bb.height / p));
     const native = r.crop(bb.x, bb.y, bb.width, bb.height).resizeArea(W, H);
     for (let i = 3; i < native.d.length; i += 4) native.d[i] = native.d[i] >= 128 ? 255 : 0;
-    return { native, pitch: { x: p, y: p }, confidence, cuts: null, purity: null, mode: 'downscale' };
+    return {
+      native,
+      pitch: { x: p, y: p },
+      confidence,
+      cuts: null,
+      purity: null,
+      mode: 'downscale',
+    };
   }
   const cx = trackCuts(px.E, pX, opts).map((c) => c + px.lo);
   const cy = trackCuts(py.E, pY, opts).map((c) => c + py.lo);

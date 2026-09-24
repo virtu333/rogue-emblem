@@ -58,7 +58,8 @@ export function idleFrames(sp, { body, waist } = {}) {
   const b = body || sp.bounds((s) => !WEAPON_SLOTS.has(s));
   const wy = waist ?? waistRow(sp, b);
   const upper = (x, y, s) => y < wy && !(s === SLOT.leather && y > wy - 2);
-  const hairTrail = (x, y, s) => s === SLOT.hair && y > b.y + b.height * 0.12 && x < b.x + b.width * 0.5;
+  const hairTrail = (x, y, s) =>
+    s === SLOT.hair && y > b.y + b.height * 0.12 && x < b.x + b.width * 0.5;
   const f0 = sp.clone();
   // breath: everything above the waist settles one pixel
   const f1 = shift(sp, upper, () => 0, 1);
@@ -79,15 +80,20 @@ export function attackFrames(sp, { body, waist, facing = 1 } = {}) {
   const wy = waist ?? waistRow(sp, b);
   const span = Math.max(1, wy - b.y);
   const upper = (x, y, s) => y < wy || WEAPON_SLOTS.has(s);
-  const windup = shift(
-    sp,
-    upper,
-    (y) => -facing * (y < wy ? 1 : 0),
-    0,
+  const windup = shift(sp, upper, (y) => -facing * (y < wy ? 1 : 0), 0);
+  const windupW = shift(
+    windup,
+    (x, y, s) => WEAPON_SLOTS.has(s),
+    () => -facing,
+    -2,
   );
-  const windupW = shift(windup, (x, y, s) => WEAPON_SLOTS.has(s), () => -facing, -2);
   const lean = (y) => facing * (y >= wy ? 2 : Math.round(1 + (2 * (wy - y)) / span));
   const strike = shift(sp, upper, lean, 1);
-  const strikeW = shift(strike, (x, y, s) => WEAPON_SLOTS.has(s), () => facing * 2, 0);
+  const strikeW = shift(
+    strike,
+    (x, y, s) => WEAPON_SLOTS.has(s),
+    () => facing * 2,
+    0,
+  );
   return [windupW, strikeW];
 }

@@ -21,7 +21,8 @@ if (cropArg) {
   const [x, y, w, h] = cropArg.split(',').map(Number);
   b = { x: b.x + x, y: b.y + y, width: w, height: h };
 }
-const bg = (im) => new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
+const bg = (im) =>
+  new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
 const tr = bg(img.crop(b.x - 1, b.y - 1, b.width + 2, b.height + 2)).scale(Z);
 const nz = Math.max(1, Math.round((tr.h / native.h) * 1));
 const nat = cropArg ? null : bg(native).scale(Math.max(1, Math.floor(tr.h / native.h)));

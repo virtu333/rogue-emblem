@@ -21,18 +21,23 @@ for (const id of want) {
   const t = traceNative(native, e, { density, mode: mode || 'area' });
   const img = render(t.sprite, { ramps: t.ramps, eye: t.eye });
   const size = img.w;
-  const bg = (im) => new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
+  const bg = (im) =>
+    new Raster(im.w, im.h).fillRect(0, 0, im.w, im.h, [92, 104, 84, 255]).draw(im, 0, 0);
   const nat = bg(native).resizeNearest(
     Math.round((native.w * size * Z * 0.72) / native.h),
     Math.round(size * Z * 0.72),
   );
-  const label = await textRaster(`${id}  s=${t.sprite.meta.scale.toFixed(2)} n=${native.w}x${native.h} c=${img.colorCount()}`, {
-    size: 11,
-    bg: '#18181c',
-    width: nat.w + size * Z + 6,
-  });
+  const label = await textRaster(
+    `${id}  s=${t.sprite.meta.scale.toFixed(2)} n=${native.w}x${native.h} c=${img.colorCount()}`,
+    {
+      size: 11,
+      bg: '#18181c',
+      width: nat.w + size * Z + 6,
+    },
+  );
   tiles.push(vstack([label, hstack([nat, bg(img).scale(Z)], 6, [24, 24, 28, 255])]));
 }
 const rows = [];
-for (let i = 0; i < tiles.length; i += 3) rows.push(hstack(tiles.slice(i, i + 3), 10, [24, 24, 28, 255]));
+for (let i = 0; i < tiles.length; i += 3)
+  rows.push(hstack(tiles.slice(i, i + 3), 10, [24, 24, 28, 255]));
 await writePng(vstack(rows, 10, [24, 24, 28, 255]), out);

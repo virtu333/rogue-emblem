@@ -79,5 +79,9 @@ export function pixelDiff(d, i, j) {
     ab = d[j + 3];
   if (aa < 32 && ab < 32) return 0;
   if (aa < 32 || ab < 32) return 255;
-  return Math.max(Math.abs(d[i] - d[j]), Math.abs(d[i + 1] - d[j + 1]), Math.abs(d[i + 2] - d[j + 2]));
+  return Math.max(
+    Math.abs(d[i] - d[j]),
+    Math.abs(d[i + 1] - d[j + 1]),
+    Math.abs(d[i + 2] - d[j + 2]),
+  );
 }

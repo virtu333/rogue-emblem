@@ -11,7 +11,12 @@ const cases = [
   { name: 'phone 667x375 DPR2', viewport: { width: 667, height: 375 }, dpr: 2, mobile: true },
   { name: 'phone 667x375 DPR3', viewport: { width: 667, height: 375 }, dpr: 3, mobile: true },
   { name: 'desktop 1280x720 DPR1', viewport: { width: 1280, height: 720 }, dpr: 1, mobile: false },
-  { name: 'desktop 1920x1080 DPR1', viewport: { width: 1920, height: 1080 }, dpr: 1, mobile: false },
+  {
+    name: 'desktop 1920x1080 DPR1',
+    viewport: { width: 1920, height: 1080 },
+    dpr: 1,
+    mobile: false,
+  },
   { name: 'desktop 1440x900 DPR2', viewport: { width: 1440, height: 900 }, dpr: 2, mobile: false },
 ];
 

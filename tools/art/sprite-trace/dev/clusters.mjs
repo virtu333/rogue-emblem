@@ -18,7 +18,8 @@ const tiles = [];
 for (const c of clusters) {
   const m = new Raster(native.w, native.h);
   m.fillRect(0, 0, native.w, native.h, [40, 44, 40, 255]);
-  for (let i = 0; i < native.w * native.h; i++) if (native.d[i * 4 + 3]) m.d.set([70, 74, 70, 255], i * 4);
+  for (let i = 0; i < native.w * native.h; i++)
+    if (native.d[i * 4 + 3]) m.d.set([70, 74, 70, 255], i * 4);
   for (const p of c.pixels) m.d.set([...native.d.subarray(p * 4, p * 4 + 3), 255], p * 4);
   const label = await textRaster(
     `${c.k} L${c.lch[0].toFixed(0)} C${c.lch[1].toFixed(0)} h${c.lch[2].toFixed(0)}\ny${c.cy.toFixed(2)} n${c.count}`,
@@ -28,6 +29,14 @@ for (const c of clusters) {
   tiles.push(vstack([m.scale(z), sw, label]));
 }
 const rows = [];
-for (let i = 0; i < tiles.length; i += 8) rows.push(hstack(tiles.slice(i, i + 8), 4, [20, 20, 24, 255]));
+for (let i = 0; i < tiles.length; i += 8)
+  rows.push(hstack(tiles.slice(i, i + 8), 4, [20, 20, 24, 255]));
 await writePng(vstack([native.scale(z), ...rows], 4, [20, 20, 24, 255]), out);
-console.log(clusters.map((c) => `${c.k}:${c.rgb} L${c.lch[0].toFixed(0)} C${c.lch[1].toFixed(0)} h${c.lch[2].toFixed(0)} cy${c.cy.toFixed(2)} n${c.count}`).join('\n'));
+console.log(
+  clusters
+    .map(
+      (c) =>
+        `${c.k}:${c.rgb} L${c.lch[0].toFixed(0)} C${c.lch[1].toFixed(0)} h${c.lch[2].toFixed(0)} cy${c.cy.toFixed(2)} n${c.count}`,
+    )
+    .join('\n'),
+);

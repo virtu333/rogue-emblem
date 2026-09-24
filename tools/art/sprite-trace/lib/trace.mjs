@@ -6,7 +6,19 @@ import { recoverGrid } from './grid.mjs';
 import { largestComponent } from './figures.mjs';
 import { segment } from './segment.mjs';
 import { prepareNative, reduce, reduceMerge, absorbTextureLines } from './reduce.mjs';
-import { quantize, removeSpecks, removeOrphans, fillPinholes, removeSpurs, calmShades, pixelPerfect, keyLight, ensureEyes } from './cleanup.mjs';
+import {
+  quantize,
+  tidyEyes,
+  stampEyes,
+  removeSpecks,
+  removeOrphans,
+  fillPinholes,
+  removeSpurs,
+  calmShades,
+  pixelPerfect,
+  keyLight,
+  ensureEyes,
+} from './cleanup.mjs';
 import { rampFromSamples, rampLab } from './ramps.mjs';
 import { SLOT, SLOTS, BODY_EXCLUDE } from './slots.mjs';
 import { fitScale, placement } from './place.mjs';
@@ -70,7 +82,9 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
   }
 
   // scale from the body (weapons excluded) so a long lance never shrinks its wielder
-  const body = bbox(w, h, (p) => prep.fill[p] && !BODY_EXCLUDE.has(prep.fill[p])) || bbox(w, h, (p) => prep.fill[p]);
+  const body =
+    bbox(w, h, (p) => prep.fill[p] && !BODY_EXCLUDE.has(prep.fill[p])) ||
+    bbox(w, h, (p) => prep.fill[p]);
   const full = bbox(w, h, (p) => prep.fill[p]);
   const kind = recipe.kind || 'infantry';
   let s = fitScale(body.height, full.width, full.height, kind, density);
@@ -131,7 +145,15 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
   removeSpecks(sp, recipe.speck ?? 2);
   calmShades(sp, 2);
   pixelPerfect(sp, SLOT.ink);
-  if (recipe.eyes !== false) ensureEyes(sp, eyePts);
+  if (recipe.eyes !== false) {
+    ensureEyes(sp, eyePts);
+    tidyEyes(sp);
+    if (seg.face) {
+      const [a, b] = red.mapPoint(seg.head[0], seg.head[1]);
+      const [c, d] = red.mapPoint(seg.head[2], seg.head[3]);
+      stampEyes(sp, [a, b, c, d]);
+    }
+  }
   if (recipe.keyLight !== false) keyLight(sp);
 
   // place into the texture
@@ -148,6 +170,7 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = 'area' 
     slots: [...new Set(placed.slot)].filter(Boolean).map((i) => SLOTS[i]),
   };
   const ramps = {};
-  for (const [sl, r] of Object.entries(srcRamps)) ramps[sl] = recipe.condition === false ? r : conditionRamp(r, +sl);
+  for (const [sl, r] of Object.entries(srcRamps))
+    ramps[sl] = recipe.condition === false ? r : conditionRamp(r, +sl);
   return { sprite: placed, ramps, srcRamps, seg, prep, eye };
 }

@@ -39,7 +39,8 @@ export function prepareNative(seg, { peel = true, thick = true } = {}) {
         const outside = N4.some(([dx, dy]) => at(x + dx, y + dy) === 0);
         if (!outside) continue;
         // second pass only peels ink that has no non-ink neighbour (a doubled ring)
-        if (pass === 1 && N4.some(([dx, dy]) => (at(x + dx, y + dy) || SLOT.ink) !== SLOT.ink)) continue;
+        if (pass === 1 && N4.some(([dx, dy]) => (at(x + dx, y + dy) || SLOT.ink) !== SLOT.ink))
+          continue;
         peelList.push(p);
       }
     for (const p of peelList) fill[p] = 0;
@@ -319,8 +320,13 @@ function mergeLine(img, axis, i, g) {
     for (let k = 0; k < g; k++) {
       if (k === best) continue;
       const p = idx(k);
-      const d = keep >= 0 ? dissimilar(img.slot[p], img.L[p], img.slot[keep], img.L[keep]) : img.slot[p] ? 1 : 0;
-      cost += d * (img.slot[p] ? PRIORITY[img.slot[p]] ?? 1 : 1);
+      const d =
+        keep >= 0
+          ? dissimilar(img.slot[p], img.L[p], img.slot[keep], img.L[keep])
+          : img.slot[p]
+            ? 1
+            : 0;
+      cost += d * (img.slot[p] ? (PRIORITY[img.slot[p]] ?? 1) : 1);
     }
   }
   return { pick, cost };
@@ -334,7 +340,8 @@ function decimateAxis(img, axis, s, { lambda = 0.35, maxGroup = 4 } = {}) {
   const costs = [];
   for (let i = 0; i < N; i++) {
     costs.push([]);
-    for (let g = 1; g <= G && i + g <= N; g++) costs[i][g] = g === 1 ? 0 : mergeLine(img, axis, i, g).cost / Math.max(1, cross / 16);
+    for (let g = 1; g <= G && i + g <= N; g++)
+      costs[i][g] = g === 1 ? 0 : mergeLine(img, axis, i, g).cost / Math.max(1, cross / 16);
   }
   const INF = 1e18;
   const dp = Array.from({ length: N + 1 }, () => new Float64Array(K + 1).fill(INF));
@@ -362,7 +369,15 @@ function decimateAxis(img, axis, s, { lambda = 0.35, maxGroup = 4 } = {}) {
   }
   const W = axis === 'y' ? img.w : K,
     H = axis === 'y' ? K : img.h;
-  const out = { w: W, h: H, slot: new Uint8Array(W * H), L: new Float32Array(W * H), lab: new Float32Array(W * H * 3), dark: new Float32Array(W * H), src: new Int32Array(W * H).fill(-1) };
+  const out = {
+    w: W,
+    h: H,
+    slot: new Uint8Array(W * H),
+    L: new Float32Array(W * H),
+    lab: new Float32Array(W * H * 3),
+    dark: new Float32Array(W * H),
+    src: new Int32Array(W * H).fill(-1),
+  };
   groups.forEach(([i, g], j) => {
     const { pick } = mergeLine(img, axis, i, g);
     for (let t = 0; t < cross; t++) {
@@ -401,7 +416,17 @@ export function reduceMerge(seg, prep, s, opts = {}) {
   const r = cols.img;
   const W = r.w + 2,
     H = r.h + 2;
-  const out = { w: W, h: H, slot: new Uint8Array(W * H), lab: new Float32Array(W * H * 3), dark: new Float32Array(W * H), offset: [0, 0], scale: s, rowGroups: rows.groups, colGroups: cols.groups };
+  const out = {
+    w: W,
+    h: H,
+    slot: new Uint8Array(W * H),
+    lab: new Float32Array(W * H * 3),
+    dark: new Float32Array(W * H),
+    offset: [0, 0],
+    scale: s,
+    rowGroups: rows.groups,
+    colGroups: cols.groups,
+  };
   for (let y = 0; y < r.h; y++)
     for (let x = 0; x < r.w; x++) {
       const p = y * r.w + x,

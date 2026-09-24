@@ -12,7 +12,8 @@ export function packAtlas(baked, { density = 1.5, maxSide = 2048 } = {}) {
   const stripW = cell * FRAME_ORDER.length;
   const perRow = Math.max(1, Math.floor(maxSide / stripW));
   const rows = Math.ceil(baked.length / perRow);
-  if (rows * cell > maxSide) throw new Error(`Atlas overflow: ${baked.length} sprites exceed ${maxSide}px`);
+  if (rows * cell > maxSide)
+    throw new Error(`Atlas overflow: ${baked.length} sprites exceed ${maxSide}px`);
   const atlas = new Raster(stripW * Math.min(perRow, baked.length), cell * rows);
   const sprites = {};
   baked.forEach((b, i) => {

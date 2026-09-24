@@ -73,7 +73,8 @@ export function kmeans(colors, K, { iterations = 24 } = {}) {
       a[3] += w;
     }
     for (let k = 0; k < centers.length; k++)
-      if (acc[k][3]) centers[k] = [acc[k][0] / acc[k][3], acc[k][1] / acc[k][3], acc[k][2] / acc[k][3]];
+      if (acc[k][3])
+        centers[k] = [acc[k][0] / acc[k][3], acc[k][1] / acc[k][3], acc[k][2] / acc[k][3]];
     if (!moved) break;
   }
   return { centers, assign };
@@ -122,7 +123,12 @@ export function clusterRaster(r, K = 22) {
     const n = cl.pixels.length || 1;
     cl.cx = (sx / n - box.x) / box.width;
     cl.cy = (sy / n - box.y) / box.height;
-    cl.extent = { x0: (x0 - box.x) / box.width, x1: (x1 - box.x) / box.width, y0: (y0 - box.y) / box.height, y1: (y1 - box.y) / box.height };
+    cl.extent = {
+      x0: (x0 - box.x) / box.width,
+      x1: (x1 - box.x) / box.width,
+      y0: (y0 - box.y) / box.height,
+      y1: (y1 - box.y) / box.height,
+    };
     cl.pixels.sort((a, b) => a - b);
   }
   return { clusters: clusters.filter((c) => c.count > 0), box };

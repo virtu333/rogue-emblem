@@ -25,9 +25,12 @@ for (const spec of specs) {
   // what the game does today: nearest-sample the source crop into the 64px placement
   const nb = crop.alphaBounds(10);
   const sc = Math.min(38 / nb.width, 34 / nb.height);
-  const near = crop.crop(nb.x, nb.y, nb.width, nb.height).resizeNearest(Math.round(nb.width * sc), Math.round(nb.height * sc));
+  const near = crop
+    .crop(nb.x, nb.y, nb.width, nb.height)
+    .resizeNearest(Math.round(nb.width * sc), Math.round(nb.height * sc));
   const n64 = new Raster(64, 64).draw(near, Math.round((64 - near.w) / 2), 44 - near.h);
-  const bg = (img) => new Raster(img.w, img.h).fillRect(0, 0, img.w, img.h, [92, 104, 84, 255]).draw(img, 0, 0);
+  const bg = (img) =>
+    new Raster(img.w, img.h).fillRect(0, 0, img.w, img.h, [92, 104, 84, 255]).draw(img, 0, 0);
   // show D=1.5 at Z, D=1 and nearest at Z*1.5 so world size matches
   cols.push(
     hstack(

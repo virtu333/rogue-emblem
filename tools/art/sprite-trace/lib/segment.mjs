@@ -21,10 +21,11 @@ export const FAMILIES = {
   blue: ({ L, C, h }) => C >= 14 && inHue(h, 235, 315) && L >= 8,
   navy: ({ L, C, h }) => C >= 8 && inHue(h, 240, 320) && L < 40,
   red: ({ L, C, h }) => C >= 26 && inHue(h, 345, 48) && L <= 62,
-  teal: ({ L, C, h }) => C >= 9 && inHue(h, 165, 240),
+  teal: ({ C, h }) => C >= 9 && inHue(h, 165, 240),
   purple: ({ L, C, h }) => C >= 7 && inHue(h, 292, 20) && L <= 62,
-  green: ({ L, C, h }) => C >= 10 && inHue(h, 110, 170),
-  gold: ({ L, C, h }) => L >= 42 && ((C >= 34 && inHue(h, 72, 102)) || (C >= 48 && inHue(h, 62, 102))),
+  green: ({ C, h }) => C >= 10 && inHue(h, 110, 170),
+  gold: ({ L, C, h }) =>
+    L >= 42 && ((C >= 34 && inHue(h, 72, 102)) || (C >= 48 && inHue(h, 62, 102))),
   brownHair: ({ L, C, h }) => C >= 9 && inHue(h, 30, 80) && L >= 16 && L <= 70,
   redHair: ({ L, C, h }) => C >= 30 && inHue(h, 18, 58) && L >= 20 && L <= 72,
   blondHair: ({ L, C, h }) => C >= 20 && inHue(h, 65, 100) && L >= 50,
@@ -261,7 +262,12 @@ export function segment(native, recipe = {}) {
     if (x1 < 0) head = [bb.x, bb.y, bb.x + bb.width, bb.y + Math.round(bb.height * 0.22)];
     else {
       const fh = y1 - y0 + 1;
-      head = [x0 - Math.round(fh * 0.9), y0 - Math.round(fh * 1.1), x1 + Math.round(fh * 0.5), y1 + 1];
+      head = [
+        x0 - Math.round(fh * 0.9),
+        y0 - Math.round(fh * 1.1),
+        x1 + Math.round(fh * 0.5),
+        y1 + 1,
+      ];
     }
   }
   const inHead = (p) => {
@@ -275,7 +281,11 @@ export function segment(native, recipe = {}) {
   const hairFam = recipe.hair ? FAMILIES[HAIR[recipe.hair] || recipe.hair] : null;
   const rules = [
     [SLOT.trim, (p) => FAMILIES.gold(px(p)) && !(recipe.hair === 'blond' && inHead(p))],
-    [SLOT.main, (p) => mainFam && mainFam(px(p)) && !(recipe.hair === 'red' && recipe.main === 'red' && inHead(p))],
+    [
+      SLOT.main,
+      (p) =>
+        mainFam && mainFam(px(p)) && !(recipe.hair === 'red' && recipe.main === 'red' && inHead(p)),
+    ],
     [SLOT.skin, (p) => FAMILIES.skin(px(p)) && (inHead(p) || C[p] >= 18)],
     [
       SLOT.hair,
@@ -310,7 +320,8 @@ export function segment(native, recipe = {}) {
   {
     const mask = new Uint8Array(n);
     for (let p = 0; p < n; p++) mask[p] = seed[p] === SLOT.hair ? 1 : 0;
-    for (const comp of components(mask, w, h, true).comps) if (comp.length < 3) for (const p of comp) seed[p] = 0;
+    for (const comp of components(mask, w, h, true).comps)
+      if (comp.length < 3) for (const p of comp) seed[p] = 0;
   }
 
   // --- geodesic growth --------------------------------------------------------
@@ -380,6 +391,7 @@ export function segment(native, recipe = {}) {
   }
 
   // --- weapon vs armour ------------------------------------------------------------
+  const isBlade = new Uint8Array(n);
   {
     const mask = new Uint8Array(n);
     for (let p = 0; p < n; p++) mask[p] = slot[p] === SLOT.metal ? 1 : 0;
@@ -387,6 +399,7 @@ export function segment(native, recipe = {}) {
     for (const comp of components(mask, w, h, true).comps) {
       const e = elongation(comp, w);
       const blade = e.ratio >= 3.2 && e.length >= figH * 0.1;
+      if (blade) for (const p of comp) isBlade[p] = 1;
       if (recipe.armor && !blade) for (const p of comp) slot[p] = SLOT.armor;
     }
   }
@@ -398,7 +411,7 @@ export function segment(native, recipe = {}) {
     for (let y = Math.max(0, y0); y < Math.min(h, y1); y++)
       for (let x = Math.max(0, x0); x < Math.min(w, x1); x++) {
         const p = y * w + x;
-        if (!opaque[p] || slot[p] === SLOT.ink) continue;
+        if (!opaque[p] || slot[p] === SLOT.ink || (isBlade[p] && r.slot !== 'metal')) continue;
         if (from && !from.has(slot[p])) continue;
         if (r.where && !FAMILIES[r.where](px(p))) continue;
         slot[p] = SLOT[r.slot];
@@ -457,14 +470,30 @@ export function segment(native, recipe = {}) {
     const [fx0, fy0, fx1, fy1] = face;
     const fh = fy1 - fy0;
     const cand = new Uint8Array(n);
-    for (let y = Math.max(0, fy0 - 1); y < fy1; y++)
+    const isDarkOrIris = (p) =>
+      opaque[p] &&
+      slot[p] !== SLOT.skin &&
+      ((L[p] < 38 && C[p] < 26) || (C[p] > 20 && hueDist(H[p], 60) > 45 && L[p] < 70));
+    // seeds: dark/iris pixels with skin directly below — the lower lid sits on the cheek,
+    // which the hairline never does
+    for (let y = Math.max(0, fy0); y < fy1; y++)
       for (let x = fx0; x < fx1; x++) {
         const p = y * w + x;
-        if (!opaque[p] || slot[p] === SLOT.skin) continue;
-        const dark = L[p] < 36 && C[p] < 24;
-        const iris = C[p] > 20 && hueDist(H[p], 60) > 45 && L[p] < 70;
-        if (dark || iris) cand[p] = 1;
+        if (!isDarkOrIris(p) || y + 1 >= h) continue;
+        if (slot[p + w] === SLOT.skin) cand[p] = 1;
       }
+    // grow each seed up to two rows (tall anime eyes) through dark pixels flanked by skin
+    for (let pass = 0; pass < 2; pass++)
+      for (let y = fy1 - 1; y > Math.max(0, fy0 - 2); y--)
+        for (let x = fx0; x < fx1; x++) {
+          const p = y * w + x;
+          if (!cand[p]) continue;
+          const q = p - w;
+          if (q < 0 || cand[q] || !isDarkOrIris(q)) continue;
+          const flank =
+            (x > 0 && slot[q - 1] === SLOT.skin) || (x < w - 1 && slot[q + 1] === SLOT.skin);
+          if (flank) cand[q] = 1;
+        }
     const { comps } = components(cand, w, h, true);
     const scored = [];
     for (const comp of comps) {
@@ -478,7 +507,8 @@ export function segment(native, recipe = {}) {
           y = (p / w) | 0;
         top = Math.min(top, y);
         for (let d = 1; d <= 2; d++) if (y + d < h && slot[(y + d) * w + x] === SLOT.skin) below++;
-        if ((x > 0 && slot[p - 1] === SLOT.skin) || (x < w - 1 && slot[p + 1] === SLOT.skin)) side++;
+        if ((x > 0 && slot[p - 1] === SLOT.skin) || (x < w - 1 && slot[p + 1] === SLOT.skin))
+          side++;
       }
       if (!below || !side) continue;
       if (top > fy0 + fh * 0.75) continue; // mouth / chin shadow

@@ -22,7 +22,15 @@ export function mulberry32(seed) {
   };
 }
 
-export const HAIRS = ['hairBrown', 'hairBlack', 'hairChestnut', 'hairAuburn', 'hairAsh', 'hairSilver', 'hairSlate'];
+export const HAIRS = [
+  'hairBrown',
+  'hairBlack',
+  'hairChestnut',
+  'hairAuburn',
+  'hairAsh',
+  'hairSilver',
+  'hairSlate',
+];
 export const SKINS = ['skinFair', 'skinWarm', 'skinOlive', 'skinTan', 'skinDeep'];
 export const BANDS = [null, null, 'rustCloth', 'oliveCloth', 'ashCloth', 'plumCloth'];
 
@@ -49,10 +57,11 @@ export function addHeadband(sp) {
   // topmost skin pixel of the face (skin whose row is within the hair's vertical span)
   let faceTop = -1;
   for (let y = hair.y; y < hair.y + hair.height + 2 && faceTop < 0; y++)
-    for (let x = hair.x; x < hair.x + hair.width; x++) if (sp.at(x, y) === SLOT.skin) {
-      faceTop = y;
-      break;
-    }
+    for (let x = hair.x; x < hair.x + hair.width; x++)
+      if (sp.at(x, y) === SLOT.skin) {
+        faceTop = y;
+        break;
+      }
   if (faceTop < 0) return sp;
   const out = sp.clone();
   const y = faceTop - 1;
