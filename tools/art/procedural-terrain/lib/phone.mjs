@@ -17,7 +17,16 @@ export const PHONE_CELL = 34;
 export const PHONE_COLS = 16;
 export const PHONE_ROWS = 10;
 
-const PLAYER_SPRITES = ['lordedric', 'sera', 'cavalier', 'archer', 'knight', 'cleric', 'mage', 'myrmidon'];
+const PLAYER_SPRITES = [
+  'lordedric',
+  'sera',
+  'cavalier',
+  'archer',
+  'knight',
+  'cleric',
+  'mage',
+  'myrmidon',
+];
 
 const spriteCache = new Map();
 async function loadSprite(path, size) {
@@ -35,7 +44,9 @@ async function loadSprite(path, size) {
   const scaled = resampleArea(pre, w, h, W, H);
   for (let i = 0; i < W * H; i++) {
     const a = scaled[i * 4 + 3] / 255;
-    if (a > 0) for (let c = 0; c < 3; c++) scaled[i * 4 + c] = Math.min(255, Math.round(scaled[i * 4 + c] / a));
+    if (a > 0)
+      for (let c = 0; c < 3; c++)
+        scaled[i * 4 + c] = Math.min(255, Math.round(scaled[i * 4 + c] / a));
   }
   const out = { data: scaled, w: W, h: H };
   spriteCache.set(k, out);
@@ -50,9 +61,24 @@ function enemySpritePath(className) {
 
 /** Pick the units staged in the phone crop from the generated spawns. */
 export function stageUnits(map, c0, r0) {
-  const inCrop = (u) => u.col >= c0 && u.col < c0 + PHONE_COLS && u.row >= r0 && u.row < r0 + PHONE_ROWS;
-  const players = map.playerSpawns.filter(inCrop).slice(0, 4).map((u, k) => ({ ...u, faction: 'player', sprite: join(ROOT, 'assets/sprites/characters', `${PLAYER_SPRITES[k % PLAYER_SPRITES.length]}.png`) }));
-  const enemies = map.enemySpawns.filter(inCrop).slice(0, 5).map((u) => ({ ...u, faction: 'enemy', sprite: enemySpritePath(u.className) }));
+  const inCrop = (u) =>
+    u.col >= c0 && u.col < c0 + PHONE_COLS && u.row >= r0 && u.row < r0 + PHONE_ROWS;
+  const players = map.playerSpawns
+    .filter(inCrop)
+    .slice(0, 4)
+    .map((u, k) => ({
+      ...u,
+      faction: 'player',
+      sprite: join(
+        ROOT,
+        'assets/sprites/characters',
+        `${PLAYER_SPRITES[k % PLAYER_SPRITES.length]}.png`,
+      ),
+    }));
+  const enemies = map.enemySpawns
+    .filter(inCrop)
+    .slice(0, 5)
+    .map((u) => ({ ...u, faction: 'enemy', sprite: enemySpritePath(u.className) }));
   return [...players, ...enemies];
 }
 
@@ -92,8 +118,26 @@ export async function phoneView(rgba48, cols, rows, [c0, r0], units, { mode = 'a
     const bx = Math.round(cx - bw / 2),
       by = Math.round(cy + 12 * k - bh / 2);
     const col = u.faction === 'player' ? [0x33, 0x66, 0xcc] : [0xcc, 0x33, 0x33];
-    fillRect(img, W, H, bx, by, bw, bh, col.map((v) => Math.round(v * 0.3)));
-    fillRect(img, W, H, bx, by, Math.round(bw * 0.8), bh, u.faction === 'enemy' ? [0xcc, 0x44, 0x44] : [0x44, 0xcc, 0x44]);
+    fillRect(
+      img,
+      W,
+      H,
+      bx,
+      by,
+      bw,
+      bh,
+      col.map((v) => Math.round(v * 0.3)),
+    );
+    fillRect(
+      img,
+      W,
+      H,
+      bx,
+      by,
+      Math.round(bw * 0.8),
+      bh,
+      u.faction === 'enemy' ? [0xcc, 0x44, 0x44] : [0x44, 0xcc, 0x44],
+    );
   }
   return { data: img, w: W, h: H, origin: [c0, r0] };
 }

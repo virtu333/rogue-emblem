@@ -75,11 +75,21 @@ export class ShimContext {
     this.imageSmoothingEnabled = true;
   }
   save() {
-    this.stack.push({ m: this.m, clipBox: this.clipBox, fillStyle: this.fillStyle, gco: this.globalCompositeOperation });
+    this.stack.push({
+      m: this.m,
+      clipBox: this.clipBox,
+      fillStyle: this.fillStyle,
+      gco: this.globalCompositeOperation,
+    });
   }
   restore() {
     const s = this.stack.pop();
-    Object.assign(this, { m: s.m, clipBox: s.clipBox, fillStyle: s.fillStyle, globalCompositeOperation: s.gco });
+    Object.assign(this, {
+      m: s.m,
+      clipBox: s.clipBox,
+      fillStyle: s.fillStyle,
+      globalCompositeOperation: s.gco,
+    });
   }
   translate(x, y) {
     this.m = mul(this.m, [1, 0, 0, 1, x, y]);
@@ -119,9 +129,17 @@ export class ShimContext {
     ];
     const [cx0, cy0, cx1, cy1] = this.clipBox;
     const X0 = Math.max(Math.floor(Math.min(...corners.map((c) => c[0]))), Math.ceil(cx0 - 0.5), 0);
-    const X1 = Math.min(Math.ceil(Math.max(...corners.map((c) => c[0]))), Math.floor(cx1 + 0.5), this.width);
+    const X1 = Math.min(
+      Math.ceil(Math.max(...corners.map((c) => c[0]))),
+      Math.floor(cx1 + 0.5),
+      this.width,
+    );
     const Y0 = Math.max(Math.floor(Math.min(...corners.map((c) => c[1]))), Math.ceil(cy0 - 0.5), 0);
-    const Y1 = Math.min(Math.ceil(Math.max(...corners.map((c) => c[1]))), Math.floor(cy1 + 0.5), this.height);
+    const Y1 = Math.min(
+      Math.ceil(Math.max(...corners.map((c) => c[1]))),
+      Math.floor(cy1 + 0.5),
+      this.height,
+    );
     for (let Y = Y0; Y < Y1; Y++)
       for (let X = X0; X < X1; X++) {
         if (X + 0.5 < cx0 || X + 0.5 > cx1 || Y + 0.5 < cy0 || Y + 0.5 > cy1) continue;
@@ -221,7 +239,8 @@ export function renderWeathered(names, biome, art) {
       ctx.fillRect(0, 0, S, S);
       const drawn = drawWeatheredTile(ctx, art, at, c, r, { biome });
       if (drawn && at(c, r) === 'Plain') softenGrassTexture(ctx, S);
-      for (let y = 0; y < S; y++) ctx.data.copy(out, ((r * S + y) * W + c * S) * 4, y * S * 4, (y + 1) * S * 4);
+      for (let y = 0; y < S; y++)
+        ctx.data.copy(out, ((r * S + y) * W + c * S) * 4, y * S * 4, (y + 1) * S * 4);
     }
   return { data: out, w: W, h: H };
 }

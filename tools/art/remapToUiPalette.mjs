@@ -27,10 +27,52 @@ const TEXT_FAMILIES = {
   muted: ['#aaaaaa', '#888888', '#bbbbbb', '#a0a0b8', '#aaaacc', '#aabbcc', '#999999'],
   lineStrong: ['#777777', '#666666', '#555555', '#444444'],
   accentText: ['#ffdd44', '#ffdd88', '#ffdd66', '#ffd580', '#ffcc44', '#ffcc66', '#ffff00'],
-  warn: ['#ff8844', '#ffaa55', '#ffaa66', '#ffbb77', '#ffcc88', '#ffb347', '#ffaa44', '#ff8800', '#cc8844'],
-  bad: ['#ff8888', '#ff6666', '#ff4444', '#cc5555', '#cc3333', '#aa4444', '#cc6666', '#ff6a6a', '#cc8888'],
-  good: ['#88ff88', '#66ff66', '#44ff44', '#44ff88', '#a6ffb0', '#aaffaa', '#88cc44', '#ccffcc', '#d8ffe1', '#cbffd5', '#88ffcc'],
-  info: ['#88ccff', '#aaddff', '#88bbff', '#88ddff', '#9ed8ff', '#aaccff', '#a8cfff', '#88ffff', '#44ccbb'],
+  warn: [
+    '#ff8844',
+    '#ffaa55',
+    '#ffaa66',
+    '#ffbb77',
+    '#ffcc88',
+    '#ffb347',
+    '#ffaa44',
+    '#ff8800',
+    '#cc8844',
+  ],
+  bad: [
+    '#ff8888',
+    '#ff6666',
+    '#ff4444',
+    '#cc5555',
+    '#cc3333',
+    '#aa4444',
+    '#cc6666',
+    '#ff6a6a',
+    '#cc8888',
+  ],
+  good: [
+    '#88ff88',
+    '#66ff66',
+    '#44ff44',
+    '#44ff88',
+    '#a6ffb0',
+    '#aaffaa',
+    '#88cc44',
+    '#ccffcc',
+    '#d8ffe1',
+    '#cbffd5',
+    '#88ffcc',
+  ],
+  info: [
+    '#88ccff',
+    '#aaddff',
+    '#88bbff',
+    '#88ddff',
+    '#9ed8ff',
+    '#aaccff',
+    '#a8cfff',
+    '#88ffff',
+    '#44ccbb',
+  ],
   rarityEpic: ['#cc88ff', '#ddaaff', '#cc99ff', '#cc66ff', '#cc66cc', '#aa66dd'],
 };
 // Text-style backgroundColor strings are surfaces, not ink.
@@ -41,7 +83,10 @@ const BACKGROUND_FAMILIES = {
   dangerBg: ['#330000', '#332222', '#442222'],
 };
 const FILL_FAMILIES = {
-  line: [0x666666, 0x555555, 0x444444, 0x66aacc, 0x4466aa, 0x335566, 0x224488, 0x666688, 0x333355, 0x8888cc],
+  line: [
+    0x666666, 0x555555, 0x444444, 0x66aacc, 0x4466aa, 0x335566, 0x224488, 0x666688, 0x333355,
+    0x8888cc,
+  ],
   lineStrong: [0x777777, 0x888888, 0x9c8b6b, 0xcccccc, 0x66ccff],
   panel: [0x111122, 0x222222, 0x222233, 0x121a2a, 0x222244, 0x1a1a2e],
   sunken: [0x000622, 0x0a0a14, 0x111111],
@@ -113,10 +158,15 @@ function rewriteSource(src, { literalValues }) {
 function ensureImport(src, file, names) {
   const spec = relative(dirname(file), join(ROOT, 'src/utils/uiStyles.js')).split('\\').join('/');
   const path = spec.startsWith('.') ? spec : `./${spec}`;
-  const existing = new RegExp(`import\\s*\\{([^}]*)\\}\\s*from\\s*['"]${path.replace(/[.]/g, '\\.')}['"];?`);
+  const existing = new RegExp(
+    `import\\s*\\{([^}]*)\\}\\s*from\\s*['"]${path.replace(/[.]/g, '\\.')}['"];?`,
+  );
   const m = src.match(existing);
   if (m) {
-    const have = m[1].split(',').map((s) => s.trim()).filter(Boolean);
+    const have = m[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const merged = [...new Set([...have, ...names])];
     return src.replace(existing, `import { ${merged.join(', ')} } from '${path}';`);
   }
@@ -125,7 +175,9 @@ function ensureImport(src, file, names) {
   let mm;
   while ((mm = importRe.exec(src))) lastEnd = mm.index + mm[0].length;
   const line = `import { ${names.join(', ')} } from '${path}';`;
-  return lastEnd >= 0 ? `${src.slice(0, lastEnd)}\n${line}${src.slice(lastEnd)}` : `${line}\n${src}`;
+  return lastEnd >= 0
+    ? `${src.slice(0, lastEnd)}\n${line}${src.slice(lastEnd)}`
+    : `${line}\n${src}`;
 }
 
 if (MODE === 'tests') {

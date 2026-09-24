@@ -23,7 +23,8 @@ const BRIEF = {
 // toward blue/violet, highlights toward warm yellow.
 const ADDED = {
   // Grass and canopy. Darks lean blue-green, lights lean ochre.
-  foliage: '#141f22 #1b2b2a #243a30 #2f4832 #3b5535 #4a6238 #58703c #6a7f43 #82904d #9ea05b #bdb570',
+  foliage:
+    '#141f22 #1b2b2a #243a30 #2f4832 #3b5535 #4a6238 #58703c #6a7f43 #82904d #9ea05b #bdb570',
   // Meadow grass: muted olive so actors, not the ground, carry saturation.
   meadow: '#2f3a2e #3d4933 #4b5739 #5a653f #6a7346 #7c824e #92935a #aba66a',
   // Rock: violet shadows -> mauve-brown -> warm tan lights (dusk key light).

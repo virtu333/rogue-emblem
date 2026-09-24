@@ -31,7 +31,7 @@ const CODE = {
 };
 
 function layoutNames(rows, fill) {
-  return rows.map((row) => [...row].map((ch) => (ch === 'X' ? fill : CODE[ch] ?? 'Plain')));
+  return rows.map((row) => [...row].map((ch) => (ch === 'X' ? fill : (CODE[ch] ?? 'Plain'))));
 }
 
 const SURFACE = ['.XXX...', 'XXXXX.X', '.XXX...'];
@@ -68,13 +68,41 @@ const PANELS = [
 ];
 
 const TRANSITIONS = [
-  ['Shoreline autotile: convex/concave corners, island, bank face + foam', 'grassland', ['..........', '..~~~~~...', '.~~~~~~~..', '.~~~..~~~.', '..~~~~~~..', '....~~....']],
-  ['River bend, bridges both ways, sand bank', 'grassland', ['...~~.....', '...~~.....', '.:.==.FF..', '::.~~~~=~~', '...~~~~=~~', '.FF.....F.']],
-  ['Castle room: wall faces, parapets, contact shadows, pillars, throne', 'castle', ['##########', '#________#', '#_I__T_I_#', '#________#', '####__####', '__I_____f_']],
-  ['Forest canopy cluster + mountain range + village', 'grassland', ['..FFF..MM.', '.FFFFF.MMM', '.FFF...MM.', '..F..V....', '......f...', '::....FF..']],
-  ['Swamp / bog / acid blending', 'swamp', ['..ssss....', '.sssAss.bb', '.ssAAsbbab', '..sss.bbb.', '.F....b...', 'FF........']],
-  ['Lava field edge on ash (emissive spill)', 'volcano', ['...LLL..M.', '..LLLLL.MM', '.LLL.LLL..', '..LLLLL...', '...LL..f..', '.M........']],
-  ['Ice sheet on snow, pines, fort', 'tundra', ['..iii.....', '.iiiii.FF.', '.ii.iii.FF', '..iiii....', '....f..M..', '.FF.......']],
+  [
+    'Shoreline autotile: convex/concave corners, island, bank face + foam',
+    'grassland',
+    ['..........', '..~~~~~...', '.~~~~~~~..', '.~~~..~~~.', '..~~~~~~..', '....~~....'],
+  ],
+  [
+    'River bend, bridges both ways, sand bank',
+    'grassland',
+    ['...~~.....', '...~~.....', '.:.==.FF..', '::.~~~~=~~', '...~~~~=~~', '.FF.....F.'],
+  ],
+  [
+    'Castle room: wall faces, parapets, contact shadows, pillars, throne',
+    'castle',
+    ['##########', '#________#', '#_I__T_I_#', '#________#', '####__####', '__I_____f_'],
+  ],
+  [
+    'Forest canopy cluster + mountain range + village',
+    'grassland',
+    ['..FFF..MM.', '.FFFFF.MMM', '.FFF...MM.', '..F..V....', '......f...', '::....FF..'],
+  ],
+  [
+    'Swamp / bog / acid blending',
+    'swamp',
+    ['..ssss....', '.sssAss.bb', '.ssAAsbbab', '..sss.bbb.', '.F....b...', 'FF........'],
+  ],
+  [
+    'Lava field edge on ash (emissive spill)',
+    'volcano',
+    ['...LLL..M.', '..LLLLL.MM', '.LLL.LLL..', '..LLLLL...', '...LL..f..', '.M........'],
+  ],
+  [
+    'Ice sheet on snow, pines, fort',
+    'tundra',
+    ['..iii.....', '.iiiii.FF.', '.ii.iii.FF', '..iiii....', '....f..M..', '.FF.......'],
+  ],
 ];
 
 function renderLayout(names, biome, seed) {
@@ -105,7 +133,13 @@ export async function buildSheet(path, seed = 4242) {
     const img = renderLayout(layoutNames(layout, terrain), biome, seed + k * 17);
     const x = pad + col * (img.w + pad);
     comps.push({ input: await label(img.w, title), left: x, top: y });
-    comps.push({ input: await sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } }).png().toBuffer(), left: x, top: y + lab });
+    comps.push({
+      input: await sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } })
+        .png()
+        .toBuffer(),
+      left: x,
+      top: y + lab,
+    });
     rowH = Math.max(rowH, img.h + lab);
     maxW = Math.max(maxW, x + img.w + pad);
     if (++col === perRow) {
@@ -124,7 +158,13 @@ export async function buildSheet(path, seed = 4242) {
     const img = renderLayout(layoutNames(layout, 'Plain'), biome, seed + 900 + k * 31);
     const x = pad + col * (img.w + pad);
     comps.push({ input: await label(img.w, title, 12), left: x, top: y });
-    comps.push({ input: await sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } }).png().toBuffer(), left: x, top: y + lab });
+    comps.push({
+      input: await sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } })
+        .png()
+        .toBuffer(),
+      left: x,
+      top: y + lab,
+    });
     rowH = Math.max(rowH, img.h + lab);
     maxW = Math.max(maxW, x + img.w + pad);
     if (++col === 2) {

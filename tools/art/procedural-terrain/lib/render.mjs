@@ -87,7 +87,15 @@ const AMP = {
 };
 // Noise period per material: liquids get long, gentle curves; soft ground
 // gets a shorter, more organic wobble.
-const PERIOD = { [G.WATER]: 22, [G.ICE]: 12, [G.SWAMP]: 13, [G.ASWAMP]: 13, [G.BOG]: 12, [G.ABOG]: 12, [G.LAVA]: 13 };
+const PERIOD = {
+  [G.WATER]: 22,
+  [G.ICE]: 12,
+  [G.SWAMP]: 13,
+  [G.ASWAMP]: 13,
+  [G.BOG]: 12,
+  [G.ABOG]: 12,
+  [G.LAVA]: 13,
+};
 const BLUR = 8; // box radius in art px: corner rounding + wobble range
 
 export class TerrainContext {
@@ -264,12 +272,20 @@ function wearAt(M, x, y) {
 
 function paintOpenGround(M, x, y, s, i) {
   const [sx, sy] = s.stretch || [1, 1];
-  const n = fbm(x * sx, y * sy, 40, M.seed + 11, 2) + (valueNoise(x, y, 3, M.seed + 13) - 0.5) * 0.07;
+  const n =
+    fbm(x * sx, y * sy, 40, M.seed + 11, 2) + (valueNoise(x, y, 3, M.seed + 13) - 0.5) * 0.07;
   let t = n < 0.3 ? s.dark : n > 0.74 ? s.light : s.base;
   const wear = wearAt(M, x, y);
   if (wear > 0) {
     const k = wear + (valueNoise(x, y, 5, M.seed + 12) - 0.5) * 0.5;
-    const dirt = M.biome === 'tundra' ? [R('snow', 1), R('snow', 2)] : M.biome === 'volcano' ? [R('ash', 2), R('ash', 3)] : M.biome === 'swamp' ? [R('earth', 2), R('earth', 3)] : [R('soil', 3), R('soil', 4)];
+    const dirt =
+      M.biome === 'tundra'
+        ? [R('snow', 1), R('snow', 2)]
+        : M.biome === 'volcano'
+          ? [R('ash', 2), R('ash', 3)]
+          : M.biome === 'swamp'
+            ? [R('earth', 2), R('earth', 3)]
+            : [R('soil', 3), R('soil', 4)];
     if (k > 0.5) t = dirt[1];
     else if (k > 0.4) t = dirt[0];
   }
@@ -283,8 +299,10 @@ function paintWater(M, x, y, i) {
   const deep = fbm(x, y, 40, M.seed + 24, 2);
   let t = R('steel', 2);
   if (d <= 2.5) t = R('steel', 3);
-  else if (M.dAny(i) >= 13 && deep < 0.5) t = R('steel', 1); // deep channel, only mid-river
-  else if (sheen > 0.66 && d > 4 && y % 3 === 0 && valueNoise(x, y, 3, M.seed + 25) > 0.35) t = R('steel', 3);
+  else if (M.dAny(i) >= 13 && deep < 0.5)
+    t = R('steel', 1); // deep channel, only mid-river
+  else if (sheen > 0.66 && d > 4 && y % 3 === 0 && valueNoise(x, y, 3, M.seed + 25) > 0.35)
+    t = R('steel', 3);
   const u = M.dU[i],
     l = M.dL[i],
     dd = M.dD[i],
@@ -359,7 +377,8 @@ function paintLava(M, x, y, i) {
   if (worley(x + 1, y + 1, S, M.seed + 51).id !== w.id) t = plate[0];
   const live = fbm(x, y, 20, M.seed + 52, 2);
   const heat = Math.min(1, (inner - 1) / 3) * Math.max(0, (live - 0.38) * 2.6);
-  if (edge < 0.85 && heat > 0.15) t = heat > 0.9 ? R('ember', 4) : heat > 0.55 ? R('ember', 3) : R('blood', 3);
+  if (edge < 0.85 && heat > 0.15)
+    t = heat > 0.9 ? R('ember', 4) : heat > 0.55 ? R('ember', 3) : R('blood', 3);
   else if (edge < 1.9 && heat > 0.35) t = R('ember', 1);
   // a few molten vents where seams meet
   const vent = fbm(x, y, 6, M.seed + 53, 1);
@@ -454,7 +473,12 @@ function paintFloor(M, x, y, i, F) {
   // Edge of the paving next to open ground: a dark kerb line.
   const W = M.W;
   const nonFloor = (k) => k !== G.FLOOR && k !== G.WALL;
-  if ((x > 0 && nonFloor(M.mat[i - 1])) || (y > 0 && nonFloor(M.mat[i - W])) || (x < W - 1 && nonFloor(M.mat[i + 1])) || (y < M.H - 1 && nonFloor(M.mat[i + W])))
+  if (
+    (x > 0 && nonFloor(M.mat[i - 1])) ||
+    (y > 0 && nonFloor(M.mat[i - W])) ||
+    (x < W - 1 && nonFloor(M.mat[i + 1])) ||
+    (y < M.H - 1 && nonFloor(M.mat[i + W]))
+  )
     t = mortarLo;
   return t;
 }
@@ -636,10 +660,17 @@ function paintDecals(M) {
       m = M.mat[i];
     if (!openGround(m) || M.dAny(i) < 3 || p.r > 0.62) continue;
     const s = m === G.FOREST ? style.forestFloor : m === G.ROCK ? style.rockGround : style.ground;
-    const rx = 2 + (p.r * 5) % 2,
+    const rx = 2 + ((p.r * 5) % 2),
       w = rx * 2 + 1;
     const rows = p.r < 0.3 ? ['.hhh.', 'hbbbd', '.ddd.'] : ['.hh.', 'hbbd', '.dd.'];
-    stampIf(M, p.x - (w >> 1), p.y - 1, rows, (ch, cur) => (ch === 'h' ? up(cur, 1) : ch === 'd' ? down(cur, 1) : cur), (mm, ii) => mm === m && M.dAny(ii) >= 2);
+    stampIf(
+      M,
+      p.x - (w >> 1),
+      p.y - 1,
+      rows,
+      (ch, cur) => (ch === 'h' ? up(cur, 1) : ch === 'd' ? down(cur, 1) : cur),
+      (mm, ii) => mm === m && M.dAny(ii) >= 2,
+    );
   }
   // Grass tufts.
   if (style.tufts) {
@@ -672,11 +703,30 @@ function paintDecals(M) {
       m = M.mat[i];
     if (!(openGround(m) || m === G.SAND) || M.dAny(i) < 3) continue;
     if (p.r < (m === G.ROCK ? 0.4 : 0.05)) {
-      const stone = M.biome === 'volcano' ? [R('ash', 5), R('ash', 4)] : M.biome === 'tundra' ? [R('stone', 4), R('stone', 3)] : [R('ink', 8), R('ink', 7)];
-      stampIf(M, p.x, p.y, p.r < 0.06 ? ['ab.', 'bbd'] : ['a.', 'bd'], (ch, cur) => (ch === 'a' ? stone[0] : ch === 'b' ? stone[1] : down(cur, 1)), (mm) => mm === m);
+      const stone =
+        M.biome === 'volcano'
+          ? [R('ash', 5), R('ash', 4)]
+          : M.biome === 'tundra'
+            ? [R('stone', 4), R('stone', 3)]
+            : [R('ink', 8), R('ink', 7)];
+      stampIf(
+        M,
+        p.x,
+        p.y,
+        p.r < 0.06 ? ['ab.', 'bbd'] : ['a.', 'bd'],
+        (ch, cur) => (ch === 'a' ? stone[0] : ch === 'b' ? stone[1] : down(cur, 1)),
+        (mm) => mm === m,
+      );
     } else if (style.flowers && m === G.GRASS && p.r > 0.965) {
       const col = style.flowers[hash2(p.gx, p.gy, seed + 222) % style.flowers.length];
-      stampIf(M, p.x, p.y, ['f.f', '.f.'], () => col, (mm) => mm === m);
+      stampIf(
+        M,
+        p.x,
+        p.y,
+        ['f.f', '.f.'],
+        () => col,
+        (mm) => mm === m,
+      );
     }
   }
   // Water ripples: short horizontal strokes, one ramp step lighter.
@@ -685,7 +735,8 @@ function paintDecals(M) {
     if (M.mat[i] !== G.WATER || M.dAny(i) < 4 || M.dU[i] < 6 || p.r > 0.5) continue;
     const len = 3 + (((p.r * 20) | 0) % 4);
     for (let k = 0; k < len; k++) {
-      if (p.x + k < W && M.mat[i + k] === G.WATER && M.dAny(i + k) >= 3) M.idx[i + k] = up(M.idx[i + k], 1);
+      if (p.x + k < W && M.mat[i + k] === G.WATER && M.dAny(i + k) >= 3)
+        M.idx[i + k] = up(M.idx[i + k], 1);
     }
   }
   // Swamp: lily pads, reeds at the edges; bog: puddles; acid: bubbles.
@@ -693,21 +744,37 @@ function paintDecals(M) {
     const i = p.y * W + p.x,
       m = M.mat[i];
     if (m === G.SWAMP && M.dAny(i) >= 3 && p.r < 0.2) {
-      stampIf(M, p.x - 1, p.y - 1, ['.hh.', 'hbb.', '.bbd'], (ch, cur) => (ch === 'h' ? R('foliage', 6) : ch === 'b' ? R('foliage', 5) : R('foliage', 2)), (mm) => mm === G.SWAMP);
+      stampIf(
+        M,
+        p.x - 1,
+        p.y - 1,
+        ['.hh.', 'hbb.', '.bbd'],
+        (ch, cur) =>
+          ch === 'h' ? R('foliage', 6) : ch === 'b' ? R('foliage', 5) : R('foliage', 2),
+        (mm) => mm === G.SWAMP,
+      );
     } else if ((m === G.SWAMP || m === G.ASWAMP) && M.dAny(i) <= 4 && p.r < 0.75) {
       // reed cluster
-      const n = 2 + (p.r * 7) % 3;
+      const n = 2 + ((p.r * 7) % 3);
       for (let k = 0; k < n; k++) {
         const X = p.x + k * 2 - n,
           h = 3 + (hash2(p.x + k, p.y, seed + 242) % 3);
         for (let j = 0; j < h; j++) {
           const Y = p.y - j;
           if (X < 0 || Y < 0 || X >= W) continue;
-          M.idx[Y * W + X] = j === h - 1 ? R('earth', 5) : j === 0 ? R('foliage', 2) : R('earth', 4);
+          M.idx[Y * W + X] =
+            j === h - 1 ? R('earth', 5) : j === 0 ? R('foliage', 2) : R('earth', 4);
         }
       }
     } else if (m === G.ASWAMP && p.r < 0.4 && M.dAny(i) >= 2) {
-      stampIf(M, p.x - 1, p.y - 1, p.r < 0.15 ? ['hh', 'hd'] : ['h'], (ch) => (ch === 'h' ? R('acid', 4) : R('acid', 2)), (mm) => mm === G.ASWAMP);
+      stampIf(
+        M,
+        p.x - 1,
+        p.y - 1,
+        p.r < 0.15 ? ['hh', 'hd'] : ['h'],
+        (ch) => (ch === 'h' ? R('acid', 4) : R('acid', 2)),
+        (mm) => mm === G.ASWAMP,
+      );
     } else if ((m === G.BOG || m === G.ABOG) && M.dAny(i) >= 3 && p.r < 0.3) {
       const acid = m === G.ABOG && p.r < 0.2;
       const rows = p.r < 0.2 ? ['.ddd.', 'dwwwl', '.lll.'] : ['.dd.', 'dwwl', '.ll.'];
@@ -716,7 +783,18 @@ function paintDecals(M) {
         p.x - 2,
         p.y - 1,
         rows,
-        (ch, cur) => (ch === 'd' ? (acid ? R('acid', 1) : R('verdigris', 0)) : ch === 'w' ? (acid ? R('acid', 3) : R('verdigris', 1)) : acid ? R('acid', 2) : up(cur, 1)),
+        (ch, cur) =>
+          ch === 'd'
+            ? acid
+              ? R('acid', 1)
+              : R('verdigris', 0)
+            : ch === 'w'
+              ? acid
+                ? R('acid', 3)
+                : R('verdigris', 1)
+              : acid
+                ? R('acid', 2)
+                : up(cur, 1),
         (mm) => mm === m,
       );
     }
@@ -737,7 +815,8 @@ function wallShadows(M) {
           for (let k = 0; k < CELL; k++) {
             const x = c * CELL + k + Math.floor(j / 2),
               y = (r + 1) * CELL + j;
-            if (x < W && y < H) M.shadow[y * W + x] = Math.max(M.shadow[y * W + x], j === 0 ? 2 : 1);
+            if (x < W && y < H)
+              M.shadow[y * W + x] = Math.max(M.shadow[y * W + x], j === 0 ? 2 : 1);
           }
       }
       if (c + 1 < M.cols && !isWall(c + 1, r)) {
@@ -746,7 +825,8 @@ function wallShadows(M) {
             const x = (c + 1) * CELL + k,
               y = r * CELL + v + 3 + Math.floor(k / 2);
             if (k > 1 + v * 0.8) continue; // slanted leading edge
-            if (x < W && y < H && M.mat[y * W + x] !== G.WALL) M.shadow[y * W + x] = Math.max(M.shadow[y * W + x], 1);
+            if (x < W && y < H && M.mat[y * W + x] !== G.WALL)
+              M.shadow[y * W + x] = Math.max(M.shadow[y * W + x], 1);
           }
       }
     }

@@ -36,7 +36,11 @@ mkdirSync(OUT, { recursive: true });
 
 export function renderMapRgba48(names, biome, seed) {
   const r = renderTerrain(names, { biome, seed });
-  return { data: upscaleNearest(indexToRgba(r.idx, r.w, r.h), r.w, r.h, 2), w: r.w * 2, h: r.h * 2 };
+  return {
+    data: upscaleNearest(indexToRgba(r.idx, r.w, r.h), r.w, r.h, 2),
+    w: r.w * 2,
+    h: r.h * 2,
+  };
 }
 
 async function labelBar(width, text) {
@@ -48,7 +52,10 @@ async function sideBySide(path, left, right, labels) {
   const gap = 8,
     W = left.w + right.w + gap,
     H = Math.max(left.h, right.h) + 22;
-  const toPng = (img) => sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } }).png().toBuffer();
+  const toPng = (img) =>
+    sharp(img.data, { raw: { width: img.w, height: img.h, channels: 4 } })
+      .png()
+      .toBuffer();
   await sharp({ create: { width: W, height: H, channels: 4, background: '#16131e' } })
     .composite([
       { input: await labelBar(left.w, labels[0]), left: 0, top: 0 },
@@ -70,7 +77,9 @@ for (const spec of STUDY_MAPS.filter((s) => !only || only.includes(s.key))) {
   const ms = performance.now() - t0;
   await writePng(join(OUT, `${spec.key}_procedural.png`), proc.data, proc.w, proc.h);
   const units = stageUnits(map, ...spec.crop);
-  const phone = await phoneView(proc.data, map.cols, map.rows, spec.crop, units, { mode: phoneMode });
+  const phone = await phoneView(proc.data, map.cols, map.rows, spec.crop, units, {
+    mode: phoneMode,
+  });
   await writePng(join(OUT, `${spec.key}_phone.png`), phone.data, phone.w, phone.h);
   let line = `${spec.key.padEnd(11)} ${map.templateId} ${map.cols}x${map.rows} biome=${map.biome} render=${ms.toFixed(0)}ms`;
   if (art) {

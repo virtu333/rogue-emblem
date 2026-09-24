@@ -169,7 +169,8 @@ function pine(M, x, baseY, height, seed) {
         let tone = dx < -half / 2 ? 6 : dx < 0 ? 5 : dx === 0 ? 4 : dx <= half / 2 ? 3 : 2;
         if (y === by) tone = Math.min(tone, 2);
         let c = leaf[tone];
-        if (snow && y - ay <= 1 + (dx < 0 ? 1 : 0) && Math.abs(dx) <= half) c = dx <= 0 ? R('snow', 6) : R('snow', 4);
+        if (snow && y - ay <= 1 + (dx < 0 ? 1 : 0) && Math.abs(dx) <= half)
+          c = dx <= 0 ? R('snow', 6) : R('snow', 4);
         else if (snow && dx === -half && k > 0.3) c = R('snow', 5);
         s.set(x + dx, y, c);
       }
@@ -190,7 +191,8 @@ function deadTree(M, x, baseY, height, seed) {
     const y0 = baseY - height + 2 + b * 3,
       dir = b % 2 ? 1 : -1,
       len = 3 + (hash2(x, b, seed) % 3);
-    for (let k = 1; k <= len; k++) s.set(x + (dir > 0 ? 1 : 0) + dir * k, y0 - Math.floor(k / 2), k === len ? L[3] : L[4]);
+    for (let k = 1; k <= len; k++)
+      s.set(x + (dir > 0 ? 1 : 0) + dir * k, y0 - Math.floor(k / 2), k === len ? L[3] : L[4]);
   }
   s.outline({ dark: L[0] });
   return s;
@@ -206,9 +208,11 @@ function buildForest(M, out) {
   };
   const kind = M.style.tree;
   const make = (x, y, rr, gx, gy) => {
-    if (kind === 'pine') return pine(M, x, y, 13 + Math.round(rr * 30) % 5, seed + gx * 7 + gy);
+    if (kind === 'pine') return pine(M, x, y, 13 + (Math.round(rr * 30) % 5), seed + gx * 7 + gy);
     if (kind === 'dead') return deadTree(M, x, y, 10 + (hash2(gx, gy, seed) % 4), seed);
-    return broadleaf(M, x, y, 6.5 + rr * 2.5, seed + gx * 131 + gy * 17, { strands: kind === 'willow' });
+    return broadleaf(M, x, y, 6.5 + rr * 2.5, seed + gx * 131 + gy * 17, {
+      strands: kind === 'willow',
+    });
   };
   for (const p of jitteredPoints(0, 0, W, H, 9, seed + 400, 0.95)) {
     const c = (p.x / CELL) | 0,
@@ -225,7 +229,8 @@ function buildForest(M, out) {
   }
   for (let r = 0; r < M.rows; r++)
     for (let c = 0; c < M.cols; c++)
-      if (isF(c, r) && !count.get(`${c},${r}`)) add(c, r, make(c * CELL + 11, r * CELL + 19, 0.6, c, r));
+      if (isF(c, r) && !count.get(`${c},${r}`))
+        add(c, r, make(c * CELL + 11, r * CELL + 19, 0.6, c, r));
 }
 
 // -------------------------------------------------------------- mountains
@@ -268,7 +273,11 @@ function mountainPeaks(M) {
         // keep the cone inside the cell on sides without mountain neighbours
         let x = c * CELL + px,
           y = r * CELL + py;
-        const room = Math.min(isMt(c - 1, r) ? 99 : px + 1, isMt(c + 1, r) ? 99 : CELL + 1 - px, isMt(c, r + 1) ? 99 : CELL + 1 - py);
+        const room = Math.min(
+          isMt(c - 1, r) ? 99 : px + 1,
+          isMt(c + 1, r) ? 99 : CELL + 1 - px,
+          isMt(c, r + 1) ? 99 : CELL + 1 - py,
+        );
         peaks.push({ x, y, H, rad: Math.min(rad, room + 2) });
       }
     }
@@ -283,7 +292,11 @@ function mountainHeight(M, peaks, x, y) {
     // allow a 2px skirt onto neighbouring cells so the base is not a square
     const u = x - c * CELL,
       v = y - r * CELL;
-    const near = (u < 2 && isMt(c - 1, r)) || (u > CELL - 3 && isMt(c + 1, r)) || (v < 2 && isMt(c, r - 1)) || (v > CELL - 3 && isMt(c, r + 1));
+    const near =
+      (u < 2 && isMt(c - 1, r)) ||
+      (u > CELL - 3 && isMt(c + 1, r)) ||
+      (v < 2 && isMt(c, r - 1)) ||
+      (v > CELL - 3 && isMt(c, r + 1));
     if (!near) return 0;
   }
   // Taper toward cell sides without a mountain neighbour so the foot of the
@@ -310,7 +323,8 @@ function mountainHeight(M, peaks, x, y) {
     if (d >= 1) continue;
     h = Math.max(h, p.H * Math.pow(1 - d, 1.05));
   }
-  if (h > 0) h += (1 - Math.abs(2 * valueNoise(x, y, 6, M.seed + 311) - 1)) * 2.2 * Math.min(1, h / 8);
+  if (h > 0)
+    h += (1 - Math.abs(2 * valueNoise(x, y, 6, M.seed + 311) - 1)) * 2.2 * Math.min(1, h / 8);
   return h * (taper * taper * (3 - 2 * taper));
 }
 
@@ -387,7 +401,12 @@ function buildMountains(M, out) {
       // outer silhouette: dark on bottom/right, nothing on top/left
       if (below < 0 || right < 0) col = st.outline;
       // occlusion: this pixel sits just behind a nearer peak -> dark line
-      else if ((below >= 0 && below - gy > 3) || (left >= 0 && left - gy > 4) || (right >= 0 && right - gy > 4)) col = down(col, 2);
+      else if (
+        (below >= 0 && below - gy > 3) ||
+        (left >= 0 && left - gy > 4) ||
+        (right >= 0 && right - gy > 4)
+      )
+        col = down(col, 2);
       // summit rim light where the top silhouette meets the sky/ground behind
       else if ((above < 0 || gy - above > 3) && tone[i] > 20) col = up(col, 1);
       const y = ys - TOP;
@@ -413,7 +432,8 @@ function buildMountains(M, out) {
 
 // ------------------------------------------------------------ structures
 function rect(s, ox, oy, x0, y0, x1, y1, c) {
-  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) s.set(ox + x, oy + y, typeof c === 'function' ? c(x, y) : c);
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) s.set(ox + x, oy + y, typeof c === 'function' ? c(x, y) : c);
 }
 
 function fort(M, c, r) {
@@ -431,7 +451,15 @@ function fort(M, c, r) {
     return S(4);
   });
   // gate
-  rect(s, ox, oy, 10, 13, 14, 20, (x, y) => (y === 13 && (x === 10 || x === 13) ? S(4) : x === 10 || y === 14 ? R('ink', 2) : x % 2 ? R('soil', 2) : R('soil', 1)));
+  rect(s, ox, oy, 10, 13, 14, 20, (x, y) =>
+    y === 13 && (x === 10 || x === 13)
+      ? S(4)
+      : x === 10 || y === 14
+        ? R('ink', 2)
+        : x % 2
+          ? R('soil', 2)
+          : R('soil', 1),
+  );
   // towers
   for (const tx of [2, 16]) {
     rect(s, ox, oy, tx, 1, tx + 6, 21, (x, y) => {
@@ -452,7 +480,9 @@ function fort(M, c, r) {
   for (const [k, v] of [...s.px]) if (v[2] === null) s.px.delete(k);
   // banner on the right tower
   for (let y = -5; y < 1; y++) s.set(ox + 19, oy + y, R('soil', 1));
-  rect(s, ox, oy, 20, -5, 23, -2, (x, y) => (y === -3 ? R('ember', 2) : x === 20 && y === -5 ? R('ember', 4) : R('ember', 3)));
+  rect(s, ox, oy, 20, -5, 23, -2, (x, y) =>
+    y === -3 ? R('ember', 2) : x === 20 && y === -5 ? R('ember', 4) : R('ember', 3),
+  );
   s.outline({ dark: R('ink', 3), darkSteps: 2 });
   return s;
 }
@@ -494,7 +524,12 @@ function village(M, c, r) {
   const s = new Sprite(c * CELL + 12, r * CELL + 20, { a: 0.5, b: 0.25 });
   const roll = rand2(c, r, M.seed + 520);
   // roof material: terracotta, thatch or slate
-  const roof = roll < 0.5 ? [R('ember', 1), R('ember', 2), R('ember', 3), R('ember', 4)] : roll < 0.85 ? [R('earth', 2), R('earth', 3), R('earth', 4), R('earth', 5)] : [R('stone', 1), R('stone', 2), R('stone', 3), R('stone', 4)];
+  const roof =
+    roll < 0.5
+      ? [R('ember', 1), R('ember', 2), R('ember', 3), R('ember', 4)]
+      : roll < 0.85
+        ? [R('earth', 2), R('earth', 3), R('earth', 4), R('earth', 5)]
+        : [R('stone', 1), R('stone', 2), R('stone', 3), R('stone', 4)];
   const lit = rand2(c, r, M.seed + 521) < 0.75;
   const width = HOUSE[0].length;
   drawMask(s, ox, oy, HOUSE, (ch, u, v) => {
@@ -510,7 +545,11 @@ function village(M, c, r) {
         if (last - u < 2) return roof[0];
         // shingle courses, staggered
         if (v % 2 === 0) return roof[0];
-        return (u + (v % 4 === 1 ? 0 : 2)) % 4 === 0 ? roof[0] : u < width * 0.45 ? roof[2] : roof[1];
+        return (u + (v % 4 === 1 ? 0 : 2)) % 4 === 0
+          ? roof[0]
+          : u < width * 0.45
+            ? roof[2]
+            : roof[1];
       }
       case 'E':
         return R('ink', 3);
@@ -539,7 +578,12 @@ function village(M, c, r) {
   const side = rand2(c, r, M.seed + 522) < 0.5;
   const bx = side ? c * CELL + 20 : c * CELL + 1;
   for (let v = 0; v < 4; v++)
-    for (let u = 0; u < 3; u++) s.set(bx + u, r * CELL + 17 + v, v === 1 ? R('soil', 1) : u === 0 ? R('soil', 5) : R('soil', 3));
+    for (let u = 0; u < 3; u++)
+      s.set(
+        bx + u,
+        r * CELL + 17 + v,
+        v === 1 ? R('soil', 1) : u === 0 ? R('soil', 5) : R('soil', 3),
+      );
   s.outline({ dark: R('ink', 3) });
   return s;
 }
@@ -553,7 +597,9 @@ function pillar(M, c, r) {
   const shaft = [S(4), S(5), S(5), S(4), S(4), S(3), S(2), S(1)];
   const top = broken ? 2 + (hash2(c, r, M.seed) % 4) : -5;
   // plinth
-  rect(s, ox, oy, 6, 18, 18, 21, (x, y) => (y === 18 ? (x < 12 ? S(5) : S(4)) : y === 20 ? S(1) : x < 8 ? S(4) : x > 15 ? S(2) : S(3)));
+  rect(s, ox, oy, 6, 18, 18, 21, (x, y) =>
+    y === 18 ? (x < 12 ? S(5) : S(4)) : y === 20 ? S(1) : x < 8 ? S(4) : x > 15 ? S(2) : S(3),
+  );
   // shaft
   for (let y = top; y < 18; y++)
     for (let u = 0; u < 8; u++) {
@@ -563,7 +609,9 @@ function pillar(M, c, r) {
       s.set(ox + 8 + u, oy + y, col);
     }
   if (!broken) {
-    rect(s, ox, oy, 7, -8, 17, -5, (x, y) => (y === -8 ? S(5) : y === -6 ? S(2) : x < 10 ? S(5) : x > 14 ? S(2) : S(4)));
+    rect(s, ox, oy, 7, -8, 17, -5, (x, y) =>
+      y === -8 ? S(5) : y === -6 ? S(2) : x < 10 ? S(5) : x > 14 ? S(2) : S(4),
+    );
   } else {
     // rubble at the foot
     for (const [dx, dy] of [
@@ -571,7 +619,8 @@ function pillar(M, c, r) {
       [19, 20],
       [18, 19],
       [5, 20],
-    ]) s.set(ox + dx, oy + dy, dy === 19 ? S(4) : S(3));
+    ])
+      s.set(ox + dx, oy + dy, dy === 19 ? S(4) : S(3));
   }
   // a little moss at the base
   s.set(ox + 7, oy + 17, R('foliage', 5));
@@ -608,7 +657,15 @@ function throne(M, c, r) {
     return S(1);
   });
   // carpet from the chair to the cell edge, gold-trimmed
-  rect(s, ox, oy, 9, 15, 15, 24, (x, y) => (x === 9 || x === 14 ? R('ember', 3) : y === 17 || y === 20 ? R('blood', 1) : x < 12 ? R('blood', 3) : R('blood', 2)));
+  rect(s, ox, oy, 9, 15, 15, 24, (x, y) =>
+    x === 9 || x === 14
+      ? R('ember', 3)
+      : y === 17 || y === 20
+        ? R('blood', 1)
+        : x < 12
+          ? R('blood', 3)
+          : R('blood', 2),
+  );
   // the chair sits on the dais: seat on the top plate, back rising above it
   drawMask(s, ox + 5, oy + 1, THRONE, (ch, u, v) => {
     switch (ch) {
@@ -734,7 +791,8 @@ export function paintBridges(M) {
         rects.push([lf ? 0 : 6, 0, rt ? 24 : 18, 24]);
       }
       for (const [x0, y0, x1, y1] of rects)
-        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) M.deck[(r * CELL + y) * W + c * CELL + x] = o;
+        for (let y = y0; y < y1; y++)
+          for (let x = x0; x < x1; x++) M.deck[(r * CELL + y) * W + c * CELL + x] = o;
     }
   const S = (k) => R('soil', k);
   for (let y = 0; y < H; y++)
@@ -746,7 +804,12 @@ export function paintBridges(M) {
       let c;
       if (o === 1) {
         const plank = Math.floor(x / 3);
-        c = x % 3 === 2 ? S(2) : hash2(plank, Math.floor(y / 24), M.seed + 601) % 4 === 0 ? S(5) : S(4);
+        c =
+          x % 3 === 2
+            ? S(2)
+            : hash2(plank, Math.floor(y / 24), M.seed + 601) % 4 === 0
+              ? S(5)
+              : S(4);
         if (x % 3 === 0 && x % 3 !== 2) c = up(c, 0);
         if (!d(x, y - 1)) c = S(6);
         else if (!d(x, y - 2)) c = S(3);
@@ -759,7 +822,12 @@ export function paintBridges(M) {
         if (x % CELL === CELL - 1 && !isB(cc + 1, rr) && !isWater(cc + 1, rr)) c = S(1);
       } else {
         const plank = Math.floor(y / 3);
-        c = y % 3 === 2 ? S(2) : hash2(plank, Math.floor(x / 24), M.seed + 602) % 4 === 0 ? S(5) : S(4);
+        c =
+          y % 3 === 2
+            ? S(2)
+            : hash2(plank, Math.floor(x / 24), M.seed + 602) % 4 === 0
+              ? S(5)
+              : S(4);
         if (!d(x - 1, y)) c = S(6);
         else if (!d(x - 2, y)) c = S(3);
         if (!d(x + 1, y)) c = S(1);
@@ -779,7 +847,8 @@ export function paintBridges(M) {
       ]) {
         const X = x + dx,
           Y = y + dy;
-        if (X < W && Y < H && !M.deck[Y * W + X] && M.mat[Y * W + X] === G.WATER) M.shadow[Y * W + X] = 1;
+        if (X < W && Y < H && !M.deck[Y * W + X] && M.mat[Y * W + X] === G.WATER)
+          M.shadow[Y * W + X] = 1;
       }
     }
 }

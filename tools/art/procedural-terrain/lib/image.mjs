@@ -83,7 +83,8 @@ export function resampleNearest(src, w, h, W, H) {
 
 export function crop(src, w, h, x, y, cw, ch) {
   const out = Buffer.alloc(cw * ch * 4);
-  for (let j = 0; j < ch; j++) src.copy(out, j * cw * 4, ((y + j) * w + x) * 4, ((y + j) * w + x + cw) * 4);
+  for (let j = 0; j < ch; j++)
+    src.copy(out, j * cw * 4, ((y + j) * w + x) * 4, ((y + j) * w + x + cw) * 4);
   return out;
 }
 
@@ -94,7 +95,10 @@ export async function writePng(path, rgba, w, h) {
 }
 
 export async function readRgba(path) {
-  const { data, info } = await sharp(path).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(path)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   return { data, w: info.width, h: info.height };
 }
 
