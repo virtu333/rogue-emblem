@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`procedural terrain: determinism and output > pins a snapshot hash per biome (update deliberately when the art changes) 1`] = `
+{
+  "castle": "6a2abad0",
+  "grassland": "470d6bd9",
+  "swamp": "f03c6948",
+  "tundra": "435622fd",
+  "void": "c860e78",
+  "volcano": "7dacbf1c",
+}
+`;
