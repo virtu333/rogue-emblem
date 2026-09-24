@@ -50,7 +50,7 @@ describe('resolveAtmosphere — act moods', () => {
       const r = resolveAtmosphere(ctx);
       expect(r.gradeKey, JSON.stringify(ctx)).toBe('deep');
       expect(r.night).toBe(true);
-      expect(r.lightOptions.entityGlow).toBeTruthy();
+      expect(r.lightOptions.entityUnlight).toBeTruthy();
     }
   });
 

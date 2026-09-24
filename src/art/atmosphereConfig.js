@@ -174,8 +174,9 @@ export const LIGHT_PRESETS = Object.freeze({
     allyLight: '#a8e0b8',
     glowStrength: 0.26,
     emitters: BASE_EMITTERS,
-    // The Entity carries no light; it bleeds unlight instead (additive glow only).
-    entityGlow: '#763aa0',
+    // The Entity carries no light; it bleeds unlight — a deeper violet-black pool
+    // around it (its sprite stays above the darkness, pale against it).
+    entityUnlight: '#170c24',
   },
 });
 
