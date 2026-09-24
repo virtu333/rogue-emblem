@@ -1,3 +1,5 @@
+import { ownRecoveryInput } from './domInputBoundary.js';
+import { UI_PALETTE } from './uiStyles.js';
 // SceneGuard — Lightweight scene lifecycle instrumentation.
 // Exposes window.__sceneState for Playwright E2E tests and dev debugging.
 // Hooks Phaser scene create/shutdown events, tracks active scene,
@@ -132,6 +134,8 @@ export function createRuntimeFatalRecovery({
   let armed = false;
   let installed = false;
   let lastSignature = null;
+  let releaseInput = null;
+  let recoveryRoot = null;
 
   const safeMark = typeof mark === 'function' ? mark : () => {};
   const safeReport = typeof report === 'function' ? report : () => {};
@@ -158,21 +162,25 @@ export function createRuntimeFatalRecovery({
     overlay.style.zIndex = '100000';
 
     const panel = documentRef.createElement('div');
-    panel.style.background = '#111627';
-    panel.style.border = '1px solid #4a5f85';
+    panel.style.background = UI_PALETTE.panel;
+    panel.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
     panel.style.padding = '16px';
     panel.style.maxWidth = '460px';
-    panel.style.fontFamily = 'monospace';
-    panel.style.color = '#e0e0e0';
+    panel.style.fontFamily = 'Arial, sans-serif';
+    panel.style.width = 'min(90vw, 460px)';
+    panel.style.maxHeight = '90dvh';
+    panel.style.overflowY = 'auto';
+    panel.style.overflowWrap = 'anywhere';
+    panel.style.color = UI_PALETTE.text;
     panel.style.textAlign = 'center';
 
     const heading = documentRef.createElement('div');
-    heading.style.cssText = 'font-size:16px; color:#ffb088; margin-bottom:8px;';
+    heading.style.cssText = `font-size:18px; color:${UI_PALETTE.warn}; margin-bottom:12px;`;
     heading.textContent = 'Runtime Error';
     panel.appendChild(heading);
 
     const body = documentRef.createElement('div');
-    body.style.cssText = 'font-size:12px; color:#c7c7c7; margin-bottom:12px;';
+    body.style.cssText = `font-size:14px; line-height:1.5; color:${UI_PALETTE.text}; margin-bottom:16px;`;
     body.textContent = summary || 'An unexpected runtime error occurred.';
     panel.appendChild(body);
 
@@ -180,7 +188,13 @@ export function createRuntimeFatalRecovery({
     reloadBtn.textContent = 'Reload';
     reloadBtn.style.margin = '0 8px';
     reloadBtn.style.padding = '8px 12px';
-    reloadBtn.style.fontFamily = 'monospace';
+    reloadBtn.style.font = '14px Arial, sans-serif';
+    reloadBtn.style.minHeight = '44px';
+    reloadBtn.style.borderRadius = '0';
+    reloadBtn.style.background = UI_PALETTE.raised;
+    reloadBtn.style.color = UI_PALETTE.text;
+    reloadBtn.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
+    reloadBtn.style.marginBottom = '8px';
     reloadBtn.style.cursor = 'pointer';
     reloadBtn.onclick = () => {
       safeMark('runtime_fatal_reload', { signature });
@@ -193,7 +207,13 @@ export function createRuntimeFatalRecovery({
       safeBtn.textContent = 'Reload Safe Mode';
       safeBtn.style.margin = '0 8px';
       safeBtn.style.padding = '8px 12px';
-      safeBtn.style.fontFamily = 'monospace';
+      safeBtn.style.font = '14px Arial, sans-serif';
+      safeBtn.style.minHeight = '44px';
+      safeBtn.style.borderRadius = '0';
+      safeBtn.style.background = UI_PALETTE.raised;
+      safeBtn.style.color = UI_PALETTE.text;
+      safeBtn.style.border = `1px solid ${UI_PALETTE.lineStrong}`;
+      safeBtn.style.marginBottom = '8px';
       safeBtn.style.cursor = 'pointer';
       safeBtn.onclick = () => {
         safeMark('runtime_fatal_safe_reload', { signature });
@@ -204,6 +224,8 @@ export function createRuntimeFatalRecovery({
 
     overlay.appendChild(panel);
     documentRef.body.appendChild(overlay);
+    recoveryRoot = overlay;
+    releaseInput = ownRecoveryInput(overlay, documentRef);
   };
 
   const handleFatal = ({ type, reason, file = null, line = null, column = null }) => {
@@ -290,6 +312,10 @@ export function createRuntimeFatalRecovery({
   };
 
   const destroy = () => {
+    releaseInput?.();
+    releaseInput = null;
+    recoveryRoot?.remove();
+    recoveryRoot = null;
     if (!installed || !env?.removeEventListener) return;
     env.removeEventListener('error', onError);
     env.removeEventListener('unhandledrejection', onUnhandledRejection);

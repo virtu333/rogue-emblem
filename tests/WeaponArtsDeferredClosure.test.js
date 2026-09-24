@@ -595,19 +595,21 @@ describe('deferred closure: combat math', () => {
 
 describe('deferred closure: UI summaries', () => {
   it('summarizes the six closed arts with their real mechanics', () => {
-    expect(summarizeWeaponArtEffect(artById.get('bow_encloser'))).toContain('Roots target 1 turn');
+    expect(summarizeWeaponArtEffect(artById.get('bow_encloser'))).toContain(
+      'root on target for 1 phase',
+    );
     expect(summarizeWeaponArtEffect(artById.get('bow_ward_arrow'))).toContain(
-      'Silences target 1 turn',
+      'silence on target for 1 phase',
     );
     expect(summarizeWeaponArtEffect(artById.get('magic_silence_strike'))).toContain(
-      'Silences target 2 turns',
+      'silence on target for 2 phase',
     );
     const allOrNothing = summarizeWeaponArtEffect(artById.get('bow_all_or_nothing'));
     expect(allOrNothing).toContain('2x damage');
-    expect(allOrNothing).toContain('5 self-dmg on miss');
+    expect(allOrNothing).toContain('Each missed strike costs the user 5 HP');
     const annihilate = summarizeWeaponArtEffect(artById.get('legend_annihilate'));
     expect(annihilate).toContain('Ignores triangle');
-    expect(annihilate).toContain('On kill: +4 STR/+4 SPD (1 turn)');
+    expect(annihilate).toContain('On kill: user gains +4 STR, +4 SPD for 1 phase');
     const divineFlare = summarizeWeaponArtEffect(artById.get('legend_divine_flare'));
     expect(divineFlare).toContain('Ignores RES');
     expect(divineFlare).toContain('3x vs dark foes');

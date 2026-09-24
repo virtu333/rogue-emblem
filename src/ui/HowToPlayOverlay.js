@@ -1,3 +1,7 @@
+import { ReferenceMenu } from './ReferenceMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { inputHint } from '../utils/inputHint.js';
 // HowToPlayOverlay — Linear paginated guide accessible from Title Screen
 // 4 sequential pages. Depth 500-502.
 
@@ -25,6 +29,22 @@ export class HowToPlayOverlay {
   show() {
     this.hide();
     this.visible = true;
+    if (hasDOMHost()) {
+      this.domMenu = new ReferenceMenu(
+        this.scene,
+        'How to play',
+        [{ label: 'Guide' }],
+        () =>
+          HOW_TO_PLAY_PAGES.map((page) => ({
+            name: inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+            lines: page.lines.map((line) =>
+              inputHint(this.scene, line.text, line.mobileText ?? line.text),
+            ),
+          })),
+        () => this.hide(),
+      );
+      return;
+    }
     this._draw();
 
     // Keyboard nav (ESC only acts while top of the scene's overlay stack)
@@ -119,34 +139,35 @@ export class HowToPlayOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, panelW, panelH, 0x1a1a2e, 1)
+      .rectangle(cx, cy, panelW, panelH, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add
-      .text(left + 20, top + 16, 'HOW TO PLAY', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(left + 20, top + 16, 'HOW TO PLAY', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setDepth(DEPTH_UI);
+      }),
+    ).setDepth(DEPTH_UI);
     this.objects.push(title);
 
     // Close button [X]
-    const closeBtn = this.scene.add
-      .text(left + panelW - 20, top + 16, '[X]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(left + panelW - 20, top + 16, '[X]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#888888'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.accent));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.muted));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
@@ -161,14 +182,19 @@ export class HowToPlayOverlay {
 
     // Section title
     const contentY = top + 55;
-    const sectionTitle = this.scene.add
-      .text(left + 25, contentY, page.title, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setDepth(DEPTH_UI);
+    const sectionTitle = applyTextResolution(
+      this.scene.add.text(
+        left + 25,
+        contentY,
+        inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+        {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: UI_PALETTE.accent,
+          fontStyle: 'bold',
+        },
+      ),
+    ).setDepth(DEPTH_UI);
     this.objects.push(sectionTitle);
 
     // Content lines
@@ -178,13 +204,18 @@ export class HowToPlayOverlay {
     for (let i = 0; i < page.lines.length; i++) {
       const line = page.lines[i];
       if (!line.text && line.text !== '') continue;
-      const lineText = this.scene.add
-        .text(left + 25, lineStartY + i * lineHeight, line.text, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: line.color || '#e0e0e0',
-        })
-        .setDepth(DEPTH_UI);
+      const lineText = applyTextResolution(
+        this.scene.add.text(
+          left + 25,
+          lineStartY + i * lineHeight,
+          inputHint(this.scene, line.text, line.mobileText ?? line.text),
+          {
+            fontFamily: 'Arial',
+            fontSize: '11px',
+            color: line.color || UI_PALETTE.text,
+          },
+        ),
+      ).setDepth(DEPTH_UI);
       this.objects.push(lineText);
     }
 
@@ -193,19 +224,20 @@ export class HowToPlayOverlay {
 
     // Prev button
     if (this.currentPage > 0) {
-      const prevBtn = this.scene.add
-        .text(cx - 100, navY, '\u25C0 Prev', {
-          fontFamily: 'monospace',
+      const prevBtn = applyTextResolution(
+        this.scene.add.text(cx - 100, navY, '\u25C0 Prev', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#aaaaaa',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 10, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI)
         .setInteractive({ useHandCursor: true });
-      prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
-      prevBtn.on('pointerout', () => prevBtn.setColor('#aaaaaa'));
+      prevBtn.on('pointerover', () => prevBtn.setColor(UI_PALETTE.accent));
+      prevBtn.on('pointerout', () => prevBtn.setColor(UI_PALETTE.muted));
       prevBtn.on('pointerdown', () => {
         this.currentPage--;
         this._draw();
@@ -214,31 +246,33 @@ export class HowToPlayOverlay {
     }
 
     // Page indicator
-    const pageInd = this.scene.add
-      .text(cx, navY, `Page ${this.currentPage + 1}/${pages.length}`, {
-        fontFamily: 'monospace',
+    const pageInd = applyTextResolution(
+      this.scene.add.text(cx, navY, `Page ${this.currentPage + 1}/${pages.length}`, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(DEPTH_UI);
     this.objects.push(pageInd);
 
     // Next button
     if (this.currentPage < pages.length - 1) {
-      const nextBtn = this.scene.add
-        .text(cx + 100, navY, 'Next \u25B6', {
-          fontFamily: 'monospace',
+      const nextBtn = applyTextResolution(
+        this.scene.add.text(cx + 100, navY, 'Next \u25B6', {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#aaaaaa',
-          backgroundColor: '#333333',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 10, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI)
         .setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
-      nextBtn.on('pointerout', () => nextBtn.setColor('#aaaaaa'));
+      nextBtn.on('pointerover', () => nextBtn.setColor(UI_PALETTE.accent));
+      nextBtn.on('pointerout', () => nextBtn.setColor(UI_PALETTE.muted));
       nextBtn.on('pointerdown', () => {
         this.currentPage++;
         this._draw();
@@ -248,6 +282,8 @@ export class HowToPlayOverlay {
   }
 
   hide() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     const wasVisible = this.visible;
     const game = this.scene?.game;
     if (game?.events) {

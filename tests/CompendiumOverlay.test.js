@@ -1,3 +1,4 @@
+import { UI_PALETTE } from '../src/utils/uiStyles.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   CompendiumOverlay,
@@ -364,7 +365,7 @@ describe('CompendiumOverlay', () => {
       };
       overlay2._renderFoe(klass, 100, 20, 500);
       const classNameObj = overlay2.objects.find((o) => o.text === 'Myrmidon');
-      expect(classNameObj.style.color).toBe('#e0e0e0');
+      expect(classNameObj.style.color).toBe(UI_PALETTE.text);
       const classMeta = overlay2.objects.find(
         (o) => typeof o.text === 'string' && o.text.includes('Class') && o.text.includes('base'),
       );

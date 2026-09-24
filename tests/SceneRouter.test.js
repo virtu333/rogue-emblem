@@ -133,6 +133,20 @@ describe('SceneRouter', () => {
     }
   });
 
+  it('boolean menu transitions retry a transient lock without a second tap', async () => {
+    vi.useFakeTimers();
+    try {
+      await transitionToScene(makeScene({ key: 'Title' }), 'SlotPicker', {});
+      const target = makeScene({ key: 'DifficultySelect' });
+      const pending = transitionToScene(target, 'HomeBase', {}, { retryBlocked: true });
+      await vi.advanceTimersByTimeAsync(850);
+      expect(await pending).toBe(true);
+      expect(target.scene.start).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('transitionToSceneWithBlockedRetry does not retry hard failures', async () => {
     const broken = makeScene({ active: true, key: 'Title' });
     broken.scene.start.mockImplementation(() => {

@@ -1,3 +1,8 @@
+import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { showDeploymentMenu } from './PartyMenus.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { inputHint } from '../utils/inputHint.js';
 /**
  * DeployScreenOverlay — extracted from BattleScene.
  * Renders the deploy unit selection UI before battle.
@@ -39,6 +44,17 @@ export class DeployScreenOverlay {
    * @param {Set<string>|null} initialSelectedNames
    */
   show(roster, limits, onConfirm, initialSelectedNames = null) {
+    if (initialSelectedNames === null && this.runManager?.lastDeployment?.length) {
+      initialSelectedNames = new Set(
+        resolveDeploymentSelection(roster, limits, this.runManager.lastDeployment).map(
+          (unit) => unit.name,
+        ),
+      );
+    }
+    if (hasDOMHost()) {
+      showDeploymentMenu(this, roster, limits, onConfirm, initialSelectedNames);
+      return;
+    }
     const scene = this.scene;
     const deployGroup = this.displayObjects;
     const cam = scene.cameras.main;
@@ -51,13 +67,14 @@ export class DeployScreenOverlay {
     deployGroup.push(overlay);
 
     // Title
-    const title = scene.add
-      .text(cam.centerX, 28, 'DEPLOY UNITS', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 28, 'DEPLOY UNITS', {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     deployGroup.push(title);
@@ -95,12 +112,13 @@ export class DeployScreenOverlay {
     restoreSelectedUnitNames(initialSelectedNames);
 
     // Counter text
-    const counterText = scene.add
-      .text(cam.centerX, 52, '', {
-        fontFamily: 'monospace',
+    const counterText = applyTextResolution(
+      scene.add.text(cam.centerX, 52, '', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#88ccff',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     deployGroup.push(counterText);
@@ -108,7 +126,7 @@ export class DeployScreenOverlay {
     const updateCounter = () => {
       counterText.setText(`${selected.size} / ${limits.max}`);
       const canConfirm = selected.size >= limits.min && selected.size <= limits.max;
-      confirmText.setColor(canConfirm ? '#44ff44' : '#666666');
+      confirmText.setColor(canConfirm ? '#44ff44' : UI_PALETTE.muted);
     };
 
     // Objective banner -- escape maps reward fast movers, so the player needs
@@ -116,7 +134,7 @@ export class DeployScreenOverlay {
     const objective = scene.battleParams?.objective;
     if (objective) {
       const OBJECTIVE_BANNERS = {
-        rout: { text: 'ROUT: Defeat all enemies', color: '#cccccc' },
+        rout: { text: 'ROUT: Defeat all enemies', color: UI_PALETTE.muted },
         seize: {
           text: 'SEIZE: Defeat the boss, then capture the throne with a Lord',
           color: '#ffaa66',
@@ -128,13 +146,14 @@ export class DeployScreenOverlay {
       };
       const banner = OBJECTIVE_BANNERS[objective];
       if (banner) {
-        const objectiveText = scene.add
-          .text(cam.centerX, 74, banner.text, {
-            fontFamily: 'monospace',
+        const objectiveText = applyTextResolution(
+          scene.add.text(cam.centerX, 74, banner.text, {
+            fontFamily: 'Arial',
             fontSize: '10px',
             color: banner.color,
             fontStyle: 'bold',
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(701);
         deployGroup.push(objectiveText);
@@ -168,12 +187,13 @@ export class DeployScreenOverlay {
       deployGroup.push(rowBg);
 
       // Checkbox
-      const checkText = scene.add
-        .text(cam.centerX - listWidth / 2 + 16, ry, '', {
-          fontFamily: 'monospace',
+      const checkText = applyTextResolution(
+        scene.add.text(cam.centerX - listWidth / 2 + 16, ry, '', {
+          fontFamily: 'Arial',
           fontSize: '13px',
-          color: '#ffffff',
-        })
+          color: UI_PALETTE.text,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(702);
       deployGroup.push(checkText);
@@ -184,12 +204,13 @@ export class DeployScreenOverlay {
       const hp =
         unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
       const infoStr = `${unit.name}  Lv${lvl} ${cls}  HP ${hp}`;
-      const infoText = scene.add
-        .text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
-          fontFamily: 'monospace',
+      const infoText = applyTextResolution(
+        scene.add.text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#e0e0e0',
-        })
+          color: UI_PALETTE.text,
+        }),
+      )
         .setOrigin(0, 0.5)
         .setDepth(702);
       deployGroup.push(infoText);
@@ -197,12 +218,13 @@ export class DeployScreenOverlay {
       // Lock label for the commander
       let lockLabel = null;
       if (isCommander) {
-        lockLabel = scene.add
-          .text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
-            fontFamily: 'monospace',
+        lockLabel = applyTextResolution(
+          scene.add.text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
+            fontFamily: 'Arial',
             fontSize: '9px',
             color: '#ffaa44',
-          })
+          }),
+        )
           .setOrigin(1, 0.5)
           .setDepth(702);
         deployGroup.push(lockLabel);
@@ -212,7 +234,7 @@ export class DeployScreenOverlay {
         const isSel = selected.has(i);
         checkText.setText(isSel ? '[X]' : '[ ]');
         rowBg.setFillStyle(isSel ? 0x334466 : 0x222244, 0.8);
-        infoText.setColor(isSel ? '#ffffff' : '#999999');
+        infoText.setColor(isSel ? UI_PALETTE.text : UI_PALETTE.muted);
       };
 
       rowObjects.push({
@@ -283,20 +305,22 @@ export class DeployScreenOverlay {
     };
 
     const scrollX = cam.centerX + listWidth / 2 + 26;
-    const scrollUp = scene.add
-      .text(scrollX, startY, '^', {
-        fontFamily: 'monospace',
+    const scrollUp = applyTextResolution(
+      scene.add.text(scrollX, startY, '^', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#88ccff',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
-    const scrollDown = scene.add
-      .text(scrollX, listBottomY, 'v', {
-        fontFamily: 'monospace',
+    const scrollDown = applyTextResolution(
+      scene.add.text(scrollX, listBottomY, 'v', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#88ccff',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
     deployGroup.push(scrollUp);
@@ -351,13 +375,14 @@ export class DeployScreenOverlay {
       .setInteractive({ useHandCursor: true });
     deployGroup.push(confirmBg);
 
-    const confirmText = scene.add
-      .text(cam.centerX, confirmY, 'CONFIRM', {
-        fontFamily: 'monospace',
+    const confirmText = applyTextResolution(
+      scene.add.text(cam.centerX, confirmY, 'CONFIRM', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#666666',
+        color: UI_PALETTE.muted,
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
     deployGroup.push(confirmText);
@@ -376,17 +401,18 @@ export class DeployScreenOverlay {
       onConfirm(selectedRoster);
     });
 
-    const backText = scene.add
-      .text(cam.centerX, confirmY + 22, 'BACK', {
-        fontFamily: 'monospace',
+    const backText = applyTextResolution(
+      scene.add.text(cam.centerX, confirmY + 22, 'BACK', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702)
       .setInteractive({ useHandCursor: true });
-    backText.on('pointerover', () => backText.setColor('#ffdd44'));
-    backText.on('pointerout', () => backText.setColor('#aaaaaa'));
+    backText.on('pointerover', () => backText.setColor(UI_PALETTE.accent));
+    backText.on('pointerout', () => backText.setColor(UI_PALETTE.muted));
     backText.on('pointerdown', async (pointer) => {
       if (pointer?.button !== 0) return;
       const audio = scene.registry.get('audio');
@@ -418,16 +444,17 @@ export class DeployScreenOverlay {
     });
     deployGroup.push(backText);
 
-    const rosterText = scene.add
-      .text(cam.centerX, confirmY + 38, 'ROSTER', {
-        fontFamily: 'monospace',
+    const rosterText = applyTextResolution(
+      scene.add.text(cam.centerX, confirmY + 38, 'ROSTER', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#88ccff',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702)
       .setInteractive({ useHandCursor: true });
-    rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
+    rosterText.on('pointerover', () => rosterText.setColor(UI_PALETTE.accent));
     rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
     rosterText.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
@@ -463,7 +490,11 @@ export class DeployScreenOverlay {
     if (hints?.shouldShow('battle_deploy')) {
       showImportantHint(
         scene,
-        'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
+        inputHint(
+          scene,
+          'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
+          'Tap units to deploy them.\nYour commander always deploys. Tap Confirm when ready.',
+        ),
       );
     }
 
@@ -516,6 +547,8 @@ export class DeployScreenOverlay {
   }
 
   _cleanup() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     if (this._closed) return;
     this._closed = true;
     if (this._onInputActionBound) {

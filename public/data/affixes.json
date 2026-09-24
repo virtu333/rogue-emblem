@@ -7,7 +7,9 @@
       "description": "Reflects 25% of melee damage taken back to attacker",
       "tier": 1,
       "trigger": "on-defend",
-      "effects": { "reflectMeleePct": 0.25 },
+      "effects": {
+        "reflectMeleePct": 0.25
+      },
       "weight": 1.0,
       "icon": "thorns",
       "narrativeHint": "A crackling aura of pain surrounds this enemy."
@@ -18,7 +20,9 @@
       "description": "Heals 20% max HP at start of enemy phase",
       "tier": 1,
       "trigger": "on-turn-start",
-      "effects": { "healSelfPct": 0.2 },
+      "effects": {
+        "healSelfPct": 0.2
+      },
       "weight": 1.0,
       "icon": "regen",
       "narrativeHint": "Wounds close unnaturally fast on this enemy."
@@ -29,7 +33,9 @@
       "description": "All attacks inflict 5 poison damage after combat",
       "tier": 1,
       "trigger": "on-attack",
-      "effects": { "poisonDamage": 5 },
+      "effects": {
+        "poisonDamage": 5
+      },
       "weight": 1.0,
       "icon": "venom",
       "narrativeHint": "A sickly green haze clings to this enemy weapon."
@@ -41,7 +47,9 @@
       "tier": 1,
       "trigger": "passive-aura",
       "range": 2,
-      "effects": { "atkBonus": 3 },
+      "effects": {
+        "atkBonus": 3
+      },
       "weight": 0.8,
       "icon": "rally",
       "narrativeHint": "This enemy presence emboldens those nearby."
@@ -52,7 +60,11 @@
       "description": "At start of enemy phase, spawns a temporary Wall tile on a random adjacent empty tile (lasts 2 turns)",
       "tier": 2,
       "trigger": "on-turn-start",
-      "effects": { "spawnTerrain": "Wall", "terrainDuration": 2, "terrainRange": 1 },
+      "effects": {
+        "spawnTerrain": "Wall",
+        "terrainDuration": 2,
+        "terrainRange": 1
+      },
       "weight": 0.7,
       "icon": "waller",
       "narrativeHint": "The ground buckles and rises around this enemy."
@@ -64,7 +76,9 @@
       "tier": 2,
       "trigger": "on-defend",
       "condition": "after_taking_damage",
-      "effects": { "warpRange": 3 },
+      "effects": {
+        "warpRange": 3
+      },
       "weight": 0.6,
       "icon": "teleport",
       "narrativeHint": "This enemy flickers and its position seems uncertain."
@@ -76,7 +90,9 @@
       "tier": 2,
       "trigger": "on-defend",
       "condition": "first_hit_per_phase",
-      "effects": { "negateFirstHit": true },
+      "effects": {
+        "negateFirstHit": true
+      },
       "weight": 0.6,
       "icon": "shield",
       "narrativeHint": "A translucent barrier shimmers around this enemy."
@@ -87,7 +103,10 @@
       "description": "+5 ATK, -3 DEF. Prioritizes attacking the weakest nearby unit",
       "tier": 1,
       "trigger": "passive",
-      "effects": { "atkBonus": 5, "defPenalty": -3 },
+      "effects": {
+        "atkBonus": 5,
+        "defPenalty": -3
+      },
       "aiOverride": "target_lowest_hp",
       "weight": 0.8,
       "icon": "berserk",
@@ -100,7 +119,9 @@
       "tier": 2,
       "trigger": "on-death",
       "range": 1,
-      "effects": { "aoeDamage": 5 },
+      "effects": {
+        "aoeDamage": 5
+      },
       "weight": 0.5,
       "icon": "deathburst",
       "narrativeHint": "Dark energy pulses within this enemy."
@@ -111,7 +132,13 @@
       "description": "Cannot be moved by Shove or Pull. +2 DEF on Fort or Throne terrain",
       "tier": 1,
       "trigger": "passive",
-      "effects": { "immuneToDisplacement": true, "terrainDefBonus": { "Fort": 2, "Throne": 2 } },
+      "effects": {
+        "immuneToDisplacement": true,
+        "terrainDefBonus": {
+          "Fort": 2,
+          "Throne": 2
+        }
+      },
       "weight": 0.7,
       "icon": "anchor",
       "narrativeHint": "This enemy is rooted to its position."
@@ -122,7 +149,11 @@
       "description": "Attacks reduce target DEF by 2 for the rest of battle (stacks)",
       "tier": 2,
       "trigger": "on-attack",
-      "effects": { "debuffStat": "DEF", "debuffValue": -2, "debuffDuration": "battle" },
+      "effects": {
+        "debuffStat": "DEF",
+        "debuffValue": -2,
+        "debuffDuration": "battle"
+      },
       "weight": 0.5,
       "icon": "corrosive",
       "narrativeHint": "Acid drips from this enemy weapon."
@@ -133,7 +164,9 @@
       "description": "+2 MOV",
       "tier": 1,
       "trigger": "passive",
-      "effects": { "movBonus": 2 },
+      "effects": {
+        "movBonus": 2
+      },
       "weight": 0.8,
       "icon": "haste",
       "narrativeHint": "This enemy moves with unnatural speed."
@@ -141,31 +174,122 @@
   ],
   "config": {
     "difficultyGating": {
-      "normal": { "affixChance": 0, "maxAffixesPerUnit": 0, "tierPool": [] },
-      "hard": { "affixChance": 0.12, "maxAffixesPerUnit": 1, "tierPool": [1] },
-      "lunatic": { "affixChance": 0.3, "maxAffixesPerUnit": 2, "tierPool": [1, 2] }
+      "normal": {
+        "affixChance": 0.05,
+        "maxAffixesPerUnit": 1,
+        "tierPool": [
+          1
+        ],
+        "excludedActs": [
+          "act1"
+        ],
+        "excludedAffixes": [
+          "deathburst",
+          "haste",
+          "teleporter"
+        ]
+      },
+      "hard": {
+        "affixChance": 0.12,
+        "maxAffixesPerUnit": 1,
+        "tierPool": [
+          1
+        ]
+      },
+      "lunatic": {
+        "affixChance": 0.3,
+        "maxAffixesPerUnit": 2,
+        "tierPool": [
+          1,
+          2
+        ]
+      }
     },
     "actScaling": {
-      "act1": { "chanceMultiplier": 0.5 },
-      "act2": { "chanceMultiplier": 0.75 },
-      "act3": { "chanceMultiplier": 1.0 },
-      "act4": { "chanceMultiplier": 1.0 },
-      "finalBoss": { "chanceMultiplier": 1.0 },
-      "secretAct": { "chanceMultiplier": 1.0 }
+      "act1": {
+        "chanceMultiplier": 0.5
+      },
+      "act2": {
+        "chanceMultiplier": 0.75
+      },
+      "act3": {
+        "chanceMultiplier": 1.0
+      },
+      "act4": {
+        "chanceMultiplier": 1.0
+      },
+      "finalBoss": {
+        "chanceMultiplier": 1.0
+      },
+      "secretAct": {
+        "chanceMultiplier": 1.0
+      }
     },
     "bossAffixRules": {
       "enabled": true,
       "entityOnly": true,
       "entityAffixCount": 2,
-      "entityAffixPool": ["regenerator", "thorns", "venomous", "corrosive", "shielded", "berserker", "rally", "anchored"],
-      "excludeFromEntity": ["teleporter", "deathburst", "haste"]
+      "entityAffixPool": [
+        "regenerator",
+        "thorns",
+        "venomous",
+        "corrosive",
+        "shielded",
+        "berserker",
+        "rally",
+        "anchored"
+      ],
+      "excludeFromEntity": [
+        "teleporter",
+        "deathburst",
+        "haste"
+      ]
     },
     "exclusions": [
-      { "rule": "mutually_exclusive", "affixes": ["regenerator", "deathburst"], "reason": "Conflicting fantasy" },
-      { "rule": "mutually_exclusive", "affixes": ["teleporter", "anchored"], "reason": "Cannot be both mobile and immovable" },
-      { "rule": "mutually_exclusive", "affixes": ["shielded", "regenerator"], "reason": "Stacking damage negation with regen is too strong" },
-      { "rule": "class_exclude", "affix": "haste", "classes": ["Cavalier", "Paladin", "Pegasus Knight", "Falcon Knight"], "reason": "Already high mobility" },
-      { "rule": "class_exclude", "affix": "teleporter", "classes": ["Knight", "General"], "reason": "Fantasy mismatch" }
+      {
+        "rule": "mutually_exclusive",
+        "affixes": [
+          "regenerator",
+          "deathburst"
+        ],
+        "reason": "Conflicting fantasy"
+      },
+      {
+        "rule": "mutually_exclusive",
+        "affixes": [
+          "teleporter",
+          "anchored"
+        ],
+        "reason": "Cannot be both mobile and immovable"
+      },
+      {
+        "rule": "mutually_exclusive",
+        "affixes": [
+          "shielded",
+          "regenerator"
+        ],
+        "reason": "Stacking damage negation with regen is too strong"
+      },
+      {
+        "rule": "class_exclude",
+        "affix": "haste",
+        "classes": [
+          "Cavalier",
+          "Paladin",
+          "Pegasus Knight",
+          "Falcon Knight"
+        ],
+        "reason": "Already high mobility"
+      },
+      {
+        "rule": "class_exclude",
+        "affix": "teleporter",
+        "classes": [
+          "Knight",
+          "General"
+        ],
+        "reason": "Fantasy mismatch"
+      }
     ],
     "visualIndicator": {
       "note": "Affixed enemies should display a pip indicator and affix tooltip in inspection UI."

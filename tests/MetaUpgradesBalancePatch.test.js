@@ -29,7 +29,7 @@ describe('meta upgrades rebalance patch guards', () => {
         upgrades: [{ id: 'vision_charges_2', level: 1 }],
       },
     },
-    { id: 'weapon_forge', costs: [150, 325, 550] },
+    { id: 'weapon_forge', costs: [150, 250, 400] },
     { id: 'starting_accessory', costs: [100, 300, 500] },
     {
       id: 'weapon_tier_silver',
@@ -40,7 +40,7 @@ describe('meta upgrades rebalance patch guards', () => {
     },
     {
       id: 'recruit_field_supplies',
-      costs: [375],
+      costs: [250],
       requires: {
         upgrades: [{ id: 'starting_vulnerary', level: 1 }],
       },
@@ -81,7 +81,7 @@ describe('meta upgrades rebalance patch guards', () => {
     },
     {
       id: 'recruit_weapon_forge',
-      costs: [800, 1400],
+      costs: [400, 700],
       effects: [{ recruitWeaponForge: 1 }, { recruitWeaponForge: 2 }],
       requires: {
         upgrades: [{ id: 'lethal_armory', level: 1 }],

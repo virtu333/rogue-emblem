@@ -260,7 +260,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
 });
 
 describe('Imbue combat — vampiric lifesteal', () => {
-  it('heals 30% of damage dealt per strike via drainPercent', () => {
+  it('heals 15%, rounded down, of damage dealt per strike via drainPercent', () => {
     forceHitsNoCrits();
     const { attacker, defender } = setupCombat({
       atkImbue: 'vampiric',
@@ -276,7 +276,7 @@ describe('Imbue combat — vampiric lifesteal', () => {
       plain,
       baseSkillCtx,
     );
-    expect(forecast.attacker.drainPercent).toBeCloseTo(0.3);
+    expect(forecast.attacker.drainPercent).toBeCloseTo(0.15);
     const result = resolveCombat(
       attacker,
       attacker.weapon,
@@ -291,7 +291,7 @@ describe('Imbue combat — vampiric lifesteal', () => {
       (e) => e.type === 'strike' && e.attackerSide === 'attacker' && !e.miss,
     );
     expect(firstStrike.damage).toBeGreaterThan(0);
-    expect(firstStrike.heal).toBe(Math.floor(firstStrike.damage * 0.3));
+    expect(firstStrike.heal).toBe(Math.floor(firstStrike.damage * 0.15));
   });
 });
 

@@ -1,3 +1,7 @@
+import { presentationText } from '../utils/presentationText.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { progressionResult } from './ProgressionMenus.js';
+import { inputHint } from '../utils/inputHint.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
 
@@ -39,6 +43,20 @@ export class LevelUpPopup {
   show() {
     return new Promise((resolve) => {
       this._resolve = resolve;
+      if (hasDOMHost()) {
+        this._onSceneShutdown = () => this.destroy();
+        this.scene.events?.once?.('shutdown', this._onSceneShutdown);
+        this.surface = progressionResult(
+          this.scene,
+          this.unit,
+          this.levelUpResult,
+          this.isPromotion,
+          this.learnedSkills,
+          this.growthBonuses,
+          () => this.destroy(),
+        );
+        return;
+      }
       const cam = this.scene.cameras.main;
       const cx = cam.width / 2;
       const cy = cam.height / 2;
@@ -63,7 +81,7 @@ export class LevelUpPopup {
 
       const statLines = [];
       for (const stat of XP_STAT_NAMES) {
-        const val = this.unit.stats[stat];
+        const val = (this.levelUpResult.displayStats || this.unit.stats)[stat];
         const gained = gains[stat] || 0;
         const label = stat.padEnd(4);
         if (gained > 0) {
@@ -112,13 +130,12 @@ export class LevelUpPopup {
         ? `PROMOTION!  ${this.unit.className}`
         : `LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`;
       const titleColor = this.isPromotion ? '#88ffff' : '#ffdd44';
-      const title = this.scene.add
-        .text(cx, y, titleStr, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: titleColor,
-          fontStyle: 'bold',
-        })
+      const title = presentationText(this.scene, cx, y, titleStr, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: titleColor,
+        fontStyle: 'bold',
+      })
         .setOrigin(0.5, 0)
         .setDepth(902);
       this.objects.push(title);
@@ -130,12 +147,11 @@ export class LevelUpPopup {
         const sl = statLines[si];
         const stat = statNames[si];
         const color = sl.gained ? '#44ff44' : STAT_COLORS[stat] || '#cccccc';
-        const text = this.scene.add
-          .text(cx - panelWidth / 2 + 12, y, sl.text, {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color,
-          })
+        const text = presentationText(this.scene, cx - panelWidth / 2 + 12, y, sl.text, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color,
+        })
           .setOrigin(0, 0)
           .setDepth(902);
         this.objects.push(text);
@@ -146,12 +162,11 @@ export class LevelUpPopup {
       if (growthLines.length > 0) {
         y += 4;
         for (const gl of growthLines) {
-          const growthText = this.scene.add
-            .text(cx - panelWidth / 2 + 12, y, gl, {
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              color: '#88ffff',
-            })
+          const growthText = presentationText(this.scene, cx - panelWidth / 2 + 12, y, gl, {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#88ffff',
+          })
             .setOrigin(0, 0)
             .setDepth(902);
           this.objects.push(growthText);
@@ -163,13 +178,18 @@ export class LevelUpPopup {
       if (this.learnedSkills.length > 0) {
         y += 4;
         for (const skillName of this.learnedSkills) {
-          const skillText = this.scene.add
-            .text(cx - panelWidth / 2 + 12, y, `  NEW SKILL: ${skillName}`, {
+          const skillText = presentationText(
+            this.scene,
+            cx - panelWidth / 2 + 12,
+            y,
+            `  NEW SKILL: ${skillName}`,
+            {
               fontFamily: 'monospace',
               fontSize: '12px',
               color: '#88ffff',
               fontStyle: 'bold',
-            })
+            },
+          )
             .setOrigin(0, 0)
             .setDepth(902);
           this.objects.push(skillText);
@@ -179,12 +199,17 @@ export class LevelUpPopup {
 
       // Dismiss hint
       y += 6;
-      const hint = this.scene.add
-        .text(cx, y, '(click to continue)', {
+      const hint = presentationText(
+        this.scene,
+        cx,
+        y,
+        inputHint(this.scene, '(click to continue)', '(tap to continue)'),
+        {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#888888',
-        })
+        },
+      )
         .setOrigin(0.5, 0)
         .setDepth(902);
       this.objects.push(hint);
@@ -202,6 +227,8 @@ export class LevelUpPopup {
   }
 
   destroy() {
+    this.surface?.destroy();
+    this.surface = null;
     if (this._onSceneShutdown) {
       this.scene?.events?.off?.('shutdown', this._onSceneShutdown);
       this._onSceneShutdown = null;

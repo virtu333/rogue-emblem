@@ -16,6 +16,11 @@
 const FOCUS_COLOR = '#ffdd44';
 const DEFAULT_COLOR = '#e0e0e0';
 
+// DisplayList destroys Phaser objects before scene shutdown listeners run.
+function isLive(button) {
+  return !button || (!('scene' in button && !button.scene) && button.frame?.data !== null);
+}
+
 export class MenuFocusController {
   constructor(scene) {
     this.scene = scene;
@@ -24,7 +29,9 @@ export class MenuFocusController {
   }
 
   destroy() {
-    this.clear();
+    // Teardown must not repaint Text whose canvas/frame may already be gone.
+    this.items = [];
+    this.index = -1;
     this.scene = null;
   }
 
@@ -58,7 +65,7 @@ export class MenuFocusController {
   activate() {
     if (!this.isActive) return false;
     const item = this.items[this.index];
-    if (item && typeof item.onActivate === 'function') {
+    if (item && isLive(item.button) && typeof item.onActivate === 'function') {
       item.onActivate();
       return true;
     }
@@ -77,11 +84,13 @@ export class MenuFocusController {
   }
 
   _focus(it) {
+    if (!isLive(it.button)) return;
     if (typeof it.onFocus === 'function') it.onFocus(it.button);
     else it.button?.setColor?.(FOCUS_COLOR);
   }
 
   _blur(it) {
+    if (!isLive(it.button)) return;
     if (typeof it.onBlur === 'function') it.onBlur(it.button);
     else it.button?.setColor?.(it.color || DEFAULT_COLOR);
   }

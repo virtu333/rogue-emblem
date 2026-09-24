@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // PromotionController -- Master Seal promotion flow extracted from BattleScene.
 // Owns target resolution, the promotion choice panel, applying the promotion,
 // and the banner/popup/dropped-skills sequencing. Cross-cutting seams
@@ -14,6 +15,9 @@ import {
   removeFromConsumables,
 } from '../engine/UnitManager.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
+import { captureResolvedAction } from './BattlePresentationCheckpoint.js';
+
+const sceneEnded = (scene) => scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false;
 
 export class PromotionController {
   constructor(scene) {
@@ -44,6 +48,7 @@ export class PromotionController {
         },
       });
     } catch (err) {
+      if (sceneEnded(scene)) return promotionApplied;
       if (!promotionApplied) {
         console.error('[PromotionController] promotion error:', err);
         if (scene.battleState !== 'BATTLE_END') {
@@ -89,8 +94,10 @@ export class PromotionController {
       scene.battleState = 'COMBAT_RESOLVING'; // block gameplay hotkeys while chooser is open
       // Show promotion choice panel
       const { PromotionChoicePanel } = await import('./PromotionChoicePanel.js');
+      if (sceneEnded(scene)) return false;
       const panel = new PromotionChoicePanel(scene, unit, targets, scene.gameData.skills);
       promotedClassData = await panel.show();
+      if (sceneEnded(scene)) return false;
       if (!promotedClassData) {
         // Cancelled -- return to action menu
         scene.battleState = 'UNIT_ACTION_MENU';
@@ -128,6 +135,11 @@ export class PromotionController {
       scene.gameData.skills,
     );
     markPromotionApplied();
+    observeHistoryAction(scene, 'promoted', unit, null, promotedClassData.name);
+    // Commit the seal with the promotion, before any dismissible/awaited UI.
+    seal.uses = (seal.uses ?? 1) - 1;
+    if (seal.uses <= 0) removeFromConsumables(unit, seal);
+    markSealConsumed();
 
     // Refresh sprite to show promoted class
     scene.removeUnitGraphic(unit);
@@ -168,12 +180,14 @@ export class PromotionController {
     // Update HP bar (max HP increased)
     scene.updateHPBar(unit);
 
+    captureResolvedAction(scene, { kind: 'finish', unitName: unit.name });
+
     // Show promotion banner
     await scene.showPromotionBanner(unit, promotedClassData.name);
+    if (sceneEnded(scene)) return true;
 
     // Show stat gains as a level-up style popup
     const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
-    delete gains.gains.MOV; // MOV isn't shown in level-up popup
     const popup = new LevelUpPopup(
       scene,
       unit,
@@ -182,7 +196,13 @@ export class PromotionController {
       [],
       promotedClassData.growthBonuses || null,
     );
-    await popup.show();
+    scene._playLevelUpSfx?.();
+    try {
+      await popup.show();
+    } finally {
+      scene._stopLevelUpSfx?.();
+    }
+    if (sceneEnded(scene)) return true;
 
     // Tell the player about innates lost to the skill cap (never silent)
     const droppedNotice = formatDroppedSkillsNotice(
@@ -191,11 +211,7 @@ export class PromotionController {
       scene.gameData.skills,
     );
     if (droppedNotice) await scene.showBriefBanner(droppedNotice, '#ff8888');
-
-    // Consume Master Seal on successful promotion
-    seal.uses = (seal.uses ?? 1) - 1;
-    if (seal.uses <= 0) removeFromConsumables(unit, seal);
-    markSealConsumed();
+    if (sceneEnded(scene)) return true;
 
     scene.finishUnitAction(unit);
     return true;

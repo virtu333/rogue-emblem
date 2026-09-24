@@ -60,8 +60,8 @@ describe('Logging hygiene', () => {
       moveType: 'Infantry',
       faction: 'enemy',
       isBoss: false,
-      weapon: { type: 'Sword', range: '1' },
-      stats: { HP: 20 },
+      weapon: { ...data.weapons.find((w) => w.name === 'Iron Sword') },
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 5, DEF: 3, RES: 0, LCK: 0 },
       currentHP: 20,
     };
     const player = {
@@ -70,8 +70,8 @@ describe('Logging hygiene', () => {
       row: 5,
       moveType: 'Infantry',
       faction: 'player',
-      weapon: { type: 'Sword', range: '1' },
-      stats: { HP: 20 },
+      weapon: { ...data.weapons.find((w) => w.name === 'Iron Sword') },
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 5, DEF: 3, RES: 0, LCK: 0 },
       currentHP: 20,
     };
 

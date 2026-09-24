@@ -1,0 +1,381 @@
+/* Landscape lab: uninterrupted map height and a compact, safe-area-aware command rail. */
+html.touch-ui #game-wrapper.battlefield-lab {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(222px, 24vw, 240px);
+  grid-template-rows: minmax(0, 1fr);
+  position: relative;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  box-sizing: border-box;
+  background: var(--re-bg);
+}
+html.touch-ui .battlefield-lab #game-container {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--re-panel);
+}
+html.touch-ui #game-wrapper.battlefield-lab .mobile-panel {
+  display: none !important;
+}
+html.touch-ui .battlefield-lab .mobile-battle-hud {
+  grid-area: 1 / 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px;
+  border: 0;
+  border-left: 2px solid var(--re-line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--re-bg);
+}
+.battlefield-lab .mb-phase {
+  position: static;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--re-line-soft);
+  font: 10px/1.5 var(--re-pixel);
+  color: var(--re-text);
+  letter-spacing: 0;
+}
+.battlefield-lab .mb-summary {
+  padding: 0;
+  min-width: 0;
+}
+.battlefield-lab .mb-summary h2 {
+  font: 700 17px/1.2 var(--re-body);
+  margin: 0 0 3px;
+}
+.battlefield-lab .mb-detail,
+.battlefield-lab .mb-hp {
+  font-size: 12px;
+  margin: 2px 0;
+}
+.battlefield-lab .mb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.battlefield-lab .mb-objective {
+  position: static;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--re-text);
+  border: 0;
+  padding: 0;
+}
+.battlefield-lab .mb-hint {
+  font-size: 12px;
+  line-height: 1.3;
+  margin: 0;
+}
+.battlefield-lab .mb-command-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.battlefield-lab .mb-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.battlefield-lab .mb-body:has(.mb-actions) .mb-hint {
+  display: none;
+}
+.battlefield-lab .mb-button {
+  min-height: 44px;
+  width: 100%;
+  padding: 7px;
+  font-size: 13px;
+  border: 1px solid var(--re-line);
+  border-radius: 3px;
+  background: var(--re-raised);
+  color: var(--re-text);
+  box-shadow:
+    inset 0 1px #ffffff12,
+    0 2px var(--re-sunken);
+}
+.battlefield-lab .mb-button[aria-pressed='true'],
+.battlefield-lab .mb-primary {
+  background: var(--re-action);
+  color: var(--re-action-ink);
+  border-color: var(--re-accent-text);
+}
+.battlefield-lab .mb-end-turn {
+  margin: 0;
+  background: var(--re-action);
+  color: var(--re-action-ink);
+}
+.battlefield-lab .mb-battle-info {
+  order: 5;
+  margin: 0;
+}
+.battlefield-lab .mb-battle-info summary {
+  min-height: 44px;
+  padding: 10px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+.battlefield-lab .mb-battle-info[open] > .mb-more-content {
+  position: fixed;
+  z-index: var(--re-depth-lab);
+  right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right) + 8px);
+  bottom: max(8px, env(safe-area-inset-bottom));
+  width: min(330px, 50vw);
+  padding: 10px;
+  background: var(--re-bg);
+  border: 2px solid var(--re-line);
+  max-height: 90%;
+  overflow: auto;
+}
+.battlefield-lab .mb-battle-info[open] pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.battlefield-lab .mb-battle-info[open] .mb-button {
+  margin-top: 6px;
+}
+.battlefield-lab .mobile-battle-hud {
+  position: relative;
+}
+.bl-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(52px, 1fr)) repeat(2, 44px);
+  gap: 2px;
+  flex-shrink: 0;
+}
+.battlefield-lab .bl-tools .mb-button {
+  font:
+    10px/1.2 system-ui,
+    sans-serif;
+  white-space: nowrap;
+  padding: 4px 1px;
+}
+.battlefield-lab .bl-inactive {
+  opacity: 0.65;
+}
+@media (max-height: 360px) {
+  .battlefield-lab .mb-summary h2 {
+    font-size: 15px;
+  }
+  html.touch-ui .battlefield-lab .mobile-battle-hud {
+    padding: 8px;
+    gap: 5px;
+  }
+  .battlefield-lab .mb-hint {
+    display: none;
+  }
+}
+
+/* Chunky inset frames and restrained pixel accents for the lab's pause menu. */
+.battlefield-lab .mp-panel {
+  background: var(--re-panel);
+  border: 1px solid var(--re-line-soft);
+  border-radius: 0;
+  box-shadow:
+    0 0 0 3px var(--re-bg),
+    5px 5px 0 var(--re-sunken);
+}
+.battlefield-lab .mp-panel h2 {
+  color: var(--re-text);
+  letter-spacing: 2px;
+}
+.battlefield-lab .mp-actions button {
+  border-radius: 0;
+  border: 2px solid var(--re-line);
+  box-shadow: var(--re-bevel);
+}
+.battlefield-lab .mp-actions button:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: 1px;
+}
+
+.battlefield-lab .mb-terrain {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 6px;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--re-line-soft);
+  font: 11px/1.35 var(--re-body);
+  color: var(--re-muted);
+}
+.battlefield-lab .mb-terrain strong {
+  color: var(--re-text);
+}
+.battlefield-lab .mb-terrain span:nth-of-type(2),
+.battlefield-lab .mb-terrain small {
+  grid-column: 1 / -1;
+}
+
+/* Battle, forecast and roster share the same worn inset-window treatment. */
+.battlefield-lab .mb-forecast {
+  border: 1px solid var(--re-line-soft);
+  border-radius: 0;
+  background: var(--re-panel);
+  box-shadow:
+    0 0 0 2px var(--re-bg),
+    4px 4px 0 var(--re-sunken);
+}
+.battlefield-lab .mb-forecast-side {
+  background: var(--re-raised);
+  border-radius: 0;
+  border-top-color: var(--re-line-strong);
+  box-shadow: inset 0 -2px var(--re-sunken);
+}
+.battlefield-lab .mb-forecast-side.mb-enemy {
+  border-top-color: var(--re-bad);
+}
+.battlefield-lab .mb-forecast-footer .mb-button {
+  border-radius: 0;
+}
+.battlefield-lab .mr-sheet {
+  background: var(--re-bg);
+}
+.battlefield-lab .mr-sheet header {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--re-line-soft);
+}
+.battlefield-lab .mr-sheet button {
+  border-radius: 0;
+  box-shadow: var(--re-bevel);
+}
+.battlefield-lab .mr-sheet button[aria-pressed='true'] {
+  border-left: 4px solid var(--re-accent);
+}
+
+@media (max-height: 420px) {
+  html.touch-ui .battlefield-lab .mobile-battle-hud {
+    padding: 8px;
+    gap: 6px;
+  }
+  .battlefield-lab .mb-body {
+    gap: 4px;
+  }
+  .battlefield-lab .mb-phase {
+    padding-bottom: 5px;
+  }
+  .battlefield-lab .mb-terrain {
+    margin-top: 3px;
+    padding-top: 3px;
+  }
+}
+
+/* Compact command rail: persistent objective/terrain, stable bottom navigation. */
+html.touch-ui .battlefield-lab .mobile-battle-hud {
+  padding: 6px;
+  gap: 4px;
+}
+.battlefield-lab .mb-phase {
+  padding-bottom: 0;
+  border: 0;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.mb-counters {
+  font: 12px/1.2 var(--re-body);
+  color: var(--re-muted);
+  margin-top: 3px;
+  letter-spacing: 0;
+}
+.battlefield-lab .mb-objective.mb-button {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 0;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-bottom: 1px solid var(--re-line-soft);
+  font-size: 12px;
+}
+.mb-info-cue {
+  flex-shrink: 0;
+}
+.battlefield-lab .mb-terrain {
+  margin: 0;
+  padding: 3px 5px;
+  border: 0;
+  border-left: 2px solid var(--re-gold);
+  background: var(--re-panel);
+  color: var(--re-text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+.battlefield-lab .mb-terrain-help.mb-button {
+  grid-column: 1 / -1;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  text-align: left;
+}
+.battlefield-lab .mb-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 4px;
+}
+.battlefield-lab .mb-summary h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.battlefield-lab .mb-summary .mb-hp {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--re-good);
+}
+.battlefield-lab .mb-summary .mb-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.battlefield-lab .mb-summary .mb-status {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  margin: 0;
+  color: var(--re-warn);
+}
+.battlefield-lab .mb-body {
+  gap: 4px;
+}
+.battlefield-lab .mb-body .mb-button {
+  min-height: 38px;
+  padding: 5px;
+}
+.battlefield-lab .mb-command-grid,
+.battlefield-lab .mb-actions {
+  gap: 4px;
+}
+.mb-hold-cue {
+  display: block;
+  font-size: 11px;
+  font-weight: normal;
+  line-height: 1.1;
+}
+.battlefield-lab .mb-body .mb-secondary,
+.battlefield-lab .mb-secondary-grid .mb-button {
+  min-height: 28px;
+  padding: 3px;
+  font-size: 12px;
+}
+.battlefield-lab .mb-battle-info summary {
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.battlefield-lab .bl-tools .mb-button {
+  min-height: 44px;
+}

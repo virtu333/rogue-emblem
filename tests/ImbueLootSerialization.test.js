@@ -169,7 +169,7 @@ describe('Imbue serialization round trip', () => {
     expect(restored.weapon._imbueId).toBe('vampiric');
     expect(restored.weapon.name).toBe('Vampiric Iron Sword');
     // Effects still resolve from the catalog after the round trip
-    expect(getImbueCombatMods(restored.weapon, imbuesData)).toMatchObject({ drainPercent: 0.3 });
+    expect(getImbueCombatMods(restored.weapon, imbuesData)).toMatchObject({ drainPercent: 0.15 });
   });
 
   it('imbue + forge state survive together', () => {

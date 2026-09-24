@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // VillageController — Village & bandit secondary objective battle-scene
 // wiring, extracted per the BattleScene decomposition rule (never inline
 // multi-step flows). Owns the village marker, the visit reward flow (gold into
@@ -112,6 +113,7 @@ export class VillageController {
     const message = grantedItemName
       ? `Village saved! +${gold}g, ${grantedItemName} sent to convoy`
       : `Village saved! +${gold}g`;
+    observeHistoryAction(scene, 'visited the village', unit, null, message);
     scene.showBriefBanner?.(message, '#a6ffb0')?.catch?.(() => {});
 
     clearSeekTileBandits(scene.enemyUnits);
@@ -136,6 +138,7 @@ export class VillageController {
 
     this._resolveTile(state);
     clearSeekTileBandits(scene.enemyUnits);
+    observeHistoryAction(scene, 'razed the village', enemy);
     scene.showBriefBanner?.('Village razed!', '#ff8888')?.catch?.(() => {});
     scene.updateObjectiveText?.();
     return true;
@@ -229,7 +232,7 @@ export class VillageController {
         .setOrigin(0.5)
         .setDepth(5);
       this.markers.push(highlight, label);
-      if (!scene._isReducedEffects?.()) {
+      if (!scene._reduceMotion?.()) {
         scene.tweens?.add?.({
           targets: highlight,
           alpha: 0.08,
@@ -259,7 +262,7 @@ export class VillageController {
         })
         .setOrigin(0.5)
         .setDepth(320);
-      if (scene._isReducedEffects?.()) {
+      if (scene._reduceMotion?.()) {
         scene.time.delayedCall(700, () => txt.destroy());
       } else {
         scene.tweens.add({

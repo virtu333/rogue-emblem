@@ -1,3 +1,10 @@
+import { validateBattleState } from './BattleStateSnapshot.js';
+import { hydrateBattleTimeline } from './BattleTimeline.js';
+import { pickFresh } from '../utils/pickFresh.js';
+import { applyRevivalCatchUp } from './RevivalCatchUp.js';
+import { migrateCleverTrait, rollAndApplyLordTrait } from './TraitSystem.js';
+import { normalizeDeploymentNames } from './DeploymentSelection.js';
+import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
 // No Phaser deps.
 
@@ -57,6 +64,7 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
   findCommander,
   stampCommanderFlag,
@@ -66,7 +74,7 @@ import {
 } from './Commander.js';
 
 // Phaser-specific fields that must be stripped for serialization
-const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
+const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -227,6 +235,9 @@ function parsePersonalSkillId(personalSkillStr) {
  */
 export function serializeUnit(unit) {
   const data = { ...unit };
+  delete data.battleEntityId;
+  delete data.equippedInventoryIndex;
+  delete data._lastAiDecision; // transient target references can contain Phaser objects
   if (unit?.stats && typeof unit.stats === 'object') {
     data.stats = { ...unit.stats };
   }
@@ -284,6 +295,7 @@ export function serializeUnit(unit) {
   delete data._battleTimedWeaponArtAppliedStats;
   delete data._battleTimedWeaponArtAppliedCombatMods;
   delete data._movementSpent;
+  delete data._legendaryGraceTurn;
   return data;
 }
 
@@ -310,9 +322,11 @@ export class RunManager {
   constructor(gameData, metaEffects = null) {
     this.gameData = gameData;
     this.metaEffects = metaEffects;
+    this.legendaryLordChance = 0; // Legacy runs retain their original rules.
     this.status = 'active'; // 'active' | 'victory' | 'defeat'
     this.actIndex = 0;
     this.roster = [];
+    this.lastDeployment = [];
     this.fallenUnits = []; // Serialized units that died in battle
     this.nodeMap = null;
     this.currentNodeId = null; // last completed node (null = start of act)
@@ -327,6 +341,9 @@ export class RunManager {
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
+    this.narrativeSeen = {};
+    this.runRecordId = null;
+    this.totalTurns = 0;
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
@@ -341,6 +358,10 @@ export class RunManager {
     this.actSequence = [...ACT_SEQUENCE];
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.pendingBattleReward = null;
+    this.reachedFirstActBoss = false;
+    this.activeCaravanShop = null;
+    this.lastBattleCasualtyNotices = [];
     this.endRunRewards = null;
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -444,11 +465,17 @@ export class RunManager {
     } = options;
     this.applyDifficultySelection(difficultyId);
     this.usedRecruitNames = {};
+    this.lastDeployment = [];
+    this.legendaryLordChance = Math.min(
+      0.15,
+      0.05 + Math.max(0, Number(this.metaEffects?.legendaryLordChanceBonus) || 0),
+    );
     this.roster = this.createInitialRoster();
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();
       this.runSeed = Number(initialSeed);
     }
+    this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
@@ -465,6 +492,10 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.pendingBattleReward = null;
+    this.reachedFirstActBoss = false;
+    this.activeCaravanShop = null;
+    this.lastBattleCasualtyNotices = [];
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
@@ -774,6 +805,7 @@ export class RunManager {
 
       let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost);
       const needsV2Cost =
+        id !== 'swift_instinct' &&
         blessing.tier >= 2 &&
         !rolledCost &&
         Array.isArray(blessing.costs) &&
@@ -1862,6 +1894,10 @@ export class RunManager {
     return base;
   }
 
+  pickNarrativeLine(pool, key) {
+    return pickFresh(pool, key, this.narrativeSeen, this.runSeed);
+  }
+
   // ── Third Lord (Power of Friendship meta upgrade) ──────────────
 
   shouldTriggerThirdLord() {
@@ -1879,9 +1915,34 @@ export class RunManager {
     this.thirdLordRerolled = true;
   }
 
+  // Called only at recruitment, never on resume or revival. Active blessings
+  // already persist, including in older saves; no new migration flag is needed.
+  grantRecruitBlessingConsumables(unit) {
+    if (!unit || !this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
+    const catalog = buildBlessingIndex(this.gameData.blessings);
+    for (const active of this.activeBlessings || []) {
+      const id = getBlessingEntryId(active);
+      const blessing = catalog.get(id);
+      for (const effect of blessing?.boons || []) {
+        if (effect.type !== 'starting_consumable_all') continue;
+        const name = effect.params?.name;
+        const key = `${id}:${name}`;
+        if (unit.recruitBlessingGrants?.includes(key)) continue;
+        const template = this.gameData?.consumables?.find((item) => item.name === name);
+        if (!template) continue;
+        const granted = addToConsumables(unit, template) || this.addToConvoy(template);
+        if (granted) unit.recruitBlessingGrants = [...(unit.recruitBlessingGrants || []), key];
+      }
+    }
+  }
+
   resolveThirdLord(unit) {
     this.thirdLordJoined = true;
-    if (unit) this.roster.push(unit);
+    if (unit) {
+      rollAndApplyLordTrait(unit, this.gameData.traits, Math.random, this.legendaryLordChance);
+      this.grantRecruitBlessingConsumables(unit);
+      this.roster.push(unit);
+    }
   }
 
   consumeSkipFirstShop() {
@@ -1953,7 +2014,7 @@ export class RunManager {
 
     const poolsByTier = new Map();
     for (const art of catalog) {
-      if (!art?.id) continue;
+      if (!art?.id || art.scrollOnly) continue;
       if (art.legacy === true) continue;
       if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
       const weaponTypes = getWeaponArtAllowedTypes(art).filter((weaponType) =>
@@ -2253,6 +2314,9 @@ export class RunManager {
       if (staff) addToInventory(unit, staff);
     }
 
+    // Traits stack after meta bonuses, and after Sera gains her Staff proficiency.
+    rollAndApplyLordTrait(unit, this.gameData.traits, Math.random, this.legendaryLordChance);
+
     if (isCommander) {
       // Commander's extra combat weapon defaults to the Steel-tier weapon of
       // their primary proficiency, then Deadly Arsenal tiers adjust this loadout.
@@ -2357,7 +2421,11 @@ export class RunManager {
       growthBonuses,
       randomSkillPool,
       classes,
-      { traitsData: this.gameData?.traits || null, rng: Math.random },
+      {
+        traitsData: this.gameData?.traits || null,
+        skillsData: this.gameData?.skills,
+        rng: Math.random,
+      },
     );
     if (!hasRecruitTemplate) {
       promoteUnit(unit, classData, classData.promotionBonuses || {}, this.gameData?.skills || []);
@@ -2421,8 +2489,10 @@ export class RunManager {
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
           }
           const forgeCount = Math.min(forgeLevels, shuffled.length);
-          for (let i = 0; i < forgeCount; i++) {
-            applyForge(w, shuffled[i]);
+          let completed = 0;
+          for (const stat of shuffled) {
+            if (completed >= forgeCount) break;
+            if (applyForge(w, stat)?.success) completed++;
           }
         }
       }
@@ -2508,10 +2578,14 @@ export class RunManager {
     const isFirstBattle = this.completedBattles === 0;
     battleParams.fogEnabled = !isFirstBattle && Boolean(node.fogEnabled);
     battleParams.firstBattleFightersOnly = isFirstBattle;
+    battleParams.excludeOpeningCavaliers = restrictOpeningCavaliers(this);
     battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
+    battleParams.classStatBonuses = this.getDifficultyModifier('classStatBonuses', {});
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.enemyLevelBonus = this.getDifficultyModifier('enemyLevelBonus', 0);
     battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
+    battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
+    battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
     battleParams.enemyEquipTierShift = this.getDifficultyModifier('enemyEquipTierShift', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
@@ -2532,14 +2606,16 @@ export class RunManager {
 
   /** Merchant Caravan reward: set when a caravan survives a battle; consumed on next NodeMap entry. */
   getPendingCaravanShop() {
+    if (this.activeCaravanShop) return this.activeCaravanShop;
     return this.pendingCaravanShop && typeof this.pendingCaravanShop === 'object'
       ? this.pendingCaravanShop
       : null;
   }
 
   clearPendingCaravanShop() {
-    if (!this.pendingCaravanShop) return false;
+    if (!this.pendingCaravanShop && !this.activeCaravanShop) return false;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
     return true;
   }
 
@@ -2578,6 +2654,18 @@ export class RunManager {
     }
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (node) node.encounterLocked = true;
+  }
+
+  canReenterShop(nodeId) {
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
+    return Boolean(
+      node &&
+      node.id === this.currentNodeId &&
+      node.type === 'shop' &&
+      node.completed &&
+      !this.battleInProgress &&
+      this.shopStateByNodeId?.[nodeId],
+    );
   }
 
   getShopState(nodeId) {
@@ -2688,6 +2776,8 @@ export class RunManager {
 
     const inventory = Array.isArray(fallenUnit.inventory) ? fallenUnit.inventory : [];
     const consumables = Array.isArray(fallenUnit.consumables) ? fallenUnit.consumables : [];
+    const carriedCount = inventory.length + consumables.length;
+    const hadAccessory = Boolean(fallenUnit.accessory);
 
     // Handle corrupted legacy data where equipped weapon is absent from inventory
     // or represented by a deep-equal-but-different object reference.
@@ -2738,6 +2828,9 @@ export class RunManager {
     }
 
     relinkWeapon(fallenUnit);
+    const retained = [...fallenUnit.inventory, ...fallenUnit.consumables];
+    const moved = Math.max(0, carriedCount - retained.length);
+    fallenUnit._fallenItemsNotice = `${fallenUnit.name}: ${moved} item${moved === 1 ? '' : 's'} moved to convoy.${hadAccessory ? ' Accessory returned to the team pool.' : ''}${retained.length ? ` Convoy full: ${retained.map((item) => item.name).join(', ')} remain with this ally until revival.` : ''}`;
   }
 
   takeFromConvoy(type, index) {
@@ -2773,7 +2866,14 @@ export class RunManager {
    * battle progresses.
    */
   beginBattleInProgress(nodeId, entryInfo = {}) {
+    if (this.currentAct === 'act1' && entryInfo.isBoss === true) this.reachedFirstActBoss = true;
     this.battleInProgress = {
+      rewindPolicy: 'fixed-v1',
+      entryBattleState: structuredClone({
+        convoy: this.convoy,
+        accessories: this.accessories,
+        gold: this.gold,
+      }),
       nodeId: typeof nodeId === 'string' ? nodeId : null,
       startedAt: Date.now(),
       battleParams:
@@ -2816,15 +2916,19 @@ export class RunManager {
     this.battleInProgress = null;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (!node || node.completed) return false;
+    if (this.totalTurns !== null)
+      this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
 
     this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map((u) => u.name));
     const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
+    this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {
       if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
         const serializedFallen = serializeUnit(fallen);
         this._transferFallenUnitItems(serializedFallen);
+        this.lastBattleCasualtyNotices.push(serializedFallen._fallenItemsNotice);
         this.fallenUnits.push(serializedFallen);
         // Narrative memory: lords who fell in a battle that actually
         // completed (a reverted battle never reaches this point).
@@ -2836,6 +2940,17 @@ export class RunManager {
     }
 
     this.roster = survivingUnits.map((u) => serializeUnit(u));
+    // Refill at the completed-battle boundary so rewards and the node-map
+    // roster show ready staves. Never do this during serialization/resume.
+    // Include stored and casualty-retained equipment, not consumables.
+    for (const unit of [...this.roster, ...this.fallenUnits]) {
+      for (const item of [...(unit.inventory || []), unit.weapon]) {
+        if (item?.perBattleUses) item._usesSpent = 0;
+      }
+    }
+    for (const item of this.convoy.weapons || []) {
+      if (item?.perBattleUses) item._usesSpent = 0;
+    }
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.completedBattles++;
     this.winStreak++;
@@ -2853,6 +2968,7 @@ export class RunManager {
 
     const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const isRewardAct =
+      this.nodeMap?.actId === 'act1' ||
       this.nodeMap?.actId === 'act2' ||
       this.nodeMap?.actId === 'act3' ||
       this.nodeMap?.actId === 'act4';
@@ -2902,13 +3018,23 @@ export class RunManager {
     if (!this.spendGold(cost)) return false;
 
     const unit = this.fallenUnits.splice(idx, 1)[0];
-    unit.currentHP = 1; // Revive at 1 HP (risky if re-deployed)
 
     // Normalize class state after serialization round-trip (fixes promotion eligibility)
     const classData = (this.gameData?.classes || []).find((c) => c.name === unit.className);
     if (classData) normalizeUnitClassState(unit, classData);
     ensureSeraBaseStaffProficiency(unit);
     relinkWeapon(unit);
+    // Stable catch-up rolls on retry/reload; the action chooser does not consume this stream.
+    let seed = Number(this.runSeed) >>> 0;
+    for (const ch of `revive:${unit.name}:${unit.className}:${unit.level}`)
+      seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
+    this.lastRevivalResult = applyRevivalCatchUp(
+      unit,
+      this.roster,
+      this.gameData?.classes || [],
+      createSeededRng(seed),
+    );
+    unit.currentHP = 1; // Catch-up HP gains do not turn revival into a full heal.
 
     this.roster.push(unit);
     return true;
@@ -2975,6 +3101,7 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
+    this.activeCaravanShop = null;
     return { unlockedArtIds: unlockedNow, displacedSkills };
   }
 
@@ -3206,6 +3333,23 @@ export class RunManager {
     // Narrative memory flush — exactly-once under this guard, like currencies.
     meta.recordRunEnd?.({
       result: summary.result,
+      victoryRecord:
+        summary.result === 'victory'
+          ? {
+              id: this.runRecordId || `legacy-${this.runSeed}`,
+              endedAt: Date.now(),
+              difficulty: this.difficultyId,
+              seed: this.runSeed,
+              actsCleared: this.actIndex + 1,
+              totalTurns: this.totalTurns,
+              roster: this.roster.map(({ name, className, level, isLord }) => ({
+                name,
+                className,
+                level,
+                isLord,
+              })),
+            }
+          : null,
       act: this.currentAct,
       difficultyId: this.difficultyId || 'normal',
       defeatedBy: this.defeatContext?.defeatedBy || null,
@@ -3227,12 +3371,7 @@ export class RunManager {
 
     const normalizedResult = result === 'victory' ? 'victory' : 'defeat';
     const currencyMultiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
-    const { valor, supply } = calculateCurrencies(
-      this.actIndex,
-      this.completedBattles,
-      normalizedResult === 'victory',
-      currencyMultiplier,
-    );
+    const { valor, supply } = this.previewEndRunRewards(normalizedResult);
 
     this.endRunRewards = {
       result: normalizedResult,
@@ -3246,6 +3385,20 @@ export class RunManager {
     return { ...this.endRunRewards };
   }
 
+  previewEndRunRewards(result = 'defeat') {
+    if (this.endRunRewards) return { ...this.endRunRewards };
+    const multiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
+    const reward = calculateCurrencies(
+      this.actIndex,
+      this.completedBattles,
+      result === 'victory',
+      multiplier,
+    );
+    // One milestone per run, settled through the same defeat/abandon/victory path.
+    const milestone = this.reachedFirstActBoss ? Math.floor(15 * multiplier) : 0;
+    return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+  }
+
   /** Serialize run state to a plain object for localStorage. */
   toJSON() {
     return {
@@ -3253,7 +3406,9 @@ export class RunManager {
       status: this.status,
       actIndex: this.actIndex,
       roster: this.roster,
+      lastDeployment: normalizeDeploymentNames(this.lastDeployment),
       fallenUnits: this.fallenUnits,
+      lastBattleCasualtyNotices: this.lastBattleCasualtyNotices || [],
       nodeMap: this.nodeMap,
       currentNodeId: this.currentNodeId,
       completedBattles: this.completedBattles,
@@ -3276,6 +3431,10 @@ export class RunManager {
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
       blessingRuntimeModifiers: this.blessingRuntimeModifiers || createBlessingRuntimeModifiers(),
       runSeed: this.runSeed,
+      legendaryLordChance: this.legendaryLordChance,
+      runRecordId: this.runRecordId,
+      narrativeSeen: this.narrativeSeen,
+      totalTurns: this.totalTurns,
       rngSeed: this.rngSeed,
       visionChargesRemaining: this.visionChargesRemaining,
       visionCount: this.visionCount,
@@ -3290,6 +3449,9 @@ export class RunManager {
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       pendingCaravanShop: this.pendingCaravanShop || null,
+      pendingBattleReward: this.pendingBattleReward || null,
+      reachedFirstActBoss: this.reachedFirstActBoss === true,
+      activeCaravanShop: this.activeCaravanShop || null,
       endRunRewards: this.endRunRewards || null,
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
@@ -3302,6 +3464,7 @@ export class RunManager {
       thirdLordJoined: this.thirdLordJoined || false,
       thirdLordRerolled: this.thirdLordRerolled || false,
       battleInProgress: this.battleInProgress || null,
+      lastBattleReport: this.lastBattleReport || null,
     };
   }
 
@@ -3535,6 +3698,8 @@ export class RunManager {
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
+    rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
+    rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);
     if (
       rm.metaEffects &&
       rm.metaEffects.lootWeaponQualityBonus === undefined &&
@@ -3555,6 +3720,7 @@ export class RunManager {
       }
     }
     rm.status = saved.status;
+    rm.lastBattleReport = hydrateBattleTimeline(saved.lastBattleReport);
     rm.actIndex = saved.actIndex;
     rm.roster = Array.isArray(saved.roster)
       ? saved.roster.filter((u) => rm._isValidSerializedUnit(u))
@@ -3562,6 +3728,9 @@ export class RunManager {
     rm.fallenUnits = Array.isArray(saved.fallenUnits)
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
+
+    rm.roster = rm.roster.map((u) => migrateCleverTrait({ ...u }));
+    rm.fallenUnits = rm.fallenUnits.map((u) => migrateCleverTrait({ ...u }));
 
     // --- lord presence validation (only for non-empty rosters) ---
     if (rm.roster.length > 0) {
@@ -3727,6 +3896,17 @@ export class RunManager {
     // 0 here (via the general Number.isFinite guard elsewhere) would make every
     // legacy player's node-map generation seed from the same base — fall back to
     // Date.now() instead so each legacy load gets a distinct seed.
+    rm.narrativeSeen =
+      saved.narrativeSeen &&
+      typeof saved.narrativeSeen === 'object' &&
+      !Array.isArray(saved.narrativeSeen)
+        ? structuredClone(saved.narrativeSeen)
+        : {};
+    rm.runRecordId =
+      typeof saved.runRecordId === 'string' ? saved.runRecordId : `legacy-${saved.runSeed}`;
+    rm.totalTurns = Number.isFinite(saved.totalTurns)
+      ? Math.max(0, Math.trunc(saved.totalTurns))
+      : null;
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : Date.now();
     rm.rngSeed = Number.isFinite(saved.rngSeed)
       ? Number(saved.rngSeed) >>> 0
@@ -3795,11 +3975,32 @@ export class RunManager {
     }
     rm.pendingAmbushNodeId =
       typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
+    rm.reachedFirstActBoss = saved.reachedFirstActBoss === true;
+    rm.pendingBattleReward =
+      saved.pendingBattleReward?.version === 1 && Array.isArray(saved.pendingBattleReward.choices)
+        ? {
+            ...JSON.parse(JSON.stringify(saved.pendingBattleReward)),
+            claimed: (Array.isArray(saved.pendingBattleReward.claimed)
+              ? saved.pendingBattleReward.claimed
+              : []
+            ).filter(
+              (i) => Number.isInteger(i) && i >= 0 && i < saved.pendingBattleReward.choices.length,
+            ),
+            picksRemaining: saved.pendingBattleReward.picksRemaining === 2 ? 2 : 1,
+            skipGold: Math.max(0, Math.trunc(Number(saved.pendingBattleReward.skipGold) || 0)),
+          }
+        : null;
     rm.pendingCaravanShop =
       saved.pendingCaravanShop && typeof saved.pendingCaravanShop === 'object'
         ? { actId: saved.pendingCaravanShop.actId || rm.currentAct }
         : null;
+    rm.activeCaravanShop = saved.activeCaravanShop?.shopState
+      ? structuredClone(saved.activeCaravanShop)
+      : null;
     rm.endRunRewards = saved.endRunRewards || null;
+    rm.lastBattleCasualtyNotices = Array.isArray(saved.lastBattleCasualtyNotices)
+      ? saved.lastBattleCasualtyNotices
+      : [];
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)
       : [];
@@ -3905,10 +4106,30 @@ export class RunManager {
     // One combined pool: the commander may be among the escaped units.
     if (rm.battleInProgress) {
       const checkpoint = rm.battleInProgress.checkpoint;
-      stampCommanderFlag([
+      if (checkpoint.version !== undefined && checkpoint.version !== 2) {
+        rm._battleRecoveryInvalid = true;
+      } else if (checkpoint.version === 2) {
+        const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
+        // Keep the raw save and battle flag intact for recovery; the slot UI
+        // must not turn a malformed fatal record into a free map restart.
+        rm._battleRecoveryInvalid = !validateBattleState(state);
+      }
+      rm.battleInProgress.timeline = hydrateBattleTimeline(rm.battleInProgress.timeline);
+      // Never migrate a rejected checkpoint: even walking its unit arrays may
+      // throw, hiding the raw save from the recovery UI.
+      if (rm._battleRecoveryInvalid) return rm;
+      for (const key of ['visionSnapshot', 'pendingVisionSnapshot']) {
+        if (checkpoint[key]?.version === 2 && !validateBattleState(checkpoint[key]))
+          checkpoint[key] = null;
+      }
+      const pool = [
         ...(Array.isArray(checkpoint.playerUnits) ? checkpoint.playerUnits : []),
         ...(Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []),
-      ]);
+      ];
+      if (checkpoint.commanderEntityId) {
+        for (const unit of pool)
+          unit.isCommander = unit.battleEntityId === checkpoint.commanderEntityId;
+      } else stampCommanderFlag(pool);
     }
 
     return rm;
@@ -4045,6 +4266,14 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     if (!parsed || typeof parsed !== 'object') return { ok: false, reason: 'corrupt' };
     if (parsed.battleInProgress == null) return { ok: true, reason: 'already_clear' };
     const flag = parsed.battleInProgress;
+    if (flag.checkpoint?.recoveryKind === 'fatal_pending')
+      return { ok: false, reason: 'fatal_pending' };
+    const entry = flag.entryBattleState;
+    if (entry && typeof entry === 'object') {
+      if (entry.convoy) parsed.convoy = entry.convoy;
+      if (Array.isArray(entry.accessories)) parsed.accessories = entry.accessories;
+      if (Number.isFinite(entry.gold)) parsed.gold = entry.gold;
+    }
     if (Number.isFinite(flag?.visionChargesAtEntry)) {
       parsed.visionChargesRemaining = flag.visionChargesAtEntry;
     }

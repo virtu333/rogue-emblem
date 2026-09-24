@@ -1,0 +1,4 @@
+[
+  { "id": "archer", "name": "Archer", "count": 3, "move": "Infantry" },
+  { "id": "entity", "name": "Entity", "count": 1 }
+]

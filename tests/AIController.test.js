@@ -234,7 +234,7 @@ describe('AIController', () => {
       const player = makePlayer({ col: 5, row: 3 }); // distance = 2, within 3
 
       const decision = ai._decideAction(guard, [guard], [player], []);
-      expect(guard.aiMode).toBe('chase'); // permanently switched
+      expect(guard.aiMode).toBe('guard'); // guard identity remains
     });
 
     it('guard triggers at exactly 3-tile range', () => {
@@ -251,7 +251,7 @@ describe('AIController', () => {
       const player = makePlayer({ col: 5, row: 2 }); // distance = 3
 
       ai._decideAction(guard, [guard], [player], []);
-      expect(guard.aiMode).toBe('chase');
+      expect(guard.aiMode).toBe('guard');
     });
 
     it('guard does NOT trigger at 4-tile range', () => {
@@ -269,7 +269,7 @@ describe('AIController', () => {
       expect(guard.aiMode).toBe('guard'); // still guarding
     });
 
-    it('guard switches permanently to chase after trigger', () => {
+    it('guard returns toward its remembered post after threat leaves', () => {
       const moveTiles = [
         { col: 4, row: 5 },
         { col: 6, row: 5 },
@@ -285,19 +285,18 @@ describe('AIController', () => {
 
       // First turn: triggers
       ai._decideAction(guard, [guard], [player], []);
-      expect(guard.aiMode).toBe('chase');
+      expect(guard.aiMode).toBe('guard');
 
-      // Move player far away — guard should still chase (permanent switch)
+      // Move the guard away from its remembered post, then remove the threat.
+      guard.col = 3;
+      guard.row = 5;
       player.col = 0;
       player.row = 0;
       const decision = ai._decideAction(guard, [guard], [player], []);
-      expect(guard.aiMode).toBe('chase'); // still chase, not reverted
-      // Should attempt to move toward player
-      if (decision.path && decision.path.length >= 2) {
-        const dest = decision.path[decision.path.length - 1];
-        const dist = Math.abs(dest.col - 0) + Math.abs(dest.row - 0);
-        expect(dist).toBeLessThan(Math.abs(5 - 0) + Math.abs(5 - 0)); // moved closer
-      }
+      expect(guard.aiMode).toBe('guard'); // guard identity remains
+      expect(decision.reason).toBe('guard_return');
+      expect(decision.path.at(-1)).toEqual({ col: 4, row: 5 });
+      expect(guard.guardPost).toEqual({ col: 5, row: 5 });
     });
 
     it('no deadlock: guard can act after triggering', () => {
@@ -309,7 +308,7 @@ describe('AIController', () => {
       const player = makePlayer({ col: 5, row: 4 }); // triggers guard
 
       const decision = ai._decideAction(guard, [guard], [player], []);
-      expect(guard.aiMode).toBe('chase');
+      expect(guard.aiMode).toBe('guard');
       // Even with no movement, should return a valid decision (attack if in range or stay)
       expect(decision).toBeDefined();
       // The enemy is at (5,5), player at (5,4) — distance 1, weapon range 1 -> should attack
@@ -1547,5 +1546,32 @@ describe('AIController', () => {
       expect(decision.reason).toBe('attack_in_range');
       expect(decision.target).toBe(target);
     });
+  });
+});
+
+describe('enemy phase presentation boundary', () => {
+  it('waits for a level-up acknowledgement and skips completed enemies on resume', async () => {
+    const ai = new AIController(createMockGrid(), []);
+    ai._delay = async () => {};
+    const first = makeEnemy({ name: 'first', hasActed: true });
+    const second = makeEnemy({ name: 'second' });
+    const third = makeEnemy({ name: 'third' });
+    ai._decideAction = () => ({});
+    let release;
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    const done = vi.fn(async (enemy) => {
+      enemy.hasActed = true;
+      if (enemy === second) await pending;
+    });
+    const phase = ai.processEnemyPhase([first, second, third], [makePlayer()], [], {
+      onUnitDone: done,
+    });
+    await Promise.resolve();
+    expect(done.mock.calls.map(([unit]) => unit.name)).toEqual(['second']);
+    release();
+    await phase;
+    expect(done.mock.calls.map(([unit]) => unit.name)).toEqual(['second', 'third']);
   });
 });

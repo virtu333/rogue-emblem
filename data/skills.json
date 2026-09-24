@@ -54,7 +54,7 @@
   {
     "id": "luna",
     "name": "Luna",
-    "description": "SKL% chance to deal 1.5x damage",
+    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "trigger": "on-attack",
     "activation": "SKL"
   },

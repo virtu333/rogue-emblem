@@ -19,6 +19,8 @@ const CENTER_COL = Math.floor(NUM_COLUMNS / 2); // 2
 // Acts without an entry use the pool default levelRange from enemies.json
 const ACT_LEVEL_SCALING = {
   act1: { 0: [1, 1], 1: [1, 2], 2: [1, 3], default: [2, 3] },
+  act2: { 0: [3, 5], 1: [4, 6], 2: [5, 7], default: [5, 8] },
+  act4: { 0: [11, 13], 1: [12, 14], 2: [13, 15], default: [14, 17] },
   act3: { 0: [8, 11], 1: [9, 12], 2: [10, 13], 3: [10, 14], default: [11, 15] },
 };
 
@@ -185,7 +187,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     const preferredRows = cfg.preferredRows || [2, 3, 4];
     const excludedRows = new Set(cfg.excludedRows || [0]);
     const bossRow = rows - 1;
-    if (Math.random() < (cfg.spawnChance || 0.4)) {
+    if (Math.random() < (cfg.spawnChanceByAct?.[actId] ?? cfg.spawnChance ?? 0.4)) {
       const eligible = nodes.filter(
         (n) =>
           n.type === NODE_TYPES.BATTLE &&
@@ -203,6 +205,52 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         delete pick.fogEnabled;
       }
     }
+  }
+
+  // Repair service pacing after recruit/arena placement, before ambush rolls.
+  // Never alter edges, recruit guarantees, the opening, or the pre-boss rest.
+  const serviceTypes = new Set([NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.COLOSSEUM]);
+  const serviceStreak = new Map();
+  const processed = new Set();
+  for (const node of nodes) {
+    const parents = nodes.filter((n) => n.edges.includes(node.id));
+    const priorStreak = Math.max(0, ...parents.map((n) => serviceStreak.get(n.id) || 0));
+    if (serviceTypes.has(node.type)) {
+      const conflicts = (type) =>
+        parents.some(
+          (parent) =>
+            parent.type === type ||
+            parent.edges.some(
+              (id) => processed.has(id) && nodes.find((n) => n.id === id)?.type === type,
+            ),
+        );
+      if (priorStreak >= 2 || conflicts(node.type)) {
+        const alternative = node.type === NODE_TYPES.SHOP ? NODE_TYPES.CHURCH : NODE_TYPES.SHOP;
+        node.type = priorStreak < 2 && !conflicts(alternative) ? alternative : NODE_TYPES.BATTLE;
+        node.battleParams = buildBattleParams(actId, node.type, node.row, rows, caravanChanceBonus);
+        if (node.type === NODE_TYPES.BATTLE) {
+          const template = pickTemplateForNode(
+            node.battleParams.objective,
+            mapTemplates,
+            actId,
+            false,
+            rollBiome(actId),
+          );
+          if (template) {
+            node.templateId = template.id;
+            node.battleParams.templateId = template.id;
+          }
+          let chance = Math.max(
+            0,
+            Math.min(0.9, (template?.fogChance ?? FOG_CHANCE_BY_ACT[actId] ?? 0) + fogChanceBonus),
+          );
+          if (halfFogChance) chance = Math.floor((chance * 100) / 2) / 100;
+          if (Math.random() < chance) node.fogEnabled = true;
+        }
+      }
+    }
+    serviceStreak.set(node.id, serviceTypes.has(node.type) ? priorStreak + 1 : 0);
+    processed.add(node.id);
   }
 
   // Post-process: mark a subset of remaining shops as village ambush encounters.
@@ -303,7 +351,7 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 /**
  * Pick node type based on row position and act.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Act 1: 80% battle, 15% shop, 5% church (fewer distractions early).
+ * Act 1: 70% battle, 20% shop, 10% church (fewer distractions early).
  * Acts 2+: 60% battle, 25% shop, 15% church.
  */
 function pickNodeType(row, totalRows, actId) {
@@ -313,8 +361,8 @@ function pickNodeType(row, totalRows, actId) {
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
   if (actId === 'act1') {
-    if (roll < 0.8) return NODE_TYPES.BATTLE;
-    if (roll < 0.95) return NODE_TYPES.SHOP;
+    if (roll < 0.7) return NODE_TYPES.BATTLE;
+    if (roll < 0.9) return NODE_TYPES.SHOP;
     return NODE_TYPES.CHURCH;
   }
   if (roll < 0.6) return NODE_TYPES.BATTLE;

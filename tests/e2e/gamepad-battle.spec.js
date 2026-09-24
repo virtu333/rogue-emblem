@@ -375,179 +375,74 @@ test.describe('Gamepad battle loop', () => {
     expect(await infoText()).toContain(unitName);
   });
 
-  test('Start opens the pause menu, which captures the pad (no leak to the grid)', async ({
+  test('Start opens the DOM pause menu and captures the pad without grid leaks', async ({
     page,
   }) => {
     await setupBattle(page);
     const before = await getCursor(page);
-
     await tap(page, BTN.PAUSE);
-    await page.waitForFunction(
-      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
-      null,
-      { timeout: 6_000 },
-    );
-
-    const focusIndex = () =>
-      page.evaluate(
-        () => window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?._focus?.index,
-      );
-    expect(await focusIndex()).toBe(0); // Resume focused
-
-    // DOWN moves the pause ring, NOT the grid cursor behind it.
+    const pause = page.getByRole('dialog', { name: 'Paused', exact: true });
+    await expect(pause).toBeVisible();
+    await expect(pause.getByRole('button', { name: 'Resume', exact: true })).toBeFocused();
     await tap(page, BTN.DOWN);
-    expect(await focusIndex()).toBe(1);
-    expect(await getCursor(page)).toEqual(before); // grid cursor unchanged -> no leak
-
-    // CANCEL (B) resumes: the overlay is nulled and we return to PLAYER_IDLE.
+    await expect(pause.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+    expect(await getCursor(page)).toEqual(before);
     await tap(page, BTN.CANCEL);
-    await page.waitForFunction(
-      () => !window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay,
-      null,
-      { timeout: 6_000 },
-    );
+    await expect(pause).toHaveCount(0);
     expect(await getBattleState(page)).toBe('PLAYER_IDLE');
   });
 
-  test('Pause -> Settings: the pad drives the settings panel and B returns to pause', async ({
+  test('Pause -> Settings: pad adjusts music and B returns to pause without leaks', async ({
     page,
   }) => {
     await setupBattle(page);
+    const before = await getCursor(page);
     await tap(page, BTN.PAUSE);
-    await page.waitForFunction(
-      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
-      null,
-      { timeout: 6_000 },
-    );
-
-    // Pause order is Resume(0), Settings(1), ...: DOWN focuses Settings, CONFIRM opens
-    // the settings panel as a nested input-focus scope above the pause scope.
     await tap(page, BTN.DOWN);
     await tap(page, BTN.CONFIRM);
-    await page.waitForFunction(
-      () =>
-        Boolean(
-          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.settingsOverlay?.visible,
-        ),
-      null,
-      { timeout: 6_000 },
-    );
-
-    // The settings ring starts on Music; LEFT/RIGHT adjust the focused volume row.
+    const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+    await expect(settings).toBeVisible();
     const musicVol = () =>
       page.evaluate(() => window.__emblemRogueGame.registry.get('settings').getMusicVolume());
     const v0 = await musicVol();
-    await tap(page, v0 > 0 ? BTN.LEFT : BTN.RIGHT);
+    await expect(settings.getByRole('button', { name: 'Decrease music' })).toBeFocused();
+    if (v0 === 0) await tap(page, BTN.RIGHT);
+    await tap(page, BTN.CONFIRM);
     expect(Math.abs((await musicVol()) - v0)).toBeGreaterThan(0.05);
-
-    // CANCEL closes settings (pops its scope) and hands the pad back to the pause menu.
+    expect(await getCursor(page)).toEqual(before);
     await tap(page, BTN.CANCEL);
-    await page.waitForFunction(
-      () => {
-        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
-        return Boolean(p?.visible) && !p?.settingsOverlay?.visible;
-      },
-      null,
-      { timeout: 6_000 },
-    );
+    await expect(settings).toHaveCount(0);
+    const pause = page.getByRole('dialog', { name: 'Paused', exact: true });
+    await expect(pause).toBeVisible();
+    await expect(pause.getByRole('button', { name: 'Resume', exact: true })).toBeFocused();
+    await tap(page, BTN.CANCEL);
+    await expect(pause).toHaveCount(0);
   });
 
-  test('Pause -> More Info: the pad cycles Help tabs as a nested scope, B returns to pause', async ({
-    page,
-  }) => {
-    await setupBattle(page);
-    await tap(page, BTN.PAUSE);
-    await page.waitForFunction(
-      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
-      null,
-      { timeout: 6_000 },
-    );
-
-    // Pause order: Resume(0), Settings(1), More Info(2). Two DOWN -> More Info; CONFIRM
-    // opens the Help overlay as a nested input-focus scope above the pause scope.
-    await tap(page, BTN.DOWN);
-    await tap(page, BTN.DOWN);
-    await tap(page, BTN.CONFIRM);
-    await page.waitForFunction(
-      () =>
-        Boolean(
-          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.helpOverlay?.visible,
-        ),
-      null,
-      { timeout: 6_000 },
-    );
-
-    const helpTab = () =>
-      page.evaluate(
-        () =>
-          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.helpOverlay
-            ?.activeTabIndex,
-      );
-    expect(await helpTab()).toBe(0);
-
-    // R1 cycles to the next tab (proves Help owns the pad, not the pause menu / grid).
-    await tap(page, BTN.R1);
-    expect(await helpTab()).toBe(1);
-    await tap(page, BTN.L1); // and back
-    expect(await helpTab()).toBe(0);
-
-    // CANCEL closes Help (pops its scope, nulls the overlay) and returns to pause.
-    await tap(page, BTN.CANCEL);
-    await page.waitForFunction(
-      () => {
-        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
-        return Boolean(p?.visible) && !p?.helpOverlay;
-      },
-      null,
-      { timeout: 6_000 },
-    );
-  });
-
-  test('Pause -> Compendium: the pad cycles tabs as a nested scope, B returns to pause', async ({
-    page,
-  }) => {
-    await setupBattle(page);
-    await tap(page, BTN.PAUSE);
-    await page.waitForFunction(
-      () => Boolean(window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.visible),
-      null,
-      { timeout: 6_000 },
-    );
-
-    // Pause order: Resume(0), Settings(1), More Info(2), Compendium(3). Three DOWN ->
-    // Compendium; CONFIRM opens it as a nested scope.
-    await tap(page, BTN.DOWN);
-    await tap(page, BTN.DOWN);
-    await tap(page, BTN.DOWN);
-    await tap(page, BTN.CONFIRM);
-    await page.waitForFunction(
-      () =>
-        Boolean(
-          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.compendiumOverlay
-            ?.visible,
-        ),
-      null,
-      { timeout: 6_000 },
-    );
-
-    const tab = () =>
-      page.evaluate(
-        () =>
-          window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay?.compendiumOverlay
-            ?.activeTabIndex,
-      );
-    expect(await tab()).toBe(0);
-    await tap(page, BTN.R1);
-    expect(await tab()).toBe(1);
-
-    await tap(page, BTN.CANCEL);
-    await page.waitForFunction(
-      () => {
-        const p = window.__emblemRogueGame.scene.getScene('Battle')?.pauseOverlay;
-        return Boolean(p?.visible) && !p?.compendiumOverlay;
-      },
-      null,
-      { timeout: 6_000 },
-    );
-  });
+  for (const [name, steps] of [
+    ['Help', 2],
+    ['Compendium', 3],
+  ]) {
+    test(`Pause -> ${name}: pad cycles DOM categories and B returns to pause`, async ({ page }) => {
+      await setupBattle(page);
+      const before = await getCursor(page);
+      await tap(page, BTN.PAUSE);
+      for (let i = 0; i < steps; i++) await tap(page, BTN.DOWN);
+      await tap(page, BTN.CONFIRM);
+      const reference = page.getByRole('dialog', { name, exact: true });
+      await expect(reference).toBeVisible();
+      const categories = reference
+        .getByRole('navigation', { name: 'Categories' })
+        .getByRole('button');
+      await expect(categories.nth(0)).toHaveAttribute('aria-pressed', 'true');
+      await tap(page, BTN.R1);
+      await expect(categories.nth(1)).toHaveAttribute('aria-pressed', 'true');
+      await tap(page, BTN.L1);
+      await expect(categories.nth(0)).toHaveAttribute('aria-pressed', 'true');
+      expect(await getCursor(page)).toEqual(before);
+      await tap(page, BTN.CANCEL);
+      await expect(reference).toHaveCount(0);
+      await expect(page.getByRole('dialog', { name: 'Paused', exact: true })).toBeVisible();
+    });
+  }
 });

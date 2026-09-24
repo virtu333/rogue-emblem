@@ -1,3 +1,6 @@
+import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
+import { resumeFatalDecision } from './BattleFatalDecision.js';
+import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 // BattleSuspendController — mid-battle suspend/resume (anti-refresh).
 //
 // The battle continuously persists a "suspend checkpoint" into the run save
@@ -12,49 +15,23 @@
 // State stays on BattleScene (units, fog, HUD); the controller reads/writes
 // via scene.* like the other extracted battle controllers.
 
-import { serializeUnit, relinkWeapon } from '../engine/RunManager.js';
+import { relinkWeapon } from '../engine/RunManager.js';
+import { restoreBattleWorldState } from '../engine/BattleSnapshotState.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 import { hashRewindSeed } from './VisionRewindController.js';
 import { showMinorHint } from './HintDisplay.js';
+import { completeResolvedAction, readActionContinuation } from './BattlePresentationCheckpoint.js';
 
-/**
- * Serialize a unit for the suspend checkpoint. serializeUnit is the
- * battle-proven clonable form, but it deliberately normalizes mid-battle
- * state away (acted flags, once-per-battle protections, timed weapon-art
- * buffs, movement spent) for between-battle persistence — overlay the live
- * values back on top so a resume is exact.
- */
-export function serializeSuspendUnit(unit) {
-  const data = serializeUnit(unit);
-  data.stats = { ...unit.stats }; // live stats (timed buffs still applied)
-  if (Number.isFinite(unit.mov)) data.mov = unit.mov;
-  data.hasMoved = unit.hasMoved === true;
-  data.hasActed = unit.hasActed === true;
-  data._miracleUsed = unit._miracleUsed === true;
-  data._phoenixBroochUsed = unit._phoenixBroochUsed === true;
-  data._movementSpent = Number(unit._movementSpent) || 0;
-  data._conditions = structuredClone(unit._conditions || []);
-  for (const field of [
-    '_battleDeltas',
-    '_battleWeaponArtUsage',
-    '_battleAbilityUsage',
-    '_battleTimedWeaponArtBuffs',
-    '_battleTimedWeaponArtAppliedStats',
-    '_battleTimedWeaponArtAppliedCombatMods',
-  ]) {
-    if (unit[field] !== undefined) data[field] = structuredClone(unit[field]);
-  }
-  return data;
-}
+import { serializeBattleUnit, restoreEquippedReference } from '../engine/BattleUnitState.js';
+import {
+  registerBattleEntity,
+  resetBattleIdentities,
+  BATTLE_UNIT_GROUPS,
+} from '../engine/BattleEntityIdentity.js';
+import { captureBattleState } from './BattleCheckpointAdapter.js';
 
-function cloneCheckpointPayload(payload) {
-  try {
-    return structuredClone(payload);
-  } catch (_) {
-    return JSON.parse(JSON.stringify(payload));
-  }
-}
+export const serializeSuspendUnit = serializeBattleUnit;
 
 export class BattleSuspendController {
   constructor(scene) {
@@ -66,22 +43,53 @@ export class BattleSuspendController {
    * degrade the suspend lock, never gameplay.
    * @returns {boolean} true when a checkpoint was captured and persisted
    */
-  captureCheckpoint() {
+  captureCheckpoint({ preserveRng = false } = {}) {
     const scene = this.scene;
     const rm = scene.runManager;
     if (!rm?.battleInProgress) return false; // tutorial/standalone or battle already settled
-    if (scene.battleState === 'BATTLE_END') return false;
-    if (scene.turnManager?.currentPhase !== 'player') return false;
+    if (
+      scene.battleState === 'BATTLE_END' ||
+      scene._fatalDecision ||
+      scene._fatalCapturePending ||
+      scene._defeatDecision
+    )
+      return false;
+    const enemyBoundary =
+      scene.turnManager?.currentPhase === 'enemy' && scene._enemyActionCheckpoint === true;
+    if (scene.turnManager?.currentPhase !== 'player' && !enemyBoundary) return false;
     try {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
-      const seed = hashRewindSeed(base, index);
+      const fixed = scene._battleRewindPolicy === 'fixed-v1';
+      const seed = fixed || preserveRng ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
       // Reseed at the checkpoint so live play and any resume from it share
       // the exact same RNG stream from this point on.
-      scene.reseedBattleRng(seed);
-      rm.setBattleCheckpoint(this._buildCheckpoint(index, seed));
-      scene._persistBattleRunState?.();
-      return true;
+      if (!fixed && !preserveRng) scene.reseedBattleRng(seed);
+      if (fixed) scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
+      const checkpoint = this._buildCheckpoint(index, seed);
+      rm.setBattleCheckpoint(checkpoint);
+      try {
+        // Optional history failure must never prevent the latest recovery save.
+        const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
+        recordBattleTimeline(scene, state);
+      } catch (error) {
+        console.warn('[Timeline] optional history unavailable:', error?.message || error);
+      }
+      let persisted = scene._persistBattleRunState?.();
+      if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
+        const fallback = persistWithTimelineFallback(
+          rm.toJSON(),
+          (candidate) => scene._persistBattleRunState(candidate),
+          persisted,
+        );
+        persisted = fallback;
+        if (fallback.ok) {
+          rm.battleInProgress = fallback.candidate.battleInProgress;
+          scene._battleTimeline = rm.battleInProgress.timeline;
+          scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
+        }
+      }
+      return persisted?.ok === true;
     } catch (err) {
       console.warn('[BattleSuspend] checkpoint capture failed:', err?.message || err);
       return false;
@@ -90,37 +98,12 @@ export class BattleSuspendController {
 
   _buildCheckpoint(checkpointIndex, rngSeed) {
     const scene = this.scene;
-    const fog = scene.grid?.fogEnabled
-      ? {
-          visible: [...(scene.grid.visibleSet || new Set())],
-          everSeen: [...(scene.grid.everSeenSet || new Set())],
-        }
-      : null;
-    return cloneCheckpointPayload({
-      version: 1,
-      checkpointIndex,
-      rngSeed: rngSeed >>> 0,
-      turnNumber: scene.turnManager?.turnNumber || 1,
-      turnPar: scene.turnPar ?? null,
-      playerUnits: scene.playerUnits.map(serializeSuspendUnit),
-      enemyUnits: scene.enemyUnits.map(serializeSuspendUnit),
-      npcUnits: scene.npcUnits.map(serializeSuspendUnit),
-      escapedUnits: (scene.escapedUnits || []).map(serializeSuspendUnit),
-      nonDeployedUnits: scene.nonDeployedUnits || [],
-      visionSnapshot: scene.visionSnapshot || null,
-      pendingVisionSnapshot: scene.pendingVisionSnapshot || null,
-      antiTurtleState: scene.antiTurtleState || {},
-      fog,
-      ballistas: scene.ballistas?.map((b) => ({ ...b })) || [],
-      zombieTombstones: scene._zombieTombstones || [],
-      goldEarned: scene.goldEarned || 0,
-      playerDeathsThisBattle: scene._playerDeathsThisBattle || 0,
-      appliedHybridOverrideTurns: [...(scene.appliedHybridOverrideTurns || [])],
-      latePressureWarningShown: scene._latePressureWarningShown === true,
-      bossName: scene._bossName || null,
-      caravanExited: scene._caravanExited === true,
-      villageState: scene._villageState ? { ...scene._villageState } : null,
-    });
+    return {
+      ...captureBattleState(scene, { checkpointIndex, rngSeed }),
+      // Compatibility envelope; historical snapshots use captureBattleState directly.
+      visionSnapshot: structuredClone(scene.visionSnapshot || null),
+      pendingVisionSnapshot: structuredClone(scene.pendingVisionSnapshot || null),
+    };
   }
 
   /**
@@ -130,12 +113,26 @@ export class BattleSuspendController {
    */
   applyUnits(checkpoint) {
     const scene = this.scene;
+    resetBattleIdentities(
+      scene,
+      checkpoint.nextEntityId,
+      BATTLE_UNIT_GROUPS.flatMap((key) => checkpoint[key] || []),
+    );
     const restore = (targetArr, list) => {
       for (const data of Array.isArray(list) ? list : []) {
         const unit = structuredClone(data);
         // The checkpoint crossed a JSON boundary, which breaks the
         // weapon === inventory[i] identity invariant — relink like fromJSON.
+        restoreEquippedReference(unit);
         relinkWeapon(unit);
+        registerBattleEntity(scene, unit);
+        // Build 9 checkpoints saved after a trade retained hasMoved but had
+        // no commitment flag. Conservatively keep that movement spent while
+        // preserving the unit's remaining attack/item actions. Explicit flags
+        // in new saves remain authoritative (including false after a refresh).
+        if (unit._movementCommitted === undefined && unit.faction === 'player') {
+          unit._movementCommitted = unit.hasMoved === true && unit.hasActed !== true;
+        }
         targetArr.push(unit);
         scene.addUnitGraphic(unit);
         for (const cond of Array.isArray(unit._conditions) ? unit._conditions : []) {
@@ -152,13 +149,29 @@ export class BattleSuspendController {
       Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []
     ).map((data) => {
       const unit = structuredClone(data);
+      restoreEquippedReference(unit);
       relinkWeapon(unit);
+      registerBattleEntity(scene, unit);
       return unit;
     });
     for (const unit of scene.playerUnits) {
       if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
     }
     scene.nonDeployedUnits = structuredClone(checkpoint.nonDeployedUnits || []);
+    for (const unit of scene.nonDeployedUnits) {
+      restoreEquippedReference(unit);
+      relinkWeapon(unit);
+      registerBattleEntity(scene, unit);
+    }
+    if (checkpoint.runBattleState && scene.runManager) {
+      const domain = checkpoint.runBattleState;
+      // This is a rewindable subset, never an arbitrary RunManager assignment.
+      if (Array.isArray(domain.convoy?.weapons) && Array.isArray(domain.convoy?.consumables))
+        scene.runManager.convoy = structuredClone(domain.convoy);
+      if (Array.isArray(domain.accessories))
+        scene.runManager.accessories = structuredClone(domain.accessories);
+      if (Number.isFinite(domain.gold) && domain.gold >= 0) scene.runManager.gold = domain.gold;
+    }
     scene.ballistas = (checkpoint.ballistas || []).map((b) => ({ ...b }));
     scene._zombieTombstones = structuredClone(checkpoint.zombieTombstones || []);
     scene.goldEarned = Number(checkpoint.goldEarned) || 0;
@@ -167,6 +180,7 @@ export class BattleSuspendController {
     scene.appliedHybridOverrideTurns = new Set(checkpoint.appliedHybridOverrideTurns || []);
     scene._caravanExited = checkpoint.caravanExited === true;
     scene._villageState = checkpoint.villageState ? { ...checkpoint.villageState } : null;
+    restoreBattleWorldState(scene, checkpoint);
   }
 
   /**
@@ -176,7 +190,8 @@ export class BattleSuspendController {
    */
   finalizeResume(checkpoint) {
     const scene = this.scene;
-    scene.turnManager.currentPhase = 'player';
+    const enemyResume = checkpoint.phase === 'enemy';
+    scene.turnManager.currentPhase = enemyResume ? 'enemy' : 'player';
     scene.turnManager.turnNumber = Math.max(1, Math.trunc(checkpoint.turnNumber) || 1);
     if (checkpoint.turnPar !== null && checkpoint.turnPar !== undefined) {
       scene.turnPar = checkpoint.turnPar;
@@ -202,8 +217,13 @@ export class BattleSuspendController {
       scene.updateEnemyVisibility();
     }
 
-    scene.reseedBattleRng(checkpoint.rngSeed);
+    if (Number.isFinite(checkpoint.visionBaseSeed))
+      scene.visionBaseSeed = checkpoint.visionBaseSeed >>> 0;
+    if (checkpoint.rngState) scene.reseedBattleRng(checkpoint.rngSeed, checkpoint.rngState);
+    else scene.reseedBattleRng(checkpoint.rngSeed);
+    scene._battleDecisionRngState = checkpoint.decisionRngState || checkpoint.rngState || null;
     scene.dangerZoneStale = true;
+    scene._pinnedThreats?.invalidate();
     scene.battleState = 'PLAYER_IDLE';
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
@@ -221,16 +241,37 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    if (checkpoint.recoveryKind === 'fatal_pending') {
+      resumeFatalDecision(scene, checkpoint);
+      return;
+    }
+    if (enemyResume) {
+      scene.battleState = 'ENEMY_PHASE';
+      const resume = () => scene.startEnemyPhase({ resume: true });
+      if (scene._scheduleSafeDelayedAsync)
+        scene._scheduleSafeDelayedAsync(0, 'enemy_phase_resume', resume, {
+          phase: 'enemy',
+          turn: scene.turnManager.turnNumber,
+        });
+      else return resume();
+      return;
+    }
+    const continuation = readActionContinuation(checkpoint.pendingActionCompletion);
+    if (continuation) {
+      completeResolvedAction(scene, continuation);
+      return;
+    }
     try {
       Promise.resolve(showMinorHint(scene, 'Battle resumed.')).catch(() => {});
     } catch (_) {
       /* cosmetic only */
     }
 
-    // An end-of-turn checkpoint (every unit acted) hands straight off to the
+    // An exhausted phase (every living unit acted or sleeps) hands off to the
     // enemy phase — which replays deterministically under the restored seed.
     const allActed =
-      scene.playerUnits.length > 0 && scene.playerUnits.every((u) => u.hasActed === true);
+      scene.playerUnits.length > 0 &&
+      scene.playerUnits.every((u) => u.currentHP <= 0 || u.hasActed === true || isSleeping(u));
     if (allActed) scene.turnManager.endPlayerPhase();
   }
 

@@ -368,13 +368,13 @@ describe('PauseOverlay async callback rejection safety', () => {
     });
     overlay.show();
 
-    // Click "Abandon Run" → triggers _showConfirm which adds "Yes" button
+    // Click "Abandon Run" → opens the explicit abandon confirmation
     const abandonHandler = findBtnHandler(scene._createdObjects, 'Abandon Run');
     expect(abandonHandler).not.toBeNull();
     abandonHandler();
 
-    // Find the "Yes" confirm button (created by _showConfirm)
-    const yesHandler = findBtnHandler(scene._createdObjects, 'Yes');
+    // Activate the explicit abandon confirmation
+    const yesHandler = findBtnHandler(scene._createdObjects, 'Abandon run');
     expect(yesHandler).not.toBeNull();
     yesHandler(); // triggers production Promise.resolve().then(() => onAbandon()).catch()
     await new Promise((r) => setTimeout(r, 0));
@@ -401,8 +401,8 @@ describe('PauseOverlay async callback rejection safety', () => {
     expect(saveHandler).not.toBeNull();
     saveHandler();
 
-    // Find "Yes" confirm button (created by _showConfirm)
-    const yesHandler = findBtnHandler(scene._createdObjects, 'Yes');
+    // Activate the explicit save confirmation
+    const yesHandler = findBtnHandler(scene._createdObjects, 'Save & return');
     expect(yesHandler).not.toBeNull();
     yesHandler();
     await new Promise((r) => setTimeout(r, 0));

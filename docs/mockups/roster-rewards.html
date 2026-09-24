@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Emblem Rogue — roster, rewards and node map density</title>
+    <link rel="stylesheet" href="re-kit.css" />
+    <link rel="stylesheet" href="re-kit-v2.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/press-start-2p@5.0.16/index.css"
+    />
+    <style>
+      /* ---- mockup harness only. none of this ships. ---- */
+      html {
+        background: #0f1b22;
+        color: #eee9d5;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 32px 24px 80px;
+        max-width: 1180px;
+        margin-inline: auto;
+      }
+      h1.doc {
+        font:
+          20px/1.4 'Press Start 2P',
+          monospace;
+        color: #e1cc99;
+        margin: 0 0 8px;
+      }
+      h2.doc {
+        font:
+          13px/1.5 'Press Start 2P',
+          monospace;
+        color: #e1cc99;
+        margin: 48px 0 6px;
+        padding-top: 20px;
+        border-top: 2px solid #d6bd83;
+      }
+      h3.doc {
+        font: 15px/1.4 system-ui;
+        color: #d6bd83;
+        margin: 24px 0 4px;
+      }
+      p.doc,
+      li.doc {
+        color: #b8c6c0;
+        font-size: 14px;
+        line-height: 1.6;
+        max-width: 78ch;
+      }
+      code {
+        font:
+          12px ui-monospace,
+          Menlo,
+          monospace;
+        background: #233c46;
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+      .frame {
+        position: relative;
+        width: 844px;
+        height: 390px;
+        overflow: hidden;
+        border: 1px solid #56676a;
+        box-shadow: 0 8px 30px #0006;
+        background: #10212a;
+        margin: 10px 0 0;
+      }
+      .frame.small {
+        width: 412px;
+      }
+      .frame-row {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .cap {
+        font-size: 12px;
+        color: #8fa3a0;
+        margin: 6px 0 0;
+        max-width: 844px;
+      }
+      .frame .re-screen {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ==================================================================
+         PROPOSED DENSITY LAYER (.d). This is the only part that would ship,
+         as a change to the tokens in mobileTheme.css / reKit.css.
+         ================================================================== */
+      .d {
+        --re-t-body: 13px/1.4 var(--re-body);
+        --re-t-small: 12px/1.35 var(--re-body);
+        --re-t-micro: 10.5px/1.3 var(--re-body);
+        --re-t-title: 11px/1.5 var(--re-pixel);
+        --re-tap: 40px; /* was 44 */
+        --re-tap-row: 50px; /* was 64 */
+        --re-s3: 10px; /* was 12 */
+      }
+      .d .re-screen {
+        gap: 6px;
+        padding: 8px 12px;
+      }
+      .d .re-header {
+        padding-bottom: 6px;
+        min-height: 40px;
+      }
+      .d .re-tabs .re-btn {
+        min-height: 34px;
+        padding: 6px 10px;
+        font-size: 9px;
+      }
+      .d .re-card {
+        padding: 10px;
+      }
+      .d .re-card + .re-card {
+        margin-top: 6px;
+      }
+      .d .re-card h4 {
+        font-size: 14px;
+        margin: 0 0 4px;
+      }
+      .d .re-card p {
+        margin: 0 0 4px;
+      }
+      .d .re-row {
+        min-height: 50px;
+        padding: 6px 10px;
+      }
+      .d .re-row strong {
+        font-size: 13px;
+      }
+      .d .re-stats {
+        gap: 4px 10px;
+        padding: 8px 10px;
+      }
+      .d .re-btn--sm {
+        min-height: 30px;
+        padding: 4px 10px;
+        font-size: 12px;
+      }
+      .d .re-menu .re-btn::before {
+        display: none;
+      }
+
+      /* mockup-only helpers */
+      .face {
+        width: 32px;
+        height: 38px;
+        object-fit: cover;
+        object-position: top;
+        image-rendering: pixelated;
+        border: 1px solid var(--re-line-soft);
+        background: var(--re-sunken);
+        flex: none;
+      }
+      .face--lg {
+        width: 48px;
+        height: 56px;
+      }
+      .unit {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+      .unit img {
+        grid-row: 1 / span 2;
+      }
+      .unit small {
+        grid-column: 2;
+      }
+      .unit .re-row-meta {
+        grid-column: 3;
+      }
+      .unit {
+        position: relative;
+      }
+      .unit small {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .unit .re-badge {
+        position: absolute;
+        top: 5px;
+        right: 6px;
+      }
+      .kv {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        font: var(--re-t-small);
+        color: var(--re-muted);
+        margin: 0;
+      }
+      .kv b {
+        color: var(--re-text);
+        font-weight: 600;
+      }
+      .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .chips {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        font: var(--re-t-micro);
+        padding: 3px 7px;
+        border: 1px solid var(--re-line-soft);
+        border-radius: 2px;
+        color: var(--re-text);
+        background: var(--re-panel);
+        font-variant-numeric: tabular-nums;
+      }
+      .chip b {
+        color: var(--re-gold-hi);
+      }
+      .crumbs {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font: var(--re-t-micro);
+        color: var(--re-muted);
+        margin: 0 0 6px;
+      }
+      .crumbs b {
+        color: var(--re-text);
+      }
+      .rowlist {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .rowlist .re-row {
+        background: var(--re-panel);
+      }
+      .rowlist .re-row[aria-disabled='true'] {
+        opacity: 0.55;
+      }
+      .rowlist .re-row.is-warn small {
+        color: var(--re-warn);
+      }
+      .rowlist .re-row.is-bad small {
+        color: var(--re-bad);
+      }
+      .picker {
+        position: absolute;
+        inset: 0;
+        background: var(--re-scrim);
+        display: grid;
+        place-items: center;
+      }
+      .picker .re-panel {
+        width: 440px;
+        max-height: 340px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      details.re-fold summary {
+        list-style: none;
+        cursor: pointer;
+        font: var(--re-t-small);
+        color: var(--re-muted);
+        min-height: 28px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      details.re-fold summary::before {
+        content: '▸';
+        color: var(--re-gold);
+      }
+      details.re-fold[open] summary::before {
+        content: '▾';
+      }
+
+      /* node map */
+      .nm-graph {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        background: radial-gradient(60% 100% at 50% 100%, #1c3540 0%, #0f2029 75%);
+        border: 1px solid var(--re-line-soft);
+        overflow: hidden;
+      }
+      .nm-graph svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .nm-graph line {
+        stroke: var(--re-line-strong);
+        stroke-width: 2;
+        opacity: 0.55;
+      }
+      .nm-graph line.next {
+        stroke: var(--re-gold);
+        opacity: 1;
+      }
+      .nm-graph line.done {
+        stroke: var(--re-line-soft);
+        opacity: 0.9;
+      }
+      .nm-node {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .nm-node span {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--re-line-strong);
+        border-radius: 50%;
+        background: var(--re-panel);
+        box-shadow: var(--re-bevel);
+      }
+      .nm-node img {
+        width: 28px;
+        height: 28px;
+        image-rendering: pixelated;
+      }
+      .nm-node.done span {
+        opacity: 0.5;
+        border-color: var(--re-line-soft);
+        filter: grayscale(0.6);
+      }
+      .nm-node.locked span {
+        opacity: 0.38;
+        border-color: var(--re-line-soft);
+        filter: saturate(0.3);
+      }
+      .nm-node.avail span {
+        border-color: var(--re-text);
+      }
+      .nm-node.here span {
+        border-color: var(--re-gold);
+        background: var(--re-selected);
+      }
+      .nm-node.pick span {
+        border-color: var(--re-gold-hi);
+        outline: 2px solid var(--re-focus);
+        outline-offset: 2px;
+      }
+      .nm-node.boss span {
+        width: 40px;
+        height: 40px;
+      }
+      .nm-node.boss img {
+        width: 30px;
+        height: 30px;
+      }
+      .nm-act {
+        position: absolute;
+        top: 6px;
+        font: var(--re-t-micro);
+        color: var(--re-muted);
+        transform: translateX(-50%);
+        letter-spacing: 0.4px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside style="padding: 12px; background: #fff4cc; color: #222">
+      Historical design study — superseded by the implemented UI. Weapon letter ranks shown below
+      are illustrative and incorrect; the game uses Prof / Mast. See docs/ui-roster-rewards-plan.md
+      for current behavior.
+    </aside>
+    <h1 class="doc">Roster, rewards and node map — density and completeness</h1>
+    <p class="doc">
+      Companion to <code>index.html</code> (the cohesion pass). Same kit, same v2 palette. Every
+      frame is 844×390, an iPhone in landscape at 1×. The <code>.d</code> layer at the top of this
+      file is the proposed density change; it is a token edit, not a redesign. Portraits and node
+      icons are the real game assets.
+    </p>
+
+    <!-- ================================================================ -->
+    <h2 class="doc">1 · Node map — read the act left to right</h2>
+    <p class="doc">
+      Today: 52px node cards on a 64px row pitch, 104px lane pitch, stacked bottom-to-top inside a
+      scroller. A 9-row act is 576px tall in a ~300px viewport, so the player sees 4–5 rows and
+      scrolls to see where they are going. The phone is landscape; the act should run along the long
+      axis.
+    </p>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Act 1 · Border skirmishes</h2>
+          <span style="margin-left: 12px; font: var(--re-t-micro); color: var(--re-muted)"
+            >Row 3 of 8</span
+          >
+          <span style="margin-left: auto; display: flex; gap: 10px; align-items: center">
+            <span class="chip"><b>340</b> G</span>
+            <span class="chip">Normal</span>
+            <button class="re-btn re-btn--quiet re-btn--sm">Roster</button>
+            <button class="re-btn re-btn--quiet re-btn--sm">Menu</button>
+          </span>
+        </header>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 196px;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+          "
+        >
+          <div class="nm-graph" id="nmH"></div>
+          <aside
+            class="re-card"
+            style="display: flex; flex-direction: column; gap: 6px; min-height: 0"
+          >
+            <div style="display: flex; gap: 8px; align-items: center">
+              <img
+                src="../../public/assets/sprites/nodes/node_battle.png"
+                style="width: 32px; height: 32px; image-rendering: pixelated"
+                alt=""
+              />
+              <div>
+                <h4 style="margin: 0">Skirmish</h4>
+                <p class="kv" style="margin: 0">
+                  <span>Rout</span><span>·</span><span>Lv 2–3</span><span>·</span
+                  ><span>8 enemies</span>
+                </p>
+              </div>
+            </div>
+            <p style="font: var(--re-t-small); color: var(--re-muted); margin: 0">
+              Forest and river. A recruit is waiting on the far bank.
+            </p>
+            <div class="chips"><span class="chip">Recruit</span><span class="chip">Fog</span></div>
+            <span style="flex: 1"></span>
+            <button class="re-btn re-btn--primary">Travel</button>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      B (recommended): horizontal graph. 9 act rows become 9 columns at a 76px pitch, 5 lanes at
+      56px. The whole act fits with no scrolling; node visual is 36px inside a 44px hit target. The
+      right panel is the existing detail card, unchanged except for the Travel primary moving into
+      it.
+    </p>
+
+    <div class="frame-row">
+      <div class="frame small">
+        <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+          <header class="re-header">
+            <h2>Act 1</h2>
+            <span class="chip" style="margin-left: auto"><b>340</b> G</span>
+          </header>
+          <div class="nm-graph" id="nmV" style="overflow: auto"></div>
+        </div>
+      </div>
+      <div style="max-width: 400px">
+        <h3 class="doc" style="margin-top: 10px">A: shrink in place</h3>
+        <p class="doc">
+          Keep the vertical scroller, drop node cards from 52→40px, row pitch 64→50, lane pitch
+          104→80. Shows 6 rows instead of 4–5. Two-line change in <code>RouteGraph.js</code> plus
+          three CSS values. Cheap, but the act still does not fit and the two hard-coded 64s (<code
+            >RouteGraph.js:35,42</code
+          >
+          and <code>NodeMapMenu.js:173</code>) still need one shared constant.
+        </p>
+        <p class="doc">
+          Either option: the 52px card background behind each icon goes. The icon is the node; a
+          border ring carries state (done / here / available / locked).
+        </p>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <h2 class="doc">2 · Roster — one header, four tabs, no escape hatch</h2>
+    <p class="doc">
+      Measured from the screenshot: header 15%, tabs 13%, footer 19%, content 53%. Proposal: title,
+      tabs and Close share one 40px header row; the footer is deleted; content becomes ~80%.
+      Everything "Advanced management" did moves into the tabs. The unit rail stays.
+    </p>
+
+    <h3 class="doc">2a · Stats</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Roster</h2>
+          <nav class="re-tabs" style="margin-left: 10px; flex: 1; overflow: visible">
+            <button class="re-btn" aria-pressed="true">Stats</button>
+            <button class="re-btn">Skills</button>
+            <button class="re-btn">Equipment</button>
+            <button class="re-btn">Convoy</button>
+          </nav>
+          <button class="re-btn re-btn--quiet re-btn--sm">Close</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 200px; --re-split-b: 1fr; gap: 8px">
+          <div class="re-menu re-scroll rowlist" data-units></div>
+          <div class="re-scroll" style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; gap: 10px; align-items: center">
+              <img
+                class="face face--lg"
+                src="../../public/assets/portraits/lord_edric.png"
+                alt=""
+              />
+              <div style="flex: 1; min-width: 0">
+                <div style="display: flex; gap: 8px; align-items: baseline">
+                  <h4 style="margin: 0; font: var(--re-t-title); color: var(--re-gold-hi)">
+                    Edric
+                  </h4>
+                  <span class="chip">Lord · Base</span>
+                  <span class="chip">Lv <b>5</b></span>
+                  <span class="chip" style="flex: 1; display: flex; gap: 6px; align-items: center"
+                    >XP
+                    <span class="re-health" style="flex: 1"
+                      ><span class="re-health-fill re-hp-high" style="width: 62%"></span
+                    ></span>
+                    62/100</span
+                  >
+                </div>
+                <p class="kv" style="margin-top: 4px">
+                  <span>HP <b>20/20</b></span
+                  ><span>Sword <b>B</b></span
+                  ><span>Iron Sword</span><span>Speed Ring</span>
+                </p>
+              </div>
+            </div>
+            <dl class="re-stats" style="--re-stat-cols: 4; margin: 0">
+              <dt>Str</dt>
+              <dd>9</dd>
+              <dt>Mag</dt>
+              <dd>1</dd>
+              <dt>Skl</dt>
+              <dd>8</dd>
+              <dt>Spd</dt>
+              <dd>10</dd>
+              <dt>Lck</dt>
+              <dd>7</dd>
+              <dt>Def</dt>
+              <dd>6</dd>
+              <dt>Res</dt>
+              <dd>2</dd>
+              <dt>Mov</dt>
+              <dd>5</dd>
+            </dl>
+            <div class="chips">
+              <span class="chip">Atk <b>14</b></span
+              ><span class="chip">AS <b>10</b></span
+              ><span class="chip">Hit <b>108</b></span> <span class="chip">Avo <b>27</b></span
+              ><span class="chip">Crt <b>4</b></span
+              ><span class="chip">Wt <b>5</b></span>
+            </div>
+            <details class="re-fold">
+              <summary>Growths</summary>
+              <p class="kv">
+                <span>HP <b>70</b></span
+                ><span>Str <b>55</b></span
+                ><span>Mag <b>15</b></span
+                ><span>Skl <b>50</b></span
+                ><span>Spd <b>60</b></span
+                ><span>Lck <b>45</b></span
+                ><span>Def <b>40</b></span
+                ><span>Res <b>25</b></span>
+              </p>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      Adds what the canvas Stats tab had and the DOM one lost: tier, XP, effective combat numbers,
+      growths (folded). Proficiencies collapse to one chip line. Skill cards leave this tab.
+    </p>
+
+    <h3 class="doc">2b · Equipment — master/detail inside the tab</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Roster</h2>
+          <nav class="re-tabs" style="margin-left: 10px; flex: 1; overflow: visible">
+            <button class="re-btn">Stats</button>
+            <button class="re-btn">Skills</button>
+            <button class="re-btn" aria-pressed="true">Equipment</button>
+            <button class="re-btn">Convoy</button>
+          </nav>
+          <button class="re-btn re-btn--quiet re-btn--sm">Close</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 200px; --re-split-b: 1fr; gap: 8px">
+          <div class="re-menu re-scroll rowlist" data-units></div>
+          <div
+            class="re-split"
+            style="--re-split-a: 236px; --re-split-b: 1fr; gap: 8px; min-height: 0"
+          >
+            <div class="re-scroll rowlist">
+              <p class="re-eyebrow" style="margin: 0 0 2px">Weapons · 2/5</p>
+              <button class="re-btn re-row">
+                <strong>Iron Sword</strong><small>Mt 5 · Hit 90 · Wt 5</small
+                ><span class="re-row-meta">Equipped</span>
+              </button>
+              <button class="re-btn re-row" aria-pressed="true">
+                <strong>Steel Sword</strong><small>Mt 8 · Hit 85 · Wt 8</small
+                ><span class="re-row-meta">Sword C</span>
+              </button>
+              <p class="re-eyebrow" style="margin: 6px 0 2px">Items · 2/3</p>
+              <button class="re-btn re-row">
+                <strong>Vulnerary</strong><small>Heal 10 · 3 uses</small>
+              </button>
+              <button class="re-btn re-row">
+                <strong>Master Seal</strong><small>Promote at Lv 10</small
+                ><span class="re-row-meta" style="color: var(--re-muted)">Lv 5</span>
+              </button>
+              <p class="re-eyebrow" style="margin: 6px 0 2px">Accessory</p>
+              <button class="re-btn re-row">
+                <strong>Speed Ring</strong><small>+2 Spd</small
+                ><span class="re-row-meta">Swap</span>
+              </button>
+            </div>
+            <article
+              class="re-card re-scroll"
+              style="display: flex; flex-direction: column; gap: 4px"
+            >
+              <h4 style="margin: 0">Steel Sword</h4>
+              <p class="kv">
+                <span>Sword C</span><span>Mt <b>8</b></span
+                ><span>Hit <b>85</b></span
+                ><span>Crit <b>0</b></span
+                ><span>Wt <b>8</b></span
+                ><span>Rng <b>1</b></span
+                ><span>Uses <b>30</b></span>
+              </p>
+              <p style="font: var(--re-t-small); color: var(--re-muted); margin: 0">
+                vs Iron Sword: <span style="color: var(--re-good)">+3 Mt</span> ·
+                <span style="color: var(--re-bad)">−5 Hit</span> ·
+                <span style="color: var(--re-bad)">+3 Wt</span> · AS 10 →
+                <b style="color: var(--re-bad)">7</b>
+              </p>
+              <p class="kv">
+                <span>Arts</span><span class="chip">Sunder <b>−5 HP</b></span
+                ><span class="chip" style="opacity: 0.6">— empty slot</span>
+              </p>
+              <details class="re-fold"><summary>About this item</summary></details>
+              <span style="flex: 1"></span>
+              <div class="actions" style="margin: 0">
+                <button class="re-btn re-btn--primary re-btn--sm">Equip</button>
+                <button class="re-btn re-btn--sm">Give…</button>
+                <button class="re-btn re-btn--sm">Store</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      Rows are 50px and one line of stats each; the full card renders once, for the selected item.
+      <b>Give…</b> replaces the two-column trade screen: pick a unit, item moves. <b>Master Seal</b>
+      selected would show "Promote Edric → Great Lord" with a Use button, disabled with the reason
+      until Lv 10. Reclass seals show the class list in the same pane. Forge suffixes and the
+      weapon-art marker return from the canvas version.
+    </p>
+
+    <h3 class="doc">2c · Skills — learned, weapon arts, and the scroll shelf</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Roster</h2>
+          <nav class="re-tabs" style="margin-left: 10px; flex: 1; overflow: visible">
+            <button class="re-btn">Stats</button>
+            <button class="re-btn" aria-pressed="true">Skills</button>
+            <button class="re-btn">Equipment</button>
+            <button class="re-btn">Convoy</button>
+          </nav>
+          <button class="re-btn re-btn--quiet re-btn--sm">Close</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 200px; --re-split-b: 1fr; gap: 8px">
+          <div class="re-menu re-scroll rowlist" data-units></div>
+          <div
+            class="re-split"
+            style="--re-split-a: 1fr; --re-split-b: 1fr; gap: 8px; min-height: 0"
+          >
+            <div class="re-scroll" style="display: flex; flex-direction: column; gap: 4px">
+              <p class="re-eyebrow" style="margin: 0 0 2px">Skills · 2/5</p>
+              <div class="re-card">
+                <h4>Charisma</h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  Allies within 2 tiles gain +10 Hit, +5 Avoid.
+                </p>
+              </div>
+              <div class="re-card">
+                <h4>Vantage</h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  Strike first when attacked below half HP.
+                </p>
+              </div>
+              <p class="re-eyebrow" style="margin: 6px 0 2px">Weapon arts</p>
+              <div class="re-card">
+                <h4>Sunder <span class="chip" style="float: right">Steel Sword</span></h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  −5 HP · +4 Mt, ignores half Def.
+                </p>
+              </div>
+            </div>
+            <div class="re-scroll" style="display: flex; flex-direction: column; gap: 4px">
+              <p class="re-eyebrow" style="margin: 0 0 2px">Team scrolls · 3</p>
+              <div class="re-card">
+                <h4>Scroll of Wrath</h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  Wrath: +20 Crit below half HP.
+                </p>
+                <div class="actions" style="margin-top: 6px">
+                  <button class="re-btn re-btn--primary re-btn--sm">Teach Edric</button
+                  ><button class="re-btn re-btn--sm">Teach…</button>
+                </div>
+              </div>
+              <div class="re-card">
+                <h4>Scroll of Sol</h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  Sol: heal half of damage dealt.
+                </p>
+                <div class="actions" style="margin-top: 6px">
+                  <button class="re-btn re-btn--primary re-btn--sm" disabled>Teach Edric</button
+                  ><span style="font: var(--re-t-micro); color: var(--re-warn); align-self: center"
+                    >Already known</span
+                  >
+                </div>
+              </div>
+              <div class="re-card">
+                <h4>Art scroll: Lunge</h4>
+                <p style="font: var(--re-t-small); color: var(--re-muted)">
+                  Lance art · Steel Lance, Iron Lance eligible on Sera.
+                </p>
+                <div class="actions" style="margin-top: 6px">
+                  <button class="re-btn re-btn--sm">Bind to weapon…</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      The scroll shelf is team-owned (<code>runManager.scrolls</code>) so it lives beside the unit's
+      skills, not inside a unit's bag. "Teach Edric" is one tap for the selected unit; "Teach…"
+      opens the unit picker. Weapon-art scrolls bind to a weapon and slot (3 max) and confirm before
+      overwriting an innate art, same rules as the canvas path.
+    </p>
+
+    <h3 class="doc">2d · The one picker everything shares</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column; filter: none">
+        <header class="re-header">
+          <h2>Roster</h2>
+          <nav class="re-tabs" style="margin-left: 10px; flex: 1; overflow: visible">
+            <button class="re-btn">Stats</button><button class="re-btn">Skills</button
+            ><button class="re-btn" aria-pressed="true">Equipment</button
+            ><button class="re-btn">Convoy</button>
+          </nav>
+          <button class="re-btn re-btn--quiet re-btn--sm">Close</button>
+        </header>
+        <div
+          class="re-split"
+          style="--re-split-a: 200px; --re-split-b: 1fr; gap: 8px; opacity: 0.5"
+        >
+          <div class="re-menu re-scroll rowlist" data-units></div>
+          <div></div>
+        </div>
+      </div>
+      <div class="re v2 d picker">
+        <section class="re-panel" role="dialog">
+          <header class="re-header" style="min-height: 0; padding-bottom: 6px">
+            <h2 style="font-size: 10px">Give Steel Sword to</h2>
+            <button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">
+              Cancel
+            </button>
+          </header>
+          <div class="re-scroll rowlist">
+            <button class="re-btn re-row unit is-warn">
+              <img class="face" src="../../public/assets/portraits/lord_sera.png" alt="" /><strong
+                >Sera</strong
+              ><small>Light Sage · needs Sword</small><span class="re-row-meta">2/5</span>
+            </button>
+            <button class="re-btn re-row unit">
+              <img class="face" src="../../public/assets/portraits/lord_rowan.png" alt="" /><strong
+                >Rowan</strong
+              ><small>Cavalier · Sword D</small><span class="re-row-meta">3/5</span>
+            </button>
+            <button class="re-btn re-row unit is-bad" aria-disabled="true">
+              <img
+                class="face"
+                src="../../public/assets/portraits/generic_archer.png"
+                alt=""
+              /><strong>Wren</strong><small>Archer · inventory full</small
+              ><span class="re-row-meta">5/5</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Convoy</strong><small>Weapons 4/20</small
+              ><span class="re-row-meta">Store</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+    <p class="cap">
+      <code>UnitPicker</code>: title, unit rows with portrait / class / one-line reason / count,
+      optional Convoy row, Cancel. Used by: Give (roster), Teach… (scrolls), Promote target class
+      (rows are classes instead of units), reward give-to, reward stat booster, whetstone unit and
+      weapon steps, convoy withdraw-to. One component, one set of gamepad and keyboard rules, one
+      e2e test.
+    </p>
+
+    <!-- ================================================================ -->
+    <h2 class="doc">3 · Rewards — every step on the same sheet</h2>
+    <p class="doc">
+      Today <code>MobileRewards</code> is a DOM list that hides itself and fires a synthetic pointer
+      event at a canvas card; from that point the player is on the 640×480 canvas for give-to,
+      consumable, stat-booster, whetstone, forge-stat and imbue pickers. The proposal is one sheet
+      with a step stack: the left column is what you are choosing, the right column is where it is
+      going.
+    </p>
+
+    <h3 class="doc">3a · Choose</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Battle rewards</h2>
+          <span class="chips" style="margin-left: 12px">
+            <span class="chip">Battle <b>+120</b> G</span
+            ><span class="chip">Turn ★★ <b>+40</b> G</span
+            ><span class="chip" style="color: var(--re-muted)">Vault <b>480</b> G</span>
+          </span>
+          <button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">Roster</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 300px; --re-split-b: 1fr; gap: 8px">
+          <div class="re-scroll rowlist">
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Lancereaver</strong><small>Sword · Mt 9 · reverses triangle</small
+              ><span class="re-row-meta">Weapon</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Silver Whetstone</strong><small>Forge one weapon, your choice of stat</small
+              ><span class="re-row-meta">Forge</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Speedwing</strong><small>+2 Spd, permanent</small
+              ><span class="re-row-meta">Booster</span>
+            </button>
+            <button class="re-btn re-row re-btn--quiet">
+              <strong>Take 60 G instead</strong><small>Skip the item</small>
+            </button>
+          </div>
+          <article class="re-card" style="display: flex; flex-direction: column; gap: 4px">
+            <h4 style="margin: 0">Lancereaver</h4>
+            <p class="kv">
+              <span>Sword C</span><span>Mt <b>9</b></span
+              ><span>Hit 75</span><span>Crit 5</span><span>Wt 9</span><span>Rng 1</span>
+            </p>
+            <p style="font: var(--re-t-small); color: var(--re-muted); margin: 0">
+              Reverses the weapon triangle: strong against lances, weak against axes.
+            </p>
+            <p class="kv">
+              <span>Can use:</span><b>Edric</b><b>Rowan</b
+              ><span style="color: var(--re-warn)">Sera needs Sword</span>
+            </p>
+            <span style="flex: 1"></span>
+            <button class="re-btn re-btn--primary">Take Lancereaver</button>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="doc">3b · Give to</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Battle rewards</h2>
+          <span class="chips" style="margin-left: 12px"
+            ><span class="chip">Battle <b>+120</b> G</span
+            ><span class="chip">Turn ★★ <b>+40</b> G</span></span
+          >
+          <button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">Roster</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 300px; --re-split-b: 1fr; gap: 8px">
+          <div class="re-scroll rowlist" style="opacity: 0.55">
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Lancereaver</strong><small>Sword · Mt 9 · reverses triangle</small
+              ><span class="re-row-meta">Weapon</span>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Silver Whetstone</strong><small>Forge one weapon</small>
+            </button>
+            <button class="re-btn re-row">
+              <strong>Speedwing</strong><small>+2 Spd, permanent</small>
+            </button>
+          </div>
+          <section
+            class="re-card"
+            style="display: flex; flex-direction: column; gap: 6px; min-height: 0"
+          >
+            <p class="crumbs">
+              <span>Lancereaver</span><span>›</span><b>Give to</b
+              ><button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">
+                Back
+              </button>
+            </p>
+            <div class="re-scroll rowlist">
+              <button class="re-btn re-row unit">
+                <img
+                  class="face"
+                  src="../../public/assets/portraits/lord_edric.png"
+                  alt=""
+                /><strong>Edric</strong><small>Lord · Sword B · AS 10 → 9</small
+                ><span class="re-row-meta">2/5</span>
+              </button>
+              <button class="re-btn re-row unit is-warn" aria-disabled="true">
+                <img class="face" src="../../public/assets/portraits/lord_sera.png" alt="" /><strong
+                  >Sera</strong
+                ><small>Light Sage · needs Sword</small><span class="re-row-meta">2/5</span>
+              </button>
+              <button class="re-btn re-row unit">
+                <img
+                  class="face"
+                  src="../../public/assets/portraits/lord_rowan.png"
+                  alt=""
+                /><strong>Rowan</strong><small>Cavalier · Sword D · AS 8 → 7</small
+                ><span class="re-row-meta">3/5</span>
+              </button>
+              <button class="re-btn re-row">
+                <strong>Send to convoy</strong><small>Weapons 4/20</small>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      Same <code>UnitPicker</code> as 2d, rendered inline instead of modal because the sheet already
+      owns the screen. The left list stays visible and dimmed so the player keeps context; Back
+      returns to 3a without re-rolling. The one extra piece of information the canvas never showed:
+      what the item does to the recipient's attack speed.
+    </p>
+
+    <h3 class="doc">3c · Whetstone chain</h3>
+    <div class="frame">
+      <div class="re v2 d re-screen" style="display: flex; flex-direction: column">
+        <header class="re-header">
+          <h2>Battle rewards</h2>
+          <span class="chips" style="margin-left: 12px"
+            ><span class="chip">Battle <b>+120</b> G</span
+            ><span class="chip">Turn ★★ <b>+40</b> G</span></span
+          >
+          <button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">Roster</button>
+        </header>
+        <div class="re-split" style="--re-split-a: 300px; --re-split-b: 1fr; gap: 8px">
+          <section class="re-card re-scroll rowlist" style="gap: 4px">
+            <p class="crumbs" style="margin-bottom: 2px">
+              <span>Silver Whetstone</span><span>›</span><b>Edric</b><span>›</span
+              ><span>Weapon</span>
+            </p>
+            <button class="re-btn re-row">
+              <strong>Iron Sword</strong><small>Mt 5 · Hit 90 · Crit 0 · Wt 5</small
+              ><span class="re-row-meta">Forge 0/5</span>
+            </button>
+            <button class="re-btn re-row" aria-pressed="true">
+              <strong>Steel Sword <span style="color: var(--re-good)">+1</span></strong
+              ><small>Mt 9 · Hit 85 · Crit 0 · Wt 8</small
+              ><span class="re-row-meta">Forge 1/5</span>
+            </button>
+          </section>
+          <section class="re-card" style="display: flex; flex-direction: column; gap: 6px">
+            <p class="crumbs">
+              <span>Steel Sword</span><span>›</span><b>Choose a stat</b
+              ><button class="re-btn re-btn--quiet re-btn--sm" style="margin-left: auto">
+                Back
+              </button>
+            </p>
+            <div class="rowlist">
+              <button class="re-btn re-row">
+                <strong>+1 Might</strong><small>9 → 10</small><span class="re-row-meta">1/3</span>
+              </button>
+              <button class="re-btn re-row">
+                <strong>+5 Hit</strong><small>85 → 90</small><span class="re-row-meta">0/3</span>
+              </button>
+              <button class="re-btn re-row">
+                <strong>+5 Crit</strong><small>0 → 5</small><span class="re-row-meta">0/3</span>
+              </button>
+              <button class="re-btn re-row" aria-disabled="true">
+                <strong>−1 Weight</strong><small>Capped</small><span class="re-row-meta">3/3</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <p class="cap">
+      Three canvas screens (unit → weapon → stat / imbue) become one breadcrumb. Imbue stones swap
+      the stat list for the imbue list. Units with no forgeable weapon are shown disabled with the
+      reason, not hidden, so the "No forgeable weapons in roster" dead end is visible before the
+      tap.
+    </p>
+
+    <script>
+      // ---- shared unit rail -------------------------------------------------
+      const units = [
+        ['lord_edric', 'Edric', 'Lord · Lv 5', '20/20', 100, true, ''],
+        ['lord_sera', 'Sera', 'Light Sage · Lv 4', '18/18', 100, false, ''],
+        ['lord_rowan', 'Rowan', 'Cavalier · Lv 10', '24/31', 77, false, 'Promote'],
+        ['generic_archer', 'Wren', 'Archer · Lv 3', '9/19', 47, false, ''],
+      ];
+      for (const rail of document.querySelectorAll('[data-units]')) {
+        rail.innerHTML = units
+          .map(
+            ([img, n, c, hp, pct, on, badge]) => `
+          <button class="re-btn re-row unit" ${on ? 'aria-pressed="true"' : ''}>
+            <img class="face" src="../../public/assets/portraits/${img}.png" alt="" />
+            <strong>${n}</strong>
+            <small>${c} · ${hp}<span class="re-health" style="margin-top:3px;width:90px"><span class="re-health-fill ${pct > 66 ? 're-hp-high' : pct > 33 ? 're-hp-med' : 're-hp-low'}" style="width:${pct}%"></span></span></small>
+            ${badge ? `<span class="re-badge">${badge}</span>` : ''}
+          </button>`,
+          )
+          .join('');
+      }
+
+      // ---- node graphs --------------------------------------------------------
+      // [row, lane, type, state]  state: done | here | pick | avail | locked
+      const nodes = [
+        [0, 2, 'battle', 'done'],
+        [1, 1, 'battle', 'done'],
+        [1, 3, 'shop', 'locked'],
+        [2, 0, 'recruit', 'locked'],
+        [2, 2, 'battle', 'here'],
+        [2, 3, 'rest', 'locked'],
+        [3, 1, 'shop', 'avail'],
+        [3, 2, 'battle', 'pick'],
+        [3, 4, 'ruins', 'avail'],
+        [4, 0, 'battle', 'locked'],
+        [4, 2, 'recruit', 'locked'],
+        [4, 3, 'battle', 'locked'],
+        [5, 1, 'colosseum', 'locked'],
+        [5, 3, 'battle', 'locked'],
+        [6, 2, 'rest', 'locked'],
+        [6, 3, 'shop', 'locked'],
+        [7, 2, 'elite', 'locked'],
+        [8, 2, 'boss', 'locked'],
+      ];
+      const edges = [
+        [0, 2, 1, 1],
+        [0, 2, 1, 3],
+        [1, 1, 2, 0],
+        [1, 1, 2, 2],
+        [1, 3, 2, 2],
+        [1, 3, 2, 3],
+        [2, 0, 3, 1],
+        [2, 2, 3, 1],
+        [2, 2, 3, 2],
+        [2, 3, 3, 2],
+        [2, 3, 3, 4],
+        [3, 1, 4, 0],
+        [3, 1, 4, 2],
+        [3, 2, 4, 2],
+        [3, 4, 4, 3],
+        [4, 0, 5, 1],
+        [4, 2, 5, 1],
+        [4, 3, 5, 3],
+        [5, 1, 6, 2],
+        [5, 3, 6, 3],
+        [6, 2, 7, 2],
+        [6, 3, 7, 2],
+        [7, 2, 8, 2],
+      ];
+      const st = (r, l) => nodes.find((n) => n[0] === r && n[1] === l)?.[3];
+      function graph(el, pos, w, h) {
+        const svg = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${edges
+          .map(([r1, l1, r2, l2]) => {
+            const a = pos(r1, l1),
+              b = pos(r2, l2);
+            const cls =
+              st(r1, l1) === 'here' && st(r2, l2) !== 'locked'
+                ? 'next'
+                : st(r2, l2) === 'done' || st(r2, l2) === 'here'
+                  ? 'done'
+                  : '';
+            return `<line class="${cls}" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" />`;
+          })
+          .join('')}</svg>`;
+        const btns = nodes
+          .map(([r, l, t, s]) => {
+            const [x, y] = pos(r, l);
+            return `<button class="nm-node ${s} ${t === 'boss' ? 'boss' : ''}" style="left:${(x / w) * 100}%;top:${(y / h) * 100}%" aria-label="${t}"><span><img src="../../public/assets/sprites/nodes/node_${t}.png" alt="" /></span></button>`;
+          })
+          .join('');
+        el.innerHTML = svg + btns;
+      }
+      // B: horizontal. 9 rows -> columns at 76px pitch; 5 lanes at 56px pitch. 636x290 viewport.
+      const H = document.getElementById('nmH');
+      graph(H, (r, l) => [40 + r * 74, 30 + l * 56], 636, 290);
+      H.insertAdjacentHTML(
+        'beforeend',
+        ['Start', '', '', '', '', '', '', 'Elite', 'Boss']
+          .map((t, r) =>
+            t
+              ? `<span class="nm-act" style="left:${((40 + r * 74) / 636) * 100}%">${t}</span>`
+              : '',
+          )
+          .join(''),
+      );
+      // A: vertical shrink. 40px node on 50px row pitch, 80px lane pitch, bottom-up. Scroller.
+      const V = document.getElementById('nmV');
+      const rows = 8;
+      graph(V, (r, l) => [30 + l * 80, 28 + (rows - r) * 50], 380, (rows + 1) * 50 + 6);
+      V.firstElementChild.style.height = `${(rows + 1) * 50 + 6}px`;
+      V.firstElementChild.style.position = 'relative';
+      V.style.display = 'block';
+      for (const b of V.querySelectorAll('.nm-node')) {
+        b.style.top = `${(parseFloat(b.style.top) / 100) * ((rows + 1) * 50 + 6)}px`;
+      }
+      V.scrollTop = 140;
+    </script>
+  </body>
+</html>

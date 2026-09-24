@@ -83,9 +83,15 @@ export function getStatForgeCount(weapon, stat) {
  * @param {'might'|'crit'|'hit'|'weight'} stat
  * @returns {boolean}
  */
+export function forgeStatBlock(weapon, stat) {
+  if (!Object.hasOwn(FORGE_BONUSES, stat)) return 'Invalid forge choice.';
+  if (!canForge(weapon)) return 'This weapon cannot be forged further.';
+  if (stat === 'weight' && !(weapon.weight > 0)) return 'Already at minimum weight.';
+  if (getStatForgeCount(weapon, stat) >= FORGE_STAT_CAP) return 'This stat is at its forge limit.';
+  return '';
+}
 export function canForgeStat(weapon, stat) {
-  if (!canForge(weapon)) return false;
-  return getStatForgeCount(weapon, stat) < FORGE_STAT_CAP;
+  return !forgeStatBlock(weapon, stat);
 }
 
 /**
@@ -97,8 +103,7 @@ export function canForgeStat(weapon, stat) {
  * @returns {number}
  */
 export function getForgeCost(weapon, stat) {
-  const level = weapon._forgeLevel || 0;
-  if (level >= FORGE_MAX_LEVEL) return -1;
+  if (!canForgeStat(weapon, stat)) return -1;
   const costs = FORGE_COSTS[stat];
   if (!costs) return -1;
   const statCount = getStatForgeCount(weapon, stat);

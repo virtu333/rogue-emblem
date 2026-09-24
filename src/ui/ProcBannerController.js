@@ -1,3 +1,4 @@
+import { presentationText } from '../utils/presentationText.js';
 /**
  * ProcBannerController -- combat proc announcements.
  *
@@ -28,7 +29,7 @@ export class ProcBannerController {
   }
 
   _reduced() {
-    return this.scene._isReducedEffects();
+    return this.scene._reduceMotion();
   }
 
   _track(obj) {
@@ -65,15 +66,14 @@ export class ProcBannerController {
       const theme = themeFor(dominantCategory(entries));
       const pos = this.scene.grid.gridToPixel(unit.col, unit.row);
       const chip = this._track(
-        this.scene.add
-          .text(pos.x, pos.y + dy, entries.map((e) => e.name).join(', '), {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: theme.color,
-            fontStyle: 'bold',
-            backgroundColor: '#000000cc',
-            padding: { x: 4, y: 2 },
-          })
+        presentationText(this.scene, pos.x, pos.y + dy, entries.map((e) => e.name).join(', '), {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: theme.color,
+          fontStyle: 'bold',
+          backgroundColor: '#000000cc',
+          padding: { x: 4, y: 2 },
+        })
           .setOrigin(0.5)
           .setDepth(CHIP_DEPTH)
           .setScale(reduced ? 1 : 0.7),
@@ -88,10 +88,10 @@ export class ProcBannerController {
       }
       this.scene.tweens.add({
         targets: chip,
-        y: pos.y + dy - 14,
+        y: reduced ? pos.y + dy : pos.y + dy - 14,
         alpha: 0,
-        delay: reduced ? 0 : 140,
-        duration: reduced ? 260 : 700,
+        delay: 140,
+        duration: 700,
         onComplete: () => this._kill(chip),
       });
     }
@@ -112,16 +112,14 @@ export class ProcBannerController {
     const bg = scene.add.rectangle(w / 2, 0, w, 26, 0x000000, 0.82);
     const edgeTop = scene.add.rectangle(w / 2, -13, w, 2, theme.accent, 0.9);
     const edgeBot = scene.add.rectangle(w / 2, 13, w, 2, theme.accent, 0.9);
-    const text = scene.add
-      .text(w / 2, 0, `${event.unit} -- ${event.name}!`, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: theme.color,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+    const text = presentationText(scene, w / 2, 0, `${event.unit} -- ${event.name}!`, {
+      fontFamily: 'monospace',
+      fontSize: '13px',
+      color: theme.color,
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
     const banner = this._track(
-      scene.add.container(-w, y, [bg, edgeTop, edgeBot, text]).setDepth(BANNER_DEPTH),
+      scene.add.container(reduced ? 0 : -w, y, [bg, edgeTop, edgeBot, text]).setDepth(BANNER_DEPTH),
     );
     scene._pinToScreen(banner);
 
@@ -136,19 +134,19 @@ export class ProcBannerController {
       {
         targets: banner,
         x: 0,
-        duration: reduced ? 90 : 150,
+        duration: reduced ? 0 : 150,
         ease: 'Cubic.easeOut',
       },
       { label: 'proc_banner_in', onCancel: kill },
     );
     if (dead || !banner.scene) return;
-    await scene._awaitSceneDelay(reduced ? 180 : 380, { label: 'proc_banner_hold' });
+    await scene._awaitSceneDelay(380, { label: 'proc_banner_hold' });
     if (dead || !banner.scene) return;
     await scene._awaitSceneTween(
       {
         targets: banner,
-        x: w,
-        duration: reduced ? 90 : 150,
+        x: reduced ? 0 : w,
+        duration: reduced ? 0 : 150,
         ease: 'Cubic.easeIn',
         onComplete: kill,
       },
@@ -159,13 +157,14 @@ export class ProcBannerController {
 
   /**
    * Portrait cut-in strip for a crit or Legendary weapon art. Awaited.
-   * Skipped entirely in reduced-effects mode and throttled to one per
+   * Static in reduced motion or low quality, and throttled to one per
    * CUTIN_THROTTLE_MS so multi-strike exchanges can't chain them.
    * `side` is 'left' (player) or 'right' (enemy).
    */
   async showCutIn({ unitName, portraitKey, label, category, side }) {
     const scene = this.scene;
-    if (this._reduced()) return;
+    // Keep the readable crit/art identity at low quality; only its motion is omitted.
+    const staticPresentation = this._reduced() || scene._effectsQuality?.() === 'low';
     const now = scene.time?.now ?? 0;
     if (now - this._lastCutInAt < CUTIN_THROTTLE_MS) return;
     this._lastCutInAt = now;
@@ -188,24 +187,20 @@ export class ProcBannerController {
     } else {
       textX = fromLeft ? 24 : w - 24;
     }
-    const labelText = scene.add
-      .text(textX, -10, label, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: theme.color,
-        fontStyle: 'bold',
-      })
-      .setOrigin(fromLeft ? 0 : 1, 0.5);
-    const nameText = scene.add
-      .text(textX, 10, unitName || '', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#ffffff',
-      })
-      .setOrigin(fromLeft ? 0 : 1, 0.5);
+    const labelText = presentationText(scene, textX, -10, label, {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: theme.color,
+      fontStyle: 'bold',
+    }).setOrigin(fromLeft ? 0 : 1, 0.5);
+    const nameText = presentationText(scene, textX, 10, unitName || '', {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: '#ffffff',
+    }).setOrigin(fromLeft ? 0 : 1, 0.5);
     parts.push(labelText, nameText);
 
-    const slide = fromLeft ? -120 : 120;
+    const slide = staticPresentation ? 0 : fromLeft ? -120 : 120;
     const cutIn = this._track(
       scene.add
         .container(slide, y, parts)
@@ -226,7 +221,7 @@ export class ProcBannerController {
         targets: cutIn,
         x: 0,
         alpha: 1,
-        duration: 140,
+        duration: staticPresentation ? 0 : 140,
         ease: 'Cubic.easeOut',
       },
       { label: 'proc_cutin_in', onCancel: kill },
@@ -239,7 +234,7 @@ export class ProcBannerController {
         targets: cutIn,
         x: -slide / 3,
         alpha: 0,
-        duration: 140,
+        duration: staticPresentation ? 0 : 140,
         ease: 'Cubic.easeIn',
         onComplete: kill,
       },

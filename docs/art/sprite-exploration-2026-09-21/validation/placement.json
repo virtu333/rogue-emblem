@@ -1,0 +1,70 @@
+[
+  {
+    "label": "Illustrated",
+    "name": "Edric",
+    "source": {
+      "x": 86,
+      "y": 158,
+      "width": 598,
+      "height": 735
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    }
+  },
+  {
+    "label": "Illustrated",
+    "name": "Sera",
+    "source": {
+      "x": 886,
+      "y": 163,
+      "width": 461,
+      "height": 738
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 23,
+      "y": 14,
+      "width": 19,
+      "height": 30
+    }
+  },
+  {
+    "label": "Direct",
+    "name": "Edric",
+    "source": {
+      "x": 51,
+      "y": 76,
+      "width": 717,
+      "height": 839
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    }
+  },
+  {
+    "label": "Direct",
+    "name": "Sera",
+    "source": {
+      "x": 768,
+      "y": 99,
+      "width": 688,
+      "height": 821
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 25,
+      "height": 30
+    }
+  }
+]

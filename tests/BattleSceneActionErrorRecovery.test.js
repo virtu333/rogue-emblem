@@ -191,7 +191,7 @@ describe('executeDance error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     scene.commitVisionSnapshotIfPending = vi.fn();
-    scene._isReducedEffects = vi.fn(() => true);
+    scene._reduceMotion = vi.fn(() => true);
     scene.grid.gridToPixel = vi.fn(() => ({ x: 0, y: 0 }));
     scene.add = {
       circle: vi.fn(() => ({

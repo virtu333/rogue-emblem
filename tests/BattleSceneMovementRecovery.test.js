@@ -184,6 +184,40 @@ describe('BattleScene movement recovery', () => {
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
   });
 
+  it.each(['setup', 'finalize', 'dim'])(
+    'settles Canto rewards and save exactly once after a %s visual failure',
+    (failure) => {
+      const { scene, unit } = makeScene();
+      const calls = [];
+      scene.battleState = 'CANTO_MOVING';
+      scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
+      unit.hasActed = true;
+      scene._villageController = {
+        handleUnitActionEnd: vi.fn((u) => calls.push(`village:${u.col},${u.row}`)),
+      };
+      scene._captureSuspendCheckpoint = vi.fn(() => calls.push('save'));
+      scene.turnManager.unitActed = vi.fn(() => calls.push('phase'));
+      if (failure === 'setup')
+        scene.tweens.add = vi.fn(() => {
+          throw new Error('setup failure');
+        });
+      if (failure === 'finalize')
+        scene.updateUnitPosition = vi.fn(() => {
+          throw new Error('position failure');
+        });
+      if (failure === 'dim')
+        scene.dimUnit = vi.fn(() => {
+          throw new Error('dim failure');
+        });
+      BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+      // The fallback timer must not apply a second completion after recovery.
+      for (const [, callback] of scene.time.delayedCall.mock.calls) callback();
+      expect(calls).toEqual([`village:${failure === 'setup' ? '1,1' : '2,1'}`, 'save', 'phase']);
+      expect(scene.battleState).toBe('PLAYER_IDLE');
+      expect(unit.hasActed).toBe(true);
+    },
+  );
+
   it('recovers Canto finalize when updateUnitPosition throws and still exits UNIT_MOVING', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';

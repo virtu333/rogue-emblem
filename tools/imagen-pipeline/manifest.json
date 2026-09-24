@@ -19,6 +19,10 @@
         {
           "name": "enemy_wyvern_rider",
           "prompt": "enemy wyvern rider in red and black armor with lance, aggressive flying posture"
+        },
+        {
+          "name": "merchant_caravan",
+          "prompt": "Original blue-canopied merchant supply wagon with a blue-cloaked merchant, compact tactical map sprite."
         }
       ]
     },

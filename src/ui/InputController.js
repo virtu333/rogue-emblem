@@ -1,3 +1,5 @@
+import { DangerZoneOverlay } from './DangerZoneOverlay.js';
+import { canInspectUnit } from '../engine/BattleInformation.js';
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -54,11 +56,12 @@ export class InputController {
     const scene = this.scene;
     if (!scene.grid || !scene.infoText) return;
     const terrain = scene.grid.getTerrainAt(col, row);
+    scene._mobileTerrainFocus = { col, row };
     let info = terrain.name;
     const hovered = scene.getUnitAt(col, row);
     // Fog gate BEFORE any per-unit info: a hidden enemy's moveType must not leak
     // through the Move-cost line (e.g. a fogged flier showing Forest "Move: 1").
-    const hoveredVisible = Boolean(hovered && scene.grid.isVisible(col, row));
+    const hoveredVisible = canInspectUnit(scene.grid, hovered);
     const moveType = hoveredVisible ? hovered.moveType : 'Infantry';
     const moveCost = terrain.moveCost[moveType];
     info += ` | Move: ${moveCost}`;
@@ -298,6 +301,8 @@ export class InputController {
       return;
     }
 
+    if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
+
     switch (scene.battleState) {
       case 'PLAYER_IDLE':
         this.handleIdleClick(gp);
@@ -362,6 +367,27 @@ export class InputController {
       scene.grid.clearHighlights();
       scene.grid.clearAttackHighlights();
       scene.selectUnit(unit);
+      // Native battle controls expose actions immediately, without sacrificing
+      // the existing unit → destination movement gesture. Tutorial movement
+      // gates and the canvas-only UI keep their guided selection flow.
+      if (
+        scene.isMobileInput &&
+        scene._mobileBattleHud?.available() &&
+        scene.battleState === 'UNIT_SELECTED' &&
+        scene.selectedUnit === unit &&
+        !scene._isTutorialStrictGateActive?.()
+      ) {
+        scene.preMoveLoc = { col: unit.col, row: unit.row };
+        scene._preFogSnapshot = scene.grid.snapshotFogState();
+        scene.showActionMenu(unit);
+        this.registerSelectionMenu(unit);
+      }
+      return;
+    }
+    if (unit?.faction === 'player' && isSleeping(unit)) {
+      const point = scene.grid.gridToPixel(unit.col, unit.row);
+      this._showInspectionAtPixel(point.x, point.y);
+      scene._mobileBattleHud?.sync();
       return;
     }
     // Mobile: touch has no hover or right-click, so a plain tap on a visible
@@ -370,7 +396,7 @@ export class InputController {
       scene.isMobileInput &&
       unit &&
       unit.faction !== 'player' &&
-      !(scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row))
+      canInspectUnit(scene.grid, unit)
     ) {
       if (scene.inspectionPanel?.visible && scene.inspectionPanel._unit === unit) {
         this.clearInspectionVisuals();
@@ -384,8 +410,59 @@ export class InputController {
     scene.grid.clearAttackHighlights();
   }
 
+  isPlanningSelection() {
+    const s = this.scene;
+    const u = s.selectedUnit;
+    return Boolean(
+      u &&
+      !u.hasMoved &&
+      !u.hasActed &&
+      !u._movementCommitted &&
+      !s.tradeMutatedThisSession &&
+      !s._isTutorialStrictGateActive?.() &&
+      (s.battleState === 'UNIT_SELECTED' || this.isSelectionMenu()),
+    );
+  }
+
+  handlePlanningUnitTap(gp) {
+    const s = this.scene;
+    if (!this.isPlanningSelection()) return false;
+    const target = s.getUnitAt(gp.col, gp.row);
+    if (!target || target === s.selectedUnit || !canInspectUnit(s.grid, target)) return false;
+    if (target.faction === 'player' && !target.hasActed && !isSleeping(target)) {
+      this.clearPlanningInspection();
+      if (this.isSelectionMenu()) s.hideActionMenu();
+      this._selectionMenu = null;
+      s.deselectUnit();
+      this.handleIdleClick(gp);
+      return true;
+    }
+    if (s.isMobileInput) {
+      if (s.inspectionPanel?.visible && s.inspectionPanel._unit === target) {
+        this.clearPlanningInspection();
+      } else {
+        const pixel = s.grid.gridToPixel(gp.col, gp.row);
+        this._showInspectionAtPixel(pixel.x, pixel.y);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  clearPlanningInspection() {
+    if (!this._planningInspection) return;
+    this._planningInspection = false;
+    this._planningThreat?.hide();
+    this.scene.inspectionPanel?.hide();
+    this.scene._mobileBattleHud?.sync?.();
+  }
+
   handleSelectedClick(gp) {
     const scene = this.scene;
+    if (scene.selectedUnit?._movementCommitted) {
+      scene.showActionMenu(scene.selectedUnit);
+      return;
+    }
     if (!scene.selectedUnit) {
       scene.deselectUnit();
       return;
@@ -404,12 +481,18 @@ export class InputController {
       }
     }
 
+    if (this.handlePlanningUnitTap(gp)) return;
+    this.clearPlanningInspection();
+
     if (gp.col === scene.selectedUnit.col && gp.row === scene.selectedUnit.row) {
       scene.grid.clearHighlights();
       if (scene.selectedUnit.graphic?.clearTint) scene.selectedUnit.graphic.clearTint();
       scene.preMoveLoc = { col: scene.selectedUnit.col, row: scene.selectedUnit.row };
       scene._preFogSnapshot = scene.grid.snapshotFogState();
       scene.showActionMenu(scene.selectedUnit);
+      if (scene.isMobileInput && scene._mobileBattleHud?.available()) {
+        this.registerSelectionMenu(scene.selectedUnit);
+      }
       return;
     }
 
@@ -424,8 +507,71 @@ export class InputController {
     }
   }
 
+  registerSelectionMenu(unit) {
+    const s = this.scene;
+    this._selectionMenu = null;
+    if (
+      !s.isMobileInput ||
+      !s._mobileBattleHud?.available() ||
+      s.selectedUnit !== unit ||
+      s.battleState !== 'UNIT_ACTION_MENU' ||
+      unit.hasMoved ||
+      unit.hasActed ||
+      unit._movementCommitted ||
+      s.tradeMutatedThisSession ||
+      s._isTutorialStrictGateActive?.()
+    )
+      return;
+    this._selectionMenu = { unit, objects: s.actionMenu };
+    s.grid.showMovementRange?.(s.movementRange, unit.col, unit.row);
+  }
+
+  isSelectionMenu() {
+    const s = this.scene;
+    const menu = this._selectionMenu;
+    return Boolean(
+      menu &&
+      s.battleState === 'UNIT_ACTION_MENU' &&
+      s.actionMenu === menu.objects &&
+      s.selectedUnit === menu.unit &&
+      !menu.unit.hasMoved &&
+      !menu.unit._movementCommitted &&
+      !menu.unit.hasActed &&
+      !s.tradeMutatedThisSession,
+    );
+  }
+
+  commitSelectionMenu(objects) {
+    if (!this.isSelectionMenu() || this._selectionMenu.objects !== objects) return;
+    this.clearPlanningInspection();
+    this._selectionMenu = null;
+    this.scene.grid.clearHighlights();
+    this.scene.selectedUnit.graphic?.clearTint?.();
+  }
+
   handleActionMenuClick(gp) {
-    // Clicks during action menu are handled by the menu buttons, not grid clicks
+    // Only the initial, uncommitted native action menu accepts destinations.
+    // A submenu, trade, or post-movement menu must never grant another move.
+    if (!this.isSelectionMenu()) return;
+    const s = this.scene;
+    if (s._isTutorialStrictGateActive?.()) return;
+    if (this.handlePlanningUnitTap(gp)) return;
+    this.clearPlanningInspection();
+    if (gp.col === s.selectedUnit.col && gp.row === s.selectedUnit.row) return;
+    const entry = s.movementRange?.get(`${gp.col},${gp.row}`);
+    if (!entry || entry.stoppable === false) {
+      const occupant = s.getUnitAt(gp.col, gp.row);
+      if (occupant && canInspectUnit(s.grid, occupant)) return;
+      this._selectionMenu = null;
+      s.hideActionMenu();
+      s.registry.get('audio')?.playSFX('sfx_cancel');
+      s.deselectUnit();
+      return;
+    }
+    this._selectionMenu = null;
+    s.hideActionMenu();
+    s.battleState = 'UNIT_SELECTED';
+    this.handleSelectedClick(gp);
   }
 
   handleTargetClick(gp) {
@@ -438,6 +584,7 @@ export class InputController {
 
   handleForecastClick(gp) {
     const scene = this.scene;
+    if (scene._mobileBattleHud?.forecast) return;
     if (
       scene.forecastTarget &&
       gp.col === scene.forecastTarget.col &&
@@ -587,12 +734,21 @@ export class InputController {
       }
       return false;
     }
+    if (!canInspectUnit(scene.grid, unit)) return false;
     this._ballistaRangeShown = false;
+    const planning = this.isPlanningSelection();
+    if (!planning) scene.grid.clearAttackHighlights?.();
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
       scene._pinToScreen(scene.inspectionPanel?.objects);
 
+    if (planning) {
+      this._planningInspection = true;
+      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid);
+      this._planningThreat.show(unit.faction === 'enemy' ? scene.calculateDangerZone(unit) : []);
+      scene._mobileBattleHud?.sync?.();
+    }
     if (scene.battleState === 'PLAYER_IDLE') {
       const isPlayer = unit.faction === 'player';
       const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
@@ -602,7 +758,8 @@ export class InputController {
       // other factions act next phase, so preview their post-recovery state.
       const rootedForPreview =
         unit.faction === 'player' ? isRooted(unit) : willRemainRootedNextPhase(unit);
-      const mov = rootedForPreview ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
+      const asleepPlayer = unit.faction === 'player' && isSleeping(unit);
+      const mov = rootedForPreview || asleepPlayer ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
       const moveRange = scene.grid.getMovementRange(
         unit.col,
         unit.row,
@@ -614,7 +771,7 @@ export class InputController {
       );
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
 
-      if (unit.weapon) {
+      if (unit.weapon && !asleepPlayer) {
         const attackTiles = new Set();
         for (const [key, entry] of moveRange) {
           if (entry.stoppable === false) continue;
@@ -637,6 +794,11 @@ export class InputController {
   }
 
   clearInspectionVisuals() {
+    if (this._planningInspection) {
+      this.clearPlanningInspection();
+      this.scene.refreshEndTurnControl();
+      return;
+    }
     const scene = this.scene;
     this._ballistaRangeShown = false;
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
@@ -662,7 +824,14 @@ export class InputController {
       this.clearInspectionVisuals();
       return true;
     }
-    if (this._showInspectionAtPixel(px, py)) return true;
+    if (this._showInspectionAtPixel(px, py)) {
+      if (scene.inspectionPanel?._unit) {
+        this.openUnitDetailOverlay();
+        scene.inspectMode = false;
+        this.clearInspectionVisuals();
+      }
+      return true;
+    }
     this.clearInspectionVisuals();
     return true;
   }
@@ -703,14 +872,19 @@ export class InputController {
   openUnitDetailOverlay() {
     const scene = this.scene;
     const { _unit, _terrain, _gameData } = scene.inspectionPanel;
-    if (!_unit) return;
+    if (!canInspectUnit(scene.grid, _unit)) {
+      scene.inspectionPanel.hide();
+      return;
+    }
     let pool;
     if (scene.enemyUnits?.includes(_unit)) {
-      pool = scene.enemyUnits.filter((u) => u.currentHP > 0);
+      pool = scene.enemyUnits.filter((u) => u.currentHP > 0 && canInspectUnit(scene.grid, u));
     } else if (scene.npcUnits?.includes(_unit)) {
-      pool = scene.npcUnits.filter((u) => u.currentHP > 0);
+      pool = scene.npcUnits.filter((u) => u.currentHP > 0 && canInspectUnit(scene.grid, u));
     } else {
-      pool = (scene.playerUnits || []).filter((u) => u.currentHP > 0);
+      pool = (scene.playerUnits || []).filter(
+        (u) => u.currentHP > 0 && canInspectUnit(scene.grid, u),
+      );
     }
     const rosterIndex = pool.indexOf(_unit) !== -1 ? pool.indexOf(_unit) : 0;
     const rosterOptions = pool.length > 0 ? { rosterUnits: pool, rosterIndex } : undefined;
@@ -719,6 +893,7 @@ export class InputController {
   }
 
   destroy() {
+    this._planningThreat?.hide();
     this.scene = null;
   }
 }

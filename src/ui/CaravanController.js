@@ -1,3 +1,4 @@
+import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecorder.js';
 // CaravanController -- Merchant Caravan battle-scene wiring, extracted per the
 // BattleScene decomposition rule (never inline multi-step flows). Owns spawn,
 // the 1-tile-per-turn greedy movement toward the nearest map edge, exit
@@ -5,7 +6,7 @@
 // lives in engine/CaravanSystem.js; this controller is the Phaser-facing shim.
 
 import { createCaravanUnit, computeCaravanStep, isCaravanAtEdge } from '../engine/CaravanSystem.js';
-import { showMinorHint } from './HintDisplay.js';
+import { showContextualHint } from './HintDisplay.js';
 
 const CARAVAN_RING_COLOR = 0xffcc33;
 
@@ -26,13 +27,11 @@ export class CaravanController {
     scene.addUnitGraphic(unit);
     this._applyCaravanTint(unit);
 
-    const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('battle_caravan')) {
-      showMinorHint(
-        scene,
-        'A merchant caravan is caught in the fighting -- if it survives, it will trade with you.',
-      );
-    }
+    showContextualHint(
+      scene,
+      'battle_caravan',
+      'A merchant caravan is caught in the fighting -- if it survives, it will trade with you.',
+    );
   }
 
   /** Re-tint an already-spawned caravan (e.g. after suspend/resume restore). */
@@ -79,6 +78,7 @@ export class CaravanController {
       occupied,
     );
     if (step) {
+      rememberHistoryPath(scene, unit, [{ col: unit.col, row: unit.row }, step], false);
       unit.col = step.col;
       unit.row = step.row;
       const pos = scene.grid.gridToPixel(unit.col, unit.row);
@@ -114,6 +114,7 @@ export class CaravanController {
 
   _handleExit(unit) {
     const scene = this.scene;
+    observeHistoryAction(scene, 'escaped', unit);
     scene._caravanExited = true;
     const idx = scene.npcUnits.indexOf(unit);
     if (idx !== -1) scene.npcUnits.splice(idx, 1);

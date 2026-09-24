@@ -1,0 +1,62 @@
+[
+  {
+    "id": "archer-muted",
+    "class": "A · Muted palette",
+    "variant": 1,
+    "alphaPixels": 590788,
+    "bounds": {
+      "x": 161,
+      "y": 71,
+      "width": 925,
+      "height": 1120
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer-ready",
+    "class": "B · Grounded ready stance",
+    "variant": 1,
+    "alphaPixels": 569355,
+    "bounds": {
+      "x": 69,
+      "y": 26,
+      "width": 1019,
+      "height": 1256
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer-draw",
+    "class": "C · Bow drawn",
+    "variant": 1,
+    "alphaPixels": 516165,
+    "bounds": {
+      "x": 66,
+      "y": 80,
+      "width": 1029,
+      "height": 1183
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  }
+]

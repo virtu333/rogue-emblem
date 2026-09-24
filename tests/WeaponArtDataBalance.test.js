@@ -59,7 +59,7 @@ describe('weapon arts data guards', () => {
     }
 
     const profArts = arts.filter((art) => art?.requiredRank === 'Prof');
-    expect(profArts.length).toBe(60);
+    expect(profArts.length).toBe(68);
 
     const nonLegendaryMastArts = arts.filter(
       (art) =>

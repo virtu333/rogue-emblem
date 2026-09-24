@@ -1,0 +1,633 @@
+[
+  {
+    "name": "Myrmidon",
+    "id": "myrmidon",
+    "count": 3,
+    "prompt": "Generate a class review SPRITE SHEET for Rogue Emblem, exactly THREE separated full-body sprites in one horizontal row, genuine transparent background, no text no ground no rings no shadow. LEFT Player A: male brown-haired MYRMIDON. CENTER Player B: female silver-haired MYRMIDON. RIGHT Enemy: black-haired crimson MYRMIDON. All are fast lightly armored swordfighters, slim single swords and short wrapped blue/navy tunics for players, crimson/charcoal for enemy, no plate armor, no shields, no bows. Variants should look like distinct recruits of the SAME class, equally capable with practical clothing. Clear differences in hair, face, tunic cut; identical class silhouette language. Reference is style only: detailed compact late-16-bit map sprites, purposeful pixel clusters, mature 4-head proportions, slightly overhead three-quarter idle view facing right. NOT large battle illustrations or generic tiny icons. Each fits a roughly 28wide34high gameplay footprint, sword close to body. Equal heights, common foot baseline, centered in three equal cells, ample transparent gaps. No character may overlap adjacent cell. Source image may be enlarged but hard pixel edges. Faction accents strong blue for both players and red for enemy while skin/hair retain identity. No labels/frames.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Knight",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Armored",
+    "id": "knight",
+    "count": 3,
+    "prompt": "Generate a KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Knight, tier base, movement Armored, engine weapons Lances (P). Specific design: Compact heavy plate armor, upright SHORT LANCE and broad shield. NO sword. Silver/blue player armor, iron/crimson enemy..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Fighter",
+    "tier": "base",
+    "weapon": "Axes (P)",
+    "move": "Infantry",
+    "id": "fighter",
+    "count": 3,
+    "prompt": "Generate a FIGHTER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Fighter, tier base, movement Infantry, engine weapons Axes (P). Specific design: Stocky muscular axe infantry, simple sleeveless work shirt, bare strong arms, fur/leather belt, broad single axe. No plate or sword..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Cavalier",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Cavalry",
+    "id": "cavalier",
+    "count": 3,
+    "prompt": "Generate a CAVALIER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Cavalier, tier base, movement Cavalry, engine weapons Lances (P). Specific design: Rider on compact HORSE, practical light cavalry armor and upright lance; entire horse included, folded legs idle, no wings.. CRITICAL: include horse and rider, never standing infantry. ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Archer",
+    "tier": "base",
+    "weapon": "Bows (P)",
+    "move": "Infantry",
+    "id": "archer",
+    "count": 3,
+    "prompt": "Generate a ARCHER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Archer, tier base, movement Infantry, engine weapons Bows (P). Specific design: Lean leather archer, upright curved BOW and visible white-feathered quiver, blue scarf; no sword or armor plate..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Mage",
+    "tier": "base",
+    "weapon": "Tomes (P)",
+    "move": "Infantry",
+    "id": "mage",
+    "count": 3,
+    "prompt": "Generate a MAGE tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Mage, tier base, movement Infantry, engine weapons Tomes (P). Specific design: Young tome caster, knee-length blue coat, open BOOK close to chest, small contained magic spark, no staff or armor..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Cleric",
+    "tier": "base",
+    "weapon": "Staves (P)",
+    "move": "Infantry",
+    "id": "cleric",
+    "count": 3,
+    "prompt": "Generate a CLERIC tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Cleric, tier base, movement Infantry, engine weapons Staves (P). Specific design: Unarmored healer in simple cream-blue robes, wooden healing STAFF, gentle upright stance, no tome or weapon blade..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Thief",
+    "tier": "base",
+    "weapon": "Swords (P)",
+    "move": "Infantry",
+    "id": "thief",
+    "count": 3,
+    "prompt": "Generate a THIEF tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Thief, tier base, movement Infantry, engine weapons Swords (P). Specific design: Small agile thief, short hooded coat, pouches, compact short SWORD low at side, practical dark blue clothes, no cape train..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Dancer",
+    "tier": "base",
+    "weapon": "Swords (P)",
+    "move": "Infantry",
+    "id": "dancer",
+    "count": 3,
+    "prompt": "Generate a DANCER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Dancer, tier base, movement Infantry, engine weapons Swords (P). Specific design: Graceful lightly equipped dancer, practical flowing short layered outfit with blue ribbons, compact sword at belt, dynamic but compact pose. No instrument..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Pegasus Knight",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Flying",
+    "id": "pegasus-knight",
+    "count": 3,
+    "prompt": "Generate a PEGASUS KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Pegasus Knight, tier base, movement Flying, engine weapons Lances (P). Specific design: Light lance rider on WHITE WINGED HORSE, wings folded compactly and readable horse head. Entire pegasus mount included. Blue cloth for players, crimson for enemy..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Wyvern Rider",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Flying",
+    "id": "wyvern-rider",
+    "count": 3,
+    "prompt": "Generate a WYVERN RIDER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Wyvern Rider, tier base, movement Flying, engine weapons Lances (P). Specific design: Lance rider on compact rugged WYVERN, reptilian head, folded leathery wings, tail curling close. Entire mount included, no horse anatomy..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Mercenary",
+    "tier": "base",
+    "weapon": "Swords (P)",
+    "move": "Infantry",
+    "id": "mercenary",
+    "count": 3,
+    "prompt": "Generate a MERCENARY tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Mercenary, tier base, movement Infantry, engine weapons Swords (P). Specific design: Sturdy practical infantry swordfighter, broad straight sword, leather vest with small shoulder plate, short blue scarf; no shield, no robe, no slender dueling sword..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Swordmaster",
+    "tier": "promoted",
+    "weapon": "Swords (M)",
+    "move": "Infantry",
+    "id": "swordmaster",
+    "count": 3,
+    "prompt": "Generate a SWORDMASTER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Swordmaster, tier promoted, movement Infantry, engine weapons Swords (M). Specific design: Elite unarmored swordfighter in long split martial coat, elegant single katana-like SWORD near body, poised slim silhouette and blue sash; no shield..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "General",
+    "tier": "promoted",
+    "weapon": "Lances (M), Axes (P)",
+    "move": "Armored",
+    "id": "general",
+    "count": 3,
+    "prompt": "Generate a GENERAL tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class General, tier promoted, movement Armored, engine weapons Lances (M), Axes (P). Specific design: Huge heavily armored FOOT tank, closed helmet, tall rectangular shield and short upright LANCE, broad square silhouette; no horse..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Warrior",
+    "tier": "promoted",
+    "weapon": "Axes (M), Bows (P)",
+    "move": "Infantry",
+    "id": "warrior",
+    "count": 3,
+    "prompt": "Generate a WARRIOR tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Warrior, tier promoted, movement Infantry, engine weapons Axes (M), Bows (P). Specific design: Veteran muscular infantry with broad AXE, bow strapped at back, leather/metal shoulder guard, muscular torso, rugged mane hair..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Paladin",
+    "tier": "promoted",
+    "weapon": "Lances (M), Swords (P)",
+    "move": "Cavalry",
+    "id": "paladin",
+    "count": 3,
+    "prompt": "Generate a PALADIN tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Paladin, tier promoted, movement Cavalry, engine weapons Lances (M), Swords (P). Specific design: Noble armored rider on HORSE with blue caparison, upright lance and restrained cape. Entire mount, no wings, brighter armor than Cavalier.. CRITICAL: include horse and rider, never standing infantry. ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Sniper",
+    "tier": "promoted",
+    "weapon": "Bows (M)",
+    "move": "Infantry",
+    "id": "sniper",
+    "count": 3,
+    "prompt": "Generate a SNIPER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Sniper, tier promoted, movement Infantry, engine weapons Bows (M). Specific design: Elite FOOT archer with elegant LONG BOW, visible quiver, fitted blue coat and shoulder cape, no horse, no sword in hand..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Sage",
+    "tier": "promoted",
+    "weapon": "Tomes (M), Staves (P)",
+    "move": "Infantry",
+    "id": "sage",
+    "count": 3,
+    "prompt": "Generate a SAGE tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Sage, tier promoted, movement Infantry, engine weapons Tomes (M), Staves (P). Specific design: Senior scholarly tome mage, long structured robes and tall collar, OPEN BOOK and restrained spell spark, no giant effects..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Bishop",
+    "tier": "promoted",
+    "weapon": "Staves (M), Light (P)",
+    "move": "Infantry",
+    "id": "bishop",
+    "count": 3,
+    "prompt": "Generate a BISHOP tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Bishop, tier promoted, movement Infantry, engine weapons Staves (M), Light (P). Specific design: High healer, ivory-and-blue ceremonial robe and modest mitre, upright ornate STAFF, kind scholarly silhouette..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Assassin",
+    "tier": "promoted",
+    "weapon": "Swords (M), Bows (P)",
+    "move": "Infantry",
+    "id": "assassin",
+    "count": 3,
+    "prompt": "Generate a ASSASSIN tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Assassin, tier promoted, movement Infantry, engine weapons Swords (M), Bows (P). Specific design: Stealth elite in fitted dark blue hood and mask, compact short SWORD, cross-body straps, low poised stance, no long robe..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Bard",
+    "tier": "promoted",
+    "weapon": "Swords (M), Staves (P)",
+    "move": "Infantry",
+    "id": "bard",
+    "count": 3,
+    "prompt": "Generate a BARD tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Bard, tier promoted, movement Infantry, engine weapons Swords (M), Staves (P). Specific design: Musician-support swordsman with compact LUTE held at chest, short sword sheathed at hip, blue traveling cloak, artistic jaunty silhouette..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Falcon Knight",
+    "tier": "promoted",
+    "weapon": "Lances (M), Swords (P)",
+    "move": "Flying",
+    "id": "falcon-knight",
+    "count": 3,
+    "prompt": "Generate a FALCON KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Falcon Knight, tier promoted, movement Flying, engine weapons Lances (M), Swords (P). Specific design: Elite lance rider on WHITE WINGED HORSE, elegant light armor, wings folded high in crisp feather silhouette. More refined than Pegasus Knight. Entire mount included..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Wyvern Lord",
+    "tier": "promoted",
+    "weapon": "Lances (M), Axes (P)",
+    "move": "Flying",
+    "id": "wyvern-lord",
+    "count": 3,
+    "prompt": "Generate a WYVERN LORD tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Wyvern Lord, tier promoted, movement Flying, engine weapons Lances (M), Axes (P). Specific design: Elite armored lance rider on imposing reptilian WYVERN with angular folded wings and crested reptile head. Entire mount compact and readable..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Hero",
+    "tier": "promoted",
+    "weapon": "Swords (M), Axes (P)",
+    "move": "Infantry",
+    "id": "hero",
+    "count": 3,
+    "prompt": "Generate a HERO tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Hero, tier promoted, movement Infantry, engine weapons Swords (M), Axes (P). Specific design: Veteran infantry swordsman with broad SWORD and small buckler, bright shoulder armor and short blue cloak, stout balanced silhouette, no horse..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Lord",
+    "tier": "base",
+    "weapon": "Swords (P)",
+    "move": "Infantry",
+    "id": "lord",
+    "count": 2,
+    "prompt": "Generate a LORD tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Edric, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Lord, tier base, movement Infantry, engine weapons Swords (P). Specific design: brown-haired young man, plain teal cloak and brown cloth/leather tunic, leather bracers and boots, simple SWORD. NO PLATE ARMOR, no breastplate, no pauldrons, no gold trim.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Tactician",
+    "tier": "base",
+    "weapon": "Tomes (P)",
+    "move": "Infantry",
+    "id": "tactician",
+    "count": 2,
+    "prompt": "Generate a TACTICIAN tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Kira, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Tactician, tier base, movement Infantry, engine weapons Tomes (P). Specific design: silver-haired woman, dark indigo pragmatic robe and coat, open TOME, blue shoulder sash, light unarmored build.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/kira.png"
+    ]
+  },
+  {
+    "name": "Ranger",
+    "tier": "base",
+    "weapon": "Swords (P), Bows (P)",
+    "move": "Infantry",
+    "id": "ranger",
+    "count": 2,
+    "prompt": "Generate a RANGER tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Voss, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Ranger, tier base, movement Infantry, engine weapons Swords (P), Bows (P). Specific design: rugged brown-haired man, earthy green-brown leather longcoat, short SWORD and bow/quiver on back, no plate.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/voss.png"
+    ]
+  },
+  {
+    "name": "Light Sage",
+    "tier": "base",
+    "weapon": "Light (P)",
+    "move": "Infantry",
+    "id": "light-sage",
+    "count": 2,
+    "prompt": "Generate a LIGHT SAGE tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Sera, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Light Sage, tier base, movement Infantry, engine weapons Light (P). Specific design: long RED-haired woman, simple cream dress and plum cloak, small glowing LIGHT TOME held close. No plate, no ornate gold dress, no huge staff.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Great Lord",
+    "tier": "promoted",
+    "weapon": "Swords (M), Lances (P)",
+    "move": "Infantry",
+    "id": "great-lord",
+    "count": 2,
+    "prompt": "Generate a GREAT LORD tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Edric, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Great Lord, tier promoted, movement Infantry, engine weapons Swords (M), Lances (P). Specific design: same brown-haired young man promoted, teal cloak with restrained gold trim, silver armor and SWORD, confident heavier silhouette.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Grandmaster",
+    "tier": "promoted",
+    "weapon": "Tomes (M), Swords (P)",
+    "move": "Infantry",
+    "id": "grandmaster",
+    "count": 2,
+    "prompt": "Generate a GRANDMASTER tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Kira, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Grandmaster, tier promoted, movement Infantry, engine weapons Tomes (M), Swords (P). Specific design: same silver-haired woman promoted, structured indigo coat with silver accents, open TOME and sword sheathed at hip.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/kira.png"
+    ]
+  },
+  {
+    "name": "Vanguard",
+    "tier": "promoted",
+    "weapon": "Swords (M), Axes (P), Bows (P)",
+    "move": "Infantry",
+    "id": "vanguard",
+    "count": 2,
+    "prompt": "Generate a VANGUARD tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Voss, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Vanguard, tier promoted, movement Infantry, engine weapons Swords (M), Axes (P), Bows (P). Specific design: same rugged brown-haired man promoted, stronger leather/steel shoulder equipment, broad SWORD and bow/quiver, dark teal/earth tones.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/voss.png"
+    ]
+  },
+  {
+    "name": "Light Priestess",
+    "tier": "promoted",
+    "weapon": "Light (M), Staves (P)",
+    "move": "Infantry",
+    "id": "light-priestess",
+    "count": 2,
+    "prompt": "Generate a LIGHT PRIESTESS tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Sera, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Light Priestess, tier promoted, movement Infantry, engine weapons Light (M), Staves (P). Specific design: same red-haired woman promoted, richer cream/plum robe with restrained gold, LIGHT TOME and elegant staff.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Chevalier",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Cavalry",
+    "id": "chevalier",
+    "count": 2,
+    "prompt": "Generate a CHEVALIER tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Rowan, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Chevalier, tier base, movement Cavalry, engine weapons Lances (P). Specific design: orange-haired male rider on brown HORSE, simple cavalry lance and blue scarf, warm brown practical armor. CRITICAL: include horse and rider, never standing infantry. Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/rowan.png"
+    ]
+  },
+  {
+    "name": "Holy Knight",
+    "tier": "promoted",
+    "weapon": "Lances (M), Staves (P), Light (P)",
+    "move": "Cavalry",
+    "id": "holy-knight",
+    "count": 2,
+    "prompt": "Generate a HOLY KNIGHT tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Rowan, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Holy Knight, tier promoted, movement Cavalry, engine weapons Lances (M), Staves (P), Light (P). Specific design: same orange-haired man on brown HORSE promoted, white/silver armor and blue cape, lance and small light staff at saddle. CRITICAL: include horse and rider, never standing infantry. Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/rowan.png"
+    ]
+  },
+  {
+    "name": "Sky Lancer",
+    "tier": "base",
+    "weapon": "Lances (P)",
+    "move": "Flying",
+    "id": "sky-lancer",
+    "count": 2,
+    "prompt": "Generate a SKY LANCER tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Astrid, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Sky Lancer, tier base, movement Flying, engine weapons Lances (P). Specific design: silver-haired woman lance rider on WHITE WINGED HORSE, pale blue practical light armor, folded feather wings.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/astrid.png"
+    ]
+  },
+  {
+    "name": "Seraph Knight",
+    "tier": "promoted",
+    "weapon": "Lances (M), Light (P)",
+    "move": "Flying",
+    "id": "seraph-knight",
+    "count": 2,
+    "prompt": "Generate a SERAPH KNIGHT tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Astrid, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Seraph Knight, tier promoted, movement Flying, engine weapons Lances (M), Light (P). Specific design: same silver-haired woman on WHITE WINGED HORSE promoted, white/gold/blue light armor, lance, elegant compact feather wings.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/astrid.png"
+    ]
+  },
+  {
+    "name": "Sentinel",
+    "tier": "base",
+    "weapon": "Axes (P)",
+    "move": "Infantry",
+    "id": "sentinel",
+    "count": 2,
+    "prompt": "Generate a SENTINEL tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Cael, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Sentinel, tier base, movement Infantry, engine weapons Axes (P). Specific design: dark-haired stocky male AXE infantry, grounded leather and subdued dark teal clothing, sturdy shoulder guard.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/cael.png"
+    ]
+  },
+  {
+    "name": "Champion",
+    "tier": "promoted",
+    "weapon": "Axes (M), Lances (P)",
+    "move": "Infantry",
+    "id": "champion",
+    "count": 2,
+    "prompt": "Generate a CHAMPION tactical MAP SPRITE review sheet. Exactly TWO isolated player designs of the SAME named character Cael, side by side in two equal cells. Preserve face, hair and gender in both; vary outfit construction and idle pose modestly. These are design alternatives, not different recruits. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Champion, tier promoted, movement Infantry, engine weapons Axes (M), Lances (P). Specific design: same dark-haired stocky man promoted, silver/blue heavy infantry armor, AXE and lance at back.  Reference 2 if supplied is the existing character identity, not pixel density.",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png",
+      "/Users/davechen/Documents/rogue-emblem/assets/sprites/characters/cael.png"
+    ]
+  },
+  {
+    "name": "Duelist",
+    "tier": "promoted",
+    "weapon": "Swords (M), Lances (P)",
+    "move": "Infantry",
+    "id": "duelist",
+    "count": 3,
+    "prompt": "Generate a DUELIST tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Duelist, tier promoted, movement Infantry, engine weapons Swords (M), Lances (P). Specific design: Elite fencer, narrow rapier-like SWORD held near body, tailored blue longcoat, one forward foot, minimal armor; distinct from loose-robed Swordmaster..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Great Knight",
+    "tier": "promoted",
+    "weapon": "Lances (M), Axes (P), Swords (P)",
+    "move": "Cavalry",
+    "id": "great-knight",
+    "count": 3,
+    "prompt": "Generate a GREAT KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Great Knight, tier promoted, movement Cavalry, engine weapons Lances (M), Axes (P), Swords (P). Specific design: HEAVILY ARMORED HORSE rider, armored horse head and chest, rider shield and short LANCE; bulky cavalry tank, no wings.. CRITICAL: include horse and rider, never standing infantry. ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Berserker",
+    "tier": "promoted",
+    "weapon": "Axes (M)",
+    "move": "Infantry",
+    "id": "berserker",
+    "count": 3,
+    "prompt": "Generate a BERSERKER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Berserker, tier promoted, movement Infantry, engine weapons Axes (M). Specific design: Wild powerful AXE infantry with enormous muscular shoulders, fur mantle and rough trousers, bare arms, no chest plate, wide stocky stance..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Dark Knight",
+    "tier": "promoted",
+    "weapon": "Lances (M), Tomes (P)",
+    "move": "Cavalry",
+    "id": "dark-knight",
+    "count": 3,
+    "prompt": "Generate a DARK KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Dark Knight, tier promoted, movement Cavalry, engine weapons Lances (M), Tomes (P). Specific design: Dark armored HORSE rider, compact lance and closed spellbook at saddle, navy-purple mantle, dark horse, no glowing giant spell.. CRITICAL: include horse and rider, never standing infantry. ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Bow Knight",
+    "tier": "promoted",
+    "weapon": "Bows (M), Swords (P)",
+    "move": "Cavalry",
+    "id": "bow-knight",
+    "count": 3,
+    "prompt": "Generate a BOW KNIGHT tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Bow Knight, tier promoted, movement Cavalry, engine weapons Bows (M), Swords (P). Specific design: Mounted BOW archer on HORSE, quiver at saddle and recurved bow held close, light cavalry blue coat; entire horse, no lance.. CRITICAL: include horse and rider, never standing infantry. ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Warlock",
+    "tier": "promoted",
+    "weapon": "Tomes (M)",
+    "move": "Infantry",
+    "id": "warlock",
+    "count": 3,
+    "prompt": "Generate a WARLOCK tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Warlock, tier promoted, movement Infantry, engine weapons Tomes (M). Specific design: Dark scholarly FOOT mage, deep indigo/plum robe, high collar, open occult BOOK, small violet spell light, no staff, no monster..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Battle Monk",
+    "tier": "promoted",
+    "weapon": "Staves (M), Axes (P)",
+    "move": "Infantry",
+    "id": "battle-monk",
+    "count": 3,
+    "prompt": "Generate a BATTLE MONK tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Battle Monk, tier promoted, movement Infantry, engine weapons Staves (M), Axes (P). Specific design: Sturdy FOOT healer-fighter with short monk robes, beads, compact AXE held at side and small staff at back; practical muscular build, no plate..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Trickster",
+    "tier": "promoted",
+    "weapon": "Swords (M), Staves (P)",
+    "move": "Infantry",
+    "id": "trickster",
+    "count": 3,
+    "prompt": "Generate a TRICKSTER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Trickster, tier promoted, movement Infantry, engine weapons Swords (M), Staves (P). Specific design: Agile magic swordsman, asymmetric blue coat, compact short SWORD, small healing staff strapped back, sly posture, no jester hat..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Hunter",
+    "tier": "promoted",
+    "weapon": "Swords (M), Bows (P)",
+    "move": "Infantry",
+    "id": "hunter",
+    "count": 3,
+    "prompt": "Generate a HUNTER tactical MAP SPRITE review sheet. Exactly THREE isolated sprites in one horizontal row, each centered in its own equal-width cell: LEFT Player A, CENTER Player B, RIGHT Enemy. Players are two distinct adult recruit appearances (different hair/face, one male and one female, equally practical gear), strong BLUE accents. Enemy uses CRIMSON accents. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Hunter, tier promoted, movement Infantry, engine weapons Swords (M), Bows (P). Specific design: Rugged FOOT ranger, leather jacket, short sword in hand and bow/quiver at back, no horse, no elaborate plate..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Zombie",
+    "tier": "base",
+    "weapon": "Axes (P)",
+    "move": "Infantry",
+    "id": "zombie",
+    "count": 1,
+    "prompt": "Generate a ZOMBIE tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Zombie, tier base, movement Infantry, engine weapons Axes (P). Specific design: ONE enemy only. Shambling undead infantry, ragged remnants of crimson soldier clothes, weathered gray-green skin, rusty AXE, hunched clear silhouette; non-graphic..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Revenant",
+    "tier": "promoted",
+    "weapon": "Axes (M), Swords (P)",
+    "move": "Infantry",
+    "id": "revenant",
+    "count": 1,
+    "prompt": "Generate a REVENANT tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Revenant, tier promoted, movement Infantry, engine weapons Axes (M), Swords (P). Specific design: ONE enemy only. Stronger undead armored swordsman, corroded iron/crimson remnants, compact SWORD, gray dead skin, hunched imposing stance; non-graphic..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Dragon",
+    "tier": "base",
+    "weapon": "Breath (P)",
+    "move": "Flying",
+    "id": "dragon",
+    "count": 1,
+    "prompt": "Generate a DRAGON tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Dragon, tier base, movement Flying, engine weapons Breath (P). Specific design: ONE enemy only. Full compact DRAGON creature with folded wings, reptile quadruped anatomy, tail curled close, dark crimson/charcoal scales; no rider..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Dragon Lord",
+    "tier": "promoted",
+    "weapon": "Breath (M)",
+    "move": "Flying",
+    "id": "dragon-lord",
+    "count": 1,
+    "prompt": "Generate a DRAGON LORD tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Dragon Lord, tier promoted, movement Flying, engine weapons Breath (M). Specific design: ONE enemy only. Larger regal DRAGON creature with crested horns and strong plated scales, folded wings, compact curled tail, deep crimson/gold accents; no rider..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  },
+  {
+    "name": "Entity",
+    "tier": "boss",
+    "weapon": "Swords (M), Tomes (M)",
+    "move": "Infantry",
+    "id": "entity",
+    "count": 1,
+    "prompt": "Generate a ENTITY tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite. Transparent alpha background, NO text, labels, frames, rings, terrain, ground shadows or glow. Reference 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Full body with all equipment/mount visible, three-quarter idle view slightly from above facing right. Common foot baseline and equal intended gameplay scale within class. Generous transparent padding between cells; no overlap. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Faction cloth retains clear BLUE or RED accents, natural skin/hair. Intended final size approximately 34px infantry or 40px mounted; simplified big readable silhouette, no tiny ornamental noise. Class Entity, tier boss, movement Infantry, engine weapons Swords (M), Tomes (M). Specific design: ONE enemy only. Eldritch final foe, humanoid dark armored silhouette with contained violet aura and strange angular crown, compact sword and small floating tome, sinister but readable, no vast effects..  ",
+    "refs": [
+      "/var/folders/nq/zm0qrcms39l65q9fb0t856br0000gn/T/codex-clipboard-b58f3566-3404-4589-ae6e-58fd47492654.png"
+    ]
+  }
+]

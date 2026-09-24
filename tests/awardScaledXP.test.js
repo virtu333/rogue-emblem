@@ -41,7 +41,7 @@ function makeSceneCtx({ xpMultiplier = 1, turnNumber = 0, par = null } = {}) {
         if (onComplete) onComplete();
       },
     },
-    _isReducedEffects: () => true,
+    _reduceMotion: () => true,
     updateHPBar() {},
     gameData: { classes: [], skills: [] },
   };

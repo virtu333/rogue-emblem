@@ -1008,12 +1008,26 @@
     "description": "+8% lord recruit chance per tier",
     "category": "economy",
     "maxLevel": 3,
-    "costs": [150, 300, 500],
-    "requires": { "milestones": ["beatAct1"] },
+    "costs": [
+      150,
+      300,
+      500
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
     "effects": [
-      { "lordRecruitChanceBonus": 0.08 },
-      { "lordRecruitChanceBonus": 0.16 },
-      { "lordRecruitChanceBonus": 0.24 }
+      {
+        "lordRecruitChanceBonus": 0.08
+      },
+      {
+        "lordRecruitChanceBonus": 0.16
+      },
+      {
+        "lordRecruitChanceBonus": 0.24
+      }
     ]
   },
   {
@@ -1022,11 +1036,22 @@
     "description": "+7% Merchant Caravan spawn chance per tier",
     "category": "economy",
     "maxLevel": 2,
-    "costs": [150, 250],
-    "requires": { "milestones": ["beatAct1"] },
+    "costs": [
+      150,
+      250
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
     "effects": [
-      { "caravanChanceBonus": 0.07 },
-      { "caravanChanceBonus": 0.15 }
+      {
+        "caravanChanceBonus": 0.07
+      },
+      {
+        "caravanChanceBonus": 0.15
+      }
     ]
   },
   {
@@ -1113,13 +1138,30 @@
     "description": "A third lord joins your party in Act 1 (after 3 battles)",
     "category": "lord_bonuses",
     "maxLevel": 4,
-    "costs": [1000, 500, 250, 750],
-    "requires": { "milestones": ["beatHard"] },
+    "costs": [
+      1000,
+      500,
+      250,
+      750
+    ],
+    "requires": {
+      "milestones": [
+        "beatHard"
+      ]
+    },
     "effects": [
-      { "thirdLordMode": "random" },
-      { "thirdLordMode": "pick3" },
-      { "thirdLordMode": "pick3_reroll" },
-      { "thirdLordMode": "pick_all" }
+      {
+        "thirdLordMode": "random"
+      },
+      {
+        "thirdLordMode": "pick3"
+      },
+      {
+        "thirdLordMode": "pick3_reroll"
+      },
+      {
+        "thirdLordMode": "pick_all"
+      }
     ]
   },
   {
@@ -1128,12 +1170,25 @@
     "description": "Choose which lord leads your army at run start",
     "category": "lord_bonuses",
     "maxLevel": 1,
-    "costs": [1500],
+    "costs": [
+      1500
+    ],
     "requires": {
-      "upgrades": [{ "id": "legendary_heir", "level": 1 }],
-      "milestones": ["beatHard"]
+      "upgrades": [
+        {
+          "id": "legendary_heir",
+          "level": 1
+        }
+      ],
+      "milestones": [
+        "beatHard"
+      ]
     },
-    "effects": [{ "commanderChoiceTier": 1 }]
+    "effects": [
+      {
+        "commanderChoiceTier": 1
+      }
+    ]
   },
   {
     "id": "partner_choice",
@@ -1141,12 +1196,25 @@
     "description": "Choose your second starting lord as well",
     "category": "lord_bonuses",
     "maxLevel": 1,
-    "costs": [1000],
+    "costs": [
+      1000
+    ],
     "requires": {
-      "upgrades": [{ "id": "commander_choice", "level": 1 }],
-      "milestones": ["beatHard"]
+      "upgrades": [
+        {
+          "id": "commander_choice",
+          "level": 1
+        }
+      ],
+      "milestones": [
+        "beatHard"
+      ]
     },
-    "effects": [{ "commanderChoiceTier": 2 }]
+    "effects": [
+      {
+        "commanderChoiceTier": 2
+      }
+    ]
   },
   {
     "id": "recruit_skill",
@@ -1170,7 +1238,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      375
+      250
     ],
     "requires": {
       "upgrades": [
@@ -1192,12 +1260,26 @@
     "description": "+8% chance recruits join promoted per tier",
     "category": "capacity",
     "maxLevel": 3,
-    "costs": [250, 450, 700],
-    "requires": { "milestones": ["beatAct1"] },
+    "costs": [
+      250,
+      450,
+      700
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
     "effects": [
-      { "recruitPromotionChanceBonus": 0.08 },
-      { "recruitPromotionChanceBonus": 0.16 },
-      { "recruitPromotionChanceBonus": 0.24 }
+      {
+        "recruitPromotionChanceBonus": 0.08
+      },
+      {
+        "recruitPromotionChanceBonus": 0.16
+      },
+      {
+        "recruitPromotionChanceBonus": 0.24
+      }
     ]
   },
   {
@@ -1249,7 +1331,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      900
+      600
     ],
     "requires": {
       "upgrades": [
@@ -1272,7 +1354,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      1400
+      900
     ],
     "requires": {
       "upgrades": [
@@ -1294,9 +1376,13 @@
     "description": "Recruits spawn with weapons for all proficiencies",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [600],
+    "costs": [
+      350
+    ],
     "requires": {
-      "milestones": ["beatAct1"]
+      "milestones": [
+        "beatAct1"
+      ]
     },
     "effects": [
       {
@@ -1310,7 +1396,10 @@
     "description": "+10% combat XP for non-lord units per tier",
     "category": "capacity",
     "maxLevel": 2,
-    "costs": [350, 700],
+    "costs": [
+      350,
+      700
+    ],
     "effects": [
       {
         "recruitXpBonus": 0.1
@@ -1326,9 +1415,13 @@
     "description": "Recruits who join your army wear a random stat accessory",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [650],
+    "costs": [
+      650
+    ],
     "requires": {
-      "milestones": ["beatAct1"]
+      "milestones": [
+        "beatAct1"
+      ]
     },
     "effects": [
       {
@@ -1339,10 +1432,13 @@
   {
     "id": "recruit_weapon_forge",
     "name": "Quartermaster's Craft",
-    "description": "Recruits who join your army carry forged weapons (+1 forge per tier)",
+    "description": "Non-lord recruits join with 1 random forge improvement per tier on each combat weapon",
     "category": "capacity",
     "maxLevel": 2,
-    "costs": [800, 1400],
+    "costs": [
+      400,
+      700
+    ],
     "requires": {
       "upgrades": [
         {
@@ -1350,7 +1446,9 @@
           "level": 1
         }
       ],
-      "milestones": ["beatAct1"]
+      "milestones": [
+        "beatAct1"
+      ]
     },
     "effects": [
       {
@@ -1364,13 +1462,13 @@
   {
     "id": "weapon_forge",
     "name": "Honed Blades",
-    "description": "Lords' starting weapons gain forge levels",
+    "description": "Starting lords’ combat weapons gain 1 random forge improvement per tier",
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
       150,
-      325,
-      550
+      250,
+      400
     ],
     "effects": [
       {
@@ -1538,8 +1636,14 @@
     "description": "Each lord can equip a second starting skill",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [750],
-    "effects": [{ "extraSkillSlot": 1 }]
+    "costs": [
+      750
+    ],
+    "effects": [
+      {
+        "extraSkillSlot": 1
+      }
+    ]
   },
   {
     "id": "unlock_sol",
@@ -1548,7 +1652,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      400
+      600
     ],
     "effects": [
       {
@@ -1559,7 +1663,7 @@
   {
     "id": "unlock_luna",
     "name": "Luna",
-    "description": "SKL% chance to halve DEF/RES",
+    "description": "SKL% chance on hit to halve the target’s DEF or RES (rounded down). Terrain protection remains.",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -1574,7 +1678,7 @@
   {
     "id": "unlock_astra",
     "name": "Astra",
-    "description": "SKL/2% chance for 5 consecutive hits",
+    "description": "SKL/2% chance to strike 5 times at half damage",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
@@ -1658,6 +1762,85 @@
     "effects": [
       {
         "unlockSkill": "guard"
+      }
+    ]
+  },
+  {
+    "id": "unlock_pavise",
+    "name": "Pavise",
+    "description": "Unlock Pavise as an assignable starting skill: SKL% chance to halve physical damage.",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    },
+    "effects": [
+      {
+        "unlockSkill": "pavise"
+      }
+    ]
+  },
+  {
+    "id": "unlock_aegis",
+    "name": "Aegis",
+    "description": "Unlock Aegis as an assignable starting skill: SKL% chance to halve magical damage.",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    },
+    "effects": [
+      {
+        "unlockSkill": "aegis"
+      }
+    ]
+  },
+  {
+    "id": "unlock_renewal",
+    "name": "Renewal",
+    "description": "Unlock Renewal as an assignable starting skill: heal 10% max HP at turn start.",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "requires": {
+      "milestones": [
+        "beatGame"
+      ]
+    },
+    "effects": [
+      {
+        "unlockSkill": "renewal"
+      }
+    ]
+  },
+  {
+    "id": "legendary_lord_chance",
+    "name": "Legends Awaken",
+    "description": "Legendary lord trait chance: 5% normally, 10% at tier 1, 15% at tier 2. Applies to new runs; replaces the ordinary trait.",
+    "category": "lord_bonuses",
+    "maxLevel": 2,
+    "costs": [
+      300,
+      600
+    ],
+    "effects": [
+      {
+        "legendaryLordChanceBonus": 0.05
+      },
+      {
+        "legendaryLordChanceBonus": 0.1
       }
     ]
   }

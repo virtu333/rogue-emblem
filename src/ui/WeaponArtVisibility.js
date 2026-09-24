@@ -1,9 +1,5 @@
-import {
-  getWeaponArtIds,
-  getWeaponArtTier2Effects,
-  getWeaponArtMissEffects,
-  getWeaponArtKillEffects,
-} from '../engine/WeaponArtSystem.js';
+import { weaponArtSecondaryDetails } from './weaponArtDisplay.js';
+import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 
 const WEAPON_ART_ACT_ID_RE = /^act(\d+)$/i;
 
@@ -113,9 +109,14 @@ export function summarizeWeaponArtEffect(art) {
   pushSigned('Spd', mods.spdBonus);
   pushSigned('Avoid', mods.avoidBonus);
   pushSigned('Def', mods.defBonus);
+  pushSigned('Res', mods.resBonus);
+  if (mods.statScaling)
+    chunks.push(`Adds ${mods.statScaling.stat} / ${mods.statScaling.divisor} to Attack`);
+  if (mods.drainPercent)
+    chunks.push(`Heals ${Math.round(mods.drainPercent * 100)}% of damage dealt`);
   if (mods.targetsRES) chunks.push('Targets RES');
   if (mods.preventCounter) chunks.push('No counter');
-  if (mods.vengeance) chunks.push('Vengeance dmg');
+  if (mods.vengeance) chunks.push('Adds missing HP to damage');
   if (mods.halfPhysicalDamage) chunks.push('Half physical taken');
   if (mods.rangeOverride) {
     const range =
@@ -141,23 +142,13 @@ export function summarizeWeaponArtEffect(art) {
   }
   if (mods.ignoreTerrainAvoid) chunks.push('Ignores terrain avoid');
   if (toNumber(mods.damageMultiplier, 0) > 1) chunks.push(`${mods.damageMultiplier}x damage`);
+  if (mods.multiHit)
+    chunks.push(
+      `${mods.multiHit.count} strikes at ${Math.round(mods.multiHit.damageMultiplier * 100)}% damage each`,
+    );
+  chunks.push(...weaponArtSecondaryDetails(art));
   if (mods.ignoreWeaponTriangle) chunks.push('Ignores triangle');
   if (mods.ignoreRES) chunks.push('Ignores RES');
-  for (const status of getWeaponArtTier2Effects(art).inflictStatus) {
-    const verbByStatus = { root: 'Roots', silence: 'Silences', sleep: 'Sleeps', acid: 'Acids' };
-    const verb = verbByStatus[status.status] || `Inflicts ${status.status} on`;
-    const turnsLabel = status.durationPhases === 1 ? '1 turn' : `${status.durationPhases} turns`;
-    chunks.push(`${verb} target ${turnsLabel}`);
-  }
-  const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
-  if (selfDamageOnMiss) chunks.push(`${selfDamageOnMiss} self-dmg on miss`);
-  const { killBuff } = getWeaponArtKillEffects(art);
-  if (killBuff) {
-    const statsLabel = Object.entries(killBuff.stats)
-      .map(([stat, value]) => `+${value} ${stat}`)
-      .join('/');
-    chunks.push(`On kill: ${statsLabel} (1 turn)`);
-  }
   if (chunks.length > 0) return chunks.join(', ');
   if (art?.description) return art.description;
   return 'No combat modifier';

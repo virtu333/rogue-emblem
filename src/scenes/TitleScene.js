@@ -1,3 +1,11 @@
+import { showRunRecords } from '../ui/RunRecordsMenu.js';
+import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
+import { MenuSurface, element, button } from '../ui/MenuSurface.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { UI_HEX } from '../utils/uiStyles.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { inputHint } from '../utils/inputHint.js';
 // TitleScene — Animated pixel-art title screen
 
 import Phaser from 'phaser';
@@ -8,14 +16,11 @@ import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { signOut } from '../cloud/supabaseClient.js';
+import { backupAllLocalSlots, getCloudSyncStatus, pushMeta } from '../cloud/CloudSync.js';
 import {
-  flushCloudSyncQueues,
-  getCloudSyncStatus,
-  pushAllLocalSlots,
-  pushMeta,
-} from '../cloud/CloudSync.js';
-import {
+  MAX_SLOTS,
   getSlotCount,
+  getSlotSummary,
   getNextAvailableSlot,
   setActiveSlot,
   getMetaKey,
@@ -28,7 +33,6 @@ import { startFirstRunFastPath } from '../utils/firstRunFastPath.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
-import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -40,13 +44,12 @@ const W = 640,
 const FONT = '"Press Start 2P", monospace';
 
 // Colors
-const GOLD = '#e8b849';
-const GOLD_LIGHT = '#f5d77a';
-const GOLD_DARK = '#a67c2e';
-const TEXT_SUB = '#8888aa';
-const BTN_BG = 0x12111f;
-const BTN_BORDER = 0x3a3660;
-const MORE_INFO_URL = 'https://github.com/virtu333/rogue-emblem';
+const GOLD = UI_PALETTE.accent;
+const GOLD_LIGHT = UI_PALETTE.accentText;
+const GOLD_DARK = UI_PALETTE.lineStrong;
+const TEXT_SUB = UI_PALETTE.muted;
+const BTN_BG = UI_HEX.panel;
+const BTN_BORDER = UI_HEX.line;
 
 // --- Background drawing helpers (all operate on a 2D canvas context) ---
 
@@ -372,13 +375,13 @@ function createParticles() {
 
 // --- Menu button builder ---
 
-function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
+function createMenuButton(scene, x, y, label, onClick, _delay, options = {}) {
   const btnW = options.width || 240;
   const btnH = options.height || 42;
   const fontSize = options.fontSize || '11px';
   const letterSpacing = options.letterSpacing !== undefined ? options.letterSpacing : 2;
 
-  const container = scene.add.container(x, y).setDepth(20).setAlpha(0);
+  const container = scene.add.container(x, y).setDepth(20).setAlpha(1);
 
   // Background
   const bg = scene.add.graphics();
@@ -389,23 +392,24 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   container.add(bg);
 
   // Label
-  const text = scene.add
-    .text(0, 0, label, {
+  const text = applyTextResolution(
+    scene.add.text(0, 0, label, {
       fontFamily: FONT,
       fontSize: fontSize,
-      color: '#cccccc',
+      color: UI_PALETTE.muted,
       letterSpacing: letterSpacing,
-    })
-    .setOrigin(0.5);
+    }),
+  ).setOrigin(0.5);
   container.add(text);
 
   // Cursor arrow (hidden)
-  const cursor = scene.add
-    .text(-btnW / 2 + 12, 0, '\u25b6', {
+  const cursor = applyTextResolution(
+    scene.add.text(-btnW / 2 + 12, 0, '>', {
       fontFamily: FONT,
       fontSize: options.fontSize || '10px',
       color: GOLD,
-    })
+    }),
+  )
     .setOrigin(0, 0.5)
     .setAlpha(0);
   if (btnW < 150) cursor.setVisible(false); // Hide arrow on small buttons
@@ -415,7 +419,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   const corners = scene.add.graphics();
   corners.setAlpha(0);
   // Top-left L
-  corners.lineStyle(2, 0xa67c2e, 1);
+  corners.lineStyle(2, UI_HEX.lineSoft, 1);
   corners.beginPath();
   corners.moveTo(-btnW / 2, -btnH / 2 + 6);
   corners.lineTo(-btnW / 2, -btnH / 2);
@@ -438,9 +442,9 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   // Hover
   hitZone.on('pointerover', () => {
     bg.clear();
-    bg.fillStyle(0xe8b849, 0.06);
+    bg.fillStyle(UI_HEX.selected, 1);
     bg.fillRect(-btnW / 2, -btnH / 2, btnW, btnH);
-    bg.lineStyle(2, 0xe8b849, 1);
+    bg.lineStyle(2, UI_HEX.accent, 1);
     bg.strokeRect(-btnW / 2, -btnH / 2, btnW, btnH);
     text.setColor(GOLD_LIGHT);
     cursor.setAlpha(1);
@@ -454,13 +458,14 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     bg.fillRect(-btnW / 2, -btnH / 2, btnW, btnH);
     bg.lineStyle(2, BTN_BORDER, 1);
     bg.strokeRect(-btnW / 2, -btnH / 2, btnW, btnH);
-    text.setColor('#cccccc');
+    text.setColor(UI_PALETTE.muted);
     cursor.setAlpha(0);
     corners.setAlpha(0);
     scene.tweens.add({ targets: container, scaleX: 1, scaleY: 1, duration: 80 });
   });
 
   hitZone.on('pointerdown', () => {
+    if (scene._titleOverlayOpen?.() || scene.isTransitioning) return;
     // Fire action immediately; don't gate scene transitions on tween completion.
     onClick();
     scene.tweens.add({
@@ -472,15 +477,7 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     });
   });
 
-  // Entry animation: fade + slide from left
-  scene.tweens.add({
-    targets: container,
-    alpha: { from: 0, to: 1 },
-    x: { from: x - 20, to: x },
-    duration: 400,
-    ease: 'Power2',
-    delay: delay,
-  });
+  // Menu controls are visible and usable immediately; only decorative art fades in.
 
   // Expose the hit zone so gamepad focus can reuse the exact pointer hover/press
   // visuals (emit 'pointerover'/'pointerout'/'pointerdown') instead of duplicating them.
@@ -521,12 +518,13 @@ export class TitleScene extends Phaser.Scene {
     // unlocks on any first tap/click/key — show a hint until then so the silence isn't a
     // mystery. Self-dismisses on the same 'unlocked' event the audio system already uses.
     if (this.sound.locked) {
-      this._audioLockHint = this.add
-        .text(cx, H - 56, 'TAP FOR SOUND', {
+      this._audioLockHint = applyTextResolution(
+        this.add.text(cx, 20, 'TAP FOR SOUND', {
           fontFamily: FONT,
           fontSize: '9px',
           color: GOLD,
-        })
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(30);
       this.tweens.add({
@@ -615,51 +613,55 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Title block ---
     // Shadow text (3D emboss)
-    this.add
-      .text(cx, 70 + 4, 'ROGUE EMBLEM', {
+    applyTextResolution(
+      this.add.text(cx, 70 + 4, 'ROGUE EMBLEM', {
         fontFamily: FONT,
         fontSize: '28px',
         color: '#7a5520',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(9)
       .setAlpha(0);
 
     // Main title
-    const titleText = this.add
-      .text(cx, 70, 'ROGUE EMBLEM', {
+    const titleText = applyTextResolution(
+      this.add.text(cx, 70, 'ROGUE EMBLEM', {
         fontFamily: FONT,
         fontSize: '28px',
         color: GOLD,
         shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.5)', blur: 20, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
 
     // Subtitle
-    const subtitleText = this.add
-      .text(cx, 110, 'TACTICAL ROGUELIKE', {
+    const subtitleText = applyTextResolution(
+      this.add.text(cx, 110, 'TACTICAL ROGUELIKE', {
         fontFamily: FONT,
         fontSize: '10px',
         color: TEXT_SUB,
         letterSpacing: 4,
         shadow: { offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.8)', blur: 8, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
 
     // Alpha Testing tag
-    const alphaTag = this.add
-      .text(cx, 132, 'ALPHA TESTING', {
+    const alphaTag = applyTextResolution(
+      this.add.text(cx, 132, 'ALPHA TESTING', {
         fontFamily: FONT,
         fontSize: '8px',
         color: '#ff6666',
         letterSpacing: 2,
         backgroundColor: '#220000aa',
         padding: { x: 8, y: 3 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
@@ -667,7 +669,7 @@ export class TitleScene extends Phaser.Scene {
     // Sword divider
     const divider = this.add.graphics().setDepth(10).setAlpha(0);
     const divW = 200;
-    divider.lineStyle(1, 0xa67c2e, 1);
+    divider.lineStyle(1, UI_HEX.lineSoft, 1);
     // Left line
     divider.beginPath();
     divider.moveTo(cx - divW / 2, 154);
@@ -679,13 +681,14 @@ export class TitleScene extends Phaser.Scene {
     divider.lineTo(cx + divW / 2, 154);
     divider.strokePath();
 
-    const swordIcon = this.add
-      .text(cx, 154, '\u2694', {
+    const swordIcon = applyTextResolution(
+      this.add.text(cx, 154, '\u2694', {
         fontFamily: FONT,
         fontSize: '12px',
         color: GOLD_DARK,
         shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.3)', blur: 8, fill: true },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(10)
       .setAlpha(0);
@@ -728,8 +731,15 @@ export class TitleScene extends Phaser.Scene {
     // --- Menu buttons ---
     let menuY = 190;
     const btnDelay = 1000;
-    const btnGap = 42;
+    const btnGap = 48;
+    const slotSummaries = Array.from({ length: MAX_SLOTS }, (_, index) =>
+      getSlotSummary(index + 1),
+    );
     const hasSlots = getSlotCount() > 0;
+    let tutorialDone = false;
+    try {
+      tutorialDone = Boolean(localStorage.getItem('emblem_rogue_tutorial_completed'));
+    } catch (_) {}
 
     // Main vertical menu column, collected in display order so the gamepad can
     // drive a focus highlight over them (corner Settings/Log Out stay pointer-only).
@@ -740,7 +750,7 @@ export class TitleScene extends Phaser.Scene {
         this,
         cx,
         menuY,
-        'NEW GAME',
+        !hasSlots && tutorialDone ? 'START FIRST RUN' : 'NEW GAME',
         () => this.runMenuTransition(() => this.handleNewGame()),
         btnDelay,
       ),
@@ -749,14 +759,39 @@ export class TitleScene extends Phaser.Scene {
 
     let delayIdx = 1;
 
-    // CONTINUE button (if slots exist)
+    const activeRuns = slotSummaries.filter((slot) => slot?.hasActiveRun && !slot.runCorrupt);
+    const resumeSlot = activeRuns.length === 1 ? activeRuns[0] : null;
+    // Multiple runs use Save Slots; only one run gets a direct Resume shortcut.
+    if (resumeSlot) {
+      this._menuButtons.push(
+        createMenuButton(
+          this,
+          cx,
+          menuY,
+          resumeSlot ? `RESUME · ACT ${resumeSlot.actReached}` : 'CONTINUE',
+          () =>
+            this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData, resumeSlot: resumeSlot?.slot },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
+            ),
+          btnDelay + delayIdx * 150,
+        ),
+      );
+      menuY += btnGap;
+      delayIdx++;
+    }
+
     if (hasSlots) {
       this._menuButtons.push(
         createMenuButton(
           this,
           cx,
           menuY,
-          'CONTINUE',
+          'SAVE SLOTS',
           () =>
             this.runMenuTransition(() =>
               transitionToScene(
@@ -766,9 +801,10 @@ export class TitleScene extends Phaser.Scene {
                 { reason: TRANSITION_REASONS.CONTINUE },
               ),
             ),
-          btnDelay + delayIdx * 150,
+          btnDelay,
         ),
       );
+
       menuY += btnGap;
       delayIdx++;
     }
@@ -818,45 +854,44 @@ export class TitleScene extends Phaser.Scene {
                 deployCount: 2,
               },
             },
-            { reason: TRANSITION_REASONS.NEW_GAME },
+            { reason: TRANSITION_REASONS.NEW_GAME, retryBlocked: true },
           );
         }),
       btnDelay + delayIdx * 150,
     );
-    this._menuButtons.push(tutBtn);
-    menuY += btnGap;
-    delayIdx++;
-
-    this._menuButtons.push(
-      createMenuButton(
-        this,
-        cx,
-        menuY,
-        'MORE INFO',
-        () => {
-          if (this.helpOverlay?.visible) return;
-          this.helpOverlay = new HelpOverlay(this, () => {
-            this.helpOverlay = null;
-          });
-          this.helpOverlay.show();
-        },
-        btnDelay + delayIdx * 150,
-      ),
-    );
+    if (!hasSlots && !tutorialDone) {
+      const top = this._menuButtons[0].y;
+      for (const button of this._menuButtons) button.y += btnGap;
+      tutBtn.y = top;
+      const label = tutBtn.list.find((child) => child.text === 'TUTORIAL');
+      if (label) label.y = -6;
+      tutBtn.add(
+        applyTextResolution(
+          this.add.text(0, 12, 'START HERE', {
+            fontFamily: FONT,
+            fontSize: '7px',
+            color: UI_PALETTE.accent,
+            letterSpacing: 1,
+          }),
+        ).setOrigin(0.5),
+      );
+      this._menuButtons.unshift(tutBtn);
+    } else this._menuButtons.push(tutBtn);
     menuY += btnGap;
     delayIdx++;
 
     // First-run "NEW" badges
     try {
       if (!localStorage.getItem('emblem_rogue_seen_how_to_play')) {
-        const newBadge = this.add
-          .text(135, 0, 'NEW', {
+        const newBadge = applyTextResolution(
+          this.add.text(135, 0, 'NEW', {
             fontFamily: FONT,
             fontSize: '8px',
             color: '#ff6666',
             backgroundColor: '#330000',
             padding: { x: 4, y: 2 },
-          })
+          }),
+        )
           .setOrigin(0, 0.5)
           .setDepth(21);
         htpBtn.add(newBadge);
@@ -869,15 +904,16 @@ export class TitleScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         });
       }
-      if (!localStorage.getItem('emblem_rogue_tutorial_completed')) {
-        const tutBadge = this.add
-          .text(135, 0, 'NEW', {
+      if (hasSlots && !localStorage.getItem('emblem_rogue_tutorial_completed')) {
+        const tutBadge = applyTextResolution(
+          this.add.text(135, 0, 'NEW', {
             fontFamily: FONT,
             fontSize: '8px',
             color: '#ff6666',
             backgroundColor: '#330000',
             padding: { x: 4, y: 2 },
-          })
+          }),
+        )
           .setOrigin(0, 0.5)
           .setDepth(21);
         tutBtn.add(tutBadge);
@@ -911,6 +947,38 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
+    this._menuButtons.push(
+      createMenuButton(
+        this,
+        W - 80,
+        H - 30,
+        'MORE INFO',
+        () => {
+          if (this.helpOverlay?.visible) return;
+          this.helpOverlay = new HelpOverlay(this, () => {
+            this.helpOverlay = null;
+          });
+          this.helpOverlay.show();
+        },
+        btnDelay,
+        { width: 130, height: 44, fontSize: '8px', letterSpacing: 1 },
+      ),
+    );
+
+    this._menuButtons.push(
+      createMenuButton(this, W - 80, H - 82, 'RECORDS', () => showRunRecords(this), btnDelay, {
+        width: 130,
+        height: 44,
+        fontSize: '8px',
+        letterSpacing: 1,
+      }),
+    );
+
+    if (resumeSlot && this._menuButtons.length > 1) {
+      const [newGame, resume] = this._menuButtons;
+      [newGame.y, resume.y] = [resume.y, newGame.y];
+      [this._menuButtons[0], this._menuButtons[1]] = [resume, newGame];
+    }
     // Settings — small button in top-left corner
     createMenuButton(
       this,
@@ -940,12 +1008,13 @@ export class TitleScene extends Phaser.Scene {
       );
 
       // User name near Log Out
-      this.add
-        .text(W - 132, 30, cloud.displayName, {
+      applyTextResolution(
+        this.add.text(W - 132, 30, cloud.displayName, {
           fontFamily: FONT,
           fontSize: '7px',
           color: 'rgba(136,136,170,0.6)',
-        })
+        }),
+      )
         .setOrigin(1, 0.5)
         .setDepth(30);
     }
@@ -953,42 +1022,25 @@ export class TitleScene extends Phaser.Scene {
     this._setupMenuGamepadFocus();
 
     // --- Footer ---
-    this.add
-      .text(12, H - 16, 'v0.1.0', {
+    applyTextResolution(
+      this.add.text(12, H - 16, 'v0.1.0', {
         fontFamily: FONT,
         fontSize: '7px',
         color: 'rgba(136,136,170,0.3)',
-      })
-      .setDepth(30);
+      }),
+    ).setDepth(30);
 
-    // Desktop notice — hidden on mobile / standalone PWA (touch context)
-    if (!getStartupFlags().isMobile) {
-      this.add
-        .text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
-          fontFamily: FONT,
-          fontSize: '9px',
-          color: 'rgba(100,100,120,0.4)',
-        })
+    if (!cloud) {
+      applyTextResolution(
+        this.add.text(W / 2, H - 16, 'Progress saved on this device', {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: '#aaaac1',
+        }),
+      )
         .setOrigin(0.5, 0)
         .setDepth(30);
     }
-
-    const moreInfoText = this.add
-      .text(W - 12, H - 16, 'GITHUB', {
-        fontFamily: FONT,
-        fontSize: '7px',
-        color: 'rgba(136,136,170,0.75)',
-      })
-      .setOrigin(1, 0)
-      .setDepth(30)
-      .setInteractive({ useHandCursor: true });
-    moreInfoText.on('pointerover', () => moreInfoText.setColor(GOLD_LIGHT));
-    moreInfoText.on('pointerout', () => moreInfoText.setColor('rgba(136,136,170,0.75)'));
-    moreInfoText.on('pointerdown', () => {
-      try {
-        window.open(MORE_INFO_URL, '_blank', 'noopener,noreferrer');
-      } catch (_) {}
-    });
   }
 
   // Gamepad: drive a focus highlight over the main menu column, reusing each
@@ -1010,6 +1062,7 @@ export class TitleScene extends Phaser.Scene {
 
   _titleOverlayOpen() {
     return Boolean(
+      this.nativeMenu ||
       this.settingsOverlay?.visible ||
       this.howToPlayOverlay?.visible ||
       this.helpOverlay?.visible ||
@@ -1035,6 +1088,8 @@ export class TitleScene extends Phaser.Scene {
   }
 
   _cleanupTitleOverlaysForShutdown() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
     this._hideTitleOverlay('settingsOverlay');
     this._hideTitleOverlay('howToPlayOverlay');
     this._hideTitleOverlay('helpOverlay');
@@ -1050,45 +1105,153 @@ export class TitleScene extends Phaser.Scene {
   /**
    * Logout wipes all local slots (they belong to this account), so local data
    * must reach the cloud first. Push every local slot, wait for the queue, and
-   * if the backup cannot be confirmed require a second explicit click before
-   * destroying the only remaining copy.
+   * if the backup cannot be confirmed preserve local saves until an explicit
+   * destructive confirmation, or retry the entire backup.
    */
   async _handleLogout(cloud) {
-    if (this._logoutInProgress) return;
-
-    if (!this._logoutWipeConfirmed) {
-      this._logoutInProgress = true;
-      this._setLogoutNotice('Backing up to cloud...', '#88aaff');
-      let backupConfirmed = false;
-      try {
-        pushAllLocalSlots(cloud.userId);
-        const flushed = await flushCloudSyncQueues();
-        const status = getCloudSyncStatus();
-        backupConfirmed = flushed && status.mode === 'ok';
-      } catch (_) {
-        backupConfirmed = false;
-      }
-      this._logoutInProgress = false;
-      if (!this.scene?.isActive?.()) return;
-      if (!backupConfirmed) {
-        this._logoutWipeConfirmed = true;
-        this._setLogoutNotice(
-          'Cloud backup failed - local progress will be DELETED.\nClick LOG OUT again to log out anyway.',
-          '#ff6a6a',
+    if (this._logoutInProgress || this.nativeMenu) return;
+    const conflicts = Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).filter(
+      getCloudSaveConflict,
+    );
+    if (conflicts.length) {
+      this._setLogoutNotice(
+        'Choose which save to keep in Continue before logging out. Both versions are still safe.',
+        '#ffcc88',
+      );
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Resolve saved versions first');
+        menu.body.append(
+          element(
+            'p',
+            `Slot ${conflicts.join(', ')} has both a device and cloud save. Logging out would remove the unchosen device version. Open Continue to choose which version to keep first.`,
+          ),
         );
-        return;
+        menu.body.append(
+          button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+        );
+        menu.body.append(
+          button('Review saved versions', () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() =>
+              transitionToScene(
+                this,
+                'SlotPicker',
+                { gameData: this.gameData },
+                { reason: TRANSITION_REASONS.CONTINUE },
+              ),
+            );
+          }),
+        );
+        menu.focusContent();
       }
+      return;
     }
-
     this._logoutInProgress = true;
+    this._setLogoutNotice('Backing up to cloud...', '#88aaff');
+    this._showLogoutProgress('Backing up saves', 'Checking that local progress reached the cloud…');
+    let backupConfirmed = false;
+    try {
+      backupConfirmed = await backupAllLocalSlots(cloud.userId);
+    } catch {
+      /* Keep local data and offer a fresh, explicit decision. */
+    }
+    this._logoutInProgress = false;
+    this._closeTitleMenu();
+    if (!this.scene?.isActive?.()) return;
+    if (!backupConfirmed) {
+      this._setLogoutNotice(
+        'Backup failed. Local progress is still safe. Retry when connected.',
+        '#ff6a6a',
+      );
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Cloud backup failed');
+        menu.body.append(
+          element(
+            'p',
+            'Your local progress has not been deleted. Retry the backup, stay signed in, or explicitly discard all local slots and log out.',
+          ),
+        );
+        menu.body.append(
+          button('Stay signed in', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+        );
+        menu.body.append(
+          button('Retry backup', () => {
+            this._closeTitleMenu();
+            void this._handleLogout(cloud);
+          }),
+        );
+        menu.body.append(
+          button('Discard local saves and log out', () => {
+            this._closeTitleMenu();
+            const confirm = this._openTitleMenu('Discard local saves?');
+            confirm.body.append(
+              element(
+                'p',
+                'The backup did not finish. Every local save slot will be deleted from this device. Progress not already in the cloud will be lost.',
+              ),
+            );
+            confirm.body.append(
+              button('Keep local saves', () => this._closeTitleMenu(), 're-btn re-btn--primary'),
+            );
+            confirm.body.append(
+              button('Delete local saves and log out', () => {
+                this._closeTitleMenu();
+                void this._finishLogout();
+              }),
+            );
+            confirm.focusContent();
+          }),
+        );
+        menu.focusContent();
+      }
+      return;
+    }
+    await this._finishLogout();
+  }
+
+  async _finishLogout() {
+    if (this._logoutInProgress) return;
+    this._logoutInProgress = true;
+    this._showLogoutProgress(
+      'Signing out',
+      'Finishing sign out before clearing this device’s account data…',
+    );
     try {
       await signOut();
-    } catch (_) {}
+    } catch {
+      this._logoutInProgress = false;
+      this._closeTitleMenu();
+      this._setLogoutNotice('Could not log out. Local saves were kept. Please retry.', '#ff6a6a');
+      return;
+    }
+    clearAllSlotData();
     try {
-      clearAllSlotData();
       localStorage.removeItem('emblem_rogue_settings');
-    } catch (_) {}
+    } catch {
+      /* retry on reload */
+    }
     location.reload();
+  }
+
+  _showLogoutProgress(title, message) {
+    if (!hasDOMHost()) return;
+    this._closeTitleMenu();
+    this.nativeMenu = new MenuSurface(this, title, () => {}, { modal: true });
+    this.nativeMenu.header.querySelector('button').disabled = true;
+    this.nativeMenu.body.append(element('p', message));
+    this.nativeMenu.root.setAttribute('aria-busy', 'true');
+  }
+
+  _closeTitleMenu() {
+    this.nativeMenu?.destroy();
+    this.nativeMenu = null;
+  }
+
+  _openTitleMenu(title) {
+    this._closeTitleMenu();
+    this.nativeMenu = new MenuSurface(this, title, () => this._closeTitleMenu(), { modal: true });
+    this.nativeMenu.root.classList.add('re-run-flow');
+    return this.nativeMenu;
   }
 
   _setLogoutNotice(message, color) {
@@ -1097,13 +1260,14 @@ export class TitleScene extends Phaser.Scene {
       this.logoutNoticeText = null;
     }
     if (!message) return;
-    this.logoutNoticeText = this.add
-      .text(W - 12, 64, message, {
+    this.logoutNoticeText = applyTextResolution(
+      this.add.text(W - 12, 64, message, {
         fontFamily: FONT,
         fontSize: '6px',
         color,
         align: 'right',
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(30);
   }
@@ -1112,12 +1276,13 @@ export class TitleScene extends Phaser.Scene {
     const cloud = this.registry.get('cloud');
     const showNotice = !!cloud?.syncStatus?.authExpired;
     if (showNotice && !this.cloudSyncStatusText) {
-      this.cloudSyncStatusText = this.add
-        .text(W - 12, 46, 'Cloud unavailable - local saves only (re-auth required)', {
+      this.cloudSyncStatusText = applyTextResolution(
+        this.add.text(W - 12, 46, 'Cloud unavailable - local saves only (re-auth required)', {
           fontFamily: FONT,
           fontSize: '6px',
           color: '#ff9a6a',
-        })
+        }),
+      )
         .setOrigin(1, 0.5)
         .setDepth(30);
       return;
@@ -1152,10 +1317,47 @@ export class TitleScene extends Phaser.Scene {
     this._refreshCloudSyncStatusNotice();
   }
 
-  async handleNewGame() {
+  async handleNewGame({ confirmed = false } = {}) {
     const nextSlot = getNextAvailableSlot();
     if (!nextSlot) {
       this.showMessage('All 3 save slots are full.\nDelete a slot from Continue to free space.');
+      return false;
+    }
+
+    if (!confirmed && getSlotCount() > 0) {
+      if (hasDOMHost()) {
+        const menu = this._openTitleMenu('Start another run?');
+        menu.body.append(
+          element(
+            'p',
+            `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Continue to return to them.`,
+          ),
+        );
+        menu.body.append(
+          button(
+            'Keep playing my saves',
+            () => {
+              this._closeTitleMenu();
+              void this.runMenuTransition(() =>
+                transitionToScene(
+                  this,
+                  'SlotPicker',
+                  { gameData: this.gameData },
+                  { reason: TRANSITION_REASONS.CONTINUE },
+                ),
+              );
+            },
+            're-btn re-btn--primary',
+          ),
+        );
+        menu.body.append(
+          button(`Start new run in Slot ${nextSlot}`, () => {
+            this._closeTitleMenu();
+            void this.runMenuTransition(() => this.handleNewGame({ confirmed: true }));
+          }),
+        );
+        menu.focusContent();
+      } else this.showMessage(`Existing saves are preserved. Choose Continue to return to them.`);
       return false;
     }
 
@@ -1187,7 +1389,11 @@ export class TitleScene extends Phaser.Scene {
     // Stage slot state in registry (meta/hints/activeSlot) the same way
     // SlotPickerScene does before its transition.
     this.registry.set('meta', meta);
-    this.registry.set('hints', new HintManager(nextSlot));
+    this.registry.set(
+      'hints',
+      new HintManager(nextSlot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
     this.registry.set('activeSlot', nextSlot);
     try {
       // A brand-new slot is always fresh: skip Home Base / Difficulty / Blessing
@@ -1237,7 +1443,13 @@ export class TitleScene extends Phaser.Scene {
       console.error('[TitleScene] transition failed', err);
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
-      this.showMessage('Transition failed. Please click again.');
+      this.showMessage(
+        inputHint(
+          this,
+          'Transition failed. Please click again.',
+          'Transition failed. Please tap again.',
+        ),
+      );
 
       // Restore title music when transition fails and we remain in this scene.
       const audio = this.registry.get('audio');
@@ -1248,15 +1460,16 @@ export class TitleScene extends Phaser.Scene {
   showMessage(text) {
     if (this.msgText) this.msgText.destroy();
     const cx = W / 2;
-    this.msgText = this.add
-      .text(cx, 440, text, {
+    this.msgText = applyTextResolution(
+      this.add.text(cx, 440, text, {
         fontFamily: FONT,
         fontSize: '9px',
         color: '#ff8888',
         align: 'center',
         backgroundColor: '#000000cc',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(50);
 

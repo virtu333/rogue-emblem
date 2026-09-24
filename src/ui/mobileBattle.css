@@ -1,0 +1,352 @@
+/* Battle-only touch layout. DOM type and targets stay fixed while the map zooms. */
+.mobile-battle-hud[hidden],
+.mb-forecast-backdrop[hidden] {
+  display: none !important;
+}
+.mobile-battle-hud {
+  flex: 0 0 clamp(200px, 27vw, 248px);
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 12px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--re-bg);
+  color: var(--re-text);
+  font: 14px/1.4 var(--re-body);
+}
+.mobile-battle-layout #mobile-right-panel {
+  display: none !important;
+}
+.mobile-battle-layout #mobile-left-panel {
+  width: calc(76px + var(--re-safe-left, env(safe-area-inset-left, 0px)));
+}
+.mobile-battle-layout .mobile-btn {
+  min-height: 48px;
+  border-radius: 2px;
+  background: var(--re-panel-raised);
+  border-color: var(--re-line);
+}
+.mobile-battle-layout .mobile-btn-label {
+  font: 12px/1.2 var(--re-body);
+  white-space: normal;
+}
+.mb-phase,
+.mb-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--re-muted);
+}
+.mb-summary h2 {
+  margin: 0 0 3px;
+  overflow-wrap: anywhere;
+}
+.mb-detail {
+  font-size: 13px;
+  color: var(--re-muted);
+  overflow-wrap: anywhere;
+  margin: 4px 0;
+}
+.mb-hp {
+  font-size: 13px;
+  color: var(--re-text);
+}
+.mb-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.mb-hint {
+  font-size: 13px;
+  margin: 0 0 10px;
+  color: var(--re-muted);
+}
+.mb-button {
+  min-height: 46px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  background: var(--re-panel);
+  color: var(--re-text);
+  font: 600 14px/1.25 var(--re-body);
+  text-align: center;
+  cursor: pointer;
+  touch-action: pan-y;
+  overflow-wrap: anywhere;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-battle-hud .mb-button:disabled {
+  color: var(--re-muted);
+  cursor: default;
+}
+.mb-button:active {
+  background: var(--re-selected);
+}
+.mb-button:focus-visible,
+.mb-button.mb-menu-focused {
+  outline: 3px solid var(--re-gold);
+  outline-offset: -3px;
+}
+.mb-button[aria-pressed='true'] {
+  border-color: var(--re-gold);
+  color: var(--re-gold-hi);
+  background: var(--re-selected);
+}
+.mb-danger {
+  background: var(--re-danger-bg);
+  border-color: var(--re-danger-line);
+}
+.mb-actions,
+.mb-command-grid {
+  display: grid;
+  gap: 7px;
+}
+.mb-command-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mb-end-turn {
+  margin-top: 8px;
+  color: var(--re-bad);
+}
+.mb-forecast-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-depth-forecast);
+  background: var(--re-scrim);
+  display: grid;
+  place-items: center;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  color: var(--re-text);
+  font: 14px/1.4 var(--re-body);
+}
+.mb-forecast h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.mb-forecast-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow-y: auto;
+  min-height: 0;
+  gap: 12px;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.mb-forecast-side {
+  background: var(--re-panel-raised);
+  border-top: 3px solid var(--re-info);
+  padding: 10px 12px;
+  border-radius: 2px;
+  min-width: 0;
+}
+.mb-enemy {
+  border-top-color: var(--re-bad);
+}
+.mb-forecast-side h3 {
+  margin: 4px 0 2px;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+.mb-weapon {
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}
+.mb-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 9px 0;
+}
+.mb-stats dt {
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.mb-stats dd {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+.mb-notice {
+  color: var(--re-warn);
+  font-size: 13px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.mb-forecast-footer {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.mb-forecast-footer .mb-button {
+  flex: 1;
+  min-width: 0;
+}
+.mb-forecast-footer .mb-primary {
+  background: var(--re-action);
+  color: var(--re-action-ink);
+  border: 1px solid var(--re-accent-text);
+}
+.mb-primary:active {
+  background: var(--re-accent-text);
+}
+
+.mb-forecast h2 {
+  font: 12px/1.6 var(--re-pixel);
+  color: var(--re-gold-hi);
+  border-bottom: 1px solid var(--re-line-soft);
+  padding-bottom: 8px;
+  text-transform: uppercase;
+}
+.mb-forecast-side h3 {
+  color: var(--re-gold-hi);
+}
+.mb-stats {
+  font-variant-numeric: tabular-nums;
+}
+.mb-stats dd {
+  color: var(--re-gold-hi);
+}
+
+.mb-summary h2 {
+  font: 11px/1.65 var(--re-pixel);
+}
+.mb-objective {
+  margin: 0 0 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--re-line);
+  color: var(--re-gold-hi);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.mb-battle-info {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--re-muted);
+}
+.mb-battle-info summary {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 11px 8px;
+  border: 1px solid var(--re-line);
+  color: var(--re-text);
+  cursor: pointer;
+}
+.mb-battle-info pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  margin: 8px 0;
+}
+.mb-battle-info summary {
+  -webkit-tap-highlight-color: transparent;
+}
+.mb-battle-info summary:focus-visible {
+  outline: 2px solid var(--re-gold);
+  outline-offset: -2px;
+  color: var(--re-gold-hi);
+}
+/* Keep single-word commands intact beside a visible scroll bar on small screens. */
+.mb-command-grid .mb-button {
+  padding-inline: 6px;
+  overflow-wrap: normal;
+}
+/* Keep primary commands ahead of optional detail when vertical space is tight. */
+.mb-body {
+  display: flex;
+  flex-direction: column;
+}
+.mb-body > * {
+  flex-shrink: 0;
+}
+.mb-battle-info {
+  order: 1;
+  margin-top: 10px;
+}
+
+.mb-forecast {
+  width: min(660px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+  background: var(--re-panel);
+  border: 1px solid var(--re-gold);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.mb-portrait {
+  float: right;
+  width: 48px;
+  height: 48px;
+  margin: 4px 0 8px 8px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+}
+
+.mb-phase {
+  color: var(--re-gold-hi);
+  border-bottom: 1px solid var(--re-line-soft);
+  padding-bottom: 8px;
+}
+
+.battlefield-lab .mb-actions.mb-submenu {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mb-item-summary {
+  display: block;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 1.4;
+  white-space: pre-line;
+  margin-top: 4px;
+}
+
+.mb-objective {
+  white-space: pre-line;
+}
+
+/* Tutorial notes reserve their own area; the related forecast remains readable. */
+.mb-forecast-backdrop.mb-tutorial-forecast {
+  bottom: calc(100dvh - var(--mb-tutorial-note-top) + 8px);
+  padding-top: max(6px, env(safe-area-inset-top));
+  padding-bottom: 0;
+}
+.mb-tutorial-forecast .mb-forecast {
+  height: 100%;
+  padding: 8px;
+  gap: 0;
+}
+.mb-tutorial-forecast .mb-forecast-sides {
+  flex: 1;
+}
+.mb-tutorial-forecast .mb-forecast-footer,
+.mb-tutorial-forecast .mb-portrait,
+.mb-tutorial-forecast .mb-hp,
+.mb-tutorial-forecast .re-health,
+.mb-tutorial-forecast .mb-eyebrow,
+.mb-tutorial-forecast .mb-detail,
+.mb-tutorial-forecast .mb-stats > div:not(.mb-tutorial-subject),
+.mb-tutorial-forecast .mb-notice:not(.mb-tutorial-subject) {
+  display: none;
+}
+.mb-tutorial-forecast .mb-forecast-side h3 {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+.mb-tutorial-forecast .mb-stats {
+  margin-top: 4px;
+}

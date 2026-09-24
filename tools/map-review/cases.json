@@ -1,0 +1,2874 @@
+{
+  "terrain": [
+    {
+      "name": "Plain",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "0",
+      "defBonus": "0",
+      "special": ""
+    },
+    {
+      "name": "Forest",
+      "moveCost": {
+        "Infantry": "2",
+        "Armored": "2",
+        "Cavalry": "3",
+        "Flying": "1"
+      },
+      "avoidBonus": "20",
+      "defBonus": "1",
+      "special": ""
+    },
+    {
+      "name": "Mountain",
+      "moveCost": {
+        "Infantry": "3",
+        "Armored": "--",
+        "Cavalry": "--",
+        "Flying": "1"
+      },
+      "avoidBonus": "30",
+      "defBonus": "2",
+      "special": "Infantry & Flying only"
+    },
+    {
+      "name": "Fort",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "20",
+      "defBonus": "2",
+      "special": "Heals 10% HP/turn"
+    },
+    {
+      "name": "Throne",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "15",
+      "defBonus": "3",
+      "special": "Heals 10% HP/turn. Boss/Seize tile"
+    },
+    {
+      "name": "Wall",
+      "moveCost": {
+        "Infantry": "--",
+        "Armored": "--",
+        "Cavalry": "--",
+        "Flying": "--"
+      },
+      "avoidBonus": "--",
+      "defBonus": "--",
+      "special": "Impassable"
+    },
+    {
+      "name": "Water",
+      "moveCost": {
+        "Infantry": "--",
+        "Armored": "--",
+        "Cavalry": "--",
+        "Flying": "1"
+      },
+      "avoidBonus": "10",
+      "defBonus": "0",
+      "special": "Flying only (standard)"
+    },
+    {
+      "name": "Bridge",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "0",
+      "defBonus": "0",
+      "special": "Crosses water"
+    },
+    {
+      "name": "Sand",
+      "moveCost": {
+        "Infantry": "2",
+        "Armored": "3",
+        "Cavalry": "3",
+        "Flying": "1"
+      },
+      "avoidBonus": "5",
+      "defBonus": "0",
+      "special": "Slows armored/cavalry significantly"
+    },
+    {
+      "name": "Village",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "10",
+      "defBonus": "1",
+      "special": "Can be visited for items/events"
+    },
+    {
+      "name": "Ice",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "-10",
+      "defBonus": "0",
+      "special": "Slide: non-flying units slide in entry direction until non-Ice tile"
+    },
+    {
+      "name": "Lava Crack",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "2",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "0",
+      "defBonus": "0",
+      "special": "5 damage at end of phase (min 1 HP)"
+    },
+    {
+      "name": "Floor",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "0",
+      "defBonus": "0",
+      "special": "Indoor tile"
+    },
+    {
+      "name": "Pillar",
+      "moveCost": {
+        "Infantry": "2",
+        "Armored": "2",
+        "Cavalry": "2",
+        "Flying": "2"
+      },
+      "avoidBonus": "20",
+      "defBonus": "1",
+      "special": "Indoor cover. Slows all unit types."
+    },
+    {
+      "name": "Ballista",
+      "moveCost": {
+        "Infantry": "1",
+        "Armored": "1",
+        "Cavalry": "1",
+        "Flying": "1"
+      },
+      "avoidBonus": "10",
+      "defBonus": "1",
+      "special": "Fires at enemies within 5 tiles. Stand on tile to capture."
+    },
+    {
+      "name": "Swamp",
+      "moveCost": {
+        "Infantry": "3",
+        "Armored": "--",
+        "Cavalry": "--",
+        "Flying": "1"
+      },
+      "avoidBonus": "-10",
+      "defBonus": "0",
+      "special": "Infantry and Flying only. Negative avoid."
+    },
+    {
+      "name": "Bog",
+      "moveCost": {
+        "Infantry": "2",
+        "Armored": "3",
+        "Cavalry": "3",
+        "Flying": "1"
+      },
+      "avoidBonus": "-5",
+      "defBonus": "0",
+      "special": "Universal access but slow. Negative avoid."
+    },
+    {
+      "name": "Acidic Swamp",
+      "moveCost": {
+        "Infantry": "3",
+        "Armored": "--",
+        "Cavalry": "--",
+        "Flying": "1"
+      },
+      "avoidBonus": "-10",
+      "defBonus": "0",
+      "special": "Hazard: Applies Acid (2T). Infantry and Flying only."
+    },
+    {
+      "name": "Acidic Bog",
+      "moveCost": {
+        "Infantry": "2",
+        "Armored": "3",
+        "Cavalry": "3",
+        "Flying": "1"
+      },
+      "avoidBonus": "-5",
+      "defBonus": "0",
+      "special": "Hazard: Applies Acid (2T). Slow for all."
+    }
+  ],
+  "cases": [
+    {
+      "id": "river_crossing",
+      "label": "River crossing",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 42,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 2,
+          "row": 1
+        },
+        {
+          "col": 1,
+          "row": 6
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 8,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 8,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 2,
+          "col": 8,
+          "row": 1,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 1, 6, 6, 6, 6, 0, 1, 1, 0],
+        [0, 0, 0, 1, 6, 6, 6, 6, 0, 0, 0, 0],
+        [1, 0, 0, 0, 6, 6, 6, 6, 3, 0, 0, 0],
+        [1, 0, 0, 1, 7, 6, 6, 6, 0, 0, 0, 0],
+        [3, 0, 1, 0, 7, 7, 7, 7, 0, 0, 1, 0],
+        [0, 3, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0],
+        [1, 1, 0, 3, 6, 6, 6, 7, 1, 0, 0, 0],
+        [0, 1, 0, 0, 6, 7, 6, 6, 0, 0, 0, 1]
+      ],
+      "metrics": {
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 11,
+        "passable": 75,
+        "terrain": ["Plain", "Forest", "Water", "Fort", "Bridge"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 11,
+        "passable": 75,
+        "terrain": ["Plain", "Forest", "Water", "Fort", "Bridge"]
+      }
+    },
+    {
+      "id": "river_crossing",
+      "label": "River crossing",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 137,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 0,
+          "row": 5
+        },
+        {
+          "col": 0,
+          "row": 1
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 5,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 6,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 1,
+          "col": 10,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 3,
+          "col": 8,
+          "row": 2,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 1, 0, 6, 7, 6, 6, 0, 0, 0, 0],
+        [0, 0, 0, 0, 7, 6, 6, 6, 0, 0, 0, 1],
+        [0, 1, 3, 0, 6, 6, 6, 6, 1, 1, 1, 0],
+        [0, 0, 1, 1, 6, 6, 6, 6, 0, 1, 0, 0],
+        [1, 0, 0, 1, 7, 7, 7, 7, 0, 0, 0, 1],
+        [0, 1, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0],
+        [1, 3, 0, 0, 6, 6, 6, 6, 1, 0, 0, 1],
+        [0, 0, 0, 1, 6, 6, 6, 6, 3, 3, 0, 1]
+      ],
+      "metrics": {
+        "nearest": 7,
+        "unreachable": 0,
+        "narrow": 10,
+        "passable": 74,
+        "terrain": ["Plain", "Forest", "Water", "Bridge", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 4,
+        "unreachable": 0,
+        "narrow": 10,
+        "passable": 74,
+        "terrain": ["Plain", "Forest", "Water", "Bridge", "Fort"]
+      }
+    },
+    {
+      "id": "river_crossing",
+      "label": "River crossing",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 908,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 2,
+          "row": 7
+        },
+        {
+          "col": 0,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 8,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 1,
+          "col": 8,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 10,
+          "row": 5,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 1, 0, 0, 6, 6, 6, 6, 1, 0, 0, 0],
+        [0, 0, 1, 3, 6, 6, 6, 6, 1, 0, 0, 1],
+        [1, 0, 0, 0, 6, 6, 6, 6, 3, 1, 1, 0],
+        [3, 0, 1, 0, 6, 7, 6, 6, 0, 1, 0, 0],
+        [0, 1, 0, 3, 7, 7, 7, 7, 1, 0, 1, 1],
+        [0, 1, 0, 0, 7, 7, 7, 7, 1, 0, 1, 0],
+        [0, 0, 1, 0, 7, 6, 6, 6, 1, 0, 0, 0],
+        [0, 1, 1, 0, 6, 7, 6, 7, 0, 0, 0, 0]
+      ],
+      "metrics": {
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 11,
+        "passable": 76,
+        "terrain": ["Plain", "Forest", "Water", "Fort", "Bridge"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 7,
+        "unreachable": 0,
+        "narrow": 11,
+        "passable": 76,
+        "terrain": ["Plain", "Forest", "Water", "Fort", "Bridge"]
+      }
+    },
+    {
+      "id": "forest_ambush",
+      "label": "Forest ambush",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 42,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 0,
+          "row": 0
+        },
+        {
+          "col": 3,
+          "row": 2
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Archer",
+          "level": 1,
+          "col": 7,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 10,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 8,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 2,
+          "col": 10,
+          "row": 2,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [3, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0],
+        [0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 1, 1, 1, 1, 1, 3, 0, 1],
+        [1, 0, 0, 1, 0, 1, 3, 1, 1, 0, 1, 1],
+        [1, 0, 1, 0, 0, 2, 1, 1, 1, 0, 1, 1],
+        [0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1],
+        [1, 1, 1, 3, 2, 1, 0, 0, 1, 1, 1, 1],
+        [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0]
+      ],
+      "metrics": {
+        "nearest": 8,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Fort", "Plain", "Forest", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 4,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Fort", "Plain", "Forest", "Mountain"]
+      }
+    },
+    {
+      "id": "forest_ambush",
+      "label": "Forest ambush",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 137,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 0,
+          "row": 7
+        },
+        {
+          "col": 1,
+          "row": 1
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Myrmidon",
+          "level": 1,
+          "col": 6,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 9,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 1,
+          "col": 8,
+          "row": 3,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 1, 0, 1, 1, 1, 1, 1, 2, 1, 2],
+        [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1],
+        [0, 1, 3, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        [1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 2],
+        [1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+        [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [1, 3, 0, 0, 1, 1, 0, 3, 0, 3, 0, 1],
+        [0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1]
+      ],
+      "metrics": {
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Plain", "Forest", "Mountain", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 6,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Plain", "Forest", "Mountain", "Fort"]
+      }
+    },
+    {
+      "id": "forest_ambush",
+      "label": "Forest ambush",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 908,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 2,
+          "row": 4
+        },
+        {
+          "col": 1,
+          "row": 6
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 8,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 6,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 3,
+          "col": 9,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 2,
+          "col": 8,
+          "row": 3,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 1, 3, 1, 0, 0, 1, 1, 1, 0, 2],
+        [1, 1, 0, 0, 1, 0, 0, 1, 0, 3, 0, 0],
+        [3, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1],
+        [3, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0],
+        [0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1],
+        [1, 0, 1, 1, 2, 1, 1, 0, 1, 1, 1, 1],
+        [0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1]
+      ],
+      "metrics": {
+        "nearest": 8,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Plain", "Forest", "Fort", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 7,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 96,
+        "terrain": ["Plain", "Forest", "Fort", "Mountain"]
+      }
+    },
+    {
+      "id": "chokepoint",
+      "label": "Chokepoint",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 42,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 2,
+          "row": 1
+        },
+        {
+          "col": 1,
+          "row": 6
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 6,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 8,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 2,
+          "col": 10,
+          "row": 3,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 1, 5, 5, 5, 5, 0, 1, 1, 0],
+        [0, 0, 0, 1, 5, 5, 5, 5, 0, 0, 0, 0],
+        [1, 0, 0, 0, 5, 0, 0, 5, 3, 0, 0, 0],
+        [1, 0, 0, 1, 0, 0, 3, 1, 0, 0, 0, 0],
+        [1, 0, 1, 0, 0, 0, 3, 2, 0, 0, 1, 0],
+        [0, 1, 0, 0, 2, 0, 0, 5, 0, 1, 0, 0],
+        [1, 1, 1, 3, 2, 5, 2, 2, 1, 0, 0, 0],
+        [0, 1, 0, 0, 5, 5, 5, 2, 0, 0, 0, 1]
+      ],
+      "metrics": {
+        "nearest": 8,
+        "unreachable": 0,
+        "narrow": 12,
+        "passable": 81,
+        "terrain": ["Plain", "Forest", "Wall", "Fort", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 7,
+        "unreachable": 0,
+        "narrow": 12,
+        "passable": 81,
+        "terrain": ["Plain", "Forest", "Wall", "Fort", "Mountain"]
+      }
+    },
+    {
+      "id": "chokepoint",
+      "label": "Chokepoint",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 137,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 3,
+          "row": 4
+        },
+        {
+          "col": 1,
+          "row": 5
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 6,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 8,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 1,
+          "col": 9,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 3,
+          "col": 8,
+          "row": 2,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 1, 0, 5, 2, 5, 2, 0, 0, 0, 0],
+        [1, 0, 0, 0, 2, 5, 5, 2, 0, 0, 0, 1],
+        [0, 1, 3, 0, 5, 0, 0, 5, 1, 1, 1, 0],
+        [0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0],
+        [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 5, 0, 0, 5, 0, 0, 0, 0],
+        [1, 3, 0, 0, 2, 2, 2, 5, 1, 0, 3, 1],
+        [0, 0, 0, 1, 5, 2, 5, 2, 3, 1, 0, 1]
+      ],
+      "metrics": {
+        "nearest": 3,
+        "unreachable": 0,
+        "narrow": 16,
+        "passable": 85,
+        "terrain": ["Plain", "Forest", "Wall", "Mountain", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 3,
+        "unreachable": 0,
+        "narrow": 16,
+        "passable": 85,
+        "terrain": ["Plain", "Forest", "Wall", "Mountain", "Fort"]
+      }
+    },
+    {
+      "id": "chokepoint",
+      "label": "Chokepoint",
+      "biome": "Grassland",
+      "act": "act1",
+      "seed": 908,
+      "cols": 12,
+      "rows": 8,
+      "players": [
+        {
+          "col": 1,
+          "row": 4
+        },
+        {
+          "col": 3,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 3,
+          "col": 6,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 3,
+          "col": 9,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 2,
+          "col": 10,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 8,
+          "row": 1,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 1, 1, 0, 5, 5, 5, 5, 1, 0, 0, 0],
+        [0, 0, 1, 0, 5, 5, 5, 5, 1, 0, 0, 1],
+        [1, 0, 0, 0, 5, 3, 0, 5, 3, 1, 1, 0],
+        [0, 0, 1, 1, 0, 0, 3, 0, 0, 1, 0, 0],
+        [0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1],
+        [0, 1, 0, 0, 5, 0, 3, 5, 1, 0, 1, 0],
+        [0, 0, 1, 0, 5, 5, 5, 2, 1, 0, 0, 0],
+        [0, 1, 1, 0, 5, 5, 5, 5, 0, 0, 0, 0]
+      ],
+      "metrics": {
+        "nearest": 3,
+        "unreachable": 0,
+        "narrow": 13,
+        "passable": 77,
+        "terrain": ["Plain", "Forest", "Wall", "Fort", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 8,
+        "violations": [],
+        "nearest": 3,
+        "unreachable": 0,
+        "narrow": 13,
+        "passable": 77,
+        "terrain": ["Plain", "Forest", "Wall", "Fort", "Mountain"]
+      }
+    },
+    {
+      "id": "corridor_siege",
+      "label": "Corridor siege",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 42,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 2,
+          "row": 4
+        },
+        {
+          "col": 3,
+          "row": 2
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Pegasus Knight",
+          "level": 4,
+          "col": 14,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 5,
+          "col": 12,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 8,
+          "col": 12,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 6,
+          "col": 14,
+          "row": 2,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Mage",
+          "level": 8,
+          "col": 15,
+          "row": 0,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [13, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 12, 12, 12],
+        [3, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 13, 12, 12, 12],
+        [13, 13, 13, 12, 13, 12, 12, 13, 12, 12, 13, 12, 12, 13, 12, 12],
+        [13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13],
+        [12, 12, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 3, 12, 12, 12],
+        [12, 12, 12, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+        [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 12, 13],
+        [12, 12, 13, 13, 13, 12, 12, 13, 12, 12, 13, 12, 12, 13, 13, 12],
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 13, 12, 12],
+        [13, 12, 13, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 13, 12, 12]
+      ],
+      "metrics": {
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Pillar", "Floor", "Wall", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Pillar", "Floor", "Wall", "Fort"]
+      }
+    },
+    {
+      "id": "corridor_siege",
+      "label": "Corridor siege",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 137,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 1,
+          "row": 1
+        },
+        {
+          "col": 1,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Knight",
+          "level": 4,
+          "col": 13,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 8,
+          "col": 12,
+          "row": 7,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Mage",
+          "level": 5,
+          "col": 13,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 5,
+          "col": 13,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 3,
+          "col": 13,
+          "row": 0,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [12, 12, 13, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 13, 12, 3],
+        [12, 12, 13, 12, 5, 5, 5, 5, 5, 5, 5, 5, 13, 12, 12, 13],
+        [12, 12, 13, 12, 13, 12, 12, 13, 12, 12, 13, 12, 12, 12, 12, 12],
+        [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+        [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 12, 13, 12],
+        [12, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12],
+        [13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 12, 12],
+        [12, 12, 12, 12, 13, 12, 12, 13, 12, 12, 13, 12, 13, 12, 12, 3],
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 13, 12, 12, 13],
+        [12, 12, 12, 13, 5, 5, 5, 5, 5, 5, 5, 5, 12, 13, 12, 13]
+      ],
+      "metrics": {
+        "nearest": 14,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Floor", "Pillar", "Wall", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 13,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Floor", "Pillar", "Wall", "Fort"]
+      }
+    },
+    {
+      "id": "corridor_siege",
+      "label": "Corridor siege",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 908,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 0,
+          "row": 6
+        },
+        {
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Wyvern Rider",
+          "level": 7,
+          "col": 12,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 6,
+          "col": 14,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 5,
+          "col": 14,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 6,
+          "col": 14,
+          "row": 6,
+          "isBoss": false,
+          "sunderWeapon": true
+        }
+      ],
+      "mapLayout": [
+        [12, 13, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 12, 12, 13],
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 12, 13, 13, 12],
+        [12, 12, 13, 12, 13, 12, 12, 13, 12, 12, 13, 12, 12, 12, 12, 12],
+        [13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 12, 13, 13],
+        [13, 12, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 3, 13],
+        [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 3, 12, 13, 12],
+        [12, 12, 12, 13, 12, 12, 12, 12, 12, 12, 12, 12, 13, 12, 12, 12],
+        [13, 13, 13, 12, 13, 12, 12, 13, 12, 12, 13, 12, 12, 12, 13, 13],
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 5, 5, 5, 13, 12, 13, 12],
+        [12, 12, 13, 13, 5, 5, 5, 5, 5, 5, 5, 5, 13, 12, 12, 12]
+      ],
+      "metrics": {
+        "nearest": 15,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Floor", "Pillar", "Wall", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 10,
+        "violations": [],
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 8,
+        "passable": 128,
+        "terrain": ["Floor", "Pillar", "Wall", "Fort"]
+      }
+    },
+    {
+      "id": "castle_ruins",
+      "label": "Castle ruins",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 42,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 0,
+          "row": 0
+        },
+        {
+          "col": 2,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 8,
+          "col": 13,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 6,
+          "col": 13,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 8,
+          "col": 15,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 5,
+          "col": 12,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 8,
+          "col": 13,
+          "row": 8,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 13, 12, 12, 12, 12, 12, 5],
+        [12, 12, 12, 13, 5, 12, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12],
+        [12, 12, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 5, 12, 12, 12],
+        [12, 12, 3, 12, 5, 12, 12, 12, 12, 13, 12, 12, 12, 12, 12, 5],
+        [12, 12, 3, 12, 5, 5, 12, 12, 5, 12, 12, 12, 13, 12, 12, 12],
+        [12, 12, 5, 12, 13, 12, 13, 5, 12, 12, 5, 5, 12, 12, 13, 13],
+        [13, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 5, 12, 3, 13, 13],
+        [5, 12, 5, 12, 13, 12, 13, 12, 12, 12, 12, 5, 13, 12, 13, 12],
+        [12, 5, 5, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 12, 12, 12],
+        [12, 12, 5, 12, 13, 12, 13, 5, 5, 5, 5, 5, 12, 13, 13, 13]
+      ],
+      "metrics": {
+        "nearest": 19,
+        "unreachable": 0,
+        "narrow": 25,
+        "passable": 127,
+        "terrain": ["Floor", "Wall", "Pillar", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 17,
+        "unreachable": 0,
+        "narrow": 25,
+        "passable": 127,
+        "terrain": ["Floor", "Wall", "Pillar", "Fort"]
+      }
+    },
+    {
+      "id": "castle_ruins",
+      "label": "Castle ruins",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 137,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 0,
+          "row": 3
+        },
+        {
+          "col": 2,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Thief",
+          "level": 5,
+          "col": 12,
+          "row": 6,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Fighter",
+          "level": 5,
+          "col": 14,
+          "row": 9,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 7,
+          "col": 15,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 7,
+          "col": 13,
+          "row": 7,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [12, 12, 12, 12, 5, 5, 5, 5, 5, 13, 12, 12, 12, 12, 5, 12],
+        [12, 12, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 5, 12, 13, 5],
+        [12, 13, 13, 12, 5, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 13],
+        [12, 12, 12, 13, 5, 12, 12, 12, 12, 13, 12, 12, 5, 12, 12, 12],
+        [13, 12, 3, 13, 5, 5, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12],
+        [5, 12, 5, 12, 13, 12, 13, 5, 12, 12, 5, 5, 12, 12, 12, 13],
+        [12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 12, 13, 3],
+        [5, 12, 12, 5, 13, 12, 13, 12, 12, 12, 12, 5, 12, 13, 12, 13],
+        [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 13, 12, 13],
+        [12, 12, 12, 5, 13, 12, 13, 5, 5, 5, 5, 5, 12, 12, 12, 12]
+      ],
+      "metrics": {
+        "nearest": 17,
+        "unreachable": 0,
+        "narrow": 30,
+        "passable": 127,
+        "terrain": ["Floor", "Wall", "Pillar", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 10,
+        "violations": [],
+        "nearest": 17,
+        "unreachable": 0,
+        "narrow": 30,
+        "passable": 127,
+        "terrain": ["Floor", "Wall", "Pillar", "Fort"]
+      }
+    },
+    {
+      "id": "castle_ruins",
+      "label": "Castle ruins",
+      "biome": "Castle",
+      "act": "act2",
+      "seed": 908,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 1,
+          "row": 1
+        },
+        {
+          "col": 1,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Archer",
+          "level": 5,
+          "col": 13,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 5,
+          "col": 14,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 7,
+          "col": 15,
+          "row": 6,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 5,
+          "col": 12,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 6,
+          "col": 12,
+          "row": 7,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [3, 12, 12, 13, 5, 5, 5, 5, 5, 13, 12, 12, 5, 12, 13, 12],
+        [13, 12, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 12],
+        [12, 13, 12, 12, 5, 12, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12],
+        [12, 13, 12, 12, 5, 12, 12, 12, 12, 13, 12, 12, 13, 12, 12, 5],
+        [13, 13, 13, 3, 5, 5, 12, 12, 5, 12, 12, 12, 13, 12, 5, 12],
+        [12, 12, 5, 12, 13, 12, 13, 5, 12, 12, 5, 5, 12, 3, 3, 12],
+        [12, 5, 5, 12, 12, 12, 12, 12, 12, 12, 12, 5, 12, 12, 13, 12],
+        [13, 5, 12, 5, 13, 12, 13, 12, 12, 12, 12, 5, 12, 13, 12, 13],
+        [5, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 5, 13, 13, 13, 12],
+        [5, 12, 5, 5, 13, 12, 13, 5, 5, 5, 5, 5, 13, 12, 12, 12]
+      ],
+      "metrics": {
+        "nearest": 18,
+        "unreachable": 0,
+        "narrow": 30,
+        "passable": 124,
+        "terrain": ["Fort", "Floor", "Pillar", "Wall"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 16,
+        "unreachable": 0,
+        "narrow": 30,
+        "passable": 124,
+        "terrain": ["Fort", "Floor", "Pillar", "Wall"]
+      }
+    },
+    {
+      "id": "mire_crossing",
+      "label": "Mire crossing",
+      "biome": "Swamp",
+      "act": "act2",
+      "seed": 42,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 3,
+          "row": 5
+        },
+        {
+          "col": 1,
+          "row": 1
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Mage",
+          "level": 3,
+          "col": 12,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 3,
+          "col": 15,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 4,
+          "col": 13,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 6,
+          "col": 12,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 3,
+          "col": 14,
+          "row": 8,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 0, 15, 16, 15, 0, 15, 16, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 15, 17, 16, 17, 17, 15, 15, 16, 0, 16, 1, 0],
+        [0, 0, 0, 0, 15, 15, 17, 16, 0, 16, 15, 15, 3, 3, 0, 1],
+        [16, 0, 16, 0, 0, 15, 16, 0, 15, 15, 16, 16, 16, 3, 1, 1],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 16, 0, 0, 18],
+        [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+        [0, 0, 1, 1, 16, 16, 0, 16, 15, 15, 0, 16, 3, 0, 16, 0],
+        [1, 0, 1, 0, 15, 0, 16, 15, 16, 15, 15, 15, 1, 1, 16, 0],
+        [0, 0, 0, 0, 15, 16, 16, 0, 0, 15, 16, 15, 16, 0, 16, 0],
+        [0, 1, 1, 0, 16, 0, 16, 15, 15, 15, 15, 16, 0, 1, 16, 1]
+      ],
+      "metrics": {
+        "nearest": 15,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Plain", "Swamp", "Bog", "Forest", "Acidic Swamp", "Fort", "Acidic Bog"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 12,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Plain", "Swamp", "Bog", "Forest", "Acidic Swamp", "Fort", "Acidic Bog"]
+      }
+    },
+    {
+      "id": "mire_crossing",
+      "label": "Mire crossing",
+      "biome": "Swamp",
+      "act": "act2",
+      "seed": 137,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 2,
+          "row": 7
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Myrmidon",
+          "level": 4,
+          "col": 15,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 8,
+          "col": 14,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 6,
+          "col": 13,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 4,
+          "col": 12,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Wyvern Rider",
+          "level": 5,
+          "col": 13,
+          "row": 1,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 0, 16, 15, 17, 15, 16, 1, 17, 1, 0, 0, 0, 1],
+        [0, 0, 1, 0, 15, 0, 15, 16, 0, 15, 15, 16, 0, 0, 16, 1],
+        [16, 1, 1, 0, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 16],
+        [16, 0, 0, 1, 0, 0, 0, 15, 15, 0, 15, 0, 1, 0, 0, 0],
+        [1, 0, 16, 1, 0, 1, 1, 1, 0, 3, 0, 0, 16, 0, 0, 0],
+        [0, 0, 16, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 16, 0, 0],
+        [0, 0, 1, 3, 15, 16, 15, 16, 16, 16, 16, 16, 0, 0, 1, 0],
+        [0, 1, 0, 1, 15, 15, 0, 15, 15, 0, 16, 16, 18, 0, 0, 0],
+        [16, 1, 0, 0, 0, 15, 16, 0, 15, 15, 15, 16, 0, 3, 0, 3],
+        [0, 0, 0, 0, 16, 16, 15, 17, 0, 15, 1, 0, 0, 0, 16, 0]
+      ],
+      "metrics": {
+        "nearest": 19,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Plain", "Bog", "Swamp", "Acidic Swamp", "Forest", "Fort", "Acidic Bog"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 18,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Plain", "Bog", "Swamp", "Acidic Swamp", "Forest", "Fort", "Acidic Bog"]
+      }
+    },
+    {
+      "id": "mire_crossing",
+      "label": "Mire crossing",
+      "biome": "Swamp",
+      "act": "act2",
+      "seed": 908,
+      "cols": 16,
+      "rows": 10,
+      "players": [
+        {
+          "col": 1,
+          "row": 4
+        },
+        {
+          "col": 0,
+          "row": 5
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Archer",
+          "level": 8,
+          "col": 15,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 7,
+          "col": 12,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Myrmidon",
+          "level": 4,
+          "col": 14,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 6,
+          "col": 15,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 6,
+          "col": 13,
+          "row": 0,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [16, 0, 0, 1, 0, 16, 16, 15, 16, 16, 15, 16, 1, 1, 0, 0],
+        [1, 16, 1, 0, 15, 15, 17, 15, 16, 15, 15, 15, 0, 0, 0, 18],
+        [0, 1, 0, 3, 15, 15, 16, 15, 16, 0, 15, 15, 1, 0, 1, 3],
+        [0, 1, 0, 0, 16, 15, 15, 0, 15, 16, 15, 16, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 0, 0, 0, 3, 0, 0, 1, 0, 18, 0, 0],
+        [0, 16, 16, 0, 1, 1, 0, 1, 0, 0, 0, 1, 16, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 15, 15, 16, 0, 15, 16, 1, 0, 16],
+        [0, 1, 0, 1, 15, 15, 15, 0, 0, 15, 15, 15, 0, 0, 1, 0],
+        [1, 1, 1, 0, 15, 15, 16, 15, 15, 15, 15, 18, 0, 1, 0, 0],
+        [1, 0, 0, 0, 15, 16, 15, 15, 0, 16, 15, 18, 1, 0, 3, 0]
+      ],
+      "metrics": {
+        "nearest": 17,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Bog", "Plain", "Forest", "Swamp", "Acidic Swamp", "Acidic Bog", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 11,
+        "violations": [],
+        "nearest": 14,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 160,
+        "terrain": ["Bog", "Plain", "Forest", "Swamp", "Acidic Swamp", "Acidic Bog", "Fort"]
+      }
+    },
+    {
+      "id": "frozen_pass",
+      "label": "Frozen pass",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 42,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 3,
+          "row": 12
+        },
+        {
+          "col": 5,
+          "row": 5
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Trickster",
+          "level": 11,
+          "col": 12,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Bow Knight",
+          "level": 11,
+          "col": 14,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 16,
+          "col": 14,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Berserker",
+          "level": 16,
+          "col": 15,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 15,
+          "col": 16,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Dark Knight",
+          "level": 12,
+          "col": 17,
+          "row": 9,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [10, 0, 0, 0, 0, 0, 10, 2, 0, 0, 2, 10, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 10, 3, 10, 0, 0],
+        [0, 10, 0, 0, 0, 10, 10, 0, 0, 10, 10, 0, 10, 1, 0, 10, 0, 10],
+        [0, 0, 3, 0, 0, 10, 1, 10, 10, 0, 0, 10, 0, 10, 3, 0, 0, 0],
+        [0, 0, 0, 0, 10, 0, 0, 0, 10, 1, 0, 0, 10, 1, 0, 10, 0, 0],
+        [0, 1, 0, 10, 0, 10, 10, 10, 0, 0, 10, 1, 10, 10, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 10, 1, 10, 10, 1, 10, 10, 0, 0, 0, 10, 0],
+        [0, 10, 10, 10, 0, 10, 0, 10, 1, 0, 10, 10, 0, 0, 10, 0, 0, 10],
+        [0, 0, 0, 0, 10, 10, 10, 10, 10, 1, 10, 10, 10, 0, 0, 0, 10, 0],
+        [0, 1, 0, 0, 10, 0, 10, 1, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0],
+        [10, 10, 0, 0, 10, 0, 10, 10, 0, 10, 0, 10, 0, 10, 0, 10, 3, 0],
+        [0, 10, 10, 0, 1, 1, 0, 0, 2, 10, 0, 2, 0, 0, 0, 0, 0, 1],
+        [0, 0, 10, 10, 0, 0, 10, 0, 0, 0, 0, 0, 10, 0, 0, 10, 0, 10]
+      ],
+      "metrics": {
+        "nearest": 12,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Ice", "Plain", "Mountain", "Fort", "Forest"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Ice", "Plain", "Mountain", "Fort", "Forest"]
+      }
+    },
+    {
+      "id": "frozen_pass",
+      "label": "Frozen pass",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 137,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 4,
+          "row": 6
+        },
+        {
+          "col": 1,
+          "row": 7
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Duelist",
+          "level": 17,
+          "col": 14,
+          "row": 10,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Great Knight",
+          "level": 16,
+          "col": 15,
+          "row": 10,
+          "isBoss": false
+        },
+        {
+          "className": "Dark Knight",
+          "level": 15,
+          "col": 13,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 11,
+          "col": 15,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Dark Knight",
+          "level": 11,
+          "col": 15,
+          "row": 9,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Mage",
+          "level": 13,
+          "col": 17,
+          "row": 10,
+          "isBoss": false
+        },
+        {
+          "className": "Wyvern Rider",
+          "level": 13,
+          "col": 12,
+          "row": 1,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 10, 0, 0, 0, 0, 0, 2, 0, 2, 0, 3, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 10, 1, 10, 0, 3, 0, 0, 0, 10, 0],
+        [3, 0, 0, 0, 10, 1, 0, 10, 10, 0, 10, 0, 0, 0, 10, 0, 10, 0],
+        [0, 1, 0, 10, 0, 0, 10, 10, 0, 10, 10, 0, 10, 0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 1, 10, 1, 10, 0, 10, 10, 10, 0, 1, 10, 10, 0, 0],
+        [1, 0, 10, 1, 0, 10, 0, 0, 10, 0, 0, 10, 0, 1, 10, 0, 0, 0],
+        [0, 10, 0, 0, 10, 10, 10, 1, 10, 10, 0, 0, 10, 10, 10, 0, 0, 0],
+        [0, 0, 0, 0, 10, 1, 0, 10, 1, 10, 0, 10, 10, 0, 0, 10, 1, 0],
+        [0, 10, 0, 0, 0, 10, 0, 10, 1, 10, 0, 1, 10, 0, 0, 0, 10, 1],
+        [0, 0, 0, 0, 0, 10, 10, 10, 0, 10, 0, 10, 10, 10, 3, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 0, 10, 0, 0, 1, 10, 0],
+        [1, 0, 0, 0, 0, 0, 10, 2, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0],
+        [10, 0, 10, 0, 0, 0, 0, 10, 0, 10, 10, 10, 0, 0, 1, 0, 10, 0]
+      ],
+      "metrics": {
+        "nearest": 12,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Fort", "Forest"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Fort", "Forest"]
+      }
+    },
+    {
+      "id": "frozen_pass",
+      "label": "Frozen pass",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 908,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 0,
+          "row": 2
+        },
+        {
+          "col": 5,
+          "row": 7
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Wyvern Rider",
+          "level": 17,
+          "col": 16,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 13,
+          "col": 12,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 14,
+          "col": 17,
+          "row": 9,
+          "isBoss": false
+        },
+        {
+          "className": "Hero",
+          "level": 17,
+          "col": 14,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Hero",
+          "level": 11,
+          "col": 13,
+          "row": 9,
+          "isBoss": false,
+          "poisonWeapon": true
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 15,
+          "col": 17,
+          "row": 3,
+          "isBoss": false,
+          "sunderWeapon": true
+        }
+      ],
+      "mapLayout": [
+        [0, 10, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 10, 0],
+        [0, 0, 0, 10, 0, 0, 2, 10, 10, 0, 0, 10, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 10, 0, 0, 0, 0, 0, 10, 0, 1, 10, 10, 10, 10, 0, 0],
+        [0, 10, 0, 0, 1, 10, 10, 1, 10, 0, 10, 10, 10, 10, 10, 0, 3, 0],
+        [10, 1, 0, 3, 0, 0, 10, 0, 10, 0, 10, 0, 1, 10, 10, 0, 0, 0],
+        [0, 0, 10, 0, 10, 1, 0, 0, 10, 0, 0, 10, 10, 10, 0, 0, 0, 0],
+        [0, 0, 0, 10, 10, 10, 0, 0, 0, 10, 10, 0, 0, 10, 10, 10, 0, 10],
+        [10, 0, 0, 0, 10, 10, 1, 10, 0, 10, 10, 10, 0, 0, 10, 0, 0, 0],
+        [0, 1, 0, 0, 10, 0, 10, 0, 0, 0, 0, 10, 0, 0, 10, 0, 0, 10],
+        [10, 1, 10, 1, 10, 1, 10, 0, 10, 10, 0, 10, 1, 1, 0, 0, 0, 0],
+        [1, 10, 0, 0, 10, 0, 1, 10, 0, 10, 10, 0, 10, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 3, 10, 0, 10, 2, 0, 0, 0, 1, 10, 1, 0, 10, 0],
+        [0, 0, 0, 3, 10, 0, 0, 10, 10, 0, 0, 2, 0, 0, 0, 0, 0, 0]
+      ],
+      "metrics": {
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Forest", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Forest", "Fort"]
+      }
+    },
+    {
+      "id": "glacier_run",
+      "label": "Glacier run",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 42,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 4,
+          "row": 6
+        },
+        {
+          "col": 0,
+          "row": 2
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Mage",
+          "level": 15,
+          "col": 13,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 17,
+          "col": 15,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 13,
+          "col": 12,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Wyvern Rider",
+          "level": 15,
+          "col": 13,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 12,
+          "col": 15,
+          "row": 12,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 12,
+          "col": 14,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 14,
+          "col": 12,
+          "row": 4,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [10, 0, 0, 0, 0, 0, 10, 1, 10, 0, 1, 10, 0, 0, 0, 0, 0, 10],
+        [0, 0, 0, 0, 10, 10, 0, 10, 10, 10, 0, 10, 0, 0, 10, 10, 0, 0],
+        [0, 10, 0, 1, 10, 10, 10, 0, 10, 0, 10, 10, 0, 10, 10, 10, 3, 10],
+        [0, 0, 0, 10, 0, 10, 0, 10, 1, 10, 10, 10, 10, 0, 0, 2, 10, 0],
+        [0, 0, 0, 10, 0, 10, 10, 10, 10, 10, 0, 10, 10, 1, 10, 10, 0, 0],
+        [0, 1, 10, 10, 10, 10, 10, 0, 10, 1, 0, 10, 10, 10, 0, 0, 0, 0],
+        [3, 0, 0, 10, 10, 10, 10, 10, 0, 10, 10, 10, 10, 10, 0, 0, 10, 0],
+        [0, 10, 10, 10, 0, 0, 0, 0, 10, 10, 10, 10, 10, 10, 10, 0, 3, 10],
+        [0, 0, 0, 10, 10, 0, 10, 0, 10, 10, 0, 0, 10, 10, 0, 0, 10, 0],
+        [3, 1, 0, 10, 10, 10, 10, 10, 10, 0, 10, 0, 10, 0, 0, 10, 10, 0],
+        [10, 10, 0, 10, 10, 0, 10, 10, 10, 0, 10, 10, 0, 0, 1, 10, 2, 0],
+        [0, 10, 10, 1, 1, 0, 1, 0, 10, 10, 1, 10, 10, 0, 0, 0, 0, 2],
+        [10, 0, 10, 10, 0, 0, 10, 0, 0, 0, 0, 0, 10, 0, 0, 10, 0, 10]
+      ],
+      "metrics": {
+        "nearest": 10,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Ice", "Plain", "Forest", "Fort", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 8,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Ice", "Plain", "Forest", "Fort", "Mountain"]
+      }
+    },
+    {
+      "id": "glacier_run",
+      "label": "Glacier run",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 137,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 2,
+          "row": 9
+        },
+        {
+          "col": 4,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Wyvern Rider",
+          "level": 11,
+          "col": 15,
+          "row": 12,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 12,
+          "col": 15,
+          "row": 6,
+          "isBoss": false
+        },
+        {
+          "className": "Berserker",
+          "level": 13,
+          "col": 16,
+          "row": 1,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 13,
+          "col": 15,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Knight",
+          "level": 12,
+          "col": 17,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Duelist",
+          "level": 14,
+          "col": 13,
+          "row": 8,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 0, 0, 10, 0, 0, 10, 0, 0, 2, 0, 2, 0, 2, 0, 2, 0, 0],
+        [0, 0, 0, 10, 1, 0, 10, 10, 0, 10, 0, 10, 0, 0, 0, 0, 10, 0],
+        [0, 0, 3, 10, 10, 10, 10, 10, 10, 10, 0, 1, 10, 0, 10, 0, 10, 0],
+        [0, 1, 0, 10, 10, 10, 10, 10, 0, 10, 10, 10, 10, 10, 0, 10, 0, 10],
+        [3, 10, 0, 0, 10, 10, 0, 10, 10, 10, 0, 10, 10, 10, 0, 10, 0, 0],
+        [1, 0, 10, 10, 10, 10, 0, 0, 10, 1, 10, 0, 10, 10, 0, 0, 0, 2],
+        [0, 10, 0, 0, 10, 0, 10, 0, 10, 0, 0, 10, 0, 10, 10, 0, 0, 2],
+        [0, 0, 0, 10, 10, 10, 10, 0, 10, 10, 10, 10, 10, 10, 0, 10, 2, 0],
+        [0, 10, 0, 10, 10, 10, 10, 10, 0, 1, 10, 10, 0, 10, 10, 0, 10, 2],
+        [0, 0, 0, 10, 0, 10, 10, 10, 10, 1, 10, 0, 0, 10, 0, 0, 0, 10],
+        [0, 0, 3, 0, 0, 10, 0, 10, 10, 10, 10, 1, 10, 10, 10, 2, 10, 0],
+        [1, 3, 0, 10, 10, 10, 10, 10, 1, 0, 10, 10, 10, 10, 10, 0, 0, 0],
+        [10, 0, 10, 0, 0, 0, 10, 10, 0, 10, 10, 10, 0, 0, 2, 0, 10, 0]
+      ],
+      "metrics": {
+        "nearest": 13,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Forest", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Mountain", "Forest", "Fort"]
+      }
+    },
+    {
+      "id": "glacier_run",
+      "label": "Glacier run",
+      "biome": "Tundra",
+      "act": "act4",
+      "seed": 908,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 4,
+          "row": 8
+        },
+        {
+          "col": 1,
+          "row": 4
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Myrmidon",
+          "level": 15,
+          "col": 14,
+          "row": 9,
+          "isBoss": false
+        },
+        {
+          "className": "Wyvern Lord",
+          "level": 13,
+          "col": 14,
+          "row": 7,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Archer",
+          "level": 14,
+          "col": 16,
+          "row": 9,
+          "isBoss": false
+        },
+        {
+          "className": "Warrior",
+          "level": 16,
+          "col": 12,
+          "row": 11,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Hunter",
+          "level": 14,
+          "col": 13,
+          "row": 2,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 12,
+          "col": 12,
+          "row": 0,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 10, 0, 0, 0, 10, 0, 10, 0, 0, 10, 0, 0, 10, 0, 0, 10, 0],
+        [3, 0, 0, 10, 0, 10, 10, 0, 10, 0, 1, 10, 10, 1, 10, 3, 0, 0],
+        [0, 0, 0, 10, 0, 10, 0, 10, 10, 10, 10, 0, 0, 10, 0, 10, 10, 0],
+        [0, 10, 0, 10, 0, 10, 0, 1, 10, 10, 1, 0, 0, 10, 0, 0, 0, 10],
+        [10, 1, 0, 0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0],
+        [0, 0, 10, 10, 10, 10, 10, 1, 10, 0, 10, 10, 10, 10, 0, 0, 0, 0],
+        [0, 10, 3, 10, 0, 10, 10, 0, 0, 10, 10, 0, 0, 10, 0, 10, 0, 10],
+        [10, 0, 0, 10, 0, 10, 10, 0, 10, 1, 0, 10, 10, 0, 10, 0, 0, 0],
+        [0, 1, 0, 10, 10, 10, 10, 10, 0, 10, 10, 10, 10, 10, 10, 0, 0, 10],
+        [10, 1, 10, 0, 10, 10, 1, 0, 10, 0, 10, 10, 0, 10, 10, 0, 0, 0],
+        [1, 10, 0, 10, 10, 10, 0, 10, 10, 10, 10, 10, 10, 0, 10, 0, 0, 0],
+        [3, 0, 0, 10, 1, 1, 0, 0, 10, 10, 10, 0, 10, 10, 10, 0, 10, 0],
+        [0, 10, 0, 0, 10, 0, 0, 10, 10, 10, 0, 2, 0, 0, 0, 0, 10, 0]
+      ],
+      "metrics": {
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Fort", "Forest", "Mountain"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Ice", "Fort", "Forest", "Mountain"]
+      }
+    },
+    {
+      "id": "caldera",
+      "label": "Caldera",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 42,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 2,
+          "row": 9
+        },
+        {
+          "col": 5,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Thief",
+          "level": 15,
+          "col": 13,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Great Knight",
+          "level": 14,
+          "col": 15,
+          "row": 11,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 14,
+          "col": 16,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 11,
+          "col": 14,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 16,
+          "col": 15,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 12,
+          "col": 17,
+          "row": 12,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [2, 0, 0, 0, 0, 0, 2, 11, 0, 0, 11, 2, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 2, 2, 3, 2, 0, 0],
+        [0, 2, 0, 0, 0, 0, 0, 2, 11, 2, 0, 0, 0, 0, 0, 2, 2, 2],
+        [0, 0, 0, 0, 0, 0, 11, 11, 0, 11, 11, 11, 0, 0, 2, 0, 0, 0],
+        [2, 0, 0, 0, 2, 11, 0, 0, 11, 0, 11, 11, 11, 0, 0, 2, 0, 0],
+        [0, 0, 2, 2, 2, 11, 11, 0, 11, 11, 11, 11, 11, 2, 0, 0, 0, 0],
+        [2, 0, 0, 0, 0, 11, 0, 11, 11, 11, 0, 11, 11, 0, 2, 2, 2, 0],
+        [0, 2, 2, 0, 0, 11, 11, 11, 0, 11, 0, 11, 11, 0, 2, 0, 0, 2],
+        [0, 0, 0, 2, 0, 11, 11, 11, 0, 11, 11, 0, 11, 0, 0, 0, 2, 0],
+        [0, 3, 0, 0, 0, 11, 11, 11, 11, 11, 11, 0, 0, 0, 0, 2, 0, 0],
+        [2, 0, 2, 0, 0, 2, 2, 11, 0, 11, 11, 2, 0, 0, 2, 2, 0, 0],
+        [0, 2, 0, 0, 3, 0, 0, 0, 11, 2, 0, 11, 0, 0, 0, 0, 0, 0],
+        [2, 0, 2, 2, 3, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 2, 0, 2]
+      ],
+      "metrics": {
+        "nearest": 13,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Mountain", "Plain", "Lava Crack", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Mountain", "Plain", "Lava Crack", "Fort"]
+      }
+    },
+    {
+      "id": "caldera",
+      "label": "Caldera",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 137,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 4,
+          "row": 10
+        },
+        {
+          "col": 0,
+          "row": 6
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Wyvern Lord",
+          "level": 16,
+          "col": 15,
+          "row": 10,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Fighter",
+          "level": 14,
+          "col": 14,
+          "row": 12,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Wyvern Rider",
+          "level": 13,
+          "col": 17,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Trickster",
+          "level": 16,
+          "col": 16,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Falcon Knight",
+          "level": 15,
+          "col": 17,
+          "row": 1,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Thief",
+          "level": 17,
+          "col": 16,
+          "row": 0,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 2, 0, 2, 0, 0, 0, 0, 0, 11, 0, 11, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 2, 11, 2, 0, 2, 0, 0, 0, 2, 0],
+        [2, 0, 3, 2, 2, 0, 2, 11, 0, 2, 0, 11, 0, 0, 2, 0, 2, 0],
+        [0, 0, 0, 2, 2, 11, 0, 11, 11, 11, 0, 11, 11, 0, 0, 0, 0, 0],
+        [0, 2, 0, 0, 3, 11, 0, 0, 0, 11, 11, 11, 11, 0, 2, 2, 0, 2],
+        [0, 0, 2, 0, 0, 11, 11, 11, 11, 0, 11, 0, 11, 0, 2, 0, 0, 0],
+        [0, 2, 0, 2, 0, 11, 11, 11, 11, 11, 0, 11, 11, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 11, 0, 0, 0, 2, 0, 2],
+        [0, 2, 0, 0, 0, 11, 11, 11, 0, 11, 11, 11, 11, 2, 0, 0, 2, 0],
+        [0, 0, 0, 0, 2, 11, 11, 11, 0, 0, 11, 0, 11, 2, 0, 0, 0, 0],
+        [0, 0, 2, 3, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 0, 0, 2, 11, 2, 2, 0, 0, 2, 0, 0, 0, 0, 0],
+        [2, 0, 2, 0, 0, 0, 2, 2, 0, 2, 2, 2, 0, 2, 3, 0, 2, 0]
+      ],
+      "metrics": {
+        "nearest": 13,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 12,
+        "violations": [],
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      }
+    },
+    {
+      "id": "caldera",
+      "label": "Caldera",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 908,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 3,
+          "row": 2
+        },
+        {
+          "col": 1,
+          "row": 11
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Mage",
+          "level": 15,
+          "col": 15,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 12,
+          "col": 16,
+          "row": 6,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Battle Monk",
+          "level": 12,
+          "col": 14,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Berserker",
+          "level": 13,
+          "col": 15,
+          "row": 5,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 17,
+          "col": 14,
+          "row": 9,
+          "isBoss": false
+        },
+        {
+          "className": "Berserker",
+          "level": 14,
+          "col": 15,
+          "row": 1,
+          "isBoss": false
+        },
+        {
+          "className": "Thief",
+          "level": 14,
+          "col": 16,
+          "row": 11,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 2, 0, 0, 0, 2, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+        [0, 0, 0, 2, 2, 3, 11, 2, 2, 0, 0, 2, 3, 0, 0, 0, 0, 0],
+        [2, 0, 0, 2, 0, 0, 2, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0],
+        [0, 2, 0, 0, 2, 11, 0, 11, 11, 11, 11, 11, 0, 0, 2, 2, 2, 0],
+        [2, 3, 0, 0, 0, 11, 11, 0, 11, 11, 0, 11, 11, 2, 2, 2, 0, 0],
+        [0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 11, 11, 0, 0, 0, 0, 2],
+        [0, 2, 2, 2, 2, 11, 0, 11, 0, 0, 11, 11, 0, 2, 2, 0, 0, 2],
+        [2, 0, 0, 0, 0, 11, 0, 11, 0, 11, 11, 11, 11, 0, 2, 0, 0, 0],
+        [0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 11, 11, 0, 0, 2, 0, 2],
+        [2, 0, 0, 0, 0, 11, 11, 11, 11, 0, 11, 11, 11, 0, 0, 0, 0, 0],
+        [0, 2, 0, 2, 0, 0, 0, 2, 0, 11, 0, 11, 2, 0, 2, 2, 0, 0],
+        [2, 0, 0, 0, 2, 2, 0, 2, 11, 0, 0, 0, 0, 2, 0, 0, 2, 0],
+        [0, 2, 0, 3, 0, 0, 0, 2, 2, 0, 0, 11, 2, 0, 0, 0, 0, 0]
+      ],
+      "metrics": {
+        "nearest": 15,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Fort", "Lava Crack"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Fort", "Lava Crack"]
+      }
+    },
+    {
+      "id": "magma_flow",
+      "label": "Magma flow",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 42,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 5,
+          "row": 1
+        },
+        {
+          "col": 0,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Cavalier",
+          "level": 17,
+          "col": 17,
+          "row": 6,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Myrmidon",
+          "level": 16,
+          "col": 13,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Pegasus Knight",
+          "level": 15,
+          "col": 15,
+          "row": 4,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Fighter",
+          "level": 15,
+          "col": 17,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Mage",
+          "level": 16,
+          "col": 12,
+          "row": 12,
+          "isBoss": false
+        },
+        {
+          "className": "General",
+          "level": 11,
+          "col": 15,
+          "row": 11,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Myrmidon",
+          "level": 15,
+          "col": 15,
+          "row": 9,
+          "isBoss": false,
+          "sunderWeapon": true
+        }
+      ],
+      "mapLayout": [
+        [2, 0, 0, 0, 0, 0, 11, 2, 0, 0, 2, 11, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 11, 11, 0, 11, 11, 2, 2, 0, 2, 0, 0],
+        [0, 2, 0, 0, 0, 0, 11, 0, 11, 0, 0, 11, 3, 0, 0, 2, 2, 2],
+        [3, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 2, 0, 2, 0, 0, 0],
+        [2, 0, 0, 0, 2, 0, 0, 11, 11, 11, 11, 11, 0, 0, 0, 2, 0, 0],
+        [0, 0, 2, 2, 2, 0, 11, 0, 11, 0, 11, 0, 2, 2, 0, 0, 0, 0],
+        [2, 0, 0, 0, 0, 0, 11, 11, 11, 11, 0, 0, 0, 0, 2, 2, 2, 0],
+        [0, 2, 2, 0, 0, 0, 11, 0, 11, 11, 11, 11, 0, 0, 2, 0, 0, 2],
+        [0, 0, 0, 2, 0, 0, 11, 0, 11, 11, 0, 11, 0, 0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 0, 0, 11, 11, 11, 11, 11, 11, 0, 0, 0, 2, 0, 0],
+        [2, 0, 2, 0, 0, 2, 0, 0, 11, 11, 11, 0, 2, 0, 2, 2, 0, 0],
+        [0, 2, 0, 0, 0, 3, 11, 11, 11, 11, 11, 0, 0, 0, 0, 0, 0, 0],
+        [2, 0, 2, 2, 3, 0, 11, 0, 0, 0, 0, 0, 2, 2, 0, 2, 0, 2]
+      ],
+      "metrics": {
+        "nearest": 15,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Mountain", "Plain", "Lava Crack", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 9,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Mountain", "Plain", "Lava Crack", "Fort"]
+      }
+    },
+    {
+      "id": "magma_flow",
+      "label": "Magma flow",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 137,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 3,
+          "row": 0
+        },
+        {
+          "col": 5,
+          "row": 3
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Archer",
+          "level": 11,
+          "col": 14,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Warlock",
+          "level": 12,
+          "col": 16,
+          "row": 10,
+          "isBoss": false
+        },
+        {
+          "className": "Dark Knight",
+          "level": 13,
+          "col": 17,
+          "row": 0,
+          "isBoss": false
+        },
+        {
+          "className": "Hunter",
+          "level": 16,
+          "col": 17,
+          "row": 8,
+          "isBoss": false,
+          "sunderWeapon": true
+        },
+        {
+          "className": "Knight",
+          "level": 16,
+          "col": 12,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Sniper",
+          "level": 16,
+          "col": 14,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 13,
+          "col": 16,
+          "row": 8,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 11, 0, 11, 11, 11, 0, 2, 0, 0, 0, 2, 0],
+        [2, 0, 0, 2, 2, 0, 11, 0, 11, 0, 0, 0, 0, 0, 2, 0, 2, 0],
+        [0, 0, 0, 2, 2, 0, 11, 11, 11, 11, 11, 11, 2, 0, 0, 0, 0, 0],
+        [0, 2, 0, 0, 3, 2, 11, 0, 0, 11, 0, 11, 0, 0, 2, 2, 0, 2],
+        [3, 0, 2, 0, 0, 2, 11, 11, 11, 11, 11, 0, 0, 2, 2, 0, 0, 0],
+        [0, 2, 0, 2, 0, 0, 11, 11, 11, 11, 11, 0, 0, 0, 2, 0, 0, 3],
+        [0, 0, 0, 0, 0, 0, 11, 11, 11, 0, 11, 11, 0, 0, 0, 2, 0, 2],
+        [0, 2, 0, 0, 0, 0, 11, 0, 11, 11, 11, 11, 0, 2, 0, 0, 2, 0],
+        [0, 0, 0, 0, 2, 0, 11, 11, 11, 0, 0, 11, 0, 2, 0, 0, 0, 0],
+        [0, 0, 2, 0, 0, 0, 0, 11, 11, 11, 11, 0, 0, 0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 0, 11, 2, 0, 0, 0, 0, 0],
+        [2, 0, 2, 0, 0, 0, 0, 11, 0, 11, 11, 11, 0, 2, 3, 0, 2, 0]
+      ],
+      "metrics": {
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 8,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      }
+    },
+    {
+      "id": "magma_flow",
+      "label": "Magma flow",
+      "biome": "Volcano",
+      "act": "act4",
+      "seed": 908,
+      "cols": 18,
+      "rows": 13,
+      "players": [
+        {
+          "col": 5,
+          "row": 10
+        },
+        {
+          "col": 2,
+          "row": 9
+        }
+      ],
+      "enemies": [
+        {
+          "className": "Fighter",
+          "level": 13,
+          "col": 14,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 15,
+          "col": 15,
+          "row": 8,
+          "isBoss": false
+        },
+        {
+          "className": "Wyvern Rider",
+          "level": 11,
+          "col": 15,
+          "row": 3,
+          "isBoss": false
+        },
+        {
+          "className": "Hero",
+          "level": 15,
+          "col": 13,
+          "row": 4,
+          "isBoss": false
+        },
+        {
+          "className": "Cavalier",
+          "level": 15,
+          "col": 17,
+          "row": 7,
+          "isBoss": false
+        },
+        {
+          "className": "Fighter",
+          "level": 14,
+          "col": 16,
+          "row": 10,
+          "isBoss": false
+        },
+        {
+          "className": "Archer",
+          "level": 16,
+          "col": 13,
+          "row": 11,
+          "isBoss": false
+        }
+      ],
+      "mapLayout": [
+        [0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0],
+        [0, 0, 0, 2, 2, 0, 11, 0, 11, 11, 11, 11, 3, 0, 0, 0, 0, 0],
+        [2, 0, 0, 2, 0, 0, 0, 0, 11, 11, 0, 11, 0, 0, 2, 2, 0, 0],
+        [0, 2, 0, 0, 2, 2, 11, 0, 11, 11, 11, 11, 2, 0, 2, 2, 2, 0],
+        [2, 0, 0, 3, 0, 0, 11, 11, 11, 11, 11, 0, 2, 2, 2, 2, 0, 0],
+        [0, 0, 0, 0, 0, 2, 11, 0, 11, 0, 0, 11, 0, 0, 0, 0, 0, 2],
+        [0, 2, 2, 2, 2, 0, 11, 0, 11, 0, 11, 0, 2, 2, 2, 2, 0, 2],
+        [2, 0, 0, 0, 0, 2, 11, 11, 11, 11, 11, 11, 0, 0, 2, 0, 0, 3],
+        [0, 3, 0, 0, 0, 2, 11, 11, 11, 11, 11, 11, 0, 0, 2, 2, 0, 2],
+        [2, 0, 0, 0, 0, 0, 11, 11, 11, 11, 0, 11, 2, 0, 0, 0, 0, 0],
+        [0, 2, 0, 2, 0, 0, 11, 11, 11, 11, 11, 0, 2, 0, 2, 2, 0, 0],
+        [2, 0, 0, 0, 2, 2, 11, 0, 11, 11, 0, 11, 0, 2, 0, 0, 2, 0],
+        [0, 2, 0, 0, 0, 0, 0, 11, 11, 0, 0, 2, 2, 0, 0, 0, 0, 0]
+      ],
+      "metrics": {
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      },
+      "violations": [],
+      "crowd": {
+        "players": 8,
+        "enemies": 13,
+        "violations": [],
+        "nearest": 11,
+        "unreachable": 0,
+        "narrow": 4,
+        "passable": 234,
+        "terrain": ["Plain", "Mountain", "Lava Crack", "Fort"]
+      }
+    }
+  ]
+}

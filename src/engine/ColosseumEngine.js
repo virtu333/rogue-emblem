@@ -21,7 +21,17 @@ import {
   gainExperience,
   calculateCombatXP,
   learnSkill,
+  getClassInnateSkills,
 } from './UnitManager.js';
+
+/** Apply class abilities to new mercenaries and older persisted boards. */
+export function grantMercenaryClassSkills(unit, classesData, skillsData) {
+  const classData = classesData?.find((candidate) => candidate.name === unit?.className);
+  if (!classData) return;
+  for (const className of [classData.name, classData.promotesFrom].filter(Boolean)) {
+    for (const skillId of getClassInnateSkills(className, skillsData)) learnSkill(unit, skillId);
+  }
+}
 
 /**
  * Return tier entries where the given actId meets the tier's minAct requirement.
@@ -162,18 +172,15 @@ export function calculateArenaReward(tier, outcome, baseXP, levelsGainedThisVisi
   if (outcome === 'lose') {
     return { goldDelta: -tier.entryFee, xpGained: 0 };
   }
-  if (outcome === 'draw') {
-    return { goldDelta: 0, xpGained: 0 };
-  }
-
-  // Win
-  let xp = Math.round(baseXP * tier.xpMultiplier);
+  // Draws still train the fighter; visit limits and diminishing returns apply.
+  const drawMultiplier = outcome === 'draw' ? (colosseumData?.arena?.drawXpMultiplier ?? 0.25) : 1;
+  let xp = Math.round(baseXP * tier.xpMultiplier * drawMultiplier);
   if (levelsGainedThisVisit >= drAfterLevels) {
     xp = Math.round(xp * drFactor);
   }
   xp = Math.max(1, xp);
 
-  return { goldDelta: tier.goldReward, xpGained: xp };
+  return { goldDelta: outcome === 'draw' ? 0 : tier.goldReward, xpGained: xp };
 }
 
 /**
@@ -254,6 +261,7 @@ export function generateMercenaryCandidates(
   colosseumData,
   rng,
   traitsData = null,
+  existingNames = [],
 ) {
   const mercConfig = colosseumData?.mercenaries;
   if (!mercConfig) {
@@ -286,6 +294,7 @@ export function generateMercenaryCandidates(
   const BOOSTABLE_STATS = ['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
   const candidates = [];
+  const usedNames = new Set(existingNames);
   let skippedCount = 0;
   for (let i = 0; i < count; i++) {
     let pickedClass = '?';
@@ -301,7 +310,13 @@ export function generateMercenaryCandidates(
 
       // Pick a name from the name pool or use class name as fallback
       const names = namePool[className] || [className];
-      const name = names[Math.floor(rng() * names.length)];
+      const freshNames = names.filter((name) => !usedNames.has(name));
+      const pool = freshNames.length ? freshNames : names;
+      const baseName = pool[Math.floor(rng() * pool.length)];
+      let name = baseName,
+        suffix = 2;
+      while (usedNames.has(name)) name = `${baseName} ${suffix++}`;
+      usedNames.add(name);
 
       // Level: lord level + random(-1, +1), min 1
       const levelOffset = Math.floor(rng() * 3) - 1; // -1, 0, or 1
@@ -331,7 +346,7 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
-          { traitsData, rng },
+          { traitsData, skillsData, rng },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
@@ -351,10 +366,15 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
-          { traitsData, rng },
+          { traitsData, skillsData, rng },
         );
       }
       unit.faction = 'player'; // Mercenaries join the player's team
+
+      // Mercenaries need their class abilities on the board and immediately
+      // after hire, not only after save migration repairs them on reload.
+      // Match the loader's current/base-class order and use the shared skill cap.
+      grantMercenaryClassSkills(unit, classesData, skillsData);
 
       // Apply stat bonuses: +value to N random stats
       const bonusCount = mercConfig.statBonus?.count || 2;
@@ -407,6 +427,7 @@ export function generateMercenaryCandidates(
         difficultyMode,
         colosseumData,
         rng,
+        unit.className,
       );
       candidates.push({ unit, hireCost });
     } catch (err) {
@@ -437,7 +458,14 @@ export function generateMercenaryCandidates(
  * @param {Function} rng
  * @returns {number}
  */
-export function getMercenaryPrice(actId, isPromoted, difficultyMode, colosseumData, rng) {
+export function getMercenaryPrice(
+  actId,
+  isPromoted,
+  difficultyMode,
+  colosseumData,
+  rng,
+  className = null,
+) {
   const mercConfig = colosseumData?.mercenaries;
   if (!mercConfig) return 500;
 
@@ -449,6 +477,7 @@ export function getMercenaryPrice(actId, isPromoted, difficultyMode, colosseumDa
     price = Math.round(price * (mercConfig.promotedMultiplier || 1.5));
   }
 
+  price = Math.round(price * (mercConfig.classPriceMultipliers?.[className] ?? 1));
   const diffConfig = colosseumData?.difficulty?.[difficultyMode];
   if (diffConfig?.mercenaryPriceMultiplier) {
     price = Math.round(price * diffConfig.mercenaryPriceMultiplier);

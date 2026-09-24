@@ -30,6 +30,7 @@ jobs:
       - run: npm ci
       - run: npm run validate:data
       - run: npm run check:data-parity
+      - run: npm run check:ui-theme
       - run: npm run check:reference
       - run: npm run build
       - run: npm run test:unit
@@ -48,6 +49,13 @@ jobs:
       - run: npm run check:threshold-pr-notes
       - run: npm run test:sim:triage
       - run: npm run test:harness:pr
+      - run: npm run test:journey
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: journey-replays
+          path: tests/artifacts/replays/journey/
+          if-no-files-found: ignore
       - run: npm run sim:fullrun:pr
 
   e2e-smoke:
@@ -61,3 +69,9 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:smoke
+      - run: npm run test:ux-contracts
+      - run: npm run test:e2e:presentation
+      - run: npx playwright test tests/e2e/ui-cohesion.spec.js tests/e2e/ui-cohesion-desktop.spec.js tests/e2e/ui-review-regressions.spec.js tests/e2e/mobile-battle-hud.spec.js tests/e2e/mobile-home-base.spec.js tests/e2e/mobile-run-loop.spec.js
+      - run: npm run check:ui-theme
+      - run: npm run build
+      - run: npx playwright test --config playwright.release.config.js

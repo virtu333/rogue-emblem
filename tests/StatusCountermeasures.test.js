@@ -107,7 +107,12 @@ describe('countermeasures: data shapes', () => {
       const table = gameData.lootTables[actId];
       expect(table.weapons).toContain('Restore');
       expect(table.accessories).toContain('Warding Charm');
-      expect(table.healing).toContain('Herb');
+      expect(
+        table.healing.some((name) => {
+          const item = gameData.consumables.find((c) => c.name === name);
+          return ['cure', 'cureHeal'].includes(item?.effect);
+        }),
+      ).toBe(true);
       // Everything referenced must resolve against a catalog
       for (const name of table.healing) expect(consumableNames.has(name)).toBe(true);
       for (const name of table.weapons) expect(weaponNames.has(name)).toBe(true);
@@ -283,7 +288,7 @@ describe('countermeasures: Restore staff flow', () => {
           if (onComplete) onComplete();
         },
       },
-      _isReducedEffects: () => true,
+      _reduceMotion: () => true,
       _awaitSceneDelay: async () => {},
       _removeAllConditionIcons: vi.fn(),
       undimUnit: vi.fn(),

@@ -14,12 +14,14 @@ export function getConsumableDescription(item) {
   if (!item || typeof item !== 'object') return '';
   if (item.effect === 'heal') return `Restore ${toNumber(item.value)} HP`;
   if (item.effect === 'healFull') return 'Restore HP to full';
-  if (item.effect === 'promote') return 'Promote a Lv 10+ unit';
+  if (item.effect === 'promote') return 'Promote an eligible level 10+ base-class unit';
   if (item.effect === 'reclass') {
     const label =
       String(item.subEffect || 'infantry')
         .trim()
         .toLowerCase() || 'infantry';
+    if (label === 'infantry') return 'Reclass to an infantry or armored class';
+    if (label === 'mounted') return 'Reclass to a cavalry or flying class';
     return `Reclass to ${withIndefiniteArticle(label)} class`;
   }
   if (item.effect === 'statBoost')

@@ -16,14 +16,20 @@ describe('PromotionChoicePanel gamepad routing', () => {
     PromotionChoicePanel.prototype._onInputAction.call(fake, action, payload);
 
   it('NAVIGATE picks between columns (dx); CONFIRM activates; CANCEL resolves null', () => {
-    const fake = { _focus: focusStub(), destroy: vi.fn(), _resolve: vi.fn() };
+    const resolve = vi.fn();
+    const fake = {
+      _finish: PromotionChoicePanel.prototype._finish,
+      _focus: focusStub(),
+      destroy: vi.fn(),
+      _resolve: resolve,
+    };
     route(fake, InputAction.NAVIGATE, { dx: 1, dy: 0 });
     expect(fake._focus.move).toHaveBeenCalledWith(1);
     route(fake, InputAction.CONFIRM);
     expect(fake._focus.activate).toHaveBeenCalledTimes(1);
     route(fake, InputAction.CANCEL);
     expect(fake.destroy).toHaveBeenCalledTimes(1);
-    expect(fake._resolve).toHaveBeenCalledWith(null);
+    expect(resolve).toHaveBeenCalledWith(null);
   });
 
   it('destroy() releases the input-focus scope', () => {

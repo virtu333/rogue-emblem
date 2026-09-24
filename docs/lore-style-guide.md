@@ -51,8 +51,9 @@ entry used one.
 plain-instructional · soldier's-eye · dry fact · folk-saying · overheard line ·
 grim-declarative. No single register should dominate a file.
 
-## Hard limits (enforced by tests/LoreContent.test.js)
+## Hard limits (items: tests/LoreContent.test.js; battlefield templates: tests/PlaceDisplay.test.js)
 
+- Battlefield template lore: **≤ 140 chars**, checked in `PlaceDisplay.test.js`.
 - `lore` length: **items ≤ 85 chars, classes ≤ 160, bosses ≤ 240.**
 - Single line — **no `\n`.**
 - `lore` must NOT equal `description` (classes, blessings).

@@ -1,3 +1,9 @@
+import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { MobileRewards } from './MobileRewards.js';
+import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
+import { inputHint } from '../utils/inputHint.js';
 /**
  * LootScreenController — extracted from BattleScene.
  *
@@ -30,7 +36,6 @@ import {
 import { applyTextResolution } from '../utils/uiStyles.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
-import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -54,6 +59,8 @@ export class LootScreenController {
     // sub-picker is open (via the input-focus stack's onTopChange).
     this._focus = null;
     this._focusCards = [];
+    this.cardActions = [];
+    this.claimed = new Set();
     this._onInputActionBound = null;
   }
 
@@ -102,13 +109,14 @@ export class LootScreenController {
 
     // Title
     const titleText = ctx.isElite ? 'ELITE BATTLE REWARDS' : 'BATTLE REWARDS';
-    const title = scene.add
-      .text(cam.centerX, 30, titleText, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 30, titleText, {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     lootGroup.push(title);
@@ -149,14 +157,15 @@ export class LootScreenController {
     }
     goldLines.push(`Total: ${displayedTotalGold}G  |  Vault: ${runManager.gold}G`);
 
-    const goldText = scene.add
-      .text(cam.centerX, 58, goldLines.join('  |  '), {
-        fontFamily: 'monospace',
+    const goldText = applyTextResolution(
+      scene.add.text(cam.centerX, 58, goldLines.join('  |  '), {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#aaffaa',
         wordWrap: { width: 620 },
         align: 'center',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     lootGroup.push(goldText);
@@ -165,8 +174,16 @@ export class LootScreenController {
     const hints = scene.registry.get('hints');
     if (hints?.shouldShow('battle_loot')) {
       const hintMsg = ctx.isElite
-        ? 'Elite battle! Choose 2 rewards. Press [R] for roster.'
-        : 'Choose one reward. Weapons equip to a unit. Press [R] for roster.';
+        ? inputHint(
+            scene,
+            'Elite battle! Choose 2 rewards. Press [R] for roster.',
+            'Elite battle! Choose 2 rewards. Tap Roster for your units.',
+          )
+        : inputHint(
+            scene,
+            'Choose one reward. Weapons equip to a unit. Press [R] for roster.',
+            'Choose one reward. Weapons equip to a unit. Tap Roster for your units.',
+          );
       showMinorHint(scene, hintMsg);
     }
 
@@ -195,6 +212,8 @@ export class LootScreenController {
     // Skip bonus gold
     const skipGold = Math.floor(calculateSkipLootBonus(totalGold) * GOLD_LOOT_REWARD_MULTIPLIER);
 
+    const mobileChoices = choices.map((choice) => ({ ...choice }));
+
     // Render cards
     const totalCards = choices.length + 1;
     const cardW = totalCards <= 4 ? 120 : 100;
@@ -216,7 +235,7 @@ export class LootScreenController {
       weapon: '#88bbff',
       consumable: '#88ff88',
       rare: '#ffaa55',
-      gold: '#ffdd44',
+      gold: UI_PALETTE.accent,
       accessory: '#cc88ff',
       forge: '#ff8844',
     };
@@ -252,13 +271,14 @@ export class LootScreenController {
 
       // Type icon
       const displayType = lootTypeDisplayMap[choice.type] || choice.type;
-      const icon = scene.add
-        .text(cx, cardY - 55, typeIcons[displayType] || '?', {
-          fontFamily: 'monospace',
+      const icon = applyTextResolution(
+        scene.add.text(cx, cardY - 55, typeIcons[displayType] || '?', {
+          fontFamily: 'Arial',
           fontSize: '28px',
-          color: typeColors[displayType] || '#ffffff',
+          color: typeColors[displayType] || UI_PALETTE.text,
           fontStyle: 'bold',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(702);
       lootGroup.push(icon);
@@ -269,40 +289,43 @@ export class LootScreenController {
           Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier),
         );
         const displayedGoldAmount = previewAwardedGold(scaledGoldAmount);
-        const goldLabel = scene.add
-          .text(cx, cardY - 2, `${displayedGoldAmount}G`, {
-            fontFamily: 'monospace',
+        mobileChoices[i].goldAmount = displayedGoldAmount;
+        const goldLabel = applyTextResolution(
+          scene.add.text(cx, cardY - 2, `${displayedGoldAmount}G`, {
+            fontFamily: 'Arial',
             fontSize: '16px',
-            color: '#ffdd44',
-          })
+            color: UI_PALETTE.accent,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(702);
         lootGroup.push(goldLabel);
 
         if (choice.xpAmount) {
-          const xpLabel = scene.add
-            .text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
-              fontFamily: 'monospace',
+          const xpLabel = applyTextResolution(
+            scene.add.text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
+              fontFamily: 'Arial',
               fontSize: '10px',
               color: '#88ff88',
-            })
+            }),
+          )
             .setOrigin(0.5)
             .setDepth(702);
           lootGroup.push(xpLabel);
         }
 
-        const typeLabel = scene.add
-          .text(cx, cardY + 42, 'Gold', {
-            fontFamily: 'monospace',
+        const typeLabel = applyTextResolution(
+          scene.add.text(cx, cardY + 42, 'Gold', {
+            fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#aaaaaa',
-          })
+            color: UI_PALETTE.muted,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(702);
         lootGroup.push(typeLabel);
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) {
@@ -322,18 +345,19 @@ export class LootScreenController {
             }
           }
           scene.finalizeLootPick(lootGroup, cardIdx);
-        });
+        };
       } else if (choice.type === 'forge') {
         // Forge whetstone card
         const item = choice.item;
         const nameLines = _wrapText(item.name, 12);
-        const nameLabel = scene.add
-          .text(cx, cardY + 5, nameLines, {
-            fontFamily: 'monospace',
+        const nameLabel = applyTextResolution(
+          scene.add.text(cx, cardY + 5, nameLines, {
+            fontFamily: 'Arial',
             fontSize: '11px',
             color: '#ff8844',
             align: 'center',
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(702);
         lootGroup.push(nameLabel);
@@ -352,24 +376,24 @@ export class LootScreenController {
                   ? '+5 Hit'
                   : '-1 Weight';
         const detailLabel = applyTextResolution(
-          scene.add
-            .text(cx, cardY + 35, detail, {
-              fontFamily: 'monospace',
+          applyTextResolution(
+            scene.add.text(cx, cardY + 35, detail, {
+              fontFamily: 'Arial',
               fontSize: '10px',
               color: '#ddaa66',
-            })
+            }),
+          )
             .setOrigin(0.5)
             .setDepth(702),
         );
         lootGroup.push(detailLabel);
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           scene.showForgeLootPicker(item, lootGroup, cardIdx);
-        });
+        };
         card.on('pointerover', () => {
           scene._clearLootTooltipTimer();
           scene._lootTooltipTimer = scene.time.delayedCall(
@@ -385,23 +409,25 @@ export class LootScreenController {
         // Item choice (weapon, consumable, rare, accessory)
         const item = choice.item;
         const nameLines = _wrapText(item.name, 12);
-        const nameLabel = scene.add
-          .text(cx, cardY + 5, nameLines, {
-            fontFamily: 'monospace',
+        const nameLabel = applyTextResolution(
+          scene.add.text(cx, cardY + 5, nameLines, {
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#ffffff',
+            color: UI_PALETTE.text,
             align: 'center',
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(702);
         lootGroup.push(nameLabel);
 
-        const priceLabel = scene.add
-          .text(cx, cardY + 35, `${item.price || 0}G`, {
-            fontFamily: 'monospace',
+        const priceLabel = applyTextResolution(
+          scene.add.text(cx, cardY + 35, `${item.price || 0}G`, {
+            fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#aaaaaa',
-          })
+            color: UI_PALETTE.muted,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(702);
         lootGroup.push(priceLabel);
@@ -410,21 +436,21 @@ export class LootScreenController {
         const detailInfo = scene.getLootCardDetailLines(choice, item, cardW);
         if (detailInfo.lines.length > 0) {
           const detailLabel = applyTextResolution(
-            scene.add
-              .text(cx, cardY + 46, detailInfo.lines.join('\n'), {
-                fontFamily: 'monospace',
+            applyTextResolution(
+              scene.add.text(cx, cardY + 46, detailInfo.lines.join('\n'), {
+                fontFamily: 'Arial',
                 fontSize: '10px',
                 color: detailInfo.color,
                 align: 'center',
-              })
+              }),
+            )
               .setOrigin(0.5, 0)
               .setDepth(702),
           );
           lootGroup.push(detailLabel);
         }
 
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
+        this.cardActions[cardIdx] = () => {
           scene._hideLootTooltip();
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
@@ -445,7 +471,7 @@ export class LootScreenController {
           } else {
             scene.showLootUnitPicker(item, lootGroup, cardIdx);
           }
-        });
+        };
         card.on('pointerover', () => {
           scene._clearLootTooltipTimer();
           scene._lootTooltipTimer = scene.time.delayedCall(
@@ -458,8 +484,12 @@ export class LootScreenController {
         });
         card.on('pointerout', () => scene._hideLootTooltip());
       }
+      card.on('pointerdown', (pointer) => {
+        if (pointer?.button === 0) this.activateReward(cardIdx);
+      });
     }
 
+    // Commands are callable by either renderer without synthetic pointer events.
     // Skip card
     const skipX = startX + choices.length * (cardW + gap);
     const skipCard = scene.add
@@ -470,40 +500,42 @@ export class LootScreenController {
     lootGroup.push(skipCard);
     this._focusCards.push(skipCard);
 
-    const skipIcon = scene.add
-      .text(skipX, cardY - 55, '$', {
-        fontFamily: 'monospace',
+    const skipIcon = applyTextResolution(
+      scene.add.text(skipX, cardY - 55, '$', {
+        fontFamily: 'Arial',
         fontSize: '28px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
     lootGroup.push(skipIcon);
 
     const displayedSkipGold = previewAwardedGold(skipGold);
-    const skipLabel = scene.add
-      .text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
-        fontFamily: 'monospace',
+    const skipLabel = applyTextResolution(
+      scene.add.text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffdd44',
-      })
+        color: UI_PALETTE.accent,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
     lootGroup.push(skipLabel);
 
-    const skipDesc = scene.add
-      .text(skipX, cardY + 35, 'Skip Loot', {
-        fontFamily: 'monospace',
+    const skipDesc = applyTextResolution(
+      scene.add.text(skipX, cardY + 35, 'Skip Loot', {
+        fontFamily: 'Arial',
         fontSize: '10px',
         color: '#ccaa66',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(702);
     lootGroup.push(skipDesc);
 
-    skipCard.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
+    this.cardActions[choices.length] = () => {
       scene._hideLootTooltip();
       const audio = scene.registry.get('audio');
       if (audio) {
@@ -512,27 +544,37 @@ export class LootScreenController {
       }
       awardGoldNow(skipGold);
       scene.cleanupLootScreen(lootGroup);
+    };
+    skipCard.on('pointerdown', (pointer) => {
+      if (pointer?.button === 0) this.activateReward(choices.length);
     });
 
     // Instruction
     const instText = ctx.isElite ? 'Choose 2 rewards' : 'Choose a reward';
-    const inst = scene.add
-      .text(cam.centerX, cardY + cardH / 2 + 24, instText, {
-        fontFamily: 'monospace',
+    const inst = applyTextResolution(
+      scene.add.text(cam.centerX, cardY + cardH / 2 + 24, instText, {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     lootGroup.push(inst);
     scene._lootInstruction = inst;
 
-    const hintText = scene.add
-      .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666666',
-      })
+    const hintText = applyTextResolution(
+      scene.add.text(
+        cam.centerX,
+        cardY + cardH / 2 + 42,
+        inputHint(scene, '[R] Roster  |  [ESC] Settings', 'Roster: view units  |  Menu: settings'),
+        {
+          fontFamily: 'Arial',
+          fontSize: '9px',
+          color: UI_PALETTE.muted,
+        },
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(701);
     lootGroup.push(hintText);
@@ -541,7 +583,46 @@ export class LootScreenController {
       scene._pinToScreen(lootGroup);
     }
 
+    this.choices = mobileChoices;
     this._setupInputFocus();
+    if (hasDOMHost()) {
+      this.mobileRewards = new MobileRewards(
+        scene,
+        this,
+        mobileChoices,
+        goldLines.join(' · '),
+        displayedSkipGold,
+      );
+    }
+  }
+
+  isRewardAvailable(index) {
+    return (
+      !this.scene._lootResolving &&
+      !this.scene._lootCleanedUp &&
+      !this.claimed.has(index) &&
+      typeof this.cardActions[index] === 'function'
+    );
+  }
+
+  activateReward(index) {
+    if (!this.isRewardAvailable(index)) return;
+    const choice = this.choices[index];
+    const immediate =
+      !choice ||
+      choice.type === 'gold' ||
+      choice.type === 'accessory' ||
+      choice.item?.type === 'Scroll';
+    if (immediate) this.claimed.add(index);
+    this.cardActions[index]?.();
+  }
+
+  applyNativeReward(index, apply) {
+    if (!this.isRewardAvailable(index)) return { ok: false, reason: 'Reward already claimed.' };
+    const result = apply();
+    if (!result.ok) return result;
+    this.claimed.add(index);
+    return result;
   }
 
   // Claim the input-focus stack so the pad drives the reward cards. The ring is
@@ -575,6 +656,8 @@ export class LootScreenController {
   }
 
   _teardownInputFocus() {
+    this.mobileRewards?.destroy();
+    this.mobileRewards = null;
     if (this._onInputActionBound) {
       popInputScope(this);
       this._onInputActionBound = null;
@@ -601,12 +684,13 @@ export class LootScreenController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 80, `Give ${item.name} to:`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffffff',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -615,8 +699,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -649,25 +733,27 @@ export class LootScreenController {
       if (!full && !cannotEquip) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const nameColor = full ? '#666666' : cannotEquip ? '#cc8844' : '#ffffff';
+      const nameColor = full ? UI_PALETTE.muted : cannotEquip ? '#cc8844' : UI_PALETTE.text;
       const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
-      const label = scene.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
+          fontFamily: 'Arial',
           fontSize: '13px',
           color: nameColor,
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
 
       const statusText = full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`;
-      const invLabel = scene.add
-        .text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
-          fontFamily: 'monospace',
+      const invLabel = applyTextResolution(
+        scene.add.text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: full ? '#aa4444' : '#aaaaaa',
-        })
+          color: full ? '#aa4444' : UI_PALETTE.muted,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(invLabel);
@@ -694,19 +780,20 @@ export class LootScreenController {
     }
 
     const convoyCanStore = Boolean(scene.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = scene.add
-      .text(
+    const convoyBtn = applyTextResolution(
+      scene.add.text(
         cam.centerX,
         cam.height - 54,
         convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : '#666666',
+          color: convoyCanStore ? '#88ccff' : UI_PALETTE.muted,
           backgroundColor: '#223344',
           padding: { x: 12, y: 6 },
         },
-      )
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
@@ -727,17 +814,19 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -748,6 +837,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -780,12 +872,13 @@ export class LootScreenController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 80, `Give ${item.name} to:`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffffff',
-      })
+        color: UI_PALETTE.text,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -794,8 +887,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -825,27 +918,29 @@ export class LootScreenController {
       if (!full) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = scene.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
+          fontFamily: 'Arial',
           fontSize: '13px',
-          color: full ? '#666666' : '#ffffff',
-        })
+          color: full ? UI_PALETTE.muted : UI_PALETTE.text,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
 
-      const invLabel = scene.add
-        .text(
+      const invLabel = applyTextResolution(
+        scene.add.text(
           cam.centerX,
           by + Math.floor(btnH * 0.28),
           full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '9px',
-            color: full ? '#aa4444' : '#aaaaaa',
+            color: full ? '#aa4444' : UI_PALETTE.muted,
           },
-        )
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(invLabel);
@@ -873,19 +968,20 @@ export class LootScreenController {
     }
 
     const convoyCanStore = Boolean(scene.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = scene.add
-      .text(
+    const convoyBtn = applyTextResolution(
+      scene.add.text(
         cam.centerX,
         cam.height - 54,
         convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : '#666666',
+          color: convoyCanStore ? '#88ccff' : UI_PALETTE.muted,
           backgroundColor: '#223344',
           padding: { x: 12, y: 6 },
         },
-      )
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
@@ -906,17 +1002,19 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -927,6 +1025,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -959,12 +1060,13 @@ export class LootScreenController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#88ff88',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
@@ -973,8 +1075,8 @@ export class LootScreenController {
     const btnW = 200;
     const listTop = 124;
     const listBottom = cam.height - 52;
-    const rowHeight = 36;
-    const btnH = 24;
+    const rowHeight = mobileTarget(scene, 36) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 24);
     const nameOffset = -Math.floor(btnH * 0.22);
     const detailOffset = Math.floor(btnH * 0.28);
     const rows = [];
@@ -1003,27 +1105,29 @@ export class LootScreenController {
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = scene.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-          fontFamily: 'monospace',
+      const label = applyTextResolution(
+        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
+          fontFamily: 'Arial',
           fontSize: '13px',
-          color: '#ffffff',
-        })
+          color: UI_PALETTE.text,
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
 
-      const statLabel = scene.add
-        .text(
+      const statLabel = applyTextResolution(
+        scene.add.text(
           cam.centerX,
           by + Math.floor(btnH * 0.28),
           `${item.stat}: ${currentVal} -> ${currentVal + item.value}`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '9px',
             color: '#88ff88',
           },
-        )
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(statLabel);
@@ -1050,17 +1154,19 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -1071,6 +1177,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -1104,22 +1213,24 @@ export class LootScreenController {
       .setInteractive();
     pickerGroup.push(bg);
 
-    const title = scene.add
-      .text(cam.centerX, 60, `Apply ${whetstone.name}`, {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      scene.add.text(cam.centerX, 60, `Apply ${whetstone.name}`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff8844',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(title);
 
-    const subtitle = scene.add
-      .text(cam.centerX, 82, 'Select a unit:', {
-        fontFamily: 'monospace',
+    const subtitle = applyTextResolution(
+      scene.add.text(cam.centerX, 82, 'Select a unit:', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#aaaaaa',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711);
     pickerGroup.push(subtitle);
@@ -1127,8 +1238,8 @@ export class LootScreenController {
     const btnW = 240;
     const listTop = 108;
     const listBottom = cam.height - 62;
-    const rowHeight = 30;
-    const btnH = 22;
+    const rowHeight = mobileTarget(scene, 30) + (scene.isMobileInput ? 6 : 0);
+    const btnH = mobileTarget(scene, 22);
     const labelOffset = -Math.floor(btnH * 0.1);
     const rows = [];
     let detachScroll = () => {};
@@ -1158,17 +1269,18 @@ export class LootScreenController {
       const by = listTop + i * rowHeight + rowHeight / 2;
 
       if (forgeableCount === 0) {
-        const label = scene.add
-          .text(
+        const label = applyTextResolution(
+          scene.add.text(
             cam.centerX,
             by,
             `${unit.name}  (no ${stoneIsImbue ? 'imbueable' : 'forgeable'} weapons)`,
             {
-              fontFamily: 'monospace',
+              fontFamily: 'Arial',
               fontSize: '11px',
-              color: '#666666',
+              color: UI_PALETTE.muted,
             },
-          )
+          ),
+        )
           .setOrigin(0.5)
           .setDepth(712);
         pickerGroup.push(label);
@@ -1191,17 +1303,18 @@ export class LootScreenController {
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = scene.add
-        .text(
+      const label = applyTextResolution(
+        scene.add.text(
           cam.centerX,
           by,
           `${unit.name}  (${forgeableCount} weapon${forgeableCount > 1 ? 's' : ''})`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#e0e0e0',
+            color: UI_PALETTE.text,
           },
-        )
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
@@ -1225,22 +1338,24 @@ export class LootScreenController {
             whetstone: whetstone?.name,
           });
           for (const obj of lootGroup) obj.setVisible(true);
+          scene._lootController?.mobileRewards?.open();
         }
       });
     }
 
     if (validCount === 0) {
-      const noWeapons = scene.add
-        .text(
+      const noWeapons = applyTextResolution(
+        scene.add.text(
           cam.centerX,
           cam.centerY + 10,
           `No ${stoneIsImbue ? 'imbueable' : 'forgeable'} weapons in roster!`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '12px',
             color: '#ff8888',
           },
-        )
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(711);
       pickerGroup.push(noWeapons);
@@ -1249,17 +1364,19 @@ export class LootScreenController {
     const handleBack = () => {
       closePicker(() => {
         for (const obj of lootGroup) obj.setVisible(true);
+        scene._lootController?.mobileRewards?.open();
       });
     };
 
-    const backBtn = scene.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      scene.add.text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(711)
       .setInteractive({ useHandCursor: true });
@@ -1270,6 +1387,9 @@ export class LootScreenController {
       handleBack();
     });
 
+    if (scene.isMobileInput) {
+      for (const row of rows) deferTouchActivation(row.inputTarget);
+    }
     const setupScroller =
       scene._setupLootPickerScroller ||
       (scene.constructor &&
@@ -1427,30 +1547,7 @@ export class LootScreenController {
 
     // Weapon art scrolls
     if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-      const artId = item.teachesWeaponArtId;
-      const art = artId && scene.gameData?.weaponArts?.arts?.find((a) => a.id === artId);
-      const lines = [];
-      if (art) {
-        lines.push(art.name || artId);
-        const meta = [];
-        if (art.weaponType) meta.push(art.weaponType);
-        if (art.hpCost) meta.push(`HP Cost: ${art.hpCost}`);
-        if (art.requiredRank) meta.push(art.requiredRank);
-        if (meta.length) lines.push(meta.join('  |  '));
-        const limits = [];
-        if (art.perTurnLimit) limits.push(`${art.perTurnLimit}/turn`);
-        if (art.perMapLimit) limits.push(`${art.perMapLimit}/map`);
-        if (limits.length) lines.push(limits.join('  '));
-        if (art.description) lines.push('', art.description);
-        const summary = summarizeWeaponArtEffect(art);
-        if (summary && summary !== 'No combat modifier' && summary !== art.description) {
-          lines.push('', summary);
-        }
-      } else {
-        lines.push('Teaches Weapon Art');
-        if (artId) lines.push(artId);
-      }
-      return lines.join('\n');
+      return weaponArtScrollText(item, scene.gameData?.weaponArts?.arts || []);
     }
 
     // Skill scrolls
@@ -1458,10 +1555,11 @@ export class LootScreenController {
       const skillDef = item.skillId && scene.gameData?.skills?.find((s) => s.id === item.skillId);
       const lines = [];
       lines.push(item.name || 'Skill Scroll');
+      lines.push(
+        'Skill Scroll — teaches a skill to one unit. Stored in Team scrolls; open Roster → Skills → Teach. Consumed only after teaching.',
+      );
       if (skillDef) {
         if (skillDef.description) lines.push('', skillDef.description);
-        if (skillDef.trigger) lines.push(`Trigger: ${skillDef.trigger}`);
-        if (skillDef.activation) lines.push(`Activation: ${skillDef.activation}`);
       } else if (item.special) {
         lines.push('', item.special);
       }

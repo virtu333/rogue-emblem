@@ -1,3 +1,8 @@
+import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
+import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
+import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
 import Phaser from 'phaser';
@@ -50,43 +55,64 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    preloadRebuiltSprites(this);
+    preloadRebuiltPortraits(this);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
     this._deferredAssets = [];
+    const nodes = {
+      type: 'atlas',
+      key: 'weathered_nodes',
+      src: 'assets/sprites/nodes/weathered-nodes.png',
+      data: NODE_ART_ATLAS,
+      group: 'node_art',
+    };
+    if (this._startupFlags.reducedPreload) {
+      this._deferredAssetGroups.push(nodes.group);
+      this._deferredAssets.push(nodes);
+    } else this.load.atlas(nodes.key, nodes.src, nodes.data);
     this._preloadComplete = false;
     this._lastPreloadProgressAt = performance.now();
     this._stallUi = [];
 
     const failedFiles = [];
-    const statusText = this.add
-      .text(320, 210, 'Loading assets...', {
-        fontFamily: 'monospace',
+    const statusText = applyTextResolution(
+      this.add.text(320, 210, 'Loading assets...', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
-    const progressText = this.add
-      .text(320, 240, '0%', {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    const progressText = applyTextResolution(
+      this.add.text(320, 240, 'Preparing downloads…', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaaaaa',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     markStartup('boot_preload_start', {
       reducedPreload: this._startupFlags.reducedPreload,
       mobileSafeBoot: this._startupFlags.mobileSafeBoot,
     });
 
-    this.load.on('progress', (value) => {
+    const reportProgress = () => {
       this._lastPreloadProgressAt = performance.now();
-      progressText.setText(`${Math.round(value * 100)}%`);
-    });
+      this._destroyStallUi();
+      progressText.setText(
+        `${this.load.totalComplete || 0} / ${this.load.totalToLoad || 0} files ready`,
+      );
+    };
+    this.load.on('progress', reportProgress);
+    this.load.on('filecomplete', reportProgress);
     this.load.on('fileprogress', (file) => {
-      this._lastPreloadProgressAt = performance.now();
-      if (file?.key) statusText.setText(`Loading ${file.key}...`);
+      reportProgress();
+      if (file?.key)
+        statusText.setText(
+          `Downloading ${file.key}${Number.isFinite(file.percentComplete) ? ` (${Math.round(file.percentComplete * 100)}%)` : ''}…`,
+        );
     });
     this.load.on('loaderror', (file) => {
       if (file?.key) failedFiles.push(file.key);
@@ -105,6 +131,8 @@ export class BootScene extends Phaser.Scene {
       });
     });
     this._installPreloadStallWatch();
+
+    this.load.image('merchant_caravan', 'assets/sprites/characters/merchant_caravan.png');
 
     // Character sprites (57) - keyed by filename
     const characterSprites = [
@@ -489,12 +517,12 @@ export class BootScene extends Phaser.Scene {
 
   _installPreloadStallWatch() {
     this._clearPreloadStallWatch();
-    const stallAfterMs = this._startupFlags.mobileSafeBoot ? 9000 : 13000;
+    const stallAfterMs = 30000;
     this._preloadStallTimer = window.setInterval(() => {
       if (this._preloadComplete) return;
       const elapsed = performance.now() - this._lastPreloadProgressAt;
       if (elapsed < stallAfterMs) return;
-      this._clearPreloadStallWatch();
+      if (this._stallUi.length > 0) return;
       markStartup('boot_preload_stalled', { stalledMs: Math.round(elapsed) });
       this._showPreloadRecoveryUi();
     }, 1000);
@@ -526,23 +554,25 @@ export class BootScene extends Phaser.Scene {
 
   _showPreloadRecoveryUi() {
     if (this._stallUi.length > 0) return;
-    const title = this.add
-      .text(320, 306, 'Loading is taking longer than expected.', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.add.text(320, 306, 'No download progress for 30 seconds. You can keep waiting.', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#ffcc88',
         align: 'center',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1200);
-    const retryBtn = this.add
-      .text(320, 330, '[ Reload ]', {
-        fontFamily: 'monospace',
+    const retryBtn = applyTextResolution(
+      this.add.text(320, 330, '[ Reload ]', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1201)
       .setInteractive({ useHandCursor: true });
@@ -550,14 +580,15 @@ export class BootScene extends Phaser.Scene {
       markStartup('boot_preload_recovery_reload');
       window.location.reload();
     });
-    const safeBtn = this.add
-      .text(320, 356, '[ Reload Safe Mode ]', {
-        fontFamily: 'monospace',
+    const safeBtn = applyTextResolution(
+      this.add.text(320, 356, '[ Reload Safe Mode ]', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#ffd580',
         backgroundColor: '#443322',
         padding: { x: 10, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(1201)
       .setInteractive({ useHandCursor: true });
@@ -578,40 +609,41 @@ export class BootScene extends Phaser.Scene {
   _showDataLoadRecovery(err) {
     this.children.removeAll(true);
     const msg = err?.message || 'unknown';
-    this.add
-      .text(320, 206, 'Failed to load game data.', {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(320, 206, 'Failed to load game data.', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff4444',
         align: 'center',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(320, 232, 'You can retry now or reload in safe mode.', {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(320, 232, 'You can retry now or reload in safe mode.', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#cccccc',
+        color: UI_PALETTE.muted,
         align: 'center',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(320, 258, msg, {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(320, 258, msg, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#999999',
+        color: UI_PALETTE.muted,
         align: 'center',
         wordWrap: { width: 560, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
-    const retryBtn = this.add
-      .text(320, 302, '[ Retry ]', {
-        fontFamily: 'monospace',
+    const retryBtn = applyTextResolution(
+      this.add.text(320, 302, '[ Retry ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerdown', () => {
@@ -619,14 +651,15 @@ export class BootScene extends Phaser.Scene {
       restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
     });
 
-    const safeBtn = this.add
-      .text(320, 336, '[ Reload Safe Mode ]', {
-        fontFamily: 'monospace',
+    const safeBtn = applyTextResolution(
+      this.add.text(320, 336, '[ Reload Safe Mode ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: '#ffd580',
         backgroundColor: '#443322',
         padding: { x: 12, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     safeBtn.on('pointerdown', () => {
@@ -637,6 +670,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
+    prepareRebuiltSprites(this);
     markStartup('boot_create_start');
     this._clearPreloadStallWatch();
     this._destroyStallUi();
@@ -647,14 +681,19 @@ export class BootScene extends Phaser.Scene {
 
     if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
       const sample = this._failedAssetKeys.slice(0, 3).join(', ');
-      this.add
-        .text(320, 26, `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#ffb347',
-          align: 'center',
-        })
-        .setOrigin(0.5);
+      applyTextResolution(
+        this.add.text(
+          320,
+          26,
+          `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#ffb347',
+            align: 'center',
+          },
+        ),
+      ).setOrigin(0.5);
     }
 
     let data;
@@ -692,6 +731,17 @@ export class BootScene extends Phaser.Scene {
     audio.setMusicVolume(settings.getMusicVolume());
     audio.setSFXVolume(settings.getSFXVolume());
     this.registry.set('audio', audio);
+    settings.onHydrate = (data) => {
+      audio.setMusicVolume(data.musicVolume);
+      audio.setSFXVolume(data.sfxVolume);
+    };
+    const hydrateSettings = () => settings.adoptPersisted();
+    this.registry.get('settingsHydrationCleanup')?.();
+    const cleanupSettingsHydration = () =>
+      globalThis.removeEventListener?.('emblem-settings-hydrated', hydrateSettings);
+    this.registry.set('settingsHydrationCleanup', cleanupSettingsHydration);
+    globalThis.addEventListener?.('emblem-settings-hydrated', hydrateSettings);
+    this.game?.events?.once?.('destroy', cleanupSettingsHydration);
 
     // Enable debug audio logging via URL param and start overlap watchdog
     try {
@@ -707,9 +757,12 @@ export class BootScene extends Phaser.Scene {
     if (cloudState) {
       const uid = cloudState.userId;
       settings.onSave = (d) => pushSettings(uid, d);
+      if (settings.data.savedAt) settings.onSave(settings.data);
       this.registry.set('cloud', cloudState);
     }
 
+    const fontReady = await loadGameFont();
+    markStartup('boot_local_font_ready', { ready: fontReady });
     markStartup('boot_scene_complete');
     installSceneGuard(this.game);
 

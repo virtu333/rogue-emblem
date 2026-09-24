@@ -16,6 +16,8 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
+// Deliberately enable cloud for auth-wrapper validation.
+vi.stubEnv('VITE_CLOUD_ENABLED', 'true');
 // Provide env vars so supabase client is non-null
 vi.stubEnv('VITE_SUPABASE_URL', 'https://fake.supabase.co');
 vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'fake-key');

@@ -34,9 +34,12 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   label: 'Normal',
   color: '#44cc44',
   enemyStatBonus: 0,
+  classStatBonuses: Object.freeze({}),
   enemyCountBonus: 0,
   enemyLevelBonus: 0,
   enemyCountBase: 0,
+  recruitEnemyCountBonus: 0,
+  act1EnemyCountDeployCap: 3,
   enemyEquipTierShift: 0,
   enemySkillChance: 0,
   enemyPoisonChance: 0,
@@ -69,6 +72,9 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   if (mode.enemyStatBonus > (defaults.enemyStatBonus || 0)) {
     lines.push(`Enemy stats +${mode.enemyStatBonus}`);
   }
+  for (const [className, bonus] of Object.entries(mode.classStatBonuses || {})) {
+    if (Number.isFinite(bonus) && bonus > 0) lines.push(`Enemy ${className} stats +${bonus}`);
+  }
   if (mode.enemyCountBonus > (defaults.enemyCountBonus || 0)) {
     lines.push(`+${mode.enemyCountBonus} extra enemies per map`);
   }
@@ -94,7 +100,7 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
   }
   if (mode.villageAmbushChance > (defaults.villageAmbushChance || 0)) {
-    lines.push(`${Math.round(mode.villageAmbushChance * 100)}% village ambush chance`);
+    lines.push(`${Math.round(mode.villageAmbushChance * 100)}% shop ambush chance`);
   }
   if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);
@@ -159,6 +165,16 @@ export function validateDifficultyConfig(config) {
     if (!isObject(mode)) {
       errors.push(`modes.${difficultyId} must be an object`);
       continue;
+    }
+
+    if (
+      mode.classStatBonuses !== undefined &&
+      (!isObject(mode.classStatBonuses) ||
+        Object.values(mode.classStatBonuses).some((bonus) => !Number.isInteger(bonus) || bonus < 0))
+    ) {
+      errors.push(
+        `modes.${difficultyId}.classStatBonuses must map classes to non-negative integers`,
+      );
     }
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {

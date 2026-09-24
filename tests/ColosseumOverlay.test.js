@@ -1,3 +1,4 @@
+import './harness/JourneyTestSetup.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/engine/ColosseumEngine.js', async (importOriginal) => {
@@ -11,132 +12,28 @@ import { createRecruitUnit, promoteUnit, getDisplayLevel } from '../src/engine/U
 import { loadGameData } from './testData.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../src/utils/constants.js';
 
-function makeDisplayObject(seed = {}) {
-  return {
-    kind: 'display',
-    destroyed: false,
-    active: true,
-    visible: true,
-    interactive: false,
-    input: null,
-    handlers: {},
-    style: {},
-    ...seed,
-    setDepth() {
-      return this;
-    },
-    setStrokeStyle() {
-      return this;
-    },
-    setOrigin() {
-      return this;
-    },
-    setAlpha(alpha) {
-      this.alpha = alpha;
-      return this;
-    },
-    setColor(color) {
-      this.style = { ...this.style, color };
-      return this;
-    },
-    setBackgroundColor(backgroundColor) {
-      this.style = { ...this.style, backgroundColor };
-      return this;
-    },
-    setInteractive(options) {
-      this.interactive = true;
-      this._interactiveOptions = options || null;
-      this.input = { enabled: true };
-      return this;
-    },
-    on(event, cb) {
-      this.handlers[event] = cb;
-      return this;
-    },
-    destroy() {
-      this.destroyed = true;
-      this.active = false;
-      if (this.input) this.input.enabled = false;
-    },
-  };
-}
-
 function makeScene() {
-  const objects = [];
-  const timers = [];
-  return {
-    add: {
-      rectangle: (x, y, width, height, color, alpha) => {
-        const obj = makeDisplayObject({
-          kind: 'rectangle',
-          x,
-          y,
-          width,
-          height,
-          color,
-          alpha,
-        });
-        objects.push(obj);
-        return obj;
-      },
-      text: (x, y, text, style = {}) => {
-        const obj = makeDisplayObject({
-          kind: 'text',
-          x,
-          y,
-          text,
-          style: { ...style },
-        });
-        objects.push(obj);
-        return obj;
-      },
-    },
-    time: {
-      delayedCall: (delay, callback) => {
-        const timer = makeDisplayObject({
-          kind: 'timer',
-          delay,
-          callback,
-          remove: vi.fn(() => timer.destroy()),
-        });
-        timers.push(timer);
-        objects.push(timer);
-        return timer;
-      },
-    },
-    tweens: {
-      add: vi.fn(),
-    },
-    cameras: {
-      main: { centerX: 320, centerY: 240 },
-    },
-    registry: {
-      get: () => null,
-    },
-    _objects: objects,
-    _timers: timers,
-  };
+  return { registry: { get: () => null } };
 }
-
-function activeObjects(scene) {
-  return scene._objects.filter((obj) => !obj.destroyed);
-}
-
 function activeTexts(scene) {
-  return activeObjects(scene).filter((obj) => obj.kind === 'text');
+  const surface = scene._journeySurface;
+  if (!surface || surface.destroyed) return [];
+  return [
+    { text: surface.title },
+    ...surface.root.all().map((node) => ({
+      text: node.textContent,
+      interactive: node.tag === 'button' && !node.disabled,
+      action: node.onclick,
+    })),
+  ];
 }
-
 function clickText(scene, matcher) {
-  const matches = activeTexts(scene).find((obj) => {
-    const matched = typeof matcher === 'string' ? obj.text === matcher : matcher(obj);
-    return matched && obj.interactive && typeof obj.handlers.pointerdown === 'function';
-  });
-  if (!matches) {
-    throw new Error(`Clickable text not found: ${String(matcher)}`);
-  }
-  matches.handlers.pointerdown();
+  const target = activeTexts(scene).find(
+    (obj) => (typeof matcher === 'string' ? obj.text === matcher : matcher(obj)) && obj.interactive,
+  );
+  if (!target) throw new Error(`Action not found: ${matcher}`);
+  target.action();
 }
-
 function hasText(scene, substring) {
   return activeTexts(scene).some((obj) => String(obj.text).includes(substring));
 }
@@ -231,13 +128,13 @@ describe('ColosseumOverlay', () => {
 
     const tiers = getAvailableTiers(runManager.currentAct, gameData.colosseum);
     for (const [tierName] of tiers) {
-      const label = `[ ${tierName.charAt(0).toUpperCase() + tierName.slice(1)} ]`;
-      const tierLabel = activeTexts(scene).find((obj) => obj.text === label);
+      const label = tierName;
+      const tierLabel = activeTexts(scene).find((obj) => obj.text?.toLowerCase().startsWith(label));
       expect(tierLabel).toBeTruthy();
       expect(tierLabel.interactive).toBe(false);
     }
-    expect(hasText(scene, 'Need')).toBe(true);
-    expect(hasText(scene, 'have 0G')).toBe(true);
+    expect(hasText(scene, 'Requires')).toBe(true);
+    expect(hasText(scene, '0 G')).toBe(true);
   });
 
   it('blocks _executeFight when tier is unaffordable without mutating combat state', () => {
@@ -262,7 +159,7 @@ describe('ColosseumOverlay', () => {
 
     expect(unit.currentHP).toBe(hpBefore);
     expect(overlay._fightsPerUnit[unit.name] || 0).toBe(0);
-    expect(hasText(scene, 'Arena — Select Tier')).toBe(true);
+    expect(hasText(scene, 'Arena · Choose tier')).toBe(true);
     expect(hasText(scene, 'Not enough gold')).toBe(true);
   });
 
@@ -287,11 +184,11 @@ describe('ColosseumOverlay', () => {
 
     overlay._showResult('draw', tier);
 
-    expect(activeTexts(scene).some((obj) => obj.text === '[ Fight Again ]')).toBe(false);
-    expect(activeTexts(scene).some((obj) => obj.text === '[ Back to Menu ]')).toBe(true);
+    expect(activeTexts(scene).some((obj) => obj.text === 'Fight again')).toBe(false);
+    expect(activeTexts(scene).some((obj) => obj.text === 'Back')).toBe(true);
   });
 
-  it('supports paginated unit selection so all roster units are reachable', () => {
+  it('native scrolling list exposes every roster unit without pagination', () => {
     const scene = makeScene();
     const roster = Array.from({ length: 14 }, (_, i) =>
       makeUnit(gameData, `Unit${String(i + 1).padStart(2, '0')}`),
@@ -302,20 +199,12 @@ describe('ColosseumOverlay', () => {
     overlay.show({ id: 'col-4' }, vi.fn());
     overlay._showUnitSelect();
 
-    expect(hasText(scene, 'Page 1/2')).toBe(true);
-    expect(hasText(scene, 'Unit01')).toBe(true);
-    expect(hasText(scene, 'Unit08')).toBe(true);
-    expect(hasText(scene, 'Unit09')).toBe(false);
-
-    clickText(scene, '[ Next ]');
-
-    expect(hasText(scene, 'Page 2/2')).toBe(true);
-    expect(hasText(scene, 'Unit09')).toBe(true);
-    expect(hasText(scene, 'Unit14')).toBe(true);
-    expect(hasText(scene, 'Unit01')).toBe(false);
+    for (const unit of roster) expect(hasText(scene, unit.name)).toBe(true);
+    clickText(scene, (obj) => obj.text?.startsWith('Unit14 ·'));
+    expect(overlay._selectedUnit).toBe(roster[13]);
   });
 
-  it('clamps pagination when roster size shrinks', () => {
+  it('rebuilding the native list removes departed roster units', () => {
     const scene = makeScene();
     const roster = Array.from({ length: 14 }, (_, i) =>
       makeUnit(gameData, `Shrink${String(i + 1).padStart(2, '0')}`),
@@ -324,14 +213,13 @@ describe('ColosseumOverlay', () => {
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
 
     overlay.show({ id: 'col-5' }, vi.fn());
-    overlay._unitSelectPage = 99;
     overlay._showUnitSelect();
-    expect(overlay._unitSelectPage).toBe(1);
+    expect(hasText(scene, 'Shrink14')).toBe(true);
 
     runManager.roster = runManager.roster.slice(0, 3);
     overlay._showUnitSelect();
-    expect(overlay._unitSelectPage).toBe(0);
     expect(hasText(scene, 'Shrink01')).toBe(true);
+    expect(hasText(scene, 'Shrink14')).toBe(false);
   });
 
   it('hireMercenary mutates roster on successful spend', () => {
@@ -369,7 +257,9 @@ describe('ColosseumOverlay', () => {
     overlay._mercCandidates = [{ unit: merc, hireCost: 100 }];
     overlay._showMercBrowse();
 
-    expect(activeTexts(scene).some((obj) => obj.text === '[ Hire ]')).toBe(true);
+    expect(activeTexts(scene).some((obj) => obj.text?.includes('CapMerc') && obj.interactive)).toBe(
+      true,
+    );
     expect(hasText(scene, 'Roster full')).toBe(false);
   });
 
@@ -505,7 +395,6 @@ describe('ColosseumOverlay', () => {
     // Re-show and use Leave button path: leave() should invoke callback
     overlay.show({ id: 'col-8b' }, onLeave);
     expect(hasText(scene, 'Colosseum')).toBe(true);
-    expect(overlay._unitSelectPage).toBe(0);
 
     overlay.leave();
     expect(onLeave).toHaveBeenCalledTimes(1);
@@ -519,7 +408,7 @@ describe('ColosseumOverlay', () => {
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
 
     overlay.show({ id: 'col-leave-btn' }, onLeave);
-    clickText(scene, '[ Leave ]');
+    clickText(scene, 'Leave');
     expect(onLeave).toHaveBeenCalledTimes(1);
     expect(overlay.visible).toBe(false);
   });
@@ -668,8 +557,8 @@ describe('ColosseumOverlay', () => {
       overlay._showMercBrowse();
 
       expect(overlay._mercCandidates).toEqual([]);
-      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
-      expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+      expect(hasText(scene, 'Mercenary board unavailable.')).toBe(true);
+      expect(activeTexts(scene).some((obj) => obj.text === 'Back')).toBe(true);
     } finally {
       errorSpy.mockRestore();
     }
@@ -690,8 +579,8 @@ describe('ColosseumOverlay', () => {
       overlay._showMercBrowse();
 
       expect(overlay._mercCandidates).toEqual([]);
-      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
-      expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+      expect(hasText(scene, 'Mercenary board unavailable.')).toBe(true);
+      expect(activeTexts(scene).some((obj) => obj.text === 'Back')).toBe(true);
     } finally {
       errorSpy.mockRestore();
     }
@@ -731,7 +620,7 @@ describe('ColosseumOverlay', () => {
 
       expect(() => overlay._showMercBrowse()).not.toThrow();
       expect(overlay._mercCandidates).toEqual([]);
-      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+      expect(hasText(scene, 'Mercenary board unavailable.')).toBe(true);
     } finally {
       errorSpy.mockRestore();
     }
@@ -753,7 +642,7 @@ describe('ColosseumOverlay', () => {
       overlay._showMercBrowse();
 
       expect(overlay._mercCandidates).toEqual([]);
-      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+      expect(hasText(scene, 'Mercenary board unavailable.')).toBe(true);
     } finally {
       errorSpy.mockRestore();
     }

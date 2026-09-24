@@ -386,6 +386,7 @@ export class HeadlessBattle {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
+                  { skillsData: this.gameData.skills },
                 );
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
                   if (!npc.skills.includes(sid)) npc.skills.push(sid);
@@ -410,6 +411,7 @@ export class HeadlessBattle {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
+                  { skillsData: this.gameData.skills },
                 );
               }
             } else if (promotionRoll.eligible && !promotionRoll.promote) {
@@ -430,6 +432,7 @@ export class HeadlessBattle {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
+                  { skillsData: this.gameData.skills },
                 );
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
                   if (!npc.skills.includes(sid)) npc.skills.push(sid);
@@ -443,6 +446,7 @@ export class HeadlessBattle {
                   recruitGrowthBonuses,
                   recruitSkillPool,
                   this.gameData.classes,
+                  { skillsData: this.gameData.skills },
                 );
               }
             } else {
@@ -459,6 +463,7 @@ export class HeadlessBattle {
                 recruitGrowthBonuses,
                 recruitSkillPool,
                 this.gameData.classes,
+                { skillsData: this.gameData.skills },
               );
             }
           } else {
@@ -470,6 +475,7 @@ export class HeadlessBattle {
               recruitGrowthBonuses,
               recruitSkillPool,
               this.gameData.classes,
+              { skillsData: this.gameData.skills },
             );
             for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
@@ -803,6 +809,7 @@ export class HeadlessBattle {
     return {
       multiplier: this.battleParams.difficultyMod || 1.0,
       enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+      classStatBonuses: this.battleParams.classStatBonuses || {},
       enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
     };
   }

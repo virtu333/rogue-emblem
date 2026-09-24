@@ -96,3 +96,49 @@ describe('dev startup helpers', () => {
     expect(route.data.runManager.currentAct).toBeTruthy();
   });
 });
+
+describe('combat action review preset', () => {
+  it('uses real skills and weapons, deploys five units, and disconnects the save slot', () => {
+    const gameData = loadGameData();
+    const original = JSON.stringify(gameData);
+    const registry = createRegistry();
+    registry.set('activeSlot', 3);
+    const config = parseDevStartupConfig('?devScene=battle&preset=combat_actions&seed=42', {
+      devMode: true,
+    });
+    const route = buildDevStartupRoute(gameData, registry, config);
+    expect(registry.get('activeSlot')).toBeNull();
+    expect(route.data.battleParams.act).toBe('act2');
+    expect(route.data.roster.map((u) => u.name)).toEqual([
+      'Edric',
+      'Sera',
+      'Utility',
+      'Support',
+      'Patient',
+    ]);
+    for (const u of route.data.roster) {
+      for (const skill of u.skills) expect(gameData.skills.some((s) => s.id === skill)).toBe(true);
+      for (const weapon of u.inventory)
+        expect(gameData.weapons.some((w) => w.name === weapon.name)).toBe(true);
+    }
+    expect(JSON.stringify(gameData)).toBe(original);
+  });
+  it('cannot be enabled in a production build', () => {
+    expect(
+      parseDevStartupConfig('?devScene=battle&preset=combat_actions', { devMode: false }),
+    ).toBeNull();
+  });
+});
+
+it('combat review ignores alternate saved lords without rewriting their selection', () => {
+  const gameData = loadGameData();
+  const registry = createRegistry();
+  const effects = { startingLords: { commander: 'Sera', partner: 'Kira' }, commanderChoiceTier: 2 };
+  registry.set('meta', { getActiveEffects: () => effects });
+  const config = parseDevStartupConfig('?devScene=battle&preset=combat_actions&seed=42', {
+    devMode: true,
+  });
+  const route = buildDevStartupRoute(gameData, registry, config);
+  expect(route.data.roster.slice(0, 2).map((u) => u.name)).toEqual(['Edric', 'Sera']);
+  expect(effects.startingLords).toEqual({ commander: 'Sera', partner: 'Kira' });
+});

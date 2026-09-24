@@ -1,0 +1,271 @@
+.bt-timeline .re-menu-body {
+  overflow: hidden;
+}
+
+.bt-battlefield.re-screen {
+  background: transparent;
+  gap: 4px;
+  padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+}
+.bt-battlefield .re-header,
+.bt-battlefield .bt-help,
+.bt-battlefield .bt-footer,
+.bt-battlefield .bt-navigation,
+.bt-battlefield .bt-preview > :not(.bt-map-viewport) {
+  background: var(--re-bg);
+}
+.bt-battlefield .bt-help {
+  font-size: 12px;
+}
+.bt-battlefield .bt-layout {
+  display: flex;
+  position: relative;
+  gap: 0;
+}
+.bt-battlefield .bt-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.bt-battlefield .bt-preview h3 {
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+.bt-map-viewport {
+  flex: 1;
+  min-height: 110px;
+  touch-action: none;
+  cursor: grab;
+}
+.bt-navigation,
+.bt-map-controls {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.bt-navigation .re-btn,
+.bt-map-controls .re-btn {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.bt-battlefield .bt-history {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(330px, 80%);
+  z-index: 1;
+  background: var(--re-bg);
+}
+.bt-battlefield .bt-history[hidden] {
+  display: none;
+}
+.bt-details {
+  max-height: 35%;
+  overflow: auto;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+.bt-details summary {
+  cursor: pointer;
+}
+.bt-inspection {
+  margin: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.bt-inspection:empty {
+  display: none;
+}
+.bt-battlefield .bt-footer {
+  padding: 3px 8px;
+}
+.bt-battlefield .bt-footer .bt-reason {
+  font-size: 12px;
+}
+.bt-battlefield .bt-rewind {
+  min-height: 40px;
+}
+.bt-battlefield .re-menu-body {
+  gap: 3px;
+}
+.bt-timeline .re-header {
+  flex-wrap: wrap;
+}
+.bt-charges {
+  color: var(--re-accent-text);
+  font-size: 16px;
+}
+.bt-help,
+.bt-reason,
+.bt-board-key {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--re-muted);
+}
+.bt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+}
+.bt-preview,
+.bt-history {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 10px;
+  border: 1px solid var(--re-line);
+  background: var(--re-sunken);
+  overflow-wrap: anywhere;
+}
+.bt-timeline h3 {
+  margin: 4px 0 10px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.bt-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: normal;
+  font-size: 16px;
+  line-height: 1.4;
+  border-left: 4px solid transparent;
+}
+.bt-entry[aria-pressed='true'] {
+  background: var(--re-selected);
+  border-color: var(--re-accent);
+}
+.bt-entry-kind,
+.bt-history-note {
+  color: var(--re-muted);
+  font-size: 14px;
+}
+.bt-summary p {
+  font-size: 16px;
+  line-height: 1.45;
+  margin: 0 0 8px;
+}
+.bt-board {
+  display: grid;
+  grid-template-columns: repeat(var(--bt-cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--bt-rows), minmax(0, 1fr));
+  aspect-ratio: var(--bt-cols) / var(--bt-rows);
+  width: min(100%, calc(34vh * var(--bt-cols) / var(--bt-rows)));
+  background: repeating-linear-gradient(
+    135deg,
+    var(--re-sunken) 0 4px,
+    var(--re-line-soft) 4px 5px
+  );
+  border: 1px solid var(--re-line);
+  margin: 12px 0 8px;
+}
+.bt-tile,
+.bt-unit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font: 10px/1 sans-serif;
+}
+.bt-tile {
+  white-space: nowrap;
+  color: var(--re-muted);
+  background: var(--re-panel);
+  border: 1px solid var(--re-line-soft);
+}
+.bt-unit {
+  color: var(--re-sunken);
+  font-weight: 700;
+  font-size: 12px;
+  border: 1px solid var(--re-text);
+}
+.bt-unit-player {
+  border-radius: 50%;
+  background: var(--re-info);
+}
+.bt-unit-enemy {
+  background: var(--re-bad);
+}
+.bt-unit-npc {
+  border-radius: 25%;
+  background: var(--re-good);
+}
+.bt-unit-list {
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.bt-unit-list li {
+  padding-bottom: 6px;
+}
+.bt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.bt-rewind {
+  flex-shrink: 0;
+  min-height: 48px;
+  font-size: 16px;
+}
+@media (max-width: 560px) and (orientation: portrait) {
+  .bt-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(100px, 0.85fr) minmax(100px, 1fr);
+  }
+  .bt-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* A historical map owns the canvas while the live scene is paused. */
+html.touch-ui #game-wrapper.battlefield-lab.battle-history-active {
+  grid-template-columns: minmax(0, 1fr);
+}
+#game-wrapper.battle-history-active > .mobile-battle-hud {
+  display: none;
+}
+html.mobile-preview .bt-battlefield.re-screen {
+  width: 100%;
+  height: 100dvh;
+}
+.bt-battlefield .bt-history {
+  z-index: var(--re-depth-lab);
+}
+
+.bt-battlefield .bt-preview.bt-legacy-preview {
+  background: var(--re-bg);
+  overflow: auto;
+}
+.bt-battlefield .bt-map-viewport {
+  position: relative;
+}
+.bt-battlefield .bt-map-controls {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: var(--re-bg);
+}

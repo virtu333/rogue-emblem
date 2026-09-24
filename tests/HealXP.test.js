@@ -8,6 +8,7 @@ vi.mock('phaser', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { XP_BASE_HEAL } from '../src/utils/constants.js';
+import { loadGameData } from './testData.js';
 
 function makeTextStub() {
   return {
@@ -42,7 +43,7 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
         if (onComplete) onComplete();
       },
     },
-    _isReducedEffects: () => true,
+    _reduceMotion: () => true,
     hideActionMenu() {},
     undimUnit() {},
     finishUnitAction() {},
@@ -52,6 +53,35 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
 }
 
 describe('Heal XP', () => {
+  it.each([false, true])(
+    'Overflowing Grace heals once through the production staff flow (AoE=%s)',
+    async (aoe) => {
+      const ctx = makeSceneCtx();
+      ctx.gameData = loadGameData();
+      ctx.turnManager = { turnNumber: 1, currentPhase: 'player' };
+      ctx.animateHeal = vi.fn(async () => {});
+      ctx.awardScaledXP = vi.fn(async () => {});
+      const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
+      const healer = {
+        name: 'Sera',
+        col: 1,
+        row: 1,
+        currentHP: 10,
+        weapon: staff,
+        inventory: [staff],
+        traits: ['overflowing_grace'],
+        stats: { HP: 20, MAG: 10 },
+      };
+      const targets = [1, 2].map((row) => ({ col: 2, row, currentHP: 5, stats: { HP: 30 } }));
+      if (aoe) await BattleScene.prototype.executeHealAll.call(ctx, healer, targets);
+      else await BattleScene.prototype.executeHeal.call(ctx, healer, targets[0]);
+      expect(healer.currentHP).toBe(13);
+      expect(healer._legendaryGraceTurn).toBe(1);
+      expect(staff._usesSpent).toBe(1);
+      expect(ctx.animateHeal).toHaveBeenCalledWith(healer, 3);
+    },
+  );
+
   it('XP_BASE_HEAL constant equals 20', () => {
     expect(XP_BASE_HEAL).toBe(20);
   });

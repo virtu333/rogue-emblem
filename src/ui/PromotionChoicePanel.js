@@ -1,9 +1,11 @@
+import { buildPromotionColumn } from './promotionComparison.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { promotionMenu } from './ProgressionMenus.js';
+import { inputHint } from '../utils/inputHint.js';
 // PromotionChoicePanel — Side-by-side promotion choice overlay
 // Used by BattleScene, NodeMapScene (church), and RosterOverlay
 
-import { XP_STAT_NAMES } from '../utils/constants.js';
-import { STAT_COLORS, UI_COLORS } from '../utils/uiStyles.js';
-import { getClassInnateSkills } from '../engine/UnitManager.js';
+import { UI_COLORS } from '../utils/uiStyles.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -48,7 +50,10 @@ export class PromotionChoicePanel {
     return new Promise((resolve) => {
       this._resolve = resolve;
       this._registerScenePromotionChoiceGuard();
-      this._build();
+      this._onShutdown = () => this.destroy();
+      this.scene.events?.once?.('shutdown', this._onShutdown);
+      if (hasDOMHost()) this.surface = promotionMenu(this);
+      else this._build();
     });
   }
 
@@ -174,8 +179,7 @@ export class PromotionChoicePanel {
       btnBg.on('pointerover', () => btnBg.setFillStyle(0x3366aa));
       btnBg.on('pointerout', () => btnBg.setFillStyle(0x224488));
       btnBg.once('pointerdown', () => {
-        this.destroy();
-        this._resolve(cls);
+        this._finish(cls);
       });
     }
 
@@ -184,7 +188,7 @@ export class PromotionChoicePanel {
     const cancelText = this._text(
       cx,
       cancelY,
-      '(ESC to cancel)',
+      inputHint(this.scene, '(ESC to cancel)', '(Tap outside to cancel)'),
       {
         fontSize: '10px',
         color: '#888888',
@@ -203,8 +207,7 @@ export class PromotionChoicePanel {
     this._escHandler = (event) => {
       if (!isTopOverlay(this.scene, this._overlayToken)) return;
       if (!consumeEscEvent(this.scene, event)) return;
-      this.destroy();
-      this._resolve(null);
+      this._finish(null);
     };
     this.scene.input.keyboard.on('keydown-ESC', this._escHandler);
 
@@ -215,8 +218,7 @@ export class PromotionChoicePanel {
       const halfW = panelW / 2,
         halfH = panelH / 2;
       if (px < cx - halfW || px > cx + halfW || py < cy - halfH || py > cy + halfH) {
-        this.destroy();
-        this._resolve(null);
+        this._finish(null);
       }
     });
 
@@ -243,8 +245,7 @@ export class PromotionChoicePanel {
         break;
       case InputAction.CANCEL:
       case InputAction.PAUSE:
-        this.destroy();
-        this._resolve?.(null);
+        this._finish(null);
         break;
     }
   }
@@ -253,96 +254,7 @@ export class PromotionChoicePanel {
    * Build display lines for one promotion target column.
    */
   _buildColumnData(cls) {
-    const unit = this.unit;
-    const lines = [];
-
-    // Class name header
-    lines.push({ text: cls.name, color: '#ffdd44', bold: true, fontSize: '13px' });
-    lines.push({ text: '' }); // spacer
-
-    // Stat bonuses: "STR  12 → 14  (+2)"
-    lines.push({ text: 'Stat Bonuses', color: '#aaaaaa', bold: true });
-    const bonuses = cls.promotionBonuses || {};
-    for (const stat of XP_STAT_NAMES) {
-      const bonus = bonuses[stat] || 0;
-      if (bonus === 0) continue;
-      const cur = unit.stats[stat];
-      const after = cur + bonus;
-      const color = STAT_COLORS[stat] || '#e0e0e0';
-      lines.push({
-        text: `  ${stat.padEnd(4)} ${String(cur).padStart(2)} → ${String(after).padStart(2)}  (+${bonus})`,
-        color,
-      });
-    }
-    // MOV bonus (separate since not in XP_STAT_NAMES)
-    const movBonus = bonuses.MOV || 0;
-    if (movBonus > 0) {
-      const cur = unit.stats.MOV;
-      lines.push({
-        text: `  MOV  ${String(cur).padStart(2)} → ${String(cur + movBonus).padStart(2)}  (+${movBonus})`,
-        color: STAT_COLORS.MOV || '#e0e0e0',
-      });
-    }
-
-    lines.push({ text: '' }); // spacer
-
-    // Growth bonuses
-    if (cls.growthBonuses && Object.keys(cls.growthBonuses).length > 0) {
-      lines.push({ text: 'Growth Bonuses', color: '#aaaaaa', bold: true });
-      for (const [stat, val] of Object.entries(cls.growthBonuses)) {
-        lines.push({ text: `  +${val}% ${stat}`, color: '#88ffff' });
-      }
-      lines.push({ text: '' });
-    }
-
-    // Weapons
-    lines.push({ text: 'Weapons', color: '#aaaaaa', bold: true });
-    lines.push({ text: `  ${cls.weaponProficiencies}`, color: '#e0e0e0' });
-    lines.push({ text: '' });
-
-    // Move type (highlight if changed)
-    if (cls.moveType !== unit.moveType) {
-      lines.push({ text: 'Move Type', color: '#aaaaaa', bold: true });
-      lines.push({ text: `  ${unit.moveType} → ${cls.moveType}`, color: '#88ffff' });
-      lines.push({ text: '' });
-    }
-
-    // Innate skill
-    const innateIds = getClassInnateSkills(cls.name, this.skillsData);
-    if (innateIds.length > 0) {
-      lines.push({ text: 'Innate Skill', color: '#aaaaaa', bold: true });
-      for (const sid of innateIds) {
-        const skill = this.skillsData.find((s) => s.id === sid);
-        if (skill) {
-          lines.push({ text: `  ${skill.name}`, color: '#ffcc44', bold: true });
-          // Wrap description to fit column
-          const desc = skill.description || '';
-          const wrapped = this._wrap(desc, 26);
-          for (const wl of wrapped) {
-            lines.push({ text: `  ${wl}`, color: '#cccccc', fontSize: '10px' });
-          }
-        }
-      }
-    }
-
-    return { lines };
-  }
-
-  /** Simple word-wrap for tooltip text. */
-  _wrap(text, maxChars) {
-    const words = text.split(' ');
-    const result = [];
-    let cur = '';
-    for (const w of words) {
-      if (cur.length + w.length + 1 > maxChars && cur.length > 0) {
-        result.push(cur);
-        cur = w;
-      } else {
-        cur = cur ? cur + ' ' + w : w;
-      }
-    }
-    if (cur) result.push(cur);
-    return result;
+    return buildPromotionColumn(this.unit, cls, this.skillsData);
   }
 
   /** Helper to add text, track for cleanup, and return it. */
@@ -378,7 +290,21 @@ export class PromotionChoicePanel {
     this._scenePromotionChoiceGuardRegistered = false;
   }
 
+  _finish(value) {
+    const resolve = this._resolve;
+    this._resolve = null;
+    this.destroy();
+    resolve?.(value);
+  }
+
   destroy() {
+    this.surface?.destroy();
+    this.surface = null;
+    this.scene.events?.off?.('shutdown', this._onShutdown);
+    this._onShutdown = null;
+    const resolve = this._resolve;
+    this._resolve = null;
+    resolve?.(null);
     if (this._escHandler) {
       this.scene?.input?.keyboard?.off?.('keydown-ESC', this._escHandler);
       this._escHandler = null;

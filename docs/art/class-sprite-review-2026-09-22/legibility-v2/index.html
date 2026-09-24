@@ -1,0 +1,189 @@
+<!doctype html><meta charset="utf-8" /><meta
+  name="viewport"
+  content="width=device-width,initial-scale=1"
+/><title>Sword-class size and blade revision</title
+><style>
+  body {
+    margin: 24px auto;
+    max-width: 1200px;
+    padding: 0 18px;
+    background: #10212b;
+    color: #eee7d9;
+    font: 17px system-ui;
+  }
+  h1,
+  h2 {
+    color: #dfc78c;
+  }
+  a {
+    color: #94d9ff;
+  }
+  button {
+    font: inherit;
+    padding: 9px;
+    margin: 3px;
+    background: #284650;
+    color: #fff;
+    border: 1px solid #789797;
+    cursor: pointer;
+  }
+  button[aria-pressed='true'] {
+    background: #517568;
+    border-color: #dfc78c;
+  }
+  img {
+    max-width: 100%;
+    image-rendering: pixelated;
+  }
+  .scroll {
+    overflow: auto;
+  }
+  .map {
+    max-width: none;
+    width: 1170px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: #213a43;
+    padding: 16px;
+  }
+  .native img {
+    width: 64px;
+    height: 64px;
+    max-width: none;
+  }
+  small {
+    color: #bbc9c9;
+  }
+  section {
+    margin: 30px 0;
+  }
+</style>
+<h1>Sword-class size and blade revision</h1>
+<p>
+  <a href="../player-set-2/index.html">Next player set: Archer, Mage, Cleric, Fighter, Knight</a>
+</p>
+<p>
+  Nine new samples: two player appearances and one enemy for Myrmidon, Mercenary and Thief. Edric,
+  Sera and Pegasus Knight remain unchanged as anchors.
+</p>
+<p>
+  <a href="PRINCIPLES.md">Sprite-development principles</a> ·
+  <a href="catalog.json">Original generation prompts</a> ·
+  <a href="blade-revision-prompt.json">Latest blade prompt and placement</a> ·
+  <a href="../map-review.html">Previous review</a>
+</p>
+<h2>Judge the map first</h2>
+<p>
+  Left-to-right within each group: <b>Myrmidon · Mercenary · Thief.</b> Player A is middle-left;
+  Player B is lower-middle; enemies are upper-right.
+</p>
+<div id="controls"></div>
+<p id="caption"></p>
+<label
+  ><input
+    id="fit"
+    type="checkbox"
+    onchange="
+      document.querySelector('#map').style.cssText = this.checked
+        ? 'width:100%;max-width:100%'
+        : 'width:1170px;max-width:none'
+    "
+  />
+  Fit to window (changes apparent scale)</label
+>
+<div class="scroll"><img id="map" class="map" src="validation/map-new.png" /></div>
+<small
+  >1170×540 isolated browser viewport, real game renderer, camera, grass/swamp art, HUD and markers.
+  Units are staged art probes: HUD counts describe the original test fixture. Stone view swaps only
+  the visible floor. No terrain or gameplay changes were saved.</small
+>
+<section>
+  <h2>Size and blade revision</h2>
+  <ul>
+    <li>
+      <b>Thief:</b> rendered at 80% of the previous artwork size inside the same 64px texture, with
+      the same foot baseline. This keeps its crouch compact instead of enlarging it to standing-unit
+      height.
+    </li>
+    <li>
+      <b>Myrmidon:</b> longer, narrower bright-white blade with hands lower, intended to read as a
+      fine sword rather than a dagger.
+    </li>
+    <li><b>Mercenary:</b> existing broad shoulder-held blade is retained as the contrast.</li>
+  </ul>
+  <p>
+    Blade width, length and direction now form a three-part class cue. Bright steel should remain
+    bounded by a dark contour; no glow. Compare current and previous views at the same size.
+  </p>
+  <p>
+    These remain static art samples. Live acted state, fog, range overlays and animations remain
+    unverified.
+  </p>
+</section>
+<h2>Native texture scale and source sheets</h2>
+<p>
+  Each thumbnail is the actual 64×64 texture, containing roughly 30–34px-tall artwork. No zoom
+  applied here.
+</p>
+<div class="grid" id="cards"></div>
+<h2>What the references contributed</h2>
+<p>
+  Separate actors from the ground using value and contour; make weapon/stance/cloth shape carry
+  class recognition; retain faction cues when range overlays turn the ground blue; put fine identity
+  details behind readable shapes. These are art-direction hypotheses, not a claim of measured
+  recognition accuracy.
+</p>
+<div class="grid" id="refs"></div>
+<script>
+  const choices = [
+    ['map-new', 'Revised samples'],
+    ['map-before', 'Previous samples'],
+    ['map-floor', 'Stone floor'],
+    ['map-gray', 'Grayscale'],
+    ['map-silhouette', 'Silhouettes'],
+  ];
+  for (const [id, label] of choices) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.onclick = () => {
+      document.querySelector('#map').src = 'validation/' + id + '.png';
+      document.querySelector('#caption').textContent = label;
+      for (const x of document.querySelectorAll('#controls button'))
+        x.setAttribute('aria-pressed', x === b);
+    };
+    document.querySelector('#controls').append(b);
+  }
+  document.querySelector('#controls button').click();
+  for (const id of ['myrmidon', 'mercenary', 'thief']) {
+    const c = document.createElement('section');
+    c.className = 'card';
+    c.innerHTML =
+      '<h3>' +
+      id +
+      '</h3><div class="native">' +
+      [1, 2, 3]
+        .map(
+          (v) => '<img alt="' + id + ' variant ' + v + '" src="sprites/' + id + '-' + v + '.png">',
+        )
+        .join('') +
+      '</div><a href="sheets/' +
+      id +
+      '.png"><img alt="' +
+      id +
+      ' source sheet" src="sheets/' +
+      id +
+      '.png"></a>';
+    document.querySelector('#cards').append(c);
+  }
+  for (let i = 1; i <= 4; i++) {
+    const im = document.createElement('img');
+    im.src = 'references/reference-' + i + '.png';
+    im.alt = 'User supplied reference ' + i;
+    document.querySelector('#refs').append(im);
+  }
+</script>

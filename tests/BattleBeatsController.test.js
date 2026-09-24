@@ -63,7 +63,7 @@ function makeScene(overrides = {}) {
     registry: { get: vi.fn(() => null) },
     gameData: { dialogue: DIALOGUE },
     dialogueOverlay: { show: vi.fn(async () => {}) },
-    _isReducedEffects: vi.fn(() => false),
+    _reduceMotion: vi.fn(() => false),
     time: { now: 100000 },
     grid: { gridToPixel: vi.fn(() => ({ x: 100, y: 100 })) },
     add: {
@@ -94,7 +94,7 @@ describe('checkBossHalfHealth', () => {
     const { scene } = makeScene();
     scene.runManager.markDialogueShown = vi.fn(() => order.push('mark'));
     scene.dialogueOverlay.show = vi.fn(async () => order.push('show'));
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     await beats.checkBossHalfHealth();
     expect(order).toEqual(['mark', 'show']);
     expect(scene.runManager.markDialogueShown).toHaveBeenCalledWith('boss_half_Iron Captain');
@@ -109,7 +109,7 @@ describe('checkBossHalfHealth', () => {
     const { scene } = makeScene({
       enemyUnits: [{ isBoss: true, currentHP: 10, stats: { HP: 20 } }],
     });
-    await new BattleBeatsController(scene).checkBossHalfHealth();
+    await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
   });
 
@@ -126,14 +126,16 @@ describe('checkBossHalfHealth', () => {
   it('does not fire twice (key already shown)', async () => {
     const { scene } = makeScene();
     scene.runManager.hasShownDialogue = vi.fn(() => true);
-    await new BattleBeatsController(scene).checkBossHalfHealth();
+    await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
     expect(scene.runManager.markDialogueShown).not.toHaveBeenCalled();
   });
 
   it('skips silently in tutorial/standalone battles (no runManager)', async () => {
     const { scene } = makeScene({ runManager: null });
-    await expect(new BattleBeatsController(scene).checkBossHalfHealth()).resolves.toBeUndefined();
+    await expect(
+      new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth(),
+    ).resolves.toBeUndefined();
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
   });
 
@@ -141,7 +143,7 @@ describe('checkBossHalfHealth', () => {
     const { scene } = makeScene({
       gameData: { dialogue: { bossEncounters: { 'Iron Captain': { preBattle: [] } } } },
     });
-    await new BattleBeatsController(scene).checkBossHalfHealth();
+    await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
     expect(scene.runManager.markDialogueShown).not.toHaveBeenCalled();
   });
@@ -151,7 +153,7 @@ describe('checkBossHalfHealth', () => {
       _bossName: 'Dark Champion',
       enemyUnits: [{ isBoss: true, currentHP: 5, stats: { HP: 20 } }],
     });
-    await new BattleBeatsController(scene).checkBossHalfHealth();
+    await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.runManager.markDialogueShown).toHaveBeenCalledWith('boss_half_The Lieutenant');
   });
 
@@ -160,12 +162,14 @@ describe('checkBossHalfHealth', () => {
     scene.dialogueOverlay.show = vi.fn(async () => {
       throw new Error('boom');
     });
-    await expect(new BattleBeatsController(scene).checkBossHalfHealth()).resolves.toBeUndefined();
+    await expect(
+      new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth(),
+    ).resolves.toBeUndefined();
   });
 
   it('shows even in reduced-effects mode (story, not flair)', async () => {
-    const { scene } = makeScene({ _isReducedEffects: vi.fn(() => true) });
-    await new BattleBeatsController(scene).checkBossHalfHealth();
+    const { scene } = makeScene({ _reduceMotion: vi.fn(() => true) });
+    await new BattleBeatsController(scene, () => Math.random()).checkBossHalfHealth();
     expect(scene.dialogueOverlay.show).toHaveBeenCalled();
   });
 });
@@ -174,7 +178,7 @@ describe('lord quips', () => {
   it('crit quip fires under the 20% chance and renders above the lord', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike(LORD);
     expect(scene.add.text).toHaveBeenCalledTimes(1);
     const [x, y, line] = scene.add.text.mock.calls[0];
@@ -186,14 +190,14 @@ describe('lord quips', () => {
   it('crit quip skipped when the roll misses', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
     const { scene } = makeScene();
-    new BattleBeatsController(scene).onCritStrike(LORD);
+    new BattleBeatsController(scene, () => Math.random()).onCritStrike(LORD);
     expect(scene.add.text).not.toHaveBeenCalled();
   });
 
   it('second quip within the 10s cooldown is suppressed', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike(LORD);
     scene.time.now += 5000;
     beats.onCritStrike(LORD);
@@ -206,7 +210,7 @@ describe('lord quips', () => {
   it('boss-kill quip is guaranteed: bypasses chance and cooldown', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats._lastQuipAt = scene.time.now; // cooldown active
     beats.onKill({ isBoss: true }, LORD);
     expect(scene.add.text).toHaveBeenCalledTimes(1);
@@ -216,23 +220,23 @@ describe('lord quips', () => {
   it('regular kill uses the chance roll', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
     const { scene } = makeScene();
-    new BattleBeatsController(scene).onKill({ isBoss: false }, LORD);
+    new BattleBeatsController(scene, () => Math.random()).onKill({ isBoss: false }, LORD);
     expect(scene.add.text).not.toHaveBeenCalled();
   });
 
-  it('quips are skipped entirely in reduced-effects mode', () => {
+  it('quips remain visible in reduced-motion mode', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const { scene } = makeScene({ _isReducedEffects: vi.fn(() => true) });
-    const beats = new BattleBeatsController(scene);
+    const { scene } = makeScene({ _reduceMotion: vi.fn(() => true) });
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike(LORD);
     beats.onKill({ isBoss: true }, LORD);
-    expect(scene.add.text).not.toHaveBeenCalled();
+    expect(scene.add.text).toHaveBeenCalledTimes(2);
   });
 
   it('non-lords, enemy units, dead killers, and null killers never quip', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike({ isLord: false, faction: 'player', name: 'Bob' });
     beats.onCritStrike({ isLord: true, faction: 'enemy', name: 'Edric' });
     beats.onKill({ isBoss: true }, null);
@@ -243,7 +247,7 @@ describe('lord quips', () => {
   it('missing lordQuips section or unknown lord never throws', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const { scene } = makeScene({ gameData: { dialogue: {} } });
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     expect(() => beats.onCritStrike(LORD)).not.toThrow();
     const { scene: scene2 } = makeScene();
     expect(() =>
@@ -254,7 +258,7 @@ describe('lord quips', () => {
   it('a guaranteed quip replaces any live quip instead of stacking', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike(LORD);
     const firstQuip = scene.add.text.mock.results[0].value;
     scene.time.now += 20000;
@@ -266,7 +270,7 @@ describe('lord quips', () => {
   it('destroy() cleans up live quip texts', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const { scene } = makeScene();
-    const beats = new BattleBeatsController(scene);
+    const beats = new BattleBeatsController(scene, () => Math.random());
     beats.onCritStrike(LORD);
     const quip = scene.add.text.mock.results[0].value;
     beats.destroy();
@@ -284,7 +288,9 @@ describe('getBossPreBattleEntries', () => {
         getStartingLordNames: () => ['Kira', 'Voss'],
       },
     });
-    const entries = new BattleBeatsController(scene).getBossPreBattleEntries('The Lieutenant');
+    const entries = new BattleBeatsController(scene, () => Math.random()).getBossPreBattleEntries(
+      'The Lieutenant',
+    );
     expect(entries.map((e) => e.line)).toEqual(['I have seen this.', 'Then you know how it ends.']);
   });
 
@@ -296,18 +302,53 @@ describe('getBossPreBattleEntries', () => {
         getStartingLordNames: () => ['Edric', 'Sera'],
       },
     });
-    const entries = new BattleBeatsController(scene).getBossPreBattleEntries('The Lieutenant');
+    const entries = new BattleBeatsController(scene, () => Math.random()).getBossPreBattleEntries(
+      'The Lieutenant',
+    );
     expect(entries.map((e) => e.line)).toEqual(['I have seen this.']);
   });
 
   it('bosses without a preBattleReply get just their preBattle lines', () => {
     const { scene } = makeScene();
-    const entries = new BattleBeatsController(scene).getBossPreBattleEntries('Iron Captain');
+    const entries = new BattleBeatsController(scene, () => Math.random()).getBossPreBattleEntries(
+      'Iron Captain',
+    );
     expect(entries.map((e) => e.line)).toEqual(['Halt.']);
   });
 
   it('unknown boss returns an empty array', () => {
     const { scene } = makeScene();
-    expect(new BattleBeatsController(scene).getBossPreBattleEntries('Nobody')).toEqual([]);
+    expect(
+      new BattleBeatsController(scene, () => Math.random()).getBossPreBattleEntries('Nobody'),
+    ).toEqual([]);
   });
+});
+
+it('default quip randomness does not draw from the combat stream', () => {
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+  const { scene } = makeScene();
+  new BattleBeatsController(scene).onKill({ isBoss: true }, LORD);
+  expect(random).not.toHaveBeenCalled();
+  expect(scene.add.text).toHaveBeenCalled();
+});
+
+it.each([
+  { x: 0, y: 0 },
+  { x: 640, y: 0 },
+  { x: 640, y: 480 },
+])('keeps crit quips and their entire drift inside the viewport: %j', (point) => {
+  const { scene } = makeScene({
+    cameras: { main: { width: 640, height: 480 } },
+    _worldToScreen: () => point,
+    _pinToScreen: vi.fn(),
+  });
+  const text = { ...makeTextObj(), width: 200, height: 36 };
+  text.setOrigin = text.setDepth = text.setAlpha = () => text;
+  scene.add.text.mockReturnValue(text);
+  new BattleBeatsController(scene)._showQuipText(LORD, 'For the banner!');
+  expect(text.x - 100).toBeGreaterThanOrEqual(8);
+  expect(text.x + 100).toBeLessThanOrEqual(632);
+  expect(text.y + 18).toBeLessThanOrEqual(472);
+  expect(scene.tweens.add.mock.calls[1][0].y - 18).toBeGreaterThanOrEqual(8);
+  expect(scene._pinToScreen).toHaveBeenCalledWith(text);
 });

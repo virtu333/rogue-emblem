@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getRunKey } from '../src/engine/SlotManager.js';
+import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
+import { HintManager } from '../src/engine/HintManager.js';
+import { getRunKey, getMetaKey } from '../src/engine/SlotManager.js';
 
 const store = {};
 const localStorageMock = {
@@ -31,6 +33,7 @@ import {
   __resetCloudSyncStatusForTests,
   fetchAllToLocalStorage,
   getCloudSyncStatus,
+  pushSettings,
   shouldPreferLocalMeta,
   shouldPreferLocalRun,
 } from '../src/cloud/CloudSync.js';
@@ -73,6 +76,91 @@ describe('CloudSync run merge guard', () => {
     __resetCloudSyncStatusForTests();
   });
 
+  it('normalizes cloud effects settings with the same OS-based migration', async () => {
+    mockCloudBootstrap({
+      settingsData: { musicVolume: 0.2, reducedEffects: true, effectsQuality: 'high' },
+    });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store.emblem_rogue_settings)).toMatchObject({
+      hints: true,
+      musicVolume: 0.2,
+      sfxVolume: 0.7,
+      reduceMotion: false,
+      effectsQuality: 'high',
+      battleSpeed: 'normal',
+    });
+  });
+
+  it.each([null, { reducedEffects: true }, { savedAt: 99, battleSpeed: 'normal' }])(
+    'keeps newer explicit preferences over missing/legacy/stale cloud settings',
+    async (settingsData) => {
+      const local = {
+        savedAt: 100,
+        battleSpeed: 'fast',
+        reduceMotion: false,
+        effectsQuality: 'high',
+      };
+      store.emblem_rogue_settings = JSON.stringify(local);
+      mockCloudBootstrap({ settingsData });
+      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+      expect(JSON.parse(store.emblem_rogue_settings)).toEqual(local);
+    },
+  );
+  it('accepts newer cloud preferences', async () => {
+    store.emblem_rogue_settings = JSON.stringify({ savedAt: 100, battleSpeed: 'fast' });
+    mockCloudBootstrap({ settingsData: { savedAt: 200, battleSpeed: 'instant' } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store.emblem_rogue_settings)).toMatchObject({
+      savedAt: 200,
+      battleSpeed: 'instant',
+    });
+  });
+
+  it('keeps merged archive records through a save by an already-open manager', async () => {
+    const key = getMetaKey(1);
+    store[key] = JSON.stringify({ savedAt: 200, runRecords: [] });
+    const meta = new MetaProgressionManager([], key);
+    mockCloudBootstrap({
+      metaData: {
+        1: {
+          savedAt: 100,
+          runRecords: [{ id: 'cloud-win', endedAt: 50, difficulty: 'normal', roster: [] }],
+        },
+      },
+    });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    meta._save();
+    expect(JSON.parse(store[key]).runRecords.map((r) => r.id)).toEqual(['cloud-win']);
+  });
+  it('reconciles a live hint manager with newer cloud lessons and resets', async () => {
+    const key = getMetaKey(1);
+    store[key] = JSON.stringify({ savedAt: 100, hintState: { updatedAt: 100, seen: ['local'] } });
+    const meta = new MetaProgressionManager([], key);
+    const hints = new HintManager(1, () => true, meta);
+    mockCloudBootstrap({
+      metaData: { 1: { savedAt: 200, hintState: { updatedAt: 200, seen: ['local', 'cloud'] } } },
+    });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    hints.markSeen('next');
+    expect(JSON.parse(store[key]).hintState.seen).toEqual(['local', 'cloud', 'next']);
+    const disk = JSON.parse(store[key]);
+    disk.savedAt++;
+    disk.hintState = { updatedAt: disk.savedAt, seen: [] };
+    store[key] = JSON.stringify(disk);
+    expect(hints.hasSeen('cloud')).toBe(false);
+  });
+
+  it('does not upload stale settings after a failed startup pull', async () => {
+    const api = makeTableApi({ data: { savedAt: 200, battleSpeed: 'instant' } });
+    mocked.fromMock.mockReturnValue(api);
+    await pushSettings('user-1', { savedAt: 100, battleSpeed: 'normal' });
+    expect(api.upsert).not.toHaveBeenCalled();
+    expect(JSON.parse(store.emblem_rogue_settings)).toMatchObject({
+      savedAt: 200,
+      battleSpeed: 'instant',
+    });
+  });
+
   it('does not delete local run slot when cloud slot is missing', async () => {
     const key = getRunKey(1);
     const local = { marker: 'local', savedAt: 200 };
@@ -106,6 +194,32 @@ describe('CloudSync run merge guard', () => {
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
     expect(JSON.parse(store[key])).toEqual(cloud);
+  });
+
+  it('does not apply remote meta if the corresponding run write fails', async () => {
+    const runKey = getRunKey(1),
+      metaKey = getMetaKey(1);
+    const local = { savedAt: 100, gold: 9 },
+      cloud = { savedAt: 200, gold: 90 };
+    const meta = { savedAt: 100, totalValor: 5 };
+    store[runKey] = JSON.stringify(local);
+    store[metaKey] = JSON.stringify(meta);
+    mockCloudBootstrap({
+      runData: { 1: cloud },
+      metaData: { 1: { savedAt: 200, totalValor: 50 } },
+    });
+    const implementation = localStorageMock.setItem.getMockImplementation();
+    localStorageMock.setItem.mockImplementation((key, value) => {
+      if (key === runKey) throw new Error('quota');
+      implementation(key, value);
+    });
+    try {
+      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+      expect(JSON.parse(store[runKey])).toEqual(local);
+      expect(JSON.parse(store[metaKey])).toEqual(meta);
+    } finally {
+      localStorageMock.setItem.mockImplementation(implementation);
+    }
   });
 
   it('keeps local run slot when local timestamp is valid and cloud timestamp is missing', async () => {
@@ -179,6 +293,20 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[key])).toEqual(cloud);
   });
 
+  it('keeps the local run and progression together when the cloud progression fetch fails', async () => {
+    const local = { savedAt: 100, gold: 2 },
+      meta = { savedAt: 100, totalValor: 3 };
+    store[getRunKey(1)] = JSON.stringify(local);
+    store[getMetaKey(1)] = JSON.stringify(meta);
+    mocked.fromMock.mockImplementation((table) =>
+      table === 'meta_progression'
+        ? makeTableApi({ selectError: new Error('offline') })
+        : makeTableApi({ data: table === 'run_saves' ? { 1: { savedAt: 200, gold: 9 } } : null }),
+    );
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store[getRunKey(1)])).toEqual(local);
+    expect(JSON.parse(store[getMetaKey(1)])).toEqual(meta);
+  });
   it('heals malformed local run slot from cloud data', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };

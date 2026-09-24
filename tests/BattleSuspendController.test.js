@@ -66,7 +66,7 @@ function makeScene(overrides = {}) {
     _latePressureWarningShown: true,
     _bossName: 'Varga',
     reseedBattleRng: vi.fn(),
-    _persistBattleRunState: vi.fn(),
+    _persistBattleRunState: vi.fn(() => ({ ok: true })),
     addUnitGraphic: vi.fn(),
     dimUnit: vi.fn(),
     _addConditionIcon: vi.fn(),
@@ -254,7 +254,7 @@ describe('applyUnits (resume restore)', () => {
         latePressureWarningShown: true,
       }),
     );
-    expect(scene.nonDeployedUnits).toEqual([{ name: 'Benched' }]);
+    expect(scene.nonDeployedUnits).toEqual([expect.objectContaining({ name: 'Benched' })]);
     expect(scene.ballistas).toEqual([{ col: 1, row: 1 }]);
     expect(scene._zombieTombstones).toHaveLength(1);
     expect(scene.goldEarned).toBe(300);
@@ -371,6 +371,39 @@ describe('finalizeResume', () => {
     expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
   });
 
+  it('resumes an all-sleeping turn-start popup checkpoint directly into the enemy phase', () => {
+    const scene = makeScene();
+    scene.playerUnits = [
+      {
+        name: 'Sleeper',
+        currentHP: 20,
+        hasActed: false,
+        _conditions: [{ id: 'sleep', turnsRemaining: 2 }],
+      },
+    ];
+    new BattleSuspendController(scene).finalizeResume(makeCheckpoint());
+    expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
+    expect(scene.reseedBattleRng).toHaveBeenCalledExactlyOnceWith(4242);
+  });
+
+  it.each([
+    true,
+    [],
+    { kind: 'unknown', unitName: 'A' },
+    { kind: 'finish', unitName: {} },
+    { kind: 'combat', unitName: 'A', gambitTriggered: 'yes' },
+    { kind: 'finish', unitName: 'A', skipCanto: 1 },
+  ])('rejects malformed pending continuation %j', (value) => {
+    const scene = makeScene();
+    scene.playerUnits = [{ name: 'A', currentHP: 20, hasActed: false }];
+    scene.finishUnitAction = vi.fn();
+    new BattleSuspendController(scene).finalizeResume(
+      makeCheckpoint({ pendingActionCompletion: value }),
+    );
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
   it('hands an exhausted player phase straight to the enemy replay', () => {
     const scene = makeScene();
     scene.playerUnits = [
@@ -380,4 +413,70 @@ describe('finalizeResume', () => {
     new BattleSuspendController(scene).finalizeResume(makeCheckpoint());
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
+});
+
+it('migrates pre-commitment trade saves without spending the remaining action or overriding new flags', () => {
+  const scene = makeScene();
+  const units = [
+    makeUnit({ name: 'Legacy trader', faction: 'player', hasMoved: true, hasActed: false }),
+    makeUnit({ name: 'Unmoved', faction: 'player', hasMoved: false, hasActed: false }),
+    makeUnit({
+      name: 'New explicit',
+      faction: 'player',
+      hasMoved: true,
+      hasActed: false,
+      _movementCommitted: false,
+    }),
+  ];
+  new BattleSuspendController(scene).applyUnits({
+    playerUnits: JSON.parse(JSON.stringify(units)),
+    enemyUnits: [],
+    npcUnits: [],
+  });
+  expect(scene.playerUnits.map((u) => u._movementCommitted)).toEqual([true, false, false]);
+  expect(scene.playerUnits.every((u) => !u.hasActed)).toBe(true);
+  expect(serializeSuspendUnit(scene.playerUnits[0])._movementCommitted).toBe(true);
+});
+
+describe('enemy action presentation checkpoints', () => {
+  it('captures only a completed enemy boundary and resumes the remaining phase directly', () => {
+    const scene = makeScene({ enemyUnits: [makeUnit({ faction: 'enemy', hasActed: true })] });
+    scene.turnManager.currentPhase = 'enemy';
+    const controller = new BattleSuspendController(scene);
+    expect(controller.captureCheckpoint()).toBe(false);
+    scene._enemyActionCheckpoint = true;
+    expect(controller.captureCheckpoint()).toBe(true);
+    const checkpoint = JSON.parse(JSON.stringify(scene.runManager.battleInProgress.checkpoint));
+    expect(checkpoint.phase).toBe('enemy');
+    expect(checkpoint.enemyUnits[0].hasActed).toBe(true);
+    scene.startEnemyPhase = vi.fn();
+    controller.finalizeResume(checkpoint);
+    expect(scene.turnManager.currentPhase).toBe('enemy');
+    expect(scene.battleState).toBe('ENEMY_PHASE');
+    expect(scene.startEnemyPhase).toHaveBeenCalledWith({ resume: true });
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+  });
+});
+
+it('does not serialize live target references from an AI decision', () => {
+  const target = makeUnit();
+  target.graphic = { parent: target, destroy() {} };
+  const enemy = makeUnit({ faction: 'enemy', _lastAiDecision: { target } });
+  expect(() => structuredClone(serializeSuspendUnit(enemy))).not.toThrow();
+  expect(serializeSuspendUnit(enemy)._lastAiDecision).toBeUndefined();
+});
+
+it('preserves the stable seed base across successive resume checkpoints', () => {
+  const uninterrupted = makeScene();
+  const live = new BattleSuspendController(uninterrupted);
+  live.captureCheckpoint();
+  const first = JSON.parse(JSON.stringify(uninterrupted.runManager.battleInProgress.checkpoint));
+  live.captureCheckpoint();
+  const expected = uninterrupted.runManager.battleInProgress.checkpoint.rngSeed;
+  const resumed = makeScene({ visionBaseSeed: first.rngSeed });
+  resumed.runManager.battleInProgress.checkpoint = first;
+  const restored = new BattleSuspendController(resumed);
+  restored.finalizeResume(first);
+  restored.captureCheckpoint();
+  expect(resumed.runManager.battleInProgress.checkpoint.rngSeed).toBe(expected);
 });

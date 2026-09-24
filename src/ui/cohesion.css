@@ -1,0 +1,458 @@
+:is(.mu-screen, .mr-sheet, .mp-panel, .mobile-battle-hud) button {
+  box-shadow: var(--re-bevel);
+}
+:is(.mu-screen, .mr-sheet, .mp-panel, .mobile-battle-hud) button:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -3px;
+}
+:is(.mu-screen, .mr-sheet, .mp-panel) :is(h1, h2, h3) {
+  color: var(--re-text);
+}
+.mu-header,
+.mr-sheet header,
+.mp-panel h2,
+.mb-phase,
+.mb-forecast h2 {
+  border-bottom: 1px solid var(--re-line-soft);
+}
+.mu-screen .mu-buy,
+.mu-screen .mh-begin,
+.mobile-battle-hud .mb-primary,
+.mb-forecast .mb-primary,
+.mp-actions .mp-primary {
+  background: var(--re-action);
+  color: var(--re-action-ink);
+  border: 1px solid var(--re-accent-text);
+  font-weight: 700;
+}
+.mu-screen .mu-buy:not(:disabled):active,
+.mu-screen .mh-begin:not(:disabled):active,
+.mobile-battle-hud .mb-primary:not(:disabled):active,
+.mb-forecast .mb-primary:not(:disabled):active,
+.mp-actions .mp-primary:active {
+  background: var(--re-accent-text);
+  color: var(--re-action-ink);
+}
+@media (hover: hover) {
+  .mu-screen .mu-buy:not(:disabled):hover,
+  .mu-screen .mh-begin:not(:disabled):hover,
+  .mobile-battle-hud .mb-primary:not(:disabled):hover,
+  .mb-forecast .mb-primary:not(:disabled):hover,
+  .mp-actions .mp-primary:hover {
+    background: var(--re-accent-text);
+    color: var(--re-action-ink);
+  }
+}
+.mobile-battle-hud {
+  border-left: 1px solid var(--re-line-soft);
+}
+.mu-detail,
+.mr-card,
+.mr-stats,
+.mp-panel,
+.mb-forecast {
+  box-shadow: var(--re-bevel);
+}
+.mr-stats::before,
+.mr-stats::after {
+  display: none;
+}
+:is(.mr-sheet, .mu-screen) button[aria-pressed='true'] {
+  background: var(--re-select);
+}
+.re-live-menu {
+  z-index: var(--re-z);
+}
+.re-menu-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.re-live-menu .re-header h2 {
+  font-size: 11px;
+}
+.re-live-menu .re-header .re-search {
+  margin-left: auto;
+  width: min(35%, 300px);
+}
+.re-live-menu .re-header input {
+  font-size: 16px;
+}
+.re-reference-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.re-reference-detail p {
+  margin: 0 0 10px;
+}
+.re-setting {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.re-setting > span {
+  margin-right: auto;
+}
+.re-setting output {
+  min-width: 44px;
+  text-align: center;
+}
+.re-compact-menu {
+  max-width: 600px;
+  max-height: 410px;
+  margin: auto;
+  border: 1px solid var(--re-line);
+}
+.re-dialogue {
+  z-index: var(--re-z);
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  background: var(--re-scrim);
+}
+.re-dialogue .re-panel {
+  width: min(760px, 100%);
+  margin-inline: auto;
+  max-height: 100%;
+}
+.re-dialogue-copy {
+  display: flex;
+  gap: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.re-dialogue img {
+  width: 88px;
+  height: 104px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex: none;
+}
+.re-dialogue p {
+  margin: 8px 0;
+  font: 16px/1.5 var(--re-body);
+  white-space: pre-wrap;
+}
+.re-dialogue h2 {
+  font: 11px/1.6 var(--re-pixel);
+  color: var(--re-text);
+  margin: 0;
+}
+.re-dialogue footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.re-filter-tabs .re-btn {
+  font: 12px/1.4 var(--re-body);
+  min-height: 44px;
+}
+@media (min-width: 1000px) {
+  .re-live-menu {
+    padding-inline: max(24px, calc((100vw - 1100px) / 2));
+  }
+}
+.re-node-map {
+  z-index: var(--re-z);
+}
+.re-node-map[hidden] {
+  display: none;
+}
+.re-node-map .re-header {
+  min-height: 32px;
+}
+.re-node-map .re-header h2 {
+  font-size: 10px;
+}
+.re-node-map .re-header > span {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.re-node-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+}
+.re-node-scroll {
+  overflow: auto;
+  min-height: 0;
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-sunken);
+  overscroll-behavior: contain;
+}
+.re-node-graph {
+  position: relative;
+  min-width: 360px;
+}
+.re-node-graph svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.re-node-graph line {
+  stroke: var(--re-line-strong);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+.re-node-graph .route-next {
+  stroke: var(--re-accent);
+  opacity: 1;
+}
+.re-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: var(--re-panel);
+  padding: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.re-node-art {
+  display: block;
+  width: 46px;
+  height: 46px;
+  image-rendering: pixelated;
+  background-image: url('/assets/sprites/nodes/weathered-nodes.png');
+  background-repeat: no-repeat;
+  margin: auto;
+}
+.re-node.is-completed {
+  opacity: 0.65;
+}
+.re-node.is-completed::after {
+  content: '✓';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--re-panel);
+  color: var(--re-text);
+}
+.re-node.is-available {
+  border-color: var(--re-line-strong);
+}
+.re-node[aria-pressed='true'],
+.re-node:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: 2px;
+}
+.re-node-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.re-node-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.re-node-actions .re-btn {
+  padding-inline: 6px;
+}
+.re-node-detail {
+  flex: 1;
+}
+.re-node-detail h3 {
+  font: 11px/1.5 var(--re-pixel);
+  margin: 0 0 8px;
+}
+.re-node-detail p {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+.re-node-state {
+  color: var(--re-muted);
+}
+.re-node-party {
+  max-height: 108px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.re-node-unit {
+  display: flex;
+  text-align: left;
+  padding: 4px;
+  gap: 8px;
+  width: 100%;
+}
+.re-node-unit img {
+  width: 32px;
+  height: 38px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.re-node-unit > span {
+  flex: 1;
+}
+.re-node-unit strong,
+.re-node-unit small {
+  display: block;
+  font-size: 11px;
+}
+.re-node-unit .re-health {
+  margin: 3px 0 0;
+}
+@media (max-width: 700px) {
+  .re-node-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+}
+:root {
+  --re-tier-1: var(--re-good);
+  --re-tier-2: var(--re-info);
+  --re-tier-3: var(--re-warn);
+  --re-tier-4: var(--re-bad);
+}
+.re-live-menu .re-footer .re-btn--primary {
+  margin-left: auto;
+  min-width: 130px;
+}
+/* Development framing matches the landscape device instead of the desktop tab. */
+html.mobile-preview .re-screen {
+  width: min(844px, 100vw);
+  height: min(390px, 100dvh);
+  margin: auto;
+}
+
+/* Covered rails should not remain in the tab or accessibility order. */
+#game-wrapper:has(> .re-screen:not([hidden])) > .mobile-panel,
+#game-wrapper:has(> .mu-screen) > .mobile-panel {
+  visibility: hidden;
+}
+
+.re-modal-shield {
+  position: fixed;
+  inset: 0;
+  background: var(--re-scrim);
+}
+#game-wrapper:has(
+    .mr-sheet,
+    .mp-backdrop:not([hidden]),
+    .mb-forecast-backdrop:not([hidden]),
+    .re-modal-shield
+  )
+  > .mobile-panel {
+  visibility: hidden;
+}
+.re-reference-detail mark,
+.re-row mark {
+  background: var(--re-accent);
+  color: var(--re-bg);
+}
+
+.mh-onboarding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  font: 12px/1.4 var(--re-body);
+  padding: 4px 8px;
+  background: var(--re-sunken);
+}
+.mh-onboarding button {
+  min-width: 64px;
+  min-height: 44px;
+}
+
+/* Compact route artwork retains a full 44px button. */
+.re-node-graph--horizontal .re-node {
+  width: var(--re-tap);
+  height: var(--re-tap);
+  border-radius: 50%;
+  padding: 4px;
+}
+.re-node-scroll {
+  touch-action: pan-x pan-y;
+}
+@media (max-width: 700px) {
+  .re-node-map .re-node-side {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr) 88px;
+    align-items: center;
+  }
+  .re-node-map .re-node-party {
+    display: none;
+  }
+  .re-node-map .re-node-detail {
+    max-height: 62px;
+  }
+  .re-node-map .re-node-detail h3 {
+    margin: 0;
+  }
+  .re-node-map .re-node-detail p {
+    margin: 2px 0;
+    font: var(--re-t-small);
+  }
+  .re-node-map .re-node-side > .re-btn {
+    padding-inline: 6px;
+  }
+}
+
+/* Future destinations remain inspectable, but the reachable frontier leads. */
+.re-node.is-future:not([aria-pressed='true']):not(:focus-visible) {
+  opacity: 0.45;
+}
+
+.re-choice-picker .re-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.re-choice-picker .re-scroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+.re-choice-picker .re-row {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+/* Portrait rows shared by deployment and post-battle recruitment. */
+.re-party-list {
+  flex: 1;
+}
+.re-party-row {
+  grid-template-columns: 40px minmax(0, 1fr);
+  margin-bottom: 6px;
+}
+.re-party-row .mr-unit-face {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+}
+.re-party-row strong,
+.re-party-row small {
+  grid-column: 2;
+}
+.re-party-row[aria-disabled='true']:not([aria-pressed='true']) {
+  opacity: 0.55;
+}
+.re-party-row[aria-disabled='true'][aria-pressed='true'] {
+  opacity: 1;
+}
+/* Keep covered battle commands out of keyboard and accessibility navigation. */
+#game-wrapper:has(
+    > .re-screen:not([hidden]),
+    > .mu-screen,
+    > .mr-sheet,
+    > .re-modal-shield:not(:has(.re-tutorial-note)),
+    > .mp-backdrop:not([hidden])
+  )
+  > .mobile-battle-hud {
+  visibility: hidden;
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 1,
+    "alphaPixels": 536945,
+    "bounds": {
+      "x": 195,
+      "y": 110,
+      "width": 866,
+      "height": 1086
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mage",
+    "class": "Mage",
+    "variant": 1,
+    "alphaPixels": 599015,
+    "bounds": {
+      "x": 85,
+      "y": 92,
+      "width": 888,
+      "height": 1249
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 22,
+      "y": 14,
+      "width": 21,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "knight",
+    "class": "Knight",
+    "variant": 1,
+    "alphaPixels": 606720,
+    "bounds": {
+      "x": 185,
+      "y": 70,
+      "width": 889,
+      "height": 1121
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 8,
+      "width": 29,
+      "height": 36
+    },
+    "edgeWarning": false
+  }
+]

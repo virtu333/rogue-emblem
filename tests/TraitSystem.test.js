@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rollTraits,
+  migrateCleverTrait,
   rollAndApplyTraits,
   applyTraitCreationMods,
   getTraitNames,
@@ -30,13 +31,27 @@ function findClass(name) {
 }
 
 describe('traits.json data contract', () => {
-  const VALID_CONDITIONS = new Set(['below50', 'above75', 'no_ally_within_2', 'on_forest']);
+  const VALID_CONDITIONS = new Set([
+    'below50',
+    'above75',
+    'no_ally_within_2',
+    'on_forest',
+    'adjacent_ally',
+    'initiating_full_hp_foe',
+    'moved_3_plus_initiating',
+    'initiating_no_adjacent_ally',
+    'defending',
+  ]);
   const VALID_STATS = new Set(['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
   const TOP_FIELDS = new Set([
+    'rarity',
+    'lordName',
+    'staffSelfHeal',
     'id',
     'name',
     'description',
     'creationMods',
+    'eligibleWeaponTypes',
     'combatMods',
     'xpMultiplier',
     'masteryBattlesDelta',
@@ -245,4 +260,37 @@ describe('getTraitNames', () => {
     expect(getTraitNames({ traits: [] }, traits)).toBe('');
     expect(getTraitNames({}, traits)).toBe('');
   });
+});
+
+describe('Clever eligibility and save repair', () => {
+  it('only rolls for magic/staff proficiencies', () => {
+    const clever = traits.filter((t) => t.id === 'clever');
+    for (const type of ['Tome', 'Light', 'Staff'])
+      expect(rollTraits(clever, 1, () => 0, { proficiencies: [{ type }] })).toEqual(['clever']);
+    for (const type of ['Lance', 'Sword', 'Bow', 'Axe'])
+      expect(rollTraits(clever, 1, () => 0, { proficiencies: [{ type }] })).toEqual([]);
+  });
+  it('repairs old saves only once and does not reapply to new rolls', () => {
+    const old = { traits: ['clever'], stats: { DEF: 4, MAG: 3 }, growths: { MAG: 20 } };
+    migrateCleverTrait(old);
+    migrateCleverTrait(old);
+    expect(old.stats).toEqual({ DEF: 5, MAG: 3 });
+    expect(old.growths.MAG).toBe(25);
+    const fresh = { traits: ['clever'], stats: { DEF: 5, MAG: 2 }, growths: { MAG: 20 } };
+    applyTraitCreationMods(
+      fresh,
+      traits.find((t) => t.id === 'clever'),
+    );
+    migrateCleverTrait(fresh);
+    expect(fresh.stats).toEqual({ DEF: 5, MAG: 3 });
+    expect(fresh.growths.MAG).toBe(25);
+  });
+});
+
+it('Brawny requires a physical proficiency but remains eligible for hybrid units', () => {
+  const pool = traits.filter((t) => t.id === 'brawny');
+  expect(rollTraits(pool, 1, () => 0, { proficiencies: [{ type: 'Tome' }] })).toEqual([]);
+  expect(
+    rollTraits(pool, 1, () => 0, { proficiencies: [{ type: 'Tome' }, { type: 'Sword' }] }),
+  ).toEqual(['brawny']);
 });

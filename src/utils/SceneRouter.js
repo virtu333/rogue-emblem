@@ -39,7 +39,16 @@ export { TRANSITION_REASONS, TRANSITION_RESULTS };
  * @param {{ reason?: string }} options
  * @returns {Promise<boolean>}
  */
-export async function transitionToScene(scene, key, data = undefined, { reason } = {}) {
+export async function transitionToScene(
+  scene,
+  key,
+  data = undefined,
+  { reason, retryBlocked = false } = {},
+) {
+  if (retryBlocked) {
+    const result = await transitionToSceneWithBlockedRetry(scene, key, data, { reason });
+    return result.status === TRANSITION_RESULTS.STARTED;
+  }
   return startSceneLazy(scene, key, data, { reason });
 }
 

@@ -290,11 +290,11 @@ describe('VisionRewindController', () => {
       expect(scene._standaloneVisionState.visionChargesRemaining).toBe(1);
     });
 
-    it('run battles are unaffected: charges still come from the runManager', () => {
+    it('closed run battles never debit a stale snapshot', () => {
       runManager.visionChargesRemaining = 2;
       scene.visionSnapshot = { rngSeed: 7 };
-      expect(controller.executeRewind()).toBe(true);
-      expect(runManager.visionChargesRemaining).toBe(1);
+      expect(controller.executeRewind()).toBe(false);
+      expect(runManager.visionChargesRemaining).toBe(2);
       expect(scene._standaloneVisionState).toBeUndefined();
     });
   });
@@ -505,17 +505,33 @@ describe('VisionRewindController', () => {
       expect(controller.canUseNow()).toBe(false);
     });
 
+    it.each(['UNIT_SELECTED', 'UNIT_ACTION_MENU'])(
+      'returns true for pre-move state %s',
+      (state) => {
+        scene.battleState = state;
+        scene._inputController = { isSelectionMenu: () => true };
+        expect(controller.canUseNow()).toBe(true);
+      },
+    );
+
     it.each([
-      'UNIT_SELECTED',
-      'UNIT_ACTION_MENU',
       'SHOWING_FORECAST',
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
       'TRADING',
       'CANTO_MOVING',
-    ])('returns true for allowed state %s', (state) => {
+    ])('waits for the action or nested menu to finish in %s', (state) => {
       scene.battleState = state;
-      expect(controller.canUseNow()).toBe(true);
+      expect(controller.canUseNow()).toBe(false);
+    });
+
+    it('does not stack timeline over post-move action menus or pending popups', () => {
+      scene.battleState = 'UNIT_ACTION_MENU';
+      scene._inputController = { isSelectionMenu: () => false };
+      expect(controller.canUseNow()).toBe(false);
+      scene.battleState = 'PLAYER_IDLE';
+      scene._pendingLevelUpPopups = [{}];
+      expect(controller.canUseNow()).toBe(false);
     });
   });
 
@@ -750,10 +766,23 @@ describe('VisionRewindController', () => {
 
   describe('executeRewind', () => {
     beforeEach(() => {
+      runManager.status = 'active';
+      runManager.battleInProgress = { startedAt: 1, rewindPolicy: 'legacy-v1' };
+      runManager.toJSON = () => ({
+        status: 'active',
+        battleInProgress: runManager.battleInProgress,
+        visionChargesRemaining: runManager.visionChargesRemaining,
+        visionCount: runManager.visionCount,
+      });
+      scene.runManager = runManager;
+      scene.grid.mapLayout = [[0]];
+      scene._persistBattleRunState = vi.fn(() => ({ ok: true }));
+
       scene.playerUnits = [{ name: 'A', stats: {}, currentHP: 10, skills: [], col: 0, row: 0 }];
       scene.enemyUnits = [];
       scene.npcUnits = [];
       scene.visionSnapshot = {
+        runBattleState: { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 },
         playerUnits: [{ name: 'A', stats: {}, currentHP: 20, skills: [], col: 0, row: 0 }],
         enemyUnits: [],
         npcUnits: [],
@@ -767,6 +796,12 @@ describe('VisionRewindController', () => {
       };
       runManager.visionChargesRemaining = 2;
       runManager.visionCount = 0;
+      for (const unit of [...scene.playerUnits, ...scene.visionSnapshot.playerUnits])
+        Object.assign(unit, {
+          stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 0, LCK: 2, MOV: 5 },
+          inventory: [],
+          consumables: [],
+        });
     });
 
     it('decrements charges and increments count', () => {
@@ -800,10 +835,49 @@ describe('VisionRewindController', () => {
       expect(controller.executeRewind()).toBe(false);
     });
 
-    it('routes through scene.applyVisionSnapshot', () => {
-      scene.applyVisionSnapshot = vi.fn(() => true);
+    it('writes the entire target and debit before restoring, without recapture', () => {
+      const restore = vi.spyOn(controller, '_applySnapshot');
       controller.executeRewind();
-      expect(scene.applyVisionSnapshot).toHaveBeenCalledTimes(1);
+      expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+      expect(scene._persistBattleRunState.mock.calls[0][0].visionChargesRemaining).toBe(1);
+      expect(scene._persistBattleRunState.mock.invocationCallOrder[0]).toBeLessThan(
+        restore.mock.invocationCallOrder[0],
+      );
+      expect(scene.applyVisionSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('a repeated confirmation intent cannot spend a second charge', () => {
+      const intent = controller.createRewindIntent(scene.visionSnapshot);
+      expect(controller.executeRewind(intent.target, null, intent)).toBe(true);
+      expect(controller.executeRewind(intent.target, null, intent)).toBe(false);
+      expect(runManager.visionChargesRemaining).toBe(1);
+      expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancel after fatal rewind save failure returns to the fatal prompt', () => {
+      scene._persistBattleRunState
+        .mockReturnValueOnce({ ok: true })
+        .mockReturnValue({ ok: false, reason: 'quota' });
+      controller.showLordDeathPrompt();
+      controller.confirmDialog();
+      controller.cancelDialog();
+      expect(scene.visionDialog).toBeTruthy();
+      expect(controller._rewindFatalOrigin).toBe(true);
+      expect(runManager.visionChargesRemaining).toBe(2);
+      controller.cancelDialog();
+      expect(scene.onDefeat).toHaveBeenCalledOnce();
+    });
+
+    it('failed write leaves charges, units and RNG unchanged, retry debits once', () => {
+      scene._persistBattleRunState.mockReturnValueOnce({ ok: false, reason: 'quota' });
+      const units = scene.playerUnits;
+      expect(controller.executeRewind()).toBe(false);
+      expect(runManager.visionChargesRemaining).toBe(2);
+      expect(scene.playerUnits).toBe(units);
+      expect(scene.reseedBattleRng).not.toHaveBeenCalled();
+      controller.confirmDialog();
+      expect(runManager.visionChargesRemaining).toBe(1);
+      expect(runManager.visionCount).toBe(1);
     });
   });
 
@@ -1044,7 +1118,7 @@ describe('VisionRewindController', () => {
       scene.visionHudText = makeDisplayObject({ text: '' });
       runManager.visionChargesRemaining = 3;
       controller.updateHud();
-      expect(scene.visionHudText.text).toBe('Eye: 3 (rewind current turn)');
+      expect(scene.visionHudText.text).toBe('Eye: 3 left this run');
     });
 
     it('sets cyan color when charges > 0', () => {

@@ -1,0 +1,110 @@
+import { liftPlayerPalette, usesPlayerPaletteLift } from './SpriteReadability.js';
+import { detectMobileRuntime } from '../utils/runtimeFlags.js';
+
+// Development-only A/B switch; production always uses the readability pass.
+export function battleContrastEnabled() {
+  const query = new URLSearchParams(globalThis.location?.search || '');
+  if (import.meta.env.DEV && query.get('battleContrast') === 'original') return false;
+  return detectMobileRuntime() || (import.meta.env.DEV && query.get('battleLab') === '1');
+}
+
+// Cache a one-source-pixel contour and a targeted player palette lift. Texture dimensions,
+// anchors, and display sizing are preserved; no blur or extra render objects.
+export function contrastSpriteKey(scene, sourceKey) {
+  if (!battleContrastEnabled()) return sourceKey;
+  const key = `contrast-${sourceKey}`;
+  if (scene.textures.exists(key)) return key;
+  let source = scene.textures.get(sourceKey)?.getSourceImage();
+  if (!source || typeof document === 'undefined') return sourceKey;
+  // Slightly reduce the tallest silhouettes inside the same tile-centered
+  // texture. Keep the foot baseline fixed so HP bars and hit coordinates agree.
+  // Rebuilt mage/Astrid sizes are already normalized by spritePlacement.
+  const compact =
+    !/^rebuilt-(fighter|enemy_mage|lord_astrid(?:_promoted)?)$/.test(sourceKey) &&
+    /^(rebuilt-)?(lord_astrid|astrid|myrmidon|enemy_myrmidon|enemy_mage|fighter|enemy_fighter)$/.test(
+      sourceKey,
+    );
+  if (compact) {
+    const fitted = document.createElement('canvas');
+    fitted.width = source.width;
+    fitted.height = source.height;
+    const paint = fitted.getContext('2d');
+    paint.imageSmoothingEnabled = false;
+    const factor = sourceKey.includes('astrid') ? 0.9 : 0.92;
+    const width = Math.round(source.width * factor),
+      height = Math.round(source.height * factor);
+    const foot = sourceKey.startsWith('rebuilt-') ? 44 : source.height - 8;
+    paint.drawImage(
+      source,
+      Math.round((source.width - width) / 2),
+      Math.round(foot * (1 - factor)),
+      width,
+      height,
+    );
+    source = fitted;
+  }
+  const lift =
+    usesPlayerPaletteLift(sourceKey) &&
+    !(
+      import.meta.env.DEV &&
+      new URLSearchParams(globalThis.location?.search || '').get('spritePalette') === 'original'
+    );
+  if (lift) {
+    const colored = document.createElement('canvas');
+    colored.width = source.width;
+    colored.height = source.height;
+    const paint = colored.getContext('2d');
+    paint.drawImage(source, 0, 0);
+    const pixels = paint.getImageData(0, 0, colored.width, colored.height);
+    liftPlayerPalette(pixels.data);
+    paint.putImageData(pixels, 0, 0);
+    source = colored;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  for (const [x, y] of [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ]) {
+    ctx.drawImage(source, x, y);
+  }
+  ctx.globalCompositeOperation = 'source-in';
+  const blueEdge =
+    lift &&
+    import.meta.env.DEV &&
+    new URLSearchParams(globalThis.location?.search || '').get('spriteEdge') === 'blue';
+  ctx.fillStyle = blueEdge ? 'rgba(80, 155, 235, 0.9)' : 'rgba(24, 34, 35, 0.82)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(source, 0, 0);
+  scene.textures.addCanvas(key, canvas);
+  return key;
+}
+
+// Reduce grass contrast around its own average color, preserving the biome's hue.
+// Applied only to Plain: trees, cliffs, banks, forts and hazards retain their detail.
+export function softenGrassTexture(ctx, size) {
+  const pixels = ctx.getImageData(0, 0, size, size).data;
+  let red = 0,
+    green = 0,
+    blue = 0,
+    weight = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const alpha = pixels[i + 3] / 255;
+    red += pixels[i] * alpha;
+    green += pixels[i + 1] * alpha;
+    blue += pixels[i + 2] * alpha;
+    weight += alpha;
+  }
+  if (!weight) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = `rgba(${Math.round(red / weight)}, ${Math.round(green / weight)}, ${Math.round(blue / weight)}, 0.30)`;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+}

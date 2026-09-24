@@ -168,7 +168,7 @@ describe('executeRelocate', () => {
     await BattleScene.prototype.executeRelocate.call(ctx, healer, ally, { col: 5, row: 4 });
 
     expect(staff._usesSpent).toBe(1);
-    expect(healer.weapon).toBe(staff);
+    expect(healer.weapon).toBe(sword);
   });
 
   it('still calls finishUnitAction if awardScaledXP rejects, then routes to error recovery', async () => {

@@ -25,7 +25,6 @@ describe('Tier 2 weapon arts', () => {
       sword_poison_strike: { afterCombatDamage: [{ amount: 5, nonLethal: true }] },
       legend_phantom_rush: {
         postCombatMove: [{ mode: 'retreat', distance: 1 }],
-        setHp: [{ target: 'attacker', value: 5 }],
       },
       legend_piercing_charge: {
         pierceThrough: [{ target: 'defender', maxTargets: 1 }],

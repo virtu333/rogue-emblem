@@ -120,7 +120,7 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulne
   scene.cancelTouchInspectHold = vi.fn();
   scene._hideMenuTooltip = vi.fn();
   scene._restoreBattleRng = vi.fn();
-  scene._isReducedEffects = vi.fn(() => true);
+  scene._reduceMotion = vi.fn(() => true);
   scene._onDangerClick = vi.fn();
   scene._onRosterClick = vi.fn();
   scene.forceEndTurn = vi.fn();
@@ -145,7 +145,8 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
 
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
-      expect(recruit.inventory).toHaveLength(2);
+      expect(recruit.inventory).toHaveLength(3);
+      expect(recruit.inventory.map((w) => w.name)).toContain('Hand Axe');
       expect(recruit.inventory.map((w) => w.name)).toContain('Steel Axe');
       expect(recruit.weapon.name).toBe('Steel Axe');
     } finally {
@@ -162,7 +163,8 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
 
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
-      expect(recruit.inventory).toHaveLength(1);
+      expect(recruit.inventory).toHaveLength(2);
+      expect(recruit.inventory.map((w) => w.name)).toContain('Hand Axe');
       expect(recruit.weapon.name).toBe(recruit.inventory[0].name);
       expect(recruit.weapon.name).not.toMatch(/Steel|Killer|Silver/);
     } finally {

@@ -1,3 +1,6 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
+import { TutorialController } from './TutorialController.js';
+import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
 // Cross-cutting seams (finishUnitAction, awardScaledXP, showActionMenu,
@@ -21,12 +24,27 @@ import {
   findRelocateTargets,
   getRelocationDestinations,
 } from '../engine/StaffRelocation.js';
-import { showMinorHint } from './HintDisplay.js';
+import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 
 export class HealController {
   constructor(scene) {
     this.scene = scene;
+    this.previousCombatWeapons = new WeakMap();
+  }
+
+  rememberCombatWeapon(unit) {
+    if (unit.weapon && unit.weapon.type !== 'Staff' && canEquip(unit, unit.weapon))
+      this.previousCombatWeapons.set(unit, unit.weapon);
+  }
+
+  restoreCombatWeapon(unit) {
+    if (!unit) return;
+    const prior = this.previousCombatWeapons.get(unit);
+    this.previousCombatWeapons.delete(unit);
+    const weapons = Array.isArray(unit.inventory) ? getCombatWeapons(unit) : [];
+    const weapon = weapons.includes(prior) ? prior : weapons[0];
+    if (weapon) equipWeapon(unit, weapon);
   }
 
   getUsableStaves(unit) {
@@ -77,6 +95,15 @@ export class HealController {
     const scene = this.scene;
     // Auto-equip staff
     const staff = chosenStaff || scene.getActiveHealStaff(unit);
+    if (staff && scene.battleParams?.tutorialMode && scene._tutorialStrictGateReleased) {
+      const tutorial = (scene._tutorialController ||= new TutorialController(scene));
+      if (!tutorial.taught.has('battle_staff_scope'))
+        return tutorial.showResourceLesson([{ item: staff }]).then((shown) => {
+          if (shown && !scene._sceneShutdownCleanedUp && scene.sys?.isActive?.() !== false)
+            this.startHealTargetSelection(unit, targets, chosenStaff);
+        });
+    }
+    this.rememberCombatWeapon(unit);
     if (staff) equipWeapon(unit, staff);
     if (!staff) {
       scene.showActionMenu(unit);
@@ -85,9 +112,10 @@ export class HealController {
 
     // First-heal tutorial hint (one-time per save slot)
     const hints = scene.registry.get('hints');
-    if (hints?.shouldShow('battle_heal_uses')) {
-      showMinorHint(
+    if (hints && !hints.hasSeen('battle_heal_uses')) {
+      showContextualHint(
         scene,
+        'battle_heal_uses',
         'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.',
       );
     }
@@ -167,9 +195,11 @@ export class HealController {
         async () => {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
+          this.rememberCombatWeapon(unit);
           equipWeapon(unit, staff);
           const healTargets = scene.findHealTargets(unit, staff);
           if (healTargets.length === 0) {
+            this.restoreCombatWeapon(unit);
             const message = isRelocateStaff(staff)
               ? 'No valid allies in range for that staff.'
               : 'No heal targets in range for that staff.';
@@ -184,9 +214,12 @@ export class HealController {
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       );
 
+      text._menuItem = staff;
+      text._menuDescription = `${staff.special || staff.description || 'Healing staff'} · Uses refill each battle`;
       scene.actionMenu.push(text);
     });
     scene._pinToScreen(scene.actionMenu);
+    scene._registerActionMenu();
   }
 
   handleHealTargetClick(gp) {
@@ -247,6 +280,7 @@ export class HealController {
       const staff = healer.weapon; // Should already be equipped
 
       await this.animateRelocate(ally, dest);
+      observeHistoryAction(scene, 'relocated', healer, ally, healer.weapon?.name);
 
       // A long-range landing can change fog visibility.
       if (scene.grid.fogEnabled) {
@@ -256,10 +290,7 @@ export class HealController {
 
       // Spend a use and check depletion (same pattern as executeHeal)
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -314,6 +345,7 @@ export class HealController {
         // Restore-style staff: cleanse instead of heal. A slept ally cured
         // during player phase can act this turn (selection reads conditions live).
         clearAllConditions(target);
+        observeHistoryAction(scene, 'cured', healer, target, staff.name);
         scene._removeAllConditionIcons(target);
         // Un-dim only sleepers that can still act — keep the acted-grey on
         // allies that already moved this phase (same pattern as Swap).
@@ -321,10 +353,7 @@ export class HealController {
         await this.animateCure(target);
 
         spendStaffUse(staff);
-        if (getStaffRemainingUses(staff, healer) <= 0) {
-          const combatWpn = getCombatWeapons(healer)[0];
-          if (combatWpn) equipWeapon(healer, combatWpn);
-        }
+        this.restoreCombatWeapon(healer);
 
         try {
           await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -342,17 +371,27 @@ export class HealController {
 
       // Apply heal
       target.currentHP = result.targetHPAfter;
+      observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
+        amount: result.healAmount,
+      });
       scene.updateHPBar(target);
+      const selfHeal = applyLegendaryStaffHeal(
+        healer,
+        target,
+        result.healAmount,
+        scene.gameData?.traits,
+        scene.turnManager?.turnNumber,
+        scene.turnManager?.currentPhase,
+      );
+      if (selfHeal) scene.updateHPBar(healer);
 
       // Animate
       await scene.animateHeal(target, result.healAmount);
+      if (selfHeal) await scene.animateHeal(healer, selfHeal);
 
       // Spend a use and check depletion
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -379,16 +418,26 @@ export class HealController {
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);
         target.currentHP = result.targetHPAfter;
+        observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
+          amount: result.healAmount,
+        });
         scene.updateHPBar(target);
+        const selfHeal = applyLegendaryStaffHeal(
+          healer,
+          target,
+          result.healAmount,
+          scene.gameData?.traits,
+          scene.turnManager?.turnNumber,
+          scene.turnManager?.currentPhase,
+        );
+        if (selfHeal) scene.updateHPBar(healer);
         await scene.animateHeal(target, result.healAmount);
+        if (selfHeal) await scene.animateHeal(healer, selfHeal);
       }
 
       // Single use spent for all targets
       spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
+      this.restoreCombatWeapon(healer);
 
       try {
         await scene.awardScaledXP(healer, XP_BASE_HEAL);
@@ -402,7 +451,7 @@ export class HealController {
 
   async animateCure(target) {
     const scene = this.scene;
-    const reduced = scene._isReducedEffects();
+    const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
@@ -421,9 +470,9 @@ export class HealController {
 
     scene.tweens.add({
       targets: cureText,
-      y: pos.y - 36,
+      y: reduced ? pos.y - 16 : pos.y - 36,
       alpha: 0,
-      duration: reduced ? 260 : 600,
+      duration: 600,
       onComplete: () => cureText.destroy(),
     });
 
@@ -434,7 +483,7 @@ export class HealController {
 
   async animateHeal(target, healAmount) {
     const scene = this.scene;
-    const reduced = scene._isReducedEffects();
+    const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     // Flash target green
@@ -454,9 +503,9 @@ export class HealController {
 
     scene.tweens.add({
       targets: healText,
-      y: pos.y - 36,
+      y: reduced ? pos.y - 16 : pos.y - 36,
       alpha: 0,
-      duration: reduced ? 260 : 600,
+      duration: 600,
       onComplete: () => healText.destroy(),
     });
 

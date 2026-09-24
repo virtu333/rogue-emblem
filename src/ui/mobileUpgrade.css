@@ -1,0 +1,378 @@
+.mu-screen[hidden] {
+  display: none;
+}
+.mu-screen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-depth-upgrade);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  background: var(--re-bg);
+  color: var(--re-text);
+  font: var(--re-t-body);
+}
+.mu-screen * {
+  box-sizing: border-box;
+}
+.mu-screen button,
+.mu-launch {
+  min-height: var(--re-tap);
+  border: 1px solid var(--re-line);
+  border-radius: 0;
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 10px;
+  box-shadow: var(--re-bevel);
+  touch-action: manipulation;
+}
+.mu-screen button:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -3px;
+}
+.mu-screen button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mu-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--re-line-soft);
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+.mu-header h1 {
+  font:
+    11px/1.5 'Press Start 2P',
+    monospace;
+  color: var(--re-text);
+  margin: 0 auto 0 0;
+}
+.mu-currency {
+  font-size: 12px;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
+.mu-currency.active {
+  color: var(--re-accent-text);
+}
+.mu-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.mu-tabs button {
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.mu-screen button[aria-pressed='true'] {
+  border-color: var(--re-focus);
+  background: var(--re-selected);
+}
+.mu-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+.mu-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  min-height: 0;
+  padding: 0 4px 8px 0;
+}
+.mu-group {
+  font:
+    10px/1.5 'Press Start 2P',
+    monospace;
+  color: var(--re-muted);
+  margin: 8px 0;
+}
+.mu-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 6px;
+  min-height: 64px !important;
+  touch-action: pan-y !important;
+}
+.mu-row strong {
+  font-size: 13px;
+}
+.mu-row-state {
+  font-size: 11px;
+  color: var(--re-text);
+}
+.mu-row small {
+  font-size: 11px;
+  text-align: right;
+  color: var(--re-muted);
+}
+.mu-pips {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mu-pips i {
+  width: 10px;
+  height: 7px;
+  background: var(--re-sunken);
+}
+.mu-pips .filled {
+  background: var(--re-info);
+}
+.mu-pips.maxed .filled {
+  background: var(--re-accent);
+}
+.mu-detail h2 {
+  font-size: 18px;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  color: var(--re-accent-text);
+}
+.mu-detail p {
+  margin: 7px 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.mu-help {
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.mu-effects {
+  color: var(--re-info);
+  border-block: 1px solid var(--re-line-soft);
+  padding: 8px 0;
+}
+.mu-requirements {
+  color: var(--re-warn);
+  font-size: 12px;
+}
+.mu-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mu-screen .mu-buy {
+  background: var(--re-accent);
+  border-color: var(--re-accent);
+}
+.mu-refund-info {
+  font-size: 12px;
+}
+.mu-status {
+  font-size: 11px;
+  min-height: 16px;
+  color: var(--re-muted);
+  flex-shrink: 0;
+}
+.mu-launch {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  top: max(10px, env(safe-area-inset-top));
+  z-index: var(--re-depth-launch);
+  font: 14px system-ui;
+}
+.mu-launch[hidden] {
+  display: none;
+}
+.mu-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--re-line);
+  padding: 10px;
+  background: var(--re-panel);
+  overscroll-behavior: contain;
+  overflow: hidden;
+}
+.mu-copy {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+@media (max-width: 680px) {
+  .mu-screen {
+    gap: 5px;
+  }
+  .mu-header {
+    gap: 8px;
+  }
+  .mu-header h1 {
+    font-size: 10px;
+  }
+  .mu-detail {
+    padding: 8px;
+  }
+  .mu-detail h2 {
+    font-size: 16px;
+  }
+  .mu-row {
+    padding: 8px 6px !important;
+  }
+  .mu-row-state {
+    font-size: 10px;
+  }
+  .mu-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+}
+
+/* Keep spending controls visible while long explanatory text scrolls. */
+.mu-actions {
+  flex-shrink: 0;
+}
+
+/* The development preview must use the same landscape frame as the battlefield,
+   rather than letting this fixed overlay grow to the desktop window height. */
+html.mobile-preview .mu-screen {
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(844px, 100vw);
+  height: min(390px, 100dvh);
+}
+
+/* On tall tablet/desktop surfaces, keep a short description and its action
+   together. Short landscape phones retain the stable bottom purchase target. */
+@media (min-height: 520px) {
+  html:not(.mobile-preview) .mu-detail {
+    align-self: start;
+    max-height: 100%;
+  }
+  html:not(.mobile-preview) .mu-copy {
+    flex: 0 1 auto;
+  }
+}
+
+.mh-lord {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 2px 12px;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 6px;
+  min-height: 74px;
+}
+.mh-portrait {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--re-sunken);
+}
+.mh-lord .mh-portrait {
+  grid-row: span 2;
+}
+.mh-lord span {
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.mh-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.mh-identity .mh-portrait {
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+}
+.mh-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.mh-skill span {
+  font-size: 12px;
+}
+.mh-screen .mu-copy button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 6px;
+}
+.mh-screen .mu-tabs button {
+  min-width: 0;
+}
+.mh-screen .mu-tabs {
+  flex-wrap: nowrap;
+}
+
+.re-progression .re-menu-body {
+  overflow-y: auto;
+}
+.re-gain-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 8px 18px;
+}
+.re-gain-grid dd {
+  margin: 0;
+}
+.re-gain {
+  color: var(--re-good);
+}
+.re-promotion-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.re-promotion-options p {
+  white-space: pre-wrap;
+  margin: 6px 0;
+}
+
+.reward-tools {
+  display: flex;
+  gap: 6px;
+}
+.reward-tools button {
+  width: auto;
+  min-width: 64px;
+  min-height: var(--re-tap);
+}
+.mu-screen .reward-card {
+  border-left: 4px solid var(--reward-color);
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+}
+.reward-glyph {
+  width: 24px;
+  height: 24px;
+  color: var(--reward-color);
+  grid-row: span 2;
+}
+.reward-quality {
+  color: var(--reward-color);
+}
+.mu-screen .reward-legend {
+  box-shadow: inset 0 0 0 1px var(--reward-color);
+}
+
+.re-battle-trade .re-menu-body {
+  overflow-y: auto;
+}
+
+.re-progression-footer .re-btn {
+  width: 100%;
+}

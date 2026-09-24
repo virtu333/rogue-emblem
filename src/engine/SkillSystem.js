@@ -233,6 +233,23 @@ export function getSkillCombatMods(
       const trait = traitsData.find((t) => t?.id === traitId);
       const cmods = trait?.combatMods;
       if (!cmods) continue;
+      if (cmods.condition === 'defending' && isInitiating) continue;
+      if (
+        cmods.condition === 'initiating_full_hp_foe' &&
+        (!isInitiating || opponent.currentHP !== opponent.stats.HP)
+      )
+        continue;
+      if (
+        cmods.condition === 'moved_3_plus_initiating' &&
+        (!isInitiating || (unit._movementSpent || 0) < 3)
+      )
+        continue;
+      if (
+        cmods.condition === 'initiating_no_adjacent_ally' &&
+        (!isInitiating ||
+          isAccessoryConditionMet('adjacent_ally', unit, opponent, allies, enemies, terrain))
+      )
+        continue;
       const condMet = isAccessoryConditionMet(
         cmods.condition,
         unit,
@@ -533,7 +550,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     result.heal = result.modifiedDamage;
     result.activated.push({ id: 'flare', name: 'Flare' });
   } else if (selectedOffensiveProcId === 'luna') {
-    result.modifiedDamage = Math.floor(normalDamage * 1.5);
+    result.luna = true;
     result.activated.push({ id: 'luna', name: 'Luna' });
   } else if (selectedOffensiveProcId === 'sol') {
     result.heal = normalDamage;

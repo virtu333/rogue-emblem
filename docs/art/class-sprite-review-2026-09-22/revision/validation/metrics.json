@@ -1,0 +1,82 @@
+[
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 1,
+    "alphaPixels": 110242,
+    "bounds": {
+      "x": 283,
+      "y": 134,
+      "width": 401,
+      "height": 494
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 2,
+    "alphaPixels": 102819,
+    "bounds": {
+      "x": 892,
+      "y": 151,
+      "width": 392,
+      "height": 477
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 3,
+    "alphaPixels": 113787,
+    "bounds": {
+      "x": 1474,
+      "y": 143,
+      "width": 416,
+      "height": 485
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "entity",
+    "class": "Entity",
+    "variant": 1,
+    "alphaPixels": 837652,
+    "bounds": {
+      "x": 20,
+      "y": 101,
+      "width": 1215,
+      "height": 1097
+    },
+    "placement": {
+      "canvas": 128,
+      "x": 17,
+      "y": 21,
+      "width": 94,
+      "height": 85
+    },
+    "edgeWarning": false
+  }
+]

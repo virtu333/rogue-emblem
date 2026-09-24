@@ -255,6 +255,9 @@ describe('InputController', () => {
     expect(scene.grid.showMovementRange).toHaveBeenCalledTimes(1);
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
 
+    // Showing a new inspection first clears stale status/attack overlays.
+    // Measure the explicit close independently of that replacement cleanup.
+    scene.grid.clearAttackHighlights.mockClear();
     controller.clearInspectionVisuals();
     expect(scene.inspectionPanel.hide).toHaveBeenCalledTimes(1);
     expect(scene.grid.clearHighlights).toHaveBeenCalledTimes(1);
@@ -518,6 +521,7 @@ describe('tile info + path preview (shared by mouse hover and the gamepad cursor
     // tiles always show the Infantry cost (Forest: Inf 2 vs Cav 3).
     const unit = { name: 'Bandit', moveType: 'Cavalry', currentHP: 9, stats: { HP: 9 } };
     const scene = makeInfoScene({ getUnitAt: vi.fn(() => unit) });
+    scene.grid.fogEnabled = true;
     scene.grid.isVisible = vi.fn(() => false);
     const controller = new InputController(scene);
     controller.refreshTileInfo(2, 3);
@@ -743,5 +747,186 @@ describe('mobile idle tap on non-player units', () => {
 
     expect(showSpy).not.toHaveBeenCalled();
     expect(scene.inspectionPanel.hide).toHaveBeenCalled();
+  });
+});
+
+describe('mobile first-tap unit actions', () => {
+  function setup() {
+    const unit = { faction: 'player', col: 1, row: 1, graphic: { clearTint: vi.fn() } };
+    const scene = makeScene({
+      isMobileInput: true,
+      _mobileBattleHud: { available: () => true },
+      _isTutorialStrictGateActive: () => false,
+      getUnitAt: () => unit,
+      selectUnit: vi.fn(() => {
+        scene.selectedUnit = unit;
+        scene.battleState = 'UNIT_SELECTED';
+      }),
+      showActionMenu: vi.fn(() => {
+        scene.battleState = 'UNIT_ACTION_MENU';
+        scene.actionMenu = [];
+      }),
+      hideActionMenu: vi.fn(),
+      moveUnit: vi.fn(),
+    });
+    scene.grid.snapshotFogState = vi.fn(() => 'fog');
+    scene.movementRange = new Map([['1,0', { stoppable: true }]]);
+    const controller = new InputController(scene);
+    return { unit, scene, controller };
+  }
+
+  it.each(['Forest', 'Mountain', 'Plain'])(
+    'one tap on %s selects actions and refreshes terrain',
+    (name) => {
+      const { unit, scene, controller } = setup();
+      scene.infoText = { setText: vi.fn() };
+      scene.grid.getTerrainAt.mockReturnValue({
+        name,
+        moveCost: { Infantry: 2 },
+        avoidBonus: 20,
+        defBonus: 1,
+      });
+      unit.moveType = 'Infantry';
+      unit.stats = { HP: 20 };
+      vi.spyOn(controller, 'updateTopLeftHudLayout').mockImplementation(() => {});
+      controller.onClick({ x: 48, y: 48 });
+      expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+      expect(scene._mobileTerrainFocus).toEqual({ col: 1, row: 1 });
+      expect(scene.infoText.setText.mock.calls[0][0]).toContain(name);
+      expect(unit.hasMoved).toBeUndefined();
+      expect(unit.hasActed).toBeUndefined();
+      expect(scene.preMoveLoc).toEqual({ col: 1, row: 1 });
+      expect(controller.isSelectionMenu()).toBe(true);
+    },
+  );
+
+  it('own-tile menu after undo stays registered and accepts tap-away', () => {
+    const { unit, scene, controller } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    controller.handleActionMenuClick({ col: 1, row: 0 });
+    // undoMove returns to a fresh UNIT_SELECTED state at the original location.
+    scene.selectUnit(unit);
+    controller.handleSelectedClick({ col: 1, row: 1 });
+    expect(controller.isSelectionMenu()).toBe(true);
+    scene.getUnitAt = () => null;
+    scene.registry = { get: () => null };
+    scene.deselectUnit = vi.fn();
+    controller.handleActionMenuClick({ col: 9, row: 9 });
+    expect(scene.deselectUnit).toHaveBeenCalledOnce();
+  });
+
+  it('allows a destination tap without a second unit tap', () => {
+    const { unit, scene, controller } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    controller.handleActionMenuClick({ col: 1, row: 0 });
+    expect(scene.hideActionMenu).toHaveBeenCalledOnce();
+    expect(scene.moveUnit).toHaveBeenCalledWith(unit, 1, 0);
+    expect(controller.isSelectionMenu()).toBe(false);
+  });
+
+  it.each(['submenu', 'moved', 'traded', 'committed'])(
+    'does not allow movement after %s',
+    (kind) => {
+      const { scene, unit, controller } = setup();
+      controller.handleIdleClick({ col: 1, row: 1 });
+      if (kind === 'submenu') scene.actionMenu = [];
+      if (kind === 'moved') unit.hasMoved = true;
+      if (kind === 'traded') scene.tradeMutatedThisSession = true;
+      if (kind === 'committed') controller.commitSelectionMenu(scene.actionMenu);
+      controller.handleActionMenuClick({ col: 1, row: 0 });
+      expect(scene.moveUnit).not.toHaveBeenCalled();
+    },
+  );
+
+  it('switches a ready ally directly from the initial menu', () => {
+    const { scene, controller, unit } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    const ally = { ...unit, col: 0 };
+    scene.getUnitAt = () => ally;
+    scene.deselectUnit = vi.fn();
+    scene.selectUnit.mockImplementation((u) => {
+      scene.selectedUnit = u;
+      scene.battleState = 'UNIT_SELECTED';
+    });
+    controller.handleActionMenuClick({ col: 0, row: 1 });
+    expect(scene.selectUnit).toHaveBeenLastCalledWith(ally);
+    expect(scene.selectedUnit).toBe(ally);
+    expect(controller.isSelectionMenu()).toBe(true);
+    expect(scene.moveUnit).not.toHaveBeenCalled();
+  });
+
+  it.each(['moved', 'committed', 'traded', 'submenu', 'tutorial'])(
+    'does not switch units from %s state',
+    (kind) => {
+      const { scene, controller, unit } = setup();
+      controller.handleIdleClick({ col: 1, row: 1 });
+      const ally = { ...unit, col: 0 };
+      scene.getUnitAt = () => ally;
+      if (kind === 'moved') unit.hasMoved = true;
+      if (kind === 'committed') unit._movementCommitted = true;
+      if (kind === 'traded') scene.tradeMutatedThisSession = true;
+      if (kind === 'submenu') scene.actionMenu = [];
+      if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+      expect(controller.handlePlanningUnitTap({ col: 0, row: 1 })).toBe(false);
+      expect(scene.selectedUnit).toBe(unit);
+    },
+  );
+
+  it.each(['acted', 'npc'])('does not transfer selection to an %s unit', (kind) => {
+    const { scene, controller, unit } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    scene.getUnitAt = () => ({
+      ...unit,
+      col: 0,
+      hasActed: kind === 'acted',
+      faction: kind === 'npc' ? 'npc' : 'player',
+    });
+    scene.grid.gridToPixel = () => ({ x: 0, y: 32 });
+    const inspect = vi.spyOn(controller, '_showInspectionAtPixel').mockReturnValue(true);
+    expect(controller.handlePlanningUnitTap({ col: 0, row: 1 })).toBe(true);
+    expect(inspect).toHaveBeenCalledOnce();
+    expect(scene.selectedUnit).toBe(unit);
+  });
+
+  it('empty out-of-range tap deselects without undoing a move', () => {
+    const { scene, controller } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    scene.getUnitAt = () => null;
+    scene.registry = { get: () => null };
+    scene.deselectUnit = vi.fn();
+    controller.handleActionMenuClick({ col: 9, row: 9 });
+    expect(scene.deselectUnit).toHaveBeenCalledOnce();
+    expect(scene.moveUnit).not.toHaveBeenCalled();
+  });
+
+  it('inspection cleanup preserves movement and attack highlights', () => {
+    const { scene, controller } = setup();
+    controller._planningInspection = true;
+    controller._planningThreat = { hide: vi.fn() };
+    controller.clearInspectionVisuals();
+    expect(controller._planningThreat.hide).toHaveBeenCalledOnce();
+    expect(scene.grid.clearHighlights).not.toHaveBeenCalled();
+    expect(scene.grid.clearAttackHighlights).not.toHaveBeenCalled();
+  });
+
+  it('fog-hidden enemies cannot enter planning inspection', () => {
+    const { scene, controller } = setup();
+    controller.handleIdleClick({ col: 1, row: 1 });
+    scene.grid.fogEnabled = true;
+    scene.grid.isVisible = () => false;
+    scene.getUnitAt = () => ({ faction: 'enemy', col: 0, row: 0 });
+    const inspect = vi.spyOn(controller, '_showInspectionAtPixel');
+    expect(controller.handlePlanningUnitTap({ col: 0, row: 0 })).toBe(false);
+    expect(inspect).not.toHaveBeenCalled();
+  });
+
+  it.each(['desktop', 'tutorial', 'acted', 'no-hud'])('preserves %s selection rules', (kind) => {
+    const { scene, unit, controller } = setup();
+    if (kind === 'desktop') scene.isMobileInput = false;
+    if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+    if (kind === 'acted') unit.hasActed = true;
+    if (kind === 'no-hud') scene._mobileBattleHud = null;
+    controller.handleIdleClick({ col: 1, row: 1 });
+    expect(scene.showActionMenu).not.toHaveBeenCalled();
   });
 });

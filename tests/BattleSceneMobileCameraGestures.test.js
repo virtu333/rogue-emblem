@@ -60,6 +60,8 @@ describe('BattleScene mobile camera gesture policy', () => {
       'PLAYER_IDLE',
       'UNIT_SELECTED',
       'SELECTING_TARGET',
+      'SELECTING_HEAL_TARGET',
+      'SELECTING_DANCE_TARGET',
       'SHOWING_FORECAST',
       'ENEMY_PHASE',
       'COMBAT_RESOLVING',
@@ -75,18 +77,22 @@ describe('BattleScene mobile camera gesture policy', () => {
 
   it('blocks gestures in modal or non-gesture battle states', () => {
     const scene = makeGesturePolicyScene();
-    const blockedStates = [
-      'UNIT_ACTION_MENU',
-      'SELECTING_HEAL_TARGET',
-      'DEPLOY_SELECTION',
-      'PAUSED',
-      'BATTLE_END',
-    ];
+    const blockedStates = ['UNIT_ACTION_MENU', 'DEPLOY_SELECTION', 'PAUSED', 'BATTLE_END'];
 
     for (const state of blockedStates) {
       scene.battleState = state;
       expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
     }
+  });
+
+  it('allows panning from the initial movement menu but not a committed submenu', () => {
+    const scene = makeGesturePolicyScene({
+      battleState: 'UNIT_ACTION_MENU',
+      _inputController: { isSelectionMenu: () => true },
+    });
+    expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(true);
+    scene._inputController.isSelectionMenu = () => false;
+    expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
   });
 
   it('blocks gestures while roster-like overlays are visible', () => {

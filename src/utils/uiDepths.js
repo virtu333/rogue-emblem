@@ -6,6 +6,8 @@
 export const UI_DEPTHS = {
   // Battle scene layers
   GRID_BASE: 0,
+  OBJECTIVE_TILE: 7, // Above movement/path overlays; below unit sprites.
+  OBJECTIVE_LABEL: 15, // Readable even when a unit occupies an exit.
   TERRAIN_HIGHLIGHTS: 10,
   UNITS: 50,
   DAMAGE_NUMBERS: 80,
@@ -13,6 +15,8 @@ export const UI_DEPTHS = {
   FOG_LABEL: 100,
   UNIT_INSPECTION: 150,
   FORECAST_PANEL: 200,
+
+  NODE_EVENT: 422, // Node-map ambush notification
 
   // Overlays (ascending priority)
   HOW_TO_PLAY: 500, // HowToPlayOverlay
@@ -40,4 +44,16 @@ export const UI_DEPTHS = {
   LEVEL_UP_TEXT: 902, // LevelUpPopup text
   DIALOGUE: 960, // DialogueOverlay
   HINTS: 965, // HintDisplay (above dialogue)
+};
+
+// DOM surfaces have their own stacking context above the Phaser canvas.
+export const DOM_UI_DEPTHS = {
+  LAB: 30,
+  ROUTE: 400,
+  LAUNCH: 920,
+  UPGRADE: 950,
+  FORECAST: 1000,
+  PAUSE: 1100,
+  DIALOGUE: 1200,
+  MENU: 1250,
 };

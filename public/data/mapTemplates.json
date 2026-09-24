@@ -141,7 +141,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The border farmers left their fields before the soldiers arrived."
     },
     {
       "id": "river_crossing",
@@ -317,7 +318,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Old toll stones mark the crossing; the bridge now belongs to whoever holds it."
     },
     {
       "id": "forest_ambush",
@@ -457,7 +459,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The forest has swallowed the old road, but scouts still know its turns."
     },
     {
       "id": "chokepoint",
@@ -642,7 +645,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Two ridges narrow the road to a place a few soldiers can hold."
     },
     {
       "id": "frozen_pass",
@@ -801,7 +805,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Caravans once crossed this pass before the first winter snows."
     },
     {
       "id": "caldera",
@@ -951,7 +956,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The road follows the rim of a furnace older than the empire."
     },
     {
       "id": "corridor_siege",
@@ -1182,7 +1188,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The garrison built these passages for defense, not retreat."
     },
     {
       "id": "castle_ruins",
@@ -1417,7 +1424,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Grass grows through the floor where the old court once assembled."
     },
     {
       "id": "mire_crossing",
@@ -1595,7 +1603,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The causeway is gone; only its stone markers rise above the marsh."
     },
     {
       "id": "glacier_run",
@@ -1749,7 +1758,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Meltwater runs beneath the ice and hollows out the trail."
     },
     {
       "id": "magma_flow",
@@ -1899,7 +1909,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Red seams cut through the road the last surveyors marked."
     }
   ],
   "seize": [
@@ -1907,7 +1918,13 @@
       "id": "castle_assault",
       "name": "Castle Assault",
       "fogChance": 0.0,
-      "acts": ["act1", "act2", "act3", "act4", "postAct"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3",
+        "act4",
+        "postAct"
+      ],
       "zones": [
         {
           "rect": [
@@ -2074,7 +2091,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The outer walls still bear the old kingdom's weathered crest."
     },
     {
       "id": "great_hall",
@@ -2365,13 +2383,20 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The court's banners hang above a hall emptied for battle."
     },
     {
       "id": "hilltop_fortress",
       "name": "Hilltop Fortress",
       "fogChance": 0.1,
-      "acts": ["act1", "act2", "act3", "act4", "postAct"],
+      "acts": [
+        "act1",
+        "act2",
+        "act3",
+        "act4",
+        "postAct"
+      ],
       "zones": [
         {
           "rect": [
@@ -2534,7 +2559,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "The fort watches the roads that once carried grain to the capital."
     },
     {
       "id": "glacier_fortress",
@@ -2703,7 +2729,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "Ice seals the old gates; the garrison keeps one approach open."
     },
     {
       "id": "eruption_point",
@@ -2866,7 +2893,8 @@
             }
           ]
         }
-      }
+      },
+      "lore": "A watchtower stands where the mountain last broke open."
     },
     {
       "id": "act4_boss_intent_bastion",
@@ -3090,7 +3118,8 @@
           0.5,
           0.25
         ]
-      }
+      },
+      "lore": "The bastion's firing lanes leave little shelter for an advancing army."
     },
     {
       "id": "act3_dark_champion_keep",
@@ -3369,7 +3398,8 @@
           0.5,
           0.25
         ]
-      }
+      },
+      "lore": "The keep commands the last road into the imperial heartland."
     },
     {
       "id": "eldritch_sanctum",
@@ -3534,7 +3564,8 @@
           0.5,
           0.25
         ]
-      }
+      },
+      "lore": "The ritual has worn channels into stone that once held a throne."
     }
   ],
   "escape": [
@@ -3650,7 +3681,8 @@
           0.25,
           0.25
         ]
-      }
+      },
+      "lore": "An abandoned supply road offers the only clear route out."
     },
     {
       "id": "river_flight",
@@ -3800,7 +3832,8 @@
           0.25,
           0.25
         ]
-      }
+      },
+      "lore": "The river bends toward open country beyond the last patrol."
     },
     {
       "id": "hunters_woods",
@@ -3909,7 +3942,8 @@
           0.25,
           0.25
         ]
-      }
+      },
+      "lore": "Hunters' trails cross these woods, too narrow for a formed company."
     },
     {
       "id": "frozen_flight",
@@ -4030,7 +4064,8 @@
           0.25,
           0.25
         ]
-      }
+      },
+      "lore": "The fleeing column has left dark tracks across the snow."
     }
   ]
 }

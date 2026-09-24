@@ -1,3 +1,8 @@
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { routeMobileAction } from '../utils/overlayStack.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { MobileHomeBase } from '../ui/MobileHomeBase.js';
+import { inputHint } from '../utils/inputHint.js';
 // HomeBaseScene — Meta-progression upgrade shop with tabbed UI
 
 import Phaser from 'phaser';
@@ -37,7 +42,7 @@ const BAR_SEGMENT_W = 14;
 const BAR_SEGMENT_H = 10;
 const BAR_GAP = 3;
 const BAR_FILLED = 0x88ccff;
-const BAR_FILLED_MAX = 0xffdd44;
+const BAR_FILLED_MAX = UI_HEX.accent;
 const BAR_EMPTY = 0x333344;
 
 // Row heights
@@ -168,7 +173,8 @@ export class HomeBaseScene extends Phaser.Scene {
     this.refundMode = false;
     this.confirmOverlayObjects = [];
 
-    this._onEsc = () => {
+    this._onEsc = (event) => {
+      if (event?.repeat || this.mobileHome?.visible || this.mobileUpgrades?.visible) return;
       // A stacked overlay owns ESC while open; its own handler closes it.
       if (hasOpenOverlay(this)) return;
       this.requestCancel({ allowExit: true });
@@ -200,7 +206,9 @@ export class HomeBaseScene extends Phaser.Scene {
           menu: () => this.requestCancel({ allowExit: true }),
         };
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-          ge.on(`mobile:${action}`, handler);
+          const routed = () => routeMobileAction(this, action, handler);
+          this._mobileHandlers[action] = routed;
+          ge.on(`mobile:${action}`, routed);
         }
         ge.emit('mobile:setContext', { context: 'homebase' });
       }
@@ -212,16 +220,21 @@ export class HomeBaseScene extends Phaser.Scene {
     this._onInputActionBound = (action, payload) => this._onInputAction(action, payload);
     pushInputScope(this, this._onInputActionBound);
 
-    this.drawUI();
+    if (hasDOMHost()) this.mobileHome = new MobileHomeBase(this);
+    else this.drawUI();
 
     // Tutorial hints for home base
     const hints = this.registry.get('hints');
-    if (hints) {
+    if (hints && !this.mobileHome && !this.isMobileInput) {
       void HomeBaseScene.prototype._runStartupHints.call(this, hints, lifecycleGeneration);
     }
   }
 
   _onSceneShutdown() {
+    this.mobileHome?.destroy();
+    this.mobileHome = null;
+    this.mobileUpgrades?.destroy();
+    this.mobileUpgrades = null;
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
@@ -295,12 +308,19 @@ export class HomeBaseScene extends Phaser.Scene {
       }
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_begin')) {
-        void showMinorHint(this, 'Click Begin Run when ready.');
+        void showMinorHint(
+          this,
+          inputHint(this, 'Click Begin Run when ready.', 'Tap Begin Run when ready.'),
+        );
       }
     } catch (_) {}
   }
 
   drawUI() {
+    if (this.mobileHome) {
+      this.mobileHome.render();
+      return;
+    }
     this._hideMetaTooltips();
     this._hideRefundConfirm();
     this.children.removeAll(true);
@@ -317,12 +337,18 @@ export class HomeBaseScene extends Phaser.Scene {
     this.drawBottomButtons();
 
     if (this.refundMode) {
-      this.add
-        .text(w / 2, TAB_CONTENT_BOTTOM_Y + 4, '-- REFUND MODE: Select an upgrade to refund --', {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#cc8844',
-        })
+      applyTextResolution(
+        this.add.text(
+          w / 2,
+          TAB_CONTENT_BOTTOM_Y + 4,
+          '-- REFUND MODE: Select an upgrade to refund --',
+          {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#cc8844',
+          },
+        ),
+      )
         .setOrigin(0.5, 0)
         .setDepth(911);
     }
@@ -389,12 +415,14 @@ export class HomeBaseScene extends Phaser.Scene {
 
   drawHeader() {
     const w = this.cameras.main.width;
-    this.add.text(20, 12, 'HOME BASE', {
-      fontFamily: 'monospace',
-      fontSize: '20px',
-      color: '#ffdd44',
-      fontStyle: 'bold',
-    });
+    applyTextResolution(
+      this.add.text(20, 12, 'HOME BASE', {
+        fontFamily: 'Arial',
+        fontSize: '20px',
+        color: UI_PALETTE.accent,
+        fontStyle: 'bold',
+      }),
+    );
 
     // Show both currencies — highlight the one used by the active tab
     const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || null;
@@ -402,20 +430,20 @@ export class HomeBaseScene extends Phaser.Scene {
       activeCurrency === 'valor' ? '#ffcc44' : activeCurrency ? '#665522' : '#6b728f';
     const supplyColor =
       activeCurrency === 'supply' ? '#44ccbb' : activeCurrency ? '#225544' : '#6b728f';
-    this.add
-      .text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: valorColor,
-      })
-      .setOrigin(1, 0);
-    this.add
-      .text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
-        fontFamily: 'monospace',
+      }),
+    ).setOrigin(1, 0);
+    applyTextResolution(
+      this.add.text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color: supplyColor,
-      })
-      .setOrigin(1, 0);
+      }),
+    ).setOrigin(1, 0);
   }
 
   drawContentViewportChrome() {
@@ -453,19 +481,20 @@ export class HomeBaseScene extends Phaser.Scene {
     const x = TAB_CONTENT_RIGHT_X - 12;
 
     const makeArrow = (y, label, enabled, onClick) => {
-      const btn = this.add
-        .text(x, y, label, {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        this.add.text(x, y, label, {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: enabled ? '#a8cfff' : '#44506e',
           backgroundColor: '#0f1730',
           padding: { x: 6, y: 3 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(910);
       if (!enabled) return;
       btn.setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
       btn.on('pointerout', () => btn.setColor('#a8cfff'));
       btn.on('pointerdown', onClick);
     };
@@ -473,12 +502,13 @@ export class HomeBaseScene extends Phaser.Scene {
     makeArrow(TAB_CONTENT_TOP_Y + 14, '[^]', canUp, () => this._scrollTab(-TAB_SCROLL_STEP));
     makeArrow(TAB_CONTENT_BOTTOM_Y - 14, '[v]', canDown, () => this._scrollTab(TAB_SCROLL_STEP));
 
-    this.add
-      .text(TAB_CONTENT_RIGHT_X - 12, TAB_CONTENT_TOP_Y + 34, 'Scroll', {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(TAB_CONTENT_RIGHT_X - 12, TAB_CONTENT_TOP_Y + 34, 'Scroll', {
+        fontFamily: 'Arial',
         fontSize: '9px',
         color: '#556287',
-      })
+      }),
+    )
       .setOrigin(0.5, 0)
       .setDepth(910);
   }
@@ -500,16 +530,16 @@ export class HomeBaseScene extends Phaser.Scene {
 
     for (const cat of CATEGORIES) {
       const isActive = cat.key === this.activeTab;
-      const color = isActive ? '#ffdd44' : '#aaaaaa';
+      const color = isActive ? UI_PALETTE.accent : UI_PALETTE.muted;
 
-      const tab = this.add
-        .text(tabX, tabY, cat.label, {
-          fontFamily: 'monospace',
+      const tab = applyTextResolution(
+        this.add.text(tabX, tabY, cat.label, {
+          fontFamily: 'Arial',
           fontSize: '13px',
           color,
           fontStyle: isActive ? 'bold' : '',
-        })
-        .setInteractive({ useHandCursor: true });
+        }),
+      ).setInteractive({ useHandCursor: true });
 
       if (isActive) {
         const bounds = tab.getBounds();
@@ -518,15 +548,15 @@ export class HomeBaseScene extends Phaser.Scene {
           bounds.y + bounds.height + 2,
           bounds.width,
           2,
-          0xffdd44,
+          UI_HEX.accent,
         );
       }
 
       tab.on('pointerover', () => {
-        if (!isActive) tab.setColor('#ffffff');
+        if (!isActive) tab.setColor(UI_PALETTE.text);
       });
       tab.on('pointerout', () => {
-        if (!isActive) tab.setColor('#aaaaaa');
+        if (!isActive) tab.setColor(UI_PALETTE.muted);
       });
       tab.on('pointerdown', () => {
         if (this.activeTab !== cat.key) {
@@ -558,12 +588,14 @@ export class HomeBaseScene extends Phaser.Scene {
       const growthUpgrades = upgrades.filter((u) => u.id.endsWith(GROWTH_SUFFIX));
       const flatUpgrades = upgrades.filter((u) => u.id.endsWith(FLAT_SUFFIX));
 
-      this.add.text(40, y, 'Growth Bonuses', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#888888',
-        fontStyle: 'bold',
-      });
+      applyTextResolution(
+        this.add.text(40, y, 'Growth Bonuses', {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.muted,
+          fontStyle: 'bold',
+        }),
+      );
       y += 18;
 
       for (const upgrade of growthUpgrades) {
@@ -573,12 +605,14 @@ export class HomeBaseScene extends Phaser.Scene {
 
       y += 6;
 
-      this.add.text(40, y, 'Stat Bonuses', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#888888',
-        fontStyle: 'bold',
-      });
+      applyTextResolution(
+        this.add.text(40, y, 'Stat Bonuses', {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.muted,
+          fontStyle: 'bold',
+        }),
+      );
       y += 18;
 
       for (const upgrade of flatUpgrades) {
@@ -591,12 +625,14 @@ export class HomeBaseScene extends Phaser.Scene {
       );
       if (otherUpgrades.length > 0) {
         y += 6;
-        this.add.text(40, y, 'Other', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#888888',
-          fontStyle: 'bold',
-        });
+        applyTextResolution(
+          this.add.text(40, y, 'Other', {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: UI_PALETTE.muted,
+            fontStyle: 'bold',
+          }),
+        );
         y += 18;
         for (const upgrade of otherUpgrades) {
           this.drawUpgradeRow(upgrade, y);
@@ -628,22 +664,24 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = 370;
       const costX = 530;
 
-      const statLabel = this.add.text(labelX, y, hidden ? '???' : this._getStatLabel(upgrade), {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e0e0e0',
-      });
+      const statLabel = applyTextResolution(
+        this.add.text(labelX, y, hidden ? '???' : this._getStatLabel(upgrade), {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+        }),
+      );
       const tooltipTab = this.activeTab;
       statLabel.setInteractive({ useHandCursor: true });
       statLabel.on('pointerover', () => {
-        statLabel.setColor('#ffdd44');
+        statLabel.setColor(UI_PALETTE.accent);
         const tipLines = hidden
           ? this._getPrerequisiteTooltipLines(upgrade.id)
           : this._getUpgradeTooltipLines(upgrade);
         this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       statLabel.on('pointerout', () => {
-        statLabel.setColor('#e0e0e0');
+        statLabel.setColor(UI_PALETTE.text);
         this._hideMetaTooltips();
       });
       if (hidden) {
@@ -662,12 +700,14 @@ export class HomeBaseScene extends Phaser.Scene {
 
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade, hidden);
 
-      this.add.text(descX, y, hidden ? 'Requirements not met' : this._getActionDesc(upgrade), {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-        wordWrap: { width: 160 },
-      });
+      applyTextResolution(
+        this.add.text(descX, y, hidden ? 'Requirements not met' : this._getActionDesc(upgrade), {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: UI_PALETTE.muted,
+          wordWrap: { width: 160 },
+        }),
+      );
 
       if (!hidden) {
         this._drawValueText(valuesX, y, current, next, maxed);
@@ -685,22 +725,24 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = barX + (BAR_SEGMENT_W + BAR_GAP) * upgrade.maxLevel + 10;
       const costX = 530;
 
-      const nameLabel = this.add.text(labelX, y, hidden ? '???' : upgrade.name, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e0e0e0',
-      });
+      const nameLabel = applyTextResolution(
+        this.add.text(labelX, y, hidden ? '???' : upgrade.name, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+        }),
+      );
       const tooltipTab = this.activeTab;
       nameLabel.setInteractive({ useHandCursor: true });
       nameLabel.on('pointerover', () => {
-        nameLabel.setColor('#ffdd44');
+        nameLabel.setColor(UI_PALETTE.accent);
         const tipLines = hidden
           ? this._getPrerequisiteTooltipLines(upgrade.id)
           : this._getUpgradeTooltipLines(upgrade);
         this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       nameLabel.on('pointerout', () => {
-        nameLabel.setColor('#e0e0e0');
+        nameLabel.setColor(UI_PALETTE.text);
         this._hideMetaTooltips();
       });
       if (hidden) {
@@ -723,16 +765,18 @@ export class HomeBaseScene extends Phaser.Scene {
         this._drawValueText(valuesX, y, current, next, maxed);
       }
 
-      this.add.text(
-        labelX + 10,
-        y + 16,
-        hidden ? 'Requirements not met' : this._getActionDesc(upgrade),
-        {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#666666',
-          wordWrap: { width: 200 },
-        },
+      applyTextResolution(
+        this.add.text(
+          labelX + 10,
+          y + 16,
+          hidden ? 'Requirements not met' : this._getActionDesc(upgrade),
+          {
+            fontFamily: 'Arial',
+            fontSize: '9px',
+            color: UI_PALETTE.muted,
+            wordWrap: { width: 200 },
+          },
+        ),
       );
 
       if (this.refundMode) {
@@ -745,26 +789,28 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _drawCostButton(x, y, upgrade, maxed, affordable) {
     if (maxed) {
-      this.add.text(x, y, 'MAX', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#ffdd44',
-      });
+      applyTextResolution(
+        this.add.text(x, y, 'MAX', {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.accent,
+        }),
+      );
       return;
     }
 
     const prereqsMet = this.meta.meetsPrerequisites(upgrade.id);
 
     if (!prereqsMet) {
-      const lockText = this.add
-        .text(x, y, 'LOCKED', {
-          fontFamily: 'monospace',
+      const lockText = applyTextResolution(
+        this.add.text(x, y, 'LOCKED', {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: '#aa4444',
           backgroundColor: '#221111',
           padding: { x: 6, y: 2 },
-        })
-        .setInteractive();
+        }),
+      ).setInteractive();
       const tooltipTab = this.activeTab;
 
       // Tooltip on hover showing missing prerequisites
@@ -787,17 +833,19 @@ export class HomeBaseScene extends Phaser.Scene {
     const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
     const suffix = currency === 'valor' ? 'V' : 'S';
     const btnColor = affordable ? '#88ff88' : '#555555';
-    const btn = this.add.text(x, y, `${cost}${suffix}`, {
-      fontFamily: 'monospace',
-      fontSize: '11px',
-      color: btnColor,
-      backgroundColor: affordable ? '#334433' : '#222222',
-      padding: { x: 6, y: 2 },
-    });
+    const btn = applyTextResolution(
+      this.add.text(x, y, `${cost}${suffix}`, {
+        fontFamily: 'Arial',
+        fontSize: '11px',
+        color: btnColor,
+        backgroundColor: affordable ? '#334433' : UI_PALETTE.panel,
+        padding: { x: 6, y: 2 },
+      }),
+    );
 
     if (affordable) {
       btn.setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
       btn.on('pointerout', () => btn.setColor(btnColor));
       btn.on('pointerdown', () => {
         if (this.meta.purchaseUpgrade(upgrade.id)) {
@@ -852,14 +900,15 @@ export class HomeBaseScene extends Phaser.Scene {
           if (tipY + tipH > TAB_CONTENT_BOTTOM_Y)
             tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
 
-          this._tierTooltip = this.add
-            .text(tipX, tipY, tipText, {
-              fontFamily: 'monospace',
+          this._tierTooltip = applyTextResolution(
+            this.add.text(tipX, tipY, tipText, {
+              fontFamily: 'Arial',
               fontSize: '9px',
               color: '#dddddd',
               backgroundColor: '#111122ee',
               padding: { x: 6, y: 4 },
-            })
+            }),
+          )
             .setOrigin(0.5, 0)
             .setDepth(950);
         });
@@ -945,36 +994,46 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _drawValueText(x, y, current, next, maxed) {
     if (maxed) {
-      this.add.text(x, y, current, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#ffdd44',
-      });
+      applyTextResolution(
+        this.add.text(x, y, current, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.accent,
+        }),
+      );
     } else if (current) {
       // current → next
-      const curText = this.add.text(x, y, current, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      });
+      const curText = applyTextResolution(
+        this.add.text(x, y, current, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        }),
+      );
       const arrowX = x + curText.width + 4;
-      const arrowText = this.add.text(arrowX, y, '\u2192', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#666666',
-      });
-      this.add.text(arrowX + arrowText.width + 4, y, next, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#88ff88',
-      });
+      const arrowText = applyTextResolution(
+        this.add.text(arrowX, y, '\u2192', {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        }),
+      );
+      applyTextResolution(
+        this.add.text(arrowX + arrowText.width + 4, y, next, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: '#88ff88',
+        }),
+      );
     } else {
       // unpurchased — show next only
-      this.add.text(x, y, next, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#88ff88',
-      });
+      applyTextResolution(
+        this.add.text(x, y, next, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: '#88ff88',
+        }),
+      );
     }
   }
 
@@ -1090,16 +1149,16 @@ export class HomeBaseScene extends Phaser.Scene {
     const tipX = Math.min(x, TAB_CONTENT_RIGHT_X - 290);
 
     // Render off-screen first to measure actual height (accounts for word wrap)
-    const tip = this.add
-      .text(tipX, -9999, text, {
-        fontFamily: 'monospace',
+    const tip = applyTextResolution(
+      this.add.text(tipX, -9999, text, {
+        fontFamily: 'Arial',
         fontSize: '9px',
         color: '#dddddd',
         backgroundColor: '#111122ee',
         padding: { x: 6, y: 4 },
         wordWrap: { width: 280 },
-      })
-      .setDepth(950);
+      }),
+    ).setDepth(950);
 
     const tipH = tip.height;
     const above = y - tipH - 4;
@@ -1117,16 +1176,16 @@ export class HomeBaseScene extends Phaser.Scene {
     this._hidePrereqTooltip();
     const lines = this._getPrerequisiteTooltipLines(upgradeId);
     if (!lines?.length) return;
-    this._prereqTooltip = this.add
-      .text(x - 120, y + 18, lines.join('\n'), {
-        fontFamily: 'monospace',
+    this._prereqTooltip = applyTextResolution(
+      this.add.text(x - 120, y + 18, lines.join('\n'), {
+        fontFamily: 'Arial',
         fontSize: '9px',
         color: '#dddddd',
         backgroundColor: '#111122ee',
         padding: { x: 6, y: 4 },
         wordWrap: { width: 200 },
-      })
-      .setDepth(950);
+      }),
+    ).setDepth(950);
   }
 
   _hideUpgradeTooltip() {
@@ -1227,12 +1286,14 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // --- Lord viewer section ---
-    this.add.text(40, y, 'Lord Skills', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888',
-      fontStyle: 'bold',
-    });
+    applyTextResolution(
+      this.add.text(40, y, 'Lord Skills', {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: UI_PALETTE.muted,
+        fontStyle: 'bold',
+      }),
+    );
     y += 18;
 
     const cardW = 270;
@@ -1245,7 +1306,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
       // Portrait slot remains legible for transparent or unusually framed art.
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
-      this.add.rectangle(cx + 40, y + 40, 40, 40, 0x111122, 1).setStrokeStyle(1, 0x666688);
+      this.add.rectangle(cx + 40, y + 40, 40, 40, UI_HEX.panel, 1).setStrokeStyle(1, 0x666688);
       if (this.textures.exists(portraitKey)) {
         this.add
           .image(cx + 20, y + 20, portraitKey)
@@ -1254,20 +1315,24 @@ export class HomeBaseScene extends Phaser.Scene {
       }
 
       // Name
-      this.add.text(cx + 66, y, lord.name, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      });
+      applyTextResolution(
+        this.add.text(cx + 66, y, lord.name, {
+          fontFamily: 'Arial',
+          fontSize: '13px',
+          color: UI_PALETTE.accent,
+          fontStyle: 'bold',
+        }),
+      );
 
       // Personal skill (locked)
       const personalName = lord.personalSkill.split(':')[0].trim();
-      this.add.text(cx + 66, y + 16, `\u2605 ${personalName}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#ffcc66',
-      });
+      applyTextResolution(
+        this.add.text(cx + 66, y + 16, `\u2605 ${personalName}`, {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: '#ffcc66',
+        }),
+      );
 
       // Assignable skill slots (dynamic based on meta upgrade)
       const availableSlots = this.meta.getStartingSkillSlots();
@@ -1278,22 +1343,24 @@ export class HomeBaseScene extends Phaser.Scene {
         if (skillId) {
           const skill = skillsData.find((sk) => sk.id === skillId);
           const skillName = skill ? skill.name : skillId;
-          this.add.text(cx + 66, slotY, `\u25CB ${skillName}`, {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#88ccff',
-          });
+          applyTextResolution(
+            this.add.text(cx + 66, slotY, `\u25CB ${skillName}`, {
+              fontFamily: 'Arial',
+              fontSize: '10px',
+              color: '#88ccff',
+            }),
+          );
 
           // [x] remove button
-          const removeBtn = this.add
-            .text(cx + 200, slotY, '[x]', {
-              fontFamily: 'monospace',
+          const removeBtn = applyTextResolution(
+            this.add.text(cx + 200, slotY, '[x]', {
+              fontFamily: 'Arial',
               fontSize: '10px',
               color: '#cc6666',
               backgroundColor: '#331111',
               padding: { x: 2, y: 1 },
-            })
-            .setInteractive({ useHandCursor: true });
+            }),
+          ).setInteractive({ useHandCursor: true });
           removeBtn.on('pointerover', () => removeBtn.setColor('#ff8888'));
           removeBtn.on('pointerout', () => removeBtn.setColor('#cc6666'));
           removeBtn.on('pointerdown', () => {
@@ -1303,23 +1370,25 @@ export class HomeBaseScene extends Phaser.Scene {
             this.drawUI();
           });
         } else {
-          this.add.text(cx + 66, slotY, '\u25CB (empty)', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#555555',
-          });
+          applyTextResolution(
+            this.add.text(cx + 66, slotY, '\u25CB (empty)', {
+              fontFamily: 'Arial',
+              fontSize: '10px',
+              color: '#555555',
+            }),
+          );
 
           // [+] assign button — only if there are unlocked skills to assign
           if (unlocked.length > 0) {
-            const addBtn = this.add
-              .text(cx + 200, slotY, '[+]', {
-                fontFamily: 'monospace',
+            const addBtn = applyTextResolution(
+              this.add.text(cx + 200, slotY, '[+]', {
+                fontFamily: 'Arial',
                 fontSize: '10px',
                 color: '#88ff88',
                 backgroundColor: '#113311',
                 padding: { x: 2, y: 1 },
-              })
-              .setInteractive({ useHandCursor: true });
+              }),
+            ).setInteractive({ useHandCursor: true });
             addBtn.on('pointerover', () => addBtn.setColor('#ccffcc'));
             addBtn.on('pointerout', () => addBtn.setColor('#88ff88'));
             addBtn.on('pointerdown', () => {
@@ -1332,24 +1401,28 @@ export class HomeBaseScene extends Phaser.Scene {
       // Locked slot hint when 2nd slot not yet purchased
       if (availableSlots < MAX_STARTING_SKILLS) {
         const lockedSlotY = y + 34 + availableSlots * 18;
-        this.add.text(cx + 66, lockedSlotY, '\u25CB Slot 2 \u2014 locked (Extra Skill Slot)', {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#444444',
-          wordWrap: { width: 190 },
-        });
+        applyTextResolution(
+          this.add.text(cx + 66, lockedSlotY, '\u25CB Slot 2 \u2014 locked (Extra Skill Slot)', {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#444444',
+            wordWrap: { width: 190 },
+          }),
+        );
       }
     }
 
     y += LORD_SKILLS_CARD_H;
 
     // --- Skill unlock section ---
-    this.add.text(40, y, 'Unlock Skills', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888',
-      fontStyle: 'bold',
-    });
+    applyTextResolution(
+      this.add.text(40, y, 'Unlock Skills', {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: UI_PALETTE.muted,
+        fontStyle: 'bold',
+      }),
+    );
     y += 18;
 
     const skillUpgrades = this.meta.upgradesData.filter((u) => u.category === 'starting_skills');
@@ -1363,12 +1436,14 @@ export class HomeBaseScene extends Phaser.Scene {
       const costX = 530;
 
       // Skill name — interactive with tooltip
-      const baseColor = maxed ? '#88ccff' : '#e0e0e0';
-      const skillLabel = this.add.text(labelX, y, upgrade.name, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: baseColor,
-      });
+      const baseColor = maxed ? '#88ccff' : UI_PALETTE.text;
+      const skillLabel = applyTextResolution(
+        this.add.text(labelX, y, upgrade.name, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: baseColor,
+        }),
+      );
       const tooltipTab = this.activeTab;
 
       // Look up skill details for tooltip
@@ -1377,7 +1452,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const skillInfo = skillId ? skillsData.find((s) => s.id === skillId) : null;
       skillLabel.setInteractive({ useHandCursor: true });
       skillLabel.on('pointerover', () => {
-        skillLabel.setColor('#ffdd44');
+        skillLabel.setColor(UI_PALETTE.accent);
         let tipLines;
         if (skillInfo) {
           tipLines = [skillInfo.name, skillInfo.description];
@@ -1394,11 +1469,13 @@ export class HomeBaseScene extends Phaser.Scene {
       });
 
       // Short description
-      this.add.text(descX, y, upgrade.description, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666666',
-      });
+      applyTextResolution(
+        this.add.text(descX, y, upgrade.description, {
+          fontFamily: 'Arial',
+          fontSize: '9px',
+          color: UI_PALETTE.muted,
+        }),
+      );
 
       // Cost / Unlocked / Refund
       if (this.refundMode) {
@@ -1408,26 +1485,30 @@ export class HomeBaseScene extends Phaser.Scene {
           this._drawRefundButton(costX, y, upgrade);
         }
       } else if (maxed) {
-        this.add.text(costX, y, 'UNLOCKED', {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#ffdd44',
-        });
+        applyTextResolution(
+          this.add.text(costX, y, 'UNLOCKED', {
+            fontFamily: 'Arial',
+            fontSize: '11px',
+            color: UI_PALETTE.accent,
+          }),
+        );
       } else {
         const cost = this.meta.getNextCost(upgrade.id);
         const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
         const suffix = currency === 'valor' ? 'V' : 'S';
         const btnColor = affordable ? '#88ff88' : '#555555';
-        const btn = this.add.text(costX, y, `${cost}${suffix}`, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: btnColor,
-          backgroundColor: affordable ? '#334433' : '#222222',
-          padding: { x: 6, y: 2 },
-        });
+        const btn = applyTextResolution(
+          this.add.text(costX, y, `${cost}${suffix}`, {
+            fontFamily: 'Arial',
+            fontSize: '11px',
+            color: btnColor,
+            backgroundColor: affordable ? '#334433' : UI_PALETTE.panel,
+            padding: { x: 6, y: 2 },
+          }),
+        );
         if (affordable) {
           btn.setInteractive({ useHandCursor: true });
-          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
           btn.on('pointerout', () => btn.setColor(btnColor));
           btn.on('pointerdown', () => {
             if (this.meta.purchaseUpgrade(upgrade.id)) {
@@ -1467,7 +1548,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
     // Background panel
     const bg = this.add
-      .rectangle(bgX + bgW / 2, bgY + bgH / 2, bgW, bgH, 0x222233, 0.95)
+      .rectangle(bgX + bgW / 2, bgY + bgH / 2, bgW, bgH, UI_HEX.panel, 0.95)
       .setStrokeStyle(1, 0x4444aa)
       .setDepth(900);
     objects.push(bg);
@@ -1476,18 +1557,19 @@ export class HomeBaseScene extends Phaser.Scene {
     for (const skillId of available) {
       const skill = skillsData.find((s) => s.id === skillId);
       const name = skill ? skill.name : skillId;
-      const entry = this.add
-        .text(bgX + 8, iy, name, {
-          fontFamily: 'monospace',
+      const entry = applyTextResolution(
+        this.add.text(bgX + 8, iy, name, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#88ccff',
           backgroundColor: '#222233',
           padding: { x: 4, y: 2 },
-        })
+        }),
+      )
         .setDepth(901)
         .setInteractive({ useHandCursor: true });
 
-      entry.on('pointerover', () => entry.setColor('#ffdd44'));
+      entry.on('pointerover', () => entry.setColor(UI_PALETTE.accent));
       entry.on('pointerout', () => entry.setColor('#88ccff'));
       entry.on('pointerdown', () => {
         this.meta.assignSkill(lordName, skillId);
@@ -1501,12 +1583,13 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // Cancel button
-    const cancel = this.add
-      .text(bgX + bgW - 8, bgY + 2, 'x', {
-        fontFamily: 'monospace',
+    const cancel = applyTextResolution(
+      this.add.text(bgX + bgW - 8, bgY + 2, 'x', {
+        fontFamily: 'Arial',
         fontSize: '10px',
         color: '#cc6666',
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(901)
       .setInteractive({ useHandCursor: true });
@@ -1528,50 +1611,63 @@ export class HomeBaseScene extends Phaser.Scene {
   // --- Commander selection (Banner of Command / Chosen Companions) ---
 
   _drawCommanderSection(y, selection, commanderTier) {
-    this.add.text(40, y, 'Starting Lords', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888',
-      fontStyle: 'bold',
-    });
+    applyTextResolution(
+      this.add.text(40, y, 'Starting Lords', {
+        fontFamily: 'Arial',
+        fontSize: '12px',
+        color: UI_PALETTE.muted,
+        fontStyle: 'bold',
+      }),
+    );
     y += 18;
 
     const drawChangeButton = (x, rowY, mode) => {
-      const btn = this.add
-        .text(x, rowY, '[CHANGE]', {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        this.add.text(x, rowY, '[CHANGE]', {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#88ff88',
           backgroundColor: '#113311',
           padding: { x: 3, y: 1 },
-        })
-        .setInteractive({ useHandCursor: true });
+        }),
+      ).setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ccffcc'));
       btn.on('pointerout', () => btn.setColor('#88ff88'));
       btn.on('pointerdown', () => this._showCommanderPicker(mode));
     };
 
-    this.add.text(50, y, `Commander: ${selection.commander}`, {
-      fontFamily: 'monospace',
-      fontSize: '11px',
-      color: '#ffdd44',
-    });
+    applyTextResolution(
+      this.add.text(50, y, `Commander: ${selection.commander}`, {
+        fontFamily: 'Arial',
+        fontSize: '11px',
+        color: UI_PALETTE.accent,
+      }),
+    );
     drawChangeButton(260, y, 'commander');
     y += 18;
 
     if (commanderTier >= 2) {
-      this.add.text(50, y, `Partner: ${selection.partner}`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#e0e0e0',
-      });
+      applyTextResolution(
+        this.add.text(50, y, `Partner: ${selection.partner}`, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.text,
+        }),
+      );
       drawChangeButton(260, y, 'partner');
     } else {
-      this.add.text(50, y, `Partner: ${selection.partner} (locked — requires Chosen Companions)`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#555555',
-      });
+      applyTextResolution(
+        this.add.text(
+          50,
+          y,
+          `Partner: ${selection.partner} (locked — requires Chosen Companions)`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '11px',
+            color: '#555555',
+          },
+        ),
+      );
     }
     y += 24;
     return y;
@@ -1596,26 +1692,33 @@ export class HomeBaseScene extends Phaser.Scene {
     objects.push(bg);
 
     objects.push(
-      this.add
-        .text(cam.centerX, 26, isCommanderMode ? 'CHOOSE YOUR COMMANDER' : 'CHOOSE YOUR PARTNER', {
-          fontFamily: 'monospace',
-          fontSize: '16px',
-          color: '#ffdd44',
-          fontStyle: 'bold',
-        })
+      applyTextResolution(
+        this.add.text(
+          cam.centerX,
+          26,
+          isCommanderMode ? 'CHOOSE YOUR COMMANDER' : 'CHOOSE YOUR PARTNER',
+          {
+            fontFamily: 'Arial',
+            fontSize: '16px',
+            color: UI_PALETTE.accent,
+            fontStyle: 'bold',
+          },
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(901),
     );
     objects.push(
-      this.add
-        .text(
+      applyTextResolution(
+        this.add.text(
           cam.centerX,
           46,
           isCommanderMode
             ? 'The commander leads the run — if they fall, the run ends.'
             : 'Your second starting lord.',
-          { fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa' },
-        )
+          { fontFamily: 'Arial', fontSize: '9px', color: UI_PALETTE.muted },
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(901),
     );
@@ -1642,8 +1745,11 @@ export class HomeBaseScene extends Phaser.Scene {
       const isBlocked = !isCommanderMode && selection.commander === lord.name;
 
       const card = this.add
-        .rectangle(cx, cy, cardW, cardH, isBlocked ? 0x1a1a22 : 0x222233, 1)
-        .setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? 0xffdd44 : isBlocked ? 0x444444 : 0x666688)
+        .rectangle(cx, cy, cardW, cardH, isBlocked ? 0x1a1a22 : UI_HEX.panel, 1)
+        .setStrokeStyle(
+          isCurrent ? 3 : 2,
+          isCurrent ? UI_HEX.accent : isBlocked ? UI_HEX.line : 0x666688,
+        )
         .setDepth(901);
       objects.push(card);
 
@@ -1651,8 +1757,8 @@ export class HomeBaseScene extends Phaser.Scene {
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
       objects.push(
         this.add
-          .rectangle(cx, yOff + 20, 40, 40, 0x111122, 1)
-          .setStrokeStyle(1, isBlocked ? 0x444444 : 0x666688)
+          .rectangle(cx, yOff + 20, 40, 40, UI_HEX.panel, 1)
+          .setStrokeStyle(1, isBlocked ? UI_HEX.line : 0x666688)
           .setDepth(902),
       );
       if (this.textures.exists(portraitKey)) {
@@ -1665,25 +1771,26 @@ export class HomeBaseScene extends Phaser.Scene {
       }
       yOff += 42;
 
-      const textColor = isBlocked ? '#777777' : '#ffffff';
+      const textColor = isBlocked ? '#777777' : UI_PALETTE.text;
       const addLine = (text, fontSize, color, dy) => {
         objects.push(
-          this.add
-            .text(cx, yOff, text, {
-              fontFamily: 'monospace',
+          applyTextResolution(
+            this.add.text(cx, yOff, text, {
+              fontFamily: 'Arial',
               fontSize,
               color,
               align: 'center',
               wordWrap: { width: cardW - 12 },
-            })
+            }),
+          )
             .setOrigin(0.5, 0)
             .setDepth(902),
         );
         yOff += dy;
       };
 
-      addLine(lord.name, '12px', isBlocked ? '#999999' : '#ffdd44', 14);
-      addLine(lord.class, '9px', isBlocked ? '#666666' : '#aaaaaa', 12);
+      addLine(lord.name, '12px', isBlocked ? UI_PALETTE.muted : UI_PALETTE.accent, 14);
+      addLine(lord.class, '9px', isBlocked ? UI_PALETTE.muted : UI_PALETTE.muted, 12);
       addLine(lord.weapon.replace(/\s*\((P|M)\)/g, ''), '8px', textColor, 11);
       addLine(`MOV ${lord.baseStats.MOV} · ${lord.moveType}`, '8px', '#88bbff', 11);
       const s = lord.baseStats;
@@ -1695,13 +1802,14 @@ export class HomeBaseScene extends Phaser.Scene {
       const tag = isBlocked ? 'COMMANDER' : isCurrent ? 'CURRENT' : null;
       if (tag) {
         objects.push(
-          this.add
-            .text(cx, cy + cardH / 2 - 10, `[${tag}]`, {
-              fontFamily: 'monospace',
+          applyTextResolution(
+            this.add.text(cx, cy + cardH / 2 - 10, `[${tag}]`, {
+              fontFamily: 'Arial',
               fontSize: '8px',
-              color: isBlocked ? '#888888' : '#ffdd44',
+              color: isBlocked ? UI_PALETTE.muted : UI_PALETTE.accent,
               fontStyle: 'bold',
-            })
+            }),
+          )
             .setOrigin(0.5)
             .setDepth(902),
         );
@@ -1711,7 +1819,7 @@ export class HomeBaseScene extends Phaser.Scene {
         card.setInteractive({ useHandCursor: true });
         card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
         card.on('pointerout', () =>
-          card.setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? 0xffdd44 : 0x666688),
+          card.setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? UI_HEX.accent : 0x666688),
         );
         card.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1728,14 +1836,15 @@ export class HomeBaseScene extends Phaser.Scene {
 
     // Close button + hint
     const closeY = 462;
-    const closeBtn = this.add
-      .text(cam.centerX, closeY, '[ CLOSE ]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.add.text(cam.centerX, closeY, '[ CLOSE ]', {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#cc8888',
         backgroundColor: '#331111',
         padding: { x: 6, y: 2 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
@@ -1765,36 +1874,37 @@ export class HomeBaseScene extends Phaser.Scene {
       this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;
 
     if (this.refundMode) {
-      const cancelRefundBtn = this.add
-        .text(cx - 190, btnY, '[ Cancel Refund ]', {
-          fontFamily: 'monospace',
+      const cancelRefundBtn = applyTextResolution(
+        this.add.text(cx - 190, btnY, '[ Cancel Refund ]', {
+          fontFamily: 'Arial',
           fontSize: '14px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accent,
           backgroundColor: '#000000aa',
           padding: { x: 10, y: 8 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
-      cancelRefundBtn.on('pointerover', () => cancelRefundBtn.setColor('#ffffff'));
-      cancelRefundBtn.on('pointerout', () => cancelRefundBtn.setColor('#ffdd44'));
+      cancelRefundBtn.on('pointerover', () => cancelRefundBtn.setColor(UI_PALETTE.text));
+      cancelRefundBtn.on('pointerout', () => cancelRefundBtn.setColor(UI_PALETTE.accent));
       cancelRefundBtn.on('pointerdown', () => {
         this.refundMode = false;
         this.drawUI();
       });
     } else {
       const refundColor = canRefundAnything ? '#cc8844' : '#555555';
-      const refundBtn = this.add
-        .text(cx - 190, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
-          fontFamily: 'monospace',
+      const refundBtn = applyTextResolution(
+        this.add.text(cx - 190, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
+          fontFamily: 'Arial',
           fontSize: '14px',
           color: refundColor,
           backgroundColor: '#000000aa',
           padding: { x: 10, y: 8 },
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
       if (canRefundAnything) {
         refundBtn.setInteractive({ useHandCursor: true });
-        refundBtn.on('pointerover', () => refundBtn.setColor('#ffdd44'));
+        refundBtn.on('pointerover', () => refundBtn.setColor(UI_PALETTE.accent));
         refundBtn.on('pointerout', () => refundBtn.setColor(refundColor));
         refundBtn.on('pointerdown', () => {
           this.refundMode = true;
@@ -1804,18 +1914,19 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // Begin Run button
-    const beginBtn = this.add
-      .text(cx, btnY, '[ Begin Run ]', {
-        fontFamily: 'monospace',
+    const beginBtn = applyTextResolution(
+      this.add.text(cx, btnY, '[ Begin Run ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#88ff88',
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
+    beginBtn.on('pointerover', () => beginBtn.setColor(UI_PALETTE.accent));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', async () => {
       await this.runTransition(() =>
@@ -1829,19 +1940,20 @@ export class HomeBaseScene extends Phaser.Scene {
     });
 
     // Back to Title button
-    const backBtn = this.add
-      .text(cx + 190, btnY, '[ Back to Title ]', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      this.add.text(cx + 190, btnY, '[ Back to Title ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
-    backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
+    backBtn.on('pointerover', () => backBtn.setColor(UI_PALETTE.accent));
+    backBtn.on('pointerout', () => backBtn.setColor(UI_PALETTE.text));
     backBtn.on('pointerdown', async () => {
       await this.runTransition(async () => {
         const audio = this.registry.get('audio');
@@ -1897,14 +2009,15 @@ export class HomeBaseScene extends Phaser.Scene {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
-    this.transientMessage = this.add
-      .text(this.cameras.main.centerX, 414, text, {
-        fontFamily: 'monospace',
+    this.transientMessage = applyTextResolution(
+      this.add.text(this.cameras.main.centerX, 414, text, {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color,
         backgroundColor: '#000000cc',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(950);
     this._transientMessageTimer = trackSceneTimer(
@@ -2046,11 +2159,13 @@ export class HomeBaseScene extends Phaser.Scene {
   _drawRefundButton(x, y, upgrade) {
     const level = this.meta.getUpgradeLevel(upgrade.id);
     if (level <= 0) {
-      this.add.text(x, y, '---', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#444444',
-      });
+      applyTextResolution(
+        this.add.text(x, y, '---', {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: '#444444',
+        }),
+      );
       return;
     }
 
@@ -2062,28 +2177,28 @@ export class HomeBaseScene extends Phaser.Scene {
           : check.reason === 'insufficient_fee'
             ? 'NO FEE'
             : 'BLOCKED';
-      const blockText = this.add
-        .text(x, y, reason, {
-          fontFamily: 'monospace',
+      const blockText = applyTextResolution(
+        this.add.text(x, y, reason, {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: '#aa4444',
           backgroundColor: '#221111',
           padding: { x: 6, y: 2 },
-        })
-        .setInteractive();
+        }),
+      ).setInteractive();
 
       blockText.on('pointerover', () => {
         const tipMsg = check.detail || check.reason;
-        this._prereqTooltip = this.add
-          .text(x - 120, y + 18, tipMsg, {
-            fontFamily: 'monospace',
+        this._prereqTooltip = applyTextResolution(
+          this.add.text(x - 120, y + 18, tipMsg, {
+            fontFamily: 'Arial',
             fontSize: '9px',
             color: '#dddddd',
             backgroundColor: '#111122ee',
             padding: { x: 6, y: 4 },
             wordWrap: { width: 200 },
-          })
-          .setDepth(950);
+          }),
+        ).setDepth(950);
       });
       blockText.on('pointerout', () => {
         if (this._prereqTooltip) {
@@ -2097,17 +2212,17 @@ export class HomeBaseScene extends Phaser.Scene {
     const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
     const suffix = currency === 'valor' ? 'V' : 'S';
     const tierCost = check.refundAmount;
-    const btn = this.add
-      .text(x, y, `[-1] +${tierCost}${suffix}`, {
-        fontFamily: 'monospace',
+    const btn = applyTextResolution(
+      this.add.text(x, y, `[-1] +${tierCost}${suffix}`, {
+        fontFamily: 'Arial',
         fontSize: '11px',
         color: '#cc8844',
         backgroundColor: '#332211',
         padding: { x: 6, y: 2 },
-      })
-      .setInteractive({ useHandCursor: true });
+      }),
+    ).setInteractive({ useHandCursor: true });
 
-    btn.on('pointerover', () => btn.setColor('#ffdd44'));
+    btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
     btn.on('pointerout', () => btn.setColor('#cc8844'));
     btn.on('pointerdown', () => {
       this._showRefundConfirm(upgrade, level, tierCost, currency);
@@ -2131,41 +2246,43 @@ export class HomeBaseScene extends Phaser.Scene {
     const panelW = 360;
     const panelH = 100;
     const panel = this.add
-      .rectangle(w / 2, h / 2, panelW, panelH, 0x111122, 0.95)
+      .rectangle(w / 2, h / 2, panelW, panelH, UI_HEX.panel, 0.95)
       .setStrokeStyle(2, 0xcc8844)
       .setDepth(851);
     this.confirmOverlayObjects.push(panel);
 
     // Message
-    const msg = this.add
-      .text(
+    const msg = applyTextResolution(
+      this.add.text(
         w / 2,
         h / 2 - 24,
         `Refund ${upgrade.name} tier ${level}?\nGet back ${tierCost}${suffix} (fee: ${REFUND_FEE}${suffix})`,
         {
-          fontFamily: 'monospace',
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: '#dddddd',
           align: 'center',
         },
-      )
+      ),
+    )
       .setOrigin(0.5)
       .setDepth(851);
     this.confirmOverlayObjects.push(msg);
 
     // Refund button
-    const confirmBtn = this.add
-      .text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
-        fontFamily: 'monospace',
+    const confirmBtn = applyTextResolution(
+      this.add.text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#cc8844',
         backgroundColor: '#332211',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(851)
       .setInteractive({ useHandCursor: true });
-    confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
+    confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
     confirmBtn.on('pointerout', () => confirmBtn.setColor('#cc8844'));
     confirmBtn.on('pointerdown', () => {
       const result = this.meta.refundUpgrade(upgrade.id);
@@ -2179,19 +2296,20 @@ export class HomeBaseScene extends Phaser.Scene {
     this.confirmOverlayObjects.push(confirmBtn);
 
     // Cancel button
-    const cancelBtn = this.add
-      .text(w / 2 + 60, h / 2 + 20, '[ Cancel ]', {
-        fontFamily: 'monospace',
+    const cancelBtn = applyTextResolution(
+      this.add.text(w / 2 + 60, h / 2 + 20, '[ Cancel ]', {
+        fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#aaaaaa',
-        backgroundColor: '#222222',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.panel,
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(851)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffffff'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#aaaaaa'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.text));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => {
       this._hideRefundConfirm();
     });
@@ -2215,6 +2333,13 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   requestCancel({ allowExit = true } = {}) {
+    if (this.mobileHome?.visible) {
+      return this.mobileHome.back({ allowExit });
+    }
+    if (this.mobileUpgrades?.visible) {
+      this.mobileUpgrades.back();
+      return true;
+    }
     if (this._sceneShuttingDown) return true;
     if (!this.canRequestCancel({ allowExit })) return false;
     if (this.confirmOverlayObjects.length > 0) {

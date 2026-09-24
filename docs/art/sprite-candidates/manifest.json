@@ -1,0 +1,189 @@
+{
+  "player_lord_edric": {
+    "file": "player_lord_edric.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_myrmidon": {
+    "file": "player_myrmidon.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_myrmidon": {
+    "file": "enemy_myrmidon.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_knight": {
+    "file": "player_knight.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_knight": {
+    "file": "enemy_knight.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_fighter": {
+    "file": "player_fighter.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_fighter": {
+    "file": "enemy_fighter.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_archer": {
+    "file": "player_archer.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_archer": {
+    "file": "enemy_archer.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_mage": {
+    "file": "player_mage.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_mage": {
+    "file": "enemy_mage.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_cleric": {
+    "file": "player_cleric.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_cleric": {
+    "file": "enemy_cleric.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_thief": {
+    "file": "player_thief.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_thief": {
+    "file": "enemy_thief.png",
+    "kind": "infantry",
+    "bounds": {
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "source": "tools/sprite-kit"
+  },
+  "player_cavalier": {
+    "file": "player_cavalier.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 9,
+      "y": 4,
+      "width": 46,
+      "height": 40
+    },
+    "source": "tools/sprite-kit"
+  },
+  "enemy_cavalier": {
+    "file": "enemy_cavalier.png",
+    "kind": "mounted",
+    "bounds": {
+      "x": 9,
+      "y": 4,
+      "width": 46,
+      "height": 40
+    },
+    "source": "tools/sprite-kit"
+  }
+}

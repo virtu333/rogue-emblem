@@ -119,3 +119,26 @@ describe('HintManager', () => {
     expect(hm.shouldShow('hint_c')).toBe(true);
   });
 });
+
+it('disabled helpers do not consume hints, and reset affects memory and storage', () => {
+  let enabled = false;
+  const hints = new HintManager(3, () => enabled);
+  expect(hints.shouldShow('resource')).toBe(false);
+  expect(hints.hasSeen('resource')).toBe(false);
+  enabled = true;
+  expect(hints.shouldShow('resource')).toBe(true);
+  hints.reset();
+  expect(hints.shouldShow('resource')).toBe(true);
+  expect(new HintManager(3).hasSeen('resource')).toBe(true);
+});
+
+it('loads cloud lessons and persists an explicit reset without restoring tutorial defaults', () => {
+  const meta = { hintState: { seen: ['battle_triangle'], updatedAt: 1 }, _save: vi.fn() };
+  const hints = new HintManager(1, () => true, meta);
+  expect(hints.hasSeen('battle_triangle')).toBe(true);
+  hints.reset();
+  expect(meta.hintState.seen).toEqual([]);
+  const otherDevice = new HintManager(2, () => true, meta);
+  expect(otherDevice.hasSeen('battle_triangle')).toBe(false);
+  expect(otherDevice.isNew).toBe(false); // Explicit reset must not re-import taught defaults.
+});

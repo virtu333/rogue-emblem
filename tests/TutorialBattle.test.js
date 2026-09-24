@@ -81,7 +81,7 @@ function createTutorialGateScene({ isMobileInput = false } = {}) {
   scene.buildUnitPositionMap = vi.fn(() => new Map());
   scene.showActionMenu = vi.fn();
   scene.moveUnit = vi.fn();
-  scene._isReducedEffects = () => true;
+  scene._reduceMotion = () => true;
   scene.grid = {
     cols: 8,
     rows: 6,
@@ -107,6 +107,9 @@ function createTutorialTurnPhaseScene({ tutorialStep = 6, isMobileInput = false 
   scene._tutorialVisionIntroShown = false;
   scene.isMobileInput = isMobileInput;
   scene.battleState = 'PLAYER_IDLE';
+  scene.turnManager = { currentPhase: 'player', turnNumber: 3 };
+  scene.refreshEndTurnControl = vi.fn();
+  scene.processBallistaFire = vi.fn();
   scene.scene = { isActive: () => true };
   scene.turnCounterText = {
     setText: vi.fn(),
@@ -354,7 +357,7 @@ describe('TutorialBattle', () => {
       expect(scene.moveUnit).toHaveBeenCalledWith(edric, fort.col, fort.row);
     });
 
-    it('post-Fort blocking hint includes required desktop guidance and gate releases after dismiss', async () => {
+    it('post-Fort terrain lesson keeps the gate until dismissal', async () => {
       const { scene, edric } = createTutorialGateScene();
       scene.tutorialStep = 3;
       scene._setTutorialGuideHighlight('fort');
@@ -369,10 +372,8 @@ describe('TutorialBattle', () => {
       const pending = BattleScene.prototype.afterMove.call(scene, edric);
       const hintText = showImportantHint.mock.calls.at(-1)[1];
 
-      expect(hintText).toContain('top-left');
-      expect(hintText).toContain('Danger Zone');
-      expect(hintText).toContain('Right-click');
-      expect(hintText).toContain('[V]');
+      expect(hintText).toContain('Fort tile reached');
+      expect(hintText).toContain('terrain preview');
       expect(scene._tutorialStrictGateReleased).toBe(false);
       expect(scene._tutorialFortGuide).toBeNull();
 
@@ -383,17 +384,16 @@ describe('TutorialBattle', () => {
       expect(scene.showActionMenu).toHaveBeenCalledWith(edric);
     });
 
-    it('post-Fort blocking hint includes required mobile inspect guidance', async () => {
+    it('post-Fort mobile lesson refers to the terrain preview without unrelated lessons', async () => {
       const { scene, edric } = createTutorialGateScene({ isMobileInput: true });
       scene.tutorialStep = 3;
 
       await BattleScene.prototype.afterMove.call(scene, edric);
       const hintText = showImportantHint.mock.calls.at(-1)[1];
 
-      expect(hintText).toContain('top-left');
-      expect(hintText).toContain('Danger Zone');
-      expect(hintText).toContain('Inspect');
-      expect(hintText).toContain('long-press');
+      expect(hintText).toContain('Fort tile reached');
+      expect(hintText).toContain('terrain preview');
+      expect(hintText).not.toContain('top-left');
     });
 
     it('blocks cancel and end-turn while strict gate is active', async () => {
@@ -436,12 +436,13 @@ describe('TutorialBattle', () => {
       const scene = createTutorialTurnPhaseScene();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
 
       const hintText = showImportantHint.mock.calls.at(-1)[1];
       expect(scene._tutorialVisionIntroShown).toBe(true);
-      expect(hintText).toContain('Eye');
-      expect(hintText).toContain('Vision');
+      expect(hintText).toContain('Rewind');
+      expect(hintText).toContain('whole run');
       expect(hintText).toContain('if a lord falls');
     });
 
@@ -449,10 +450,12 @@ describe('TutorialBattle', () => {
       const scene = createTutorialTurnPhaseScene();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
       showImportantHint.mockClear();
 
       await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await vi.waitFor(() => expect(scene.battleState).not.toBe('TURN_START_RESOLVING'));
       await Promise.resolve();
 
       expect(showImportantHint).not.toHaveBeenCalled();

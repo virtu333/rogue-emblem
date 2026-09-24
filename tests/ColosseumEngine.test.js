@@ -13,6 +13,7 @@ import {
 } from '../src/engine/ColosseumEngine.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { NODE_TYPES, ACT_SEQUENCE } from '../src/utils/constants.js';
+import { getClassInnateSkills } from '../src/engine/UnitManager.js';
 
 const gameData = loadGameData();
 const colosseumData = gameData.colosseum;
@@ -289,10 +290,11 @@ describe('ColosseumEngine', () => {
       expect(reward.xpGained).toBe(0);
     });
 
-    it('refunds fee on draw', () => {
+    it('charges no gold and awards modest training XP on draw', () => {
       const reward = calculateArenaReward(silverTier, 'draw', 50, 0, colosseumData);
       expect(reward.goldDelta).toBe(0);
-      expect(reward.xpGained).toBe(0);
+      expect(reward.xpGained).toBe(13);
+      expect(calculateArenaReward(silverTier, 'draw', 50, 2, colosseumData).xpGained).toBe(7);
     });
 
     it('applies XP multiplier for gold tier', () => {
@@ -398,6 +400,35 @@ describe('ColosseumEngine', () => {
   });
 
   describe('generateMercenaryCandidates', () => {
+    it.each(['Dancer', 'Hunter', 'Paladin'])(
+      '%s has current and inherited class abilities before hire',
+      (className) => {
+        const pools = { ...gameData.recruits };
+        for (const act of ACT_SEQUENCE) pools[act] = { classPool: [className] };
+        const candidates = generateMercenaryCandidates(
+          'act3',
+          20,
+          pools,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          'normal',
+          colosseumData,
+          makeRng(73),
+          gameData.traits,
+        );
+        expect(candidates.length).toBeGreaterThan(0);
+        const cls = gameData.classes.find((c) => c.name === className);
+        const expected = [className, cls.promotesFrom]
+          .filter(Boolean)
+          .flatMap((name) => getClassInnateSkills(name, gameData.skills));
+        expect(expected.length).toBeGreaterThan(0);
+        for (const { unit } of candidates) {
+          expect(unit.skills).toEqual(expect.arrayContaining(expected));
+          expect(new Set(unit.skills).size).toBe(unit.skills.length);
+        }
+      },
+    );
     it('generates 2-3 candidates', () => {
       const rng = makeRng(42);
       const candidates = generateMercenaryCandidates(
@@ -917,19 +948,33 @@ describe('ColosseumEngine', () => {
       }
     });
 
-    it('spawns colosseum with ~55% frequency', () => {
+    it('spawns late-act colosseum with ~70% frequency', () => {
       let spawned = 0;
-      const trials = 500;
-      for (let i = 0; i < trials; i++) {
-        const map = generateNodeMap('act2', { name: 'Test', rows: 8 }, gameData.mapTemplates, {
-          colosseumConfig: colosseumData.nodeGeneration,
-        });
-        if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
+      const trials = 5000;
+      // Pin the sample and reduce sampling noise. Route repair can remove an
+      // attempted arena, so keep the existing final-placement tolerance.
+      const random = vi.spyOn(Math, 'random').mockImplementation(makeRng(42));
+      try {
+        for (let i = 0; i < trials; i++) {
+          const map = generateNodeMap('act2', { name: 'Test', rows: 8 }, gameData.mapTemplates, {
+            colosseumConfig: colosseumData.nodeGeneration,
+          });
+          if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
+        }
+      } finally {
+        random.mockRestore();
       }
       const rate = spawned / trials;
-      // 0.55 config ± variance; bounds reject old 0.40 value reliably
-      expect(rate).toBeGreaterThan(0.45);
-      expect(rate).toBeLessThan(0.68);
+      // Act 2+ override is 0.70; reject the old 0.55 frequency.
+      expect(rate).toBeGreaterThan(0.62);
+      expect(rate).toBeLessThan(0.78);
     });
   });
+});
+
+it('prices Dance utility above ordinary mercenaries without extra random rolls', () => {
+  const normal = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Mage');
+  const dancer = getMercenaryPrice('act1', false, 'normal', colosseumData, () => 0, 'Dancer');
+  expect(normal).toBe(400);
+  expect(dancer).toBe(800);
 });

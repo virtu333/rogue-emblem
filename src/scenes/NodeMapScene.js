@@ -1,3 +1,11 @@
+import { PendingRewardController } from '../ui/PendingRewardController.js';
+import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
+import { NodeMapMenu } from '../ui/NodeMapMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { getHPBarColor } from '../utils/uiStyles.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { routeMobileAction } from '../utils/overlayStack.js';
+import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
@@ -39,17 +47,7 @@ import {
   clearTrackedSceneTimer,
   clearAllSceneTimers,
 } from '../utils/sceneTimers.js';
-import {
-  OVERLAY_CONTENT_DEPTH,
-  SHOP_LIST_TOP_Y,
-  SHOP_LIST_BOTTOM_Y,
-  SHOP_SCROLL_STEP,
-  UNIT_PICKER_SCROLL_STEP,
-  CHURCH_LIST_TOP_Y,
-  CHURCH_VIEW_MAP_Y,
-  CHURCH_LIST_BOTTOM_Y,
-  CHURCH_SCROLL_STEP,
-} from '../ui/nodeMapOverlayLayout.js';
+import { UI_DEPTHS } from '../utils/uiDepths.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -79,9 +77,9 @@ const COLOR_CHURCH = 0xcccccc; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = 0x555555;
-const COLOR_AVAILABLE = 0xffdd44;
-const COLOR_EDGE = 0x666666;
-const COLOR_EDGE_ACTIVE = 0xffdd44;
+const COLOR_AVAILABLE = UI_HEX.accent;
+const COLOR_EDGE = UI_HEX.lineStrong;
+const COLOR_EDGE_ACTIVE = UI_HEX.accent;
 // Aura effects for special node types
 const AURA_ELITE_COLOR = 0xcc2222;
 const AURA_ELITE_RADIUS = 26;
@@ -94,7 +92,6 @@ const AURA_CHURCH_DURATION = 1200; // slower = calming
 const AURA_LOCKED_ALPHA_SCALE = 0.85; // visible but dim for locked nodes
 const AURA_DEPTH = -1; // below nodes and edges
 const NODE_DEPTH = 1; // keep nodes above aura layer
-// Shop/church overlay layout constants now live in ../ui/nodeMapOverlayLayout.js
 // (shared with the extracted overlay controllers).
 
 function beginSceneLifecycle(scene) {
@@ -185,6 +182,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   create() {
+    this._pendingRewards = null;
     const lifecycleGeneration = beginSceneLifecycle(this);
     this._promotionChoicePanelOpen = 0;
 
@@ -215,6 +213,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.dialogueOverlay = new DialogueOverlay(this);
     this._storyDialogueActive = false;
     this._touchTapDown = null;
+    this._pointerGesture = null;
+    this._touchTooltipPointer = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
     this._shopViewingMap = false;
@@ -234,7 +234,15 @@ export class NodeMapScene extends Phaser.Scene {
 
     this.drawMap();
     this.input.enabled = false;
-    void this.finalizeSceneReady(lifecycleGeneration);
+    void this.finalizeSceneReady(lifecycleGeneration).then(() => {
+      if (
+        this.isSceneReady &&
+        this.scene?.isActive?.() &&
+        this.runManager.isActComplete() &&
+        !this.runManager.pendingBattleReward
+      )
+        this.checkActComplete();
+    });
 
     const hints = this.registry.get('hints');
     this._pendingNodeMapHints = {
@@ -242,7 +250,7 @@ export class NodeMapScene extends Phaser.Scene {
       showFirstRun: Boolean(this._isFirstRunFastPath && hints?.shouldShow('firstrun_onboarding')),
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
       showHpPersist: Boolean(
-        hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1,
+        this.runManager.completedBattles >= 1 && hints && !hints.hasSeen('nodemap_hp_persist'),
       ),
     };
   }
@@ -264,23 +272,22 @@ export class NodeMapScene extends Phaser.Scene {
       const handled = this.requestCancel();
       if (handled) consumeEscEvent(this, event);
     };
-    this._onPointerDown = (pointer) => {
+    this._onPointerDown = (pointer, gameObjects = []) => {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
+      // The original hit list survives a button hiding/destroying itself on down.
+      // Remember ownership until release instead of hit-testing replacement UI.
+      this._pointerGesture = { pointer, owned: gameObjects.length > 0 };
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
     };
-    this._onPointerMove = (pointer) => this.onPointerMove(pointer);
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
-    this._onWheel = (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY);
 
     if (keyboard?.on) keyboard.on('keydown-ESC', this._onEsc);
     if (input?.on) {
       input.on('pointerdown', this._onPointerDown);
-      input.on('pointermove', this._onPointerMove);
       input.on('pointerup', this._onPointerUp);
       this._onPointerUpOutside = (pointer) => this.onPointerUpOutside(pointer);
       input.on('pointerupoutside', this._onPointerUpOutside);
-      input.on('wheel', this._onWheel);
     }
   }
 
@@ -313,10 +320,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._unbindDebugToggleHandler?.();
     if (input?.off) {
       if (this._onPointerDown) input.off('pointerdown', this._onPointerDown);
-      if (this._onPointerMove) input.off('pointermove', this._onPointerMove);
       if (this._onPointerUp) input.off('pointerup', this._onPointerUp);
       if (this._onPointerUpOutside) input.off('pointerupoutside', this._onPointerUpOutside);
-      if (this._onWheel) input.off('wheel', this._onWheel);
     }
   }
 
@@ -324,6 +329,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
+    this._pendingRewards?.destroy();
+    this._pendingRewards = null;
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -436,6 +443,7 @@ export class NodeMapScene extends Phaser.Scene {
             try {
               await this.dialogueOverlay.showSequence(
                 adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
+                { category: 'runStart', key: 'runStart' },
               );
             } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
@@ -480,36 +488,21 @@ export class NodeMapScene extends Phaser.Scene {
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
-    if (pending.showFirstRun) {
-      this._storyDialogueActive = true;
-      try {
-        await showImportantHint(
-          this,
-          'Your first run begins here. Home Base upgrades, difficulty,\nand blessings unlock once this run ends — win or lose.',
-        );
-      } finally {
-        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
-          this._storyDialogueActive = false;
-        }
-      }
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
-    }
-    if (pending.showIntro) {
-      this._storyDialogueActive = true;
-      try {
-        await showImportantHint(
-          this,
-          'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.',
-        );
-      } finally {
-        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
-          this._storyDialogueActive = false;
-        }
-      }
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
-    }
-    if (pending.showHpPersist && isSceneLifecycleActive(this, lifecycleGeneration)) {
-      void showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
+    if (pending.showFirstRun || pending.showIntro) {
+      void showMinorHint(
+        this,
+        pending.showFirstRun
+          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Advance commits.'
+          : 'Tap any node to preview it. Advance enters a connected available node. Inspect service nodes to see what this route offers.',
+      );
+    } else if (
+      pending.showHpPersist &&
+      this.registry.get('hints')?.shouldShow('nodemap_hp_persist')
+    ) {
+      void showMinorHint(
+        this,
+        'HP carries between battles. Consumables can heal from Roster; inspect service nodes for other recovery options.',
+      );
     }
   }
 
@@ -606,18 +599,19 @@ export class NodeMapScene extends Phaser.Scene {
     const cy = cam?.centerY ?? 240;
     const backdrop = this.add
       .rectangle(cx, cy, 420, 86, 0x000000, 0.86)
-      .setDepth(OVERLAY_CONTENT_DEPTH + 120)
+      .setDepth(UI_DEPTHS.NODE_EVENT)
       .setStrokeStyle(2, 0xaa3333)
       .setAlpha(0);
-    const label = this.add
-      .text(cx, cy, 'The village is under attack!', {
-        fontFamily: 'monospace',
+    const label = applyTextResolution(
+      this.add.text(cx, cy, 'The village is under attack!', {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff6666',
         backgroundColor: '#00000000',
-      })
+      }),
+    )
       .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH + 121)
+      .setDepth(UI_DEPTHS.NODE_EVENT + 1)
       .setAlpha(0);
 
     if (this.tweens?.add) {
@@ -640,6 +634,9 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    const gesture = this._pointerGesture;
+    const owned = gesture?.pointer === pointer && gesture.owned;
+    this._pointerGesture = null;
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
       this._touchDownLatchKind = null;
       return;
@@ -661,12 +658,14 @@ export class NodeMapScene extends Phaser.Scene {
       this._churchMapViewSuppressCancel = false;
       return;
     }
-    if (this._isPointerOverInteractive(pointer)) return;
+    if (owned || this._isPointerOverInteractive(pointer)) return;
     this._clearTouchPreviewLatches();
     this.requestCancel({ allowPause: false });
   }
 
   onPointerUpOutside(_pointer) {
+    this._pointerGesture = null;
+    this._touchTooltipPointer = null;
     this._touchScrollDrag = null;
     this._touchTapDown = null;
     this._touchDownLatchKind = null;
@@ -685,135 +684,6 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchDownLatchKind = null;
     if (kind !== 'node') this._touchPreviewedNodeId = null;
     if (kind !== 'shop') this._touchPreviewedShopEntry = null;
-
-    if (this.unitPickerState) {
-      const state = this.unitPickerState;
-      if (
-        pointer.y >= state.viewportTop &&
-        pointer.y <= state.viewportBottom &&
-        (state.maxOffset || 0) > 0
-      ) {
-        this._touchScrollDrag = {
-          type: 'unit-picker',
-          startY: pointer.y,
-          startOffset: state.offset || 0,
-        };
-      }
-      return;
-    }
-
-    if (this.churchOverlay && !this._churchViewingMap) {
-      if ((this.churchScrollMax || 0) <= 0) return;
-      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
-      this._touchScrollDrag = {
-        type: 'church',
-        startY: pointer.y,
-        startOffset: this.churchScrollOffset || 0,
-      };
-      return;
-    }
-
-    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
-    if (this.forgePicker || this.unitPicker) return;
-    if ((this.shopScrollMax || 0) <= 0) return;
-    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
-    this._touchScrollDrag = {
-      type: 'shop',
-      tab: this.activeShopTab,
-      startY: pointer.y,
-      startOffset: this.shopScrollOffsets?.[this.activeShopTab] || 0,
-    };
-  }
-
-  onPointerMove(pointer) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (!isTouchPointer(pointer)) return;
-    const drag = this._touchScrollDrag;
-    if (!drag) return;
-
-    if (drag.type === 'unit-picker') {
-      if (!this.unitPickerState) return;
-      const max = this.unitPickerState.maxOffset || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      if (next === this.unitPickerState.offset) return;
-      this.unitPickerState.offset = next;
-      this.renderUnitPicker();
-      return;
-    }
-
-    if (drag.type === 'church') {
-      if (!this.churchOverlay || this._churchViewingMap) return;
-      const max = this.churchScrollMax || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      if (next === this.churchScrollOffset) return;
-      this.churchScrollOffset = next;
-      this.drawChurchScrollContent();
-      return;
-    }
-
-    if (drag.type === 'shop') {
-      if (!this.shopOverlay || this._shopViewingMap || this.forgePicker || this.unitPicker) return;
-      if (!this.activeShopTab || drag.tab !== this.activeShopTab) return;
-      const max = this.shopScrollMax || 0;
-      if (max <= 0) return;
-      const deltaY = pointer.y - drag.startY;
-      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
-      const current = this.shopScrollOffsets?.[drag.tab] || 0;
-      if (next === current) return;
-      this.shopScrollOffsets[drag.tab] = next;
-      this.drawActiveTabContent();
-    }
-  }
-
-  onWheel(pointer, deltaX, deltaY) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (this.unitPickerState) {
-      const step = Math.sign(deltaY || 0) * UNIT_PICKER_SCROLL_STEP;
-      if (!step) return;
-      const current = this.unitPickerState.offset || 0;
-      const max = this.unitPickerState.maxOffset || 0;
-      const next = Phaser.Math.Clamp(current + step, 0, max);
-      if (next === current) return;
-      this.unitPickerState.offset = next;
-      this.renderUnitPicker();
-      return;
-    }
-
-    if (this.churchOverlay && !this._churchViewingMap) {
-      if (!pointer) return;
-      if ((this.churchScrollMax || 0) <= 0) return;
-      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
-      const step = Math.sign(deltaY || 0) * CHURCH_SCROLL_STEP;
-      if (!step) return;
-      const next = Phaser.Math.Clamp(
-        (this.churchScrollOffset || 0) + step,
-        0,
-        this.churchScrollMax,
-      );
-      if (next === this.churchScrollOffset) return;
-      this.churchScrollOffset = next;
-      this.drawChurchScrollContent();
-      return;
-    }
-
-    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
-    if (this.forgePicker || this.unitPicker) return;
-    if (!pointer) return;
-    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
-    if ((this.shopScrollMax || 0) <= 0) return;
-
-    const step = Math.sign(deltaY || 0) * SHOP_SCROLL_STEP;
-    if (!step) return;
-    const key = this.activeShopTab;
-    const current = this.shopScrollOffsets?.[key] || 0;
-    const next = Phaser.Math.Clamp(current + step, 0, this.shopScrollMax || 0);
-    if (next === current) return;
-    this.shopScrollOffsets[key] = next;
-    this.drawActiveTabContent();
   }
 
   _isPointerOverInteractive(pointer) {
@@ -838,8 +708,6 @@ export class NodeMapScene extends Phaser.Scene {
   canRequestCancel({ allowPause = true } = {}) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
-    if (this.forgePicker) return true;
-    if (this.unitPicker || this.unitPickerState) return true;
     if (this.settingsOverlay?.visible) return true;
     if (this.rosterOverlay?.visible) return true;
     if (this.pauseOverlay?.visible) return true;
@@ -870,27 +738,42 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _setShopOverlayVisibility(visible) {
+    this._shopController?.nativeMenu?.setVisible(visible);
     this._setOverlayVisibility(this.shopOverlay, visible);
     this._setOverlayVisibility(this.shopContentGroup, visible);
     this._setOverlayVisibility(this.shopTabObjects, visible);
     this._setOverlayVisibility(this.unitPicker, visible);
     this._setOverlayVisibility(this.forgePicker, visible);
-    this._shopController?._setShopRingVisible?.(visible);
   }
 
   _setChurchOverlayVisibility(visible) {
+    this._churchController?.nativeMenu?.setVisible(visible);
     this._setOverlayVisibility(this.churchOverlay, visible);
     this._setOverlayVisibility(this.churchContentGroup, visible);
-    this._churchController?._setChurchRingVisible?.(visible);
+  }
+
+  _showServiceMap(onClose) {
+    const rm = this.runManager;
+    const view = new CampaignMapOverlay(this, {
+      nodeMap: rm.nodeMap,
+      currentNodeId: rm.currentNodeId,
+      activeNodeId: rm.currentNodeId,
+      actId: rm.currentAct,
+      onClose,
+    });
+    view.show();
   }
 
   _enterShopMapView() {
     if (!this.shopOverlay || this._shopViewingMap) return;
     this._touchScrollDrag = null;
-    this._hideForgeTooltip();
-    this._hideShopItemTooltip();
     this._setShopOverlayVisibility(false);
     this._shopViewingMap = true;
+    if (hasDOMHost())
+      this._showServiceMap(() => {
+        this._shopViewingMap = false;
+        this._setShopOverlayVisibility(true);
+      });
   }
 
   _enterChurchMapView() {
@@ -899,24 +782,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._setChurchOverlayVisibility(false);
     this._churchViewingMap = true;
     this._churchMapViewSuppressCancel = true;
-    // Persistent "Return to Church" button (not in churchOverlay so it stays visible)
-    this._churchReturnBtn = this.add
-      .text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: '#222222',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    this._churchReturnBtn.on('pointerover', () => this._churchReturnBtn.setColor('#ffdd44'));
-    this._churchReturnBtn.on('pointerout', () => this._churchReturnBtn.setColor('#aaddff'));
-    this._churchReturnBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._exitChurchMapView();
-    });
+    this._showServiceMap(() => this._exitChurchMapView());
   }
 
   _exitChurchMapView() {
@@ -932,19 +798,14 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   requestCancel({ allowPause = true } = {}) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return true;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
+      this.dialogueOverlay?.hide(true);
+      return true;
+    }
     if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return false;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
-      return true;
-    }
-    if (this.forgePicker) {
-      this.closeForgeStatPicker();
-      return true;
-    }
-    if (this.unitPicker || this.unitPickerState) {
-      this.closeUnitPicker();
       return true;
     }
     if (this.settingsOverlay?.visible) {
@@ -1016,7 +877,7 @@ export class NodeMapScene extends Phaser.Scene {
       showMinorHint(
         this,
         result.isQuotaError
-          ? 'Save failed — storage full. Clear browser data to free space.'
+          ? 'Save failed — storage full. Free device space and retry; keep this app’s saved data.'
           : 'Save failed — storage may be unavailable',
       );
     }
@@ -1036,15 +897,21 @@ export class NodeMapScene extends Phaser.Scene {
     meta.recordMilestone(milestone);
   }
 
-  showPauseMenu() {
+  showPauseMenu(options = {}) {
     if (this.pauseOverlay?.visible) return;
+    const payout = this.runManager.previewEndRunRewards?.();
     this.pauseOverlay = new PauseOverlay(this, {
+      onAbandonWarning: payout
+        ? `Abandon this run?\nKeep ${payout.valor} Valor and ${payout.supply} Supply. This run and its gold, items and route progress will end.`
+        : null,
       onResume: () => {
         this.pauseOverlay = null;
+        options.onResume?.();
       },
       onSaveAndExit: async () => {
         try {
-          // Run is already auto-saved on NodeMap entry. Just navigate.
+          // Persist the current map/service state, including an interrupted visit.
+          this.persistRunSave();
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
@@ -1092,6 +959,7 @@ export class NodeMapScene extends Phaser.Scene {
             slot,
           );
           this.runManager.failRun();
+          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
@@ -1144,9 +1012,35 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawMap() {
+    this.cameras.main.setBackgroundColor?.(UI_PALETTE.bg);
     // Clear everything
     this.children.removeAll(true);
 
+    // Mobile virtual controls
+    const flags = this.registry.get('startupFlags');
+    this.isMobileInput = Boolean(flags?.isMobile);
+    if (this.isMobileInput) {
+      const ge = this.game.events;
+      if (!this._mobileHandlers) {
+        this._mobileHandlers = {
+          cancel: () => this.requestCancel({ allowPause: false }),
+          menu: () => this.requestCancel(),
+          roster: () => this._openRoster(),
+        };
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          const routed = () => routeMobileAction(this, action, handler);
+          this._mobileHandlers[action] = routed;
+          ge.on(`mobile:${action}`, routed);
+        }
+      }
+      ge.emit('mobile:setContext', { context: 'nodemap' });
+    }
+
+    if (hasDOMHost()) {
+      if (!this.nodeView || this.nodeView.destroyed) this.nodeView = new NodeMapMenu(this);
+      this.nodeView.render();
+      return;
+    }
     const rm = this.runManager;
     const nodeMap = rm.nodeMap;
     const actConfig = ACT_CONFIG[rm.currentAct];
@@ -1154,73 +1048,73 @@ export class NodeMapScene extends Phaser.Scene {
     const availableIds = new Set(availableNodes.map((n) => n.id));
 
     // Title
-    this.add
-      .text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
+        fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5);
+        color: UI_PALETTE.accent,
+      }),
+    ).setOrigin(0.5);
 
     // Gold display + info labels (dynamic stacking to stay above MAP_TOP=60)
     let infoY = 14;
     const infoX = this.cameras.main.width - 20;
-    this.add
-      .text(infoX, infoY, `${rm.gold}G`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(infoX, infoY, `${rm.gold}G`, {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#ffdd44',
-      })
-      .setOrigin(1, 0);
+        color: UI_PALETTE.accent,
+      }),
+    ).setOrigin(1, 0);
     infoY += 12;
 
     // Difficulty label (non-Normal only)
     const diffLabel = rm.difficultyModifiers?.label || 'Normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
     if (diffLabel !== 'Normal') {
-      this.add
-        .text(infoX, infoY, diffLabel, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, diffLabel, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: diffColor,
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
       infoY += 11;
     }
 
     // No Meta indicator
     if (rm.noMetaMode === true) {
-      this.add
-        .text(infoX, infoY, 'NO META', {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, 'NO META', {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#ff8800',
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
       infoY += 11;
     }
 
     // Win streak display (only when >= 2)
     if (rm.winStreak >= 2) {
-      this.add
-        .text(infoX, infoY, `Streak: ${rm.winStreak}`, {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(infoX, infoY, `Streak: ${rm.winStreak}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#88ccff',
-        })
-        .setOrigin(1, 0);
+        }),
+      ).setOrigin(1, 0);
     }
 
     // Gear icon — opens settings
-    const gear = this.add
-      .text(20, 16, '\u2699', {
-        fontFamily: 'monospace',
+    const gear = applyTextResolution(
+      this.add.text(20, 16, '\u2699', {
+        fontFamily: 'Arial',
         fontSize: '20px',
-        color: '#888888',
-      })
-      .setInteractive({ useHandCursor: true });
-    gear.on('pointerover', () => gear.setColor('#ffdd44'));
-    gear.on('pointerout', () => gear.setColor('#888888'));
+        color: UI_PALETTE.muted,
+      }),
+    ).setInteractive({ useHandCursor: true });
+    gear.on('pointerover', () => gear.setColor(UI_PALETTE.accent));
+    gear.on('pointerout', () => gear.setColor(UI_PALETTE.muted));
     gear.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       if (this.settingsOverlay?.visible) return;
@@ -1255,7 +1149,7 @@ export class NodeMapScene extends Phaser.Scene {
         const isActive =
           (node.completed && availableIds.has(edgeId)) ||
           (rm.currentNodeId === null && node.id === nodeMap.startNodeId);
-        graphics.lineStyle(2, isActive ? COLOR_EDGE_ACTIVE : COLOR_EDGE, isActive ? 0.8 : 0.4);
+        graphics.lineStyle(2, isActive ? COLOR_EDGE_ACTIVE : COLOR_EDGE, isActive ? 1 : 0.7);
         graphics.lineBetween(from.x, from.y, to.x, to.y);
       }
     }
@@ -1291,7 +1185,7 @@ export class NodeMapScene extends Phaser.Scene {
         const aura = this.add
           .circle(pos.x, pos.y, auraRadius, auraColor, auraAlphaRange[0])
           .setDepth(AURA_DEPTH);
-        aura.setBlendMode(Phaser.BlendModes.ADD);
+        aura.setBlendMode(Phaser.BlendModes.NORMAL);
 
         if (isAvailable) {
           aura.setAlpha(auraAlphaRange[0]);
@@ -1322,26 +1216,45 @@ export class NodeMapScene extends Phaser.Scene {
         const actId = this.runManager.nodeMap.actId;
         if (actId === 'finalBoss') spriteKey = 'node_boss_final';
       }
+      const weatheredFrames = {
+        node_battle: 0,
+        node_rest: 1,
+        node_boss: 2,
+        node_shop: 3,
+        node_ruins: 4,
+        node_recruit: 5,
+        node_colosseum: 6,
+        node_elite: 7,
+        node_boss_final: 8,
+      };
+      const weatheredFrame = weatheredFrames[spriteKey];
+      const hasWeathered = this.textures.get?.('weathered_nodes')?.has?.(weatheredFrame);
       let nodeObj;
       if (this.textures.exists(spriteKey)) {
         nodeObj = this.add
-          .image(pos.x, pos.y, spriteKey)
-          .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
+          .image(
+            pos.x,
+            pos.y,
+            hasWeathered ? 'weathered_nodes' : spriteKey,
+            hasWeathered ? weatheredFrame : undefined,
+          )
+          .setDisplaySize(NODE_SIZE + 18, NODE_SIZE + 18)
           .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(0x555555);
-        if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
+        if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.85);
       } else {
         nodeObj = this.add
           .rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
-          .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888)
+          .setStrokeStyle(2, isAvailable ? 0xffffff : UI_HEX.line)
           .setDepth(NODE_DEPTH);
         const icon = NODE_ICONS[node.type] || '?';
-        this.add
-          .text(pos.x, pos.y, icon, {
-            fontFamily: 'monospace',
+        applyTextResolution(
+          this.add.text(pos.x, pos.y, icon, {
+            fontFamily: 'Arial',
             fontSize: '14px',
-            color: isCompleted ? '#888888' : '#ffffff',
-          })
+            color: isCompleted ? UI_PALETTE.muted : UI_PALETTE.text,
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(NODE_DEPTH + 1);
       }
@@ -1373,50 +1286,39 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawRoster();
 
     // Roster button (bottom-right, near gear icon area)
-    this._rosterBtn = this.add
-      .text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
-        fontFamily: 'monospace',
+    this._rosterBtn = applyTextResolution(
+      this.add.text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
+        fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true });
-    this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor('#ffdd44'));
-    this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor('#e0e0e0'));
+    this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor(UI_PALETTE.accent));
+    this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor(UI_PALETTE.text));
     this._rosterBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       this._openRoster();
     });
 
-    // Mobile virtual controls
-    const flags = this.registry.get('startupFlags');
-    this.isMobileInput = Boolean(flags?.isMobile);
-    if (this.isMobileInput) {
-      this._rosterBtn.setVisible(false);
-      const ge = this.game.events;
-      if (!this._mobileHandlers) {
-        this._mobileHandlers = {
-          cancel: () => this.requestCancel({ allowPause: false }),
-          menu: () => this.requestCancel(),
-          roster: () => this._openRoster(),
-        };
-        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-          ge.on(`mobile:${action}`, handler);
-        }
-      }
-      ge.emit('mobile:setContext', { context: 'nodemap' });
-    }
+    if (this.isMobileInput) this._rosterBtn.setVisible(false);
 
     // Instructions
-    this.add
-      .text(this.cameras.main.centerX, MAP_BOTTOM + 30, 'Click a node to proceed', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#888888',
-      })
-      .setOrigin(0.5);
+    applyTextResolution(
+      this.add.text(
+        this.cameras.main.centerX,
+        MAP_BOTTOM + 30,
+        inputHint(this, 'Click a node to proceed', 'Tap a node to proceed'),
+        {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        },
+      ),
+    ).setOrigin(0.5);
 
     // Refresh the gamepad cursor over this frame's available nodes (the marker was
     // wiped by children.removeAll at the top of drawMap).
@@ -1480,7 +1382,7 @@ export class NodeMapScene extends Phaser.Scene {
           showMinorHint(
             this,
             result.isQuotaError
-              ? 'Save failed — storage full. Clear browser data to free space.'
+              ? 'Save failed — storage full. Free device space and retry; keep this app’s saved data.'
               : 'Save failed — storage may be unavailable',
           );
         }
@@ -1518,11 +1420,13 @@ export class NodeMapScene extends Phaser.Scene {
       const label = compact
         ? `${unit.name} Lv${getDisplayLevel(unit)}`
         : `${unit.name} Lv${getDisplayLevel(unit)} ${unit.className}`;
-      this.add.text(x, ROSTER_Y, label, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#e0e0e0',
-      });
+      applyTextResolution(
+        this.add.text(x, ROSTER_Y, label, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.text,
+        }),
+      );
 
       // HP bar — scale width with spacing
       const barWidth = Math.min(120, spacing - 20);
@@ -1532,8 +1436,14 @@ export class NodeMapScene extends Phaser.Scene {
       const maxHp = Math.max(1, Number(unit.stats.HP) || 1);
       const ratio = Phaser.Math.Clamp((Number(unit.currentHP) || 0) / maxHp, 0, 1);
 
-      this.add.rectangle(barX + barWidth / 2, barY + barHeight / 2, barWidth, barHeight, 0x333333);
-      const fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xcccc44 : 0xcc4444;
+      this.add.rectangle(
+        barX + barWidth / 2,
+        barY + barHeight / 2,
+        barWidth,
+        barHeight,
+        UI_HEX.raised,
+      );
+      const fillColor = getHPBarColor(ratio);
       this.add.rectangle(
         barX + (barWidth * ratio) / 2,
         barY + barHeight / 2,
@@ -1544,21 +1454,25 @@ export class NodeMapScene extends Phaser.Scene {
 
       // HP text (only if enough space)
       if (spacing >= 80) {
-        this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#aaaaaa',
-        });
+        applyTextResolution(
+          this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: UI_PALETTE.muted,
+          }),
+        );
       }
     }
 
     if (hiddenCount > 0) {
       const anchorX = Phaser.Math.Clamp(startX + shownUnits.length * spacing, 120, 560);
-      this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      });
+      applyTextResolution(
+        this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.muted,
+        }),
+      );
     }
   }
 
@@ -1592,14 +1506,15 @@ export class NodeMapScene extends Phaser.Scene {
     ) {
       label += '\nEncounter Locked';
     }
-    this.nodeTooltip = this.add
-      .text(pos.x, pos.y - NODE_SIZE - 8, label, {
-        fontFamily: 'monospace',
+    this.nodeTooltip = applyTextResolution(
+      this.add.text(pos.x, pos.y - NODE_SIZE - 8, label, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#ffffff',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000cc',
         padding: { x: 4, y: 2 },
-      })
+      }),
+    )
       .setOrigin(0.5, 1)
       .setDepth(100);
     const halfW = this.nodeTooltip.width * 0.5;
@@ -1655,14 +1570,38 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  openPendingRewards() {
+    if (
+      !this.isSceneReady ||
+      this.isStoryInputLocked?.() ||
+      !this.runManager.pendingBattleReward ||
+      this._pendingRewards
+    )
+      return;
+    this._pendingRewards = new PendingRewardController(this, {
+      onLeave: () => {
+        this._pendingRewards = null;
+        this.drawMap();
+      },
+      onComplete: () => {
+        this._pendingRewards = null;
+        this.checkActComplete();
+      },
+    });
+  }
+
   onNodeClick(node) {
     if (this.isTransitioning) return;
     if (this.battleLaunchInFlight) return;
+    if (this.runManager?.pendingBattleReward) {
+      this.openPendingRewards();
+      return;
+    }
     if (!this.isSceneReady) {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
         this._pendingNodeSelection = node?.id ? { nodeId: node.id } : null;
         if (this.dialogueOverlay?.visible && typeof this.dialogueOverlay.hide === 'function') {
-          this.dialogueOverlay.hide();
+          this.dialogueOverlay.hide(true);
         }
       }
       return;
@@ -1756,7 +1695,7 @@ export class NodeMapScene extends Phaser.Scene {
           isBoss: node.type === NODE_TYPES.BOSS,
           isElite: battleParams?.isElite || false,
         },
-        { reason: TRANSITION_REASONS.ENTER_BATTLE },
+        { reason: TRANSITION_REASONS.ENTER_BATTLE, retryBlocked: true },
       );
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (transitioned === false) {
@@ -1828,6 +1767,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
     if (node) {
       this.runManager.markNodeComplete(node.id);
+      this.persistRunSave();
       this.checkActComplete();
     }
     this.drawMap();
@@ -1843,10 +1783,6 @@ export class NodeMapScene extends Phaser.Scene {
 
   showChurchOverlay(node, options = {}) {
     (this._churchController ||= new ChurchController(this)).showChurchOverlay(node, options);
-  }
-
-  drawChurchScrollContent() {
-    (this._churchController ||= new ChurchController(this)).drawChurchScrollContent();
   }
 
   leaveChurchNode() {
@@ -1877,14 +1813,15 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
-    this.transientMessage = this.add
-      .text(this.cameras.main.centerX, 96, text, {
-        fontFamily: 'monospace',
+    this.transientMessage = applyTextResolution(
+      this.add.text(this.cameras.main.centerX, 96, text, {
+        fontFamily: 'Arial',
         fontSize: '12px',
         color,
         backgroundColor: '#000000dd',
         padding: { x: 8, y: 4 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(400);
     this._transientMessageTimer = trackSceneTimer(
@@ -1935,72 +1872,12 @@ export class NodeMapScene extends Phaser.Scene {
     return (this._shopController ||= new ShopController(this)).leaveShopNode();
   }
 
-  drawShopTabs() {
-    return (this._shopController ||= new ShopController(this)).drawShopTabs();
-  }
-
-  drawActiveTabContent() {
-    return (this._shopController ||= new ShopController(this)).drawActiveTabContent();
-  }
-
   _getWeaponArtCatalog() {
     return (this._shopController ||= new ShopController(this))._getWeaponArtCatalog();
   }
 
-  drawShopBuyList() {
-    return (this._shopController ||= new ShopController(this)).drawShopBuyList();
-  }
-
-  onBuyItem(entry) {
-    return (this._shopController ||= new ShopController(this)).onBuyItem(entry);
-  }
-
-  drawShopSellList() {
-    return (this._shopController ||= new ShopController(this)).drawShopSellList();
-  }
-
-  drawShopForgeList() {
-    return (this._shopController ||= new ShopController(this)).drawShopForgeList();
-  }
-
-  drawShopScrollHint() {
-    return (this._shopController ||= new ShopController(this)).drawShopScrollHint();
-  }
-
   _getShopItemDetailText(entry) {
     return (this._shopController ||= new ShopController(this))._getShopItemDetailText(entry);
-  }
-
-  _showShopItemTooltip(entry, anchorX, anchorY) {
-    return (this._shopController ||= new ShopController(this))._showShopItemTooltip(
-      entry,
-      anchorX,
-      anchorY,
-    );
-  }
-
-  _hideShopItemTooltip() {
-    return (this._shopController ||= new ShopController(this))._hideShopItemTooltip();
-  }
-
-  showForgeStatPicker(weapon) {
-    return (this._shopController ||= new ShopController(this)).showForgeStatPicker(weapon);
-  }
-
-  closeForgeStatPicker() {
-    return (this._shopController ||= new ShopController(this)).closeForgeStatPicker();
-  }
-
-  _showForgeTooltip(wpn, anchorX, anchorY) {
-    return (this._shopController ||= new ShopController(this))._showForgeTooltip(
-      wpn,
-      anchorX,
-      anchorY,
-    );
-  }
-
-  _hideForgeTooltip() {
-    return (this._shopController ||= new ShopController(this))._hideForgeTooltip();
   }
 
   _saveShopState() {
@@ -2009,25 +1886,6 @@ export class NodeMapScene extends Phaser.Scene {
 
   refreshShop() {
     return (this._shopController ||= new ShopController(this)).refreshShop();
-  }
-
-  drawRerollButton() {
-    return (this._shopController ||= new ShopController(this)).drawRerollButton();
-  }
-
-  showUnitPicker(callback, pickerOptionsOrItem) {
-    return (this._shopController ||= new ShopController(this)).showUnitPicker(
-      callback,
-      pickerOptionsOrItem,
-    );
-  }
-
-  renderUnitPicker() {
-    return (this._shopController ||= new ShopController(this)).renderUnitPicker();
-  }
-
-  closeUnitPicker() {
-    return (this._shopController ||= new ShopController(this)).closeUnitPicker();
   }
 
   showShopBanner(msg, color) {
@@ -2053,7 +1911,8 @@ export class NodeMapScene extends Phaser.Scene {
       const act = this.runManager?.currentAct || 'act1';
       const lines = pool[act] || pool['act3'];
       if (!Array.isArray(lines) || lines.length === 0) return;
-      const line = lines[Math.floor(Math.random() * lines.length)];
+      const line =
+        this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
       this.showShopBanner(line, '#aabbcc');
     } catch (_) {
       /* best-effort flavor */
@@ -2072,6 +1931,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   checkActComplete() {
     const rm = this.runManager;
+    if (rm.pendingBattleReward) {
+      this.drawMap();
+      return;
+    }
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
@@ -2089,6 +1952,7 @@ export class NodeMapScene extends Phaser.Scene {
       } else {
         this.showActCompleteBanner(async () => {
           const { unlockedArtIds, displacedSkills } = rm.advanceAct();
+          this.persistRunSave();
           this.drawMap();
           this.showWeaponArtsUnlockedBanner(unlockedArtIds);
           await this._showSkillDisplacementWarning(displacedSkills);
@@ -2100,14 +1964,15 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showActCompleteBanner(onComplete) {
-    const banner = this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'Act Complete!', {
-        fontFamily: 'monospace',
+    const banner = applyTextResolution(
+      this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, 'Act Complete!', {
+        fontFamily: 'Arial',
         fontSize: '24px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         backgroundColor: '#000000dd',
         padding: { x: 20, y: 10 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setAlpha(0)
       .setDepth(200);

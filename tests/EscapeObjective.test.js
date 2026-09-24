@@ -520,6 +520,9 @@ function makeEscapeScene(overrides = {}) {
         destroy: vi.fn(),
       })),
       rectangle: vi.fn(() => ({
+        setStrokeStyle() {
+          return this;
+        },
         setDepth() {
           return this;
         },
@@ -528,7 +531,7 @@ function makeEscapeScene(overrides = {}) {
     },
     tweens: { add: vi.fn(), killTweensOf: vi.fn() },
     time: { delayedCall: vi.fn() },
-    _isReducedEffects: vi.fn(() => true),
+    _reduceMotion: vi.fn(() => true),
     commitVisionSnapshotIfPending: vi.fn(),
     _clearCombatRollSession: vi.fn(),
     _clearSelectedWeaponArt: vi.fn(),
@@ -743,7 +746,7 @@ describe('escapedUnits persistence', () => {
       _latePressureWarningShown: false,
       _bossName: null,
       reseedBattleRng: vi.fn(),
-      _persistBattleRunState: vi.fn(),
+      _persistBattleRunState: vi.fn(() => ({ ok: true })),
       addUnitGraphic: vi.fn(),
       dimUnit: vi.fn(),
       _addConditionIcon: vi.fn(),

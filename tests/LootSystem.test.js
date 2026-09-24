@@ -1120,8 +1120,10 @@ describe('LootSystem', () => {
       expect(gameData.lootTables.act4.goldRange).toEqual([1400, 2000]);
     });
 
-    it('act4 legendary weapon weight is 10', () => {
-      expect(gameData.lootTables.act4.weights.legendaryWeapon).toBe(10);
+    it('act4 favors legendary rewards over act3', () => {
+      expect(gameData.lootTables.act4.weights.legendaryWeapon).toBeGreaterThan(
+        gameData.lootTables.act3.weights.legendaryWeapon,
+      );
     });
 
     it('act4 weapons pool includes Fortify', () => {
@@ -1132,13 +1134,10 @@ describe('LootSystem', () => {
       expect(gameData.lootTables.act4.accessories).toContain('Nullify Ring');
     });
 
-    it('act4 inherits act3 weapon pools plus additions', () => {
-      const act3Weapons = gameData.lootTables.act3.weapons;
-      const act4Weapons = gameData.lootTables.act4.weapons;
-      for (const weapon of act3Weapons) {
-        expect(act4Weapons).toContain(weapon);
-      }
-      expect(act4Weapons).toContain('Fortify');
+    it('act4 curates a distinct weapon pool', () => {
+      expect(gameData.lootTables.act4.weapons).not.toEqual(gameData.lootTables.act3.weapons);
+      expect(gameData.lootTables.act4.weapons).toContain('Fortify');
+      expect(gameData.lootTables.act4.weapons).toContain('Sleep Staff');
     });
 
     it('act4 accessories include Nullify Ring', () => {
@@ -1627,6 +1626,7 @@ describe('LootSystem', () => {
     });
 
     it('maps allowedTypes magic arts onto Light and Tome pools', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.4);
       const customArt = {
         id: 'magic_test_art',
         name: 'Magic Test Art',
@@ -1702,6 +1702,7 @@ describe('LootSystem', () => {
       const shine = lightChoices.find((choice) => choice.item?.name === 'Shine')?.item;
       expect(shine?.weaponArtId).toBe('magic_test_art');
       expect(shine?.weaponArtSource).toBe('meta_innate');
+      vi.restoreAllMocks();
     });
   });
 
@@ -1865,5 +1866,53 @@ describe('LootSystem', () => {
       expect(names).not.toContain('Remedy');
       expect(names).not.toContain('Restore');
     });
+  });
+});
+
+describe('Act 1 boss reward floor (phone feedback)', () => {
+  it('offers upgraded loot instead of Vulneraries and ordinary Steel weapons', () => {
+    const data = loadGameData();
+    const boss = data.lootTables.act1.bossRewards;
+    const allowed = new Set([
+      ...boss.weapons,
+      ...boss.statBooster,
+      ...boss.promotion,
+      ...boss.accessories,
+      ...boss.forge,
+    ]);
+    const seen = new Set();
+    // Deterministic sampling exercises selection, not just the policy data.
+    let seed = 813;
+    const spy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    });
+    try {
+      for (let i = 0; i < 100; i++) {
+        const choices = generateLootChoices(
+          'act1',
+          data.lootTables,
+          data.weapons,
+          data.consumables,
+          3,
+          0,
+          data.accessories,
+          data.whetstones,
+          null,
+          true,
+        );
+        expect(choices).toHaveLength(3);
+        expect(new Set(choices.map((choice) => choice.item?.name)).size).toBe(3);
+        for (const choice of choices) {
+          expect(allowed.has(choice.item?.name)).toBe(true);
+          seen.add(choice.type);
+        }
+      }
+      expect(seen).toEqual(new Set(['weapon', 'statBooster', 'promotion', 'accessory', 'forge']));
+      expect(boss.healing).toEqual([]);
+      expect(data.lootTables.act1.healing).toContain('Vulnerary');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

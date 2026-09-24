@@ -1,3 +1,4 @@
+import './harness/JourneyTestSetup.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROSTER_CAP } from '../src/utils/constants.js';
 
@@ -115,7 +116,10 @@ function makeScene() {
 }
 
 function activeTexts(scene) {
-  return scene._objects.filter((obj) => !obj.destroyed && obj.kind === 'text');
+  const surface = scene._journeySurface;
+  return surface
+    ? [{ text: surface.title }, ...surface.root.all().map((n) => ({ text: n.textContent }))]
+    : [];
 }
 
 function hasText(scene, substring) {

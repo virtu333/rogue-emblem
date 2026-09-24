@@ -514,8 +514,8 @@ describe('BattleScene weapon art helpers', () => {
     const text = scene._getWeaponArtStatusLine(unit, art, { canUse: true, reason: null });
 
     expect(text).toContain('HP-3 (18->15)');
-    expect(text).toContain('Turn 1/2');
-    expect(text).toContain('Map 1/4');
+    expect(text).toContain('1/2 turn uses left');
+    expect(text).toContain('3/4 map uses left');
   });
 
   it('renders reduced HP cost in status preview when Blood Gem applies', () => {
@@ -1925,7 +1925,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneDefender.row).toBe(headlessDefender.row);
   });
 
-  it('applies Phantom Rush retreat plus set-to-5 with scene/headless parity', async () => {
+  it('applies Phantom Rush retreat without a post-combat HP penalty with scene/headless parity', async () => {
     const gameData = loadGameData();
     const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_phantom_rush');
     const sceneAttacker = {
@@ -2003,7 +2003,7 @@ describe('BattleScene weapon art helpers', () => {
 
     expect(sceneAttacker.col).toBe(1);
     expect(sceneAttacker.row).toBe(2);
-    expect(sceneAttacker.currentHP).toBe(5);
+    expect(sceneAttacker.currentHP).toBe(14);
     expect(sceneAttacker.col).toBe(headlessAttacker.col);
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
     expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);

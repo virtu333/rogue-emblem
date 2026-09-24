@@ -92,3 +92,34 @@ describe('MenuFocusController', () => {
     expect(items[1].onBlur).toHaveBeenCalled();
   });
 });
+
+describe('destroyed Phaser objects', () => {
+  it('never repaints on teardown after DisplayList destroys Text', () => {
+    const c = new MenuFocusController({});
+    const item = { button: { scene: {}, frame: { data: {} }, setColor: vi.fn() } };
+    c.setItems([item]);
+    item.button.scene = undefined;
+    item.button.frame.data = null;
+    item.button.setColor.mockImplementation(() => {
+      throw Error('drawImage');
+    });
+    expect(() => c.destroy()).not.toThrow();
+    expect(c.isActive).toBe(false);
+  });
+  it('skips stale custom hover and activation during menu replacement', () => {
+    const c = new MenuFocusController({});
+    const item = {
+      button: { scene: null },
+      onFocus: vi.fn(),
+      onBlur: vi.fn(),
+      onActivate: vi.fn(),
+    };
+    c.setItems([item]);
+    c.move(1);
+    expect(c.activate()).toBe(false);
+    c.clear();
+    expect(item.onFocus).not.toHaveBeenCalled();
+    expect(item.onBlur).not.toHaveBeenCalled();
+    expect(item.onActivate).not.toHaveBeenCalled();
+  });
+});

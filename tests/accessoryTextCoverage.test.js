@@ -12,21 +12,21 @@ function readJson(path) {
 }
 
 function getConditionLabel(condition) {
-  if (condition === 'below50') return '<50% HP';
-  if (condition === 'above75') return '>75% HP';
-  if (condition === 'on_forest') return '(forest)';
-  if (condition === 'adjacent_ally') return 'adjacent ally';
-  if (condition === 'no_ally_within_2') return 'no ally <=2';
-  if (condition === 'enemies_nearby_2plus') return '2+ enemies <=2';
-  if (condition === 'on_forest_or_mountain') return '(forest/mountain)';
-  if (condition === 'isolated_duel') return 'isolated duel';
+  if (condition === 'below50') return 'below 50% HP';
+  if (condition === 'above75') return 'above 75% HP';
+  if (condition === 'on_forest') return 'on a forest tile';
+  if (condition === 'adjacent_ally') return 'next to an ally';
+  if (condition === 'no_ally_within_2') return 'no ally is within 2 tiles';
+  if (condition === 'enemies_nearby_2plus') return 'at least 2 enemies are within 2 tiles';
+  if (condition === 'on_forest_or_mountain') return 'on a forest or mountain tile';
+  if (condition === 'isolated_duel') return 'no other unit is within 2 tiles of you or your foe';
   return '';
 }
 
 function assertKeyRendered(key, combatText, accessory) {
   const combatEffects = accessory?.combatEffects || {};
   if (key === 'atkBonus') return combatText.includes('Atk');
-  if (key === 'avoidBonus') return combatText.includes('Avo');
+  if (key === 'avoidBonus') return combatText.includes('Avoid');
   if (key === 'buffDEF')
     return combatText.includes(String(combatEffects.buffDEF)) && combatText.includes('Def');
   if (key === 'buffRES')
@@ -34,24 +34,25 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'condition') return combatText.includes(getConditionLabel(combatEffects.condition));
   if (key === 'critBonus') return combatText.includes('Crit');
   if (key === 'defBonus') return combatText.includes('Def');
-  if (key === 'doubleThresholdReduction') return combatText.includes('Double at +');
+  if (key === 'doubleThresholdReduction') return combatText.includes('follow-up attacks with');
   if (key === 'gamblerCoin') return combatText.includes('Gambler');
-  if (key === 'goldPerKill') return combatText.includes(`${combatEffects.goldPerKill}g/kill`);
+  if (key === 'goldPerKill')
+    return combatText.includes(`${combatEffects.goldPerKill} gold per kill`);
   if (key === 'hitBonus') return combatText.includes('Hit');
-  if (key === 'moontide') return combatText.includes('Moontide');
-  if (key === 'negateEffectiveness') return combatText.includes('Negate effectiveness');
-  if (key === 'negateFlierWeakness') return combatText.includes('Negate bow flier weakness');
-  if (key === 'perHitHeal') return combatText.includes('Heal +');
-  if (key === 'phoenixBrooch') return combatText.includes('Phoenix');
+  if (key === 'moontide') return combatText.includes('Odd turns:');
+  if (key === 'negateEffectiveness') return combatText.includes('Negates weapon effectiveness');
+  if (key === 'negateFlierWeakness') return combatText.includes('Negates flier weakness to bows');
+  if (key === 'perHitHeal') return combatText.includes('HP per hit');
+  if (key === 'phoenixBrooch') return combatText.includes('Once per map');
   if (key === 'phoenixHeal') return combatText.includes(String(combatEffects.phoenixHeal));
   if (key === 'phoenixThreshold') return combatText.includes('% HP');
-  if (key === 'preventEnemyDouble') return combatText.includes('Block double attacks');
+  if (key === 'preventEnemyDouble') return combatText.includes('cannot make follow-up attacks');
   if (key === 'resBonus') return combatText.includes('Res');
-  if (key === 'turnStartHealPercent') return combatText.includes('Turn start heal');
+  if (key === 'turnStartHealPercent') return combatText.includes('At turn start, restore');
   if (key === 'weaponArtCostReduction')
-    return combatText.includes(`Art HP Cost -${combatEffects.weaponArtCostReduction}`);
-  if (key === 'weaponArtDefBuff') return combatText.includes('Recoil Guard');
-  if (key === 'xpShare') return combatText.includes('% XP to adjacent lower-lv allies');
+    return combatText.includes(`cost ${combatEffects.weaponArtCostReduction} less HP`);
+  if (key === 'weaponArtDefBuff') return combatText.includes('after using a weapon art');
+  if (key === 'xpShare') return combatText.includes('Adjacent lower-level allies gain');
   if (key === 'moveTypeOverride')
     return combatText.includes(`Move as ${combatEffects.moveTypeOverride}`);
   return true;

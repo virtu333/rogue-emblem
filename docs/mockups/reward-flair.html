@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Emblem Rogue — reward icons and rarity</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/press-start-2p@5.0.16/index.css"
+    />
+    <style>
+      /* Tokens copied verbatim from src/ui/uiPalette.json so the mockup cannot drift. */
+      :root {
+        --re-bg: #10212a;
+        --re-panel: #1d3742;
+        --re-raised: #294c55;
+        --re-selected: #3a6560;
+        --re-sunken: #0a171e;
+        --re-line: #5c7a7d;
+        --re-line-soft: #35545c;
+        --re-accent: #d9be7e;
+        --re-accent-text: #f0dcab;
+        --re-text: #eee9d5;
+        --re-muted: #aebfbb;
+        --re-info: #8fd3e0;
+        --re-good: #7bd39a;
+        --re-warn: #f0c16a;
+        --re-bad: #ef857e;
+
+        /* PROPOSED — three reuse existing palette entries, two are new. */
+        --re-rarity-common: var(--re-muted); /* #aebfbb  reuse */
+        --re-rarity-uncommon: var(--re-good); /* #7bd39a  reuse */
+        --re-rarity-rare: var(--re-info); /* #8fd3e0  reuse */
+        --re-rarity-epic: #b08bd6; /* NEW  muted amethyst */
+        --re-rarity-legend: #d98b5a; /* NEW  burnt orange */
+
+        --re-pixel: 'Press Start 2P', monospace;
+        --re-body: system-ui, -apple-system, sans-serif;
+      }
+      html {
+        background: #0b151b;
+        color: var(--re-text);
+        font-family: var(--re-body);
+        font-size: 13px;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 1180px;
+      }
+      h1 {
+        font: 14px/1.6 var(--re-pixel);
+        color: var(--re-accent-text);
+      }
+      h2 {
+        font: 11px/1.6 var(--re-pixel);
+        color: var(--re-accent);
+        margin: 32px 0 4px;
+      }
+      p.note {
+        color: var(--re-muted);
+        max-width: 70ch;
+        line-height: 1.5;
+      }
+      code {
+        background: var(--re-sunken);
+        padding: 1px 4px;
+        color: var(--re-accent-text);
+      }
+      .frame {
+        width: 844px;
+        height: 390px;
+        background: var(--re-bg);
+        border: 1px solid var(--re-line-soft);
+        display: flex;
+        flex-direction: column;
+        padding: 10px 12px;
+        box-sizing: border-box;
+        gap: 8px;
+      }
+      .frame * {
+        box-sizing: border-box;
+      }
+      .cap {
+        font: 10px/1.4 var(--re-pixel);
+        color: var(--re-muted);
+        margin: 18px 0 6px;
+      }
+
+      /* --- icon --- */
+      .ri {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        display: block;
+      }
+      .ri path,
+      .ri rect,
+      .ri polygon {
+        fill: currentColor;
+        shape-rendering: crispEdges;
+      }
+      .ri .dim {
+        opacity: 0.45;
+      }
+
+      /* --- rarity ladder --- */
+      .ladder {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .chip {
+        background: var(--re-panel);
+        border: 1px solid var(--re-line-soft);
+        border-left: 4px solid var(--rc);
+        padding: 8px 12px;
+        min-width: 168px;
+      }
+      .chip b {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--rc);
+        font: 10px/1.5 var(--re-pixel);
+      }
+      .chip small {
+        color: var(--re-muted);
+        display: block;
+        margin-top: 4px;
+      }
+
+      /* --- icon sheet --- */
+      .sheet {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .cell {
+        background: var(--re-panel);
+        border: 1px solid var(--re-line-soft);
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .cell .big {
+        width: 28px;
+        height: 28px;
+      }
+      .cell span {
+        color: var(--re-muted);
+        font-size: 12px;
+      }
+
+      /* --- reward sheet --- */
+      .mu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex: none;
+      }
+      .mu-header h1 {
+        font: 12px/1.4 var(--re-pixel);
+        margin: 0;
+      }
+      .mu-currency {
+        font: 10px/1.4 var(--re-pixel);
+        color: var(--re-accent);
+      }
+      .mu-split {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        min-height: 0;
+      }
+      .mu-list {
+        flex: 1 1 46%;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow: auto;
+        min-height: 0;
+      }
+      .mu-detail {
+        flex: 1 1 54%;
+        background: var(--re-panel);
+        border: 1px solid var(--re-line-soft);
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .mu-copy {
+        overflow: auto;
+        min-height: 0;
+        flex: 1;
+      }
+
+      /* the reward row: 4px rarity stripe + tinted glyph, body text keeps full contrast */
+      .rw {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        background: var(--re-raised);
+        border: 1px solid var(--re-line-soft);
+        border-left: 4px solid var(--rc, var(--re-line));
+        color: var(--re-text);
+        padding: 7px 9px;
+        min-height: 40px;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+      }
+      .rw[aria-pressed='true'] {
+        background: var(--re-selected);
+        border-color: var(--rc, var(--re-line));
+      }
+      .rw .face {
+        width: 18px;
+        height: 20px;
+        background: var(--re-sunken);
+        border: 1px solid var(--re-line-soft);
+        display: block;
+      }
+      .rw .ri {
+        color: var(--rc, var(--re-muted));
+      }
+      .rw strong {
+        font-weight: 600;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rw em {
+        font-style: normal;
+        color: var(--re-muted);
+        font-size: 11px;
+        display: block;
+      }
+      .rw .tag {
+        font: 9px/1 var(--re-pixel);
+        color: var(--rc);
+        letter-spacing: 0.5px;
+      }
+      .rw:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      /* legendary gets ONE extra cue beyond hue: a 1px inset ring. no animation. */
+      .rw.legend {
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 45%, transparent);
+      }
+      .dhead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--re-line-soft);
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+      }
+      .dhead .ri {
+        width: 22px;
+        height: 22px;
+        color: var(--rc);
+      }
+      .dhead h2 {
+        font: 11px/1.4 var(--re-pixel);
+        margin: 0;
+        color: var(--re-text);
+      }
+      .dhead .tag {
+        font: 9px/1 var(--re-pixel);
+        color: var(--rc);
+        margin-left: auto;
+      }
+      .stat {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px dotted var(--re-line-soft);
+        padding: 3px 0;
+        font-size: 12px;
+      }
+      .stat span:last-child {
+        color: var(--re-accent-text);
+      }
+      .lore {
+        color: var(--re-muted);
+        font-size: 11px;
+        font-style: italic;
+        margin-top: 8px;
+        line-height: 1.45;
+      }
+      .mu-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex: none;
+      }
+      .btn {
+        background: var(--re-raised);
+        border: 1px solid var(--re-line);
+        color: var(--re-text);
+        padding: 8px 14px;
+        font: 10px/1 var(--re-pixel);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--re-selected);
+        border-color: var(--re-accent);
+        color: var(--re-accent-text);
+      }
+      .mono {
+        white-space: pre;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--re-muted);
+        background: var(--re-sunken);
+        padding: 10px;
+        overflow: auto;
+        border: 1px solid var(--re-line-soft);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Reward screen — icons and rarity</h1>
+    <p class="note">
+      Proposal only. Nothing here is wired into the game. Colors are the live tokens from
+      <code>src/ui/uiPalette.json</code>; the two new ones are marked NEW. Icons are inline SVG on a
+      16&times;16 integer grid with <code>shape-rendering: crispEdges</code>, so they read as pixel
+      art, tint from <code>currentColor</code>, and need no new art assets or preloading.
+    </p>
+
+    <!-- ============ sprite definitions ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <g id="i-weapon">
+          <rect x="7" y="1" width="2" height="8" />
+          <rect x="4" y="9" width="8" height="2" />
+          <rect x="7" y="11" width="2" height="3" />
+          <rect x="6" y="14" width="4" height="1" />
+        </g>
+        <g id="i-consumable">
+          <rect x="6" y="1" width="4" height="2" />
+          <rect x="4" y="3" width="8" height="11" />
+          <rect class="dim" x="5" y="4" width="6" height="4" />
+        </g>
+        <g id="i-booster">
+          <polygon points="8,1 13,7 10,7 10,14 6,14 6,7 3,7" />
+        </g>
+        <g id="i-scroll">
+          <rect x="2" y="1" width="12" height="2" />
+          <rect x="3" y="3" width="10" height="10" />
+          <rect x="2" y="13" width="12" height="2" />
+          <rect class="dim" x="5" y="6" width="6" height="1" />
+          <rect class="dim" x="5" y="9" width="6" height="1" />
+        </g>
+        <g id="i-accessory">
+          <polygon points="8,0 11,3 8,6 5,3" />
+          <path d="M3 5h10v10H3z M5 7h6v6H5z" fill-rule="evenodd" />
+        </g>
+        <g id="i-forge">
+          <rect x="2" y="2" width="12" height="4" />
+          <rect x="7" y="6" width="2" height="8" />
+        </g>
+        <g id="i-gold">
+          <polygon points="5,2 11,2 14,5 14,11 11,14 5,14 2,11 2,5" />
+          <rect class="dim" x="7" y="5" width="2" height="6" />
+        </g>
+        <g id="i-legend">
+          <polygon points="8,0 10,6 16,8 10,10 8,16 6,10 0,8 6,6" />
+        </g>
+        <g id="i-seal">
+          <polygon points="2,1 14,1 14,9 8,15 2,9" />
+          <polygon class="dim" points="8,4 11,7 8,10 5,7" />
+        </g>
+      </defs>
+    </svg>
+
+    <h2>1 &mdash; rarity ladder</h2>
+    <p class="note">
+      Five steps, mapped straight onto the <code>tier</code> field that already exists on all 122
+      entries in <code>weapons.json</code> (Iron / Steel / Silver / Rare / Legend). Nothing to
+      invent for weapons. Gold keeps <code>--re-accent</code> and sits outside the ladder because it
+      is currency, not an item.
+    </p>
+    <div class="ladder">
+      <div class="chip" style="--rc: var(--re-rarity-common)">
+        <b
+          ><svg class="ri" viewBox="0 0 16 16"><use href="#i-weapon" /></svg> Common</b
+        >
+        <small>Iron tier &middot; Vulnerary &middot; #aebfbb (reuse)</small>
+      </div>
+      <div class="chip" style="--rc: var(--re-rarity-uncommon)">
+        <b
+          ><svg class="ri" viewBox="0 0 16 16"><use href="#i-forge" /></svg> Uncommon</b
+        >
+        <small>Steel tier &middot; whetstones &middot; #7bd39a (reuse)</small>
+      </div>
+      <div class="chip" style="--rc: var(--re-rarity-rare)">
+        <b
+          ><svg class="ri" viewBox="0 0 16 16"><use href="#i-booster" /></svg> Rare</b
+        >
+        <small>Silver tier &middot; stat boosters &middot; #8fd3e0 (reuse)</small>
+      </div>
+      <div class="chip" style="--rc: var(--re-rarity-epic)">
+        <b
+          ><svg class="ri" viewBox="0 0 16 16"><use href="#i-scroll" /></svg> Epic</b
+        >
+        <small>Rare tier &middot; scrolls, seals, accessories &middot; #b08bd6 NEW</small>
+      </div>
+      <div class="chip" style="--rc: var(--re-rarity-legend)">
+        <b
+          ><svg class="ri" viewBox="0 0 16 16"><use href="#i-legend" /></svg> Legendary</b
+        >
+        <small>Legend tier &middot; imbue stones &middot; #d98b5a NEW</small>
+      </div>
+    </div>
+
+    <h2>2 &mdash; icon set</h2>
+    <p class="note">
+      Nine glyphs cover every <code>choice.type</code> the loot roller can produce. They replace the
+      single capital letters the canvas screen uses today (<code>W H R $ A F</code>,
+      <code>LootScreenController.js:225</code>).
+    </p>
+    <div class="sheet">
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-weapon" /></svg
+        ><span>weapon<br />legendaryWeapon</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-consumable" /></svg
+        ><span>healing</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-booster" /></svg
+        ><span>statBooster</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-scroll" /></svg
+        ><span>skillScroll<br />weaponArtScroll</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-accessory" /></svg
+        ><span>accessory</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-forge" /></svg
+        ><span>forge / whetstone</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-gold" /></svg><span>gold / skip</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-seal" /></svg><span>promotion</span>
+      </div>
+      <div class="cell">
+        <svg class="ri big" viewBox="0 0 16 16"><use href="#i-legend" /></svg
+        ><span>imbue stone</span>
+      </div>
+    </div>
+
+    <h2>3 &mdash; reward sheet, 844&times;390</h2>
+    <p class="cap">A. current structure with the treatment applied</p>
+    <div class="frame">
+      <div class="mu-header">
+        <h1>Battle rewards</h1>
+        <span class="mu-currency">1,240 gold</span>
+      </div>
+      <div class="mu-split">
+        <div class="mu-list">
+          <button class="rw legend" style="--rc: var(--re-rarity-legend)" aria-pressed="true">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-weapon" /></svg>
+            <span><strong>Stormbreaker</strong><em>Axe &middot; Mt 14 &middot; Mast</em></span>
+            <span class="tag">LEGEND</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-rarity-epic)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-scroll" /></svg>
+            <span><strong>Scroll: Vantage</strong><em>Teaches a skill</em></span>
+            <span class="tag">EPIC</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-rarity-rare)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-accessory" /></svg>
+            <span><strong>Mercury Sandals</strong><em>+2 SPD</em></span>
+            <span class="tag">RARE</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-rarity-uncommon)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-forge" /></svg>
+            <span><strong>Silver Whetstone</strong><em>Choose a forge stat</em></span>
+            <span class="tag">UNCOMMON</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-rarity-common)" disabled>
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-consumable" /></svg>
+            <span><strong>Vulnerary</strong><em>Bag full on every unit</em></span>
+            <span class="tag">COMMON</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-accent)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-gold" /></svg>
+            <span><strong>Take 498 gold instead</strong><em>Skip this reward</em></span>
+          </button>
+        </div>
+        <div class="mu-detail">
+          <div class="dhead" style="--rc: var(--re-rarity-legend)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-weapon" /></svg>
+            <h2>Stormbreaker</h2>
+            <span class="tag">LEGENDARY</span>
+          </div>
+          <div class="mu-copy">
+            <div class="stat"><span>Might</span><span>14</span></div>
+            <div class="stat"><span>Hit / Crit</span><span>75 / 10</span></div>
+            <div class="stat"><span>Weight &middot; Range</span><span>11 &middot; 1</span></div>
+            <div class="stat"><span>Requires</span><span>Axe Mast</span></div>
+            <p class="lore">&ldquo;Thunder answers to the hand that does not flinch.&rdquo;</p>
+          </div>
+          <div class="mu-actions">
+            <button class="btn primary">Choose reward</button>
+            <button class="btn">Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="cap">
+      B. recipient step &mdash; the rarity stripe carries through, unit rows keep their own meaning
+    </p>
+    <div class="frame">
+      <div class="mu-header">
+        <h1>Rewards &rsaquo; Stormbreaker &rsaquo; Give to</h1>
+        <span class="mu-currency">1,240 gold</span>
+      </div>
+      <div class="mu-split">
+        <div class="mu-list">
+          <button class="rw" style="--rc: var(--re-rarity-legend)" aria-pressed="true">
+            <span class="face"></span>
+            <span><strong>Bryn</strong><em>Warrior &middot; Axe Mast &middot; 3/5 items</em></span>
+            <span class="tag">EQUIPS</span>
+          </button>
+          <button class="rw" style="--rc: var(--re-line)">
+            <span class="face"></span>
+            <span><strong>Edric</strong><em>Lord &middot; no Axe rank &middot; 2/5 items</em></span>
+          </button>
+          <button class="rw" style="--rc: var(--re-line)" disabled>
+            <span class="face"></span>
+            <span><strong>Sera</strong><em>Light Sage &middot; bag full</em></span>
+          </button>
+        </div>
+        <div class="mu-detail">
+          <div class="dhead" style="--rc: var(--re-rarity-legend)">
+            <svg class="ri" viewBox="0 0 16 16"><use href="#i-weapon" /></svg>
+            <h2>Bryn</h2>
+            <span class="tag">LEGEND</span>
+          </div>
+          <div class="mu-copy">
+            <div class="stat"><span>Equipped now</span><span>Steel Axe</span></div>
+            <div class="stat"><span>Might after</span><span>9 &rarr; 14</span></div>
+            <div class="stat"><span>Hit after</span><span>82 &rarr; 71</span></div>
+            <div class="stat"><span>Doubles</span><span>no change</span></div>
+          </div>
+          <div class="mu-actions">
+            <button class="btn primary">Give to Bryn</button>
+            <button class="btn">Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>4 &mdash; what a row costs</h2>
+    <div class="mono">
+      tokens added to uiPalette.json 2 (rarityEpic, rarityLegend) tokens reused 3 (muted, good,
+      info) new SVG glyphs 9 inline, ~120 bytes each, no assets new data fields 0 for weapons (tier
+      already exists) 1 optional: tier on accessories.json / consumables.json shared module
+      src/ui/rewardDisplay.js -> rarityOf(choice), rewardIcon(type)
+    </div>
+    <p class="note">
+      <code>rarityOf()</code> should live beside <code>rosterDisplay.js</code> and be the single
+      definition, the same way <code>formatPerkMods</code> was extracted. Weapons read
+      <code>tier</code>; everything else falls back to a pool-to-rarity map keyed on
+      <code>choice.type</code>, so no content edit is required to ship it. Adding
+      <code>tier</code> to accessories and consumables later upgrades the fallback without touching
+      the UI.
+    </p>
+  </body>
+</html>

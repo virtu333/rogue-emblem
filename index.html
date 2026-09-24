@@ -7,13 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <title>Rogue Emblem</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
-      rel="stylesheet"
-    />
-
     <!-- PWA: installable as a fullscreen, landscape home-screen app (sheds browser chrome on mobile).
          Paths are relative to stay correct under Vite base:'./'. -->
     <link rel="manifest" href="manifest.webmanifest" />
@@ -56,7 +49,7 @@
         position: fixed;
         inset: 0;
         background: #0a0c1e;
-        display: flex;
+        display: none;
         justify-content: center;
         align-items: center;
         z-index: 100;
@@ -116,7 +109,7 @@
         image-rendering: auto;
       }
       #auth-content input::placeholder {
-        color: #555566;
+        color: #aaaaba;
       }
       #auth-content input:focus {
         border-color: #e8b849;
@@ -206,11 +199,13 @@
         box-sizing: border-box;
       }
       #mobile-left-panel {
-        padding-left: max(8px, env(safe-area-inset-left, 8px));
+        width: calc(80px + var(--re-safe-left, env(safe-area-inset-left, 0px)));
+        padding-left: calc(8px + var(--re-safe-left, env(safe-area-inset-left, 0px)));
         padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
       }
       #mobile-right-panel {
-        padding-right: max(8px, env(safe-area-inset-right, 8px));
+        width: calc(80px + var(--re-safe-right, env(safe-area-inset-right, 0px)));
+        padding-right: calc(8px + var(--re-safe-right, env(safe-area-inset-right, 0px)));
         padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
       }
       .mobile-btn {
@@ -299,8 +294,12 @@
         color: #8888aa;
         font-family: 'Press Start 2P', monospace;
         font-size: 14px;
-        z-index: 50;
-        cursor: pointer;
+        z-index: calc(var(--re-depth-menu, 1250) + 10);
+        cursor: default;
+        flex-direction: column;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
       }
 
       /* Service-worker update toast — passive, bottom-right, above the canvas.
@@ -310,7 +309,7 @@
         position: fixed;
         right: max(12px, env(safe-area-inset-right, 12px));
         bottom: max(12px, env(safe-area-inset-bottom, 12px));
-        z-index: 10000;
+        z-index: calc(var(--re-depth-menu, 1250) - 1);
         display: flex;
         align-items: center;
         gap: 10px;
@@ -362,6 +361,117 @@
       .sw-update-dismiss:hover {
         color: #e8b849;
       }
+      /* Authentication controls retain their CSS-pixel size on small screens. */
+      #auth-wrapper {
+        width: min(640px, 100vw) !important;
+        height: 100dvh !important;
+      }
+      #auth-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #auth-content {
+        padding: 24px 16px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        gap: 8px;
+        background: rgba(10, 12, 30, 0.92);
+      }
+      #auth-content h1 {
+        display: block;
+        margin: 0 0 8px;
+        font:
+          18px/1.5 'Press Start 2P',
+          monospace;
+        color: #f5d77a;
+        text-align: center;
+      }
+      #auth-content form {
+        width: min(420px, 100%);
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      #auth-content input {
+        min-height: 44px;
+        font:
+          16px/1.4 Arial,
+          sans-serif;
+        padding: 8px 12px;
+        box-sizing: border-box;
+      }
+      #auth-content button {
+        min-height: 44px;
+        flex-shrink: 0;
+        font:
+          14px/1.4 Arial,
+          sans-serif;
+        letter-spacing: 0;
+        padding: 8px 12px;
+      }
+      #auth-toggle,
+      #auth-skip {
+        margin: 0;
+        width: min(420px, 100%);
+      }
+      #auth-error {
+        font:
+          14px/1.4 Arial,
+          sans-serif;
+        margin: 0;
+      }
+      #offline-confirm {
+        width: min(400px, calc(100vw - 48px));
+        max-height: calc(100dvh - 48px);
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 20px;
+        border: 2px solid #e8b849;
+        background: #12111f;
+        color: #ddd;
+        font:
+          16px/1.5 Arial,
+          sans-serif;
+      }
+      #offline-confirm::backdrop {
+        background: rgba(0, 0, 0, 0.8);
+      }
+      #offline-confirm h2 {
+        margin-top: 0;
+        font-size: 20px;
+      }
+      #offline-confirm button {
+        display: block;
+        width: 100%;
+        margin-top: 8px;
+      }
+      body:has(#auth-overlay[style*='display: flex']) #rotate-prompt {
+        display: none !important;
+      }
+      .sw-update-toast[hidden] {
+        display: none;
+      }
+      .sw-update-restart,
+      .sw-update-dismiss,
+      #rotate-lock {
+        min-width: 44px;
+        min-height: 44px;
+      }
+      .sw-update-label {
+        font:
+          14px/1.4 Arial,
+          sans-serif;
+        letter-spacing: 0;
+      }
+      #rotate-lock {
+        color: #eee;
+        background: #232638;
+        border: 1px solid #8888aa;
+        font:
+          16px/1.4 Arial,
+          sans-serif;
+        padding: 8px 16px;
+      }
     </style>
   </head>
   <body>
@@ -374,6 +484,7 @@
             <input
               type="text"
               id="auth-username"
+              aria-label="Username"
               placeholder="Username"
               autocomplete="username"
               required
@@ -383,6 +494,7 @@
             <input
               type="password"
               id="auth-password"
+              aria-label="Password"
               placeholder="Password"
               autocomplete="current-password"
               required
@@ -390,10 +502,18 @@
             />
             <button type="submit" id="auth-submit">Log In</button>
           </form>
-          <p id="auth-error"></p>
-          <p id="auth-toggle">Don't have an account? Register</p>
-          <p class="offline-link" id="auth-skip">Play offline (no cloud saves)</p>
-          <p class="desktop-note">Best played on desktop<br />Not optimized for mobile</p>
+          <p id="auth-error" role="status" aria-live="polite"></p>
+          <button type="button" id="auth-toggle">Don't have an account? Register</button>
+          <button type="button" class="offline-link" id="auth-skip">Play offline</button>
+          <dialog id="offline-confirm" aria-labelledby="offline-title">
+            <h2 id="offline-title">Play without cloud saves?</h2>
+            <p>
+              Your progress will save on this device. It will not sync to other devices while
+              playing offline.
+            </p>
+            <button type="button" data-offline-cancel>Back to sign in</button>
+            <button type="button" data-offline-continue>Play offline</button>
+          </dialog>
         </div>
       </div>
     </div>
@@ -416,8 +536,9 @@
       <div id="mobile-right-panel" class="mobile-panel"></div>
     </div>
 
-    <div id="rotate-prompt">
+    <div id="rotate-prompt" role="status" aria-live="polite">
       <p>&#x21bb; Rotate your device to landscape</p>
+      <button type="button" id="rotate-lock" hidden>Use landscape</button>
     </div>
 
     <script>
@@ -875,6 +996,7 @@
         // Expose cleanup for main.js to call
         window.stopAuthScreen = function () {
           cancelAnimationFrame(animId);
+          canvas.remove();
           // Remove interaction listeners FIRST to prevent late events from restarting music
           document.removeEventListener('click', onFirstInteraction);
           document.removeEventListener('keydown', onFirstInteraction);

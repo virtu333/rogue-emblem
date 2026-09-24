@@ -1,0 +1,2642 @@
+[
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 1,
+    "alphaPixels": 140487,
+    "bounds": {
+      "x": 56,
+      "y": 120,
+      "width": 486,
+      "height": 636
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 2,
+    "alphaPixels": 148642,
+    "bounds": {
+      "x": 704,
+      "y": 124,
+      "width": 445,
+      "height": 632
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 10,
+      "width": 24,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "myrmidon",
+    "class": "Myrmidon",
+    "variant": 3,
+    "alphaPixels": 145830,
+    "bounds": {
+      "x": 1308,
+      "y": 133,
+      "width": 494,
+      "height": 626
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "knight",
+    "class": "Knight",
+    "variant": 1,
+    "alphaPixels": 138907,
+    "bounds": {
+      "x": 205,
+      "y": 44,
+      "width": 410,
+      "height": 601
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 8,
+      "width": 25,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "knight",
+    "class": "Knight",
+    "variant": 2,
+    "alphaPixels": 145459,
+    "bounds": {
+      "x": 868,
+      "y": 44,
+      "width": 418,
+      "height": 601
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 8,
+      "width": 25,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "knight",
+    "class": "Knight",
+    "variant": 3,
+    "alphaPixels": 150008,
+    "bounds": {
+      "x": 1568,
+      "y": 44,
+      "width": 447,
+      "height": 601
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 8,
+      "width": 27,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "fighter",
+    "class": "Fighter",
+    "variant": 1,
+    "alphaPixels": 101737,
+    "bounds": {
+      "x": 217,
+      "y": 149,
+      "width": 443,
+      "height": 463
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "fighter",
+    "class": "Fighter",
+    "variant": 2,
+    "alphaPixels": 106087,
+    "bounds": {
+      "x": 890,
+      "y": 149,
+      "width": 444,
+      "height": 464
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "fighter",
+    "class": "Fighter",
+    "variant": 3,
+    "alphaPixels": 110885,
+    "bounds": {
+      "x": 1611,
+      "y": 152,
+      "width": 463,
+      "height": 459
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 34,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cavalier",
+    "class": "Cavalier",
+    "variant": 1,
+    "alphaPixels": 129586,
+    "bounds": {
+      "x": 154,
+      "y": 150,
+      "width": 484,
+      "height": 506
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cavalier",
+    "class": "Cavalier",
+    "variant": 2,
+    "alphaPixels": 130987,
+    "bounds": {
+      "x": 848,
+      "y": 142,
+      "width": 505,
+      "height": 514
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 39,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cavalier",
+    "class": "Cavalier",
+    "variant": 3,
+    "alphaPixels": 138359,
+    "bounds": {
+      "x": 1588,
+      "y": 146,
+      "width": 491,
+      "height": 510
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 39,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 1,
+    "alphaPixels": 102460,
+    "bounds": {
+      "x": 314,
+      "y": 138,
+      "width": 380,
+      "height": 491
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 2,
+    "alphaPixels": 104998,
+    "bounds": {
+      "x": 923,
+      "y": 139,
+      "width": 373,
+      "height": 490
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "archer",
+    "class": "Archer",
+    "variant": 3,
+    "alphaPixels": 111215,
+    "bounds": {
+      "x": 1491,
+      "y": 148,
+      "width": 419,
+      "height": 481
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mage",
+    "class": "Mage",
+    "variant": 1,
+    "alphaPixels": 92793,
+    "bounds": {
+      "x": 199,
+      "y": 179,
+      "width": 382,
+      "height": 427
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mage",
+    "class": "Mage",
+    "variant": 2,
+    "alphaPixels": 97645,
+    "bounds": {
+      "x": 873,
+      "y": 187,
+      "width": 390,
+      "height": 419
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 14,
+      "width": 28,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mage",
+    "class": "Mage",
+    "variant": 3,
+    "alphaPixels": 102844,
+    "bounds": {
+      "x": 1527,
+      "y": 170,
+      "width": 428,
+      "height": 435
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 14,
+      "width": 30,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cleric",
+    "class": "Cleric",
+    "variant": 1,
+    "alphaPixels": 97249,
+    "bounds": {
+      "x": 216,
+      "y": 148,
+      "width": 355,
+      "height": 454
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 23,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cleric",
+    "class": "Cleric",
+    "variant": 2,
+    "alphaPixels": 98389,
+    "bounds": {
+      "x": 924,
+      "y": 157,
+      "width": 351,
+      "height": 445
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 24,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "cleric",
+    "class": "Cleric",
+    "variant": 3,
+    "alphaPixels": 98305,
+    "bounds": {
+      "x": 1630,
+      "y": 155,
+      "width": 357,
+      "height": 447
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 24,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 1,
+    "alphaPixels": 84409,
+    "bounds": {
+      "x": 249,
+      "y": 187,
+      "width": 376,
+      "height": 448
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 2,
+    "alphaPixels": 80691,
+    "bounds": {
+      "x": 907,
+      "y": 193,
+      "width": 352,
+      "height": 442
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "thief",
+    "class": "Thief",
+    "variant": 3,
+    "alphaPixels": 87524,
+    "bounds": {
+      "x": 1524,
+      "y": 193,
+      "width": 379,
+      "height": 449
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dancer",
+    "class": "Dancer",
+    "variant": 1,
+    "alphaPixels": 125452,
+    "bounds": {
+      "x": 208,
+      "y": 101,
+      "width": 449,
+      "height": 552
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dancer",
+    "class": "Dancer",
+    "variant": 2,
+    "alphaPixels": 119160,
+    "bounds": {
+      "x": 899,
+      "y": 125,
+      "width": 395,
+      "height": 524
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dancer",
+    "class": "Dancer",
+    "variant": 3,
+    "alphaPixels": 132077,
+    "bounds": {
+      "x": 1533,
+      "y": 116,
+      "width": 461,
+      "height": 537
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "pegasus-knight",
+    "class": "Pegasus Knight",
+    "variant": 1,
+    "alphaPixels": 129952,
+    "bounds": {
+      "x": 143,
+      "y": 126,
+      "width": 546,
+      "height": 492
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "pegasus-knight",
+    "class": "Pegasus Knight",
+    "variant": 2,
+    "alphaPixels": 131149,
+    "bounds": {
+      "x": 837,
+      "y": 135,
+      "width": 533,
+      "height": 483
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "pegasus-knight",
+    "class": "Pegasus Knight",
+    "variant": 3,
+    "alphaPixels": 136124,
+    "bounds": {
+      "x": 1510,
+      "y": 130,
+      "width": 549,
+      "height": 488
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-rider",
+    "class": "Wyvern Rider",
+    "variant": 1,
+    "alphaPixels": 163045,
+    "bounds": {
+      "x": 45,
+      "y": 176,
+      "width": 567,
+      "height": 524
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 37,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-rider",
+    "class": "Wyvern Rider",
+    "variant": 2,
+    "alphaPixels": 166715,
+    "bounds": {
+      "x": 672,
+      "y": 182,
+      "width": 568,
+      "height": 518
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 37,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-rider",
+    "class": "Wyvern Rider",
+    "variant": 3,
+    "alphaPixels": 171128,
+    "bounds": {
+      "x": 1298,
+      "y": 167,
+      "width": 569,
+      "height": 533
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 1,
+    "alphaPixels": 97618,
+    "bounds": {
+      "x": 138,
+      "y": 130,
+      "width": 495,
+      "height": 465
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 2,
+    "alphaPixels": 92935,
+    "bounds": {
+      "x": 835,
+      "y": 134,
+      "width": 452,
+      "height": 462
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "mercenary",
+    "class": "Mercenary",
+    "variant": 3,
+    "alphaPixels": 105951,
+    "bounds": {
+      "x": 1498,
+      "y": 130,
+      "width": 529,
+      "height": 466
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 11,
+      "width": 38,
+      "height": 33
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "swordmaster",
+    "class": "Swordmaster",
+    "variant": 1,
+    "alphaPixels": 100488,
+    "bounds": {
+      "x": 112,
+      "y": 151,
+      "width": 481,
+      "height": 469
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "swordmaster",
+    "class": "Swordmaster",
+    "variant": 2,
+    "alphaPixels": 102731,
+    "bounds": {
+      "x": 809,
+      "y": 140,
+      "width": 508,
+      "height": 485
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "swordmaster",
+    "class": "Swordmaster",
+    "variant": 3,
+    "alphaPixels": 101823,
+    "bounds": {
+      "x": 1538,
+      "y": 156,
+      "width": 481,
+      "height": 469
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "general",
+    "class": "General",
+    "variant": 1,
+    "alphaPixels": 142261,
+    "bounds": {
+      "x": 291,
+      "y": 52,
+      "width": 437,
+      "height": 590
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 8,
+      "width": 27,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "general",
+    "class": "General",
+    "variant": 2,
+    "alphaPixels": 132035,
+    "bounds": {
+      "x": 905,
+      "y": 53,
+      "width": 397,
+      "height": 590
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 8,
+      "width": 24,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "general",
+    "class": "General",
+    "variant": 3,
+    "alphaPixels": 151327,
+    "bounds": {
+      "x": 1499,
+      "y": 49,
+      "width": 482,
+      "height": 593
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 8,
+      "width": 29,
+      "height": 36
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warrior",
+    "class": "Warrior",
+    "variant": 1,
+    "alphaPixels": 162691,
+    "bounds": {
+      "x": 110,
+      "y": 112,
+      "width": 567,
+      "height": 543
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warrior",
+    "class": "Warrior",
+    "variant": 2,
+    "alphaPixels": 157552,
+    "bounds": {
+      "x": 846,
+      "y": 112,
+      "width": 551,
+      "height": 544
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 34,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warrior",
+    "class": "Warrior",
+    "variant": 3,
+    "alphaPixels": 165733,
+    "bounds": {
+      "x": 1560,
+      "y": 107,
+      "width": 564,
+      "height": 548
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "paladin",
+    "class": "Paladin",
+    "variant": 1,
+    "alphaPixels": 178301,
+    "bounds": {
+      "x": 81,
+      "y": 44,
+      "width": 501,
+      "height": 699
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 4,
+      "width": 29,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "paladin",
+    "class": "Paladin",
+    "variant": 2,
+    "alphaPixels": 178957,
+    "bounds": {
+      "x": 750,
+      "y": 45,
+      "width": 502,
+      "height": 698
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 4,
+      "width": 29,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "paladin",
+    "class": "Paladin",
+    "variant": 3,
+    "alphaPixels": 178050,
+    "bounds": {
+      "x": 1412,
+      "y": 45,
+      "width": 499,
+      "height": 698
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 4,
+      "width": 29,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sniper",
+    "class": "Sniper",
+    "variant": 1,
+    "alphaPixels": 97847,
+    "bounds": {
+      "x": 193,
+      "y": 158,
+      "width": 388,
+      "height": 454
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sniper",
+    "class": "Sniper",
+    "variant": 2,
+    "alphaPixels": 98362,
+    "bounds": {
+      "x": 909,
+      "y": 161,
+      "width": 358,
+      "height": 451
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sniper",
+    "class": "Sniper",
+    "variant": 3,
+    "alphaPixels": 102213,
+    "bounds": {
+      "x": 1586,
+      "y": 159,
+      "width": 400,
+      "height": 453
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sage",
+    "class": "Sage",
+    "variant": 1,
+    "alphaPixels": 113493,
+    "bounds": {
+      "x": 219,
+      "y": 148,
+      "width": 400,
+      "height": 483
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 25,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sage",
+    "class": "Sage",
+    "variant": 2,
+    "alphaPixels": 120134,
+    "bounds": {
+      "x": 889,
+      "y": 169,
+      "width": 405,
+      "height": 470
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 26,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sage",
+    "class": "Sage",
+    "variant": 3,
+    "alphaPixels": 125239,
+    "bounds": {
+      "x": 1532,
+      "y": 157,
+      "width": 437,
+      "height": 482
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bishop",
+    "class": "Bishop",
+    "variant": 1,
+    "alphaPixels": 142265,
+    "bounds": {
+      "x": 154,
+      "y": 72,
+      "width": 441,
+      "height": 579
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 23,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bishop",
+    "class": "Bishop",
+    "variant": 2,
+    "alphaPixels": 141163,
+    "bounds": {
+      "x": 912,
+      "y": 72,
+      "width": 425,
+      "height": 580
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 22,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bishop",
+    "class": "Bishop",
+    "variant": 3,
+    "alphaPixels": 142432,
+    "bounds": {
+      "x": 1606,
+      "y": 72,
+      "width": 433,
+      "height": 580
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 22,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "assassin",
+    "class": "Assassin",
+    "variant": 1,
+    "alphaPixels": 111672,
+    "bounds": {
+      "x": 294,
+      "y": 127,
+      "width": 420,
+      "height": 478
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "assassin",
+    "class": "Assassin",
+    "variant": 2,
+    "alphaPixels": 107200,
+    "bounds": {
+      "x": 868,
+      "y": 121,
+      "width": 459,
+      "height": 484
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "assassin",
+    "class": "Assassin",
+    "variant": 3,
+    "alphaPixels": 118946,
+    "bounds": {
+      "x": 1427,
+      "y": 134,
+      "width": 527,
+      "height": 471
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bard",
+    "class": "Bard",
+    "variant": 1,
+    "alphaPixels": 103125,
+    "bounds": {
+      "x": 262,
+      "y": 149,
+      "width": 415,
+      "height": 464
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bard",
+    "class": "Bard",
+    "variant": 2,
+    "alphaPixels": 101120,
+    "bounds": {
+      "x": 888,
+      "y": 156,
+      "width": 370,
+      "height": 457
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bard",
+    "class": "Bard",
+    "variant": 3,
+    "alphaPixels": 113232,
+    "bounds": {
+      "x": 1494,
+      "y": 128,
+      "width": 425,
+      "height": 485
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "falcon-knight",
+    "class": "Falcon Knight",
+    "variant": 1,
+    "alphaPixels": 168610,
+    "bounds": {
+      "x": 97,
+      "y": 82,
+      "width": 587,
+      "height": 561
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "falcon-knight",
+    "class": "Falcon Knight",
+    "variant": 2,
+    "alphaPixels": 165317,
+    "bounds": {
+      "x": 782,
+      "y": 82,
+      "width": 581,
+      "height": 561
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "falcon-knight",
+    "class": "Falcon Knight",
+    "variant": 3,
+    "alphaPixels": 169063,
+    "bounds": {
+      "x": 1513,
+      "y": 82,
+      "width": 575,
+      "height": 561
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-lord",
+    "class": "Wyvern Lord",
+    "variant": 1,
+    "alphaPixels": 143287,
+    "bounds": {
+      "x": 93,
+      "y": 156,
+      "width": 649,
+      "height": 477
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 15,
+      "width": 40,
+      "height": 29
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-lord",
+    "class": "Wyvern Lord",
+    "variant": 2,
+    "alphaPixels": 145073,
+    "bounds": {
+      "x": 776,
+      "y": 161,
+      "width": 648,
+      "height": 472
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 15,
+      "width": 40,
+      "height": 29
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "wyvern-lord",
+    "class": "Wyvern Lord",
+    "variant": 3,
+    "alphaPixels": 146716,
+    "bounds": {
+      "x": 1508,
+      "y": 136,
+      "width": 643,
+      "height": 497
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 13,
+      "width": 40,
+      "height": 31
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hero",
+    "class": "Hero",
+    "variant": 1,
+    "alphaPixels": 133284,
+    "bounds": {
+      "x": 58,
+      "y": 150,
+      "width": 537,
+      "height": 512
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hero",
+    "class": "Hero",
+    "variant": 2,
+    "alphaPixels": 134518,
+    "bounds": {
+      "x": 720,
+      "y": 168,
+      "width": 480,
+      "height": 494
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hero",
+    "class": "Hero",
+    "variant": 3,
+    "alphaPixels": 170800,
+    "bounds": {
+      "x": 1389,
+      "y": 125,
+      "width": 571,
+      "height": 537
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 10,
+      "width": 36,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "lord",
+    "class": "Lord",
+    "variant": 1,
+    "alphaPixels": 111481,
+    "bounds": {
+      "x": 264,
+      "y": 195,
+      "width": 474,
+      "height": 514
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "lord",
+    "class": "Lord",
+    "variant": 2,
+    "alphaPixels": 108162,
+    "bounds": {
+      "x": 1036,
+      "y": 195,
+      "width": 464,
+      "height": 514
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "tactician",
+    "class": "Tactician",
+    "variant": 1,
+    "alphaPixels": 180845,
+    "bounds": {
+      "x": 270,
+      "y": 131,
+      "width": 487,
+      "height": 662
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 21,
+      "y": 14,
+      "width": 22,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "tactician",
+    "class": "Tactician",
+    "variant": 2,
+    "alphaPixels": 171513,
+    "bounds": {
+      "x": 1049,
+      "y": 140,
+      "width": 516,
+      "height": 653
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 24,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "ranger",
+    "class": "Ranger",
+    "variant": 1,
+    "alphaPixels": 117999,
+    "bounds": {
+      "x": 288,
+      "y": 206,
+      "width": 436,
+      "height": 512
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "ranger",
+    "class": "Ranger",
+    "variant": 2,
+    "alphaPixels": 124841,
+    "bounds": {
+      "x": 1063,
+      "y": 205,
+      "width": 461,
+      "height": 513
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "light-sage",
+    "class": "Light Sage",
+    "variant": 1,
+    "alphaPixels": 121538,
+    "bounds": {
+      "x": 356,
+      "y": 240,
+      "width": 423,
+      "height": 473
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "light-sage",
+    "class": "Light Sage",
+    "variant": 2,
+    "alphaPixels": 111893,
+    "bounds": {
+      "x": 997,
+      "y": 240,
+      "width": 391,
+      "height": 472
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 25,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "great-lord",
+    "class": "Great Lord",
+    "variant": 1,
+    "alphaPixels": 183824,
+    "bounds": {
+      "x": 169,
+      "y": 129,
+      "width": 617,
+      "height": 608
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "great-lord",
+    "class": "Great Lord",
+    "variant": 2,
+    "alphaPixels": 196538,
+    "bounds": {
+      "x": 1046,
+      "y": 128,
+      "width": 551,
+      "height": 611
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "grandmaster",
+    "class": "Grandmaster",
+    "variant": 1,
+    "alphaPixels": 165923,
+    "bounds": {
+      "x": 257,
+      "y": 147,
+      "width": 500,
+      "height": 604
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 25,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "grandmaster",
+    "class": "Grandmaster",
+    "variant": 2,
+    "alphaPixels": 171272,
+    "bounds": {
+      "x": 1033,
+      "y": 147,
+      "width": 522,
+      "height": 604
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 26,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "vanguard",
+    "class": "Vanguard",
+    "variant": 1,
+    "alphaPixels": 130807,
+    "bounds": {
+      "x": 344,
+      "y": 192,
+      "width": 440,
+      "height": 527
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 28,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "vanguard",
+    "class": "Vanguard",
+    "variant": 2,
+    "alphaPixels": 130348,
+    "bounds": {
+      "x": 1024,
+      "y": 192,
+      "width": 401,
+      "height": 527
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "light-priestess",
+    "class": "Light Priestess",
+    "variant": 1,
+    "alphaPixels": 171149,
+    "bounds": {
+      "x": 300,
+      "y": 141,
+      "width": 476,
+      "height": 599
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 20,
+      "y": 14,
+      "width": 24,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "light-priestess",
+    "class": "Light Priestess",
+    "variant": 2,
+    "alphaPixels": 197386,
+    "bounds": {
+      "x": 1010,
+      "y": 143,
+      "width": 549,
+      "height": 600
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "chevalier",
+    "class": "Chevalier",
+    "variant": 1,
+    "alphaPixels": 154558,
+    "bounds": {
+      "x": 253,
+      "y": 210,
+      "width": 521,
+      "height": 573
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 14,
+      "y": 4,
+      "width": 36,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "chevalier",
+    "class": "Chevalier",
+    "variant": 2,
+    "alphaPixels": 165062,
+    "bounds": {
+      "x": 1008,
+      "y": 198,
+      "width": 573,
+      "height": 593
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 39,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "holy-knight",
+    "class": "Holy Knight",
+    "variant": 1,
+    "alphaPixels": 188408,
+    "bounds": {
+      "x": 224,
+      "y": 159,
+      "width": 595,
+      "height": 622
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "holy-knight",
+    "class": "Holy Knight",
+    "variant": 2,
+    "alphaPixels": 196286,
+    "bounds": {
+      "x": 1055,
+      "y": 154,
+      "width": 601,
+      "height": 635
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sky-lancer",
+    "class": "Sky Lancer",
+    "variant": 1,
+    "alphaPixels": 178758,
+    "bounds": {
+      "x": 201,
+      "y": 181,
+      "width": 566,
+      "height": 603
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sky-lancer",
+    "class": "Sky Lancer",
+    "variant": 2,
+    "alphaPixels": 183837,
+    "bounds": {
+      "x": 1028,
+      "y": 106,
+      "width": 550,
+      "height": 692
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "seraph-knight",
+    "class": "Seraph Knight",
+    "variant": 1,
+    "alphaPixels": 243794,
+    "bounds": {
+      "x": 72,
+      "y": 116,
+      "width": 790,
+      "height": 676
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 10,
+      "width": 40,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "seraph-knight",
+    "class": "Seraph Knight",
+    "variant": 2,
+    "alphaPixels": 254406,
+    "bounds": {
+      "x": 911,
+      "y": 116,
+      "width": 836,
+      "height": 679
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 12,
+      "width": 40,
+      "height": 32
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sentinel",
+    "class": "Sentinel",
+    "variant": 1,
+    "alphaPixels": 144929,
+    "bounds": {
+      "x": 263,
+      "y": 183,
+      "width": 501,
+      "height": 553
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "sentinel",
+    "class": "Sentinel",
+    "variant": 2,
+    "alphaPixels": 143373,
+    "bounds": {
+      "x": 1050,
+      "y": 187,
+      "width": 528,
+      "height": 548
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "champion",
+    "class": "Champion",
+    "variant": 1,
+    "alphaPixels": 165431,
+    "bounds": {
+      "x": 267,
+      "y": 99,
+      "width": 514,
+      "height": 678
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 26,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "champion",
+    "class": "Champion",
+    "variant": 2,
+    "alphaPixels": 188282,
+    "bounds": {
+      "x": 969,
+      "y": 99,
+      "width": 582,
+      "height": 678
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "duelist",
+    "class": "Duelist",
+    "variant": 1,
+    "alphaPixels": 110680,
+    "bounds": {
+      "x": 81,
+      "y": 124,
+      "width": 503,
+      "height": 505
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 34,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "duelist",
+    "class": "Duelist",
+    "variant": 2,
+    "alphaPixels": 108084,
+    "bounds": {
+      "x": 820,
+      "y": 126,
+      "width": 469,
+      "height": 504
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "duelist",
+    "class": "Duelist",
+    "variant": 3,
+    "alphaPixels": 129748,
+    "bounds": {
+      "x": 1549,
+      "y": 127,
+      "width": 562,
+      "height": 501
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 10,
+      "width": 38,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "great-knight",
+    "class": "Great Knight",
+    "variant": 1,
+    "alphaPixels": 168699,
+    "bounds": {
+      "x": 86,
+      "y": 110,
+      "width": 589,
+      "height": 542
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 11,
+      "y": 4,
+      "width": 43,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "great-knight",
+    "class": "Great Knight",
+    "variant": 2,
+    "alphaPixels": 160238,
+    "bounds": {
+      "x": 807,
+      "y": 134,
+      "width": 556,
+      "height": 518
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 11,
+      "y": 4,
+      "width": 43,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "great-knight",
+    "class": "Great Knight",
+    "variant": 3,
+    "alphaPixels": 169848,
+    "bounds": {
+      "x": 1503,
+      "y": 87,
+      "width": 569,
+      "height": 565
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 4,
+      "width": 40,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "berserker",
+    "class": "Berserker",
+    "variant": 1,
+    "alphaPixels": 156037,
+    "bounds": {
+      "x": 173,
+      "y": 135,
+      "width": 530,
+      "height": 535
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 34,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "berserker",
+    "class": "Berserker",
+    "variant": 2,
+    "alphaPixels": 144195,
+    "bounds": {
+      "x": 875,
+      "y": 145,
+      "width": 520,
+      "height": 525
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 34,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "berserker",
+    "class": "Berserker",
+    "variant": 3,
+    "alphaPixels": 153638,
+    "bounds": {
+      "x": 1606,
+      "y": 145,
+      "width": 534,
+      "height": 525
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 15,
+      "y": 10,
+      "width": 35,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dark-knight",
+    "class": "Dark Knight",
+    "variant": 1,
+    "alphaPixels": 154481,
+    "bounds": {
+      "x": 159,
+      "y": 111,
+      "width": 510,
+      "height": 538
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dark-knight",
+    "class": "Dark Knight",
+    "variant": 2,
+    "alphaPixels": 162856,
+    "bounds": {
+      "x": 845,
+      "y": 118,
+      "width": 525,
+      "height": 531
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 4,
+      "width": 40,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dark-knight",
+    "class": "Dark Knight",
+    "variant": 3,
+    "alphaPixels": 161532,
+    "bounds": {
+      "x": 1541,
+      "y": 102,
+      "width": 518,
+      "height": 547
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bow-knight",
+    "class": "Bow Knight",
+    "variant": 1,
+    "alphaPixels": 191129,
+    "bounds": {
+      "x": 79,
+      "y": 99,
+      "width": 583,
+      "height": 601
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 39,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bow-knight",
+    "class": "Bow Knight",
+    "variant": 2,
+    "alphaPixels": 181991,
+    "bounds": {
+      "x": 802,
+      "y": 115,
+      "width": 557,
+      "height": 580
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 38,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "bow-knight",
+    "class": "Bow Knight",
+    "variant": 3,
+    "alphaPixels": 198846,
+    "bounds": {
+      "x": 1525,
+      "y": 93,
+      "width": 594,
+      "height": 607
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 4,
+      "width": 39,
+      "height": 40
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warlock",
+    "class": "Warlock",
+    "variant": 1,
+    "alphaPixels": 129637,
+    "bounds": {
+      "x": 168,
+      "y": 131,
+      "width": 449,
+      "height": 505
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warlock",
+    "class": "Warlock",
+    "variant": 2,
+    "alphaPixels": 128278,
+    "bounds": {
+      "x": 868,
+      "y": 147,
+      "width": 439,
+      "height": 494
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 27,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "warlock",
+    "class": "Warlock",
+    "variant": 3,
+    "alphaPixels": 135754,
+    "bounds": {
+      "x": 1574,
+      "y": 132,
+      "width": 440,
+      "height": 507
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 14,
+      "width": 26,
+      "height": 30
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "battle-monk",
+    "class": "Battle Monk",
+    "variant": 1,
+    "alphaPixels": 119335,
+    "bounds": {
+      "x": 208,
+      "y": 150,
+      "width": 414,
+      "height": 524
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "battle-monk",
+    "class": "Battle Monk",
+    "variant": 2,
+    "alphaPixels": 115721,
+    "bounds": {
+      "x": 882,
+      "y": 169,
+      "width": 395,
+      "height": 506
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 19,
+      "y": 10,
+      "width": 27,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "battle-monk",
+    "class": "Battle Monk",
+    "variant": 3,
+    "alphaPixels": 123057,
+    "bounds": {
+      "x": 1511,
+      "y": 169,
+      "width": 442,
+      "height": 507
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "trickster",
+    "class": "Trickster",
+    "variant": 1,
+    "alphaPixels": 107240,
+    "bounds": {
+      "x": 224,
+      "y": 151,
+      "width": 446,
+      "height": 476
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "trickster",
+    "class": "Trickster",
+    "variant": 2,
+    "alphaPixels": 102651,
+    "bounds": {
+      "x": 883,
+      "y": 170,
+      "width": 400,
+      "height": 461
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "trickster",
+    "class": "Trickster",
+    "variant": 3,
+    "alphaPixels": 111016,
+    "bounds": {
+      "x": 1516,
+      "y": 155,
+      "width": 440,
+      "height": 476
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 31,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hunter",
+    "class": "Hunter",
+    "variant": 1,
+    "alphaPixels": 100714,
+    "bounds": {
+      "x": 161,
+      "y": 148,
+      "width": 402,
+      "height": 472
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hunter",
+    "class": "Hunter",
+    "variant": 2,
+    "alphaPixels": 98635,
+    "bounds": {
+      "x": 860,
+      "y": 158,
+      "width": 400,
+      "height": 462
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 18,
+      "y": 10,
+      "width": 29,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "hunter",
+    "class": "Hunter",
+    "variant": 3,
+    "alphaPixels": 109725,
+    "bounds": {
+      "x": 1581,
+      "y": 148,
+      "width": 414,
+      "height": 472
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 17,
+      "y": 10,
+      "width": 30,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "zombie",
+    "class": "Zombie",
+    "variant": 1,
+    "alphaPixels": 182675,
+    "bounds": {
+      "x": 508,
+      "y": 232,
+      "width": 604,
+      "height": 627
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 33,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "revenant",
+    "class": "Revenant",
+    "variant": 1,
+    "alphaPixels": 263520,
+    "bounds": {
+      "x": 305,
+      "y": 381,
+      "width": 838,
+      "height": 689
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 13,
+      "y": 13,
+      "width": 38,
+      "height": 31
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dragon",
+    "class": "Dragon",
+    "variant": 1,
+    "alphaPixels": 294700,
+    "bounds": {
+      "x": 303,
+      "y": 352,
+      "width": 736,
+      "height": 613
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 12,
+      "y": 11,
+      "width": 40,
+      "height": 33
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "dragon-lord",
+    "class": "Dragon Lord",
+    "variant": 1,
+    "alphaPixels": 304320,
+    "bounds": {
+      "x": 438,
+      "y": 152,
+      "width": 690,
+      "height": 722
+    },
+    "placement": {
+      "canvas": 64,
+      "x": 16,
+      "y": 10,
+      "width": 32,
+      "height": 34
+    },
+    "edgeWarning": false
+  },
+  {
+    "id": "entity",
+    "class": "Entity",
+    "variant": 1,
+    "alphaPixels": 236108,
+    "bounds": {
+      "x": 424,
+      "y": 221,
+      "width": 646,
+      "height": 685
+    },
+    "placement": {
+      "canvas": 128,
+      "x": 22,
+      "y": 16,
+      "width": 85,
+      "height": 90
+    },
+    "edgeWarning": false
+  }
+]

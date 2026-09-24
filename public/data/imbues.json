@@ -4,12 +4,12 @@
       "id": "vampiric",
       "name": "Vampiric",
       "adjective": "Vampiric",
-      "description": "Heal 30% of damage dealt on each strike",
+      "description": "Heal 15% of damage dealt on each strike, rounded down",
       "lore": "The blade drinks first; the wielder walks away fed.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
-        "combatMods": { "drainPercent": 0.3 }
+        "combatMods": { "drainPercent": 0.15 }
       },
       "stone": {
         "name": "Vampiric Imbuing Stone",

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RosterOverlay } from '../src/ui/RosterOverlay.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
@@ -10,7 +10,6 @@ vi.mock('phaser', () => ({
   },
 }));
 
-let NodeMapScene;
 const gameData = loadGameData();
 
 function makeDisplayObject(seed = {}) {
@@ -123,10 +122,6 @@ function seedRoster(rm, count) {
   });
 }
 
-beforeAll(async () => {
-  ({ NodeMapScene } = await import('../src/scenes/NodeMapScene.js'));
-});
-
 describe('accessory UI flows', () => {
   it('shows [Equip] when unit has no accessory and pool is non-empty', () => {
     const { overlay, rm } = makeOverlay();
@@ -236,65 +231,5 @@ describe('accessory UI flows', () => {
 
     expect(overlay.selection).toEqual({ kind: 'unit', index: 13 });
     expect(overlay._rosterScrollOffset).toBe(scrollOffsetBefore);
-  });
-
-  it('shows correct pool banner for scroll purchases', () => {
-    const audio = { playSFX: vi.fn() };
-    const entry = {
-      type: 'scroll',
-      price: 120,
-      item: { name: 'Sol Scroll' },
-    };
-    const rm = {
-      gold: 9999,
-      scrolls: [],
-      accessories: [],
-      spendGold: vi.fn(() => true),
-    };
-    const ctx = {
-      runManager: rm,
-      shopBuyItems: [entry],
-      registry: { get: () => audio },
-      refreshShop: vi.fn(),
-      showShopBanner: vi.fn(),
-    };
-
-    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
-
-    expect(ctx.showShopBanner).toHaveBeenCalledWith(
-      'Got Sol Scroll! Added to Scroll Pool.',
-      '#88ff88',
-    );
-    expect(rm.scrolls).toHaveLength(1);
-  });
-
-  it('shows correct pool banner for accessory purchases', () => {
-    const audio = { playSFX: vi.fn() };
-    const entry = {
-      type: 'accessory',
-      price: 1500,
-      item: { name: 'Goddess Icon', effects: { LCK: 5 } },
-    };
-    const rm = {
-      gold: 9999,
-      scrolls: [],
-      accessories: [],
-      spendGold: vi.fn(() => true),
-    };
-    const ctx = {
-      runManager: rm,
-      shopBuyItems: [entry],
-      registry: { get: () => audio },
-      refreshShop: vi.fn(),
-      showShopBanner: vi.fn(),
-    };
-
-    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
-
-    expect(ctx.showShopBanner).toHaveBeenCalledWith(
-      'Got Goddess Icon! Added to Accessory Pool.',
-      '#88ff88',
-    );
-    expect(rm.accessories).toHaveLength(1);
   });
 });

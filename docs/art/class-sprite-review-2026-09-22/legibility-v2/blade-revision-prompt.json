@@ -1,0 +1,8 @@
+{
+  "mode": "built-in imagegen",
+  "prompt": "Edit the attached transparent three-Myrmidon pixel sprite sheet. Preserve characters, clothes, hair, skin, positions, full bodies, alpha and layout. Correct ONLY their sword and hands: current swords are too short like daggers. Give each a LONG SLENDER straight sword, blade about 45 percent of character body height and approximately one third the width of the current chunky blade. Lower both hands and hilt to WAIST level so the long upright blade tip ends slightly above the head, not far above it. A strong continuous BRIGHT WHITE steel face with a narrow cool gray edge and dark outline, not glow. The blade should form a readable white vertical line clearly separated from torso, visually unlike a wide mercenary broadsword or short thief knife. Maintain body scale and generous transparent gutters. No text or background.",
+  "placement": {
+    "thief": "80% within 64px canvas, feet y44",
+    "myrmidon": "112% of previous fit, feet y44, sword overhang allowed"
+  }
+}

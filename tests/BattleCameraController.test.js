@@ -259,3 +259,41 @@ describe('BattleCameraController.ensureWorldVisible (gamepad cursor follow)', ()
     expect(camera.scrollX).toBe(0);
   });
 });
+
+describe('one-finger pan versus tap', () => {
+  function fixture() {
+    const camera = createCamera();
+    camera.zoom = 2;
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => ({ left: 0, top: 0, width: 640, height: 480 }),
+    });
+    const manager = { pointers: [] };
+    const p = createTouchPointer(1, 200, 180, manager);
+    manager.pointers = [p];
+    controller.handlePointerDown(p);
+    return { camera, controller, p };
+  }
+  it('preserves a tap below the threshold', () => {
+    const { camera, controller, p } = fixture();
+    p.x += 8;
+    expect(controller.handlePointerMove(p).consumed).toBe(false);
+    expect(camera.scrollX).toBe(0);
+    expect(controller.handlePointerUp(p).consumed).toBe(false);
+  });
+  it('pans beyond the threshold and consumes release without moving a unit', () => {
+    const { camera, controller, p } = fixture();
+    p.x += 40;
+    expect(controller.handlePointerMove(p).consumed).toBe(true);
+    expect(camera.scrollX).toBe(-20);
+    expect(controller.handlePointerUp(p)).toEqual({ consumed: true, endedGesture: true });
+    expect(controller.hasActiveTouches()).toBe(false);
+  });
+  it('does not pan under a blocked state and clears a canceled drag', () => {
+    const { camera, controller, p } = fixture();
+    p.x += 40;
+    expect(controller.handlePointerMove(p, false).consumed).toBe(false);
+    expect(camera.scrollX).toBe(0);
+    controller.clearTouches();
+    expect(controller.handlePointerUp(p).consumed).toBe(false);
+  });
+});

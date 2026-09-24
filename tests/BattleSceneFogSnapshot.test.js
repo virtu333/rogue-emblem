@@ -534,7 +534,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     scene.add = {
       circle: vi.fn(() => sparkle),
     };
-    scene._isReducedEffects = vi.fn(() => true);
+    scene._reduceMotion = vi.fn(() => true);
     scene.tweens = { add: vi.fn() };
     scene.awardScaledXP = vi.fn(async () => {});
     scene.finishUnitAction = vi.fn();
@@ -549,10 +549,11 @@ describe('BattleScene deferred vision snapshot commit', () => {
     await actionPromise;
   });
 
-  it('rewind after select-before-action uses prior committed snapshot', () => {
+  it('standalone rewind after select-before-action uses prior committed snapshot', () => {
     const { scene, unit } = setupScene();
     const { previous, pending } = primeVisionSnapshots(scene);
-    scene.runManager = { visionChargesRemaining: 1, visionCount: 0 };
+    scene.runManager = null;
+    scene._standaloneVisionState = { visionChargesRemaining: 1, visionCount: 0 };
     scene.applyVisionSnapshot = vi.fn(function applyVisionSnapshot() {
       this._appliedSnapshotId = this.visionSnapshot?.id;
       return true;
@@ -567,7 +568,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     expect(scene._appliedSnapshotId).toBe(previous.id);
     expect(scene.visionSnapshot).toBe(previous);
     expect(scene.pendingVisionSnapshot).toBeNull();
-    expect(scene.runManager.visionChargesRemaining).toBe(0);
+    expect(scene._standaloneVisionState.visionChargesRemaining).toBe(0);
     expect(pending.id).toBe('current-turn-start');
   });
 });
@@ -651,26 +652,27 @@ describe('BattleScene trade cancel flow', () => {
     expect(scene.tradeMutatedThisSession).toBe(true);
   });
 
-  it('UNIT_ACTION_MENU cancel with mutated trade reopens action menu (no undo, no finish)', () => {
+  it('UNIT_ACTION_MENU cancel after trading deselects without refunding movement or action', () => {
     const { scene, unit } = setupScene();
     scene.battleState = 'UNIT_ACTION_MENU';
     scene.selectedUnit = unit;
     scene.inEquipMenu = false;
     scene.tradeMutatedThisSession = true;
-    scene.showActionMenu = vi.fn(() => {
-      // Mirror BattleScene.showActionMenu side effect.
-      scene.tradeMutatedThisSession = false;
-    });
-    scene.undoMove = vi.fn();
+    unit._movementCommitted = true;
+    unit.hasMoved = true;
+    unit._movementSpent = 3;
+    // Even a stale/recreated preMoveLoc cannot undo committed movement.
+    scene.preMoveLoc = { col: 0, row: 0 };
+    scene.undoMove = BattleScene.prototype.undoMove;
+    scene.deselectUnit = BattleScene.prototype.deselectUnit;
     scene.finishUnitAction = vi.fn();
 
     BattleScene.prototype.handleCancel.call(scene);
 
-    expect(scene.hideActionMenu).toHaveBeenCalled();
-    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
-    expect(scene.undoMove).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(unit).toMatchObject({ col: 1, row: 1, hasMoved: true, _movementSpent: 3 });
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
-    expect(scene.tradeMutatedThisSession).toBe(true);
   });
 
   it('UNIT_ACTION_MENU cancel without mutation still undoes move', () => {
@@ -1241,8 +1243,15 @@ describe('onPhaseChange condition recovery ordering', () => {
       await skipResult;
     }
     expect(turnStartSpy).toHaveBeenCalledTimes(1);
-    expect(turnStartSpy).toHaveBeenCalledWith(scene.playerUnits, { skipRecovery: true });
-    expect(scene.processBallistaFire).toHaveBeenCalledWith(scene.enemyUnits, 'player');
+    expect(turnStartSpy).toHaveBeenCalledWith(scene.playerUnits, {
+      skipRecovery: true,
+      isCurrent: expect.any(Function),
+    });
+    expect(scene.processBallistaFire).toHaveBeenCalledWith(
+      scene.enemyUnits,
+      'player',
+      expect.any(Function),
+    );
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
 
@@ -1511,8 +1520,10 @@ describe('scene-level silence enforcement (hybrid magic/physical)', () => {
 
   it('confirmForecastCombat blocks combat when weapon is magic and unit is silenced', () => {
     const { scene, unit, tome } = setupSilenceScene();
+    scene.showActionMenu = vi.fn();
     unit.weapon = tome;
     scene.confirmForecastCombat();
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
     // Should have hidden forecast but NOT called executeCombat
     expect(scene.hideForecast).toHaveBeenCalled();
     expect(scene.executeCombat).not.toHaveBeenCalled();

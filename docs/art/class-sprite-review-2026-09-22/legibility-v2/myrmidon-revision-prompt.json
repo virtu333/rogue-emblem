@@ -1,0 +1,4 @@
+{
+  "mode": "built-in imagegen",
+  "prompt": "Edit this three-character transparent Myrmidon pixel sprite sheet. Keep all identities, colors, character body positions, feet baseline and three-column layout. IMPORTANT map readability fix: shorten each raised sword by about 40%, LOWER the hilt to waist height, so blade tip is no higher than top of the character's hair. Keep blade held upright in front, clearly separated from body. Broaden torsos slightly, simplify cloth to one bright medium steel-blue wrap and large cream inset; enemy same in crimson. Keep slim upright unarmored duelist silhouette and topknot/lilac hair/ash hair identities. No tiny trim. The whole body must stay prominent when the entire figure including sword is reduced to 34 pixels tall. No labels, no ground, no rings. Transparent background, preserve full figures and clean gutters."
+}

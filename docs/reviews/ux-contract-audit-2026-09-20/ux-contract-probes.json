@@ -1,0 +1,24 @@
+{
+  "skillAssignFocus": {
+    "tag": "BODY",
+    "text": "\n    \n      \n        \n        \n          ROGUE EMBLEM\n          \n     "
+  },
+  "skillRemoveFocus": {
+    "tag": "BODY",
+    "text": "\n    \n      \n        \n        \n          ROGUE EMBLEM\n          \n     "
+  },
+  "skillEscapeScene": "Title",
+  "metaBefore": "Army upgrades: On",
+  "metaAfterPad": "Army upgrades: On",
+  "helpSearch": "HELP\nClose\nSTATS\nCOMBAT\nTERRAIN\nARMS\nSKILLS\nPROMO\nGOALS\nMETA\nINPUT\nADV\n\nNo matching entries in this category.",
+  "forgeChoices": [
+    "Forge Iron SwordClose+1 Might400 gold · 0/5 upgrades+5 Hit250 gold · 0/5 upgrades+5 Crit300 gold · 0/5 upgrades−1 Weight250 gold · 0/5 upgradesConfirm"
+  ],
+  "forgeWeightEnabled": true,
+  "forgeAfter": {
+    "gold": 9750,
+    "weight": 0,
+    "level": 1
+  },
+  "errors": []
+}

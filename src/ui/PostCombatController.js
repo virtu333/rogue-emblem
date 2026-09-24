@@ -1,3 +1,11 @@
+import { persistBattleDefeat } from './BattleFatalDecision.js';
+import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { recordBattleTimeline } from './BattleTimelineRecorder.js';
+import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
+import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
+import { PendingRewardController } from './PendingRewardController.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { TutorialController } from './TutorialController.js';
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
@@ -18,6 +26,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
+import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -53,12 +62,10 @@ export class PostCombatController {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
-          "Victory! You've completed the tutorial.\nYou're ready for a real run -- good luck!",
+          "Victory! You've completed the tutorial.\nChoose Start first run on the title screen to begin your campaign.",
         );
         if (!scene.scene?.isActive?.()) return;
-        try {
-          localStorage.setItem('emblem_rogue_tutorial_completed', '1');
-        } catch (_) {}
+        (scene._tutorialController ||= new TutorialController(scene)).recordCompletion();
         scene._transitionTutorialToTitle();
       });
     } else if (scene.runManager) {
@@ -82,7 +89,10 @@ export class PostCombatController {
       }
       scene._newlyMasteredUnits = newlyMastered;
       const surviving = liveSurvivors.map((u) => serializeUnit(u));
-      const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])];
+      const rosterOrder = new Map((scene.runManager.roster || []).map((u, i) => [u.name, i]));
+      const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])].sort(
+        (a, b) => (rosterOrder.get(a.name) ?? Infinity) - (rosterOrder.get(b.name) ?? Infinity),
+      );
       const turnPressure = scene.getTurnPressureState();
       const completionGoldAward = Math.max(
         0,
@@ -101,6 +111,7 @@ export class PostCombatController {
         scene.nodeId,
         scene.goldEarned,
         {
+          turnCount: scene.turnManager?.turnNumber,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
         },
@@ -109,9 +120,10 @@ export class PostCombatController {
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
         : 0;
-      // Persist the completed battle immediately (completeBattle cleared the
-      // anti-refresh lock): a refresh during the loot flow keeps the win —
-      // loot is forfeited — rather than reopening the fight.
+      // Preserve both the win and its unclaimed choices before presentation.
+      if (completionApplied && !scene.runManager.isRunComplete() && hasDOMHost()) {
+        prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+      }
       scene._persistBattleRunState?.();
       scene.time.delayedCall(1500, async () => {
         if (!scene.scene?.isActive?.()) return;
@@ -160,6 +172,12 @@ export class PostCombatController {
           return;
         }
         try {
+          // Enemy-phase counterattack levels are already in the completed-run
+          // save. Present them here when victory skipped the next player turn.
+          if (scene._pendingLevelUpPopups?.length) {
+            await presentQueuedLevelUps(scene);
+            if (!scene.scene?.isActive?.()) return;
+          }
           if (scene.isBoss && scene._bossName && scene.runManager) {
             const bossName = scene._resolveBossDialogueName(scene._bossName);
             const dialogueKey = `boss_defeat_${bossName}`;
@@ -237,7 +255,7 @@ export class PostCombatController {
     if (scene.isTransitioningOut) return false;
     scene.isTransitioningOut = true;
     try {
-      if (scene.runManager.isActComplete()) {
+      if (scene.runManager.isActComplete() && !scene.runManager.pendingBattleReward) {
         if (scene.runManager.isRunComplete()) {
           scene.runManager.status = 'victory';
           scene.runManager.settleEndRunRewards(scene.registry.get('meta'), 'victory');
@@ -265,7 +283,7 @@ export class PostCombatController {
             }),
           );
           try {
-            await scene._showStoryDialogueOnce(transKey, entries);
+            await scene._showStoryDialogueOnce(transKey, entries, { category: 'actTransition' });
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
           }
@@ -415,7 +433,10 @@ export class PostCombatController {
     scene._bossRecruitOverlay = overlay;
     scene.lootGroup = overlay.displayObjects;
     overlay.show((selectedUnit) => {
-      if (selectedUnit) scene.runManager.roster.push(selectedUnit);
+      if (selectedUnit) {
+        scene.runManager.grantRecruitBlessingConsumables?.(selectedUnit);
+        scene.runManager.roster.push(selectedUnit);
+      }
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
       if (scene.runManager.shouldTriggerThirdLord()) {
@@ -439,6 +460,23 @@ export class PostCombatController {
     });
   }
 
+  rewardContext() {
+    const s = this.scene;
+    return {
+      nodeId: s.nodeId,
+      isElite: s.isElite,
+      isBoss: s.isBoss,
+      goldEarned: s.goldEarned,
+      turnPar: s.turnPar,
+      turnBonusConfig: s.turnBonusConfig,
+      turnNumber: s.turnManager?.turnNumber,
+      victoryPressureState: s._victoryPressureState,
+      completionGoldAward: s._completionGoldAward,
+      battleCompletionAwardedGold: s._battleCompletionAwardedGold,
+      metaEffects: s.runManager?.metaEffects,
+    };
+  }
+
   showLootScreen() {
     const scene = this.scene;
     const audio = scene.registry.get('audio');
@@ -446,6 +484,17 @@ export class PostCombatController {
     scene._elitePicksRemaining = scene.isElite ? ELITE_MAX_PICKS : 1;
     scene._lootCleanedUp = false;
     scene._lootResolving = false;
+    if (hasDOMHost()) {
+      prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
+      scene._persistBattleRunState?.();
+      scene._lootController = new PendingRewardController(scene, {
+        onLeave: () => this.transitionAfterBattle(),
+        onComplete: () => this.transitionAfterBattle(),
+      });
+      scene.lootGroup = scene._lootController.lootGroup;
+      this._showMasteryNotice();
+      return;
+    }
 
     scene._lootController = new LootScreenController(scene, scene.runManager, scene.gameData, {
       isElite: scene.isElite,
@@ -471,6 +520,12 @@ export class PostCombatController {
     const mastered = scene._newlyMasteredUnits;
     if (!Array.isArray(mastered) || mastered.length === 0) return;
     scene._newlyMasteredUnits = null;
+    const rewards = scene._lootController?.mobileRewards;
+    if (rewards?.visible) {
+      rewards.masteryNotices = mastered;
+      rewards.render();
+      return;
+    }
     const cam = scene.cameras.main;
     const lines = mastered
       .slice(0, 3)
@@ -526,6 +581,37 @@ export class PostCombatController {
   onDefeat() {
     const scene = this.scene;
     if (scene.battleState === 'BATTLE_END') return;
+    if (scene.runManager?.battleInProgress) {
+      try {
+        scene._timelineFacts = [...(scene._timelineFacts || []), 'Defeat. The run has ended.'];
+        recordBattleTimeline(
+          scene,
+          captureBattleState(scene, { rngSeed: scene.runManager.rngSeed }),
+        );
+        scene.runManager.lastBattleReport = readOnlyBattleReport(scene._battleTimeline);
+      } catch (error) {
+        console.warn('[Timeline] terminal report unavailable:', error);
+      }
+    }
+    const defeatBossName = scene.isBoss ? scene._resolveBossDialogueName?.(scene._bossName) : null;
+    const defeatContext = {
+      defeatedBy: defeatBossName || scene._commanderKillerName || null,
+      wasBoss: Boolean(defeatBossName),
+    };
+    if (scene.runManager?.battleInProgress || scene._defeatDecision) {
+      const result = persistBattleDefeat(scene, defeatContext);
+      if (!result.ok) {
+        scene.showVisionDialog({
+          title: 'Defeat could not be saved',
+          body: 'The battle is paused. Retry saving to finish this run. Closing the app now may return to the previous saved decision.',
+          confirmLabel: 'Retry save',
+          cancelLabel: 'Retry save',
+          onConfirm: () => this.onDefeat(),
+          onCancel: () => this.onDefeat(),
+        });
+        return;
+      }
+    }
     scene._reinforcementsPendingThisTurn = false;
     scene.battleState = 'BATTLE_END';
     scene.clearInspectionVisuals();
@@ -560,18 +646,10 @@ export class PostCombatController {
       // Narrative memory: attribute the run's end. A defeat inside a boss
       // battle is credited to the boss; otherwise to whoever felled the
       // commander (may be null for e.g. field-empty losses).
-      const defeatBossName = scene.isBoss
-        ? scene._resolveBossDialogueName?.(scene._bossName)
-        : null;
-      scene.runManager.failRun({
-        defeatedBy: defeatBossName || scene._commanderKillerName || null,
-        wasBoss: Boolean(defeatBossName),
-      });
-      // Persist the defeat (status + cleared suspend flag) immediately:
-      // refreshing during the banner must not rewind to the pre-fatal
-      // checkpoint — the reload routes to the game-over flow instead.
-      // Retreating is sanctioned only BEFORE a death resolves.
-      scene._persistBattleRunState?.();
+      if (!scene._defeatDecision?.durable) {
+        scene.runManager.failRun(defeatContext);
+        scene._persistBattleRunState?.();
+      }
       scene.time.delayedCall(2000, async () => {
         if (!scene.scene?.isActive?.()) return;
         // Clear any stale transition locks -- the 2s delay gives legitimate

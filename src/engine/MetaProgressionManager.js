@@ -1,3 +1,5 @@
+import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
+import { mergeRunRecords } from './RunRecords.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -69,6 +71,15 @@ function normalizeStoryFlags(raw) {
   };
 }
 
+const PRE_BALANCE_COSTS = {
+  recruit_weapon_forge: [800, 1400],
+  weapon_forge: [150, 325, 550],
+  lethal_armory_killer: [900],
+  lethal_armory_silver: [1400],
+  recruit_field_supplies: [375],
+  master_of_arms: [600],
+};
+
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
 const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
@@ -112,12 +123,18 @@ export class MetaProgressionManager {
     this.onSave = null;
     this.upgradesData = upgradesData;
     this.storageKey = storageKey;
+    this.balanceRevision = 1;
+    this.solRefundBasis = 600;
     this.totalValor = 0;
     this.totalSupply = 0;
     this.savedAt = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.runsStarted = 0;
+    this.lastDifficulty = null;
+    this.runRecords = [];
+    this.seenDialogueKeys = [];
+    this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
@@ -127,6 +144,9 @@ export class MetaProgressionManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
+        this.lastDifficulty = ['normal', 'hard', 'lunatic'].includes(saved.lastDifficulty)
+          ? saved.lastDifficulty
+          : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
         if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
@@ -159,7 +179,26 @@ export class MetaProgressionManager {
         // Migration: old saves without milestones default to empty
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
         // Migration: old saves without storyFlags default to empty memory
+        if (Array.isArray(saved.hintState?.seen)) this.hintState = saved.hintState;
+        this.runRecords = mergeRunRecords(saved.runRecords || []);
+        this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
+        this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
+        if (!saved.balanceRevision) {
+          if (this.getUpgradeLevel('unlock_sol') > 0) this.solRefundBasis = 400;
+          for (const [id, oldCosts] of Object.entries(PRE_BALANCE_COSTS)) {
+            const upgrade = this.upgradesData.find((u) => u.id === id);
+            if (!upgrade) continue;
+            let credit = 0;
+            for (let i = 0; i < Math.min(this.getUpgradeLevel(id), oldCosts.length); i++) {
+              credit += Math.max(0, oldCosts[i] - upgrade.costs[i]);
+            }
+            if (this.getCurrencyForUpgrade(id) === 'valor') this.totalValor += credit;
+            else this.totalSupply += credit;
+          }
+          // The next normal save persists credit and marker atomically without making
+          // a read-only load appear newer than a pending cloud merge.
+        }
       }
     } catch (_) {
       /* incognito / quota exceeded */
@@ -314,6 +353,16 @@ export class MetaProgressionManager {
    * RunManager._applySettledRewardsToMeta (under its appliedToMeta guard).
    * defeatedBy is only counted when the fatal battle was a boss fight.
    */
+  hasSeenDialogue(key) {
+    return this.seenDialogueKeys.includes(key);
+  }
+
+  markDialogueSeen(key) {
+    if (this.hasSeenDialogue(key)) return;
+    this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, [key]);
+    this._save();
+  }
+
   recordRunEnd({
     result,
     act = null,
@@ -321,8 +370,11 @@ export class MetaProgressionManager {
     defeatedBy = null,
     wasBossDefeat = false,
     lordFalls = [],
+    victoryRecord = null,
   } = {}) {
     if (result !== 'victory' && result !== 'defeat') return;
+    if (result === 'victory' && victoryRecord)
+      this.runRecords = mergeRunRecords(this.runRecords, [victoryRecord]);
     const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
     this.storyFlags.lastRun = {
       result,
@@ -429,6 +481,7 @@ export class MetaProgressionManager {
     } else {
       this.totalSupply -= cost;
     }
+    if (id === 'unlock_sol') this.solRefundBasis = cost;
     this.purchasedUpgrades[id] = this.getUpgradeLevel(id) + 1;
     this._save();
     return true;
@@ -611,6 +664,7 @@ export class MetaProgressionManager {
       growthBonuses: {},
       lordStatBonuses: {},
       lordGrowthBonuses: {},
+      legendaryLordChanceBonus: 0,
       goldBonus: 0,
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
@@ -652,6 +706,9 @@ export class MetaProgressionManager {
 
       const effect = upgrade.effects[level - 1];
       if (!effect) continue;
+
+      if (Number.isFinite(effect.legendaryLordChanceBonus))
+        effects.legendaryLordChanceBonus += effect.legendaryLordChanceBonus;
 
       // Recruit flat stat bonuses
       if (effect.stat !== undefined) {
@@ -838,7 +895,7 @@ export class MetaProgressionManager {
       }
     }
 
-    const refundAmount = upgrade.costs[level - 1];
+    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
     return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
@@ -855,7 +912,7 @@ export class MetaProgressionManager {
     const upgrade = this.upgradesData.find((u) => u.id === id);
     const level = this.getUpgradeLevel(id);
     const currency = this.getCurrencyForUpgrade(id);
-    const refundAmount = upgrade.costs[level - 1];
+    const refundAmount = id === 'unlock_sol' ? this.solRefundBasis : upgrade.costs[level - 1];
 
     // Deduct fee + refund tier cost
     if (currency === 'valor') {
@@ -903,6 +960,8 @@ export class MetaProgressionManager {
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
+    this.runRecords = [];
+    this.seenDialogueKeys = [];
     this._save();
   }
 
@@ -971,6 +1030,13 @@ export class MetaProgressionManager {
     ) {
       this.lordSelection = normalizeLordSelection(disk.lordSelection);
     }
+    if (Number(disk.hintState?.updatedAt) > Number(this.hintState?.updatedAt || 0))
+      this.hintState = disk.hintState;
+    this.runRecords = mergeRunRecords(this.runRecords, disk.runRecords || []);
+    this.seenDialogueKeys = mergeSeenDialogueKeys(
+      this.seenDialogueKeys,
+      disk.seenDialogueKeys || [],
+    );
     if (disk.storyFlags && typeof disk.storyFlags === 'object') {
       const diskFlags = normalizeStoryFlags(disk.storyFlags);
       // Counters are monotonic, so per-name max can only over-remember —
@@ -987,23 +1053,38 @@ export class MetaProgressionManager {
         this.storyFlags.lastRun = diskFlags.lastRun;
       }
     }
+    if (['normal', 'hard', 'lunatic'].includes(disk.lastDifficulty))
+      this.lastDifficulty = disk.lastDifficulty;
     this.savedAt = diskSavedAt;
   }
 
-  _save() {
+  rememberDifficulty(id) {
+    if (!['normal', 'hard', 'lunatic'].includes(id)) return { ok: false };
+    return this._save({ lastDifficulty: id });
+  }
+
+  _save({ lastDifficulty } = {}) {
     this._adoptForeignDiskStateIfNewer();
+    if (['normal', 'hard', 'lunatic'].includes(lastDifficulty))
+      this.lastDifficulty = lastDifficulty;
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
+      balanceRevision: this.balanceRevision,
+      solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
       runsStarted: this.runsStarted,
+      lastDifficulty: this.lastDifficulty,
       skillAssignments: this.skillAssignments,
       lordSelection: this.lordSelection,
       milestones: [...this.milestones],
       storyFlags: this.storyFlags,
+      runRecords: this.runRecords,
+      seenDialogueKeys: this.seenDialogueKeys,
+      hintState: this.hintState,
       savedAt: this.savedAt,
     };
     let localOk = false;

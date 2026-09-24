@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { ACT_CONFIG, NODE_TYPES, FOG_CHANCE_BY_ACT } from '../src/utils/constants.js';
+import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -340,14 +341,16 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act2 battle nodes have no levelRange in battleParams', () => {
+    it('act2 battle nodes ramp within the act pool range', () => {
       for (let i = 0; i < 10; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const battleNodes = map.nodes.filter(
           (n) => n.type === NODE_TYPES.BATTLE || n.type === NODE_TYPES.RECRUIT,
         );
         for (const node of battleNodes) {
-          expect(node.battleParams.levelRange).toBeUndefined();
+          expect(node.battleParams.levelRange).toEqual(
+            { 0: [3, 5], 1: [4, 6], 2: [5, 7] }[node.row] || [5, 8],
+          );
         }
       }
     });
@@ -609,7 +612,7 @@ describe('NodeMapGenerator', () => {
 });
 
 describe('Church node generation', () => {
-  it('pickNodeType generates CHURCH nodes in act1 middle rows (~5%)', () => {
+  it('pickNodeType generates CHURCH nodes in act1 middle rows (~10%)', () => {
     let totalMiddle = 0;
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
@@ -619,8 +622,8 @@ describe('Church node generation', () => {
       totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
     }
     const churchPercent = (totalChurch / totalMiddle) * 100;
-    expect(churchPercent).toBeGreaterThan(2); // 5% ± margin
-    expect(churchPercent).toBeLessThan(10);
+    expect(churchPercent).toBeGreaterThan(7); // 10% after forced recruit conversions
+    expect(churchPercent).toBeLessThan(13);
   });
 
   it('pickNodeType generates CHURCH nodes in act2 middle rows (~15%)', () => {
@@ -664,7 +667,7 @@ describe('Shop node frequency', () => {
     expect(shopPercent).toBeLessThan(20);
   });
 
-  it('act2 shop frequency is ~25% of middle rows', () => {
+  it('act2 retains frequent shops after service pacing repairs', () => {
     let totalMiddle = 0;
     let totalShop = 0;
     for (let i = 0; i < 1000; i++) {
@@ -674,8 +677,8 @@ describe('Shop node frequency', () => {
       totalShop += middleNodes.filter((n) => n.type === NODE_TYPES.SHOP).length;
     }
     const shopPercent = (totalShop / totalMiddle) * 100;
-    expect(shopPercent).toBeGreaterThan(20);
-    expect(shopPercent).toBeLessThan(30);
+    expect(shopPercent).toBeGreaterThan(15);
+    expect(shopPercent).toBeLessThan(23);
   });
 });
 
@@ -753,7 +756,7 @@ describe('Village ambush post-pass', () => {
     expect(sawAmbush).toBe(true);
   });
 
-  it('applies act1 ambush levelRange scaling by row and leaves act2 ambush levelRange unset', () => {
+  it('applies act1 ambush levelRange scaling by row and applies act2 ambush row scaling', () => {
     const expectedAct1LevelRangeByRow = {
       0: [1, 1],
       1: [1, 2],
@@ -790,7 +793,9 @@ describe('Village ambush post-pass', () => {
       if (ambushNodes.length <= 0) continue;
       sawAct2Ambush = true;
       for (const node of ambushNodes) {
-        expect(node.battleParams?.levelRange).toBeUndefined();
+        expect(node.battleParams?.levelRange).toEqual(
+          { 0: [3, 5], 1: [4, 6], 2: [5, 7] }[node.row] || [5, 8],
+        );
       }
     }
     expect(sawAct2Ambush).toBe(true);
@@ -1204,5 +1209,44 @@ describe('Template-driven fog', () => {
         randomSpy.mockRestore();
       }
     });
+  });
+});
+
+describe('service route contracts', () => {
+  it('avoids repeated services, duplicate service forks and three-service chains across seeded acts', () => {
+    const random = vi.spyOn(Math, 'random');
+    try {
+      for (let seed = 1; seed <= 250; seed++) {
+        for (const act of ['act1', 'act2', 'act3', 'act4']) {
+          random.mockImplementation(createSeededRng(seed));
+          const map = generateNodeMap(act, ACT_CONFIG[act], gameData.mapTemplates, {
+            colosseumConfig: { spawnChance: 1, preferredRows: [2, 3, 4] },
+            villageAmbushChance: 0.5,
+          });
+          const byId = new Map(map.nodes.map((n) => [n.id, n]));
+          const streak = new Map();
+          const services = new Set([NODE_TYPES.SHOP, NODE_TYPES.CHURCH, NODE_TYPES.COLOSSEUM]);
+          for (const node of map.nodes) {
+            const next = node.edges.map((id) => byId.get(id));
+            const types = next.filter((n) => services.has(n.type)).map((n) => n.type);
+            expect(new Set(types).size, `${act}/${seed}/${node.id} fork`).toBe(types.length);
+            if (services.has(node.type)) expect(next.some((n) => n.type === node.type)).toBe(false);
+            const parents = map.nodes.filter((n) => n.edges.includes(node.id));
+            const count = services.has(node.type)
+              ? 1 + Math.max(0, ...parents.map((n) => streak.get(n.id)))
+              : 0;
+            streak.set(node.id, count);
+            expect(count, `${act}/${seed}/${node.id} streak`).toBeLessThanOrEqual(2);
+            if (node.type === NODE_TYPES.BATTLE)
+              expect(node.battleParams.battleSeed).toEqual(expect.any(Number));
+          }
+          expect(
+            map.nodes.filter((n) => n.type === NODE_TYPES.RECRUIT).length,
+          ).toBeGreaterThanOrEqual(2);
+        }
+      }
+    } finally {
+      random.mockRestore();
+    }
   });
 });

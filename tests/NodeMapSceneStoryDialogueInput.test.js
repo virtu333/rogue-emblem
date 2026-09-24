@@ -30,6 +30,7 @@ describe('NodeMap story-dialogue node click queue', () => {
 
     expect(scene._pendingNodeSelection).toEqual({ nodeId: 'n1' });
     expect(hide).toHaveBeenCalledTimes(1);
+    expect(hide).toHaveBeenCalledWith(true);
   });
 
   it('does not queue when scene is not ready but story dialogue is inactive', () => {

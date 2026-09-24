@@ -22,8 +22,8 @@ const allArts = gameData.weaponArts.arts;
 const artById = new Map(allArts.map((a) => [a.id, a]));
 
 describe('Tier 1 Weapon Arts Expansion', () => {
-  it('has exactly 75 arts', () => {
-    expect(allArts.length).toBe(75);
+  it('has exactly 83 arts', () => {
+    expect(allArts.length).toBe(83);
   });
 
   it('all art IDs are unique', () => {
@@ -61,7 +61,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('silver tier has correct count', () => {
-      expect(silverArts.length).toBe(18);
+      expect(silverArts.length).toBe(26);
     });
 
     it('legendary tier has correct count', () => {
@@ -188,8 +188,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       (w) => w.type === 'Scroll' && w.teachesWeaponArtId,
     );
 
-    it('has 22 weapon art scrolls', () => {
-      expect(weaponArtScrolls.length).toBe(22);
+    it('has 30 weapon art scrolls', () => {
+      expect(weaponArtScrolls.length).toBe(30);
     });
 
     it('every scroll references a valid art ID', () => {

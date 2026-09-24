@@ -1,3 +1,7 @@
+import { ReferenceMenu } from './ReferenceMenu.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { inputHint } from '../utils/inputHint.js';
 // HelpOverlay — Tabbed reference dictionary accessible from Pause menu
 // 8 tabs with paginated content. Depth 860-862.
 
@@ -41,6 +45,24 @@ export class HelpOverlay {
   show() {
     this.hide();
     this.visible = true;
+    if (hasDOMHost()) {
+      this.domMenu = new ReferenceMenu(
+        this.scene,
+        'Help',
+        HELP_TABS,
+        (tab) =>
+          HELP_TABS[tab].pages.map((page) => ({
+            name: inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+            lines: page.lines.map((line) =>
+              inputHint(this.scene, line.text, line.mobileText ?? line.text),
+            ),
+            tags: [...(HELP_TABS[tab].tags || []), ...(page.tags || [])],
+          })),
+        () => this.hide(),
+        { searchAllTabs: true },
+      );
+      return;
+    }
     this.searchQuery = '';
     this.searchResults = [];
     this.activeSearchResult = -1;
@@ -150,10 +172,14 @@ export class HelpOverlay {
         const page = pages[pageIndex];
         const lines = Array.isArray(page?.lines) ? page.lines : [];
         const pageTags = Array.isArray(page?.tags) ? page.tags : [];
-        const lineText = lines.map((line) => line?.text || '').join(' ');
+        const lineText = lines
+          .map((line) =>
+            inputHint(this.scene, line?.text || '', line?.mobileText ?? line?.text ?? ''),
+          )
+          .join(' ');
         const source = [
           tab?.label || '',
-          page?.title || '',
+          inputHint(this.scene, page?.title || '', page?.mobileTitle ?? page?.title ?? ''),
           lineText,
           ...tabTags,
           ...pageTags,
@@ -265,45 +291,46 @@ export class HelpOverlay {
 
     // Panel
     const panel = this.scene.add
-      .rectangle(cx, cy, panelW, panelH, 0x1a1a2e, 1)
+      .rectangle(cx, cy, panelW, panelH, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x888888);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add
-      .text(left + 20, top + 16, 'MORE INFO', {
-        fontFamily: 'monospace',
+    const title = applyTextResolution(
+      this.scene.add.text(left + 20, top + 16, 'MORE INFO', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setDepth(DEPTH_UI);
+      }),
+    ).setDepth(DEPTH_UI);
     this.objects.push(title);
 
     // Close button [X]
-    const closeBtn = this.scene.add
-      .text(left + panelW - 20, top + 16, '[X]', {
-        fontFamily: 'monospace',
+    const closeBtn = applyTextResolution(
+      this.scene.add.text(left + panelW - 20, top + 16, '[X]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(1, 0)
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#888888'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.accent));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.muted));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
     // Search controls
-    const searchLabel = this.scene.add
-      .text(left + 160, top + 18, 'Search:', {
-        fontFamily: 'monospace',
+    const searchLabel = applyTextResolution(
+      this.scene.add.text(left + 160, top + 18, 'Search:', {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(DEPTH_UI);
+        color: UI_PALETTE.muted,
+      }),
+    ).setDepth(DEPTH_UI);
     this.objects.push(searchLabel);
 
     const searchBoxW = 190;
@@ -311,9 +338,9 @@ export class HelpOverlay {
     const searchBoxX = left + 205 + searchBoxW / 2;
     const searchBoxY = top + 24;
     const searchBox = this.scene.add
-      .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, 0x111111, 1)
+      .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, UI_HEX.sunken, 1)
       .setDepth(DEPTH_UI)
-      .setStrokeStyle(1, this.searchInputActive ? 0xffdd44 : 0x555555)
+      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : 0x555555)
       .setInteractive({ useHandCursor: true });
     searchBox.on('pointerdown', () => {
       this.searchInputActive = true;
@@ -327,12 +354,13 @@ export class HelpOverlay {
         : this.searchInputActive
           ? ''
           : 'Press / to search';
-    const searchValue = this.scene.add
-      .text(left + 212, top + 18, queryText, {
-        fontFamily: 'monospace',
+    const searchValue = applyTextResolution(
+      this.scene.add.text(left + 212, top + 18, queryText, {
+        fontFamily: 'Arial',
         fontSize: '10px',
-        color: this.searchQuery.length > 0 ? '#e0e0e0' : '#666666',
-      })
+        color: this.searchQuery.length > 0 ? UI_PALETTE.text : UI_PALETTE.muted,
+      }),
+    )
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
     searchValue.on('pointerdown', () => {
@@ -347,13 +375,13 @@ export class HelpOverlay {
           ? `${this.activeSearchResult + 1}/${this.searchResults.length}`
           : 'No matches';
       const statusColor = this.searchResults.length > 0 ? '#66ff66' : '#ff8888';
-      const searchStatus = this.scene.add
-        .text(left + panelW - 72, top + 18, statusText, {
-          fontFamily: 'monospace',
+      const searchStatus = applyTextResolution(
+        this.scene.add.text(left + panelW - 72, top + 18, statusText, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: statusColor,
-        })
-        .setDepth(DEPTH_UI);
+        }),
+      ).setDepth(DEPTH_UI);
       this.objects.push(searchStatus);
     }
 
@@ -375,20 +403,21 @@ export class HelpOverlay {
     for (let i = 0; i < tabs.length; i++) {
       const tx = tabStartX + tabGap * i + tabGap / 2;
       const isActive = i === this.activeTabIndex;
-      const tabText = this.scene.add
-        .text(tx, tabY, tabs[i].label, {
-          fontFamily: 'monospace',
+      const tabText = applyTextResolution(
+        this.scene.add.text(tx, tabY, tabs[i].label, {
+          fontFamily: 'Arial',
           fontSize: '9px',
-          color: isActive ? '#ffdd44' : '#888888',
+          color: isActive ? UI_PALETTE.accent : UI_PALETTE.muted,
           fontStyle: isActive ? 'bold' : '',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(DEPTH_UI);
 
       if (!isActive) {
         tabText.setInteractive({ useHandCursor: true });
-        tabText.on('pointerover', () => tabText.setColor('#cccccc'));
-        tabText.on('pointerout', () => tabText.setColor('#888888'));
+        tabText.on('pointerover', () => tabText.setColor(UI_PALETTE.muted));
+        tabText.on('pointerout', () => tabText.setColor(UI_PALETTE.muted));
         tabText.on('pointerdown', () => {
           this.activeTabIndex = i;
           this.currentPage = 0;
@@ -401,7 +430,7 @@ export class HelpOverlay {
       if (isActive) {
         this._activeTabObj = tabText; // gamepad focus ring target
         const underline = this.scene.add.graphics().setDepth(DEPTH_UI);
-        underline.lineStyle(2, 0xffdd44);
+        underline.lineStyle(2, UI_HEX.accent);
         underline.beginPath();
         const halfW = tabGap * 0.4;
         underline.moveTo(tx - halfW, tabY + 10);
@@ -426,29 +455,39 @@ export class HelpOverlay {
     const contentY = tabY + 30;
 
     // Page title
-    const pageTitle = this.scene.add
-      .text(left + 25, contentY, page.title, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: this._matchesSearch(page.title) ? '#66ff66' : '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setDepth(DEPTH_UI);
+    const pageTitle = applyTextResolution(
+      this.scene.add.text(
+        left + 25,
+        contentY,
+        inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+        {
+          fontFamily: 'Arial',
+          fontSize: '13px',
+          color: this._matchesSearch(
+            inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
+          )
+            ? '#66ff66'
+            : UI_PALETTE.accent,
+          fontStyle: 'bold',
+        },
+      ),
+    ).setDepth(DEPTH_UI);
     this.objects.push(pageTitle);
 
     // Page indicator (if multi-page)
     if (activeTab.pages.length > 1) {
-      const pageInd = this.scene.add
-        .text(
+      const pageInd = applyTextResolution(
+        this.scene.add.text(
           left + panelW - 25,
           contentY,
           `Page ${this.currentPage + 1}/${activeTab.pages.length}`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#888888',
+            color: UI_PALETTE.muted,
           },
-        )
+        ),
+      )
         .setOrigin(1, 0)
         .setDepth(DEPTH_UI);
       this.objects.push(pageInd);
@@ -461,14 +500,21 @@ export class HelpOverlay {
     for (let i = 0; i < page.lines.length; i++) {
       const line = page.lines[i];
       if (!line.text && line.text !== '') continue;
-      const isMatch = this._matchesSearch(line.text);
-      const lineText = this.scene.add
-        .text(left + 25, lineStartY + i * lineHeight, line.text, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: isMatch ? '#66ff66' : line.color || '#e0e0e0',
-        })
-        .setDepth(DEPTH_UI);
+      const isMatch = this._matchesSearch(
+        inputHint(this.scene, line.text, line.mobileText ?? line.text),
+      );
+      const lineText = applyTextResolution(
+        this.scene.add.text(
+          left + 25,
+          lineStartY + i * lineHeight,
+          inputHint(this.scene, line.text, line.mobileText ?? line.text),
+          {
+            fontFamily: 'Arial',
+            fontSize: '11px',
+            color: isMatch ? '#66ff66' : line.color || UI_PALETTE.text,
+          },
+        ),
+      ).setDepth(DEPTH_UI);
       this.objects.push(lineText);
     }
 
@@ -477,19 +523,20 @@ export class HelpOverlay {
       const navY = top + panelH - 35;
 
       if (this.currentPage > 0) {
-        const prevBtn = this.scene.add
-          .text(cx - 60, navY, '\u25C0 Prev', {
-            fontFamily: 'monospace',
+        const prevBtn = applyTextResolution(
+          this.scene.add.text(cx - 60, navY, '\u25C0 Prev', {
+            fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#aaaaaa',
-            backgroundColor: '#333333',
+            color: UI_PALETTE.muted,
+            backgroundColor: UI_PALETTE.raised,
             padding: { x: 10, y: 4 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_UI)
           .setInteractive({ useHandCursor: true });
-        prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
-        prevBtn.on('pointerout', () => prevBtn.setColor('#aaaaaa'));
+        prevBtn.on('pointerover', () => prevBtn.setColor(UI_PALETTE.accent));
+        prevBtn.on('pointerout', () => prevBtn.setColor(UI_PALETTE.muted));
         prevBtn.on('pointerdown', () => {
           this.currentPage--;
           this._draw();
@@ -498,19 +545,20 @@ export class HelpOverlay {
       }
 
       if (this.currentPage < activeTab.pages.length - 1) {
-        const nextBtn = this.scene.add
-          .text(cx + 60, navY, 'Next \u25B6', {
-            fontFamily: 'monospace',
+        const nextBtn = applyTextResolution(
+          this.scene.add.text(cx + 60, navY, 'Next \u25B6', {
+            fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#aaaaaa',
-            backgroundColor: '#333333',
+            color: UI_PALETTE.muted,
+            backgroundColor: UI_PALETTE.raised,
             padding: { x: 10, y: 4 },
-          })
+          }),
+        )
           .setOrigin(0.5)
           .setDepth(DEPTH_UI)
           .setInteractive({ useHandCursor: true });
-        nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
-        nextBtn.on('pointerout', () => nextBtn.setColor('#aaaaaa'));
+        nextBtn.on('pointerover', () => nextBtn.setColor(UI_PALETTE.accent));
+        nextBtn.on('pointerout', () => nextBtn.setColor(UI_PALETTE.muted));
         nextBtn.on('pointerdown', () => {
           this.currentPage++;
           this._draw();
@@ -610,6 +658,8 @@ export class HelpOverlay {
   }
 
   hide() {
+    this.domMenu?.destroy();
+    this.domMenu = null;
     this._teardownFocus();
     const wasVisible = this.visible;
     const game = this.scene?.game;

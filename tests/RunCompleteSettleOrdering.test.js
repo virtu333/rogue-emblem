@@ -111,7 +111,7 @@ function makeScene({ result, dialogueEntries = null }) {
       return null;
     }),
   };
-  scene.cameras = { main: { centerX: 320, centerY: 240 } };
+  scene.cameras = { main: { centerX: 320, centerY: 240, setBackgroundColor: vi.fn() } };
   scene.events = { once: vi.fn() };
   scene.add = { text: vi.fn(() => makeUiObject()) };
   clearSavedRun.mockImplementation(() => {

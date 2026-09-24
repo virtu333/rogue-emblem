@@ -1,8 +1,8 @@
+import { createBattleTerrain } from '../ui/BattleMapVisuals.js';
 // Grid — tile rendering, terrain management, movement range (Dijkstra), A* pathfinding, attack range
 
 import {
   TILE_SIZE,
-  TERRAIN_COLORS,
   ATTACK_RANGE_COLOR,
   ATTACK_RANGE_ALPHA,
   VISION_RANGES,
@@ -15,12 +15,6 @@ const DIRECTIONS = [
   { dc: -1, dr: 0 },
   { dc: 1, dr: 0 },
 ];
-
-function normalizeTerrainName(name) {
-  return String(name || '')
-    .toLowerCase()
-    .replace(/ /g, '_');
-}
 
 function getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows) {
   if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
@@ -258,42 +252,14 @@ export class Grid {
   }
 
   _createTileDisplay(col, row) {
-    const terrainIndex = this.mapLayout[row][col];
-    const terrain = this.terrainData[terrainIndex];
     const { x, y } = this.gridToPixel(col, row);
-    const baseName = normalizeTerrainName(terrain?.name);
-
-    // Ballista: render floor underneath + ballista sprite overlay
-    if (baseName === 'ballista') {
-      const floorKey = this.biome === 'castle' ? 'terrain_floor' : 'terrain_plain';
-      const groundKey = this.scene.textures.exists(floorKey) ? floorKey : null;
-      const container = this.scene.add.container(x, y);
-      if (groundKey) {
-        const ground = this.scene.add.image(0, 0, groundKey);
-        ground.setDisplaySize(TILE_SIZE, TILE_SIZE);
-        container.add(ground);
-      } else {
-        const rect = this.scene.add.rectangle(0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0x909090);
-        container.add(rect);
-      }
-      if (this.scene.textures.exists('terrain_ballista')) {
-        const overlay = this.scene.add.image(0, 0, 'terrain_ballista');
-        overlay.setDisplaySize(TILE_SIZE, TILE_SIZE);
-        container.add(overlay);
-      }
-      return container;
-    }
-
-    const biomeKey = this.biome ? `terrain_${baseName}_${this.biome}` : null;
-    const baseKey = `terrain_${baseName}`;
-    const textureKey = biomeKey && this.scene.textures.exists(biomeKey) ? biomeKey : baseKey;
-    if (this.scene.textures.exists(textureKey)) {
-      const img = this.scene.add.image(x, y, textureKey);
-      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
-      return img;
-    }
-    const color = TERRAIN_COLORS[terrain.name] || 0x808080;
-    return this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color);
+    return createBattleTerrain(
+      this.scene,
+      this.terrainData[this.mapLayout[row][col]]?.name,
+      x,
+      y,
+      this.biome,
+    );
   }
 
   _rerenderTile(col, row) {

@@ -41,7 +41,7 @@
     "learnableSkills": [
       {
         "skillId": "vantage",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -87,7 +87,7 @@
     "learnableSkills": [
       {
         "skillId": "guard",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -133,7 +133,7 @@
     "learnableSkills": [
       {
         "skillId": "wrath",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -180,7 +180,7 @@
     "learnableSkills": [
       {
         "skillId": "sol",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -227,7 +227,7 @@
     "learnableSkills": [
       {
         "skillId": "adept",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -273,13 +273,13 @@
     "learnableSkills": [
       {
         "skillId": "luna",
-        "level": 15
+        "level": 10
       }
     ]
   },
   {
     "name": "Cleric",
-    "lore": "The temples emptied when the war began — every hand that could hold a staff followed the levies out.",
+    "lore": "The temples emptied when the war began \u2014 every hand that could hold a staff followed the levies out.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -320,7 +320,7 @@
     "learnableSkills": [
       {
         "skillId": "miracle",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -366,7 +366,7 @@
     "learnableSkills": [
       {
         "skillId": "luna",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -388,7 +388,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Support, refreshes allies",
-    "description": "Her dance hands an ally a second action — the rarest, most prized support a lord can field.",
+    "description": "Her dance hands an ally a second action \u2014 the rarest, most prized support a lord can field.",
     "masteryPerk": {
       "name": "Grace",
       "mods": {
@@ -398,9 +398,9 @@
     },
     "growthRanges": {
       "HP": "40-55",
-      "STR": "20-35",
-      "MAG": "25-40",
-      "SKL": "40-55",
+      "STR": "5-15",
+      "MAG": "20-30",
+      "SKL": "20-30",
       "SPD": "60-75",
       "DEF": "10-20",
       "RES": "30-45",
@@ -410,7 +410,7 @@
   },
   {
     "name": "Pegasus Knight",
-    "lore": "The sky legions answer to no garrison — their mounts choose the riders.",
+    "lore": "The sky legions answer to no garrison \u2014 their mounts choose the riders.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -451,7 +451,7 @@
     "learnableSkills": [
       {
         "skillId": "sol",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -497,7 +497,7 @@
     "learnableSkills": [
       {
         "skillId": "guard",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -544,7 +544,7 @@
     "learnableSkills": [
       {
         "skillId": "astra",
-        "level": 15
+        "level": 10
       }
     ]
   },
@@ -646,7 +646,13 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Swords (P)",
     "roleChange": "Gains Swords, +MOV",
-    "description": "Swords, extra reach, and defenses that lean nowhere — the knight the old oaths still fit."
+    "description": "Swords, extra reach, and defenses that lean nowhere \u2014 the knight the old oaths still fit.",
+    "learnableSkills": [
+      {
+        "skillId": "ride_down",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Sniper",
@@ -784,7 +790,13 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
     "roleChange": "Gains Swords",
-    "description": "Fast, warded, and now sword-armed, she commands the sky on grace alone."
+    "description": "Fast, warded, and now sword-armed, she commands the sky on grace alone.",
+    "learnableSkills": [
+      {
+        "skillId": "skyward",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Wyvern Lord",
@@ -805,11 +817,17 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
     "roleChange": "Gains Axes, heavy flying bruiser, Draconic Aura innate",
-    "description": "Axes, crushing bulk, and a shadow that owns the airspace it crosses."
+    "description": "Axes, crushing bulk, and a shadow that owns the airspace it crosses.",
+    "learnableSkills": [
+      {
+        "skillId": "intimidate",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Hero",
-    "lore": "The word is a rank, not a compliment — given by soldiers, never by command, and never taken back.",
+    "lore": "The word is a rank, not a compliment \u2014 given by soldiers, never by command, and never taken back.",
     "tier": "promoted",
     "promotesFrom": "Mercenary",
     "promotionBonuses": {
@@ -931,7 +949,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P), Bows (P)",
     "role": "Tanky melee, Resolve at low HP",
-    "description": "Hard to drop and harder once wounded — Resolve sharpens him as the blood runs.",
+    "description": "Hard to drop and harder once wounded \u2014 Resolve sharpens him as the blood runs.",
     "masteryPerk": {
       "name": "Pathfinder",
       "mods": {
@@ -953,7 +971,7 @@
   },
   {
     "name": "Light Sage",
-    "lore": "The seers' lay order — study the light without taking the veil, graduated early by the war.",
+    "lore": "The seers' lay order \u2014 study the light without taking the veil, graduated early by the war.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -1071,7 +1089,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Light (M), Staves (P)",
     "roleChange": "Gains Staves, healing",
-    "description": "Mastered light to smite with, staves to mend with — the order's highest office."
+    "description": "Mastered light to smite with, staves to mend with \u2014 the order's highest office."
   },
   {
     "name": "Chevalier",
@@ -1130,11 +1148,11 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Staves (P), Light (P)",
     "roleChange": "Gains Staves/Light, +MOV, mixed offense",
-    "description": "A surge of magic, plus staves and Light — one saddle to heal from or to strike from."
+    "description": "A surge of magic, plus staves and Light \u2014 one saddle to heal from or to strike from."
   },
   {
     "name": "Sky Lancer",
-    "lore": "They fly the far pickets alone, by preference and temperament — weather with opinions, the sky legions say.",
+    "lore": "They fly the far pickets alone, by preference and temperament \u2014 weather with opinions, the sky legions say.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -1231,7 +1249,7 @@
   },
   {
     "name": "Champion",
-    "lore": "Every province had one once — the fighter other fighters walk around.",
+    "lore": "Every province had one once \u2014 the fighter other fighters walk around.",
     "tier": "promoted",
     "promotesFrom": "Sentinel",
     "promotionBonuses": {
@@ -1297,7 +1315,7 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Axes (P), Swords (P)",
     "roleChange": "Gains Axes/Swords, Cavalry, Canto, Armored Blow innate",
-    "description": "Wall enough and horse enough at once — trades pure armor for speed and Canto after acting."
+    "description": "Wall enough and horse enough at once \u2014 trades pure armor for speed and Canto after acting."
   },
   {
     "name": "Berserker",
@@ -1400,7 +1418,7 @@
   },
   {
     "name": "Battle Monk",
-    "lore": "The temple's answer to a burning world — a staff for the wounded, an axe for the cause of them.",
+    "lore": "The temple's answer to a burning world \u2014 a staff for the wounded, an axe for the cause of them.",
     "tier": "promoted",
     "promotesFrom": "Cleric",
     "promotionBonuses": {
@@ -1421,7 +1439,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Axes (P)",
     "roleChange": "Gains Axes, Fortify Aura innate, frontline healer",
-    "description": "An axe for the enemy and a Fortify aura for the friends beside it — healing from the front line."
+    "description": "An axe for the enemy and a Fortify aura for the friends beside it \u2014 healing from the front line."
   },
   {
     "name": "Trickster",
@@ -1445,7 +1463,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
     "roleChange": "Gains Staves, Darting Blow innate, fast utility",
-    "description": "Staves for support, Darting Blow for speed — a rogue who blurs on the attack."
+    "description": "Staves for support, Darting Blow for speed \u2014 a rogue who blurs on the attack."
   },
   {
     "name": "Hunter",
@@ -1503,7 +1521,7 @@
       "Revenant"
     ],
     "role": "tank",
-    "description": "Slow, hard to put down, and it rises once more after falling — unless Light magic does the killing.",
+    "description": "Slow, hard to put down, and it rises once more after falling \u2014 unless Light magic does the killing.",
     "masteryPerk": {
       "name": "Undying",
       "mods": {
@@ -1513,7 +1531,7 @@
   },
   {
     "name": "Revenant",
-    "lore": "A zombie the corruption has had time to finish — what walks afterward remembers how to fight, and little else.",
+    "lore": "A zombie the corruption has had time to finish \u2014 what walks afterward remembers how to fight, and little else.",
     "tier": "promoted",
     "promotesFrom": "Zombie",
     "promotionBonuses": {
@@ -1600,6 +1618,10 @@
       {
         "skillId": "dragon_scale",
         "level": 1
+      },
+      {
+        "skillId": "draconic_aura",
+        "level": 10
       }
     ],
     "description": "Eldest of the woken, its ancient scale blunts every blow that lands."

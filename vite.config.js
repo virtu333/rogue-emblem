@@ -27,7 +27,12 @@ export default defineConfig({
         // precached. NOTE: do NOT add png/mp3 globs here — Vite's JS chunks and the
         // game's media both live under dist/assets/, so a broad **/*.png would pull
         // in the 115 MB sprite set. data/*.json (349 KB) is required for boot.
-        globPatterns: ['**/*.{js,css,html}', 'data/*.json', 'icons/*.png', 'manifest.webmanifest'],
+        globPatterns: [
+          '**/*.{js,css,html,woff,woff2}',
+          'data/*.json',
+          'icons/*.png',
+          'manifest.webmanifest',
+        ],
         // Headroom for the vendor-phaser chunk (>2 MB default cap).
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
@@ -60,29 +65,6 @@ export default defineConfig({
                 maxAgeSeconds: 60 * 24 * 60 * 60,
                 purgeOnQuotaError: true,
               },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Google Fonts stylesheet ('Press Start 2P' — the game's only font). Without
-            // this rule an offline cold start past the CSS's 24h HTTP max-age falls back
-            // to a system font and misaligns every text layout budgeted for this face.
-            // StaleWhileRevalidate: the css2 URL is stable but its payload varies by UA.
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'er-google-fonts-css',
-              expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // The font binaries themselves are immutable (hashed URLs) — CacheFirst.
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'er-google-fonts-webfonts',
-              expiration: { maxEntries: 8, maxAgeSeconds: 365 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

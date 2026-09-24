@@ -1,3 +1,4 @@
+import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
 // Cry, Healing Circle, Ensnare). Owns the ability submenu (patterned on
@@ -49,9 +50,8 @@ export class AbilityController {
   }
 
   /** True when the unit should see an "Ability" entry in the action menu. */
-  hasUsableAbilities(unit) {
-    if (!unit) return false;
-    return this._getAbilityEntries(unit).some((entry) => entry.canUse && entry.hasTargets);
+  hasAbilities(unit) {
+    return getActionAbilities(unit, this.scene.gameData?.skills || []).length > 0;
   }
 
   _getAbilityById(unit, skillId) {
@@ -67,12 +67,14 @@ export class AbilityController {
   }
 
   _statusLine(unit, entry) {
-    if (!entry.canUse || !entry.hasTargets) return this._reasonLabel(entry);
     const ability = entry.skill.actionAbility;
     const limit = Math.max(0, Math.trunc(Number(ability.perMapLimit) || 0));
     const used = getAbilityUsageCount(unit, entry.skill.id);
-    const mapLabel = limit > 0 ? `Map ${used}/${limit}` : 'Map -';
-    return `${mapLabel}  No counter, ends turn`;
+    const usesLabel =
+      limit > 0 ? `${Math.max(0, limit - used)}/${limit} uses left` : 'Unlimited uses';
+    const status =
+      !entry.canUse || !entry.hasTargets ? this._reasonLabel(entry) : 'Ends unit action';
+    return `${usesLabel} · ${status}`;
   }
 
   // --- Ability submenu (one row per ability) ---
@@ -98,7 +100,7 @@ export class AbilityController {
 
     scene.actionMenu = [];
     const itemHeight = scene.isMobileInput ? 46 : 42;
-    const menuHeight = entries.length * itemHeight + 12;
+    const menuHeight = (entries.length + 1) * itemHeight + 12;
     const menuPos = scene._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = scene.add
@@ -141,12 +143,32 @@ export class AbilityController {
           if (audio) audio.playSFX('sfx_confirm');
           this._selectAbility(unit, latest.skill);
         },
-        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
+        {
+          originX: 0,
+          originY: 0.5,
+          hitWidth: menuWidth - 12,
+          hitHeight: itemHeight,
+          disabled: !usable,
+        },
       );
+      text._menuDescription = entry.skill.description;
       this._wireAbilityTooltip(text, entry.skill);
       scene.actionMenu.push(text);
     });
+    // A real menu entry keeps confirm/navigation usable even when every skill is disabled.
+    scene.actionMenu.push(
+      scene._makeMenuTextButton(
+        menuPos.x + 8,
+        menuPos.y + 6 + entries.length * itemHeight + itemHeight / 2,
+        'Back',
+        { fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0' },
+        '#e0e0e0',
+        () => scene.requestCancel({ allowPause: false }),
+        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
+      ),
+    );
     scene._pinToScreen(scene.actionMenu);
+    scene._registerActionMenu();
   }
 
   _wireAbilityTooltip(text, skill) {
@@ -230,6 +252,7 @@ export class AbilityController {
           { label: 'ability_blink_fade_out' },
         );
       }
+      observeHistoryAction(scene, 'relocated', unit, null, skill.name);
       unit.col = tile.col;
       unit.row = tile.row;
       scene.updateUnitPosition(unit);
@@ -269,10 +292,8 @@ export class AbilityController {
     const menuY = pos.y - 10;
 
     scene.actionMenu = [];
-    // Sentinel: whenever this confirm menu is dismissed through ANY path
-    // (confirm, ESC -> showActionMenu -> hideActionMenu, scene shutdown),
-    // hideActionMenu destroys menu entries — clear the AOE preview with it.
-    scene.actionMenu.push({ destroy: () => scene.grid?.clearAttackHighlights?.() });
+    // Owned by menu teardown, including cancel, replacement and shutdown.
+    scene._actionMenuCleanup = () => scene.grid?.clearAttackHighlights?.();
 
     const itemHeight = scene.isMobileInput ? 40 : 32;
     const rows = 2;
@@ -334,6 +355,7 @@ export class AbilityController {
       this.showAbilityPicker(unit);
     });
     scene._pinToScreen(scene.actionMenu);
+    scene._registerActionMenu();
   }
 
   async executeSelfCentered(unit, skill) {
@@ -342,7 +364,7 @@ export class AbilityController {
     // UNIT_ACTION_MENU stays live through the awaited FX/buff steps.
     scene.battleState = 'HEAL_RESOLVING';
     scene.commitVisionSnapshotIfPending();
-    scene.hideActionMenu(); // sentinel clears the AOE preview highlights
+    scene.hideActionMenu(); // menu cleanup clears the AOE preview highlights
     scene.inEquipMenu = false;
     markUsed(unit, skill.id);
     try {
@@ -371,6 +393,7 @@ export class AbilityController {
       const pos = scene.grid.gridToPixel(ally.col, ally.row);
       (scene._combatFx ||= new CombatFxController(scene)).playBuff(pos.x, pos.y);
     }
+    for (const ally of affected) observeHistoryAction(scene, 'rallied', unit, ally, skill.name);
     // Reuse the tier-5 timed-buff pipeline: entries land in
     // unit._battleTimedWeaponArtBuffs and expire via the shared phase sweep.
     await scene._applyTier5AllyBuffStep(
@@ -398,6 +421,7 @@ export class AbilityController {
       ally.currentHP = Math.min(maxHp, oldHP + amount);
       const healed = ally.currentHP - oldHP;
       if (healed <= 0) continue;
+      observeHistoryAction(scene, 'healed', unit, ally, `${healed} HP`, { amount: healed });
       scene.updateHPBar(ally);
       const pos = scene.grid.gridToPixel(ally.col, ally.row);
       (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
@@ -422,13 +446,17 @@ export class AbilityController {
         scene.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
         continue;
       }
+      observeHistoryAction(scene, 'rooted', unit, enemy, skill.name);
       anyRooted = true;
       scene._addConditionIcon(enemy, 'root');
       (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y);
       scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', '#cc88ff');
     }
     // Rooted enemies can't move — their threat ranges shrink
-    if (anyRooted) scene.dangerZoneStale = true;
+    if (anyRooted) {
+      scene.dangerZoneStale = true;
+      scene._pinnedThreats?.invalidate();
+    }
   }
 
   destroy() {

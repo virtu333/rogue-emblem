@@ -47,3 +47,17 @@ export function resolveTeamAverageLevel(units) {
 
 // Backward-compatible alias for existing call sites/tests.
 export const resolveRecruitPromotionTargets = resolveRecruitScalingTargets;
+
+/** Creation-time bonus only; ordinary saved stats preserve it through promotion/resume. */
+export function applyAct3RecruitBonus(unit, act) {
+  if (act !== 'act3' || unit?.tier !== 'base') return;
+  const type =
+    unit.proficiencies?.find((p) => p.type !== 'Staff')?.type || unit.proficiencies?.[0]?.type;
+  const offense = ['Tome', 'Light', 'Staff'].includes(type) ? 'MAG' : 'STR';
+  const defense = unit.stats.DEF <= unit.stats.RES ? 'DEF' : 'RES';
+  unit.stats.HP += 2;
+  unit.currentHP += 2;
+  unit.stats[offense] += 2;
+  unit.stats.SPD += 1;
+  unit.stats[defense] += 1;
+}

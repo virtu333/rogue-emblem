@@ -153,7 +153,7 @@ describe('ImbueSystem — effect accessors', () => {
     const weapon = makeWeapon();
     applyImbue(weapon, getImbue('vampiric'));
     const mods = getImbueCombatMods(weapon, imbuesData);
-    expect(mods.drainPercent).toBeCloseTo(0.3);
+    expect(mods.drainPercent).toBeCloseTo(0.15);
     expect(mods.activated).toEqual([{ id: 'imbue_vampiric', name: 'Vampiric' }]);
   });
 
@@ -317,7 +317,7 @@ describe('ImbueSystem — imbuing stones', () => {
     }
   });
 
-  it('stones are roughly half as common as the Silver Whetstone in each act pool', () => {
+  it('stones stay less common than Silver Whetstones, with stronger Act 4 variety', () => {
     for (const actId of ['act2', 'act3', 'act4']) {
       const pool = data.lootTables[actId].forge;
       const silverCount = pool.filter((n) => n === 'Silver Whetstone').length;
@@ -325,11 +325,11 @@ describe('ImbueSystem — imbuing stones', () => {
       for (const name of pool) {
         if (stoneNames.has(name)) {
           const count = pool.filter((n) => n === name).length;
-          expect(count * 2).toBeLessThanOrEqual(silverCount * 2); // each stone listed once
-          expect(count).toBe(1);
+          expect(count).toBeLessThan(silverCount);
+          expect(count).toBe(actId === 'act4' && name === 'Prismatic Stone' ? 2 : 1);
         }
       }
-      expect(silverCount).toBe(2);
+      expect(silverCount).toBe(actId === 'act4' ? 3 : 2);
     }
   });
 });

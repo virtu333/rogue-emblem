@@ -28,7 +28,7 @@ export const GENERATED_HELP_TABS = [
             "text": ""
           },
           {
-            "text": "Effective weapons deal 3x damage vs matching move type",
+            "text": "Effective weapons triple weapon Might against matching targets, before defense",
             "color": "#ff6666"
           },
           {
@@ -48,7 +48,7 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 101 weapons (0 legendary)",
+            "text": "Prof: 109 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
@@ -127,7 +127,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "atkFormula": "Atk = Weapon Might + STR/MAG + combat bonuses",
     "asFormula": "AS = SPD - max(Weapon Wt - floor(STR / 5), 0) + SPD bonuses",
     "doublingRule": "Double attack if your AS is at least foe AS + 5",
-    "effectiveDamageRule": "Effective weapons deal 3x damage vs matching move type"
+    "effectiveDamageRule": "Effective weapons triple weapon Might against matching targets, before defense"
   },
   "weaponRanks": {
     "displayOrder": [
@@ -137,7 +137,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 101,
+        "totalWeapons": 109,
         "legendaryWeapons": 0
       },
       {

@@ -1,3 +1,12 @@
+import { applyCompletedTutorialHints } from '../ui/tutorialLessons.js';
+import {
+  getCloudSaveConflict,
+  resolveCloudSaveConflict,
+  describeSavedRun,
+} from '../engine/CloudSaveConflict.js';
+import { hasDOMHost } from '../utils/domUI.js';
+import { slotMenu, slotDialog } from '../ui/RunFlowMenus.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 // SlotPickerScene — Save slot selection screen
 
 import Phaser from 'phaser';
@@ -29,9 +38,23 @@ export class SlotPickerScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    this.resumeSlot =
+      Number.isInteger(data.resumeSlot) && data.resumeSlot >= 1 && data.resumeSlot <= MAX_SLOTS
+        ? data.resumeSlot
+        : null;
   }
 
   create() {
+    if (Number.isInteger(this.resumeSlot)) {
+      const slot = this.resumeSlot;
+      this.resumeSlot = null;
+      this._resumeTimer = this.time.delayedCall(0, () => {
+        this._resumeTimer = null;
+        if (this.sys?.isActive?.() === false) return;
+        const summary = getSlotSummary(slot);
+        if (summary?.hasActiveRun && !summary.runCorrupt) void this.selectSlot(slot, summary);
+      });
+    }
     const cx = this.cameras.main.centerX;
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
@@ -42,14 +65,15 @@ export class SlotPickerScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.title, this, 300);
 
-    this.add
-      .text(cx, 40, 'SELECT SAVE SLOT', {
-        fontFamily: 'monospace',
-        fontSize: '24px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+    if (!hasDOMHost())
+      applyTextResolution(
+        this.add.text(cx, 40, 'SELECT SAVE SLOT', {
+          fontFamily: 'Arial',
+          fontSize: '24px',
+          color: UI_PALETTE.accent,
+          fontStyle: 'bold',
+        }),
+      ).setOrigin(0.5);
 
     this._onPointerDown = (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
@@ -57,6 +81,12 @@ export class SlotPickerScene extends Phaser.Scene {
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
 
     this.events.once('shutdown', () => {
+      this._resumeTimer?.remove?.();
+      this._resumeTimer = null;
+      this.slotMenu?.destroy();
+      this.slotMenu = null;
+      this.nativeDialog?.destroy();
+      this.nativeDialog = null;
       this.input?.keyboard?.off?.('keydown-ESC', this._onEsc);
       this.input?.off?.('pointerdown', this._onPointerDown);
       this.input?.off?.('pointerup', this._onPointerUp);
@@ -75,6 +105,11 @@ export class SlotPickerScene extends Phaser.Scene {
       }
     });
 
+    if (hasDOMHost()) {
+      this.slotMenu = slotMenu(this);
+      return;
+    }
+
     this.input.keyboard.on('keydown-ESC', this._onEsc);
     this.input.on('pointerdown', this._onPointerDown);
     this.input.on('pointerup', this._onPointerUp);
@@ -82,19 +117,20 @@ export class SlotPickerScene extends Phaser.Scene {
     this.drawSlots();
 
     // Back button
-    const backBtn = this.add
-      .text(cx, 420, '[ Back to Title ]', {
-        fontFamily: 'monospace',
+    const backBtn = applyTextResolution(
+      this.add.text(cx, 420, '[ Back to Title ]', {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000aa',
         padding: { x: 16, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
-    backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
+    backBtn.on('pointerover', () => backBtn.setColor(UI_PALETTE.accent));
+    backBtn.on('pointerout', () => backBtn.setColor(UI_PALETTE.text));
     backBtn.on('pointerdown', async () => {
       await this.runTransition(() =>
         transitionToScene(
@@ -196,6 +232,13 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   requestCancel({ allowExit = true } = {}) {
+    if (this.isTransitioning) return false;
+    if (this.nativeDialog) {
+      if (this.slotMenu) this.slotMenu.root.inert = false;
+      this.nativeDialog.destroy();
+      this.nativeDialog = null;
+      return true;
+    }
     if (this.confirmDialog) {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
@@ -216,6 +259,7 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   drawSlots() {
+    if (this.slotMenu) return this.slotMenu.render();
     // Clear previous slot cards if redrawing
     if (this.slotCards) this.slotCards.forEach((o) => o.destroy());
     this.slotCards = [];
@@ -242,67 +286,69 @@ export class SlotPickerScene extends Phaser.Scene {
 
     // Card background
     const bg = this.add
-      .rectangle(x, y, w, h, 0x222233)
-      .setStrokeStyle(2, isEmpty ? 0x444466 : 0x888888);
+      .rectangle(x, y, w, h, UI_HEX.panel)
+      .setStrokeStyle(2, isEmpty ? UI_HEX.lineSoft : UI_HEX.lineStrong);
     this.slotCards.push(bg);
 
     // Slot header
-    const header = this.add
-      .text(x, y - h / 2 + 16, `Slot ${slot}`, {
-        fontFamily: 'monospace',
+    const header = applyTextResolution(
+      this.add.text(x, y - h / 2 + 16, `Slot ${slot}`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accent,
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
     this.slotCards.push(header);
 
     if (isEmpty) {
-      const emptyText = this.add
-        .text(x, y, 'Empty', {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color: '#555555',
-        })
-        .setOrigin(0.5);
+      const emptyText = applyTextResolution(
+        this.add.text(x, y, 'No save\nChoose New Game\nfrom Title', {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: UI_PALETTE.muted,
+          align: 'center',
+          lineSpacing: 6,
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(emptyText);
     } else {
       // Valor
-      const valorText = this.add
-        .text(x, y - 58, `Valor: ${summary.valor}`, {
-          fontFamily: 'monospace',
+      const valorText = applyTextResolution(
+        this.add.text(x, y - 58, `Valor: ${summary.valor}`, {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: '#ffcc44',
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(valorText);
 
       // Supply
-      const supplyText = this.add
-        .text(x, y - 42, `Supply: ${summary.supply}`, {
-          fontFamily: 'monospace',
+      const supplyText = applyTextResolution(
+        this.add.text(x, y - 42, `Supply: ${summary.supply}`, {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: '#44ccbb',
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(supplyText);
 
       // Runs: started vs finished (finished = settled victories + defeats)
-      const runsText = this.add
-        .text(x, y - 26, `Runs: ${summary.runsStarted}`, {
-          fontFamily: 'monospace',
+      const runsText = applyTextResolution(
+        this.add.text(x, y - 26, `Runs: ${summary.runsStarted}`, {
+          fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#e0e0e0',
-        })
-        .setOrigin(0.5);
+          color: UI_PALETTE.text,
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(runsText);
-      const finishedText = this.add
-        .text(x, y - 12, `Finished: ${summary.runsCompleted}`, {
-          fontFamily: 'monospace',
+      const finishedText = applyTextResolution(
+        this.add.text(x, y - 12, `Finished: ${summary.runsCompleted}`, {
+          fontFamily: 'Arial',
           fontSize: '10px',
           color: '#a0a0b8',
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(finishedText);
 
       // Active run status
@@ -316,43 +362,45 @@ export class SlotPickerScene extends Phaser.Scene {
         statusColor = '#88ff88';
       } else {
         runStatus = 'No active run';
-        statusColor = '#666666';
+        statusColor = UI_PALETTE.muted;
       }
-      const statusText = this.add
-        .text(x, y + 6, runStatus, {
-          fontFamily: 'monospace',
+      const statusText = applyTextResolution(
+        this.add.text(x, y + 6, runStatus, {
+          fontFamily: 'Arial',
           fontSize: '11px',
           color: statusColor,
-        })
-        .setOrigin(0.5);
+        }),
+      ).setOrigin(0.5);
       this.slotCards.push(statusText);
 
       // Select button
-      const selectBtn = this.add
-        .text(x, y + 40, '[ Select ]', {
-          fontFamily: 'monospace',
+      const selectBtn = applyTextResolution(
+        this.add.text(x, y + 40, '[ Select ]', {
+          fontFamily: 'Arial',
           fontSize: '14px',
           color: '#88ff88',
           backgroundColor: '#334433',
           padding: { x: 12, y: 6 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
-      selectBtn.on('pointerover', () => selectBtn.setColor('#ffdd44'));
+      selectBtn.on('pointerover', () => selectBtn.setColor(UI_PALETTE.accent));
       selectBtn.on('pointerout', () => selectBtn.setColor('#88ff88'));
       selectBtn.on('pointerdown', () => this.selectSlot(slot, summary));
       this.slotCards.push(selectBtn);
 
       // Delete button
-      const deleteBtn = this.add
-        .text(x, y + 72, '[ Delete ]', {
-          fontFamily: 'monospace',
+      const deleteBtn = applyTextResolution(
+        this.add.text(x, y + 72, '[ Delete ]', {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color: '#cc5555',
           backgroundColor: '#332222',
           padding: { x: 8, y: 4 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
@@ -365,8 +413,43 @@ export class SlotPickerScene extends Phaser.Scene {
       this._slotFocusEntries.push({ slot, summary, selectBtn, deleteBtn });
     }
   }
+  _showCloudChoice(slot, conflict) {
+    if (this.nativeDialog) return;
+    if (this.slotMenu) this.slotMenu.root.inert = true;
+    const choose = (version) => {
+      const result = resolveCloudSaveConflict(slot, version);
+      if (!result.ok) {
+        this.nativeDialog.body.append(document.createTextNode(result.reason));
+        return;
+      }
+      const cloud = this.registry.get('cloud');
+      if (version === 'local' && cloud) {
+        if (result.run) pushRunSave(cloud.userId, slot, result.run);
+        if (result.meta) pushMeta(cloud.userId, slot, result.meta);
+      }
+      this.requestCancel({ allowExit: false });
+      this.slotMenu?.render();
+      void this.selectSlot(slot, getSlotSummary(slot));
+    };
+    this.nativeDialog = slotDialog(
+      this,
+      'Choose save version',
+      `A newer cloud save differs from this device. Both versions were preserved for this choice.\n\nThis device: ${describeSavedRun(conflict.localRun)}\n\nCloud: ${describeSavedRun(conflict.cloudRun)}\n\nChoosing a version keeps that run and its progression; the other version will be discarded.`,
+      [
+        ['Decide later', () => this.requestCancel({ allowExit: false }), true],
+        ['Use this device save', () => choose('local')],
+        ['Use cloud save', () => choose('cloud')],
+      ],
+    );
+  }
+
   async selectSlot(slot, summary) {
     if (this.isTransitioning) return;
+    const conflict = getCloudSaveConflict(slot);
+    if (conflict && hasDOMHost()) {
+      this._showCloudChoice(slot, conflict);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
 
@@ -398,7 +481,11 @@ export class SlotPickerScene extends Phaser.Scene {
     }
     this.registry.set('activeSlot', slot);
     this.registry.set('meta', meta);
-    this.registry.set('hints', new HintManager(slot));
+    this.registry.set(
+      'hints',
+      new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
+    );
+    applyCompletedTutorialHints(this.registry.get('hints'));
 
     try {
       await ensureAudioUnlocked(this);
@@ -478,6 +565,36 @@ export class SlotPickerScene extends Phaser.Scene {
    * dismisses it back to the slot list.
    */
   _showSuspendedBattleChoice(slot, rm) {
+    if (rm._battleRecoveryInvalid) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        'Battle save needs recovery',
+        'This battle checkpoint could not be read safely. Your saved data has been kept. Please report this issue before starting a new run in this slot.',
+        [],
+      );
+      return;
+    }
+    const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
+    if (hasDOMHost()) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        'Battle in progress',
+        fatal
+          ? 'A fatal battle outcome awaits your decision. Resume to review the timeline or accept defeat.'
+          : 'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
+        [
+          ['Resume Battle', () => this._continueSuspendedRun(slot, rm, 'battle'), true],
+          ...(!fatal
+            ? [['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')]]
+            : []),
+        ],
+      );
+      return;
+    }
     if (this.confirmDialog) {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
@@ -497,42 +614,50 @@ export class SlotPickerScene extends Phaser.Scene {
       .setStrokeStyle(2, 0x66aacc, 1);
     objects.push(panel);
     objects.push(
-      this.add
-        .text(cx, cy - 58, 'Battle in Progress', {
-          fontFamily: 'monospace',
+      applyTextResolution(
+        this.add.text(cx, cy - 58, 'Battle in Progress', {
+          fontFamily: 'Arial',
           fontSize: '16px',
           color: '#ffdd88',
           fontStyle: 'bold',
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(502),
     );
     objects.push(
-      this.add
-        .text(cx, cy - 18, 'This save was suspended mid-battle.\nResume where you left off?', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#d0d7e8',
-          align: 'center',
-        })
+      applyTextResolution(
+        this.add.text(
+          cx,
+          cy - 18,
+          'This save was suspended mid-battle.\nResume where you left off?',
+          {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: '#d0d7e8',
+            align: 'center',
+          },
+        ),
+      )
         .setOrigin(0.5)
         .setDepth(502),
     );
 
     const focusButtons = [];
     const makeButton = (x, label, color, handler) => {
-      const btn = this.add
-        .text(x, cy + 52, label, {
-          fontFamily: 'monospace',
+      const btn = applyTextResolution(
+        this.add.text(x, cy + 52, label, {
+          fontFamily: 'Arial',
           fontSize: '12px',
           color,
           backgroundColor: '#223044',
           padding: { x: 10, y: 5 },
-        })
+        }),
+      )
         .setOrigin(0.5)
         .setDepth(502)
         .setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', (pointer) => {
         if (pointer?.button !== undefined && pointer.button !== 0) return;
@@ -544,9 +669,10 @@ export class SlotPickerScene extends Phaser.Scene {
     makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
       this._continueSuspendedRun(slot, rm, 'battle'),
     );
-    makeButton(cx + 92, '[ Continue from Map ]', '#e0e0e0', () =>
-      this._continueSuspendedRun(slot, rm, 'map'),
-    );
+    if (!fatal)
+      makeButton(cx + 92, '[ Continue from Map ]', UI_PALETTE.text, () =>
+        this._continueSuspendedRun(slot, rm, 'map'),
+      );
 
     this.confirmDialog = objects;
     this._setDialogFocus(focusButtons);
@@ -564,12 +690,22 @@ export class SlotPickerScene extends Phaser.Scene {
 
   async _continueSuspendedRun(slot, rm, mode) {
     if (this.isTransitioning) return;
+    if (
+      rm._battleRecoveryInvalid ||
+      (mode === 'map' && rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending')
+    ) {
+      this._showSuspendedBattleChoice(slot, rm);
+      return;
+    }
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
     if (this.confirmDialog) {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;
     }
+    if (this.slotMenu) this.slotMenu.root.inert = false;
+    this.nativeDialog?.destroy();
+    this.nativeDialog = null;
     try {
       await ensureAudioUnlocked(this);
       const audio = this.registry.get('audio');
@@ -594,6 +730,22 @@ export class SlotPickerScene extends Phaser.Scene {
           { reason: TRANSITION_REASONS.CONTINUE },
         );
       } else {
+        const reset = clearBattleInProgressInSave(
+          cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        );
+        if (!reset?.ok) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, rm);
+          return;
+        }
+        const domain = bip.entryBattleState;
+        if (domain) {
+          rm.convoy = structuredClone(domain.convoy);
+          rm.accessories = structuredClone(domain.accessories);
+          rm.gold = domain.gold;
+        }
         // Full revert: refund entry-time Vision charges and RNG seed in
         // memory, mirror it into the raw save, then resume from the map.
         if (Number.isFinite(bip?.visionChargesAtEntry)) {
@@ -606,7 +758,6 @@ export class SlotPickerScene extends Phaser.Scene {
           rm.rngSeed = bip.rngSeedAtEntry;
         }
         rm.clearBattleInProgress();
-        clearBattleInProgressInSave(cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
         transitioned = await transitionToScene(
           this,
           'NodeMap',
@@ -647,6 +798,31 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   confirmDelete(slot) {
+    if (this.isTransitioning) return;
+    if (hasDOMHost()) {
+      this.nativeDialog?.destroy();
+      if (this.slotMenu) this.slotMenu.root.inert = true;
+      this.nativeDialog = slotDialog(
+        this,
+        `Delete Slot ${slot}?`,
+        'This deletes the run and all progress in this slot. This cannot be undone.',
+        [
+          ['Cancel', () => this.requestCancel({ allowExit: false }), true],
+          [
+            'Delete save',
+            () => {
+              if (!this.nativeDialog || this.nativeDialog.destroyed) return;
+              deleteSlot(slot);
+              const cloud = this.registry.get('cloud');
+              if (cloud) deleteSlotCloud(cloud.userId, slot);
+              this.requestCancel({ allowExit: false });
+              this.drawSlots();
+            },
+          ],
+        ],
+      );
+      return;
+    }
     // Show confirmation dialog
     if (this.confirmDialog) this.confirmDialog.forEach((o) => o.destroy());
     this.confirmDialog = [];
@@ -662,41 +838,44 @@ export class SlotPickerScene extends Phaser.Scene {
     this.confirmDialog.push(overlay);
 
     const box = this.add
-      .rectangle(cx, cy, 300, 140, 0x222233, 1)
+      .rectangle(cx, cy, 300, 140, UI_HEX.panel, 1)
       .setStrokeStyle(2, 0xcc5555)
       .setDepth(501);
     this.confirmDialog.push(box);
 
-    const msg = this.add
-      .text(cx, cy - 30, `Delete Slot ${slot}?`, {
-        fontFamily: 'monospace',
+    const msg = applyTextResolution(
+      this.add.text(cx, cy - 30, `Delete Slot ${slot}?`, {
+        fontFamily: 'Arial',
         fontSize: '16px',
         color: '#ff6666',
         fontStyle: 'bold',
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
     this.confirmDialog.push(msg);
 
-    const warning = this.add
-      .text(cx, cy - 8, 'This cannot be undone.', {
-        fontFamily: 'monospace',
+    const warning = applyTextResolution(
+      this.add.text(cx, cy - 8, 'This cannot be undone.', {
+        fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#888888',
-      })
+        color: UI_PALETTE.muted,
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502);
     this.confirmDialog.push(warning);
 
     // Confirm button
-    const yesBtn = this.add
-      .text(cx - 60, cy + 30, '[ Delete ]', {
-        fontFamily: 'monospace',
+    const yesBtn = applyTextResolution(
+      this.add.text(cx - 60, cy + 30, '[ Delete ]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
         color: '#cc5555',
         backgroundColor: '#332222',
         padding: { x: 10, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502)
       .setInteractive({ useHandCursor: true });
@@ -714,20 +893,21 @@ export class SlotPickerScene extends Phaser.Scene {
     this.confirmDialog.push(yesBtn);
 
     // Cancel button
-    const noBtn = this.add
-      .text(cx + 60, cy + 30, '[ Cancel ]', {
-        fontFamily: 'monospace',
+    const noBtn = applyTextResolution(
+      this.add.text(cx + 60, cy + 30, '[ Cancel ]', {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 6 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setDepth(502)
       .setInteractive({ useHandCursor: true });
 
-    noBtn.on('pointerover', () => noBtn.setColor('#ffdd44'));
-    noBtn.on('pointerout', () => noBtn.setColor('#e0e0e0'));
+    noBtn.on('pointerover', () => noBtn.setColor(UI_PALETTE.accent));
+    noBtn.on('pointerout', () => noBtn.setColor(UI_PALETTE.text));
     noBtn.on('pointerdown', () => {
       this.confirmDialog.forEach((o) => o.destroy());
       this.confirmDialog = null;

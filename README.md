@@ -12,7 +12,7 @@ Feature-complete through 4 acts with full run loop, meta-progression, and 3 diff
 - 52 classes (21 base + 30 promoted + 1 boss-tier), 113 weapons, 52 skills, 75 weapon arts
 - 29 accessories, 23 blessings, 12 enemy affixes, 15 terrain types, 16 map templates
 - Normal / Hard / Lunatic difficulty modes
-- Supabase auth with cloud saves (3 slots) + offline localStorage fallback
+- Offline play with local saves (3 slots) by default; optional Supabase cloud builds require `VITE_CLOUD_ENABLED=true`
 - Node-map run structure with branching paths, shops, churches, recruit events, colosseum arena
 - Procedural map generation with 4 biomes (grassland, tundra, volcanic, castle)
 
@@ -26,7 +26,7 @@ Feature-complete through 4 acts with full run loop, meta-progression, and 3 diff
 | Build | Vite |
 | Tests | Vitest + Playwright (e2e) |
 | Hosting | Netlify (auto-deploy on push to `main`) |
-| Auth / DB | Supabase (Auth + Postgres with RLS) |
+| Saves | Local storage by default; optional Supabase Auth + Postgres with RLS |
 
 ## Links
 

@@ -1,0 +1,11 @@
+/* Generated from src/utils/uiDepths.js. */
+:root {
+  --re-depth-lab: 30;
+  --re-depth-route: 400;
+  --re-depth-launch: 920;
+  --re-depth-upgrade: 950;
+  --re-depth-forecast: 1000;
+  --re-depth-pause: 1100;
+  --re-depth-dialogue: 1200;
+  --re-depth-menu: 1250;
+}

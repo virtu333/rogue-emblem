@@ -33,7 +33,9 @@ describe('BattleScene fog danger invalidation', () => {
       }),
       isVisible: vi.fn(() => enemyVisible),
       getMovementRange: vi.fn(() => new Map([['2,2', true]])),
-      getAttackRange: vi.fn(() => [{ col: 3, row: 3 }]),
+      getAttackRange: vi.fn(() => [
+        { col: 3, row: 3, count: 1, damageThreat: true, statusThreat: false },
+      ]),
     };
     scene.buildUnitPositionMap = vi.fn(() => new Map());
     scene.battleParams = { tutorialMode: false };
@@ -58,7 +60,9 @@ describe('BattleScene fog danger invalidation', () => {
 
     BattleScene.prototype._onDangerClick.call(scene);
 
-    expect(scene.dangerZone.toggle).toHaveBeenCalledWith([{ col: 3, row: 3 }]);
+    expect(scene.dangerZone.toggle).toHaveBeenCalledWith([
+      { col: 3, row: 3, count: 1, damageThreat: true, statusThreat: false },
+    ]);
     expect(scene.dangerZoneStale).toBe(false);
   });
 });

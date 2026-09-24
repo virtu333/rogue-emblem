@@ -1,3 +1,6 @@
+import { hasDOMHost } from '../utils/domUI.js';
+import { runResultMenu } from '../ui/RunFlowMenus.js';
+import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 // RunCompleteScene — End-of-run screen (victory or defeat)
 
 import Phaser from 'phaser';
@@ -25,7 +28,10 @@ export class RunCompleteScene extends Phaser.Scene {
   }
 
   async create() {
+    this.cameras.main.setBackgroundColor(UI_PALETTE.bg);
     this.isTransitioning = false;
+    const lifetime = {};
+    this._runResultLifetime = lifetime;
     this._resultMusicKey = this.result === 'victory' ? MUSIC.runWin : MUSIC.defeat;
 
     // Settle rewards BEFORE deleting the run save: once the save is cleared
@@ -59,6 +65,9 @@ export class RunCompleteScene extends Phaser.Scene {
     }
 
     this.events.once('shutdown', () => {
+      this._runResultLifetime = null;
+      this.runResultMenu?.destroy();
+      this.runResultMenu = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
       popInputScope(this);
@@ -69,15 +78,16 @@ export class RunCompleteScene extends Phaser.Scene {
       }
     });
 
-    // Title
-    this.add
-      .text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
-        fontFamily: 'monospace',
-        fontSize: '32px',
-        color: isVictory ? '#ffdd44' : '#cc3333',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+    // Canvas fallback only; live browsers use the shared result surface.
+    if (!hasDOMHost())
+      applyTextResolution(
+        this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
+          fontFamily: 'Arial',
+          fontSize: '32px',
+          color: isVictory ? UI_PALETTE.accent : '#cc3333',
+          fontStyle: 'bold',
+        }),
+      ).setOrigin(0.5);
 
     let overlay;
     try {
@@ -92,105 +102,116 @@ export class RunCompleteScene extends Phaser.Scene {
       if (overlay) overlay.destroy();
     }
 
+    if (this._runResultLifetime !== lifetime) return;
+    if (hasDOMHost()) {
+      this.runResultMenu = runResultMenu(this, rewards, meta);
+      return;
+    }
+
     // Rewards were settled above, before the save was cleared.
     const actReached = rm.actIndex + 1;
     const { valor, supply, currencyMultiplier } = rewards;
 
     // Stats
-    const statsLines = [`Battles Won: ${rm.completedBattles}`, `Act Reached: ${actReached} / 4`];
+    const statsLines = [
+      `Battles Won: ${rm.completedBattles}`,
+      `Act Reached: ${actReached} / ${rm.actSequence?.length || 4}`,
+    ];
     const statsText = statsLines.join('\n');
 
-    this.add
-      .text(cx, cy - 20, statsText, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, cy - 20, statsText, {
+        fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         align: 'center',
         lineSpacing: 6,
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     // Difficulty line (colored separately)
     const diffLabel = rm.difficultyModifiers?.label || rm.difficultyId || 'normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
-    this.add
-      .text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: diffColor,
         align: 'center',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     // Currency earned display
     let curY = cy + 14;
-    this.add
-      .text(cx, curY, `Valor Earned: +${valor}`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, curY, `Valor Earned: +${valor}`, {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#ffcc44',
         align: 'center',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
     curY += 18;
-    this.add
-      .text(cx, curY, `Supply Earned: +${supply}`, {
-        fontFamily: 'monospace',
+    applyTextResolution(
+      this.add.text(cx, curY, `Supply Earned: +${supply}`, {
+        fontFamily: 'Arial',
         fontSize: '13px',
         color: '#44ccbb',
         align: 'center',
-      })
-      .setOrigin(0.5);
+      }),
+    ).setOrigin(0.5);
 
     if (meta) {
       curY += 20;
-      this.add
-        .text(
+      applyTextResolution(
+        this.add.text(
           cx,
           curY,
           `Total: ${meta.getTotalValor()} Valor  |  ${meta.getTotalSupply()} Supply`,
           {
-            fontFamily: 'monospace',
+            fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#888888',
+            color: UI_PALETTE.muted,
             align: 'center',
           },
-        )
-        .setOrigin(0.5);
+        ),
+      ).setOrigin(0.5);
     }
 
     // Home Base button (primary)
-    const homeBtn = this.add
-      .text(cx - 110, cy + 80, '[ Home Base ]', {
-        fontFamily: 'monospace',
+    const homeBtn = applyTextResolution(
+      this.add.text(cx - 110, cy + 80, '[ Home Base ]', {
+        fontFamily: 'Arial',
         fontSize: '18px',
         color: '#88ccff',
         backgroundColor: '#000000aa',
         padding: { x: 16, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    homeBtn.on('pointerover', () => homeBtn.setColor('#ffdd44'));
+    homeBtn.on('pointerover', () => homeBtn.setColor(UI_PALETTE.accent));
     homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
     homeBtn.on('pointerdown', () => {
       void this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME);
     });
 
     // Back to Title button (secondary)
-    const titleBtn = this.add
-      .text(cx + 110, cy + 80, '[ Title ]', {
-        fontFamily: 'monospace',
+    const titleBtn = applyTextResolution(
+      this.add.text(cx + 110, cy + 80, '[ Title ]', {
+        fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         backgroundColor: '#000000aa',
         padding: { x: 16, y: 8 },
-      })
+      }),
+    )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
-    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
+    titleBtn.on('pointerover', () => titleBtn.setColor(UI_PALETTE.accent));
+    titleBtn.on('pointerout', () => titleBtn.setColor(UI_PALETTE.text));
     titleBtn.on('pointerdown', () => {
       void this._attemptSceneTransition('Title', TRANSITION_REASONS.RETURN_TITLE);
     });
@@ -207,7 +228,7 @@ export class RunCompleteScene extends Phaser.Scene {
       },
       {
         button: titleBtn,
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         onActivate: () => this._attemptSceneTransition('Title', TRANSITION_REASONS.RETURN_TITLE),
       },
     ]);

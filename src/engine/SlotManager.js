@@ -139,6 +139,14 @@ export function getSlotSummary(slot) {
       const run = JSON.parse(runRaw);
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
+      summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
+      summary.rosterNames = (run.roster || []).slice(0, 3).map((unit) => unit.name);
+      summary.battleSuspended = Boolean(run.battleInProgress?.checkpoint);
+      summary.completedBattles = run.completedBattles || 0;
+      const node = run.nodeMap?.nodes?.find((entry) => entry.id === run.currentNodeId);
+      summary.location = node
+        ? `${node.type} node${Number.isFinite(node.row) ? ` · stage ${node.row + 1}` : ''}`
+        : 'Act start';
     } catch (_) {
       summary.runCorrupt = true;
       console.error(`[SlotManager] Corrupt run data in slot ${slot}`);
@@ -155,6 +163,7 @@ export function deleteSlot(slot) {
     localStorage.removeItem(getRunKey(slot));
     localStorage.removeItem(getRunClockFloorKey(slot));
     localStorage.removeItem(getMetaClockFloorKey(slot));
+    localStorage.removeItem(`emblem_rogue_slot_${slot}_cloud_conflict`);
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }

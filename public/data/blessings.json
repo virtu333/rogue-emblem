@@ -23,13 +23,13 @@
       "lore": "Toss a coin on the altar; walk out heavier than you knelt.",
       "name": "Coin of Fate",
       "tier": 1,
-      "description": "+500 gold at run start.",
+      "description": "Immediately gain 750 gold.",
       "weight": 1,
       "boons": [
         {
           "type": "gold_delta",
           "params": {
-            "value": 500
+            "value": 750
           }
         }
       ],
@@ -40,7 +40,7 @@
       "lore": "The going-away rite for levies, meant to bring them home whole.",
       "name": "Blessed Vigor",
       "tier": 1,
-      "description": "At run start, lords gain +2 max HP.",
+      "description": "Your starting lords gain +2 maximum HP for this run.",
       "weight": 1,
       "boons": [
         {
@@ -57,8 +57,8 @@
       "id": "swift_instinct",
       "lore": "Couriers and deserters pray the same prayer for quick feet.",
       "name": "Swift Instinct",
-      "tier": 1,
-      "description": "Lords gain +1 SPD at run start.",
+      "tier": 2,
+      "description": "Your starting lords gain +1 Speed for this run. Does not affect later recruits.",
       "weight": 1,
       "boons": [
         {
@@ -76,7 +76,7 @@
       "lore": "Every hand leaves the shrine with a salve tucked away.",
       "name": "Field Medic",
       "tier": 1,
-      "description": "All units start with a Vulnerary.",
+      "description": "All units, including later recruits, receive a Vulnerary.",
       "weight": 1,
       "boons": [
         {
@@ -93,7 +93,7 @@
       "lore": "Swear it with a palm on cold iron and the iron holds you together.",
       "name": "Iron Oath",
       "tier": 2,
-      "description": "+2 DEF to lords.",
+      "description": "Your starting lords gain +2 Defense for this run.",
       "weight": 0.9,
       "boons": [
         {
@@ -131,7 +131,7 @@
       "lore": "The seer order's students vow to learn fast, since the term runs short.",
       "name": "Scholar's Vow",
       "tier": 2,
-      "description": "All growths +5%.",
+      "description": "All growth rates increase by 5 percentage points for this run.",
       "weight": 0.85,
       "boons": [
         {
@@ -312,8 +312,8 @@
       "id": "quartermaster_cache",
       "lore": "A tithe-barn's rite, repaid in full mending though the barns burned.",
       "name": "Quartermaster Cache",
-      "tier": 3,
-      "description": "Lords gain +1 Elixir at run start.",
+      "tier": 2,
+      "description": "Each starting lord receives 1 Elixir.",
       "weight": 0.55,
       "boons": [
         {
@@ -331,7 +331,7 @@
       "lore": "Locked in the crypt shelves for good reason, and taken down anyway.",
       "name": "Forbidden Tome",
       "tier": 4,
-      "description": "All growths +15%.",
+      "description": "All growth rates increase by 15 percentage points for this run.",
       "weight": 0.2,
       "boons": [
         {
@@ -348,7 +348,7 @@
       "lore": "The forge-rite the smith-saints refused to teach. It works all the same.",
       "name": "Blood Forge",
       "tier": 4,
-      "description": "All lord weapons gain +2 forge levels.",
+      "description": "Starting lords’ current combat weapons gain up to 2 Might forges, subject to forge limits.",
       "weight": 0.2,
       "boons": [
         {
@@ -365,7 +365,7 @@
       "lore": "The war colleges tithed their sharpest lessons, and the shrines kept them.",
       "name": "War Tutelage",
       "tier": 4,
-      "description": "Each lord learns one random skill at run start.",
+      "description": "Each starting lord learns one random combat skill for this run.",
       "weight": 0.2,
       "boons": [
         {
@@ -383,7 +383,7 @@
       "lore": "Shrine cellars once armed a kingdom in extremis, whetstones and all.",
       "name": "Armory Stash",
       "tier": 4,
-      "description": "Gain 2 random whetstones at run start.",
+      "description": "Immediately gain 2 random whetstones.",
       "weight": 0.2,
       "boons": [
         {
@@ -400,7 +400,7 @@
       "lore": "The seer order copies each art twice and hides one from the empire.",
       "name": "Scroll Archive",
       "tier": 4,
-      "description": "Gain 2 random weapon-art scrolls at run start.",
+      "description": "Immediately gain 2 random weapon-art scrolls.",
       "weight": 0.2,
       "boons": [
         {
@@ -416,8 +416,8 @@
       "id": "focused_curriculum",
       "lore": "One lesson, drilled all the way down until the hands own it.",
       "name": "Focused Curriculum",
-      "tier": 4,
-      "description": "Lords gain +12% SPD and SKL growths.",
+      "tier": 2,
+      "description": "Starting lords gain +12 percentage points to Speed and Skill growths for this run.",
       "weight": 0.2,
       "boons": [
         {

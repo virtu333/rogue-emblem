@@ -1,0 +1,85 @@
+@import './uiTokens.css';
+@import './uiDepthTokens.css';
+/* Compatibility aliases let existing screens migrate without a second palette. */
+:root {
+  --re-panel-raised: var(--re-raised);
+  --re-gold: var(--re-accent);
+  --re-gold-hi: var(--re-accent-text);
+  --re-blue: var(--re-info);
+  --re-focus: var(--re-accent);
+  --re-select: var(--re-selected);
+  --re-action: var(--re-accent);
+  --re-action-ink: var(--re-bg);
+  --re-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --re-pixel: 'Press Start 2P', monospace;
+  --re-mono: ui-monospace, monospace;
+  --re-t-display: 16px/1.5 var(--re-pixel);
+  --re-t-title: 12px/1.6 var(--re-pixel);
+  --re-t-label: 10px/1.5 var(--re-pixel);
+  --re-t-lede: 18px/1.3 var(--re-body);
+  --re-t-body: 13px/1.4 var(--re-body);
+  --re-t-small: 12px/1.4 var(--re-body);
+  --re-t-micro: 11px/1.35 var(--re-body);
+  --re-s1: 4px;
+  --re-s2: 8px;
+  --re-s3: 10px;
+  --re-s4: 16px;
+  --re-s5: 24px;
+  --re-radius: 2px;
+  --re-tap: 44px;
+  --re-tap-row: 50px;
+  --re-hairline: 1px solid var(--re-line);
+  --re-rule: 1px solid var(--re-line-soft);
+  --re-bevel: inset 0 1px 0 #ffffff0f, inset 0 0 0 1px #0000002e;
+  --re-scrim: rgba(6, 15, 20, 0.8);
+  --re-scrim-heavy: rgba(6, 15, 20, 0.94);
+}
+.re-health {
+  display: block;
+  height: 7px;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+  margin: 7px 0;
+  overflow: hidden;
+}
+.re-health-fill {
+  display: block;
+  height: 100%;
+}
+#game-wrapper {
+  background: var(--re-bg);
+}
+#game-wrapper .mobile-panel {
+  background: var(--re-bg);
+  border-inline: 1px solid var(--re-line-soft);
+}
+#game-wrapper .mobile-btn {
+  min-height: 44px;
+  border: 1px solid var(--re-line);
+  border-radius: 2px;
+  background: var(--re-panel);
+  color: var(--re-text);
+  font-family: var(--re-body);
+  box-shadow: var(--re-bevel);
+}
+#game-wrapper .mobile-btn:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -3px;
+}
+#game-wrapper .mobile-btn:active {
+  background: var(--re-select);
+}
+
+.re-health:has(.re-health-projection) {
+  position: relative;
+}
+.re-health-projection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--re-accent-text) 0 2px,
+    var(--re-panel) 2px 4px
+  );
+}
