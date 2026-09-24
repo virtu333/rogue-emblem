@@ -10,6 +10,7 @@ import {
   paintBattlefieldTerrain,
   weatheredTerrainRenderer,
 } from '../src/ui/BattlefieldArt.js';
+import { proceduralTerrainRenderer } from '../src/ui/proceduralTerrainRenderer.js';
 
 function makeTile(key = 'terrain_plain') {
   const tile = {
@@ -84,9 +85,10 @@ function stubRenderer({ cells = false } = {}) {
 }
 
 describe('BattlefieldArt renderer seam', () => {
-  it('ships the weathered renderer as the default', () => {
-    expect(getBattlefieldTerrainRenderer()).toBe(weatheredTerrainRenderer);
-    expect(getBattlefieldTerrainRenderer('missing')).toBe(weatheredTerrainRenderer);
+  it('ships the procedural renderer as the default, weathered on request', () => {
+    expect(getBattlefieldTerrainRenderer()).toBe(proceduralTerrainRenderer);
+    expect(getBattlefieldTerrainRenderer('missing')).toBe(proceduralTerrainRenderer);
+    expect(getBattlefieldTerrainRenderer('weathered')).toBe(weatheredTerrainRenderer);
   });
 
   it('adapts a pure (input) => canvas renderer and can make it the default', () => {
@@ -101,7 +103,7 @@ describe('BattlefieldArt renderer seam', () => {
     expect(out.painted(0, 0)).toBe(true);
     setDefaultBattlefieldTerrainRenderer('procedural-test');
     expect(getBattlefieldTerrainRenderer()).toBe(renderer);
-    setDefaultBattlefieldTerrainRenderer('weathered');
+    setDefaultBattlefieldTerrainRenderer('procedural');
     expect(() => setDefaultBattlefieldTerrainRenderer('nope')).toThrow();
     expect(() => registerBattlefieldTerrainRenderer({ id: 'x' })).toThrow();
   });
@@ -242,5 +244,73 @@ describe('BattlefieldTerrainPainting', () => {
     painting.destroy();
     expect(ground.texture.key).toBe('terrain_floor');
     expect(overlay.visible).toBe(true);
+  });
+});
+
+describe('async (off-thread) renderers', () => {
+  function asyncRenderer() {
+    const base = stubRenderer({ cells: true });
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    return {
+      ...base,
+      id: 'stub-async',
+      renderAsync: vi.fn(async (_res, _input, { signal } = {}) => {
+        await gate;
+        if (signal?.aborted) {
+          const e = new Error('aborted');
+          e.name = 'AbortError';
+          throw e;
+        }
+        return { canvas: base.render.getMockImplementation()().canvas, painted: () => true };
+      }),
+      dispose: vi.fn(),
+      release: () => release(),
+    };
+  }
+
+  it('paints from renderAsync, then catches up on terrain changed while it ran', async () => {
+    const grid = makeGrid();
+    const scene = makeScene(grid);
+    const renderer = asyncRenderer();
+    const painting = new BattlefieldTerrainPainting(scene, grid, renderer, { zoomable: true });
+    painting.start();
+    await Promise.resolve();
+    expect(painting.painted).toBe(false); // classic tiles stay until the paint lands
+    renderer.release();
+    expect(await painting.ready).toBe(true);
+    expect(renderer.render).not.toHaveBeenCalled();
+    expect(renderer.renderAsync).toHaveBeenCalledTimes(1);
+    // The layout diff runs once on arrival (empty dirty list: the renderer diffs itself).
+    expect(renderer.renderCells).toHaveBeenCalledTimes(1);
+    expect(renderer.renderCells.mock.calls[0][3]).toEqual([]);
+    painting.destroy();
+    expect(renderer.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shutdown during the paint aborts it and never touches the tiles', async () => {
+    const grid = makeGrid();
+    const scene = makeScene(grid);
+    const renderer = asyncRenderer();
+    const painting = new BattlefieldTerrainPainting(scene, grid, renderer, { zoomable: true });
+    painting.start();
+    await Promise.resolve();
+    painting.destroy();
+    renderer.release();
+    expect(await painting.ready).toBe(false);
+    expect(grid.tiles.flat().every((t) => t.texture.key === 'terrain_plain')).toBe(true);
+    expect(scene.textures.map.size).toBe(0);
+  });
+
+  it('the procedural renderer plugs into the seam with an off-thread paint path', () => {
+    expect(proceduralTerrainRenderer.id).toBe('procedural');
+    expect(proceduralTerrainRenderer.cellSize).toBe(48);
+    expect(typeof proceduralTerrainRenderer.renderAsync).toBe('function');
+    expect(typeof proceduralTerrainRenderer.renderCells).toBe('function');
+    // Nothing painted yet: no rects, no throw; dispose tolerates empty results.
+    expect(proceduralTerrainRenderer.renderCells(null, {}, null, [], null)).toEqual([]);
+    expect(() => proceduralTerrainRenderer.dispose(null)).not.toThrow();
   });
 });

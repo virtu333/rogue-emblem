@@ -12,7 +12,9 @@
 //     cellSize: 48,
 //     prepare(): Promise<resources>,                 // one-time asset load (cache it)
 //     render(resources, input): { canvas, painted?(col, row): boolean },
-//     renderCells?(resources, input, canvas, cells): void,   // optional incremental
+//     renderCells?(resources, input, canvas, cells, result): void,  // optional incremental
+//     renderAsync?(resources, input, { signal }): Promise<result>,  // optional off-thread paint
+//     dispose?(result): void,                                       // optional cleanup
 //   }
 //
 // or a pure canvas function wrapped with terrainRendererFromCanvasFunction(id, fn),
@@ -24,6 +26,7 @@
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture } from './BattleContrast.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { proceduralTerrainRenderer } from './proceduralTerrainRenderer.js';
 import {
   battlefieldArtEnabled,
   battlefieldTerrainArtEnabled,
@@ -42,7 +45,9 @@ export {
 // --- Renderer registry ------------------------------------------------------------
 
 const renderers = new Map();
-let defaultRendererId = 'weathered';
+// The approved procedural terrain is the default; the weathered atlases stay registered
+// as the dev comparison / fallback (?terrainArt=weathered).
+let defaultRendererId = 'procedural';
 
 export function registerBattlefieldTerrainRenderer(renderer) {
   if (!renderer?.id || typeof renderer.render !== 'function') {
@@ -151,6 +156,7 @@ export const weatheredTerrainRenderer = {
   },
 };
 registerBattlefieldTerrainRenderer(weatheredTerrainRenderer);
+registerBattlefieldTerrainRenderer(proceduralTerrainRenderer);
 
 // --- Painting a live battle --------------------------------------------------------
 
@@ -182,16 +188,29 @@ export class BattlefieldTerrainPainting {
   }
 
   start() {
+    this._abort = typeof AbortController === 'function' ? new AbortController() : null;
+    // A late load after shutdown or a rebuilt grid must not touch stale tiles.
+    const stale = () => this.destroyed || this.scene?.grid !== this.grid || !this.scene?.textures;
     this.ready = Promise.resolve()
       .then(() => this.renderer.prepare())
-      .then((resources) => {
-        // A late load after shutdown or a rebuilt grid must not touch stale tiles.
-        if (this.destroyed || this.scene?.grid !== this.grid || !this.scene?.textures) return false;
+      .then(async (resources) => {
+        if (stale()) return false;
         this.resources = resources;
-        return this._paintAll();
+        let prerendered = null;
+        if (typeof this.renderer.renderAsync === 'function') {
+          prerendered = await this.renderer.renderAsync(resources, this._input(), {
+            signal: this._abort?.signal,
+          });
+          if (stale()) {
+            this.renderer.dispose?.(prerendered);
+            return false;
+          }
+        }
+        return this._paintAll(prerendered);
       })
       .catch((error) => {
-        if (!this.destroyed) console.warn('[BattlefieldArt]', error?.message || error);
+        if (!this.destroyed && error?.name !== 'AbortError')
+          console.warn('[BattlefieldArt]', error?.message || error);
         return false;
       });
     return this;
@@ -210,13 +229,18 @@ export class BattlefieldTerrainPainting {
     };
   }
 
-  _paintAll() {
+  _paintAll(prerendered = null) {
     const { scene, grid, renderer } = this;
     const input = this._input();
-    const result = renderer.render(this.resources, input);
+    const result = prerendered || renderer.render(this.resources, input);
     if (!result?.canvas) return false;
     this.result = result;
     this.source = result.canvas;
+    // An off-thread paint started from an earlier layout: catch up on any terrain that
+    // changed while it ran (temporary terrain, an early restore) before first display.
+    if (prerendered && typeof renderer.renderCells === 'function') {
+      renderer.renderCells(this.resources, input, this.source, [], result);
+    }
     const cell = displayCellSize(renderer.cellSize || WEATHERED_TILE_SIZE, {
       zoomable: this.zoomable,
     });
@@ -352,10 +376,13 @@ export class BattlefieldTerrainPainting {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this._abort?.abort();
     this._unlisten?.();
     this._unlisten = null;
     this.restore();
     if (this.scene?.textures?.exists?.(this.key)) this.scene.textures.remove(this.key);
+    this.renderer.dispose?.(this.result);
+    this.result = null;
     this.texture = null;
     this.painted = false;
   }
