@@ -308,6 +308,10 @@ export function createRouteGraph({
     get layout() {
       return layout;
     },
+    /** True while the fx loop (glints / vision dashes) is running. */
+    get animating() {
+      return raf !== 0;
+    },
     /** The browsing position to carry into a redraw of the same act. */
     get scrollLeft() {
       return lastScroll;
