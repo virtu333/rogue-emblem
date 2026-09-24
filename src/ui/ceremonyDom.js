@@ -99,7 +99,8 @@ export function bustPixelScale(rect, master = 192) {
   const scale = frameScale(rect);
   let k = Math.max(1, Math.round((190 * scale) / master));
   const width = rect?.width || 0;
-  while (k > 1 && master * k > width * 0.36) k--;
+  // A few px over the 36% cap is fine: CSS min() clamps it to a near-integer scale.
+  while (k > 1 && master * k > width * 0.36 * 1.04) k--;
   return k;
 }
 

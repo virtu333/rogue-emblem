@@ -66,7 +66,7 @@ const sleep = (page, ms) => page.waitForTimeout(ms);
 const shot = async (page, name) => {
   const path = `${outDir}/${name}-${tag}.webp`;
   await sharp(await page.screenshot())
-    .webp({ lossless: true, effort: 4 })
+    .webp({ quality: 90, effort: 5 })
     .toFile(path);
   console.log('shot', path);
 };

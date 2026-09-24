@@ -72,8 +72,24 @@ Weight: 94 portraits × 6 sizes + baked 192 textures + 4 canvas atlases + 30 pla
 iPhone emulation (touch, mobile preview). Scenes: `dialogue-1/2` (run start, Sera and
 Edric), `boss-card`, `cutin-crit` (Edric), `cutin-boss` (Dark Rider), `cutin-generic`
 (legacy-sourced enemy), `forecast`, `fallen-offer` (Sera's rewind offer), `roster`, `loom`
-(route map party chips), `home`. Viewports: 844×390 and 667×375 at DPR 1 and 3, desktop
-1280×800.
+(route map party chips), `home`. Viewports: 844×390 and 667×375 at DPR 3 (before and
+after) and DPR 1 (after), desktop 1280×800 (before and after). Recapture with
+`node tools/art/pc98/capture.mjs --viewport 844x390m3 --art pc98` (dev server on 3303).
+
+Review notes: at DPR 3 each portrait pixel is a crisp 3×3 block, the checker reads as
+texture instead of blur; thumbnails keep their identity colours (Edric's teal and steel,
+Sera's red hair and green eyes) because they reuse the master palette. Desktop ceremonies
+snap to integer scales: the boss bust shows 192px at 2× on a 1280×800 canvas, the cut-in
+eye strip at 2× (4× on large desktop canvases, where it reads as a deliberately chunky
+zoom).
+
+| | before (classic) | after (PC-98) |
+| --- | --- | --- |
+| dialogue | ![](dialogue-1-844x390m@3x-classic.webp) | ![](dialogue-1-844x390m@3x-pc98.webp) |
+| boss card | ![](boss-card-844x390m@3x-classic.webp) | ![](boss-card-844x390m@3x-pc98.webp) |
+| crit cut-in | ![](cutin-crit-844x390m@3x-classic.webp) | ![](cutin-crit-844x390m@3x-pc98.webp) |
+| roster | ![](roster-844x390m@3x-classic.webp) | ![](roster-844x390m@3x-pc98.webp) |
+| home base | ![](home-844x390m@3x-classic.webp) | ![](home-844x390m@3x-pc98.webp) |
 
 ## Legacy design outliers (need new references)
 

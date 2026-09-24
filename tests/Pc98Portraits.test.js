@@ -472,6 +472,7 @@ describe('PC-98 portrait runtime', () => {
     expect(portraitPixelScale({ width: 1280, height: 960 })).toBe(2);
     expect(bustPixelScale({ width: 1280, height: 960 })).toBe(2);
     expect(bustPixelScale({ width: 960, height: 720 })).toBe(1); // 384 > 36% of 960
+    expect(bustPixelScale({ width: 1066, height: 800 })).toBe(2); // 1280x800 desktop canvas
     expect(bustPixelScale({ width: 520, height: 390 })).toBe(1);
   });
 
