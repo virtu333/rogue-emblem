@@ -6,7 +6,11 @@ import { prepareBattleRewards } from '../engine/PendingBattleRewards.js';
 import { PendingRewardController } from './PendingRewardController.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { TutorialController } from './TutorialController.js';
-import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
+import {
+  serializeUnit,
+  getActTransitionKey,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -24,6 +28,7 @@ import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { showImportantHint } from './HintDisplay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { BossRecruitOverlay } from './BossRecruitOverlay.js';
+import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
@@ -31,6 +36,17 @@ import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
 const RUN_COMPLETE_TRANSITION_TIMEOUT_MS = 6000;
+
+// Settle end-of-run rewards and persist the settled run before any scene
+// transition, so a reload in between cannot pay the rewards twice.
+function settleEndRunForScene(scene, result) {
+  const cloud = scene.registry.get('cloud');
+  const slot = scene.registry.get('activeSlot');
+  return settleAndPersistEndRun(scene.runManager, scene.registry.get('meta'), result, {
+    onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+    slot,
+  });
+}
 
 export class PostCombatController {
   constructor(scene) {
@@ -258,7 +274,7 @@ export class PostCombatController {
       if (scene.runManager.isActComplete() && !scene.runManager.pendingBattleReward) {
         if (scene.runManager.isRunComplete()) {
           scene.runManager.status = 'victory';
-          scene.runManager.settleEndRunRewards(scene.registry.get('meta'), 'victory');
+          settleEndRunForScene(scene, 'victory');
           const ok = await transitionToScene(
             scene,
             'RunComplete',
@@ -332,7 +348,7 @@ export class PostCombatController {
       let ok;
       const isRunComplete = scene.runManager?.isRunComplete?.();
       if (isRunComplete) {
-        scene.runManager.settleEndRunRewards(scene.registry.get('meta'), 'victory');
+        settleEndRunForScene(scene, 'victory');
         ok = await transitionToScene(
           scene,
           'RunComplete',

@@ -25,6 +25,38 @@ export function readActionContinuation(value) {
   };
 }
 
+// A confirmed player attack is saved before any roll is revealed. Resume
+// replays exactly this attack from the saved RNG state (so the outcome is
+// identical) instead of letting a refresh swap it for a different action.
+// Save fields are untrusted; validate the shape before replaying anything.
+export function readCommittedAction(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (value.kind !== 'attack') return null;
+  const id = (v) => typeof v === 'string' && /^u[1-9]\d*$/.test(v);
+  if (!id(value.unitId) || !id(value.targetId) || value.unitId === value.targetId) return null;
+  if (typeof value.unitName !== 'string' || !value.unitName.trim()) return null;
+  let weaponArt = null;
+  if (value.weaponArt != null) {
+    const art = value.weaponArt;
+    if (
+      typeof art !== 'object' ||
+      typeof art.artId !== 'string' ||
+      !art.artId ||
+      !Number.isInteger(art.weaponIndex) ||
+      art.weaponIndex < -1
+    )
+      return null;
+    weaponArt = { artId: art.artId, weaponIndex: art.weaponIndex };
+  }
+  return {
+    kind: 'attack',
+    unitId: value.unitId,
+    unitName: value.unitName,
+    targetId: value.targetId,
+    weaponArt,
+  };
+}
+
 // Presentation must never be the only thing preventing a resolved action from
 // reaching storage. Resume runs this small continuation, never combat or XP.
 export function captureResolvedAction(scene, continuation) {

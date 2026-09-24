@@ -480,3 +480,98 @@ it('preserves the stable seed base across successive resume checkpoints', () => 
   restored.captureCheckpoint();
   expect(resumed.runManager.battleInProgress.checkpoint.rngSeed).toBe(expected);
 });
+
+describe('committed attack intent', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('commit capture keeps the RNG stream and decision key and adds no timeline row', () => {
+    const decision = { algorithm: 'mulberry32-v1', cursor: 11 };
+    const scene = makeScene({
+      _battleRewindPolicy: 'fixed-v1',
+      _battleDecisionRngState: decision,
+      _battleRng: { getState: () => ({ algorithm: 'mulberry32-v1', cursor: 99 }) },
+      _pendingCommittedAction: { kind: 'attack', unitId: 'u1', unitName: 'A', targetId: 'u2' },
+    });
+    scene.runManager.rngSeed = 77;
+    scene.runManager.battleInProgress.timeline = null;
+
+    expect(new BattleSuspendController(scene).captureCheckpoint({ commitIntent: true })).toBe(true);
+
+    expect(scene.reseedBattleRng).not.toHaveBeenCalled();
+    expect(scene._battleDecisionRngState).toBe(decision);
+    expect(scene.runManager.battleInProgress.timeline).toBeNull();
+    const cp = scene.runManager.battleInProgress.checkpoint;
+    expect(cp.rngState).toEqual({ algorithm: 'mulberry32-v1', cursor: 99 });
+    expect(cp.decisionRngState).toEqual(decision);
+    expect(cp.pendingCommittedAction).toMatchObject({ kind: 'attack', targetId: 'u2' });
+  });
+
+  it('commit capture also leaves a legacy-policy stream unseeded', () => {
+    const scene = makeScene();
+    scene.runManager.rngSeed = 77;
+    new BattleSuspendController(scene).captureCheckpoint({ commitIntent: true });
+    expect(scene.reseedBattleRng).not.toHaveBeenCalled();
+    expect(scene.runManager.battleInProgress.checkpoint.rngSeed).toBe(77);
+  });
+
+  it('finalizeResume replays a valid committed attack instead of returning to idle', () => {
+    const scene = makeScene();
+    scene.playerUnits = [{ name: 'A', hasActed: false }];
+    scene.resumeCommittedAttack = vi.fn(() => true);
+    new BattleSuspendController(scene).finalizeResume({
+      checkpointIndex: 3,
+      rngSeed: 1,
+      turnNumber: 2,
+      pendingCommittedAction: {
+        kind: 'attack',
+        unitId: 'u1',
+        unitName: 'A',
+        targetId: 'u4',
+        weaponArt: { artId: 'sword_1', weaponIndex: 0 },
+      },
+    });
+    expect(scene.resumeCommittedAttack).toHaveBeenCalledWith({
+      kind: 'attack',
+      unitId: 'u1',
+      unitName: 'A',
+      targetId: 'u4',
+      weaponArt: { artId: 'sword_1', weaponIndex: 0 },
+    });
+  });
+
+  it.each([
+    true,
+    { kind: 'move', unitId: 'u1', unitName: 'A', targetId: 'u2' },
+    { kind: 'attack', unitId: 'x1', unitName: 'A', targetId: 'u2' },
+    { kind: 'attack', unitId: 'u1', unitName: 'A', targetId: 'u1' },
+    { kind: 'attack', unitId: 'u1', unitName: '', targetId: 'u2' },
+    { kind: 'attack', unitId: 'u1', unitName: 'A', targetId: 'u2', weaponArt: { artId: 3 } },
+  ])('ignores a malformed committed action %j', (value) => {
+    const scene = makeScene();
+    scene.playerUnits = [{ name: 'A', hasActed: false }];
+    scene.resumeCommittedAttack = vi.fn(() => true);
+    new BattleSuspendController(scene).finalizeResume({
+      checkpointIndex: 3,
+      rngSeed: 1,
+      turnNumber: 2,
+      pendingCommittedAction: value,
+    });
+    expect(scene.resumeCommittedAttack).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
+  it('a fatal checkpoint takes precedence over any committed attack', () => {
+    const scene = makeScene();
+    scene.resumeCommittedAttack = vi.fn(() => true);
+    scene.showLordDeathVisionPrompt = vi.fn(() => true);
+    new BattleSuspendController(scene).finalizeResume({
+      checkpointIndex: 3,
+      rngSeed: 1,
+      turnNumber: 2,
+      recoveryKind: 'fatal_pending',
+      pendingCommittedAction: { kind: 'attack', unitId: 'u1', unitName: 'A', targetId: 'u2' },
+    });
+    expect(scene.resumeCommittedAttack).not.toHaveBeenCalled();
+    expect(scene.showLordDeathVisionPrompt).toHaveBeenCalled();
+  });
+});

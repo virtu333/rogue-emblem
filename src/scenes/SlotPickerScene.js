@@ -19,7 +19,7 @@ import {
 } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
-import { loadRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
+import { loadRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -558,6 +558,60 @@ export class SlotPickerScene extends Phaser.Scene {
   }
 
   /**
+   * Which continue paths a suspended battle allows. Resume needs a readable
+   * checkpoint; the map revert is refused for a fatal-pending checkpoint (its
+   * outcome must be decided); a fatal checkpoint that cannot be read can only
+   * be settled as the defeat it records. Every state keeps at least one exit
+   * that preserves the slot — deleting the save is never the only way out.
+   */
+  _suspendedBattleOptions(rm) {
+    const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
+    const invalid = rm._battleRecoveryInvalid === true;
+    const restoreFailed = rm._battleRecoveryRestoreFailed === true;
+    return {
+      fatal,
+      invalid,
+      restoreFailed,
+      legacy: invalid && rm._battleRecoveryLegacy === true,
+      canResume: !invalid,
+      canRevert: !fatal,
+      canAcceptDefeat: fatal && (invalid || restoreFailed),
+    };
+  }
+
+  _suspendedBattleCopy(options) {
+    if (options.invalid && options.fatal)
+      return {
+        title: 'Battle save needs recovery',
+        body: 'Your commander fell in this battle, but its timeline could not be read safely, so it cannot be reviewed or rewound. Accept defeat to end this run and collect its rewards.',
+      };
+    if (options.fatal && options.restoreFailed)
+      return {
+        title: 'Battle save needs recovery',
+        body: 'Your commander fell in this battle, and it could not be reopened last time. Resume to try again, or accept defeat to end this run and collect its rewards.',
+      };
+    if (options.legacy)
+      return {
+        title: 'Battle saved by an older version',
+        body: 'This battle was saved before an update and can no longer be resumed exactly. Continue from Map restarts it from the route map with your pre-battle Vision charges restored. The rest of this slot is unchanged.',
+      };
+    if (options.invalid)
+      return {
+        title: 'Battle save needs recovery',
+        body: 'This battle checkpoint could not be read safely, so it cannot be resumed. Continue from Map restarts the battle from the route map with your pre-battle Vision charges restored.',
+      };
+    if (options.fatal)
+      return {
+        title: 'Battle in progress',
+        body: 'A fatal battle outcome awaits your decision. Resume to review the timeline or accept defeat.',
+      };
+    return {
+      title: 'Battle in progress',
+      body: 'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
+    };
+  }
+
+  /**
    * Continue choice for a save suspended mid-battle: Resume Battle restores
    * the suspend checkpoint exactly; Continue from Map is the sanctioned full
    * revert (classic FE reset) — the battle resets and entry-time Vision/RNG
@@ -565,33 +619,24 @@ export class SlotPickerScene extends Phaser.Scene {
    * dismisses it back to the slot list.
    */
   _showSuspendedBattleChoice(slot, rm) {
-    if (rm._battleRecoveryInvalid) {
-      this.nativeDialog?.destroy();
-      if (this.slotMenu) this.slotMenu.root.inert = true;
-      this.nativeDialog = slotDialog(
-        this,
-        'Battle save needs recovery',
-        'This battle checkpoint could not be read safely. Your saved data has been kept. Please report this issue before starting a new run in this slot.',
-        [],
-      );
-      return;
-    }
-    const fatal = rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending';
+    const options = this._suspendedBattleOptions(rm);
+    const copy = this._suspendedBattleCopy(options);
+    const actions = [
+      options.canResume && ['Resume Battle', () => this._continueSuspendedRun(slot, rm, 'battle')],
+      options.canRevert && ['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')],
+      options.canAcceptDefeat && [
+        'Accept defeat',
+        () => this._continueSuspendedRun(slot, rm, 'defeat'),
+      ],
+    ].filter(Boolean);
     if (hasDOMHost()) {
       this.nativeDialog?.destroy();
       if (this.slotMenu) this.slotMenu.root.inert = true;
       this.nativeDialog = slotDialog(
         this,
-        'Battle in progress',
-        fatal
-          ? 'A fatal battle outcome awaits your decision. Resume to review the timeline or accept defeat.'
-          : 'Resume your saved turn, or return to the map to restart this battle. Returning to the map restores the Vision charges from before battle.',
-        [
-          ['Resume Battle', () => this._continueSuspendedRun(slot, rm, 'battle'), true],
-          ...(!fatal
-            ? [['Continue from Map', () => this._continueSuspendedRun(slot, rm, 'map')]]
-            : []),
-        ],
+        copy.title,
+        copy.body,
+        actions.map(([label, act], index) => [label, act, index === 0]),
       );
       return;
     }
@@ -615,7 +660,7 @@ export class SlotPickerScene extends Phaser.Scene {
     objects.push(panel);
     objects.push(
       applyTextResolution(
-        this.add.text(cx, cy - 58, 'Battle in Progress', {
+        this.add.text(cx, cy - 58, copy.title, {
           fontFamily: 'Arial',
           fontSize: '16px',
           color: '#ffdd88',
@@ -627,17 +672,13 @@ export class SlotPickerScene extends Phaser.Scene {
     );
     objects.push(
       applyTextResolution(
-        this.add.text(
-          cx,
-          cy - 18,
-          'This save was suspended mid-battle.\nResume where you left off?',
-          {
-            fontFamily: 'Arial',
-            fontSize: '12px',
-            color: '#d0d7e8',
-            align: 'center',
-          },
-        ),
+        this.add.text(cx, cy - 18, copy.body, {
+          fontFamily: 'Arial',
+          fontSize: '12px',
+          color: '#d0d7e8',
+          align: 'center',
+          wordWrap: { width: 340 },
+        }),
       )
         .setOrigin(0.5)
         .setDepth(502),
@@ -666,13 +707,10 @@ export class SlotPickerScene extends Phaser.Scene {
       objects.push(btn);
       focusButtons.push(btn);
     };
-    makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
-      this._continueSuspendedRun(slot, rm, 'battle'),
-    );
-    if (!fatal)
-      makeButton(cx + 92, '[ Continue from Map ]', UI_PALETTE.text, () =>
-        this._continueSuspendedRun(slot, rm, 'map'),
-      );
+    actions.forEach(([label, act], index) => {
+      const x = actions.length === 1 ? cx : index === 0 ? cx - 92 : cx + 92;
+      makeButton(x, `[ ${label} ]`, index === 0 ? '#a6ffb0' : UI_PALETTE.text, act);
+    });
 
     this.confirmDialog = objects;
     this._setDialogFocus(focusButtons);
@@ -690,10 +728,14 @@ export class SlotPickerScene extends Phaser.Scene {
 
   async _continueSuspendedRun(slot, rm, mode) {
     if (this.isTransitioning) return;
-    if (
-      rm._battleRecoveryInvalid ||
-      (mode === 'map' && rm.battleInProgress?.checkpoint?.recoveryKind === 'fatal_pending')
-    ) {
+    const options = this._suspendedBattleOptions(rm);
+    const allowed =
+      mode === 'battle'
+        ? options.canResume
+        : mode === 'map'
+          ? options.canRevert
+          : mode === 'defeat' && options.canAcceptDefeat;
+    if (!allowed) {
       this._showSuspendedBattleChoice(slot, rm);
       return;
     }
@@ -727,7 +769,25 @@ export class SlotPickerScene extends Phaser.Scene {
             isElite: bip.isElite === true,
             resumeCheckpoint: bip.checkpoint,
           },
-          { reason: TRANSITION_REASONS.CONTINUE },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+        );
+      } else if (mode === 'defeat') {
+        // The checkpoint recorded the commander's fall but cannot be read to
+        // review it: settle the recorded defeat. Persist it first so a reload
+        // lands on the same game-over, never back on a free revert.
+        rm.failRun();
+        const saved = saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+        if (!saved?.ok) {
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, loadRun(this.gameData, slot) || rm);
+          return;
+        }
+        transitioned = await transitionToScene(
+          this,
+          'RunComplete',
+          { gameData: this.gameData, runManager: rm, result: 'defeat' },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
         );
       } else {
         const reset = clearBattleInProgressInSave(
@@ -740,29 +800,14 @@ export class SlotPickerScene extends Phaser.Scene {
           this._showSuspendedBattleChoice(slot, rm);
           return;
         }
-        const domain = bip.entryBattleState;
-        if (domain) {
-          rm.convoy = structuredClone(domain.convoy);
-          rm.accessories = structuredClone(domain.accessories);
-          rm.gold = domain.gold;
-        }
-        // Full revert: refund entry-time Vision charges and RNG seed in
-        // memory, mirror it into the raw save, then resume from the map.
-        if (Number.isFinite(bip?.visionChargesAtEntry)) {
-          rm.visionChargesRemaining = bip.visionChargesAtEntry;
-        }
-        if (Number.isFinite(bip?.visionCountAtEntry)) {
-          rm.visionCount = bip.visionCountAtEntry;
-        }
-        if (Number.isFinite(bip?.rngSeedAtEntry)) {
-          rm.rngSeed = bip.rngSeedAtEntry;
-        }
-        rm.clearBattleInProgress();
+        // Full revert: restore the entry-time run state and refund Vision
+        // charges and RNG seed in memory, matching the raw save scrubbed above.
+        rm.revertBattleInProgressToEntry();
         transitioned = await transitionToScene(
           this,
           'NodeMap',
           { gameData: this.gameData, runManager: rm },
-          { reason: TRANSITION_REASONS.CONTINUE },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
         );
       }
       if (transitioned === false) {

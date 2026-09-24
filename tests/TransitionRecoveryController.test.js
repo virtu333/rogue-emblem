@@ -84,7 +84,7 @@ function makeUiObject(label = '') {
 function makeScene() {
   const scene = {
     gameData: {},
-    runManager: {},
+    runManager: { settleEndRunRewards: vi.fn(() => ({ valor: 10, supply: 5 })) },
     defeatRecoveryPrompt: null,
     victoryRecoveryPrompt: null,
     _victoryBanner: null,
@@ -177,6 +177,21 @@ describe('TransitionRecoveryController', () => {
       'Title',
       { gameData: scene.gameData },
       { reason: TRANSITION_REASONS.RETURN_TITLE },
+    );
+  });
+
+  it('defeat title button settles the run rewards before dropping the save', async () => {
+    const scene = makeScene();
+    const controller = new TransitionRecoveryController(scene);
+
+    controller.showDefeatRecovery();
+    const titleBtn = scene.defeatRecoveryPrompt.find((obj) => obj?._label === '[ Title ]');
+    titleBtn._handlers.pointerdown({ button: 0 });
+    await Promise.resolve();
+
+    expect(scene.runManager.settleEndRunRewards).toHaveBeenCalledWith(null, 'defeat');
+    expect(scene.runManager.settleEndRunRewards.mock.invocationCallOrder[0]).toBeLessThan(
+      clearSavedRunMock.mock.invocationCallOrder[0],
     );
   });
 });

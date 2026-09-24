@@ -8,11 +8,13 @@ vi.mock('phaser', () => ({
   default: { Scene: class {} },
 }));
 
-const { transitionToSceneMock, loadRunMock, clearBattleInProgressInSaveMock } = vi.hoisted(() => ({
-  transitionToSceneMock: vi.fn(async () => true),
-  loadRunMock: vi.fn(),
-  clearBattleInProgressInSaveMock: vi.fn(() => ({ ok: true })),
-}));
+const { transitionToSceneMock, loadRunMock, saveRunMock, clearBattleInProgressInSaveMock } =
+  vi.hoisted(() => ({
+    transitionToSceneMock: vi.fn(async () => true),
+    loadRunMock: vi.fn(),
+    saveRunMock: vi.fn(() => ({ ok: true })),
+    clearBattleInProgressInSaveMock: vi.fn(() => ({ ok: true })),
+  }));
 vi.mock('../src/utils/SceneRouter.js', async () => {
   const actual = await vi.importActual('../src/utils/SceneRouter.js');
   return { ...actual, transitionToScene: transitionToSceneMock };
@@ -22,6 +24,7 @@ vi.mock('../src/engine/RunManager.js', async () => {
   return {
     ...actual,
     loadRun: loadRunMock,
+    saveRun: saveRunMock,
     clearBattleInProgressInSave: clearBattleInProgressInSaveMock,
   };
 });
@@ -30,6 +33,7 @@ vi.mock('../src/utils/audioUnlock.js', () => ({
 }));
 
 import { SlotPickerScene } from '../src/scenes/SlotPickerScene.js';
+import { RunManager } from '../src/engine/RunManager.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 
 // Mock localStorage (MetaProgressionManager / HintManager / setActiveSlot)
@@ -168,7 +172,21 @@ describe('SlotPickerScene continue routing', () => {
         clearBattleInProgress: vi.fn(function () {
           this.battleInProgress = null;
         }),
+        revertBattleInProgressToEntry: vi.fn(function () {
+          return RunManager.prototype.revertBattleInProgressToEntry.call(this);
+        }),
+        removeFromConvoyByUid: vi.fn(),
+        failRun: vi.fn(function () {
+          this.status = 'defeat';
+          this.battleInProgress = null;
+        }),
       };
+    }
+
+    function dialogButtons(scene) {
+      return scene._dialogObjects
+        .map((o) => o.text)
+        .filter((t) => typeof t === 'string' && t.startsWith('[ '));
     }
 
     it('shows the Resume-or-Revert choice instead of transitioning', async () => {
@@ -199,7 +217,7 @@ describe('SlotPickerScene continue routing', () => {
           battleParams: rm.battleInProgress.battleParams,
           resumeCheckpoint: rm.battleInProgress.checkpoint,
         }),
-        { reason: TRANSITION_REASONS.CONTINUE },
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
       );
       expect(rm.clearBattleInProgress).not.toHaveBeenCalled();
     });
@@ -213,14 +231,114 @@ describe('SlotPickerScene continue routing', () => {
       expect(rm.visionChargesRemaining).toBe(1);
       expect(rm.visionCount).toBe(1);
       expect(rm.rngSeed).toBe(555);
-      expect(rm.clearBattleInProgress).toHaveBeenCalledTimes(1);
+      expect(rm.battleInProgress).toBeNull();
       expect(clearBattleInProgressInSaveMock).toHaveBeenCalledWith(null, 2);
       expect(transitionToSceneMock).toHaveBeenCalledWith(
         scene,
         'NodeMap',
         expect.objectContaining({ runManager: rm }),
-        { reason: TRANSITION_REASONS.CONTINUE },
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
       );
+    });
+
+    it('offers Continue from Map (not Resume) for a checkpoint saved by an older build', async () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryInvalid = true;
+      rm._battleRecoveryLegacy = true;
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Continue from Map ]']);
+      expect(scene._dialogObjects.some((o) => /older version/.test(o.text || ''))).toBe(true);
+
+      await scene._continueSuspendedRun(2, rm, 'battle');
+      expect(transitionToSceneMock).not.toHaveBeenCalled();
+
+      await scene._continueSuspendedRun(2, rm, 'map');
+      expect(rm.visionChargesRemaining).toBe(1);
+      expect(rm.rngSeed).toBe(555);
+      expect(rm.battleInProgress).toBeNull();
+      expect(transitionToSceneMock).toHaveBeenCalledWith(
+        scene,
+        'NodeMap',
+        expect.objectContaining({ runManager: rm }),
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+      );
+    });
+
+    it('offers Continue from Map for an unreadable non-fatal checkpoint', () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryInvalid = true;
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Continue from Map ]']);
+    });
+
+    it('settles an unreadable fatal checkpoint as a defeat, never a free map revert', async () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryInvalid = true;
+      rm.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Accept defeat ]']);
+
+      await scene._continueSuspendedRun(2, rm, 'map');
+      expect(clearBattleInProgressInSaveMock).not.toHaveBeenCalled();
+      expect(transitionToSceneMock).not.toHaveBeenCalled();
+
+      await scene._continueSuspendedRun(2, rm, 'defeat');
+      expect(rm.failRun).toHaveBeenCalledTimes(1);
+      expect(saveRunMock).toHaveBeenCalledWith(rm, null, 2);
+      expect(transitionToSceneMock).toHaveBeenCalledWith(
+        scene,
+        'RunComplete',
+        expect.objectContaining({ runManager: rm, result: 'defeat' }),
+        { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
+      );
+    });
+
+    it('keeps the fatal choice when the defeat cannot be saved', async () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryInvalid = true;
+      rm.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+      saveRunMock.mockReturnValueOnce({ ok: false, reason: 'quota' });
+      const reloaded = makeSuspendedRm();
+      reloaded._battleRecoveryInvalid = true;
+      reloaded.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+      loadRunMock.mockReturnValue(reloaded);
+
+      await scene._continueSuspendedRun(2, rm, 'defeat');
+
+      expect(transitionToSceneMock).not.toHaveBeenCalled();
+      expect(scene.isTransitioning).toBe(false);
+      expect(dialogButtons(scene)).toContain('[ Accept defeat ]');
+    });
+
+    it('offers a retry beside Accept defeat after a fatal resume failed once', async () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm._battleRecoveryRestoreFailed = true;
+      rm.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Resume Battle ]', '[ Accept defeat ]']);
+      expect(scene._dialogObjects.some((o) => /try again/.test(o.text || ''))).toBe(true);
+
+      await scene._continueSuspendedRun(2, rm, 'map');
+      expect(clearBattleInProgressInSaveMock).not.toHaveBeenCalled();
+      expect(transitionToSceneMock).not.toHaveBeenCalled();
+    });
+
+    it('never offers a map revert for a readable fatal checkpoint', () => {
+      const scene = makeScene();
+      const rm = makeSuspendedRm();
+      rm.battleInProgress.checkpoint.recoveryKind = 'fatal_pending';
+
+      scene._showSuspendedBattleChoice(2, rm);
+      expect(dialogButtons(scene)).toEqual(['[ Resume Battle ]']);
     });
   });
 });

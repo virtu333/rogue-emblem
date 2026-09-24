@@ -71,6 +71,23 @@ function normalizeStoryFlags(raw) {
   };
 }
 
+const MAX_SETTLED_RUN_IDS = 50;
+
+/** Union of settled run ids, newest last, bounded so meta cannot grow forever. */
+function mergeSettledRunIds(...lists) {
+  const ids = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const id of list) {
+      if (typeof id !== 'string' || !id) continue;
+      const existing = ids.indexOf(id);
+      if (existing !== -1) ids.splice(existing, 1);
+      ids.push(id);
+    }
+  }
+  return ids.slice(-MAX_SETTLED_RUN_IDS);
+}
+
 const PRE_BALANCE_COSTS = {
   recruit_weapon_forge: [800, 1400],
   weapon_forge: [150, 325, 550],
@@ -133,6 +150,7 @@ export class MetaProgressionManager {
     this.runsStarted = 0;
     this.lastDifficulty = null;
     this.runRecords = [];
+    this.settledRunIds = []; // recent runs whose end rewards were paid (idempotency)
     this.seenDialogueKeys = [];
     this.hintState = null;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
@@ -181,6 +199,7 @@ export class MetaProgressionManager {
         // Migration: old saves without storyFlags default to empty memory
         if (Array.isArray(saved.hintState?.seen)) this.hintState = saved.hintState;
         this.runRecords = mergeRunRecords(saved.runRecords || []);
+        this.settledRunIds = mergeSettledRunIds(saved.settledRunIds);
         this.seenDialogueKeys = mergeSeenDialogueKeys(saved.seenDialogueKeys || []);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
@@ -258,6 +277,20 @@ export class MetaProgressionManager {
 
   getRunsCompleted() {
     return this.runsCompleted;
+  }
+
+  /** True when this run's end rewards were already paid into this meta. */
+  hasSettledRun(runId) {
+    return typeof runId === 'string' && this.settledRunIds.includes(runId);
+  }
+
+  /**
+   * Remember a paid run so a reload that re-settles it (the run save failed
+   * after the payout) cannot pay again. Persisted by the payout's own saves.
+   */
+  markRunSettled(runId) {
+    if (typeof runId !== 'string' || !runId) return;
+    this.settledRunIds = mergeSettledRunIds(this.settledRunIds, [runId]);
   }
 
   incrementRunsCompleted() {
@@ -961,6 +994,7 @@ export class MetaProgressionManager {
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.runRecords = [];
+    this.settledRunIds = [];
     this.seenDialogueKeys = [];
     this._save();
   }
@@ -1033,6 +1067,7 @@ export class MetaProgressionManager {
     if (Number(disk.hintState?.updatedAt) > Number(this.hintState?.updatedAt || 0))
       this.hintState = disk.hintState;
     this.runRecords = mergeRunRecords(this.runRecords, disk.runRecords || []);
+    this.settledRunIds = mergeSettledRunIds(this.settledRunIds, disk.settledRunIds);
     this.seenDialogueKeys = mergeSeenDialogueKeys(
       this.seenDialogueKeys,
       disk.seenDialogueKeys || [],
@@ -1083,6 +1118,7 @@ export class MetaProgressionManager {
       milestones: [...this.milestones],
       storyFlags: this.storyFlags,
       runRecords: this.runRecords,
+      settledRunIds: this.settledRunIds,
       seenDialogueKeys: this.seenDialogueKeys,
       hintState: this.hintState,
       savedAt: this.savedAt,

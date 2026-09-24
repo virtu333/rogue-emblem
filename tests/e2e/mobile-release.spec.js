@@ -99,13 +99,26 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
       getComputedStyle(document.documentElement).getPropertyValue('--re-t-display').trim(),
     ),
   ).toMatch(/^13px/);
+  // First-turn Field notes are scheduled after the turn banner and can queue
+  // more than one. A single isVisible() check raced them: a note opened just
+  // after it and its modal shield swallowed the Compendium tap below. Dismiss
+  // notes until none has appeared for a quiet window, then open pause.
   const battleHint = page
     .getByRole('dialog', { name: 'Field notes', exact: true })
     .locator('.re-menu-body')
     .getByRole('button', { name: 'Continue', exact: true });
-  if (await battleHint.isVisible()) {
-    await page.waitForTimeout(550);
-    await battleHint.tap();
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle')?.battleState === 'PLAYER_IDLE',
+  );
+  let quietSince = Date.now();
+  while (Date.now() - quietSince < 2500) {
+    if (await battleHint.isVisible()) {
+      await page.waitForTimeout(550);
+      // The next queued note may open in the same dialog immediately.
+      await battleHint.tap();
+      quietSince = Date.now();
+    }
+    await page.waitForTimeout(150);
   }
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').showPauseMenu());
   const resume = page.getByRole('button', { name: 'Resume', exact: true });

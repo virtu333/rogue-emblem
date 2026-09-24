@@ -37,10 +37,12 @@ test('real seeded combat resolution and presentation agree across speed, motion 
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   let reference;
+  // One boot: every iteration re-pins the combat inputs below and seeds its
+  // own RNG, so reloading the game 12 times only added ~100s of boot time.
+  await boot(page);
   for (const motion of [false, true])
     for (const quality of ['high', 'low'])
       for (const speed of ['normal', 'fast', 'instant']) {
-        await boot(page);
         const outcome = await page.evaluate(
           async ({ speed, motion, quality }) => {
             const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -70,7 +72,8 @@ test('real seeded combat resolution and presentation agree across speed, motion 
               unit.affixes = [];
               unit._conditions = [];
             }
-            a.weapon = { ...a.weapon, crit: 100 }; // exercise crit reactions/camera/pop/cut-in
+            a._baseWeaponForSpeedMatrix ||= structuredClone(a.weapon);
+            a.weapon = { ...structuredClone(a._baseWeaponForSpeedMatrix), crit: 100 }; // exercise crit reactions/camera/pop/cut-in
             a.skills = [];
             b.skills = [];
             a.col = b.col - 1;
