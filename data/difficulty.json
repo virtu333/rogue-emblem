@@ -3,7 +3,7 @@
   "modes": {
     "normal": {
       "label": "Normal",
-      "color": "#44cc44",
+      "color": "#95c487",
       "enemyStatBonus": 0,
       "enemyCountBonus": 0,
       "enemyLevelBonus": 0,
@@ -38,7 +38,7 @@
     },
     "hard": {
       "label": "Hard",
-      "color": "#ff8800",
+      "color": "#e8a44a",
       "enemyStatBonus": 1,
       "enemyCountBonus": 1,
       "enemyLevelBonus": 1,
@@ -89,7 +89,7 @@
     },
     "lunatic": {
       "label": "Lunatic",
-      "color": "#cc3333",
+      "color": "#ec7a5c",
       "enemyStatBonus": 2,
       "enemyCountBonus": 2,
       "enemyLevelBonus": 2,

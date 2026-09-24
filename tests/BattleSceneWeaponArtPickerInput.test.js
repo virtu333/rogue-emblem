@@ -46,8 +46,8 @@ function makePointerUpButton() {
     0,
     0,
     'Weapon Art',
-    { fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0' },
-    '#e0e0e0',
+    { fontFamily: 'monospace', fontSize: '12px', color: '#ece3d0' },
+    '#ece3d0',
     onClick,
     { clickOnPointerUp: true },
   );

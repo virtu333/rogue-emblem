@@ -1,6 +1,6 @@
 import { seenDialogueKey } from '../utils/seenDialogue.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { UI_PALETTE, applyTextResolution, UI_HEX } from '../utils/uiStyles.js';
 import { dialoguePortraitKey } from './RebuiltPortraits.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { textureImageSource } from './textureImageSource.js';
@@ -110,7 +110,7 @@ export class DialogueOverlay {
     const boxY = cy + 100;
     const bg = scene.add
       .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.9)
-      .setStrokeStyle(2, 0x4466aa)
+      .setStrokeStyle(2, UI_HEX.line)
       .setDepth(DEPTH + 1);
     this.objects.push(bg);
 

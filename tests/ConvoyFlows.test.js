@@ -609,7 +609,7 @@ describe('convoy scene/UI flows', () => {
     NodeMapScene.prototype.checkActComplete.call(ctx);
 
     expect(ctx.drawMap).toHaveBeenCalled();
-    expect(ctx.showShopBanner).toHaveBeenCalledWith('Weapon Art unlocked: Precise Cut', '#88ddff');
+    expect(ctx.showShopBanner).toHaveBeenCalledWith('Weapon Art unlocked: Precise Cut', '#8fb8d6');
   });
 
   it('does not fire onClose during initial show', () => {

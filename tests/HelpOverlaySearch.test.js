@@ -90,7 +90,7 @@ describe('HelpOverlay search', () => {
       String(obj?.text || '').includes('Par: target turns'),
     );
     expect(parLine).toBeTruthy();
-    expect(parLine.style.color).toBe('#66ff66');
+    expect(parLine.style.color).toBe('#95c487');
   });
 
   it('shows "No matches" when no help entries match the query', () => {

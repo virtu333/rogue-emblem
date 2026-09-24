@@ -209,7 +209,7 @@ export class PauseOverlay {
                     console.error('[PauseOverlay] onSaveAndExit rejected:', err);
                   });
               },
-              '#88ccff',
+              UI_PALETTE.info,
               'Save & return',
             );
             return;
@@ -221,7 +221,7 @@ export class PauseOverlay {
               console.error('[PauseOverlay] onSaveAndExit rejected:', err);
             });
         },
-        '#88ccff',
+        UI_PALETTE.info,
       );
       btnY += 40;
     }
@@ -246,11 +246,11 @@ export class PauseOverlay {
                   });
               }
             },
-            '#cc5555',
+            UI_PALETTE.bad,
             'Abandon run',
           );
         },
-        '#cc5555',
+        UI_PALETTE.bad,
       );
     }
 
@@ -331,7 +331,7 @@ export class PauseOverlay {
     this._menuButtons.push(btn);
   }
 
-  _showConfirm(message, onConfirm, confirmColor = '#cc5555', confirmLabel = 'Confirm') {
+  _showConfirm(message, onConfirm, confirmColor = UI_PALETTE.bad, confirmLabel = 'Confirm') {
     this._hideConfirm();
     const cx = this.scene.cameras.main.centerX;
     const cy = this.scene.cameras.main.centerY;
@@ -339,7 +339,7 @@ export class PauseOverlay {
     const bg = this.scene.add
       .rectangle(cx, cy, 320, 120, UI_HEX.panel, 1)
       .setDepth(850)
-      .setStrokeStyle(2, 0xcc5555)
+      .setStrokeStyle(2, UI_HEX.dangerLine)
       .setInteractive();
     this.confirmObjects.push(bg);
 

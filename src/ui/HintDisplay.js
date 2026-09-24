@@ -2,6 +2,7 @@ import { presentationText } from '../utils/presentationText.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { inputHint } from '../utils/inputHint.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 // HintDisplay — Two display functions for tutorial hints
 // Important/long hints require dismissal. Short hints allow a reading window.
 
@@ -48,7 +49,7 @@ export function showImportantHint(scene, message, { minimumMs = 0 } = {}) {
     const textObj = presentationText(scene, cx, cy - 10, message, {
       fontFamily: 'monospace',
       fontSize: '12px',
-      color: '#ffdd44',
+      color: UI_PALETTE.accentText,
       align: 'center',
       wordWrap: { width: 420 },
       lineSpacing: 4,
@@ -65,7 +66,7 @@ export function showImportantHint(scene, message, { minimumMs = 0 } = {}) {
       {
         fontFamily: 'monospace',
         fontSize: '9px',
-        color: '#888888',
+        color: UI_PALETTE.muted,
         align: 'center',
       },
     )
@@ -85,7 +86,7 @@ export function showImportantHint(scene, message, { minimumMs = 0 } = {}) {
 
     const bg = scene.add
       .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.92)
-      .setStrokeStyle(2, 0xffdd44)
+      .setStrokeStyle(2, UI_HEX.accent)
       .setDepth(DEPTH)
       .setAlpha(0);
 
@@ -191,7 +192,7 @@ function renderMinorHint(scene, message) {
     const text = presentationText(scene, cx, y, message, {
       fontFamily: 'monospace',
       fontSize: '11px',
-      color: '#ffdd44',
+      color: UI_PALETTE.accentText,
       align: 'center',
       backgroundColor: '#000000cc',
       padding: { x: 12, y: 6 },

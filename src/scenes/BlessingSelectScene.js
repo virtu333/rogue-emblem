@@ -353,7 +353,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         this.add.text(right, cardCY, isSelected ? '\u25b6 Selected' : '[Select]', {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: isSelected ? UI_PALETTE.accent : '#cbffd5',
+          color: isSelected ? UI_PALETTE.accent : UI_PALETTE.good,
           backgroundColor: isSelected ? '#2f5d39' : '#21442a',
           padding: { x: 8, y: 4 },
         }),
@@ -367,7 +367,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       });
       pickBtn.on('pointerout', () => {
         if (i !== this.selectedIndex) {
-          pickBtn.setColor('#cbffd5');
+          pickBtn.setColor(UI_PALETTE.good);
           card.setStrokeStyle(1, tierStyle.border);
         }
       });
@@ -386,7 +386,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         {
           fontFamily: 'Arial',
           fontSize: '12px',
-          color: isSkipSelected ? UI_PALETTE.accent : '#d7dbe8',
+          color: isSkipSelected ? UI_PALETTE.accent : UI_PALETTE.text,
           backgroundColor: isSkipSelected ? '#3a4053' : '#2a2f3f',
           padding: { x: 10, y: 4 },
         },
@@ -396,7 +396,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     skipBtn.on('pointerover', () => skipBtn.setColor(UI_PALETTE.accent));
     skipBtn.on('pointerout', () => {
-      if (!isSkipSelected) skipBtn.setColor('#d7dbe8');
+      if (!isSkipSelected) skipBtn.setColor(UI_PALETTE.text);
     });
     skipBtn.on('pointerdown', () => this._select(this.options.length));
 
@@ -406,7 +406,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       this.add.text(cx - 80, bottomY, '[ Confirm ]', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#88ff88',
+        color: UI_PALETTE.good,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
       }),
@@ -414,7 +414,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
-    confirmBtn.on('pointerout', () => confirmBtn.setColor('#88ff88'));
+    confirmBtn.on('pointerout', () => confirmBtn.setColor(UI_PALETTE.good));
     confirmBtn.on('pointerdown', () => this._confirm());
 
     const backBtn = applyTextResolution(

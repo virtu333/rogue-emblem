@@ -27,6 +27,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -48,7 +49,7 @@ export class PostCombatController {
       .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'VICTORY!', {
         fontFamily: 'monospace',
         fontSize: '28px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accentText,
         backgroundColor: '#000000dd',
         padding: { x: 24, y: 12 },
       })
@@ -104,7 +105,7 @@ export class PostCombatController {
       const hadCaravan = scene._caravanController?.hadCaravan() === true;
       const caravanSurvived = hadCaravan ? scene._caravanController.caravanSurvived() : false;
       if (hadCaravan && !caravanSurvived) {
-        scene.showBriefBanner?.('Caravan destroyed.', '#ff8888')?.catch?.(() => {});
+        scene.showBriefBanner?.('Caravan destroyed.', UI_PALETTE.bad)?.catch?.(() => {});
       }
       const completionApplied = scene.runManager.completeBattle(
         allUnits,
@@ -158,7 +159,10 @@ export class PostCombatController {
                   scene._victoryBanner.destroy();
                   scene._victoryBanner = null;
                 }
-                scene.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+                scene.showLootStatus?.(
+                  'Transition failed. Refresh and continue run.',
+                  UI_PALETTE.bad,
+                );
               }
             }
           } catch (err) {
@@ -167,7 +171,7 @@ export class PostCombatController {
               scene._victoryBanner.destroy();
               scene._victoryBanner = null;
             }
-            scene.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+            scene.showLootStatus?.('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
           }
           return;
         }
@@ -361,7 +365,7 @@ export class PostCombatController {
         if (isRunComplete) {
           scene.showVictoryTransitionRecovery();
         } else {
-          scene.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+          scene.showLootStatus('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
         }
       }
     } catch (err) {
@@ -369,7 +373,7 @@ export class PostCombatController {
       if (scene.runManager?.isRunComplete?.()) {
         scene.showVictoryTransitionRecovery();
       } else {
-        scene.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+        scene.showLootStatus('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
       }
     }
   }
@@ -534,7 +538,7 @@ export class PostCombatController {
       .text(cam.centerX, 40, lines.join('\n'), {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#ffdd66',
+        color: UI_PALETTE.accentText,
         align: 'center',
         backgroundColor: '#000000cc',
         padding: { x: 10, y: 6 },
@@ -553,7 +557,7 @@ export class PostCombatController {
     });
   }
 
-  showLootStatus(message, color = '#ff8888') {
+  showLootStatus(message, color = UI_PALETTE.bad) {
     const scene = this.scene;
     const cam = scene.cameras.main;
     const status = scene.add
@@ -575,7 +579,7 @@ export class PostCombatController {
   reportLootError(context, err, extra = {}) {
     const scene = this.scene;
     console.error('[BattleScene][LootFlow]', context, extra, err);
-    scene.showLootStatus('Loot error. Check console log.', '#ff8888');
+    scene.showLootStatus('Loot error. Check console log.', UI_PALETTE.bad);
   }
 
   onDefeat() {
@@ -622,7 +626,7 @@ export class PostCombatController {
       .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'DEFEAT', {
         fontFamily: 'monospace',
         fontSize: '28px',
-        color: '#cc3333',
+        color: UI_PALETTE.bad,
         backgroundColor: '#000000dd',
         padding: { x: 24, y: 12 },
       })

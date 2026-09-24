@@ -30,6 +30,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 export const serializeSuspendUnit = serializeBattleUnit;
 
@@ -228,16 +229,21 @@ export class BattleSuspendController {
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
       const rating = getRating(scene.turnManager.turnNumber, scene.turnPar, scene.turnBonusConfig);
-      const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
+      const colors = {
+        S: UI_PALETTE.good,
+        A: UI_PALETTE.info,
+        B: UI_PALETTE.warn,
+        C: UI_PALETTE.bad,
+      };
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(
         `Turn: ${scene.turnManager.turnNumber} / Par: ${scene.turnPar} (${rating.rating})${pressureSuffix}`,
       );
-      scene.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
+      scene.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
     } else if (scene.turnCounterText) {
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(`Turn: ${scene.turnManager.turnNumber}${pressureSuffix}`);
-      scene.turnCounterText.setColor('#e0e0e0');
+      scene.turnCounterText.setColor(UI_PALETTE.text);
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();

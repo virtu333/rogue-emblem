@@ -709,7 +709,7 @@ describe('BattleScene.updateObjectiveText escape label', () => {
     BattleScene.prototype.updateObjectiveText.call(ctx);
 
     expect(ctx.objectiveText.setText).toHaveBeenCalledWith('Escape: label');
-    expect(ctx.objectiveText.setColor).toHaveBeenCalledWith('#a6ffb0');
+    expect(ctx.objectiveText.setColor).toHaveBeenCalledWith('#95c487');
   });
 });
 

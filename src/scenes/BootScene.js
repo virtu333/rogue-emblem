@@ -558,7 +558,7 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 306, 'No download progress for 30 seconds. You can keep waiting.', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#ffcc88',
+        color: UI_PALETTE.warn,
         align: 'center',
       }),
     )
@@ -584,8 +584,8 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 356, '[ Reload Safe Mode ]', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#ffd580',
-        backgroundColor: '#443322',
+        color: UI_PALETTE.accentText,
+        backgroundColor: UI_PALETTE.selected,
         padding: { x: 10, y: 4 },
       }),
     )
@@ -613,7 +613,7 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 206, 'Failed to load game data.', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff4444',
+        color: UI_PALETTE.bad,
         align: 'center',
       }),
     ).setOrigin(0.5);
@@ -655,8 +655,8 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 336, '[ Reload Safe Mode ]', {
         fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#ffd580',
-        backgroundColor: '#443322',
+        color: UI_PALETTE.accentText,
+        backgroundColor: UI_PALETTE.selected,
         padding: { x: 12, y: 6 },
       }),
     )
@@ -689,7 +689,7 @@ export class BootScene extends Phaser.Scene {
           {
             fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#ffb347',
+            color: UI_PALETTE.warn,
             align: 'center',
           },
         ),

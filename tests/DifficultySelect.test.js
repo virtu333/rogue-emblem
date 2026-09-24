@@ -34,7 +34,7 @@ function buildModes(gd, meta) {
   return DIFFICULTY_IDS.map((id) => {
     const mode = config[id] || {};
     const label = mode.label || id.charAt(0).toUpperCase() + id.slice(1);
-    const color = mode.color || '#aaaaaa';
+    const color = mode.color || '#a89d9f';
     const summary = generateModifierSummary(mode);
     let locked = false;
     let lockReason = null;

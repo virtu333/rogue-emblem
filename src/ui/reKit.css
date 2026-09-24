@@ -147,7 +147,7 @@
 .re-btn--primary {
   background: var(--re-accent);
   border-color: var(--re-gold);
-  color: var(--re-accent-text);
+  color: var(--re-action-ink);
 }
 .re-btn--danger {
   background: var(--re-danger-bg);

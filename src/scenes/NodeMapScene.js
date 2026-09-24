@@ -2,8 +2,7 @@ import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { getHPBarColor } from '../utils/uiStyles.js';
-import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { getHPBarColor, UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
@@ -68,15 +67,15 @@ const ROSTER_Y = SAFE_BOTTOM_Y;
 const NODE_SIZE = 24;
 
 // Colors
-const COLOR_BATTLE = 0xcc6633;
-const COLOR_BOSS = 0xcc3333;
-const COLOR_SHOP = 0xddaa33;
-const COLOR_RUINS = 0x9c8b6b;
-const COLOR_RECRUIT = 0x44ccaa;
-const COLOR_CHURCH = 0xcccccc; // Light gray
+const COLOR_BATTLE = UI_HEX.dangerLine;
+const COLOR_BOSS = UI_HEX.dangerLine;
+const COLOR_SHOP = UI_HEX.accent;
+const COLOR_RUINS = UI_HEX.lineStrong;
+const COLOR_RECRUIT = UI_HEX.hpHigh;
+const COLOR_CHURCH = UI_HEX.lineStrong; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
-const COLOR_COMPLETED = 0x555555;
+const COLOR_COMPLETED = UI_HEX.line;
 const COLOR_AVAILABLE = UI_HEX.accent;
 const COLOR_EDGE = UI_HEX.lineStrong;
 const COLOR_EDGE_ACTIVE = UI_HEX.accent;
@@ -606,7 +605,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.add.text(cx, cy, 'The village is under attack!', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff6666',
+        color: UI_PALETTE.bad,
         backgroundColor: '#00000000',
       }),
     )
@@ -1088,7 +1087,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.add.text(infoX, infoY, 'NO META', {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#ff8800',
+          color: UI_PALETTE.warn,
         }),
       ).setOrigin(1, 0);
       infoY += 11;
@@ -1100,7 +1099,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.add.text(infoX, infoY, `Streak: ${rm.winStreak}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#88ccff',
+          color: UI_PALETTE.info,
         }),
       ).setOrigin(1, 0);
     }
@@ -1240,7 +1239,7 @@ export class NodeMapScene extends Phaser.Scene {
           )
           .setDisplaySize(NODE_SIZE + 18, NODE_SIZE + 18)
           .setDepth(NODE_DEPTH);
-        if (isCompleted) nodeObj.setTint(0x555555);
+        if (isCompleted) nodeObj.setTint(UI_HEX.line);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.85);
       } else {
         nodeObj = this.add
@@ -1716,7 +1715,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (this.input) this.input.enabled = true;
       if (audio)
         void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.showTransientMessage('Failed to enter battle. Please try again.', '#ff6666');
+      this.showTransientMessage('Failed to enter battle. Please try again.', UI_PALETTE.bad);
     }
   }
 
@@ -1756,7 +1755,7 @@ export class NodeMapScene extends Phaser.Scene {
         if (catchAudio) {
           void catchAudio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
         }
-        this.showTransientMessage?.('Failed to open Colosseum. Please try again.', '#ff6666');
+        this.showTransientMessage?.('Failed to open Colosseum. Please try again.', UI_PALETTE.bad);
       });
   }
 
@@ -1809,7 +1808,7 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).showChurchMessage(text, color);
   }
 
-  showTransientMessage(text, color = '#ff6666') {
+  showTransientMessage(text, color = UI_PALETTE.bad) {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
@@ -1913,7 +1912,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (!Array.isArray(lines) || lines.length === 0) return;
       const line =
         this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
-      this.showShopBanner(line, '#aabbcc');
+      this.showShopBanner(line, UI_PALETTE.muted);
     } catch (_) {
       /* best-effort flavor */
     }

@@ -11,3 +11,6 @@
 @import './shopMenu.css';
 
 @import './runFlow.css';
+
+/* Reliquary detail layer last: decorates every kit surface (visual-only). */
+@import './reliquary.css';

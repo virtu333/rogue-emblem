@@ -16,6 +16,7 @@ import {
 } from '../engine/UnitManager.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { captureResolvedAction } from './BattlePresentationCheckpoint.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 const sceneEnded = (scene) => scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false;
 
@@ -28,7 +29,7 @@ export class PromotionController {
     const scene = this.scene;
     const seal = promotionItem || scene.getPromotionConsumable(unit);
     if (!seal) {
-      await scene.showBriefBanner('Master Seal required to promote.', '#ff8888');
+      await scene.showBriefBanner('Master Seal required to promote.', UI_PALETTE.bad);
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -81,7 +82,10 @@ export class PromotionController {
     const lordData = scene.gameData.lords.find((l) => l.name === unit.name);
     const targets = resolvePromotionTargets(unit, scene.gameData.classes, scene.gameData.lords);
     if (!targets?.length) {
-      await scene.showBriefBanner('Promotion to that class is currently unavailable.', '#ff8888');
+      await scene.showBriefBanner(
+        'Promotion to that class is currently unavailable.',
+        UI_PALETTE.bad,
+      );
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -118,7 +122,7 @@ export class PromotionController {
     }
 
     if (!promotionBonuses) {
-      await scene.showBriefBanner('Promotion data missing for this unit.', '#ff8888');
+      await scene.showBriefBanner('Promotion data missing for this unit.', UI_PALETTE.bad);
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
@@ -210,7 +214,7 @@ export class PromotionController {
       promotionResult?.droppedSkills,
       scene.gameData.skills,
     );
-    if (droppedNotice) await scene.showBriefBanner(droppedNotice, '#ff8888');
+    if (droppedNotice) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
     if (sceneEnded(scene)) return true;
 
     scene.finishUnitAction(unit);
@@ -227,7 +231,7 @@ export class PromotionController {
         {
           fontFamily: 'monospace',
           fontSize: '16px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           backgroundColor: '#000000cc',
           padding: { x: 16, y: 8 },
         },

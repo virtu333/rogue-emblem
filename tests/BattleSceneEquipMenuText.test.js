@@ -581,7 +581,7 @@ describe('BattleScene equip menu text', () => {
     );
     expect(noProfCall).toBeTruthy();
     expect(noProfCall[2]).toContain('(no prof)');
-    expect(noProfCall[3].color).toBe('#888888');
+    expect(noProfCall[3].color).toBe('#a89d9f');
   });
 
   it('non-proficient row click does not equip or change weapon', () => {

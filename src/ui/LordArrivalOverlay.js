@@ -8,7 +8,7 @@ import { inputHint } from '../utils/inputHint.js';
  */
 import { generateThirdLordCandidates } from '../engine/BossRecruitSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
-import { applyTextResolution } from '../utils/uiStyles.js';
+import { applyTextResolution, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -106,8 +106,8 @@ export class LordArrivalOverlay {
     const u = candidate.unit;
 
     const card = scene.add
-      .rectangle(cx, cardY, cardW, cardH, 0x443322, 1)
-      .setStrokeStyle(2, 0xffdd44)
+      .rectangle(cx, cardY, cardW, cardH, UI_HEX.selected, 1)
+      .setStrokeStyle(2, UI_HEX.accent)
       .setDepth(701);
     group.push(card);
 
@@ -117,7 +117,7 @@ export class LordArrivalOverlay {
     const btnY = cardY + cardH / 2 + 30;
     const btn = scene.add
       .rectangle(cx, btnY, 120, 32, 0x445522, 1)
-      .setStrokeStyle(2, 0xaadd44)
+      .setStrokeStyle(2, UI_HEX.hpHigh)
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
     group.push(btn);
@@ -127,7 +127,7 @@ export class LordArrivalOverlay {
         .text(cx, btnY, 'WELCOME', {
           fontFamily: 'monospace',
           fontSize: '13px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -141,7 +141,7 @@ export class LordArrivalOverlay {
       resolve(u);
     });
     btn.on('pointerover', () => btn.setStrokeStyle(3, 0xffffff));
-    btn.on('pointerout', () => btn.setStrokeStyle(2, 0xaadd44));
+    btn.on('pointerout', () => btn.setStrokeStyle(2, UI_HEX.hpHigh));
 
     // Footer
     const inst = applyTextResolution(
@@ -149,7 +149,7 @@ export class LordArrivalOverlay {
         .text(cam.centerX, btnY + 30, 'The power of friendship prevails', {
           fontFamily: 'monospace',
           fontSize: '10px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(701),
@@ -188,8 +188,8 @@ export class LordArrivalOverlay {
       const u = c.unit;
 
       const card = scene.add
-        .rectangle(cx, cardY, cardW, cardH, 0x443322, 1)
-        .setStrokeStyle(2, 0xffdd44)
+        .rectangle(cx, cardY, cardW, cardH, UI_HEX.selected, 1)
+        .setStrokeStyle(2, UI_HEX.accent)
         .setDepth(701)
         .setInteractive({ useHandCursor: true });
       group.push(card);
@@ -216,7 +216,7 @@ export class LordArrivalOverlay {
         selectLord();
       });
       card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
-      card.on('pointerout', () => card.setStrokeStyle(2, 0xffdd44));
+      card.on('pointerout', () => card.setStrokeStyle(2, UI_HEX.accent));
 
       // Wire class tooltips directly on this card's text objects
       this._wireLordCardTooltip(nameObj, descText, selectLord);
@@ -229,7 +229,7 @@ export class LordArrivalOverlay {
         .text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a lord to join your roster', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(701),
@@ -245,7 +245,7 @@ export class LordArrivalOverlay {
           {
             fontFamily: 'monospace',
             fontSize: '9px',
-            color: '#666666',
+            color: UI_PALETTE.lineStrong,
           },
         )
         .setOrigin(0.5)
@@ -263,7 +263,7 @@ export class LordArrivalOverlay {
         .text(cam.centerX, 28, 'LORD ARRIVAL', {
           fontFamily: 'monospace',
           fontSize: '20px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -276,7 +276,7 @@ export class LordArrivalOverlay {
         .text(cam.centerX, 54, 'The power of friendship prevails', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#aaaaaa',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(701),
@@ -295,7 +295,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, '[LORD]', {
           fontFamily: 'monospace',
           fontSize: '9px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -310,7 +310,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, u.name, {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#ffffff',
+          color: UI_PALETTE.text,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -325,7 +325,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, u.className, {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#aaaaaa',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(702),
@@ -353,7 +353,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, '-----------------', {
           fontFamily: 'monospace',
           fontSize: '8px',
-          color: '#555555',
+          color: UI_PALETTE.lineStrong,
         })
         .setOrigin(0.5)
         .setDepth(702),
@@ -378,7 +378,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
           fontFamily: 'monospace',
           fontSize: statFont,
-          color: '#cccccc',
+          color: UI_PALETTE.text,
         })
         .setOrigin(0.5)
         .setDepth(702),
@@ -391,7 +391,7 @@ export class LordArrivalOverlay {
         .text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
           fontFamily: 'monospace',
           fontSize: statFont,
-          color: '#88bbff',
+          color: UI_PALETTE.info,
         })
         .setOrigin(0.5)
         .setDepth(702),
@@ -419,7 +419,7 @@ export class LordArrivalOverlay {
           .text(cx, yOff, `Wpn: ${profPreview}`, {
             fontFamily: 'monospace',
             fontSize: '9px',
-            color: '#aaaaaa',
+            color: UI_PALETTE.muted,
             wordWrap: { width: profWrapW },
             align: 'center',
           })
@@ -440,7 +440,7 @@ export class LordArrivalOverlay {
           .text(cx, yOff, `Skill: ${notableSkill}`, {
             fontFamily: 'monospace',
             fontSize: '9px',
-            color: '#ffdd44',
+            color: UI_PALETTE.accentText,
             wordWrap: { width: profWrapW },
             align: 'center',
           })
@@ -463,7 +463,7 @@ export class LordArrivalOverlay {
     const btnY = cardY + 110 + 24 + 20;
     const btn = scene.add
       .rectangle(cam.centerX, btnY, 130, 28, 0x553322, 1)
-      .setStrokeStyle(2, 0xddaa44)
+      .setStrokeStyle(2, UI_HEX.accent)
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
     group.push(btn);
@@ -473,7 +473,7 @@ export class LordArrivalOverlay {
         .text(cam.centerX, btnY, 'REROLL', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -487,7 +487,7 @@ export class LordArrivalOverlay {
       this._handleReroll(onComplete);
     });
     btn.on('pointerover', () => btn.setStrokeStyle(3, 0xffffff));
-    btn.on('pointerout', () => btn.setStrokeStyle(2, 0xddaa44));
+    btn.on('pointerout', () => btn.setStrokeStyle(2, UI_HEX.accent));
   }
 
   _handleReroll(onComplete) {
@@ -513,14 +513,14 @@ export class LordArrivalOverlay {
       .text(0, 0, body, {
         fontFamily: 'monospace',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         wordWrap: { width: maxWidth - padding * 2 },
       })
       .setDepth(tooltipDepth);
     const bgRect = scene.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, UI_HEX.panel, 0.95)
       .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
+      .setStrokeStyle(1, UI_HEX.line)
       .setDepth(tooltipDepth);
     const box = scene.add.container(0, 0, [bgRect, txt]).setDepth(tooltipDepth);
     txt.setPosition(padding, padding);

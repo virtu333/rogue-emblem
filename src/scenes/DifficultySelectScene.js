@@ -263,7 +263,7 @@ export class DifficultySelectScene extends Phaser.Scene {
       const isSelected = i === this.selectedIndex;
 
       // Card background
-      const borderColor = isSelected ? UI_HEX.accent : mode.locked ? UI_HEX.line : 0x666666;
+      const borderColor = isSelected ? UI_HEX.accent : mode.locked ? UI_HEX.line : UI_HEX.line;
       const bgColor = isSelected ? UI_HEX.panel : UI_HEX.panel;
       const card = this.add
         .rectangle(mx, cardTopY + cardH / 2, cardW, cardH, bgColor)
@@ -294,7 +294,7 @@ export class DifficultySelectScene extends Phaser.Scene {
           this.add.text(mx, cardTopY + 50, mode.lockReason, {
             fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#aa4444',
+            color: UI_PALETTE.bad,
             wordWrap: { width: cardW - 20 },
           }),
         ).setOrigin(0.5, 0);
@@ -419,7 +419,7 @@ export class DifficultySelectScene extends Phaser.Scene {
       this.add.text(cx - 80, btnY, '[ Confirm ]', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: canConfirm ? '#88ff88' : '#555555',
+        color: canConfirm ? UI_PALETTE.good : UI_PALETTE.lineStrong,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
       }),
@@ -429,7 +429,7 @@ export class DifficultySelectScene extends Phaser.Scene {
 
     if (canConfirm) {
       confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
-      confirmBtn.on('pointerout', () => confirmBtn.setColor('#88ff88'));
+      confirmBtn.on('pointerout', () => confirmBtn.setColor(UI_PALETTE.good));
       confirmBtn.on('pointerdown', () => this._confirm());
     }
 
@@ -451,7 +451,7 @@ export class DifficultySelectScene extends Phaser.Scene {
 
     // Meta upgrades toggle
     const metaLabel = this._noMetaUpgrades ? 'Meta Upgrades: OFF' : 'Meta Upgrades: ON';
-    const metaColor = this._noMetaUpgrades ? '#ff8800' : '#88cc88';
+    const metaColor = this._noMetaUpgrades ? UI_PALETTE.warn : '#88cc88';
     const metaToggle = applyTextResolution(
       this.add.text(cx, btnY + 36, metaLabel, {
         fontFamily: 'Arial',
@@ -480,7 +480,7 @@ export class DifficultySelectScene extends Phaser.Scene {
         this.add.text(cx, btnY + 56, `Commander: ${cmdDef?.name} · Partner: ${partnerDef?.name}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#88bbff',
+          color: UI_PALETTE.info,
         }),
       ).setOrigin(0.5);
     }

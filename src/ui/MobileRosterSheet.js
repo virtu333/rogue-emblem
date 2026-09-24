@@ -50,7 +50,7 @@ import {
 } from '../engine/UnitManager.js';
 import { unitPortrait } from './unitPortrait.js';
 import { createHealthBar } from './healthBar.js';
-import { STAT_COLORS } from '../utils/uiStyles.js';
+import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   rosterItemAction,
@@ -315,7 +315,7 @@ export class MobileRosterSheet {
     const grid = el('dl', null, 'mr-stats');
     for (const [key, value] of Object.entries(unit.stats || {})) {
       const valueText = el('dd', String(value));
-      valueText.style.color = STAT_COLORS[key] || '#e0e0e0';
+      valueText.style.color = STAT_COLORS[key] || UI_PALETTE.text;
       grid.append(
         el(
           'dt',

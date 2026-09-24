@@ -134,7 +134,7 @@ describe('BattleScene mobile camera UI pinning', () => {
 
   it('pins brief banner to screen camera', async () => {
     const { scene, banner } = makeBannerScene();
-    await BattleScene.prototype.showBriefBanner.call(scene, 'Ready!', '#ffdd44');
+    await BattleScene.prototype.showBriefBanner.call(scene, 'Ready!', '#f3cb6c');
     expect(scene._pinToScreen).toHaveBeenCalledWith(banner);
   });
 

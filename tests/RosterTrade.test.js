@@ -200,7 +200,7 @@ describe('Roster trade weapon gating', () => {
 
     const row = scene.created.texts.find((obj) => obj.text === 'Iron Sword');
     expect(row).toBeTruthy();
-    expect(row.style?.color).toBe('#666666');
+    expect(row.style?.color).toBe('#8a7f86');
     expect(unitA.inventory).toHaveLength(1);
     expect(unitB.inventory).toHaveLength(INVENTORY_MAX);
   });

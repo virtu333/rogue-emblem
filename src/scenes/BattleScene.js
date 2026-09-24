@@ -168,7 +168,13 @@ import {
   ENTITY_PRIMARY_ATTACK_RANGE,
   ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
-import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
+import {
+  getHPBarColor,
+  applyTextResolution,
+  TEXT_RESOLUTION,
+  UI_PALETTE,
+  UI_HEX,
+} from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import {
   computeAcidDamage,
@@ -1665,7 +1671,7 @@ export class BattleScene extends Phaser.Scene {
           .text(tp.x, tp.y - 10, 'SEIZE', {
             fontFamily: 'monospace',
             fontSize: '8px',
-            color: '#ffdd44',
+            color: UI_PALETTE.accentText,
             fontStyle: 'bold',
           })
           .setOrigin(0.5)
@@ -1754,7 +1760,7 @@ export class BattleScene extends Phaser.Scene {
         .text(8, 8, '', {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
           backgroundColor: '#000000aa',
           padding: { x: 4, y: 2 },
         })
@@ -1765,7 +1771,7 @@ export class BattleScene extends Phaser.Scene {
         .text(this.cameras.main.width - 8, 8, '', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           backgroundColor: '#000000aa',
           padding: { x: 4, y: 2 },
         })
@@ -1778,7 +1784,7 @@ export class BattleScene extends Phaser.Scene {
         .text(8, 28, '', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
           backgroundColor: '#000000aa',
           padding: { x: 4, y: 2 },
         })
@@ -1791,7 +1797,7 @@ export class BattleScene extends Phaser.Scene {
         .text(8, 0, '', {
           fontFamily: 'monospace',
           fontSize: '10px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
           backgroundColor: '#000000cc',
           padding: { x: 4, y: 2 },
         })
@@ -1819,15 +1825,15 @@ export class BattleScene extends Phaser.Scene {
       const hh = this.cameras.main.height;
       const commandRowY = hh - 58;
       const helpRowY = hh - 40;
-      const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0' };
+      const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: UI_PALETTE.text };
       const makeButton = (x, label, handler) => {
         const btn = this.add
           .text(x, commandRowY, label, btnStyle)
           .setOrigin(0.5)
           .setDepth(101)
           .setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+        btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
+        btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
         btn.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
           this._uiClickBlocked = true;
@@ -1853,7 +1859,7 @@ export class BattleScene extends Phaser.Scene {
           this.isMobileInput
             ? 'Vision: rewind  |  Inspect: unit details  |  Cancel: go back'
             : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
-          { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' },
+          { fontFamily: 'monospace', fontSize: '11px', color: UI_PALETTE.info },
         )
         .setOrigin(0.5)
         .setDepth(100);
@@ -2006,7 +2012,7 @@ export class BattleScene extends Phaser.Scene {
           .text(npcPixel.x, npcPixel.y, '?', {
             fontFamily: 'monospace',
             fontSize: '16px',
-            color: '#ffdd44',
+            color: UI_PALETTE.accentText,
             fontStyle: 'bold',
           })
           .setOrigin(0.5)
@@ -2028,7 +2034,7 @@ export class BattleScene extends Phaser.Scene {
           .text(8, this.cameras.main.height - 72, 'FOG OF WAR', {
             fontFamily: 'monospace',
             fontSize: '10px',
-            color: '#ffaa44',
+            color: UI_PALETTE.warn,
             backgroundColor: '#000000aa',
             padding: { x: 4, y: 2 },
           })
@@ -2049,7 +2055,7 @@ export class BattleScene extends Phaser.Scene {
         .text(8, 48, '', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#9ed8ff',
+          color: UI_PALETTE.info,
           backgroundColor: '#000000aa',
           padding: { x: 4, y: 2 },
         })
@@ -2122,7 +2128,7 @@ export class BattleScene extends Phaser.Scene {
         .text(cam.centerX, cam.centerY, `Battle failed to load (${reason}). Returning to map...`, {
           fontFamily: 'monospace',
           fontSize: '14px',
-          color: '#ff4444',
+          color: UI_PALETTE.bad,
           backgroundColor: '#000000',
           padding: { x: 10, y: 6 },
         })
@@ -3157,7 +3163,7 @@ export class BattleScene extends Phaser.Scene {
           .text(cPos.x, cPos.y, 'E', {
             fontFamily: 'monospace',
             fontSize: '24px',
-            color: '#cc88ff',
+            color: UI_PALETTE.rarityEpic,
           })
           .setOrigin(0.5)
           .setDepth(11);
@@ -3176,7 +3182,7 @@ export class BattleScene extends Phaser.Scene {
           .rectangle(cPos.x, barY, barWidth, barHeight, dimColor(color, 0.3))
           .setDepth(12),
         fill: this.add
-          .rectangle(cPos.x, barY, barWidth, barHeight, 0xcc4444)
+          .rectangle(cPos.x, barY, barWidth, barHeight, UI_HEX.dangerLine)
           .setOrigin(0.5)
           .setDepth(13),
       };
@@ -3221,7 +3227,7 @@ export class BattleScene extends Phaser.Scene {
         .text(pos.x, pos.y, unit.name[0], {
           fontFamily: 'monospace',
           fontSize: '14px',
-          color: '#ffffff',
+          color: UI_PALETTE.text,
         })
         .setOrigin(0.5)
         .setDepth(11);
@@ -3248,7 +3254,7 @@ export class BattleScene extends Phaser.Scene {
           barY,
           barWidth,
           barHeight,
-          unit.faction === 'enemy' ? 0xcc4444 : 0x44cc44,
+          unit.faction === 'enemy' ? UI_HEX.dangerLine : UI_HEX.hpHigh,
         )
         .setOrigin(0.5)
         .setDepth(13),
@@ -3277,7 +3283,7 @@ export class BattleScene extends Phaser.Scene {
     for (const affixId of unit.affixes) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === affixId);
       const tier = affix?.tier || 1;
-      const color = tier === 2 ? 0xff4444 : 0xffdd44;
+      const color = tier === 2 ? UI_HEX.dangerLine : UI_HEX.accent;
       const pip = this.add
         .rectangle(startX, pipY, pipSize, pipSize, color)
         .setStrokeStyle(1, 0x000000)
@@ -3358,7 +3364,7 @@ export class BattleScene extends Phaser.Scene {
 
   dimUnit(unit) {
     if (unit.graphic && unit.graphic.setTint) {
-      unit.graphic.setTint(battleContrastEnabled() ? 0xb8b8b8 : 0x888888);
+      unit.graphic.setTint(battleContrastEnabled() ? 0xb8b8b8 : UI_HEX.lineStrong);
     }
     if (unit.label) unit.label.setAlpha(0.5);
     if (unit.factionIndicator) unit.factionIndicator.setAlpha(battleContrastEnabled() ? 0.7 : 0.5);
@@ -4077,7 +4083,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectButton.setVisible(enabled);
       this.inspectButton.setText(this.inspectMode ? '[Inspect: ON]' : '[Inspect: OFF]');
       if (enabled) {
-        this.inspectButton.setColor(this.inspectMode ? '#ffdd44' : '#e0e0e0');
+        this.inspectButton.setColor(this.inspectMode ? UI_PALETTE.accentText : UI_PALETTE.text);
         this.inspectButton.setInteractive({ useHandCursor: true });
       } else {
         this.inspectButton.disableInteractive();
@@ -4088,7 +4094,7 @@ export class BattleScene extends Phaser.Scene {
       const enabled = this.canForceEndTurn();
       this.endTurnButton.setVisible(enabled);
       if (enabled) {
-        this.endTurnButton.setColor('#e0e0e0');
+        this.endTurnButton.setColor(UI_PALETTE.text);
         this.endTurnButton.setInteractive({ useHandCursor: true });
       } else {
         this.endTurnButton.disableInteractive();
@@ -4099,7 +4105,7 @@ export class BattleScene extends Phaser.Scene {
       const canCancel = this.canRequestCancel({ allowPause: false });
       this.cancelButton.setVisible(canCancel);
       if (canCancel) {
-        this.cancelButton.setColor('#e0e0e0');
+        this.cancelButton.setColor(UI_PALETTE.text);
         this.cancelButton.setInteractive({ useHandCursor: true });
       } else {
         this.cancelButton.disableInteractive();
@@ -5198,7 +5204,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_BREAK_TARGET';
     this.breakTargets = this.findBreakTargets(unit);
     const tiles = this.breakTargets.map((t) => ({ col: t.col, row: t.row }));
-    this.grid.showAttackRange(tiles, 0xffaa44, 0.45);
+    this.grid.showAttackRange(tiles, UI_HEX.warn, 0.45);
   }
 
   handleBreakTargetClick(gp) {
@@ -5222,7 +5228,7 @@ export class BattleScene extends Phaser.Scene {
         `column ${target.col + 1}, row ${target.row + 1}`,
       );
       const pos = this.grid.gridToPixel(target.col, target.row);
-      this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
+      this.showMinorHintAt(pos.x, pos.y, 'Break!', UI_PALETTE.accentText);
     }
     this.finishUnitAction(unit, { skipCanto: true });
   }
@@ -5232,7 +5238,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_TRADE_TARGET';
     this.tradeTargets = this.findTradeTargets(unit);
     const tiles = this.tradeTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
-    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+    this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
   executeTrade(unit, target) {
@@ -5262,7 +5268,7 @@ export class BattleScene extends Phaser.Scene {
       .text(cam.centerX, 30, 'TRADE ITEMS', {
         fontFamily: 'monospace',
         fontSize: '16px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accentText,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -5274,7 +5280,7 @@ export class BattleScene extends Phaser.Scene {
       .text(160, 60, unitA.name, {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
       })
       .setOrigin(0.5)
       .setDepth(401);
@@ -5282,7 +5288,7 @@ export class BattleScene extends Phaser.Scene {
       .text(480, 60, unitB.name, {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
       })
       .setOrigin(0.5)
       .setDepth(401);
@@ -5291,7 +5297,7 @@ export class BattleScene extends Phaser.Scene {
         160,
         76,
         `Inventory ${(unitA.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitA.consumables || []).length}/${CONSUMABLE_MAX}`,
-        { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' },
+        { fontFamily: 'monospace', fontSize: '10px', color: UI_PALETTE.muted },
       )
       .setOrigin(0.5)
       .setDepth(401);
@@ -5300,7 +5306,7 @@ export class BattleScene extends Phaser.Scene {
         480,
         76,
         `Inventory ${(unitB.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitB.consumables || []).length}/${CONSUMABLE_MAX}`,
-        { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' },
+        { fontFamily: 'monospace', fontSize: '10px', color: UI_PALETTE.muted },
       )
       .setOrigin(0.5)
       .setDepth(401);
@@ -5317,13 +5323,17 @@ export class BattleScene extends Phaser.Scene {
         const hasCapacity = (otherUnit.inventory?.length || 0) < INVENTORY_MAX;
         const noProf = !hasProficiency(otherUnit, item);
         const suffix = noProf ? ` (${otherUnit.name} cannot equip)` : '';
-        const color = hasCapacity ? (noProf ? '#cc8844' : '#e0e0e0') : '#666666';
+        const color = hasCapacity
+          ? noProf
+            ? UI_PALETTE.warn
+            : UI_PALETTE.text
+          : UI_PALETTE.lineStrong;
         const btn = this.add
           .text(x, yOffset + i * 20, item.name + suffix, {
             fontFamily: 'monospace',
             fontSize: '11px',
             color,
-            backgroundColor: '#222222',
+            backgroundColor: UI_PALETTE.panel,
             padding: { x: 6, y: 2 },
           })
           .setOrigin(0.5)
@@ -5331,7 +5341,7 @@ export class BattleScene extends Phaser.Scene {
 
         if (hasCapacity) {
           btn.setInteractive({ useHandCursor: true });
-          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
@@ -5358,14 +5368,14 @@ export class BattleScene extends Phaser.Scene {
       const consumableOffset = inventory.length * 20;
       consumables.forEach((item, i) => {
         const hasCapacity = (otherUnit.consumables?.length || 0) < CONSUMABLE_MAX;
-        const color = hasCapacity ? '#88ccff' : '#666666';
+        const color = hasCapacity ? UI_PALETTE.info : UI_PALETTE.lineStrong;
         const suffix = hasCapacity ? '' : ' (consumables full)';
         const btn = this.add
           .text(x, yOffset + consumableOffset + i * 20, `${item.name}${suffix}`, {
             fontFamily: 'monospace',
             fontSize: '11px',
             color,
-            backgroundColor: '#222222',
+            backgroundColor: UI_PALETTE.panel,
             padding: { x: 6, y: 2 },
           })
           .setOrigin(0.5)
@@ -5373,7 +5383,7 @@ export class BattleScene extends Phaser.Scene {
 
         if (hasCapacity) {
           btn.setInteractive({ useHandCursor: true });
-          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
           btn.on('pointerout', () => btn.setColor(color));
           btn.on('pointerdown', (pointer) => {
             if (pointer?.button !== 0) return;
@@ -5405,15 +5415,15 @@ export class BattleScene extends Phaser.Scene {
       .text(cam.centerX, cam.height - 40, '[ Done ]', {
         fontFamily: 'monospace',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 16, y: 6 },
       })
       .setOrigin(0.5)
       .setDepth(401)
       .setInteractive({ useHandCursor: true });
-    doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
-    doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
+    doneBtn.on('pointerover', () => doneBtn.setColor(UI_PALETTE.accentText));
+    doneBtn.on('pointerout', () => doneBtn.setColor(UI_PALETTE.text));
     doneBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       this.cleanupTradeUI();
@@ -5439,7 +5449,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_SWAP_TARGET';
     this.swapTargets = this.findSwapTargets(unit);
     const tiles = this.swapTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
-    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+    this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
   executeSwap(unit, target) {
@@ -5492,7 +5502,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_DANCE_TARGET';
     this.danceTargets = this.findDanceTargets(unit);
     const tiles = this.danceTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
-    this.grid.showAttackRange(tiles, 0x44ff88, 0.4);
+    this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
   async executeDance(unit, target) {
@@ -5505,7 +5515,7 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
     (this._combatFx ||= new CombatFxController(this)).playBuff(pos.x, pos.y);
     const sparkle = this.add
-      .circle(pos.x, pos.y, 20, 0x44ff88, this._reduceMotion() ? 0.4 : 0.6)
+      .circle(pos.x, pos.y, 20, UI_HEX.hpHigh, this._reduceMotion() ? 0.4 : 0.6)
       .setDepth(200);
     if (this._reduceMotion()) {
       this.time.delayedCall(120, () => sparkle.destroy());
@@ -5544,7 +5554,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_SHOVE_TARGET';
     this.shoveTargets = this.findShoveTargets(unit);
     const tiles = this.shoveTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
-    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+    this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
   startPullTargetSelection(unit) {
@@ -5552,7 +5562,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_PULL_TARGET';
     this.pullTargets = this.findPullTargets(unit);
     const tiles = this.pullTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
-    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+    this.grid.showAttackRange(tiles, UI_HEX.hpHigh, 0.4);
   }
 
   startCantoMove(unit, remainingMov) {
@@ -5817,7 +5827,7 @@ export class BattleScene extends Phaser.Scene {
       originY = 0.5,
       hitWidth = 0,
       hitHeight = 28,
-      hoverColor = '#ffdd44',
+      hoverColor = UI_PALETTE.accentText,
       clickOnPointerUp = false,
     } = options;
 
@@ -5912,14 +5922,14 @@ export class BattleScene extends Phaser.Scene {
       .text(0, 0, body, {
         fontFamily: 'monospace',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         wordWrap: { width: maxWidth - padding * 2 },
       })
       .setDepth(450);
     const bg = this.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, UI_HEX.panel, 0.95)
       .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
+      .setStrokeStyle(1, UI_HEX.line)
       .setDepth(449);
     const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
     txt.setPosition(padding, padding);
@@ -6121,7 +6131,7 @@ export class BattleScene extends Phaser.Scene {
         0.85,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
     items.forEach((label, i) => {
@@ -6134,9 +6144,9 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '13px',
-          color: '#e0e0e0',
+          color: UI_PALETTE.text,
         },
-        '#e0e0e0',
+        UI_PALETTE.text,
         () => {
           if (blockedActions.has(label) || isSleeping(unit)) return;
           const audio = this.registry.get('audio');
@@ -6258,7 +6268,7 @@ export class BattleScene extends Phaser.Scene {
         description: button._menuDescription,
         button,
         disabled: Boolean(button._menuDisabled),
-        color: button._menuColor || '#e0e0e0',
+        color: button._menuColor || UI_PALETTE.text,
         onActivate: () => {
           if (
             this.actionMenu !== objects ||
@@ -6274,10 +6284,10 @@ export class BattleScene extends Phaser.Scene {
           if (this._mobileBattleHud?.menu?.objects === objects) {
             this._mobileBattleHud.focusMenuItem(button);
           } else {
-            button.setColor?.('#ffdd44');
+            button.setColor?.(UI_PALETTE.accentText);
           }
         },
-        onBlur: () => button.setColor?.(button._menuColor || '#e0e0e0'),
+        onBlur: () => button.setColor?.(button._menuColor || UI_PALETTE.text),
       }));
     this._mobileBattleHud?.showMenu(items, objects);
     this._menuFocus?.setItems(items.filter((item) => !item.disabled));
@@ -6594,7 +6604,7 @@ export class BattleScene extends Phaser.Scene {
         0.85,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
     combatWeapons.forEach((wpn, i) => {
@@ -6603,7 +6613,7 @@ export class BattleScene extends Phaser.Scene {
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
       const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}`;
-      const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
+      const defaultColor = wpn === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
 
       const text = this._makeMenuTextButton(
         itemX,
@@ -6696,7 +6706,7 @@ export class BattleScene extends Phaser.Scene {
         0.85,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
     const rows = [];
@@ -6709,10 +6719,10 @@ export class BattleScene extends Phaser.Scene {
       const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
       const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`;
       const defaultColor = isNonProficient
-        ? '#888888'
+        ? UI_PALETTE.muted
         : wpn === unit.weapon
-          ? '#ffdd44'
-          : '#e0e0e0';
+          ? UI_PALETTE.accentText
+          : UI_PALETTE.text;
 
       const equipFontSize = this.isMobileInput ? '13px' : '9px';
       const text = this._makeMenuTextButton(
@@ -6734,7 +6744,7 @@ export class BattleScene extends Phaser.Scene {
         {
           hitWidth: menuWidth - 10,
           hitHeight: itemHeight,
-          hoverColor: isNonProficient ? '#999999' : '#ffdd44',
+          hoverColor: isNonProficient ? UI_PALETTE.muted : UI_PALETTE.accentText,
           disabled: !canEquipNow,
         },
       );
@@ -6787,7 +6797,7 @@ export class BattleScene extends Phaser.Scene {
         .text(menuPos.x + menuWidth / 2, menuPos.y + menuHeight - 2, 'Scroll', {
           fontFamily: 'monospace',
           fontSize: '8px',
-          color: '#777777',
+          color: UI_PALETTE.lineStrong,
         })
         .setOrigin(0.5, 1)
         .setDepth(401);
@@ -6809,8 +6819,13 @@ export class BattleScene extends Phaser.Scene {
         menuPos.x + menuWidth / 2,
         menuPos.y + menuHeight + 20,
         'Back',
-        { fontFamily: 'monospace', fontSize: '13px', color: '#aaaaaa', backgroundColor: '#222222' },
-        '#aaaaaa',
+        {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.panel,
+        },
+        UI_PALETTE.muted,
         () => {
           this.inEquipMenu = false;
           this.showActionMenu(unit);
@@ -6838,7 +6853,7 @@ export class BattleScene extends Phaser.Scene {
   //     const reason = result.reason === 'at_cap'
   //       ? `${unit.name} already knows ${MAX_SKILLS} skills!`
   //       : `${unit.name} already knows this skill!`;
-  //     await this.showBriefBanner(reason, '#ff8888');
+  //     await this.showBriefBanner(reason, UI_PALETTE.bad);
   //     this.showEquipMenu(unit);
   //   }
   // }
@@ -6872,7 +6887,7 @@ export class BattleScene extends Phaser.Scene {
         0.85,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
     consumables.forEach((item, i) => {
@@ -6921,7 +6936,7 @@ export class BattleScene extends Phaser.Scene {
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
       if (reason) label += `\n${reason}`;
-      const color = usable ? '#88ff88' : '#666666';
+      const color = usable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
       const text = this._makeMenuTextButton(
         ix,
         iy,
@@ -6957,9 +6972,9 @@ export class BattleScene extends Phaser.Scene {
       {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#aaaaaa',
+        color: UI_PALETTE.muted,
       },
-      '#aaaaaa',
+      UI_PALETTE.muted,
       () => {
         this.hideActionMenu();
         this.inEquipMenu = false;
@@ -6997,11 +7012,11 @@ export class BattleScene extends Phaser.Scene {
         unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + item.value);
         const healed = unit.currentHP - oldHP;
         this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, '#88ff88');
+        await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, UI_PALETTE.good);
       } else if (item.effect === 'healFull') {
         unit.currentHP = unit.stats.HP;
         this.updateHPBar(unit);
-        await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
+        await this.showBriefBanner(`${unit.name} fully healed!`, UI_PALETTE.good);
       } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
         // Use on the cure target (self or adjacent ally)
         const target = this._pendingCureTarget || unit;
@@ -7016,9 +7031,12 @@ export class BattleScene extends Phaser.Scene {
           target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
           const healed = target.currentHP - oldHP;
           this.updateHPBar(target);
-          await this.showBriefBanner(`${target.name} cured and healed ${healed} HP!`, '#88ff88');
+          await this.showBriefBanner(
+            `${target.name} cured and healed ${healed} HP!`,
+            UI_PALETTE.good,
+          );
         } else {
-          await this.showBriefBanner(`${target.name}'s conditions cured!`, '#88ff88');
+          await this.showBriefBanner(`${target.name}'s conditions cured!`, UI_PALETTE.good);
         }
       }
 
@@ -7042,7 +7060,7 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '16px',
-          color: '#88ffff',
+          color: UI_PALETTE.info,
           backgroundColor: '#000000cc',
           padding: { x: 16, y: 8 },
         },
@@ -7070,7 +7088,7 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  async showBriefBanner(message, color = '#ffdd44') {
+  async showBriefBanner(message, color = UI_PALETTE.accentText) {
     const banner = this.add
       .text(this.cameras.main.centerX, this.cameras.main.centerY, message, {
         fontFamily: 'monospace',
@@ -7122,14 +7140,14 @@ export class BattleScene extends Phaser.Scene {
 
   showReclassClassPicker(unit, sealItem) {
     if (!sealItem || !canReclass(unit)) {
-      this.showBriefBanner('Cannot reclass this unit.', '#ff8888');
+      this.showBriefBanner('Cannot reclass this unit.', UI_PALETTE.bad);
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return;
     }
     const targets = getReclassTargets(unit, this.gameData.classes, sealItem.subEffect);
     if (targets.length === 0) {
-      this.showBriefBanner('No valid reclass targets.', '#ff8888');
+      this.showBriefBanner('No valid reclass targets.', UI_PALETTE.bad);
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return;
@@ -7172,7 +7190,7 @@ export class BattleScene extends Phaser.Scene {
         0.9,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     this.actionMenu.push(bg);
 
     targets.forEach((cls, i) => {
@@ -7185,9 +7203,9 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#88ff88',
+          color: UI_PALETTE.good,
         },
-        '#88ff88',
+        UI_PALETTE.good,
         () => {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
@@ -7207,9 +7225,9 @@ export class BattleScene extends Phaser.Scene {
       {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#aaaaaa',
+        color: UI_PALETTE.muted,
       },
-      '#aaaaaa',
+      UI_PALETTE.muted,
       () => {
         this.hideActionMenu();
         this.battleState = 'UNIT_ACTION_MENU';
@@ -7228,7 +7246,7 @@ export class BattleScene extends Phaser.Scene {
 
     const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
     if (!oldClassData) {
-      await this.showBriefBanner('Reclass data missing.', '#ff8888');
+      await this.showBriefBanner('Reclass data missing.', UI_PALETTE.bad);
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return;
@@ -7257,7 +7275,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.updateHPBar(unit);
 
-    await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, '#88ffff');
+    await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, UI_PALETTE.info);
 
     // Consume seal
     sealItem.uses = (sealItem.uses ?? 1) - 1;
@@ -8144,7 +8162,7 @@ export class BattleScene extends Phaser.Scene {
         pos.x,
         pos.y,
         `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`,
-        '#ff8888',
+        UI_PALETTE.bad,
       );
     }
   }
@@ -8213,7 +8231,12 @@ export class BattleScene extends Phaser.Scene {
           this.applyBattleDebuff(targetUnit, step.stat, step.amount);
           {
             const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-            this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(step.amount)} ${step.stat}`, '#ff8888');
+            this.showMinorHintAt(
+              pos.x,
+              pos.y,
+              `-${Math.abs(step.amount)} ${step.stat}`,
+              UI_PALETTE.bad,
+            );
           }
           break;
         case 'tier2_status':
@@ -8227,7 +8250,7 @@ export class BattleScene extends Phaser.Scene {
             const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
             if (!applied) {
               // statusImmunity accessory (or invalid status) blocked it
-              this.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+              this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
               break;
             }
             this._addConditionIcon(targetUnit, step.status);
@@ -8242,7 +8265,7 @@ export class BattleScene extends Phaser.Scene {
               pos.x,
               pos.y,
               statusLabels[step.status] || 'Afflicted!',
-              '#cc88ff',
+              UI_PALETTE.rarityEpic,
             );
           }
           break;
@@ -8410,7 +8433,7 @@ export class BattleScene extends Phaser.Scene {
     targetUnit.currentHP = nextHp;
     this.updateHPBar(targetUnit);
     const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
-    this.showMinorHintAt(pos.x, pos.y, `HP -> ${nextHp}`, '#ffaa66');
+    this.showMinorHintAt(pos.x, pos.y, `HP -> ${nextHp}`, UI_PALETTE.warn);
   }
 
   _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
@@ -8743,7 +8766,7 @@ export class BattleScene extends Phaser.Scene {
       const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#aaaaaa',
+        color: UI_PALETTE.muted,
         fontStyle: 'bold',
       })
         .setOrigin(0.5)
@@ -8760,7 +8783,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
+    if (target.graphic?.setTint) target.graphic.setTint(UI_HEX.dangerLine);
     if (audio) this._combatFx.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     const artStrike = split.striker.some((e) => e.id === 'weapon_art');
     fx.playImpact(event, striker, target, {
@@ -8786,7 +8809,7 @@ export class BattleScene extends Phaser.Scene {
       {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: event.isCrit ? '#ffff00' : '#ffffff',
+        color: event.isCrit ? UI_PALETTE.accentText : UI_PALETTE.text,
         fontStyle: 'bold',
       },
     )
@@ -8816,7 +8839,7 @@ export class BattleScene extends Phaser.Scene {
       const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#44ff44',
+        color: UI_PALETTE.good,
         fontStyle: 'bold',
       })
         .setOrigin(0.5)
@@ -8837,7 +8860,7 @@ export class BattleScene extends Phaser.Scene {
       const refText = presentationText(this, sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#ff4444',
+        color: UI_PALETTE.bad,
         fontStyle: 'bold',
       })
         .setOrigin(0.5)
@@ -8915,7 +8938,7 @@ export class BattleScene extends Phaser.Scene {
       .text(pos.x, pos.y - 20, `Switched to ${weapon.name}`, {
         fontFamily: 'monospace',
         fontSize: '10px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
         backgroundColor: '#000000cc',
         padding: { x: 4, y: 2 },
       })
@@ -8941,7 +8964,7 @@ export class BattleScene extends Phaser.Scene {
       .text(pos.x, pos.y - 16, `Poison -${damage}`, {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#cc66ff',
+        color: UI_PALETTE.rarityEpic,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -9051,7 +9074,7 @@ export class BattleScene extends Phaser.Scene {
     const xpText = presentationText(this, pos.x, pos.y - 20, `+${xp} XP`, {
       fontFamily: 'monospace',
       fontSize: '12px',
-      color: '#88ccff',
+      color: UI_PALETTE.info,
       fontStyle: 'bold',
     })
       .setOrigin(0.5)
@@ -9247,7 +9270,7 @@ export class BattleScene extends Phaser.Scene {
             .text(pos.x, pos.y - 16, `${effect.amount}`, {
               fontFamily: 'monospace',
               fontSize: '12px',
-              color: '#ff8844',
+              color: UI_PALETTE.warn,
               fontStyle: 'bold',
             })
             .setOrigin(0.5)
@@ -9393,7 +9416,7 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
+        this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
       }
@@ -9415,16 +9438,21 @@ export class BattleScene extends Phaser.Scene {
       // Update turn counter at start of each player phase
       if (this.turnCounterText && this.turnPar !== null) {
         const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
-        const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
+        const colors = {
+          S: UI_PALETTE.good,
+          A: UI_PALETTE.info,
+          B: UI_PALETTE.warn,
+          C: UI_PALETTE.bad,
+        };
         const pressureSuffix = this.getTurnPressureSummary(turn);
         this.turnCounterText.setText(
           `Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
         );
-        this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
+        this.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
       } else if (this.turnCounterText) {
         const pressureSuffix = this.getTurnPressureSummary(turn);
         this.turnCounterText.setText(`Turn: ${turn}${pressureSuffix}`);
-        this.turnCounterText.setColor('#e0e0e0');
+        this.turnCounterText.setColor(UI_PALETTE.text);
       }
       const latePressure = this.getTurnPressureState(turn);
       if (latePressure.active && !this._latePressureWarningShown) {
@@ -9492,7 +9520,10 @@ export class BattleScene extends Phaser.Scene {
             this.refreshEndTurnControl();
             if (shouldAutoAdvance) this.turnManager.endPlayerPhase();
             else
-              this.showBriefBanner?.('Turn-start effect interrupted. You may continue.', '#ffcc88');
+              this.showBriefBanner?.(
+                'Turn-start effect interrupted. You may continue.',
+                UI_PALETTE.warn,
+              );
           },
         },
       );
@@ -9614,7 +9645,7 @@ export class BattleScene extends Phaser.Scene {
           root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
-        await this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
+        await this.showBriefBanner(`${evt.unit.name} ${label}!`, UI_PALETTE.good);
         if (!isCurrent()) return;
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9697,7 +9728,7 @@ export class BattleScene extends Phaser.Scene {
             .text(pos.x, pos.y - 16, `${result.damage}`, {
               fontFamily: 'monospace',
               fontSize: '13px',
-              color: '#ff8844',
+              color: UI_PALETTE.warn,
               fontStyle: 'bold',
             })
             .setOrigin(0.5)
@@ -9731,7 +9762,7 @@ export class BattleScene extends Phaser.Scene {
           .text(pos.x, pos.y - 16, 'Miss', {
             fontFamily: 'monospace',
             fontSize: '11px',
-            color: '#aaaaaa',
+            color: UI_PALETTE.muted,
             fontStyle: 'bold',
           })
           .setOrigin(0.5)
@@ -9837,7 +9868,7 @@ export class BattleScene extends Phaser.Scene {
       this.enemyUnits.push(unit);
       this.addUnitGraphic(unit);
       observeHistoryAction(this, 'revived', unit);
-      await this.showBriefBanner(`${unit.className} has risen!`, '#cc66cc');
+      await this.showBriefBanner(`${unit.className} has risen!`, UI_PALETTE.rarityEpic);
     }
     if (revived.length > 0) this.checkBattleEnd();
   }
@@ -9914,11 +9945,11 @@ export class BattleScene extends Phaser.Scene {
         observeHistoryAction(this, 'created terrain', unit, null, effect.terrainType);
       // Visual feedback
       const pos = this.grid.gridToPixel(pick.col, pick.row);
-      this.showMinorHintAt(pos.x, pos.y, 'Wall!', '#ffffff');
+      this.showMinorHintAt(pos.x, pos.y, 'Wall!', UI_PALETTE.text);
     }
   }
 
-  showMinorHintAt(x, y, message, color = '#ffdd44') {
+  showMinorHintAt(x, y, message, color = UI_PALETTE.accentText) {
     const text = this.add
       .text(x, y, message, {
         fontFamily: 'monospace',
@@ -10016,7 +10047,7 @@ export class BattleScene extends Phaser.Scene {
           // Un-dim only units that can still act — keep the acted-grey on
           // units that already moved this phase (same pattern as cures).
           if (!unit.hasActed) this.undimUnit(unit);
-          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, '#ff8844');
+          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, UI_PALETTE.warn);
         }
         await this._checkPhoenixBrooch(unit);
         continue;
@@ -10029,7 +10060,7 @@ export class BattleScene extends Phaser.Scene {
       if (!applyCondition(unit, 'acid')) {
         // statusImmunity accessory — surface the block like the staff/art paths
         const pos = this.grid.gridToPixel(unit.col, unit.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+        this.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
         continue;
       }
       this._addConditionIcon(unit, 'acid');
@@ -10037,7 +10068,7 @@ export class BattleScene extends Phaser.Scene {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
       }
-      await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
+      await this.showBriefBanner(`${unit.name} is corroded by acid!`, UI_PALETTE.good);
     }
   }
 
@@ -10051,7 +10082,7 @@ export class BattleScene extends Phaser.Scene {
       .text(pos.x, pos.y - 16, `Lava -${damage}`, {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#ff8844',
+        color: UI_PALETTE.warn,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -10084,7 +10115,7 @@ export class BattleScene extends Phaser.Scene {
       .text(pos.x, pos.y - 16, `Acid -${damage}`, {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#88cc44',
+        color: UI_PALETTE.good,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -10153,7 +10184,10 @@ export class BattleScene extends Phaser.Scene {
               if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               observeHistoryAction(this, 'healed', _enemy, target, `${result.healAmount} HP`);
               this.updateHPBar(target);
-              this.showBriefBanner?.(`${target.name} healed ${result.healAmount} HP`, '#88ff88');
+              this.showBriefBanner?.(
+                `${target.name} healed ${result.healAmount} HP`,
+                UI_PALETTE.good,
+              );
               return Promise.resolve();
             },
             onStatusStaff: (enemy, target) => {
@@ -10281,7 +10315,7 @@ export class BattleScene extends Phaser.Scene {
     if (result.immune) {
       await this.showBriefBanner(
         `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
-        '#88ffcc',
+        UI_PALETTE.good,
       );
       return;
     }
@@ -10293,7 +10327,7 @@ export class BattleScene extends Phaser.Scene {
           : `${target.name} was silenced!`;
       await this.showBriefBanner(
         `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
-        '#ff6666',
+        UI_PALETTE.bad,
       );
       this._addConditionIcon(target, result.conditionId);
       {
@@ -10301,7 +10335,10 @@ export class BattleScene extends Phaser.Scene {
         (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
       }
     } else {
-      await this.showBriefBanner(`${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`, '#aaaaaa');
+      await this.showBriefBanner(
+        `${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`,
+        UI_PALETTE.muted,
+      );
     }
   }
 
@@ -10315,11 +10352,11 @@ export class BattleScene extends Phaser.Scene {
     const y = unit.graphic.y - 20;
     const iconMap = {
       sleep: { label: 'Zzz', color: '#6688ff' },
-      silence: { label: 'X', color: '#cc66cc' },
-      acid: { label: 'Ac', color: '#88cc44' },
+      silence: { label: 'X', color: UI_PALETTE.rarityEpic },
+      acid: { label: 'Ac', color: UI_PALETTE.good },
       root: { label: 'Rt', color: '#cc9944' },
     };
-    const iconStyle = iconMap[conditionId] || { label: '?', color: '#dddddd' };
+    const iconStyle = iconMap[conditionId] || { label: '?', color: UI_PALETTE.text };
     const icon = this.add
       .text(x, y, iconStyle.label, {
         fontSize: '10px',
@@ -10437,7 +10474,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(victim);
       const pos = this.grid.gridToPixel(tile.col, tile.row);
       (this._combatFx ||= new CombatFxController(this)).playOverlay('fx_sig_entity', pos.x, pos.y);
-      this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, '#cc66ff');
+      this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, UI_PALETTE.rarityEpic);
       await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
@@ -10451,14 +10488,14 @@ export class BattleScene extends Phaser.Scene {
     if (removed && (!this.grid.fogEnabled || this.grid.isVisible(tile.col, tile.row)))
       observeHistoryAction(this, 'broke terrain', enemy);
     const pos = this.grid.gridToPixel(tile.col, tile.row);
-    this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
+    this.showMinorHintAt(pos.x, pos.y, 'Break!', UI_PALETTE.accentText);
     await this._awaitSceneDelay(120, { label: 'enemy_break_hold' });
   }
 
   showPhaseBanner(phase, turn) {
     this._phaseBanner?.destroy();
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
-    const color = phase === 'player' ? '#88bbff' : '#ff9999';
+    const color = phase === 'player' ? UI_PALETTE.info : '#ff9999';
     const place =
       turn === 1 && phase === 'player'
         ? battlePlace(this.gameData, this.battleConfig, this.battleParams?.act).title
@@ -10508,7 +10545,7 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '18px',
-          color: '#66ff66',
+          color: UI_PALETTE.good,
           backgroundColor: '#000000dd',
           padding: { x: 16, y: 8 },
           align: 'center',
@@ -10604,19 +10641,19 @@ export class BattleScene extends Phaser.Scene {
   updateObjectiveText() {
     if (!this.objectiveText) return;
     let label;
-    let color = '#ffdd44'; // default gold
+    let color = UI_PALETTE.accentText; // default gold
     if (this.battleConfig.objective === 'seize') {
       const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (bossAlive) {
         label = 'Seize: Defeat boss, then capture throne';
-        color = '#ff6666'; // red -- boss still alive
+        color = UI_PALETTE.bad; // red -- boss still alive
       } else {
         label = 'Seize: Capture throne with a Lord!';
-        color = '#66ff66'; // green -- ready to seize
+        color = UI_PALETTE.good; // green -- ready to seize
       }
     } else if (this.battleConfig.objective === 'escape' && this._escapeController) {
       label = this._escapeController.getObjectiveLabel();
-      color = '#a6ffb0'; // green -- run for the exit
+      color = UI_PALETTE.good; // green -- run for the exit
     } else {
       const tombCount = this._zombieTombstones?.length || 0;
       label =
@@ -10969,7 +11006,8 @@ export class BattleScene extends Phaser.Scene {
     const setArrowEnabled = (arrow, enabled) => {
       if (!arrow) return;
       if (typeof arrow.setAlpha === 'function') arrow.setAlpha(enabled ? 1 : 0.45);
-      if (typeof arrow.setColor === 'function') arrow.setColor(enabled ? '#88ccff' : '#666666');
+      if (typeof arrow.setColor === 'function')
+        arrow.setColor(enabled ? UI_PALETTE.info : UI_PALETTE.lineStrong);
     };
 
     const updateScrollArrows = () => {
@@ -11008,7 +11046,7 @@ export class BattleScene extends Phaser.Scene {
         .text(arrowX, topY + 10, '^', {
           fontFamily: 'monospace',
           fontSize: '14px',
-          color: '#88ccff',
+          color: UI_PALETTE.info,
         })
         .setOrigin(0.5)
         .setDepth(713)
@@ -11017,7 +11055,7 @@ export class BattleScene extends Phaser.Scene {
         .text(arrowX, rowBottomBound - 10, 'v', {
           fontFamily: 'monospace',
           fontSize: '14px',
-          color: '#88ccff',
+          color: UI_PALETTE.info,
         })
         .setOrigin(0.5)
         .setDepth(713)
@@ -11026,7 +11064,7 @@ export class BattleScene extends Phaser.Scene {
         .text(arrowX, rowBottomBound + 2, 'Scroll', {
           fontFamily: 'monospace',
           fontSize: '8px',
-          color: '#777777',
+          color: UI_PALETTE.lineStrong,
         })
         .setOrigin(0.5, 0)
         .setDepth(713);
@@ -11216,7 +11254,7 @@ export class BattleScene extends Phaser.Scene {
     (this._lootFlowController ||= new LootFlowController(this)).scheduleLootCleanup(lootGroup);
   }
 
-  showLootStatus(message, color = '#ff8888') {
+  showLootStatus(message, color = UI_PALETTE.bad) {
     (this._postCombatController ||= new PostCombatController(this)).showLootStatus(message, color);
   }
 

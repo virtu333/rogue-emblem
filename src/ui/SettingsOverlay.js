@@ -300,7 +300,7 @@ export class SettingsOverlay {
       this.scene.add.text(cx + 72, y, values[Number(value)], {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: value ? '#88ff88' : '#ff8888',
+        color: value ? UI_PALETTE.good : UI_PALETTE.bad,
       }),
     )
       .setOrigin(0.5, 0.5)
@@ -315,7 +315,7 @@ export class SettingsOverlay {
             ? !value
             : delta > 0;
       valueText.setText(values[Number(value)]);
-      valueText.setColor(value ? '#88ff88' : '#ff8888');
+      valueText.setColor(value ? UI_PALETTE.good : UI_PALETTE.bad);
       onChange(value);
     };
 

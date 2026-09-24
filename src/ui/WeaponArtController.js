@@ -13,6 +13,7 @@ import {
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
 import { equipWeapon } from '../engine/UnitManager.js';
 import { isStaff } from '../engine/Combat.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 const HIDDEN_WEAPON_ART_REASONS = new Set([
   'legendary_weapon_required',
@@ -64,14 +65,14 @@ export class WeaponArtController {
         0.9,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
     const current =
       scene._selectedWeaponArt?.unitName === unit.name ? scene._selectedWeaponArt : null;
 
     const noneY = menuPos.y + 6 + itemHeight / 2;
-    const noneColor = current ? '#e0e0e0' : '#ffdd44';
+    const noneColor = current ? UI_PALETTE.text : UI_PALETTE.accentText;
     const noneText = scene._makeMenuTextButton(
       menuPos.x + 8,
       noneY,
@@ -104,7 +105,11 @@ export class WeaponArtController {
       );
       const marker = isActive ? '> ' : '  ';
       const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
-      const color = canUse ? (isActive ? '#ffdd44' : '#e0e0e0') : '#888888';
+      const color = canUse
+        ? isActive
+          ? UI_PALETTE.accentText
+          : UI_PALETTE.text
+        : UI_PALETTE.muted;
       const weaponName = weapon?.name || weapon?.id || art.weaponType;
       const label = `${marker}${art.name} (${weaponName})
    ${status}`;
@@ -169,14 +174,14 @@ export class WeaponArtController {
       .text(0, 0, body, {
         fontFamily: 'monospace',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         wordWrap: { width: maxWidth - padding * 2 },
       })
       .setDepth(450);
     const bg = scene.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, UI_HEX.panel, 0.95)
       .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
+      .setStrokeStyle(1, UI_HEX.line)
       .setDepth(449);
     const box = scene.add.container(0, 0, [bg, txt]).setDepth(449);
     txt.setPosition(padding, padding);

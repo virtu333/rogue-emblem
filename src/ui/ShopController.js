@@ -18,6 +18,7 @@ import { showImportantHint, showMinorHint } from './HintDisplay.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getWeaponArtTooltipLines } from './WeaponArtVisibility.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 function getWeaponArtCatalogForScene(scene) {
   return scene?._getWeaponArtCatalog?.() || scene?.gameData?.weaponArts?.arts || [];
 }
@@ -372,7 +373,7 @@ export class ShopController {
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_gold');
     scene.refreshShop();
-    scene.showShopBanner('Shop restocked!', '#aaddff');
+    scene.showShopBanner('Shop restocked!', UI_PALETTE.info);
     return true;
   }
 
@@ -394,7 +395,7 @@ export class ShopController {
       names.length > 2
         ? `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
         : names.join(', ');
-    scene.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, '#88ddff');
+    scene.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, UI_PALETTE.info);
   }
 
   async _showSkillDisplacementWarning(displacedSkills) {

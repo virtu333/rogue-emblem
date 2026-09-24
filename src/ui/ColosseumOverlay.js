@@ -296,7 +296,7 @@ export class ColosseumOverlay {
         for (const sa of evt.skillActivations) {
           lines.push({
             text: `  ★ ${sa.name || sa.id} activates!`,
-            color: '#ddaaff',
+            color: UI_PALETTE.rarityEpic,
           });
         }
       }
@@ -309,7 +309,7 @@ export class ColosseumOverlay {
       } else if (evt.isCrit) {
         lines.push({
           text: `${evt.attacker} lands a critical hit! ${evt.damage} damage!`,
-          color: '#ff4444',
+          color: UI_PALETTE.bad,
         });
       } else {
         lines.push({
@@ -321,15 +321,15 @@ export class ColosseumOverlay {
       if (evt.heal > 0) {
         lines.push({
           text: `  ${evt.attacker} recovers ${evt.heal} HP.`,
-          color: '#44ff44',
+          color: UI_PALETTE.good,
         });
       }
     }
 
     // Outcome line
     const outcomeColors = {
-      win: '#44ff44',
-      lose: '#ff4444',
+      win: UI_PALETTE.good,
+      lose: UI_PALETTE.bad,
       draw: UI_PALETTE.accent,
     };
     const outcomeLabels = {

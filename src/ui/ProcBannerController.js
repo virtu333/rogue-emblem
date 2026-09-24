@@ -16,6 +16,7 @@ import { presentationText } from '../utils/presentationText.js';
  */
 
 import { themeFor, dominantCategory, classifySkillEventName } from './ProcVisualTheme.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 const CHIP_DEPTH = 301; // world-space, just above floating damage text (300)
 const BANNER_DEPTH = 500; // screen-space; >= 500 auto-pins to the mobile UI camera
@@ -196,7 +197,7 @@ export class ProcBannerController {
     const nameText = presentationText(scene, textX, 10, unitName || '', {
       fontFamily: 'monospace',
       fontSize: '10px',
-      color: '#ffffff',
+      color: UI_PALETTE.text,
     }).setOrigin(fromLeft ? 0 : 1, 0.5);
     parts.push(labelText, nameText);
 

@@ -1,6 +1,13 @@
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import { formatPerkMods } from './rosterDisplay.js';
-import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import {
+  UI_PALETTE,
+  UI_HEX,
+  applyTextResolution,
+  STAT_COLORS,
+  UI_COLORS,
+  getHPBarColor,
+} from '../utils/uiStyles.js';
 import { rebuiltPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
@@ -8,7 +15,6 @@ import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // Optional roster cycling via UP/DOWN arrows when opened with roster context
 
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
-import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
   getStaticCombatStats,
   calculateAvoid,
@@ -134,7 +140,7 @@ export class UnitDetailOverlay {
     this._panel = this.scene.add
       .rectangle(CX, CY, OVERLAY_W, OVERLAY_H, UI_HEX.panel, 1)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x444444);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(this._panel);
 
     // Scene-level click: close if outside panel bounds
@@ -286,7 +292,7 @@ export class UnitDetailOverlay {
 
     if (unit.faction === 'player' && unit.xp !== undefined) {
       y += 14;
-      this._unitText(lx, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, '#88ccff', '10px');
+      this._unitText(lx, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
     }
 
     y += 14;
@@ -432,7 +438,7 @@ export class UnitDetailOverlay {
 
     // Stats tab button
     this._tabBtnStats = this.scene.add
-      .rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, 0x443300)
+      .rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, UI_HEX.selected)
       .setDepth(DEPTH_TEXT)
       .setStrokeStyle(1, UI_HEX.accent)
       .setInteractive({ useHandCursor: true });
@@ -454,9 +460,9 @@ export class UnitDetailOverlay {
     // Gear tab button
     const gx = x + tabW + gap;
     this._tabBtnGear = this.scene.add
-      .rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, 0x222233)
+      .rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, UI_HEX.panel)
       .setDepth(DEPTH_TEXT)
-      .setStrokeStyle(1, 0x666666)
+      .setStrokeStyle(1, UI_HEX.line)
       .setInteractive({ useHandCursor: true });
     this._tabLabelGear = applyTextResolution(
       this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
@@ -480,14 +486,14 @@ export class UnitDetailOverlay {
   _refreshTabs() {
     // Update tab button styles
     if (this._activeTab === 'stats') {
-      this._tabBtnStats.setFillStyle(0x443300).setStrokeStyle(1, UI_HEX.accent);
+      this._tabBtnStats.setFillStyle(UI_HEX.selected).setStrokeStyle(1, UI_HEX.accent);
       this._tabLabelStats.setColor(UI_PALETTE.text);
-      this._tabBtnGear.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
+      this._tabBtnGear.setFillStyle(UI_HEX.panel).setStrokeStyle(1, UI_HEX.line);
       this._tabLabelGear.setColor(UI_PALETTE.muted);
     } else {
-      this._tabBtnStats.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
+      this._tabBtnStats.setFillStyle(UI_HEX.panel).setStrokeStyle(1, UI_HEX.line);
       this._tabLabelStats.setColor(UI_PALETTE.muted);
-      this._tabBtnGear.setFillStyle(0x443300).setStrokeStyle(1, UI_HEX.accent);
+      this._tabBtnGear.setFillStyle(UI_HEX.selected).setStrokeStyle(1, UI_HEX.accent);
       this._tabLabelGear.setColor(UI_PALETTE.text);
     }
     this._drawTabContent();
@@ -556,8 +562,8 @@ export class UnitDetailOverlay {
     // Effective Stats (Atk, AS)
     const combat = getStaticCombatStats(unit, unit.weapon);
     let asColor = STAT_COLORS.SPD;
-    if (combat.as < unit.stats.SPD) asColor = '#ff6666';
-    else if (combat.as > unit.stats.SPD) asColor = '#44ff88';
+    if (combat.as < unit.stats.SPD) asColor = UI_PALETTE.bad;
+    else if (combat.as > unit.stats.SPD) asColor = UI_PALETTE.good;
 
     this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, UI_PALETTE.text, '10px');
     this._tabText(rx, y, `AS  ${String(combat.as).padStart(3)}`, asColor, '10px');
@@ -575,7 +581,7 @@ export class UnitDetailOverlay {
     // Proficiencies
     if (unit.proficiencies && unit.proficiencies.length > 0) {
       const profStr = unit.proficiencies.map((p) => `${p.type}(${p.rank[0]})`).join('  ');
-      this._tabText(lx, y, `Prof: ${profStr}`, '#aaaacc', '10px');
+      this._tabText(lx, y, `Prof: ${profStr}`, UI_PALETTE.muted, '10px');
       y += 13;
     }
 
@@ -592,7 +598,7 @@ export class UnitDetailOverlay {
             lx,
             y,
             modStr ? `${label} (${modStr})` : label,
-            '#ffdd66',
+            UI_PALETTE.accentText,
             '9px',
           );
           if (perk) {
@@ -618,7 +624,7 @@ export class UnitDetailOverlay {
       const unitTraits = getUnitTraits(unit, traitsData);
       if (unitTraits.length > 0) {
         const names = unitTraits.map((t) => t.name).join(', ');
-        const traitText = this._tabText(lx, y, `Traits: ${names}`, '#cc99ff', '9px');
+        const traitText = this._tabText(lx, y, `Traits: ${names}`, UI_PALETTE.rarityEpic, '9px');
         const descriptions = unitTraits.map((t) => `${t.name}: ${t.description}`).join('\n');
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
@@ -635,7 +641,7 @@ export class UnitDetailOverlay {
           return ad ? ad.name : aid;
         })
         .join(', ');
-      const affixText = this._tabText(lx, y, `Affixes: ${affixNames}`, '#ff8844', '10px');
+      const affixText = this._tabText(lx, y, `Affixes: ${affixNames}`, UI_PALETTE.warn, '10px');
 
       // Multi-line tooltip for descriptions
       const descriptions = unit.affixes
@@ -694,7 +700,7 @@ export class UnitDetailOverlay {
       for (const item of unit.inventory) {
         const marker = item === unit.weapon ? '\u25b6' : ' ';
         const usableNow = canEquip(unit, item);
-        const rowColor = usableNow ? UI_COLORS.white : '#777777';
+        const rowColor = usableNow ? UI_COLORS.white : UI_PALETTE.lineStrong;
         const baseNameColor = usableNow ? this._getWeaponNameColor(item, rowColor) : rowColor;
         const forgeSuffixSegments = usableNow
           ? this._getWeaponForgeSuffixSegments(item)
@@ -773,7 +779,7 @@ export class UnitDetailOverlay {
     // Consumables
     if (unit.consumables && unit.consumables.length > 0) {
       for (const item of unit.consumables) {
-        this._tabText(lx, y, ` ${item.name} (${item.uses})`, '#88ff88', '9px');
+        this._tabText(lx, y, ` ${item.name} (${item.uses})`, UI_PALETTE.good, '9px');
         y += 12;
       }
     }
@@ -784,7 +790,13 @@ export class UnitDetailOverlay {
       const rng = parseStaffRange(staff.range);
       const rngStr = rng ? `Rng${rng.min}-${rng.max}` : '';
       const uses = (staff.uses || 0) - (staff._usesSpent || 0);
-      this._tabText(lx, y, ` ${staff.name} (${uses}/${staff.uses}) ${rngStr}`, '#ff8888', '9px');
+      this._tabText(
+        lx,
+        y,
+        ` ${staff.name} (${uses}/${staff.uses}) ${rngStr}`,
+        UI_PALETTE.bad,
+        '9px',
+      );
       y += 12;
     }
 
@@ -796,9 +808,9 @@ export class UnitDetailOverlay {
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}+${v}`)
         .join(' ');
-      this._tabText(lx, y, `Acc: ${unit.accessory.name}`, '#cc88ff', '9px');
+      this._tabText(lx, y, `Acc: ${unit.accessory.name}`, UI_PALETTE.rarityEpic, '9px');
       if (fx) {
-        this._tabText(lx + 180, y, fx, '#aa66dd', '9px');
+        this._tabText(lx + 180, y, fx, UI_PALETTE.rarityEpic, '9px');
       }
       y += 12;
       const ce = unit.accessory.combatEffects;
@@ -815,7 +827,7 @@ export class UnitDetailOverlay {
         if (ce.negateEffectiveness) parts.push('Negate effectiveness');
         if (ce.condition) parts.push(`(${ce.condition.replace('_', ' ')})`);
         if (parts.length) {
-          this._tabText(lx + 8, y, parts.join('  '), '#aa66dd', '9px');
+          this._tabText(lx + 8, y, parts.join('  '), UI_PALETTE.rarityEpic, '9px');
           y += 12;
         }
       }
@@ -825,12 +837,12 @@ export class UnitDetailOverlay {
     if (unit.skills && unit.skills.length > 0) {
       this._tabSep(lx, y);
       y += 12;
-      this._tabText(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, '#88ffff', '9px');
+      this._tabText(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, UI_PALETTE.info, '9px');
       y += 13;
       for (const sid of unit.skills) {
         const skillData = this.gameData?.skills?.find((s) => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
-        const skillText = this._tabText(lx + 8, y, name, '#88ffff', '9px');
+        const skillText = this._tabText(lx + 8, y, name, UI_PALETTE.info, '9px');
         if (skillData?.description) {
           skillText.setInteractive({ useHandCursor: true });
           skillText.on('pointerover', () =>
@@ -844,7 +856,7 @@ export class UnitDetailOverlay {
 
     this._tabSep(lx, y);
     y += 12;
-    this._tabText(lx, y, 'Weapon Arts:', '#88ddff', '9px');
+    this._tabText(lx, y, 'Weapon Arts:', UI_PALETTE.info, '9px');
     y += 13;
     const weaponArtChoices = this._getInspectableWeaponArtChoicesForInventory(unit);
     if (weaponArtChoices.length <= 0) {
@@ -853,7 +865,7 @@ export class UnitDetailOverlay {
     } else {
       for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
-        const color = canUse ? '#88ddff' : UI_COLORS.gray;
+        const color = canUse ? UI_PALETTE.info : UI_COLORS.gray;
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
         const weaponName = this._getWeaponBaseName(weapon);
@@ -949,18 +961,18 @@ export class UnitDetailOverlay {
   _getWeaponForgeSuffixSegments(weapon) {
     const level = this._getWeaponForgeLevel(weapon);
     if (level <= 0) return [];
-    return [{ text: ` +${level}`, color: '#44ff88' }];
+    return [{ text: ` +${level}`, color: UI_PALETTE.good }];
   }
 
   _getForgeStatColor(weapon, statKey, fallbackColor) {
     const bonuses = weapon?._forgeBonuses || {};
     const delta = Number(bonuses?.[statKey]) || 0;
-    return delta !== 0 ? '#44ff88' : fallbackColor;
+    return delta !== 0 ? UI_PALETTE.good : fallbackColor;
   }
 
   _getWeaponNameColor(weapon, fallbackColor) {
     if (weapon?.tier === 'Legend') return UI_COLORS.gold;
-    if (isImbued(weapon)) return '#cc88ff';
+    if (isImbued(weapon)) return UI_PALETTE.rarityEpic;
     return fallbackColor;
   }
 
@@ -1180,7 +1192,7 @@ export class UnitDetailOverlay {
       .rectangle(tipX, tipY, 200, 10, UI_HEX.sunken, 0.95)
       .setOrigin(0, 0)
       .setDepth(DEPTH_TOOLTIP)
-      .setStrokeStyle(1, 0x555555);
+      .setStrokeStyle(1, UI_HEX.line);
     const tipText = applyTextResolution(
       this.scene.add.text(tipX + 4, tipY + 3, lines.join('\n'), {
         fontFamily: 'Arial',
@@ -1211,7 +1223,7 @@ export class UnitDetailOverlay {
       .rectangle(tipX, tipY, 200, 10, UI_HEX.sunken, 0.95)
       .setOrigin(0, 0)
       .setDepth(DEPTH_TOOLTIP)
-      .setStrokeStyle(1, 0x555555);
+      .setStrokeStyle(1, UI_HEX.line);
     const tipText = applyTextResolution(
       this.scene.add.text(tipX + 4, tipY + 3, description, {
         fontFamily: 'Arial',

@@ -1125,14 +1125,14 @@ describe('VisionRewindController', () => {
       scene.visionHudText = makeDisplayObject({ text: '' });
       runManager.visionChargesRemaining = 1;
       controller.updateHud();
-      expect(scene.visionHudText._color).toBe('#9ed8ff');
+      expect(scene.visionHudText._color).toBe('#8fb8d6');
     });
 
     it('sets gray color when charges = 0', () => {
       scene.visionHudText = makeDisplayObject({ text: '' });
       runManager.visionChargesRemaining = 0;
       controller.updateHud();
-      expect(scene.visionHudText._color).toBe('#777777');
+      expect(scene.visionHudText._color).toBe('#8a7f86');
     });
 
     it('calls updateTopLeftHudLayout', () => {

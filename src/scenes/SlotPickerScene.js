@@ -318,7 +318,7 @@ export class SlotPickerScene extends Phaser.Scene {
         this.add.text(x, y - 58, `Valor: ${summary.valor}`, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#ffcc44',
+          color: UI_PALETTE.accentText,
         }),
       ).setOrigin(0.5);
       this.slotCards.push(valorText);
@@ -328,7 +328,7 @@ export class SlotPickerScene extends Phaser.Scene {
         this.add.text(x, y - 42, `Supply: ${summary.supply}`, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#44ccbb',
+          color: UI_PALETTE.info,
         }),
       ).setOrigin(0.5);
       this.slotCards.push(supplyText);
@@ -346,7 +346,7 @@ export class SlotPickerScene extends Phaser.Scene {
         this.add.text(x, y - 12, `Finished: ${summary.runsCompleted}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#a0a0b8',
+          color: UI_PALETTE.muted,
         }),
       ).setOrigin(0.5);
       this.slotCards.push(finishedText);
@@ -356,10 +356,10 @@ export class SlotPickerScene extends Phaser.Scene {
       let statusColor;
       if (summary.runCorrupt) {
         runStatus = 'Save data corrupted';
-        statusColor = '#ff6666';
+        statusColor = UI_PALETTE.bad;
       } else if (summary.hasActiveRun) {
         runStatus = `Act ${summary.actReached} in progress`;
-        statusColor = '#88ff88';
+        statusColor = UI_PALETTE.good;
       } else {
         runStatus = 'No active run';
         statusColor = UI_PALETTE.muted;
@@ -378,8 +378,8 @@ export class SlotPickerScene extends Phaser.Scene {
         this.add.text(x, y + 40, '[ Select ]', {
           fontFamily: 'Arial',
           fontSize: '14px',
-          color: '#88ff88',
-          backgroundColor: '#334433',
+          color: UI_PALETTE.good,
+          backgroundColor: UI_PALETTE.selected,
           padding: { x: 12, y: 6 },
         }),
       )
@@ -387,7 +387,7 @@ export class SlotPickerScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
       selectBtn.on('pointerover', () => selectBtn.setColor(UI_PALETTE.accent));
-      selectBtn.on('pointerout', () => selectBtn.setColor('#88ff88'));
+      selectBtn.on('pointerout', () => selectBtn.setColor(UI_PALETTE.good));
       selectBtn.on('pointerdown', () => this.selectSlot(slot, summary));
       this.slotCards.push(selectBtn);
 
@@ -396,16 +396,16 @@ export class SlotPickerScene extends Phaser.Scene {
         this.add.text(x, y + 72, '[ Delete ]', {
           fontFamily: 'Arial',
           fontSize: '12px',
-          color: '#cc5555',
-          backgroundColor: '#332222',
+          color: UI_PALETTE.bad,
+          backgroundColor: UI_PALETTE.dangerBg,
           padding: { x: 8, y: 4 },
         }),
       )
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
 
-      deleteBtn.on('pointerover', () => deleteBtn.setColor('#ff6666'));
-      deleteBtn.on('pointerout', () => deleteBtn.setColor('#cc5555'));
+      deleteBtn.on('pointerover', () => deleteBtn.setColor(UI_PALETTE.bad));
+      deleteBtn.on('pointerout', () => deleteBtn.setColor(UI_PALETTE.bad));
       deleteBtn.on('pointerdown', () => this.confirmDelete(slot));
       this.slotCards.push(deleteBtn);
 
@@ -609,16 +609,16 @@ export class SlotPickerScene extends Phaser.Scene {
       .setInteractive();
     objects.push(blocker);
     const panel = this.add
-      .rectangle(cx, cy, 380, 180, 0x121a2a, 0.96)
+      .rectangle(cx, cy, 380, 180, UI_HEX.panel, 0.96)
       .setDepth(501)
-      .setStrokeStyle(2, 0x66aacc, 1);
+      .setStrokeStyle(2, UI_HEX.line, 1);
     objects.push(panel);
     objects.push(
       applyTextResolution(
         this.add.text(cx, cy - 58, 'Battle in Progress', {
           fontFamily: 'Arial',
           fontSize: '16px',
-          color: '#ffdd88',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         }),
       )
@@ -634,7 +634,7 @@ export class SlotPickerScene extends Phaser.Scene {
           {
             fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#d0d7e8',
+            color: UI_PALETTE.text,
             align: 'center',
           },
         ),
@@ -666,7 +666,7 @@ export class SlotPickerScene extends Phaser.Scene {
       objects.push(btn);
       focusButtons.push(btn);
     };
-    makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
+    makeButton(cx - 92, '[ Resume Battle ]', UI_PALETTE.good, () =>
       this._continueSuspendedRun(slot, rm, 'battle'),
     );
     if (!fatal)
@@ -839,7 +839,7 @@ export class SlotPickerScene extends Phaser.Scene {
 
     const box = this.add
       .rectangle(cx, cy, 300, 140, UI_HEX.panel, 1)
-      .setStrokeStyle(2, 0xcc5555)
+      .setStrokeStyle(2, UI_HEX.dangerLine)
       .setDepth(501);
     this.confirmDialog.push(box);
 
@@ -847,7 +847,7 @@ export class SlotPickerScene extends Phaser.Scene {
       this.add.text(cx, cy - 30, `Delete Slot ${slot}?`, {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff6666',
+        color: UI_PALETTE.bad,
         fontStyle: 'bold',
       }),
     )
@@ -871,8 +871,8 @@ export class SlotPickerScene extends Phaser.Scene {
       this.add.text(cx - 60, cy + 30, '[ Delete ]', {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#cc5555',
-        backgroundColor: '#332222',
+        color: UI_PALETTE.bad,
+        backgroundColor: UI_PALETTE.dangerBg,
         padding: { x: 10, y: 6 },
       }),
     )
@@ -880,8 +880,8 @@ export class SlotPickerScene extends Phaser.Scene {
       .setDepth(502)
       .setInteractive({ useHandCursor: true });
 
-    yesBtn.on('pointerover', () => yesBtn.setColor('#ff6666'));
-    yesBtn.on('pointerout', () => yesBtn.setColor('#cc5555'));
+    yesBtn.on('pointerover', () => yesBtn.setColor(UI_PALETTE.bad));
+    yesBtn.on('pointerout', () => yesBtn.setColor(UI_PALETTE.bad));
     yesBtn.on('pointerdown', () => {
       deleteSlot(slot);
       const cloud = this.registry.get('cloud');

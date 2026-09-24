@@ -12,6 +12,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 
 export class InputController {
   constructor(scene) {
@@ -751,7 +752,7 @@ export class InputController {
     }
     if (scene.battleState === 'PLAYER_IDLE') {
       const isPlayer = unit.faction === 'player';
-      const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
+      const moveColor = isPlayer ? 0x3366cc : UI_HEX.dangerLine;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
       const positions = scene.buildUnitPositionMap(unit.faction);
       // Player units already ticked recovery this phase (isRooted is current);

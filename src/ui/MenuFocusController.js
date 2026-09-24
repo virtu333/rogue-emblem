@@ -1,3 +1,4 @@
+import { UI_PALETTE } from '../utils/uiStyles.js';
 // Keyboard/gamepad focus for a flat list of menu buttons (the in-battle action
 // menu in PR 1; other lists in later phases). The buttons are the existing Phaser
 // objects — we just drive a focus highlight over them and invoke the focused
@@ -13,8 +14,8 @@
 //
 // FOCUS_COLOR intentionally matches the buttons' pointer-hover color, so mouse
 // hover and controller focus look identical and never visibly fight.
-const FOCUS_COLOR = '#ffdd44';
-const DEFAULT_COLOR = '#e0e0e0';
+const FOCUS_COLOR = UI_PALETTE.accentText;
+const DEFAULT_COLOR = UI_PALETTE.text;
 
 // DisplayList destroys Phaser objects before scene shutdown listeners run.
 function isLive(button) {

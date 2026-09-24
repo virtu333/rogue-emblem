@@ -6,7 +6,7 @@ import {
   statusDescriptions,
   statusStaffInfo,
 } from '../engine/BattleInformation.js';
-import { UI_COLORS } from '../utils/uiStyles.js';
+import { UI_COLORS, UI_HEX } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { presentationText } from '../utils/presentationText.js';
 
@@ -69,10 +69,10 @@ export class UnitInspectionPanel {
 
     // Dark background box
     const bg = this.scene.add
-      .rectangle(tx, ty, tooltipW, tooltipH, 0x111122, 0.92)
+      .rectangle(tx, ty, tooltipW, tooltipH, UI_HEX.panel, 0.92)
       .setOrigin(0, 0)
       .setDepth(150)
-      .setStrokeStyle(1, 0x666688)
+      .setStrokeStyle(1, UI_HEX.line)
       .setInteractive({ useHandCursor: true });
     bg.on('pointerdown', () => {
       if (this.scene.openUnitDetailOverlay) this.scene.openUnitDetailOverlay();
@@ -110,7 +110,7 @@ export class UnitInspectionPanel {
         .rectangle(tx + 4, buttonY, tooltipW - 8, 44, 0x293f48, 1)
         .setOrigin(0, 0)
         .setDepth(152)
-        .setStrokeStyle(1, pinned ? 0xd98b5a : 0x666688)
+        .setStrokeStyle(1, pinned ? 0xd98b5a : UI_HEX.line)
         .setInteractive({ useHandCursor: true });
       pinButton.on('pointerdown', (_pointer, _x, _y, event) => {
         event?.stopPropagation?.();

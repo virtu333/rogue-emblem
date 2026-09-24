@@ -24,15 +24,15 @@ const NODE_RADIUS = 8;
 const NUM_COLUMNS = 5;
 
 // Node state colors
-const COLOR_COMPLETED = 0x555555;
-const COLOR_ACTIVE = 0x44ff44;
+const COLOR_COMPLETED = UI_HEX.line;
+const COLOR_ACTIVE = UI_HEX.hpHigh;
 const COLOR_NEXT = UI_HEX.accent;
-const COLOR_LOCKED_BATTLE = 0xcc6633;
-const COLOR_LOCKED_BOSS = 0xcc3333;
-const COLOR_LOCKED_SHOP = 0xddaa33;
-const COLOR_LOCKED_RUINS = 0x9c8b6b;
-const COLOR_LOCKED_RECRUIT = 0x44ccaa;
-const COLOR_LOCKED_CHURCH = 0xcccccc;
+const COLOR_LOCKED_BATTLE = UI_HEX.dangerLine;
+const COLOR_LOCKED_BOSS = UI_HEX.dangerLine;
+const COLOR_LOCKED_SHOP = UI_HEX.accent;
+const COLOR_LOCKED_RUINS = UI_HEX.lineStrong;
+const COLOR_LOCKED_RECRUIT = UI_HEX.hpHigh;
+const COLOR_LOCKED_CHURCH = UI_HEX.lineStrong;
 
 const LOCKED_COLORS = {
   [NODE_TYPES.BATTLE]: COLOR_LOCKED_BATTLE,
@@ -180,14 +180,14 @@ export class CampaignMapOverlay {
       this.scene.add.text(panelLeft + PANEL_W - 16, panelTop + 8, '[X]', {
         fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#cc5555',
+        color: UI_PALETTE.bad,
       }),
     )
       .setOrigin(0.5, 0)
       .setDepth(DEPTH_UI)
       .setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerover', () => closeBtn.setColor('#ff8888'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#cc5555'));
+    closeBtn.on('pointerover', () => closeBtn.setColor(UI_PALETTE.bad));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.bad));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
     this._closeBtn = closeBtn;
@@ -230,7 +230,7 @@ export class CampaignMapOverlay {
           (fromState === 'completed' && (toState === 'active' || toState === 'completed'));
         graphics.lineStyle(
           isActivePath ? 2 : 1,
-          isActivePath ? UI_HEX.accent : 0x666666,
+          isActivePath ? UI_HEX.accent : UI_HEX.line,
           isActivePath ? 0.9 : 0.3,
         );
         graphics.lineBetween(from.x, from.y, to.x, to.y);
@@ -282,7 +282,7 @@ export class CampaignMapOverlay {
           this.scene.add.text(pos.x, pos.y - NODE_RADIUS - 10, '\u25BC YOU', {
             fontFamily: 'Arial',
             fontSize: '8px',
-            color: '#44ff44',
+            color: UI_PALETTE.good,
           }),
         )
           .setOrigin(0.5)
@@ -308,8 +308,8 @@ export class CampaignMapOverlay {
 
   _drawLegend(cx, y) {
     const entries = [
-      { label: 'Done', color: '#555555' },
-      { label: 'Here', color: '#44ff44' },
+      { label: 'Done', color: UI_PALETTE.lineStrong },
+      { label: 'Here', color: UI_PALETTE.good },
       { label: 'Next', color: UI_PALETTE.accent },
       { label: 'Locked', color: UI_PALETTE.muted },
     ];

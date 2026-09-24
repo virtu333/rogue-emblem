@@ -94,9 +94,9 @@ function showVictoryRecoveryOn(scene) {
   group.push(blocker);
 
   const panel = scene.add
-    .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+    .rectangle(cam.centerX, cam.centerY, 420, 170, 0x17141f, 0.97)
     .setDepth(911)
-    .setStrokeStyle(2, 0x777777)
+    .setStrokeStyle(2, 0x8a7f86)
     .setInteractive();
   group.push(panel);
 

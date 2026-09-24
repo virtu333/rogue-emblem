@@ -84,7 +84,7 @@ export class RunCompleteScene extends Phaser.Scene {
         this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
           fontFamily: 'Arial',
           fontSize: '32px',
-          color: isVictory ? UI_PALETTE.accent : '#cc3333',
+          color: isVictory ? UI_PALETTE.accent : UI_PALETTE.bad,
           fontStyle: 'bold',
         }),
       ).setOrigin(0.5);
@@ -147,7 +147,7 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx, curY, `Valor Earned: +${valor}`, {
         fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffcc44',
+        color: UI_PALETTE.accentText,
         align: 'center',
       }),
     ).setOrigin(0.5);
@@ -156,7 +156,7 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx, curY, `Supply Earned: +${supply}`, {
         fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#44ccbb',
+        color: UI_PALETTE.info,
         align: 'center',
       }),
     ).setOrigin(0.5);
@@ -183,7 +183,7 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx - 110, cy + 80, '[ Home Base ]', {
         fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
         backgroundColor: '#000000aa',
         padding: { x: 16, y: 8 },
       }),
@@ -192,7 +192,7 @@ export class RunCompleteScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     homeBtn.on('pointerover', () => homeBtn.setColor(UI_PALETTE.accent));
-    homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
+    homeBtn.on('pointerout', () => homeBtn.setColor(UI_PALETTE.info));
     homeBtn.on('pointerdown', () => {
       void this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME);
     });
@@ -223,7 +223,7 @@ export class RunCompleteScene extends Phaser.Scene {
     this._menuFocus.setItems([
       {
         button: homeBtn,
-        color: '#88ccff',
+        color: UI_PALETTE.info,
         onActivate: () => this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME),
       },
       {

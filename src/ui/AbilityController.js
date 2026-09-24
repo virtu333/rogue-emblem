@@ -18,10 +18,11 @@ import {
 } from '../engine/ActionAbilitySystem.js';
 import { applyCondition } from '../engine/StatusConditionSystem.js';
 import { CombatFxController } from './CombatFxController.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
-const BLINK_TILE_COLOR = 0x66ccff;
-const ALLY_AOE_COLOR = 0x44ff88;
-const ENEMY_AOE_COLOR = 0xff8844;
+const BLINK_TILE_COLOR = UI_HEX.lineStrong;
+const ALLY_AOE_COLOR = UI_HEX.hpHigh;
+const ENEMY_AOE_COLOR = UI_HEX.warn;
 
 export class AbilityController {
   constructor(scene) {
@@ -113,13 +114,13 @@ export class AbilityController {
         0.9,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
     entries.forEach((entry, i) => {
       const rowY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const usable = entry.canUse && entry.hasTargets;
-      const color = usable ? '#e0e0e0' : '#888888';
+      const color = usable ? UI_PALETTE.text : UI_PALETTE.muted;
       const label = `${entry.skill.name}\n   ${this._statusLine(unit, entry)}`;
       const text = scene._makeMenuTextButton(
         menuPos.x + 8,
@@ -161,8 +162,8 @@ export class AbilityController {
         menuPos.x + 8,
         menuPos.y + 6 + entries.length * itemHeight + itemHeight / 2,
         'Back',
-        { fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0' },
-        '#e0e0e0',
+        { fontFamily: 'monospace', fontSize: '12px', color: UI_PALETTE.text },
+        UI_PALETTE.text,
         () => scene.requestCancel({ allowPause: false }),
         { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
       ),
@@ -310,7 +311,7 @@ export class AbilityController {
         0.9,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
     const targetNoun = hostile
@@ -339,7 +340,7 @@ export class AbilityController {
       scene.actionMenu.push(text);
     };
 
-    makeRow(0, confirmLabel, '#a6ffb0', () => {
+    makeRow(0, confirmLabel, UI_PALETTE.good, () => {
       const latest = canUseAbility(unit, skill);
       if (!latest.ok) {
         this.showAbilityPicker(unit);
@@ -349,7 +350,7 @@ export class AbilityController {
       if (audio) audio.playSFX('sfx_confirm');
       void this.executeSelfCentered(unit, skill);
     });
-    makeRow(1, 'Cancel', '#e0e0e0', () => {
+    makeRow(1, 'Cancel', UI_PALETTE.text, () => {
       const audio = scene.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       this.showAbilityPicker(unit);
@@ -443,14 +444,14 @@ export class AbilityController {
       const applied = applyCondition(enemy, 'root', duration + 1, { recoveryChance: 0 });
       if (!applied) {
         // statusImmunity accessory blocked it
-        scene.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+        scene.showMinorHintAt(pos.x, pos.y, 'Immune!', UI_PALETTE.good);
         continue;
       }
       observeHistoryAction(scene, 'rooted', unit, enemy, skill.name);
       anyRooted = true;
       scene._addConditionIcon(enemy, 'root');
       (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y);
-      scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', '#cc88ff');
+      scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', UI_PALETTE.rarityEpic);
     }
     // Rooted enemies can't move — their threat ranges shrink
     if (anyRooted) {

@@ -519,7 +519,7 @@ export class CompendiumOverlay {
 
     // Divider
     const divider = this.scene.add.graphics().setDepth(DEPTH_UI);
-    divider.lineStyle(1, 0x555555);
+    divider.lineStyle(1, UI_HEX.line);
     divider.beginPath();
     divider.moveTo(left + 15, top + 46);
     divider.lineTo(left + panelW - 15, top + 46);
@@ -670,7 +670,7 @@ export class CompendiumOverlay {
     const searchBox = this.scene.add
       .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, UI_HEX.sunken, 1)
       .setDepth(DEPTH_UI)
-      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : 0x555555)
+      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : UI_HEX.line)
       .setInteractive({ useHandCursor: true });
     searchBox.on('pointerdown', () => {
       this.searchInputActive = true;
@@ -704,7 +704,7 @@ export class CompendiumOverlay {
         this.searchResults.length > 0
           ? `${this.activeSearchResult + 1}/${this.searchResults.length}`
           : 'No matches';
-      const statusColor = this.searchResults.length > 0 ? '#66ff66' : '#ff8888';
+      const statusColor = this.searchResults.length > 0 ? UI_PALETTE.good : UI_PALETTE.bad;
       const searchStatus = applyTextResolution(
         this.scene.add.text(left + panelW - 72, top + 18, statusText, {
           fontFamily: 'Arial',
@@ -763,7 +763,7 @@ export class CompendiumOverlay {
 
     // Tab divider
     const tabDiv = this.scene.add.graphics().setDepth(DEPTH_UI);
-    tabDiv.lineStyle(1, 0x444444);
+    tabDiv.lineStyle(1, UI_HEX.line);
     tabDiv.beginPath();
     tabDiv.moveTo(left + 15, top + 76);
     tabDiv.lineTo(left + panelW - 15, top + 76);
@@ -779,14 +779,14 @@ export class CompendiumOverlay {
         this.scene.add.text(fx, filterY, filters[i], {
           fontFamily: 'Arial',
           fontSize: '8px',
-          color: isActive ? UI_PALETTE.accent : '#777777',
+          color: isActive ? UI_PALETTE.accent : UI_PALETTE.lineStrong,
         }),
       ).setDepth(DEPTH_UI);
 
       if (!isActive) {
         chip.setInteractive({ useHandCursor: true });
         chip.on('pointerover', () => chip.setColor(UI_PALETTE.muted));
-        chip.on('pointerout', () => chip.setColor('#777777'));
+        chip.on('pointerout', () => chip.setColor(UI_PALETTE.lineStrong));
         chip.on('pointerdown', () => {
           this.activeFilterIndex = i;
           this.currentPage = 0;
@@ -871,7 +871,7 @@ export class CompendiumOverlay {
 
   _renderWeapon(item, y, left, rightX) {
     const nameColor = this._matchesSearch(item.name)
-      ? '#66ff66'
+      ? UI_PALETTE.good
       : item.tier === 'Legend'
         ? UI_PALETTE.accent
         : UI_PALETTE.text;
@@ -896,7 +896,7 @@ export class CompendiumOverlay {
   }
 
   _renderSkill(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     const activation = item.activation ? `  ${item.activation}%` : '';
     this._text(rightX, y, `${item.trigger || ''}${activation}`, UI_PALETTE.muted, 1);
@@ -904,7 +904,7 @@ export class CompendiumOverlay {
   }
 
   _renderArt(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(
       rightX,
@@ -917,7 +917,7 @@ export class CompendiumOverlay {
   }
 
   _renderClass(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     const profs = Array.isArray(item.weaponProficiencies)
       ? item.weaponProficiencies.join('/')
@@ -951,7 +951,7 @@ export class CompendiumOverlay {
   }
 
   _renderItem(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(rightX, y, `${item.type || ''}  ${item.price || 0}g`, UI_PALETTE.muted, 1);
 
@@ -1034,7 +1034,7 @@ export class CompendiumOverlay {
   }
 
   _renderLord(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(
       rightX,
@@ -1064,7 +1064,7 @@ export class CompendiumOverlay {
   }
 
   _renderBlessing(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(rightX, y, `Tier ${item.tier || '?'}`, UI_PALETTE.muted, 1);
     this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
@@ -1072,7 +1072,7 @@ export class CompendiumOverlay {
   }
 
   _renderTerrain(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(
       rightX,
@@ -1093,7 +1093,7 @@ export class CompendiumOverlay {
   }
 
   _renderAffix(item, y, left, rightX) {
-    const nameColor = this._matchesSearch(item.name) ? '#66ff66' : UI_PALETTE.text;
+    const nameColor = this._matchesSearch(item.name) ? UI_PALETTE.good : UI_PALETTE.text;
     this._text(left + 25, y, item.name, nameColor);
     this._text(rightX, y, `Tier ${item.tier || '?'}  ${item.trigger || ''}`, UI_PALETTE.muted, 1);
     this._text(left + 25, y + 14, item.description || '', UI_PALETTE.muted);
@@ -1102,7 +1102,7 @@ export class CompendiumOverlay {
   _renderFoe(item, y, left, rightX) {
     const isBoss = item._kind === 'boss';
     const nameColor = this._matchesSearch(item.name)
-      ? '#66ff66'
+      ? UI_PALETTE.good
       : isBoss
         ? '#ff8866'
         : UI_PALETTE.text;

@@ -673,7 +673,7 @@ describe('NodeMapScene Slice 4', () => {
     expect(names).toEqual(expect.arrayContaining(['Keep A', 'Keep B']));
     expect(scene.shopBuyItems.map((entry) => entry.index)).toEqual([0, 1, 2, 3]);
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
-    expect(scene.showShopBanner).toHaveBeenCalledWith('Shop restocked!', '#aaddff');
+    expect(scene.showShopBanner).toHaveBeenCalledWith('Shop restocked!', '#8fb8d6');
   });
 
   it('reroll with no purchases remains full reroll and keeps original slot count', () => {
@@ -1090,7 +1090,7 @@ describe('NodeMapScene Slice 4', () => {
       expect(lastPlayMusicCall?.[2]).toBe(300);
       expect(showTransientMessage).toHaveBeenCalledWith(
         'Failed to open Colosseum. Please try again.',
-        '#ff6666',
+        '#ec7a5c',
       );
     } finally {
       errorSpy.mockRestore();

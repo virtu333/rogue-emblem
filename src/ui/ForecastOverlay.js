@@ -1,5 +1,5 @@
 import { forecastProjection, forecastNotes } from './forecastDisplay.js';
-import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils/uiStyles.js';
 /**
  * ForecastOverlay — extracted from BattleScene.
  * Renders the combat forecast panel (FE GBA-style split layout).
@@ -7,7 +7,6 @@ import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
  */
 import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/Combat.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getHPBarColor } from '../utils/uiStyles.js';
 
 export class ForecastOverlay {
   /**
@@ -187,7 +186,7 @@ export class ForecastOverlay {
         scene.add.text(nameX, y + 22, 'EFFECTIVE!', {
           fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#ff4444',
+          color: UI_PALETTE.bad,
           fontStyle: 'bold',
         }),
       ).setDepth(textDepth);
@@ -252,7 +251,7 @@ export class ForecastOverlay {
         scene.add.text(x + sideW / 2, y + 4, '-- No Counter --', {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#cc6666',
+          color: UI_PALETTE.bad,
         }),
       )
         .setOrigin(0.5, 0)
@@ -265,7 +264,7 @@ export class ForecastOverlay {
         scene.add.text(x + 2, y, wpnName, {
           fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#88bbff',
+          color: UI_PALETTE.info,
         }),
       ).setDepth(textDepth);
       this.displayObjects.push(wpn);
@@ -330,8 +329,8 @@ export class ForecastOverlay {
     // AS display
     const baseAs = calculateEffectiveSpeed(unit, unit.weapon);
     let asColor = UI_PALETTE.text;
-    if (info.as < baseAs) asColor = '#ff6666';
-    else if (info.as > baseAs) asColor = '#44ff88';
+    if (info.as < baseAs) asColor = UI_PALETTE.bad;
+    else if (info.as > baseAs) asColor = UI_PALETTE.good;
     const asLabel = applyTextResolution(
       scene.add.text(x + 80, y, 'AS', {
         fontFamily: 'Arial',
@@ -362,7 +361,7 @@ export class ForecastOverlay {
 
     // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons)
     const wpnName = unit.weapon?.name || 'Unarmed';
-    const wpnColor = unit.weapon && isForged(unit.weapon) ? '#44ff88' : '#88bbff';
+    const wpnColor = unit.weapon && isForged(unit.weapon) ? UI_PALETTE.good : UI_PALETTE.info;
     const validWpns = opts.validWeapons;
     const canCycle = isAttacker && validWpns?.length >= 2;
 
@@ -456,7 +455,7 @@ export class ForecastOverlay {
         scene.add.text(x + 2, y, parts.join('  '), {
           fontFamily: 'Arial',
           fontSize: '9px',
-          color: '#aaddff',
+          color: UI_PALETTE.info,
           wordWrap: { width: sideW - 6 },
         }),
       ).setDepth(textDepth);
@@ -502,18 +501,18 @@ export class ForecastOverlay {
       y += 2;
       for (const warn of info.warnings) {
         let label = warn.toUpperCase();
-        let color = '#ffcc88';
+        let color = UI_PALETTE.warn;
         if (warn === 'Shielded') {
           label = '[BLOCK]';
-          color = '#88ccff';
+          color = UI_PALETTE.info;
         }
         if (warn === 'Thorns') {
           label = '[REFLECT]';
-          color = '#ff8888';
+          color = UI_PALETTE.bad;
         }
         if (warn === 'Teleporter') {
           label = '[WARP]';
-          color = '#cc88ff';
+          color = UI_PALETTE.rarityEpic;
         }
 
         const warningText = applyTextResolution(
@@ -538,7 +537,7 @@ export class ForecastOverlay {
   _drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons) {
     const scene = this.scene;
 
-    const hintStyle = { fontFamily: 'Arial', fontSize: '8px', color: '#a0a0b8' };
+    const hintStyle = { fontFamily: 'Arial', fontSize: '8px', color: UI_PALETTE.muted };
     const hintPrimary =
       validWeapons.length >= 2
         ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
@@ -588,7 +587,7 @@ export class ForecastOverlay {
     this.displayObjects.push(hintBg);
 
     const confirmBtnBg = scene.add
-      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, 0x1d5f2a, 0.95)
+      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, UI_HEX.hpHigh, 0.95)
       .setDepth(depth + 1)
       .setStrokeStyle(1, 0x4dff77)
       .setInteractive({ useHandCursor: true });
@@ -596,7 +595,7 @@ export class ForecastOverlay {
       scene.add.text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
         fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#d8ffe1',
+        color: UI_PALETTE.good,
         fontStyle: 'bold',
       }),
     )
@@ -607,8 +606,8 @@ export class ForecastOverlay {
       confirmBtnText.setColor(UI_PALETTE.text);
     });
     confirmBtnBg.on('pointerout', () => {
-      confirmBtnBg.setFillStyle(0x1d5f2a, 0.95);
-      confirmBtnText.setColor('#d8ffe1');
+      confirmBtnBg.setFillStyle(UI_HEX.hpHigh, 0.95);
+      confirmBtnText.setColor(UI_PALETTE.good);
     });
     confirmBtnBg.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;

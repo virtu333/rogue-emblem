@@ -7,8 +7,9 @@ import { observeHistoryAction, rememberHistoryPath } from './BattleHistoryRecord
 
 import { createCaravanUnit, computeCaravanStep, isCaravanAtEdge } from '../engine/CaravanSystem.js';
 import { showContextualHint } from './HintDisplay.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 
-const CARAVAN_RING_COLOR = 0xffcc33;
+const CARAVAN_RING_COLOR = UI_HEX.accent;
 
 export class CaravanController {
   constructor(scene) {

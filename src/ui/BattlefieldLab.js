@@ -3,6 +3,7 @@ import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 export function battlefieldLabEnabled() {
   return (
@@ -21,7 +22,7 @@ export class BattlefieldLab {
     hud.wrapper.classList.add('battlefield-lab');
     this.originalSize = { width: this.scene.scale.width, height: this.scene.scale.height };
     this.originalBackground = this.scene.cameras.main.backgroundColor.rgba;
-    this.scene.cameras.main.setBackgroundColor('#263e40');
+    this.scene.cameras.main.setBackgroundColor(UI_PALETTE.sunken);
     this.tools = document.createElement('nav');
     this.tools.className = 'bl-tools';
     this.tools.setAttribute('aria-label', 'Battle utilities');

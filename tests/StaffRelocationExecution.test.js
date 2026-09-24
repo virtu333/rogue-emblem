@@ -259,7 +259,7 @@ describe('two-phase targeting handlers', () => {
     expect(ctx.battleState).toBe('SELECTING_STAFF_TILE');
     expect(ctx.staffRelocateAlly).toBe(ally);
     expect(ctx.staffRelocateTiles).toHaveLength(4); // all four caster-adjacent tiles free
-    expect(ctx.grid.showAttackRange).toHaveBeenCalledWith(ctx.staffRelocateTiles, 0x66ccff, 0.4);
+    expect(ctx.grid.showAttackRange).toHaveBeenCalledWith(ctx.staffRelocateTiles, 0x8a7f86, 0.4);
   });
 
   it('handleStaffAllyClick ignores clicks on non-target tiles', () => {

@@ -21,6 +21,7 @@ import {
   DETAIL_WIDTH,
   formatUnitCapacityLabel,
 } from './rosterOverlayShared.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class RosterTradeController {
   constructor(overlay) {
@@ -49,7 +50,7 @@ export class RosterTradeController {
 
     const paneX = DETAIL_X + 20;
     const depth = DEPTH_PICKER + 2;
-    const addText = (x, y, str, color = '#e0e0e0', fontSize = '10px') => {
+    const addText = (x, y, str, color = UI_PALETTE.text, fontSize = '10px') => {
       const t = overlay.scene.add
         .text(x, y, str, {
           fontFamily: 'monospace',
@@ -62,7 +63,12 @@ export class RosterTradeController {
     };
 
     if (!item) {
-      addText(DETAIL_X + DETAIL_WIDTH / 2 - 60, paneY + 20, 'Hover item for details', '#666666');
+      addText(
+        DETAIL_X + DETAIL_WIDTH / 2 - 60,
+        paneY + 20,
+        'Hover item for details',
+        UI_PALETTE.lineStrong,
+      );
       return;
     }
 
@@ -81,12 +87,12 @@ export class RosterTradeController {
         paneX,
         paneY + 6,
         `${item.name} (${item.uses} use${item.uses !== 1 ? 's' : ''})`,
-        '#88ff88',
+        UI_PALETTE.good,
         '11px',
       );
       const effectLabel = getConsumableDescription(item) || item.effect || '';
-      addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
-      if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');
+      addText(paneX, paneY + 22, `Effect: ${effectLabel}`, UI_PALETTE.muted);
+      if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, UI_PALETTE.muted);
       addLoreLine(paneY + 46);
       return;
     }
@@ -101,12 +107,12 @@ export class RosterTradeController {
     const forgeLevel = overlay._getWeaponForgeLevel(item);
     const fullName = forgeLevel > 0 ? `${baseName} +${forgeLevel}` : baseName;
     const typeLabel = item.type || '';
-    addText(paneX, line1Y, `${typeLabel}:`, '#aaaaaa');
+    addText(paneX, line1Y, `${typeLabel}:`, UI_PALETTE.muted);
     addText(
       paneX + typeLabel.length * 6 + 12,
       line1Y,
       fullName,
-      overlay._getWeaponNameColor(item, '#e0e0e0'),
+      overlay._getWeaponNameColor(item, UI_PALETTE.text),
       '11px',
     );
 
@@ -115,11 +121,11 @@ export class RosterTradeController {
       const rem = ownerUnit ? getStaffRemainingUses(item, ownerUnit) : '?';
       const max = ownerUnit ? getStaffMaxUses(item, ownerUnit) : '?';
       const healBase = item.healBase != null ? `Heal: MAG+${item.healBase}` : '';
-      addText(paneX, line2Y, `${healBase}  Uses: ${rem}/${max}`, '#bbbbbb');
+      addText(paneX, line2Y, `${healBase}  Uses: ${rem}/${max}`, UI_PALETTE.muted);
       if (item.range) {
         const rng = parseRange(item.range);
         const rngStr = rng.min === rng.max ? `${rng.max}` : `${rng.min}-${rng.max}`;
-        addText(paneX + 240, line2Y, `Rng ${rngStr}`, '#bbbbbb');
+        addText(paneX + 240, line2Y, `Rng ${rngStr}`, UI_PALETTE.muted);
       }
     } else if (item.might !== undefined) {
       const rng = parseRange(item.range);
@@ -132,11 +138,11 @@ export class RosterTradeController {
         ['Wt', item.weight, 'weight'],
       ];
       for (const [label, val, key] of stats) {
-        const color = overlay._getForgeStatColor(item, key, '#bbbbbb');
+        const color = overlay._getForgeStatColor(item, key, UI_PALETTE.muted);
         addText(cx, line2Y, `${label}${val}`, color);
         cx += `${label}${val}`.length * 6 + 10;
       }
-      addText(cx, line2Y, `Rng ${rngStr}`, '#bbbbbb');
+      addText(cx, line2Y, `Rng ${rngStr}`, UI_PALETTE.muted);
     }
 
     // Line 3: Special / proficiency warning
@@ -147,7 +153,7 @@ export class RosterTradeController {
     }
     if (parts.length > 0) {
       const specialColor =
-        recipientUnit && !hasProficiency(recipientUnit, item) ? '#cc8844' : '#aaaaaa';
+        recipientUnit && !hasProficiency(recipientUnit, item) ? UI_PALETTE.warn : UI_PALETTE.muted;
       addText(paneX, line3Y, parts.join('  |  '), specialColor);
     }
     addLoreLine(paneY + 44);
@@ -168,16 +174,16 @@ export class RosterTradeController {
     const topY = cy - totalH / 2;
 
     const pickerBg = overlay.scene.add
-      .rectangle(cx, cy, 360, totalH, 0x222222, 0.95)
+      .rectangle(cx, cy, 360, totalH, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.lineStrong);
     overlay.tradeObjects.push(pickerBg);
 
     const pickerTitle = overlay.scene.add
       .text(cx, topY + pad, 'Trade with:', {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accentText,
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
@@ -189,16 +195,16 @@ export class RosterTradeController {
         .text(cx, y, formatUnitCapacityLabel(unit, 18), {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#e0e0e0',
-          backgroundColor: '#444444',
+          color: UI_PALETTE.text,
+          backgroundColor: UI_PALETTE.lineStrong,
           padding: { x: 12, y: 3 },
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
       btn.on('pointerdown', () => {
         overlay._destroyTrade();
         overlay._showTradeScreen(sourceUnit, unit);
@@ -212,15 +218,15 @@ export class RosterTradeController {
       .text(cx, cancelY, 'Cancel', {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accentText));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => overlay._destroyTrade());
     overlay.tradeObjects.push(cancelBtn);
   }
@@ -239,16 +245,16 @@ export class RosterTradeController {
     const topY = cy - totalH / 2;
 
     const pickerBg = overlay.scene.add
-      .rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
+      .rectangle(cx, cy, 260, totalH, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.lineStrong);
     overlay.tradeObjects.push(pickerBg);
 
     const pickerTitle = overlay.scene.add
       .text(cx, topY + pad, 'Select Unit:', {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#ffdd44',
+        color: UI_PALETTE.accentText,
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1);
@@ -260,16 +266,16 @@ export class RosterTradeController {
         .text(cx, y, unit.name, {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#e0e0e0',
-          backgroundColor: '#444444',
+          color: UI_PALETTE.text,
+          backgroundColor: UI_PALETTE.lineStrong,
           padding: { x: 12, y: 3 },
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_PICKER + 1)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.text));
       btn.on('pointerdown', () => {
         overlay._destroyTrade();
         onSelect(i);
@@ -282,15 +288,15 @@ export class RosterTradeController {
       .text(cx, cancelY, 'Cancel', {
         fontFamily: 'monospace',
         fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.muted,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 3 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 1)
       .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerover', () => cancelBtn.setColor(UI_PALETTE.accentText));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor(UI_PALETTE.muted));
     cancelBtn.on('pointerdown', () => overlay._destroyTrade());
     overlay.tradeObjects.push(cancelBtn);
   }
@@ -308,20 +314,20 @@ export class RosterTradeController {
 
     // Trade overlay bg (extra height for detail pane)
     const tradeBg = overlay.scene.add
-      .rectangle(DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 480, 0x1a1a2e, 0.98)
+      .rectangle(DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 480, UI_HEX.panel, 0.98)
       .setDepth(DEPTH_PICKER)
-      .setStrokeStyle(1, 0x888888);
+      .setStrokeStyle(1, UI_HEX.lineStrong);
     overlay.tradeObjects.push(tradeBg);
 
     // Init detail pane tracking
     overlay._tradeDetailObjects = [];
 
-    overlay._tradeText(leftX + 80, y, 'Trade Items', '#ffdd44', '14px');
+    overlay._tradeText(leftX + 80, y, 'Trade Items', UI_PALETTE.accentText, '14px');
     y += 22;
 
     // Column headers
-    overlay._tradeText(leftX, y, formatUnitCapacityLabel(unitA, 11), '#e0e0e0', '11px');
-    overlay._tradeText(rightX, y, formatUnitCapacityLabel(unitB, 11), '#e0e0e0', '11px');
+    overlay._tradeText(leftX, y, formatUnitCapacityLabel(unitA, 11), UI_PALETTE.text, '11px');
+    overlay._tradeText(rightX, y, formatUnitCapacityLabel(unitB, 11), UI_PALETTE.text, '11px');
     y += 18;
 
     // Left side items (unitA) → click to give to unitB
@@ -332,14 +338,14 @@ export class RosterTradeController {
 
       // Inventory
       if (inventory.length === 0) {
-        overlay._tradeText(xPos, sy, '(empty)', '#888888', '10px');
+        overlay._tradeText(xPos, sy, '(empty)', UI_PALETTE.muted, '10px');
         sy += 14;
       } else {
         for (const item of [...inventory]) {
           const marker = item === unit.weapon ? '\u25b6 ' : '  ';
           const noProf = !hasProficiency(otherUnit, item);
           const ownerUsable = canEquip(unit, item);
-          const rowColor = ownerUsable ? '#e0e0e0' : '#777777';
+          const rowColor = ownerUsable ? UI_PALETTE.text : UI_PALETTE.lineStrong;
           const baseNameColor = ownerUsable
             ? overlay._getWeaponNameColor(item, rowColor)
             : rowColor;
@@ -349,7 +355,7 @@ export class RosterTradeController {
                 ...segment,
                 color: rowColor,
               }));
-          const nameColor = noProf ? '#cc8844' : baseNameColor;
+          const nameColor = noProf ? UI_PALETTE.warn : baseNameColor;
           const segments = [
             { text: marker, color: rowColor },
             { text: overlay._getWeaponBaseName(item), color: nameColor },
@@ -365,7 +371,7 @@ export class RosterTradeController {
           }
 
           if (otherInventory.length < INVENTORY_MAX) {
-            const interactiveSegments = [...segments, { text: '  \u25b6', color: '#e0e0e0' }];
+            const interactiveSegments = [...segments, { text: '  \u25b6', color: UI_PALETTE.text }];
             const row = overlay._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
             const hit = overlay.scene.add
               .rectangle(
@@ -381,11 +387,11 @@ export class RosterTradeController {
               .setInteractive({ useHandCursor: true });
             const restore = () => {
               row.texts.forEach((t, idx) =>
-                t.setColor(interactiveSegments[idx]?.color || '#e0e0e0'),
+                t.setColor(interactiveSegments[idx]?.color || UI_PALETTE.text),
               );
             };
             hit.on('pointerover', () => {
-              row.texts.forEach((t) => t.setColor('#ffdd44'));
+              row.texts.forEach((t) => t.setColor(UI_PALETTE.accentText));
               overlay._drawTradeDetailPane(item, unit, otherUnit);
             });
             hit.on('pointerout', () => {
@@ -399,7 +405,10 @@ export class RosterTradeController {
             });
             overlay.tradeObjects.push(hit);
           } else {
-            const disabledSegments = segments.map((segment) => ({ ...segment, color: '#666666' }));
+            const disabledSegments = segments.map((segment) => ({
+              ...segment,
+              color: UI_PALETTE.lineStrong,
+            }));
             overlay._tradeTextSegments(xPos, sy, disabledSegments, '10px');
           }
           sy += 14;
@@ -411,7 +420,7 @@ export class RosterTradeController {
       if (consumables.length > 0) {
         for (const item of [...consumables]) {
           const marker = '  ';
-          const color = '#88ff88';
+          const color = UI_PALETTE.good;
           const label = `${marker}${item.name} (${item.uses})`;
 
           if ((otherUnit.consumables || []).length < CONSUMABLE_MAX) {
@@ -424,7 +433,7 @@ export class RosterTradeController {
               .setDepth(DEPTH_PICKER + 2)
               .setInteractive({ useHandCursor: true });
             btn.on('pointerover', () => {
-              btn.setColor('#ffdd44');
+              btn.setColor(UI_PALETTE.accentText);
               overlay._drawTradeDetailPane(item, unit, otherUnit);
             });
             btn.on('pointerout', () => {
@@ -440,7 +449,7 @@ export class RosterTradeController {
             });
             overlay.tradeObjects.push(btn);
           } else {
-            overlay._tradeText(xPos, sy, label, '#666666', '10px');
+            overlay._tradeText(xPos, sy, label, UI_PALETTE.lineStrong, '10px');
           }
           sy += 14;
         }
@@ -460,7 +469,7 @@ export class RosterTradeController {
         detailPaneY + DETAIL_PANE_H / 2,
         DETAIL_WIDTH - 20,
         DETAIL_PANE_H,
-        0x111122,
+        UI_HEX.panel,
         0.95,
       )
       .setDepth(DEPTH_PICKER + 1)
@@ -478,15 +487,15 @@ export class RosterTradeController {
       .text(DETAIL_X + DETAIL_WIDTH / 2, doneY, '[ Done ]', {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 16, y: 4 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 2)
       .setInteractive({ useHandCursor: true });
-    doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
-    doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
+    doneBtn.on('pointerover', () => doneBtn.setColor(UI_PALETTE.accentText));
+    doneBtn.on('pointerout', () => doneBtn.setColor(UI_PALETTE.text));
     doneBtn.on('pointerdown', () => {
       overlay._destroyTrade();
       overlay.refresh();
@@ -499,7 +508,7 @@ export class RosterTradeController {
     tradeBg.setPosition(DETAIL_X + DETAIL_WIDTH / 2, 55 - 15 + totalH / 2);
   }
 
-  _tradeText(x, y, str, color = '#e0e0e0', fontSize = '10px') {
+  _tradeText(x, y, str, color = UI_PALETTE.text, fontSize = '10px') {
     const overlay = this.overlay;
     const t = overlay.scene.add
       .text(x, y, str, {
@@ -523,7 +532,7 @@ export class RosterTradeController {
         .text(cursor, y, text, {
           fontFamily: 'monospace',
           fontSize,
-          color: segment?.color || '#e0e0e0',
+          color: segment?.color || UI_PALETTE.text,
         })
         .setDepth(DEPTH_PICKER + 2);
       overlay.tradeObjects.push(t);

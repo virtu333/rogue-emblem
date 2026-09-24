@@ -1,3 +1,4 @@
+import { UI_HEX } from '../utils/uiStyles.js';
 // Gamepad/keyboard focus for a heterogeneous set of interactive Phaser objects
 // (tabs, cost buttons, list rows, bottom buttons) that don't share a colour scheme.
 //
@@ -8,7 +9,7 @@
 // nothing is duplicated. Objects are supplied already ordered (typically reading
 // order); the caller rebuilds the list after each redraw.
 
-const RING_COLOR = 0xffdd44;
+const RING_COLOR = UI_HEX.accent;
 const RING_PAD_X = 10;
 const RING_PAD_Y = 8;
 

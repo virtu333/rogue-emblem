@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MenuFocusController } from '../src/ui/MenuFocusController.js';
 
-const FOCUS = '#ffdd44';
-const DEFAULT = '#e0e0e0';
+const FOCUS = '#f3cb6c';
+const DEFAULT = '#ece3d0';
 
 function makeButton() {
   return {

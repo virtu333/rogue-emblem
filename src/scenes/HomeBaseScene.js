@@ -328,7 +328,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
 
-    this.add.rectangle(w / 2, h / 2, w, h, 0x000622, 1).setOrigin(0.5);
+    this.add.rectangle(w / 2, h / 2, w, h, UI_HEX.sunken, 1).setOrigin(0.5);
     this.drawTabContent(this.activeTab);
     this.drawContentViewportChrome();
     this.drawScrollIndicators();
@@ -345,7 +345,7 @@ export class HomeBaseScene extends Phaser.Scene {
           {
             fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#cc8844',
+            color: UI_PALETTE.warn,
           },
         ),
       )
@@ -427,9 +427,9 @@ export class HomeBaseScene extends Phaser.Scene {
     // Show both currencies — highlight the one used by the active tab
     const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || null;
     const valorColor =
-      activeCurrency === 'valor' ? '#ffcc44' : activeCurrency ? '#665522' : '#6b728f';
+      activeCurrency === 'valor' ? UI_PALETTE.accentText : activeCurrency ? '#665522' : '#6b728f';
     const supplyColor =
-      activeCurrency === 'supply' ? '#44ccbb' : activeCurrency ? '#225544' : '#6b728f';
+      activeCurrency === 'supply' ? UI_PALETTE.info : activeCurrency ? '#225544' : '#6b728f';
     applyTextResolution(
       this.add.text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
         fontFamily: 'Arial',
@@ -460,13 +460,13 @@ export class HomeBaseScene extends Phaser.Scene {
       .setStrokeStyle(1, 0x1b2744, 0.9);
 
     // Occlusion strips hide scrolled content outside the viewport.
-    this.add.rectangle(w / 2, TAB_CONTENT_TOP_Y / 2, w, TAB_CONTENT_TOP_Y, 0x000622, 1);
+    this.add.rectangle(w / 2, TAB_CONTENT_TOP_Y / 2, w, TAB_CONTENT_TOP_Y, UI_HEX.sunken, 1);
     this.add.rectangle(
       w / 2,
       TAB_CONTENT_BOTTOM_Y + (h - TAB_CONTENT_BOTTOM_Y) / 2,
       w,
       h - TAB_CONTENT_BOTTOM_Y,
-      0x000622,
+      UI_HEX.sunken,
       1,
     );
   }
@@ -485,7 +485,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, y, label, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: enabled ? '#a8cfff' : '#44506e',
+          color: enabled ? UI_PALETTE.info : '#44506e',
           backgroundColor: '#0f1730',
           padding: { x: 6, y: 3 },
         }),
@@ -495,7 +495,7 @@ export class HomeBaseScene extends Phaser.Scene {
       if (!enabled) return;
       btn.setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
-      btn.on('pointerout', () => btn.setColor('#a8cfff'));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.info));
       btn.on('pointerdown', onClick);
     };
 
@@ -806,7 +806,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, y, 'LOCKED', {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#aa4444',
+          color: UI_PALETTE.bad,
           backgroundColor: '#221111',
           padding: { x: 6, y: 2 },
         }),
@@ -832,7 +832,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const cost = this.meta.getNextCost(upgrade.id);
     const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
     const suffix = currency === 'valor' ? 'V' : 'S';
-    const btnColor = affordable ? '#88ff88' : '#555555';
+    const btnColor = affordable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
     const btn = applyTextResolution(
       this.add.text(x, y, `${cost}${suffix}`, {
         fontFamily: 'Arial',
@@ -904,7 +904,7 @@ export class HomeBaseScene extends Phaser.Scene {
             this.add.text(tipX, tipY, tipText, {
               fontFamily: 'Arial',
               fontSize: '9px',
-              color: '#dddddd',
+              color: UI_PALETTE.text,
               backgroundColor: '#111122ee',
               padding: { x: 6, y: 4 },
             }),
@@ -1022,7 +1022,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(arrowX + arrowText.width + 4, y, next, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#88ff88',
+          color: UI_PALETTE.good,
         }),
       );
     } else {
@@ -1031,7 +1031,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, y, next, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#88ff88',
+          color: UI_PALETTE.good,
         }),
       );
     }
@@ -1153,7 +1153,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(tipX, -9999, text, {
         fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#dddddd',
+        color: UI_PALETTE.text,
         backgroundColor: '#111122ee',
         padding: { x: 6, y: 4 },
         wordWrap: { width: 280 },
@@ -1180,7 +1180,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(x - 120, y + 18, lines.join('\n'), {
         fontFamily: 'Arial',
         fontSize: '9px',
-        color: '#dddddd',
+        color: UI_PALETTE.text,
         backgroundColor: '#111122ee',
         padding: { x: 6, y: 4 },
         wordWrap: { width: 200 },
@@ -1306,7 +1306,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
       // Portrait slot remains legible for transparent or unusually framed art.
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
-      this.add.rectangle(cx + 40, y + 40, 40, 40, UI_HEX.panel, 1).setStrokeStyle(1, 0x666688);
+      this.add.rectangle(cx + 40, y + 40, 40, 40, UI_HEX.panel, 1).setStrokeStyle(1, UI_HEX.line);
       if (this.textures.exists(portraitKey)) {
         this.add
           .image(cx + 20, y + 20, portraitKey)
@@ -1330,7 +1330,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(cx + 66, y + 16, `\u2605 ${personalName}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#ffcc66',
+          color: UI_PALETTE.accentText,
         }),
       );
 
@@ -1347,7 +1347,7 @@ export class HomeBaseScene extends Phaser.Scene {
             this.add.text(cx + 66, slotY, `\u25CB ${skillName}`, {
               fontFamily: 'Arial',
               fontSize: '10px',
-              color: '#88ccff',
+              color: UI_PALETTE.info,
             }),
           );
 
@@ -1356,13 +1356,13 @@ export class HomeBaseScene extends Phaser.Scene {
             this.add.text(cx + 200, slotY, '[x]', {
               fontFamily: 'Arial',
               fontSize: '10px',
-              color: '#cc6666',
+              color: UI_PALETTE.bad,
               backgroundColor: '#331111',
               padding: { x: 2, y: 1 },
             }),
           ).setInteractive({ useHandCursor: true });
-          removeBtn.on('pointerover', () => removeBtn.setColor('#ff8888'));
-          removeBtn.on('pointerout', () => removeBtn.setColor('#cc6666'));
+          removeBtn.on('pointerover', () => removeBtn.setColor(UI_PALETTE.bad));
+          removeBtn.on('pointerout', () => removeBtn.setColor(UI_PALETTE.bad));
           removeBtn.on('pointerdown', () => {
             this.meta.unassignSkill(lord.name, skillId);
             const audio = this.registry.get('audio');
@@ -1374,7 +1374,7 @@ export class HomeBaseScene extends Phaser.Scene {
             this.add.text(cx + 66, slotY, '\u25CB (empty)', {
               fontFamily: 'Arial',
               fontSize: '10px',
-              color: '#555555',
+              color: UI_PALETTE.lineStrong,
             }),
           );
 
@@ -1384,13 +1384,13 @@ export class HomeBaseScene extends Phaser.Scene {
               this.add.text(cx + 200, slotY, '[+]', {
                 fontFamily: 'Arial',
                 fontSize: '10px',
-                color: '#88ff88',
+                color: UI_PALETTE.good,
                 backgroundColor: '#113311',
                 padding: { x: 2, y: 1 },
               }),
             ).setInteractive({ useHandCursor: true });
-            addBtn.on('pointerover', () => addBtn.setColor('#ccffcc'));
-            addBtn.on('pointerout', () => addBtn.setColor('#88ff88'));
+            addBtn.on('pointerover', () => addBtn.setColor(UI_PALETTE.good));
+            addBtn.on('pointerout', () => addBtn.setColor(UI_PALETTE.good));
             addBtn.on('pointerdown', () => {
               this._showSkillPicker(lord.name, cx + 200, slotY);
             });
@@ -1405,7 +1405,7 @@ export class HomeBaseScene extends Phaser.Scene {
           this.add.text(cx + 66, lockedSlotY, '\u25CB Slot 2 \u2014 locked (Extra Skill Slot)', {
             fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#444444',
+            color: UI_PALETTE.lineStrong,
             wordWrap: { width: 190 },
           }),
         );
@@ -1436,7 +1436,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const costX = 530;
 
       // Skill name — interactive with tooltip
-      const baseColor = maxed ? '#88ccff' : UI_PALETTE.text;
+      const baseColor = maxed ? UI_PALETTE.info : UI_PALETTE.text;
       const skillLabel = applyTextResolution(
         this.add.text(labelX, y, upgrade.name, {
           fontFamily: 'Arial',
@@ -1496,7 +1496,7 @@ export class HomeBaseScene extends Phaser.Scene {
         const cost = this.meta.getNextCost(upgrade.id);
         const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
         const suffix = currency === 'valor' ? 'V' : 'S';
-        const btnColor = affordable ? '#88ff88' : '#555555';
+        const btnColor = affordable ? UI_PALETTE.good : UI_PALETTE.lineStrong;
         const btn = applyTextResolution(
           this.add.text(costX, y, `${cost}${suffix}`, {
             fontFamily: 'Arial',
@@ -1561,8 +1561,8 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(bgX + 8, iy, name, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#88ccff',
-          backgroundColor: '#222233',
+          color: UI_PALETTE.info,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 4, y: 2 },
         }),
       )
@@ -1570,7 +1570,7 @@ export class HomeBaseScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
       entry.on('pointerover', () => entry.setColor(UI_PALETTE.accent));
-      entry.on('pointerout', () => entry.setColor('#88ccff'));
+      entry.on('pointerout', () => entry.setColor(UI_PALETTE.info));
       entry.on('pointerdown', () => {
         this.meta.assignSkill(lordName, skillId);
         const audio = this.registry.get('audio');
@@ -1587,7 +1587,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(bgX + bgW - 8, bgY + 2, 'x', {
         fontFamily: 'Arial',
         fontSize: '10px',
-        color: '#cc6666',
+        color: UI_PALETTE.bad,
       }),
     )
       .setOrigin(1, 0)
@@ -1626,13 +1626,13 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, rowY, '[CHANGE]', {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#88ff88',
+          color: UI_PALETTE.good,
           backgroundColor: '#113311',
           padding: { x: 3, y: 1 },
         }),
       ).setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ccffcc'));
-      btn.on('pointerout', () => btn.setColor('#88ff88'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.good));
+      btn.on('pointerout', () => btn.setColor(UI_PALETTE.good));
       btn.on('pointerdown', () => this._showCommanderPicker(mode));
     };
 
@@ -1664,7 +1664,7 @@ export class HomeBaseScene extends Phaser.Scene {
           {
             fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#555555',
+            color: UI_PALETTE.lineStrong,
           },
         ),
       );
@@ -1748,7 +1748,7 @@ export class HomeBaseScene extends Phaser.Scene {
         .rectangle(cx, cy, cardW, cardH, isBlocked ? 0x1a1a22 : UI_HEX.panel, 1)
         .setStrokeStyle(
           isCurrent ? 3 : 2,
-          isCurrent ? UI_HEX.accent : isBlocked ? UI_HEX.line : 0x666688,
+          isCurrent ? UI_HEX.accent : isBlocked ? UI_HEX.line : UI_HEX.line,
         )
         .setDepth(901);
       objects.push(card);
@@ -1758,7 +1758,7 @@ export class HomeBaseScene extends Phaser.Scene {
       objects.push(
         this.add
           .rectangle(cx, yOff + 20, 40, 40, UI_HEX.panel, 1)
-          .setStrokeStyle(1, isBlocked ? UI_HEX.line : 0x666688)
+          .setStrokeStyle(1, isBlocked ? UI_HEX.line : UI_HEX.line)
           .setDepth(902),
       );
       if (this.textures.exists(portraitKey)) {
@@ -1771,7 +1771,7 @@ export class HomeBaseScene extends Phaser.Scene {
       }
       yOff += 42;
 
-      const textColor = isBlocked ? '#777777' : UI_PALETTE.text;
+      const textColor = isBlocked ? UI_PALETTE.lineStrong : UI_PALETTE.text;
       const addLine = (text, fontSize, color, dy) => {
         objects.push(
           applyTextResolution(
@@ -1792,11 +1792,11 @@ export class HomeBaseScene extends Phaser.Scene {
       addLine(lord.name, '12px', isBlocked ? UI_PALETTE.muted : UI_PALETTE.accent, 14);
       addLine(lord.class, '9px', isBlocked ? UI_PALETTE.muted : UI_PALETTE.muted, 12);
       addLine(lord.weapon.replace(/\s*\((P|M)\)/g, ''), '8px', textColor, 11);
-      addLine(`MOV ${lord.baseStats.MOV} · ${lord.moveType}`, '8px', '#88bbff', 11);
+      addLine(`MOV ${lord.baseStats.MOV} · ${lord.moveType}`, '8px', UI_PALETTE.info, 11);
       const s = lord.baseStats;
       addLine(`HP${s.HP} STR${s.STR} MAG${s.MAG} SPD${s.SPD}`, '8px', textColor, 11);
       // Personal skill, full text (wrapped) — the heart of the pick
-      addLine(lord.personalSkill, '8px', isBlocked ? '#776644' : '#ffcc66', 0);
+      addLine(lord.personalSkill, '8px', isBlocked ? '#776644' : UI_PALETTE.accentText, 0);
 
       // Status tag pinned to the card's bottom edge
       const tag = isBlocked ? 'COMMANDER' : isCurrent ? 'CURRENT' : null;
@@ -1819,7 +1819,7 @@ export class HomeBaseScene extends Phaser.Scene {
         card.setInteractive({ useHandCursor: true });
         card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
         card.on('pointerout', () =>
-          card.setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? UI_HEX.accent : 0x666688),
+          card.setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? UI_HEX.accent : UI_HEX.line),
         );
         card.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
@@ -1840,7 +1840,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(cam.centerX, closeY, '[ CLOSE ]', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#cc8888',
+        color: UI_PALETTE.bad,
         backgroundColor: '#331111',
         padding: { x: 6, y: 2 },
       }),
@@ -1849,7 +1849,7 @@ export class HomeBaseScene extends Phaser.Scene {
       .setDepth(902)
       .setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor('#ffaaaa'));
-    closeBtn.on('pointerout', () => closeBtn.setColor('#cc8888'));
+    closeBtn.on('pointerout', () => closeBtn.setColor(UI_PALETTE.bad));
     closeBtn.on('pointerdown', () => this._destroyCommanderPicker());
     objects.push(closeBtn);
 
@@ -1892,7 +1892,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.drawUI();
       });
     } else {
-      const refundColor = canRefundAnything ? '#cc8844' : '#555555';
+      const refundColor = canRefundAnything ? UI_PALETTE.warn : UI_PALETTE.lineStrong;
       const refundBtn = applyTextResolution(
         this.add.text(cx - 190, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
           fontFamily: 'Arial',
@@ -1918,7 +1918,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(cx, btnY, '[ Begin Run ]', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#88ff88',
+        color: UI_PALETTE.good,
         backgroundColor: '#000000aa',
         padding: { x: 14, y: 8 },
       }),
@@ -1927,7 +1927,7 @@ export class HomeBaseScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     beginBtn.on('pointerover', () => beginBtn.setColor(UI_PALETTE.accent));
-    beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
+    beginBtn.on('pointerout', () => beginBtn.setColor(UI_PALETTE.good));
     beginBtn.on('pointerdown', async () => {
       await this.runTransition(() =>
         transitionToScene(
@@ -1986,7 +1986,7 @@ export class HomeBaseScene extends Phaser.Scene {
       }
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
-      this.showTransientMessage('Could not start transition. Try again.', '#ff8888');
+      this.showTransientMessage('Could not start transition. Try again.', UI_PALETTE.bad);
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       return false;
@@ -1998,14 +1998,14 @@ export class HomeBaseScene extends Phaser.Scene {
       const msg = (err?.message || '').includes('dynamically imported module')
         ? 'Update detected. Refresh page to continue.'
         : 'Transition failed. Please try again.';
-      this.showTransientMessage(msg, '#ff8888');
+      this.showTransientMessage(msg, UI_PALETTE.bad);
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       return false;
     }
   }
 
-  showTransientMessage(text, color = '#ff8888') {
+  showTransientMessage(text, color = UI_PALETTE.bad) {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
@@ -2163,7 +2163,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, y, '---', {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#444444',
+          color: UI_PALETTE.lineStrong,
         }),
       );
       return;
@@ -2181,7 +2181,7 @@ export class HomeBaseScene extends Phaser.Scene {
         this.add.text(x, y, reason, {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#aa4444',
+          color: UI_PALETTE.bad,
           backgroundColor: '#221111',
           padding: { x: 6, y: 2 },
         }),
@@ -2193,7 +2193,7 @@ export class HomeBaseScene extends Phaser.Scene {
           this.add.text(x - 120, y + 18, tipMsg, {
             fontFamily: 'Arial',
             fontSize: '9px',
-            color: '#dddddd',
+            color: UI_PALETTE.text,
             backgroundColor: '#111122ee',
             padding: { x: 6, y: 4 },
             wordWrap: { width: 200 },
@@ -2216,14 +2216,14 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(x, y, `[-1] +${tierCost}${suffix}`, {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#cc8844',
+        color: UI_PALETTE.warn,
         backgroundColor: '#332211',
         padding: { x: 6, y: 2 },
       }),
     ).setInteractive({ useHandCursor: true });
 
     btn.on('pointerover', () => btn.setColor(UI_PALETTE.accent));
-    btn.on('pointerout', () => btn.setColor('#cc8844'));
+    btn.on('pointerout', () => btn.setColor(UI_PALETTE.warn));
     btn.on('pointerdown', () => {
       this._showRefundConfirm(upgrade, level, tierCost, currency);
     });
@@ -2247,7 +2247,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const panelH = 100;
     const panel = this.add
       .rectangle(w / 2, h / 2, panelW, panelH, UI_HEX.panel, 0.95)
-      .setStrokeStyle(2, 0xcc8844)
+      .setStrokeStyle(2, UI_HEX.warn)
       .setDepth(851);
     this.confirmOverlayObjects.push(panel);
 
@@ -2260,7 +2260,7 @@ export class HomeBaseScene extends Phaser.Scene {
         {
           fontFamily: 'Arial',
           fontSize: '11px',
-          color: '#dddddd',
+          color: UI_PALETTE.text,
           align: 'center',
         },
       ),
@@ -2274,7 +2274,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
         fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#cc8844',
+        color: UI_PALETTE.warn,
         backgroundColor: '#332211',
         padding: { x: 8, y: 4 },
       }),
@@ -2283,7 +2283,7 @@ export class HomeBaseScene extends Phaser.Scene {
       .setDepth(851)
       .setInteractive({ useHandCursor: true });
     confirmBtn.on('pointerover', () => confirmBtn.setColor(UI_PALETTE.accent));
-    confirmBtn.on('pointerout', () => confirmBtn.setColor('#cc8844'));
+    confirmBtn.on('pointerout', () => confirmBtn.setColor(UI_PALETTE.warn));
     confirmBtn.on('pointerdown', () => {
       const result = this.meta.refundUpgrade(upgrade.id);
       if (result.success) {

@@ -29,6 +29,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 /**
  * FNV-1a hash — deterministic seed derivation for rewind RNG re-seeding.
@@ -342,16 +343,21 @@ export class VisionRewindController {
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
       const rating = getRating(scene.turnManager.turnNumber, scene.turnPar, scene.turnBonusConfig);
-      const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
+      const colors = {
+        S: UI_PALETTE.good,
+        A: UI_PALETTE.info,
+        B: UI_PALETTE.warn,
+        C: UI_PALETTE.bad,
+      };
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(
         `Turn: ${scene.turnManager.turnNumber} / Par: ${scene.turnPar} (${rating.rating})${pressureSuffix}`,
       );
-      scene.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
+      scene.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
     } else if (scene.turnCounterText) {
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(`Turn: ${scene.turnManager.turnNumber}${pressureSuffix}`);
-      scene.turnCounterText.setColor('#e0e0e0');
+      scene.turnCounterText.setColor(UI_PALETTE.text);
     }
     this.updateHud();
     scene.refreshEndTurnControl();
@@ -359,7 +365,7 @@ export class VisionRewindController {
     if (scene.cameras?.main)
       void scene.showBriefBanner?.(
         `Returned to player turn ${scene.turnManager.turnNumber}`,
-        '#9ed8ff',
+        UI_PALETTE.info,
       );
     // Re-assert current music to trigger orphan scanner (no-op when clean)
     const audio = scene.registry.get('audio');
@@ -579,12 +585,20 @@ export class VisionRewindController {
         this._rewindFatalOrigin = false;
         this.scene.onDefeat();
       },
-      accent: 0xcc6666,
+      accent: UI_HEX.dangerLine,
     });
     return true;
   }
 
-  showDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel, accent = 0x66aacc }) {
+  showDialog({
+    title,
+    body,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+    onCancel,
+    accent = UI_HEX.line,
+  }) {
     const scene = this.scene;
     if (scene.visionDialog) this.closeDialog();
     const prevState = scene.battleState;
@@ -611,14 +625,14 @@ export class VisionRewindController {
       .setInteractive();
     group.push(blocker);
     const panel = scene.add
-      .rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
+      .rectangle(cx, cy, 340, 170, UI_HEX.panel, 0.96)
       .setDepth(901)
       .setStrokeStyle(2, accent, 1);
     group.push(panel);
     const titleText = presentationText(scene, cx, cy - 54, title, {
       fontFamily: 'monospace',
       fontSize: '16px',
-      color: '#ffdd88',
+      color: UI_PALETTE.accentText,
       fontStyle: 'bold',
     })
       .setOrigin(0.5)
@@ -627,7 +641,7 @@ export class VisionRewindController {
     const bodyText = presentationText(scene, cx, cy - 14, body, {
       fontFamily: 'monospace',
       fontSize: '12px',
-      color: '#d0d7e8',
+      color: UI_PALETTE.text,
       align: 'center',
     })
       .setOrigin(0.5)
@@ -644,7 +658,7 @@ export class VisionRewindController {
         .setOrigin(0.5)
         .setDepth(902)
         .setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
@@ -653,10 +667,10 @@ export class VisionRewindController {
       });
       group.push(btn);
     };
-    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, '#a6ffb0', () => {
+    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, UI_PALETTE.good, () => {
       this.confirmDialog();
     });
-    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, '#e0e0e0', () => {
+    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, UI_PALETTE.text, () => {
       this.cancelDialog();
     });
     scene._pinToScreen(group);
@@ -849,7 +863,7 @@ export class VisionRewindController {
     if (!this.scene.visionHudText) return;
     const charges = this.getChargesRemaining();
     this.scene.visionHudText.setText(`Eye: ${charges} left this run`);
-    this.scene.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
+    this.scene.visionHudText.setColor(charges > 0 ? UI_PALETTE.info : UI_PALETTE.lineStrong);
     this.scene.updateTopLeftHudLayout();
   }
 }

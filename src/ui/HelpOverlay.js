@@ -340,7 +340,7 @@ export class HelpOverlay {
     const searchBox = this.scene.add
       .rectangle(searchBoxX, searchBoxY, searchBoxW, searchBoxH, UI_HEX.sunken, 1)
       .setDepth(DEPTH_UI)
-      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : 0x555555)
+      .setStrokeStyle(1, this.searchInputActive ? UI_HEX.accent : UI_HEX.line)
       .setInteractive({ useHandCursor: true });
     searchBox.on('pointerdown', () => {
       this.searchInputActive = true;
@@ -374,7 +374,7 @@ export class HelpOverlay {
         this.searchResults.length > 0
           ? `${this.activeSearchResult + 1}/${this.searchResults.length}`
           : 'No matches';
-      const statusColor = this.searchResults.length > 0 ? '#66ff66' : '#ff8888';
+      const statusColor = this.searchResults.length > 0 ? UI_PALETTE.good : UI_PALETTE.bad;
       const searchStatus = applyTextResolution(
         this.scene.add.text(left + panelW - 72, top + 18, statusText, {
           fontFamily: 'Arial',
@@ -387,7 +387,7 @@ export class HelpOverlay {
 
     // Divider line
     const divider = this.scene.add.graphics().setDepth(DEPTH_UI);
-    divider.lineStyle(1, 0x555555);
+    divider.lineStyle(1, UI_HEX.line);
     divider.beginPath();
     divider.moveTo(left + 15, top + 46);
     divider.lineTo(left + panelW - 15, top + 46);
@@ -442,7 +442,7 @@ export class HelpOverlay {
 
     // Tab divider
     const tabDiv = this.scene.add.graphics().setDepth(DEPTH_UI);
-    tabDiv.lineStyle(1, 0x444444);
+    tabDiv.lineStyle(1, UI_HEX.line);
     tabDiv.beginPath();
     tabDiv.moveTo(left + 15, tabY + 16);
     tabDiv.lineTo(left + panelW - 15, tabY + 16);
@@ -466,7 +466,7 @@ export class HelpOverlay {
           color: this._matchesSearch(
             inputHint(this.scene, page.title, page.mobileTitle ?? page.title),
           )
-            ? '#66ff66'
+            ? UI_PALETTE.good
             : UI_PALETTE.accent,
           fontStyle: 'bold',
         },
@@ -511,7 +511,7 @@ export class HelpOverlay {
           {
             fontFamily: 'Arial',
             fontSize: '11px',
-            color: isMatch ? '#66ff66' : line.color || UI_PALETTE.text,
+            color: isMatch ? UI_PALETTE.good : line.color || UI_PALETTE.text,
           },
         ),
       ).setDepth(DEPTH_UI);
