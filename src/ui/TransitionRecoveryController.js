@@ -1,7 +1,7 @@
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { clearSavedRun } from '../engine/RunManager.js';
-import { deleteRunSave } from '../cloud/CloudSync.js';
+import { clearSavedRun, settleAndPersistEndRun } from '../engine/RunManager.js';
+import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class TransitionRecoveryController {
@@ -106,6 +106,13 @@ export class TransitionRecoveryController {
       titleBtn.disableInteractive();
       const cloud = scene.registry.get('cloud');
       const slot = scene.registry.get('activeSlot');
+      // Leaving to Title drops the run save: settle its rewards first, as a
+      // plain refresh (which routes through RunComplete) would have.
+      if (scene.runManager)
+        settleAndPersistEndRun(scene.runManager, scene.registry.get('meta'), 'defeat', {
+          onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        });
       clearSavedRun(
         cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
         slot,
@@ -238,6 +245,13 @@ export class TransitionRecoveryController {
       titleBtn.disableInteractive();
       const cloud = scene.registry.get('cloud');
       const slot = scene.registry.get('activeSlot');
+      // Leaving to Title drops the run save: settle its rewards first, as a
+      // plain refresh (which routes through RunComplete) would have.
+      if (scene.runManager)
+        settleAndPersistEndRun(scene.runManager, scene.registry.get('meta'), 'victory', {
+          onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        });
       clearSavedRun(
         cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
         slot,

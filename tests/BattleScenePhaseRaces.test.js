@@ -403,3 +403,257 @@ describe('player turn-start input ownership', () => {
     expect(scene._captureSuspendCheckpoint).not.toHaveBeenCalled();
   });
 });
+
+describe('enemy-phase error recovery', () => {
+  function makeFailingEnemyPhaseScene() {
+    const scene = makeEnemyPhaseScene();
+    scene.battleState = 'PLAYER_IDLE';
+    scene.turnManager.currentPhase = 'enemy';
+    scene._isSceneActiveForAsync = () => true;
+    scene.updateAntiTurtlePressure = vi.fn();
+    scene.grid = { tickTemporaryTerrains: vi.fn() };
+    scene.showPhaseBanner = vi.fn();
+    scene.dangerZone = { hide: vi.fn() };
+    scene.refreshEndTurnControl = vi.fn();
+    scene.processTurnStartEffects = vi.fn(async () => {});
+    scene.processZombieRevival = vi.fn(async () => {});
+    scene.processBallistaFire = vi.fn(async () => {});
+    scene.applyDueHybridOverridesForTurn = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.showBriefBanner = vi.fn();
+    scene.playerUnits[0].graphic = {};
+    scene.enemyUnits[0].graphic = {};
+    const delayed = [];
+    scene.time = {
+      delayedCall: vi.fn((ms, cb) => {
+        const timer = { ms, cb, remove: vi.fn() };
+        delayed.push(timer);
+        return timer;
+      }),
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    return { scene, delayed };
+  }
+
+  async function runEnemyPipeline(scene, delayed) {
+    scene.onPhaseChange('enemy', 4);
+    const pipeline = delayed.find((entry) => entry.ms === 1400);
+    expect(pipeline).toBeDefined();
+    await pipeline.cb();
+  }
+
+  it('hands the turn back to the player when the AI throws', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.aiController.processEnemyPhase = vi.fn(async () => {
+      throw new TypeError('ai exploded');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(reportAsyncErrorMock).toHaveBeenCalledWith(
+      'battle_delayed_async_error',
+      expect.any(TypeError),
+      expect.objectContaining({ label: 'enemy_phase_turn_start_pipeline' }),
+    );
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledWith(4);
+    expect(scene.checkBattleEnd).toHaveBeenCalled();
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+    expect(scene.updateUnitPosition).toHaveBeenCalledTimes(2);
+    expect(scene._reinforcementsPendingThisTurn).toBe(false);
+  });
+
+  it('recovers from a turn-start effect error before the AI runs', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.processTurnStartEffects = vi.fn(async () => {
+      throw new Error('poison tick failed');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.aiController.processEnemyPhase).not.toHaveBeenCalled();
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-apply reinforcements the tail already spawned this turn', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.turnManager.endEnemyPhase = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('phase change failed');
+      })
+      .mockImplementation(() => {});
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledTimes(1);
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(2);
+  });
+
+  it('ends the battle instead of the phase when the recovery check finds it over', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.aiController.processEnemyPhase = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    scene.checkBattleEnd = vi.fn(() => true);
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.turnManager.endEnemyPhase).not.toHaveBeenCalled();
+  });
+
+  // TurnManager.endEnemyPhase advances turn/phase, then calls onPhaseChange.
+  function handoffThatThrows(scene) {
+    return vi.fn(() => {
+      scene.turnManager.turnNumber += 1;
+      scene.turnManager.currentPhase = 'player';
+      throw new Error('phase banner failed');
+    });
+  }
+
+  it('unlocks the player turn when the handoff itself throws', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    scene.turnManager.endEnemyPhase = handoffThatThrows(scene);
+    scene.playerUnits[0].hasActed = true;
+    scene.playerUnits[0].hasMoved = true;
+    scene.undimUnit = vi.fn();
+    scene.captureVisionSnapshot = vi.fn();
+    scene.updateVisionHud = vi.fn();
+    scene._captureSuspendCheckpoint = vi.fn();
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+    expect(scene.turnManager.turnNumber).toBe(5);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.playerUnits[0].hasActed).toBe(false);
+    expect(scene.playerUnits[0].hasMoved).toBe(false);
+    expect(scene.captureVisionSnapshot).toHaveBeenCalled();
+    expect(scene._timelineBoundary).toBe('turn_start');
+    expect(scene._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+    expect(scene.refreshEndTurnControl).toHaveBeenCalled();
+    // The tail already spawned this turn's wave; the recovery must not repeat it.
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks the turn when its own endEnemyPhase call fails the handoff', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'ENEMY_PHASE';
+    scene.turnManager.endEnemyPhase = handoffThatThrows(scene);
+    scene.captureVisionSnapshot = vi.fn();
+    scene.updateVisionHud = vi.fn();
+    scene.undimUnit = vi.fn();
+
+    expect(scene._recoverEnemyPhaseError(4, new Error('ai'))).toBe(true);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.turnManager.turnNumber).toBe(5);
+  });
+
+  it('leaves the handoff to a player pipeline that was already scheduled', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'TURN_START_RESOLVING';
+    scene.turnManager.currentPhase = 'player';
+    scene.turnManager.turnNumber = 5;
+    scene._playerTurnStartPipelineTurn = 5;
+
+    expect(scene._recoverEnemyPhaseError(4, new Error('late refresh'))).toBe(false);
+    expect(scene.battleState).toBe('TURN_START_RESOLVING');
+  });
+
+  it('marks the wave spawned before applying it, so a mid-wave throw never spawns it twice', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    let spawned = 0;
+    scene.applyReinforcementsForTurn = vi.fn(() => {
+      spawned += 2;
+      throw new Error('reinforcement banner failed');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledTimes(1);
+    expect(spawned).toBe(2);
+    expect(scene.turnManager.endEnemyPhase).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies reinforcements again when a rewind replays the same enemy turn', async () => {
+    const { scene, delayed } = makeFailingEnemyPhaseScene();
+    // Turn 4's first enemy phase finished normally before the rewind.
+    scene._enemyPhaseReinforcedTurn = 4;
+    scene.aiController.processEnemyPhase = vi.fn(async () => {
+      throw new Error('replayed phase failed');
+    });
+
+    await runEnemyPipeline(scene, delayed);
+
+    expect(scene.applyReinforcementsForTurn).toHaveBeenCalledWith(4);
+  });
+
+  it('stops in-flight unit tweens before snapping sprites back to their tiles', () => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'ENEMY_PHASE';
+    const order = [];
+    scene.tweens = { killTweensOf: vi.fn(() => order.push('kill')) };
+    scene._combatFx = { finishStrike: vi.fn(() => order.push('finish')) };
+    scene.updateUnitPosition = vi.fn(() => order.push('sync'));
+
+    scene._recoverEnemyPhaseError(4, new Error('mid-move'));
+
+    expect(scene._combatFx.finishStrike).toHaveBeenCalledTimes(1);
+    expect(scene.tweens.killTweensOf).toHaveBeenCalledWith([scene.playerUnits[0].graphic]);
+    expect(order).toEqual(['finish', 'kill', 'sync', 'kill', 'sync']);
+  });
+
+  it.each([
+    ['the battle already ended', (s) => (s.battleState = 'BATTLE_END')],
+    ['a Vision prompt owns the flow', (s) => (s.visionDialog = {})],
+    ['a rewind returned to the player phase', (s) => (s.turnManager.currentPhase = 'player')],
+    ['a different turn is running', (s) => (s.turnManager.turnNumber = 5)],
+  ])('stands down when %s', (_label, mutate) => {
+    const { scene } = makeFailingEnemyPhaseScene();
+    scene.battleState = 'ENEMY_PHASE';
+    mutate(scene);
+
+    expect(scene._recoverEnemyPhaseError(4, new Error('late'))).toBe(false);
+    expect(scene.turnManager.endEnemyPhase).not.toHaveBeenCalled();
+    expect(scene.applyReinforcementsForTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeUnit presentation failures', () => {
+  it('still removes a fallen commander when the death animation throws', async () => {
+    const commander = {
+      faction: 'player',
+      isCommander: true,
+      isLord: true,
+      name: 'Edric',
+      battleEntityId: 'p1',
+      col: 1,
+      row: 1,
+      currentHP: 0,
+    };
+    const scene = Object.assign(Object.create(BattleScene.prototype), {
+      registry: { get: () => null },
+      playerUnits: [commander],
+      enemyUnits: [],
+      npcUnits: [],
+      battleConfig: { objective: 'rout' },
+      gameData: { affixes: { affixes: [] }, dialogue: {} },
+      grid: { clearTemporaryTerrainsBySource: vi.fn() },
+      updateObjectiveText: vi.fn(),
+      removeUnitGraphic: vi.fn(() => {
+        throw new Error('graphic already destroyed');
+      }),
+      _combatFx: {
+        deathFade: vi.fn(async () => {
+          throw new Error('tween manager gone');
+        }),
+      },
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await scene.removeUnit(commander);
+
+    expect(scene.playerUnits).toEqual([]);
+    expect(commander._removing).toBe(false);
+    expect(scene._battleCommanderName).toBe('Edric');
+  });
+});

@@ -533,7 +533,9 @@ export class VisionRewindController {
   _fallenCommander() {
     const scene = this.scene;
     if (scene._fallenCommander?.name) return scene._fallenCommander;
-    const commanderName = this.runManager?.getStartingLordNames?.()?.[0];
+    // After a reload the fatal checkpoint restores the commander's name.
+    const commanderName =
+      scene._battleCommanderName || this.runManager?.getStartingLordNames?.()?.[0];
     const pool = [
       ...(scene.playerUnits || []),
       ...(scene.escapedUnits || []),
@@ -589,6 +591,8 @@ export class VisionRewindController {
     const seraPresent = visionPool.some((u) => u?.name === 'Sera');
     this._rewindFatalOrigin = true;
     const intent = usableAnchor ? this.createRewindIntent(anchor) : null;
+    const fallen = this.scene._battleCommanderName || 'Your commander';
+    const charges = `${remaining} rewind${remaining === 1 ? '' : 's'} left this run`;
     this.showDialog({
       fate: {
         fallen: this._fallenCommander(),
@@ -600,7 +604,7 @@ export class VisionRewindController {
         remaining,
       },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
-      body: `Reveal another path?\n(${remaining} left this run)`,
+      body: `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
       confirmLabel:
         hasDOMHost() && this.scene._battleTimeline?.entries?.length ? 'Review timeline' : 'Rewind',
       cancelLabel: 'Accept Fate',
@@ -612,11 +616,20 @@ export class VisionRewindController {
         this._rewindFatalOrigin = false;
         this.scene.onDefeat();
       },
+      // Ending the run must be a deliberate choice: ESC, pad B/Start and the
+      // header close slot never stand in for Accept Fate.
+      dismissible: false,
       accent: UI_HEX.dangerLine,
     });
     return true;
   }
 
+  /**
+   * @param {object} opts
+   * @param {boolean} [opts.dismissible=true] false when the cancel action is
+   *   consequential (e.g. accepting defeat): ESC/back/close then do nothing and
+   *   the cancel choice is only reachable as its own labelled button.
+   */
   showDialog({
     title,
     body,
@@ -624,6 +637,7 @@ export class VisionRewindController {
     cancelLabel,
     onConfirm,
     onCancel,
+    dismissible = true,
     accent = UI_HEX.line,
     fate = null,
   }) {
@@ -632,14 +646,22 @@ export class VisionRewindController {
     const prevState = scene.battleState;
     scene.battleState = 'PAUSED';
     if (hasDOMHost()) {
-      scene.visionDialog = { group: [], prevState, onConfirm, onCancel };
-      const surface = new MenuSurface(scene, title, () => this.cancelDialog(), { modal: true });
+      scene.visionDialog = { group: [], prevState, onConfirm, onCancel, dismissible };
+      const surface = new MenuSurface(scene, title, () => this.dismissDialog(), { modal: true });
       scene.visionDialog.surface = surface;
-      surface.header.querySelector('button').textContent = cancelLabel;
-      surface.body.append(
-        element('p', body),
-        button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary'),
-      );
+      const headerButton = surface.header.querySelector('button');
+      const confirm = button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary');
+      confirm.dataset.visionAction = 'confirm';
+      surface.body.append(element('p', body), confirm);
+      if (dismissible) {
+        headerButton.textContent = cancelLabel;
+        headerButton.dataset.visionAction = 'cancel';
+      } else {
+        headerButton.remove();
+        const cancel = button(cancelLabel, () => this.cancelDialog(), 're-btn');
+        cancel.dataset.visionAction = 'cancel';
+        surface.body.append(cancel);
+      }
       // Lord death: the same decision, staged as the FALLEN ceremony.
       if (fate) {
         try {
@@ -719,6 +741,7 @@ export class VisionRewindController {
       prevState,
       onConfirm,
       onCancel,
+      dismissible,
     };
   }
 
@@ -727,6 +750,23 @@ export class VisionRewindController {
     const onConfirm = this.scene.visionDialog.onConfirm;
     this.closeDialog();
     onConfirm?.();
+  }
+
+  /**
+   * Generic back/ESC/close request. Runs the cancel action only for
+   * dismissible dialogs; a non-dismissible one stays open (and keeps focus)
+   * until one of its buttons is chosen explicitly.
+   * @returns {boolean} true when a dialog was open (the request is consumed)
+   */
+  dismissDialog() {
+    const dialog = this.scene.visionDialog;
+    if (!dialog) return false;
+    if (dialog.dismissible === false) {
+      dialog.surface?.focusContent?.();
+      return true;
+    }
+    this.cancelDialog();
+    return true;
   }
 
   cancelDialog() {

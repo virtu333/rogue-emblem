@@ -163,6 +163,7 @@ describe('production timeline boundaries and recovery', () => {
   it('fatal checkpoint reload preserves dead commander identity and never starts AI', () => {
     const { driver, scene, run } = fixture();
     const commander = scene.playerUnits.shift();
+    scene._battleCommanderName = commander.name;
     scene.turnManager.currentPhase = 'enemy';
     expect(persistFatalDecision(scene).ok).toBe(true);
     const restoredRun = loadRun(driver.data, 1);
@@ -181,8 +182,18 @@ describe('production timeline boundaries and recovery', () => {
     expect(resumed.startEnemyPhase).not.toHaveBeenCalled();
     expect(resumed.turnManager.endPlayerPhaseCalls).toBe(0);
     expect(resumed._fatalDecision.durable).toBe(true);
+    // The reloaded prompt names the fallen commander, not "Your commander".
+    expect(cp.commanderName).toBe(commander.name);
+    expect(resumed._battleCommanderName).toBe(commander.name);
     expect(clearBattleInProgressInSave(null, 1).reason).toBe('fatal_pending');
     expect(run.visionChargesRemaining).toBe(3);
+    // A resume that threw once stays resumable (the failure may be transient).
+    const raw = JSON.parse(storage.getItem('emblem_rogue_slot_1_run'));
+    raw.battleInProgress.checkpoint.restoreFailed = true;
+    storage.setItem('emblem_rogue_slot_1_run', JSON.stringify(raw));
+    const retried = loadRun(driver.data, 1);
+    expect(retried._battleRecoveryInvalid).toBe(false);
+    expect(retried._battleRecoveryRestoreFailed).toBe(true);
   });
   it('failed fatal save freezes once and retries the same settled candidate', () => {
     const { scene, driver } = fixture();

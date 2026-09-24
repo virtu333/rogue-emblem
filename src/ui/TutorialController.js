@@ -241,6 +241,7 @@ export class TutorialController {
         if (!ok) finishWithoutRewind();
       },
       onCancel: finishWithoutRewind,
+      dismissible: false,
       accent: UI_HEX.dangerLine,
     });
   }

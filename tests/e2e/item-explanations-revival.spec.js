@@ -127,12 +127,16 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   await page.goto('/?devScene=nodemap&mobilePreview=1');
   await waitForGame(page);
   await waitForScene(page, 'NodeMap');
-  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
-  if (await skip.isVisible()) await skip.tap();
+  // Drive the real intro dialogue. A one-shot visibility check (then force
+  // hiding the line) raced its awaited next line on slower CI runners, which
+  // reopened over the route and hid the Roster button.
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
+  );
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
+  await expect(page.getByRole('button', { name: 'Roster', exact: true })).toBeVisible();
   const before = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
-    s.dialogueOverlay?.hide();
-    s._storyDialogueActive = false;
     s.registry.set('activeSlot', 1);
     const unit = s.runManager.roster[0];
     unit.consumables = [

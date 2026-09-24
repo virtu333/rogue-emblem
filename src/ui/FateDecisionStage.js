@@ -34,7 +34,13 @@ export function stageFateDecision(scene, surface, options) {
   const offer = fateOfferContent({ seraPresent, remaining });
   const root = surface.root;
   const shield = surface.shield;
-  const cancel = surface.header.querySelector('button');
+  // VisionRewindController tags its actions; the cancel (Accept fate) sits in
+  // the header when dismissible, or in the body when the decision is not.
+  const tagged = (action) =>
+    Array.from(surface.root.querySelectorAll('button')).find(
+      (b) => b.dataset?.visionAction === action,
+    ) || null;
+  const cancel = tagged('cancel') || surface.header.querySelector('button');
 
   root.classList.add('ce-fate');
   root.classList.remove('re-compact-menu');
@@ -71,9 +77,9 @@ export function stageFateDecision(scene, surface, options) {
   const actions = el('div', 'ce-offer-actions');
   card.append(line, actions);
 
-  // The body's existing primary button keeps its handler; relabel it and seat
-  // it with the header's cancel button (Accept fate) in the offer's row.
-  const primary = surface.body.querySelector('button');
+  // The existing buttons keep their handlers; relabel them and seat both
+  // (Rewind primary, Accept fate) in the offer's row.
+  const primary = tagged('confirm') || surface.body.querySelector('button');
   surface.body.replaceChildren(bandEl, card);
   if (primary) {
     primary.textContent = offer.rewindLabel;

@@ -22,7 +22,10 @@ export function persistFatalDecision(scene) {
       state.recoveryKind = 'fatal_pending';
       state.commanderEntityId = scene._battleCommanderId || null;
       state.commanderKillerName = scene._commanderKillerName || null;
+      state.commanderName = scene._battleCommanderName || null;
       state.pendingActionCompletion = null;
+      state.pendingCommittedAction = null;
+      scene._pendingCommittedAction = null;
       scene._timelineBoundary = 'recovery';
       scene._timelineFacts = [
         ...(scene._timelineFacts || []),
@@ -51,18 +54,26 @@ export function persistFatalDecision(scene) {
     scene._persistBattleRunState(candidate),
   );
   scene._fatalDecision.candidate = result.candidate;
-  if (result?.ok) {
+  // No active slot (dev/QA routes) means there is nothing to lock; treat the
+  // decision as settled rather than trapping the flow in a retry loop.
+  if (result?.ok || result?.reason === 'missing_slot') {
     rm.battleInProgress = scene._fatalDecision.candidate.battleInProgress;
     scene._fatalDecision.durable = true;
     scene._battleTimeline = rm.battleInProgress.timeline;
     scene._timelineCurrentEntryId = rm.battleInProgress.timelineCurrentEntryId;
   }
+  if (result?.reason === 'missing_slot') return { ok: true, reason: 'missing_slot' };
   return result || { ok: false, reason: 'write_error' };
 }
 
 export function resumeFatalDecision(scene, checkpoint) {
   scene._battleCommanderId = checkpoint.commanderEntityId;
   scene._commanderKillerName = checkpoint.commanderKillerName || null;
+  // Older fatal checkpoints predate commanderName; the run knows its commander.
+  scene._battleCommanderName =
+    (typeof checkpoint.commanderName === 'string' && checkpoint.commanderName) ||
+    scene.runManager?.getCommanderName?.() ||
+    null;
   scene._fatalDecision = { durable: true, candidate: null };
   scene._pendingActionCompletion = null;
   scene._pendingLevelUpPopups = [];
@@ -101,7 +112,8 @@ export function persistBattleDefeat(scene, context) {
         result = { ok: false, reason: 'write_error' };
       }
     }
-    if (result?.ok !== true) return result || { ok: false, reason: 'write_error' };
+    if (result?.ok !== true && result?.reason !== 'missing_slot')
+      return result || { ok: false, reason: 'write_error' };
     decision.durable = true;
     rm.lastBattleReport = decision.candidate.lastBattleReport;
     rm.failRun(context);

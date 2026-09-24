@@ -101,7 +101,7 @@ describe('RunManager commander integration', () => {
     expect(restored.roster.filter((u) => u.isCommander === true)).toHaveLength(1);
   });
 
-  it('fromJSON heals legacy suspend-checkpoint pools, including an escaped commander', () => {
+  it('fromJSON routes an unversioned legacy checkpoint to the map revert, healing the roster', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const saved = rm.toJSON();
@@ -116,9 +116,13 @@ describe('RunManager commander integration', () => {
       },
     };
     const restored = RunManager.fromJSON(saved, gameData);
-    const checkpoint = restored.battleInProgress.checkpoint;
-    expect(checkpoint.escapedUnits[0].isCommander).toBe(true);
-    expect(checkpoint.playerUnits[0].isCommander).not.toBe(true);
+    // Pre-v2 checkpoints cannot be resumed; their unit pools are never
+    // restored, so only the roster needs healing before the revert.
+    expect(restored._battleRecoveryInvalid).toBe(true);
+    expect(restored._battleRecoveryLegacy).toBe(true);
+    expect(restored.getCommander()?.name).toBe('Edric');
+    expect(restored.revertBattleInProgressToEntry()).toBe(true);
+    expect(restored.battleInProgress).toBeNull();
   });
 });
 

@@ -8,7 +8,12 @@ import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
-import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
+import {
+  RunManager,
+  saveRun,
+  clearSavedRun,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
@@ -928,6 +933,9 @@ export class NodeMapScene extends Phaser.Scene {
         options.onResume?.();
       },
       onSaveAndExit: async () => {
+        // Leaving for good (the recovery prompt only offers Retry/Reload):
+        // hiding the pause menu must not reopen the route menu or Roster.
+        this.isTransitioning = true;
         try {
           // Persist the current map/service state, including an interrupted visit.
           this.persistRunSave();
@@ -970,15 +978,21 @@ export class NodeMapScene extends Phaser.Scene {
         }
       },
       onAbandon: async () => {
+        this.isTransitioning = true;
         try {
           const cloud = this.registry.get('cloud');
           const slot = this.registry.get('activeSlot');
+          // Settle (and persist the settled record) before dropping the save,
+          // so the rewards are never lost with it nor paid twice on reload.
+          this.runManager.failRun();
+          settleAndPersistEndRun(this.runManager, this.registry.get('meta'), 'defeat', {
+            onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+            slot,
+          });
           clearSavedRun(
             cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
             slot,
           );
-          this.runManager.failRun();
-          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
@@ -1383,6 +1397,10 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _openRoster() {
+    // Advance hides the route menu, uncovering the mobile rail's Roster button
+    // for the ~2s battle launch. An overlay opened now would be torn down by
+    // shutdown mid-transition, so ignore it until the scene is stable again.
+    if (this.isTransitioning || this.battleLaunchInFlight || this._sceneShuttingDown) return;
     if (this.rosterOverlay?.visible) return;
     if (this.shopOverlay && !this._shopViewingRoster) return;
     if (this.churchOverlay && !this._churchViewingMap && !this._churchViewingRoster) return;
@@ -1390,6 +1408,13 @@ export class NodeMapScene extends Phaser.Scene {
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
         this.rosterOverlay = null;
+        // An ended run was already settled, persisted, and (on abandon)
+        // cleared; writing it back would resurrect the slot.
+        if (this.runManager?.status && this.runManager.status !== 'active') {
+          if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
+          if (!this.shopOverlay && !this.churchOverlay) this.drawMap();
+          return;
+        }
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
         const result = saveRun(
@@ -1405,6 +1430,10 @@ export class NodeMapScene extends Phaser.Scene {
               : 'Save failed — storage may be unavailable',
           );
         }
+        // Closed by scene shutdown: the camera and display list are already
+        // being torn down, so redrawing would throw inside the shutdown event
+        // and stall the next scene's start.
+        if (this._sceneShuttingDown || this.sys?.isActive?.() === false) return;
         if (!this.shopOverlay && !this.churchOverlay) {
           this.drawMap();
         }
@@ -1956,8 +1985,14 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
+        this.isTransitioning = true;
         rm.status = 'victory';
-        rm.settleEndRunRewards(this.registry.get('meta'), 'victory');
+        const cloud = this.registry.get('cloud');
+        const slot = this.registry.get('activeSlot');
+        settleAndPersistEndRun(rm, this.registry.get('meta'), 'victory', {
+          onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
+        });
         void transitionToScene(
           this,
           'RunComplete',
@@ -1967,7 +2002,9 @@ export class NodeMapScene extends Phaser.Scene {
             result: 'victory',
           },
           { reason: TRANSITION_REASONS.VICTORY },
-        );
+        ).then((started) => {
+          if (!started && !this._sceneShuttingDown) this.isTransitioning = false;
+        });
       } else {
         this.showActCompleteBanner(async () => {
           const { unlockedArtIds, displacedSkills } = rm.advanceAct();

@@ -239,14 +239,33 @@ describe('lord falls: FALLEN band + Sera offer over the unchanged decision', () 
     expect(dom.win.listenerCount('resize')).toBe(0);
   });
 
-  it('keyboard Escape keeps its existing meaning (the cancel callback) once', () => {
+  it('Escape and shield taps never accept fate: the decision is not dismissible', () => {
     const { scene, controller } = fateScene();
     controller.showLordDeathPrompt();
     const root = dom.doc.querySelector('.ce-fate');
-    const esc = new dom.FakeEvent('keydown', { key: 'Escape' });
-    root.dispatchEvent(esc);
-    expect(scene.onDefeat).toHaveBeenCalledTimes(1);
-    expect(scene.visionDialog).toBeNull();
+    root.dispatchEvent(new dom.FakeEvent('keydown', { key: 'Escape' }));
+    dispatchInputAction(InputAction.CANCEL);
+    controller.dismissDialog();
+    expect(scene.onDefeat).not.toHaveBeenCalled();
+    expect(scene.visionDialog).not.toBeNull();
+    // The header close slot is gone; Accept fate stays reachable in the offer row.
+    const labels = root.querySelectorAll('button').map((b) => b.textContent);
+    expect(labels).toEqual(['Rewind · 1 left', 'Accept fate']);
+    const row = root.querySelector('.ce-offer-actions').querySelectorAll('button');
+    expect(row.map((b) => b.dataset.visionAction)).toEqual(['confirm', 'cancel']);
+  });
+
+  it('after a reload the band still names the fallen commander', () => {
+    const { controller, scene } = fateScene();
+    scene._fallenCommander = null;
+    scene._battleCommanderName = 'Edric';
+    controller.runManager.roster = [
+      { name: 'Edric', className: 'Lord' },
+      { name: 'Sera', className: 'Light Sage' },
+    ];
+    controller.showLordDeathPrompt();
+    const fate = dom.doc.querySelector('.ce-fate');
+    expect(fate.querySelector('.ce-band-sub').textContent).toBe('Edric · Lord');
   });
 
   it('Rewind confirms once through the same path (gamepad confirm activates focus)', () => {

@@ -10,7 +10,13 @@ import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 // (restore this checkpoint exactly) or Continue from map (sanctioned full
 // revert). The battle RNG is reseeded at every capture and the seed stored,
 // so a resumed battle replays the identical stream: refreshing can never
-// reroll an outcome that already resolved.
+// reroll an outcome that already resolved. A confirmed player attack is
+// also checkpointed before its rolls (pendingCommittedAction, captured with
+// commitIntent so the RNG stream and forecast roll key are untouched); a
+// refresh during its animation resumes into that same attack rather than a
+// fresh choice made with the result already seen. Other player actions
+// (staves, abilities, items) have no hidden rolls, so re-choosing one after
+// a refresh reveals nothing new.
 //
 // State stays on BattleScene (units, fog, HUD); the controller reads/writes
 // via scene.* like the other extracted battle controllers.
@@ -21,7 +27,11 @@ import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
 import { hashRewindSeed } from './VisionRewindController.js';
 import { showMinorHint } from './HintDisplay.js';
-import { completeResolvedAction, readActionContinuation } from './BattlePresentationCheckpoint.js';
+import {
+  completeResolvedAction,
+  readActionContinuation,
+  readCommittedAction,
+} from './BattlePresentationCheckpoint.js';
 
 import { serializeBattleUnit, restoreEquippedReference } from '../engine/BattleUnitState.js';
 import {
@@ -44,7 +54,14 @@ export class BattleSuspendController {
    * degrade the suspend lock, never gameplay.
    * @returns {boolean} true when a checkpoint was captured and persisted
    */
-  captureCheckpoint({ preserveRng = false } = {}) {
+  /**
+   * @param {object} [options]
+   * @param {boolean} [options.preserveRng] keep the current RNG stream
+   * @param {boolean} [options.commitIntent] save a just-confirmed action
+   *   before its rolls: keep the RNG stream and decision key untouched (the
+   *   forecast's roll session depends on it) and add no timeline row.
+   */
+  captureCheckpoint({ preserveRng = false, commitIntent = false } = {}) {
     const scene = this.scene;
     const rm = scene.runManager;
     if (!rm?.battleInProgress) return false; // tutorial/standalone or battle already settled
@@ -62,19 +79,23 @@ export class BattleSuspendController {
       const index = (Number(rm.battleInProgress.checkpoint?.checkpointIndex) || 0) + 1;
       const base = Number.isFinite(scene.visionBaseSeed) ? scene.visionBaseSeed >>> 0 : 0;
       const fixed = scene._battleRewindPolicy === 'fixed-v1';
-      const seed = fixed || preserveRng ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
+      const keepRng = preserveRng || commitIntent;
+      const seed = fixed || keepRng ? Number(rm.rngSeed) >>> 0 : hashRewindSeed(base, index);
       // Reseed at the checkpoint so live play and any resume from it share
       // the exact same RNG stream from this point on.
-      if (!fixed && !preserveRng) scene.reseedBattleRng(seed);
-      if (fixed) scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
+      if (!fixed && !keepRng) scene.reseedBattleRng(seed);
+      if (fixed && !commitIntent)
+        scene._battleDecisionRngState = scene._battleRng?.getState?.() || null;
       const checkpoint = this._buildCheckpoint(index, seed);
       rm.setBattleCheckpoint(checkpoint);
-      try {
-        // Optional history failure must never prevent the latest recovery save.
-        const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
-        recordBattleTimeline(scene, state);
-      } catch (error) {
-        console.warn('[Timeline] optional history unavailable:', error?.message || error);
+      if (!commitIntent) {
+        try {
+          // Optional history failure must never prevent the latest recovery save.
+          const { visionSnapshot, pendingVisionSnapshot, ...state } = checkpoint;
+          recordBattleTimeline(scene, state);
+        } catch (error) {
+          console.warn('[Timeline] optional history unavailable:', error?.message || error);
+        }
       }
       let persisted = scene._persistBattleRunState?.();
       if (persisted?.reason === 'quota' && rm.toJSON && rm.battleInProgress.timeline) {
@@ -254,10 +275,12 @@ export class BattleSuspendController {
     if (enemyResume) {
       scene.battleState = 'ENEMY_PHASE';
       const resume = () => scene.startEnemyPhase({ resume: true });
+      const resumeTurn = scene.turnManager.turnNumber;
       if (scene._scheduleSafeDelayedAsync)
         scene._scheduleSafeDelayedAsync(0, 'enemy_phase_resume', resume, {
           phase: 'enemy',
-          turn: scene.turnManager.turnNumber,
+          turn: resumeTurn,
+          onError: (err) => scene._recoverEnemyPhaseError?.(resumeTurn, err),
         });
       else return resume();
       return;
@@ -267,6 +290,8 @@ export class BattleSuspendController {
       completeResolvedAction(scene, continuation);
       return;
     }
+    const committed = readCommittedAction(checkpoint.pendingCommittedAction);
+    if (committed && scene.resumeCommittedAttack?.(committed)) return;
     try {
       Promise.resolve(showMinorHint(scene, 'Battle resumed.')).catch(() => {});
     } catch (_) {
