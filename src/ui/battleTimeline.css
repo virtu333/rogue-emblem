@@ -58,7 +58,6 @@
   position: absolute;
   inset: 0 0 0 auto;
   width: min(330px, 80%);
-  z-index: 1;
   background: var(--re-bg);
 }
 .bt-battlefield .bt-history[hidden] {
