@@ -151,4 +151,14 @@ for (const [file, list] of [
       { input: label(config.portraits[id].outlier.slice(0, 60), 322, 9), left: 0, top: 208 },
     ]);
   if (cells.length) await grid('outliers.webp', cells, 326, 224, 4);
+  // One before|after thumbnail per outlier for the README list.
+  mkdirSync(join(OUT, 'outliers'), { recursive: true });
+  for (const id of list)
+    await sharp({ create: { width: 196, height: 96, channels: 4, background: BG } })
+      .composite([
+        { input: await before(id, 96), left: 0, top: 0 },
+        { input: await after(id, 96), left: 100, top: 0 },
+      ])
+      .webp({ lossless: true })
+      .toFile(join(OUT, 'outliers', `${id}.webp`));
 }

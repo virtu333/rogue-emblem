@@ -27,7 +27,7 @@ export function tierFor(size) {
     };
   if (size >= 96)
     return {
-      colours: 12,
+      colours: 13, // the dialogue bust keeps the full master palette
       cel: { sigmaS: 0.9, sigmaR: 0.05, iterations: 1 },
       dither: 'full',
       nearDist: 0.12,

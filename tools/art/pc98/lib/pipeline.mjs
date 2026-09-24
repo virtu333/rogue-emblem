@@ -132,6 +132,10 @@ export function reducePalette(palette, samples, weights, k, { protectFamilies = 
           (q) => chroma(q) > 0.035 && hueDiff(hue(q), hue(labs[r])) < 28,
         );
         if (!sameFamily) cost *= 4;
+      } else if (protectFamilies && chroma(labs[r]) < 0.024 && labs[r][0] > 0.4) {
+        // The last light neutral (steel, bone) is an identity colour too.
+        const otherNeutral = rest.some((q) => chroma(q) < 0.03 && q[0] > 0.35);
+        if (!otherNeutral) cost *= 4;
       }
       if (cost < bestCost) {
         bestCost = cost;
@@ -198,6 +202,24 @@ export function renderFigure(rgba, size, options = {}) {
   const materials = materialMap(img, face, dither);
   const { index, dithered } = assignDithered(img, palette, materials, { nearDist });
   const clean = despeckle(index, dithered, size, size);
+  // Irises are a few pixels blended with lashes: in the face, pixels leaning
+  // toward an identity accent's hue take the accent (Sera's green eyes stay green).
+  const accents = palette.map((p, i) => (p.keep ? i : -1)).filter((i) => i >= 0);
+  if (accents.length && face)
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const o = y * size + x;
+        if (!img.mask[o] || !inFace(face, x, y) || palette[clean[o]]?.keep) continue;
+        const lab = [img.L[o], img.A[o], img.B[o]];
+        if (chroma(lab) < 0.035) continue;
+        for (const a of accents) {
+          const acc = palette[a].lab;
+          if (hueDiff(hue(lab), hue(acc)) < 35 && labDist(lab, acc) < 0.14) {
+            clean[o] = a;
+            break;
+          }
+        }
+      }
 
   const full = [{ rgb: ink, lab: inkLab }, ...palette];
   const lines = inkMask(img, { face, ...line });
