@@ -318,5 +318,5 @@ node tools/art/sprite-trace/dev/measure-budget.mjs       # PIXEL_BUDGET table
   CSS, nor `BattlefieldArt.js` is touched by this branch.
   - `mobile-battle-hud` "commands have readable targets": the 38 px sidebar-button
     minimum fails on the CSS inherited from upstream.
-  - All 17 `battlefield-lab` tests fail in `boot()`: they expect
+  - All 18 `battlefield-lab` tests fail in `boot()`: they expect
     `data-terrain-art="weathered"`, but b1f59c1 made `procedural` the default renderer.
