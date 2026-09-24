@@ -1,6 +1,4 @@
-import { battleContrastEnabled, softenGrassTexture } from './BattleContrast.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
-import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
@@ -13,7 +11,10 @@ export function battlefieldLabEnabled() {
   );
 }
 
-// Experimental presentation only. The same Grid, units, ranges, and Combat rules run underneath.
+// Phone battlefield layout: full-height map, side command pane, camera tools. The
+// terrain art itself is painted by BattleScene through the shared BattlefieldArt seam
+// (desktop uses the same art without this layout). The same Grid, units, ranges and
+// Combat rules run underneath.
 export class BattlefieldLab {
   constructor(hud) {
     this.hud = hud;
@@ -33,15 +34,10 @@ export class BattlefieldLab {
       hud.button('Menu', () => this.scene.game.events.emit('mobile:menu')),
     );
     hud.root.append(this.tools);
-    this.originalTiles = [];
-    this.textureKeys = [];
-    this.artReady = loadWeatheredArt(`${import.meta.env.BASE_URL}assets/terrain/weathered`)
-      .then((art) => {
-        if (!this.destroyed) this.paintTerrain(art);
-      })
-      .catch((error) => {
-        if (!this.destroyed) console.warn(error.message);
-      });
+    const painting = this.scene._battlefieldTerrain;
+    this.artReady = Promise.resolve(painting?.ready).then((painted) => {
+      if (!this.destroyed && painted) hud.wrapper.dataset.terrainArt = painting.rendererId;
+    });
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(this.container);
     this.resize();
@@ -111,38 +107,11 @@ export class BattlefieldLab {
     s._syncMobileResetViewButton();
   }
 
-  paintTerrain(art) {
-    const { grid, textures } = this.scene;
-    const at = (col, row) => grid.terrainData[grid.mapLayout[row]?.[col]]?.name;
-    for (let row = 0; row < grid.rows; row++) {
-      for (let col = 0; col < grid.cols; col++) {
-        const tile = grid.tiles[row][col];
-        if (!tile?.setTexture) continue;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = WEATHERED_TILE_SIZE;
-        if (!drawWeatheredTile(canvas.getContext('2d'), art, at, col, row, { biome: grid.biome }))
-          continue;
-        if (battleContrastEnabled() && at(col, row) === 'Plain')
-          softenGrassTexture(canvas.getContext('2d'), WEATHERED_TILE_SIZE);
-        const key = `battle-lab-${col}-${row}`;
-        textures.addCanvas(key, canvas);
-        this.textureKeys.push(key);
-        this.originalTiles.push({ tile, key: tile.texture.key, frame: tile.frame.name });
-        tile.setTexture(key).setDisplaySize(TILE_SIZE, TILE_SIZE);
-      }
-    }
-    this.hud.wrapper.dataset.terrainArt = 'weathered';
-  }
-
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
     this.observer.disconnect();
     this.tools.remove();
-    for (const { tile, key, frame } of this.originalTiles) {
-      if (tile.scene) tile.setTexture(key, frame).setDisplaySize(TILE_SIZE, TILE_SIZE);
-    }
-    for (const key of this.textureKeys) this.scene.textures.remove(key);
     this.hud.wrapper.classList.remove('battlefield-lab');
     delete this.hud.wrapper.dataset.terrainArt;
     this.scene.cameras?.main?.setBackgroundColor(this.originalBackground);

@@ -29,7 +29,10 @@ import { canUseTouchUI } from '../utils/domUI.js';
 import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
 import { battleUnitSpriteKey } from '../ui/BattleUnitVisuals.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
-import { battlefieldLabEnabled } from '../ui/BattlefieldLab.js';
+import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
+import { AtmosphereController } from '../ui/AtmosphereController.js';
+import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
+import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
 // BattleScene -- Phase 3: multi-unit tactical combat with unit system
@@ -432,6 +435,7 @@ export class BattleScene extends Phaser.Scene {
     this.debugOverlay = null;
     this.lootGroup = null;
     this.pauseOverlay = null;
+    this.fogOfWarLabel = null;
   }
 
   create() {
@@ -621,6 +625,12 @@ export class BattleScene extends Phaser.Scene {
       if (ge?.emit) ge.emit('mobile:setContext', { context: 'none', resetStack: true });
     }
 
+    this._atmosphere?.destroy();
+    this._atmosphere = null;
+    this._desktopHud?.destroy();
+    this._desktopHud = null;
+    this._battlefieldTerrain?.destroy();
+    this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
   }
 
@@ -1202,6 +1212,8 @@ export class BattleScene extends Phaser.Scene {
         fogEnabled,
         bc.biome || null,
       );
+      this._battlefieldTerrain?.destroy();
+      this._battlefieldTerrain = paintBattlefieldTerrain(this, this.grid);
 
       resetBattleIdentities(this, this._resumeCheckpoint?.nextEntityId);
       for (const unit of this.nonDeployedUnits || []) registerBattleEntity(this, unit);
@@ -2030,7 +2042,7 @@ export class BattleScene extends Phaser.Scene {
 
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
-        const fogLabel = this.add
+        const fogLabel = (this.fogOfWarLabel = this.add
           .text(8, this.cameras.main.height - 72, 'FOG OF WAR', {
             fontFamily: 'monospace',
             fontSize: '10px',
@@ -2038,7 +2050,7 @@ export class BattleScene extends Phaser.Scene {
             backgroundColor: '#000000aa',
             padding: { x: 4, y: 2 },
           })
-          .setDepth(100);
+          .setDepth(100));
         this._pinToScreen(fogLabel);
 
         const hints = this.registry.get('hints');
@@ -2063,6 +2075,12 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(100);
       this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
+
+      // Presentation: reliquary desktop HUD plates, then the act mood (grade + night).
+      this._desktopHud?.destroy();
+      this._desktopHud = new DesktopBattleHud(this).create();
+      this._atmosphere?.destroy();
+      this._atmosphere = new AtmosphereController(this).create();
 
       if (this.mobileCameraEnabled) {
         const hints = this.registry.get('hints');
@@ -3170,10 +3188,10 @@ export class BattleScene extends Phaser.Scene {
       }
       unit.graphic.setDepth(10);
       const ringY = cPos.y + entitySize / 2 - 10;
-      unit.factionIndicator = this.add
-        .ellipse(cPos.x, ringY, entitySize - 8, 14, 0x000000, 0)
-        .setStrokeStyle(2, color, 0.7)
-        .setDepth(8);
+      unit.factionIndicator = createFactionRing(this, unit, cPos.x, ringY, {
+        color,
+        entityWidthTiles: ENTITY_FOOTPRINT.width,
+      });
       const barWidth = entitySize - 8;
       const barHeight = 4;
       const barY = cPos.y + entitySize / 2 - 4;
@@ -3214,7 +3232,7 @@ export class BattleScene extends Phaser.Scene {
       }
       if (
         !spriteKey.startsWith('rebuilt-') &&
-        battlefieldLabEnabled() &&
+        battlefieldSpriteArtEnabled() &&
         unit.graphic.displayHeight > TILE_SIZE * 1.15
       ) {
         const ratio = (TILE_SIZE * 1.15) / unit.graphic.displayHeight;
@@ -3234,12 +3252,10 @@ export class BattleScene extends Phaser.Scene {
     }
     unit.graphic.setDepth(this._unitGraphicDepth(unit));
 
-    // Faction indicator ring (blue=player, red=enemy, green=npc)
-    const ringY = pos.y + 6;
-    unit.factionIndicator = this.add
-      .ellipse(pos.x, ringY, 24, 12, 0x000000, 0)
-      .setStrokeStyle(2, color, 0.7)
-      .setDepth(8);
+    // Faction ground ring (steel-blue player, crimson enemy/boss, verdigris NPC)
+    unit.factionIndicator = createFactionRing(this, unit, pos.x, pos.y + RING_OFFSET_Y, {
+      color,
+    });
 
     // HP bar
     const barWidth = TILE_SIZE - 6;
@@ -3307,7 +3323,7 @@ export class BattleScene extends Phaser.Scene {
     unit.graphic.setPosition(pos.x, pos.y);
     unit.graphic.setDepth(this._unitGraphicDepth(unit));
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
-    if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + 6);
+    if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + RING_OFFSET_Y);
     this.updateHPBar(unit);
     this.updateAffixPips(unit);
     this._updateConditionIconPositions(unit);
@@ -3367,7 +3383,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.setTint(battleContrastEnabled() ? 0xb8b8b8 : UI_HEX.lineStrong);
     }
     if (unit.label) unit.label.setAlpha(0.5);
-    if (unit.factionIndicator) unit.factionIndicator.setAlpha(battleContrastEnabled() ? 0.7 : 0.5);
+    setFactionRingActed(unit.factionIndicator, true);
     if (unit.affixPips) {
       unit.affixPips.forEach((p) => p.setAlpha(0.5));
     }
@@ -3378,7 +3394,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.clearTint();
     }
     if (unit.label) unit.label.setAlpha(1);
-    if (unit.factionIndicator) unit.factionIndicator.setAlpha(1);
+    setFactionRingActed(unit.factionIndicator, false);
     if (unit.affixPips) {
       unit.affixPips.forEach((p) => p.setAlpha(1));
     }

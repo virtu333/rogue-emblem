@@ -859,6 +859,11 @@ export class InputController {
 
   updateTopLeftHudLayout() {
     const scene = this.scene;
+    // The restyled desktop HUD owns its plate layout (turn/Eye fixed, hover info below).
+    if (scene._desktopHud?.active) {
+      scene._desktopHud.layout();
+      return;
+    }
     if (!scene.infoText || !scene.turnCounterText) return;
     const hasInfo = Boolean(scene.infoText.text);
     const baseY = 28;
