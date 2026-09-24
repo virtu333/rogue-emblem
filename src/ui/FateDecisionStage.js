@@ -89,6 +89,11 @@ export function stageFateDecision(scene, surface, options) {
   place();
   globalThis.addEventListener?.('resize', place);
   globalThis.addEventListener?.('orientationchange', place);
+  // The canvas can also change size without a window resize (rail layout).
+  const Observer = globalThis.ResizeObserver;
+  const observer = Observer ? new Observer(place) : null;
+  const canvas = scene?.game?.canvas;
+  if (observer && canvas) observer.observe(canvas);
 
   // The rail stays in view under a light veil but cannot be reached.
   const hud = [...(document.getElementById('game-wrapper')?.children || [])].find((node) =>
@@ -102,6 +107,7 @@ export function stageFateDecision(scene, surface, options) {
     if (surface.destroyed) return;
     globalThis.removeEventListener?.('resize', place);
     globalThis.removeEventListener?.('orientationchange', place);
+    observer?.disconnect();
     if (hud) hud.inert = hudWasInert;
     destroy();
   };

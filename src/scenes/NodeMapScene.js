@@ -454,14 +454,17 @@ export class NodeMapScene extends Phaser.Scene {
                 adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
                 { category: 'runStart', key: 'runStart' },
               );
-              // Lines read over the title already gave it its time; a sequence
-              // skipped as seen leaves the title to hold on its own.
+              // Lines read over the title already gave it its time (it fades
+              // out on its own); a sequence skipped as seen leaves the title to
+              // hold, skippable, on its own.
               if (actCard && isSceneLifecycleActive(this, lifecycleGeneration)) {
                 if (this.dialogueOverlay?.lastSequenceSkippedAsSeen) await actCard.finish();
-                else await actCard.close();
-              }
-            } finally {
+                else void actCard.close();
+              } else actCard?.destroy();
+            } catch (err) {
               actCard?.destroy();
+              throw err;
+            } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
                 this._storyDialogueActive = false;
               }

@@ -332,7 +332,7 @@ export class PostCombatController {
                 Array.isArray(entries) &&
                 entries.length > 0 &&
                 !scene.dialogueOverlay?.lastSequenceSkippedAsSeen;
-              if (linesRead) await actCard.close();
+              if (linesRead) void actCard.close();
               else await actCard.finish();
             } catch (err) {
               console.warn('[BattleScene] act card failed:', err);

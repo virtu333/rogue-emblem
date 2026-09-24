@@ -113,7 +113,7 @@ export class RunCompleteScene extends Phaser.Scene {
     }
     if (card && this._runResultLifetime === lifetime) {
       try {
-        if (overlay) await card.close();
+        if (overlay) void card.close();
         else await card.finish();
       } catch (err) {
         console.warn('[RunCompleteScene] Result card failed, continuing:', err);
@@ -318,7 +318,7 @@ export class RunCompleteScene extends Phaser.Scene {
   /** Where and when the run ended, for the result card (presentation only). */
   _runEndContext() {
     const rm = this.runManager;
-    let commander = null;
+    let commander;
     try {
       commander = rm?.getStartingLordNames?.()?.[0] || null;
     } catch {

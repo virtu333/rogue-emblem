@@ -257,13 +257,16 @@ describe('act advance: act card with the transition lines', () => {
     };
     scene._getCeremonies = () => (scene._ceremonies ||= new CeremonyController(scene));
     transitionToSceneMock.mockImplementation(async () => {
-      order.push(`transition:${storyLayer() ? 'card-up' : 'card-gone'}`);
+      const card = storyLayer();
+      order.push(
+        `transition:${!card ? 'card-gone' : card.classList.contains('is-leaving') ? 'card-leaving' : 'card-up'}`,
+      );
       return true;
     });
     return { scene, order };
   }
 
-  it('shows ACT II · Old Kingdom Roads · Iron Rain under the lines, gone before NodeMap', async () => {
+  it('shows ACT II · Old Kingdom Roads · Iron Rain under the lines, leaving as NodeMap starts', async () => {
     const { scene, order } = actScene();
     const done = new PostCombatController(scene).transitionAfterBattle();
     await vi.advanceTimersByTimeAsync(0);
@@ -273,7 +276,19 @@ describe('act advance: act card with the transition lines', () => {
     expect(card.querySelector('.ce-act-grade').textContent).toBe('Iron Rain');
     await vi.advanceTimersByTimeAsync(600);
     await expect(done).resolves.toBe(true);
-    expect(order).toEqual(['act1_to_act2:over-card', 'transition:card-gone']);
+    expect(order).toEqual(['act1_to_act2:over-card', 'transition:card-leaving']);
+  });
+
+  it('with no lines the title holds (skippable) before the route map', async () => {
+    const { scene, order } = actScene({ entries: false });
+    const done = new PostCombatController(scene).transitionAfterBattle();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(storyLayer().classList.contains('is-blocking')).toBe(true);
+    expect(transitionToSceneMock).not.toHaveBeenCalled();
+    dom.key('Escape');
+    await vi.advanceTimersByTimeAsync(600);
+    await expect(done).resolves.toBe(true);
+    expect(order.at(-1)).toBe('transition:card-gone');
   });
 
   it('shares the dialogue once-gate: no card when the transition was already shown', async () => {
