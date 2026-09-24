@@ -98,7 +98,7 @@ describe('DesktopBattleHud', () => {
 
   it('lays the bottom line out without overlaps and re-lays only on change', () => {
     const scene = makeScene();
-    const hud = new DesktopBattleHud(scene).create();
+    new DesktopBattleHud(scene).create();
     const row = [scene.dangerButton, scene.rosterButton, scene.endTurnButton];
     for (let i = 1; i < row.length; i++)
       expect(row[i].x).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].displayWidth);

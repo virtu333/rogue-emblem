@@ -56,12 +56,14 @@ export const ATMOSPHERE_GRADES = Object.freeze({
   },
   act4: {
     label: 'Ashfall',
-    shadow: '#4a1a2e',
+    // Tuned down from the board study: the night layer already darkens, and a strong
+    // red cast swallowed the empire's crimson units on volcanic ground.
+    shadow: '#3b1d36',
     highlight: '#ff9a6a',
-    split: 0.6,
-    sat: 0.86,
-    contrast: 1.1,
-    exposure: 0.86,
+    split: 0.45,
+    sat: 0.84,
+    contrast: 1.08,
+    exposure: 0.9,
     key: 0.2,
     vignette: 0.75,
     grain: 0.05,
