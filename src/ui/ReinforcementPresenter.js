@@ -51,6 +51,7 @@ export class ReinforcementPresenter {
     if (typeof scene.add?.graphics !== 'function' || !scene.grid?.gridToPixel) return;
     const { x, y } = scene.grid.gridToPixel(unit.col, unit.row);
     const still = Boolean(scene._reduceMotion?.());
+    const lowFx = scene._effectsQuality?.() === 'low';
     // The thread: a crimson line dropping onto the tile.
     const thread = scene.add.graphics().setDepth(RING_DEPTH + 1);
     thread.lineStyle(2, UI_HEX.dangerLine, 0.95);
@@ -107,7 +108,7 @@ export class ReinforcementPresenter {
       duration: 700,
       ease: 'Cubic.easeOut',
       // Outlasts the band, so arrivals under it are still marked after it leaves.
-      repeat: 2,
+      repeat: lowFx ? 0 : 2,
       onComplete: () => drop(ring),
     });
   }

@@ -644,6 +644,19 @@ export class PostCombatController {
     if (rewards?.visible) {
       rewards.masteryNotices = mastered;
       rewards.render();
+      // A class mastered is growth: a sealed beat stamps it over the rewards.
+      const first = mastered[0];
+      growthCeremonies(scene)?.showSealed({
+        title:
+          mastered.length === 1
+            ? `${first.name} mastered ${first.className}`
+            : `${mastered.length} classes mastered`,
+        detail: mastered
+          .map((m) => m.perk?.name)
+          .filter(Boolean)
+          .join(' · '),
+        skillId: 'mastery',
+      });
       return;
     }
     const cam = scene.cameras.main;

@@ -5,6 +5,7 @@ import dialogue from '../data/dialogue.json';
 import {
   GrowthCeremonyController,
   growthCeremonies,
+  figureSize,
   spriteScale,
 } from '../src/ui/GrowthCeremonyController.js';
 import { CeremonyController } from '../src/ui/CeremonyController.js';
@@ -203,6 +204,22 @@ describe('promotion rite', () => {
   });
 });
 
+describe('effects quality', () => {
+  it('Low keeps the sequence but drops sparks and glows', () => {
+    const scene = makeScene();
+    const settings = scene.registry.get('settings');
+    scene.registry.get = (key) =>
+      key === 'settings' ? { ...settings, getEffectsQuality: () => 'low' } : null;
+    const growth = new GrowthCeremonyController(scene);
+    const { unit, content, before } = promotedMyrmidon();
+    void growth.showPromotionRite({ unit, content, beforeUnit: before });
+    const rite = layers()[0];
+    expect(rite.classList.contains('is-low-fx')).toBe(true);
+    expect(rite.classList.contains('is-static')).toBe(false);
+    growth.destroy();
+  });
+});
+
 describe('level-up card', () => {
   const unit = { name: 'Edric', className: 'Lord', faction: 'player', isLord: true, stats: { HP: 20, STR: 6, MAG: 2, SKL: 7, SPD: 9, DEF: 5, RES: 3, LCK: 6 } }; // prettier-ignore
 
@@ -337,5 +354,8 @@ describe('without a DOM host', () => {
     expect(spriteScale(64, 112)).toBe(2);
     expect(spriteScale(96, 112)).toBe(1);
     expect(spriteScale(0, 112)).toBe(112);
+    expect(figureSize(620, 390)).toBe(192); // phone map frame: 1×
+    expect(figureSize(1066, 800)).toBe(384); // desktop letterbox: 2×
+    expect(figureSize(445, 375)).toBe(178); // compact phone: fit, never overlap
   });
 });

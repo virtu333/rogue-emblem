@@ -69,6 +69,17 @@ function setLabel(button, text) {
   button.setAttribute('aria-label', text);
 }
 
+/**
+ * The rite's figure size in a w×h frame: the 192px PC-98 figure at the
+ * largest integer scale that fits (dither never resampled); a frame too
+ * small for 1× (a compact phone) shrinks it to fit rather than overlap.
+ */
+export function figureSize(w, h) {
+  const room = Math.min(h * 0.66, w * 0.4);
+  const k = Math.floor(room / 192);
+  return k >= 1 ? 192 * k : Math.max(96, Math.floor(room));
+}
+
 /** Integer display scale for a pixel image of natural width `w` in a `target` px box. */
 export function spriteScale(w, target) {
   return Math.max(1, Math.round(target / Math.max(1, w)));
@@ -99,7 +110,11 @@ export class GrowthCeremonyController {
     } catch {
       speed = settings?.getBattleSpeed?.() || 'normal';
     }
-    return { reducedMotion: Boolean(settings?.getReduceMotion?.()), speed };
+    return {
+      reducedMotion: Boolean(settings?.getReduceMotion?.()),
+      speed,
+      lowEffects: settings?.getEffectsQuality?.() === 'low',
+    };
   }
 
   _audio(key) {
@@ -120,6 +135,8 @@ export class GrowthCeremonyController {
       depth: depth ?? DOM_UI_DEPTHS.CEREMONY,
     });
     layer.root.classList.toggle('is-static', !animate);
+    // Effects quality Low: the sequence stays, the sparks and glows go.
+    layer.root.classList.toggle('is-low-fx', this.prefs().lowEffects);
     if (dialog) {
       layer.root.setAttribute('role', 'dialog');
       layer.root.setAttribute('aria-modal', 'true');
@@ -222,6 +239,12 @@ export class GrowthCeremonyController {
     const before = beforeUnit || { ...unit, className: content.fromClass, tier: 'base' };
     const view = buildRite(this.scene, { unit, before, content });
     root.append(el('div', 'gr-veil'), view.card);
+    // The 192px PC-98 figure at the largest integer scale the frame allows.
+    layer.addFitter(() => {
+      const w = parseFloat(root.style.width) || 0;
+      const h = parseFloat(root.style.height) || 0;
+      root.style.setProperty('--gr-fig', `${figureSize(w, h)}px`);
+    });
     layer.addFitter(() => fitText(view.nameTo, { min: 16 }));
     layer.addFitter(() => fitText(view.nameFrom, { min: 14 }));
     const releaseInput = this._holdSceneInput();

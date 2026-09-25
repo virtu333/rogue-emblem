@@ -3,10 +3,10 @@
 //
 //   node tools/art/crests/sheet.mjs --out docs/art-direction/growth [--scale 3]
 //
-// Writes crests-contact.png: every class crest grouped by line (base then
+// Writes crests-contact.webp: every class crest grouped by line (base then
 // promoted), each drawn at the three display sizes it ships at — 24 (roster
 // chip), 48 (path choice) and 112 (ceremony) CSS px — times --scale (device
-// pixels, default 3 = a DPR-3 phone). Also crests-compare.png when the
+// pixels, default 3 = a DPR-3 phone). Also crests-compare.webp when the
 // treated generated series exists (docs/art/crests-gen/treated/).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -74,9 +74,9 @@ for (let i = 0; i < cells.length; i++) {
 }
 await sharp({ create: { width: W, height: H, channels: 4, background: BG } })
   .composite(composites)
-  .png()
-  .toFile(path.join(OUT, 'crests-contact.png'));
-console.log(path.join(OUT, 'crests-contact.png'), W, H);
+  .webp({ lossless: true })
+  .toFile(path.join(OUT, 'crests-contact.webp'));
+console.log(path.join(OUT, 'crests-contact.webp'), W, H);
 
 // Side-by-side study: treated generation vs code, at 24/48/112 CSS px.
 const treatedDir = path.join(ROOT, 'docs/art/crests-gen/treated');
@@ -118,7 +118,7 @@ if (fs.existsSync(treatedDir)) {
   }
   await sharp({ create: { width: cw + pad * 2, height: y + pad, channels: 4, background: BG } })
     .composite(comp)
-    .png()
-    .toFile(path.join(OUT, 'crests-compare.png'));
-  console.log(path.join(OUT, 'crests-compare.png'));
+    .webp({ lossless: true })
+    .toFile(path.join(OUT, 'crests-compare.webp'));
+  console.log(path.join(OUT, 'crests-compare.webp'));
 }

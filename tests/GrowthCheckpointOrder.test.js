@@ -22,6 +22,8 @@ import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { ChurchMenu } from '../src/ui/ChurchMenu.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
+import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
+import { ArenaMenu } from '../src/ui/ArenaMenu.js';
 import { createLordUnit, createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus } from '../src/utils/inputFocus.js';
 import { CHURCH_PROMOTE_COST } from '../src/utils/constants.js';
@@ -238,5 +240,46 @@ describe('boss recruit', () => {
       { card: 'Astrid', kind: 'boss', inRoster: true },
       'loot',
     ]);
+  });
+});
+
+describe('colosseum', () => {
+  it('arena levels play the level-up card once, after the fight is settled and saved', async () => {
+    const order = [];
+    const levelSpy = vi
+      .spyOn(GrowthCeremonyController.prototype, 'showLevelUp')
+      .mockImplementation(async ({ result, frame }) => {
+        order.push({ card: result.newLevel, frame });
+        return true;
+      });
+    const resultSpy = vi.spyOn(ArenaMenu, 'result').mockImplementation(() => {
+      order.push('result');
+      return { destroy() {} };
+    });
+    const unit = { name: 'Edric', className: 'Lord', stats: { HP: 20, STR: 7 } };
+    const settled = {
+      reward: { goldDelta: 100, xpGained: 60 },
+      levelUpInfo: { from: '4', to: '5', ups: [{ newLevel: 5, gains: { STR: 1 } }], learnedSkills: [] }, // prettier-ignore
+    };
+    const overlay = Object.assign(Object.create(ColosseumOverlay.prototype), {
+      scene: { events: eventsFor(), registry: { get: () => null }, gameData },
+      gameData,
+      visible: true,
+      _selectedUnit: unit,
+      _settleFight: () => {
+        order.push('settled+saved');
+        return settled;
+      },
+      _clearScreen: () => {},
+    });
+    overlay._showResult('win', {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(order).toEqual(['settled+saved', { card: 5, frame: 'screen' }, 'result']);
+    // Re-showing the same settled result never replays the card.
+    overlay._showResult('win', {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(levelSpy).toHaveBeenCalledTimes(1);
+    levelSpy.mockRestore();
+    resultSpy.mockRestore();
   });
 });

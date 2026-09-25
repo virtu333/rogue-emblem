@@ -1,4 +1,6 @@
 import { ArenaMenu } from './ArenaMenu.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
+import { levelUpDisplayResults } from './progressionDisplay.js';
 import { saveServiceRun } from './serviceSave.js';
 import { relinkWeapon } from '../engine/RunManager.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
@@ -408,9 +410,38 @@ export class ColosseumOverlay {
   }
 
   _showResult(outcome, tier) {
-    const { reward, levelUpInfo } = this._settleFight(outcome, tier);
+    const settled = this._settleFight(outcome, tier);
+    const { reward, levelUpInfo } = settled;
     this._clearScreen();
-    this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
+    const show = () => {
+      if (!this.visible || !this.scene) return;
+      this.nativeMenu = ArenaMenu.result(this, outcome, tier, reward, levelUpInfo);
+    };
+    // Arena levels are growth too: the level-up card plays once per fight,
+    // after the fight is settled and saved (_settleFight), then the result.
+    const growth = levelUpInfo?.ups?.length && !settled.presented ? growthCeremonies(this.scene) : null; // prettier-ignore
+    if (!growth) {
+      show();
+      return;
+    }
+    settled.presented = true;
+    const unit = this._selectedUnit;
+    const learned = (levelUpInfo.learnedSkills || []).map(
+      (id) => this.gameData.skills?.find((sk) => sk.id === id)?.name || id,
+    );
+    const results = levelUpDisplayResults(unit.stats, levelUpInfo.ups);
+    void (async () => {
+      for (let i = 0; i < results.length; i++) {
+        if (!this.visible || growth.destroyed) break;
+        await growth.showLevelUp({
+          unit,
+          result: results[i],
+          learnedNames: i === results.length - 1 ? learned : [],
+          frame: 'screen',
+        });
+      }
+      show();
+    })();
   }
 
   _showMercBrowse() {
@@ -510,6 +541,15 @@ export class ColosseumOverlay {
     this._mercHired = true;
     this._persistVisit();
 
+    // Joins your army (after the hire is saved), then the updated board.
+    const growth = growthCeremonies(this.scene);
+    if (growth) {
+      this._clearScreen();
+      void growth
+        .showRecruit({ unit, kind: 'recruit', frame: 'screen' })
+        .then(() => this.visible && this.scene && this._showMercBrowse());
+      return true;
+    }
     // Show updated browse screen
     this._showMercBrowse();
     return true;

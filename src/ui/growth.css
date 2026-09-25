@@ -126,7 +126,8 @@
 
 /* ─────────────────────────────────────────────── Promotion rite */
 .gr-rite-layer {
-  --gr-fig: min(calc(192px * var(--ce-px, 1)), calc(var(--ce-h) * 0.62), calc(var(--ce-w) * 0.34));
+  /* Set from JS (figureScale): 192px × the largest integer scale that fits. */
+  --gr-fig: 192px;
 }
 .gr-rite {
   position: absolute;
@@ -1136,6 +1137,19 @@
 .mr-summary .mr-crest {
   width: 28px;
   height: 28px;
+}
+
+/* Effects quality Low: no sparks, no breathing corona, no glows. */
+.ce-layer.is-low-fx .gr-spark {
+  display: none;
+}
+.ce-layer.is-low-fx .gr-sun-ring,
+.ce-layer.is-low-fx.is-done .gr-sun-ring {
+  animation: none;
+}
+.ce-layer.is-low-fx .gr-burn-edge,
+.ce-layer.is-low-fx .gr-pip.is-lit {
+  box-shadow: none;
 }
 
 /* ─────────────────────────────────────────────── Motion */

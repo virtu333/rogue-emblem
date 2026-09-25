@@ -78,7 +78,16 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   await page.getByRole('button', { name: /^Bronze/ }).tap();
   await forecast.getByRole('button', { name: 'Fight', exact: true }).tap();
   await page.getByRole('button', { name: 'Continue', exact: true }).last().tap();
+  // An arena level plays the level-up card(s) before the rewards (saved first).
   const result = page.getByRole('dialog', { name: 'Arena · Rewards', exact: true });
+  const levelCard = page.getByRole('dialog', { name: 'Level up', exact: true });
+  await expect(result.or(levelCard)).toBeVisible();
+  while (await levelCard.isVisible().catch(() => false)) {
+    await page.waitForTimeout(250);
+    await levelCard.getByRole('button', { name: /^(Reveal gains|Continue)$/ }).tap();
+    if (await levelCard.isVisible().catch(() => false))
+      await levelCard.getByRole('button', { name: 'Continue', exact: true }).tap();
+  }
   await expect(result).toContainText('XP');
   const gold = await page.evaluate(() => window.arena.runManager.gold);
   await result.getByRole('button', { name: 'Back to colosseum', exact: true }).tap();
@@ -99,6 +108,11 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
   expect(await page.evaluate(() => window.arena.runManager.gold)).toBe(gold);
   await merc.locator('.re-menu-body button').first().tap();
   await hire.getByRole('button', { name: 'Confirm hire', exact: true }).tap();
+  // The hire is saved, then the mercenary's "joins your army" card (skippable).
+  const join = page.locator('.gr-join-layer');
+  await expect(join).toBeVisible();
+  await page.waitForTimeout(250);
+  await join.tap();
   await expect(merc).toContainText('Hired');
   await merc.getByRole('button', { name: 'Back', exact: true }).tap();
   await page
