@@ -53,6 +53,8 @@ export function atmosphereContextFromScene(scene) {
     isTutorial: Boolean(params.tutorialMode),
     hasEntity: enemies.some((u) => isEntity(u)),
     override: query?.get('atmosphere') || null,
+    // The Eclipse phase this battle was entered at (RunManager.getBattleParams).
+    eclipsePhase: Math.max(0, Math.trunc(Number(params.eclipsePhaseIndex) || 0)),
   };
 }
 

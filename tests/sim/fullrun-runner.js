@@ -320,6 +320,12 @@ export async function runBatch(opts, gameDataOverride = null) {
     promotionsByAct2Runs: 0,
     totalInvalidShopEntries: 0,
     totalAmbushBattles: 0,
+    // The Eclipse (reporting only; no thresholds): final shadow, knots taken,
+    // eclipsed battles fought and shadow at each act's end.
+    totalShadowFinal: 0,
+    totalEclipseFalls: 0,
+    totalEclipsedBattles: 0,
+    shadowByAct: {},
   };
   const failures = [];
 
@@ -348,6 +354,11 @@ export async function runBatch(opts, gameDataOverride = null) {
     totals.totalUnitsLost += replay.metrics.unitsLost;
     totals.totalInvalidShopEntries += replay.metrics.invalidShopEntries || 0;
     totals.totalAmbushBattles += replay.metrics.ambushBattles || 0;
+    totals.totalShadowFinal += replay.metrics.eclipseShadowFinal || 0;
+    totals.totalEclipseFalls += replay.metrics.eclipseFalls || 0;
+    totals.totalEclipsedBattles += replay.metrics.eclipsedBattles || 0;
+    for (const [act, shadow] of Object.entries(replay.metrics.eclipseShadowByAct || {}))
+      (totals.shadowByAct[act] ||= []).push(shadow);
 
     const promotedByAct2 =
       Array.isArray(replay.trace) &&
@@ -397,6 +408,14 @@ export async function runBatch(opts, gameDataOverride = null) {
   );
   console.log(
     `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)} avg_ambush_battles=${summary.avgAmbushBattles.toFixed(2)}`,
+  );
+
+  const runs = Math.max(1, totals.runs);
+  const byAct = Object.entries(totals.shadowByAct)
+    .map(([act, list]) => `${act}:${(list.reduce((a, b) => a + b, 0) / list.length).toFixed(1)}`)
+    .join('/');
+  console.log(
+    `eclipse_avg_shadow_final=${(totals.totalShadowFinal / runs).toFixed(1)} eclipse_avg_falls=${(totals.totalEclipseFalls / runs).toFixed(1)} eclipse_avg_eclipsed_battles=${(totals.totalEclipsedBattles / runs).toFixed(2)} eclipse_shadow_by_act=${byAct || 'none'}`,
   );
 
   const thresholdBreaches = evaluateThresholdBreaches(summary, opts);

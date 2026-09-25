@@ -1,0 +1,557 @@
+/* The Eclipse — a visible run clock (docs/specs/eclipse.md).
+   Loom header medallion, eclipsed / waning knots, the fall ceremony, the explainer card,
+   the fall toast, the phone HUD projection and the church Kindle. Ink & Ember tokens
+   only (uiPalette.json → uiTokens.css, mobileTheme.css). Canvas art: src/art/eclipse. */
+
+/* ───────── Header medallion ───────── */
+.re-loom-meta .re-eclipse-medal {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: var(--re-tap);
+  min-width: var(--re-tap);
+  margin: -8px 0;
+  padding: 0 10px 0 5px;
+  border: 0;
+  border-radius: 22px;
+  background: radial-gradient(
+    120% 140% at 18% 50%,
+    var(--re-raised) 0%,
+    var(--re-panel) 55%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+  color: var(--re-accent-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.re-eclipse-medal canvas {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--re-void);
+}
+.re-eclipse-medal-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.re-eclipse-phase {
+  font: 8px/1 var(--re-pixel);
+  letter-spacing: 0.04em;
+  color: var(--re-muted);
+}
+.re-eclipse-num {
+  font: 10px/1 var(--re-pixel);
+  color: var(--re-accent-text);
+  font-variant-numeric: tabular-nums;
+}
+.re-eclipse-medal.is-umbral .re-eclipse-num,
+.re-eclipse-medal.is-totality .re-eclipse-num,
+.re-eclipse-medal.is-hollow .re-eclipse-num {
+  color: var(--re-bad);
+}
+.re-eclipse-medal.is-imminent canvas {
+  box-shadow:
+    0 0 0 1px var(--re-void),
+    0 0 8px 1px var(--re-danger-line);
+}
+.re-eclipse-medal:hover,
+.re-eclipse-medal:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px var(--re-gilt),
+    0 0 0 2px var(--re-void),
+    0 0 0 3px var(--re-info);
+}
+/* Narrow headers (phones, the 640 desktop): a 28px glyph + number. */
+@media (max-width: 900px) {
+  .re-loom-meta .re-eclipse-medal {
+    gap: 5px;
+    padding: 0 7px 0 4px;
+  }
+  .re-eclipse-phase {
+    display: none;
+  }
+}
+
+/* ───────── Eclipsed knots ───────── */
+.re-node.is-eclipsed:not(.is-eclipse-pending) {
+  --rim: var(--re-gilt);
+  /* The place's silhouette, burnt to an ember-brown shadow of itself. */
+  --icon-filter: grayscale(1) sepia(1) saturate(1.6) hue-rotate(-14deg) brightness(0.46)
+    contrast(1.15);
+}
+.re-node.is-eclipsed .re-loom-medal {
+  overflow: visible;
+}
+.re-node.is-eclipsed:not(.is-eclipse-pending) .re-loom-medal {
+  background: radial-gradient(
+    circle at 50% 46%,
+    var(--re-void) 0%,
+    var(--re-void) 60%,
+    var(--re-bg) 100%
+  );
+  box-shadow:
+    0 0 0 1px var(--re-accent-text),
+    0 0 0 3px var(--re-void),
+    0 0 0 4px var(--re-gilt-haze),
+    0 0 12px 2px var(--re-ember-haze);
+}
+.re-node.is-eclipsed.is-live:not(.is-eclipse-pending) .re-loom-medal {
+  box-shadow:
+    0 0 0 1px var(--re-accent-text),
+    0 0 0 3px var(--re-void),
+    0 0 0 4px var(--re-gilt),
+    0 0 14px 3px var(--re-ember-glow);
+}
+.re-node.is-eclipsed.is-selected:not(.is-eclipse-pending) .re-loom-medal {
+  box-shadow:
+    0 0 0 1px var(--re-accent-text),
+    0 0 0 4px var(--re-void),
+    0 0 0 6px var(--sel, var(--re-ember-pale)),
+    0 0 14px 4px var(--re-ember-glow-soft);
+}
+.re-node.is-eclipsed .re-loom-label {
+  color: var(--re-ember-pale);
+  text-shadow:
+    0 1px 0 var(--re-void),
+    0 0 4px var(--re-void),
+    0 0 6px var(--re-danger-line);
+}
+/* The ink that took it: full while eclipsed, grows during the fall. */
+.re-eclipse-ink {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 62% 38%,
+    transparent 0%,
+    transparent 38%,
+    var(--re-shade) 62%,
+    var(--re-void) 100%
+  );
+  opacity: 0.85;
+  transform: scale(1);
+}
+.re-node.is-eclipse-pending .re-eclipse-ink {
+  opacity: 0;
+  transform: scale(0.1);
+}
+.re-eclipse-cracks {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--medal, 40px) + 6px);
+  height: calc(var(--medal, 40px) + 6px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  overflow: visible;
+}
+.re-eclipse-cracks path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.re-eclipse-crack-glow {
+  stroke: var(--re-danger-line);
+  stroke-width: 2.4;
+  opacity: 0.5;
+}
+.re-eclipse-crack-line {
+  stroke: var(--re-warn);
+  stroke-width: 0.9;
+}
+.re-node.is-eclipse-pending .re-eclipse-cracks {
+  opacity: 0;
+}
+.re-node.is-eclipsed.is-done .re-eclipse-cracks,
+.re-node.is-eclipsed.is-cut .re-eclipse-cracks {
+  opacity: 0.45;
+}
+
+/* The fall: ink blooms from the crack point, the art dies, cracks ignite. */
+.re-node.is-falling .re-eclipse-ink {
+  animation: re-eclipse-bloom 900ms cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
+}
+.re-node.is-falling .re-loom-medal {
+  animation: re-eclipse-rim 1100ms ease-out forwards;
+}
+.re-node.is-falling .re-loom-medal .re-node-art {
+  animation: re-eclipse-art 900ms ease-in forwards;
+}
+.re-node.is-falling .re-eclipse-cracks {
+  animation: re-eclipse-ignite 1100ms ease-out forwards;
+}
+@keyframes re-eclipse-bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.1);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+@keyframes re-eclipse-art {
+  to {
+    filter: grayscale(1) sepia(1) saturate(1.6) hue-rotate(-14deg) brightness(0.46) contrast(1.15);
+  }
+}
+@keyframes re-eclipse-rim {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.12);
+    box-shadow:
+      0 0 0 2px var(--re-ember-pale),
+      0 0 0 4px var(--re-void),
+      0 0 22px 8px var(--re-ember-glow);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 1px var(--re-accent-text),
+      0 0 0 3px var(--re-void),
+      0 0 0 4px var(--re-gilt-haze),
+      0 0 12px 2px var(--re-ember-haze);
+  }
+}
+@keyframes re-eclipse-ignite {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  70% {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px var(--re-warn));
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ───────── Waning knots: a crescent bite on the frame ───────── */
+.re-eclipse-bite {
+  /* The medal plus its rim; everything outside is clipped away, so the ink disc reads
+     as a bite taken out of the frame rather than a blot beside it. */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--medal, 40px) + 6px);
+  height: calc(var(--medal, 40px) + 6px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  clip-path: circle(50% at 50% 50%);
+  pointer-events: none;
+}
+.re-eclipse-bite-disc {
+  /* --bite 1 (falls at the next shadow) bites deepest; 3 is a sliver. */
+  --r: calc(var(--medal, 40px) * 0.34);
+  --d: calc(var(--medal, 40px) * 0.5 + var(--r) * (0.05 + (var(--bite, 3) - 1) * 0.3));
+  position: absolute;
+  left: calc(50% + var(--d) * 0.7071 - var(--r));
+  top: calc(50% - var(--d) * 0.7071 - var(--r));
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  background: var(--re-void);
+  box-shadow:
+    inset 1px -1px 0 var(--re-danger-line),
+    -1px 1px 3px var(--re-shade-deep);
+}
+.re-node.is-waning .re-loom-medal {
+  box-shadow:
+    0 0 0 2px var(--rim, var(--re-line)),
+    0 0 0 3px var(--re-void),
+    0 0 8px 1px var(--re-danger-bg);
+}
+
+/* ───────── Inspect card ───────── */
+.re-loom-card[data-tone='eclipsed'] {
+  --card-thread: var(--re-accent-text);
+  background:
+    radial-gradient(120% 80% at 0% 0%, var(--re-danger-bg), transparent 60%),
+    linear-gradient(180deg, var(--re-raised-haze), transparent 70%), var(--re-bg);
+}
+.re-loom-kind-eclipsed {
+  color: var(--re-ember-pale);
+}
+.re-loom-card-medal.is-eclipsed {
+  background: var(--re-void);
+  box-shadow:
+    0 0 0 1px var(--re-accent-text),
+    0 0 0 2px var(--re-void),
+    0 0 8px 1px var(--re-ember-haze);
+}
+.re-loom-card-medal.is-eclipsed .re-node-art {
+  filter: grayscale(1) sepia(1) saturate(1.6) hue-rotate(-14deg) brightness(0.5) contrast(1.15);
+}
+.re-loom-screen .re-loom-was {
+  margin: 2px 0 0;
+  font: 11px/1.2 var(--re-body);
+  color: var(--re-muted);
+}
+.re-loom-screen .re-loom-eclipse-warn {
+  margin: 7px 0 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font: 600 11px/1.3 var(--re-body);
+  color: var(--re-bad);
+}
+.re-loom-eclipse-warn::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  transform: translateY(1px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 70% 30%,
+    var(--re-void) 0 48%,
+    var(--re-accent-text) 52% 100%
+  );
+}
+
+/* ───────── The fall toast ───────── */
+.re-eclipse-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100% - 32px));
+  margin: 0;
+  padding: 8px 14px 8px 30px;
+  border-radius: 3px;
+  font: 600 13px/1.3 var(--re-body);
+  color: var(--re-parchment);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14px 50%, var(--re-void) 0 5px, transparent 5.5px),
+    radial-gradient(circle at 12px 50%, var(--re-accent-text) 0 6px, transparent 6.5px),
+    linear-gradient(90deg, var(--re-void), var(--re-panel));
+  box-shadow:
+    inset 0 0 0 1px var(--re-gilt-lo),
+    0 0 0 1px var(--re-void),
+    0 6px 18px var(--re-shade-deep);
+  animation: re-eclipse-toast 4200ms ease-out forwards;
+}
+@keyframes re-eclipse-toast {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  8%,
+  86% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ───────── Explainer card ───────── */
+.re-eclipse-card.re-compact-menu {
+  max-width: 460px;
+  max-height: min(560px, calc(100% - 24px));
+}
+.re-eclipse-card .re-menu-body {
+  gap: 8px;
+}
+.re-eclipse-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 4px 2px;
+}
+.re-eclipse-hero canvas {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px var(--re-void),
+    0 0 24px 2px var(--re-ember-haze);
+}
+.re-eclipse-reading {
+  min-width: 0;
+}
+.re-eclipse-reading p {
+  margin: 0;
+}
+.re-eclipse-card-phase {
+  font: 12px/1.4 var(--re-pixel);
+  letter-spacing: 0.06em;
+  color: var(--re-accent-text);
+}
+.re-eclipse-card-shadow {
+  margin-top: 4px !important;
+  font: 700 16px/1.2 var(--re-body);
+  color: var(--re-parchment);
+}
+.re-eclipse-card-next {
+  margin-top: 4px !important;
+  font: 12px/1.3 var(--re-body);
+  color: var(--re-muted);
+}
+.re-eclipse-card-next.is-imminent {
+  color: var(--re-bad);
+}
+.re-eclipse-scale {
+  padding: 2px 2px 4px;
+}
+.re-eclipse-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--re-accent-text),
+    var(--re-accent) 30%,
+    var(--re-gilt-lo)
+  );
+  box-shadow: inset 0 0 0 1px var(--re-void);
+  overflow: hidden;
+}
+.re-eclipse-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--re-void);
+  box-shadow: 1px 0 0 var(--re-ember-pale);
+}
+.re-eclipse-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--re-line);
+}
+.re-eclipse-names {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font: 8px/1 var(--re-pixel);
+  color: var(--re-muted-dim);
+}
+.re-eclipse-names .is-now {
+  color: var(--re-accent-text);
+}
+.re-eclipse-section h3 {
+  margin: 6px 0 3px;
+  font: 8px/1.4 var(--re-pixel);
+  letter-spacing: 0.04em;
+  color: var(--re-accent-text);
+}
+.re-eclipse-section p {
+  margin: 2px 0;
+  font: 12px/1.4 var(--re-body);
+  color: var(--re-text);
+}
+
+/* Short landscape screens: a smaller sun so the rules stay in view. */
+@media (max-height: 480px) {
+  .re-eclipse-hero {
+    gap: 12px;
+    padding-top: 2px;
+  }
+  .re-eclipse-hero canvas {
+    width: 60px;
+    height: 60px;
+  }
+  .re-eclipse-toast {
+    bottom: 8px;
+    padding: 6px 12px 6px 28px;
+    font-size: 12px;
+  }
+}
+
+/* ───────── Phone battle HUD ───────── */
+.mb-counters .mb-shadow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font: 700 11px/1.2 var(--re-body);
+}
+.mb-counters .mb-shadow::before {
+  /* The eclipsed sun in miniature: a gold disc bitten by ink. */
+  content: '';
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 72% 32%,
+    var(--re-void) 0 46%,
+    var(--re-accent-text) 50% 100%
+  );
+  box-shadow: 0 0 0 1px var(--re-void);
+}
+.mb-shadow.is-held::before {
+  background: radial-gradient(
+    circle at 92% 12%,
+    var(--re-void) 0 30%,
+    var(--re-accent-text) 34% 100%
+  );
+}
+.mb-shadow.is-dark::before {
+  background: radial-gradient(
+    circle at 58% 42%,
+    var(--re-void) 0 56%,
+    var(--re-accent-text) 60% 100%
+  );
+}
+.mb-shadow.is-held {
+  color: var(--re-accent-text);
+}
+.mb-shadow.is-rising {
+  color: var(--re-warn);
+}
+.mb-shadow.is-dark {
+  color: var(--re-bad);
+}
+
+/* ───────── Church Kindle ───────── */
+.re-kindle-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.re-kindle-head canvas {
+  flex: none;
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--re-ember-haze);
+}
+.re-kindle-head h3 {
+  margin: 0;
+}
+.re-btn.re-kindle:not(:disabled) {
+  border-color: var(--re-gilt);
+  box-shadow:
+    inset 0 1px 0 var(--re-ember-pale-haze),
+    0 0 10px var(--re-ember-haze);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .re-node.is-falling .re-eclipse-ink,
+  .re-node.is-falling .re-loom-medal,
+  .re-node.is-falling .re-loom-medal .re-node-art,
+  .re-node.is-falling .re-eclipse-cracks,
+  .re-eclipse-toast {
+    animation: none;
+  }
+}

@@ -38,6 +38,7 @@ emblem-rogue/
 │   ├── consumables.json   # 15 consumable items: 3 core + 8 stat boosters + 2 reclass seals + 2 misc
 │   ├── dialogue.json      # Recruit lines, story sequences, map/shop flavor, unitVoice (level-up / promotion / last words: class × trait × temperament, 7 lord voices)
 │   ├── difficulty.json    # Difficulty modes (Normal/Hard/Lunatic): stat/economy/fog modifiers
+│   ├── eclipse.json       # The Eclipse (visible run clock): shadow gain/relief, fall thresholds, phases
 │   ├── enemies.json       # Enemy pools by act (act1-act4, postAct, finalBoss), boss defs, count scaling
 │   ├── imbues.json        # 6 weapon imbues (rare blessings) + Imbuing Stone / Prismatic Stone defs
 │   ├── lords.json         # 7 lord characters with stats/growths/promotions
@@ -91,6 +92,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
 - **imbues.json** — One imbue per weapon, instance-only state (`weapon._imbueId`; canonical weapons.json never gains imbue fields). Effects resolve catalog-side at combat time via `ImbueSystem.js`; combat mods merge like weapon-art mods in `Combat.js`. Imbuing Stones are whetstone-like `forge`-category loot (act2+), stone names listed in lootTables forge pools (whetstones doubled so stones drop ~half as often as Silver Whetstone).
+- **eclipse.json** — The Eclipse (`docs/specs/eclipse.md`, `EclipseSystem.js`): shadow is committed only at battle victory (`completeBattle({ turnCount, turnPar })`), never mid-battle. Node falls transform nodes (never delete); thresholds are computed from `runSeed` + node id; conversions run on their own seeded stream. While active, late-pressure XP/gold decay is off.
 - **dialogue.json `unitVoice`** — Recruits speak from merged class + temperament + trait pools (temperament is derived per run from name + run seed, never stored); lords only from `lords.<name>`. Picks are pure (`UnitVoice.js`, no RNG / narrative log). Lines ≤ 90 chars; tokens `{leader}` (recruit pools only), `{name}`, `{skill}` (skills pool only). A line naming another lord plays only when that lord is in the army. Voice rules: `docs/lore-style-guide.md`.
 - **traits.json** — Rules v2 (`docs/specs/traits-v2.md`). Rolling is class-aware: `roll` blocks gate or weight traits by role. `ATTACK` in creationMods resolves to the class's attack stat (STR/MAG), and traits never replace a mastery perk (`masteryPerkMultiplier` only amplifies it). Retired v1 ids stay defined so old saves load; `migrateUnitTraits` converts them once. Per-unit trait text comes from `src/ui/traitContent.js`.
 - **skills.json** — 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action. `activation` = proc chance type (SKL/SKL_HALF/LCK_THIRD/SPD/LCK/always).
