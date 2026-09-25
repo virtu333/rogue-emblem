@@ -1,4 +1,8 @@
-# Rogue Emblem — iOS Port Specification
+# Rogue Dawn — iOS Port Specification
+
+> The game was renamed from Rogue Emblem to **Rogue Dawn** on 2026-09-25. The port shipped with
+> bundle ID `com.davechen.emblemrogue` (see `docs/ios-development.md`); the `com.rogueemblem.app` /
+> `app.rogueemblem.com` identifiers below are this original plan's placeholders and were never used.
 
 **Version:** 1.0
 **Date:** 2026-02-09
@@ -9,10 +13,10 @@
 
 ## Executive Summary
 
-This document outlines the requirements, technical approach, and implementation plan for porting Rogue Emblem from a web-based game to a native iOS application distributed via the Apple App Store.
+This document outlines the requirements, technical approach, and implementation plan for porting Rogue Dawn from a web-based game to a native iOS application distributed via the Apple App Store.
 
 ### Goals
-- Enable iOS users to play Rogue Emblem natively on iPhone and iPad
+- Enable iOS users to play Rogue Dawn natively on iPhone and iPad
 - Maintain feature parity with web version (cloud saves, Supabase auth)
 - Achieve 60 FPS gameplay on iPhone 12 and newer
 - Launch on App Store within Q2 2026
@@ -69,7 +73,7 @@ This document outlines the requirements, technical approach, and implementation 
 **Technical Requirements:**
 ```bash
 npm install @capacitor/core @capacitor/cli @capacitor/ios
-npx cap init "Rogue Emblem" "com.rogueemblem.app"
+npx cap init "Rogue Dawn" "com.rogueemblem.app"
 npx cap add ios
 npm run build
 npx cap copy
@@ -80,7 +84,7 @@ npx cap open ios  # Opens Xcode
 ```json
 {
   "appId": "com.rogueemblem.app",
-  "appName": "Rogue Emblem",
+  "appName": "Rogue Dawn",
   "webDir": "dist",
   "server": {
     "hostname": "app.rogueemblem.com",

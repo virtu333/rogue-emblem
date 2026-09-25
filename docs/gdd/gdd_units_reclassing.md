@@ -37,7 +37,7 @@ Wyvern Riders are the STR/DEF flying counterpart to Pegasus Knights. Across ever
 | DEF | 55% | 35% | +20% |
 | RES | 40% | 50% | -10% |
 
-### 1.2 Emblem Rogue Stats
+### 1.2 Rogue Dawn Stats
 
 #### Wyvern Rider (Base Class)
 
@@ -63,7 +63,7 @@ Wyvern Riders are the STR/DEF flying counterpart to Pegasus Knights. Across ever
 }
 ```
 
-**Comparison to Emblem Rogue Pegasus Knight:**
+**Comparison to Rogue Dawn Pegasus Knight:**
 
 | Stat | Wyvern Rider | Pegasus Knight | Delta |
 |------|-------------|----------------|-------|
