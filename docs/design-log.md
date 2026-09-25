@@ -5,6 +5,34 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Par penalties return under the Eclipse; playtest notes and backlog
+
+**Decision.** Late pressure (XP/gold decay past par) applies again while the Eclipse
+runs. The Eclipse originally replaced the hidden clock; on reflection a slow battle
+should cost in its own rewards *and* in the shadow it commits. `getLatePressureState`
+lost its `eclipseActive` bypass ([`specs/eclipse.md`](specs/eclipse.md) §5).
+
+**Playtest notes (Alex).** More systems ≠ better; refining existing systems is often the
+better path. Reactions to the bold-ideas list:
+- Most wanted: *Faltering, then Hollowing* (Souls-style death). Goal as stated: you
+  want to play with permadeath, lose characters in a way that feels fair, and can keep
+  going after a loss. Reference points: Darkest Dungeon 1 (expected deaths of good units
+  on high difficulty) and XCOM Long War 1.0 (bleed-out, stabilize on the field but not
+  return to combat, long recovery, permanent small impairment). Next: research + proposal
+  before any build.
+- Omens (enemy intent): keep it light, e.g. Fortune's Weave's thin red line from each
+  enemy that threatens the selected unit; no damage numbers (rolling is part of FE).
+  Sera as a seer whose information grows with proximity to danger is a strong concept.
+- The Eclipse: liked; wary of map connectivity/luck (FTL squinting). Hearth: a small
+  version could be rare premium meta upgrades "supplied by" someone you saved.
+- Indifferent or negative: Deeds (indifferent), living battlefield (dislikes; DOS2 fire),
+  Break-and-Link bosses (players already clear the map and chip bosses; keep underleveled
+  chip damage low instead).
+
+**Backlog.**
+- Special forges: the shop occasionally rolls an imbue offer, including shop-only imbues.
+- Imbue balance: Vampiric and Warding look strong; fold into a broader balance pass.
+
 ## 2026-09-25 — Deeds & Epithets (built)
 
 Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from
