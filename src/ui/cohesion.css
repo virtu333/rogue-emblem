@@ -152,7 +152,9 @@
   min-height: 44px;
 }
 @media (min-width: 1000px) {
-  .re-live-menu {
+  /* Centers a full-screen menu's column. Compact dialogs (Field notes, prompts)
+     are already narrow; viewport padding would crush their content. */
+  .re-live-menu:not(.re-compact-menu) {
     padding-inline: max(24px, calc((100vw - 1100px) / 2));
   }
 }

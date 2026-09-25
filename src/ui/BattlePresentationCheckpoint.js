@@ -2,6 +2,7 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { findBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
 import { gridDistance } from '../engine/Combat.js';
+import { levelUpKind } from './growthContent.js';
 
 // Save fields are untrusted; only these two resolved-action continuations exist.
 export function readActionContinuation(value) {
@@ -92,7 +93,7 @@ export async function presentQueuedLevelUps(scene, continuation = null) {
     if (scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false) return;
     const unit = findBattleEntity(scene, { unitId, unitName }, ['playerUnits']);
     if (!unit) continue;
-    scene._playLevelUpSfx();
+    scene._playLevelUpSfx(levelUpKind(levelUp));
     scene.updateHPBar(unit);
     try {
       await new LevelUpPopup(scene, unit, levelUp, false, learnedNames).show();

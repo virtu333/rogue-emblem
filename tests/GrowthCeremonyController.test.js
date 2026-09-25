@@ -9,7 +9,7 @@ import {
   spriteScale,
 } from '../src/ui/GrowthCeremonyController.js';
 import { CeremonyController } from '../src/ui/CeremonyController.js';
-import { promotionPathContent } from '../src/ui/growthContent.js';
+import { growthTiming, promotionPathContent, riteSchedule } from '../src/ui/growthContent.js';
 import { _resetInputFocus, activeInputOwner, dispatchInputAction } from '../src/utils/inputFocus.js'; // prettier-ignore
 import { hasOpenOverlay, cancelTopOverlay } from '../src/utils/overlayStack.js';
 import { InputAction } from '../src/utils/InputActions.js';
@@ -80,6 +80,43 @@ function promotedMyrmidon(target = 'Duelist') {
 }
 
 describe('promotion rite', () => {
+  it('swells the gather to the name burning in, then lands the crown and fades on close', async () => {
+    const scene = makeScene({ battle: true });
+    const gatherVoice = { stop: vi.fn() };
+    scene.audio.playStinger = vi.fn(async (name) =>
+      name === 'promotion_gather' ? gatherVoice : { stop: vi.fn() },
+    );
+    scene.audio.stopStingers = vi.fn();
+    const growth = new GrowthCeremonyController(scene);
+    const { unit, content, before } = promotedMyrmidon();
+    const done = growth.showPromotionRite({ unit, content, beforeUnit: before });
+    const names = () => scene.audio.playStinger.mock.calls.map(([name]) => name);
+    expect(names()).toEqual(['promotion_gather']);
+    const schedule = riteSchedule(content, growthTiming('rite', {}));
+    await vi.advanceTimersByTimeAsync(schedule.nameAt - 10);
+    expect(names()).toEqual(['promotion_gather']);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(names()).toEqual(['promotion_gather', 'promotion_crown']);
+    expect(gatherVoice.stop).toHaveBeenCalled();
+    const rite = layers()[0];
+    pointer(rite); // reveal (the crown never plays twice)
+    pointer(rite); // continue
+    await vi.advanceTimersByTimeAsync(400);
+    await done;
+    expect(names().filter((n) => n === 'promotion_crown')).toHaveLength(1);
+    expect(scene.audio.stopStingers).toHaveBeenCalled();
+  });
+
+  it('crowns at once when the rite opens revealed (Instant speed)', () => {
+    const scene = makeScene({ battle: true, speed: 'instant' });
+    scene.audio.playStinger = vi.fn(async () => ({ stop: vi.fn() }));
+    scene.audio.stopStingers = vi.fn();
+    const growth = new GrowthCeremonyController(scene);
+    const { unit, content, before } = promotedMyrmidon();
+    void growth.showPromotionRite({ unit, content, beforeUnit: before });
+    expect(scene.audio.playStinger.mock.calls.map(([name]) => name)).toEqual(['promotion_crown']);
+  });
+
   it('stages the class change over its frame and dismisses in two presses', async () => {
     const scene = makeScene({ battle: true });
     const growth = new GrowthCeremonyController(scene);
@@ -105,12 +142,15 @@ describe('promotion rite', () => {
     expect(rite.querySelectorAll('.gr-glyph--weapon')).toHaveLength(2);
     // The battle's story input is held (rail inert, grid ignored) while it shows.
     expect(scene._ceremonies.isBlocking()).toBe(true);
-    expect(scene._playLevelUpSfx).toHaveBeenCalledTimes(1);
+    // Without the stinger system the gather is silent and the crown falls
+    // back to the level-up effect when the name lands (here: skipped ahead).
+    expect(scene.audio.playSFX).not.toHaveBeenCalledWith('sfx_levelup');
     expect(hasOpenOverlay(scene)).toBe(true);
     const button = rite.querySelector('.gr-continue');
     expect(button.getAttribute('aria-label')).toBe('Skip');
     vi.advanceTimersByTime(250);
     pointer(rite); // first press: the end state at once
+    expect(scene.audio.playSFX).toHaveBeenCalledWith('sfx_levelup');
     expect(rite.classList.contains('is-static')).toBe(true);
     expect(rite.classList.contains('is-done')).toBe(true);
     expect(button.getAttribute('aria-label')).toBe('Continue');
