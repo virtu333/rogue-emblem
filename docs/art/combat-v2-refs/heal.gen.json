@@ -1,0 +1,14 @@
+{
+  "hash": "d59dbd8198bd34c9",
+  "model": "gemini-3-pro-image",
+  "prompt": "SNES-era 16-bit pixel art effect sprite sheet, hard pixel edges, no anti-aliasing, no text, plain flat dark charcoal background, eight frames in one row, limited palette of verdigris greens #1b4239 #2d6450 #4d8b66 #86b27b #c3d69a and cream #f4ecdb. A healing spell: a thin elliptical rune ring opens at the feet, motes and small four-point sparkles rise in columns, a soft vertical shimmer, fading upward. Dark fantasy, readable at 48x48 per frame.",
+  "refs": [],
+  "aspectRatio": "21:9",
+  "imageSize": "2K",
+  "files": [
+    "docs/art/combat-v2-refs/heal.webp"
+  ],
+  "text": "",
+  "at": "2026-09-25T02:20:27.758Z",
+  "note": "raw JPEG re-encoded as WebP (q88) to keep the repo small; reference only"
+}

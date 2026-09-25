@@ -1,0 +1,14 @@
+{
+  "hash": "9ebd07b3e2087e46",
+  "model": "gemini-3-pro-image",
+  "prompt": "SNES-era 16-bit pixel art effect sprite sheet, hard pixel edges, no anti-aliasing, no text, no labels, plain flat dark charcoal background (#16131e), each frame in its own evenly spaced cell in a single row, limited palette: deep ink #07060b, dark blood red #6e1a28, crimson #9e2632, orange #b3702c, amber #dca044, pale gold #f3cb6c, cream #fff0bd. Dark fantasy (Dark Souls tone), readable at 48x48 pixels per frame. Seven frames of a dragon fire breath billowing from left to right: rolling round puffs of flame that expand and tumble forward, each puff lit from the upper left with a gold core and dark red shadowed underside, ending in dark smoke.",
+  "refs": [],
+  "aspectRatio": "21:9",
+  "imageSize": "2K",
+  "files": [
+    "docs/art/combat-v2-refs/dragon_breath.webp"
+  ],
+  "text": "",
+  "at": "2026-09-25T02:20:26.969Z",
+  "note": "raw JPEG re-encoded as WebP (q88) to keep the repo small; reference only"
+}

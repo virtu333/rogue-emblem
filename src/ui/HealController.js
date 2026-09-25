@@ -28,6 +28,16 @@ import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
+/** Heal motes cross from a visible healer to the target (presentation only). */
+function healSource(source, target, scene) {
+  const g = source?.graphic;
+  if (!g || source === target || g.visible === false) return {};
+  return {
+    from: { x: g.x, y: g.y - 6 },
+    seed: (scene.turnManager?.turnNumber || 0) * 31 + (target?.col || 0) * 7 + (target?.row || 0),
+  };
+}
+
 export class HealController {
   constructor(scene) {
     this.scene = scene;
@@ -351,7 +361,7 @@ export class HealController {
         // Un-dim only sleepers that can still act — keep the acted-grey on
         // allies that already moved this phase (same pattern as Swap).
         if (!target.hasActed) scene.undimUnit(target);
-        await this.animateCure(target);
+        await this.animateCure(target, healer);
 
         spendStaffUse(staff);
         this.restoreCombatWeapon(healer);
@@ -387,7 +397,7 @@ export class HealController {
       if (selfHeal) scene.updateHPBar(healer);
 
       // Animate
-      await scene.animateHeal(target, result.healAmount);
+      await scene.animateHeal(target, result.healAmount, healer);
       if (selfHeal) await scene.animateHeal(healer, selfHeal);
 
       // Spend a use and check depletion
@@ -432,7 +442,7 @@ export class HealController {
           scene.turnManager?.currentPhase,
         );
         if (selfHeal) scene.updateHPBar(healer);
-        await scene.animateHeal(target, result.healAmount);
+        await scene.animateHeal(target, result.healAmount, healer);
         if (selfHeal) await scene.animateHeal(healer, selfHeal);
       }
 
@@ -450,7 +460,7 @@ export class HealController {
     }
   }
 
-  async animateCure(target) {
+  async animateCure(target, source = null) {
     const scene = this.scene;
     const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
@@ -458,7 +468,11 @@ export class HealController {
     if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
-    (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
+    (scene._combatFx ||= new CombatFxController(scene)).playHeal(
+      pos.x,
+      pos.y,
+      healSource(source, target, scene),
+    );
     const cureText = scene.add
       .text(pos.x, pos.y - 16, 'Cured!', {
         fontFamily: 'monospace',
@@ -482,7 +496,7 @@ export class HealController {
     await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
   }
 
-  async animateHeal(target, healAmount) {
+  async animateHeal(target, healAmount, source = null) {
     const scene = this.scene;
     const reduced = scene._reduceMotion();
     const audio = scene.registry.get('audio');
@@ -491,7 +505,11 @@ export class HealController {
     if (target.graphic.setTint) target.graphic.setTint(UI_HEX.hpHigh);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
-    (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
+    (scene._combatFx ||= new CombatFxController(scene)).playHeal(
+      pos.x,
+      pos.y,
+      healSource(source, target, scene),
+    );
     const healText = scene.add
       .text(pos.x, pos.y - 16, `+${healAmount}`, {
         fontFamily: 'monospace',

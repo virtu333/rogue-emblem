@@ -467,40 +467,16 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);
     }
 
-    // Combat effect overlays (4-frame 48x48 strips, additive-blended in battle)
-    const combatFx = [
-      'fx_slash',
-      'fx_chop',
-      'fx_thrust',
-      'fx_arrow',
-      'fx_magic',
-      'fx_light',
-      'fx_heal',
-      'fx_crit',
-      // Category proc overlays + weapon-art ring (tinted at runtime)
-      'fx_pierce',
-      'fx_drain',
-      'fx_shield',
-      'fx_flurry',
-      'fx_buff',
-      'fx_status',
-      'fx_ring',
-      // Signature 8-frame effects (384x48 strips): Legendary arts by weapon
-      // type, Entity splash, boss enrage
-      'fx_sig_sword',
-      'fx_sig_lance',
-      'fx_sig_axe',
-      'fx_sig_bow',
-      'fx_sig_magic',
-      'fx_sig_entity',
-      'fx_sig_enrage',
-    ];
-    for (const name of combatFx) {
-      this.load.spritesheet(name, `assets/sprites/fx/${name}.png`, {
-        frameWidth: 48,
-        frameHeight: 48,
-      });
-    }
+    // Combat effects (Combat v2): every effect in one palette-indexed atlas baked by
+    // tools/art/combat-fx. Frames are `<key>/<i>` (+ `<key>~ink/<i>` ink layers); the
+    // animation table (durations, anchors, layers) is src/art/combatFx/fxAnims.json and
+    // CombatFxController registers animations on first use under the same keys the
+    // 22 old strips had (fx_slash, fx_sig_entity, ...).
+    this.load.atlas(
+      'fx_atlas',
+      'assets/sprites/fx/fx_atlas.png',
+      'assets/sprites/fx/fx_atlas.json',
+    );
 
     // SFX (18 effects)
     const essentialSfx = ['sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold'];

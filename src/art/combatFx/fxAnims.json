@@ -1,0 +1,673 @@
+{
+  "version": 1,
+  "atlas": "fx_atlas",
+  "size": [640, 1000],
+  "anims": {
+    "fx_slash": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 7,
+      "durations": [40, 32, 32, 34, 38, 42, 48],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_chop": {
+      "size": [64, 64],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [46, 30, 32, 36, 40, 44, 50, 56],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_thrust": {
+      "size": [64, 48],
+      "anchor": [0.56, 0.5],
+      "frames": 7,
+      "durations": [40, 30, 32, 36, 40, 46, 52],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_arrow": {
+      "size": [32, 32],
+      "anchor": [0.5, 0.5],
+      "frames": 6,
+      "durations": [36, 30, 34, 38, 44, 50],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_proj_arrow": {
+      "size": [24, 7],
+      "anchor": [0.9166666666666666, 0.5],
+      "frames": 1,
+      "durations": [100],
+      "role": "projectile",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_bolt": {
+      "size": [34, 11],
+      "anchor": [0.9411764705882353, 0.5],
+      "frames": 1,
+      "durations": [100],
+      "role": "projectile",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_javelin": {
+      "size": [28, 7],
+      "anchor": [0.9285714285714286, 0.5],
+      "frames": 1,
+      "durations": [100],
+      "role": "projectile",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_axe": {
+      "size": [16, 16],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [40, 40, 40, 40],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_blade": {
+      "size": [16, 26],
+      "anchor": [0.75, 0.5],
+      "frames": 2,
+      "durations": [50, 50],
+      "role": "projectile",
+      "directional": true,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_mote": {
+      "size": [3, 3],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [100, 100, 100, 100],
+      "role": "mote",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": false }]
+    },
+    "fx_magic": {
+      "size": [48, 60],
+      "anchor": [0.5, 0.6],
+      "frames": 8,
+      "durations": [44, 36, 40, 42, 46, 50, 58, 64],
+      "role": "impact",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_thunder": {
+      "size": [48, 64],
+      "anchor": [0.5, 0.71875],
+      "frames": 7,
+      "durations": [40, 30, 34, 38, 44, 50, 56],
+      "role": "impact",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_bolt_seg": {
+      "size": [32, 13],
+      "anchor": [0, 0.5],
+      "frames": 4,
+      "durations": [30, 30, 30, 30],
+      "role": "segment",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_wind": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 7,
+      "durations": [42, 32, 34, 38, 44, 50, 56],
+      "role": "impact",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_light": {
+      "size": [48, 64],
+      "anchor": [0.5, 0.625],
+      "frames": 8,
+      "durations": [44, 34, 36, 40, 46, 52, 58, 64],
+      "role": "impact",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_dark": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [48, 36, 38, 42, 46, 52, 58, 64],
+      "role": "impact",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_breath": {
+      "size": [72, 52],
+      "anchor": [0.5555555555555556, 0.5],
+      "frames": 7,
+      "durations": [44, 36, 38, 42, 46, 52, 58],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_breath_toxic": {
+      "size": [72, 52],
+      "anchor": [0.5555555555555556, 0.5],
+      "frames": 7,
+      "durations": [44, 36, 38, 42, 46, 52, 58],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_breath_ancient": {
+      "size": [72, 52],
+      "anchor": [0.5555555555555556, 0.5],
+      "frames": 7,
+      "durations": [44, 36, 38, 42, 46, 52, 58],
+      "role": "impact",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_heal": {
+      "size": [48, 56],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [50, 50, 50, 55, 55, 60, 65, 70],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_fire": {
+      "size": [24, 16],
+      "anchor": [0.7083333333333334, 0.5],
+      "frames": 4,
+      "durations": [45, 45, 45, 45],
+      "role": "projectile",
+      "directional": true,
+      "loop": true,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_proj_wind": {
+      "size": [24, 24],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [40, 40, 40, 40],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_proj_dark": {
+      "size": [20, 16],
+      "anchor": [0.7, 0.5],
+      "frames": 4,
+      "durations": [50, 50, 50, 50],
+      "role": "projectile",
+      "directional": true,
+      "loop": true,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_proj_light": {
+      "size": [13, 13],
+      "anchor": [0.5, 0.5],
+      "frames": 2,
+      "durations": [50, 50],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_proj_breath": {
+      "size": [20, 20],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [45, 45, 45, 45],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "normal", "above": false }]
+    },
+    "fx_proj_breath_toxic": {
+      "size": [20, 20],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [45, 45, 45, 45],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "normal", "above": false }]
+    },
+    "fx_proj_breath_ancient": {
+      "size": [20, 20],
+      "anchor": [0.5, 0.5],
+      "frames": 4,
+      "durations": [45, 45, 45, 45],
+      "role": "projectile",
+      "directional": false,
+      "loop": true,
+      "layers": [{ "suffix": "", "blend": "normal", "above": false }]
+    },
+    "fx_crit": {
+      "size": [64, 64],
+      "anchor": [0.5, 0.5],
+      "frames": 7,
+      "durations": [50, 36, 38, 42, 48, 54, 60],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_shock": {
+      "size": [64, 64],
+      "anchor": [0.5, 0.5],
+      "frames": 6,
+      "durations": [34, 34, 38, 42, 48, 54],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_shock_small": {
+      "size": [40, 40],
+      "anchor": [0.5, 0.5],
+      "frames": 5,
+      "durations": [30, 32, 36, 42, 48],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_pierce": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 6,
+      "durations": [40, 32, 34, 38, 44, 50],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_flurry": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 7,
+      "durations": [30, 30, 30, 30, 34, 40, 48],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_drain": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [40, 40, 40, 42, 44, 48, 54, 60],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_shield": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [44, 40, 40, 44, 48, 52, 56, 62],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_buff": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [44, 44, 44, 46, 48, 52, 56, 62],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_status": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [50, 50, 50, 50, 54, 58, 62, 66],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_status_sleep": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [70, 70, 70, 70, 74, 78, 82, 90],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_status_silence": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [50, 50, 60, 70, 70, 60, 56, 60],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_status_acid": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [50, 50, 50, 54, 58, 62, 66, 70],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_status_root": {
+      "size": [48, 48],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [44, 44, 48, 52, 70, 70, 60, 60],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_ring": {
+      "size": [64, 64],
+      "anchor": [0.5, 0.5],
+      "frames": 8,
+      "durations": [44, 40, 40, 44, 48, 52, 58, 64],
+      "role": "overlay",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    },
+    "fx_dust": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_sand": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_snow": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_ash": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_stone": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_leaves": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "normal", "above": true }]
+    },
+    "fx_dust_splash": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_dust_mire": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_dust_sparks": {
+      "size": [32, 24],
+      "anchor": [0.5, 0.8333333333333334],
+      "frames": 6,
+      "durations": [40, 44, 50, 56, 62, 70],
+      "role": "dust",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_sig_sword": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.5],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_sig_lance": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.5],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": true,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_sig_axe": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.5],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_sig_bow": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.5],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_sig_magic": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.62],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [{ "suffix": "", "blend": "add", "above": true }]
+    },
+    "fx_sig_entity": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.5],
+      "frames": 12,
+      "durations": [60, 40, 40, 44, 46, 50, 54, 58, 62, 66, 70, 76],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": false },
+        { "suffix": "~ink", "blend": "normal", "above": true }
+      ]
+    },
+    "fx_sig_enrage": {
+      "size": [96, 96],
+      "anchor": [0.5, 0.62],
+      "frames": 12,
+      "durations": [60, 56, 56, 56, 58, 60, 62, 64, 66, 70, 74, 80],
+      "role": "signature",
+      "directional": false,
+      "loop": false,
+      "layers": [
+        { "suffix": "", "blend": "add", "above": true },
+        { "suffix": "~ink", "blend": "normal", "above": false }
+      ]
+    }
+  }
+}
