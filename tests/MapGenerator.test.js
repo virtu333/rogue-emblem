@@ -691,10 +691,12 @@ describe('MapGenerator', () => {
     });
 
     it('NPC spawn is biased toward player side of map', () => {
-      for (let i = 0; i < 20; i++) {
-        const config = generateBattle(
-          { act: 'act1', objective: 'rout', isRecruitBattle: true },
-          data,
+      // Seeded: placement is path-cost based (RecruitSpawnSafety.test.js), so a
+      // crowded 10-column map can still seat the recruit past 60% when every tile on
+      // the lords' side is inside a first-phase strike (about 1 map in 1500).
+      for (let seed = 1; seed <= 20; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data),
         );
         const npc = config.npcSpawn;
         expect(npc.col).toBeLessThan(Math.ceil(config.cols * 0.6));
@@ -737,15 +739,10 @@ describe('MapGenerator', () => {
       expect(playerSideCount).toBeGreaterThan(trials * 0.75);
     });
 
-    it('non-river templates still use standard 20-55% range', () => {
-      for (let i = 0; i < 20; i++) {
-        const config = generateBattle(
-          {
-            act: 'act1',
-            objective: 'rout',
-            isRecruitBattle: true,
-          },
-          data,
+    it('non-river templates keep the recruit on the player half', () => {
+      for (let seed = 101; seed <= 120; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data),
         );
         if (!config.npcSpawn) continue;
         expect(config.npcSpawn.col).toBeLessThan(Math.ceil(config.cols * 0.6));
