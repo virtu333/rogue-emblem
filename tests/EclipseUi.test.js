@@ -16,7 +16,11 @@ import { sidebarCounters } from '../src/ui/battleSidebarDisplay.js';
 import { mergeRunRecords } from '../src/engine/RunRecords.js';
 import { ATMOSPHERE_GRADES, eclipseGrade, resolveAtmosphere } from '../src/art/atmosphereConfig.js';
 import { drawEclipseSun, moonOffset } from '../src/art/eclipse/eclipseSun.js';
-import { EclipseHudController, projectedShadow } from '../src/ui/EclipseHudController.js';
+import {
+  EclipseHudController,
+  projectedMeterShadow,
+  projectedShadow,
+} from '../src/ui/EclipseHudController.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 
@@ -96,6 +100,13 @@ describe('Eclipse copy', () => {
     expect(victoryShadowText(0)).toBe('Sun held');
     expect(victoryShadowText(2)).toBe('Shadow +2');
     expect(victoryShadowText(null)).toBe('');
+    // At or near the sun's cap the land still takes the whole gain (review R2).
+    expect(shadowProjectionLabel(6, 6)).toBe('Shadow +6');
+    expect(shadowProjectionLabel(6, 3)).toBe('Shadow +6 (sun +3)');
+    expect(shadowProjectionLabel(6, 0)).toBe('Shadow +6 (land only)');
+    expect(shadowProjectionLabel(0, 0)).toBe('Sun holds');
+    expect(victoryShadowText(6, 0)).toBe('Shadow +6 (land only)');
+    expect(victoryShadowText(6, 2)).toBe('Shadow +6 (sun +2)');
     expect(fallCountdownText(1)).toBe('The dark takes this in 1 more shadow');
     expect(shadowSummary(58, config)).toBe('Umbral · 58 shadow');
   });
@@ -124,6 +135,23 @@ describe('Eclipse copy', () => {
     );
     expect(pale.sections[1].lines).toEqual(['Nothing yet. The land is whole.']);
     expect(pale.sections[2].lines[0]).toMatch(/safe|No knot within reach/);
+    expect(text).not.toMatch(/darken no further/);
+    // A Hollow sun: the act's own shadow still counts down to the next fall.
+    const hollow = eclipseExplainer(
+      {
+        ...view,
+        shadow: 100,
+        atCap: true,
+        actShadow: 3,
+        nextFall: 5,
+        phase: { id: 'hollow', name: 'Hollow', index: 4 },
+      },
+      config,
+    );
+    expect(hollow.sections[2].lines[0]).toBe(
+      'This act has gathered 3 shadow. The next knot within reach falls in 5 more shadow.',
+    );
+    expect(hollow.sections[2].lines[1]).toMatch(/darken no further, but the land still can/);
   });
 
   it('run summaries follow the run state', () => {
@@ -154,6 +182,10 @@ describe('ceremonies', () => {
     );
     // No Eclipse, no relief line.
     expect(victoryContent({ ...base, shadowRelief: 3 }).sub).toBe('Turn 7 · Par 9 · Rank A');
+    // At the cap: the sun cannot take it, the land does.
+    expect(victoryContent({ ...base, shadowGain: 6, shadowMeterGain: 0 }).sub).toBe(
+      'Turn 7 · Par 9 · Rank A · Shadow +6 (land only)',
+    );
   });
 
   it('the act card carries the phase', () => {
@@ -195,6 +227,16 @@ describe('HUD and records', () => {
     hud.scene.turnManager = scene.turnManager;
     hud.sync();
     expect(hud.label()).toBe('Shadow +5');
+    expect(hud.tone()).toBe('dark');
+    // Near and at the global cap (review R2): the projection still shows the act's
+    // full gain and says how much the sun itself can take.
+    rm.eclipse = { ...rm.eclipse, shadow: 97 };
+    hud.sync();
+    expect(projectedMeterShadow(hud.scene)).toBe(3);
+    expect(hud.label()).toBe('Shadow +5 (sun +3)');
+    rm.eclipse = { ...rm.eclipse, shadow: 100 };
+    hud.sync();
+    expect(hud.label()).toBe('Shadow +5 (land only)');
     expect(hud.tone()).toBe('dark');
     hud.destroy();
   });
