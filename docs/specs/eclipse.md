@@ -140,13 +140,14 @@ Pale run's params are unchanged):
   saturation, night darkness nudges in `atmosphereConfig.ECLIPSE_PHASE_NUDGE`) —
   presentation only, never in the tutorial.
 
-### 5. Replacing the hidden clock
+### 5. Alongside the par clock
 
-While the Eclipse is active, `getLatePressureState(…, { eclipseActive: true })` forces
-the XP and gold multipliers to 1 (no silent decay; the "Taking too long" hint and the
-pressure suffix on the turn label disappear). Par, the S/A/B/C rating and rating bonus
-gold stay. Boss enrage and the anti-turtle AI stay (visible in the boss bar). With the
-Eclipse off (tutorial, or no data) late pressure is unchanged.
+Late pressure stays on while the Eclipse runs (design change 2026-09-25, reversing the
+original "Eclipse replaces the hidden clock" rule): past par, XP and gold decay per
+`turnBonus.json` `latePressure`, with the "Taking too long" hint and the pressure suffix
+on the turn label. Par, the S/A/B/C rating and rating bonus gold, boss enrage and the
+anti-turtle AI are unchanged. A slow battle therefore costs twice: in the battle's own
+rewards and in the shadow it commits to the run.
 
 ## State
 

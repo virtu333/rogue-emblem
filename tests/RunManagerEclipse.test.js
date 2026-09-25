@@ -311,18 +311,14 @@ describe('RunManager · save', () => {
   });
 });
 
-describe('late pressure while the Eclipse is the clock', () => {
+describe('late pressure alongside the Eclipse', () => {
   const cfg = data.turnBonus;
-  it('never decays XP or gold when the Eclipse is active', () => {
-    const on = getLatePressureState(20, 5, cfg, { eclipseActive: true });
-    expect(on).toMatchObject({ active: false, xpMultiplier: 1, goldMultiplier: 1 });
-    expect(formatParTooltip(20, 5, cfg, { eclipseActive: true })).not.toMatch(/Late/);
-  });
-  it('is unchanged when the Eclipse is off', () => {
-    const off = getLatePressureState(20, 5, cfg);
-    expect(off.active).toBe(true);
-    expect(off.xpMultiplier).toBeLessThan(1);
-    expect(off).toEqual(getLatePressureState(20, 5, cfg, { eclipseActive: false }));
+  it('decays XP and gold past par whether or not the Eclipse runs', () => {
+    const late = getLatePressureState(20, 5, cfg);
+    expect(late.active).toBe(true);
+    expect(late.xpMultiplier).toBeLessThan(1);
+    expect(late.goldMultiplier).toBeLessThan(1);
+    expect(formatParTooltip(20, 5, cfg)).toMatch(/Late/);
   });
 });
 
