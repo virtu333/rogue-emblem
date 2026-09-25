@@ -12,9 +12,9 @@ import { traceNative } from '../tools/art/sprite-trace/lib/trace.mjs';
 import { render } from '../tools/art/sprite-trace/lib/render.mjs';
 import { paletteFor, unlightGrade } from '../tools/art/sprite-trace/lib/treat.mjs';
 import { BIBLE_RAMPS, rampFromSamples } from '../tools/art/sprite-trace/lib/ramps.mjs';
-import { SLOT } from '../tools/art/sprite-trace/lib/slots.mjs';
+import { SLOT, WEAPON_SLOTS } from '../tools/art/sprite-trace/lib/slots.mjs';
 import { KINDS, footRow, textureSize, fitScale } from '../tools/art/sprite-trace/lib/place.mjs';
-import { idleFrames, attackFrames } from '../tools/art/sprite-trace/lib/motion.mjs';
+import { idleFrames, attackFrames, weaponOf } from '../tools/art/sprite-trace/lib/motion.mjs';
 import { packAtlas } from '../tools/art/sprite-trace/lib/atlas.mjs';
 import { rollIdentity, hashString } from '../tools/art/sprite-trace/lib/identity.mjs';
 import { pixelPerfect, removeSpecks } from '../tools/art/sprite-trace/lib/cleanup.mjs';
@@ -360,6 +360,136 @@ describe('motion', () => {
       f0.bounds().x + f0.bounds().width,
     );
   });
+
+  // a standing figure facing right: torso, head, two legs, a fist at the right hip holding
+  // a vertical weapon (steel blade, or a shaft with a steel head for the lance)
+  const armed = (weapon) => {
+    const sp = new IndexedSprite(96, 96);
+    const fill = (x0, y0, x1, y1, slot, shade = 2) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) sp.set(x, y, slot, shade);
+    };
+    fill(44, 20, 51, 29, SLOT.skin); // head
+    fill(42, 18, 52, 21, SLOT.hair);
+    fill(40, 30, 55, 50, SLOT.main); // torso
+    fill(41, 51, 45, 65, SLOT.sub); // legs
+    fill(50, 51, 54, 65, SLOT.sub);
+    fill(56, 40, 57, 42, SLOT.skin); // fist
+    if (weapon === 'lance') {
+      fill(58, 12, 58, 16, SLOT.metal, 4);
+      fill(58, 17, 58, 60, SLOT.wood, 2);
+    } else fill(58, 14, 59, 44, SLOT.metal, 3);
+    return sp;
+  };
+  const weaponPixels = (sp) => {
+    let n = 0;
+    for (let i = 0; i < sp.w * sp.h; i++) if (WEAPON_SLOTS.has(sp.slot[i])) n++;
+    return n;
+  };
+  const feetRow = (sp) => {
+    const out = [];
+    for (let x = 0; x < sp.w; x++) out.push(sp.at(x, 65));
+    return out.join(',');
+  };
+
+  it('weapons are posed about the hand: blade raised then swept forward, lance thrust', () => {
+    const sword = armed('sword');
+    const w = weaponOf(sword);
+    expect(w).not.toBe(null);
+    // the grip is by the fist, the tip is the far (upper) end
+    expect(Math.abs(w.grip[1] - 41)).toBeLessThanOrEqual(4);
+    expect(w.tip[1]).toBeLessThan(20);
+    const [windup, strike] = attackFrames(sword, { weapon: 'sword' });
+    for (const f of [windup, strike]) {
+      expect(feetRow(f)).toBe(feetRow(sword));
+      // the blade is redrawn, not lost
+      expect(weaponPixels(f)).toBeGreaterThanOrEqual(weaponPixels(sword) * 0.7);
+    }
+    const reach = (f) => {
+      let x1 = -1;
+      for (let i = 0; i < f.w * f.h; i++)
+        if (WEAPON_SLOTS.has(f.slot[i])) x1 = Math.max(x1, i % f.w);
+      return x1;
+    };
+    // the strike carries the blade out in front, well past its resting column
+    expect(reach(strike)).toBeGreaterThan(reach(sword) + 10);
+    // the windup leans back: the blade does not reach further forward than at rest
+    expect(reach(windup)).toBeLessThanOrEqual(reach(sword) + 1);
+
+    const lance = armed('lance');
+    const [, thrust] = attackFrames(lance, { weapon: 'lance' });
+    expect(feetRow(thrust)).toBe(feetRow(lance));
+    expect(reach(thrust)).toBeGreaterThan(reach(lance) + 15);
+  });
+
+  it('a lance held behind a shield thrusts clear of it and stays in the hand', () => {
+    // a knight: shield in front (right), lance upright at the far side, fist on the shaft
+    const sp = new IndexedSprite(96, 96);
+    const fill = (x0, y0, x1, y1, slot, shade = 2) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) sp.set(x, y, slot, shade);
+    };
+    fill(44, 20, 51, 29, SLOT.skin);
+    fill(42, 18, 52, 21, SLOT.hair);
+    fill(40, 30, 55, 50, SLOT.main);
+    fill(41, 51, 45, 65, SLOT.sub);
+    fill(50, 51, 54, 65, SLOT.sub);
+    fill(56, 32, 63, 56, SLOT.armor); // shield
+    fill(36, 36, 37, 38, SLOT.skin); // fist
+    fill(38, 10, 38, 14, SLOT.metal, 4);
+    fill(38, 15, 38, 46, SLOT.wood, 2);
+    const w = weaponOf(sp, undefined, { type: 'lance' });
+    expect(w.tip[1]).toBeLessThan(16);
+    const [windup, thrust] = attackFrames(sp, { weapon: 'lance' });
+    let head = -1;
+    for (let i = 0; i < thrust.w * thrust.h; i++)
+      if (thrust.slot[i] === SLOT.metal) head = Math.max(head, i % thrust.w);
+    // the head clears the shield's front edge
+    expect(head).toBeGreaterThan(63 + 2);
+    // and the shaft still runs through the fist: weapon material beside it on its row
+    const gy = Math.round(w.grip[1]);
+    let inHand = false;
+    for (let y = gy - 1; y <= gy + 2; y++)
+      for (let x = 36; x <= 41; x++) if (WEAPON_SLOTS.has(thrust.at(x, y))) inHand = true;
+    expect(inHand).toBe(true);
+    // the legs stay planted in both key poses
+    for (const f of [windup, thrust]) expect(feetRow(f)).toBe(feetRow(sp));
+  });
+
+  it('a blade does not run on into a limb or a boot in line with it', () => {
+    const sp = armed('sword');
+    // a boot in line with the blade's axis, beyond a gap below the fist
+    for (let y = 52; y <= 64; y++) sp.set(58, y, SLOT.leather, 2);
+    const w = weaponOf(sp);
+    expect(w.pts.every(([, y]) => y < 50)).toBe(true);
+  });
+
+  it('posing is deterministic and never leaves specks floating', () => {
+    const sp = armed('sword');
+    const a = attackFrames(sp, { weapon: 'axe' });
+    const b = attackFrames(sp, { weapon: 'axe' });
+    expect(Array.from(a[1].slot)).toEqual(Array.from(b[1].slot));
+    for (const f of [...a, ...idleFrames(sp)]) {
+      // every filled pixel belongs to a component larger than three pixels
+      const seen = new Uint8Array(f.w * f.h);
+      for (let i = 0; i < f.w * f.h; i++) {
+        if (!f.slot[i] || seen[i]) continue;
+        const comp = [i];
+        seen[i] = 1;
+        for (let k = 0; k < comp.length; k++) {
+          const x = comp[k] % f.w,
+            y = (comp[k] / f.w) | 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              const j = (y + dy) * f.w + x + dx;
+              if (f.inside(x + dx, y + dy) && f.slot[j] && !seen[j]) {
+                seen[j] = 1;
+                comp.push(j);
+              }
+            }
+        }
+        expect(comp.length).toBeGreaterThan(3);
+      }
+    }
+  });
 });
 
 describe('identity and atlas', () => {
@@ -375,19 +505,51 @@ describe('identity and atlas', () => {
     expect(seen.size).toBeGreaterThan(10);
   });
 
-  it('packs strips inside a 2048 px atlas with a manifest', () => {
-    const frames = Array.from({ length: 6 }, () => new Raster(96, 96));
-    const baked = Array.from({ length: 60 }, (_, i) => ({
+  it('packs trimmed strips into 2048 px pages with a trim-aware manifest', () => {
+    // a 10x20 figure standing on the foot row (65) of a 96 px frame, at a per-sprite spot
+    const frame = (i) => {
+      const r = new Raster(96, 96);
+      r.fillRect(40 + (i % 7), 46, 10, 20, [200, 100, 50, 255]);
+      return r;
+    };
+    const baked = Array.from({ length: 400 }, (_, i) => ({
       key: `k${i}`,
       kind: 'infantry',
-      frames,
+      frames: Array.from({ length: 4 }, () => frame(i)),
     }));
-    const { atlas, manifest } = packAtlas(baked, { density: 1.5 });
-    expect(atlas.w).toBeLessThanOrEqual(2048);
-    expect(atlas.h).toBeLessThanOrEqual(2048);
+    const { pages, manifest } = packAtlas(baked, { density: 1.5 });
+    expect(manifest.version).toBe(2);
     expect(manifest.cell).toBe(96);
     expect(manifest.footRow).toBe(66);
-    const xs = new Set(Object.values(manifest.sprites).map((s) => `${s.x},${s.y}`));
-    expect(xs.size).toBe(60);
+    expect(manifest.pages).toHaveLength(pages.length);
+    for (const p of pages) {
+      expect(p.w).toBeLessThanOrEqual(2048);
+      expect(p.h).toBeLessThanOrEqual(2048);
+    }
+    const spots = new Set();
+    for (const [k, s] of Object.entries(manifest.sprites)) {
+      const i = +k.slice(1);
+      // trimmed to the figure, logical frame and offset kept
+      expect([s.w, s.h, s.size, s.ox, s.oy]).toEqual([10, 20, 96, 40 + (i % 7), 46]);
+      expect(s.oy + s.h).toBe(manifest.footRow);
+      // pixels are really there, with a transparent gutter between frames
+      const page = pages[s.page];
+      for (let f = 0; f < 4; f++) {
+        expect(page.get(s.x + f * s.step, s.y)[3]).toBe(255);
+        expect(page.get(s.x + f * s.step + s.w, s.y)[3]).toBe(0);
+      }
+      spots.add(`${s.page}:${s.x},${s.y}`);
+    }
+    expect(spots.size).toBe(400);
+    // a small page size spills into more pages, every sprite still placed once
+    const small = packAtlas(baked, { density: 1.5, maxSide: 256 });
+    expect(small.pages.length).toBeGreaterThan(1);
+    expect(Object.keys(small.manifest.sprites)).toHaveLength(400);
+    for (const s of Object.values(small.manifest.sprites))
+      expect(s.x + 3 * s.step + s.w).toBeLessThanOrEqual(small.pages[s.page].w);
+    // deterministic
+    expect(JSON.stringify(packAtlas(baked, { density: 1.5 }).manifest)).toBe(
+      JSON.stringify(manifest),
+    );
   });
 });

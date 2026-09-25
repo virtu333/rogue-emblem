@@ -1,4 +1,5 @@
 import { markStartup } from './startupTelemetry.js';
+import { retainPortraitDownloads } from '../ui/textureImageSource.js';
 
 function isLoaded(scene, asset) {
   if (asset.type === 'image' || asset.type === 'atlas') {
@@ -16,6 +17,7 @@ function queueAsset(scene, asset) {
     return;
   }
   if (asset.type === 'image') {
+    retainPortraitDownloads(scene.load);
     scene.load.image(asset.key, asset.src);
     return;
   }

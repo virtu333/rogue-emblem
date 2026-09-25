@@ -393,6 +393,120 @@ export function stampEyes(sp, box, { facing = 1 } = {}) {
 }
 
 /**
+ * Deliberate map-size face, for faces the reduction collapsed (strong reductions):
+ * instead of whatever shading survived the vote (a dark smear under the bangs reads as
+ * more hair), the face is redrawn in the convention of hand-made map sprites — lit skin,
+ * a one-row brow shadow under the hair, the back of the face and the jaw a step darker,
+ * the near eye one pixel in from the front edge on the row below the brow (a 1x2 stroke
+ * when the face is tall enough) and the far eye two pixels behind it when the face is
+ * wide enough. `box` = target head box; `facing` 1 = facing right. Returns true when a
+ * face was drawn.
+ */
+export function faceTreatment(sp, box, { facing = 1 } = {}) {
+  const [x0, y0, x1, y1] = box.map(Math.round);
+  const inBox = (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+  // old eyes go back to skin (they are redrawn below)
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++)
+      if (sp.at(x, y) === SLOT.eye)
+        sp.set(x, y, sp.at(x, y - 1) === SLOT.hair ? SLOT.hair : SLOT.skin, 2);
+  // the face: the largest 4-connected skin component in the head box
+  const seen = new Uint8Array(sp.w * sp.h);
+  let face = null;
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) {
+      const i = y * sp.w + x;
+      if (seen[i] || sp.at(x, y) !== SLOT.skin) continue;
+      const comp = [i];
+      seen[i] = 1;
+      for (let k = 0; k < comp.length; k++) {
+        const cx = comp[k] % sp.w,
+          cy = (comp[k] / sp.w) | 0;
+        for (const [dx, dy] of N4) {
+          const X = cx + dx,
+            Y = cy + dy;
+          const j = Y * sp.w + X;
+          if (inBox(X, Y) && !seen[j] && sp.at(X, Y) === SLOT.skin) {
+            seen[j] = 1;
+            comp.push(j);
+          }
+        }
+      }
+      if (!face || comp.length > face.length) face = comp;
+    }
+  if (!face || face.length < 3) return false;
+  const inFace = new Set(face);
+  let fx0 = Infinity,
+    fy0 = Infinity,
+    fx1 = -1,
+    fy1 = -1;
+  for (const i of face) {
+    const x = i % sp.w,
+      y = (i / sp.w) | 0;
+    fx0 = Math.min(fx0, x);
+    fx1 = Math.max(fx1, x);
+    fy0 = Math.min(fy0, y);
+    fy1 = Math.max(fy1, y);
+  }
+  const fh = fy1 - fy0 + 1;
+  if (fx1 - fx0 < 1 || fh < 2) return false;
+  // 1. planes: lit front, brow shadow, back of the face and jaw one step down
+  for (const i of face) {
+    const x = i % sp.w,
+      y = (i / sp.w) | 0;
+    let v = 3;
+    const above = sp.at(x, y - 1);
+    if (above === SLOT.hair || above === SLOT.ink || y === fy0) v = 2;
+    if (!inFace.has(i - facing)) v = Math.min(v, 2);
+    if (fh >= 4 && y === fy1) v = 2;
+    sp.set(x, y, SLOT.skin, v);
+  }
+  // 2. eyes on the row under the brow
+  const eyeRow = fh >= 3 ? fy0 + 1 : fy0;
+  const xs = [];
+  for (let x = fx0; x <= fx1; x++) if (inFace.has(eyeRow * sp.w + x)) xs.push(x);
+  if (!xs.length) return false;
+  const front = facing > 0 ? Math.max(...xs) : Math.min(...xs);
+  const near = xs.length >= 3 ? front - facing : front;
+  sp.set(near, eyeRow, SLOT.eye, 0);
+  if (fh >= 5 && sp.at(near, eyeRow + 1) === SLOT.skin && eyeRow + 1 < fy1)
+    sp.set(near, eyeRow + 1, SLOT.eye, 0);
+  const far = near - 2 * facing;
+  if (xs.length >= 5 && sp.at(far, eyeRow) === SLOT.skin) sp.set(far, eyeRow, SLOT.eye, 0);
+  return true;
+}
+
+/**
+ * Face accent for strong reductions (scale < ~0.55): a face drawn in a handful of
+ * native pixels loses the area vote to the hair and line work around it, so the head
+ * reads as a hair ball. `hits` = the target pixel each native face-skin pixel maps to;
+ * a target pixel that at least `min` of a cell's worth of face skin lands on becomes lit
+ * skin again. Returns the number of pixels restored. stampEyes then finds a face to put the eye in.
+ */
+export function restoreFace(sp, hits, perCell, { min = 0.34, shade = 3 } = {}) {
+  const counts = new Map();
+  for (const [x, y] of hits) {
+    if (!sp.inside(x, y)) continue;
+    const k = y * sp.w + x;
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  let n = 0;
+  for (const [k, c] of [...counts].sort((a, b) => a[0] - b[0])) {
+    if (c < perCell * min) continue;
+    const x = k % sp.w,
+      y = (k / sp.w) | 0;
+    const cur = sp.slot[k];
+    if (!cur || cur === SLOT.skin || cur === SLOT.eye) continue;
+    // a 3/4 face is the silhouette edge: the renderer's outline goes around it anyway,
+    // so only single-pixel spurs (fewer than two filled neighbours) are skipped
+    if (N4.filter(([dx, dy]) => sp.at(x + dx, y + dy)).length < 2) continue;
+    sp.set(x, y, SLOT.skin, shade);
+    n++;
+  }
+  return n;
+}
+
+/**
  * Art direction on a traced design: shorten the longest blade to `keep` of its length
  * (measured from the hilt, the end nearer the body) and taper the new tip to one pixel.
  * Used where the owner asked for a sword brought in (base Edric).
