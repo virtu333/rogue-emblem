@@ -227,9 +227,10 @@ for (const viewport of [
     }) => {
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
-      // Traced sprites give affixed enemies `~corrupt` texture keys, which the
-      // frame validator used to reject — dropping the whole frame archive.
-      await boot(page, '&spriteArt=traced');
+      // Affixed enemies draw with their corrupted traced variants (whose
+      // `~corrupt` keys the frame validator once rejected, dropping the
+      // whole archive; the recorder now loses only such a row).
+      await boot(page);
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
         for (const enemy of s.enemyUnits) {
