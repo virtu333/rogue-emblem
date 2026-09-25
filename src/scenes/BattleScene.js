@@ -249,6 +249,7 @@ import {
   adaptDialogueLine,
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
+import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
@@ -9469,6 +9470,25 @@ export class BattleScene extends Phaser.Scene {
             className: unit.className,
             epithet: unitEpithet(unit),
           };
+        // Last words of a fallen recruit (permadeath): class + temperament voice,
+        // a pure pick (never the RNG or the narrative log).
+        if (!unit.isLord && !this.battleParams?.tutorialMode) {
+          const line = fallenLine(
+            unit,
+            voiceContext({
+              gameData: this.gameData,
+              runManager: this.runManager,
+              units: this.playerUnits,
+            }),
+          );
+          if (line) {
+            try {
+              await this.dialogueOverlay?.show(unit.name, line, this._getPortraitKey(unit));
+            } catch (_) {}
+          }
+        }
+        // After the last words: a titled unit is named in full as it falls.
+        deedsFor(this).announceFall(unit);
         // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
         if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];

@@ -76,6 +76,7 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
+import { unitTemperament } from './unitVoiceDisplay.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -418,6 +419,14 @@ export class MobileRosterSheet {
           `${trait.rarity === 'legendary' ? 'Legendary · ' : ''}${trait.name}`,
           trait.description,
         );
+      // Flavor only: how this recruit talks (level-ups, promotion, last words).
+      const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
+      if (temperament)
+        this.card(
+          `Temperament · ${temperament}`,
+          'Colors what they say when they grow, promote or fall. No effect in battle.',
+        );
+      // Who they are (traits, temperament), then what they have done.
       if (unit.faction === 'player') this.deeds(unit);
     }
     for (const id of unit.affixes || []) {

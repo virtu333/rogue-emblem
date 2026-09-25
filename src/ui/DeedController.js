@@ -70,8 +70,15 @@ export class DeedController {
     } catch (error) {
       warn('kill', error);
     }
-    // A titled unit's death is named in full. The commander has its own
-    // FALLEN band; this is the quiet crimson line for everyone else.
+  }
+
+  /**
+   * A titled unit's death is named in full ("Elara, Who Held the Bridge, has
+   * fallen."), after its last words. The commander has its own FALLEN band;
+   * this is the quiet crimson line for everyone else. Presentation only.
+   */
+  announceFall(unit) {
+    if (!this.active()) return;
     try {
       if (unit?.faction === 'player' && !unit.isCommander && unitEpithet(unit) && hasDOMHost())
         this.scene._getCeremonies?.()?.showNotice?.({

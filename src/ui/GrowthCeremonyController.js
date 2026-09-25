@@ -30,12 +30,14 @@ import {
   growthTiming,
   levelSchedule,
   levelUpContent,
+  promotionQuote,
   recruitCardContent,
   riteSchedule,
   sealedBeats,
 } from './growthContent.js';
 import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
 import { crestElement } from './crestArt.js';
+import { voiceContext } from '../engine/UnitVoice.js';
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
 import { skillGlyph, weaponGlyph } from './growthGlyphs.js';
 import { pc98FigureUrl, pc98PlateUrl, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js'; // prettier-ignore
@@ -99,6 +101,15 @@ export class GrowthCeremonyController {
     this.destroyed = false;
     this._onShutdown = () => this.destroy();
     scene?.events?.once?.('shutdown', this._onShutdown);
+  }
+
+  /** Unit-voice context for this run (lines are presentation only). */
+  voice() {
+    return voiceContext({
+      gameData: this.scene?.gameData,
+      runManager: this.scene?.runManager,
+      units: this.scene?.playerUnits,
+    });
   }
 
   static available() {
@@ -240,7 +251,8 @@ export class GrowthCeremonyController {
     root.style.setProperty('--gr-seals-at', ms(schedule.sealsAt));
     root.style.setProperty('--gr-seal', ms(timing.seal));
     const before = beforeUnit || { ...unit, className: content.fromClass, tier: 'base' };
-    const view = buildRite(this.scene, { unit, before, content });
+    const quote = promotionQuote(unit, content.toClass, this.voice());
+    const view = buildRite(this.scene, { unit, before, content, quote });
     root.append(el('div', 'gr-veil'), view.card);
     // The 192px PC-98 figure at the largest integer scale the frame allows.
     layer.addFitter(() => {
@@ -304,7 +316,7 @@ export class GrowthCeremonyController {
    */
   async showLevelUp({ unit, result, learnedNames = [], frame = 'map', handle = null }) {
     if (!unit || !result || this.destroyed || !canRenderCeremony()) return false;
-    const content = levelUpContent(unit, result, learnedNames);
+    const content = levelUpContent(unit, result, learnedNames, this.voice());
     const timing = growthTiming('level', this.prefs());
     const schedule = levelSchedule(content, timing);
     const layer = this._open({
@@ -657,7 +669,7 @@ function spriteFor(scene, unit, cls, target = 112) {
   return node;
 }
 
-export function buildRite(scene, { unit, before, content }) {
+export function buildRite(scene, { unit, before, content, quote = null }) {
   const card = el('div', 'gr-rite');
   // Figure: the Hollow Sun behind the portrait; the old portrait/sprite
   // burn away into the new ones.
@@ -746,6 +758,7 @@ export function buildRite(scene, { unit, before, content }) {
   if (content.moveType) notes.push(`${content.moveType.from} → ${content.moveType.to}`);
   if (content.dropped.length) notes.push(`Skill limit: could not learn ${content.dropped.join(', ')}`); // prettier-ignore
   if (notes.length) text.append(el('p', 'gr-rite-note', notes.join(' · ')));
+  if (quote) text.append(el('p', 'gr-rite-quote', `“${quote}”`));
   card.append(text);
 
   const button = el('button', 'gr-continue', 'Continue');
@@ -828,6 +841,7 @@ export function buildLevelCard(scene, unit, content, layer = null) {
     beat.append(el('b', 'gr-beat-word', content.beat.word), el('span', 'gr-beat-line', content.beat.line)); // prettier-ignore
     main.append(beat);
   }
+  if (content.quote) main.append(el('p', 'gr-level-quote', `“${content.quote}”`));
   if (content.skills.length) {
     const seals = el('ul', 'gr-seals gr-seals--level');
     content.skills.forEach((name, i) => {
