@@ -37,6 +37,11 @@ export class AudioManager {
     // Adaptive tracks: which layer ('calm' | 'full') new and current music plays.
     this.musicIntensity = 'full';
     this.currentMusicLayerKeys = [];
+    // Primary + layer keys of the newest playMusic request still loading. The
+    // cache budget must keep them: loading one layer can't evict its siblings.
+    this._pendingMusicKeys = [];
+    // Layers being reloaded for the playing voice (see _restoreMissingLayer).
+    this._restoringMusicKeys = new Set();
     // One-shot cues (level up, promotion, boss cards) in the current track's key.
     this.stingers = new StingerPlayer({
       getContext: () => (this._canUseLoopedMusic() ? this.sound.context : null),
@@ -57,6 +62,7 @@ export class AudioManager {
    * beyond the track's own (a boss's enrage layer: { enrage: key }).
    */
   async playMusic(key, ownerOrScene, fadeMs = 500, { layers = null } = {}) {
+    let pendingKeys = null;
     try {
       if (!key) return;
       const owner = this._resolveOwnerToken(ownerOrScene);
@@ -84,7 +90,7 @@ export class AudioManager {
 
       // Defer if audio context is locked (browser autoplay policy)
       if (this.sound.locked) {
-        this._pendingMusic = { key, ownerOrScene, fadeMs };
+        this._pendingMusic = { key, ownerOrScene, fadeMs, layers };
         if (!this._unlockListenerAdded) {
           this._unlockListenerAdded = true;
           this.sound.once('unlocked', () => {
@@ -92,14 +98,21 @@ export class AudioManager {
             if (this._pendingMusic) {
               const p = this._pendingMusic;
               this._pendingMusic = null;
-              void this.playMusic(p.key, p.ownerOrScene, p.fadeMs);
+              void this.playMusic(p.key, p.ownerOrScene, p.fadeMs, { layers: p.layers });
             }
           });
         }
         return;
       }
 
-      if (!this.sound.game.cache.audio.has(key)) {
+      const cache = this.sound.game.cache.audio;
+      // Every buffer this track plays from: the budget keeps all of them while
+      // they load and until the new voice holds them.
+      const layerKeys = this._layerKeysFor(key, layers);
+      pendingKeys = [key, ...layerKeys];
+      this._pendingMusicKeys = pendingKeys;
+
+      if (!cache.has(key)) {
         try {
           await this._ensureMusicLoaded(key, scene);
         } catch (_) {
@@ -107,25 +120,30 @@ export class AudioManager {
         }
       }
       // Adaptive tracks also need their other layers; a layer that fails to
-      // load just leaves the track single-layered.
-      const layerKeys = this._layerKeysFor(key, layers);
+      // load just leaves the track single-layered (it can join later, see
+      // setMusicIntensity).
       if (layerKeys.length > 0 && this._canUseLoopedMusic()) {
         await Promise.allSettled(
-          layerKeys
-            .filter((k) => !this.sound.game.cache.audio.has(k))
-            .map((k) => this._ensureMusicLoaded(k, scene)),
+          layerKeys.filter((k) => !cache.has(k)).map((k) => this._ensureMusicLoaded(k, scene)),
         );
       }
 
       // A newer request started while this one was loading.
       if (requestSeq !== this._musicRequestSeq) return;
 
+      // The primary should still be cached (the budget preserves pending keys),
+      // but if anything removed it, keep the old music rather than stopping it
+      // for a track that can't start.
+      if (!cache.has(key)) return;
+
       // Defensive stop: clear any orphan looping music before starting new track.
       this.stopAllMusic(scene, 0);
 
-      if (!this.sound.game.cache.audio.has(key)) return;
       this._touchMusicCacheKey(key);
-      this._enforceMusicCacheBudget({ preserveKeys: [key] });
+      for (const layerKey of layerKeys) {
+        if (cache.has(layerKey)) this._touchMusicCacheKey(layerKey);
+      }
+      this._enforceMusicCacheBudget({ preserveKeys: pendingKeys });
 
       // iOS can leave the shared Web Audio context suspended/interrupted after a
       // backgrounding even when Phaser still reports unlocked — nudge it running.
@@ -143,6 +161,12 @@ export class AudioManager {
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
       this.currentMusic.play();
+      // The voice now holds its buffers (and is protected as live); a layer it
+      // dropped (off the primary's timeline) no longer needs to be kept.
+      if (this._pendingMusicKeys === pendingKeys) {
+        this._pendingMusicKeys = [];
+        this._enforceMusicCacheBudget();
+      }
       // The common ceremony cues, decoded ahead in this track's key.
       this.preloadStingers(STINGER_PRELOAD);
 
@@ -152,6 +176,8 @@ export class AudioManager {
     } catch (err) {
       // Never surface async audio errors to scene callers (fire-and-forget usage).
       if (this.debugMusic) console.warn('[AudioManager] playMusic failed:', key, err);
+    } finally {
+      if (pendingKeys && this._pendingMusicKeys === pendingKeys) this._pendingMusicKeys = [];
     }
   }
 
@@ -200,19 +226,22 @@ export class AudioManager {
         if (!isDecodedAudioBuffer(layerBuffer)) continue;
         layers[name] = layerBuffer;
         loops[name] = getMusicLoop(layerKey);
-        this.currentMusicLayerKeys.push(layerKey);
-        this._touchMusicCacheKey(layerKey);
       }
       try {
-        return new LoopedMusic({
+        const music = new LoopedMusic({
           context: this.sound.context,
           destination: this.sound.destination || this.sound.context.destination,
           key,
           layers,
           loops,
+          keys: { ...(layerMap || {}), full: key },
           layer: layers[this.musicIntensity] ? this.musicIntensity : 'full',
           volume,
         });
+        // The layers the voice actually kept (one off the primary's timeline is dropped).
+        this.currentMusicLayerKeys = music.bufferKeys.filter((k) => k !== key);
+        for (const layerKey of this.currentMusicLayerKeys) this._touchMusicCacheKey(layerKey);
+        return music;
       } catch (err) {
         if (this.debugMusic) console.warn('[AudioManager] looped music failed:', key, err);
         this.currentMusicLayerKeys = [];
@@ -230,10 +259,44 @@ export class AudioManager {
   setMusicIntensity(level, fadeMs = 1500) {
     this.musicIntensity = MUSIC_INTENSITIES.includes(level) ? level : 'full';
     const music = this.currentMusic;
-    if (music && typeof music.setLayer === 'function' && music.hasLayer?.(this.musicIntensity)) {
-      music.setLayer(this.musicIntensity, fadeMs);
+    if (music && typeof music.setLayer === 'function') {
+      if (music.hasLayer?.(this.musicIntensity)) music.setLayer(this.musicIntensity, fadeMs);
+      // The track wants this layer but has no buffer for it: keep playing the
+      // current layer and bring the missing one in once it's decoded.
+      else this._restoreMissingLayer(music, this.musicIntensity, fadeMs);
     }
     return this.musicIntensity;
+  }
+
+  /** One reload attempt per voice and layer; the layer joins on the running timeline. */
+  _restoreMissingLayer(music, name, fadeMs) {
+    const layerKey = music?.layerKeys?.[name];
+    if (!layerKey || typeof music.addLayer !== 'function' || !music.isPlaying) return;
+    if (!this._canUseLoopedMusic()) return;
+    if (!music.__layerRestores) music.__layerRestores = new Set();
+    if (music.__layerRestores.has(name)) return;
+    music.__layerRestores.add(name);
+    const cache = this.sound.game.cache.audio;
+    // Pinned from load until the voice holds it, so the budget can't take it back.
+    this._restoringMusicKeys.add(layerKey);
+    const attach = () => {
+      this._restoringMusicKeys.delete(layerKey);
+      if (this.currentMusic !== music || !music.isPlaying || music.hasLayer(name)) return;
+      const buffer = cache.get(layerKey);
+      if (!isDecodedAudioBuffer(buffer)) return;
+      if (!music.addLayer(name, buffer, getMusicLoop(layerKey), layerKey)) return;
+      if (!this.currentMusicLayerKeys.includes(layerKey)) this.currentMusicLayerKeys.push(layerKey);
+      this._touchMusicCacheKey(layerKey);
+      if (this.musicIntensity === name) music.setLayer(name, fadeMs);
+    };
+    if (cache.has(layerKey)) {
+      attach();
+      return;
+    }
+    this._ensureMusicLoaded(layerKey, null).then(attach, (err) => {
+      this._restoringMusicKeys.delete(layerKey);
+      if (this.debugMusic) console.warn('[AudioManager] layer reload failed:', layerKey, err);
+    });
   }
 
   getMusicIntensity() {
@@ -628,7 +691,10 @@ export class AudioManager {
         ...preserveKeys,
         this.currentMusicKey,
         ...(this.currentMusicLayerKeys || []),
+        ...(this._pendingMusicKeys || []),
+        ...(this._restoringMusicKeys || []),
         ...this.loadingMusic.keys(),
+        ...this._liveMusicBufferKeys(),
       ].filter(Boolean),
     );
     while (over()) {
@@ -658,6 +724,8 @@ export class AudioManager {
     if (!this._isMusicKey(key)) return false;
     if (key === this.currentMusicKey) return false;
     if ((this.currentMusicLayerKeys || []).includes(key)) return false;
+    if ((this._pendingMusicKeys || []).includes(key)) return false;
+    if (this._restoringMusicKeys?.has(key)) return false;
     if (this._hasLiveSoundForKey(key)) return false;
     try {
       cache.remove(key);
@@ -669,12 +737,27 @@ export class AudioManager {
   }
 
   _hasLiveSoundForKey(key) {
-    const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
-    return sounds.some((sound) => {
-      if (!sound) return false;
-      if (this._safeRead(sound, 'key') !== key) return false;
-      return Boolean(this._safeRead(sound, 'isPlaying') || this._safeRead(sound, 'isPaused'));
-    });
+    return this._liveMusicBufferKeys().has(key);
+  }
+
+  /**
+   * Keys of every buffer a sounding voice plays from: Phaser sounds by key,
+   * LoopedMusic voices (current, or fading out) by each layer they hold.
+   */
+  _liveMusicBufferKeys() {
+    const keys = new Set();
+    const managerSounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
+    const sounds = new Set([...managerSounds, ...(this._trackedMusicSounds || [])]);
+    for (const sound of sounds) {
+      if (!sound) continue;
+      if (this._safeRead(sound, '_destroyed') || this._safeRead(sound, 'pendingRemove')) continue;
+      if (!(this._safeRead(sound, 'isPlaying') || this._safeRead(sound, 'isPaused'))) continue;
+      const key = this._safeRead(sound, 'key');
+      if (key) keys.add(key);
+      const bufferKeys = this._safeRead(sound, 'bufferKeys');
+      if (Array.isArray(bufferKeys)) for (const k of bufferKeys) if (k) keys.add(k);
+    }
+    return keys;
   }
 
   _resolveOwnerToken(ownerOrScene) {
@@ -727,6 +810,8 @@ export class AudioManager {
         try {
           sound.destroy();
         } catch (_) {}
+        // Its buffers were protected while it sounded; let the budget see them now.
+        this._enforceMusicCacheBudget();
       };
       this._tweenSoundVolume(scene, sound, startRatio, 0, fadeMs, cleanup);
       // Safety net: force-destroy if tween's onComplete never fires (e.g. scene destroyed mid-fade)
