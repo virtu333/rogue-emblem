@@ -11,7 +11,7 @@ html.portrait-battle-capable #rotate-prompt {
 /* Layout switch pending (phone turned mid-action): a quiet line over the map. */
 .portrait-battle-notice {
   position: fixed;
-  z-index: calc(var(--re-depth-menu, 1250) + 20);
+  z-index: var(--re-depth-forecast);
   top: max(8px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
