@@ -9,6 +9,35 @@ import { getEffectivenessMultiplier, calculateEffectiveSpeed } from '../engine/C
 import { isForged } from '../engine/ForgeSystem.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 
+/**
+ * Forecast HP bar: current HP in its health colour, the HP the exchange is
+ * projected to take (if every hit lands) as a dark segment with bright
+ * hatching — the canvas twin of the DOM `.re-health-projection`. The loss used
+ * to be a translucent accent fill, which is the exact colour of a 40–70% HP
+ * bar, so a unit in that band showed no preview at all (playtest 2026-09-25).
+ */
+export function drawForecastHpBar(gfx, { x, y, width, height, current, max, projected }) {
+  const hpMax = Math.max(1, Number(max) || 1);
+  const hp = Math.max(0, Math.min(hpMax, Number(current) || 0));
+  const ratio = hp / hpMax;
+  gfx.fillStyle(UI_HEX.raised);
+  gfx.fillRect(x, y, width, height);
+  gfx.fillStyle(getHPBarColor(ratio));
+  gfx.fillRect(x, y, Math.round(width * ratio), height);
+  if (!Number.isFinite(projected)) return null;
+  const remaining = Math.max(0, Math.min(hp, projected));
+  const lossX = x + Math.round((width * remaining) / hpMax);
+  const lossW = x + Math.round((width * hp) / hpMax) - lossX;
+  if (lossW <= 0) return { x: lossX, width: 0 };
+  gfx.fillStyle(UI_HEX.sunken);
+  gfx.fillRect(lossX, y, lossW, height);
+  gfx.fillStyle(UI_HEX.accentText);
+  for (let stripe = lossX; stripe < lossX + lossW; stripe += 3) gfx.fillRect(stripe, y, 1, height);
+  // Bright edge where the projected HP ends.
+  gfx.fillRect(lossX, y, 1, height);
+  return { x: lossX, width: lossW };
+}
+
 export class ForecastOverlay {
   /**
    * @param {object} scene — the BattleScene (or mock) that owns this overlay
@@ -273,21 +302,15 @@ export class ForecastOverlay {
     const barH = 6;
     const barY = y + 4;
     const hpGfx = scene.add.graphics().setDepth(textDepth);
-    hpGfx.fillStyle(UI_HEX.raised);
-    hpGfx.fillRect(barX, barY, barW, barH);
-    const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
-    hpGfx.fillStyle(getHPBarColor(ratio));
-    hpGfx.fillRect(barX, barY, Math.round(barW * ratio), barH);
-    if (Number.isFinite(opts.predictedHP)) {
-      const remaining = Math.max(0, Math.min(unit.currentHP, opts.predictedHP));
-      hpGfx.fillStyle(UI_HEX.accent, 0.75);
-      hpGfx.fillRect(
-        barX + Math.round((barW * remaining) / unit.stats.HP),
-        barY,
-        Math.round((barW * (unit.currentHP - remaining)) / unit.stats.HP),
-        barH,
-      );
-    }
+    drawForecastHpBar(hpGfx, {
+      x: barX,
+      y: barY,
+      width: barW,
+      height: barH,
+      current: unit.currentHP,
+      max: unit.stats.HP,
+      projected: opts.predictedHP,
+    });
     this.displayObjects.push(hpGfx);
 
     y += 16;

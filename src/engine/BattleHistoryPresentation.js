@@ -31,6 +31,19 @@ const only = (v, fields) => object(v) && Object.keys(v).every((k) => fields.incl
 const textList = (v, max = 64, length = 256) =>
   Array.isArray(v) && v.length <= max && v.every((x) => safeText(x, length));
 const unitId = (id) => typeof id === 'string' && /^u[1-9]\d*$/.test(id);
+// Texture keys are only looked up (never parsed); traced variants use `~`
+// (`traced-enemy_fighter~corrupt`), which used to invalidate the whole frame.
+export const SPRITE_KEY = /^[a-zA-Z0-9_~.-]*$/;
+// hydrateHistoryPresentation rejects a record more than this many deltas away
+// from its keyframe; historyFrameAt cannot reach further back either.
+export const MAX_DELTA_CHAIN = 31;
+
+/** Deltas since the archive's last keyframe (0 when the last record is one). */
+function trailingDeltas(records) {
+  let chain = 0;
+  for (let i = records.length - 1; i >= 0 && !records[i].frame; i--) chain++;
+  return chain;
+}
 
 export function validHistoryFrame(frame) {
   return Boolean(
@@ -94,7 +107,7 @@ export function validHistoryFrame(frame) {
         safeText(u.name) &&
         safeText(u.className) &&
         safeText(u.spriteKey, 128) &&
-        /^[a-zA-Z0-9_-]*$/.test(u.spriteKey) &&
+        SPRITE_KEY.test(u.spriteKey) &&
         ['player', 'enemy', 'npc'].includes(u.faction) &&
         Number.isFinite(u.hp) &&
         u.hp >= 0 &&
@@ -255,7 +268,7 @@ export function applyHistoryDelta(frame, delta, reverse = false) {
 export function historyFrameAt(archive, index) {
   if (!archive || index < 0 || index >= archive.records.length) return null;
   let start = index;
-  while (start >= 0 && !archive.records[start].frame && index - start < 32) start--;
+  while (start >= 0 && !archive.records[start].frame && index - start <= MAX_DELTA_CHAIN) start--;
   if (start < 0 || !archive.records[start].frame) return null;
   let frame = unpackFrame(archive.records[start].frame);
   for (let i = start + 1; i <= index; i++)
@@ -273,11 +286,15 @@ export function appendHistoryPresentation(archive, frame, info) {
   // A canonical continuation can reuse its core row, but earlier visual edges
   // retain their chronology and can no longer point at the completed target.
   if (last?.entryId === info.entryId) last.entryId = null;
+  // Keyframes follow the actual chain, not the record id: a rewind branch
+  // keeps an id-aligned prefix, and the records appended after it used to
+  // extend that chain past what hydration accepts — one reload then dropped
+  // the whole archive and history fell back to the text board.
   const keyframe =
     !previous ||
     info.gap ||
     info.kind === 'turn_start' ||
-    (next.nextId - 1) % 32 === 0 ||
+    trailingDeltas(next.records) >= MAX_DELTA_CHAIN ||
     previous.cols !== frame.cols ||
     previous.rows !== frame.rows ||
     previous.biome !== frame.biome;
@@ -397,7 +414,7 @@ export function hydrateHistoryPresentation(value, entries = []) {
       } else {
         if (
           !previousFrame ||
-          ++chain >= 32 ||
+          ++chain > MAX_DELTA_CHAIN ||
           !only(r.delta, ['units', 'patches', 'order', 'tiles', 'summary', 'enemiesActNext']) ||
           (r.delta.patches !== undefined &&
             (!Array.isArray(r.delta.patches) ||
@@ -523,6 +540,85 @@ export function validHistoryBeat(b, frame) {
         b.path.length <= 1024 &&
         b.path.every((p) => p === null || coord(p, frame)))),
   );
+}
+
+/**
+ * A renderable board (version 2 frame) rebuilt from a row's compact preview,
+ * for rows whose archived frame is gone (budget pressure, a frame that could
+ * not be captured, an archive a reload could not verify). Coarse by design:
+ * tiles the event never saw stay Unknown and everything else is shown as
+ * visible; class and sprite come from `unitLook(id)` when the caller knows
+ * the unit, otherwise the renderer draws its faction marker. Null when the
+ * preview cannot describe a board.
+ */
+export function frameFromCompactPreview(preview, { biome = '', unitLook = () => null } = {}) {
+  if (!object(preview)) return null;
+  if (preview.version === 2) return validHistoryFrame(preview) ? preview : null;
+  const { cols, rows } = preview;
+  if (!integer(cols, 1) || !integer(rows, 1) || cols > 128 || rows > 128) return null;
+  const labels = new Map();
+  for (const tile of previewTiles(preview))
+    if (coord(tile, { cols, rows }) && safeText(tile.label))
+      labels.set(tile.row * cols + tile.col, tile.label);
+  if (!labels.size) return null;
+  const tiles = [];
+  for (let i = 0; i < cols * rows; i++) {
+    const label = labels.get(i);
+    const known = typeof label === 'string' && label !== 'Unknown';
+    tiles.push({
+      col: i % cols,
+      row: Math.floor(i / cols),
+      label: known ? label : 'Unknown',
+      known,
+      fog: known ? 'visible' : 'unseen',
+    });
+  }
+  const units = [];
+  const ids = new Set();
+  for (const u of Array.isArray(preview.units) ? preview.units.slice(0, 512) : []) {
+    if (!object(u) || !unitId(u.id) || ids.has(u.id) || !coord(u, { cols, rows })) continue;
+    if (!['player', 'enemy', 'npc'].includes(u.faction)) continue;
+    let look;
+    try {
+      look = unitLook(u.id, u);
+    } catch {
+      look = null;
+    }
+    const spriteKey = typeof look?.spriteKey === 'string' ? look.spriteKey : '';
+    const hp = Number.isFinite(u.hp) ? Math.max(0, u.hp) : 0;
+    const maxHP = Number.isFinite(u.maxHP) && u.maxHP > 0 ? u.maxHP : Math.max(1, hp);
+    ids.add(u.id);
+    units.push({
+      id: u.id,
+      name: safeText(u.name) ? u.name : 'Unit',
+      className: safeText(look?.className) ? look.className : '',
+      spriteKey: spriteKey.length <= 128 && SPRITE_KEY.test(spriteKey) ? spriteKey : '',
+      faction: u.faction,
+      col: u.col,
+      row: u.row,
+      hp,
+      maxHP,
+      ...(integer(u.level) ? { level: u.level } : {}),
+      ...(typeof u.acted === 'boolean' ? { acted: u.acted } : {}),
+      ...(safeText(u.weapon) ? { weapon: u.weapon } : {}),
+      ...(textList(u.items, 128) ? { items: [...u.items] } : {}),
+      conditions: textList(u.conditions, 64, 64) ? [...u.conditions] : [],
+      size: integer(look?.size, 1) && look.size <= 3 ? look.size : 1,
+    });
+  }
+  const frame = {
+    version: 2,
+    cols,
+    rows,
+    biome: safeText(biome, 64) ? biome : '',
+    tiles,
+    units,
+    summary: Array.isArray(preview.summary)
+      ? preview.summary.filter((line) => safeText(line, 1024)).slice(0, 64)
+      : [],
+    enemiesActNext: Boolean(preview.enemiesActNext),
+  };
+  return validHistoryFrame(frame) ? frame : null;
 }
 
 /** Merge optional older visual rows with current canonical rewind entries. */

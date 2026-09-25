@@ -14,6 +14,7 @@ import {
   clearSavedRun,
   settleAndPersistEndRun,
   endRunPayoutPending,
+  isRunSaveCurrent,
 } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -47,6 +48,7 @@ import { buildNarrativeContext, selectDialogueEntries } from '../engine/Narrativ
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { registerSaveFlusher } from '../utils/saveLifecycle.js';
 import {
   trackSceneTimer,
   clearTrackedSceneTimer,
@@ -208,6 +210,11 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     this.persistRunSave();
+    // Page hidden / app backgrounded: save the route state as it stands.
+    this._unregisterSaveFlusher?.();
+    this._unregisterSaveFlusher = registerSaveFlusher('NodeMap', () =>
+      this._flushRunForLifecycle(),
+    );
 
     // Record the act reached for Compendium foe-gating (idempotent, real-time).
     this._recordActReachedMilestone();
@@ -335,6 +342,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
+    this._unregisterSaveFlusher?.();
+    this._unregisterSaveFlusher = null;
     this._pendingRewards?.destroy();
     this._pendingRewards = null;
 
@@ -888,6 +897,24 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Lifecycle flush (page hidden, app paused). Every route-map command saves
+   * as it applies; this catches anything still only in memory. The route map
+   * is consistent between tasks — Save & Exit writes the same way — but a
+   * transition in flight or an ended run is left to its own save. So is a
+   * slot saved elsewhere since this scene last wrote it (another browser tab,
+   * a background cloud pull, a run ended in another tab): closing a stale tab
+   * must never overwrite that newer save or resurrect the ended run.
+   */
+  _flushRunForLifecycle() {
+    if (this._sceneShuttingDown || this.isTransitioning || this.battleLaunchInFlight) return;
+    if (!this.runManager || this.runManager.status !== 'active') return;
+    const slot = this.registry.get('activeSlot');
+    if (!Number.isInteger(slot)) return;
+    if (!isRunSaveCurrent(this.runManager, slot)) return;
+    this.persistRunSave();
   }
 
   persistRunSave() {

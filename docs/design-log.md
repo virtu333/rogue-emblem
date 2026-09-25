@@ -5,6 +5,31 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Playtest fixes: fallen recruits, forecast bar, iOS saves, timeline preview (built)
+
+Four playtest reports (iPhone app and desktop). Spec, root causes and tests:
+[`specs/playtest-fixes-2026-09-25.md`](specs/playtest-fixes-2026-09-25.md); screenshots:
+[`art-direction/gameplay/playtest-fixes/`](art-direction/gameplay/playtest-fixes/README.md).
+
+**Decisions**
+- A Talk recruit who falls in the battle it joined is a fallen ally like any roster
+  casualty; its record is the unit as it joined. The as-joined list is battle world
+  state, so rewind and suspend treat it like everything else. Old saves that already
+  lost a recruit cannot get it back (no copy survives a victory).
+- The forecast numbers were already honest (a 2,500-matchup property test now pins
+  forecast == resolution). The bug was presentation: the projected loss on the canvas
+  HP bar was the same color as a 40–70% HP fill. The loss is now a dark hatched segment
+  on every surface. Weapon-art forecasts are computed in the state resolution uses.
+- iOS saves: every roster mutation saves as it applies; lifecycle events flush; with the
+  native Filesystem plugin, game keys are mirrored to `Library/` and restored before boot
+  if WebKit evicted or lost them (never resurrecting deleted keys). On a full store, the
+  other slots' optional battle history is shed before the write fails.
+- Timeline: a missing or rejected frame costs one row, never the archive; the view
+  rebuilds a board from rewind state or the compact preview before it falls back to the
+  sketch, and the sketch says "Preview unavailable — map sketch".
+
+---
+
 ## 2026-09-25 — The game is called Rogue Dawn
 
 Renamed from "Rogue Emblem" (title, manifest) / "Emblem Rogue" (home-screen label, docs) to
