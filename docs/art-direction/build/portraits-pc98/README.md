@@ -1,5 +1,7 @@
 # PC-98 portrait pass — build
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 The owner-approved PC-98 direction (board prototype: `../../board/pc98/`) applied to every
 portrait the player sees. One Node + sharp tool renders all 94 portrait ids; the runtime
 resolves every portrait site to those renders.

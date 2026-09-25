@@ -1,5 +1,7 @@
 # Procedural map-sprite study
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../CAPTURES.md) for the full sets.
+
 **Question:** can this game's unit sprites be generated, with identity for recruits, factions,
 corruption, states and motion in code, at the same quality as the approved rebuilt Edric and
 Sera? If so, how?

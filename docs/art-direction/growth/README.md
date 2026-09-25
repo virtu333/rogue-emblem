@@ -1,5 +1,7 @@
 # Growth moments — promotion rite, crests, level-ups, recruits
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../CAPTURES.md) for the full sets.
+
 The high points of a run are the moments a unit grows: a promotion, a strong level, a
 recruit swearing in. They used to be a monospace banner and a stat list. They are now
 ceremonies in the house style (`docs/art-direction/ART_BIBLE.md`): DOM over the map

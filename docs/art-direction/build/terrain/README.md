@@ -1,5 +1,7 @@
 # Procedural terrain — production build review
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 > **Superseded by [`../terrain-v2/`](../terrain-v2/README.md)** (natural variation,
 > "mostly fit" rule). This folder is kept as the record of the first runtime; its
 > `before/` study captures are still the "study" reference for v2. The capture tool

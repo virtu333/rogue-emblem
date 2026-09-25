@@ -1,5 +1,7 @@
 # Procedural terrain v2: natural variation, "mostly fit"
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 Owner feedback on the first runtime (`../terrain/`): push for more variation and a
 more natural feel. The study's mountains (varied, mostly in their squares) were
 close to the target; the runtime trees had become uniform 2-4 tree stamps aligned

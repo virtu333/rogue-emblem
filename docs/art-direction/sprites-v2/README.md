@@ -1,5 +1,7 @@
 # Map sprites v2: traced pixel sprites
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../CAPTURES.md) for the full sets.
+
 Study, 2026-09-24. Owner direction: *"be ambitious with them and get closer to modern pixel
 sprite art. Right now they look a little childlike/toylike."* The workflow the owner
 pointed to: generative models supply the references, code "traces" them onto the pixel

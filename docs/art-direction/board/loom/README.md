@@ -1,5 +1,7 @@
 # The Loom: node-map redesign mockup
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 `index.html` is the board: every state in device frames. `screen.html` is one screen. It
 takes `?state=start|choice|mid|future|cut`, `&frame=desktop`, `&safe=1` (iPhone landscape
 insets) and `&motion=0`. Serve it from the repo root, for example

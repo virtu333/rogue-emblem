@@ -1,5 +1,7 @@
 # Ceremonies — build captures
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 Captures of the Ink & Ember ceremonies (see `docs/art-direction/ART_BIBLE.md` →
 Ceremonies), taken from the running game. Each file is `<shot>-<W>x<H>.webp` at
 three viewports:

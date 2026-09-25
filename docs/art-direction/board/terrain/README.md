@@ -1,5 +1,7 @@
 # Procedural terrain study
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 > **Productionized.** The runtime renderer now lives in `src/art/terrain/`, which includes the
 > owner fixes: objects fit their cells, the ground is quieter and lighter, the wetland is
 > reworked, peaks are faceted, and borders are tighter. `tools/art/procedural-terrain/generate.mjs`

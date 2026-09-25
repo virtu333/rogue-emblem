@@ -1,5 +1,7 @@
 # PC-98 portrait pass — prototype (proposal, not integrated)
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 A code "filter pass" over high-resolution portrait references, proposed as the house style
 for dialogue busts and ceremony cut-ins (board Decision 7):
 

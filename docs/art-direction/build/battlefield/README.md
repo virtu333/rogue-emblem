@@ -1,5 +1,7 @@
 # Battlefield presentation — build notes (2026-09-24)
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 Implements the battlefield workstream of the approved art direction
 (`docs/art-direction/ART_BIBLE.md`): act moods, desktop battlefield parity, the desktop
 battle HUD restyle and new faction rings. Presentation only — no game rules, RNG,

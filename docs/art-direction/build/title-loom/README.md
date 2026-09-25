@@ -1,5 +1,7 @@
 # Title (The Hollow Sun) and route map (the Loom): build captures
 
+> Captures in this folder are a curated subset; see [CAPTURES.md](../../CAPTURES.md) for the full sets.
+
 Screens captured from the running game after implementing the approved studies:
 
 - Title key art: `docs/art-direction/board/keyart/` → `src/art/keyart/hollowSun.js`, mounted
