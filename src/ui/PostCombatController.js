@@ -106,7 +106,7 @@ export class PostCombatController {
         if (!scene.scene?.isActive?.()) return;
         const tutorial = (scene._tutorialController ||= new TutorialController(scene));
         // A fresh player goes straight into their first run; anyone else returns to title.
-        const startRun = Boolean(tutorial.pauseOptions()?.onStartRun);
+        const startRun = Boolean(tutorial.pauseOptions?.()?.onStartRun);
         const choice = await showImportantHint(
           scene,
           startRun

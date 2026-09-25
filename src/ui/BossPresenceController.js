@@ -125,6 +125,7 @@ export class BossPresenceController {
       { type: 'sync', boss: this._snapshot(boss), enraged, status, silent, concealed },
       { silent },
     );
+    this._follow();
   }
 
   /** updateHPBar hook: only the tracked boss matters. */
@@ -204,8 +205,8 @@ export class BossPresenceController {
         : v.tone === 'unlight'
           ? UI_HEX.rarityEpic
           : UI_HEX.accent;
-    const fill =
-      v.tone === 'unlight' ? UI_HEX.rarityEpic : v.tone === 'ember' ? UI_HEX.accent : UI_HEX.hpLow;
+    // HP stays crimson when enraged (gold is the damage chunk); the frame and halo say "enraged".
+    const fill = v.tone === 'unlight' ? UI_HEX.rarityEpic : UI_HEX.hpLow;
     // Ink bed with a one-pixel gilt frame (chamfered ends).
     g.fillStyle(UI_HEX.void, 0.92);
     g.fillRect(-half - 2, top - 2, w + 4, BAR_H + 4);

@@ -25,7 +25,8 @@ const PAD_Y = 6;
 const CUT = 4; // chamfer
 const GAP = 4;
 
-export const DESKTOP_HINT_TEXT = '[R] Vision · [V]/right-click: details · Esc/off-map: cancel';
+export const DESKTOP_HINT_TEXT =
+  '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
 
 const pixel = (size, color) => ({
   fontFamily: UI_FONT_FAMILIES.pixel,

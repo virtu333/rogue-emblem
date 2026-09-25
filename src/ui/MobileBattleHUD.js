@@ -1,4 +1,5 @@
 import { ContextHelp } from './ContextHelp.js';
+import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
 import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
@@ -86,6 +87,14 @@ export class MobileBattleHUD {
     this.moreCue = el('div', 'mb-scroll-cue');
     this.moreCue.setAttribute('aria-hidden', 'true');
     this.moreCue.hidden = true;
+    // Edge fades are overlays, not a mask: a mask would also hide the Battle
+    // details popover, which escapes the scroll box.
+    this.fadeTop = el('div', 'mb-scroll-fade is-top');
+    this.fadeBottom = el('div', 'mb-scroll-fade is-bottom');
+    for (const fade of [this.fadeTop, this.fadeBottom]) {
+      fade.setAttribute('aria-hidden', 'true');
+      fade.hidden = true;
+    }
     this.root.append(
       this.phase,
       this.objective,
@@ -93,6 +102,8 @@ export class MobileBattleHUD {
       this.summary,
       this.speedHold,
       this.body,
+      this.fadeTop,
+      this.fadeBottom,
       this.moreCue,
       this.dock,
     );
@@ -732,29 +743,32 @@ export class MobileBattleHUD {
           this.endTurnPending = null;
         }),
       );
-      for (const ready of (s.playerUnits || []).filter(
-        (u) => u.currentHP > 0 && !u.hasActed && !u._removing,
-      )) {
-        this.body.append(
-          this.button(`Show ${ready.name}`, () => {
-            if (
-              this.endTurnPending !== token ||
-              s.battleState !== token.state ||
-              s.turnManager?.turnNumber !== token.turn ||
-              ready.hasActed ||
-              ready.currentHP <= 0 ||
-              ready._removing
-            )
-              return;
-            this.endTurnPending = null;
-            const point = s.grid.gridToPixel(ready.col, ready.row);
-            s._battleCamera?.clearTouches();
-            s.cameras.main.centerOn(point.x, point.y);
-            s._battleCamera?.clampToBounds();
-            s._mobileTerrainFocus = { col: ready.col, row: ready.row };
-            s._syncMobileResetViewButton?.();
-          }),
-        );
+      // One locator that walks the ready units in reading order: it names who
+      // it will show, brings them into view, selects them and marks the tile.
+      const readyList = readyUnits(s);
+      const ready = nextReadyUnit(s, this._lastLocated) || readyList[0];
+      if (ready) {
+        const position = readyList.indexOf(ready) + 1;
+        const label =
+          readyList.length > 1
+            ? `Show ${ready.name} · ${position} of ${readyList.length}`
+            : `Show ${ready.name}`;
+        const show = this.button(label, () => {
+          if (
+            this.endTurnPending !== token ||
+            s.battleState !== token.state ||
+            s.turnManager?.turnNumber !== token.turn ||
+            ready.hasActed ||
+            ready.currentHP <= 0 ||
+            ready._removing
+          )
+            return;
+          this.endTurnPending = null;
+          this._lastLocated = ready;
+          locateUnit(s, ready);
+        });
+        show.classList.add('mb-locate');
+        this.body.append(show);
       }
       this.body.append(
         this.button(
@@ -904,6 +918,15 @@ export class MobileBattleHUD {
       cue.textContent = 'more ▾';
       cue.style.top = `${Math.round(body.offsetTop + body.clientHeight - 16)}px`;
     }
+    const place = (fade, show, top) => {
+      fade.hidden = !show || this.root.hidden;
+      if (fade.hidden) return;
+      fade.style.top = `${Math.round(top)}px`;
+      fade.style.left = `${body.offsetLeft}px`;
+      fade.style.width = `${body.clientWidth}px`;
+    };
+    place(this.fadeTop, above, body.offsetTop);
+    place(this.fadeBottom, below, body.offsetTop + body.clientHeight - 22);
   }
 
   /** The fixed dock: Danger whenever a turn is being planned. */

@@ -34,9 +34,9 @@ export function showImportantHint(scene, message, { minimumMs = 0, actions = nul
       menu.root.classList.add('re-run-flow');
       menu.header.querySelector('button').remove();
       if (scene.battleParams?.tutorialMode) menu.root.classList.add('re-tutorial-note');
-      menu.body.append(element('p', message));
+      let actionsEl;
       if (choices) {
-        const row = element('div', null, 're-tutorial-actions');
+        actionsEl = element('div', null, 're-tutorial-actions');
         for (const choice of choices) {
           const b = button(
             choice.label,
@@ -44,10 +44,10 @@ export function showImportantHint(scene, message, { minimumMs = 0, actions = nul
             choice.primary ? 're-btn re-btn--primary' : 're-btn',
           );
           if (choice.ariaLabel) b.setAttribute('aria-label', choice.ariaLabel);
-          row.append(b);
+          actionsEl.append(b);
         }
-        menu.body.append(row);
-      } else menu.body.append(button('Continue', () => finish(), 're-btn re-btn--primary'));
+      } else actionsEl = button('Continue', () => finish(), 're-btn re-btn--primary');
+      menu.body.append(element('p', message), actionsEl);
       menu.onKey = (event) => {
         if (event.key !== ' ') return false;
         const focused = document.activeElement;

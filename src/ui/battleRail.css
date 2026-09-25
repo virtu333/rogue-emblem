@@ -186,29 +186,21 @@
 .mobile-battle-hud {
   position: relative;
 }
-.battlefield-lab .mobile-battle-hud .mb-body {
-  --mb-fade-top: 0px;
-  --mb-fade-bottom: 0px;
-  -webkit-mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    #000 var(--mb-fade-top),
-    #000 calc(100% - var(--mb-fade-bottom)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    #000 var(--mb-fade-top),
-    #000 calc(100% - var(--mb-fade-bottom)),
-    transparent 100%
-  );
+.mb-scroll-fade {
+  position: absolute;
+  z-index: var(--re-depth-lab);
+  height: 22px;
+  pointer-events: none;
 }
-.battlefield-lab .mobile-battle-hud .mb-body.has-more-above {
-  --mb-fade-top: 18px;
+.mb-scroll-fade[hidden] {
+  display: none;
 }
-.battlefield-lab .mobile-battle-hud .mb-body.has-more-below {
-  --mb-fade-bottom: 22px;
+.mb-scroll-fade.is-top {
+  height: 18px;
+  background: linear-gradient(180deg, var(--re-bg), transparent);
+}
+.mb-scroll-fade.is-bottom {
+  background: linear-gradient(0deg, var(--re-bg), transparent);
 }
 .mb-scroll-cue {
   position: absolute;

@@ -286,6 +286,7 @@ import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { TutorialController } from '../ui/TutorialController.js';
+import { locateUnit, nextReadyUnit } from '../ui/UnitLocator.js';
 import {
   registerBattleEntity,
   resetBattleIdentities,
@@ -1061,6 +1062,22 @@ export class BattleScene extends Phaser.Scene {
           panel.show(panel._unit, panel._terrain, panel._gameData);
         }
       },
+      nextReady: (event) => {
+        if (
+          event?.repeat ||
+          event?.altKey ||
+          event?.ctrlKey ||
+          event?.metaKey ||
+          !hasInputFocus(this) ||
+          hasOpenOverlay(this) ||
+          this.isStoryInputLocked() ||
+          this.battleState !== 'PLAYER_IDLE' ||
+          this._isTutorialStrictGateActive?.()
+        )
+          return;
+        const unit = nextReadyUnit(this, this._lastLocatedUnit);
+        if (unit && locateUnit(this, unit)) this._lastLocatedUnit = unit;
+      },
       viewUnit: () => {
         if (this.isStoryInputLocked()) return;
         if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
@@ -1124,6 +1141,7 @@ export class BattleScene extends Phaser.Scene {
 
     keyboard.on('keydown', this._gameplayKeyHandlers.menuNavigation);
     keyboard.on('keydown-T', this._gameplayKeyHandlers.pinThreat);
+    keyboard.on('keydown-N', this._gameplayKeyHandlers.nextReady);
     keyboard.on('keydown-V', this._gameplayKeyHandlers.viewUnit);
     keyboard.on('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
     keyboard.on('keydown-ESC', this._gameplayKeyHandlers.cancel);
@@ -1140,6 +1158,7 @@ export class BattleScene extends Phaser.Scene {
     if (keyboard?.off && this._gameplayKeyHandlers) {
       keyboard.off('keydown', this._gameplayKeyHandlers.menuNavigation);
       keyboard.off('keydown-T', this._gameplayKeyHandlers.pinThreat);
+      keyboard.off('keydown-N', this._gameplayKeyHandlers.nextReady);
       keyboard.off('keydown-V', this._gameplayKeyHandlers.viewUnit);
       keyboard.off('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
       keyboard.off('keydown-ESC', this._gameplayKeyHandlers.cancel);
@@ -9774,7 +9793,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Update turn counter at start of each player phase
-      this.renderTurnCounter(turn);
+      (this.renderTurnCounter || BattleScene.prototype.renderTurnCounter).call(this, turn);
       const latePressure = this.getTurnPressureState(turn);
       if (latePressure.active && !this._latePressureWarningShown) {
         this._latePressureWarningShown = true;
