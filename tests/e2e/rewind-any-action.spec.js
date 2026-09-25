@@ -263,6 +263,9 @@ test.describe('phone 844×390', () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const support = s.playerUnits.find((u) => u.name === 'Support');
       support.consumables = [{ name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 }];
+      // Fixture loadout belongs to the turn start, not to a free bag change.
+      s._timelineBoundary = 'turn_start';
+      s._captureSuspendCheckpoint();
     });
     await select(page, 'Support');
     await hud.getByRole('button', { name: 'Trade', exact: true }).tap();
