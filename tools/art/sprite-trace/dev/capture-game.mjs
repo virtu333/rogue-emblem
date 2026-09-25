@@ -4,6 +4,7 @@
 //
 //   node tools/art/sprite-trace/dev/capture-game.mjs OUT_DIR [--maps a,b] [--viewports 844x390,667x375]
 //        [--dprs 1,3] [--variants rebuilt,traced,traced-device] [--cells 9x5] [--select]
+//        [--cast v2|v3] [--desktop]
 //
 // Needs the dev server on 127.0.0.1:3302. Writes lossless WebP crops of the map area.
 import { mkdirSync } from 'node:fs';
@@ -25,11 +26,12 @@ const viewports = flag('viewports', '844x390,667x375')
   .split(',')
   .map((v) => v.split('x').map(Number));
 const dprs = flag('dprs', '1,3').split(',').map(Number);
+// traced sprites are the default since 2026-09-24; the rebuilt set is ?spriteArt=rebuilt
 const VARIANTS = {
-  rebuilt: '',
-  traced: '&spriteArt=traced',
-  'traced-device': '&spriteArt=traced&renderScale=device',
-  'rebuilt-device': '&renderScale=device',
+  rebuilt: '&spriteArt=rebuilt',
+  traced: '',
+  'traced-device': '&renderScale=device',
+  'rebuilt-device': '&spriteArt=rebuilt&renderScale=device',
 };
 const variants = flag('variants', 'rebuilt,traced,traced-device').split(',');
 const [cellsW, cellsH] = flag('cells', '9x5').split('x').map(Number);
@@ -37,8 +39,38 @@ const select = args.includes('--select');
 const desktop = args.includes('--desktop');
 mkdirSync(out, { recursive: true });
 
+// v3: a mixed cast across tiers, mounts, factions and states (lords, promoted
+// recruits, flyers, a boss, corrupted enemies, creatures, an ally NPC)
+const CAST_V3 = [
+  { name: 'Edric', className: 'Lord', faction: 'player', isLord: true, hp: 1 },
+  {
+    name: 'Astrid',
+    className: 'Seraph Knight',
+    faction: 'player',
+    isLord: true,
+    tier: 'promoted',
+    hp: 0.9,
+  },
+  { name: 'Kira', className: 'Tactician', faction: 'player', isLord: true, hp: 0.7, acted: true },
+  { name: 'Aldo', className: 'Swordmaster', faction: 'player', tier: 'promoted', hp: 1 },
+  { name: 'Brin', className: 'General', faction: 'player', tier: 'promoted', hp: 0.8 },
+  { name: 'Cato', className: 'Paladin', faction: 'player', tier: 'promoted', hp: 1 },
+  { name: 'Dara', className: 'Wyvern Rider', faction: 'player', hp: 0.6 },
+  { name: 'Esk', className: 'Sniper', faction: 'player', tier: 'promoted', hp: 1 },
+  { name: 'Fen', className: 'Cleric', faction: 'player', hp: 1, acted: true },
+  { name: 'Knight Commander', className: 'Paladin', faction: 'enemy', isBoss: true, hp: 1 },
+  { name: 'Warrior', className: 'Warrior', faction: 'enemy', hp: 0.8 },
+  { name: 'Berserker', className: 'Berserker', faction: 'enemy', hp: 1, affixes: ['vampiric'] },
+  { name: 'Sage', className: 'Sage', faction: 'enemy', hp: 1 },
+  { name: 'Dark Knight', className: 'Dark Knight', faction: 'enemy', hp: 0.5 },
+  { name: 'Falcon', className: 'Falcon Knight', faction: 'enemy', hp: 1, affixes: ['swift'] },
+  { name: 'Zombie', className: 'Zombie', faction: 'enemy', hp: 1 },
+  { name: 'Dragon', className: 'Dragon', faction: 'enemy', hp: 1 },
+  { name: 'Villager', className: 'Mage', faction: 'npc', hp: 1 },
+];
+
 // The staged cast (same for every variant): players on the left, enemies right.
-const CAST = [
+const CAST_V2 = [
   { name: 'Edric', className: 'Lord', faction: 'player', isLord: true, hp: 1 },
   { name: 'Sera', className: 'Light Sage', faction: 'player', isLord: true, hp: 0.8, acted: true },
   { name: 'Aldo', className: 'Myrmidon', faction: 'player', hp: 0.9 },
@@ -54,6 +86,8 @@ const CAST = [
   { name: 'Villager', className: 'Cleric', faction: 'npc', hp: 1 },
   { name: 'Thief', className: 'Thief', faction: 'enemy', hp: 1 },
 ];
+
+const CAST = flag('cast', 'v2') === 'v3' ? CAST_V3 : CAST_V2;
 
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',
@@ -152,7 +186,7 @@ async function capture(map, [vw, vh], dpr, variant) {
           col,
           row,
           level: 5,
-          tier: 'base',
+          tier: spec.tier || 'base',
           stats: { HP: 30, MOV: 5 },
           currentHP: Math.round(30 * spec.hp),
           affixes: spec.affixes || [],
