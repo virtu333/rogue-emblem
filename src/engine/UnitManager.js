@@ -777,9 +777,7 @@ export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) 
 
   if (!addToInventory(unit, weapon)) return false;
   const grantedWeapon = unit.inventory[unit.inventory.length - 1];
-  if (canEquip(unit, grantedWeapon)) {
-    unit.weapon = grantedWeapon;
-  }
+  if (canEquip(unit, grantedWeapon)) equipWeapon(unit, grantedWeapon);
   return true;
 }
 
@@ -1195,6 +1193,7 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   normalizeUnitClassState(unit, promotedClassData);
   if (unit.weapon && !canEquip(unit, unit.weapon)) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 
   // Add class-innate skills
@@ -1410,6 +1409,7 @@ export function reclassUnit(
   // --- Weapon validity ---
   if (unit.weapon && !canEquip(unit, unit.weapon)) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 
   // Retain old skills, but report new grants blocked by the cap.
@@ -1467,11 +1467,50 @@ export function getWeaponByTier(proficiencies, allWeapons, targetTier) {
 
 // --- Inventory helpers ---
 
-/** Equip a weapon from inventory. Mutates unit. Rejects non-proficient weapons. */
-export function equipWeapon(unit, weapon) {
+/**
+ * Equip a weapon from inventory. Mutates unit. Rejects non-proficient weapons.
+ *
+ * Like Fire Emblem, the equipped weapon is always the first inventory item:
+ * equipping moves it to the top (the rest keep their relative order). Pass
+ * `{ reorder: false }` only for a provisional equip that is rolled back or
+ * committed later (forecast weapon preview, staff use); the caller then owns
+ * restoring the order or calling normalizeEquippedFirst on commit.
+ */
+export function equipWeapon(unit, weapon, { reorder = true } = {}) {
   if (!unit.inventory.includes(weapon)) return;
   if (!canEquip(unit, weapon)) return;
   unit.weapon = weapon;
+  if (reorder) normalizeEquippedFirst(unit);
+}
+
+/**
+ * Move the equipped weapon to inventory[0], keeping every other item's relative
+ * order. Deterministic, idempotent and RNG-free. Only reorders when the equipped
+ * weapon is the very object carried in the inventory (identity); a dangling or
+ * unrelinked weapon is left for relinkWeapon to repair. Returns true if the
+ * order changed.
+ */
+export function normalizeEquippedFirst(unit) {
+  const inventory = unit?.inventory;
+  if (!Array.isArray(inventory) || !unit.weapon) return false;
+  const index = inventory.indexOf(unit.weapon);
+  if (index <= 0) return false;
+  inventory.splice(index, 1);
+  inventory.unshift(unit.weapon);
+  return true;
+}
+
+/**
+ * Items in display order: the equipped weapon first, everything else in carried
+ * order. Views use this so an enemy (whose AI swaps weapons without reordering)
+ * or a legacy mid-battle checkpoint still reads equipped-first. Never mutates.
+ */
+export function inventoryDisplayOrder(unit, items = unit?.inventory) {
+  const list = Array.isArray(items) ? items : [];
+  const equipped = unit?.weapon;
+  const index = equipped ? list.indexOf(equipped) : -1;
+  if (index <= 0) return [...list];
+  return [equipped, ...list.slice(0, index), ...list.slice(index + 1)];
 }
 
 /** Add a weapon to inventory. Returns false if full or wrong type. Rejects consumables and scrolls. */
@@ -1481,6 +1520,17 @@ export function addToInventory(unit, weapon, max = 5) {
   // Clone weapon to avoid shared state (especially _usesSpent for staves)
   const clone = ensureItemUid(structuredClone(weapon));
   unit.inventory.push(clone);
+  return true;
+}
+
+/**
+ * A unit with nothing equipped that receives a usable combat weapon (trade,
+ * give, convoy) equips it — in FE the first usable weapon is the equipped one.
+ * Never replaces a deliberate choice. Returns true when it equipped.
+ */
+export function equipIfUnarmed(unit, item) {
+  if (!unit || unit.weapon || !item || !getCombatWeapons(unit).includes(item)) return false;
+  equipWeapon(unit, item);
   return true;
 }
 
@@ -1509,6 +1559,7 @@ export function removeFromInventory(unit, weapon) {
   unit.inventory.splice(idx, 1);
   if (unit.weapon === weapon) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 }
 

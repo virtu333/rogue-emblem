@@ -33,7 +33,8 @@ import {
   giveRosterItemBlock,
   giveRosterItem,
 } from '../engine/RosterTransfers.js';
-import { canEquip, isLastCombatWeapon } from '../engine/UnitManager.js';
+import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
+import { equippedBadgeElement } from './equippedBadge.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import {
   getWeaponArtIds,
@@ -500,7 +501,7 @@ export class MobileRosterSheet {
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
     this.body.append(el('h3', 'Weapon arts'));
     let count = 0;
-    for (const weapon of unit.inventory || []) {
+    for (const weapon of inventoryDisplayOrder(unit)) {
       for (const id of getWeaponArtIds(weapon)) {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
@@ -572,7 +573,7 @@ export class MobileRosterSheet {
     if (this.picker || this.destroyed) return;
     const arts = this.gameData.weaponArts?.arts || [];
     const choices = this.units.flatMap((unit) =>
-      (unit.inventory || [])
+      inventoryDisplayOrder(unit)
         .map((weapon) => ({ unit, weapon }))
         .filter(({ weapon }) => {
           const reason = rosterArtBlock(this.run, unit, weapon, scroll, arts);
@@ -876,6 +877,7 @@ export class MobileRosterSheet {
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
     const c = this.card(displayName, this.itemDescription(item, unit));
+    if (unit && item === unit.weapon) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
       c.append(
         el(
@@ -947,7 +949,7 @@ export class MobileRosterSheet {
   }
   gear(unit) {
     this.body.append(el('h3', `Equipment · ${unit.inventory?.length || 0}/5`));
-    for (const item of unit.inventory || []) {
+    for (const item of inventoryDisplayOrder(unit)) {
       const c = this.itemCard(item, unit);
       if (
         unit.weapon &&
