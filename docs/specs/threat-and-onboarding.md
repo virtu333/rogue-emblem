@@ -24,9 +24,13 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   Back undoes it.
 - **Who.** Every *visible* enemy that could strike that tile next enemy phase: a crimson
   **eye** above its head (`src/art/threatSigil.js`, 17×9 art px, ink outline + glow,
-  slit pupil; violet for status staves), crimson **corner ticks** on its tile and a short
-  dashed **ink line** with an arrowhead from it to the tile (max 8 lines). A crimson
-  **count tag** sits on the tile.
+  slit pupil; violet for status staves) and a **thin red line** (1 px over a faint ink
+  shadow, small arrowhead) from it to the tile, max 8 lines. Intent stays light, in the
+  style of Fortune's Weave: *who* can reach, never damage numbers (rolling the dice is part
+  of the Fire Emblem feel; the forecast shows numbers when you actually attack). An earlier
+  iteration also drew corner ticks on each enemy's tile and a count badge on the target
+  tile; both were removed after playtester feedback ("more systems ≠ better") — the lines
+  read better than a tile badge, and the count lives in the HUD only.
 - **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson when > 0; "No foe can
   reach" otherwise; "· 1 staff"; "· fog may hide more" under fog). Desktop info panel:
   `Threat: 2 foes can reach`. Worded "foes can reach" so it never reads like the Danger
@@ -45,8 +49,8 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   changes; the eye's bob is a stepped 2-px transform tween (static under Reduce Motion).
 - **No RNG.** Construction runs under the presentation RNG; e2e asserts the battle RNG
   cursor is unchanged by hovering.
-- Depths stay in world space (< `SCREEN_UI`): lines 7.6, corner ticks 8.5, eyes 16, tag
-  16.5 — readable over every act grade (captured act1–act4 + deep).
+- Depths stay in world space (< `SCREEN_UI`): lines 7.6, eyes 16 — readable over every act
+  grade (captured act1–act4 + deep).
 
 ## 2. New-player support
 
@@ -130,7 +134,7 @@ browser zoom 110% (DPR 2.2) / 90% (DPR 1.8). Two causes:
    the desktop title's transform / ceremony `--ce-scale`) a Retina screen gets 1.75–3.75
    device pixels per font pixel: uneven strokes. `pixelFontGrid` publishes `--re-pf-N`
    (N = 6…24) snapped to the nearest size whose font pixels are whole device pixels for the
-   current DPR (ties go down, ±25% cap, follows zoom / display changes). CSS uses
+   current DPR (ties go down, ±30% cap, follows zoom / display changes). CSS uses
    `var(--re-pf-N, Npx)`; the title stage publishes `--rt-pf-N` for its scale and
    ceremonies `--ce-pf-7/8`. Cinzel and the body face are vector faces and were fine.
 
@@ -155,4 +159,4 @@ e2e: `threat-sight.spec.js` (desktop hover, reduced motion, touch), `guidance-no
   shares the Danger overlay's *computation* (which lives on main) and uses its palette
   tokens (`threatEdge/Ink/Fill/Status`, identical values). Field notes are a small
   separate component styled like the coach; they can move into the coach once it lands.
-- The line is straight and dashed (2D), not an arc.
+- The line is a straight thin 2D thread, not a 3D arc.

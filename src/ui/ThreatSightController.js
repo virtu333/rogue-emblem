@@ -3,9 +3,10 @@
 // While a player unit is selected, every visible enemy that could strike the
 // destination under the cursor / grid cursor (or, with no hover, the unit's own
 // tile — after a tap-move that is the tentatively chosen destination) next enemy
-// phase gets a crimson eye above its head and a crimson ring at its feet, and a
-// short dashed ink line runs from it to the tile. A small tag on the tile gives
-// the count; the HUDs print the same count ("2 foes can reach").
+// phase gets a small crimson eye above its head and a thin red line from it to
+// the tile (Fortune's Weave-style intent: who, not how much — no damage numbers;
+// the forecast shows numbers when you actually attack). The HUDs print the count
+// ("2 foes can reach"); nothing else is drawn on the tile.
 //
 // Correctness: answers come from ThreatForecast.threatsOnTile — the Danger
 // overlay's own computation, evaluated with the mover set down on the tile.
@@ -15,10 +16,10 @@
 // Cost: a cheap key is compared each frame; the threat query runs only when the
 // focus tile, selection, turn or battle state changes, and is memoized per tile
 // against a world signature. Graphics are redrawn only when the answer changes.
-// Pulses are transform tweens on two small images (static under Reduce Motion).
+// The eye's bob is a stepped transform tween (static under Reduce Motion).
 
 import { TILE_SIZE } from '../utils/constants.js';
-import { UI_HEX, UI_PALETTE, UI_FONT_FAMILIES } from '../utils/uiStyles.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
@@ -31,9 +32,7 @@ import { ensureThreatSigilTexture } from '../art/threatSigil.js';
 // World depths (below SCREEN_UI so the phone's pinned UI camera leaves them alone).
 export const THREAT_SIGHT_DEPTHS = Object.freeze({
   LINES: 7.6, // above path dots (6) and objective tiles (7), below rings (8)
-  FRAMES: 8.5, // corner ticks, just above the faction ring
   SIGILS: 16, // above sprites, HP bars and affix pips
-  TAG: 16.5,
 });
 
 const ACTIVE_STATES = new Set(['UNIT_SELECTED', 'UNIT_ACTION_MENU']);
@@ -57,8 +56,6 @@ export class ThreatSightController {
     this._drawnKey = '';
     this.graphics = null;
     this.sigils = [];
-    this.tag = null;
-    this.tagText = null;
     this.destroyed = false;
     this._tick = () => this.sync();
   }
@@ -76,10 +73,6 @@ export class ThreatSightController {
     this.clear();
     this.graphics?.destroy?.();
     this.graphics = null;
-    this.tag?.destroy?.();
-    this.tagText?.destroy?.();
-    this.tag = null;
-    this.tagText = null;
     this._memo.clear();
   }
 
@@ -167,8 +160,6 @@ export class ThreatSightController {
       sigil.destroy?.();
     }
     this.sigils = [];
-    this.tag?.setVisible?.(false);
-    this.tagText?.setVisible?.(false);
   }
 
   sourcePoint(source) {
@@ -221,10 +212,8 @@ export class ThreatSightController {
     });
     for (const { unit, kind } of sources) {
       const from = this.sourcePoint(unit);
-      this._drawFrame(g, unit, kind);
       this._placeSigil(from, kind, reduce);
     }
-    this._placeTag(target, current.result.count);
   }
 
   _drawLine(g, from, to, kind) {
@@ -232,7 +221,7 @@ export class ThreatSightController {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy);
-    if (length < TILE_SIZE * 0.75) return; // adjacent: the ring and eye say enough
+    if (length < TILE_SIZE * 0.75) return; // adjacent: the eye says enough
     const ux = dx / length;
     const uy = dy / length;
     // Start clear of the enemy sprite; stop at the target tile's edge.
@@ -244,70 +233,21 @@ export class ThreatSightController {
     const start = TILE_SIZE * 0.42;
     const end = length - exit;
     if (end - start < 6) return;
-    const dash = 5;
-    const gap = 3;
-    const segments = [];
-    for (let t = start; t < end; t += dash + gap) segments.push([t, Math.min(end, t + dash)]);
-    // Ink underlay first, then the crimson thread over it.
+    // A thin red thread over a faint ink shadow so it reads on every grade.
     for (const [width, color, alpha] of [
-      [4, UI_HEX.threatInk, 0.85],
-      [2, edge, 1],
+      [3, UI_HEX.threatInk, 0.55],
+      [1, edge, 0.95],
     ]) {
       g.lineStyle(width, color, alpha);
-      for (const [a, b] of segments) {
-        g.lineBetween(from.x + ux * a, from.y + uy * a, from.x + ux * b, from.y + uy * b);
-      }
+      g.lineBetween(from.x + ux * start, from.y + uy * start, from.x + ux * end, from.y + uy * end);
     }
-    // Arrowhead at the tile edge.
+    // A small arrowhead at the tile edge says which way the threat points.
     const tip = { x: from.x + ux * end, y: from.y + uy * end };
-    const back = { x: tip.x - ux * 6, y: tip.y - uy * 6 };
-    const px = -uy * 4;
-    const py = ux * 4;
-    const tri = [tip.x, tip.y, back.x + px, back.y + py, back.x - px, back.y - py];
-    g.fillStyle(UI_HEX.threatInk, 0.9);
-    g.fillTriangle(
-      tip.x + ux * 1.5,
-      tip.y + uy * 1.5,
-      back.x + px * 1.45 - ux,
-      back.y + py * 1.45 - uy,
-      back.x - px * 1.45 - ux,
-      back.y - py * 1.45 - uy,
-    );
-    g.fillStyle(edge, 1);
-    g.fillTriangle(...tri);
-  }
-
-  /** Crimson corner ticks framing the threatening source's tile(s). */
-  _drawFrame(g, unit, kind) {
-    const edge = kind === 'status' ? UI_HEX.threatStatus : UI_HEX.threatEdge;
-    const tiles = isEntity(unit) ? getFootprint(unit) : [unit];
-    const grid = this.scene.grid;
-    const points = tiles.map((t) => grid.gridToPixel(t.col, t.row));
-    const half = TILE_SIZE / 2;
-    const left = Math.min(...points.map((p) => p.x)) - half + 1;
-    const right = Math.max(...points.map((p) => p.x)) + half - 1;
-    const top = Math.min(...points.map((p) => p.y)) - half + 1;
-    const bottom = Math.max(...points.map((p) => p.y)) + half - 1;
-    const arm = 6;
-    const corners = [
-      [left, top, 1, 1],
-      [right, top, -1, 1],
-      [left, bottom, 1, -1],
-      [right, bottom, -1, -1],
-    ];
-    for (const [width, color, alpha] of [
-      [4, UI_HEX.threatInk, 0.85],
-      [2, edge, 1],
-    ]) {
-      g.lineStyle(width, color, alpha);
-      for (const [x, y, sx, sy] of corners) {
-        g.beginPath();
-        g.moveTo(x + sx * arm, y);
-        g.lineTo(x, y);
-        g.lineTo(x, y + sy * arm);
-        g.strokePath();
-      }
-    }
+    const back = { x: tip.x - ux * 4, y: tip.y - uy * 4 };
+    const px = -uy * 2.5;
+    const py = ux * 2.5;
+    g.fillStyle(edge, 0.95);
+    g.fillTriangle(tip.x, tip.y, back.x + px, back.y + py, back.x - px, back.y - py);
   }
 
   _placeSigil(from, kind, reduce) {
@@ -331,38 +271,5 @@ export class ThreatSightController {
         easeParams: [2],
       });
     }
-  }
-
-  _placeTag(target, count) {
-    const s = this.scene;
-    if (!count) {
-      this.tag?.setVisible?.(false);
-      this.tagText?.setVisible?.(false);
-      return;
-    }
-    if (!this.tagText) {
-      this.tagText = s.add
-        .text(0, 0, '', {
-          fontFamily: UI_FONT_FAMILIES.pixel,
-          fontSize: '8px',
-          color: UI_PALETTE.emberPale,
-        })
-        .setOrigin(0.5, 0.5)
-        .setDepth(THREAT_SIGHT_DEPTHS.TAG + 0.01);
-      this.tag = s.add.graphics().setDepth(THREAT_SIGHT_DEPTHS.TAG);
-    }
-    const label = String(count);
-    this.tagText.setText(label);
-    const w = Math.max(10, label.length * 8 + 4);
-    const h = 10;
-    const x = Math.round(target.x + TILE_SIZE / 2 - w / 2 - 1);
-    const y = Math.round(target.y - TILE_SIZE / 2 + h / 2 + 1);
-    this.tag.clear();
-    this.tag.fillStyle(UI_HEX.threatInk, 0.95);
-    this.tag.fillRect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2);
-    this.tag.fillStyle(UI_HEX.threatFill, 1);
-    this.tag.fillRect(x - w / 2, y - h / 2, w, h);
-    this.tag.setVisible(true);
-    this.tagText.setPosition(x + 0.5, y + 0.5).setVisible(true);
   }
 }

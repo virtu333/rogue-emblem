@@ -23,7 +23,7 @@ export const PIXEL_FONT_SIZES = Object.freeze([6, 7, 8, 9, 10, 11, 12, 13, 14, 1
  * change the size by more than `tolerance` (e.g. 12px at DPR 1 -> 8 or 16) keeps
  * the design size instead.
  */
-export function snapPixelFontSize(size, { dpr = 1, scale = 1, tolerance = 0.25, mode } = {}) {
+export function snapPixelFontSize(size, { dpr = 1, scale = 1, tolerance = 0.3, mode } = {}) {
   const n = Number(size);
   if (!Number.isFinite(n) || n <= 0) return size;
   const d = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
