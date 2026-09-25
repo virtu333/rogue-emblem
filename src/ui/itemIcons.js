@@ -90,8 +90,6 @@ export function atlasStyle(id, cssSize) {
   };
 }
 
-const IMBUE_IDS = new Set(['vampiric', 'armorbane', 'keen', 'venom', 'binding', 'warded']);
-
 /** The plaque behind an icon: rim (tier colour) and sunken well, both clipped to the socket shape. */
 function socketElement() {
   const s = document.createElement('span');
@@ -147,7 +145,7 @@ export function itemIcon(subject, options = {}) {
       f.textContent = `+${forge}`;
       el.append(f);
     }
-    if (item._imbueId && IMBUE_IDS.has(item._imbueId)) {
+    if (typeof item._imbueId === 'string' && item._imbueId) {
       const pip = document.createElement('span');
       pip.className = 'ia-imbue';
       pip.dataset.imbue = item._imbueId;
