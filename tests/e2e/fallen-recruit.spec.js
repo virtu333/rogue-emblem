@@ -8,7 +8,8 @@ import { waitForScene } from './helpers.js';
 test.use({ viewport: { width: 1280, height: 800 } });
 test.setTimeout(180_000);
 
-const SHOTS = 'docs/art-direction/gameplay/playtest-fixes';
+// Set PLAYTEST_FIX_SHOTS=docs/art-direction/gameplay/playtest-fixes to refresh the doc screenshots.
+const SHOTS = process.env.PLAYTEST_FIX_SHOTS || '';
 
 async function clickThrough(page, done) {
   for (let i = 0; i < 120; i++) {
@@ -143,7 +144,9 @@ test('a recruit who joins and falls in the same battle can be revived at the chu
   await expect(church).toBeVisible();
   const revive = church.getByRole('button', { name: /^Daska · Archer · Revive/ });
   await expect(revive).toBeEnabled();
-  await page.screenshot({ path: `${SHOTS}/church-revive-recruit-1280x800.png` });
+  // A clear sun has nothing to lift: the Kindle button never reads "−0 shadow".
+  await expect(church.getByRole('button', { name: /^Kindle/ })).not.toContainText('−0');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/church-revive-recruit-1280x800.png` });
   await revive.click();
   const confirm = page.getByRole('dialog', { name: 'Revive Daska?' });
   await confirm.getByRole('button', { name: 'Confirm', exact: true }).click();

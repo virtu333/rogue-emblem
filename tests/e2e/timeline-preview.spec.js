@@ -7,7 +7,8 @@ import { waitForScene } from './helpers.js';
 
 test.setTimeout(180_000);
 
-const SHOTS = 'docs/art-direction/gameplay/playtest-fixes';
+// Set PLAYTEST_FIX_SHOTS=docs/art-direction/gameplay/playtest-fixes to refresh the doc screenshots.
+const SHOTS = process.env.PLAYTEST_FIX_SHOTS || '';
 
 async function idle(page) {
   for (let i = 0; i < 240; i++) {
@@ -218,7 +219,8 @@ for (const viewport of [
       const enemyRow = view.locator('.bt-entry', { hasText: /enemy/i }).first();
       await enemyRow.click();
       await expectRealBoard(page, view);
-      await page.screenshot({ path: `${SHOTS}/timeline-${viewport.name}.png`, scale: 'css' });
+      if (SHOTS)
+        await page.screenshot({ path: `${SHOTS}/timeline-${viewport.name}.png`, scale: 'css' });
       expect(errors).toEqual([]);
     });
 
@@ -272,10 +274,11 @@ for (const viewport of [
         return history?.children.list.length || 0;
       });
       expect(known).toBeGreaterThan(50);
-      await page.screenshot({
-        path: `${SHOTS}/timeline-rebuilt-${viewport.name}.png`,
-        scale: 'css',
-      });
+      if (SHOTS)
+        await page.screenshot({
+          path: `${SHOTS}/timeline-rebuilt-${viewport.name}.png`,
+          scale: 'css',
+        });
       expect(errors).toEqual([]);
     });
   });
