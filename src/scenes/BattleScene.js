@@ -180,7 +180,7 @@ import {
   UI_PALETTE,
   UI_HEX,
 } from '../utils/uiStyles.js';
-import { generateBattle } from '../engine/MapGenerator.js';
+import { generateBattle, reconcileRecruitSpawnTile } from '../engine/MapGenerator.js';
 import {
   computeAcidDamage,
   computeLavaCrackHp,
@@ -238,6 +238,7 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { recordBattleRecruit } from '../engine/BattleRecruits.js';
+import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
@@ -1232,8 +1233,12 @@ export class BattleScene extends Phaser.Scene {
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
-        const deployedNames = new Set(deployedRoster.map((u) => u.name));
-        this.nonDeployedUnits = this.roster.filter((u) => !deployedNames.has(u.name));
+        // By unit identity: a benched unit that shares a deployed unit's name must
+        // still come back on victory (UnitIdentity.js).
+        const deployed = new Set(deployedRoster);
+        this.nonDeployedUnits = this.roster.filter(
+          (u) => !deployed.has(u) && !deployedRoster.some((d) => isSameUnit(d, u)),
+        );
       } else {
         this.nonDeployedUnits = [];
       }
@@ -1477,8 +1482,19 @@ export class BattleScene extends Phaser.Scene {
               });
         const npc = built?.unit || null;
         if (npc) {
+          // The tile must suit the unit that actually spawned (a lord roll can turn a
+          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not.
+          reconcileRecruitSpawnTile(bc, {
+            moveType: npc.moveType || 'Infantry',
+            terrainData: this.gameData.terrain,
+            classesData: this.gameData.classes,
+            weaponsData: this.gameData.weapons,
+          });
           npc.col = npcSpawn.col;
           npc.row = npcSpawn.row;
+          // Run identity from the start, so a fallen-recruit record and a living
+          // namesake are never confused (UnitIdentity.js).
+          this.runManager?.assignUnitUid?.(npc);
           this.npcUnits.push(npc);
           this.addUnitGraphic(npc);
         }
@@ -6326,7 +6342,9 @@ export class BattleScene extends Phaser.Scene {
       // Recruit can move + act this turn (FE convention); force fresh action flags.
       npc.hasMoved = false;
       npc.hasActed = false;
-      // Fallen-ally record should the recruit die before the battle ends.
+      // Fallen-ally record should the recruit die before the battle ends. An NPC
+      // restored from a checkpoint older than unit identity gets its uid now.
+      this.runManager?.assignUnitUid?.(npc);
       this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
 
       this.finishUnitAction(lord);

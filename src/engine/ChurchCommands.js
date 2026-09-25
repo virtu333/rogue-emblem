@@ -52,7 +52,7 @@ export function reviveAtChurch(run, unit) {
   const reason = churchReviveBlock(run, unit);
   if (reason) return { ok: false, reason };
   const catchUp = revivalCatchUpPlan(unit, run.roster);
-  if (!run.reviveFallenUnit(unit.name, getReviveCost(unit)))
+  if (!run.reviveFallenUnit(unit, getReviveCost(unit)))
     return { ok: false, reason: 'Revival unavailable.' };
   run.markDialogueShown('revive_convoy_hint');
   const learned = getSkillDisplayNames(run.lastRevivalResult?.learnedSkills, run.gameData.skills);

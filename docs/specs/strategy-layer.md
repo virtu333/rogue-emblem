@@ -176,6 +176,22 @@ Player spawns are then ordered nearest-first to the recruit
 (`orderSpawnsTowardTarget`) and lords take the first tiles
 (`spawnTilesForDeployment(..., { lordsFirst: true })`), so a lord always starts closest.
 
+The tile is checked for the unit that actually spawns, not the preview's class. The
+unit stream's first draws are the lord roll, so a Dancer or Myrmidon preview can spawn
+Rowan (Cavalry); the old code seated such a recruit on tiles only Infantry can enter
+(a generated case: run seed 22, act 2, a Dancer preview → Rowan on a mire_crossing
+Swamp). `resolveRecruitNodeSpawnClass` replays just those draws (same stream, same run
+state, no unit built), `RunManager.getBattleParams` passes the result as
+`recruitPreview.spawnClassName` when it differs, and the generator requires the tile
+to be passable for Infantry and that class (`npcSpawn.spawnClassName` records it for
+`validateBattleConfig`). Encounters locked by older builds, and any caller that seated
+the recruit by the preview, are re-seated by `reconcileRecruitSpawnTile` (same rules as
+the picker for that move type, then the nearest standable free tile; player spawns
+re-ordered; RNG-free) in `RunManager.getLockedBattleConfig` and again at spawn in
+BattleScene and the harness. The Loom card already shows the unit that spawns (it is
+built by `getRecruitNodeUnit`: "Rowan, a lord", `LORD · CHEVALIER`), so it needs no
+change.
+
 `RecruitBeaconController` (BattleScene owns create / sync / destroy) draws a gilt banner
 with a pixel `RECRUIT` label above the recruit and a slow verdigris halo on their tile,
 above the fog layer, from turn 1. It re-derives everything from `scene.npcUnits`, so
@@ -183,6 +199,43 @@ Talk, a death, a rewind or a resume need no special cases. The objective panel n
 recruit ("Recruit: reach Garrick with a lord · Talk") and a one-time field note says
 "Garrick (Cavalier) holds out under the gold banner. Reach them with a lord and choose
 Talk before the hunters do." It replaces the fog-only "?" marker.
+
+### 3b. A recruit's name is promised, and units are told apart by identity
+
+A preview is a promise: the Loom shows the recruit's name before you choose the road.
+External review found the colosseum could hire a mercenary under a name a pending
+recruit node had promised (run seed 51: the act-1 board offered an Archer named Tamsin
+while a node promised Tamsin), and casualties were matched by name, so when the Talk
+recruit died and the hired namesake lived, the recruit's fallen record was dropped and
+the church could not revive them.
+
+- **Reservation.** `RunManager.getPromisedRecruitNames()` is every name shown by a
+  recruit node not yet walked (its preview, or a locked encounter's NPC);
+  `getTakenUnitNames()` adds the roster, the fallen and names used this run. The
+  colosseum board, boss recruits (`generateBossRecruitCandidates(..., reservedNames)`,
+  which now also avoids fallen names), extra starting units and a preview-less recruit
+  battle (`battleParams.reservedRecruitNames`) never take them; previews already avoid
+  roster, fallen and used names. Each of those picks spends the same draws whatever
+  the exclusion set (a boss recruit's name pick skips its draw only when every name
+  in the class's pool is taken, as before), so only the name changes: the mercenary
+  board's classes, stats and prices are identical.
+- **Identity.** Every run unit carries `unitUid` (`ru<n>`, `UnitIdentity.js`), from a
+  run counter saved as `nextUnitUid` (never `Math.random`). Starting units, hires, boss
+  and third-lord joins and the recruit NPC (at spawn) get one; `ensureUnitUids` stamps
+  anything else on load, at battle entry and at `completeBattle`, and legacy saves are
+  stamped on load in roster order. `completeBattle` matches the units that entered
+  (roster, then fallen mid-battle recruits) to the survivors one to one by uid
+  (`matchUnitsToSurvivors`; a side without a uid — a checkpoint from before this
+  change — falls back to the name), `fallenBattleRecruits` does the same against the
+  roster, battle recruit records are replaced by identity, the church revives the unit
+  object it listed (`reviveFallenUnit` takes the unit or its uid; a name still works
+  for old callers), BattleScene benches by identity, and the victory roster order uses
+  identity.
+- **Saves that already hold a collision** keep the preview's name (nothing the player
+  was shown is renamed at the node); identity keeps the casualty, the fallen list and
+  revival correct. The existing roster repair (`_repairDuplicateRosterNames`, run on
+  load and at battle entry) still suffixes the later of two same-named roster units
+  (e.g. "Tamsin II") once both are in the army, as it always has.
 
 ### 4. Blessing pacts
 
@@ -281,7 +334,18 @@ dominant line. The proposal document covers what would close the act-2 gap.
 - `tests/RunManagerRecruitNodes.test.js` — battle mods from difficulty, preview ↔ battle
   params, locked encounters, save round trip.
 - `tests/BattleSceneRecruitNode.test.js` — BattleScene spawns exactly the previewed unit
-  on the NPC tile without consuming battle RNG and seats a lord nearest.
+  on the NPC tile without consuming battle RNG and seats a lord nearest; the recruit
+  gets a run identity at spawn; a lord recruit on a tile its class cannot enter is
+  re-seated without battle RNG; a benched namesake still comes back.
+- `tests/RecruitIdentity.test.js` — uid helpers and one-to-one survivor matching,
+  stamping (new runs, legacy saves, duplicates, RNG-free), promised names, the
+  reviewer's colosseum probe (seed 51) and a 60-seed sweep, boss recruits, preview-less
+  recruit battles, extra starters and next-act previews; the reviewer's scenario on a
+  legacy save (hire → fixed recruit → the recruit dies / the merc dies / a pre-identity
+  checkpoint) and church revival of one of two same-named fallen.
+- `tests/RecruitLordSpawnTile.test.js` — spawn-class parity with the built unit over
+  acts 1–3, the seeded Dancer→Rowan Swamp regression (old vs new placement, reach band,
+  validator), locked legacy encounters re-seated, `reconcileRecruitSpawnTile` rules.
 - `tests/RecruitBeaconController.test.js` — banner lifecycle, objective, one-time hint,
   reduced motion.
 - `tests/BlessingPacts.test.js` — pact data and validation, fixed offers, draw parity,

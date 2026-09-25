@@ -131,6 +131,30 @@ describe('BattleRecruits records', () => {
     expect(list[0].unit.level).toBe(7);
   });
 
+  it('two recruits sharing a name keep separate records (identity, not name)', () => {
+    const first = makeArcher('Linnet');
+    first.unitUid = 'ru8';
+    const second = makeArcher('Linnet');
+    second.unitUid = 'ru9';
+    let list = recordBattleRecruit([], first);
+    list = recordBattleRecruit(list, second);
+    expect(list.map((e) => e.unit.unitUid)).toEqual(['ru8', 'ru9']);
+    // A later record of the same unit still replaces its earlier one.
+    second.level = 7;
+    list = recordBattleRecruit(list, second);
+    expect(list.map((e) => [e.unit.unitUid, e.unit.level])).toEqual([
+      ['ru8', 3],
+      ['ru9', 7],
+    ]);
+    // A living namesake (a hired Linnet) does not make the fallen recruit alive.
+    const survivors = [{ name: 'Linnet', unitUid: 'ru2' }, second];
+    expect(
+      fallenBattleRecruits(list, survivors, [{ name: 'Linnet', unitUid: 'ru2' }]).map(
+        (u) => u.unitUid,
+      ),
+    ).toEqual(['ru8']);
+  });
+
   it('only recruits missing from the survivors are fallen', () => {
     const list = recordBattleRecruit(
       recordBattleRecruit([], makeArcher('Daska')),

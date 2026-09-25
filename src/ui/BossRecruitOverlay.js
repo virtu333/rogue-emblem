@@ -50,6 +50,7 @@ export class BossRecruitOverlay {
       this.gameData,
       this.runManager.getEffectiveMetaEffects(),
       this.runManager?.fallenUnits || [],
+      [...(this.runManager?.getTakenUnitNames?.() || [])],
     );
 
     // Fallback — no candidates
