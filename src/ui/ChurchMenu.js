@@ -4,6 +4,7 @@ import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
+import { withUnitFace } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { saveServiceRun } from './serviceSave.js';
 import { canPromote, resolvePromotionTargets, getDisplayLevel } from '../engine/UnitManager.js';
@@ -87,7 +88,7 @@ export class ChurchMenu {
         }),
       );
       b.disabled = !!reason;
-      body.append(b);
+      body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
       if (reason) body.append(el('p', reason));
     }
     if (!this.scene._churchRuinsMode) {
@@ -102,7 +103,7 @@ export class ChurchMenu {
           this.promote(unit, nodeId),
         );
         b.disabled = !!reason;
-        body.append(b);
+        body.append(withUnitFace(b, this.scene, this.scene.gameData, unit));
         if (reason) body.append(el('p', reason));
       }
     }

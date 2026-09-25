@@ -106,7 +106,10 @@ export class DialogueOverlay {
     const cx = cam.centerX;
     const cy = cam.centerY;
     const hasSpeaker = typeof name === 'string' && name.trim().length > 0;
-    const hasPortrait = Boolean(hasSpeaker && portraitKey && scene.textures?.exists?.(portraitKey));
+    // A variant face has no preloaded texture: portraitCanvasFrame resolves it.
+    const canvasFace =
+      hasSpeaker && portraitKey ? portraitCanvasFrame(scene, portraitKey, 64) : null;
+    const hasPortrait = Boolean(canvasFace);
 
     // Blocking background (nearly invisible but intercepts input).
     const blocker = scene.add
@@ -129,12 +132,12 @@ export class DialogueOverlay {
     const textLeft = cx - boxW / 2 + 14;
 
     if (hasPortrait) {
-      const face = portraitCanvasFrame(scene, portraitKey, 64) || { key: portraitKey };
+      const face = canvasFace;
       const portrait = scene.add
         .image(cx - boxW / 2 + 40, boxY, face.key, face.frame)
         .setDisplaySize(64, 64)
         .setDepth(DEPTH + 2);
-      const source = face.frame ? null : scene.textures.get?.(portraitKey)?.getSourceImage?.();
+      const source = face.frame ? null : scene.textures.get?.(face.key)?.getSourceImage?.();
       if (source?.width && source?.height) {
         const scale = Math.min(64 / source.width, 80 / source.height);
         portrait.setDisplaySize(source.width * scale, source.height * scale);
