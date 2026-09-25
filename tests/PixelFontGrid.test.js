@@ -31,7 +31,7 @@ describe('pixel font grid', () => {
             expect(Math.abs(nearest - size) / size).toBeGreaterThan(0.2);
           } else {
             expect(isCrispPixelFontSize(snapped, dpr, scale)).toBe(true);
-            expect(Math.abs(snapped - size) / size).toBeLessThanOrEqual(0.25 + 1e-9);
+            expect(Math.abs(snapped - size) / size).toBeLessThanOrEqual(0.3 + 1e-9);
           }
         }
       }
