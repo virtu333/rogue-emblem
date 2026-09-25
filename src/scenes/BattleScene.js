@@ -181,6 +181,7 @@ import {
   ENTITY_PRIMARY_ATTACK_RANGE,
   ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
+import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   getHPBarColor,
   applyTextResolution,
@@ -304,6 +305,7 @@ import {
 } from '../engine/BattleEntityIdentity.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
+import { PortraitBattleController } from '../ui/PortraitBattleController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { AbilityController } from '../ui/AbilityController.js';
@@ -410,6 +412,9 @@ export class BattleScene extends Phaser.Scene {
     this.isBoss = data.isBoss || false;
     this.isElite = data.isElite || false;
     this._resumeCheckpoint = data.resumeCheckpoint || null;
+    // Re-opened in the other orientation (portrait battles), not a player resume.
+    this._presentationSwitch = data.presentationSwitch === true;
+    this._portraitBattle = null;
     this._fatalResumeParked = false;
     this._battleSuspendController = null;
     this.escapedUnits = [];
@@ -568,6 +573,8 @@ export class BattleScene extends Phaser.Scene {
     this.hideForecast();
     this._mobileBattleHud?.destroy();
     this._mobileBattleHud = null;
+    this._portraitBattle?.destroy();
+    this._portraitBattle = null;
     this.closeVisionDialog();
     if (this._postCombatController) {
       this._postCombatController.destroy();
@@ -1302,6 +1309,10 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
+      // Portrait battles (beta): an upright phone draws the board turned a quarter.
+      this._portraitBattle?.destroy();
+      this._portraitBattle = new PortraitBattleController(this);
+      const boardPresentation = this._portraitBattle.resolvePresentation(bc);
       this.grid = new Grid(
         this,
         bc.cols,
@@ -1310,7 +1321,9 @@ export class BattleScene extends Phaser.Scene {
         bc.mapLayout,
         fogEnabled,
         bc.biome || null,
+        boardPresentation,
       );
+      this._portraitBattle.create();
       this._battlefieldTerrain?.destroy();
       this._battlefieldTerrain = paintBattlefieldTerrain(this, this.grid);
 
@@ -3715,6 +3728,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
     this._mobileBattleHud?.sync();
+    this._portraitBattle?.update();
     if (!this._uiCamera) return;
     const childCount = this.children?.list?.length || 0;
     if (!this._cameraFilterDirty && childCount === this._lastChildrenCount) return;
@@ -3726,8 +3740,8 @@ export class BattleScene extends Phaser.Scene {
     return {
       left: this.grid.offsetX,
       top: this.grid.offsetY,
-      width: this.grid.cols * TILE_SIZE,
-      height: this.grid.rows * TILE_SIZE,
+      width: this.grid.mapPixelWidth,
+      height: this.grid.mapPixelHeight,
     };
   }
 
@@ -3761,6 +3775,12 @@ export class BattleScene extends Phaser.Scene {
     if (!this._scaleResizeHandler && this.scale?.on) {
       this._scaleResizeHandler = () => {
         if (!this._uiCamera) return;
+        // The phone battle layout owns the UI camera's band (portrait battles).
+        const lab = this._mobileBattleHud?.lab;
+        if (lab && !lab.destroyed) {
+          lab.syncUiCamera();
+          return;
+        }
         const worldCam = this.cameras?.main;
         if (!worldCam) return;
         this._uiCamera.setSize(worldCam.width, worldCam.height);
@@ -6188,7 +6208,9 @@ export class BattleScene extends Phaser.Scene {
       healOptions.find((option) => option.staff === unit.weapon) || healOptions[0] || null;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 60;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 60;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -6772,7 +6794,9 @@ export class BattleScene extends Phaser.Scene {
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 155;
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -6965,7 +6989,9 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 200;
+    const menuX = hasRoomRightOf(this.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 200;
     const menuY = pos.y - 10;
 
     const itemHeight = this.isMobileInput ? 38 : 28;

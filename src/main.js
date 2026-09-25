@@ -32,6 +32,7 @@ import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 import { registerSW } from 'virtual:pwa-register';
 import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
 import { throttledRead } from './utils/throttledRead.js';
+import { applyPortraitQuery, syncRotatePromptCopy } from './utils/portraitBattle.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -40,6 +41,9 @@ const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
+// `?portrait=1|0` opts this device in or out of portrait battles (beta).
+applyPortraitQuery();
+syncRotatePromptCopy();
 if (startupFlags.isMobile) document.documentElement.classList.add('touch-ui');
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('mobilePreview') === '1') {
   document.documentElement.classList.add('mobile-preview');

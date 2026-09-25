@@ -42,3 +42,5 @@
 
 /* Save select: the candle shrine (SlotPickerView.js). */
 @import './slotPicker.css';
+/* Portrait battles (beta): upright phone layout, map above a thumb-reach rail. Last. */
+@import './portraitBattle.css';

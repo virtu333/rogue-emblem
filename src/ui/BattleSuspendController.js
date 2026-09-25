@@ -300,7 +300,12 @@ export class BattleSuspendController {
     const committed = readCommittedAction(checkpoint.pendingCommittedAction);
     if (committed && scene.resumeCommittedAttack?.(committed)) return;
     try {
-      Promise.resolve(showMinorHint(scene, 'Battle resumed.')).catch(() => {});
+      const note = scene._presentationSwitch
+        ? scene.grid?.board?.rotated
+          ? 'Portrait view.'
+          : 'Landscape view.'
+        : 'Battle resumed.';
+      Promise.resolve(showMinorHint(scene, note)).catch(() => {});
     } catch (_) {
       /* cosmetic only */
     }

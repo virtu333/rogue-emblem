@@ -10,6 +10,7 @@ import { deedsFor } from './DeedController.js';
 // them on the scene as before.
 
 import { TILE_SIZE, XP_BASE_HEAL } from '../utils/constants.js';
+import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   resolveHeal,
   getStaffRemainingUses,
@@ -185,7 +186,9 @@ export class HealController {
     scene.battleState = 'UNIT_ACTION_MENU';
 
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < scene.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 210;
+    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 210;
     const menuY = pos.y - 10;
 
     scene.actionMenu = [];

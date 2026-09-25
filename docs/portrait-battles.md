@@ -1,0 +1,49 @@
+# Portrait battles (beta prototype)
+
+**Status:** Prototype, opt-in, phones only. Battles only; the route map and every other screen stay landscape.
+**Date:** 2026-09-25
+
+## Try it on a phone
+
+1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. On a phone it is also in **Menu → Settings → Portrait battles (beta)**.
+2. Play normally in landscape. Once a battle begins, turn the phone upright.
+3. The board re-opens upright at the next moment you are free to act (your turn, nothing selected). Turn it back to landscape the same way.
+4. Deployment, rewards and the route map still ask for landscape.
+
+## What changes
+
+- **The board turns a quarter.** The player's deployment side is drawn at the bottom and the advance runs upward. Every template deploys players on one horizontal side, so the short side of each map (8–13 tiles) spans the phone's width. Most maps show whole at ~30–35 CSS px per tile, about the same as landscape, because the landscape layout loses width to the 4:3 canvas and the side rail.
+- **Layout:** the map fills the top; the command rail is a fixed-height band at the bottom (status and objective, then commands, then Danger, Overview, Recenter, Back and Menu along the bottom edge). The rail never changes height, so the map never resizes under a finger.
+- **Forecast** is a bottom sheet: Cancel / Confirm sit under the thumb, and the top of the map (where targets usually are) stays visible. The weapon ◀ ▶ stepper puts the weapon name on its own line.
+- **Rotation mid-battle** never re-lays out a live battle. At the player's next clean idle boundary the controller saves the battle as it stands (same RNG position, no reseed) and re-opens it through the existing Resume battle path in the other orientation. A refresh restores exactly the same thing. While a switch waits (a unit mid-action, enemy phase), the layout already follows the phone and a short note says the board will turn.
+
+Rules are untouched: the rotation is Grid presentation only. Movement, combat, AI, saves, seeds and checkpoints stay in game coordinates.
+
+## Architecture
+
+| Piece | Role |
+| --- | --- |
+| `src/utils/boardOrientation.js` | Pure quarter-turn transform (`toDisplay`, `fromDisplay`, arrow-key mapping) and the display-indexed terrain layout |
+| `src/engine/Grid.js` | Optional `presentation` argument; `gridToPixel` / `pixelToGrid` go through the transform; `mapPixelWidth/Height` |
+| `src/ui/BattlefieldArt.js` | Paints terrain art from the rotated layout, so shores, walls and bridges join their drawn neighbours and trees stay upright |
+| `src/ui/BattlefieldLab.js` | Portrait canvas: 640 logical px wide, tall; pinned Phaser UI keeps its 640×480 layout in a centred band of the UI camera |
+| `src/ui/PortraitBattleController.js` | Decides the presentation at `beginBattle`, owns the `<html>` classes, follows the phone and preference, and performs the checkpoint re-open at a safe point |
+| `src/utils/portraitBattle.js` | Device-local preference (`emblem_rogue_portrait_battles`, never cloud-synced), `?portrait=` link, switch gating |
+| `src/ui/portraitBattle.css` | Upright rail, forecast sheet and small portrait fixes, applied only inside `@media (orientation: portrait)` while `portrait-battle-capable` is set |
+
+Other presentation sites made rotation-aware: danger-zone outline, light layer, grid cursor arrows, and the side canvas menus open towards.
+
+## Limits of the prototype
+
+- **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. Unlocking them is a release step.
+- **Tutorial battles** have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
+- **Battle history / timeline replays** draw the board unrotated.
+- **Tutorial copy** that names screen directions was written for landscape.
+- Switching orientation restarts the battle music track.
+- Only the battle is upright. Full-run portrait (route map, menus) is the next stage; see the review in this session.
+
+## Tests
+
+- `tests/BoardOrientation.test.js`: transform round trips, adjacency, arrow mapping, tap hit-testing on every tile of a rotated grid, and movement ranges unchanged.
+- `tests/PortraitBattle.test.js`: preference and link, canvas sizing, UI band, and the switch gate (safe point, overlays, tutorial lock, failed capture, preference off, battle end).
+- `tests/e2e/portrait-battle.spec.js`: real touch select and move on the turned board, commands in view, rotation round trip with identical units and RNG, a deferred switch, and the rotate prompt without the opt-in.
