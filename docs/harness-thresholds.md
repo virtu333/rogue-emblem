@@ -45,7 +45,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
   - `min_avg_gold=9000`, `max_avg_gold=52200`
-  - `min_avg_shop_spent=8000`, `max_avg_shop_spent=26000`
+  - `min_avg_shop_spent=6770`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
   - `min_avg_ambush_battles=0.20`
@@ -72,6 +72,28 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
   - no other strict slice moved outside its window (`progression_invincible` gold
     8710 → 9731, shop spent 7036 → 6174; Act I pressure slices unchanged: they never win
     a battle, so no shadow is committed).
+
+- `ambush_hard_invincible` (`min_avg_shop_spent` 8000 → 6770): Eclipse act pressure
+  separated from the capped global meter (review R2, `docs/specs/eclipse.md` deviation 11)
+  on branch `claude/review-fixes-rewind-eclipse`
+  - attribution: `npm run sim:fullrun:triage -- --slice ambush_hard_invincible --range
+    b9d248f..6c278a0` → `first_bad_sha=2444879e9f2e`, `parent_sha=fcee235017e2`;
+    failing metric `avg_shop_spent=7964.92 < threshold=8000.00`; touched files: the Eclipse
+    engine/UI/tests/docs only (`src/engine/EclipseSystem.js`, `src/engine/RunManager.js`,
+    `src/ui/EclipseHudController.js`, `src/ui/PostCombatController.js`,
+    `src/ui/ceremonyContent.js`, `src/ui/eclipseContent.js`, `src/utils/devStartup.js`,
+    `sim/eclipse.js`, tests, docs, captures).
+  - observed shift (seeds 301-312, hard, invincible): `avg_shop_spent` 11699 → 7965,
+    `avg_gold` 42480 → 50296 (window max 52200 unchanged), `eclipse_avg_falls` 40.0 → 52.1,
+    eclipsed battles 6.67 → 9.33, `avg_ambush_battles` 0.50, `avg_turns` 612.8 → 686.8;
+    act-end shadow unchanged (24.8 / 61.9 / 94.2 / 97.0).
+  - cause: this slice's agent sits at the shadow cap from Act III. Before, an act that
+    opened at 97 could never lose a node (act shadow saturated at 3); now each slow victory
+    still adds act pressure, so Act III/IV shops burn like Act I/II ones — less gold can be
+    spent in shops (and eclipsed elite battles add gold). Intended by the R2 decision.
+  - window per the procedure: `floor(7965 * 0.85)` = 6770. No other slice moved
+    (`progression_invincible` and both Act I pressure slices are byte-identical: they never
+    reach the cap).
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 
