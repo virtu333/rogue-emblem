@@ -6,7 +6,14 @@ export function compactBattleObjective(text = 'Battle') {
   if (escape) return `Escape · Lords ${escape[1]}`;
   if (/^Seize: Defeat boss/.test(first)) return 'Seize · Defeat the boss';
   if (/^Seize: Capture throne/.test(first)) return 'Seize · Capture throne';
-  return first.replace(': ', ' · ').replace(' remaining', ' remain');
+  // "Rout: 1 enemy remaining" → "Rout · 1 enemy remains" (verb agrees with the count).
+  const remaining = first.match(/^(.*?)(\d+) (\S+) remaining$/);
+  if (remaining) {
+    const [, head, count, noun] = remaining;
+    const verb = Number(count) === 1 ? 'remains' : 'remain';
+    return `${head}${count} ${noun} ${verb}`.replace(': ', ' · ');
+  }
+  return first.replace(': ', ' · ');
 }
 export function sidebarCounters(turnText, charges) {
   const par = String(turnText || '').match(/Par:\s*(\d+)\s*\(([^)]+)\)/);

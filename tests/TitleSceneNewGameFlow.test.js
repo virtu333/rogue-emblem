@@ -125,7 +125,7 @@ describe('TitleScene NEW GAME → first-run fast path', () => {
 
     expect(ok).toBe(false);
     expect(scene.showMessage).toHaveBeenCalledWith(
-      'All 3 save slots are full.\nDelete a slot from Continue to free space.',
+      'All 3 save slots are full.\nDelete a slot from Save Slots to free space.',
     );
     expect(startFirstRunFastPathMock).not.toHaveBeenCalled();
     expect(setActiveSlotMock).not.toHaveBeenCalled();

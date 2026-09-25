@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { InputController } from '../src/ui/InputController.js';
 import { TERRAIN } from '../src/utils/constants.js';
+import { loadGameData } from './testData.js';
 
 function makeScene(overrides = {}) {
   return {
@@ -928,5 +929,150 @@ describe('mobile first-tap unit actions', () => {
     if (kind === 'no-hud') scene._mobileBattleHud = null;
     controller.handleIdleClick({ col: 1, row: 1 });
     expect(scene.showActionMenu).not.toHaveBeenCalled();
+  });
+});
+
+describe('desktop: clicking an enemy while a unit is selected', () => {
+  const data = loadGameData();
+  const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
+  function setup({ enemyAt = { col: 3, row: 1 }, mobile = false } = {}) {
+    const sword = weapon('Iron Sword');
+    const unit = {
+      name: 'Edric',
+      faction: 'player',
+      col: 1,
+      row: 1,
+      skills: [],
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+      graphic: { clearTint: vi.fn() },
+    };
+    const foe = { name: 'Fighter', faction: 'enemy', currentHP: 20, ...enemyAt };
+    const at = (col, row) => [unit, foe].find((u) => u.col === col && u.row === row) || null;
+    const scene = makeScene({
+      isMobileInput: mobile,
+      battleState: 'UNIT_SELECTED',
+      selectedUnit: unit,
+      enemyUnits: [foe],
+      gameData: { skills: [] },
+      getUnitAt: vi.fn(at),
+      _isTutorialStrictGateActive: () => false,
+      showActionMenu: vi.fn(() => {
+        scene.battleState = 'UNIT_ACTION_MENU';
+        scene.actionMenu = [{ text: 'Attack', _action: () => {} }];
+      }),
+      findAttackTargets: vi.fn((u) =>
+        Math.abs(u.col - foe.col) + Math.abs(u.row - foe.row) === 1 ? [foe] : [],
+      ),
+      moveUnit: vi.fn(),
+      deselectUnit: vi.fn(),
+      registry: { get: () => null },
+    });
+    const flow = { begin: vi.fn() };
+    scene._attackFlow = () => flow;
+    scene.grid.snapshotFogState = vi.fn(() => 'fog');
+    scene.movementRange = new Map([
+      ['1,1', { cost: 0 }],
+      ['2,1', { cost: 1 }],
+      ['1,0', { cost: 1 }],
+      ['2,0', { cost: 2 }],
+    ]);
+    const controller = new InputController(scene);
+    return { unit, foe, scene, flow, controller };
+  }
+
+  it('an enemy in reach from the current tile opens its forecast without moving', () => {
+    const { unit, foe, scene, flow, controller } = setup({ enemyAt: { col: 2, row: 1 } });
+    // (2,1) is the enemy's own tile: not a movement destination.
+    scene.movementRange.delete('2,1');
+    controller.handleSelectedClick({ col: 2, row: 1 });
+    expect(scene.moveUnit).not.toHaveBeenCalled();
+    expect(scene.preMoveLoc).toEqual({ col: 1, row: 1 });
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+    expect(flow.begin).toHaveBeenCalledWith(unit, { target: foe });
+    expect(scene.deselectUnit).not.toHaveBeenCalled();
+  });
+
+  it('an enemy reachable by moving walks to the closest attack tile, then opens the forecast', () => {
+    const { unit, foe, scene, flow, controller } = setup();
+    controller.handleSelectedClick({ col: 3, row: 1 });
+    expect(scene.moveUnit).toHaveBeenCalledWith(unit, 2, 1);
+    expect(flow.begin).not.toHaveBeenCalled();
+    // BattleScene.afterMove: the action menu is up at the new tile.
+    unit.col = 2;
+    scene.showActionMenu(unit);
+    expect(controller.resumeMoveAttack(unit)).toBe(true);
+    expect(flow.begin).toHaveBeenCalledWith(unit, { target: foe });
+    // The intent is single-use.
+    expect(controller.resumeMoveAttack(unit)).toBe(false);
+    expect(flow.begin).toHaveBeenCalledOnce();
+  });
+
+  it('a later ordinary move never inherits a stale attack intent', () => {
+    const { unit, scene, flow, controller } = setup();
+    controller.handleSelectedClick({ col: 3, row: 1 }); // move-attack starts...
+    controller.handleSelectedClick({ col: 1, row: 0 }); // ...then a plain move
+    expect(scene.moveUnit).toHaveBeenLastCalledWith(unit, 1, 0);
+    unit.col = 1;
+    unit.row = 0;
+    scene.showActionMenu(unit);
+    expect(controller.resumeMoveAttack(unit)).toBe(false);
+    expect(flow.begin).not.toHaveBeenCalled();
+  });
+
+  it('stays on the post-move menu when the unit stopped out of reach (e.g. slid on ice)', () => {
+    const { unit, scene, flow, controller } = setup();
+    controller.handleSelectedClick({ col: 3, row: 1 });
+    unit.col = 1;
+    unit.row = 0;
+    scene.showActionMenu(unit);
+    expect(controller.resumeMoveAttack(unit)).toBe(false);
+    expect(flow.begin).not.toHaveBeenCalled();
+    expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+  });
+
+  it('an enemy out of reach this turn keeps the old deselect', () => {
+    const { scene, flow, controller } = setup({ enemyAt: { col: 9, row: 9 } });
+    controller.handleSelectedClick({ col: 9, row: 9 });
+    expect(scene.moveUnit).not.toHaveBeenCalled();
+    expect(flow.begin).not.toHaveBeenCalled();
+    expect(scene.deselectUnit).toHaveBeenCalledOnce();
+  });
+
+  it.each(['touch', 'fogged', 'moved', 'tutorial'])('does not apply for %s', (kind) => {
+    const { unit, scene, flow, controller } = setup({ mobile: kind === 'touch' });
+    if (kind === 'fogged') {
+      scene.grid.fogEnabled = true;
+      scene.grid.isVisible = () => false;
+    }
+    if (kind === 'moved') unit.hasMoved = true;
+    if (kind === 'tutorial') scene._isTutorialStrictGateActive = () => true;
+    expect(controller.attackApproach({ col: 3, row: 1 })).toBeNull();
+    expect(controller.tryAttackFromSelection({ col: 3, row: 1 })).toBe(false);
+    expect(scene.moveUnit).not.toHaveBeenCalled();
+    expect(flow.begin).not.toHaveBeenCalled();
+  });
+
+  it('hovering such an enemy previews the walk to the attack tile', () => {
+    const { scene, controller } = setup();
+    Object.assign(scene.grid, {
+      mapLayout: [[TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain]],
+      terrainData: [{ name: 'Plain', moveCost: { Infantry: '1' } }],
+      reconstructIcePath: vi.fn(() => null),
+      findPath: vi.fn(() => [
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+      ]),
+      showPath: vi.fn(),
+      showSlidePath: vi.fn(),
+      clearPath: vi.fn(),
+    });
+    scene.buildOccupiedSet = () => new Set();
+    scene._getCostModifier = () => 0;
+    controller.updatePathPreview(3, 1);
+    expect(scene.grid.findPath.mock.calls[0].slice(0, 4)).toEqual([1, 1, 2, 1]);
+    expect(scene.grid.showPath).toHaveBeenCalledOnce();
+    expect(scene._lastPathPreviewKey).toBe('attack:3,1');
   });
 });
