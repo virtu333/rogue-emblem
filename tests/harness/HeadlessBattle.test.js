@@ -168,24 +168,35 @@ describe('HeadlessBattle', () => {
     }
   });
 
-  it('recruit-node lord path in headless can promote on low promotion roll', () => {
+  it('recruit-node lord path in headless can promote on a low promotion roll', () => {
+    // The recruit is built on its own seeded stream (RecruitNodeSystem), not the
+    // battle's Math.random: find a run seed whose stream rolls the promotion, then
+    // check the same seed spawns the same promoted lord again (roll branches are
+    // covered with scripted streams in RecruitNodeSystem.test.js).
     const recruitData = buildPromotedRecruitData(gameData);
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    try {
+    const spawnLord = (recruitRunSeed) => {
+      installSeed(12345);
       const battle = new HeadlessBattle(recruitData, {
         act: 'act4',
         objective: 'rout',
         row: 3,
         isRecruitBattle: true,
+        recruitRunSeed,
         metaEffects: { lordRecruitChanceBonus: 1 },
       });
       battle.init();
-      const npc = battle.npcUnits.find((u) => u.isLord);
+      return battle.npcUnits.find((u) => u.isLord) || null;
+    };
+    let promotedSeed = null;
+    for (let seed = 1; seed <= 40 && promotedSeed === null; seed++) {
+      const npc = spawnLord(seed);
       expect(npc).toBeTruthy();
-      expect(npc.tier).toBe('promoted');
-    } finally {
-      randomSpy.mockRestore();
+      if (npc.tier === 'promoted') promotedSeed = seed;
     }
+    expect(promotedSeed).not.toBeNull();
+    const again = spawnLord(promotedSeed);
+    expect(again.tier).toBe('promoted');
+    expect(again.className).toBe(spawnLord(promotedSeed).className);
   });
 
   it('recruit-node regular NPC applies meta recruit bonuses and item injections', () => {

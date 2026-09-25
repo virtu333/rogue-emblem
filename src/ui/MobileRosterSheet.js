@@ -27,7 +27,7 @@ import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
-import { MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
 import {
   teachScrollBlock,
   teachRosterScroll,
@@ -79,6 +79,7 @@ import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
+import { playCue } from './ceremonyMusic.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -822,7 +823,7 @@ export class MobileRosterSheet {
         };
         const growth = choice && rite?.content ? growthCeremonies(this.scene) : null;
         if (!growth) {
-          if (choice) this.scene.registry.get('audio')?.playSFX('sfx_levelup');
+          if (choice) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
           done();
           return;
         }
@@ -856,9 +857,9 @@ export class MobileRosterSheet {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
         if (result.ok) {
           const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
-          this.scene.registry
-            .get('audio')
-            ?.playSFX(item.effect === 'promote' ? 'sfx_levelup' : 'sfx_confirm');
+          if (item.effect === 'promote')
+            void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
+          else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
             `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
           );
@@ -1045,10 +1046,25 @@ export class MobileRosterSheet {
     const items = this.run.getConvoyItems();
     const counts = this.run.getConvoyCounts();
     const caps = this.run.getConvoyCapacities();
-    this.card(
+    const shared = this.card(
       'Shared convoy',
       `Weapons ${counts.weapons}/${caps.weapons} · Consumables ${counts.consumables}/${caps.consumables}`,
     );
+    // Plain words for new players: what the convoy is and what Store / Withdraw do,
+    // with the longer explanation one gesture away (ⓘ / press and hold).
+    shared.append(
+      el(
+        'p',
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below.',
+        'mr-convoy-explain',
+      ),
+    );
+    this.explain(shared, 'the convoy', 'Convoy', [
+      'The convoy is storage shared by your whole army. You manage it between battles, from Roster › Convoy.',
+      `Units fight only with what they carry: up to ${INVENTORY_MAX} weapons or staves and ${CONSUMABLE_MAX} consumables each.`,
+      'Store moves a carried item into the convoy. Withdraw gives a stored item to the unit shown below (tap it to choose another unit).',
+      'Rewards, shop purchases and a fallen ally’s gear go to the convoy when nobody has room.',
+    ]);
     if (!unit) {
       this.card('No recipient', 'A roster unit is needed to withdraw items.');
       return;

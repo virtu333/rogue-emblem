@@ -94,8 +94,6 @@ function getLatePressureConfig(config) {
  * @param {number} turnsTaken
  * @param {number|null} par
  * @param {object} config - turnBonus.json data
- * @param {{ eclipseActive?: boolean }} [options] - while the Eclipse is the run's
- *   visible clock, XP and gold never decay silently: multipliers stay at 1.
  * @returns {{
  *   active: boolean,
  *   hasPar: boolean,
@@ -107,7 +105,7 @@ function getLatePressureConfig(config) {
  *   goldMultiplier: number,
  * }}
  */
-export function getLatePressureState(turnsTaken, par, config, options = {}) {
+export function getLatePressureState(turnsTaken, par, config) {
   const pressure = getLatePressureConfig(config);
   const hasPar = Number.isFinite(par);
   const safeTurn = normalizeNonNegativeInt(Number(turnsTaken), 0);
@@ -125,8 +123,7 @@ export function getLatePressureState(turnsTaken, par, config, options = {}) {
       ? pressure.goldMultipliers
       : [1];
 
-  const neutral = options?.eclipseActive === true;
-  const active = hasPar && turnsOverPar > startOverPar && !neutral;
+  const active = hasPar && turnsOverPar > startOverPar;
   const step = active ? Math.max(1, Math.ceil((turnsOverPar - startOverPar) / stepTurns)) : 0;
   const xpIdx = Math.min(step, xpTable.length - 1);
   const goldIdx = Math.min(step, goldTable.length - 1);
@@ -138,8 +135,8 @@ export function getLatePressureState(turnsTaken, par, config, options = {}) {
     step,
     startOverPar,
     stepTurns,
-    xpMultiplier: neutral ? 1 : normalizeMultiplier(Number(xpTable[xpIdx]), 1),
-    goldMultiplier: neutral ? 1 : normalizeMultiplier(Number(goldTable[goldIdx]), 1),
+    xpMultiplier: normalizeMultiplier(Number(xpTable[xpIdx]), 1),
+    goldMultiplier: normalizeMultiplier(Number(goldTable[goldIdx]), 1),
   };
 }
 
@@ -201,13 +198,13 @@ export function calculateBonusGold(rating, actId, config) {
  * @param {object} config - turnBonus.json data
  * @returns {string|null} tooltip text, or null if config/par unusable
  */
-export function formatParTooltip(turnsTaken, par, config, options = {}) {
+export function formatParTooltip(turnsTaken, par, config) {
   if (!config || !Number.isFinite(par)) return null;
   const { rating } = getRating(turnsTaken, par, config);
   const xpMult = config.parXpMultipliers?.[rating] ?? 1;
   const goldBracket = config.brackets?.find((b) => b.rating === rating);
   const goldMult = goldBracket ? goldBracket.bonusMultiplier : 0;
-  const pressure = getLatePressureState(turnsTaken, par, config, options);
+  const pressure = getLatePressureState(turnsTaken, par, config);
 
   let text = `${rating}-rank \u00b7 XP \u00d7${xpMult.toFixed(2)} \u00b7 Par Gold \u00d7${goldMult.toFixed(2)}`;
   if (pressure.active) {

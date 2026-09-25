@@ -69,7 +69,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 49 original music files + 141 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -93,7 +93,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
 - **imbues.json** — One imbue per weapon, instance-only state (`weapon._imbueId`; canonical weapons.json never gains imbue fields). Effects resolve catalog-side at combat time via `ImbueSystem.js`; combat mods merge like weapon-art mods in `Combat.js`. Imbuing Stones are whetstone-like `forge`-category loot (act2+), stone names listed in lootTables forge pools (whetstones doubled so stones drop ~half as often as Silver Whetstone).
-- **eclipse.json** — The Eclipse (`docs/specs/eclipse.md`, `EclipseSystem.js`): shadow is committed only at battle victory (`completeBattle({ turnCount, turnPar })`), never mid-battle. Node falls transform nodes (never delete); thresholds are computed from `runSeed` + node id; conversions run on their own seeded stream. While active, late-pressure XP/gold decay is off.
+- **eclipse.json** — The Eclipse (`docs/specs/eclipse.md`, `EclipseSystem.js`): shadow is committed only at battle victory (`completeBattle({ turnCount, turnPar })`), never mid-battle. Node falls transform nodes (never delete); thresholds are computed from `runSeed` + node id; conversions run on their own seeded stream. Late-pressure XP/gold decay past par still applies while it runs.
 - **dialogue.json `unitVoice`** — Recruits speak from merged class + temperament + trait pools (temperament is derived per run from name + run seed, never stored); lords only from `lords.<name>`. Picks are pure (`UnitVoice.js`, no RNG / narrative log). Lines ≤ 90 chars; tokens `{leader}` (recruit pools only), `{name}`, `{skill}` (skills pool only). A line naming another lord plays only when that lord is in the army. Voice rules: `docs/lore-style-guide.md`.
 - **traits.json** — Rules v2 (`docs/specs/traits-v2.md`). Rolling is class-aware: `roll` blocks gate or weight traits by role. `ATTACK` in creationMods resolves to the class's attack stat (STR/MAG), and traits never replace a mastery perk (`masteryPerkMultiplier` only amplifies it). Retired v1 ids stay defined so old saves load; `migrateUnitTraits` converts them once. Per-unit trait text comes from `src/ui/traitContent.js`.
 - **skills.json** — 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action. `activation` = proc chance type (SKL/SKL_HALF/LCK_THIRD/SPD/LCK/always).
@@ -121,6 +121,15 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Character portraits: 128x128
 - Battle sprites (post-MVP): 64x64 or 96x96
 - Player units = blue palette, enemies = red palette, NPCs = green palette
+
+## Music (composed in code)
+All music is original: 29 loop scores in `tools/music/scores/` and 29 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+- **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
+- **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.
+- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API. Escape maps play `MUSIC.escape`.
+- **Boss enrage:** each boss theme ships `<theme>_enrage_<boss>` (same timeline, `getBossEnrageLayer`); `BattleMusicController.onBossEnrage()` crossfades to it when turn pressure enrages the boss (`setMusicIntensity('enrage')`).
+- **Stingers:** `audio.playStinger(name, { fallbackSfx, duck, waitMs })` plays a cue in the key of the current track (keyed cues exist per tonic) and ducks the music; `stopStingers()` fades them. Ceremonies call them through `src/ui/ceremonyMusic.js`; boss cards map in `BOSS_CARD_CUES` (the Entity: silence).
+- **Adding a cue:** write a score (or stinger), build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans, bad loop points, a boss without an enrage layer or a keyed stinger missing a key.
 
 ## Art Pipeline (Imagen API)
 AI-generated pixel art via Google Imagen 4 API.

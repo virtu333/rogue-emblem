@@ -76,6 +76,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
+import { playCue } from './ceremonyMusic.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1626,7 +1627,16 @@ export class RosterOverlay {
     this._convoyFocusRows = [];
 
     this._text(x, y, 'Convoy Management', UI_PALETTE.accent, '14px');
-    y += 24;
+    y += 20;
+    // Plain words for new players: what the convoy is and what Withdraw does.
+    this._text(
+      x,
+      y,
+      'Shared storage between battles. Withdraw gives an item to the unit below.',
+      UI_PALETTE.muted,
+      '9px',
+    );
+    y += 16;
 
     const caps = this.runManager.getConvoyCapacities();
     const counts = this.runManager.getConvoyCounts();
@@ -1784,7 +1794,7 @@ export class RosterOverlay {
       const audio = this.scene.registry.get('audio');
       if (typeof this.scene.sound?.stopByKey === 'function')
         this.scene.sound.stopByKey('sfx_levelup');
-      if (audio) audio.playSFX('sfx_levelup');
+      if (audio) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
       const droppedNames = getSkillDisplayNames(
         promotionResult?.droppedSkills,
         this.gameData.skills,

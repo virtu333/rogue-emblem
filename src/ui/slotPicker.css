@@ -232,7 +232,7 @@
 }
 .sp-kicker {
   flex-shrink: 0;
-  font: 8px/1.4 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.4 var(--re-pixel);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--re-accent-text);
@@ -314,7 +314,7 @@
 }
 .sp-act {
   margin: 0 0 3px;
-  font: 8px/1.4 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.4 var(--re-pixel);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--sp-mood);

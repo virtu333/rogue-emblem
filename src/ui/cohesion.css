@@ -71,7 +71,7 @@
   gap: 8px;
 }
 .re-live-menu .re-header h2 {
-  font-size: 11px;
+  font-size: var(--re-pf-11, 11px);
 }
 .re-live-menu .re-header .re-search {
   margin-left: auto;
@@ -137,7 +137,7 @@
   white-space: pre-wrap;
 }
 .re-dialogue h2 {
-  font: 11px/1.6 var(--re-pixel);
+  font: var(--re-pf-11, 11px)/1.6 var(--re-pixel);
   color: var(--re-text);
   margin: 0;
 }
@@ -152,7 +152,9 @@
   min-height: 44px;
 }
 @media (min-width: 1000px) {
-  .re-live-menu {
+  /* Centers a full-screen menu's column. Compact dialogs (Field notes, prompts)
+     are already narrow; viewport padding would crush their content. */
+  .re-live-menu:not(.re-compact-menu) {
     padding-inline: max(24px, calc((100vw - 1100px) / 2));
   }
 }

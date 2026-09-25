@@ -42,7 +42,7 @@ import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
-import { EclipseHudController, isEclipseClock } from '../ui/EclipseHudController.js';
+import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -77,10 +77,8 @@ import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
   createPromotedEnemyUnit,
-  createRecruitUnit,
   calculateCombatXP,
   gainExperience,
-  levelUp,
   addToInventory,
   addToConsumables,
   removeFromConsumables,
@@ -88,19 +86,13 @@ import {
   getStaffWeapon,
   getCombatWeapons,
   canPromote,
-  promoteUnit,
   resolvePromotionTargetClass,
-  grantLethalArmoryWeapon,
   grantSecondaryWeapons,
-  applyRecruitWeaponForge,
-  grantRecruitStartingAccessory,
   checkLevelUpSkills,
-  learnSkill,
   removeFromInventory,
   hasProficiency,
   canEquip,
   applyStatBoost,
-  getClassInnateSkills,
   canReclass,
   getReclassTargets,
   reclassUnit,
@@ -149,6 +141,9 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
+import { computeDangerTiles } from '../engine/ThreatForecast.js';
+import { ThreatSightController } from '../ui/ThreatSightController.js';
+import { GuidanceController } from '../ui/GuidanceController.js';
 import {
   TILE_SIZE,
   FACTION_COLORS,
@@ -164,16 +159,12 @@ import {
   TERRAIN_HEAL_PERCENT,
   FORT_HEAL_DECAY_MULTIPLIERS,
   ANTI_TURTLE_NO_PROGRESS_TURNS,
-  RECRUIT_SKILL_POOL,
-  XP_STAT_NAMES,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
   XP_SPECIAL_ENEMY_MULTIPLIER,
-  BASE_CLASS_LEVEL_CAP,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  RECRUIT_NODE_LORD_CHANCE,
   ZOMBIE_CLASSES,
   filterClassPoolByDifficulty,
   ENTITY_SPLASH_COUNT,
@@ -234,26 +225,12 @@ import {
 import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
-import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
+import BattleMusicController from '../ui/BattleMusicController.js';
+import { levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
-import {
-  generateBossRecruitCandidates,
-  getAvailableLords,
-  createBossLordUnit,
-  getRecruitPoolEntries,
-} from '../engine/BossRecruitSystem.js';
-import {
-  RECRUIT_PROMOTION_CONTEXT,
-  isPromotedRecruitSource,
-  rollRecruitPromotion,
-  getFailBaseLevel,
-} from '../engine/RecruitPromotion.js';
-import {
-  resolveRecruitScalingTargets,
-  resolveTeamAverageLevel,
-  applyAct3RecruitBonus,
-} from '../engine/RecruitScaling.js';
+import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
+import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/RecruitNodeSystem.js';
 import {
   adaptDialogueEntries,
   adaptDialogueLine,
@@ -288,6 +265,7 @@ import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { MobileBattleHUD } from '../ui/MobileBattleHUD.js';
 import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
+import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
@@ -537,6 +515,8 @@ export class BattleScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
+    this._musicCtrl?.destroy();
+    this._musicCtrl = null;
 
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
@@ -628,6 +608,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._villageController) {
       this._villageController.destroy();
       this._villageController = null;
+    }
+    if (this._recruitBeacon) {
+      this._recruitBeacon.destroy();
+      this._recruitBeacon = null;
     }
     if (this._promotionController) {
       this._promotionController.destroy();
@@ -1398,10 +1382,15 @@ export class BattleScene extends Phaser.Scene {
           this.addUnitGraphic(unit);
         }
       } else if (deployedRoster) {
-        for (let i = 0; i < deployedRoster.length && i < bc.playerSpawns.length; i++) {
+        // Recruit battles: lords (who alone can Talk) take the spawns nearest the recruit.
+        const tiles = spawnTilesForDeployment(deployedRoster, bc.playerSpawns, {
+          lordsFirst: Boolean(bc.npcSpawn),
+        });
+        for (let i = 0; i < deployedRoster.length; i++) {
+          if (!tiles[i]) continue;
           const unit = deployedRoster[i];
-          unit.col = bc.playerSpawns[i].col;
-          unit.row = bc.playerSpawns[i].row;
+          unit.col = tiles[i].col;
+          unit.row = tiles[i].row;
           resetUnitForBattle(unit);
           this.playerUnits.push(unit);
           this.addUnitGraphic(unit);
@@ -1468,318 +1457,40 @@ export class BattleScene extends Phaser.Scene {
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
 
-      // Spawn NPC for recruit battles
+      // Spawn NPC for recruit battles. RecruitNodeSystem builds the exact recruit the
+      // Loom previewed (own seeded stream, so the battle RNG is not consumed).
       if (bc.npcSpawn && !this._resumeCheckpoint) {
         const npcSpawn = bc.npcSpawn;
-        const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
-        const teamAvgLevel = resolveTeamAverageLevel(this.playerUnits);
-        const { dynamicPromotionLevel, promotedLevelTarget } = resolveRecruitScalingTargets(
-          this.playerUnits,
-        );
-        const act = this.battleParams?.act || 'act1';
-        const actPool = this.gameData?.enemies?.pools?.[act];
-        const actMinLevel = actPool?.levelRange?.[0] || 1;
-        const nodeTargetLevel = Math.max(
-          actMinLevel,
-          teamAvgLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
-        );
-        npcSpawn.level = nodeTargetLevel;
-
-        // Lord roll: chance to spawn a lord (Kira/Voss) instead of a regular recruit
-        let spawnedLord = false;
-        const rosterForLordCheck = this.runManager?.roster || [];
-        const fallenForLordCheck = this.runManager?.fallenUnits || [];
-        const availLords = getAvailableLords(
-          rosterForLordCheck,
-          this.gameData.lords || [],
-          fallenForLordCheck,
-          this.runManager?.getStartingLordNames?.(),
-        );
-
-        const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
-        const promotionContext = {
-          type: RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE,
-          classesData: this.gameData.classes || [],
-        };
-        const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
-        const effectiveLordChance = Math.min(
-          1,
-          Math.max(0, RECRUIT_NODE_LORD_CHANCE + lordChanceBonus),
-        );
-        if (availLords.length > 0 && Math.random() < effectiveLordChance) {
-          const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
-          const lordClassData = this.gameData.classes.find((c) => c.name === lordDef.class);
-          const actRecruitPool = getRecruitPoolEntries(
-            this.gameData.recruits,
-            act,
-            this.gameData.classes,
-          );
-          const recruitPoolClassData = actRecruitPool
-            .map((entry) => this.gameData.classes.find((c) => c.name === entry.className))
-            .find((c) => isPromotedRecruitSource(c, this.gameData.classes));
-          const lordPromotedClassData =
-            typeof lordDef?.promotedClass === 'string'
-              ? this.gameData.classes.find((c) => c.name === lordDef.promotedClass)
-              : null;
-          const canPromoteLord = Boolean(
-            lordPromotedClassData &&
-            (lordDef?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
-          );
-          const lordRoll =
-            canPromoteLord && recruitPoolClassData
-              ? rollRecruitPromotion(
-                  promotionContext,
-                  recruitPoolClassData,
-                  metaEffects,
-                  Math.random,
-                )
-              : { eligible: false, promote: false };
-          if (lordClassData) {
-            const npc = createBossLordUnit(
-              lordDef,
-              lordClassData,
-              this.gameData.weapons,
-              npcSpawn.level,
-              metaEffects,
-              {
-                act,
-                promoteLord: canPromoteLord && lordRoll.promote,
-                classes: this.gameData.classes || [],
-                skills: this.gameData.skills || [],
-                dynamicPromotionLevel,
-                promotedLevelTarget,
-                baseLevelOverride: null,
-              },
-            );
-            applyAct3RecruitBonus(npc, act);
-            npc.faction = 'npc';
-            npc.col = npcSpawn.col;
-            npc.row = npcSpawn.row;
-            this.npcUnits.push(npc);
-            this.addUnitGraphic(npc);
-            spawnedLord = true;
-          }
-        }
-
-        if (!spawnedLord) {
-          const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
-          if (npcClassData) {
-            const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
-            const recruitGrowthBonuses =
-              this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
-            const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
-              ? RECRUIT_SKILL_POOL
-              : null;
-
-            let npc;
-            if (npcClassData.tier === 'promoted') {
-              const promotionRoll = rollRecruitPromotion(
-                promotionContext,
-                npcClassData,
-                metaEffects,
-                Math.random,
-              );
-              if (promotionRoll.eligible && promotionRoll.promote) {
-                // Promoted recruit: create from base class, then promote.
-                const baseClassData = this.gameData.classes.find(
-                  (c) => c.name === npcClassData.promotesFrom,
-                );
-                if (baseClassData) {
-                  const baseDef = {
-                    ...npcSpawn,
-                    className: baseClassData.name,
-                    level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
-                  };
-                  npc = createRecruitUnit(
-                    baseDef,
-                    baseClassData,
-                    this.gameData.weapons,
-                    recruitStatBonuses,
-                    recruitGrowthBonuses,
-                    recruitSkillPool,
-                    this.gameData.classes,
-                    {
-                      traitsData: this.gameData.traits || null,
-                      skillsData: this.gameData.skills,
-                      rng: Math.random,
-                      traitClassData: npcClassData,
-                    },
-                  );
-                  for (const sid of getClassInnateSkills(
-                    baseClassData.name,
-                    this.gameData.skills,
-                  )) {
-                    learnSkill(npc, sid);
-                  }
-                  promoteUnit(
-                    npc,
-                    npcClassData,
-                    npcClassData.promotionBonuses,
-                    this.gameData.skills,
-                  );
-                  const promotedLevels = Math.max(0, promotedLevelTarget - 1);
-                  for (let i = 0; i < promotedLevels; i++) {
-                    const result = levelUp(npc);
-                    if (result) {
-                      npc.level = result.newLevel;
-                      for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
-                      npc.currentHP += result.gains.HP;
-                    }
-                  }
-                  checkLevelUpSkills(npc, this.gameData.classes);
-                } else {
-                  // Safety fallback: create from promoted class directly rather than aborting battle load.
-                  npc = createRecruitUnit(
-                    npcSpawn,
-                    npcClassData,
-                    this.gameData.weapons,
-                    recruitStatBonuses,
-                    recruitGrowthBonuses,
-                    recruitSkillPool,
-                    this.gameData.classes,
-                    {
-                      traitsData: this.gameData.traits || null,
-                      skillsData: this.gameData.skills,
-                      rng: Math.random,
-                    },
-                  );
-                  console.warn(
-                    'Promoted recruit missing base class mapping:',
-                    npcClassData.name,
-                    npcClassData.promotesFrom,
-                  );
-                }
-              } else if (promotionRoll.eligible && !promotionRoll.promote) {
-                const baseClassData = this.gameData.classes.find(
-                  (c) => c.name === promotionRoll.baseClassName,
-                );
-                if (baseClassData) {
-                  const baseDef = {
-                    ...npcSpawn,
-                    className: baseClassData.name,
-                    level: getFailBaseLevel(npcSpawn.level, dynamicPromotionLevel),
-                  };
-                  npc = createRecruitUnit(
-                    baseDef,
-                    baseClassData,
-                    this.gameData.weapons,
-                    recruitStatBonuses,
-                    recruitGrowthBonuses,
-                    recruitSkillPool,
-                    this.gameData.classes,
-                    {
-                      traitsData: this.gameData.traits || null,
-                      skillsData: this.gameData.skills,
-                      rng: Math.random,
-                    },
-                  );
-                  for (const sid of getClassInnateSkills(
-                    baseClassData.name,
-                    this.gameData.skills,
-                  )) {
-                    learnSkill(npc, sid);
-                  }
-                } else {
-                  npc = createRecruitUnit(
-                    npcSpawn,
-                    npcClassData,
-                    this.gameData.weapons,
-                    recruitStatBonuses,
-                    recruitGrowthBonuses,
-                    recruitSkillPool,
-                    this.gameData.classes,
-                    {
-                      traitsData: this.gameData.traits || null,
-                      skillsData: this.gameData.skills,
-                      rng: Math.random,
-                    },
-                  );
-                  console.warn(
-                    'Promoted recruit roll fallback missing base class mapping:',
-                    npcClassData.name,
-                    promotionRoll.baseClassName,
-                  );
-                }
-              } else {
-                // Safety fallback: invalid promoted-source mapping uses direct class spawn.
-                const baseDef = {
-                  ...npcSpawn,
-                  className: npcClassData.name,
-                  level: Math.min(npcSpawn.level, BASE_CLASS_LEVEL_CAP),
-                };
-                npc = createRecruitUnit(
-                  baseDef,
-                  npcClassData,
-                  this.gameData.weapons,
-                  recruitStatBonuses,
-                  recruitGrowthBonuses,
-                  recruitSkillPool,
-                  this.gameData.classes,
-                  {
-                    traitsData: this.gameData.traits || null,
-                    skillsData: this.gameData.skills,
-                    rng: Math.random,
-                  },
-                );
-                console.warn(
-                  'Promoted recruit source not eligible for promotion roll:',
-                  npcClassData.name,
-                  npcClassData.promotesFrom,
-                );
-              }
-            } else {
-              npc = createRecruitUnit(
-                npcSpawn,
-                npcClassData,
-                this.gameData.weapons,
-                recruitStatBonuses,
-                recruitGrowthBonuses,
-                recruitSkillPool,
-                this.gameData.classes,
-                {
-                  traitsData: this.gameData.traits || null,
-                  skillsData: this.gameData.skills,
-                  rng: Math.random,
-                },
-              );
-              // Assign base-class innate skills (e.g. Dancer gets 'dance')
-              for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
-                learnSkill(npc, sid);
-              }
-            }
-
-            applyAct3RecruitBonus(npc, act);
-            const npcSpawnTier = npc.weapon?.tier || 'Iron';
-            if (this.runManager?.metaEffects?.lethalArmoryTier) {
-              grantLethalArmoryWeapon(
-                npc,
-                this.gameData.weapons,
-                this.runManager.metaEffects.lethalArmoryTier,
-              );
-            }
-            if (this.runManager?.metaEffects?.masterOfArms) {
-              grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
-            }
-            if (this.runManager?.metaEffects?.recruitWeaponForge) {
-              applyRecruitWeaponForge(npc, this.runManager.metaEffects.recruitWeaponForge);
-            }
-            if (this.runManager?.metaEffects?.recruitStartingAccessory) {
-              grantRecruitStartingAccessory(
-                npc,
-                this.gameData.accessories,
-                this.runManager.metaEffects.recruitStartingAccessory,
-              );
-            }
-            if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
-              const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
-              if (vulnerary) addToConsumables(npc, vulnerary);
-            }
-
-            npc.col = npcSpawn.col;
-            npc.row = npcSpawn.row;
-            this.npcUnits.push(npc);
-            this.addUnitGraphic(npc);
-          }
+        const preview = { className: npcSpawn.className, name: npcSpawn.name };
+        const node = this.runManager?.nodeMap?.nodes?.find((n) => n.id === this.nodeId) || null;
+        const built =
+          this.runManager && node
+            ? this.runManager.getRecruitNodeUnit(node, { preview })
+            : buildRecruitNodeUnit({
+                preview,
+                nodeId: this.nodeId || 'recruit',
+                runSeed: this.battleParams?.battleSeed ?? 0,
+                act: this.battleParams?.act || 'act1',
+                roster: this.playerUnits,
+                gameData: this.gameData,
+                metaEffects:
+                  this.runManager?.getEffectiveMetaEffects?.() ??
+                  (this.runManager?.metaEffects
+                    ? {
+                        ...this.runManager.metaEffects,
+                        growthBonuses:
+                          this.runManager.getEffectiveRecruitGrowthBonuses?.() ||
+                          this.runManager.metaEffects.growthBonuses ||
+                          null,
+                      }
+                    : null),
+              });
+        const npc = built?.unit || null;
+        if (npc) {
+          npc.col = npcSpawn.col;
+          npc.row = npcSpawn.row;
+          this.npcUnits.push(npc);
+          this.addUnitGraphic(npc);
         }
       }
 
@@ -1933,9 +1644,7 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerover', () => {
         if (this.turnPar == null || !this.turnBonusConfig) return;
         const turn = this.getCurrentTurnNumber();
-        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig, {
-          eclipseActive: isEclipseClock(this),
-        });
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
         if (!text) return;
         this.parTooltipText.setText(text);
         const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
@@ -2040,6 +1749,10 @@ export class BattleScene extends Phaser.Scene {
       this.dangerZoneCache = null;
       this.dangerZoneStale = true;
       this._pinnedThreats?.invalidate();
+      // Who can reach the tile a selected unit is heading for (eye + line + count).
+      this._threatSight = new ThreatSightController(this).create();
+      // One-time field notes for new players (Guidance setting).
+      this._guidance = new GuidanceController(this).create();
 
       // Disable browser context menu
       this.input.mouse.disableContextMenu();
@@ -2124,16 +1837,20 @@ export class BattleScene extends Phaser.Scene {
         this._mobileBattleHud = new MobileBattleHUD(this);
       }
 
-      // Start battle music -- per-act tracks
-      const audio = this.registry.get('audio');
-      if (audio) {
-        const act = this.battleParams?.act || 'act1';
-        const key = this.isBoss ? getMusicKey('boss', act) : getMusicKey('battle', act);
-        if (this.battleParams?.tutorialMode) {
-          audio.releaseMusic(this, 0);
-        }
-        audio.playMusic(key, this, 800);
-      }
+      // Start battle music: per-act tracks, the antagonists' own themes, and
+      // the calm/full layers of adaptive battle themes.
+      this._musicCtrl?.destroy();
+      this._musicCtrl = new BattleMusicController(this, {
+        playersInDanger: () => this._anyPlayerInDanger(),
+        bossEnraged: () => Boolean(this.antiTurtleState?.turnEnrageActive),
+      });
+      this._musicCtrl.create({
+        act: this.battleParams?.act || 'act1',
+        isBoss: this.isBoss,
+        bossName: (this.enemyUnits || []).find((unit) => unit.isBoss)?.name || null,
+        objective: this.battleConfig?.objective || null,
+        releaseFirst: Boolean(this.battleParams?.tutorialMode),
+      });
 
       // Initial fog of war update
       if (this.grid.fogEnabled) {
@@ -2141,30 +1858,9 @@ export class BattleScene extends Phaser.Scene {
         this.updateEnemyVisibility();
       }
 
-      // D1: Recruit NPC fog hint marker -- pulsing "?" visible through fog
-      this.recruitFogMarker = null;
-      if (this.grid.fogEnabled && this.battleParams.isRecruitBattle && this.npcUnits.length > 0) {
-        const npc = this.npcUnits[0];
-        const npcPixel = this.grid.gridToPixel(npc.col, npc.row);
-        this.recruitFogMarker = this.add
-          .text(npcPixel.x, npcPixel.y, '?', {
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            color: UI_PALETTE.accentText,
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5)
-          .setDepth(4); // depth 4 = above fog (3) but below highlights (5)
-        if (!this._reduceMotion()) {
-          this.tweens.add({
-            targets: this.recruitFogMarker,
-            alpha: { from: 0.4, to: 1.0 },
-            duration: 1500,
-            yoyo: true,
-            repeat: -1,
-          });
-        }
-      }
+      // Recruit battles: a banner marks the recruit from turn 1, through fog too
+      // (RecruitBeaconController replaces the old fog-only "?" marker).
+      (this._recruitBeacon ||= new RecruitBeaconController(this)).create();
 
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
@@ -3154,10 +2850,8 @@ export class BattleScene extends Phaser.Scene {
 
   getTurnPressureState(turnOverride = null) {
     const turn = this.getCurrentTurnNumber(turnOverride);
-    // The Eclipse replaces the hidden clock: no silent XP/gold decay while it runs.
-    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig, {
-      eclipseActive: isEclipseClock(this),
-    });
+    // Late pressure (XP/gold decay past par) applies alongside the Eclipse.
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
   }
 
   formatPressureMultiplier(value) {
@@ -3261,6 +2955,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
   _playBossEnrageFx() {
+    this._musicCtrl?.onBossEnrage();
     const fx = (this._combatFx ||= new CombatFxController(this));
     for (const boss of this.enemyUnits) {
       if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
@@ -3727,6 +3422,7 @@ export class BattleScene extends Phaser.Scene {
   update() {
     if (this.dangerZone?.visible && this.dangerZoneStale) this.refreshVisibleDangerZone();
     this._pinnedThreats?.refresh();
+    this._recruitBeacon?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -6227,6 +5923,14 @@ export class BattleScene extends Phaser.Scene {
       );
       if (!silenced || hasPhysical) items.push('Attack');
     }
+    // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
+    const noReachReason = silenced
+      ? null
+      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets);
+    if (noReachReason && !items.includes('Attack')) {
+      items.push('Attack');
+      blockedActions.set('Attack', noReachReason);
+    }
     const artWeapon =
       unit.weapon && !isStaff(unit.weapon) ? unit.weapon : getCombatWeapons(unit)[0];
     // Silence blocks weapon arts
@@ -6367,9 +6071,9 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '13px',
-          color: UI_PALETTE.text,
+          color: blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
         },
-        UI_PALETTE.text,
+        blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
         () => {
           if (blockedActions.has(label) || isSleeping(unit)) return;
           const audio = this.registry.get('audio');
@@ -7920,6 +7624,7 @@ export class BattleScene extends Phaser.Scene {
    * @returns {Promise<{ result: object, selectedArt: object|null }>}
    */
   async _runCombatResolution(attacker, defender, ctx) {
+    this._musicCtrl?.onCombat();
     const previous = this._combatSpeedSnapshot;
     this._combatSpeedSnapshot = battleSpeed(this);
     try {
@@ -9150,12 +8855,14 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  _playLevelUpSfx() {
+  /** Level-up music: the cue for `kind` ('normal' | 'perfect' | 'blank' | 'promotion'). */
+  _playLevelUpSfx(kind = 'normal') {
     this._stopLevelUpSfx();
     const audio = this.registry.get('audio');
     if (!audio) return;
     this._levelUpSfxKey = 'sfx_levelup';
-    audio.playSFX(this._levelUpSfxKey);
+    const cue = kind === 'promotion' ? 'promotion_crown' : levelUpCue(kind);
+    void playCue(this, cue, { fallbackSfx: this._levelUpSfxKey });
   }
 
   _stopLevelUpSfx() {
@@ -9163,6 +8870,7 @@ export class BattleScene extends Phaser.Scene {
     if (typeof this.sound?.stopByKey === 'function') {
       this.sound.stopByKey(this._levelUpSfxKey);
     }
+    stopCues(this);
     this._levelUpSfxKey = null;
   }
 
@@ -9531,6 +9239,7 @@ export class BattleScene extends Phaser.Scene {
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
+    this._musicCtrl?.onPhaseStart(phase);
     if (!this.keepDangerVisible) this.dangerZone.hide();
     if (typeof this._expireTimedWeaponArtBuffs === 'function') {
       this._expireTimedWeaponArtBuffs(phase, turn);
@@ -10988,7 +10697,7 @@ export class BattleScene extends Phaser.Scene {
           : `Rout: ${this.enemyUnits.length} ${this.enemyUnits.length === 1 ? 'enemy' : 'enemies'} remaining`;
     }
     if (this.npcUnits.length > 0) {
-      label += '\nRecruit: Talk to green unit';
+      label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;
     }
     const villageSuffix = this._villageController?.getObjectiveSuffix();
     if (villageSuffix) {
@@ -11018,89 +10727,29 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  calculateDangerZone(onlyEnemy = null) {
-    const threatened = new Map();
-    const addDamageSource = (tiles) => {
-      for (const key of tiles) threatened.set(key, (threatened.get(key) || 0) + 1);
+  /** True when a living player unit stands inside the visible enemy threat range. */
+  _anyPlayerInDanger() {
+    const tiles = this.calculateDangerZone();
+    if (!tiles?.length) return false;
+    const threatened = new Set(tiles.map((t) => `${t.col},${t.row}`));
+    return (this.playerUnits || []).some(
+      (unit) => unit && unit.currentHP > 0 && threatened.has(`${unit.col},${unit.row}`),
+    );
+  }
+
+  /** Read-only view of this battle for ThreatForecast (danger, pins, threat sight). */
+  threatContext() {
+    return {
+      grid: this.grid,
+      enemyUnits: this.enemyUnits || [],
+      ballistas: this.ballistas || [],
+      positions: () => this.buildUnitPositionMap('enemy'),
+      costModifier: (unit) => this._getCostModifier(unit),
     };
-    const statusThreatened = new Set();
-    for (const enemy of onlyEnemy ? [onlyEnemy] : this.enemyUnits) {
-      if (enemy.currentHP <= 0 || !canInspectUnit(this.grid, enemy)) continue;
-      if (this.grid.fogEnabled) {
-        const fogVis = isEntity(enemy)
-          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-          : this.grid.isVisible(enemy.col, enemy.row);
-        if (!fogVis) continue;
-      }
+  }
 
-      // Count each enemy once per tile, regardless of movement origins or body size.
-      const enemyThreatened = new Set();
-      // Entity: stationary, compute attack range from all body tiles using all weapons
-      if (isEntity(enemy)) {
-        for (const tile of getFootprint(enemy)) {
-          const atkTiles = this.grid.getAttackRange(tile.col, tile.row, {
-            range: `1-${ENTITY_PRIMARY_ATTACK_RANGE}`,
-          });
-          for (const t of atkTiles) {
-            enemyThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-        addDamageSource(enemyThreatened);
-        continue;
-      }
-
-      const positions = this.buildUnitPositionMap(enemy.faction);
-      // willRemainRootedNextPhase, not isRooted: a root expiring at the
-      // enemy's next phase start must not understate its threat range.
-      const moveRange = this.grid.getMovementRange(
-        enemy.col,
-        enemy.row,
-        willRemainRootedNextPhase(enemy) ? 0 : enemy.mov || enemy.stats.MOV,
-        enemy.moveType,
-        positions,
-        enemy.faction,
-        this._getCostModifier(enemy),
-      );
-      for (const [key, entry] of moveRange) {
-        if (entry.stoppable === false) continue;
-        const [mc, mr] = key.split(',').map(Number);
-        const staff = statusStaffThreat(enemy);
-        if (staff) {
-          for (const t of this.grid.getAttackRange(mc, mr, {
-            range: `${staff.min}-${staff.max}`,
-          })) {
-            statusThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-        // Get attack tiles from this position based on enemy weapon
-        if (enemy.weapon) {
-          const atkTiles = this.grid.getAttackRange(mc, mr, enemy.weapon);
-          for (const t of atkTiles) {
-            enemyThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-      }
-      addDamageSource(enemyThreatened);
-    }
-    if (!onlyEnemy && this.ballistas?.length > 0) {
-      for (const ballista of this.ballistas) {
-        if (ballista.owner !== 'enemy') continue;
-        if (this.grid.fogEnabled && !this.grid.isVisible(ballista.col, ballista.row)) continue;
-        const tiles = getBallistaDangerTiles(ballista, this.grid.cols, this.grid.rows);
-        // Ballistas remain independent damage sources in the global threat view.
-        addDamageSource(new Set(tiles.map((t) => `${t.col},${t.row}`)));
-      }
-    }
-    return Array.from(new Set([...threatened.keys(), ...statusThreatened])).map((k) => {
-      const [col, row] = k.split(',').map(Number);
-      return {
-        col,
-        row,
-        count: threatened.get(k) || 0,
-        statusThreat: statusThreatened.has(k),
-        damageThreat: threatened.has(k),
-      };
-    });
+  calculateDangerZone(onlyEnemy = null) {
+    return computeDangerTiles(this.threatContext(), { onlyEnemy });
   }
 
   /** Hide/show enemy and NPC graphics based on fog visibility. */
@@ -11136,11 +10785,6 @@ export class BattleScene extends Phaser.Scene {
       }
       if (npc.affixPips) {
         npc.affixPips.forEach((p) => p.setVisible(vis));
-      }
-      // D1: Destroy recruit fog marker once NPC tile is in player vision
-      if (vis && this.recruitFogMarker) {
-        this.recruitFogMarker.destroy();
-        this.recruitFogMarker = null;
       }
     }
   }

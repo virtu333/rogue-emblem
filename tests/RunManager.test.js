@@ -3793,19 +3793,44 @@ describe('blessing run-start effect application', () => {
     rm.startRun();
     const baseGrowths = rm.roster.map((u) => ({ ...u.growths }));
 
-    rm.activeBlessings = ['forbidden_tome'];
+    // Scholar's Vow is the catalog's all_growths_delta blessing (+5 to everyone).
+    rm.activeBlessings = ['scholar_vow'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
     rm.roster.forEach((unit, idx) => {
       for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
-        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 15);
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 5);
       }
     });
     const recruitGrowthBonuses = rm.getEffectiveRecruitGrowthBonuses();
-    expect(recruitGrowthBonuses.HP).toBe(15);
-    expect(recruitGrowthBonuses.STR).toBe(15);
-    expect(recruitGrowthBonuses.SPD).toBe(15);
+    expect(recruitGrowthBonuses.HP).toBe(5);
+    expect(recruitGrowthBonuses.STR).toBe(5);
+    expect(recruitGrowthBonuses.SPD).toBe(5);
+  });
+
+  it('Forbidden Tome teaches the lords and its pact bleeds every recruit', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseGrowths = rm.roster.map((u) => ({ ...u.growths }));
+    const tome = gameData.blessings.blessings.find((b) => b.id === 'forbidden_tome');
+    rm.activeBlessings = [{ id: 'forbidden_tome', rolledCost: structuredClone(tome.pact) }];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.isLord).toBe(true);
+      for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 12);
+      }
+    });
+    const lordBonuses = rm.getEffectiveLordGrowthBonuses();
+    const recruitBonuses = rm.getEffectiveRecruitGrowthBonuses();
+    for (const stat of ['HP', 'STR', 'SPD', 'LCK']) {
+      expect(lordBonuses[stat]).toBe(12);
+      expect(recruitBonuses[stat]).toBe(-10);
+    }
   });
 
   it('disable_personal_skills_until_act removes and restores lord personal skills at target act', () => {

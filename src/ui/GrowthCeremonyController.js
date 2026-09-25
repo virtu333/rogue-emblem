@@ -36,6 +36,7 @@ import {
   sealedBeats,
 } from './growthContent.js';
 import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
+import { levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
 import { crestElement } from './crestArt.js';
 import { voiceContext } from '../engine/UnitVoice.js';
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
@@ -137,6 +138,15 @@ export class GrowthCeremonyController {
     } catch {
       /* sound is decoration */
     }
+  }
+
+  /** A music cue in the key of the track playing (see ceremonyMusic). */
+  _cue(name, opts) {
+    return playCue(this.scene, name, opts);
+  }
+
+  _stopCues(fadeMs) {
+    stopCues(this.scene, fadeMs);
   }
 
   _open({ frame, className, label, depth, animate, dialog = true }) {
@@ -263,13 +273,29 @@ export class GrowthCeremonyController {
     layer.addFitter(() => fitText(view.nameTo, { min: 16 }));
     layer.addFitter(() => fitText(view.nameFrom, { min: 14 }));
     const releaseInput = this._holdSceneInput();
-    const levelSfx = this.scene?._playLevelUpSfx;
-    if (typeof levelSfx === 'function') levelSfx.call(this.scene);
-    else this._audio('sfx_levelup');
+    // Music: the gather swells toward the name burning in and the crown lands
+    // on it (at once when the rite opens revealed or is skipped ahead).
+    let crowned = false;
+    const gather =
+      timing.animate && schedule.nameAt > 0
+        ? this._cue('promotion_gather', { waitMs: 250, duck: 0.3 })
+        : null;
+    const crown = () => {
+      if (crowned || this.destroyed) return;
+      crowned = true;
+      void gather?.then((voice) => voice?.stop(120));
+      void this._cue('promotion_crown', { fallbackSfx: 'sfx_levelup', waitMs: 300, duck: 0.25 });
+    };
+    if (gather) {
+      void this._clock.wait(schedule.nameAt).then((r) => {
+        if (r === 'elapsed') crown();
+      });
+    } else crown();
     let revealed = !timing.animate;
     const reveal = () => {
       if (revealed) return;
       revealed = true;
+      crown();
       root.classList.add('is-static', 'is-done');
       setLabel(view.button, 'Continue');
     };
@@ -301,6 +327,7 @@ export class GrowthCeremonyController {
       });
     } finally {
       this.scene?._stopLevelUpSfx?.();
+      this._stopCues(500);
       releaseInput();
       if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
         await this._close(layer, 0);
@@ -312,9 +339,18 @@ export class GrowthCeremonyController {
 
   /**
    * One level-up (gains already applied). Resolves when dismissed. `handle`
-   * (optional object) receives `cancel()` to close it from outside.
+   * (optional object) receives `cancel()` to close it from outside. `cue`
+   * plays the level-up music for the card's kind (battle level-ups get
+   * theirs from the scene, so they leave it off).
    */
-  async showLevelUp({ unit, result, learnedNames = [], frame = 'map', handle = null }) {
+  async showLevelUp({
+    unit,
+    result,
+    learnedNames = [],
+    frame = 'map',
+    handle = null,
+    cue = false,
+  }) {
     if (!unit || !result || this.destroyed || !canRenderCeremony()) return false;
     const content = levelUpContent(unit, result, learnedNames, this.voice());
     const timing = growthTiming('level', this.prefs());
@@ -335,6 +371,7 @@ export class GrowthCeremonyController {
     const view = buildLevelCard(this.scene, unit, content, layer);
     root.append(el('div', 'gr-veil gr-veil--soft'), view.card);
     const releaseInput = this._holdSceneInput();
+    if (cue) void this._cue(levelUpCue(content.kind), { fallbackSfx: 'sfx_levelup' });
     let revealed = !timing.animate;
     const finishReveal = () => {
       revealed = true;
@@ -378,6 +415,7 @@ export class GrowthCeremonyController {
         button: view.button,
       });
     } finally {
+      if (cue) this._stopCues();
       releaseInput();
       if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
         await this._close(layer, 0);
@@ -414,7 +452,7 @@ export class GrowthCeremonyController {
     layer.root.append(el('div', 'ce-dim ce-dim--soft'), view.card);
     layer.addFitter(() => fitText(view.name, { min: 16 }));
     const releaseInput = this._holdSceneInput();
-    this._audio('sfx_confirm');
+    void this._cue('recruit', { fallbackSfx: 'sfx_confirm', waitMs: 300 });
     try {
       let release;
       const skipped = new Promise((resolve) => {
@@ -436,6 +474,7 @@ export class GrowthCeremonyController {
         this._settlers.delete(settle);
         unbind();
       }
+      this._stopCues(450);
       await this._close(layer, timing.exit);
     } finally {
       releaseInput();
@@ -474,6 +513,7 @@ export class GrowthCeremonyController {
     if (detail) text.append(el('div', 'gr-sealed-detail', detail));
     band.append(text);
     layer.root.append(band);
+    void this._cue('sealed', { duck: 0.5 });
     void this._clock.wait(timing.enter + timing.hold).then(() => this._close(layer, timing.exit));
     return { root: layer.root, destroy: () => void this._close(layer, 0) };
   }
@@ -520,6 +560,7 @@ export class GrowthCeremonyController {
     let view = null;
     let revealed = false;
     let card = null; // token: stale timers of an earlier card do nothing
+    let cardCue = null; // the card's music; without it the old tick/hit effects play
     let bindSkip = null; // wires each card's "Skip all" once the batch is running
     layer.addFitter(() => view && fitText(view.epithet, { min: 15 }));
     layer.addFitter(() => view && fitText(view.name, { min: 13 }));
@@ -532,6 +573,14 @@ export class GrowthCeremonyController {
     const show = (i) => {
       const token = {};
       card = token;
+      cardCue?.stop(100);
+      cardCue = null;
+      void this._cue('deed', { duck: 0.35, fallbackSfx: i === 0 ? 'sfx_confirm' : null }).then(
+        (voice) => {
+          if (card === token) cardCue = voice;
+          else voice?.stop(100);
+        },
+      );
       const content = deedCardContent(list[i], { skills, deeds, index: i, total: list.length });
       view = buildDeedCard(this.scene, list[i].unit, content, { skipAll: list.length - i > 1 });
       bindSkip?.(view.skip);
@@ -558,8 +607,8 @@ export class GrowthCeremonyController {
         void this._clock.wait(msAt).then((r) => {
           if (r === 'elapsed' && card === token && !revealed) fn();
         });
-      at(schedule.epithetAt, () => this._audio('sfx_cursor'));
-      at(schedule.sealAt, () => this._audio('sfx_hit'));
+      at(schedule.epithetAt, () => cardCue || this._audio('sfx_cursor'));
+      at(schedule.sealAt, () => cardCue || this._audio('sfx_hit'));
       at(schedule.done, finishReveal);
     };
     const reveal = () => {
@@ -568,7 +617,6 @@ export class GrowthCeremonyController {
       finishReveal();
     };
     show(0);
-    this._audio('sfx_confirm');
     try {
       await new Promise((resolve) => {
         let done = false;
@@ -583,6 +631,7 @@ export class GrowthCeremonyController {
         this._settlers.add(settle);
         const end = () => {
           // Dismissed: the dialog and its input end now; the layer fades.
+          cardCue?.stop(300);
           releaseLayer(layer);
           settle();
           void this._close(layer, timing.exit);

@@ -36,7 +36,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
   create() {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.homeBase, this);
+    if (audio) audio.playMusic(MUSIC.shrine, this);
 
     this._onKeyUp = () => this._navigate(-1);
     this._onKeyDown = () => this._navigate(1);
@@ -340,11 +340,16 @@ export class BlessingSelectScene extends Phaser.Scene {
       }
       if (hasCostLine) {
         applyTextResolution(
-          this.add.text(nameX, row1Y + cardH - 34, `Cost: ${blessing.rolledCost.label}`, {
-            fontFamily: 'Arial',
-            fontSize: '9px',
-            color: '#c8a27b',
-          }),
+          this.add.text(
+            nameX,
+            row1Y + cardH - 34,
+            `${blessing.pact ? 'Pact' : 'Cost'}: ${blessing.rolledCost.label}`,
+            {
+              fontFamily: 'Arial',
+              fontSize: '9px',
+              color: '#c8a27b',
+            },
+          ),
         );
       }
 
