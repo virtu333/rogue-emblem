@@ -6,7 +6,7 @@
       "STR": 2
     },
     "price": 1500,
-    "lore": "From the old kingdom's champions, a signet whose grip closes on its own."
+    "lore": "Resized twice: once for a quarry foreman, once for the man who beat him."
   },
   {
     "name": "Magic Ring",
@@ -15,7 +15,7 @@
       "MAG": 2
     },
     "price": 1500,
-    "lore": "Court-circle work; it hums near a sentence left unfinished."
+    "lore": "Ansel, the ring hums while I study. Tell me that's normal. Love, Mira."
   },
   {
     "name": "Speed Ring",
@@ -42,7 +42,7 @@
       "RES": 2
     },
     "price": 1500,
-    "lore": "A seer's ward against sorcery, etched in patient script."
+    "lore": "Inside the band, in a child's letters: NO FIRE ON PAPA."
   },
   {
     "name": "Skill Ring",
@@ -51,7 +51,7 @@
       "SKL": 3
     },
     "price": 1500,
-    "lore": "The drillmaster's parting gift, still sharpening hands he never met."
+    "lore": "Pawn ticket still tied on: one ring, fletcher's, redeem by spring. Unredeemed."
   },
   {
     "name": "Goddess Icon",
@@ -60,7 +60,7 @@
       "LCK": 8
     },
     "price": 1000,
-    "lore": "A thumb-worn pocket shrine. The goddess's name was not forgotten; it was spent."
+    "lore": "Thumbed blank by the dying. The goddess's name was not forgotten; it was spent."
   },
   {
     "name": "Seraph Robe",
@@ -69,7 +69,7 @@
       "HP": 5
     },
     "price": 2000,
-    "lore": "Temple weave that lies heavy as a hand and steadies the heart under it."
+    "lore": "Temple sisters sewed it for a son they never had. It fits whoever needs it."
   },
   {
     "name": "Boots",
@@ -78,7 +78,7 @@
       "MOV": 1
     },
     "price": 3000,
-    "lore": "They still take the shortcuts their dead courier never named."
+    "lore": "Resoled four times. The courier inside them was never caught, or paid."
   },
   {
     "name": "Delphi Shield",
@@ -91,7 +91,7 @@
       "negateFlierWeakness": true
     },
     "price": 2500,
-    "lore": "A sky-knight's talisman that tells the arrow it has no special claim."
+    "lore": "Sky legion issue. The archers have a word for riders without one: supper."
   },
   {
     "name": "Veteran's Crest",
@@ -102,7 +102,7 @@
       "DEF": 1
     },
     "price": 2000,
-    "lore": "Given after a soldier's twentieth battle; almost none change hands."
+    "lore": "Awarded after twenty battles. Awarded: 61. Still worn at discharge: 4."
   },
   {
     "name": "Wrath Band",
@@ -113,7 +113,7 @@
       "condition": "below50"
     },
     "price": 2000,
-    "lore": "An arm-ring of the berserk school, awake only once the wearer bleeds."
+    "lore": "The berserk school's leash, worn backward: it loosens only once you bleed."
   },
   {
     "name": "Counter Seal",
@@ -123,7 +123,7 @@
       "preventEnemyDouble": true
     },
     "price": 2500,
-    "lore": "Wear the duelist's mark and you are owed a blow for every blow."
+    "lore": "Pressed in the wax: ONE AT A TIME, GENTLEMEN. The dueling halls' first rule."
   },
   {
     "name": "Pursuit Ring",
@@ -133,7 +133,7 @@
       "doubleThresholdReduction": 2
     },
     "price": 4000,
-    "lore": "An old-kingdom hunting band; the quarry is always slower than it hopes."
+    "lore": "Hunter's saying: the hare is faster, but the hare is also more tired."
   },
   {
     "name": "Nullify Ring",
@@ -143,7 +143,7 @@
       "negateEffectiveness": true
     },
     "price": 2500,
-    "lore": "Every slayer-rune, etched and then struck through."
+    "lore": "Engraved with every slayer-rune, each one scored out by the same angry hand."
   },
   {
     "name": "Life Ring",
@@ -155,7 +155,7 @@
       "condition": "above75"
     },
     "price": 2000,
-    "lore": "Favors the wearer who hasn't yet been touched."
+    "lore": "Favors the unscathed. Its owners tended to be either very good or very new."
   },
   {
     "name": "Forest Charm",
@@ -167,7 +167,7 @@
       "condition": "on_forest"
     },
     "price": 1200,
-    "lore": "Braided from border-wood; under the trees, the wearer counts as one of them."
+    "lore": "Plaited by a warden's daughter from birch and hair. The trees know her knot."
   },
   {
     "name": "Blood Gem",
@@ -177,7 +177,7 @@
       "weaponArtCostReduction": 5
     },
     "price": 2500,
-    "lore": "A dark stone that covers part of every art's blood-price."
+    "lore": "Eases an art's blood-price. The gem-cutter's price, it does not ease at all."
   },
   {
     "name": "Vampire's Bloodshard",
@@ -187,7 +187,7 @@
       "perHitHeal": 2
     },
     "price": 2000,
-    "lore": "Splinter of a thing the seers burned; it feeds the wearer what the blade spills."
+    "lore": "Chipped from something dug up in the fens. It was still warm. It still is."
   },
   {
     "name": "Soothing Stone",
@@ -200,7 +200,7 @@
       "healSelfPercent": 20
     },
     "price": 2000,
-    "lore": "River-smooth and always warm; wounds ease a little near it each morning."
+    "lore": "A river stone his mother warmed for his cot. It never quite cooled again."
   },
   {
     "name": "Phoenix Brooch",
@@ -212,7 +212,7 @@
       "phoenixThreshold": 0.25
     },
     "price": 2500,
-    "lore": "Ash-forged, and stubborn about letting its wearer fall."
+    "lore": "His wife pinned it on him at the gate. Twice he fell, and twice it heard her."
   },
   {
     "name": "Recoil Guard",
@@ -224,7 +224,7 @@
       "buffRES": 3
     },
     "price": 2000,
-    "lore": "Smith-blessed bracing that stiffens the body right after the art lands."
+    "lore": "Strap it tight. Swing big. Then stand there and take it like it was your idea."
   },
   {
     "name": "Bounty Hunter's Mark",
@@ -234,7 +234,7 @@
       "goldPerKill": 300
     },
     "price": 2000,
-    "lore": "A guild tally-brand; every notch is worth coin to someone."
+    "lore": "Guild brand, notched per head. The guild pays; the guild never asks whose."
   },
   {
     "name": "Moontide Amulet",
@@ -244,7 +244,7 @@
       "moontide": true
     },
     "price": 1500,
-    "lore": "Tide-silver, strong and weak by a calendar no one has finished reading."
+    "lore": "Tide-silver. Some nights it sings, some it sulks; its owner learned to count."
   },
   {
     "name": "Gambler's Coin",
@@ -254,7 +254,7 @@
       "gamblerCoin": true
     },
     "price": 1500,
-    "lore": "Two faces, neither honest; flip it and take what you're given."
+    "lore": "'Heads or tails?' 'Yes.' Last words of its previous owner, more or less."
   },
   {
     "name": "Vanguard Crest",
@@ -265,7 +265,7 @@
       "condition": "no_ally_within_2"
     },
     "price": 2000,
-    "lore": "The lone-spear medal, struck for ground no one else came to hold."
+    "lore": "Struck for those who held ground alone. Most are presented to the family."
   },
   {
     "name": "Diamond Medallion",
@@ -277,7 +277,7 @@
       "condition": "enemies_nearby_2plus"
     },
     "price": 2000,
-    "lore": "Cut to break up whatever crowds in; caravan guards swear by it."
+    "lore": "Caravan guards swear by it: the more knives around you, the harder it shines."
   },
   {
     "name": "Hunter's Cloak",
@@ -289,7 +289,7 @@
       "condition": "on_forest_or_mountain"
     },
     "price": 1500,
-    "lore": "Oiled against weather and cut to vanish; in wild country it is armor."
+    "lore": "Deep-wood families hand it down with the bow. Stand still in it and be a tree."
   },
   {
     "name": "Duelist's Glove",
@@ -302,7 +302,7 @@
       "condition": "no_ally_within_2"
     },
     "price": 2500,
-    "lore": "One wearer, one opponent, no help -- the way it likes a fight."
+    "lore": "Dueling hall etiquette: one glove thrown, one opponent, no seconds, no help."
   },
   {
     "name": "Warding Charm",
@@ -312,7 +312,7 @@
       "statusImmunity": true
     },
     "price": 2000,
-    "lore": "A seer's finished ward; curses arrive, find nothing to hold, and pass on."
+    "lore": "A novice's first ward, knotted too tight to undo. Hexes can't find the ends."
   },
   {
     "name": "Mentor's Band",
@@ -322,7 +322,7 @@
       "xpShare": 0.5
     },
     "price": 2500,
-    "lore": "The drillmaster's arm-band; whoever fights beside its wearer learns the trade."
+    "lore": "Old Hessa taught forty recruits in it. Thirty-one lived. She called it a good year."
   },
   {
     "name": "Mercury Sandals",
@@ -332,7 +332,7 @@
       "moveTypeOverride": "Flying"
     },
     "price": 5000,
-    "lore": "Winged heels that scorn the ground -- but to every archer, the wearer is a bird."
+    "lore": "Winged heels out of an old myth. The myth leaves out the archers."
   },
   {
     "name": "Phalanx Band",
@@ -345,6 +345,6 @@
       "condition": "adjacent_ally"
     },
     "price": 3500,
-    "lore": "Issued in pairs to shield-brothers; it remembers how to fight only in formation."
+    "lore": "Issued in pairs. If you find one alone, don't ask the quartermaster why."
   }
 ]

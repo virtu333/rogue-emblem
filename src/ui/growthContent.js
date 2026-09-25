@@ -9,6 +9,7 @@ import { XP_STAT_NAMES } from '../utils/constants.js';
 import { promoteUnit, getClassInnateSkills } from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
 import { crestSpecForClass } from './classCrests.js';
+import { levelBeatLine, levelUpLine, promotionLine } from '../engine/UnitVoice.js';
 
 export const GROWTH_STATS = Object.freeze([...XP_STAT_NAMES, 'MOV']);
 
@@ -195,7 +196,7 @@ export function sealedBeats(content) {
  * kind: 'perfect' (every stat grew), 'blank' (one stat or none — the
  * engine's floor), 'normal'.
  */
-export function levelUpContent(unit, result, learnedNames = []) {
+export function levelUpContent(unit, result, learnedNames = [], voice = null) {
   const stats = result?.displayStats || unit?.stats || {};
   const rows = XP_STAT_NAMES.map((stat) => {
     const gain = Math.max(0, Number(result?.gains?.[stat]) || 0);
@@ -214,7 +215,7 @@ export function levelUpContent(unit, result, learnedNames = []) {
       ? `20+${result.extendedLevel - 1}`
       : '20'
     : String((Number(result?.newLevel) || 1) - 1);
-  return {
+  const content = {
     unitName: unit?.name || '',
     className: unit?.className || '',
     levelFrom: oldLevel,
@@ -224,7 +225,21 @@ export function levelUpContent(unit, result, learnedNames = []) {
     kind,
     beat: LEVEL_BEATS[kind],
     skills: [...(learnedNames || [])].filter(Boolean),
+    quote: null,
   };
+  // The unit's own reaction, and a varied caption for the banner
+  // (voice = UnitVoice.voiceContext(); pure — never the RNG or the save).
+  if (voice?.voice && unit) {
+    content.quote = levelUpLine(unit, content, voice)?.line || null;
+    const caption = content.beat ? levelBeatLine(unit, content, voice) : null;
+    if (caption) content.beat = { ...content.beat, line: caption };
+  }
+  return content;
+}
+
+/** The unit's line at the promotion rite (null without voice data). */
+export function promotionQuote(unit, toClass, voice = null) {
+  return voice?.voice && unit ? promotionLine(unit, toClass, voice) : null;
 }
 
 export const LEVEL_BEATS = Object.freeze({
