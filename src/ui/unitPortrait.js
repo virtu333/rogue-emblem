@@ -22,6 +22,25 @@ function removeOnError(node) {
   return node;
 }
 
+/**
+ * A 32 px face chip on a text row (service menus, records): prepended to the
+ * row, whose text - and so its accessible name - stays as it was.
+ */
+export function withUnitFace(row, scene, gameData, unit) {
+  if (!row || !unit || typeof unit !== 'object') return row;
+  if (typeof globalThis.document?.createElement !== 'function') return row;
+  try {
+    const face = unitPortrait(scene, gameData, unit, 'mr-unit-face');
+    if (face) {
+      row.prepend(face);
+      row.classList?.add('has-face');
+    }
+  } catch {
+    /* a face is decoration: the row works without it */
+  }
+  return row;
+}
+
 export function unitPortrait(scene, gameData, unit, className, portraitKey) {
   if (usePc98()) {
     const id = portraitIdForUnit(unit, gameData);
@@ -45,6 +64,7 @@ export function unitPortrait(scene, gameData, unit, className, portraitKey) {
   const candidates = [rebuiltPortraitKey(scene, unit), ...fallbackCandidates];
   let source = '';
   for (const key of candidates.filter(Boolean)) {
+    if (!scene?.textures) break;
     if (scene.textures.exists(key)) {
       source = textureImageSource(scene.textures.get(key));
     } else {

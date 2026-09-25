@@ -1,7 +1,7 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
 import { traitLines } from './traitContent.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
-import { unitPortrait } from './unitPortrait.js';
+import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
@@ -22,10 +22,10 @@ function unitRow(scene, gameData, unit, action, selected) {
   );
   return row;
 }
-export function describeUnit(gameData, unit) {
+export function describeUnit(gameData, unit, scene = null) {
   const box = element('div');
   box.append(
-    element('h3', unit.name),
+    withUnitFace(element('h3', unit.name), scene, gameData, unit),
     element(
       'p',
       gameData.classes?.find((c) => c.name === unit.className)?.description || unit.className,
@@ -108,7 +108,7 @@ export function showArrivalMenu(
       );
     const detail = element('section', null, 'mu-detail');
     const copy = element('div', null, 'mu-copy');
-    copy.append(describeUnit(owner.gameData, selected.unit));
+    copy.append(describeUnit(owner.gameData, selected.unit, owner.scene));
     const confirm = button(
       title === 'Lord arrival' ? 'Welcome' : 'Recruit',
       () => finish(selected.unit),

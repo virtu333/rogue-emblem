@@ -151,6 +151,31 @@ Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
 
 ---
 
+## 2026-09-25 — Portrait variety: every recruit their own face
+
+iPhone playtest: two Fighters (Bram, Roderick) wore the identical bald, bearded portrait. Every
+generic class had one face. Decisions:
+
+- **Five people per class line, drawn in every class of the line** (175 player-side drawings,
+  60 people; Falcon Knight and Wyvern Lord have ten via the cross promotions). Promotion keeps
+  the person and changes the gear; we chose matched promoted drawings over mapping promoted
+  units to their base face so the promotion rite shows *this* unit in the new class's armour.
+- **Enemies get four faces per human class** (128) in the Empire's iron and crimson; monsters,
+  lords and bosses keep theirs. All legacy generic/enemy defaults were remastered to the rebuilt
+  quality so old and new sit in one set.
+- **Stable, never random:** `unit.portraitVariant` is chosen once from a hash of run seed, name
+  and class, skipping faces the army already has; genders follow the recruit name pools (a
+  "Bram" is never drawn as a woman, a "Hedda" never as a man). Enemies hash their spawn identity.
+  Legacy saves backfill on load. Nothing reads `Math.random` (the battle RNG).
+- **No new texture memory at boot:** the atlases and baked textures still hold only the 94
+  defaults; variants are display-sized figures the DOM decodes on demand and the canvas loads
+  lazily (capped, released after battle).
+- Text lists that named units (church, colosseum, shop choosers, records) now show the same face.
+
+Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-variety/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
