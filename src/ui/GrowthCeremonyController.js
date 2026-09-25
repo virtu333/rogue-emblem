@@ -52,6 +52,23 @@ function burnEdge() {
   return edge;
 }
 
+/** A dismissed layer stops being a dialog and stops taking input at once. */
+function releaseLayer(layer) {
+  const root = layer?.root;
+  if (!root) return;
+  root.removeAttribute('role');
+  root.removeAttribute('aria-modal');
+  root.setAttribute('aria-hidden', 'true');
+  root.classList.remove('is-blocking');
+  root.inert = true;
+}
+
+/** Label a control and keep its accessible name in step (CSS adds decoration). */
+function setLabel(button, text) {
+  button.textContent = text;
+  button.setAttribute('aria-label', text);
+}
+
 /** Integer display scale for a pixel image of natural width `w` in a `target` px box. */
 export function spriteScale(w, target) {
   return Math.max(1, Math.round(target / Math.max(1, w)));
@@ -153,8 +170,15 @@ export class GrowthCeremonyController {
         this.scene,
         layer.root,
         () => {
-          if (!isRevealed()) reveal();
-          else void onClose().then(settle);
+          if (!isRevealed()) {
+            reveal();
+            return;
+          }
+          // Dismissed: the dialog and its input end now (the flow moves on);
+          // the layer fades out on its own.
+          releaseLayer(layer);
+          settle();
+          void onClose();
         },
         { name },
       );
@@ -209,13 +233,13 @@ export class GrowthCeremonyController {
       if (revealed) return;
       revealed = true;
       root.classList.add('is-static', 'is-done');
-      view.button.textContent = 'Continue';
+      setLabel(view.button, 'Continue');
     };
     if (revealed) {
       root.classList.add('is-done');
-      view.button.textContent = 'Continue';
+      setLabel(view.button, 'Continue');
     } else {
-      view.button.textContent = 'Skip';
+      setLabel(view.button, 'Skip');
       // Ember ticks as the stat bonuses ignite (sound only; never the RNG).
       content.stats.forEach((_, i) => {
         void this._clock.wait(schedule.statsAt + i * timing.stat).then((r) => {
@@ -226,7 +250,7 @@ export class GrowthCeremonyController {
         if (r !== 'elapsed' || revealed) return;
         revealed = true;
         root.classList.add('is-done');
-        view.button.textContent = 'Continue';
+        setLabel(view.button, 'Continue');
       });
     }
     try {
@@ -240,7 +264,8 @@ export class GrowthCeremonyController {
     } finally {
       this.scene?._stopLevelUpSfx?.();
       releaseInput();
-      if (!layer.destroyed) await this._close(layer, 0);
+      if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
+        await this._close(layer, 0);
     }
     return true;
   }
@@ -276,7 +301,7 @@ export class GrowthCeremonyController {
     const finishReveal = () => {
       revealed = true;
       root.classList.add('is-done');
-      view.button.textContent = 'Continue';
+      setLabel(view.button, 'Continue');
       view.status.textContent = 'Gains revealed. Continue when ready.';
     };
     const reveal = () => {
@@ -286,7 +311,7 @@ export class GrowthCeremonyController {
     };
     if (revealed) finishReveal();
     else {
-      view.button.textContent = 'Reveal gains';
+      setLabel(view.button, 'Reveal gains');
       let i = 0;
       for (const row of content.rows) {
         if (!row.gain) continue;
@@ -316,7 +341,8 @@ export class GrowthCeremonyController {
       });
     } finally {
       releaseInput();
-      if (!layer.destroyed) await this._close(layer, 0);
+      if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
+        await this._close(layer, 0);
     }
     return true;
   }
@@ -374,7 +400,8 @@ export class GrowthCeremonyController {
       await this._close(layer, timing.exit);
     } finally {
       releaseInput();
-      if (!layer.destroyed) await this._close(layer, 0);
+      if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
+        await this._close(layer, 0);
     }
     return true;
   }

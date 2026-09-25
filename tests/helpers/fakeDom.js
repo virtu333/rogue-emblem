@@ -190,6 +190,25 @@ export class FakeElement extends FakeEventTarget {
   prepend(...nodes) {
     this.children.unshift(...nodes.map((n) => this._adopt(n)));
   }
+  insertBefore(node, reference) {
+    const child = this._adopt(node);
+    const i = reference ? this.children.indexOf(reference) : -1;
+    if (i < 0) this.children.push(child);
+    else this.children.splice(i, 0, child);
+    return node;
+  }
+  get lastChild() {
+    return this.children.at(-1) || null;
+  }
+  get lastElementChild() {
+    return this.children.filter((c) => c.tagName !== '#TEXT').at(-1) || null;
+  }
+  get firstElementChild() {
+    return this.children.find((c) => c.tagName !== '#TEXT') || null;
+  }
+  get childElementCount() {
+    return this.children.filter((c) => c.tagName !== '#TEXT').length;
+  }
   replaceChildren(...nodes) {
     for (const child of [...this.children]) this._detach(child);
     this.append(...nodes);

@@ -43,7 +43,18 @@ test('Church heal, roster, map, promotion cancellation and arena forecast/reward
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.gold),
   ).toBe(10000);
   await church.getByRole('button', { name: /Edric.*Lord/ }).tap();
-  await promote.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await promote.getByRole('button', { name: /^Promote to Great Lord · 3500 G$/ }).tap();
+  // The rite plays over the church once gold, promotion and save are committed.
+  const rite = page.getByRole('dialog', { name: 'Promotion', exact: true });
+  await expect(rite).toBeVisible();
+  expect(
+    await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.gold),
+  ).toBe(6500);
+  await page.waitForTimeout(300);
+  await rite.getByRole('button', { name: /Skip|Continue/ }).tap();
+  await expect(rite.getByRole('button', { name: 'Continue', exact: true })).toBeVisible();
+  await rite.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(rite).toHaveCount(0);
   await expect(church.getByRole('status')).toContainText('promoted');
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.gold),

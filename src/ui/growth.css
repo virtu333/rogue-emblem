@@ -298,6 +298,9 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: clip;
+  /* Room for the glow inside the burn mask (masks clip to the box). */
+  padding: 0.28em 0.4em;
+  margin: -0.28em -0.4em;
   font: 700 calc(32px * var(--ce-scale)) / 1.08 var(--re-display);
   letter-spacing: 0.08em;
   text-transform: uppercase;
