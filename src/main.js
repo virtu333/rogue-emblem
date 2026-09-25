@@ -32,6 +32,8 @@ import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 import { registerSW } from 'virtual:pwa-register';
 import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
 import { throttledRead } from './utils/throttledRead.js';
+import { installSaveLifecycle } from './utils/saveLifecycle.js';
+import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -52,6 +54,22 @@ const STARTUP_VIEWPORT_GUARD_TIMEOUT_MS = Math.max(
   BOOT_WATCHDOG_TIMEOUT_MS,
   startupFlags.mobileSafeBoot ? 18000 : 14000,
 );
+// iOS app only: read the durable native save mirror back before anything reads
+// a save (see nativeSaveMirror.js). Web builds keep their synchronous boot.
+const nativeSavesReady = nativeCapacitor(globalThis)
+  ? startNativeSaveMirror({
+      log: (event, data) => markStartup(`save_mirror_${event}`, data || {}),
+    }).catch(() => null)
+  : null;
+// Persist on page hide / pagehide / freeze / app pause (all platforms).
+installSaveLifecycle();
+
+/** Boot once native saves are read back (immediately on the web). */
+function bootGameWhenSavesReady(user) {
+  if (!nativeSavesReady) return bootGame(user);
+  return nativeSavesReady.then(() => bootGame(user));
+}
+
 const startupQuery = new URLSearchParams(globalThis?.location?.search || '');
 const devStartupRequested = startupQuery.has('qaStep') || startupQuery.has('devScene');
 
@@ -555,7 +573,7 @@ if (!supabase) {
   // Local-only by default; no session restoration or cloud pulls.
   authOverlay.style.display = 'none';
   markStartup('local_play_boot');
-  bootGame(null);
+  bootGameWhenSavesReady(null);
 } else {
   authOverlay.style.display = 'flex';
   mountAuthBackdrop();
@@ -568,6 +586,8 @@ if (!supabase) {
           return;
         }
         activateStartupViewportGuard('session_restore');
+        // Local saves (and any native read-back) settle before a cloud pull.
+        if (nativeSavesReady) await nativeSavesReady;
         let pullResult;
         try {
           pullResult = await startCloudPull(session.user.id, 'session');
@@ -617,6 +637,7 @@ async function handleSkip() {
   // SOUND" hint even though this click already unlocked audio.
   await unlockAudio();
   activateStartupViewportGuard('offline_skip');
+  if (nativeSavesReady) await nativeSavesReady;
   bootGame(null);
 }
 
@@ -649,6 +670,7 @@ async function handleSubmit(e) {
     }
 
     const user = requireAuthUser(result);
+    if (nativeSavesReady) await nativeSavesReady;
     let cloudPullResult;
     try {
       cloudPullResult = await startCloudPull(user.id, 'login');

@@ -641,7 +641,8 @@ export class MobileRosterSheet {
           blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
           apply: () => {
             const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
-            if (result.ok) this.render(`${scroll.name} bound to ${weapon.name}.`);
+            if (result.ok)
+              this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
             return result;
           },
         },
@@ -726,7 +727,7 @@ export class MobileRosterSheet {
       (target) => giveRosterItemBlock(this.run, source, target, item),
       (target) => {
         const result = giveRosterItem(this.run, source, target, item);
-        if (result.ok) this.render(`${item.name} given to ${target.name}.`);
+        if (result.ok) this.render(`${item.name} given to ${target.name}.${this.persistNow()}`);
         return result;
       },
       (target) => {
@@ -746,7 +747,7 @@ export class MobileRosterSheet {
         if (result.ok) {
           const skillName =
             this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
-          this.render(`${unit.name} learned ${skillName}.`);
+          this.render(`${unit.name} learned ${skillName}.${this.persistNow()}`);
           growthCeremonies(this.scene)?.showSealed({
             title: `${unit.name} learned ${skillName}`,
             detail: 'New skill',
@@ -759,21 +760,23 @@ export class MobileRosterSheet {
     );
   }
   /**
-   * Save a class change before its ceremony: the menu's context decides how
-   * (rewards pass their own persist); the route map saves the run directly.
-   * Returns a notice ('' when saved or when the context saves on close).
+   * Save a roster change the moment it applies — before any ceremony, and
+   * without waiting for the sheet to close, so closing or killing the app
+   * cannot drop it. The menu's context decides how (rewards pass their own
+   * persist); otherwise the run is saved directly. Management only exists
+   * between battles (in battle the sheet is read-only), so the run is never
+   * written mid-fight from here. Returns a notice ('' when saved).
    */
   persistNow() {
+    if (!this.run) return '';
     try {
       if (typeof this.persist === 'function')
         return this.persist() === false ? ' Save failed.' : '';
-      if (this.run && this.scene?.sys?.settings?.key === 'NodeMap')
-        return saveServiceRun(this.scene);
+      return saveServiceRun(this.scene);
     } catch (error) {
-      console.warn('[MobileRosterSheet] save before promotion failed:', error);
+      console.warn('[MobileRosterSheet] roster save failed:', error);
       return ' Save failed.';
     }
-    return '';
   }
   promoteWithSeal(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -846,7 +849,7 @@ export class MobileRosterSheet {
             .get('audio')
             ?.playSFX(item.effect === 'promote' ? 'sfx_levelup' : 'sfx_confirm');
           this.render(
-            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
+            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`,
           );
         }
         return result;
@@ -909,7 +912,7 @@ export class MobileRosterSheet {
           const result = rosterItemAction(this.run, unit, item, action);
           if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
             this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(result || `${label}: ${item.name}${saveServiceRun(this.scene)}`);
+          this.render(result || `${label}: ${item.name}${this.persistNow()}`);
         },
         reason,
       ),
@@ -932,7 +935,7 @@ export class MobileRosterSheet {
       apply: () => {
         const reason = rosterItemAction(this.run, unit, item, 'use');
         if (reason) return { ok: false, reason };
-        const warning = saveServiceRun(this.scene);
+        const warning = this.persistNow();
         this.render(`${unit.name}: +${item.value} ${item.stat} from ${item.name}.${warning}`);
         return { ok: true };
       },
@@ -1011,7 +1014,10 @@ export class MobileRosterSheet {
       if (unit.accessory)
         a.append(
           this.button('Unequip accessory', () =>
-            this.render(rosterAccessoryAction(this.run, unit) || 'Accessory returned to the pool.'),
+            this.render(
+              rosterAccessoryAction(this.run, unit) ||
+                `Accessory returned to the pool.${this.persistNow()}`,
+            ),
           ),
         );
       if (this.run.accessories?.length)
@@ -1020,7 +1026,10 @@ export class MobileRosterSheet {
         const c = this.card(item.name, formatAccessoryDetail(item));
         c.append(
           this.button('Equip accessory', () =>
-            this.render(rosterAccessoryAction(this.run, unit, item) || `${item.name} equipped.`),
+            this.render(
+              rosterAccessoryAction(this.run, unit, item) ||
+                `${item.name} equipped.${this.persistNow()}`,
+            ),
           ),
         );
       }

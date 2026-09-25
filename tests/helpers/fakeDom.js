@@ -237,6 +237,23 @@ export class FakeElement extends FakeEventTarget {
   matches(selector) {
     return selector.split(',').some((s) => matchesSimple(this, s));
   }
+  // Ancestor-or-self lookup. Bare attribute selectors ([hidden], [inert])
+  // test the attribute or the matching boolean property.
+  closest(selector) {
+    const test = (el, part) => {
+      const attr = /^\s*\[([\w-]+)\]\s*$/.exec(part);
+      if (attr) return el.hasAttribute(attr[1]) || el[attr[1]] === true;
+      return matchesSimple(el, part);
+    };
+    for (let node = this; node && node.tagName; node = node.parentNode) {
+      if (node.tagName !== '#TEXT' && selector.split(',').some((part) => test(node, part)))
+        return node;
+    }
+    return null;
+  }
+  getClientRects() {
+    return this.isConnected ? [this.getBoundingClientRect()] : [];
+  }
   querySelectorAll(selector) {
     return this._descendants().filter((el) => el.tagName !== '#TEXT' && el.matches(selector));
   }

@@ -47,6 +47,7 @@ import { buildNarrativeContext, selectDialogueEntries } from '../engine/Narrativ
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { registerSaveFlusher } from '../utils/saveLifecycle.js';
 import {
   trackSceneTimer,
   clearTrackedSceneTimer,
@@ -208,6 +209,11 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     this.persistRunSave();
+    // Page hidden / app backgrounded: save the route state as it stands.
+    this._unregisterSaveFlusher?.();
+    this._unregisterSaveFlusher = registerSaveFlusher('NodeMap', () =>
+      this._flushRunForLifecycle(),
+    );
 
     // Record the act reached for Compendium foe-gating (idempotent, real-time).
     this._recordActReachedMilestone();
@@ -335,6 +341,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (this._sceneShutdownCleanedUp) return;
     this._sceneShutdownCleanedUp = true;
     this._sceneShuttingDown = true;
+    this._unregisterSaveFlusher?.();
+    this._unregisterSaveFlusher = null;
     this._pendingRewards?.destroy();
     this._pendingRewards = null;
 
@@ -888,6 +896,19 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Lifecycle flush (page hidden, app paused). Every route-map command saves
+   * as it applies; this catches anything still only in memory. The route map
+   * is consistent between tasks — Save & Exit writes the same way — but a
+   * transition in flight or an ended run is left to its own save.
+   */
+  _flushRunForLifecycle() {
+    if (this._sceneShuttingDown || this.isTransitioning || this.battleLaunchInFlight) return;
+    if (!this.runManager || this.runManager.status !== 'active') return;
+    if (!Number.isInteger(this.registry.get('activeSlot'))) return;
+    this.persistRunSave();
   }
 
   persistRunSave() {

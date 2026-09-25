@@ -27,6 +27,16 @@ Local saves belong to this app installation (or this browser origin on the web).
 
 Commit the native sources, Capacitor config, and dependency lockfile. The generated native `public` bundle and per-user Xcode state are ignored by `ios/.gitignore`.
 
+## Saves on iOS (closing the app, storage eviction)
+
+Saves stay in `localStorage` (3 slots: `emblem_rogue_slot_{n}_meta/run`, plus settings) on every platform, written synchronously when a change applies: battle checkpoints after every action, shop buys/sells/forges, church services, reward claims, node travel, every roster-sheet change (equip, store, withdraw, give, scroll, weapon-art bind, reclass/promotion, accessories), settings and meta. Two iOS-specific layers sit on top (`src/utils/saveLifecycle.js`, `src/utils/nativeSaveMirror.js`):
+
+- **Lifecycle flush.** When the page is hidden (`visibilitychange`), torn down (`pagehide`), frozen (`freeze`), or the app resigns active / pauses (Capacitor App `appStateChange` / `pause`), the route map saves its in-memory state and pending native writes are dispatched. A swipe-kill from the app switcher always follows backgrounding. Battles are not re-saved here: they are checkpointed after every resolved action, and a free change inside a turn (moving without acting, an equip swap) can revert on resume, as before.
+- **Native mirror.** WKWebView keeps `localStorage` in WebKit's website-data store; iOS can evict it under storage pressure, and a kill can drop WebKit's last unflushed writes. With the Filesystem plugin present, every `emblem_rogue_*` key written to `localStorage` is copied to `Library/emblem-rogue-saves/` (backed up with the device, never evicted) — debounced 0.6 s (at most 3 s), deletions immediately, and flushed on backgrounding. Each key is double-buffered (`<key>.a.txt` / `.b.txt`, header with sequence number and length), so a torn write keeps the previous copy. Before the game boots the copy is read back: if `localStorage` lost its sentinel key (evicted) every mirrored key is restored and deleted keys stay deleted; otherwise only a strictly newer run/meta save (by its monotonic `savedAt`) replaces the local copy, and a key missing locally is never resurrected. A read-back that fails or takes over 2.5 s boots without mirroring for that session, so it can never overwrite the native copy with a fresh-looking store.
+- **Migration.** The first launch with the mirror copies the existing saves to native storage; nothing is moved or deleted. Web builds have no native bridge and never start the mirror.
+- **Native wiring.** `@capacitor/app` and `@capacitor/filesystem` are dependencies so `cap sync` adds their Swift packages to `ios/App/CapApp-SPM/Package.swift` (checked in, identical to the generated file). The game calls them through the injected bridge (`Capacitor.nativePromise` / `addListener`) and bundles none of their JS. After pulling: `npm ci && npm run ios:sync`, then let Xcode resolve packages (Filesystem pulls `ion-ios-filesystem`). Without the native plugins everything above is feature-detected off.
+- **Quota.** WebKit's `localStorage` quota is about 5 MB per origin. A battle save carries its rewind timeline, which is optional: on a quota error the checkpoint drops the history archive, then older turns, then the timeline, before giving up (`BattleTimelinePersistence.js`).
+
 ## Outstanding before device distribution
 
 On 2026-09-15 Xcode selected the David Chen team but Apple returned: “You are not allowed to perform this operation.” No matching development provisioning profile was available. Check active paid membership, any outstanding agreements, and team permissions in the Apple Developer account. No archive or upload was attempted.
@@ -54,7 +64,7 @@ Apply the same patterns to roster, inventory, shops, home base and save-slot flo
 ### 3. Native reliability and release checks
 
 - Verify music and effects after app backgrounding, interruptions and device lock.
-- Verify saves across app restart and upgrade; browser localStorage is separate from native app storage.
+- Verify saves across app restart and upgrade; browser localStorage is separate from native app storage. On device: background the app mid-battle and mid-shop, swipe-kill it, relaunch; and with Settings → General → iPhone Storage → Offload/low-storage conditions, confirm the native mirror restores (startup telemetry `save_mirror_restore`).
 - Test offline boot and configured cloud login/sync independently.
 - Audit the PWA service-worker update prompt for the packaged native environment.
 - Profile memory and frame rate; the source media currently totals about 235 MB.
