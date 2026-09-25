@@ -116,9 +116,17 @@ export class GuidanceController {
       s._threatSight?.current?.result?.count ?? '',
       (s.npcUnits || []).length,
     ].join('|');
-    if (key === this._key) return;
-    if (this.level() === 'off' || this.covered()) return; // re-check next frame
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    if (key === this._key && (!this._blocked || now < this._retryAt)) return;
     this._key = key;
+    this._blocked = false;
+    // Covered by a modal / sheet, or Guidance off: look again a little later
+    // (settings reads parse storage, so never every frame).
+    if (this.level() === 'off' || this.covered()) {
+      this._blocked = true;
+      this._retryAt = now + 300;
+      return;
+    }
     const candidate = this.pick();
     if (candidate) this.show(candidate);
   }

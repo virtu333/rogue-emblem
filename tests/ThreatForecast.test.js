@@ -31,7 +31,9 @@ function mockScene() {
 // '.' plain, '#' wall, 'f' forest
 function grid(rows, { fog = false } = {}) {
   const map = rows.map((line) =>
-    [...line].map((ch) => (ch === '#' ? T.Wall : ch === 'f' ? T.Forest : T.Plain)),
+    [...line].map((ch) =>
+      ch === '#' ? T.Wall : ch === 'f' ? T.Forest : ch === 'i' ? T.Ice : T.Plain,
+    ),
   );
   return new Grid(mockScene(), map[0].length, map.length, gameData.terrain, map, fog);
 }
@@ -107,6 +109,18 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
         // Asking about a tile nobody moves to must match the global overlay count.
         const result = threatsOnTile(ctx, col, row);
         expect(result.count).toBe(danger.get(`${col},${row}`) || 0);
+      }
+    }
+  });
+
+  it('matches the overlay on ice, where a slide outruns the movement allowance', () => {
+    const g = grid(['..........', 'iiiiiiii..', '..........']);
+    const units = [foe(9, 1, { mov: 2, stats: { MOV: 2 } }), ally(0, 0)];
+    const ctx = ctxFor(g, units);
+    const danger = new Map(computeDangerTiles(ctx).map((t) => [`${t.col},${t.row}`, t.count]));
+    for (let row = 0; row < g.rows; row++) {
+      for (let col = 0; col < g.cols; col++) {
+        expect(threatsOnTile(ctx, col, row).count).toBe(danger.get(`${col},${row}`) || 0);
       }
     }
   });

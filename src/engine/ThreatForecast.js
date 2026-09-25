@@ -20,6 +20,7 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
+import { parseRange } from './Combat.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -134,6 +135,31 @@ export function positionsWithMoverAt(positions, mover, col, row) {
   return next;
 }
 
+const iceCache = new WeakMap();
+/** Ice lets a unit slide past its movement allowance; pruning must then stay off. */
+function gridHasIce(grid) {
+  if (!grid?.mapLayout || !Array.isArray(grid.terrainData)) return true;
+  const revision = grid.terrainRevision ?? 0;
+  const cached = iceCache.get(grid);
+  if (cached && cached.revision === revision) return cached.ice;
+  let ice = false;
+  for (const line of grid.mapLayout) {
+    for (const index of line || []) {
+      if (grid.terrainData[index]?.name === 'Ice') ice = true;
+    }
+  }
+  iceCache.set(grid, { revision, ice });
+  return ice;
+}
+
+function withinBareReach(enemy, col, row) {
+  const mov = willRemainRootedNextPhase(enemy) ? 0 : Number(enemy.mov || enemy.stats?.MOV) || 0;
+  let reach = enemy.weapon ? parseRange(enemy.weapon.range).max : 0;
+  const staff = statusStaffThreat(enemy);
+  if (staff) reach = Math.max(reach, staff.max);
+  return Math.abs(enemy.col - col) + Math.abs(enemy.row - row) <= mov + reach;
+}
+
 /**
  * Every visible source that could strike (col, row) next enemy phase if `mover`
  * ended its move there. Enemies whose paths the move opens or closes are
@@ -149,8 +175,12 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   const damage = [];
   const status = [];
   let positions = null;
+  const slides = gridHasIce(ctx.grid);
   for (const enemy of ctx.enemyUnits || []) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
+    // Cheap exact prune: every step costs at least 1, so without ice slides an
+    // enemy farther than movement + reach cannot strike the tile.
+    if (!slides && !isEntity(enemy) && !withinBareReach(enemy, col, row)) continue;
     if (!isEntity(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
     const tiles = enemyThreatTiles(ctx, enemy, positions);
     if (tiles.damage.has(key)) damage.push(enemy);
