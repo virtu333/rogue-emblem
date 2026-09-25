@@ -444,6 +444,8 @@ test('recorded combat identifies the observed attacker and victim and reverses a
 test('fifty history sessions release textures, shutdown listeners and input ownership', async ({
   page,
 }) => {
+  // Each cycle now opens the rewind picker, then History, then backs out of both.
+  test.setTimeout(240000);
   const errors = await boot(page);
   const before = await digest(page);
   const counters = () =>
