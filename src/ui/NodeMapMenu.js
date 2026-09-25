@@ -15,6 +15,7 @@ import { throttledRead } from '../utils/throttledRead.js';
 import { createEclipseMedallion, openEclipseCard } from './EclipsePanels.js';
 import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
 import { showMinorHint } from './HintDisplay.js';
+import { playCue } from './ceremonyMusic.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 
@@ -342,6 +343,7 @@ export class NodeMapMenu {
     const ids = graph.pendingFalls;
     for (const id of ids) this._playedFalls.add(id);
     this._falling = true;
+    void playCue(this.scene, 'eclipse', { waitMs: 400, duck: 0.35 });
     void graph.playFalls().then(() => {
       this._falling = false;
       this._finishFalls(ids);
