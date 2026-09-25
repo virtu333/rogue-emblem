@@ -33,7 +33,8 @@
       "churchPromotionLimit": -1,
       "growthBonusMultiplier": 1.0,
       "rewindGranularity": "action",
-      "recruitEnemyCountBonus": 0,
+      "recruitEnemyCountBonus": 1,
+      "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
       "classStatBonuses": {}
     },
@@ -82,7 +83,8 @@
       "churchPromotionLimit": 3,
       "growthBonusMultiplier": 0.8,
       "rewindGranularity": "action",
-      "recruitEnemyCountBonus": 1,
+      "recruitEnemyCountBonus": 2,
+      "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 0,
       "classStatBonuses": {
         "Fighter": 1,
@@ -144,7 +146,8 @@
         "maxPerBattle": 1,
         "weaponName": "Bolting"
       },
-      "recruitEnemyCountBonus": 1,
+      "recruitEnemyCountBonus": 2,
+      "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 0,
       "classStatBonuses": {
         "Fighter": 2,
