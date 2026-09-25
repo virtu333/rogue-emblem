@@ -14,7 +14,9 @@
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
   actCardContent,
+  arrivalContent,
   bossCardContent,
+  CEREMONY_TIMING,
   ceremonyTiming,
   defeatContent,
   felledContent,
@@ -261,6 +263,84 @@ export class CeremonyController {
     if (!built) return null;
     const { layer, timing } = built;
     return { destroy: () => void this._close(layer, timing.exitMs) };
+  }
+
+  /**
+   * A battle notice (village saved, a status staff's result, an error the
+   * player must read): a slim toned band high over the map, never blocking.
+   * Stacks under a notice that is still showing. Resolves after its reading
+   * window (the canvas banner's contract: callers may await it).
+   */
+  showNotice({ message, tone = 'gold' } = {}) {
+    if (!message || !canRenderCeremony() || this.destroyed) return null;
+    const t = this.timing('notice');
+    // Brief banners carry information: the reading window never shrinks.
+    const hold = CEREMONY_TIMING.notice.holdMs;
+    const layer = this._open({
+      className: `ce-notice-layer ce-notice-layer--${tone}`,
+      label: message,
+      animate: t.animate,
+    });
+    if (!layer) return null;
+    const slot = this._noticeSlot();
+    layer.root.style.setProperty('--ce-notice-slot', String(slot));
+    const band = el('div', `ce-notice ce-notice--${tone}`);
+    band.append(el('span', 'ce-notice-mark'), el('span', 'ce-notice-text', message));
+    layer.root.append(band);
+    layer.root.setAttribute('aria-live', 'polite');
+    layer.noticeSlot = slot;
+    let closed = false;
+    const close = (exitMs) => {
+      if (closed) return Promise.resolve();
+      closed = true;
+      return this._close(layer, exitMs);
+    };
+    const done = this._clock.wait(t.enterMs + hold).then(() => close(t.exitMs));
+    return { root: layer.root, done, destroy: () => void close(0) };
+  }
+
+  _noticeSlot() {
+    const used = new Set(
+      [...this._layers]
+        .filter(
+          (l) => !l.destroyed && l.noticeSlot != null && !l.root.classList.contains('is-leaving'),
+        )
+        .map((l) => l.noticeSlot),
+    );
+    let slot = 0;
+    while (used.has(slot)) slot++;
+    return Math.min(slot, 3);
+  }
+
+  /**
+   * Reinforcements: a crimson thread band ("the empire's drills") naming how
+   * many arrived; the scene marks the arrival tiles. Never blocks.
+   */
+  showArrival({ count = 0, bandits = 0 } = {}) {
+    const content = arrivalContent({ count, bandits });
+    if (!content || !canRenderCeremony() || this.destroyed) return null;
+    const t = this.timing('arrival');
+    const layer = this._open({
+      className: 'ce-arrival-layer',
+      label: `${content.word}. ${content.sub}`,
+      animate: t.animate,
+    });
+    if (!layer) return null;
+    const band = el('div', 'ce-arrival');
+    const word = el('div', 'ce-arrival-word', content.word);
+    const thread = el('div', 'ce-thread ce-thread--crimson');
+    thread.append(el('span', 'ce-thread-a'), el('span', 'ce-thread-b'));
+    band.append(word, thread, el('div', 'ce-arrival-sub', content.sub));
+    layer.root.append(band);
+    layer.addFitter(() => fitText(word, { min: 14 }));
+    let closed = false;
+    const close = (exitMs) => {
+      if (closed) return Promise.resolve();
+      closed = true;
+      return this._close(layer, exitMs);
+    };
+    void this._clock.wait(t.enterMs + t.holdMs).then(() => close(t.exitMs));
+    return { root: layer.root, destroy: () => void close(0) };
   }
 
   /** Player / Enemy Phase: thin band, never blocks, leaves by itself. */

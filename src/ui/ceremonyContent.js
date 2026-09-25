@@ -208,6 +208,37 @@ export function cutInContent({ label, unitName, weaponName, isArt = false }) {
   };
 }
 
+// ── Battle notices ───────────────────────────────────────────────────────
+
+/**
+ * Tone for a battle notice from the colour its caller passed (the canvas
+ * banner API took a palette colour): gains read verdigris, losses crimson,
+ * misses ash, everything else the gold thread.
+ */
+export function noticeTone(color, palette = {}) {
+  const c = String(color || '').toLowerCase();
+  const is = (key) => palette[key] && c === String(palette[key]).toLowerCase();
+  if (is('good') || is('hpHigh')) return 'good';
+  if (is('bad') || is('alarm') || is('dangerLine') || is('hpLow')) return 'bad';
+  if (is('muted') || is('mutedDim')) return 'muted';
+  if (is('info')) return 'info';
+  if (is('warn')) return 'warn';
+  return 'gold';
+}
+
+/** Reinforcement band copy (enemies; bandits race the village). */
+export function arrivalContent({ count = 0, bandits = 0 } = {}) {
+  const n = Math.max(0, Math.trunc(Number(count) || 0));
+  const b = Math.max(0, Math.trunc(Number(bandits) || 0));
+  if (!n && !b) return null;
+  const parts = [];
+  if (n) parts.push(n === 1 ? 'An enemy arrives' : `${n} enemies arrive`);
+  if (b)
+    parts.push(b === 1 ? 'a bandit makes for the village' : `${b} bandits make for the village`);
+  const sub = parts.join(' · ');
+  return { word: 'REINFORCEMENTS', sub: sub.charAt(0).toUpperCase() + sub.slice(1) };
+}
+
 // ── Run end ──────────────────────────────────────────────────────────────
 
 function foePhrase(foe, wasBoss) {
@@ -278,6 +309,8 @@ export const CEREMONY_TIMING = Object.freeze({
   victory: { enterMs: 450, holdMs: 1500, exitMs: 300 },
   defeat: { enterMs: 450, holdMs: 2000, exitMs: 300 },
   phase: { enterMs: 300, holdMs: 800, placeHoldMs: 1800, exitMs: 300 },
+  notice: { enterMs: 180, holdMs: 1100, exitMs: 240 },
+  arrival: { enterMs: 260, holdMs: 1500, exitMs: 300 },
   act: { enterMs: 1100, holdMs: 2600, exitMs: 450 },
   runEnd: { enterMs: 1200, holdMs: 2800, exitMs: 450 },
   fallen: { enterMs: 600, holdMs: 0, exitMs: 0 },

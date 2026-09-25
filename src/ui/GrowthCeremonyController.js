@@ -360,6 +360,7 @@ export class GrowthCeremonyController {
     const content = recruitCardContent(unit, {
       dialogue: gameData.dialogue,
       classes: gameData.classes,
+      traits: gameData.traits,
       kind,
       line,
     });
@@ -700,6 +701,15 @@ export function buildJoinCard(scene, unit, content) {
   meta.append(el('span', null, content.meta));
   text.append(meta);
   if (content.line) text.append(el('p', 'gr-join-line', `“${content.line}”`));
+  if (content.legendary) {
+    const seal = el('div', 'gr-join-legend');
+    seal.append(
+      skillGlyph(content.legendary.id, 'gr-seal-glyph'),
+      el('b', '', `Legendary · ${content.legendary.name}`),
+      el('span', '', content.legendary.description),
+    );
+    text.append(seal);
+  }
   text.append(hairline('gold'));
   band.append(text);
   card.append(band);

@@ -254,9 +254,20 @@ export function recruitLine(unit, dialogue, classesData = [], line = null) {
   return lines.length ? lines[stableHash(`${unit?.name}:${unit?.className}`) % lines.length] : '';
 }
 
+/** The unit's legendary trait (lord traits rolled on arrival), or null. */
+export function legendaryTrait(unit, traits) {
+  if (!Array.isArray(unit?.traits) || !Array.isArray(traits)) return null;
+  for (const id of unit.traits) {
+    const trait = traits.find((t) => t?.id === id);
+    if (trait?.rarity === 'legendary')
+      return { id: trait.id, name: trait.name, description: trait.description || '' };
+  }
+  return null;
+}
+
 export function recruitCardContent(
   unit,
-  { dialogue, classes, kind = 'recruit', line = null } = {},
+  { dialogue, classes, traits = null, kind = 'recruit', line = null } = {},
 ) {
   if (!unit) return null;
   const level = unit.extendedLevels > 0 ? `${unit.level}+${unit.extendedLevels}` : unit.level;
@@ -271,6 +282,8 @@ export function recruitCardContent(
       .filter(Boolean)
       .join(' · '),
     line: recruitLine(unit, dialogue, classes, line),
+    // A legendary lord trait is the arrival's news: it gets its own seal.
+    legendary: legendaryTrait(unit, traits),
   };
 }
 

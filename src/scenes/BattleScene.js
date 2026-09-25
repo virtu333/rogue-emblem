@@ -300,8 +300,10 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { growthCeremonies } from '../ui/GrowthCeremonyController.js';
+import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
+import { createStatusBadge, STATUS_BADGE_SPACING } from '../ui/StatusBadges.js';
 import { BossPresenceController } from '../ui/BossPresenceController.js';
-import { shouldShowFelled } from '../ui/ceremonyContent.js';
+import { noticeTone, shouldShowFelled } from '../ui/ceremonyContent.js';
 import { ProcBannerController } from '../ui/ProcBannerController.js';
 import {
   splitStrikeActivations,
@@ -581,6 +583,10 @@ export class BattleScene extends Phaser.Scene {
     }
     this._ceremonies?.destroy();
     this._ceremonies = null;
+    this._growthCeremonies?.destroy();
+    this._growthCeremonies = null;
+    this._reinforcements?.destroy();
+    this._reinforcements = null;
     this._bossPresence?.destroy();
     this._bossPresence = null;
     if (this._battleBeats) {
@@ -2795,6 +2801,7 @@ export class BattleScene extends Phaser.Scene {
 
     let spawned = 0;
     let banditSpawned = 0;
+    const spawnedUnits = [];
     const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
@@ -2804,6 +2811,7 @@ export class BattleScene extends Phaser.Scene {
       if (enemy) {
         observeHistoryAction(this, 'arrived as a reinforcement', enemy);
         spawned++;
+        spawnedUnits.push(enemy);
         if (enemy.aiMode === 'seek_tile') banditSpawned++;
         // Repeating pursuit waves are constant pressure, not added objectives —
         // they never bump par.
@@ -2820,10 +2828,11 @@ export class BattleScene extends Phaser.Scene {
       this._pinnedThreats?.invalidate();
       if (this.grid.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
-      // Village bandits get their own telegraph instead of the generic
-      // reinforcement banner; mixed arrivals show both.
-      this.showReinforcementBanner(spawned - banditSpawned);
-      if (banditSpawned > 0) this._villageController?.showBanditArrivalBanner();
+      // One crimson band names the arrivals (bandits race the village);
+      // visible arrival tiles are marked (ReinforcementPresenter).
+      (this._reinforcements ||= new ReinforcementPresenter(this)).present(spawnedUnits, {
+        bandits: banditSpawned,
+      });
 
       // Bump par for each wave that actually instantiated enemies
       if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0) {
@@ -7207,6 +7216,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async showBriefBanner(message, color = UI_PALETTE.accentText) {
+    // DOM: a toned notice band over the map (CeremonyController); same
+    // reading window, awaited the same way. Canvas below is the fallback.
+    const notice = hasDOMHost()
+      ? this._getCeremonies().showNotice({ message, tone: noticeTone(color, UI_PALETTE) })
+      : null;
+    if (notice) return notice.done;
     const banner = this.add
       .text(this.cameras.main.centerX, this.cameras.main.centerY, message, {
         fontFamily: 'monospace',
@@ -10745,14 +10760,17 @@ export class BattleScene extends Phaser.Scene {
       root: { label: 'Rt', color: '#cc9944' },
     };
     const iconStyle = iconMap[conditionId] || { label: '?', color: UI_PALETTE.text };
-    const icon = this.add
-      .text(x, y, iconStyle.label, {
-        fontSize: '10px',
-        fontFamily: 'monospace',
-        color: iconStyle.color,
-      })
-      .setOrigin(0.5)
-      .setDepth(200);
+    // Pixel seal badges (StatusBadges); the lettered text is the fallback.
+    const icon =
+      createStatusBadge(this, conditionId, x, y, 200) ||
+      this.add
+        .text(x, y, iconStyle.label, {
+          fontSize: '10px',
+          fontFamily: 'monospace',
+          color: iconStyle.color,
+        })
+        .setOrigin(0.5)
+        .setDepth(200);
     unit._conditionIcons[conditionId] = icon;
     // Reflow all icons so multi-status doesn't overlap
     this._updateConditionIconPositions(unit);
@@ -10779,14 +10797,13 @@ export class BattleScene extends Phaser.Scene {
 
   _updateConditionIconPositions(unit) {
     if (!unit?.graphic || !unit?._conditionIcons) return;
-    const x = unit.graphic.x;
     const y = unit.graphic.y - 20;
-    let offset = 0;
-    for (const icon of Object.values(unit._conditionIcons)) {
-      if (icon) {
-        icon.setPosition(x + offset, y);
-        offset += 14;
-      }
+    const icons = Object.values(unit._conditionIcons).filter(Boolean);
+    // Centred over the head, one badge width apart (letters used to collide).
+    let x = unit.graphic.x - ((icons.length - 1) * STATUS_BADGE_SPACING) / 2;
+    for (const icon of icons) {
+      icon.setPosition(x, y);
+      x += STATUS_BADGE_SPACING;
     }
   }
 

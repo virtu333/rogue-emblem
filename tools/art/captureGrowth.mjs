@@ -283,6 +283,52 @@ const flows = {
     await page.waitForTimeout(1600);
     await shot(page, 'recruit-talk');
   },
+  // Mechanics audit: battle notices, reinforcement arrival, status marks.
+  async notices(page) {
+    await battle(page);
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      s.showBriefBanner('Village saved! +300g, Vulnerary sent to convoy', '#95c487');
+    });
+    await page.waitForTimeout(450);
+    await shot(page, 'audit-notice-village');
+    await page.waitForTimeout(1600);
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const arrivals = s.enemyUnits.slice(0, 2);
+      let presenter = null;
+      try {
+        const { ReinforcementPresenter } = await import('/src/ui/ReinforcementPresenter.js');
+        presenter = s._reinforcements ||= new ReinforcementPresenter(s);
+      } catch {
+        presenter = null; // before the presenter existed
+      }
+      if (presenter) presenter.present(arrivals);
+      else s.showReinforcementBanner(arrivals.length);
+    });
+    await page.waitForTimeout(520);
+    await shot(page, 'audit-reinforcements');
+  },
+  async status(page) {
+    await battle(page);
+    const clip = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const [a, b] = s.playerUnits;
+      s._addConditionIcon(a, 'sleep');
+      s._addConditionIcon(a, 'acid');
+      if (b) s._addConditionIcon(b, 'silence');
+      const e = s.enemyUnits[0];
+      s._addConditionIcon(e, 'root');
+      const w = s.grid.gridToPixel(a.col, a.row);
+      const p = s._worldToScreen(w.x, w.y);
+      const r = s.game.canvas.getBoundingClientRect();
+      const x = r.x + (p.x * r.width) / s.scale.width;
+      const y = r.y + (p.y * r.height) / s.scale.height;
+      return { x: Math.max(0, x - 110), y: Math.max(0, y - 110), width: 300, height: 190 };
+    });
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${outDir}/audit-status-${tag}.png`, clip });
+  },
   async roster(page) {
     await nodemap(page);
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());

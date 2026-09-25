@@ -16,8 +16,9 @@ const STEEL = ['#101a2e', '#1c2f4f', '#2c4c77', '#4574a0', '#77a5c6', '#b8d8e6']
 const VERD = ['#0f2622', '#1b4239', '#2d6450', '#4d8b66', '#86b27b', '#c3d69a'];
 const UNLIGHT = ['#170c24', '#2c1645', '#4a2270', '#763aa0', '#a863cc', '#dcaaf0'];
 const STONE = ['#1a1a20', '#2b2c33', '#40414a', '#5a5b63', '#7a7a80', '#a09e9f'];
+const EARTH = ['#1d1a12', '#34301d', '#4f4a2a', '#6e6a3b', '#938c55', '#b8ae78'];
 
-export const CREST_PALETTE = Object.freeze({ INK, EMBER, BLOOD, STEEL, VERD, UNLIGHT, STONE });
+export const CREST_PALETTE = Object.freeze({ INK, EMBER, BLOOD, STEEL, VERD, UNLIGHT, STONE, EARTH }); // prettier-ignore
 
 // ── Geometry helpers ─────────────────────────────────────────────────────
 
