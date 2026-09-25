@@ -330,6 +330,11 @@ html.mobile-preview .mu-screen {
 .re-gain {
   color: var(--re-good);
 }
+.re-progression-quote {
+  margin: 10px 0 0;
+  font-style: italic;
+  color: var(--re-muted);
+}
 .re-promotion-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));

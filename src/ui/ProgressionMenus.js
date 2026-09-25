@@ -1,6 +1,8 @@
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { battleSpeed, combatDuration } from '../utils/combatTiming.js';
 import { progressionRows } from './progressionDisplay.js';
+import { levelUpContent } from './growthContent.js';
+import { voiceContext } from '../engine/UnitVoice.js';
 
 // Display only: gains are already applied by the caller. Never award XP here.
 export function progressionResult(scene, unit, result, promotion, skills, growths, close) {
@@ -43,6 +45,19 @@ export function progressionResult(scene, unit, result, promotion, skills, growth
     table.append(element('dt', stat), cell);
   }
   surface.body.append(heading, table);
+  if (!promotion) {
+    const { quote } = levelUpContent(
+      unit,
+      result,
+      skills,
+      voiceContext({
+        gameData: scene.gameData,
+        runManager: scene.runManager,
+        units: scene.playerUnits,
+      }),
+    );
+    if (quote) surface.body.append(element('p', `“${quote}”`, 're-progression-quote'));
+  }
   if (growths && Object.keys(growths).length) {
     surface.body.append(element('h3', 'Growth bonuses'));
     for (const [stat, bonus] of Object.entries(growths))

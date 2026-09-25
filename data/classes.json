@@ -1,7 +1,7 @@
 [
   {
     "name": "Myrmidon",
-    "lore": "Frontier sword schools take anyone with quick feet and a debt to work off.",
+    "lore": "Painted over every frontier sword-school door: BE FAST OR BE ELSEWHERE. Tuition is paid in debts, and in scars for the slow.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -47,7 +47,7 @@
   },
   {
     "name": "Knight",
-    "lore": "Levied to stand where the empire wants stone and has only soldiers.",
+    "lore": "'Can't run, can't dodge, can't be killed. Stand that one in the doorway and go find lunch.' A drill sergeant's verdict on the levy's newest knight.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -93,7 +93,7 @@
   },
   {
     "name": "Fighter",
-    "lore": "Levied from logging camps and quarries, where the axe was already in hand.",
+    "lore": "Quarry foreman to the levy officer: 'Take them. They hit what they swing at about half the time, and nothing gets up from the other half.'",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -139,7 +139,7 @@
   },
   {
     "name": "Cavalier",
-    "lore": "The old kingdom's mounted pride; the empire kept the horses and the drills and quietly dropped the oaths.",
+    "lore": "Posted at every province remount office: RIDERS WANTED, ANY DUTY, ANY WEATHER. Mount provided. The old oath is no longer required.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -186,7 +186,7 @@
   },
   {
     "name": "Archer",
-    "lore": "Border yeomen owe the crown a quiver each season and a son each war.",
+    "lore": "Border mothers tell children bound for the yeomanry: stand two paces back, and if they get close, run. A bow is no use at arm's length.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -233,7 +233,7 @@
   },
   {
     "name": "Mage",
-    "lore": "The academies teach fire to children, who ask fewer questions about where the words come from.",
+    "lore": "Primer, lesson one: read the words aloud and the fire follows. Lesson two, circled twice by the last owner: never let them reach you.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -279,7 +279,7 @@
   },
   {
     "name": "Cleric",
-    "lore": "The temples emptied when the war began \u2014 every hand that could hold a staff followed the levies out.",
+    "lore": "Prayer of the field clerics: let me mend what they break, and never ask me to break it back. The staff was not made for striking.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -326,7 +326,7 @@
   },
   {
     "name": "Thief",
-    "lore": "The war made locks cheaper than the things they guarded.",
+    "lore": "Wanted on the provincial roads: slight, quick, sees in the dark. Last seen leaving a locked vault with the lock. The reward was in the vault.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -372,7 +372,7 @@
   },
   {
     "name": "Dancer",
-    "lore": "Older than the empire, older than the war: armies have always needed reminding what they march back to.",
+    "lore": "When dancers come through a camp, spent soldiers get up and march one more mile. Quartermasters have tried to requisition that. It does not keep.",
     "tier": "base",
     "baseStats": {
       "HP": 16,
@@ -410,7 +410,7 @@
   },
   {
     "name": "Pegasus Knight",
-    "lore": "The sky legions answer to no garrison \u2014 their mounts choose the riders.",
+    "lore": "Sky-legion saying: the mount picks the rider, the wind picks the road, and some farm boy with a bow picks the day you come down.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -457,7 +457,7 @@
   },
   {
     "name": "Wyvern Rider",
-    "lore": "The mountain clans broke wyverns long before the empire came asking, and the price climbs every year.",
+    "lore": "Mountain-clan price for a broken wyvern: one herd of goats, one winter's salt, and a promise to keep the beast clear of tower mages.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -503,7 +503,7 @@
   },
   {
     "name": "Mercenary",
-    "lore": "Fights for whoever signs the contract, and answers to nothing else.",
+    "lore": "Standard sellsword contract: paid monthly, fed daily, buried at the employer's expense. Any post, any weapon, no questions past the fee.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -550,7 +550,7 @@
   },
   {
     "name": "Swordmaster",
-    "lore": "What is left when a myrmidon survives long enough to stop being afraid.",
+    "lore": "Tavern claim: nobody has ever seen a swordmaster's second stroke. Tavern answer, from the corner table: nobody has ever needed one.",
     "tier": "promoted",
     "promotesFrom": "Myrmidon",
     "promotionBonuses": {
@@ -574,7 +574,7 @@
   },
   {
     "name": "General",
-    "lore": "Stands where a fortress would, if a fortress could be ordered to hold.",
+    "lore": "Muster roll, west gate: General, one. Remarks: will not move, cannot be moved. Assigned the gate. Gate has stopped asking for reinforcements.",
     "tier": "promoted",
     "promotesFrom": "Knight",
     "promotionBonuses": {
@@ -599,7 +599,7 @@
   },
   {
     "name": "Warrior",
-    "lore": "A fighter the war failed to kill, promoted by attrition and armed accordingly.",
+    "lore": "Levy clerks write 'warrior' beside any axe-hand who lives three winters. By then most have found a bow as well, and learned to hit with it.",
     "tier": "promoted",
     "promotesFrom": "Fighter",
     "promotionBonuses": {
@@ -629,7 +629,7 @@
   },
   {
     "name": "Paladin",
-    "lore": "The old oaths survive in the paladin ranks, recited without the parts about whom the strong must serve.",
+    "lore": "The paladin oath as recited today: strength, shield, and service. The fourth line, about whom the strong must serve, is generally hummed.",
     "tier": "promoted",
     "promotesFrom": "Cavalier",
     "promotionBonuses": {
@@ -656,7 +656,7 @@
   },
   {
     "name": "Sniper",
-    "lore": "Each garrison keeps one sniper per wall and pretends not to know the name.",
+    "lore": "Cover is for other archers. Each garrison keeps one sniper per wall, and the roster lists the post but never the name.",
     "tier": "promoted",
     "promotesFrom": "Archer",
     "promotionBonuses": {
@@ -680,7 +680,7 @@
   },
   {
     "name": "Sage",
-    "lore": "A mage who has read past the approved pages; the academies grant the rank rather than admit the library ends.",
+    "lore": "Academy transcript, final line: permitted past the approved pages. Also issued a healing staff, since the later chapters tend to hurt.",
     "tier": "promoted",
     "promotesFrom": "Mage",
     "promotionBonuses": {
@@ -704,7 +704,7 @@
   },
   {
     "name": "Bishop",
-    "lore": "Ranks high enough in the temple to wield both its mercy and its judgment.",
+    "lore": "Investiture rite: a staff for those who kneel, light for those who will not. Wounds near a bishop close on their own, prayed for or not.",
     "tier": "promoted",
     "promotesFrom": "Cleric",
     "promotionBonuses": {
@@ -728,7 +728,7 @@
   },
   {
     "name": "Assassin",
-    "lore": "A killer the empire pays for and keeps out of every ledger it signs.",
+    "lore": "Treasury ledger, line 40: services, unspecified. Paid in full. Recipient, unnamed. Target, see obituaries. Bow purchased separately.",
     "tier": "promoted",
     "promotesFrom": "Thief",
     "promotionBonuses": {
@@ -752,7 +752,7 @@
   },
   {
     "name": "Bard",
-    "lore": "They carry the old kingdom's songs through checkpoints its banners cannot pass.",
+    "lore": "Bards carry the border ballads through checkpoints that cannot tax a song, along with a mending staff and the knack of getting a spent soldier to go again.",
     "tier": "promoted",
     "promotesFrom": "Dancer",
     "promotionBonuses": {
@@ -773,7 +773,7 @@
   },
   {
     "name": "Falcon Knight",
-    "lore": "Sky-riders of the high commission: escort the seers, outfly the weather, land where hope is thinnest.",
+    "lore": "Sky-legion honors list: flew escort for the seers, outran three storms, landed only where hope was thinnest. Arrows, noted in the margin, still hurt.",
     "tier": "promoted",
     "promotesFrom": "Pegasus Knight",
     "promotionBonuses": {
@@ -800,7 +800,7 @@
   },
   {
     "name": "Wyvern Lord",
-    "lore": "The clans crown no kings, yet a wyvern lord's landing shadow settles arguments a crown only means to.",
+    "lore": "When a wyvern lord's shadow crosses a mountain village, the arguing stops. Clan disputes have been settled that way for longer than anyone counts.",
     "tier": "promoted",
     "promotesFrom": "Wyvern Rider",
     "promotionBonuses": {
@@ -857,7 +857,7 @@
   },
   {
     "name": "Lord",
-    "lore": "Border banner-houses still sworn to a kingdom too gone to release them from the oath.",
+    "lore": "Border banner-houses keep one custom above the rest: the lord walks in front and learns every name behind him. Soldiers stand taller for being counted.",
     "tier": "base",
     "baseStats": {
       "HP": 20,
@@ -895,7 +895,7 @@
   },
   {
     "name": "Tactician",
-    "lore": "Trained in the war colleges the empire closed for asking whose war the exercises kept rehearsing.",
+    "lore": "War-college exam, final question: where is the enemy you cannot see? Graduates answered in board notation. The empire closed the colleges soon after.",
     "tier": "base",
     "baseStats": {
       "HP": 17,
@@ -933,7 +933,7 @@
   },
   {
     "name": "Ranger",
-    "lore": "Wardens of the border woods, half soldier and half rumor: the empire maps their ground but will not enter it.",
+    "lore": "Border wardens keep two ledgers, patrol routes and the dead, and both run long. A wounded ranger is still standing, which makes him the dangerous kind.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -971,7 +971,7 @@
   },
   {
     "name": "Light Sage",
-    "lore": "The seers' lay order \u2014 study the light without taking the veil, graduated early by the war.",
+    "lore": "Lay students of the seer order carry the light cupped close, and the wounded mend faster standing beside them. The war cut their studies short.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -1009,7 +1009,7 @@
   },
   {
     "name": "Great Lord",
-    "lore": "A lord the war has stopped arguing with, still bearing a crown the old kingdom lost.",
+    "lore": "The border chronicles give the title to a lord who carries a lost crown's weight into the front rank and still knows every soldier by name.",
     "tier": "promoted",
     "promotesFrom": "Lord",
     "promotionBonuses": {
@@ -1030,7 +1030,7 @@
   },
   {
     "name": "Grandmaster",
-    "lore": "The war college's final rank, kept as theory until the war finally called for it.",
+    "lore": "The war colleges' last rank, earned by beating the headmaster at the board. Grandmasters carry a sword as well, because some opponents flip the table.",
     "tier": "promoted",
     "promotesFrom": "Tactician",
     "promotionBonuses": {
@@ -1072,7 +1072,7 @@
   },
   {
     "name": "Light Priestess",
-    "lore": "The order's highest office, sworn to the liturgy's last pages: what sleeps, and what wakes it.",
+    "lore": "Last page of the liturgy, read aloud only at a priestess's vow: what sleeps below, what wakes it, and the thread by which the world is pulled back.",
     "tier": "promoted",
     "promotesFrom": "Light Sage",
     "promotionBonuses": {
@@ -1093,7 +1093,7 @@
   },
   {
     "name": "Chevalier",
-    "lore": "Riders of the long marches, bred for distance the way the border breeds patience.",
+    "lore": "Long-march riders swear the charge is all skill. Villagers who watch one spear a scarecrow at full gallop call it luck, and step well back from the road.",
     "tier": "base",
     "baseStats": {
       "HP": 21,
@@ -1131,7 +1131,7 @@
   },
   {
     "name": "Holy Knight",
-    "lore": "A chevalier consecrated at the ruined temples: the ride to mend and the ride to end, one saddle.",
+    "lore": "Consecrated at the ruined temples with a lance and a staff. Holy knights call the blessing a formality; the mending works either way, and so does the lance.",
     "tier": "promoted",
     "promotesFrom": "Chevalier",
     "promotionBonuses": {
@@ -1152,7 +1152,7 @@
   },
   {
     "name": "Sky Lancer",
-    "lore": "They fly the far pickets alone, by preference and temperament \u2014 weather with opinions, the sky legions say.",
+    "lore": "Sky-legion picket orders: fly alone, keep your distance, report what the ground can't see. Sky lancers take this as permission, and fly best with nobody near.",
     "tier": "base",
     "baseStats": {
       "HP": 18,
@@ -1190,7 +1190,7 @@
   },
   {
     "name": "Seraph Knight",
-    "lore": "A sky lancer the light took an interest in; the pickets they fly are no longer entirely geographical.",
+    "lore": "Chronicle of the far pickets: a few sky lancers flew high enough that the light took notice. They came down with it running along the lance, and kept it.",
     "tier": "promoted",
     "promotesFrom": "Sky Lancer",
     "promotionBonuses": {
@@ -1211,7 +1211,7 @@
   },
   {
     "name": "Sentinel",
-    "lore": "The old kingdom posted them at gates that no longer stand, and never rescinded the order.",
+    "lore": "Sentinel drill, entire: stand there. Advanced drill: keep standing there. Whoever swings at a sentinel first learns why the drill is so short.",
     "tier": "base",
     "baseStats": {
       "HP": 25,
@@ -1249,7 +1249,7 @@
   },
   {
     "name": "Champion",
-    "lore": "Every province had one once \u2014 the fighter other fighters walk around.",
+    "lore": "Every province had one, the fighter other fighters walk around. Champions took up the lance so nobody could walk around them from farther off.",
     "tier": "promoted",
     "promotesFrom": "Sentinel",
     "promotionBonuses": {
@@ -1270,7 +1270,7 @@
   },
   {
     "name": "Duelist",
-    "lore": "Bred in dueling halls that outlasted the empire by schooling its officers.",
+    "lore": "Dueling-hall rule: never strike first, never refuse a challenge. Duelists keep both vows by standing very still and letting the fool swing.",
     "tier": "promoted",
     "promotesFrom": "Myrmidon",
     "promotionBonuses": {
@@ -1294,7 +1294,7 @@
   },
   {
     "name": "Great Knight",
-    "lore": "Heavy cavalry that gives up a share of its plate for the speed to arrive at all.",
+    "lore": "Requisition, heavy horse: one plate harness, trimmed. One destrier, large. Lance, axe, sword. Remarks: slower than cavalry, far faster than a knight.",
     "tier": "promoted",
     "promotesFrom": "Knight",
     "promotionBonuses": {
@@ -1319,7 +1319,7 @@
   },
   {
     "name": "Berserker",
-    "lore": "The berserk school does not recruit; it recognizes. Its whole doctrine is a leash.",
+    "lore": "The berserk school teaches one lesson: bleed, and keep swinging. Pupils who learn it too well are chained at night, which the school calls graduation.",
     "tier": "promoted",
     "promotesFrom": "Fighter",
     "promotionBonuses": {
@@ -1344,7 +1344,7 @@
   },
   {
     "name": "Dark Knight",
-    "lore": "Cavalry officers who took their training straight from the court circle.",
+    "lore": "Cavalry officers sent to the court circle for tomes come back quiet and ride harder into the first blow. Their horses will not take the temple roads.",
     "tier": "promoted",
     "promotesFrom": "Cavalier",
     "promotionBonuses": {
@@ -1393,7 +1393,7 @@
   },
   {
     "name": "Warlock",
-    "lore": "What the academies call a graduate who kept reading: the pages past the end feed on the reader, and feed him back.",
+    "lore": "Restricted-stack slip: borrower may keep the book; book may keep the borrower. Whatever a warlock's spell tears out of a foe flows back into the caster.",
     "tier": "promoted",
     "promotesFrom": "Mage",
     "promotionBonuses": {
@@ -1418,7 +1418,7 @@
   },
   {
     "name": "Battle Monk",
-    "lore": "The temple's answer to a burning world \u2014 a staff for the wounded, an axe for the cause of them.",
+    "lore": "The temple's answer to a burning world: a staff for the wounded, an axe for whoever wounded them. Brothers beside a battle monk stand noticeably firmer.",
     "tier": "promoted",
     "promotesFrom": "Cleric",
     "promotionBonuses": {
@@ -1443,7 +1443,7 @@
   },
   {
     "name": "Trickster",
-    "lore": "Thieves who took vows, or clergy who kept their picks, running both trades at once.",
+    "lore": "Some are thieves who took vows, some are clerics who kept their lockpicks. Parish records list tricksters under both, and the collection plate under neither.",
     "tier": "promoted",
     "promotesFrom": "Thief",
     "promotionBonuses": {
@@ -1467,7 +1467,7 @@
   },
   {
     "name": "Hunter",
-    "lore": "The deep-wood families who feed the border towns; the war conscripted their aim and got the patience free.",
+    "lore": "Deep-wood families feed the border towns in lean years. The war conscripted their aim and got the patience free, along with the knack for any ground.",
     "tier": "promoted",
     "promotesFrom": "Mercenary",
     "promotionBonuses": {
@@ -1492,7 +1492,7 @@
   },
   {
     "name": "Zombie",
-    "lore": "The corruption does not raise the dead so much as refuse to release them.",
+    "lore": "Fen-village rule: burn the dead, or give them to the light. Whatever the corruption keeps will stand up again after the first time it falls.",
     "tier": "base",
     "baseStats": {
       "HP": 22,
@@ -1531,7 +1531,7 @@
   },
   {
     "name": "Revenant",
-    "lore": "A zombie the corruption has had time to finish \u2014 what walks afterward remembers how to fight, and little else.",
+    "lore": "What the fens keep long enough stops shambling. It remembers the axe, the sword, and the hunger, and every wound it opens fills something behind its ribs.",
     "tier": "promoted",
     "promotesFrom": "Zombie",
     "promotionBonuses": {
@@ -1558,7 +1558,7 @@
   },
   {
     "name": "Dragon",
-    "lore": "They slept below the sacred ground longer than the chronicles reach; the ritual is waking them in the wrong order.",
+    "lore": "They slept below the sacred ground longer than any chronicle reaches. The ritual is waking them in the wrong order, and the first ones up are hungry.",
     "tier": "base",
     "baseStats": {
       "HP": 28,
@@ -1597,7 +1597,7 @@
   },
   {
     "name": "Dragon Lord",
-    "lore": "The eldest of the woken, wearing a scale that has outlasted kingdoms; it regards the war as recent weather.",
+    "lore": "Eldest of the woken, in scale that has outlasted every kingdom this land has had. It regards the war the way a mountain regards weather.",
     "tier": "promoted",
     "promotesFrom": "Dragon",
     "promotionBonuses": {
@@ -1628,7 +1628,7 @@
   },
   {
     "name": "Entity",
-    "lore": "The thing beneath the stillness. The seers' liturgy cannot name it, only the shape the world bends into around it.",
+    "lore": "The thing beneath the stillness. The liturgy has no name for it, only for the shape the world takes when it turns over in its sleep.",
     "tier": "boss",
     "baseStats": {
       "HP": 120,
