@@ -103,7 +103,8 @@ export class EclipseHudController {
       showContextualHint(
         this.scene,
         'eclipse_projection',
-        `The Hollow Sun darkens. Win now and the run gains ${gain} shadow; enough shadow lets the dark take places on your map.`,
+        // Short enough to stay a passing note (no modal mid-battle).
+        `The sun darkens: win now and the run gains ${gain} shadow.`,
       );
     }
   }
