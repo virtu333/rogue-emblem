@@ -48,11 +48,16 @@ export class BattlefieldLab {
     this.tools = document.createElement('nav');
     this.tools.className = 'bl-tools';
     this.tools.setAttribute('aria-label', 'Battle utilities');
+    const tool = (id, label, action) => {
+      const button = hud.button(label, action);
+      button.dataset.tool = id;
+      return button;
+    };
     this.tools.append(
-      hud.button('Overview', () => this.scene.resetBattleCameraView()),
-      hud.button('Recenter', () => this.recenter()),
-      hud.button('Back', () => this.scene.requestCancel({ allowPause: false })),
-      hud.button('Menu', () => this.scene.game.events.emit('mobile:menu')),
+      tool('overview', 'Overview', () => this.scene.resetBattleCameraView()),
+      tool('recenter', 'Recenter', () => this.recenter()),
+      tool('back', 'Back', () => this.scene.requestCancel({ allowPause: false })),
+      tool('menu', 'Menu', () => this.scene.game.events.emit('mobile:menu')),
     );
     hud.root.append(this.tools);
     const painting = this.scene._battlefieldTerrain;

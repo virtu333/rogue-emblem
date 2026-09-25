@@ -81,6 +81,11 @@ export class MobileBattleHUD {
     this.speedHold.hidden = true;
     this.speedHold.setAttribute('aria-pressed', 'false');
     this.disposeSpeedHold = bindHoldBattleSpeed(this.speedHold, scene);
+    // Fixed dock under the scrolling command stack: Danger never needs a scroll.
+    this.dock = el('div', 'mb-dock');
+    this.moreCue = el('div', 'mb-scroll-cue');
+    this.moreCue.setAttribute('aria-hidden', 'true');
+    this.moreCue.hidden = true;
     this.root.append(
       this.phase,
       this.objective,
@@ -88,7 +93,10 @@ export class MobileBattleHUD {
       this.summary,
       this.speedHold,
       this.body,
+      this.moreCue,
+      this.dock,
     );
+    this.body.addEventListener('scroll', () => this.syncScrollCues(), { passive: true });
     this.wrapper.append(this.root);
     for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (event) => event.stopPropagation());
@@ -519,10 +527,12 @@ export class MobileBattleHUD {
       unit?.weapon?.name,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
-      s.getBossPressureWarning?.(),
+      [s.getBossPressureWarning?.(), s._bossPresence?.summaryLine?.()].join('|'),
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
-      s.dangerZone?.visible,
+      // Danger's state line counts allies in reach: re-render when either side moves.
+      s.dangerZone?.visible &&
+        `${(s.dangerZone.tiles || []).reduce((a, t) => (a * 33 + t.col * 97 + t.row * 13 + t.tier) % 1e9, 7)}:${(s.playerUnits || []).map((u) => `${u.col},${u.row},${u.currentHP > 0}`).join(';')}`,
       Boolean(s.keepDangerVisible),
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
@@ -560,7 +570,7 @@ export class MobileBattleHUD {
           s,
           this.root,
           'Battle objective',
-          objectiveText.split('\n'),
+          [...objectiveText.split('\n'), s._bossPresence?.summaryLine?.()].filter(Boolean),
           () => {
             this.help = null;
             this.lastSnapshot = '';
@@ -635,6 +645,27 @@ export class MobileBattleHUD {
     }
     const expanded = this.body.querySelector('.mb-battle-info')?.open || false;
     const restoreMenuFocus = this.body.contains(document.activeElement);
+    // A new menu or state starts at the top (its primary action first); a
+    // re-render of the same menu keeps the player's scroll position.
+    const scrollKey = [
+      state,
+      this.menu?.items?.map((item) => item.label).join(',') || '',
+      Boolean(this.endTurnPending),
+      Boolean(s.inEquipMenu),
+    ].join('|');
+    const keepScroll = scrollKey === this._scrollKey ? this.body.scrollTop : 0;
+    this._scrollKey = scrollKey;
+    this.root.classList.toggle('has-unit', Boolean(unit));
+    this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
+    this.syncDock(state);
+    queueMicrotask(() => {
+      if (!this.body.isConnected) return;
+      this.body.scrollTop = keepScroll;
+      // Keyboard/gamepad focus always stays in view.
+      if (this.body.contains(document.activeElement))
+        document.activeElement.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      this.syncScrollCues();
+    });
     this.body.replaceChildren();
 
     const warning = s.getBossPressureWarning?.();
@@ -658,6 +689,9 @@ export class MobileBattleHUD {
       .filter(Boolean)
       .join('\n');
     const detailContent = el('div', 'mb-more-content');
+    // The boss's full reading lives here; the map carries only its compact bar.
+    const bossLine = s._bossPresence?.summaryLine?.();
+    if (bossLine) detailContent.append(el('p', 'mb-boss-line', bossLine));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
     if (s.pinnedThreatEnemies?.size >= 5)
@@ -800,17 +834,9 @@ export class MobileBattleHUD {
         this.body.append(
           this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
         );
-      const danger = this.button(
-        s.keepDangerVisible ? 'Danger · pinned' : 'Danger',
-        () => s._onDangerClick(),
-        'mb-secondary',
-        () => s.togglePersistentDanger(),
-      );
-      danger.setAttribute('aria-label', s.keepDangerVisible ? 'Danger · pinned' : 'Danger');
-      danger.append(
-        el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
-      );
-      this.body.append(danger, details);
+      // Danger joins the action grid (it fills the odd cell) so the rail never
+      // overflows into the bottom tools with an open unit menu.
+      this.body.append(details);
       if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
       return;
     }
@@ -824,40 +850,28 @@ export class MobileBattleHUD {
         commands.append(view);
         this.appendThreatPinControl(unit, commands);
       }
+      const trio = el('div', 'mb-command-row');
       for (const [label, action, active] of [
-        [s.keepDangerVisible ? 'Danger · pinned' : 'Danger', 'danger', s.dangerZone?.visible],
         ['Inspect', 'inspect', s.inspectMode],
         ['Roster', 'roster', null],
         ['Rewind', 'objective', null],
       ]) {
         if (inspecting && action === 'inspect') continue;
-        const button = this.button(
-          label,
-          () => {
-            if (action === 'inspect' && s.selectedUnit) {
-              const unit = s.selectedUnit;
-              const living = s.playerUnits.filter((u) => u.currentHP > 0);
-              s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
-                rosterUnits: living,
-                rosterIndex: Math.max(0, living.indexOf(unit)),
-              });
-              s.refreshEndTurnControl();
-            } else s.game.events.emit(`mobile:${action}`);
-          },
-          '',
-          action === 'danger' ? () => s.togglePersistentDanger() : null,
-        );
-        if (action === 'danger') {
-          button.setAttribute('aria-label', label);
-          button.append(
-            el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
-          );
-        }
+        const button = this.button(label, () => {
+          if (action === 'inspect' && s.selectedUnit) {
+            const unit = s.selectedUnit;
+            const living = s.playerUnits.filter((u) => u.currentHP > 0);
+            s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
+              rosterUnits: living,
+              rosterIndex: Math.max(0, living.indexOf(unit)),
+            });
+            s.refreshEndTurnControl();
+          } else s.game.events.emit(`mobile:${action}`);
+        });
         if (active != null) button.setAttribute('aria-pressed', String(Boolean(active)));
-        (inspecting && ['roster', 'objective'].includes(action) ? secondary : commands).append(
-          button,
-        );
+        (inspecting && ['roster', 'objective'].includes(action) ? secondary : trio).append(button);
       }
+      if (trio.childElementCount) commands.append(trio);
       const endTurn = this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn');
       if (inspecting) commands.append(endTurn);
       this.body.append(commands);
@@ -869,6 +883,71 @@ export class MobileBattleHUD {
         );
     }
     if (!this.menu && !this.endTurnPending) this.body.append(details);
+  }
+
+  /**
+   * The Danger toggle: a crimson-hatched swatch, the command, and a state line that
+   * says what the overlay shows (allies in reach) or how to pin it. Tap toggles,
+   * hold pins/unpins — unchanged gestures; the name stays 'Danger' / 'Danger · pinned'.
+   */
+  /** Top/bottom fades and a "more" cue when the command stack scrolls. */
+  syncScrollCues() {
+    const body = this.body;
+    if (!body?.isConnected) return;
+    const above = body.scrollTop > 2;
+    const below = body.scrollTop + body.clientHeight < body.scrollHeight - 2;
+    body.classList.toggle('has-more-above', above);
+    body.classList.toggle('has-more-below', below);
+    const cue = this.moreCue;
+    cue.hidden = !below || this.root.hidden;
+    if (!cue.hidden) {
+      cue.textContent = 'more ▾';
+      cue.style.top = `${Math.round(body.offsetTop + body.clientHeight - 16)}px`;
+    }
+  }
+
+  /** The fixed dock: Danger whenever a turn is being planned. */
+  syncDock(state) {
+    const s = this.scene;
+    const planning =
+      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state) &&
+      s.turnManager?.currentPhase !== 'enemy';
+    this.dock.replaceChildren();
+    this.dock.hidden = !planning;
+    if (planning) this.dock.append(this.dangerToggle({ viaEvent: state !== 'UNIT_ACTION_MENU' }));
+  }
+
+  dangerToggle({ compact = false, viaEvent = false } = {}) {
+    const s = this.scene;
+    const pinned = Boolean(s.keepDangerVisible);
+    const shown = Boolean(s.dangerZone?.visible);
+    const label = pinned ? 'Danger · pinned' : 'Danger';
+    const button = this.button(
+      '',
+      () => (viaEvent ? s.game.events.emit('mobile:danger') : s._onDangerClick()),
+      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${pinned ? ' is-pinned' : ''}`,
+      () => s.togglePersistentDanger(),
+    );
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(shown));
+    const swatch = el('span', 'mb-danger-swatch');
+    swatch.setAttribute('aria-hidden', 'true');
+    const text = el('span', 'mb-danger-text');
+    text.append(el('strong', '', compact ? 'Danger' : label));
+    let state;
+    if (shown) {
+      const tiles = new Set(
+        (s.dangerZone?.tiles || []).filter((t) => t.tier > 0).map((t) => `${t.col},${t.row}`),
+      );
+      const exposed = (s.playerUnits || []).filter(
+        (u) => u.currentHP > 0 && tiles.has(`${u.col},${u.row}`),
+      ).length;
+      state = `${exposed ? `${exposed} in reach` : 'None in reach'} · ${pinned ? 'hold to unpin' : 'hold to pin'}`;
+    } else state = 'Enemy reach · hold to pin';
+    if (compact) state = pinned ? 'Pinned' : shown ? 'Shown' : 'Hold to pin';
+    text.append(el('small', 'mb-hold-cue', state));
+    button.append(swatch, text);
+    return button;
   }
 
   appendThreatPinControl(unit, container = this.summary) {

@@ -1,0 +1,262 @@
+/* Battle command rail polish (ux-polish, 2026-09-25): a prominent Danger toggle in the
+   empire's crimson (never gold), full 44px commands, a quiet 44px Battle details row
+   and a bottom tool row with drawn glyphs. Loaded after the lab and reliquary layers. */
+
+:root {
+  /* Alpha variant of --re-threat-fill (no color-mix on iOS 15). */
+  --re-threat-haze: rgba(200, 50, 44, 0.45);
+}
+
+/* ── Danger toggle ─────────────────────────────────────────────────────────── */
+.mobile-battle-hud .mb-command-grid > .mb-danger-toggle:not(.is-compact) {
+  grid-column: 1 / -1;
+}
+.mobile-battle-hud .mb-button.mb-danger-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--re-tap);
+  padding: 4px 10px 4px 8px;
+  text-align: left;
+  border-left: 3px solid var(--re-threat-fill);
+}
+.mb-danger-swatch {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid var(--re-threat-edge);
+  box-shadow: 0 0 0 1px var(--re-threat-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--re-threat-edge) 0 1.5px,
+    transparent 1.5px 5px
+  );
+  opacity: 0.75;
+}
+.mb-danger-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mb-danger-text strong {
+  font: 700 14px/1.15 var(--re-body);
+}
+.mobile-battle-hud .mb-danger-toggle .mb-hold-cue {
+  margin: 1px 0 0;
+  color: var(--re-muted);
+  font: 11px/1.2 var(--re-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* On: crimson plate (not the gold pressed state — gold is the player's agency). */
+.battlefield-lab .mobile-battle-hud .mb-button.mb-danger-toggle[aria-pressed='true'],
+.mobile-battle-hud .mb-button.mb-danger-toggle[aria-pressed='true'] {
+  background: var(--re-danger-bg);
+  border-color: var(--re-threat-edge);
+  border-left-color: var(--re-threat-edge);
+  color: var(--re-text);
+}
+.mobile-battle-hud .mb-danger-toggle.is-on .mb-danger-swatch {
+  opacity: 1;
+  background-color: var(--re-threat-haze);
+}
+.mobile-battle-hud .mb-danger-toggle.is-on .mb-hold-cue {
+  color: var(--re-bad);
+}
+.mobile-battle-hud .mb-danger-toggle.is-pinned .mb-danger-swatch {
+  box-shadow:
+    0 0 0 1px var(--re-threat-ink),
+    0 0 0 3px var(--re-threat-edge);
+}
+.mobile-battle-hud .mb-danger-toggle.is-compact {
+  padding-inline: 6px;
+  gap: 6px;
+}
+.mobile-battle-hud .mb-danger-toggle.is-compact .mb-danger-swatch {
+  width: 16px;
+  height: 16px;
+}
+
+/* Two equal columns whatever the content (a nowrap state line must not widen one). */
+.battlefield-lab .mobile-battle-hud .mb-command-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mobile-battle-hud .mb-command-grid .mb-danger-toggle.is-compact .mb-hold-cue {
+  display: none;
+}
+.battlefield-lab .mobile-battle-hud .mb-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ── Command sizes: every rail command is a full 44px target ──────────────── */
+.battlefield-lab .mobile-battle-hud .mb-body .mb-button {
+  min-height: var(--re-tap);
+}
+.mobile-battle-hud .mb-command-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.mobile-battle-hud .mb-command-row .mb-button {
+  padding-inline: 2px;
+  overflow-wrap: normal;
+}
+
+/* ── Battle details: a quiet 44px row, not a boxed heading ─────────────────── */
+.battlefield-lab .mobile-battle-hud .mb-battle-info summary {
+  min-height: var(--re-tap);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--re-line-soft);
+  background: transparent;
+  color: var(--re-muted);
+  font: 600 12px/1.2 var(--re-body);
+  list-style: none;
+}
+.mobile-battle-hud .mb-battle-info summary::-webkit-details-marker {
+  display: none;
+}
+.mobile-battle-hud .mb-battle-info summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--re-accent);
+  border-bottom: 2px solid var(--re-accent);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease-out;
+}
+.mobile-battle-hud .mb-battle-info[open] summary::before {
+  transform: rotate(45deg);
+}
+.mobile-battle-hud .mb-battle-info[open] summary {
+  color: var(--re-accent-text);
+  border-color: var(--re-gilt);
+}
+
+/* ── Bottom tools: four equal cells, drawn glyph over a readable label ─────── */
+.battlefield-lab .bl-tools {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+.battlefield-lab .bl-tools .mb-button {
+  min-height: var(--re-tap);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 0;
+  font: 500 9.5px/1.1 var(--re-body);
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  color: var(--re-text);
+}
+.battlefield-lab .bl-tools .mb-button::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--bl-glyph) center / contain no-repeat;
+  mask: var(--bl-glyph) center / contain no-repeat;
+  opacity: 0.85;
+}
+.battlefield-lab .bl-tools .mb-button[data-tool='menu'] {
+  color: var(--re-accent-text);
+  border-color: var(--re-gilt);
+}
+.bl-tools [data-tool='overview'] {
+  --bl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23000' stroke-width='2' d='M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%23000'/%3E%3C/svg%3E");
+}
+.bl-tools [data-tool='recenter'] {
+  --bl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='none' stroke='%23000' stroke-width='2'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%23000'/%3E%3Cpath stroke='%23000' stroke-width='2' d='M8 0v3M8 13v3M0 8h3M13 8h3'/%3E%3C/svg%3E");
+}
+.bl-tools [data-tool='back'] {
+  --bl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23000' stroke-width='2' d='M6 3L2 7l4 4M2 7h8a4 4 0 010 8H7'/%3E%3C/svg%3E");
+}
+.bl-tools [data-tool='menu'] {
+  --bl-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath stroke='%23000' stroke-width='2' d='M2 3h12M2 8h12M2 13h12'/%3E%3C/svg%3E");
+}
+
+/* ── Scroll region: fixed header above, fixed dock + tools below ──────────── */
+.mobile-battle-hud {
+  position: relative;
+}
+.battlefield-lab .mobile-battle-hud .mb-body {
+  --mb-fade-top: 0px;
+  --mb-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 var(--mb-fade-top),
+    #000 calc(100% - var(--mb-fade-bottom)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 var(--mb-fade-top),
+    #000 calc(100% - var(--mb-fade-bottom)),
+    transparent 100%
+  );
+}
+.battlefield-lab .mobile-battle-hud .mb-body.has-more-above {
+  --mb-fade-top: 18px;
+}
+.battlefield-lab .mobile-battle-hud .mb-body.has-more-below {
+  --mb-fade-bottom: 22px;
+}
+.mb-scroll-cue {
+  position: absolute;
+  right: 10px;
+  z-index: var(--re-depth-lab);
+  padding: 0 6px;
+  background: var(--re-bg);
+  color: var(--re-accent-text);
+  font: 600 10px/16px var(--re-body);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+.mb-scroll-cue[hidden],
+.mb-dock[hidden] {
+  display: none;
+}
+.mb-dock {
+  flex-shrink: 0;
+  display: grid;
+}
+.battlefield-lab .mobile-battle-hud .mb-dock .mb-button {
+  min-height: var(--re-tap);
+  padding: 4px 10px 4px 8px;
+}
+
+/* ── Compact header while a unit is selected or inspected ─────────────────── */
+.battlefield-lab .mobile-battle-hud.has-unit .mb-terrain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  padding: 2px 5px;
+  font-size: 11px;
+}
+.battlefield-lab .mobile-battle-hud.has-unit .mb-terrain > span {
+  white-space: nowrap;
+}
+.battlefield-lab .mobile-battle-hud.has-unit .mb-terrain-help.mb-button {
+  min-height: 20px;
+  width: auto;
+}
+
+/* In a unit's action menu the tile it stands on only needs its defence line, and
+   the "tap a blue tile" reminder yields its row to the commands on short screens. */
+.battlefield-lab .mobile-battle-hud.in-menu .mb-terrain > span:first-of-type {
+  display: none;
+}
+@media (max-height: 480px) {
+  .battlefield-lab .mobile-battle-hud.in-menu .mb-body > .mb-detail {
+    display: none;
+  }
+}
