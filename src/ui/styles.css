@@ -18,6 +18,8 @@
 @import './growth.css';
 /* Deeds & Epithets: the deed title card, epithets, Oaths, Deeds of the March. */
 @import './deeds.css';
+/* The draft: every "choose one" screen as cards side by side. */
+@import './choice.css';
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';
