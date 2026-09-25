@@ -1875,6 +1875,13 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerout', () => {
         this.parTooltipText.setVisible(false);
       });
+      // Show turn 1 and par from the first frame: boss cards, pre-battle lines and
+      // deployment all play before the first player phase refreshes it.
+      try {
+        this.renderTurnCounter(Math.max(1, this.getCurrentTurnNumber()));
+      } catch (err) {
+        console.warn('[BattleScene] initial turn counter failed:', err);
+      }
 
       this.updateTopLeftHudLayout();
 
@@ -1987,6 +1994,9 @@ export class BattleScene extends Phaser.Scene {
             if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
               this.grid.clearHighlights();
               completeBattleAction(this, this.selectedUnit);
+              this.refreshEndTurnControl();
+            } else if (this.canOpenPauseFromMenu()) {
+              this.showPauseMenu();
               this.refreshEndTurnControl();
             } else {
               this.requestCancel();
@@ -2369,8 +2379,8 @@ export class BattleScene extends Phaser.Scene {
     (this._tutorialController ||= new TutorialController(this)).clearGuideHighlights();
   }
 
-  _transitionTutorialToTitle() {
-    return (this._tutorialController ||= new TutorialController(this)).transitionToTitle();
+  _transitionTutorialToTitle(extra = null) {
+    return (this._tutorialController ||= new TutorialController(this)).transitionToTitle(extra);
   }
 
   _handleTutorialSkipRequested() {
@@ -3088,6 +3098,28 @@ export class BattleScene extends Phaser.Scene {
     if (turn >= threshold) return 'Boss enrages this enemy phase';
     if (turn + 1 === threshold) return `Boss enrages next turn (turn ${threshold})`;
     return '';
+  }
+
+  /** Turn / par / rating text read by both HUDs (the phone rail parses it). */
+  renderTurnCounter(turn = this.getCurrentTurnNumber?.() ?? 1) {
+    if (!this.turnCounterText) return;
+    const pressureSuffix = this.getTurnPressureSummary(turn);
+    if (this.turnPar !== null && this.turnPar !== undefined) {
+      const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
+      const colors = {
+        S: UI_PALETTE.good,
+        A: UI_PALETTE.info,
+        B: UI_PALETTE.warn,
+        C: UI_PALETTE.bad,
+      };
+      this.turnCounterText.setText(
+        `Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
+      );
+      this.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
+    } else {
+      this.turnCounterText.setText(`Turn: ${turn}${pressureSuffix}`);
+      this.turnCounterText.setColor(UI_PALETTE.text);
+    }
   }
 
   getTurnPressureSummary(turnOverride = null) {
@@ -3927,6 +3959,18 @@ export class BattleScene extends Phaser.Scene {
     return cancelStates.includes(this.battleState);
   }
 
+  /** The rail's Menu opens the pause menu whenever a turn is being planned; Back cancels. */
+  canOpenPauseFromMenu() {
+    return Boolean(
+      ['UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState) &&
+      this.turnManager?.currentPhase !== 'enemy' &&
+      !this.pauseOverlay?.visible &&
+      !this.visionDialog &&
+      !this.unitDetailOverlay?.visible &&
+      !this.isStoryInputLocked(),
+    );
+  }
+
   canRequestCancel({ allowPause = true } = {}) {
     if (this.isStoryInputLocked()) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
@@ -3945,7 +3989,12 @@ export class BattleScene extends Phaser.Scene {
   requestCancel({ allowPause = true } = {}) {
     if (this.isStoryInputLocked()) return true;
     if (this._isTutorialStrictGateActive()) {
-      if (this.battleState !== 'TUTORIAL_HINT') {
+      if (this.pauseOverlay?.visible) {
+        if (!this.pauseOverlay.closeActiveSubOverlay()) this.pauseOverlay.hide();
+      } else if (allowPause && this._tutorialController?.canPause()) {
+        // Pause (and its Leave Tutorial exit) stays reachable during the guided step.
+        this.showPauseMenu();
+      } else if (this.battleState !== 'TUTORIAL_HINT') {
         void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
       }
       return true;
@@ -4518,6 +4567,9 @@ export class BattleScene extends Phaser.Scene {
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
+      tutorial: this.battleParams?.tutorialMode
+        ? (this._tutorialController ||= new TutorialController(this)).pauseOptions()
+        : null,
     });
     this.pauseOverlay.show();
     this.refreshEndTurnControl();
@@ -4609,12 +4661,7 @@ export class BattleScene extends Phaser.Scene {
     this._gridCursor?.snapTo(unit.col, unit.row);
 
     if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
-      this._setTutorialGuideHighlight('fort');
-      this.tutorialStep = 3;
-      const verb = this.isMobileInput ? 'Tap' : 'Click';
-      void this._withTutorialHintState(async () => {
-        await showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`);
-      });
+      (this._tutorialController ||= new TutorialController(this)).onCommanderSelected();
     }
   }
 
@@ -8292,12 +8339,7 @@ export class BattleScene extends Phaser.Scene {
 
       if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
         this.tutorialStep = 6;
-        await this._withTutorialHintState(async () => {
-          await showImportantHint(
-            this,
-            'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
-          );
-        });
+        await (this._tutorialController ||= new TutorialController(this)).showXpLesson();
         if (!this.scene?.isActive?.()) return;
         this.battleState = 'COMBAT_RESOLVING';
       }
@@ -9714,24 +9756,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Update turn counter at start of each player phase
-      if (this.turnCounterText && this.turnPar !== null) {
-        const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
-        const colors = {
-          S: UI_PALETTE.good,
-          A: UI_PALETTE.info,
-          B: UI_PALETTE.warn,
-          C: UI_PALETTE.bad,
-        };
-        const pressureSuffix = this.getTurnPressureSummary(turn);
-        this.turnCounterText.setText(
-          `Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
-        );
-        this.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
-      } else if (this.turnCounterText) {
-        const pressureSuffix = this.getTurnPressureSummary(turn);
-        this.turnCounterText.setText(`Turn: ${turn}${pressureSuffix}`);
-        this.turnCounterText.setColor(UI_PALETTE.text);
-      }
+      this.renderTurnCounter(turn);
       const latePressure = this.getTurnPressureState(turn);
       if (latePressure.active && !this._latePressureWarningShown) {
         this._latePressureWarningShown = true;

@@ -104,13 +104,27 @@ export class PostCombatController {
     if (scene.battleParams.tutorialMode) {
       afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
-        await showImportantHint(
+        const tutorial = (scene._tutorialController ||= new TutorialController(scene));
+        // A fresh player goes straight into their first run; anyone else returns to title.
+        const startRun = Boolean(tutorial.pauseOptions()?.onStartRun);
+        const choice = await showImportantHint(
           scene,
-          "Victory! You've completed the tutorial.\nChoose Start first run on the title screen to begin your campaign.",
+          startRun
+            ? "Victory! You've completed the tutorial.\nYour first run starts on the route map — pick a path, fight, and keep your commander alive."
+            : "Victory! You've completed the tutorial.\nYour saves are waiting on the title screen.",
+          {
+            actions: startRun
+              ? [
+                  { label: 'Start first run', value: 'run', primary: true },
+                  { label: 'Back to title', value: 'title' },
+                ]
+              : [{ label: 'Back to title', value: 'title', primary: true }],
+          },
         );
         if (!scene.scene?.isActive?.()) return;
-        (scene._tutorialController ||= new TutorialController(scene)).recordCompletion();
-        scene._transitionTutorialToTitle();
+        tutorial.recordCompletion();
+        if (choice === 'run') scene._transitionTutorialToTitle({ autoAction: 'newGame' });
+        else scene._transitionTutorialToTitle();
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
@@ -776,7 +790,8 @@ export class PostCombatController {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
-          'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.',
+          'Your commander fell — the battle is lost. In a real run, this would end the run.\nThe tutorial is always there to try again from the title.',
+          { actions: [{ label: 'Back to title', value: true, primary: true }] },
         );
         if (!scene.scene?.isActive?.()) return;
         scene._transitionTutorialToTitle();
