@@ -178,6 +178,9 @@ export class VisionRewindController {
   _applySnapshot({ committed = false } = {}) {
     const scene = this.scene;
     if (!scene.visionSnapshot) return false;
+    // Presentation in flight (a strike, embers, a dissolve) belongs to the timeline
+    // being discarded: settle every unit home and drop it before rebuilding.
+    scene._combatFx?.reset?.();
     resetBattleIdentities(
       scene,
       scene.visionSnapshot.nextEntityId,

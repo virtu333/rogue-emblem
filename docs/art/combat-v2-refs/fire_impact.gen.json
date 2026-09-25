@@ -1,0 +1,14 @@
+{
+  "hash": "d873148d6c34c7e4",
+  "model": "gemini-3-pro-image",
+  "prompt": "SNES-era 16-bit pixel art effect sprite sheet, hard pixel edges, no anti-aliasing, no text, no labels, plain flat dark charcoal background (#16131e), each frame in its own evenly spaced cell in a single row, limited palette: deep ink #07060b, dark blood red #6e1a28, crimson #9e2632, orange #b3702c, amber #dca044, pale gold #f3cb6c, cream #fff0bd. Dark fantasy (Dark Souls tone), readable at 48x48 pixels per frame. Eight frames of a fire spell impact on a target: frame 1 a bright compact burst with a cream-white core, frames 2-4 flame tongues licking upward with dark red outer edges, orange body and gold core, frames 5-8 flames breaking into rising wisps and cinders that cool to dark red and end as grey-black smoke puffs.",
+  "refs": [],
+  "aspectRatio": "21:9",
+  "imageSize": "2K",
+  "files": [
+    "docs/art/combat-v2-refs/fire_impact.webp"
+  ],
+  "text": "",
+  "at": "2026-09-25T02:20:26.485Z",
+  "note": "raw JPEG re-encoded as WebP (q88) to keep the repo small; reference only"
+}

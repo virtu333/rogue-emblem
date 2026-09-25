@@ -450,7 +450,7 @@ export class AbilityController {
       observeHistoryAction(scene, 'rooted', unit, enemy, skill.name);
       anyRooted = true;
       scene._addConditionIcon(enemy, 'root');
-      (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y);
+      (scene._combatFx ||= new CombatFxController(scene)).playStatus(pos.x, pos.y, 'root');
       scene.showMinorHintAt(pos.x, pos.y, 'Rooted!', UI_PALETTE.rarityEpic);
     }
     // Rooted enemies can't move — their threat ranges shrink

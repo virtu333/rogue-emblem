@@ -105,7 +105,8 @@ describe('independent motion and visual quality', () => {
     fx.playOverlay('fx_heal', 10, 20);
     const sprite = scene.add.sprite.mock.results[0].value;
     expect(sprite.play).not.toHaveBeenCalled();
-    expect(sprite.setFrame).toHaveBeenCalledWith(1);
+    // Combat v2 atlas frames: a static, readable frame of the heal (no animation).
+    expect(sprite.setFrame).toHaveBeenCalledWith('fx_heal/2');
     expect(scene.time.delayedCall).toHaveBeenCalled();
   });
 });

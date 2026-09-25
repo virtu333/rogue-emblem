@@ -298,6 +298,7 @@ import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
+import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { growthCeremonies } from '../ui/GrowthCeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
@@ -3155,8 +3156,7 @@ export class BattleScene extends Phaser.Scene {
     const fx = (this._combatFx ||= new CombatFxController(this));
     for (const boss of this.enemyUnits) {
       if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
-      const pos = this.grid.gridToPixel(boss.col, boss.row);
-      fx.playOverlay('fx_sig_enrage', pos.x, pos.y - 6, { scale: 1.4 });
+      fx.playEnrage(boss);
     }
     // Headless/stub scenes (tests) have no display list -- fx above no-ops too
     if (this.add?.text) {
@@ -3451,6 +3451,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   removeUnitGraphic(unit) {
+    // Free presentation that refers to this graphic (death dissolve, poses) first.
+    this._combatFx?.releaseUnit?.(unit);
     if (unit.graphic) {
       unit.graphic.destroy();
       unit.graphic = null;
@@ -6661,8 +6663,9 @@ export class BattleScene extends Phaser.Scene {
     return (this._healController ||= new HealController(this)).executeHealAll(healer, targets);
   }
 
-  animateHeal(target, healAmount) {
-    return (this._healController ||= new HealController(this)).animateHeal(target, healAmount);
+  /** animateHeal(target, healAmount, source?) — source (the healer) sends heal motes. */
+  animateHeal(...args) {
+    return (this._healController ||= new HealController(this)).animateHeal(...args);
   }
 
   // --- Weapon picker (pre-attack) ---
@@ -8111,6 +8114,7 @@ export class BattleScene extends Phaser.Scene {
     // Animate events. Consecutive strikes by the same side (Astra flurries,
     // brave doubles, Adept bonus strikes) animate at follow-up tempo.
     let prevStrikeSide = null;
+    let strikeIndex = 0;
     for (const event of result.events) {
       if (event.type === 'skill') {
         prevStrikeSide = null;
@@ -8118,7 +8122,10 @@ export class BattleScene extends Phaser.Scene {
       } else {
         const followUp = event.attackerSide != null && event.attackerSide === prevStrikeSide;
         prevStrikeSide = event.attackerSide ?? null;
-        await this.animateStrike(event, attacker, defender, { followUp });
+        await this.animateStrike(event, attacker, defender, {
+          followUp,
+          strikeIndex: strikeIndex++,
+        });
         if (!event.miss && attacker.faction === 'player' && defender.faction === 'enemy') {
           defender._hitByPlayerThisPhase = true;
         }
@@ -8489,7 +8496,7 @@ export class BattleScene extends Phaser.Scene {
               break;
             }
             this._addConditionIcon(targetUnit, step.status);
-            (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+            (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, step.status);
             const statusLabels = {
               root: 'Rooted!',
               silence: 'Silenced!',
@@ -8984,59 +8991,64 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
-    const fx = (this._combatFx ||= new CombatFxController(this));
     const audio = this.registry.get('audio');
-    if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
-    if (audio && !event.miss) this._combatFx.playStrikeSound(this.getWeaponSFX(striker));
     const strikerCat = dominantCategory(split.striker);
     const windUp =
       !opts.followUp && (strikerCat === PROC_CATEGORY.ART || strikerCat === PROC_CATEGORY.OFFENSE);
-    await fx.lungeForward(striker, target, {
-      windUp,
-      tempo: opts.followUp ? 'followup' : 'normal',
-    });
-    if (striker.graphic?.clearTint) striker.graphic.clearTint();
-
-    if (event.miss) {
-      fx.dodge(target, striker);
-      const pos = this.grid.gridToPixel(target.col, target.row);
-      const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.muted,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
-      this.tweens.add({
-        targets: missText,
-        y: reduced ? pos.y - 16 : pos.y - 32,
-        alpha: 0,
-        duration: 500,
-        onComplete: () => missText.destroy(),
-      });
-      await this._awaitSceneDelay(300, { label: 'animate_strike_miss_hold' });
-      await fx.lungeBack(striker, target);
-      return;
-    }
-
-    if (target.graphic?.setTint) target.graphic.setTint(UI_HEX.dangerLine);
-    if (audio) this._combatFx.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     const artStrike = split.striker.some((e) => e.id === 'weapon_art');
-    fx.playImpact(event, striker, target, {
-      emphasis: artStrike,
+    // Combat v2: the choreography owns motion and effects; the callbacks below are
+    // the game-facing results (numbers, HP bars), shown at the moment of contact.
+    await (this._combatChoreo ||= new CombatChoreography(this)).playStrike({
+      event,
+      striker,
+      target,
+      split,
+      legendaryArt,
+      followUp: Boolean(opts.followUp),
+      windUp,
+      strikeIndex: opts.strikeIndex ?? 0,
       signatureKey: legendaryArt ? sigFxForWeaponType(legendaryArt.weaponType) : null,
+      artStrike,
+      artCatalog: this._getWeaponArtCatalog(),
+      onStrikeSound: () => {
+        if (audio && !event.miss) this._combatFx?.playStrikeSound(this.getWeaponSFX(striker));
+      },
+      onMiss: () => this._showStrikeMiss(target, reduced),
+      onContact: () => {
+        if (audio) this._combatFx?.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+        if (event.isCrit)
+          (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
+        this._showStrikeResult(event, striker, target, reduced);
+      },
     });
-    fx.playProcOverlays(split, striker, target);
-    if (artStrike) fx.playArtBurst(split, target, this._getWeaponArtCatalog());
-    // Defensive proc: the target braces in place instead of getting knocked back
-    if (split.target.length > 0) fx.brace(target);
-    else fx.recoil(target, striker);
-    if (event.isCrit) {
-      fx.critImpact(striker);
-      fx.zoomPunch();
-      (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
+
+    if (event.warpRange > 0 && target.currentHP > 0) {
+      await this.executeWarp(target, event.warpRange, striker);
     }
+  }
+
+  /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
+  _showStrikeMiss(target, reduced) {
+    const pos = this.grid.gridToPixel(target.col, target.row);
+    const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: UI_PALETTE.muted,
+      fontStyle: 'bold',
+    })
+      .setOrigin(0.5)
+      .setDepth(300);
+    this.tweens.add({
+      targets: missText,
+      y: reduced ? pos.y - 16 : pos.y - 32,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => missText.destroy(),
+    });
+  }
+
+  /** Damage number, HP bars, wake, drain heal and reflect at the moment of contact. */
+  _showStrikeResult(event, striker, target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
     const dmgText = presentationText(
       this,
@@ -9048,6 +9060,9 @@ export class BattleScene extends Phaser.Scene {
         fontSize: '13px',
         color: event.isCrit ? UI_PALETTE.accentText : UI_PALETTE.text,
         fontStyle: 'bold',
+        // An ink edge keeps the number legible over bright impact frames.
+        stroke: UI_PALETTE.void,
+        strokeThickness: 3,
       },
     )
       .setOrigin(0.5)
@@ -9109,17 +9124,6 @@ export class BattleScene extends Phaser.Scene {
         duration: 600,
         onComplete: () => refText.destroy(),
       });
-    }
-
-    // Crits hold the impact frame a beat longer for weight
-    await this._awaitSceneDelay(event.isCrit ? 240 : 150, {
-      label: 'animate_strike_hit_hold',
-    });
-    if (target.graphic?.clearTint) target.graphic.clearTint();
-    await fx.lungeBack(striker, target);
-
-    if (event.warpRange > 0 && target.currentHP > 0) {
-      await this.executeWarp(target, event.warpRange, striker);
     }
   }
 
@@ -9196,7 +9200,7 @@ export class BattleScene extends Phaser.Scene {
     const reduced = this._reduceMotion();
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+    (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'poison');
     const text = this.add
       .text(pos.x, pos.y - 16, `Poison -${damage}`, {
         fontFamily: 'monospace',
@@ -9999,6 +10003,11 @@ export class BattleScene extends Phaser.Scene {
       const target = selectBallistaTarget(ballista, targetUnits);
       if (!target) continue;
       const result = resolveBallistaStrike(ballista, target);
+      // Presentation of the resolved shot: the bolt flies before the number shows.
+      await (this._combatFx ||= new CombatFxController(this)).ballistaShot(ballista, target, {
+        hit: result.didHit,
+        seed: (this.turnManager?.turnNumber || 0) * 97 + ballista.col * 13 + ballista.row,
+      });
       if (result.didHit) {
         target.currentHP = Math.max(0, target.currentHP - result.damage);
         this.updateHPBar(target);
@@ -10346,7 +10355,7 @@ export class BattleScene extends Phaser.Scene {
       this._addConditionIcon(unit, 'acid');
       {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
-        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'acid');
       }
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, UI_PALETTE.good);
     }
@@ -10735,7 +10744,15 @@ export class BattleScene extends Phaser.Scene {
       this._addConditionIcon(target, result.conditionId);
       {
         const pos = this.grid.gridToPixel(target.col, target.row);
-        (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y);
+        (this._combatFx ||= new CombatFxController(this)).playStatus(
+          pos.x,
+          pos.y,
+          result.conditionId,
+          {
+            from: enemy.graphic?.visible ? { x: enemy.graphic.x, y: enemy.graphic.y } : null,
+            seed: this.turnManager?.turnNumber || 0,
+          },
+        );
       }
     } else {
       await this.showBriefBanner(

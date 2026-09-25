@@ -135,6 +135,7 @@ export class BattleSuspendController {
    */
   applyUnits(checkpoint) {
     const scene = this.scene;
+    scene._combatFx?.reset?.();
     resetBattleIdentities(
       scene,
       checkpoint.nextEntityId,

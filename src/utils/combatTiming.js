@@ -18,6 +18,8 @@ const COMBAT_WAITS = new Set([
   'combat_fx_windup',
   'combat_fx_lunge_forward',
   'combat_fx_lunge_back',
+  'combat_fx_travel',
+  'combat_fx_hit_stop',
   'combat_fx_death_fade',
   'proc_banner_in',
   'proc_banner_hold',
