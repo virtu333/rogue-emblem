@@ -291,6 +291,21 @@ describe('listing rewind destinations', () => {
     expect(listRewindDestinations(createBattleTimeline()).rows).toEqual([]);
   });
 
+  it('offers the enemy handoff only in legacy battles, which reroll', () => {
+    const { h, ids } = battle();
+    expect(
+      listRewindDestinations(h, { currentEntryId: ids.b2 }).rows.map((r) => r.id),
+    ).not.toContain(ids.a3);
+    const legacy = structuredClone(h);
+    legacy.policy = 'legacy-v1';
+    for (const snapshot of Object.values(legacy.snapshots))
+      if (!snapshot.base) snapshot.rewindPolicy = 'legacy-v1';
+    const row = listRewindDestinations(legacy, { currentEntryId: ids.b2 }).rows.find(
+      (r) => r.id === ids.a3,
+    );
+    expect(row).toMatchObject({ title: 'Before the enemy phase', turnNumber: 1 });
+  });
+
   it('a re-recorded turn start supersedes the earlier one', () => {
     let h = createBattleTimeline();
     for (const kind of ['turn_start', 'turn_start'])

@@ -719,10 +719,14 @@ export class VisionRewindController {
       (!this.runManager?.battleInProgress || anchor.runBattleState) &&
       (this.scene._battleRewindPolicy !== 'fixed-v1' || validateBattleState(anchor)),
     );
+    // Only points the picker can offer count: never an enemy-phase handoff,
+    // which would just replay the same enemy phase.
     const hasUsableTimeline = () =>
       hasDOMHost() &&
-      this.scene._battleTimeline?.entries?.some((entry) =>
-        canRewindToEntry(this.scene._battleTimeline, entry.id, this._rewindRules()),
+      this.scene._battleTimeline?.entries?.some(
+        (entry) =>
+          (!entry.preview?.enemiesActNext || this.scene._battleTimeline.policy === 'legacy-v1') &&
+          canRewindToEntry(this.scene._battleTimeline, entry.id, this._rewindRules()),
       );
     if (!usableAnchor && !hasUsableTimeline()) return false;
     if (this.runManager?.battleInProgress) {
@@ -764,8 +768,8 @@ export class VisionRewindController {
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => {
-        if (!this.openRewind({ fatal: true }) && intent)
-          this.executeRewind(intent.target, null, intent);
+        if (hasUsableTimeline()) this.openRewind({ fatal: true });
+        else if (intent) this.executeRewind(intent.target, null, intent);
       },
       onCancel: () => {
         this._rewindFatalOrigin = false;

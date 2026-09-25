@@ -264,9 +264,11 @@ export function listRewindDestinations(
     const next = nextEvent(entries, index);
     // The live state is not a destination ("you are here").
     if (!next || entry.id === currentEntryId) continue;
-    // Enemies move next from here: returning would only replay the enemy phase.
-    if (entry.preview?.enemiesActNext || next.phase === 'enemy') continue;
-    if (next.turnNumber !== entry.turnNumber) continue;
+    // Enemies move next from here. Under the fixed RNG rule returning would
+    // only replay the same enemy phase; legacy battles reroll, so keep it there.
+    const handoff = Boolean(entry.preview?.enemiesActNext) || next.phase === 'enemy';
+    if (handoff && history.policy !== 'legacy-v1') continue;
+    if (!handoff && next.turnNumber !== entry.turnNumber) continue;
     // A re-recorded turn start (e.g. after an interrupted turn-start) supersedes this one.
     if (next.kind === 'turn_start' && next.destination) continue;
     const fact = entryActionFact(next);
@@ -288,7 +290,11 @@ export function listRewindDestinations(
       id: entry.id,
       turnNumber: entry.turnNumber,
       kind: entry.kind === 'turn_start' ? 'turn_start' : 'action',
-      title: endTurn ? 'Before ending the turn' : describeBefore(fact, fallbackTitle(next)),
+      title: handoff
+        ? 'Before the enemy phase'
+        : endTurn
+          ? 'Before ending the turn'
+          : describeBefore(fact, fallbackTitle(next)),
       turnStart: entry.kind === 'turn_start',
       action: fact
         ? {
