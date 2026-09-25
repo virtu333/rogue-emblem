@@ -47,7 +47,10 @@ value is untouched until the win). Defeat ends the run.
 
 During battle the HUD shows the **projected** gain for the current turn
 (`RunManager.projectShadowGain(turnNumber, turnPar)`, recomputed every frame), e.g.
-`Shadow +2`, or `Sun holds` while inside the grace window.
+`Shadow +2`, or `Sun holds` while inside the grace window. That is what the act gathers;
+when the global meter's cap stops part of it the label adds what the sun itself takes
+(`projectedMeterGain`): `Shadow +6 (sun +3)` near the cap, `Shadow +6 (land only)` at it.
+The victory band uses the same wording.
 
 ### 2. Losing shadow (the sun flares)
 
@@ -58,13 +61,28 @@ During battle the HUD shows the **projected** gain for the current turn
   Ruins). A real gold sink.
 - Floor 0, cap 100 (`eclipse.cap`, applied to the gain before relief). Shadow changes
   nowhere else.
+- Both relief sources lower the act's pressure too (§3), floored at 0 independently.
 
 ### 3. The dark takes the map (per act)
 
-Each act remembers `actStartShadow` (shadow when its map was generated).
-`actShadow = max(0, shadow - actStartShadow)` drives node falls for this act, so every act
-opens on a fresh land and then darkens as you spend time in it. (Kindle therefore delays
-this act's falls by its full amount.)
+**Act pressure** (`eclipse.actShadow`) is its own number, separate from the capped global
+meter (review R2, 2026-09-25). It starts at 0 when an act's map is generated
+(`advanceAct` → `beginActShadow`), takes the **whole** per-victory gain (never limited by
+the global cap), and is lowered by in-act relief: Kindle removes `kindleAmount` from both
+numbers; an act boss's relief is applied to both at the same commit (moot for the act's
+pressure, since the act ends with its boss — the next act starts at 0 either way, while
+the relief carries on in the global meter the next act inherits). Act pressure drives node
+falls for this act, so every act opens on a fresh land and then darkens as you spend time
+in it, **even when the sun is already Hollow** (an act opening at 97 used to be able to
+gather only 3, below every threshold). `actStartShadow` (global shadow at act start) is
+still written for older readers of the save but no longer drives anything.
+
+Commit, in `EclipseSystem.commitShadow`:
+
+```
+meter = min(cap, shadow + gain);  shadow = max(0, meter - relief)
+actShadow = max(0, actShadow + gain - relief)          // no cap
+```
 
 Every node has a deterministic **fall threshold** in act-shadow units, computed (never
 stored — legacy saves need no node migration):
@@ -78,7 +96,7 @@ threshold = laneBase + rowTerm + jitter
 
 After every shadow change (victory commit, boss relief, Kindle, act start, and
 idempotently on load) `applyEclipse` runs. A node **falls** when
-`actShadow >= threshold` and it is none of: the start node, the boss, the pre-boss RUINS,
+`actShadow >= threshold` (act pressure, §3) and it is none of: the start node, the boss, the pre-boss RUINS,
 completed, the current node (`currentNodeId`), the battle in progress
 (`battleInProgress.nodeId`), `encounterLocked`, or already eclipsed.
 
@@ -133,16 +151,19 @@ rewards and in the shadow it commits to the run.
 
 ## State
 
-`RunManager.eclipse = { version: 1, shadow: 0, actStartShadow: 0, enabled: true, kindledNodeIds: [] }`
+`RunManager.eclipse = { version: 2, shadow: 0, actStartShadow: 0, actShadow: 0, enabled: true, kindledNodeIds: [] }`
 
 - Constructor default; reset in `startRun` (disabled for `tutorialMode`); `advanceAct`
-  sets `actStartShadow = shadow`, then applies; serialized in `toJSON`; guarded
-  `normalizeEclipseState` in `fromJSON` (legacy saves: enabled, shadow 0, actStartShadow
-  0 — a mid-run legacy save simply starts its clock now).
+  sets `actStartShadow = shadow` and `actShadow = 0`, then applies; serialized in
+  `toJSON`; guarded `normalizeEclipseState` in `fromJSON` (legacy saves: enabled, shadow 0,
+  actStartShadow 0 — a mid-run legacy save simply starts its clock now). A version-1 save
+  (no `actShadow`) derives it as `max(0, shadow - actStartShadow)`, exactly what its act
+  had gathered under the old rule, so its falls and countdowns carry on unchanged; saved
+  act pressure is kept uncapped (clamped to 0..9999 against corrupt data).
 - Save → load → save is byte-identical (`PersistenceBoundaryContracts` green;
   `RunManagerEclipse.test.js`).
-- `lastEclipseCommit` (not persisted) records `{ before, gain, relief, after, fell }` for
-  the sims.
+- `lastEclipseCommit` (not persisted) records `{ before, gain, relief, after, meterGain,
+  actBefore, actAfter, fell }` for the sims.
 
 ## Data
 
@@ -163,7 +184,9 @@ Captures: `docs/art-direction/gameplay/eclipse/`.
   it in proportion to shadow; crimson fractures from Umbral; at 100 only the corona is
   left. Phase in Press Start 2P, the number beside it. Collapses to a 28px glyph + number
   at ≤900px. Opens the explainer card (what darkens it, what this phase does now, how much
-  shadow until the next knot within reach falls, the five-phase scale) over the loom.
+  shadow until the next knot within reach falls — in act pressure, attainable at the cap —
+  the five-phase scale) over the loom. At the cap it adds "The sun can darken no further,
+  but the land still can".
 - **Loom nodes** — eclipsed: black medal, thin gold corona rim, ember cracks, the place's
   silhouette burnt brown, a small hollow sun painted under it on the weave; `ECLIPSED`
   under reachable ones. Nodes within `fallWarning` (3) act shadow of falling get a crescent
@@ -200,9 +223,12 @@ profiles. Normal, act-end shadow (average; phase mix):
 | S (par−3) | 0 Pale | 0 Pale | 0 Pale | 0 Pale | 0 | 0 |
 | A (par) | 14.4 Pale | 29.6 Waning 83% | 45.4 Waning 75% / Umbral 25% | 45.4 | 18.7 (3.3) | 8.6 (1.7) |
 | B (par+2) | 26.9 Waning 68% | 57.3 Umbral 78% | 86.8 Totality 98% | 88.5 | 35.5 (12.3) | 15.1 (6.0) |
-| C (par+5) | 34.0 Waning | 71.9 Umbral 62% / Totality 37% | 96.5 Totality | 96.7 | 36.5 (15.8) | 15.9 (7.7) |
+| C (par+5) | 34.0 Waning | 71.9 Umbral 62% / Totality 37% | 96.5 Totality | 96.7 | 37.7 (16.1) | 16.4 (7.9) |
 
-Hard/Lunatic (four acts): A ends Act IV at 60.9 (Umbral 97%). "Ahead" counts knots still
+Hard/Lunatic (four acts): A ends Act IV at 60.9 (Umbral 97%). Knots and services are after the act-pressure change
+(deviation 11); the sim now also prints each act's end-of-act pressure and falls (e.g.
+Normal B/C: act pressure ~30/~38 per act, ~13 knots per act from Act II on, including
+Act III where the meter sits at the cap). "Ahead" counts knots still
 reachable by the party when they fell. Targets met: A-rank ends Act I Pale, reaches Waning
 in Act II and ends the run around Umbral (Waning/Umbral border on Normal's three acts,
 Umbral on Hard/Lunatic); S-rank keeps every map whole; consistent C-rank reaches Totality
@@ -238,6 +264,16 @@ slice at 97 (Totality by Act III). The ambush slice's `max_avg_gold` window move
    `atmosphereConfig`: presentation, not game data.
 10. The explainer's "next fall" counts only knots the party can still reach (what the player
     can act on); the view model also reports the next fall anywhere.
+11. **Act pressure is separate from the capped meter** (review R2, lead decision
+    2026-09-25). The original rule (`shadow - actStartShadow`) saturated near the cap: an
+    act opening at 97 could never let a node fall and its countdown was unattainable. Sim
+    effect (60 seeds, `sim/eclipse.js`): unchanged act-end shadow and phase mix for every
+    profile (the meter is untouched); only runs that reach the cap lose more land — Normal
+    C-rank 36.5 → 37.7 knots/run (services 15.9 → 16.4), Hard/Lunatic B 41.0 → 48.4
+    (services 17.9 → 20.8), Hard/Lunatic C 36.7 → 51.3 (services 16.0 → 22.4). S and A
+    ranks never reach the cap and are identical. Kindle is still refused when the sun
+    itself is clear (act pressure above a clear sun needs >100 act shadow followed by a
+    dozen Kindles in one act — unreachable).
 
 ## Tests
 
@@ -257,4 +293,12 @@ slice at 97 (Totality by Act III). The ambush slice's `max_avg_gold` window move
   determinism (no `Math.random`).
 - `tests/e2e/eclipse.spec.js` — Loom medallion + eclipsed nodes + ceremony (plays once,
   saved seen) + inspect + explainer at 1280×800 and 844×390; reduced motion; battle HUD
-  projection on desktop and phone.
+  projection on desktop and phone; at the cap (Hollow, act pressure 3): explainer
+  countdown + a slow victory still gathering act pressure, and the `(land only)` HUD.
+- Review R2 regressions: `RunManagerEclipse.test.js` "act pressure vs the global cap"
+  (the review reproduction — seed 42, shadow 100 / actStartShadow 97 version-1 save,
+  outer-lane shop `act3_6_0` threshold 8 — falls on the next slow victory; an act opening
+  at 97 after boss relief; cap boundaries; Kindle on both; determinism with no
+  `Math.random` draws; round trip beyond the cap), `EclipseSystem.test.js` (commit /
+  projection / act start / legacy derivation), `EclipseUi.test.js` (labels, explainer,
+  victory band, HUD at the cap).

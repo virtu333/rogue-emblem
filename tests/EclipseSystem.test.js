@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   actShadowOf,
   applyEclipse,
+  beginActShadow,
   buildEclipseView,
+  commitShadow,
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
@@ -18,6 +20,7 @@ import {
   nodeFallExemption,
   nodeFallThreshold,
   normalizeEclipseState,
+  projectedMeterGain,
   turnsBeforeShadow,
 } from '../src/engine/EclipseSystem.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
@@ -42,8 +45,16 @@ function seededMap(actId = 'act2', seed = 7, options = {}) {
   }
 }
 
+// Act pressure is its own field (review R2); below the cap it equals what the act
+// gathered since its start, which is how these fixtures describe a state.
 function state(shadow, actStartShadow = 0, extra = {}) {
-  return { ...createEclipseState(), shadow, actStartShadow, ...extra };
+  return {
+    ...createEclipseState(),
+    shadow,
+    actStartShadow,
+    actShadow: Math.max(0, shadow - actStartShadow),
+    ...extra,
+  };
 }
 
 function applyAt(nodeMap, shadow, extra = {}) {
@@ -161,9 +172,11 @@ describe('state', () => {
         config,
       ),
     ).toEqual({
-      version: 1,
+      version: 2,
       shadow: 100,
       actStartShadow: 0,
+      // A version-1 save derives act pressure from the old rule.
+      actShadow: 100,
       enabled: false,
       kindledNodeIds: ['a'],
     });
@@ -179,10 +192,82 @@ describe('state', () => {
     expect(actShadowOf(state(10, 22))).toBe(0);
   });
 
+  it('act pressure is its own field, kept beyond the global cap (review R2)', () => {
+    // Stored act pressure wins over the old derivation...
+    expect(actShadowOf({ ...state(100, 97), actShadow: 21 })).toBe(21);
+    // ...and an unnormalized version-1 object still reads the old rule.
+    const legacy = { shadow: 40, actStartShadow: 25 };
+    expect(actShadowOf(legacy)).toBe(15);
+    expect(normalizeEclipseState({ ...legacy, version: 1 }, config)).toMatchObject({
+      version: 2,
+      shadow: 40,
+      actStartShadow: 25,
+      actShadow: 15,
+    });
+    // Saved act pressure survives normalization uncapped; garbage floors at 0.
+    expect(normalizeEclipseState({ shadow: 100, actShadow: 140 }, config).actShadow).toBe(140);
+    expect(normalizeEclipseState({ shadow: 10, actShadow: -3 }, config).actShadow).toBe(0);
+    expect(normalizeEclipseState({ shadow: 10, actShadow: 'x' }, config).actShadow).toBe(10);
+    // Normalization is idempotent with the new field.
+    const once = normalizeEclipseState({ shadow: 100, actStartShadow: 97 }, config);
+    expect(normalizeEclipseState(JSON.parse(JSON.stringify(once)), config)).toEqual(once);
+  });
+
   it('is inert without config or when disabled', () => {
     expect(isEclipseActive(createEclipseState(), null)).toBe(false);
     expect(isEclipseActive(createEclipseState({ enabled: false }), config)).toBe(false);
     expect(isEclipseActive(createEclipseState(), config)).toBe(true);
+  });
+});
+
+describe('commits: the capped meter and the uncapped act pressure (review R2)', () => {
+  it('raises the meter up to the cap and the act by the whole gain', () => {
+    const c = commitShadow(state(97, 97), { gain: 6 }, config);
+    expect(c).toMatchObject({ before: 97, after: 100, meterGain: 3, actBefore: 0, actAfter: 6 });
+    expect(c.state).toMatchObject({ shadow: 100, actStartShadow: 97, actShadow: 6 });
+    const again = commitShadow(c.state, { gain: 6 }, config);
+    expect(again).toMatchObject({ after: 100, meterGain: 0, actAfter: 12 });
+    expect(commitShadow(state(40), { gain: 0 }, config).state).toMatchObject({
+      shadow: 40,
+      actShadow: 40,
+    });
+  });
+
+  it('applies relief after the cap to both, floored at zero', () => {
+    const c = commitShadow({ ...state(98), actShadow: 10 }, { gain: 6, relief: 3 }, config);
+    expect(c).toMatchObject({ after: 97, meterGain: 2, actAfter: 13 });
+    const low = commitShadow({ ...state(2), actShadow: 1 }, { gain: 0, relief: 3 }, config);
+    expect(low.state).toMatchObject({ shadow: 0, actShadow: 0 });
+  });
+
+  it('a new act restarts act pressure and carries the meter', () => {
+    expect(beginActShadow({ ...state(97), actShadow: 30 })).toMatchObject({
+      shadow: 97,
+      actStartShadow: 97,
+      actShadow: 0,
+    });
+  });
+
+  it('projects the meter share of a gain', () => {
+    expect(projectedMeterGain(state(50), 6, config)).toBe(6);
+    expect(projectedMeterGain(state(97), 6, config)).toBe(3);
+    expect(projectedMeterGain(state(100), 6, config)).toBe(0);
+    expect(projectedMeterGain(state(100), 0, config)).toBe(0);
+  });
+
+  it('lets an act that opened near the cap keep falling', () => {
+    // The review's shape: every threshold is at least 5; an act opening at 97 now
+    // reaches any of them after enough victories.
+    const nodeMap = seededMap('act3', 42);
+    let s = state(97, 97);
+    const fell = [];
+    for (let i = 0; i < 6; i++) {
+      s = commitShadow(s, { gain: 6 }, config).state;
+      fell.push(...applyEclipse({ state: s, config, nodeMap, runSeed: 42, halfFogChance: true }));
+    }
+    expect(s).toMatchObject({ shadow: 100, actShadow: 36 });
+    expect(fell.length).toBeGreaterThan(0);
+    expect(fell.some((n) => n.eclipse.fromType !== 'battle')).toBe(true);
   });
 });
 
@@ -435,8 +520,15 @@ describe('Kindle', () => {
 
   it('lifts kindleAmount, once per node, floored at zero', () => {
     const r = kindleResult({ ...base, state: state(30), gold: 5000 });
-    expect(r).toMatchObject({ ok: true, price: 700, removed: 8 });
+    expect(r).toMatchObject({ ok: true, price: 700, removed: 8, actRemoved: 8 });
     expect(r.state.shadow).toBe(22);
+    expect(r.state.actShadow).toBe(22);
+    // Both numbers, independently floored (act pressure can exceed the capped meter).
+    const past = kindleResult({ ...base, state: { ...state(100, 97), actShadow: 30 }, gold: 5000 });
+    expect(past.state).toMatchObject({ shadow: 92, actShadow: 22 });
+    const fresh = kindleResult({ ...base, state: { ...state(60), actShadow: 5 }, gold: 5000 });
+    expect(fresh.state).toMatchObject({ shadow: 52, actShadow: 0 });
+    expect(fresh.actRemoved).toBe(5);
     expect(r.state.kindledNodeIds).toEqual(['act2_4_1']);
     expect(kindleBlock({ ...base, state: r.state, gold: 5000 })).toMatch(/Already kindled/);
     const low = kindleResult({ ...base, state: state(5), gold: 5000 });

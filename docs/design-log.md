@@ -35,6 +35,35 @@ music keys. Test: `tests/MusicLayerCache.test.js`.
 
 ---
 
+## 2026-09-25 — Review fixes: rewind item identity (R1), Eclipse act pressure (R2)
+
+From the stability review of PRs #70–78 (both P2).
+
+**R1 — rewind free-change fingerprint is by item identity.** The set-aside detector
+compared items by name/uses and the equipped index; with the equipped weapon always first,
+equipping the other of two equally named forges ("Iron Sword +1" for might vs for hit)
+looked unchanged, so rewinding "before the next unit's action" also undid the equip.
+Items (carried, equipped, consumables, accessory, convoy, accessory pool) are now
+fingerprinted as their full per-instance data (uid + forge/imbue/uses/art bindings;
+legacy uid-less items by content), and `fingerprintChanges` returns
+`{ units, run, changed }` so a run-only change (gold/convoy/accessory pool) is its own
+point too ("Before: Supplies changed"). Spec:
+[`specs/rewind-any-action.md`](specs/rewind-any-action.md).
+
+**R2 — act pressure is separate from the capped global meter** (lead decision). The old
+`shadow - actStartShadow` saturated near the cap: an act opening at 97 could gather at most
+3, below every fall threshold, so nothing could fall and the countdown lied. `actShadow`
+is now its own field: full per-victory gain (uncapped), lowered by Kindle and boss relief
+like the meter, reset at act start; the global `shadow` stays 0–100 and still drives
+phases, levels and affixes. Version-1 saves derive it as `shadow - actStartShadow`. The
+battle HUD and victory band say when the cap stops part of a gain (`Shadow +6 (sun +3)`,
+`Shadow +6 (land only)`); the explainer notes that the land still darkens at Hollow.
+Sims: act-end shadow/phases unchanged for every profile; only runs that reach the cap lose
+more land (Hard B 41 → 48 knots/run, Hard C 37 → 51; Normal C 36.5 → 37.7). Spec:
+[`specs/eclipse.md`](specs/eclipse.md) deviation 11.
+
+---
+
 ## 2026-09-25 — Threat sight, Guidance and Mac font scaling (playtest 2) (built)
 
 A second playtest round: a Three Houses veteran wanted "the little red arc" that shows who

@@ -299,6 +299,102 @@ test.describe('phone 844×390', () => {
     expect(await digest(page)).toEqual(afterTrade);
     expect(errors).toEqual([]);
   });
+
+  test('equipping the other equally named forge and setting the unit aside survives rewinding the next unit', async ({
+    page,
+  }) => {
+    const errors = await boot(page);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    // Edric carries two real forges of the same sword: one for might, one for
+    // hit. Same name, same uses; only the item (uid) and its stats differ.
+    const forges = await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { applyForge } = await import('/src/engine/ForgeSystem.js');
+      const { equipWeapon } = await import('/src/engine/UnitManager.js');
+      const { ensureItemUid } = await import('/src/utils/itemUid.js');
+      const edric = s.playerUnits.find((u) => u.name === 'Edric');
+      const iron = s.gameData.weapons.find((w) => w.name === 'Iron Sword');
+      const [might, hit] = ['might', 'hit'].map((stat) => {
+        const sword = ensureItemUid(structuredClone(iron));
+        applyForge(sword, stat);
+        return sword;
+      });
+      edric.inventory = [might, hit];
+      equipWeapon(edric, might);
+      // Fixture loadout belongs to the turn start, not to a free equip.
+      s._timelineBoundary = 'turn_start';
+      s._captureSuspendCheckpoint();
+      return {
+        might: { uid: might.uid, name: might.name, mt: might.might, hit: might.hit },
+        hit: { uid: hit.uid, name: hit.name, mt: hit.might, hit: hit.hit },
+      };
+    });
+    expect(forges.hit.name).toBe(forges.might.name);
+    const equipped = () =>
+      page.evaluate(() => {
+        const edric = window.__emblemRogueGame.scene
+          .getScene('Battle')
+          .playerUnits.find((u) => u.name === 'Edric');
+        return {
+          uid: edric.weapon?.uid,
+          mt: edric.weapon?.might,
+          hit: edric.weapon?.hit,
+          first: edric.inventory[0] === edric.weapon,
+        };
+      });
+    // Edric equips the hit forge without moving, then is set aside.
+    await select(page, 'Edric');
+    await hud.getByRole('button', { name: 'Equip', exact: true }).tap();
+    const swords = hud.getByRole('button', {
+      name: new RegExp(`^${forges.hit.name.replace('+', '\\+')}`),
+    });
+    await expect(swords).toHaveCount(2);
+    await swords.nth(1).tap();
+    expect(await equipped()).toEqual({
+      uid: forges.hit.uid,
+      mt: forges.hit.mt,
+      hit: forges.hit.hit,
+      first: true,
+    });
+    // Back out of the action menu, then out of the (unmoved) selection.
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() =>
+      ['UNIT_SELECTED', 'PLAYER_IDLE'].includes(
+        window.__emblemRogueGame.scene.getScene('Battle').battleState,
+      ),
+    );
+    if (
+      (await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState)) ===
+      'UNIT_SELECTED'
+    )
+      await page.keyboard.press('Escape');
+    await idle(page);
+    const afterEquip = await digest(page);
+    // Then Patient acts.
+    await select(page, 'Patient');
+    await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+    await idle(page);
+    await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+    const picker = page.getByRole('dialog', { name: 'Rewind', exact: true });
+    await expect(picker.locator('.vr-row .vr-title')).toHaveText([
+      'Before Patient’s wait',
+      'Start of turn 1',
+    ]);
+    await expect(picker.locator('.vr-row').nth(1).locator('.vr-sub')).toHaveText(
+      'before Edric’s equipment change',
+    );
+    await picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true }).tap();
+    await idle(page);
+    // Before Patient's wait: Edric still holds the hit forge.
+    expect(await digest(page)).toEqual(afterEquip);
+    expect(await equipped()).toEqual({
+      uid: forges.hit.uid,
+      mt: forges.hit.mt,
+      hit: forges.hit.hit,
+      first: true,
+    });
+    expect(errors).toEqual([]);
+  });
 });
 
 test.describe('desktop 1280×800', () => {
