@@ -251,6 +251,8 @@
   justify-content: center;
   gap: calc(4px * var(--ce-scale));
   padding-left: calc(6px * var(--ce-scale));
+  /* Reserve the corner Continue button's row so the quote never runs under it. */
+  padding-bottom: calc(var(--re-tap) + 4px);
 }
 .gr-rite-text > .gr-kicker {
   animation: ce-rise 420ms 200ms both;
@@ -432,6 +434,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Short landscape frames: each sealed beat reads on one line (title · detail) so the
+   rite's spoken line keeps its room above the corner button. */
+@media (max-height: 420px) {
+  .gr-rite .gr-seal-words {
+    flex-direction: row;
+    align-items: baseline;
+    gap: calc(6px * var(--ce-scale));
+  }
+  .gr-rite .gr-seal-words b {
+    flex: none;
+  }
+  .gr-rite .gr-seal-glyph {
+    width: calc(20px * var(--ce-scale, 1));
+    height: calc(20px * var(--ce-scale, 1));
+  }
+}
 .gr-rite-note {
   margin: calc(2px * var(--ce-scale)) 0 0;
   font: calc(11px * var(--ce-scale)) / 1.3 var(--re-body);
@@ -440,12 +458,12 @@
 }
 .gr-rite-quote {
   margin: calc(6px * var(--ce-scale)) 0 0;
-  /* Clear the corner Continue button on short (phone) frames. */
-  padding-right: calc(88px * var(--ce-scale));
   font: italic calc(13px * var(--ce-scale)) / 1.35 var(--re-body);
   color: var(--ce-bone);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* A ~90-character line takes two lines; narrow phone frames get a third
+     rather than an ellipsis. The column keeps the corner button clear. */
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   animation: ce-fade 500ms var(--gr-seals-at, 0ms) both;
@@ -740,7 +758,8 @@
   font: italic calc(12.5px * var(--ce-scale)) / 1.35 var(--re-body);
   color: var(--ce-bone);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* Two lines on most frames; the narrowest phone frame takes a third, never an ellipsis. */
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   /* The unit reacts once the gains are in. */

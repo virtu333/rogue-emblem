@@ -2,7 +2,18 @@
 // the bust is never sliced by its band or pushed out of frame, kickers read in full
 // (no ellipsis) and the band spans the battlefield rather than the letterbox.
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene as waitForSceneQuick } from './helpers.js';
+
+// Asset loading can be slow on a busy machine: allow a full minute per scene.
+async function waitForScene(page, key) {
+  try {
+    await waitForSceneQuick(page, key);
+  } catch {
+    await page.waitForFunction((k) => window.__sceneState?.activeScene === k, key, {
+      timeout: 60000,
+    });
+  }
+}
 
 test.setTimeout(180000);
 
@@ -128,6 +139,87 @@ for (const vp of VIEWPORTS) {
         !r.bandInFrame,
     );
     expect(bad).toEqual([]);
+    await context.close();
+  });
+}
+
+// The level-up card and the promotion rite carry a spoken line (UnitVoice, at most
+// ~90 characters). It reads in full (no ellipsis), stays inside its card and never
+// runs under the Continue button.
+const QUOTE =
+  'I carried my father’s spear this far; I will carry it home, whatever the road asks of me.';
+for (const vp of [...VIEWPORTS, { width: 1000, height: 460, phone: true }]) {
+  test(`level-up and rite quotes read in full at ${vp.width}x${vp.height}`, async ({ browser }) => {
+    const context = await browser.newContext({
+      viewport: { width: vp.width, height: vp.height },
+      ...(vp.phone ? { hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : {}),
+    });
+    const page = await context.newPage();
+    await boot(page, vp.phone);
+    const results = await page.evaluate(
+      async ({ QUOTE }) => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const { growthCeremonies } = await import('/src/ui/GrowthCeremonyController.js');
+        const { promotionPathContent } = await import('/src/ui/growthContent.js');
+        const g = growthCeremonies(s);
+        const unit = s.playerUnits.find((u) => u.name === 'Edric');
+        const out = [];
+        for (const kind of ['level', 'rite']) {
+          if (kind === 'level') {
+            const gains = { HP: 1, STR: 2, MAG: 0, SKL: 1, SPD: 1, LCK: 1, DEF: 1, RES: 1 };
+            void g.showLevelUp({
+              unit,
+              result: { gains, displayStats: unit.stats },
+              learnedNames: ['Sol'],
+            });
+          } else {
+            const cls = s.gameData.classes.find((c) => c.name === 'Great Lord');
+            void g.showPromotionRite({
+              unit,
+              content: promotionPathContent(unit, cls, s.gameData),
+            });
+          }
+          await new Promise((r) => setTimeout(r, 300));
+          const root = document.querySelector(
+            kind === 'level' ? '.gr-level-layer' : '.gr-rite-layer',
+          );
+          const cls = kind === 'level' ? 'gr-level-quote' : 'gr-rite-quote';
+          let quote = root.querySelector(`.${cls}`);
+          if (!quote) {
+            // No line rolled for this unit: place the longest one where the card puts it.
+            quote = document.createElement('p');
+            quote.className = cls;
+            const host = root.querySelector(kind === 'level' ? '.gr-level-main' : '.gr-rite-text');
+            host.insertBefore(quote, host.querySelector('.gr-seals--level, .gr-level-foot'));
+          }
+          quote.textContent = `“${QUOTE}”`;
+          await new Promise((r) => setTimeout(r, 120));
+          const q = quote.getBoundingClientRect();
+          const b = root.querySelector('.gr-continue').getBoundingClientRect();
+          const card = root.querySelector('.gr-level, .gr-rite').getBoundingClientRect();
+          out.push({
+            kind,
+            clamped: quote.scrollHeight > quote.clientHeight + 1,
+            inCard: q.top >= card.top - 1 && q.bottom <= card.bottom + 1,
+            underButton: q.bottom > b.top + 1 && q.right > b.left + 1 && q.top < b.bottom,
+            buttonInView: b.bottom <= innerHeight + 1 && b.right <= innerWidth + 1,
+          });
+          root.remove();
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        return out;
+      },
+      { QUOTE },
+    );
+    for (const r of results) {
+      expect(r, r.kind).toEqual({
+        kind: r.kind,
+        clamped: false,
+        inCard: true,
+        underButton: false,
+        buttonInView: true,
+      });
+    }
     await context.close();
   });
 }

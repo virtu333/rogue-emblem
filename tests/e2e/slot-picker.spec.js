@@ -2,7 +2,18 @@
 // desktop sizes, each card reads where its run stands, one primary action per card,
 // a small confirmed delete, and an empty slot begins a new run.
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene as waitForSceneQuick } from './helpers.js';
+
+// Asset loading can be slow on a busy machine: allow a full minute per scene.
+async function waitForScene(page, key) {
+  try {
+    await waitForSceneQuick(page, key);
+  } catch {
+    await page.waitForFunction((k) => window.__sceneState?.activeScene === k, key, {
+      timeout: 60000,
+    });
+  }
+}
 
 test.setTimeout(120000);
 
