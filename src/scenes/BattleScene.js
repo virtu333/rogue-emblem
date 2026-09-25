@@ -7839,7 +7839,35 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
-    if (!weaponArt) return this.buildSkillCtx(attacker, defender, null);
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      this.buildSkillCtx(attacker, defender, weaponArt),
+    );
+  }
+
+  /**
+   * The player's combat forecast, computed in the state resolution will use:
+   * with a weapon art, after its HP cost, the Recoil Guard buff and a Phoenix
+   * Brooch heal (see _runCombatResolutionAtSpeed). Reading the numbers after
+   * that state was restored overstated a Recoil Guard art's counter damage.
+   */
+  _computePlayerForecast(attacker, defender, weaponArt, { weapon, dist, atkTerrain, defTerrain }) {
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      getCombatForecast(
+        attacker,
+        weapon ?? attacker.weapon,
+        defender,
+        defender.weapon,
+        dist,
+        atkTerrain,
+        defTerrain,
+        this.buildSkillCtx(attacker, defender, weaponArt),
+      ),
+    );
+  }
+
+  /** Run `fn` with the attacker as resolution will see it after an art's cost; restore after. */
+  _withForecastArtState(attacker, weaponArt, fn) {
+    if (!weaponArt) return fn();
     const hadPhoenixFlag = Object.prototype.hasOwnProperty.call(attacker, '_phoenixBroochUsed');
     const hadTimedBuffs = Object.prototype.hasOwnProperty.call(
       attacker,
@@ -7877,7 +7905,7 @@ export class BattleScene extends Phaser.Scene {
     this._applyRecoilGuardAfterArtUse(attacker, weaponArt);
     checkPhoenixBrooch(attacker);
     try {
-      return this.buildSkillCtx(attacker, defender, weaponArt);
+      return fn();
     } finally {
       attacker.currentHP = originalHP;
       if (originalStats && attacker?.stats && typeof attacker.stats === 'object') {
@@ -7971,18 +7999,11 @@ export class BattleScene extends Phaser.Scene {
     } else {
       this._forecastGamblerLine = null;
     }
-    const skillCtx = this._buildForecastSkillCtx(attacker, defender, weaponArt);
-
-    const forecast = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
+    const forecast = this._computePlayerForecast(attacker, defender, weaponArt, {
       dist,
       atkTerrain,
       defTerrain,
-      skillCtx,
-    );
+    });
 
     // Compute valid weapons for cycling (weapons that can reach this target)
     const validWeapons = selectedEntry
