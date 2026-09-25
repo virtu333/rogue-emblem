@@ -239,10 +239,12 @@ test.describe('phone Canto and rewind contracts', () => {
     await action(page, 'Wait', true);
     await idle(page);
     await hud.getByRole('button', { name: 'Rewind', exact: true }).tap();
-    const timeline = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
-    await timeline.getByRole('button', { name: 'Previous turn', exact: true }).tap();
-    await timeline.getByRole('button', { name: 'Rewind… · 1 charge', exact: true }).tap();
-    await page.getByRole('button', { name: 'Spend 1 rewind', exact: true }).tap();
+    const picker = page.getByRole('dialog', { name: 'Rewind', exact: true });
+    // The newest point is the start of turn 2, just before Edric's wait.
+    await expect(picker.locator('.vr-row').first().locator('.vr-title')).toHaveText(
+      'Start of turn 2',
+    );
+    await picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true }).tap();
     await idle(page);
     const rewound = await summary(page);
     expect(rewound.turn).toBe(2);

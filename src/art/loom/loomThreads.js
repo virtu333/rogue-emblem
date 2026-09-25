@@ -6,6 +6,9 @@
 //     fracture, the future dissolve dither, the row ruler and the Hollow Sun corona.
 //   fx layer (animated, cheap): glints travelling toward each choice, the taut core of
 //     the selected thread, and Sera's vision dashes toward an inspected future.
+//   The Eclipse (optional `eclipse` input): the dark creeping in from the outer lanes
+//     as they fall, a small hollow sun under every eclipsed medal, and ember bursts for
+//     the fall ceremony on the fx layer.
 // Pure Canvas2D, no DOM lookups; palette values are art ramps (ART_BIBLE.md).
 
 export const LOOM_RAMP = Object.freeze({
@@ -24,6 +27,8 @@ export const LOOM_RAMP = Object.freeze({
   gold6: '#fff0bd',
   blood3: '#9e2632',
   blood4: '#cc4038',
+  unlight0: '#170c24',
+  unlight1: '#2c1645',
 });
 const C = LOOM_RAMP;
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -266,7 +271,123 @@ const radiusOf = (node, medal) => (node?.type === 'boss' ? medal + 8 : medal) / 
  * Paint the static weave. Returns the sampled thread paths for the fx layer.
  * @param {CanvasRenderingContext2D} ctx  sized to innerW x height at `dpr`
  */
-export function drawLoomWeave(ctx, { model, layout, positions, dpr = 1, seed = 1, fontReady }) {
+/**
+ * The dark creeping in from the outer lanes (Eclipse): an 8x8 Bayer dither whose
+ * strength follows each lane's fallen share, strongest at the loom's edges, ramping in
+ * ahead of the party. `under` paints the ground below the threads; the lighter pass over
+ * them only reaches the futures past the next choices.
+ */
+function drawLaneDark(ctx, { model, layout, W, H, laneDarkness, under }) {
+  const lanes = Array.isArray(laneDarkness) ? laneDarkness.map((v) => Number(v) || 0) : [];
+  if (!lanes.some((v) => v > 0)) return;
+  const front = Math.max(0, model.frontierRow);
+  const xa = layout.x(front + (under ? 0.45 : 1.5));
+  const xb = xa + layout.dx * (under ? 0.9 : 1.2);
+  const cap = under ? 0.8 : 0.4;
+  const dy = Math.max(1, layout.dy);
+  const last = lanes.length - 1;
+  const top = lanes[0] || 0;
+  const bottom = lanes[last] || 0;
+  // Each fallen lane is a band of ink around its warp thread; the loom's outer edges
+  // go first (above lane I, below lane V), so the dark reads as creeping inward.
+  const rowK = new Float32Array(Math.ceil(H));
+  for (let y = 0; y < rowK.length; y++) {
+    let k = 0;
+    for (let i = 0; i <= last; i++) {
+      const d = Math.abs(y - layout.y(i)) / (dy * 0.62);
+      if (d < 1) k = Math.max(k, lanes[i] * (1 - d * d));
+    }
+    if (y < layout.y(0)) k = Math.max(k, top);
+    if (y > layout.y(last)) k = Math.max(k, bottom);
+    rowK[y] = Math.min(cap, k * (under ? 0.85 : 0.5));
+  }
+  const ink0 = hexRgb(C.ink0);
+  ctx.drawImage(
+    pixelLayer(Math.ceil(W), Math.ceil(H), (d, w, h) => {
+      for (let y = 0; y < h; y++) {
+        const ky = rowK[y];
+        if (ky <= 0) continue;
+        for (let x = Math.max(0, Math.floor(xa)); x < w; x++) {
+          const ramp = x >= xb ? 1 : (x - xa) / Math.max(1, xb - xa);
+          if (ky * ramp * 64 <= BAYER8[(x & 7) + (y & 7) * 8]) continue;
+          const i = (y * w + x) * 4;
+          d[i] = ink0[0];
+          d[i + 1] = ink0[1];
+          d[i + 2] = ink0[2];
+          d[i + 3] = 255;
+        }
+      }
+    }),
+    0,
+    0,
+    Math.ceil(W),
+    Math.ceil(H),
+  );
+  if (!under) return;
+  // A faint unlight bruise pooling in from whichever edge has fallen.
+  for (const [amount, y0, y1] of [
+    [top, 0, layout.y(0) + dy * 0.5],
+    [bottom, H, layout.y(last) - dy * 0.5],
+  ]) {
+    if (amount <= 0) continue;
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, `rgba(44,22,69,${(0.34 * amount).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(23,12,36,0)');
+    const xg = ctx.createLinearGradient(xa, 0, xb, 0);
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.rect(xa, Math.min(y0, y1), W - xa, Math.abs(y1 - y0));
+    ctx.clip();
+    ctx.fillRect(xa, Math.min(y0, y1), W - xa, Math.abs(y1 - y0));
+    // Soften the leading edge so the bruise has no hard vertical start.
+    xg.addColorStop(0, 'rgba(14,12,20,0.9)');
+    xg.addColorStop(1, 'rgba(14,12,20,0)');
+    ctx.fillStyle = xg;
+    ctx.fillRect(xa, Math.min(y0, y1), xb - xa, Math.abs(y1 - y0));
+    ctx.restore();
+  }
+}
+
+/** A small hollow sun under an eclipsed medal: an unlight pool and a thin gold corona. */
+function drawEclipsedHalo(ctx, p, medal, id) {
+  const r0 = medal / 2 + 3;
+  const pool = ctx.createRadialGradient(p.x, p.y, r0 * 0.4, p.x, p.y, r0 * 2.1);
+  pool.addColorStop(0, 'rgba(23,12,36,0.7)');
+  pool.addColorStop(0.55, 'rgba(7,6,11,0.4)');
+  pool.addColorStop(1, 'rgba(7,6,11,0)');
+  ctx.fillStyle = pool;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r0 * 2.1, 0, Math.PI * 2);
+  ctx.fill();
+  const cor = ctx.createRadialGradient(p.x, p.y, r0, p.x, p.y, r0 + 9);
+  cor.addColorStop(0, 'rgba(243,203,108,0.34)');
+  cor.addColorStop(0.35, 'rgba(179,112,44,0.12)');
+  cor.addColorStop(1, 'rgba(7,6,11,0)');
+  ctx.fillStyle = cor;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r0 + 9, 0, Math.PI * 2);
+  ctx.fill();
+  const rr = mulberry32(hashString(`halo${id}`));
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 16; i++) {
+    const ang = (i / 16) * Math.PI * 2 + rr() * 0.12;
+    const r2 = r0 + 3 + rr() * (i % 3 ? 3 : 7);
+    ctx.strokeStyle = i % 3 ? C.gold3 : C.gold4;
+    ctx.globalAlpha = i % 3 ? 0.22 : 0.38;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(ang) * (r0 + 1), p.y + Math.sin(ang) * (r0 + 1));
+    ctx.lineTo(p.x + Math.cos(ang) * r2, p.y + Math.sin(ang) * r2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+export function drawLoomWeave(
+  ctx,
+  { model, layout, positions, dpr = 1, seed = 1, fontReady, eclipse = null },
+) {
   const W = layout.innerW;
   const H = layout.height;
   const { medal } = layout;
@@ -334,6 +455,16 @@ export function drawLoomWeave(ctx, { model, layout, positions, dpr = 1, seed = 1
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
+  // 3b. the Eclipse: fallen lanes darken the ground ahead, eclipsed knots become small
+  //     hollow suns (under the threads, so every route stays traceable)
+  if (eclipse) {
+    drawLaneDark(ctx, { model, layout, W, H, laneDarkness: eclipse.laneDarkness, under: true });
+    for (const id of eclipse.eclipsedIds || []) {
+      const p = positions.get(id);
+      if (p) drawEclipsedHalo(ctx, p, medal, id);
+    }
+  }
+
   // 4. threads — fraying first, gold last so the player's path always sits on top
   const order = { cut: 0, future: 1, woven: 2, live: 3 };
   const paths = new Map();
@@ -396,6 +527,10 @@ export function drawLoomWeave(ctx, { model, layout, positions, dpr = 1, seed = 1
     ctx.fillStyle = g;
     ctx.fillRect(Math.max(0, x0), 0, W - Math.max(0, x0), H);
   }
+
+  // 5b. the Eclipse's dither reaches the futures past the next choices
+  if (eclipse)
+    drawLaneDark(ctx, { model, layout, W, H, laneDarkness: eclipse.laneDarkness, under: false });
 
   // 6. heddle ruler: row numerals above the dissolve so progress stays legible
   if (fontReady !== false) {
@@ -469,13 +604,56 @@ export function drawLoomWeave(ctx, { model, layout, positions, dpr = 1, seed = 1
  * Paint one frame of the fx layer. `timeMs` is ignored under reduced motion (a single
  * static glint per thread and still dashes).
  */
+export const FALL_FX_MS = 1000;
+
+/**
+ * One frame of a fall: an ink shock ring and ember sparks thrown from the medal.
+ * Deterministic per node id; `e` is the elapsed time in ms (0..FALL_FX_MS).
+ */
+function drawFallBurst(ctx, p, medal, id, e) {
+  const u = Math.max(0, Math.min(1, e / FALL_FX_MS));
+  if (u >= 1) return;
+  const r0 = medal / 2;
+  ctx.save();
+  ctx.strokeStyle = C.ink0;
+  ctx.globalAlpha = 0.7 * (1 - u);
+  ctx.lineWidth = 3 * (1 - u) + 1;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r0 + 2 + u * 22, 0, Math.PI * 2);
+  ctx.stroke();
+  const rr = mulberry32(hashString(`fall${id}`));
+  for (let i = 0; i < 18; i++) {
+    const ang = rr() * Math.PI * 2;
+    const speed = 16 + rr() * 26;
+    const life = 0.55 + rr() * 0.45;
+    const k = Math.min(1, u / life);
+    if (k >= 1) continue;
+    const dist = r0 * 0.6 + speed * (1 - (1 - k) * (1 - k));
+    const x = p.x + Math.cos(ang) * dist;
+    const y = p.y + Math.sin(ang) * dist - k * 9;
+    ctx.globalAlpha = (1 - k) * 0.95;
+    ctx.fillStyle = i % 4 === 0 ? C.blood4 : i % 3 === 0 ? C.gold6 : C.gold4;
+    const sz = i % 5 === 0 ? 2 : 1.5;
+    ctx.fillRect(Math.round(x), Math.round(y), sz, sz);
+  }
+  ctx.restore();
+}
+
 export function drawLoomFx(
   ctx,
-  { model, layout, paths, leadPts, selectedId, dpr = 1, timeMs = 0, reduced = false },
+  { model, layout, paths, leadPts, selectedId, dpr = 1, timeMs = 0, reduced = false, falls = [] },
 ) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, layout.innerW, layout.height);
   const t = reduced ? 0 : timeMs / 1000;
+
+  // The Eclipse: ember bursts where the dark is taking a knot right now.
+  if (!reduced && falls?.length && layout.positions) {
+    for (const f of falls) {
+      const p = layout.positions.get(f.id);
+      if (p) drawFallBurst(ctx, p, layout.medal, f.id, timeMs - f.start);
+    }
+  }
 
   // Vision: every thread on a route from the party to the inspected future.
   const vision = selectedId ? model.visionEdges(selectedId) : [];

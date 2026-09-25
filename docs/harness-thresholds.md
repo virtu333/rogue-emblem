@@ -44,7 +44,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
-  - `min_avg_gold=9000`, `max_avg_gold=33000`
+  - `min_avg_gold=9000`, `max_avg_gold=52200`
   - `min_avg_shop_spent=8000`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
@@ -58,6 +58,20 @@ The current strict-slice windows are anchored to intentional gameplay shifts:
   - observed shift: `avg_shop_spent` moved to ~`10533` after recruit behavior change
 - `ambush_hard_invincible`: first-bad anchor `3c372c0`
   - observed shift: `avg_gold` moved to ~`31285` and `avg_ambush_battles` to ~`0.25` after hard-map/ballista tuning
+
+- `ambush_hard_invincible` (`max_avg_gold` 33000 → 52200): the Eclipse (visible run clock,
+  `docs/specs/eclipse.md`) on branch `claude/eclipse`
+  - observed shift: `avg_gold` 26554 → 41742, `avg_shop_spent` 18066 → 12267,
+    `avg_ambush_battles` 0.75 → 0.50 (seeds 301-312, hard, invincible)
+  - cause, isolated with the same seeds (full run with `gameData.eclipse` removed reproduces
+    the old baseline exactly, 26554 / 18066): this slice's scripted agent averages ~26 turns
+    a battle, far past par, so it reaches Totality by Act III (act-end shadow
+    27 / 63 / 95 / 97). Burned villages remove ~5.8k of shop spending (gold that can no
+    longer be spent), eclipsed elite battles add elite gold, and phase enemy levels add
+    ~3.3k kill gold. Window per the procedure below: `ceil(41742 * 1.25)` ≈ 52200.
+  - no other strict slice moved outside its window (`progression_invincible` gold
+    8710 → 9731, shop spent 7036 → 6174; Act I pressure slices unchanged: they never win
+    a battle, so no shadow is committed).
 
 Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 

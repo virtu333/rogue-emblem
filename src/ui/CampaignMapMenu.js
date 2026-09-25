@@ -32,6 +32,12 @@ export class CampaignMapMenu {
     if (!nodes.some((n) => n.id === this.selected))
       this.selected = party?.id || nodes.find((n) => n.row === 0)?.id || nodes[0]?.id;
     this.routeGraph?.destroy();
+    // The Eclipse as committed so far (a battle's shadow lands only at its victory).
+    const rm = c.scene?.runManager;
+    this.eclipse =
+      rm?.nodeMap === c.nodeMap
+        ? rm?.getEclipseView?.({ activeNodeId: c.activeNodeId || null }) || null
+        : null;
     this.routeGraph = createRouteGraph({
       nodes,
       startNodeId: c.nodeMap?.startNodeId,
@@ -44,6 +50,7 @@ export class CampaignMapMenu {
       selectedId: this.selected,
       actId: c.actId,
       reducedMotion: () => this._reducedMotion(),
+      eclipse: this.eclipse,
       onSelect: (id) => {
         this.selected = id;
         this.routeGraph.setSelected(id);
@@ -100,6 +107,7 @@ export class CampaignMapMenu {
       runManager: c.scene?.runManager,
       activeLabel: party && !party.completed ? 'The party fights here' : null,
       isFirstBattle: (n) => n.id === party?.id,
+      eclipse: this.eclipse,
     });
   }
 

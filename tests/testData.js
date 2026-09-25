@@ -35,5 +35,6 @@ export function loadGameData() {
     traits: loadJSON('traits.json'),
     imbues: loadJSON('imbues.json'),
     deeds: loadJSON('deeds.json'),
+    eclipse: loadJSON('eclipse.json'),
   };
 }
