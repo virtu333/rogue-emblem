@@ -1627,7 +1627,16 @@ export class RosterOverlay {
     this._convoyFocusRows = [];
 
     this._text(x, y, 'Convoy Management', UI_PALETTE.accent, '14px');
-    y += 24;
+    y += 20;
+    // Plain words for new players: what the convoy is and what Withdraw does.
+    this._text(
+      x,
+      y,
+      'Shared storage between battles. Withdraw gives an item to the unit below.',
+      UI_PALETTE.muted,
+      '9px',
+    );
+    y += 16;
 
     const caps = this.runManager.getConvoyCapacities();
     const counts = this.runManager.getConvoyCounts();
