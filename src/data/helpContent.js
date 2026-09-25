@@ -389,6 +389,25 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'The Eclipse',
+        lines: [
+          { text: 'Battle time darkens the Hollow Sun.', color: GOLD },
+          { text: '  Win 3+ turns under par: the sun holds.' },
+          { text: '  Each turn past that: +1 shadow.' },
+          { text: '  Shadow lands only when you win.' },
+          { text: '' },
+          { text: 'The dark takes the map ahead:', color: RED },
+          { text: '  outer lanes first, then inward.' },
+          { text: '  Taken places become harder battles' },
+          { text: '  with elite spoils (pick 2 of 4).' },
+          { text: '' },
+          { text: 'Pale · Waning · Umbral · Totality · Hollow', color: CYAN },
+          { text: '  Deeper phases raise enemy levels', color: GRAY },
+          { text: '  and affixes. Act bosses and church', color: GRAY },
+          { text: '  Kindle lift shadow.', color: GRAY },
+        ],
+      },
+      {
         title: 'Node Types',
         lines: [
           { text: 'Battle:', color: GOLD },
