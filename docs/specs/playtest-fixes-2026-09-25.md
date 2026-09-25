@@ -111,7 +111,41 @@ archived frame, else a board rebuilt from the row's rewind state
 board data show the sketch, labelled **"Preview unavailable — map sketch"**, and the sketch
 reads packed terrain again.
 
+## Other bugs found while reproducing
+
+Fixed:
+- The Church's disabled Kindle button read "Kindle · −0 shadow" when the sun was clear.
+- The pre-battle Deploy roster left roster changes unsaved until the battle started
+  (covered by the roster-sheet fix above).
+- The forecast projection counted one strike per round for brave weapons (above).
+- Since previews were packed, the timeline sketch showed every tile as unknown (above).
+
+Not fixed (listed for follow-up):
+- A unit's `weaponRank` is taken from its first proficiency, not the weapon type it
+  attacks with. Not seen in the playtest matchup, but a unit whose proficiencies have
+  different ranks can get the wrong triangle bonus (Mastery vs Prof) for its other
+  weapon types. Forecast and resolution agree either way (both read the same field).
+- Free in-battle changes that are not actions (equip swaps, trades) are not part of the
+  per-action checkpoint, so they revert on Resume Battle. By design of the checkpoint
+  (one per resolved action), but surprising.
+- The iOS native side (mirror + lifecycle plugins) is covered by unit tests with a fake
+  bridge and a browser e2e, not on a device. Needs `npm ci && npm run ios:sync` and an
+  Xcode package resolve before the next TestFlight build.
+
+## Tests
+
+- Unit: `FallenRecruitRevival`, `PostCombatController`, `BattleSceneActionErrorRecovery`,
+  `ForecastResolutionParity` (2,500 matchups), `ForecastHpBar`, `ForecastWeaponArtState`,
+  `NativeSaveMirror`, `SaveLifecycle`, `RosterSheetPersistence`, `SaveSpaceQuota`,
+  `TimelinePreviewFallback`, `TimelineRecorderFrameLoss`, `BattleTimelineView`.
+- e2e: `fallen-recruit.spec.js`, `forecast-triangle.spec.js` (1280×800, 640×480,
+  844×390; the resolved HP equals the forecast), `save-lifecycle.spec.js`,
+  `timeline-preview.spec.js` (1280×800 and 1440×900 at DPR 2, several turns including an
+  enemy phase, then a reload).
+
 ## Deviations / notes
 
-- Attack-flow note: the weapon-art forecast fix lands in whichever of `BattleScene` /
-  `AttackFlowController` owns `showForecast` when this merges (the attack-flow PR moves it).
+- The weapon-art forecast is computed by `BattleScene._computePlayerForecast`, which
+  whichever code owns `showForecast` calls (the attack-flow change moves `showForecast`
+  to `AttackFlowController`).
+- Doc screenshots are refreshed only with `PLAYTEST_FIX_SHOTS` set, like the other specs.
