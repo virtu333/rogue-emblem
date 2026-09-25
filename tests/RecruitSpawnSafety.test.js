@@ -187,6 +187,34 @@ describe('pickRecruitSpawnTile', () => {
     expect(pick.reach).toBeLessThanOrEqual(RECRUIT_REACH_BAND.preferMax);
   });
 
+  it("prefers an equally safe tile on the lords' side of the foes", () => {
+    // A Knight boxed in by mountains (Armored cannot enter them) strikes nothing, so
+    // every tile is safe. The fort just past it would win on cover, but the foes reach
+    // it sooner than the lords do: the recruit sits on the lords' side instead.
+    const mountain = data.terrain.findIndex((t) => t.name === 'Mountain');
+    const fort = data.terrain.findIndex((t) => t.name === 'Fort');
+    const mapLayout = base(10, 5);
+    mapLayout[2][2] = mountain;
+    mapLayout[2][4] = mountain;
+    mapLayout[1][3] = mountain;
+    mapLayout[3][3] = mountain;
+    mapLayout[2][5] = fort;
+    const pick = pickRecruitSpawnTile({
+      mapLayout,
+      cols: 10,
+      rows: 5,
+      terrainData: data.terrain,
+      playerSpawns: [{ col: 0, row: 2 }],
+      enemySpawns: [{ col: 3, row: 2, className: 'Knight' }],
+      classesData: data.classes,
+      weaponsData: data.weapons,
+      tilePassable: passable,
+    });
+    expect(pick.col).toBeLessThan(3);
+    expect(pick.reach).toBeGreaterThanOrEqual(RECRUIT_REACH_BAND.min);
+    expect(pick.reach).toBeLessThanOrEqual(RECRUIT_REACH_BAND.max);
+  });
+
   it('returns null when no tile is reachable (caller falls back)', () => {
     const mapLayout = base(6, 3, wall);
     mapLayout[1][0] = plain;
