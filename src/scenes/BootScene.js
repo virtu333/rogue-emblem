@@ -687,6 +687,7 @@ export class BootScene extends Phaser.Scene {
       musicLoadTimeoutMs: this._startupFlags?.isMobile ? 9000 : 7000,
       mobileMusicLoadTimeoutMs: this._startupFlags?.mobileSafeBoot ? 14000 : 11000,
       maxCachedMusicTracks: this._startupFlags?.isMobile ? 3 : 5,
+      maxCachedMusicMegabytes: this._startupFlags?.isMobile ? 120 : 280,
     });
     audio.setMusicVolume(settings.getMusicVolume());
     audio.setSFXVolume(settings.getSFXVolume());

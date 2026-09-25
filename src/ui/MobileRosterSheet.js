@@ -80,6 +80,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
+import { playCue } from './ceremonyMusic.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -830,7 +831,7 @@ export class MobileRosterSheet {
         };
         const growth = choice && rite?.content ? growthCeremonies(this.scene) : null;
         if (!growth) {
-          if (choice) this.scene.registry.get('audio')?.playSFX('sfx_levelup');
+          if (choice) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
           done();
           return;
         }
@@ -864,9 +865,9 @@ export class MobileRosterSheet {
         const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
         if (result.ok) {
           const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
-          this.scene.registry
-            .get('audio')
-            ?.playSFX(item.effect === 'promote' ? 'sfx_levelup' : 'sfx_confirm');
+          if (item.effect === 'promote')
+            void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
+          else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
             `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
           );
