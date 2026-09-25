@@ -82,6 +82,12 @@ export class MobilePauseMenu {
     const title = document.createElement('h2');
     title.textContent = confirming ? 'Confirm action' : 'Paused';
     panel.append(title);
+    if (o.tutorial && !confirming) {
+      const note = document.createElement('p');
+      note.className = 'mp-note';
+      note.textContent = 'Tutorial · practice battle — nothing here is saved.';
+      panel.append(note);
+    }
     if (confirming) {
       const message = document.createElement('p');
       message.className = 'mp-message';
@@ -97,6 +103,8 @@ export class MobilePauseMenu {
       button.textContent = source.text;
       if (source.text === 'Abandon Run') button.classList.add('mp-danger');
       if (source.text === 'Resume') button.classList.add('mp-primary');
+      if (['Leave Tutorial', 'Start First Run'].includes(source.text))
+        button.classList.add('mp-exit');
       let start = null;
       button.addEventListener('pointerdown', (e) => {
         start = [e.clientX, e.clientY];

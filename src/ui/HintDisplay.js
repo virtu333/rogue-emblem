@@ -11,12 +11,16 @@ const DEPTH = 965;
 /**
  * Show a centered hint box that blocks until the player dismisses it.
  * Returns a Promise that resolves when Space, Enter, or click is pressed.
+ * `actions` (DOM only) replaces the lone Continue with labelled choices; the
+ * promise then resolves to the chosen `value` (the first action is the default
+ * for Space/Escape). Without actions it resolves true (false on shutdown).
  */
-export function showImportantHint(scene, message, { minimumMs = 0 } = {}) {
+export function showImportantHint(scene, message, { minimumMs = 0, actions = null } = {}) {
   if (hasDOMHost())
     return new Promise((resolve) => {
       let settled = false;
       const openedAt = Date.now();
+      const choices = Array.isArray(actions) && actions.length ? actions : null;
       const shutdown = () => finish(false);
       const finish = (acknowledged = true) => {
         if (acknowledged && Date.now() - openedAt < minimumMs) return;
@@ -24,16 +28,32 @@ export function showImportantHint(scene, message, { minimumMs = 0 } = {}) {
         settled = true;
         scene.events.off('shutdown', shutdown);
         menu.destroy();
-        resolve(acknowledged);
+        resolve(acknowledged === true && choices ? choices[0].value : acknowledged);
       };
-      const menu = new MenuSurface(scene, 'Field notes', finish, { modal: true });
+      const menu = new MenuSurface(scene, 'Field notes', () => finish(), { modal: true });
       menu.root.classList.add('re-run-flow');
       menu.header.querySelector('button').remove();
       if (scene.battleParams?.tutorialMode) menu.root.classList.add('re-tutorial-note');
-      menu.body.append(element('p', message), button('Continue', finish, 're-btn re-btn--primary'));
+      let actionsEl;
+      if (choices) {
+        actionsEl = element('div', null, 're-tutorial-actions');
+        for (const choice of choices) {
+          const b = button(
+            choice.label,
+            () => finish(choice.value),
+            choice.primary ? 're-btn re-btn--primary' : 're-btn',
+          );
+          if (choice.ariaLabel) b.setAttribute('aria-label', choice.ariaLabel);
+          actionsEl.append(b);
+        }
+      } else actionsEl = button('Continue', () => finish(), 're-btn re-btn--primary');
+      menu.body.append(element('p', message), actionsEl);
       menu.onKey = (event) => {
         if (event.key !== ' ') return false;
-        finish();
+        const focused = document.activeElement;
+        if (choices && focused?.tagName === 'BUTTON' && menu.root.contains(focused))
+          focused.click();
+        else finish();
         return true;
       };
       scene.events.once('shutdown', shutdown);

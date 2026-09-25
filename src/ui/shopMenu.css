@@ -72,8 +72,11 @@
 .shop-copy {
   overflow: auto;
   flex: 1;
-  padding: 12px;
+  padding: 12px 12px 20px;
   overflow-wrap: anywhere;
+  /* Long item copy fades at the edge rather than slicing a line under the buy row. */
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
 }
 .shop-copy h3 {
   font-size: 19px;
@@ -89,6 +92,8 @@
 .shop-mechanics {
   white-space: pre-line;
 }
+/* Every disclosure in the item copy is a full tap target (Compare with your roster). */
+.shop-copy details > summary,
 .shop-lore summary {
   min-height: var(--re-tap);
   display: flex;

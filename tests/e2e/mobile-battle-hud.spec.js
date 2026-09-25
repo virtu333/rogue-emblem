@@ -233,12 +233,13 @@ test('confirming the forecast commits combat once and removes the dialog', async
 test('forecast weapon cycling updates the preview without committing combat', async ({ page }) => {
   await bootBattle(page);
   await prepareForecast(page);
-  const before = await page.locator('.mb-ally .mb-weapon').innerText();
+  // The weapon stepper lives beside the attacker's name (◀ Iron Sword [E] 1/2 ▶).
+  const before = await page.locator('.mb-ally .mb-step-name').innerText();
   await page
     .getByRole('dialog', { name: 'Combat forecast' })
-    .getByRole('button', { name: 'Weapon ›', exact: true })
+    .getByRole('button', { name: 'Next weapon', exact: true })
     .tap();
-  await expect(page.locator('.mb-ally .mb-weapon')).not.toHaveText(before);
+  await expect(page.locator('.mb-ally .mb-step-name')).not.toHaveText(before);
   expect(await page.evaluate(() => window.__sceneState.battle.state)).toBe('SHOWING_FORECAST');
 });
 
@@ -289,12 +290,18 @@ test('small landscape canvas fits its container when touch panels are present', 
     .toBe(true);
 });
 
-test('end-turn prompt locates a ready unit without spending its action', async ({ page }) => {
+test('end-turn prompt locates a ready unit without spending its action, then the next', async ({
+  page,
+}) => {
   await bootBattle(page);
   await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
-  const name = await page.evaluate(() => {
+  // Ready units are walked in reading order (row, then column).
+  const names = await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
-    const unit = s.playerUnits.find((u) => u.currentHP > 0 && !u.hasActed);
+    const ready = s.playerUnits
+      .filter((u) => u.currentHP > 0 && !u.hasActed)
+      .sort((a, b) => a.row - b.row || a.col - b.col);
+    const unit = ready[0];
     const opposite = s.grid.gridToPixel(
       unit.col < s.grid.cols / 2 ? s.grid.cols - 1 : 0,
       unit.row < s.grid.rows / 2 ? s.grid.rows - 1 : 0,
@@ -302,8 +309,9 @@ test('end-turn prompt locates a ready unit without spending its action', async (
     s.cameras.main.setZoom(s._battleCamera?.maxZoom || 3);
     s.cameras.main.centerOn(opposite.x, opposite.y);
     s._battleCamera?.clampToBounds();
-    return unit.name;
+    return ready.map((u) => u.name);
   });
+  const [name] = names;
   await page.waitForFunction((name) => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const unit = s.playerUnits.find((u) => u.name === name);
@@ -312,8 +320,11 @@ test('end-turn prompt locates a ready unit without spending its action', async (
   }, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
-  await hud.getByRole('button', { name: `Show ${name}`, exact: true }).tap();
+  const count = names.length > 1 ? ` · 1 of ${names.length}` : '';
+  await hud.getByRole('button', { name: `Show ${name}${count}`, exact: true }).tap();
   await expect(hud.getByRole('button', { name: 'End turn now' })).toHaveCount(0);
+  // Brought into view, selected (move range and unit panel live), action unspent,
+  // and marked by the locator brackets.
   await expect
     .poll(() =>
       page.evaluate((name) => {
@@ -325,8 +336,26 @@ test('end-turn prompt locates a ready unit without spending its action', async (
           ready: !unit.hasActed,
           visible: view.contains(point.x, point.y),
           state: s.battleState,
+          selected: s.selectedUnit === unit,
+          locator: Boolean(s._unitLocator),
         };
       }, name),
     )
-    .toEqual({ ready: true, visible: true, state: 'PLAYER_IDLE' });
+    .toEqual({ ready: true, visible: true, state: 'UNIT_SELECTED', selected: true, locator: true });
+  if (names.length < 2) return;
+  // Cancel the selection; the prompt now offers the next ready unit.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
+  await hud
+    .getByRole('button', { name: `Show ${names[1]} · 2 of ${names.length}`, exact: true })
+    .tap();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (name) => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit?.name === name,
+        names[1],
+      ),
+    )
+    .toBe(true);
 });

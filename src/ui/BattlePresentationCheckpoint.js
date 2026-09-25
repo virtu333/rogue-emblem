@@ -48,6 +48,10 @@ export function readCommittedAction(value) {
     )
       return null;
     weaponArt = { artId: art.artId, weaponIndex: art.weaponIndex };
+    // Optional (newer saves): the art weapon's uid survives the equipped-first
+    // reorder on confirm. Legacy intents resolve by index as before.
+    if (typeof art.weaponUid === 'string' && art.weaponUid && art.weaponUid.length <= 64)
+      weaponArt.weaponUid = art.weaponUid;
   }
   // Gambler's Coin modifiers the forecast already rolled (null = not rolled).
   let gamblerAtkDelta = null;

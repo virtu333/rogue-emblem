@@ -11,6 +11,8 @@ import {
   removeFromInventory,
   hasProficiency,
   canEquip,
+  equipIfUnarmed,
+  inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
 import { getConsumableDescription } from '../utils/consumableText.js';
@@ -22,6 +24,7 @@ import {
   formatUnitCapacityLabel,
 } from './rosterOverlayShared.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+import { equippedMarker } from './equippedBadge.js';
 
 export class RosterTradeController {
   constructor(overlay) {
@@ -341,8 +344,8 @@ export class RosterTradeController {
         overlay._tradeText(xPos, sy, '(empty)', UI_PALETTE.muted, '10px');
         sy += 14;
       } else {
-        for (const item of [...inventory]) {
-          const marker = item === unit.weapon ? '\u25b6 ' : '  ';
+        for (const item of inventoryDisplayOrder(unit)) {
+          const marker = equippedMarker(unit, item);
           const noProf = !hasProficiency(otherUnit, item);
           const ownerUsable = canEquip(unit, item);
           const rowColor = ownerUsable ? UI_PALETTE.text : UI_PALETTE.lineStrong;
@@ -400,7 +403,8 @@ export class RosterTradeController {
             });
             hit.on('pointerdown', () => {
               removeFromInventory(unit, item);
-              addToInventory(otherUnit, item);
+              if (addToInventory(otherUnit, item))
+                equipIfUnarmed(otherUnit, otherUnit.inventory.at(-1));
               overlay._showTradeScreen(unitA, unitB); // redraw
             });
             overlay.tradeObjects.push(hit);
