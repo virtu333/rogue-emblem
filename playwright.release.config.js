@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: 'mobile-release.spec.js',
+  // offline-atlas.spec.js serves dist/ itself (ER_OFFLINE_ATLAS_PORT, default 4180).
+  testMatch: ['mobile-release.spec.js', 'offline-atlas.spec.js'],
   outputDir: 'test-results-release',
   timeout: 60000,
   retries: 0,

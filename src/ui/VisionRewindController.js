@@ -38,6 +38,7 @@ import {
 import { getRating } from '../engine/TurnBonusCalculator.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+import { playCue } from './ceremonyMusic.js';
 
 /**
  * FNV-1a hash — deterministic seed derivation for rewind RNG re-seeding.
@@ -397,6 +398,7 @@ export class VisionRewindController {
 
   playRewindEffect() {
     const scene = this.scene;
+    void playCue(scene, 'rewind', { waitMs: 300, duck: 0.4 });
     const flash = scene.add
       .rectangle(
         scene.cameras.main.centerX,
@@ -827,6 +829,7 @@ export class VisionRewindController {
       }
       // Lord death: the same decision, staged as the FALLEN ceremony.
       if (fate) {
+        void playCue(scene, 'lord_fallen', { waitMs: 400, duck: 0.3 });
         try {
           stageFateDecision(scene, surface, {
             ...fate,

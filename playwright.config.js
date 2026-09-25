@@ -2,7 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testIgnore: 'mobile-release.spec.js',
+  // Production-build specs (need dist/): run by playwright.release.config.js.
+  testIgnore: ['mobile-release.spec.js', 'offline-atlas.spec.js'],
   timeout: 30_000,
   retries: 1,
   use: {
