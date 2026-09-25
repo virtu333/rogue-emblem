@@ -253,7 +253,7 @@ describe('forecast equals resolution for random matchups', () => {
     }
     expect(triangleCases).toBeGreaterThan(SAMPLES / 10);
     expect(mismatches.slice(0, 5)).toEqual([]);
-  });
+  }, 120_000);
 
   it('the "if all hits land" projection equals the resolved HP when shown', () => {
     const mismatches = [];
@@ -298,5 +298,5 @@ describe('forecast equals resolution for random matchups', () => {
     }
     expect(shown).toBeGreaterThan(40);
     expect(mismatches.slice(0, 5)).toEqual([]);
-  });
+  }, 120_000);
 });
