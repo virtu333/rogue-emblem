@@ -24,6 +24,79 @@ void too). Spec:
 
 ---
 
+## 2026-09-25 — Strategy layer: recruit nodes you can read, fair recruit spawns, blessing pacts
+
+**Trigger:** Player A: "you should basically never take any route that doesn't optimize
+for # of recruits" and "recruit spawns on the other side of the map from me and is
+guaranteed dead"; the designer: recruit nodes should be scarier, the church is weak
+early, "Forbidden Tome is too strong; same with the Scroll Archive … Does deforge even
+go negative?" Spec: [`specs/strategy-layer.md`](specs/strategy-layer.md); proposals:
+[`specs/strategy-layer-proposal.md`](specs/strategy-layer-proposal.md); captures:
+[`art-direction/gameplay/strategy-layer/`](art-direction/gameplay/strategy-layer/README.md).
+
+**Findings** (`sim/strategy.js`, a new threat-aware TacticianAgent, casual-mode runs):
+- One more unit is worth −11 points of commander-KO battles while deploy slots are
+  empty (act 1), ~0 once they are full. The recruit route wins by filling slots early.
+- The spawn lottery was real but a tail: 12–18% of act-2/3 recruits spawned 3+ turns
+  from the nearest lord, where a careful rescuer lost 16–61% of them.
+- Forbidden Tome was 11–14 points of commander-KO better than no blessing (other tier-4
+  boons: 0–5) for a random price, two of five of which cost nothing. Scroll Archive
+  could hand out two act-3/4 arts on day one. Deforge never goes negative — it was void
+  (no starting weapon carries a forge).
+
+**Decisions**
+- Recruit knots show who waits (class, level, stats, growths, traits); the battle spawns
+  exactly that unit (own seeded streams; battle RNG untouched).
+- Recruit nodes are elite fights (+1 hunter on Normal, +2 on Hard/Lunatic, one affixed
+  captain) for a *seasoned* recruit (squad-average level, upper-half growths, ≥1 trait).
+- The recruit spawns within two moves of a lord, out of first-phase strike range, in
+  cover when possible; lords deploy nearest; a gold banner marks them from turn 1.
+  Rescues: 100% in the sim, half of act-2/3 rescues take a second turn.
+- Blessing **pacts**: fixed, always-shown prices. Forbidden Tome → lords +12, pact:
+  recruits −10 (a lord-carry build that argues with the recruit route). Scroll Archive →
+  arts that open by Act II, pact: arts +2 HP. Deforge never below +0 and never offered
+  when void. Active runs keep their stored price.
+- Rejected: guaranteed free joins (the sim shows they lift every route equally — the
+  recruit route's act-2 lead is unchanged); Eclipse prices on the Tome (no effect);
+  "foes +1 level" as a price (it is a boon: more XP).
+
+**Proposed, not built:** Muster camp (choose one of two previewed recruits or supplies,
+acts 1–2), Wayside shrine, Prisoner convoy, Bounty, Smithy, Scriptorium, Watchtower,
+Ossuary; an early church with Acolyte (hire a novice healer) and Absolution (buy off a
+rolled blessing price).
+
+---
+
+## 2026-09-25 — Par penalties return under the Eclipse; playtest notes and backlog
+
+**Decision.** Late pressure (XP/gold decay past par) applies again while the Eclipse
+runs. The Eclipse originally replaced the hidden clock; on reflection a slow battle
+should cost in its own rewards *and* in the shadow it commits. `getLatePressureState`
+lost its `eclipseActive` bypass ([`specs/eclipse.md`](specs/eclipse.md) §5).
+
+**Playtest notes (Alex).** More systems ≠ better; refining existing systems is often the
+better path. Reactions to the bold-ideas list:
+- Most wanted: *Faltering, then Hollowing* (Souls-style death). Goal as stated: you
+  want to play with permadeath, lose characters in a way that feels fair, and can keep
+  going after a loss. Reference points: Darkest Dungeon 1 (expected deaths of good units
+  on high difficulty) and XCOM Long War 1.0 (bleed-out, stabilize on the field but not
+  return to combat, long recovery, permanent small impairment). Next: research + proposal
+  before any build.
+- Omens (enemy intent): keep it light, e.g. Fortune's Weave's thin red line from each
+  enemy that threatens the selected unit; no damage numbers (rolling is part of FE).
+  Sera as a seer whose information grows with proximity to danger is a strong concept.
+- The Eclipse: liked; wary of map connectivity/luck (FTL squinting). Hearth: a small
+  version could be rare premium meta upgrades "supplied by" someone you saved.
+- Indifferent or negative: Deeds (indifferent), living battlefield (dislikes; DOS2 fire),
+  Break-and-Link bosses (players already clear the map and chip bosses; keep underleveled
+  chip damage low instead).
+
+**Backlog.**
+- Special forges: the shop occasionally rolls an imbue offer, including shop-only imbues.
+- Imbue balance: Vampiric and Warding look strong; fold into a broader balance pass.
+
+---
+
 ## 2026-09-25 — Two fixes from outside reports: staff heal penalty, offline atlases
 
 **Staff heals under a heal penalty.** The "Staff healing −20% effective" blessing

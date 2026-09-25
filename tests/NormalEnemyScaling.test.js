@@ -22,10 +22,15 @@ describe('Normal Act 1 recruitment relief', () => {
       expect(count(4, 'act1', 0)).toBe(count(3, 'act1', 0) + 1);
     }
   });
-  it('configures recruitment protection only for Normal', () => {
-    expect(data.difficulty.modes.normal.recruitEnemyCountBonus).toBe(0);
+  it('keeps the act-1 deploy cap for Normal only, while recruit nodes are elite everywhere', () => {
+    // Recruit nodes are elite fights on every difficulty (docs/specs/strategy-layer.md):
+    // one extra foe on Normal, two on Hard/Lunatic, plus one guaranteed affix.
+    expect(data.difficulty.modes.normal.recruitEnemyCountBonus).toBe(1);
+    expect(data.difficulty.modes.normal.recruitAffixCount).toBe(1);
+    expect(data.difficulty.modes.normal.act1EnemyCountDeployCap).toBe(3);
     for (const id of ['hard', 'lunatic']) {
-      expect(data.difficulty.modes[id].recruitEnemyCountBonus).toBe(1);
+      expect(data.difficulty.modes[id].recruitEnemyCountBonus).toBe(2);
+      expect(data.difficulty.modes[id].recruitAffixCount).toBe(1);
       expect(data.difficulty.modes[id].act1EnemyCountDeployCap).toBe(0);
     }
   });
