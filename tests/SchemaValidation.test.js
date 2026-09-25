@@ -100,6 +100,19 @@ describe('Schema validation — positive (real data)', () => {
     expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it('traits.json passes schema, and the schema rejects retired v1 shapes', () => {
+    const validate = compileSchema('traits.schema.json');
+    const data = loadData('traits.json');
+    expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
+    const bad = (patch) => validate([{ id: 'x', name: 'X', description: 'Y.', ...patch }]);
+    expect(bad({ masteryPerkOverride: { atkBonus: 2 } })).toBe(false);
+    expect(bad({ combatMods: { atkBonus: 2, condition: 'typo_condition' } })).toBe(false);
+    expect(bad({ creationMods: { stats: { POW: 1 } } })).toBe(false);
+    expect(bad({ roll: { requires: ['healer'] } })).toBe(false);
+    expect(bad({ description: 'x'.repeat(86) })).toBe(false);
+    expect(bad({ combatMods: [{ atkBonus: 3, condition: 'initiating' }] })).toBe(true);
+  });
+
   it('mapTemplates.json passes engine validator', () => {
     const data = loadData('mapTemplates.json');
     const result = validateMapTemplatesConfig(data);

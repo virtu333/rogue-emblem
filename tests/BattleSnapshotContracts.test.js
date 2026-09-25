@@ -381,3 +381,28 @@ describe('Vision playable turn boundary', () => {
     },
   );
 });
+
+describe('deed progress (Deeds & Epithets)', () => {
+  const crit = { type: 'strike', attackerSide: 'attacker', miss: false, isCrit: true, damage: 4 };
+  it('rolls back with a Vision rewind and survives a suspend/resume', async () => {
+    const { recordCombat, recordKill } = await import('../src/engine/DeedSystem.js');
+    const s = scene();
+    const [hero] = s.playerUnits;
+    const [foe] = s.enemyUnits;
+    recordCombat({ events: [crit] }, hero, foe, { phase: 'player' });
+    recordKill(unit('Mira'), foe, {});
+    s.captureVisionSnapshot();
+    recordCombat({ events: [crit, crit] }, hero, foe, { phase: 'player' });
+    recordKill(foe, hero, { terrain: 'Plain' });
+    expect(hero._battleDeeds).toMatchObject({ crits: 3, kills: 1, avenged: 1 });
+    s._visionController._applySnapshot();
+    expect(s.playerUnits[0]._battleDeeds).toMatchObject({ crits: 1, kills: 0, avenged: 0 });
+    expect(s.enemyUnits[0]._slewAllies).toEqual(['Mira']);
+
+    recordCombat({ events: [crit] }, s.playerUnits[0], s.enemyUnits[0], { phase: 'player' });
+    s._captureSuspendCheckpoint();
+    const resumed = restoreCheckpoint(s.runManager.battleInProgress.checkpoint);
+    expect(resumed.playerUnits[0]._battleDeeds).toMatchObject({ crits: 2 });
+    expect(resumed.enemyUnits[0]._slewAllies).toEqual(['Mira']);
+  });
+});

@@ -36,6 +36,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
+import { unitEpithet } from '../engine/DeedTitles.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 /**
@@ -703,7 +704,7 @@ export class VisionRewindController {
     const unit =
       pool.find((u) => u?.isCommander) ||
       (commanderName ? pool.find((u) => u?.name === commanderName) : null);
-    return unit ? { name: unit.name, className: unit.className } : null;
+    return unit ? { name: unit.name, className: unit.className, epithet: unitEpithet(unit) } : null;
   }
 
   returnToFatalDecision() {

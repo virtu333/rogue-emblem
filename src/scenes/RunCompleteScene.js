@@ -16,6 +16,7 @@ import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
+import { runEclipseSummary } from '../ui/eclipseContent.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -362,6 +363,7 @@ export class RunCompleteScene extends Phaser.Scene {
       turn: this.result !== 'victory' && rm?.defeatContext ? turn : null,
       defeatContext: rm?.defeatContext || null,
       battlesWon: rm?.completedBattles,
+      eclipse: runEclipseSummary(rm),
     };
   }
 

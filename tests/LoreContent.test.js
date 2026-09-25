@@ -42,6 +42,23 @@ describe('lore content contract', () => {
     }
   });
 
+  it('every deed has lore within the item budget, in voices from the world', () => {
+    const deeds = gameData.deeds.deeds;
+    expect(deeds.length).toBeGreaterThan(0);
+    for (const deed of deeds) {
+      expectValidLore(deed, ITEM_BUDGET, `deed "${deed.id}"`);
+      // The UI wraps lore in quotes: speech uses single quotes.
+      expect(deed.lore.includes('"'), `deed "${deed.id}": double quote`).toBe(false);
+      // A deed's lore is not its title restated.
+      expect(deed.lore.toLowerCase()).not.toContain(deed.epithet.text.toLowerCase());
+    }
+    // Style guide v2: ≤25% open on "A/An", ≤15% semicolon/em-dash antithesis.
+    const bareA = deeds.filter((d) => /^(A|An) /.test(d.lore)).length;
+    expect(bareA / deeds.length).toBeLessThanOrEqual(0.25);
+    const antithesis = deeds.filter((d) => /[;—]/.test(d.lore)).length;
+    expect(antithesis / deeds.length).toBeLessThanOrEqual(0.15);
+  });
+
   it('every whetstone has lore within the item budget', () => {
     expect(gameData.whetstones.length).toBeGreaterThan(0);
     for (const item of gameData.whetstones) {
@@ -80,5 +97,35 @@ describe('lore content contract', () => {
     const finalBosses = gameData.enemies.bosses.finalBoss;
     expect(finalBosses.some((b) => b.difficultyFilter?.includes('normal'))).toBe(true);
     expect(finalBosses.some((b) => b.difficultyFilter?.includes('lunatic'))).toBe(true);
+  });
+});
+
+// Traits are stat-line text (clarity over variety — see the style guide), read
+// on recruit cards, the roster sheet and the unit-details tooltip: one line,
+// item budget, a short distinct name, and one consistent stat vocabulary.
+describe('trait text contract', () => {
+  it('every trait has a one-line description within the item budget', () => {
+    expect(gameData.traits.length).toBeGreaterThan(0);
+    for (const trait of gameData.traits) {
+      const label = `trait "${trait.id}"`;
+      expect(typeof trait.description, label).toBe('string');
+      expect(trait.description.trim().length, label).toBeGreaterThan(0);
+      expect(trait.description.length, `${label} exceeds ${ITEM_BUDGET}`).toBeLessThanOrEqual(
+        ITEM_BUDGET,
+      );
+      expect(trait.description.includes('\n'), label).toBe(false);
+      expect(trait.description.endsWith('.'), `${label} ends on a full stop`).toBe(true);
+    }
+  });
+
+  it('trait names are short and unique', () => {
+    const names = gameData.traits.map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) expect(name.length, name).toBeLessThanOrEqual(18);
+  });
+
+  it('descriptions use the combat vocabulary (Atk/Def/Res/Spd…), never shouted stat caps', () => {
+    for (const trait of gameData.traits)
+      expect(trait.description, trait.id).not.toMatch(/\b(ATK|DEF|RES|SPD|STR|MAG|SKL|LCK)\b/);
   });
 });

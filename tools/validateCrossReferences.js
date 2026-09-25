@@ -33,6 +33,8 @@ export function validateCrossReferences(datasets = null) {
   const consumables = datasets?.consumables ?? readJson('consumables.json');
   const lords = datasets?.lords ?? readJson('lords.json');
   const recruits = datasets?.recruits ?? readJson('recruits.json');
+  const deedsData = datasets?.deeds ?? readJson('deeds.json');
+  const terrain = datasets?.terrain ?? readJson('terrain.json');
 
   const classByName = new Map(
     (Array.isArray(classes) ? classes : [])
@@ -142,6 +144,31 @@ export function validateCrossReferences(datasets = null) {
       if (!classNames.has(className)) {
         errors.push(`recruits.json:${actId}.classPool references unknown class "${className}"`);
       }
+    }
+  }
+
+  // Deeds: Oath skills exist; place phrases name real terrain; weapon
+  // phrases name real weapon types (Dark is reserved for a future tome line).
+  const terrainNames = toSetByName(terrain);
+  const weaponTypes = new Set(
+    (Array.isArray(weapons) ? weapons : []).map((w) => w?.type).filter(Boolean),
+  );
+  const deedIds = new Set();
+  for (const deed of Array.isArray(deedsData?.deeds) ? deedsData.deeds : []) {
+    if (deedIds.has(deed?.id)) errors.push(`deeds.json: duplicate deed id "${deed?.id}"`);
+    deedIds.add(deed?.id);
+    if (deed?.oathSkill && !skillIds.has(deed.oathSkill)) {
+      errors.push(`deeds.json:${deed.id}.oathSkill references unknown skill "${deed.oathSkill}"`);
+    }
+  }
+  for (const place of Object.keys(deedsData?.places || {})) {
+    if (place !== 'default' && !terrainNames.has(place)) {
+      errors.push(`deeds.json:places references unknown terrain "${place}"`);
+    }
+  }
+  for (const type of Object.keys(deedsData?.weapons || {})) {
+    if (type !== 'Dark' && !weaponTypes.has(type)) {
+      errors.push(`deeds.json:weapons references unknown weapon type "${type}"`);
     }
   }
 

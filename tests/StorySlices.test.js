@@ -106,6 +106,7 @@ describe('story slice selection contracts', () => {
           'bossSlainBefore',
           'bossKilledYouBefore',
           'firstClear',
+          'commanderHasEpithet',
         ]);
         for (const [key, condition] of Object.entries(value.when)) {
           expect(KNOWN_WHEN_KEYS.has(key), key).toBe(true);
