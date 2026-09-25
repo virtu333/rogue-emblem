@@ -463,7 +463,12 @@ export class ColosseumOverlay {
           this._colosseumData,
           Math.random,
           this.gameData.traits || null,
-          this.runManager.roster.map((unit) => unit.name),
+          // Never a name already in the army, among the fallen, used this run, or
+          // promised by a recruit node still ahead (the Loom shows who waits there).
+          [
+            ...(this.runManager.getTakenUnitNames?.() ||
+              this.runManager.roster.map((unit) => unit.name)),
+          ],
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);
@@ -538,6 +543,7 @@ export class ColosseumOverlay {
     // Add to roster
     unit.faction = 'player';
     this.runManager.grantRecruitBlessingConsumables?.(unit);
+    this.runManager.assignUnitUid?.(unit);
     this.runManager.roster.push(unit);
 
     // Mark as hired

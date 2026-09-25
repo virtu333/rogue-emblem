@@ -397,6 +397,9 @@ describe('BossRecruitOverlay', () => {
     runManager.roster = roster;
     runManager.fallenUnits = fallen;
     runManager.getEffectiveMetaEffects = () => meta;
+    // Names promised by pending recruit nodes (and every other taken name) are
+    // reserved: a boss recruit never takes them.
+    runManager.getTakenUnitNames = () => new Set(['Edric', 'FallenHero', 'Linnet']);
 
     generateBossRecruitCandidatesMock.mockReturnValue(null);
 
@@ -409,6 +412,7 @@ describe('BossRecruitOverlay', () => {
       gameData,
       meta,
       fallen,
+      ['Edric', 'FallenHero', 'Linnet'],
     );
   });
 

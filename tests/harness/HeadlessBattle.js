@@ -11,7 +11,7 @@ import {
   recordKill,
 } from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
-import { generateBattle } from '../../src/engine/MapGenerator.js';
+import { generateBattle, reconcileRecruitSpawnTile } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
 import {
   resolveCombat,
@@ -280,6 +280,13 @@ export class HeadlessBattle {
       });
       if (built?.unit) {
         const npc = built.unit;
+        // Mirrors BattleScene: the tile must suit the unit that spawned (lord roll).
+        reconcileRecruitSpawnTile(bc, {
+          moveType: npc.moveType || 'Infantry',
+          terrainData: this.gameData.terrain,
+          classesData: this.gameData.classes,
+          weaponsData: this.gameData.weapons,
+        });
         npc.col = npcSpawn.col;
         npc.row = npcSpawn.row;
         npc._phoenixBroochUsed = false;

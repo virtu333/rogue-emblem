@@ -607,6 +607,7 @@ class ProtectedDriver extends RunSimulationDriver {
           this.gameData,
           rm.getEffectiveMetaEffects(),
           rm.fallenUnits || [],
+          [...rm.getTakenUnitNames()],
         ) || [];
       const pick = [...candidates]
         .map((c) => c?.unit)
@@ -614,6 +615,7 @@ class ProtectedDriver extends RunSimulationDriver {
         .sort((a, b) => (b.level || 0) - (a.level || 0))[0];
       if (pick) {
         rm.grantRecruitBlessingConsumables?.(pick);
+        rm.assignUnitUid(pick);
         rm.roster.push(pick);
         s.bossRecruits = (s.bossRecruits || 0) + 1;
       }
@@ -668,13 +670,14 @@ class ProtectedDriver extends RunSimulationDriver {
         this.gameData.colosseum,
         Math.random,
         this.gameData.traits || null,
-        roster.map((u) => u.name),
+        [...rm.getTakenUnitNames()],
       ).filter((c) => c?.unit && c.hireCost <= rm.gold);
       candidates.sort((a, b) => (b.unit.level || 0) - (a.unit.level || 0));
       const pick = candidates[0];
       if (pick && rm.spendGold(pick.hireCost)) {
         pick.unit.faction = 'player';
         grantMercenaryClassSkills?.(pick.unit, this.gameData.classes, this.gameData.skills);
+        rm.assignUnitUid(pick.unit);
         roster.push(pick.unit);
         hired = pick.unit.name;
         s.mercsHired++;

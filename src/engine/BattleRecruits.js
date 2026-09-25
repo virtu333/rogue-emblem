@@ -9,8 +9,13 @@
 // recruitment forgets the recruit, a rewind to before the death keeps the
 // record while the unit lives again.
 //
+// Records are matched by unit identity (`unitUid`, UnitIdentity.js), never by the
+// name alone: a mercenary can share a recruit's name (legacy saves), and a living
+// namesake must not hide the recruit's death.
+//
 // Pure: no RNG, no scene access beyond the arrays it is handed.
 import { serializeUnit } from './RunManager.js';
+import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
 
 const MAX_BATTLE_RECRUITS = 32;
 
@@ -63,9 +68,19 @@ export function normalizeBattleRecruits(value) {
   return structuredClone(value.filter(validEntry).slice(0, MAX_BATTLE_RECRUITS));
 }
 
+/** Does a stored record describe `unit`? uid, then battle entity, then (legacy) name. */
+function recordIsUnit(entry, unit) {
+  const a = unitUidOf(entry.unit);
+  const b = unitUidOf(unit);
+  if (a && b) return a === b;
+  const entityId = typeof unit?.battleEntityId === 'string' ? unit.battleEntityId : null;
+  if (entry.entityId && entityId) return entry.entityId === entityId;
+  return entry.name === unit?.name;
+}
+
 /**
- * Record a unit that just joined the player army. Returns the new list; a
- * repeated name replaces its earlier record (names are unique within a run).
+ * Record a unit that just joined the player army. Returns the new list; a record
+ * for the same unit (same identity) is replaced by the newer one.
  */
 export function recordBattleRecruit(list, unit) {
   const current = normalizeBattleRecruits(list);
@@ -75,18 +90,22 @@ export function recordBattleRecruit(list, unit) {
     entityId: typeof unit.battleEntityId === 'string' ? unit.battleEntityId : null,
     unit: serializeUnit(copyWithoutBattleDeltas(unit)),
   };
-  return [...current.filter((e) => e.name !== unit.name), entry].slice(-MAX_BATTLE_RECRUITS);
+  return [...current.filter((e) => !recordIsUnit(e, unit)), entry].slice(-MAX_BATTLE_RECRUITS);
 }
 
 /**
  * Serialized recruits that joined during this battle and are not among the
  * survivors (deployed, escaped or benched) — they fell after joining.
+ *
+ * `roster` is the run roster as the battle began: its units are matched to the
+ * survivors first, one survivor per unit (UnitIdentity.matchUnitsToSurvivors), so a
+ * surviving roster unit that shares a recruit's name does not count as the recruit.
  */
-export function fallenBattleRecruits(list, survivors = []) {
-  const alive = new Set(
-    (Array.isArray(survivors) ? survivors : []).map((u) => u?.name).filter(Boolean),
-  );
-  return normalizeBattleRecruits(list)
-    .filter((entry) => !alive.has(entry.name))
-    .map((entry) => entry.unit);
+export function fallenBattleRecruits(list, survivors = [], roster = []) {
+  const records = normalizeBattleRecruits(list);
+  const entrants = (Array.isArray(roster) ? roster : []).filter((u) => u && typeof u === 'object');
+  const units = records.map((entry) => entry.unit);
+  const { unmatched } = matchUnitsToSurvivors([...entrants, ...units], survivors);
+  const fallen = new Set(unmatched);
+  return units.filter((unit) => fallen.has(unit));
 }

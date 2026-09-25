@@ -161,3 +161,111 @@ test('a recruit who joins and falls in the same battle can be revived at the chu
     .toBe(true);
   expect(errors).toEqual([]);
 });
+
+// External review 2026-09-25: a mercenary hired under the name a recruit node promised
+// (saves from before names were reserved) made casualty matching drop the Talk recruit
+// when it fell and the namesake lived. Units are now told apart by identity.
+test('a fallen recruit is recorded even when a living ally shares its name', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.routeWebSocket(/^ws:\/\/(?:127\.0\.0\.1|localhost):\d+/, (socket) => socket.close());
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'emblem_rogue_settings',
+      JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: false, battleSpeed: 'instant' }),
+    ),
+  );
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  const namesake = await page.evaluate(async () => {
+    const game = window.__emblemRogueGame;
+    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+    const meta = game.registry.get('meta');
+    meta.storageKey = getMetaKey(1);
+    meta._save();
+    game.registry.set('activeSlot', 1);
+    setActiveSlot(1);
+    const s = game.scene.getScene('Battle');
+    const { createRecruitUnit } = await import('/src/engine/UnitManager.js');
+    const lord = s.playerUnits[0];
+    // The living namesake: another deployed ally (the "hired mercenary").
+    const ally = s.playerUnits.find((u) => u !== lord);
+    const spot = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+      .map(([dc, dr]) => ({ col: lord.col + dc, row: lord.row + dr }))
+      .find(
+        (p) =>
+          p.col >= 0 &&
+          p.row >= 0 &&
+          p.col < s.grid.cols &&
+          p.row < s.grid.rows &&
+          !s.getUnitAt(p.col, p.row),
+      );
+    const npc = createRecruitUnit(
+      { name: ally.name, level: 3 },
+      s.gameData.classes.find((c) => c.name === 'Archer'),
+      s.gameData.weapons,
+      null,
+      null,
+      null,
+      s.gameData.classes,
+      { skillsData: s.gameData.skills },
+    );
+    Object.assign(npc, spot, { faction: 'npc' });
+    s.npcUnits.push(npc);
+    s.addUnitGraphic(npc);
+    s._captureSuspendCheckpoint();
+    window.__npc = npc;
+    window.__talk = s.executeTalk(lord);
+    return { name: ally.name, uid: ally.unitUid || null };
+  });
+  await clickThrough(page, () =>
+    window.__emblemRogueGame.scene.getScene('Battle').playerUnits.includes(window.__npc),
+  );
+  const recruitUid = await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    await window.__talk;
+    s.battleState = 'PLAYER_IDLE';
+    s._captureSuspendCheckpoint();
+    window.__death = s.removeUnit(window.__npc);
+    return window.__npc.unitUid;
+  });
+  expect(recruitUid).toMatch(/^ru\d+$/);
+  await clickThrough(
+    page,
+    () => !window.__emblemRogueGame.scene.getScene('Battle').playerUnits.includes(window.__npc),
+  );
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    await window.__death;
+    for (const enemy of [...s.enemyUnits]) await s.removeUnit(enemy, { killer: s.playerUnits[0] });
+    s.checkBattleEnd();
+  });
+  await clickThrough(
+    page,
+    () =>
+      window.__emblemRogueGame.scene
+        .getScene('Battle')
+        ?.runManager?.fallenUnits?.some((u) => u.unitUid === window.__npc.unitUid) === true,
+  );
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run')),
+  );
+  expect(saved.battleInProgress).toBeNull();
+  const fallen = saved.fallenUnits.filter((u) => u.name === namesake.name);
+  expect(fallen.map((u) => u.unitUid)).toEqual([recruitUid]);
+  expect(fallen[0].className).toBe('Archer');
+  // The namesake lived and kept its own identity.
+  const living = saved.roster.filter((u) => u.name === namesake.name);
+  expect(living).toHaveLength(1);
+  expect(living[0].unitUid).not.toBe(recruitUid);
+  if (namesake.uid) expect(living[0].unitUid).toBe(namesake.uid);
+  expect(errors).toEqual([]);
+});

@@ -13,7 +13,10 @@
 //    fallen, meta). The Loom calls it to show the recruit; BattleScene and the harness
 //    call it to spawn them; with the same run state both get the same unit. The build
 //    runs under a temporarily installed seeded Math.random and restores the caller's
-//    generator (a battle's RNG stream is never consumed).
+//    generator (a battle's RNG stream is never consumed). The stream's first draws
+//    decide who spawns (the lord roll can replace the preview's class);
+//    `resolveRecruitNodeSpawnClass` replays just those, so the map generator can
+//    seat the recruit on a tile the unit that actually spawns can stand on.
 //
 // Recruit-node recruits are "seasoned": growths roll in the upper half of each class
 // range and they always carry at least one trait (the node is an elite-like fight).
@@ -243,6 +246,115 @@ function levelBy(unit, count) {
 }
 
 /**
+ * The first draws of a recruit node's unit stream decide WHO spawns: the lord roll
+ * (roll, pick, promotion) and, for a promoted preview class, the promotion roll that
+ * picks the promoted class or its base. `buildRecruitNodeUnit` and
+ * `resolveRecruitNodeSpawnClass` both call this first on the same stream, so the
+ * class the map generator seats and the unit the battle spawns can never disagree.
+ */
+function planRecruitNodeSpawn(
+  { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+  rng,
+) {
+  const classes = gameData.classes || [];
+  const promotionContext = {
+    type: RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE,
+    classesData: classes,
+  };
+
+  // Lord roll: the same 15% (+ meta) as before; which lord is drawn from those still free.
+  const lordChance = Math.min(
+    1,
+    Math.max(0, RECRUIT_NODE_LORD_CHANCE + (Number(metaEffects?.lordRecruitChanceBonus) || 0)),
+  );
+  const lordRoll = rng();
+  const lordPick = rng();
+  const promoteRoll = rng();
+  const available = getAvailableLords(roster, gameData.lords || [], fallenUnits, startingLordNames);
+  if (available.length > 0 && lordRoll < lordChance) {
+    const lordDef = available[Math.floor(lordPick * available.length)];
+    const lordClassData = classes.find((c) => c.name === lordDef.class);
+    if (lordClassData) {
+      const poolClass = getRecruitPoolEntries(gameData.recruits, act, classes)
+        .map((entry) => classes.find((c) => c.name === entry.className))
+        .find((c) => isPromotedRecruitSource(c, classes));
+      const promotedClass =
+        typeof lordDef?.promotedClass === 'string'
+          ? classes.find((c) => c.name === lordDef.promotedClass)
+          : null;
+      const canPromote = Boolean(
+        promotedClass && (lordDef?.promotionBonuses || promotedClass?.promotionBonuses),
+      );
+      const roll =
+        canPromote && poolClass
+          ? rollRecruitPromotion(promotionContext, poolClass, metaEffects, () => promoteRoll)
+          : { promote: false };
+      const promoteLord = canPromote && roll.promote;
+      return {
+        isLord: true,
+        lordDef,
+        lordClassData,
+        promoteLord,
+        className: promoteLord ? promotedClass.name : lordClassData.name,
+      };
+    }
+  }
+
+  const npcClassData = classes.find((c) => c.name === preview.className);
+  if (!npcClassData) return null;
+  if (npcClassData.tier !== 'promoted')
+    return { isLord: false, npcClassData, className: npcClassData.name };
+  const roll = rollRecruitPromotion(promotionContext, npcClassData, metaEffects, () => rng());
+  const baseName = roll.eligible ? npcClassData.promotesFrom : null;
+  const baseClass = baseName ? classes.find((c) => c.name === baseName) : null;
+  return {
+    isLord: false,
+    npcClassData,
+    roll,
+    baseClass,
+    className: roll.eligible && baseClass && !roll.promote ? baseClass.name : npcClassData.name,
+  };
+}
+
+/**
+ * The class (and move type) of the unit `buildRecruitNodeUnit` would spawn for the
+ * same options, without building it: the map generator seats the recruit on a tile
+ * that unit can stand on (a Myrmidon preview can resolve to Rowan, a Cavalry lord).
+ * Pure; consumes no caller RNG.
+ * @returns {{ className: string, moveType: string, isLord: boolean } | null}
+ */
+export function resolveRecruitNodeSpawnClass(opts = {}) {
+  const {
+    preview,
+    nodeId,
+    runSeed,
+    act = 'act1',
+    roster = [],
+    fallenUnits = [],
+    gameData = {},
+    metaEffects = null,
+    startingLordNames,
+    rng: rngOverride = null,
+  } = opts;
+  if (!isValidPreview(preview)) return null;
+  const rng =
+    typeof rngOverride === 'function'
+      ? rngOverride
+      : createSeededRng(recruitHash(`recruit-unit:${seedBase(runSeed)}:${nodeId}`));
+  const plan = planRecruitNodeSpawn(
+    { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+    rng,
+  );
+  if (!plan) return null;
+  const classData = (gameData.classes || []).find((c) => c.name === plan.className);
+  return {
+    className: plan.className,
+    moveType: classData?.moveType || 'Infantry',
+    isLord: plan.isLord,
+  };
+}
+
+/**
  * Build the NPC a recruit node spawns. Deterministic for a given preview, node, run
  * seed and run state; never consumes the caller's Math.random.
  *
@@ -292,67 +404,35 @@ export function buildRecruitNodeUnit(opts = {}) {
         recruitLevelBonus,
       });
       const { dynamicPromotionLevel, promotedLevelTarget } = resolveRecruitScalingTargets(roster);
-      const promotionContext = {
-        type: RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE,
-        classesData: classes,
-      };
+      const plan = planRecruitNodeSpawn(
+        { preview, act, roster, fallenUnits, gameData, metaEffects, startingLordNames },
+        rng,
+      );
+      if (!plan) return null;
 
-      // Lord roll: the same 15% (+ meta) as before; which lord is drawn from those still free.
-      const lordChance = Math.min(
-        1,
-        Math.max(0, RECRUIT_NODE_LORD_CHANCE + (Number(metaEffects?.lordRecruitChanceBonus) || 0)),
-      );
-      const lordRoll = rng();
-      const lordPick = rng();
-      const promoteRoll = rng();
-      const available = getAvailableLords(
-        roster,
-        gameData.lords || [],
-        fallenUnits,
-        startingLordNames,
-      );
-      if (available.length > 0 && lordRoll < lordChance) {
-        const lordDef = available[Math.floor(lordPick * available.length)];
-        const lordClassData = classes.find((c) => c.name === lordDef.class);
-        if (lordClassData) {
-          const poolClass = getRecruitPoolEntries(gameData.recruits, act, classes)
-            .map((entry) => classes.find((c) => c.name === entry.className))
-            .find((c) => isPromotedRecruitSource(c, classes));
-          const promotedClass =
-            typeof lordDef?.promotedClass === 'string'
-              ? classes.find((c) => c.name === lordDef.promotedClass)
-              : null;
-          const canPromote = Boolean(
-            promotedClass && (lordDef?.promotionBonuses || promotedClass?.promotionBonuses),
-          );
-          const roll =
-            canPromote && poolClass
-              ? rollRecruitPromotion(promotionContext, poolClass, metaEffects, () => promoteRoll)
-              : { promote: false };
-          const unit = createBossLordUnit(
-            lordDef,
-            lordClassData,
-            gameData.weapons,
-            level,
-            metaEffects,
-            {
-              act,
-              promoteLord: canPromote && roll.promote,
-              classes,
-              skills: gameData.skills || [],
-              dynamicPromotionLevel,
-              promotedLevelTarget,
-              baseLevelOverride: null,
-            },
-          );
-          applyAct3RecruitBonus(unit, act);
-          unit.faction = 'npc';
-          return { unit, isLord: true, level: unit.level };
-        }
+      if (plan.isLord) {
+        const unit = createBossLordUnit(
+          plan.lordDef,
+          plan.lordClassData,
+          gameData.weapons,
+          level,
+          metaEffects,
+          {
+            act,
+            promoteLord: plan.promoteLord,
+            classes,
+            skills: gameData.skills || [],
+            dynamicPromotionLevel,
+            promotedLevelTarget,
+            baseLevelOverride: null,
+          },
+        );
+        applyAct3RecruitBonus(unit, act);
+        unit.faction = 'npc';
+        return { unit, isLord: true, level: unit.level };
       }
 
-      const npcClassData = classes.find((c) => c.name === preview.className);
-      if (!npcClassData) return null;
+      const { npcClassData } = plan;
       const statBonuses = metaEffects?.statBonuses || null;
       const growthBonuses = metaEffects?.growthBonuses || null;
       const skillPool = metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
@@ -376,9 +456,7 @@ export function buildRecruitNodeUnit(opts = {}) {
           { ...traitOptions, ...extra },
         );
       if (npcClassData.tier === 'promoted') {
-        const roll = rollRecruitPromotion(promotionContext, npcClassData, metaEffects, () => rng());
-        const baseName = roll.eligible ? npcClassData.promotesFrom : null;
-        const baseClass = baseName ? classes.find((c) => c.name === baseName) : null;
+        const { roll, baseClass } = plan;
         if (roll.eligible && roll.promote && baseClass) {
           unit = make(
             {

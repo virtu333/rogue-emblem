@@ -301,6 +301,8 @@ export function createBossLordUnit(
  * @param {Array} roster - current serialized roster
  * @param {Object} gameData - { lords, classes, weapons, recruits, skills }
  * @param {Object|null} metaEffects - meta-progression effects
+ * @param {Array} [fallenUnits=[]] - units that died this run (their names stay taken)
+ * @param {Array<string>} [reservedNames=[]] - names no candidate may take (RunManager.getTakenUnitNames: pending recruit-node previews, names used this run)
  * @returns {Array|null} 3 candidate objects or null for final boss
  */
 export function generateBossRecruitCandidates(
@@ -309,6 +311,7 @@ export function generateBossRecruitCandidates(
   gameData,
   metaEffects,
   fallenUnits = [],
+  reservedNames = [],
 ) {
   const actId = resolveActId(actRef);
 
@@ -359,6 +362,13 @@ export function generateBossRecruitCandidates(
       .map((unit) => (typeof unit?.name === 'string' ? unit.name.trim() : ''))
       .filter(Boolean),
   );
+  // Names of the fallen, and names a pending recruit node has promised
+  // (RunManager.getTakenUnitNames), are taken too: a recruit never shares a name.
+  for (const name of [
+    ...(fallenUnits || []).map((unit) => unit?.name),
+    ...(Array.isArray(reservedNames) ? reservedNames : []),
+  ])
+    if (typeof name === 'string' && name.trim()) takenNames.add(name.trim());
   if (chosenLord?.name) takenNames.add(chosenLord.name);
   const takenClassNames = new Set();
   const isClassAvailable = (className) =>
