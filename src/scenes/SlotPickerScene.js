@@ -493,7 +493,8 @@ export class SlotPickerScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
 
       let transitioned = false;
-      if (summary.hasActiveRun) {
+      // An empty slot (summary null) begins a new chronicle via the first-run path.
+      if (summary?.hasActiveRun) {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
         if (rm?.endRunRewards) {
@@ -547,7 +548,7 @@ export class SlotPickerScene extends Phaser.Scene {
         transitioned = await transitionToScene(
           this,
           'HomeBase',
-          { gameData: this.gameData, corruptRunDetected: summary.runCorrupt || false },
+          { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
           { reason: TRANSITION_REASONS.CONTINUE },
         );
       }

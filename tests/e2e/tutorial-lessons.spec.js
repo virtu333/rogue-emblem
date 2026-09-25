@@ -46,16 +46,19 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
   await tutorial.tap();
   await waitForScene(page, 'Battle');
   const note = page.getByRole('dialog', { name: 'Field notes', exact: true });
-  await expect(note).toContainText('Welcome to the tutorial');
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
-  await expect(note).toContainText('blue unit');
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+  // Teach by doing: no welcome wall. The coach states one goal at a time over the map
+  // and always offers a way out.
+  const coach = page.getByRole('region', { name: 'Tutorial guide', exact: true });
+  await expect(coach).toBeVisible({ timeout: 15000 });
+  await expect(coach.locator('.re-coach-goal')).toHaveText('Select Edric');
+  await expect(coach.getByRole('button', { name: 'Leave tutorial', exact: true })).toBeVisible();
+  await expect(note).toHaveCount(0);
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').tutorialStep === 2,
   );
   await tapTile(page, 1, 2);
-  await expect(note).toContainText('highlighted Fort');
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+  await expect(coach.locator('.re-coach-goal')).toHaveText('Move onto the Fort');
+  await expect(note).toHaveCount(0);
   await tapTile(page, 3, 3);
   await expect(note).toContainText('Fort tile reached');
   await expect(note).toContainText('Defense +2');
@@ -104,16 +107,19 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
     expect(await note.getByRole('button', { name: 'Continue', exact: true }).count()).toBe(1);
     await expect(page.locator('.mb-tutorial-forecast')).toBeVisible();
     await expect
-      .poll(async () => {
-        const subjects = await page.locator('.mb-tutorial-subject').all();
-        const noteRect = await note.boundingBox();
-        if (!subjects.length || !noteRect) return false;
-        for (const subject of subjects) {
-          const rect = await subject.boundingBox();
-          if (!rect || rect.y < 0 || rect.y + rect.height > noteRect.y - 1) return false;
-        }
-        return true;
-      })
+      .poll(
+        async () => {
+          const subjects = await page.locator('.mb-tutorial-subject').all();
+          const noteRect = await note.boundingBox();
+          if (!subjects.length || !noteRect) return false;
+          for (const subject of subjects) {
+            const rect = await subject.boundingBox();
+            if (!rect || rect.y < 0 || rect.y + rect.height > noteRect.y - 1) return false;
+          }
+          return true;
+        },
+        { timeout: 15000 },
+      )
       .toBe(true);
     await page.screenshot({ path: info.outputPath(`forecast-${expected.split(' ')[0]}.png`) });
     await note.getByRole('button', { name: 'Continue', exact: true }).tap();
@@ -140,7 +146,9 @@ test('fresh tutorial teaches visible terrain, forecast and resource lessons with
   );
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
   await expect(note).toContainText('completed the tutorial');
-  await note.getByRole('button', { name: 'Continue', exact: true }).tap();
+  // A fresh player may go straight into the first run; this path returns to the title.
+  await expect(note.getByRole('button', { name: 'Start first run', exact: true })).toBeVisible();
+  await note.getByRole('button', { name: 'Back to title', exact: true }).tap();
   await waitForScene(page, 'Title');
   await expect(page.getByRole('button', { name: 'Start First Run', exact: true })).toBeVisible();
   const taught = await page.evaluate(() =>

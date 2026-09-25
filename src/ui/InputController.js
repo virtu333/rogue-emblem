@@ -778,7 +778,7 @@ export class InputController {
 
     if (planning) {
       this._planningInspection = true;
-      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid);
+      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid, { variant: 'focus' });
       this._planningThreat.show(unit.faction === 'enemy' ? scene.calculateDangerZone(unit) : []);
       scene._mobileBattleHud?.sync?.();
     }
@@ -820,10 +820,38 @@ export class InputController {
         });
         scene.grid.showAttackRange(tiles);
       }
+      if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 
     scene.refreshEndTurnControl();
     return true;
+  }
+
+  // Idle inspection of an enemy: its whole threat gets the Danger language's crisp
+  // edge (focus variant) over the move/attack ranges. Self-clearing: the overlay
+  // hides the frame the inspection panel stops showing that enemy, however the
+  // inspection ended, so no clear path can leave a stale outline behind.
+  _showInspectedThreat(unit) {
+    const scene = this.scene;
+    if (!scene?.grid || typeof scene.calculateDangerZone !== 'function') return;
+    this._idleThreat ||= new DangerZoneOverlay(scene, scene.grid, { variant: 'focus', depth: 4.2 });
+    this._idleThreat.show(scene.calculateDangerZone(unit));
+    this._idleThreatUnit = unit;
+    if (this._idleThreatTick) return;
+    this._idleThreatTick = () => {
+      const s = this.scene;
+      const current =
+        s?.battleState === 'PLAYER_IDLE' &&
+        s.inspectionPanel?.visible &&
+        s.inspectionPanel._unit === this._idleThreatUnit &&
+        this._idleThreatUnit?.currentHP > 0;
+      if (current) return;
+      this._idleThreat?.hide();
+      this._idleThreatUnit = null;
+      s?.events?.off?.('update', this._idleThreatTick);
+      this._idleThreatTick = null;
+    };
+    scene.events?.on?.('update', this._idleThreatTick);
   }
 
   clearInspectionVisuals() {
@@ -932,6 +960,9 @@ export class InputController {
 
   destroy() {
     this._planningThreat?.hide();
+    this._idleThreat?.hide();
+    if (this._idleThreatTick) this.scene?.events?.off?.('update', this._idleThreatTick);
+    this._idleThreatTick = null;
     this.scene = null;
   }
 }

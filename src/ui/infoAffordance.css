@@ -1,0 +1,199 @@
+/* Compact "explain this" affordance (src/ui/infoAffordance.js).
+   A small gilt ⓘ inside a full 44px hit area, a hold gesture on the card, a
+   top-layer hover preview, and a one-time tip for the gesture. */
+
+.re-info-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.re-info-heading > .re-info-btn {
+  margin-left: auto;
+}
+
+/* Beats `.mr-sheet button` / kit buttons: a glyph, not a plate. */
+.re .re-info-btn,
+.mr-sheet .re-info-btn,
+.mu-screen .re-info-btn,
+.mobile-battle-hud .re-info-btn,
+.mb-forecast .re-info-btn,
+.re-info-btn {
+  flex: 0 0 auto;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--re-tap);
+  min-width: var(--re-tap);
+  height: var(--re-tap);
+  min-height: var(--re-tap);
+  /* Keep the heading's rhythm: the hit area bleeds into the card padding. */
+  margin-block: calc((var(--re-tap) - 22px) / -2);
+  margin-right: -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  color: var(--re-accent-text);
+  cursor: help;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.mr-sheet .re-info-btn:not(:disabled):active,
+.mr-sheet .re-info-btn:not(:disabled):hover,
+.mu-screen .re-info-btn:not(:disabled):active,
+.mu-screen .re-info-btn:not(:disabled):hover {
+  background: transparent;
+  border: 0;
+  color: var(--re-accent-text);
+}
+.re-info-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--re-gilt);
+  border-radius: 50%;
+  background: var(--re-sunken);
+  color: var(--re-accent-text);
+  font:
+    italic 700 12px/1 Georgia,
+    'Times New Roman',
+    serif;
+  pointer-events: none;
+}
+.re-info-btn:focus-visible {
+  outline: none;
+}
+.re-info-btn:focus-visible .re-info-glyph,
+.re-info-btn:active .re-info-glyph {
+  border-color: var(--re-accent-text);
+  background: var(--re-selected);
+  box-shadow: 0 0 0 2px var(--re-accent);
+}
+@media (hover: hover) {
+  .re-info-btn:hover .re-info-glyph {
+    border-color: var(--re-accent-text);
+    background: var(--re-selected);
+  }
+}
+.re-info-btn:disabled {
+  opacity: 0.5;
+}
+
+/* Top-layer preview (Popover API). */
+.re-info-tip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--re-gilt);
+  background: var(--re-panel);
+  color: var(--re-text);
+  font: var(--re-t-small);
+  box-shadow: 0 6px 18px var(--re-shade);
+  pointer-events: none;
+  text-align: left;
+}
+.re-info-tip::after {
+  content: 'Click ⓘ for more';
+  display: block;
+  margin-top: 4px;
+  color: var(--re-muted);
+  font: var(--re-t-micro);
+}
+
+/* Hold gesture: no text selection/callout; a gilt thread fills while pressing. */
+.has-hold {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.re-info-card {
+  position: relative;
+}
+.re-info-card.is-holding {
+  border-color: var(--re-accent);
+}
+.re-info-card.is-holding::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--re-accent-text);
+  transform-origin: left center;
+  animation: re-hold-fill 450ms linear forwards;
+  pointer-events: none;
+}
+@keyframes re-hold-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-info-card.is-holding::after {
+    animation: none;
+  }
+}
+
+/* One-time tip teaching the hold gesture. */
+.re-hold-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--re-accent);
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: var(--re-t-small);
+}
+.re-hold-tip .re-info-glyph {
+  flex: 0 0 auto;
+}
+.re-hold-tip.is-arriving {
+  animation: re-tip-arrive 420ms ease-out both;
+}
+@keyframes re-tip-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Roster: the attribute grid's ⓘ sits in its corner without taking a grid cell. */
+.mr-stats.re-info-card {
+  padding-right: 40px;
+}
+.mr-stats > .re-info-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  margin: 0;
+}
+.mr-card h4.re-info-heading {
+  margin-bottom: 6px;
+}
+.mr-sheet h3.re-info-heading {
+  margin-right: 10px;
+}
+
+/* Rewards: mastery notices carry the ⓘ beside the line. */
+.mu-mastery-notice.re-info-heading {
+  justify-content: space-between;
+}
+.mu-mastery-notice > p {
+  margin: 0;
+}
