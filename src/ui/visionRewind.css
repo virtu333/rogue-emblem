@@ -125,7 +125,7 @@ html.mobile-preview .vr-picker.vr-with-map.re-screen {
   background: var(--re-bg);
   font: var(--re-t-label);
   font-family: var(--re-pixel);
-  font-size: 9px;
+  font-size: var(--re-pf-9, 9px);
   letter-spacing: 0.5px;
   color: var(--re-muted);
   text-transform: uppercase;
@@ -173,7 +173,7 @@ html.mobile-preview .vr-picker.vr-with-map.re-screen {
 }
 .vr-face b {
   font-family: var(--re-pixel);
-  font-size: 9px;
+  font-size: var(--re-pf-9, 9px);
   color: var(--re-accent-text);
 }
 .vr-face--initial b {

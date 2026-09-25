@@ -27,7 +27,7 @@
   box-sizing: border-box;
 }
 .mp-panel h2 {
-  font: 12px/1.6 var(--re-pixel);
+  font: var(--re-pf-12, 12px)/1.6 var(--re-pixel);
   color: var(--re-gold-hi);
   text-transform: uppercase;
   padding: 0 0 10px;

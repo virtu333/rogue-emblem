@@ -11,6 +11,8 @@ import '@fontsource/cinzel/latin-500.css';
 import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-900.css';
 import './ui/styles.css';
+import { installPixelFontGrid } from './utils/pixelFontGrid.js';
+import { installCrispCanvasText } from './utils/crispCanvasText.js';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
@@ -41,6 +43,10 @@ const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
 if (startupFlags.isMobile) document.documentElement.classList.add('touch-ui');
+// Press Start 2P on whole device pixels (Retina, browser zoom), and smooth
+// downsampling for supersampled canvas text. Presentation only.
+installPixelFontGrid(window);
+installCrispCanvasText(Phaser);
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('mobilePreview') === '1') {
   document.documentElement.classList.add('mobile-preview');
   document.title = 'Emblem Rogue · Mobile preview';

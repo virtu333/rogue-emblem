@@ -31,7 +31,7 @@
   overflow-wrap: anywhere;
 }
 .mr-sheet h2 {
-  font: 12px/1.6 var(--re-pixel);
+  font: var(--re-pf-12, 12px)/1.6 var(--re-pixel);
   color: var(--re-gold-hi);
   text-transform: uppercase;
 }
@@ -219,7 +219,7 @@
   margin-bottom: 2px;
 }
 .mr-tabs button {
-  font: 10px/1.5 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
   padding: 10px 6px;
   text-transform: uppercase;
 }
@@ -267,7 +267,7 @@
 }
 
 .mr-summary h3 {
-  font: 11px/1.65 var(--re-pixel);
+  font: var(--re-pf-11, 11px)/1.65 var(--re-pixel);
 }
 
 /* Faces identify roster members; battlefield sprites keep their own tile scale. */
@@ -343,7 +343,7 @@
 }
 .mr-sheet header h2 {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--re-pf-10, 10px);
 }
 .mr-sheet header .mr-tabs {
   margin: 0;
@@ -365,10 +365,10 @@
 }
 @media (max-width: 700px) {
   .mr-sheet header h2 {
-    font-size: 8px;
+    font-size: var(--re-pf-8, 8px);
   }
   .mr-sheet header .mr-tabs button {
-    font-size: 8px;
+    font-size: var(--re-pf-8, 8px);
     padding-inline: 7px;
   }
 }
@@ -385,7 +385,7 @@
   margin: 0 0 4px 8px;
 }
 .mr-summary h3 {
-  font: 10px/1.5 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
   margin-bottom: 4px;
 }
 .mr-summary p {

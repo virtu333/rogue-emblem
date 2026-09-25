@@ -199,7 +199,7 @@
 }
 
 .mb-forecast h2 {
-  font: 12px/1.6 var(--re-pixel);
+  font: var(--re-pf-12, 12px)/1.6 var(--re-pixel);
   color: var(--re-gold-hi);
   border-bottom: 1px solid var(--re-line-soft);
   padding-bottom: 8px;
@@ -216,7 +216,7 @@
 }
 
 .mb-summary h2 {
-  font: 11px/1.65 var(--re-pixel);
+  font: var(--re-pf-11, 11px)/1.65 var(--re-pixel);
 }
 .mb-objective {
   margin: 0 0 9px;

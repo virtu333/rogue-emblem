@@ -71,7 +71,7 @@
   gap: 8px;
 }
 .re-live-menu .re-header h2 {
-  font-size: 11px;
+  font-size: var(--re-pf-11, 11px);
 }
 .re-live-menu .re-header .re-search {
   margin-left: auto;
@@ -137,7 +137,7 @@
   white-space: pre-wrap;
 }
 .re-dialogue h2 {
-  font: 11px/1.6 var(--re-pixel);
+  font: var(--re-pf-11, 11px)/1.6 var(--re-pixel);
   color: var(--re-text);
   margin: 0;
 }
