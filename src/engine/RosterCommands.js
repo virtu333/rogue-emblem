@@ -106,7 +106,14 @@ function reclass(unit, sealItem, newClassData, gameData) {
   // Track old proficiency types to detect new ones
   const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
-  const result = reclassUnit(unit, newClassData, oldClassData, gameData.classes, gameData.skills);
+  const result = reclassUnit(
+    unit,
+    newClassData,
+    oldClassData,
+    gameData.classes,
+    gameData.skills,
+    gameData.traits || null,
+  );
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData)) {
     if (!addToInventory(unit, newWeapon))

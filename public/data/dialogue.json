@@ -7068,9 +7068,9 @@
         "Stand back a few paces. For both our sakes."
       ],
       "woodsman": [
-        "Stronger. I'd feel it more under a proper canopy.",
-        "Too much open ground in this war. I miss the pines.",
-        "Put me in the trees and watch what I can do now.",
+        "Stronger, and still wise enough to stand behind something.",
+        "Heroes stand in the open. I stand behind the pillar and outlive them.",
+        "Find me a thicket, a wall, a rock. I've outlasted three wars behind them.",
         "The forest taught me patience. The war's teaching me the rest."
       ],
       "studious": [
@@ -7096,6 +7096,42 @@
         "Watched it done once. That's usually enough.",
         "I pick things up fast. Put them down faster, sometimes.",
         "One more lesson learned. What's next? Show me."
+      ],
+      "gifted": [
+        "There's a spark in me that catches easy. It caught again.",
+        "Born with an ember in the hand. I just keep feeding it.",
+        "Whatever I put my hand to burns a little brighter each season.",
+        "Some people have to learn it. I only have to remember it."
+      ],
+      "fleet": [
+        "I cover ground. Always have, mount or no mount.",
+        "One more stride than the rest of you. It adds up over a war.",
+        "Point me somewhere far. I'll be there before the order's finished.",
+        "First to the fight, first out of it. Long legs are a blessing."
+      ],
+      "bloodhound": [
+        "I can smell a wound from across the field. I finish what others start.",
+        "Let someone else open them up. I close the account.",
+        "Wounded things run slow. I've never let one get away.",
+        "Blood in the air and my hands go steady. Always have."
+      ],
+      "stalwart": [
+        "Let them come to me. I've never once been moved.",
+        "I plant my feet and the line holds. That's all I've ever been good for.",
+        "They swing, I stand. Stronger now, and just as stubborn.",
+        "Nobody breaks against me by accident. I make sure of it."
+      ],
+      "shieldmate": [
+        "Keep someone at my shoulder and I'll keep us both breathing.",
+        "I fight better with a friend in reach. Always have.",
+        "Stand with me. That's the whole plan.",
+        "Alone I'm ordinary. Beside you, I'm a wall."
+      ],
+      "slow_oath": [
+        "I learn slow. What I learn, I never lose.",
+        "Give me time. When it finally takes, it takes twice over.",
+        "Others rush their training. I swore to do mine properly.",
+        "The oath was to be patient. It's harder than any drill."
       ]
     },
     "stats": {

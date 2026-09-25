@@ -6,6 +6,7 @@ import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.j
 import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
+import { getTraitCombatMods } from './TraitSystem.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -229,45 +230,17 @@ export function getSkillCombatMods(
     if (mastery.activated) mods.activated.push(mastery.activated);
   }
   if (traitsData && Array.isArray(unit.traits) && unit.traits.length > 0) {
-    for (const traitId of unit.traits) {
-      const trait = traitsData.find((t) => t?.id === traitId);
-      const cmods = trait?.combatMods;
-      if (!cmods) continue;
-      if (cmods.condition === 'defending' && isInitiating) continue;
-      if (
-        cmods.condition === 'initiating_full_hp_foe' &&
-        (!isInitiating || opponent.currentHP !== opponent.stats.HP)
-      )
-        continue;
-      if (
-        cmods.condition === 'moved_3_plus_initiating' &&
-        (!isInitiating || (unit._movementSpent || 0) < 3)
-      )
-        continue;
-      if (
-        cmods.condition === 'initiating_no_adjacent_ally' &&
-        (!isInitiating ||
-          isAccessoryConditionMet('adjacent_ally', unit, opponent, allies, enemies, terrain))
-      )
-        continue;
-      const condMet = isAccessoryConditionMet(
-        cmods.condition,
-        unit,
-        opponent,
-        allies,
-        enemies,
-        terrain,
-      );
-      if (!condMet) continue;
-      let applied = false;
-      for (const key of MOD_KEYS) {
-        if (Number.isFinite(cmods[key])) {
-          mods[key] += cmods[key];
-          applied = true;
-        }
-      }
-      if (applied) mods.activated.push({ id: `trait_${traitId}`, name: trait.name });
+    const traitMods = getTraitCombatMods(unit, opponent, {
+      traitsData,
+      isInitiating,
+      terrain,
+      isConditionMet: (condition) =>
+        isAccessoryConditionMet(condition, unit, opponent, allies, enemies, terrain),
+    });
+    for (const key of MOD_KEYS) {
+      if (Number.isFinite(traitMods.mods[key])) mods[key] += traitMods.mods[key];
     }
+    mods.activated.push(...traitMods.activated);
   }
 
   if (!skillsData) return mods;

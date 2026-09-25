@@ -32,19 +32,24 @@ describe('lord trait creation', () => {
       rollAndApplyLordTrait(b, data.traits, createSeededRng(seed));
       expect(a).toEqual(b);
       expect(a.traits).toHaveLength(1);
-      expect(['lazy', 'reckless', 'clever']).not.toContain(a.traits[0]);
+      expect(['lazy', 'reckless', 'clever', 'lone_wolf', 'slow_oath']).not.toContain(a.traits[0]);
+      expect(data.traits.find((t) => t.id === a.traits[0]).retired).toBeFalsy();
     }
   });
   it('stacks a creation modifier once after meta bonuses and persists it without reapplication', () => {
     const gameData = structuredClone(data);
-    gameData.traits = [data.traits.find((t) => t.id === 'steady')];
+    gameData.traits = [data.traits.find((t) => t.id === 'nimble')];
     const run = new RunManager(gameData);
-    run.metaEffects = { lordStatBonuses: { DEF: 2 }, lordGrowthBonuses: { HP: 5 } };
+    run.metaEffects = { lordStatBonuses: { SPD: 2 }, lordGrowthBonuses: { HP: 5 } };
     run.startRun({ runSeed: 77, applyBlessingsAtStart: false });
+    const bare = new RunManager({ ...gameData, traits: [] });
+    bare.metaEffects = { lordStatBonuses: { SPD: 2 }, lordGrowthBonuses: { HP: 5 } };
+    bare.startRun({ runSeed: 77, applyBlessingsAtStart: false });
     for (const unit of run.roster) {
-      expect(unit.traits).toEqual(['steady']);
-      const cls = gameData.classes.find((c) => c.name === unit.className);
-      expect(unit.stats.DEF).toBe(cls.baseStats.DEF + 3);
+      expect(unit.traits).toEqual(['nimble']);
+      const plain = bare.roster.find((u) => u.name === unit.name);
+      // Meta +2 is in both; the trait adds exactly +1 Spd on top.
+      expect(unit.stats.SPD).toBe(plain.stats.SPD + 1);
     }
     const serialized = JSON.parse(JSON.stringify(run.toJSON()));
     const restored = RunManager.fromJSON(serialized, gameData);
@@ -57,11 +62,11 @@ describe('lord trait creation', () => {
     expect(unit.stats).toEqual(before);
   });
   it('applies to newly joining third lords without replacing an existing trait', () => {
-    const run = new RunManager({ ...data, traits: [data.traits.find((t) => t.id === 'steady')] });
+    const run = new RunManager({ ...data, traits: [data.traits.find((t) => t.id === 'hardy')] });
     const unit = lord();
     run.resolveThirdLord(unit);
-    expect(unit.traits).toEqual(['steady']);
-    expect(unit.stats.DEF).toBe(4);
+    expect(unit.traits).toEqual(['hardy']);
+    expect(unit.stats.HP).toBe(23);
   });
 });
 describe('advanced starting-skill unlocks', () => {

@@ -22,7 +22,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
@@ -389,13 +389,10 @@ export class MobileRosterSheet {
           ]),
         ),
       );
-      const traits = getUnitTraits(unit, this.gameData.traits);
+      const traits = traitLines(unit, this.gameData);
       if (traits.length) this.body.append(el('h3', 'Traits'));
       for (const trait of traits)
-        this.card(
-          `${trait.rarity === 'legendary' ? 'Legendary · ' : ''}${trait.name}`,
-          trait.description,
-        );
+        this.card(`${trait.legendary ? 'Legendary · ' : ''}${trait.name}`, trait.text);
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)
