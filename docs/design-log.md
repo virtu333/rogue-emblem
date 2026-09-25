@@ -5,6 +5,35 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — The Eclipse: the run clock made visible
+
+**Graduated to spec and built:** `specs/eclipse.md` (captures:
+`art-direction/gameplay/eclipse/`).
+
+The rule from 2026-07-04 — *punish the clock, not the unit* — was enforced by a hidden
+mechanism: two turns over par, XP and gold decayed silently. The Eclipse replaces it with
+a clock the player can see and plan around. Every turn a battle runs past par−3 darkens
+the Hollow Sun (shadow, 0–100, committed only at victory so rewind/suspend stay exact);
+shadow takes the land ahead — outer lanes first — turning villages, chapels, recruits and
+arenas into eclipsed elite battles. Darkness is also opportunity: eclipsed fights pay
+elite spoils. Act bosses (−3) and church Kindle (−8 for gold, a real sink) lift it; the
+run's phase (Pale → Waning → Umbral → Totality → Hollow) raises enemy levels and affixes.
+
+Decisions:
+- **Visible beats silent.** With the Eclipse on, late-pressure XP/gold decay is off;
+  par, rating and rating gold stay; boss enrage stays (it is visible in the boss bar).
+- **Transform, never delete.** A fallen node keeps its edges, so routing and boss
+  reachability can never break; thresholds are computed from `runSeed` + node id, never
+  stored, so saves need no migration and the node-map generator is byte-identical.
+- **Tuned by sim, not by guess.** The spec's 10/10 (max gain, boss relief) left an A-rank
+  player Pale all run; 6/3 hits the targets (A: Pale → Waning → ~Umbral; S keeps maps
+  whole; C reaches Totality by Act III). `node sim/eclipse.js` reports shadow by act and
+  what was lost "ahead" of the party.
+- **Deferred:** eclipsed-node variety beyond rout (seize/escape conversions), an Eclipse
+  meta upgrade (e.g. a slower sun), and dialogue that reacts to the phase.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
