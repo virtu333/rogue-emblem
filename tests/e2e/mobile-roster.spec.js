@@ -13,11 +13,11 @@ test('equipment and convoy use real rules and keep the selected recipient', asyn
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await expect(sheet.getByText('Equipped', { exact: true }).first()).toBeVisible();
   await sheet.getByRole('button', { name: 'Convoy', exact: true }).tap();
-  await expect(sheet.getByText('Shared convoy', { exact: true })).toBeVisible();
+  await expect(sheet.getByRole('heading', { name: /^Shared convoy/ })).toBeVisible();
   const names = await sheet.getByRole('navigation', { name: 'Units' }).getByRole('button').count();
   if (names > 1) {
     await sheet.getByRole('navigation', { name: 'Units' }).getByRole('button').nth(1).tap();
-    await expect(sheet.getByText('Shared convoy', { exact: true })).toBeVisible();
+    await expect(sheet.getByRole('heading', { name: /^Shared convoy/ })).toBeVisible();
   }
   await page.screenshot({ path: 'test-results/mobile-roster-convoy.png' });
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();

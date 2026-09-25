@@ -134,7 +134,7 @@
   position: absolute;
   right: calc(10px + env(safe-area-inset-right, 0px));
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--re-muted);
@@ -142,7 +142,7 @@
   animation: ce-fade 400ms 900ms both;
 }
 .ce-kicker {
-  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--ce-blood-5);
   text-transform: uppercase;
@@ -502,7 +502,7 @@
   color: var(--ce-bone);
 }
 .ce-offer-line b {
-  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   font-style: normal;
   color: var(--ce-gold-5);
   margin-right: 6px;
@@ -570,7 +570,7 @@
     1;
 }
 .ce-phase-kicker {
-  font: calc(8px * var(--ce-scale)) / 1.5 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.5 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--re-muted);
   text-transform: uppercase;
@@ -750,7 +750,7 @@
 }
 .ce-cutin-small {
   margin-top: calc(8px * var(--ce-scale));
-  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--ce-bone);
   white-space: nowrap;
@@ -785,7 +785,7 @@
   text-align: center;
 }
 .ce-act-kicker {
-  font: calc(8px * var(--ce-scale)) / 1.5 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.5 var(--re-pixel);
   letter-spacing: 3px;
   color: var(--ce-gold-4);
   text-transform: uppercase;
@@ -880,7 +880,7 @@
 .ce-runend-meta {
   max-width: 100%;
   margin-top: calc(6px * var(--ce-scale));
-  font: calc(8px * var(--ce-scale)) / 1.6 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.6 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--re-muted);
   text-transform: uppercase;

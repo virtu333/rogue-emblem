@@ -13,6 +13,7 @@ import {
   ceremonyPortrait,
   el,
   fitText,
+  applyCeremonyPixelFonts,
   frameScale,
   portraitPixelScale,
   hairline,
@@ -104,6 +105,7 @@ export function stageFateDecision(scene, surface, options) {
     style.width = `${Math.round(rect.width)}px`;
     style.height = `${Math.round(rect.height)}px`;
     style.setProperty('--ce-scale', String(frameScale(rect)));
+    applyCeremonyPixelFonts(style, rect);
     style.setProperty('--ce-px', String(portraitPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
     fitText(word, { min: 20 });
