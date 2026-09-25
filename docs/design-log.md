@@ -5,6 +5,42 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Deeds & Epithets (built)
+
+Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from
+support conversations (rejected earlier). Spec and deviations:
+[`specs/deeds-epithets.md`](specs/deeds-epithets.md); presentation:
+[`art-direction/gameplay/deeds/`](art-direction/gameplay/deeds/README.md).
+
+**Decisions**
+- 19 deeds (9 battle, 10 run). Recorded from engine outcomes on the unit (`_battleDeeds`),
+  so Vision rewind and suspend carry them; committed only at victory, before the save.
+- Titles never touch `unit.name`; one set of display helpers composes them.
+- Held the Line counts enemy phases held **in a row** (the looser "three in a battle"
+  landed for almost every frontliner in the sim).
+- Oaths: the greatest deed teaches, on a player promotion, a skill no scroll or
+  curriculum offers (Pavise, Aegis, Lethality, Fury, Sure Shot, Renewal, Vigilance,
+  Unyielding, Colossus, Critical +15, Pathfinder, Skirmisher, Drain, Duelist Stance,
+  Discipline, Fiendish Blow). Skyward and Intimidate stay lord signatures.
+- No compendium list of conditions: the help page explains the idea, the deeds are found.
+
+**Sim (`npm run sim:deeds`, scripted agent)**
+- Normal, 60 seeds: the scripted army loses within ~1.4 battles, so only early deeds
+  show (Avenger 57% of runs — an ally falls and the killer is cut down — Held 2%,
+  Would Not Fall 3%). Not representative of a player.
+- Invincible, 40 seeds (a 2–3 unit army carries every kill and tanks every phase, so
+  counts are inflated): 14.2 deeds / run, every unit titled; Held the Line, Bossbane,
+  Weapon Sworn, Veteran ~100% of runs; Lord's Shield 88%; Red Harvest 98%; Greenwood 60%;
+  Would Not Fall 55%; Keen Edge 30%; Deathblow 23%; Untouched, Giantslayer, the Last
+  3–5%; Lantern, Tempo, Heights, Mire 0 (no healer/dancer/terrain play in the script).
+  Median first award ≈ battle 10–15 of ~21.
+- Reading: with a real 6–10 unit army sharing kills, the run-scope deeds land on carries
+  and specialists; battle-scope deeds are the common first title. Revisit thresholds with
+  playtest data (`tuning` and `min` values are data).
+
+**Deferred**: hidden promoted classes unlocked by deeds (needs traced sprites v3); a
+Deeds page in the victory records detail beyond the titled roster rows.
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
