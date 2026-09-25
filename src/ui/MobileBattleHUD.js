@@ -790,7 +790,7 @@ export class MobileBattleHUD {
               return;
             item.onActivate();
           },
-          item.label === 'Attack' ? 'mb-primary' : '',
+          item.label === 'Attack' && !item.disabled ? 'mb-primary' : '',
         );
         const description = item.description || battleItemSummary(item.item, menu.unit);
         if (description) button.append(el('small', 'mb-item-summary', description));

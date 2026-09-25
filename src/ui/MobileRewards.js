@@ -416,7 +416,7 @@ export class MobileRewards {
         blocked: (unit) => bundleTargetBlock(run, item, unit, choice.quantity || 1),
         describe: (unit) =>
           unit === 'convoy'
-            ? 'Store for later.'
+            ? 'Shared storage. Withdraw it to any unit from Roster › Convoy between battles.'
             : booster
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'

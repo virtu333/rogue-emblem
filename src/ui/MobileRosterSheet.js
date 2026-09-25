@@ -26,7 +26,7 @@ import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
-import { MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
 import {
   teachScrollBlock,
   teachRosterScroll,
@@ -1030,9 +1030,17 @@ export class MobileRosterSheet {
     const items = this.run.getConvoyItems();
     const counts = this.run.getConvoyCounts();
     const caps = this.run.getConvoyCapacities();
-    this.card(
+    const shared = this.card(
       'Shared convoy',
       `Weapons ${counts.weapons}/${caps.weapons} · Consumables ${counts.consumables}/${caps.consumables}`,
+    );
+    // Plain words for new players: what the convoy is and what Store / Withdraw do.
+    shared.append(
+      el(
+        'p',
+        `Storage shared by the whole army, used between battles. Units fight only with what they carry (${INVENTORY_MAX} weapons, ${CONSUMABLE_MAX} items). Store puts a carried item here; Withdraw gives a stored item to the unit chosen below.`,
+        'mr-convoy-explain',
+      ),
     );
     if (!unit) {
       this.card('No recipient', 'A roster unit is needed to withdraw items.');

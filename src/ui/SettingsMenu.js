@@ -2,6 +2,7 @@ import { BATTLE_SPEEDS } from '../utils/combatTiming.js';
 import { resolveAtmosphereMode } from '../art/atmosphereConfig.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { GUIDANCE_LABELS, isVeteranMeta, resolveGuidance } from '../engine/Guidance.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
@@ -61,11 +62,34 @@ export class SettingsMenu {
       render();
       list.append(control, element('p', help, 're-muted'));
     };
-    toggle(
-      'Contextual helpers',
-      () => settings.getHints?.() !== false,
-      (value) => settings.setHints(value),
-      'Show brief first-use explanations. The practice tutorial remains available separately.',
+    // Guidance: Full / Light / Off. Shows the effective level; while untouched it is
+    // Full for a save slot that has not finished a run and Light afterwards.
+    const guidanceOrder = ['full', 'light', 'off'];
+    const effectiveGuidance = () =>
+      resolveGuidance(settings.getGuidance?.() || 'auto', {
+        veteran: isVeteranMeta(scene.registry.get('meta')),
+      });
+    const guidance = button(
+      '',
+      () => {
+        const index = guidanceOrder.indexOf(effectiveGuidance());
+        settings.setGuidance?.(guidanceOrder[(index + 1) % guidanceOrder.length]);
+        renderGuidance();
+      },
+      're-btn re-setting',
+    );
+    guidance.dataset.setting = 'guidance';
+    const renderGuidance = () => {
+      guidance.textContent = `Guidance · ${GUIDANCE_LABELS[effectiveGuidance()]}`;
+    };
+    renderGuidance();
+    list.append(
+      guidance,
+      element(
+        'p',
+        'Full: field notes while you play (a fragile unit moved into reach, healing, your first turn) plus first-use explanations. Light: first-use explanations only. Off: none. New saves start on Full, then Light after a finished run. The practice tutorial stays available.',
+        're-muted',
+      ),
     );
     toggle(
       'Skip seen dialogue',

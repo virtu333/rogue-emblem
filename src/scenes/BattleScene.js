@@ -142,6 +142,7 @@ import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
 import { computeDangerTiles } from '../engine/ThreatForecast.js';
 import { ThreatSightController } from '../ui/ThreatSightController.js';
+import { GuidanceController } from '../ui/GuidanceController.js';
 import {
   TILE_SIZE,
   FACTION_COLORS,
@@ -1973,6 +1974,8 @@ export class BattleScene extends Phaser.Scene {
       this._pinnedThreats?.invalidate();
       // Who can reach the tile a selected unit is heading for (eye + line + count).
       this._threatSight = new ThreatSightController(this).create();
+      // One-time field notes for new players (Guidance setting).
+      this._guidance = new GuidanceController(this).create();
 
       // Disable browser context menu
       this.input.mouse.disableContextMenu();
@@ -6137,6 +6140,14 @@ export class BattleScene extends Phaser.Scene {
       );
       if (!silenced || hasPhysical) items.push('Attack');
     }
+    // Guidance (Full): a greyed Attack row says why it is missing instead of hiding it.
+    const noReachReason = silenced
+      ? null
+      : this._guidance?.noTargetAttackReason?.(unit, normalAttackTargets);
+    if (noReachReason && !items.includes('Attack')) {
+      items.push('Attack');
+      blockedActions.set('Attack', noReachReason);
+    }
     const artWeapon =
       unit.weapon && !isStaff(unit.weapon) ? unit.weapon : getCombatWeapons(unit)[0];
     // Silence blocks weapon arts
@@ -6277,9 +6288,9 @@ export class BattleScene extends Phaser.Scene {
         {
           fontFamily: 'monospace',
           fontSize: '13px',
-          color: UI_PALETTE.text,
+          color: blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
         },
-        UI_PALETTE.text,
+        blockedActions.has(label) ? UI_PALETTE.muted : UI_PALETTE.text,
         () => {
           if (blockedActions.has(label) || isSleeping(unit)) return;
           const audio = this.registry.get('audio');

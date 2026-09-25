@@ -1,0 +1,97 @@
+/* GuidanceNote (GuidanceNote.js): a one-time field note docked over the map.
+   Ink plate with a gilt thread like the tutorial coach; no backdrop, never modal. */
+
+.re-guide {
+  position: fixed;
+  z-index: var(--re-depth-bossbar);
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  padding: 5px 8px 6px 11px;
+  background: var(--re-shade-deep);
+  border: 1px solid var(--re-line-soft);
+  border-left: 3px solid var(--re-accent);
+  box-shadow:
+    0 0 0 1px var(--re-void),
+    0 6px 18px var(--re-shade);
+  color: var(--re-text);
+  pointer-events: auto;
+  touch-action: manipulation;
+  clip-path: polygon(
+    var(--re-chamfer) 0,
+    calc(100% - var(--re-chamfer)) 0,
+    100% var(--re-chamfer),
+    100% calc(100% - var(--re-chamfer)),
+    calc(100% - var(--re-chamfer)) 100%,
+    var(--re-chamfer) 100%,
+    0 calc(100% - var(--re-chamfer)),
+    0 var(--re-chamfer)
+  );
+  animation: re-guide-arrive 220ms ease-out both;
+}
+.re-guide--still {
+  animation: none;
+}
+.re-guide-kicker {
+  display: block;
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.re-guide-text {
+  margin: 2px 0 4px;
+  font: 13px/1.35 var(--re-body);
+  color: var(--re-text);
+}
+.re-guide-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.re-guide-btn {
+  min-height: 32px;
+  min-width: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--re-line);
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: 600 12px/1 var(--re-body);
+  cursor: pointer;
+}
+/* 44px tap target without a taller plate. */
+.re-guide-btn {
+  position: relative;
+}
+.re-guide-btn::after {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+.re-guide-ok {
+  border-color: var(--re-accent);
+  color: var(--re-accent-text);
+}
+.re-guide-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--re-muted);
+}
+.re-guide-btn:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -2px;
+}
+@keyframes re-guide-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-guide {
+    animation: none;
+  }
+}
