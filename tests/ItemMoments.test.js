@@ -17,6 +17,7 @@ import {
   playRewardReveal,
   rarestIndex,
   revealDuration,
+  rewardRevealPending,
   REVEAL_TURN_MS,
   REVEAL_STAGGER_MS,
 } from '../src/ui/rewardReveal.js';
@@ -167,12 +168,42 @@ describe('reward reveal', () => {
     });
     let stopped = false;
     container.listeners.pointerdown({
+      type: 'pointerdown',
       preventDefault() {},
       stopPropagation() {
         stopped = true;
       },
     });
     expect(stopped).toBe(true);
+    // The click that follows the skipping tap is swallowed, not sent to a card.
+    let clickStopped = false;
+    container.listeners.click({
+      preventDefault() {},
+      stopPropagation: () => (clickStopped = true),
+    });
+    expect(clickStopped).toBe(true);
+    expect(state.done).toBe(true);
+    expect(cards.some((card) => card.classes.has('ia-face-down'))).toBe(false);
+  });
+
+  it('rows that only select let the skipping tap through', () => {
+    const make = fakeDom();
+    const container = make();
+    const cards = [make(), make()];
+    const c = clock();
+    const state = playRewardReveal(container, cards, {
+      passThrough: true,
+      setTimeout: c.setTimeout,
+      clearTimeout: c.clearTimeout,
+    });
+    let stopped = false;
+    container.listeners.pointerdown({
+      type: 'pointerdown',
+      preventDefault: () => (stopped = true),
+      stopPropagation: () => (stopped = true),
+    });
+    expect(stopped).toBe(false);
+    expect(container.listeners.click).toBeUndefined();
     expect(state.done).toBe(true);
     expect(cards.some((card) => card.classes.has('ia-face-down'))).toBe(false);
   });
@@ -186,5 +217,19 @@ describe('reward reveal', () => {
     expect(state.done).toBe(true);
     expect(done).toBe(true);
     expect(cards[0].classes.size).toBe(0);
+  });
+
+  it('plays once per battle: not after it played, a pick, or a restored choice', () => {
+    const fresh = { choices: [{}], claimed: [], draft: { selected: 0, path: [] } };
+    expect(rewardRevealPending(fresh)).toBe(true);
+    // A record saved before the reveal existed has no flag: it reveals once.
+    expect(rewardRevealPending({ choices: [{}], claimed: [] })).toBe(true);
+    expect(rewardRevealPending({ ...fresh, revealed: true })).toBe(false);
+    expect(rewardRevealPending({ ...fresh, claimed: [0] })).toBe(false);
+    expect(rewardRevealPending({ ...fresh, draft: { selected: 0, path: [{ index: 1 }] } })).toBe(
+      false,
+    );
+    expect(rewardRevealPending(null)).toBe(false);
+    expect(rewardRevealPending(undefined)).toBe(false);
   });
 });

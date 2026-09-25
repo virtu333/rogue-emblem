@@ -201,6 +201,123 @@ for (const view of VIEWS) {
       expect(errors).toEqual([]);
     });
 
+    test('battle rewards: spoils turn face up once, with icons and the picture', async ({
+      page,
+    }) => {
+      test.setTimeout(90_000); // The battle scene boots and resolves a victory first.
+      const errors = collectErrors(page);
+      await page.goto(`/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1${view.query}`);
+      await waitForScene(page, 'Battle');
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const d = s.gameData;
+        const find = (n) =>
+          structuredClone([...d.weapons, ...d.accessories].find((x) => x.name === n));
+        const spoils = [
+          { type: 'weapon', item: find('Killer Lance') },
+          { type: 'accessory', item: find("Gambler's Coin") },
+          { type: 'weapon', item: find('Ragnarok') },
+        ];
+        // The roll is replaced before the screen first renders (record is saved first).
+        const rm = s.runManager;
+        let record = rm.pendingBattleReward;
+        Object.defineProperty(rm, 'pendingBattleReward', {
+          configurable: true,
+          get: () => record,
+          set: (value) => {
+            if (value && !value.revealed) value.choices = spoils;
+            record = value;
+          },
+        });
+        s.onVictory();
+      });
+      const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+      await expect(dialog).toBeVisible();
+      const list = dialog.locator('.mu-list');
+      // Face down first, then turned in order; the record remembers it played.
+      await expect(list).toHaveClass(/ia-reveal-rows/);
+      await expect(list.locator('.ia-face-down')).toHaveCount(0, { timeout: 3000 });
+      await expect(list.locator('.ia-card-back')).toHaveCount(0);
+      expect(
+        await page.evaluate(
+          () =>
+            window.__emblemRogueGame.scene.getScene('Battle').runManager.pendingBattleReward
+              .revealed,
+        ),
+      ).toBe(true);
+      const rows = dialog.locator('.reward-card');
+      await expect(rows).toHaveCount(4);
+      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'killer-lance');
+      await expect(rows.nth(1).locator('.ia-icon')).toHaveAttribute('data-socket', 'accessory');
+      await expect(rows.nth(2).locator('.ia-icon')).toHaveAttribute('data-rim', 'Legend');
+      await expect(rows.nth(3).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'gold');
+      const hero = dialog.locator('.reward-hero .ia-hero');
+      await expect(hero).toHaveAttribute('data-icon-id', 'killer-lance');
+      await expect(hero).toHaveAttribute('data-art', 'painted');
+      await rows.nth(2).click();
+      await expect(hero).toHaveAttribute('data-icon-id', 'ragnarok');
+      await expect(rows.nth(2)).toHaveAttribute('aria-pressed', 'true');
+      // A reopened screen (resume, back from a step) never replays the reveal.
+      await page.evaluate(() => {
+        const c = window.__emblemRogueGame.scene.getScene('Battle')._lootController;
+        c.mobileRewards.hide();
+        c.mobileRewards.open();
+      });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator('.ia-face-down')).toHaveCount(0);
+      await expect(dialog.locator('.mu-list')).not.toHaveClass(/ia-reveal-rows/);
+      const overflow = await dialog.evaluate((e) => e.scrollWidth > e.clientWidth + 1);
+      expect(overflow).toBe(false);
+      await page.screenshot({ path: `test-results/item-art-rewards-${view.name}.png` });
+      expect(errors).toEqual([]);
+    });
+
+    test('blessing select: boon icons, the tarot card and its cost seal', async ({ page }) => {
+      const errors = collectErrors(page);
+      await page.goto(`/?devScene=blessing&seed=7${view.query}`);
+      await waitForScene(page, 'BlessingSelect');
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
+        const ids = ['blood_forge', 'quartermaster_cache', 'field_medic'];
+        s.options = ids.map((id, i) => s.runManager._resolveBlessingOfferForSelection({ id }, i));
+        s.selectedIndex = 0;
+        s._draw();
+      });
+      const rows = page.locator('.re-row.ia-row');
+      await expect(rows).toHaveCount(3);
+      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute(
+        'data-icon-id',
+        'blessing-blood_forge',
+      );
+      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-socket', 'blessing');
+      // "No blessing" stays a plain row.
+      await expect(
+        page.locator('.re-row', { hasText: 'No blessing' }).locator('.ia-icon'),
+      ).toHaveCount(0);
+      const card = page.locator('.ia-tarot-detail .ia-tarot');
+      await expect(card).toBeVisible();
+      await expect(card).toHaveAttribute('data-tier', '4');
+      await expect(card.locator('.ia-tarot-numeral')).toHaveText('IV');
+      expect(
+        await card.locator('.ia-tarot-art').evaluate((el) => getComputedStyle(el).backgroundImage),
+      ).toMatch(/moments\/cards\/blood_forge\.png/);
+      // A tier IV blessing has a price: crimson seal. Field Medic is a clean gift.
+      await expect(page.locator('.ia-cost .ia-seal:not(.is-clean)')).toBeVisible();
+      await expect(page.locator('.ia-cost')).toContainText('Cost:');
+      await rows.nth(2).click();
+      await expect(card).toHaveAttribute('data-blessing', 'field_medic');
+      await expect(page.locator('.ia-cost .ia-seal.is-clean')).toBeVisible();
+      await expect(page.locator('.ia-cost')).toContainText('clean gift');
+      // The terms stay readable beside or under the card.
+      await expect(page.locator('.ia-tarot-text h3')).toBeInViewport();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      );
+      expect(overflow).toBe(false);
+      await page.screenshot({ path: `test-results/item-art-blessing-${view.name}.png` });
+      expect(errors).toEqual([]);
+    });
+
     test('roster item cards lead with icons; no legacy icon textures load', async ({ page }) => {
       const errors = collectErrors(page);
       await nodeMap(page, view.query);

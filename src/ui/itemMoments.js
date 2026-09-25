@@ -156,6 +156,41 @@ export function blessingCardArt(blessingId) {
   return art;
 }
 
+const NUMERALS = ['', 'I', 'II', 'III', 'IV'];
+
+/**
+ * A blessing as a tarot card for a detail pane: the shrine painting in a tier frame
+ * (tier IV adds a dotted ember inner frame) with the tier numeral on a Hollow Sun disc.
+ * `turn` plays the card-turn once (the caller passes false under Reduce motion). Returns
+ * null for a blessing without a painting.
+ */
+export function blessingTarot(blessing, { turn = false } = {}) {
+  const url = blessing?.id ? blessingCardUrl(blessing.id) : null;
+  if (!url) return null;
+  const tier = Math.min(4, Math.max(1, Number(blessing.tier) || 1));
+  const card = document.createElement('span');
+  card.className = `ia-tarot${turn ? ' ia-tarot--turn' : ''}`;
+  card.dataset.tier = String(tier);
+  card.dataset.blessing = blessing.id;
+  card.setAttribute('aria-hidden', 'true');
+  const art = document.createElement('span');
+  art.className = 'ia-tarot-art';
+  art.style.setProperty('--ia-card', `url("${url}")`);
+  const numeral = document.createElement('span');
+  numeral.className = 'ia-tarot-numeral';
+  numeral.textContent = NUMERALS[tier];
+  card.append(art, numeral);
+  return card;
+}
+
+/** A wax seal for a price: crimson with a cost, verdigris for a clean gift. */
+export function costSeal(clean = false) {
+  const seal = document.createElement('span');
+  seal.className = `ia-seal${clean ? ' is-clean' : ''}`;
+  seal.setAttribute('aria-hidden', 'true');
+  return seal;
+}
+
 /** Motes for a phone pane behind which a vignette sits (null for a still place). */
 export function vignetteMotes(service) {
   const motion = vignetteMotion(service);

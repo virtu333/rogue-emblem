@@ -1,6 +1,8 @@
 import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { itemIcon } from './itemIcons.js';
+import { blessingTarot, costSeal, prefersStill } from './itemMoments.js';
 
 export class RunSetupMenu {
   constructor(scene, kind) {
@@ -70,6 +72,11 @@ export class RunSetupMenu {
       b.dataset.focus = `choice-${i}`;
       b.setAttribute('aria-pressed', String(i === s.selectedIndex));
       b.dataset.locked = String(!!choice.locked);
+      // Blessings wear their boon's icon in a sun-disc socket (rim = tier).
+      if (blessing && choice.id) {
+        b.classList.add('ia-row');
+        b.append(itemIcon(choice, { kind: 'blessing', size: 32 }));
+      }
       b.append(element('strong', choice.name || choice.label));
       if (choice.tier) {
         b.style.borderLeft = `4px solid var(--re-tier-${choice.tier})`;
@@ -81,12 +88,33 @@ export class RunSetupMenu {
       this.list.append(b);
     });
     const chosen = choices[s.selectedIndex];
-    detail.append(element('h3', chosen?.name || chosen?.label || 'Choose an option'));
+    const heading = element('h3', chosen?.name || chosen?.label || 'Choose an option');
     if (blessing) {
-      detail.append(element('p', chosen?.description || ''));
-      if (chosen?.rolledCost?.label)
-        detail.append(element('p', `Cost: ${chosen.rolledCost.label}`, 're-note'));
+      // The chosen blessing as a tarot card beside its terms; it turns in when the
+      // choice changes (never under Reduce motion).
+      const changed = this.shownBlessing !== undefined && this.shownBlessing !== chosen?.id;
+      this.shownBlessing = chosen?.id || null;
+      const card = blessingTarot(chosen, { turn: changed && !prefersStill(s) });
+      const text = card ? element('div', null, 'ia-tarot-text') : detail;
+      text.append(heading, element('p', chosen?.description || ''));
+      const price = chosen?.rolledCost?.label;
+      if (price || chosen?.id) {
+        const clean = !price && !chosen.costs?.length;
+        if (price || clean) {
+          const cost = element('p', null, 're-note ia-cost');
+          cost.append(
+            costSeal(clean),
+            element('span', price ? `Cost: ${price}` : 'No cost: a clean gift'),
+          );
+          text.append(cost);
+        }
+      }
+      if (card) {
+        detail.classList.add('ia-tarot-detail');
+        detail.append(card, text);
+      }
     } else {
+      detail.append(heading);
       for (const line of chosen?.summary || []) detail.append(element('p', line));
       if (!chosen?.summary?.length)
         detail.append(element('p', 'Standard experience with no difficulty modifiers.'));

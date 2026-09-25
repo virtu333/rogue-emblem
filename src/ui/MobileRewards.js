@@ -4,7 +4,10 @@ import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import { rewardPresentation } from './rewardDisplay.js';
+import { itemIcon, itemHero } from './itemIcons.js';
+import { prefersStill } from './itemMoments.js';
+import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
@@ -31,6 +34,8 @@ export class MobileRewards {
   constructor(scene, controller, choices, summary, skipGold) {
     Object.assign(this, { scene, controller, choices, summary, skipGold });
     this.selected = controller.record?.draft?.selected || 0;
+    // The spoils turn face up once per battle (the rolled record is already saved).
+    this.revealPending = rewardRevealPending(controller.record);
     this.steps = [];
     this.overlayScene = controller.host || scene;
     this.onShutdown = () => this.destroy();
@@ -187,7 +192,7 @@ export class MobileRewards {
       b.style.setProperty('--reward-color', `var(--re-${presentation.token})`);
       b.classList.toggle('reward-legend', presentation.tier === 'Legend');
       b.replaceChildren(
-        rewardIcon(presentation.category),
+        itemIcon(c, { size: 32, className: 'reward-icon' }),
         node('strong', label(c)),
         node('small', presentation.label, 'reward-quality'),
       );
@@ -197,7 +202,12 @@ export class MobileRewards {
     });
     const c = all[this.selected];
     const copy = node('div', null, 'mu-copy');
-    copy.append(node('h2', label(c)), node('p', rewardPresentation(c).label, 'mu-help'));
+    // The spoil's painted hero (96 px) beside its name, as in the shop.
+    const head = node('div', null, 'reward-hero');
+    const title = node('div', null, 'reward-hero-title');
+    title.append(node('h2', label(c)), node('p', rewardPresentation(c).label, 'mu-help'));
+    head.append(itemHero(c, { size: 96 }), title);
+    copy.append(head);
     const description =
       c.type === 'skip'
         ? 'Pass on the remaining rewards and add this gold to your vault.'
@@ -257,6 +267,21 @@ export class MobileRewards {
     if (!header.querySelector('.reward-tools')) this.tools(header);
     this.root.append(header, split);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
+    if (this.revealPending) this.startReveal(list, all);
+  }
+  /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
+  startReveal(list, all) {
+    this.revealPending = false;
+    this.controller.record.revealed = true;
+    if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
+    const speed = this.overlayScene.registry?.get?.('settings')?.getBattleSpeed?.();
+    list.classList.add('ia-reveal-rows');
+    this.reveal = playRewardReveal(list, [...list.children], {
+      still: prefersStill(this.overlayScene) || speed === 'instant',
+      tiers: all.map((c) => rewardPresentation(c).tier),
+      // A row tap only selects: the tap that ends the reveal selects too.
+      passThrough: true,
+    });
   }
   draftKey(choice) {
     return typeof choice === 'string'
@@ -343,6 +368,12 @@ export class MobileRewards {
       });
       row.className = 'mh-skill';
       row.setAttribute('aria-pressed', String(step.selected === choice));
+      // Weapon rows (forge / imbue targets) carry the weapon's socketed icon.
+      const subject = step.icon?.(choice);
+      if (subject) {
+        row.classList.add('reward-step-item');
+        row.append(itemIcon(subject, { size: 32, className: 'reward-icon' }));
+      }
       row.append(
         node('strong', step.label(choice)),
         node('small', reason || step.describe?.(choice) || ''),
@@ -352,15 +383,22 @@ export class MobileRewards {
     const detail = node('section', null, 'mu-detail');
     const copy = node('div', null, 'mu-copy');
     const chosen = step.selected;
-    copy.append(
-      node('h2', chosen ? step.label(chosen) : 'No available choices'),
-      node(
-        'p',
-        chosen
-          ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
-          : 'Go back to choose another reward.',
-      ),
+    const title = node('h2', chosen ? step.label(chosen) : 'No available choices');
+    const line = node(
+      'p',
+      chosen
+        ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
+        : 'Go back to choose another reward.',
     );
+    const subject = chosen ? step.icon?.(chosen) : null;
+    if (subject) {
+      // The chosen weapon's picture beside its name, as on the first screen.
+      const head = node('div', null, 'reward-hero');
+      const text = node('div', null, 'reward-hero-title');
+      text.append(title, line);
+      head.append(itemHero(subject, { size: 96 }), text);
+      copy.append(head);
+    } else copy.append(title, line);
     const status = node('p', message);
     status.setAttribute('role', 'status');
     copy.append(status);
@@ -435,6 +473,7 @@ export class MobileRewards {
       title: unit.name,
       choices: unit.inventory.filter((w) => rewardWeaponEligible(item, w)),
       label: (weapon) => weapon.name,
+      icon: (weapon) => weapon,
       describe: (weapon) =>
         `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
       blocked: (weapon) =>
@@ -489,6 +528,7 @@ export class MobileRewards {
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this.reveal?.skip();
     this.child?.destroy();
     this.child = null;
     popInputScope(this);

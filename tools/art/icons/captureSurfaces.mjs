@@ -25,6 +25,30 @@ Object.assign(SCREENS, {
     await page.locator('.mu-buy').click();
     await page.waitForTimeout(300);
   },
+  // The whetstone's target step: the lord's weapons, each with its icon.
+  async 'rewards-step'(page, base) {
+    await SCREENS['rewards-mixed'](page, base);
+    const dialog = page.getByRole('dialog', { name: 'Battle rewards' });
+    await dialog.locator('.reward-card', { hasText: 'Silver Whetstone' }).click();
+    await dialog.getByRole('button', { name: 'Choose reward' }).click();
+    await dialog.locator('.mu-list .mh-skill').first().click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await page.waitForTimeout(400);
+  },
+  // A fixed hand: tier IV frame, the longest name, Field Medic and a priced cost.
+  async 'blessing-hand'(page, base) {
+    await SCREENS.blessing(page, base);
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('BlessingSelect');
+      const ids = ['blood_forge', 'quartermaster_cache', 'field_medic', 'scholar_vow'];
+      s.options = ids
+        .map((id, i) => s.runManager._resolveBlessingOfferForSelection({ id }, i))
+        .filter(Boolean);
+      s.selectedIndex = 0;
+      s._draw();
+    });
+    await page.waitForTimeout(600);
+  },
   async 'upgrades-lords'(page, base) {
     await SCREENS.upgrades(page, base);
     await page.locator('.mu-tabs button', { hasText: 'Lords' }).click();

@@ -27,11 +27,19 @@ async function measure(page) {
     let phaserBytes = 0;
     let phaserCount = 0;
     let legacyIcons = 0;
+    // Textures cut from one shared page (traced sprites) share a source image: count
+    // each decoded image once.
+    const seen = new Set();
     for (const [key, tex] of Object.entries(g?.textures?.list || {})) {
       if (key.startsWith('__')) continue;
       phaserCount += 1;
       if (key.startsWith('icon_')) legacyIcons += 1;
-      for (const s of tex.source || []) phaserBytes += (s.width || 0) * (s.height || 0) * 4;
+      for (const s of tex.source || []) {
+        const image = s.image || s.source || s;
+        if (seen.has(image)) continue;
+        seen.add(image);
+        phaserBytes += (s.width || 0) * (s.height || 0) * 4;
+      }
     }
     // DOM item art on screen: every URL an item-art element is actually painting.
     const urls = new Set();

@@ -20,6 +20,7 @@
   --ia-gilt: #dca044;
   --ia-gilt-hi: #f3cb6c;
   --ia-ember: #e8782e;
+  --ia-blood-2: #6e1a28;
   --ia-blood-4: #cc4038;
   --ia-verdigris-4: #86b27b;
   --ia-earth-4: #938c55;
@@ -208,6 +209,183 @@
   image-rendering: pixelated;
 }
 
+/* ── Blessings: row icons, the tarot card, the cost seal ──────────────── */
+.re-row.ia-row {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.re-row.ia-row > .ia-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin-block: -4px;
+}
+.re-row.ia-row > :not(.ia-icon) {
+  grid-column: 2;
+}
+/* The chosen blessing: its card beside its terms; stacked in a narrow pane. The painting
+   is 192x256, dithered, drawn at 1x (2x on a tall desktop), cropped by the frame. */
+.ia-tarot-detail {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  gap: 12px;
+  white-space: normal;
+}
+.ia-tarot {
+  --ia-card-w: 192px;
+  --ia-card-h: 256px;
+  --ia-frame: var(--re-tier-1);
+  position: relative;
+  display: block;
+  width: 144px;
+  height: 196px;
+  border: 2px solid var(--ia-frame);
+  box-shadow:
+    inset 0 0 0 3px var(--ia-ink-0),
+    0 0 0 1px var(--ia-ink-0);
+  background: var(--ia-ink-0);
+  overflow: hidden;
+}
+.ia-tarot[data-tier='2'] {
+  --ia-frame: var(--re-tier-2);
+}
+.ia-tarot[data-tier='3'] {
+  --ia-frame: var(--re-tier-3);
+}
+.ia-tarot[data-tier='4'] {
+  --ia-frame: var(--re-tier-4);
+}
+.ia-tarot-art {
+  position: absolute;
+  inset: 3px;
+  background: var(--ia-card) center 30% / var(--ia-card-w) var(--ia-card-h) no-repeat;
+  image-rendering: pixelated;
+}
+/* Tier IV: a dotted ember frame inside the rim. */
+.ia-tarot[data-tier='4']::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px dotted var(--ia-ember);
+  opacity: 0.75;
+  pointer-events: none;
+}
+/* The tier numeral burns on a Hollow Sun disc in the corner. */
+.ia-tarot-numeral {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ia-ink-0);
+  box-shadow:
+    0 0 0 1px var(--ia-gilt),
+    0 0 0 3px var(--ia-ink-0);
+  color: var(--ia-gilt-hi);
+  font: 700 11px/1 var(--re-display);
+}
+.ia-tarot-text h3 {
+  margin-top: 0;
+}
+/* A narrow pane (phones under ~760 px, the 640x480 base): the card sits above. */
+@media (max-width: 759px) {
+  .ia-tarot-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ia-tarot {
+    width: min(100%, 192px);
+    height: 128px;
+  }
+}
+/* ...and on a short phone it is a strip of the painting, so the terms stay in view. */
+@media (max-width: 759px) and (max-height: 420px) {
+  .ia-tarot {
+    height: 84px;
+  }
+}
+@media (min-width: 1000px) and (min-height: 760px) {
+  .ia-tarot-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ia-tarot {
+    --ia-card-w: 384px;
+    --ia-card-h: 512px;
+    width: min(100%, 390px);
+    height: 400px;
+  }
+  .ia-tarot-numeral {
+    top: 12px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ia-tarot--turn {
+    animation: ia-turn 240ms ease-out both;
+  }
+}
+/* A price is sealed in wax: crimson with a cost, verdigris for a clean gift. */
+.ia-cost {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ia-seal {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 38% 32%, var(--ia-blood-4), var(--ia-blood-2) 70%);
+  clip-path: polygon(
+    50% 0,
+    62% 8%,
+    76% 4%,
+    82% 17%,
+    96% 20%,
+    93% 34%,
+    100% 50%,
+    93% 66%,
+    96% 80%,
+    82% 83%,
+    76% 96%,
+    62% 92%,
+    50% 100%,
+    38% 92%,
+    24% 96%,
+    18% 83%,
+    4% 80%,
+    7% 66%,
+    0 50%,
+    7% 34%,
+    4% 20%,
+    18% 17%,
+    24% 4%,
+    38% 8%
+  );
+}
+.ia-seal::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ia-ink-0);
+  opacity: 0.55;
+}
+.ia-seal.is-clean {
+  background: radial-gradient(
+    circle at 38% 32%,
+    var(--ia-verdigris-4),
+    var(--re-verdigris-deep) 70%
+  );
+}
+
 /* ── Service vignettes ────────────────────────────────────────────────── */
 /* Painted 640x360, dithered: 1x behind a phone pane, 2x in the desktop band. Only one
    of the two is displayed at a viewport, so only one decode happens. */
@@ -372,6 +550,33 @@
     transform: perspective(700px) rotateY(0deg);
   }
 }
+/* Rows of a reward list turn over their long axis, top edge first. */
+.ia-reveal-rows .ia-face-down {
+  animation-name: ia-turn-row;
+}
+.ia-reveal-rows .ia-card-back {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      var(--ia-ink-0) 0 11px,
+      var(--ia-gilt-hi) 12px 13px,
+      transparent 14px
+    ),
+    radial-gradient(circle at 50% 50%, var(--ia-glow-gilt), transparent 34px),
+    repeating-linear-gradient(135deg, var(--ia-ink-2) 0 6px, var(--ia-ink-3) 6px 7px),
+    var(--ia-ink-0);
+}
+@keyframes ia-turn-row {
+  0% {
+    transform: perspective(500px) rotateX(0deg);
+  }
+  50% {
+    transform: perspective(500px) rotateX(88deg);
+  }
+  100% {
+    transform: perspective(500px) rotateX(0deg);
+  }
+}
 @keyframes ia-back {
   0%,
   49.9% {
@@ -394,6 +599,22 @@
   }
   100% {
     box-shadow: 0 0 0 0 transparent;
+    filter: none;
+  }
+}
+/* A row sits in a scrolling list that clips an outer glow: its flash burns inward. */
+.ia-reveal-rows .ia-flash {
+  animation-name: ia-flash-row;
+}
+@keyframes ia-flash-row {
+  0% {
+    box-shadow:
+      inset 0 0 0 2px var(--ia-gilt-hi),
+      inset 0 0 28px 4px var(--ia-glow-ember);
+    filter: brightness(1.35);
+  }
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
     filter: none;
   }
 }

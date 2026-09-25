@@ -30,6 +30,20 @@ export function rarestIndex(tiers = []) {
   return best;
 }
 
+/**
+ * Whether a saved reward record still owes its reveal (pure): once per battle, never
+ * again after it played (`revealed`), after a pick, or over a restored half-made
+ * choice. Records saved before the reveal existed have no flag and reveal once.
+ */
+export function rewardRevealPending(record) {
+  return (
+    Boolean(record) &&
+    record.revealed !== true &&
+    !record.claimed?.length &&
+    !record.draft?.path?.length
+  );
+}
+
 /** Total reveal time for n cards (ms). Pure. */
 export function revealDuration(n, flash = true) {
   if (n <= 0) return 0;
@@ -42,14 +56,17 @@ export function revealDuration(n, flash = true) {
  * Turn the given cards face up in order.
  * @param {HTMLElement} container element that holds the cards (receives the skip tap)
  * @param {HTMLElement[]} cards
- * @param {{still?:boolean, tiers?:string[], onDone?:() => void,
- *   setTimeout?:Function, clearTimeout?:Function}} [options]
+ * @param {{still?:boolean, tiers?:string[], onDone?:() => void, passThrough?:boolean,
+ *   setTimeout?:Function, clearTimeout?:Function}} [options] `passThrough`: the
+ *   skipping tap or key also does its usual job (rows that only select); by default it
+ *   is swallowed (cards a tap would pick).
  * @returns {{ skip: () => void, done: boolean }}
  */
 export function playRewardReveal(container, cards, options = {}) {
   const {
     still = false,
     tiers = [],
+    passThrough = false,
     onDone,
     setTimeout: later = globalThis.setTimeout,
     clearTimeout: cancel = globalThis.clearTimeout,
@@ -72,9 +89,19 @@ export function playRewardReveal(container, cards, options = {}) {
   };
   function onSkip(event) {
     if (state.done) return;
-    // The skipping tap only ends the reveal; it must not also pick a card.
+    if (passThrough) return finish();
+    // The skipping tap only ends the reveal; it must not also pick a card, so the click
+    // that follows this pointerdown is swallowed too (briefly: a later tap still counts).
     event.preventDefault?.();
     event.stopPropagation?.();
+    if (event.type === 'pointerdown') {
+      const swallow = (click) => {
+        click.preventDefault?.();
+        click.stopPropagation?.();
+      };
+      container.addEventListener('click', swallow, { capture: true, once: true });
+      later(() => container.removeEventListener('click', swallow, true), 600);
+    }
     finish();
   }
   state.skip = finish;
