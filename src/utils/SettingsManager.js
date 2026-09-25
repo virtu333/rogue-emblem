@@ -3,6 +3,7 @@
 
 import { BATTLE_SPEEDS } from './combatTiming.js';
 import { ATMOSPHERE_PREFERENCES } from '../art/atmosphereConfig.js';
+import { GUIDANCE_PREFERENCES } from '../engine/Guidance.js';
 
 const STORAGE_KEY = 'emblem_rogue_settings';
 
@@ -20,9 +21,17 @@ export function normalizeSettings(saved = {}) {
   const legacyReduced = saved.reducedEffects === true;
   const volume = (value, fallback) =>
     Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+  // Guidance ('auto' | 'full' | 'light' | 'off') and the older hints switch stay in
+  // step: hints false means Off (an older client may only know hints), and Off
+  // means hints false. 'auto' = Full until the slot finishes a run, then Light.
+  const hints = typeof saved.hints === 'boolean' ? saved.hints : true;
+  let guidance = GUIDANCE_PREFERENCES.includes(saved.guidance) ? saved.guidance : 'auto';
+  if (!hints) guidance = 'off';
+  else if (guidance === 'off') guidance = 'auto';
   return {
     ...(Number.isFinite(saved.savedAt) ? { savedAt: saved.savedAt } : {}),
-    hints: typeof saved.hints === 'boolean' ? saved.hints : true,
+    hints,
+    guidance,
     skipSeenDialogue: saved.skipSeenDialogue === true,
     battleSpeed: BATTLE_SPEEDS.includes(saved.battleSpeed) ? saved.battleSpeed : 'normal',
     musicVolume: volume(saved.musicVolume, 0.5),
@@ -133,10 +142,26 @@ export class SettingsManager {
 
   getHints() {
     this.adoptPersisted();
-    return this.data.hints;
+    return this.data.hints !== false;
   }
   setHints(value) {
+    // Turning helpers back on restores automatic guidance; off means Off.
+    this.adoptPersisted();
+    const current = this.data.guidance;
+    this.data.guidance = value ? (current === 'off' ? 'auto' : current) : 'off';
     return this.set('hints', !!value);
+  }
+
+  /** Stored preference: 'auto' | 'full' | 'light' | 'off'. */
+  getGuidance() {
+    this.adoptPersisted();
+    return this.data.guidance;
+  }
+  setGuidance(value) {
+    if (!GUIDANCE_PREFERENCES.includes(value)) return { ok: false, reason: 'invalid_guidance' };
+    this.adoptPersisted();
+    this.data.hints = value !== 'off';
+    return this.set('guidance', value);
   }
 
   getSkipSeenDialogue() {

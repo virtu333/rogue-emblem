@@ -9,7 +9,7 @@
   margin: 0 0.4em;
   padding: 0 0.2em;
   box-sizing: border-box;
-  font: 9px/1 var(--re-pixel);
+  font: var(--re-pf-9, 9px)/1 var(--re-pixel);
   color: var(--re-bg);
   background: var(--re-accent);
   border: 1px solid var(--re-accent-text);
@@ -49,7 +49,7 @@
   min-width: 0;
 }
 .mb-step-count {
-  font: 9px/1 var(--re-pixel);
+  font: var(--re-pf-9, 9px)/1 var(--re-pixel);
   color: var(--re-muted);
   margin-left: 4px;
 }
@@ -57,7 +57,7 @@
   color: var(--re-gold-hi, var(--re-accent-text));
 }
 .mb-target-switch .mb-step-value {
-  font: 9px/1.5 var(--re-pixel);
+  font: var(--re-pf-9, 9px)/1.5 var(--re-pixel);
   color: var(--re-muted);
   text-transform: uppercase;
 }

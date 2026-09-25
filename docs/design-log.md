@@ -32,6 +32,39 @@ Spec and deviations: [`specs/items-art.md`](specs/items-art.md); captures:
 
 ---
 
+## 2026-09-25 — Threat sight, Guidance and Mac font scaling (playtest 2) (built)
+
+A second playtest round: a Three Houses veteran wanted "the little red arc" that shows who
+threatens the tile you are moving to ("just turn the enemies' eyes red"); a player new to
+Fire Emblem could not get Sera to attack and lost her often, and did not understand the
+convoy; a Mac desktop player saw "chunky" text. Spec and deviations:
+[`specs/threat-and-onboarding.md`](specs/threat-and-onboarding.md); captures:
+[`art-direction/ux-polish/playtest-2/`](art-direction/ux-polish/playtest-2/README.md).
+
+**Decisions**
+- **Threat sight.** While moving, every visible enemy that could strike the chosen tile
+  next phase gets a small crimson eye and a thin red line to the tile; the HUD says
+  "2 foes can reach". Kept light (Fortune's Weave): who can reach, never damage numbers.
+  Corner ticks and a tile count badge were tried and dropped — "more systems ≠ better".
+- **One threat computation.** The Danger overlay's math moved to `engine/ThreatForecast.js`;
+  threat sight asks it the same question with the mover set down on the destination.
+  Hidden (fogged) enemies are never evaluated.
+- **Why Sera "couldn't attack".** Nothing was mis-equipped: a unit with no enemy in reach
+  simply had no Attack row, and Equip looked like the primary action. With Guidance on
+  Full, Attack stays in the menu greyed with "No target in range 1–2".
+- **Guidance: Full / Light / Off.** Auto = Full until the save slot finishes a run, then
+  Light. Field notes are one-time, non-blocking, click-through, dismissible, and "Fewer
+  tips" steps down to Light. Light keeps only rules a veteran of *this* game still needs
+  once (the commander's fall ends the run; green units can be recruited).
+- **Convoy** is explained where it appears (Roster › Convoy, reward picker): shared storage
+  between battles; Store puts an item in, Withdraw gives it to a unit.
+- **Mac text.** Supersampled canvas text now downsamples with LINEAR filtering (NEAREST was
+  dropping texels: "Par: J0"); Press Start 2P sizes snap to whole device pixels for the
+  current DPR, browser zoom and the desktop title's transform. Canvas integer scaling was
+  considered and rejected (up to 20% smaller play area at 1440×900).
+
+---
+
 ## 2026-09-25 — Strategy layer: recruit nodes you can read, fair recruit spawns, blessing pacts
 
 **Trigger:** Player A: "you should basically never take any route that doesn't optimize
