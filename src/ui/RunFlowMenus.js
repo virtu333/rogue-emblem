@@ -3,6 +3,7 @@ import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
 import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { deedsOfTheMarchSection } from './deedDisplay.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
 export const PAYOUT_PENDING_NOTE =
@@ -33,6 +34,8 @@ export function runResultMenu(scene, rewards, meta) {
   ])
     stats.append(element('dt', label), element('dd', String(value)));
   menu.body.append(stats);
+  const deeds = deedsOfTheMarchSection(rm);
+  if (deeds) menu.body.append(deeds);
   if (meta && rewards.appliedToMeta === false)
     menu.body.append(element('p', PAYOUT_PENDING_NOTE, 're-run-note'));
   if (meta)

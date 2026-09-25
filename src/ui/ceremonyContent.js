@@ -8,6 +8,7 @@
 
 import regions from '../../data/regions.json';
 import framing from './ceremonyPortraitFraming.json';
+import { sentenceTitle } from '../engine/DeedTitles.js';
 
 // ── Acts ─────────────────────────────────────────────────────────────────
 
@@ -172,7 +173,10 @@ export function shouldShowFelled({ objective, remaining = 0, reviving = 0 }) {
   return true;
 }
 
-export function fallenContent({ name, className }) {
+export function fallenContent({ name, className, epithet = null }) {
+  // A titled commander is named in full: "Edric, Who Held the Bridge, has fallen".
+  if (name && typeof epithet?.text === 'string' && epithet.text.trim())
+    return { word: 'FALLEN', sub: `${sentenceTitle(name, epithet)} has fallen` };
   return { word: 'FALLEN', sub: [name, className].filter(Boolean).join(' · ') };
 }
 
@@ -200,12 +204,15 @@ export function phaseContent({ phase, turn, place = '' }) {
   };
 }
 
-export function cutInContent({ label, unitName, weaponName, isArt = false }) {
+export function cutInContent({ label, unitName, weaponName, isArt = false, epithet = '' }) {
   const word = isArt ? String(label || '').toUpperCase() : 'CRITICAL';
-  return {
+  const content = {
     word,
     small: [unitName, weaponName].filter(Boolean).join(' · ').toUpperCase(),
   };
+  // A titled unit's epithet rides under the word (Deeds & Epithets).
+  if (typeof epithet === 'string' && epithet.trim()) content.epithet = epithet.trim();
+  return content;
 }
 
 // ── Battle notices ───────────────────────────────────────────────────────
