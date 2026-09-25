@@ -84,6 +84,14 @@ export class HealController {
     else normalizeEquippedFirst(unit);
   }
 
+  /** Resolver options for player staff heals (run blessing heal multiplier). */
+  getHealOptions() {
+    return {
+      healingMultiplier:
+        this.scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+    };
+  }
+
   getUsableStaves(unit) {
     return inventoryDisplayOrder(unit).filter(
       (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
@@ -111,6 +119,7 @@ export class HealController {
     }
     const range = getEffectiveStaffRange(staff, unit);
     const cure = isCureStaff(staff);
+    const healOpts = this.getHealOptions();
     const targets = [];
     for (const ally of scene.playerUnits) {
       if (ally === unit) continue; // Can't staff self
@@ -119,6 +128,8 @@ export class HealController {
         if ((ally._conditions || []).length === 0) continue; // Nothing to cure
       } else if (ally.currentHP >= ally.stats.HP) {
         continue; // Full HP
+      } else if (resolveHeal(staff, unit, ally, healOpts).healAmount <= 0) {
+        continue; // Would restore nothing (never spend a use on a 0 heal)
       }
       const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
       if (dist >= range.min && dist <= range.max) {
@@ -398,10 +409,7 @@ export class HealController {
         return;
       }
 
-      const healOpts = {
-        healingMultiplier:
-          scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-      };
+      const healOpts = this.getHealOptions();
       const result = resolveHeal(staff, healer, target, healOpts);
 
       // Apply heal
@@ -447,10 +455,7 @@ export class HealController {
 
     try {
       const staff = healer.weapon;
-      const healOpts = {
-        healingMultiplier:
-          scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-      };
+      const healOpts = this.getHealOptions();
 
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);

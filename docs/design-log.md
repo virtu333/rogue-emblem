@@ -30,6 +30,24 @@ Four playtest reports (iPhone app and desktop). Spec, root causes and tests:
 
 ---
 
+## 2026-09-25 — Two fixes from outside reports: staff heal penalty, offline atlases
+
+**Staff heals under a heal penalty.** The "Staff healing −20% effective" blessing
+scaled the heal *after* it was capped at missing HP, so a 29/30 ally healed 0 (and the
+staff still spent a use and gave heal XP) and 25/30 healed 4. The multiplier now scales
+the staff's output first (`floor((MAG + healBase) × multiplier)`), then the cap applies.
+Nothing changes without a multiplier, and a bonus above 1 can no longer overheal. Heal
+targeting also skips an ally the heal would restore 0 HP to (current data can't produce
+this; it's a guard). Enemy AI healing never had a multiplier and is unchanged.
+
+**Offline atlases.** An atlas's image and its frame data are now precached together
+(fx, node medals, traced sprite pages, PC-98 portrait atlases; ~3 MB), and the SW
+revisions them by content hash. Before, `fx_atlas.json` wasn't cached at all, and a
+deploy could pair an old cached image with new frames. Rest of the media is still
+runtime-cached; details in [`mobile-pwa-plan.md`](mobile-pwa-plan.md#offline-play-service-worker--shipped).
+
+---
+
 ## 2026-09-25 — Deeds & Epithets (built)
 
 Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from
