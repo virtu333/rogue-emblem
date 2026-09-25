@@ -1,4 +1,5 @@
 import { persistBattleDefeat } from './BattleFatalDecision.js';
+import { fallenBattleRecruits } from '../engine/BattleRecruits.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
@@ -158,6 +159,9 @@ export class PostCombatController {
           turnCount: scene.turnManager?.turnNumber,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
+          // Recruits who joined this battle and then fell have no roster
+          // entry to diff against; hand over their as-joined records.
+          fallenRecruits: fallenBattleRecruits(scene._battleRecruits, allUnits),
         },
       );
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));

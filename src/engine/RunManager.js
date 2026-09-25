@@ -2953,7 +2953,9 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[] }} [options]
+   *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
+   *   before victory — recorded as fallen allies like roster casualties.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -2969,6 +2971,15 @@ export class RunManager {
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map((u) => u.name));
     const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
+    // A recruit who joined during this battle and fell before it ended never
+    // reached the roster, so the diff above cannot see it.
+    const rosterNames = new Set(this.roster.map((u) => u.name));
+    for (const recruit of Array.isArray(options?.fallenRecruits) ? options.fallenRecruits : []) {
+      if (!this._isValidSerializedUnit(recruit)) continue;
+      if (survivingNames.has(recruit.name) || rosterNames.has(recruit.name)) continue;
+      if (newlyFallen.some((u) => u.name === recruit.name)) continue;
+      newlyFallen.push(recruit);
+    }
     this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {
       if (!this.fallenUnits.find((f) => f.name === fallen.name)) {

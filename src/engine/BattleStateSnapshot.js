@@ -134,6 +134,21 @@ function validRestoreFields(state, width, height) {
       !optional(state.villageState, 'rewardItemUid', text))
   )
     return false;
+  if (
+    !optional(state, 'battleRecruits', (value) =>
+      list(
+        value,
+        (entry) =>
+          record(entry) &&
+          text(entry.name) &&
+          record(entry.unit) &&
+          entry.unit.name === entry.name &&
+          stats(entry.unit.stats),
+        32,
+      ),
+    )
+  )
+    return false;
   if (!optional(state, 'appliedHybridOverrideTurns', (v) => list(v, (turn) => integer(turn, 1))))
     return false;
   for (const key of ['playerDeathsThisBattle', 'goldEarned', 'checkpointIndex'])

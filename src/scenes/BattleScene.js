@@ -250,6 +250,7 @@ import {
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
+import { recordBattleRecruit } from '../engine/BattleRecruits.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
@@ -1189,6 +1190,7 @@ export class BattleScene extends Phaser.Scene {
       );
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
+      this._battleRecruits = [];
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
@@ -6551,6 +6553,8 @@ export class BattleScene extends Phaser.Scene {
       // Recruit can move + act this turn (FE convention); force fresh action flags.
       npc.hasMoved = false;
       npc.hasActed = false;
+      // Fallen-ally record should the recruit die before the battle ends.
+      this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
 
       this.finishUnitAction(lord);
     } catch (err) {
