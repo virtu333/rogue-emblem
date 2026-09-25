@@ -287,6 +287,49 @@ describe('rewind to before any action', () => {
     expect(scene.playerUnits[1].weapon.uid).toBe(forMight.uid);
   });
 
+  it('an action’s own rewards (gold, convoy item, bag) belong to its point, not a free change', () => {
+    // E.g. a village visit at the end of a Canto move: gold and supplies land before the
+    // action completes, so the recorded point already contains them.
+    const { scene, run, driver } = fixture();
+    const [a, b] = scene.playerUnits;
+    const entries = scene._battleTimeline.entries.length;
+    a.row += 1;
+    a.hasMoved = true;
+    run.gold += 300;
+    scene.goldEarned = (scene.goldEarned || 0) + 300;
+    const tonic = ensureItemUid(structuredClone(driver.data.consumables[0]));
+    expect(run.addToConvoy(tonic)).toBe(true);
+    a.consumables = [...(a.consumables || []), ensureItemUid(structuredClone(tonic))];
+    scene._battleRng();
+    observeHistoryAction(scene, 'visited the village', a);
+    completeBattleAction(scene, a);
+    expect(scene._battleTimeline.entries.length).toBe(entries + 1);
+    expect(scene._battleTimeline.entries.at(-1)).toMatchObject({
+      kind: 'player_action',
+      destination: true,
+    });
+    // Exactly one point: the next activation finds nothing left over.
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    act(scene, b);
+    expect(scene._battleTimeline.entries.length).toBe(entries + 2);
+  });
+
+  it('a fresh instance of a same-name item swapped in between activations is a free change', () => {
+    // Identity, not name: the item a rewind restores is this exact instance.
+    const { scene, driver } = fixture();
+    const [a, b, c] = scene.playerUnits;
+    act(scene, a);
+    const vulnerary = driver.data.consumables.find((i) => i.name === 'Vulnerary');
+    b.consumables = [ensureItemUid(structuredClone(vulnerary))];
+    scene._timelineBoundary = 'player_action';
+    scene._captureSuspendCheckpoint();
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    b.consumables = [ensureItemUid(structuredClone(vulnerary))];
+    expect(b.consumables[0].name).toBe('Vulnerary');
+    expect(scene._visionController.settleParkedActivation()).toBe(true);
+    act(scene, c);
+  });
+
   it('a run-only free change (supplies, no unit) is its own point', () => {
     const { scene, run } = fixture();
     const [a, , c] = scene.playerUnits;
