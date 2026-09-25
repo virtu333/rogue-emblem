@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { installFakeDom } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
-import { BossPresenceController } from '../src/ui/BossPresenceController.js';
+import { BossPresenceController, BOSS_BAR_DEPTH } from '../src/ui/BossPresenceController.js';
 
 const gameData = loadGameData();
 
@@ -17,7 +16,59 @@ function emitter() {
   };
 }
 
-function makeScene({ hp = 52, reduceMotion = false, mobile = true } = {}) {
+function displayObject(extra = {}) {
+  const obj = {
+    x: 0,
+    y: 0,
+    alpha: 1,
+    visible: true,
+    active: true,
+    depth: 0,
+    calls: [],
+    setDepth(d) {
+      obj.depth = d;
+      return obj;
+    },
+    setVisible(v) {
+      obj.visible = v;
+      return obj;
+    },
+    setAlpha(a) {
+      obj.alpha = a;
+      return obj;
+    },
+    setPosition(x, y) {
+      obj.x = x;
+      obj.y = y;
+      return obj;
+    },
+    destroy: vi.fn(() => {
+      obj.active = false;
+    }),
+    ...extra,
+  };
+  return obj;
+}
+
+function graphics() {
+  const g = displayObject();
+  for (const name of [
+    'fillStyle',
+    'fillRect',
+    'lineStyle',
+    'beginPath',
+    'moveTo',
+    'lineTo',
+    'closePath',
+    'strokePath',
+    'fillPoints',
+  ])
+    g[name] = (...args) => g.calls.push([name, ...args]);
+  g.clear = () => (g.calls = []);
+  return g;
+}
+
+function makeScene({ hp = 52, reduceMotion = true } = {}) {
   const boss = {
     name: 'Dark Rider',
     className: 'Dark Knight',
@@ -28,11 +79,14 @@ function makeScene({ hp = 52, reduceMotion = false, mobile = true } = {}) {
     stats: { HP: 52 },
     col: 3,
     row: 4,
+    graphic: displayObject(),
+    hpBar: { bg: displayObject({ x: 112, y: 156 }), fill: displayObject() },
   };
+  const made = [];
   return {
     boss,
+    made,
     gameData,
-    isMobileInput: mobile,
     enemyUnits: [boss, { name: 'Fighter', faction: 'enemy', currentHP: 20, stats: { HP: 20 } }],
     antiTurtleState: { turnEnrageActive: false },
     turnPar: 10,
@@ -42,151 +96,135 @@ function makeScene({ hp = 52, reduceMotion = false, mobile = true } = {}) {
     battleState: 'PLAYER_IDLE',
     registry: { get: () => ({ getReduceMotion: () => reduceMotion }) },
     events: emitter(),
+    add: {
+      graphics: () => {
+        const g = graphics();
+        made.push(g);
+        return g;
+      },
+    },
   };
 }
 
-let dom;
-beforeEach(() => {
-  vi.useFakeTimers();
-  dom = installFakeDom(vi);
-});
-afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
 
-const bar = () => dom.doc.querySelector('.ce-bossbar');
-const pct = (node) => parseFloat(node.style.width);
+const fillWidth = (g, w) =>
+  g.calls.filter((c) => c[0] === 'fillRect' && c[4] === 4).map((c) => Math.round((c[3] / w) * 100));
 
-describe('BossPresenceController', () => {
-  it('docks a named crimson bar at the bottom of the map frame', () => {
+describe('BossPresenceController (world bar on the boss)', () => {
+  it('rides the boss in place of its ordinary HP bar, above bars and pips', () => {
     const scene = makeScene();
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
-    const layer = dom.doc.querySelector('.ce-bossbar-layer');
-    expect(layer.dataset.frame).toBe('map');
-    expect(layer.classList.contains('ce-bossbar-layer--desktop')).toBe(false);
-    expect(bar().hidden).toBe(false);
-    expect(bar().querySelector('.ce-bossbar-name').textContent).toBe('Dark Rider');
-    expect(bar().querySelector('.ce-bossbar-hp').textContent).toBe('52 / 52');
-    expect(bar().getAttribute('aria-valuenow')).toBe('52');
-    // The status line appears only as enrage nears.
-    expect(bar().querySelector('.ce-bossbar-status').hidden).toBe(true);
+    const [bar] = scene.made;
+    expect(bar.depth).toBe(BOSS_BAR_DEPTH);
+    expect(BOSS_BAR_DEPTH).toBeGreaterThan(14);
+    expect(bar.visible).toBe(true);
+    expect([bar.x, bar.y]).toEqual([112, 157]);
+    // The ordinary bar steps aside (alpha only; fog still owns its visibility).
+    expect(scene.boss.hpBar.bg.alpha).toBe(0);
+    expect(scene.boss.hpBar.fill.alpha).toBe(0);
+    expect(presence.summaryLine()).toBe('Dark Rider · 52/52 HP');
+    // Moves with the boss's own bar (move tweens drive that one).
+    scene.boss.hpBar.bg.setPosition(200, 60);
+    scene.events.emit('postupdate');
+    expect([bar.x, bar.y]).toEqual([200, 61]);
     presence.destroy();
+    expect(scene.boss.hpBar.bg.alpha).toBe(1);
   });
 
-  it('desktop docks above the in-canvas command row', () => {
-    new BossPresenceController(makeScene({ mobile: false })).create();
-    expect(
-      dom.doc.querySelector('.ce-bossbar-layer').classList.contains('ce-bossbar-layer--desktop'),
-    ).toBe(true);
-  });
-
-  it('damage shows a gold chunk that drains after a beat', () => {
+  it('damage shows a gold chunk that drains after a beat; other units never move it', () => {
     const scene = makeScene();
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
     scene.boss.currentHP = 26;
     presence.onUnitHp(scene.boss);
-    const fill = bar().querySelector('.ce-bossbar-fill');
-    const lost = bar().querySelector('.ce-bossbar-lost');
-    expect(pct(fill)).toBe(50);
-    expect(pct(lost)).toBe(100);
+    expect(presence.view().fillPct).toBe(50);
+    expect(presence.view().lostPct).toBe(100);
     vi.advanceTimersByTime(460);
-    expect(pct(lost)).toBe(50);
-    // Other units never move the bar.
+    expect(presence.view().lostPct).toBe(50);
     presence.onUnitHp(scene.enemyUnits[1]);
-    expect(pct(fill)).toBe(50);
+    expect(presence.view().fillPct).toBe(50);
+    const bar = scene.made[0];
+    // One crimson fill at half width; no gold chunk left after the drain.
+    expect(fillWidth(bar, 36)).toContain(50);
   });
 
-  it('resume / rewind restore silently: no chunk, no entrance motion', () => {
+  it('resume / rewind restore silently: no chunk', () => {
     const scene = makeScene({ hp: 30 });
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
-    expect(bar().classList.contains('is-entering')).toBe(false);
-    expect(bar().classList.contains('is-static')).toBe(true);
-    // A rewind to a lower-HP point: straight to the value.
     scene.boss.currentHP = 12;
     presence.sync({ silent: true });
-    expect(pct(bar().querySelector('.ce-bossbar-lost'))).toBeCloseTo((12 / 52) * 100);
-    // A fresh battle raises it with motion.
-    const fresh = makeScene();
-    dom.doc.querySelector('.ce-bossbar-layer').remove();
-    new BossPresenceController(fresh).create().sync();
-    expect(bar().classList.contains('is-entering')).toBe(true);
+    expect(presence.view().lostPct).toBeCloseTo((12 / 52) * 100);
   });
 
-  it('enrage turns it ember with the turn it began', () => {
+  it('enrage turns the frame ember with a halo; the reading says when', () => {
     const scene = makeScene();
     const presence = new BossPresenceController(scene).create();
     presence.sync();
     scene.getCurrentTurnNumber = () => 11;
     presence.sync();
-    expect(bar().querySelector('.ce-bossbar-status').textContent).toBe('Enrages on turn 12');
+    expect(presence.summaryLine()).toBe('Dark Rider · 52/52 HP · Enrages on turn 12');
     scene.getCurrentTurnNumber = () => 12;
     scene.antiTurtleState.turnEnrageActive = true;
     presence.sync();
-    expect(bar().classList.contains('is-ember')).toBe(true);
-    expect(bar().querySelector('.ce-bossbar-status').textContent).toBe('Enraged · Turn 12');
-    // A rewind to before the enrage undoes it.
+    expect(presence.view().tone).toBe('ember');
+    const [, glow] = scene.made;
+    expect(glow.visible).toBe(true);
+    expect(presence.summaryLine()).toBe('Dark Rider · 52/52 HP · Enraged · Turn 12');
     scene.antiTurtleState.turnEnrageActive = false;
     scene.getCurrentTurnNumber = () => 5;
     presence.sync({ silent: true });
-    expect(bar().classList.contains('is-ember')).toBe(false);
-    expect(bar().querySelector('.ce-bossbar-status').hidden).toBe(true);
+    expect(presence.view().tone).toBe('crimson');
+    expect(glow.visible).toBe(false);
   });
 
-  it('the boss dying drains the bar and takes it down; a rewind brings it back', () => {
+  it('the boss dying drains the bar where it stood, then takes it down; a rewind brings it back', () => {
     const scene = makeScene({ hp: 8 });
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
+    const [bar] = scene.made;
     scene.enemyUnits.shift();
+    scene.boss.hpBar = null; // the fallen unit's graphics are gone
     presence.onBossDefeated();
-    expect(pct(bar().querySelector('.ce-bossbar-fill'))).toBe(0);
-    vi.advanceTimersByTime(460 + 650 + 950);
-    expect(bar().hidden).toBe(true);
+    expect(presence.view().fillPct).toBe(0);
+    expect(bar.visible).toBe(true);
+    vi.advanceTimersByTime(460 + 650 + 50);
+    expect(presence.view().visible).toBe(false);
+    expect(bar.visible).toBe(false);
+    expect(presence.summaryLine()).toBe('');
+    scene.boss.hpBar = { bg: displayObject({ x: 5, y: 6 }), fill: displayObject() };
     scene.enemyUnits.unshift(scene.boss);
     presence.sync({ silent: true });
-    expect(bar().hidden).toBe(false);
-    expect(bar().classList.contains('is-leaving')).toBe(false);
+    expect(bar.visible).toBe(true);
   });
 
-  it('holds its last seen reading while fog hides the boss', () => {
+  it('holds its last seen reading while fog hides the boss, and hides with it', () => {
     const scene = makeScene();
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
     scene.grid = { fogEnabled: true, isVisible: () => false };
-    scene.boss.currentHP = 52;
     scene.boss.currentHP = 40;
+    scene.boss.graphic.setVisible(false);
     presence.sync();
-    expect(bar().querySelector('.ce-bossbar-hp').textContent).toBe('52 / 52');
+    expect(presence.view().hpText).toBe('52 / 52');
+    expect(scene.made[0].visible).toBe(false);
   });
 
-  it('steps aside for canvas panels and paused states', () => {
-    const scene = makeScene();
-    const presence = new BossPresenceController(scene).create();
-    presence.sync({ silent: true });
-    scene._forecastOverlay = {};
-    scene.events.emit('postupdate');
-    expect(bar().classList.contains('is-suppressed')).toBe(true);
-    scene._forecastOverlay = null;
-    scene.events.emit('postupdate');
-    expect(bar().classList.contains('is-suppressed')).toBe(false);
-    scene.battleState = 'PAUSED';
-    scene.events.emit('postupdate');
-    expect(bar().classList.contains('is-suppressed')).toBe(true);
-  });
-
-  it('the Entity bar has no name or numbers', () => {
+  it('the Entity bar has no name or numbers and spans its footprint', () => {
     const scene = makeScene();
     Object.assign(scene.boss, { name: 'The Entity', isEntity: true });
-    new BossPresenceController(scene).create().sync({ silent: true });
-    expect(bar().querySelector('.ce-bossbar-name').textContent).toBe('· · ·');
-    expect(bar().querySelector('.ce-bossbar-hp').textContent).toBe('');
-    expect(bar().classList.contains('is-unlight')).toBe(true);
+    const presence = new BossPresenceController(scene).create();
+    presence.sync({ silent: true });
+    expect(presence.view().name).toBe('· · ·');
+    expect(presence.view().hpText).toBe('');
+    expect(presence.view().tone).toBe('unlight');
+    expect(presence._width()).toBeGreaterThan(36);
   });
 
-  it('shutdown removes DOM, listeners and timers', () => {
+  it('shutdown removes objects, listeners and timers', () => {
     const scene = makeScene();
     const presence = new BossPresenceController(scene).create();
     presence.sync({ silent: true });
@@ -194,17 +232,17 @@ describe('BossPresenceController', () => {
     presence.onUnitHp(scene.boss);
     expect(scene.events.count('postupdate')).toBe(1);
     scene.events.emit('shutdown');
-    expect(dom.doc.querySelector('.ce-bossbar-layer')).toBeNull();
+    expect(scene.made.every((g) => g.destroy.mock.calls.length === 1)).toBe(true);
     expect(scene.events.count('postupdate')).toBe(0);
-    expect(dom.win.listenerCount('resize')).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
     presence.sync();
     presence.destroy();
   });
 
-  it('is inert without a DOM host', () => {
-    vi.unstubAllGlobals();
-    const presence = new BossPresenceController(makeScene()).create();
+  it('is inert without a renderer', () => {
+    const scene = makeScene();
+    delete scene.add;
+    const presence = new BossPresenceController(scene).create();
     expect(() => {
       presence.sync();
       presence.onBossDefeated();

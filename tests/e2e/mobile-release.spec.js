@@ -6,8 +6,19 @@ test('production mobile bundle boots offline and uses traced battle art without 
   page.on('pageerror', (e) => errors.push(e.message));
   const consoleLines = [];
   page.on('console', (msg) => {
-    if (msg.type() === 'error' || msg.type() === 'warning')
-      consoleLines.push(msg.text().slice(0, 200));
+    const text = msg.text();
+    if (
+      msg.type() === 'error' ||
+      msg.type() === 'warning' ||
+      /\[(AudioDiag|SceneLoader|TitleScene|BootScene)\]/.test(text)
+    )
+      consoleLines.push(`${msg.type()}: ${text.slice(0, 200)}`);
+  });
+  // A reload after the New Game tap looks exactly like a dropped tap (Title again,
+  // idle menu), so count main-frame navigations for the failure report.
+  const navigations = [];
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) navigations.push(frame.url());
   });
   const external = [];
   await page.route('**/*', (route) => {
@@ -47,10 +58,20 @@ test('production mobile bundle boots offline and uses traced battle art without 
           (d.getAttribute('aria-label') || d.textContent || '').slice(0, 80),
         ),
         sceneState: globalThis.__sceneState?._pendingTransitionMeta || null,
+        navigationType: performance.getEntriesByType('navigation')[0]?.type || null,
+        chunkReloadFlag: sessionStorage.getItem('__er_chunk_reload'),
+        markers: (globalThis.__emblemRogueStartupTelemetry?.markers || [])
+          .slice(-30)
+          .map(
+            (m) =>
+              `${Math.round(m.at)} ${m.name}${m.data?.phase ? ` ${m.data.phase}` : ''}${
+                m.data?.targetScene ? ` -> ${m.data.targetScene}` : ''
+              }${m.data?.message ? ` ${String(m.data.message).slice(0, 120)}` : ''}`,
+          ),
       };
     });
     throw new Error(
-      `NodeMap never started after New Game: ${JSON.stringify({ state, errors, consoleLines })}\n${err.message}`,
+      `NodeMap never started after New Game: ${JSON.stringify({ state, navigations, errors, consoleLines }, null, 1)}\n${err.message}`,
       { cause: err },
     );
   }

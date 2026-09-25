@@ -13,6 +13,11 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { UI_HEX } from '../utils/uiStyles.js';
+import { getFootprintKeys } from '../engine/EntitySystem.js';
+
+// A tap on any tile of a (possibly multi-tile) unit.
+const occupies = (unit, gp) =>
+  Boolean(unit) && getFootprintKeys(unit).includes(`${gp.col},${gp.row}`);
 
 export class InputController {
   constructor(scene) {
@@ -551,6 +556,9 @@ export class InputController {
   }
 
   handleActionMenuClick(gp) {
+    // After moving, tapping an attackable enemy skips Attack → target: it opens
+    // that enemy's forecast directly (Cancel then returns to target selection).
+    if (this.tryDirectAttack(gp)) return;
     // Only the initial, uncommitted native action menu accepts destinations.
     // A submenu, trade, or post-movement menu must never grant another move.
     if (!this.isSelectionMenu()) return;
@@ -575,24 +583,48 @@ export class InputController {
     this.handleSelectedClick(gp);
   }
 
+  /**
+   * Post-move action menu: a tap/click on an enemy this unit can attack starts
+   * the Attack flow on that target. Not for the unmoved selection menu (a tap
+   * there plans/inspects) nor for submenus, and only when Attack is offered.
+   */
+  tryDirectAttack(gp) {
+    const s = this.scene;
+    if (s.battleState !== 'UNIT_ACTION_MENU' || s.inEquipMenu || !s.selectedUnit) return false;
+    if (this.isSelectionMenu() || s._isTutorialStrictGateActive?.()) return false;
+    const attack = (s.actionMenu || []).find(
+      (o) => o?.text === 'Attack' && typeof o._action === 'function' && !o._menuDisabled,
+    );
+    if (!attack) return false;
+    const target = s.getUnitAt(gp.col, gp.row);
+    if (!target || target.faction === 'player' || !canInspectUnit(s.grid, target)) return false;
+    const unit = s.selectedUnit;
+    if (!s.findAttackTargets(unit).includes(target)) return false;
+    this.clearPlanningInspection();
+    s._attackFlow().begin(unit, { target });
+    return true;
+  }
+
   handleTargetClick(gp) {
     const scene = this.scene;
-    const target = scene.attackTargets.find((t) => t.col === gp.col && t.row === gp.row);
+    const target = scene.attackTargets.find((t) => occupies(t, gp));
     if (target) {
-      scene.showForecast(scene.selectedUnit, target);
+      if (scene._attackFlow) scene._attackFlow().openForecast(scene.selectedUnit, target);
+      else scene.showForecast(scene.selectedUnit, target);
     }
   }
 
   handleForecastClick(gp) {
     const scene = this.scene;
     if (scene._mobileBattleHud?.forecast) return;
-    if (
-      scene.forecastTarget &&
-      gp.col === scene.forecastTarget.col &&
-      gp.row === scene.forecastTarget.row
-    ) {
+    const current = scene.forecastTarget;
+    if (current && occupies(current, gp)) {
       scene.confirmForecastCombat();
+      return;
     }
+    // Another highlighted target: switch the forecast to it (equipped weapon first).
+    const other = (scene.attackTargets || []).find((t) => occupies(t, gp));
+    if (other && scene._attackFlow) scene._attackFlow().switchForecastTarget(other);
   }
 
   startTouchInspectHold(pointer) {
@@ -746,7 +778,7 @@ export class InputController {
 
     if (planning) {
       this._planningInspection = true;
-      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid);
+      this._planningThreat ||= new DangerZoneOverlay(scene, scene.grid, { variant: 'focus' });
       this._planningThreat.show(unit.faction === 'enemy' ? scene.calculateDangerZone(unit) : []);
       scene._mobileBattleHud?.sync?.();
     }
@@ -788,10 +820,38 @@ export class InputController {
         });
         scene.grid.showAttackRange(tiles);
       }
+      if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 
     scene.refreshEndTurnControl();
     return true;
+  }
+
+  // Idle inspection of an enemy: its whole threat gets the Danger language's crisp
+  // edge (focus variant) over the move/attack ranges. Self-clearing: the overlay
+  // hides the frame the inspection panel stops showing that enemy, however the
+  // inspection ended, so no clear path can leave a stale outline behind.
+  _showInspectedThreat(unit) {
+    const scene = this.scene;
+    if (!scene?.grid || typeof scene.calculateDangerZone !== 'function') return;
+    this._idleThreat ||= new DangerZoneOverlay(scene, scene.grid, { variant: 'focus', depth: 4.2 });
+    this._idleThreat.show(scene.calculateDangerZone(unit));
+    this._idleThreatUnit = unit;
+    if (this._idleThreatTick) return;
+    this._idleThreatTick = () => {
+      const s = this.scene;
+      const current =
+        s?.battleState === 'PLAYER_IDLE' &&
+        s.inspectionPanel?.visible &&
+        s.inspectionPanel._unit === this._idleThreatUnit &&
+        this._idleThreatUnit?.currentHP > 0;
+      if (current) return;
+      this._idleThreat?.hide();
+      this._idleThreatUnit = null;
+      s?.events?.off?.('update', this._idleThreatTick);
+      this._idleThreatTick = null;
+    };
+    scene.events?.on?.('update', this._idleThreatTick);
   }
 
   clearInspectionVisuals() {
@@ -900,6 +960,9 @@ export class InputController {
 
   destroy() {
     this._planningThreat?.hide();
+    this._idleThreat?.hide();
+    if (this._idleThreatTick) this.scene?.events?.off?.('update', this._idleThreatTick);
+    this._idleThreatTick = null;
     this.scene = null;
   }
 }

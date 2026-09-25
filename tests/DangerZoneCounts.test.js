@@ -2,7 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { Grid } from '../src/engine/Grid.js';
-import { DangerZoneOverlay } from '../src/ui/DangerZoneOverlay.js';
+import {
+  DangerZoneOverlay,
+  dangerEdges,
+  dangerTier,
+  hatchSegments,
+} from '../src/ui/DangerZoneOverlay.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 
 const enemy = (extra = {}) => ({
@@ -125,53 +130,91 @@ describe('distinct damage-source counts', () => {
 });
 
 function overlayFixture(options) {
-  const rectangles = [];
-  const scene = {
-    add: {
-      rectangle: vi.fn((...args) => {
-        const rect = {
-          args,
-          setDepth: vi.fn().mockReturnThis(),
-          setStrokeStyle: vi.fn().mockReturnThis(),
-          destroy: vi.fn(),
-        };
-        rectangles.push(rect);
-        return rect;
+  const layers = [];
+  const makeGraphics = () => {
+    const g = {
+      calls: [],
+      setDepth: vi.fn(function (d) {
+        g.depth = d;
+        return g;
       }),
-    },
+      fillStyle: vi.fn((c, a) => g.calls.push(['fillStyle', c, a])),
+      fillRect: vi.fn((...a) => g.calls.push(['fillRect', ...a])),
+      lineStyle: vi.fn((w, c, a) => g.calls.push(['lineStyle', w, c, a])),
+      lineBetween: vi.fn((...a) => g.calls.push(['line', ...a])),
+      strokeRect: vi.fn((...a) => g.calls.push(['strokeRect', ...a])),
+      clear: vi.fn(() => (g.calls = [])),
+      destroy: vi.fn(),
+    };
+    layers.push(g);
+    return g;
   };
-  const grid = { gridToPixel: (col, row) => ({ x: col * 32, y: row * 32 }) };
-  return { overlay: new DangerZoneOverlay(scene, grid, options), rectangles };
+  const scene = { add: { graphics: vi.fn(makeGraphics) } };
+  const grid = { gridToPixel: (col, row) => ({ x: col * 32 + 16, y: row * 32 + 16 }) };
+  return { overlay: new DangerZoneOverlay(scene, grid, options), layers };
 }
 describe('danger rendering', () => {
-  it('steps at 1, 2, and 3+ damage sources without Text or RNG', () => {
-    const { overlay, rectangles } = overlayFixture();
+  it('steps fill alpha and hatch density at 1, 2 and 3+ damage sources without RNG', () => {
+    const { overlay, layers } = overlayFixture();
     overlay.show([1, 2, 3, 5].map((count, col) => ({ col, row: 0, count, damageThreat: true })));
-    expect(rectangles.map((r) => r.args[5])).toEqual([0.18, 0.3, 0.42, 0.42]);
-    expect(rectangles.every((r) => r.args[4] === 0xe8a44a)).toBe(true);
-    for (const r of rectangles) expect(r.setDepth).toHaveBeenCalledWith(4);
+    expect(overlay.tiles.map((t) => t.tier)).toEqual([1, 2, 3, 3]);
+    expect(overlay.tiles.map((t) => t.fillAlpha)).toEqual([0.2, 0.3, 0.4, 0.4]);
+    const [fill, edge] = layers;
+    expect(fill.depth).toBe(4);
+    // Edges draw above move/attack ranges (depth 5).
+    expect(edge.depth).toBeGreaterThan(5);
+    expect(fill.calls.filter((c) => c[0] === 'fillStyle').every((c) => c[1] === 0xc8322c)).toBe(
+      true,
+    );
+    // Denser hatch at 2, cross-hatch (both diagonals) at 3+.
+    const perTile = (col) => hatchSegments(col * 32, 0, 32, overlay.tiles[col].tier).length;
+    expect(perTile(1)).toBeGreaterThan(perTile(0));
+    expect(perTile(2)).toBeGreaterThan(perTile(0));
   });
 
-  it('preserves the purple outline with no fill for status-only threat', () => {
-    const { overlay, rectangles } = overlayFixture();
+  it('outlines only the outer boundary of the zone', () => {
+    const edges = dangerEdges([
+      { col: 0, row: 0 },
+      { col: 1, row: 0 },
+    ]);
+    // A 2x1 block has 6 unit edges: top x2, bottom x2, left, right.
+    expect(edges).toHaveLength(6);
+    expect(edges.some((e) => e.x1 === 1 && e.x2 === 1)).toBe(false);
+  });
+
+  it('keeps hatch stripes world-aligned so they continue across neighbouring tiles', () => {
+    const a = hatchSegments(0, 0, 32, 1);
+    const b = hatchSegments(32, 0, 32, 1);
+    const sums = (segs) => new Set(segs.map((s) => Math.round(s.x1 + s.y1) % 8));
+    expect([...sums(a)]).toEqual([0]);
+    expect([...sums(b)]).toEqual([0]);
+  });
+
+  it('preserves the violet outline with no fill for status-only threat', () => {
+    const { overlay, layers } = overlayFixture();
     overlay.show([
       { col: 1, row: 1, count: 0, statusThreat: true, damageThreat: false },
       { col: 2, row: 1, count: 2, statusThreat: true, damageThreat: true },
     ]);
-    expect(rectangles.map((r) => r.args[5])).toEqual([0, 0.3]);
-    for (const r of rectangles) expect(r.setStrokeStyle).toHaveBeenCalledWith(2, 0xb08bd6);
+    expect(overlay.tiles.map((t) => t.fillAlpha)).toEqual([0, 0.3]);
+    expect(dangerTier({ count: 0, statusThreat: true, damageThreat: false })).toBe(0);
+    const strokes = layers[1].calls.filter((c) => c[0] === 'strokeRect');
+    expect(strokes).toHaveLength(2);
   });
 
-  it('supports a pinned color/depth and destroys obsolete rectangles on redraw/hide', () => {
-    const { overlay, rectangles } = overlayFixture({ color: 0xd8342c, depth: 4.5 });
+  it('supports pinned/focus variants and clears on redraw/hide', () => {
+    const { overlay, layers } = overlayFixture({ color: 0xd8342c, depth: 4.5, variant: 'pinned' });
     overlay.show([{ col: 1, row: 1, count: 1 }]);
-    expect(rectangles[0].args[4]).toBe(0xd8342c);
-    expect(rectangles[0].setDepth).toHaveBeenCalledWith(4.5);
+    expect(layers[0].depth).toBe(4.5);
+    expect(layers[0].calls.find((c) => c[0] === 'fillStyle')[1]).toBe(0xd8342c);
+    // Pinned ranges are solid (no hatch lines on the fill layer).
+    expect(layers[0].calls.some((c) => c[0] === 'line')).toBe(false);
     overlay.show([{ col: 2, row: 1, count: 2 }]);
-    expect(rectangles[0].destroy).toHaveBeenCalledOnce();
+    expect(layers[0].clear).toHaveBeenCalled();
     overlay.hide();
-    expect(rectangles[1].destroy).toHaveBeenCalledOnce();
     expect(overlay.visible).toBe(false);
     expect(overlay.tiles).toEqual([]);
+    overlay.destroy();
+    expect(layers[0].destroy).toHaveBeenCalledOnce();
   });
 });

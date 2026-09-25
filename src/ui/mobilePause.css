@@ -84,3 +84,36 @@
 .mp-actions .mp-danger {
   color: var(--re-bad);
 }
+
+/* Landscape phones: two columns so every action (including the exits) is visible
+   without scrolling; Resume leads across the full width. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .mp-panel {
+    width: min(560px, 100%);
+    padding: 12px;
+  }
+  .mp-panel h2 {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+  .mp-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .mp-actions button {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .mp-actions .mp-primary {
+    grid-column: 1 / -1;
+  }
+}
+.mp-note {
+  margin: -4px 0 10px;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.mp-actions .mp-exit {
+  border-color: var(--re-gilt);
+}

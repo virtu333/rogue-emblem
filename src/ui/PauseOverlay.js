@@ -1,7 +1,8 @@
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobilePauseMenu } from './MobilePauseMenu.js';
-// PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run)
+// PauseOverlay — In-game pause menu (Resume / Settings / Save & Exit / Abandon Run,
+// or Start First Run / Leave Tutorial in the practice battle)
 // Follows StatPanel show()/hide() pattern with this.objects[].
 
 import { SettingsOverlay } from './SettingsOverlay.js';
@@ -27,6 +28,7 @@ export class PauseOverlay {
       onSaveAndExitWarning,
       campaignMapData,
       gameData,
+      tutorial,
     },
   ) {
     this.scene = scene;
@@ -37,6 +39,8 @@ export class PauseOverlay {
     this.onAbandonWarning = onAbandonWarning;
     this.campaignMapData = campaignMapData || null;
     this.gameData = gameData || null;
+    // Tutorial exits: { onLeave, onStartRun? } — a practice battle has no run to save.
+    this.tutorial = tutorial?.onLeave ? tutorial : null;
     this.objects = [];
     this.visible = false;
     this.settingsOverlay = null;
@@ -107,6 +111,7 @@ export class PauseOverlay {
     if (this.campaignMapData) buttonCount++;
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
+    if (this.tutorial) buttonCount += this.tutorial.onStartRun ? 2 : 1;
     const panelHeight = 100 + buttonCount * 40;
 
     // Dark background
@@ -191,6 +196,16 @@ export class PauseOverlay {
       btnY += 40;
     }
 
+    // Tutorial: a clear way out (nothing to save), and a direct route into a first run.
+    if (this.tutorial) {
+      if (this.tutorial.onStartRun) {
+        this._addButton(cx, btnY, 'Start First Run', () => this.requestStartRunFromTutorial());
+        btnY += 40;
+      }
+      this._addButton(cx, btnY, 'Leave Tutorial', () => this.requestLeaveTutorial());
+      btnY += 40;
+    }
+
     // Save & Return to Title
     if (this.onSaveAndExit) {
       this._addButton(
@@ -256,6 +271,40 @@ export class PauseOverlay {
 
     this._setupFocus();
     if (hasDOMHost()) this._mobileMenu = new MobilePauseMenu(this);
+  }
+
+  /** Confirm leaving the practice battle for the title (Cancel stays the default). */
+  requestLeaveTutorial() {
+    if (!this.tutorial || !this.visible) return false;
+    this._showConfirm(
+      'Leave the tutorial?\nNothing from this practice battle is kept.\nReplay it any time from the title.',
+      () => {
+        this.hideForTransition();
+        Promise.resolve()
+          .then(() => this.tutorial.onLeave())
+          .catch((err) => console.error('[PauseOverlay] tutorial leave rejected:', err));
+      },
+      UI_PALETTE.text,
+      'Leave tutorial',
+    );
+    return true;
+  }
+
+  /** Confirm skipping the rest of the tutorial straight into a first run. */
+  requestStartRunFromTutorial() {
+    if (!this.tutorial?.onStartRun || !this.visible) return false;
+    this._showConfirm(
+      'Start your first run now?\nThe practice battle ends. Your run begins on Normal\nin a new save slot.',
+      () => {
+        this.hideForTransition();
+        Promise.resolve()
+          .then(() => this.tutorial.onStartRun())
+          .catch((err) => console.error('[PauseOverlay] tutorial start-run rejected:', err));
+      },
+      UI_PALETTE.accent,
+      'Start run',
+    );
+    return true;
   }
 
   // Build the focus ring over the menu buttons and claim the input-focus stack so

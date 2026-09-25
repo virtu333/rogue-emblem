@@ -116,6 +116,7 @@ export function getSlotSummary(slot) {
   }
   const summary = {
     slot,
+    milestones: Array.isArray(meta.milestones) ? meta.milestones.slice() : [],
     valor: meta.totalValor ?? meta.totalRenown ?? 0,
     supply: meta.totalSupply ?? meta.totalRenown ?? 0,
     runsCompleted: meta.runsCompleted || 0,
@@ -140,10 +141,35 @@ export function getSlotSummary(slot) {
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
       summary.savedAt = Number.isFinite(run.savedAt) ? run.savedAt : null;
+      const node = run.nodeMap?.nodes?.find((entry) => entry.id === run.currentNodeId);
       summary.rosterNames = (run.roster || []).slice(0, 3).map((unit) => unit.name);
+      // Presentation extras for the save screen (read-only; never written back).
+      const roster = Array.isArray(run.roster) ? run.roster : [];
+      summary.rosterSize = roster.length;
+      summary.roster = roster.slice(0, 4).map((unit) => ({
+        name: unit?.name || '',
+        className: unit?.className || '',
+        isLord: Boolean(unit?.isLord),
+        tier: unit?.tier || 'base',
+        isCommander: Boolean(unit?.isCommander),
+      }));
+      summary.actId = Array.isArray(run.actSequence) ? run.actSequence[run.actIndex || 0] : null;
+      summary.actCount = Array.isArray(run.actSequence) ? run.actSequence.length : null;
+      summary.difficultyId = typeof run.difficultyId === 'string' ? run.difficultyId : null;
+      summary.nodeType = node?.type || null;
+      summary.stage = node && Number.isFinite(node.row) ? node.row + 1 : null;
+      const bip = run.battleInProgress;
+      const battleNodeId = bip?.nodeId || run.currentNodeId;
+      const templateId =
+        bip?.checkpoint?.battleConfig?.templateId ||
+        bip?.battleParams?.templateId ||
+        run.battleConfigsByNodeId?.[battleNodeId]?.templateId ||
+        node?.templateId ||
+        node?.battleParams?.templateId;
+      summary.templateId = typeof templateId === 'string' ? templateId : null;
+      summary.battleIsBoss = bip?.isBoss === true || node?.type === 'boss';
       summary.battleSuspended = Boolean(run.battleInProgress?.checkpoint);
       summary.completedBattles = run.completedBattles || 0;
-      const node = run.nodeMap?.nodes?.find((entry) => entry.id === run.currentNodeId);
       summary.location = node
         ? `${node.type} node${Number.isFinite(node.row) ? ` · stage ${node.row + 1}` : ''}`
         : 'Act start';

@@ -78,7 +78,8 @@ describe('RunManager', () => {
         const extra = rmMeta.roster[2];
         // Archer recruit gets: base bow + Longbow (recruit perk) + Lethal Armory weapon = 3
         expect(extra.inventory.length).toBe(3);
-        expect(extra.weapon).toBe(extra.inventory[extra.inventory.length - 1]);
+        // The granted weapon is equipped, so it moves to the top (equipped-first).
+        expect(extra.weapon).toBe(extra.inventory[0]);
         expect(extra.weapon.type).toBe('Bow');
       } finally {
         randomSpy.mockRestore();

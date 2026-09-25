@@ -219,6 +219,60 @@ Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-va
 
 ---
 
+## 2026-09-25 — Attack flow: target first, weapon second; equipped weapon always first
+
+From iPhone playtesting: picking a weapon before a target made every attack a two-menu
+detour, and the forecast arrows (#8) were the part players actually used. Decisions:
+
+- **Attack is target-first.** Highlight the range union over every usable weapon; the
+  forecast opens on the equipped weapon (else the first in inventory order that can hit)
+  and switches weapons and targets in place with live numbers. Each new target starts from
+  the equipped weapon (FE convention). Cancel → same target; Back → action menu. After
+  moving, tapping an enemy in reach opens its forecast directly.
+- **Forecast weapon changes are previews**; only confirming equips. The bag never moves
+  while cycling (stable list), Cancel restores weapon and exact order.
+- **Weapon arts stay their own action** (bound to one weapon); **staves stay
+  staff-then-target** when several are usable (ranges/targets/effects differ per staff)
+  and staff use no longer counts as an equipment change.
+- **Equipped weapon is always inventory slot 1** (FE). Normalized on load at run level
+  (legacy saves read right immediately; deterministic, idempotent, RNG-free); battle
+  checkpoints/rewind snapshots restore exactly (index-based state, exact-resume promise).
+  Weapon-art selections carry the weapon uid to survive the reorder. Enemy AI bags are
+  not reordered (AI determinism); every view displays equipped-first with an E mark.
+- Found the #23/#35 projection gap: descriptive weapon specials and static accessories
+  (Lightning, Soothing Stone) hid the HP/KO line. Now only HP-changing effects do.
+
+Spec: `specs/attack-flow.md`. Screens: `art-direction/ux-polish/attack-flow/`.
+
+---
+
+## 2026-09-25 — UX polish pass from the iPhone landscape playtest
+
+Phone playtest at ~844×390 surfaced six sore spots; all addressed, plus a mobile audit.
+**Spec:** `specs/ux-polish-2026-09-25.md`; captures in `art-direction/ux-polish/`.
+
+Decisions worth remembering:
+- **The tutorial teaches by doing.** A persistent, non-modal coach states one goal at a time
+  and always offers Leave; blocking notes are reserved for real lessons (terrain, forecast,
+  resources). A fresh player can jump from the tutorial straight into a first run.
+- **Explain, don't label.** "About …" buttons became a compact ⓘ plus press-and-hold on the
+  card itself, with a hover preview on desktop; the gesture is taught once.
+- **Danger must win against every grade and ground.** Fill + bright edge + hatch, stepping
+  with the number of threats; its toggle is docked and never scrolls away.
+- **Scrolling in the rail is a necessary evil — make it graceful.** One bounded region,
+  fades and a "more ▾/▴" cue, primary action first, fixed controls outside the scroller.
+- **Boss presence belongs on the boss.** World-space bar on the unit; words live off-map.
+- **One rule for every band card.** Bands span the battlefield; busts break out above the
+  band, sized by a shared cap; kickers never ellipsize; spoken lines read in full.
+- **Save select is a ceremony, not a form.** Candle shrine over the Hollow Sun: who, where,
+  how far, one action. An empty slot is an unlit candle that begins a run.
+
+Deferred (audit residuals): Loom node card text can run past its panel at 844×390; the
+"Tap to continue" hint on band cards sits a few px into the sidebar gutter; dev-route
+"Save failed" toasts on NodeMap (no active slot) obscure captures.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
