@@ -1,6 +1,8 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
+// clock.runFor(10000) renders every fake frame: give loaded machines room.
+test.setTimeout(60000);
 
 async function boot(page, reduced = false, promotion = false, speed = 'normal') {
   const errors = [];

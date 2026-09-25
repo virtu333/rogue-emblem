@@ -110,7 +110,7 @@ async function nodemap(page) {
 const shot = (page, name) => page.screenshot({ path: `${outDir}/${name}-${tag}.png` });
 
 // Promotion via the battle Master Seal, frozen at points of the rite.
-async function sealRite(page, { unitIndex = 1, prefix = 'rite', frames = [] } = {}) {
+async function sealRite(page, { unitIndex = 1 } = {}) {
   await battle(page);
   await page.evaluate((unitIndex) => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -296,7 +296,7 @@ const flows = {
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const arrivals = s.enemyUnits.slice(0, 2);
-      let presenter = null;
+      let presenter;
       try {
         const { ReinforcementPresenter } = await import('/src/ui/ReinforcementPresenter.js');
         presenter = s._reinforcements ||= new ReinforcementPresenter(s);

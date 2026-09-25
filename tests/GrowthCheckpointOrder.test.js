@@ -46,12 +46,11 @@ function eventsFor() {
   };
 }
 
-let dom;
 let riteSpy;
 let seen;
 beforeEach(() => {
   vi.useFakeTimers();
-  dom = installFakeDom(vi);
+  installFakeDom(vi);
   _resetInputFocus();
   seen = [];
   riteSpy = vi

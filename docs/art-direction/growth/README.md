@@ -16,6 +16,11 @@ reads or consumes the battle RNG.
 | Level-up | ![](before/levelup-844x390.webp) | ![](after/levelup-normal-844x390.webp) |
 | Boss recruit | ![](before/boss-recruit-844x390.webp) | ![](after/recruit-boss-844x390.webp) |
 
+Desktop (1280×800): [rite](after/rite-5-end-1280x800.webp) ·
+[chooser](after/chooser-battle-1280x800.webp) · [church rite](after/church-rite-end-1280x800.webp) ·
+[level-up](after/levelup-perfect-1280x800.webp) · [recruit](after/recruit-boss-1280x800.webp) ·
+before: [promotion](before/seal-popup-1280x800.webp), [level-up](before/levelup-1280x800.webp).
+
 Captures are 844×390 at DPR 3 (iPhone landscape, `?mobilePreview=1`) and 1280×800
 desktop (`*-1280x800.webp`), made with `tools/art/captureGrowth.mjs` against the dev
 server. Before captures are the branch head this work started from.
@@ -264,3 +269,14 @@ and hires got their ceremonies (above).
 
 New depth token `DOM_UI_DEPTHS.RITE` (1300): the rite plays over the church or roster
 menu that confirmed it.
+
+## Verification
+
+- Unit: `ClassCrests`, `GrowthContent`, `GrowthCeremonyController`, `GrowthSprites`,
+  `GrowthCheckpointOrder`, `BattleNoticesAudit` (crest mapping against the data, projection
+  without RNG, two-stage dismissal, Instant / reduced motion / effects quality, input
+  release and scene-shutdown cleanup, checkpoint order for every path).
+- E2E `tests/e2e/growth-ceremonies.spec.js`: battle seal with the path chooser, roster
+  seal, church, refresh mid-rite (battle and church), level-up through a real kill at
+  normal / fast / instant. `progression-reveal` and `service-audit` follow the new card
+  and rite; `reload-contracts` ("refresh during promotion popup") now exercises the rite.
