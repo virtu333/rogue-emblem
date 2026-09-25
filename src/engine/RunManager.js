@@ -2,7 +2,7 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
-import { migrateCleverTrait, rollAndApplyLordTrait } from './TraitSystem.js';
+import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -2445,6 +2445,7 @@ export class RunManager {
         traitsData: this.gameData?.traits || null,
         skillsData: this.gameData?.skills,
         rng: Math.random,
+        traitClassData: hasRecruitTemplate ? null : classData,
       },
     );
     if (!hasRecruitTemplate) {
@@ -3798,8 +3799,8 @@ export class RunManager {
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
 
-    rm.roster = rm.roster.map((u) => migrateCleverTrait({ ...u }));
-    rm.fallenUnits = rm.fallenUnits.map((u) => migrateCleverTrait({ ...u }));
+    rm.roster = rm.roster.map((u) => migrateUnitTraits({ ...u }));
+    rm.fallenUnits = rm.fallenUnits.map((u) => migrateUnitTraits({ ...u }));
 
     // --- lord presence validation (only for non-empty rosters) ---
     if (rm.roster.length > 0) {
