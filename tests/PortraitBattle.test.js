@@ -161,6 +161,7 @@ describe('PortraitBattleController', () => {
       sys: { settings: { key: 'Battle' } },
       scene: { restart: vi.fn() },
       isStoryInputLocked: () => false,
+      _battleRewindPolicy: 'fixed-v1',
       _battleSuspendController: {
         captureCheckpoint: vi.fn(() => {
           rm.battleInProgress.checkpoint = { checkpointIndex: 4 };
@@ -264,6 +265,38 @@ describe('PortraitBattleController', () => {
     expect(c.check()).toBe(false);
     expect(c.locked).toBe(true);
     expect(scene.scene.restart).not.toHaveBeenCalled();
+  });
+
+  it('keeps playing when the save advances in memory but cannot be written', () => {
+    viewport(390, 844);
+    const scene = fakeScene();
+    const rm = scene.runManager;
+    // captureCheckpoint sets the in-memory checkpoint before persisting, then
+    // reports the failed write (quota, private mode) by returning false.
+    scene._battleSuspendController.captureCheckpoint = vi.fn(() => {
+      rm.battleInProgress.checkpoint = { checkpointIndex: 4 };
+      return false;
+    });
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(false);
+    expect(c.locked).toBe(true);
+    expect(c.switching).toBe(false);
+    expect(scene.scene.restart).not.toHaveBeenCalled();
+    // Locked: later frames do not retry the write.
+    c.update();
+    expect(scene._battleSuspendController.captureCheckpoint).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the board of a battle begun under the legacy reseed-per-save policy', () => {
+    viewport(390, 844);
+    const scene = fakeScene();
+    scene._battleRewindPolicy = 'legacy-v1';
+    const c = controller(scene);
+    viewport(844, 390);
+    expect(c.check()).toBe(false);
+    expect(c.locked).toBe(true);
+    expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
   });
 
   it('turns an upright board back when portrait battles are switched off', () => {

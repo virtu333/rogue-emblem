@@ -21,6 +21,42 @@ async function bootBattle(page, query = '&portrait=1') {
       ?.emit('pointerdown');
   });
   await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await attachSlot(page);
+}
+
+// An orientation switch re-opens only from a save that reached storage, so the battle
+// needs a real slot (the dev route has none). This test profile is isolated.
+async function attachSlot(page) {
+  await page.evaluate(async () => {
+    const game = window.__emblemRogueGame;
+    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+    const meta = game.registry.get('meta');
+    meta.storageKey = getMetaKey(1);
+    meta._save();
+    game.registry.set('activeSlot', 1);
+    setActiveSlot(1);
+  });
+}
+
+// The battle checkpoint as written to the slot's run save.
+function savedCheckpoint(page) {
+  return page.evaluate(async () => {
+    const { getRunKey } = await import('/src/engine/SlotManager.js');
+    const run = JSON.parse(localStorage.getItem(getRunKey(1)) || 'null');
+    const checkpoint = run?.battleInProgress?.checkpoint;
+    return checkpoint
+      ? {
+          rng: checkpoint.rngState,
+          units: [...checkpoint.playerUnits, ...checkpoint.enemyUnits].map((u) => [
+            u.name,
+            u.col,
+            u.row,
+            u.currentHP,
+            Boolean(u.hasActed),
+          ]),
+        }
+      : null;
+  });
 }
 
 // CSS point at the center of a grid tile, through the live camera and canvas scale.
@@ -146,6 +182,8 @@ test('turning the phone re-opens the battle exactly as it stood', async ({ page 
   const landscape = await battleSnapshot(page);
   expect(landscape.units).toEqual(before.units);
   expect(landscape.rng).toEqual(before.rng);
+  // The switch re-opened from a durable save: a refresh restores the same battle.
+  expect(await savedCheckpoint(page)).toEqual({ rng: before.rng, units: before.units });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe('ccw');
@@ -180,4 +218,131 @@ test('without the opt-in an upright phone still asks for landscape', async ({ pa
     prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
   }));
   expect(info).toEqual({ rotation: 'none', prompt: 'flex' });
+});
+
+// Full domain state of the battle (units with equipment and conditions, fog knowledge,
+// RNG, convoy, gold, Vision charges) through the production checkpoint adapter.
+function domainState(page) {
+  return page.evaluate(async () => {
+    const { captureBattleState } = await import('/src/ui/BattleCheckpointAdapter.js');
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const state = captureBattleState(b);
+    if (state.fog) {
+      state.fog.visible.sort();
+      state.fog.everSeen.sort();
+    }
+    delete state.checkpointIndex; // counts saves, including the orientation switches
+    return {
+      state,
+      turn: b.turnManager?.turnNumber,
+      visionCharges: b.runManager?.visionChargesRemaining ?? null,
+    };
+  });
+}
+
+// Ends the player turn through the rail and waits for the next player turn,
+// dismissing level-up popups the enemy phase raises.
+async function endTurn(page) {
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  const turn = await page.evaluate(
+    () => window.__emblemRogueGame.scene.getScene('Battle').turnManager.turnNumber,
+  );
+  await hud.getByRole('button', { name: /^End turn/ }).tap();
+  const confirm = hud.getByRole('button', { name: 'End turn now', exact: true });
+  if (await confirm.isVisible().catch(() => false)) await confirm.tap();
+  for (let i = 0; i < 240; i++) {
+    const done = await page.evaluate((t) => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return b.turnManager.turnNumber > t && b.battleState === 'PLAYER_IDLE';
+    }, turn);
+    if (done) return;
+    const next = page.getByRole('button', { name: /^(Continue|Reveal gains)$/ }).first();
+    if (await next.isVisible().catch(() => false)) await next.tap();
+    await page.waitForTimeout(250);
+  }
+  throw new Error('the next player turn never began');
+}
+
+async function turnPhone(page, size, rotation) {
+  await page.setViewportSize(size);
+  await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe(rotation);
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+}
+
+// Title -> Save Slots -> Slot 1 -> Resume Battle: the shipping recovery path.
+async function resumeBattle(page) {
+  await page.goto('/');
+  await waitForScene(page, 'Title');
+  await page.waitForTimeout(1300); // boot-to-title router cooldown
+  await page.getByRole('button', { name: /^Save Slots/ }).tap();
+  await waitForScene(page, 'SlotPicker');
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
+  await page.getByRole('button', { name: 'Resume Battle', exact: true }).tap();
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+}
+
+test('turning the phone mid-battle does not change how the battle plays out', async ({ page }) => {
+  test.setTimeout(300_000);
+  const landscape = { width: 844, height: 390 };
+  const upright = { width: 390, height: 844 };
+  await bootBattle(page);
+  // Bring an enemy next to the army so the first enemy phase fights, then save.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits[0];
+    const enemy = s.enemyUnits[0];
+    const tile = [
+      [u.col + 1, u.row],
+      [u.col - 1, u.row],
+      [u.col, u.row + 1],
+      [u.col, u.row - 1],
+    ].find(
+      ([c, r]) => c >= 0 && r >= 0 && c < s.grid.cols && r < s.grid.rows && !s.getUnitAt(c, r),
+    );
+    [enemy.col, enemy.row] = tile;
+    s.grid.setTerrainAt(enemy.col, enemy.row, 0);
+    s.updateUnitPosition(enemy);
+    // First-use tips are per-save UI state; keep them out of the runs being compared.
+    s.registry.get('settings').setHints(false);
+    if (!s._captureSuspendCheckpoint()) throw new Error('setup save failed');
+  });
+  const saved = await page.evaluate(() => JSON.stringify(Object.entries(localStorage)));
+  const restore = async () => {
+    // Leave the game first so nothing it saves on exit overwrites the fixture.
+    await page.goto('/data/terrain.json');
+    await page.evaluate((entries) => {
+      localStorage.clear();
+      for (const [key, value] of JSON.parse(entries)) localStorage.setItem(key, value);
+    }, saved);
+  };
+
+  // Both runs resume the same save in landscape and play the same turns; one first
+  // turns the phone upright and back (two presentation switches).
+  await page.setViewportSize(landscape);
+  const play = async (turnPhoneFirst) => {
+    await restore();
+    await resumeBattle(page);
+    const resumed = await domainState(page);
+    if (turnPhoneFirst) {
+      await turnPhone(page, upright, 'ccw');
+      await turnPhone(page, landscape, 'none');
+    }
+    const states = [await domainState(page)];
+    for (let i = 0; i < 3; i++) {
+      await endTurn(page);
+      states.push(await domainState(page));
+    }
+    return { resumed, states };
+  };
+  const control = await play(false);
+  const turned = await play(true);
+
+  // The enemy phase resolved real attacks with rolls: the comparison is not vacuous.
+  const hp = (s) => [...s.state.playerUnits, ...s.state.enemyUnits].map((u) => u.currentHP);
+  expect(hp(control.states.at(-1))).not.toEqual(hp(control.states[0]));
+  expect(turned.resumed).toEqual(control.resumed);
+  for (let i = 0; i < control.states.length; i++)
+    expect(turned.states[i], `after ${i} enemy phases`).toEqual(control.states[i]);
 });

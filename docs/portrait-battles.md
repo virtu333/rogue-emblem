@@ -16,6 +16,7 @@
 - **Layout:** the map fills the top; the command rail is a fixed-height band at the bottom (status and objective, then commands, then Danger, Overview, Recenter, Back and Menu along the bottom edge). The rail never changes height, so the map never resizes under a finger.
 - **Forecast** is a bottom sheet: Cancel / Confirm sit under the thumb, and the top of the map (where targets usually are) stays visible. The weapon ◀ ▶ stepper puts the weapon name on its own line.
 - **Rotation mid-battle** never re-lays out a live battle. At the player's next clean idle boundary the controller saves the battle as it stands (same RNG position, no reseed) and re-opens it through the existing Resume battle path in the other orientation. A refresh restores exactly the same thing. While a switch waits (a unit mid-action, enemy phase), the layout already follows the phone and a short note says the board will turn.
+- **When the board keeps its orientation instead.** The switch re-opens only from a save that reached storage (`captureCheckpoint` returns true); it never trusts the in-memory checkpoint alone, which `captureCheckpoint` updates before writing. If the write fails (storage full, private mode), or the battle has no run save to re-open from (tutorial, `?devScene=` routes without a slot), or the battle began under the legacy `legacy-v1` rewind policy (which reseeds by save count, so an extra save would change later outcomes), the board stays as it is for the rest of that battle and a note says so. The layout still follows the phone.
 
 Rules are untouched: the rotation is Grid presentation only. Movement, combat, AI, saves, seeds and checkpoints stay in game coordinates.
 
@@ -36,7 +37,7 @@ Other presentation sites made rotation-aware: danger-zone outline, light layer, 
 ## Limits of the prototype
 
 - **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. Unlocking them is a release step.
-- **Tutorial battles** have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
+- **Tutorial battles** and slotless dev routes have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
 - **Battle history / timeline replays** draw the board unrotated.
 - **Tutorial copy** that names screen directions was written for landscape.
 - Switching orientation restarts the battle music track.
@@ -46,4 +47,8 @@ Other presentation sites made rotation-aware: danger-zone outline, light layer, 
 
 - `tests/BoardOrientation.test.js`: transform round trips, adjacency, arrow mapping, tap hit-testing on every tile of a rotated grid, and movement ranges unchanged.
 - `tests/PortraitBattle.test.js`: preference and link, canvas sizing, UI band, and the switch gate (safe point, overlays, tutorial lock, failed capture, preference off, battle end).
-- `tests/e2e/portrait-battle.spec.js`: real touch select and move on the turned board, commands in view, rotation round trip with identical units and RNG, a deferred switch, and the rotate prompt without the opt-in.
+- `tests/e2e/portrait-battle.spec.js` (runs in CI via `npm run test:ux-contracts`):
+  - real touch select and move on the turned board, commands in view;
+  - rotation round trip with identical units and RNG, and the switch's save written to the slot;
+  - a deferred switch, and the rotate prompt without the opt-in;
+  - **presentation invariance:** one saved battle is resumed twice through Title → Save Slots → Resume Battle; one run turns the phone upright and back, both then play the same enemy phases (with real attacks). The full domain state (`captureBattleState`: units, equipment, conditions, fog, RNG, convoy, gold) and Vision charges must match after every phase. A switch that consumes one gameplay random draw fails this test and the round trip.

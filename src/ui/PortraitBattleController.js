@@ -147,7 +147,14 @@ export class PortraitBattleController {
   switchState() {
     const s = this.scene;
     return {
-      hasRunCheckpoint: Boolean(s.runManager?.battleInProgress && !s.battleParams?.tutorialMode),
+      // Only fixed-v1 battles keep one RNG stream across saves. A battle begun under
+      // the legacy policy reseeds by save count, so an extra save would change later
+      // outcomes: it keeps its board.
+      hasRunCheckpoint: Boolean(
+        s.runManager?.battleInProgress &&
+        !s.battleParams?.tutorialMode &&
+        s._battleRewindPolicy === 'fixed-v1',
+      ),
       boundary: classifyBattleBoundary(s),
       phase: s.turnManager?.currentPhase,
       battleState: s.battleState,
@@ -205,12 +212,16 @@ export class PortraitBattleController {
     const rm = s.runManager;
     const before = Number(rm?.battleInProgress?.checkpoint?.checkpointIndex) || 0;
     // Save exactly the state on screen: the RNG stream is kept, not reseeded.
+    // The switch re-opens only from a save that reached storage, so a refresh
+    // during or after it restores the same battle. captureCheckpoint updates
+    // the in-memory checkpoint before writing, so its result, not the index,
+    // says whether the save is durable.
     const suspend = (s._battleSuspendController ||= new BattleSuspendController(s));
-    suspend.captureCheckpoint({ preserveRng: true });
+    const saved = suspend.captureCheckpoint({ preserveRng: true }) === true;
     const bip = rm?.battleInProgress;
     const checkpoint = bip?.checkpoint;
-    if (!checkpoint || (Number(checkpoint.checkpointIndex) || 0) <= before) {
-      // Nothing current to resume from: keep playing on the present board.
+    if (!saved || !checkpoint || (Number(checkpoint.checkpointIndex) || 0) <= before) {
+      // No durable save to re-open from: keep playing on the present board.
       this._lock();
       return false;
     }
