@@ -162,7 +162,6 @@ test('delete asks first; an empty candle begins a new run in that slot', async (
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_2_meta'))).toBeNull();
 
   await page.getByRole('button', { name: 'New run in Slot 3', exact: true }).tap();
-  await expect(page.locator('.sp-card[data-slot="3"]')).toHaveClass(/is-kindling/);
   await waitForScene(page, 'NodeMap');
   expect(
     await page.evaluate(() => ({
@@ -174,7 +173,7 @@ test('delete asks first; an empty candle begins a new run in that slot', async (
   await context.close();
 });
 
-test('reduced motion stills the embers and skips the kindle beat', async ({ browser }) => {
+test('reduced motion stills the embers and the candle flames', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 844, height: 390 } });
   const page = await context.newPage();
   const errors = await openPicker(page, { phone: true, reduceMotion: true });

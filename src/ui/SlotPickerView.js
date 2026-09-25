@@ -4,7 +4,7 @@
 //
 // Presentation only: deterministic (no RNG), tokens only (slotPicker.css), and
 // reduced motion (the in-game setting or the OS) freezes the art and the embers
-// and skips the kindle beat.
+// and the kindle flare (which plays alongside the scene transition, never delaying it).
 
 import { element, button } from './MenuSurface.js';
 import { pc98PortraitElement, portraitFaction } from './portraitArt.js';
@@ -12,8 +12,6 @@ import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
 import { readSlotMilestones, selectTitleVariant } from '../art/keyart/titleVariant.js';
 
 const EMBER_COUNT = 9;
-/** How long the chosen candle flares before the scene moves on. */
-export const KINDLE_MS = 420;
 
 function systemReducedMotion() {
   try {

@@ -4,12 +4,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
 import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { slotCardModel } from './slotCardModel.js';
-import {
-  buildSlotCard,
-  mountSlotPickerArt,
-  slotPickerReducedMotion,
-  KINDLE_MS,
-} from './SlotPickerView.js';
+import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
 export const PAYOUT_PENDING_NOTE =
@@ -88,9 +83,9 @@ export function slotMenu(scene) {
       card.classList.remove('is-kindling');
       menu.root.classList.remove('is-choosing');
     };
-    const go = () => Promise.resolve(scene.selectSlot(slot, summary)).finally(settle);
-    if (reducedMotion()) go();
-    else setTimeout(() => (menu.destroyed ? settle() : go()), KINDLE_MS);
+    // The flare plays while the scene transition runs: selection is never delayed,
+    // so dialogs (suspended battle, cloud choice) open exactly as before.
+    Promise.resolve(scene.selectSlot(slot, summary)).finally(settle);
   };
   menu.render = () => {
     menu.body.replaceChildren();
