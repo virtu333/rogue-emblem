@@ -29,6 +29,62 @@ polish items. Spec: [`specs/playtest-polish.md`](specs/playtest-polish.md); capt
 
 ---
 
+## 2026-09-25 — The game is called Rogue Dawn
+
+Renamed from "Rogue Emblem" (title, manifest) / "Emblem Rogue" (home-screen label, docs) to
+**Rogue Dawn**, to keep clear of the Fire Emblem trademark before the TestFlight build. The
+name pairs with the Hollow Sun motif (an eclipse; the title's post-victory variant is
+`rising`), and "Dawn" is already the game's word for Light magic (`deeds.json`: Light → "the
+Dawn", the Dawn-office liturgy, Dawn's Judgment). Subtitle kept: *Rogue Dawn — The Hollow
+Sun*. One tension to judge by eye, not rewritten here: the default title variant is `dusk`,
+so a first-time player reads "Dawn" over a dusk eclipse.
+
+Player- and distribution-facing names changed: title/auth lockups, `<title>`,
+`apple-mobile-web-app-title`, manifest `name`/`short_name` (description no longer cites Fire
+Emblem), Capacitor `appName`, iOS `CFBundleDisplayName`, How to Play, dev pages. The name now
+lives in `src/utils/gameIdentity.js` (`GAME_TITLE`); `tests/GameIdentity.test.js` holds the
+static surfaces to it and fails if the old name returns to shipped code or data.
+
+Deliberately unchanged (renaming would orphan saves or split the App Store record):
+`emblem_rogue_*` storage keys, `__emblemRogue*` globals, the `@emblem-rogue.local` auth email
+domain, bundle ID `com.davechen.emblemrogue`, the npm package name, the repo, the Netlify site
+and file names (e.g. `docs/emblem_rogue_gdd.docx`). Historical records (earlier log entries,
+dated reviews, generation prompts, mockups, archive paths) keep the name they were written
+under. External follow-ups for the owner: App Store Connect name/subtitle, TestFlight test
+information, Netlify site name/domain, Supabase project display name, GitHub repo name.
+Captures: [`art-direction/rename/`](art-direction/rename/README.md).
+
+---
+
+## 2026-09-25 — Review fixes: rewind item identity (R1), Eclipse act pressure (R2)
+
+From the stability review of PRs #70–78 (both P2).
+
+**R1 — rewind free-change fingerprint is by item identity.** The set-aside detector
+compared items by name/uses and the equipped index; with the equipped weapon always first,
+equipping the other of two equally named forges ("Iron Sword +1" for might vs for hit)
+looked unchanged, so rewinding "before the next unit's action" also undid the equip.
+Items (carried, equipped, consumables, accessory, convoy, accessory pool) are now
+fingerprinted as their full per-instance data (uid + forge/imbue/uses/art bindings;
+legacy uid-less items by content), and `fingerprintChanges` returns
+`{ units, run, changed }` so a run-only change (gold/convoy/accessory pool) is its own
+point too ("Before: Supplies changed"). Spec:
+[`specs/rewind-any-action.md`](specs/rewind-any-action.md).
+
+**R2 — act pressure is separate from the capped global meter** (lead decision). The old
+`shadow - actStartShadow` saturated near the cap: an act opening at 97 could gather at most
+3, below every fall threshold, so nothing could fall and the countdown lied. `actShadow`
+is now its own field: full per-victory gain (uncapped), lowered by Kindle and boss relief
+like the meter, reset at act start; the global `shadow` stays 0–100 and still drives
+phases, levels and affixes. Version-1 saves derive it as `shadow - actStartShadow`. The
+battle HUD and victory band say when the cap stops part of a gain (`Shadow +6 (sun +3)`,
+`Shadow +6 (land only)`); the explainer notes that the land still darkens at Hollow.
+Sims: act-end shadow/phases unchanged for every profile; only runs that reach the cap lose
+more land (Hard B 41 → 48 knots/run, Hard C 37 → 51; Normal C 36.5 → 37.7). Spec:
+[`specs/eclipse.md`](specs/eclipse.md) deviation 11.
+
+---
+
 ## 2026-09-25 — Threat sight, Guidance and Mac font scaling (playtest 2) (built)
 
 A second playtest round: a Three Houses veteran wanted "the little red arc" that shows who
