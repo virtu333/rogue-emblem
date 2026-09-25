@@ -166,6 +166,92 @@ function guidanceScene(overrides = {}) {
   return { scene, hints, settings, sera, edric };
 }
 
+describe('Recruit battle intro (playtest 4: a field note, never a dialog)', () => {
+  const garrick = () => ({
+    name: 'Garrick',
+    className: 'Cavalier',
+    faction: 'npc',
+    col: 6,
+    row: 4,
+    currentHP: 20,
+  });
+
+  it('names the recruit, the banner, the Lord and Talk, and the race', () => {
+    const text = guidanceText('guide_recruit_on_map', { npc: garrick() });
+    expect(text).toBe(
+      'Garrick (Cavalier) under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.',
+    );
+    expect(guidanceText('guide_recruit_on_map', { npc: { name: 'Ada' } })).toMatch(
+      /^Ada under the gold banner can join you\./,
+    );
+    expect(guidanceText('guide_recruit_on_map', {})).toMatch(
+      /^The green unit under the gold banner can join you\./,
+    );
+    // Phone field note: no longer than the first-turn note it replaces on turn 1.
+    const longest = guidanceText('guide_recruit_on_map', {
+      npc: { name: 'Constance', className: 'Light Priestess' }, // longest name + class in data
+    });
+    expect(longest.length).toBeLessThanOrEqual(guidanceText('guide_first_turn', {}).length);
+    expect(GUIDANCE_NOTES.guide_recruit_on_map.tier).toBe('essential');
+  });
+
+  it('shows on Full and Light (ahead of first-turn coaching), never on Off or legacy hints off', () => {
+    const recruit = garrick();
+    const { scene, settings } = guidanceScene({ npcUnits: [recruit] });
+    const g = new GuidanceController(scene);
+    for (const level of ['full', 'light', 'auto']) {
+      settings.getGuidance = () => level;
+      expect(g.pick()).toMatchObject({
+        id: 'guide_recruit_on_map',
+        context: { npc: recruit },
+        anchor: recruit,
+      });
+    }
+    settings.getGuidance = () => 'off';
+    expect(g.level()).toBe('off');
+    expect(g.allows('guide_recruit_on_map')).toBe(false);
+    // Legacy "Contextual helpers: off" (hints:false) is Guidance Off whatever is stored.
+    settings.getGuidance = () => 'full';
+    settings.getHints = () => false;
+    expect(g.level()).toBe('off');
+    expect(g.allows('guide_recruit_on_map')).toBe(false);
+  });
+
+  it('is once per save slot: a later recruit battle opens quietly', () => {
+    const { scene, hints, settings } = guidanceScene({ npcUnits: [garrick()] });
+    const g = new GuidanceController(scene);
+    expect(g.pick()?.id).toBe('guide_recruit_on_map');
+    hints.markSeen('guide_recruit_on_map'); // read (Got it / reading window)
+    const next = new GuidanceController(scene); // the next recruit battle, same slot
+    expect(next.pick()?.id).toBe('guide_first_turn'); // Full: ordinary coaching only
+    settings.getGuidance = () => 'light';
+    expect(next.pick()).toBeNull();
+  });
+
+  it('names a fogged recruit the gold banner marks, but not other hidden green units', () => {
+    const recruit = garrick();
+    const { scene, settings } = guidanceScene({
+      npcUnits: [recruit],
+      grid: { fogEnabled: true, isVisible: () => false },
+    });
+    settings.getGuidance = () => 'light';
+    const g = new GuidanceController(scene);
+    expect(g.pick()).toBeNull(); // hidden and unmarked
+    scene._recruitBeacon = { npc: recruit };
+    expect(g.pick()).toMatchObject({ id: 'guide_recruit_on_map', anchor: recruit });
+  });
+
+  it('stays out of tutorial battles and of an enemy phase', () => {
+    const { scene } = guidanceScene({ npcUnits: [garrick()] });
+    const g = new GuidanceController(scene);
+    scene.turnManager.currentPhase = 'enemy';
+    expect(g.pick()).toBeNull();
+    scene.turnManager.currentPhase = 'player';
+    scene.battleParams.tutorialMode = true;
+    expect(g.level()).toBe('off');
+  });
+});
+
 describe('GuidanceController moments', () => {
   it('opens with the first-turn note on a new save', () => {
     const { scene } = guidanceScene();
