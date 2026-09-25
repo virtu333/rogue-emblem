@@ -333,6 +333,78 @@
   }
 }
 
+/* ── Reward reveal: Hollow Sun card backs turn in order ───────────────── */
+.ia-face-down {
+  position: relative;
+  animation: ia-turn 180ms ease-in-out calc(120ms + var(--ia-i, 0) * 90ms) both;
+}
+.ia-card-back {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 46%,
+      var(--ia-ink-0) 0 15px,
+      var(--ia-gilt-hi) 16px 17px,
+      transparent 18px
+    ),
+    radial-gradient(circle at 50% 46%, var(--ia-glow-gilt), transparent 42px),
+    repeating-linear-gradient(135deg, var(--ia-ink-2) 0 6px, var(--ia-ink-3) 6px 7px),
+    var(--ia-ink-0);
+  box-shadow:
+    inset 0 0 0 1px var(--ia-bronze),
+    inset 0 0 0 4px var(--ia-ink-0),
+    inset 0 0 0 5px var(--re-line);
+  animation: ia-back 180ms linear calc(120ms + var(--ia-i, 0) * 90ms) both;
+}
+@keyframes ia-turn {
+  0% {
+    transform: perspective(700px) rotateY(0deg);
+  }
+  50% {
+    transform: perspective(700px) rotateY(88deg);
+  }
+  100% {
+    transform: perspective(700px) rotateY(0deg);
+  }
+}
+@keyframes ia-back {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.ia-flash {
+  animation: ia-flash 520ms ease-out both;
+}
+@keyframes ia-flash {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--ia-gilt-hi),
+      0 0 26px 6px var(--ia-glow-ember);
+    filter: brightness(1.35);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-face-down,
+  .ia-card-back,
+  .ia-flash {
+    animation: none;
+  }
+  .ia-card-back {
+    display: none;
+  }
+}
+
 /* ── Motes: forge sparks, candle flicker, torch breath ────────────────── */
 .ia-motes {
   position: absolute;
