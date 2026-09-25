@@ -33,9 +33,10 @@ describe('RunManager · Eclipse commit', () => {
   it('starts every run at shadow 0, enabled; tutorial runs are off', () => {
     const rm = freshRun();
     expect(rm.eclipse).toEqual({
-      version: 1,
+      version: 2,
       shadow: 0,
       actStartShadow: 0,
+      actShadow: 0,
       enabled: true,
       kindledNodeIds: [],
     });
@@ -106,7 +107,7 @@ describe('RunManager · Eclipse commit', () => {
 describe('RunManager · the dark takes the map', () => {
   it('lets nodes fall at the victory commit, never the completed or current node', () => {
     const rm = freshRun(99);
-    rm.eclipse = { ...rm.eclipse, shadow: 30, actStartShadow: 0 };
+    rm.eclipse = { ...rm.eclipse, shadow: 30, actStartShadow: 0, actShadow: 30 };
     const node = winNext(rm, { turnCount: 1, turnPar: 9 });
     const fell = rm.lastEclipseCommit.fell;
     expect(fell.length).toBeGreaterThan(0);
@@ -123,7 +124,7 @@ describe('RunManager · the dark takes the map', () => {
     for (const seed of [1, 2, 3, 17, 88]) {
       const rm = freshRun(seed);
       const edges = JSON.stringify(rm.nodeMap.nodes.map((n) => [n.id, n.edges]));
-      rm.eclipse = { ...rm.eclipse, shadow: 100, actStartShadow: 0 };
+      rm.eclipse = { ...rm.eclipse, shadow: 100, actStartShadow: 0, actShadow: 100 };
       rm.applyEclipseNow();
       expect(JSON.stringify(rm.nodeMap.nodes.map((n) => [n.id, n.edges]))).toBe(edges);
       const byId = new Map(rm.nodeMap.nodes.map((n) => [n.id, n]));
@@ -152,6 +153,8 @@ describe('RunManager · the dark takes the map', () => {
     const carried = rm.eclipse.shadow;
     rm.advanceAct();
     expect(rm.eclipse.actStartShadow).toBe(carried);
+    expect(rm.eclipse.shadow).toBe(carried);
+    expect(rm.eclipse.actShadow).toBe(0);
     expect(rm.nodeMap.nodes.some((n) => n.eclipse)).toBe(false);
   });
 
@@ -197,7 +200,7 @@ describe('RunManager · battle params', () => {
 
   it('adds phase levels, affix overrides and eclipsed-node bonuses', () => {
     const rm = freshRun(99);
-    rm.eclipse = { ...rm.eclipse, shadow: 60, actStartShadow: 0 };
+    rm.eclipse = { ...rm.eclipse, shadow: 60, actStartShadow: 0, actShadow: 60 };
     rm.applyEclipseNow();
     const start = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
     const params = rm.getBattleParams(start);
@@ -216,7 +219,13 @@ describe('RunManager · battle params', () => {
 describe('RunManager · save', () => {
   it('round-trips byte-identically', () => {
     const rm = freshRun(31);
-    rm.eclipse = { ...rm.eclipse, shadow: 44, actStartShadow: 20, kindledNodeIds: ['x'] };
+    rm.eclipse = {
+      ...rm.eclipse,
+      shadow: 44,
+      actStartShadow: 20,
+      actShadow: 24,
+      kindledNodeIds: ['x'],
+    };
     rm.applyEclipseNow();
     rm.markEclipseSeen(
       rm.nodeMap.nodes
@@ -242,9 +251,10 @@ describe('RunManager · save', () => {
     const nodes = JSON.stringify(saved.nodeMap);
     const loaded = RunManager.fromJSON(saved, data);
     expect(loaded.eclipse).toEqual({
-      version: 1,
+      version: 2,
       shadow: 0,
       actStartShadow: 0,
+      actShadow: 0,
       enabled: true,
       kindledNodeIds: [],
     });
@@ -256,15 +266,23 @@ describe('RunManager · save', () => {
     const target = rm.nodeMap.nodes.find((n) => n.col === 0 && n.type !== 'ruins');
     rm.battleInProgress = { nodeId: target.id, checkpoint: { version: 2 } };
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
-    saved.eclipse = { ...saved.eclipse, shadow: 100, actStartShadow: 0 };
+    // A version-1 save (no act pressure field): it is derived as shadow - actStartShadow.
+    saved.eclipse = {
+      version: 1,
+      shadow: 100,
+      actStartShadow: 0,
+      enabled: true,
+      kindledNodeIds: [],
+    };
     const loaded = RunManager.fromJSON(saved, data);
+    expect(loaded.eclipse.actShadow).toBe(100);
     expect(loaded.nodeMap.nodes.find((n) => n.id === target.id).eclipse).toBeUndefined();
     expect(loaded.nodeMap.nodes.some((n) => n.eclipse)).toBe(true);
   });
 
   it('marks falls seen once', () => {
     const rm = freshRun(34);
-    rm.eclipse = { ...rm.eclipse, shadow: 20 };
+    rm.eclipse = { ...rm.eclipse, shadow: 20, actShadow: 20 };
     rm.applyEclipseNow();
     const ids = rm.nodeMap.nodes.filter((n) => n.eclipse).map((n) => n.id);
     expect(ids.length).toBeGreaterThan(0);
@@ -312,17 +330,20 @@ describe('church Kindle', () => {
   it('costs the act price, lifts shadow once per chapel and floors at 0', () => {
     const rm = freshRun();
     rm.gold = 5000;
-    rm.eclipse = { ...rm.eclipse, shadow: 12 };
+    rm.eclipse = { ...rm.eclipse, shadow: 12, actShadow: 10 };
     const price = data.eclipse.kindlePrice.act1;
     const res = kindleAtChurch(rm, 'act1_3_1');
     expect(res.ok).toBe(true);
     expect(res.message).toMatch(/Shadow −8/);
     expect(rm.gold).toBe(5000 - price);
     expect(rm.eclipse.shadow).toBe(4);
+    // Kindle lowers both the sun and this act's pressure.
+    expect(rm.eclipse.actShadow).toBe(2);
     expect(churchKindleBlock(rm, 'act1_3_1')).toMatch(/Already kindled/);
     const again = kindleAtChurch(rm, 'act1_4_1');
     expect(again.ok).toBe(true);
     expect(rm.eclipse.shadow).toBe(0);
+    expect(rm.eclipse.actShadow).toBe(0);
     expect(churchKindleBlock(rm, 'act1_5_1')).toMatch(/clear/);
   });
 
@@ -333,5 +354,144 @@ describe('church Kindle', () => {
     expect(kindleAtChurch(rm, 'act1_3_1')).toMatchObject({ ok: false });
     expect(rm.gold).toBe(10);
     expect(rm.eclipse.shadow).toBe(12);
+  });
+});
+
+// Review R2: act pressure is its own field, uncapped by the global meter, so an act
+// that opens near the cap still loses land to slow play.
+describe('act pressure vs the global cap (review R2)', () => {
+  /** Seed 42 on Normal, walked (fast clears) to Act III, whose map has an outer-lane
+   *  shop (act3_6_0) with fall threshold 8. */
+  function act3Seed42() {
+    const rm = freshRun(42);
+    for (let act = 0; act < 2; act++) {
+      bossPathTo(rm);
+      rm.advanceAct();
+    }
+    expect(rm.currentAct).toBe('act3');
+    const shop = rm.nodeMap.nodes.find((n) => n.id === 'act3_6_0');
+    expect(shop).toMatchObject({ type: 'shop', col: 0 });
+    return { rm, shop };
+  }
+  const slow = { turnCount: 30, turnPar: 5 }; // maxGainPerBattle (6)
+  const pickBattle = (nodes) => nodes.find((n) => n.type === 'battle') || nodes[0];
+
+  it('the review reproduction: shadow 100 / act start 97 — the shop now falls to slow victories', () => {
+    const { rm, shop } = act3Seed42();
+    // The reviewed save: a version-1 state (act pressure derived: 100 - 97 = 3).
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    saved.eclipse = {
+      version: 1,
+      shadow: 100,
+      actStartShadow: 97,
+      enabled: true,
+      kindledNodeIds: [],
+    };
+    const loaded = RunManager.fromJSON(saved, data);
+    expect(loaded.eclipse).toMatchObject({ shadow: 100, actShadow: 3 });
+    const view = loaded.getEclipseView();
+    expect(view.actShadow).toBe(3);
+    expect(view.atCap).toBe(true);
+    expect(view.nodes.get(shop.id)).toMatchObject({ threshold: 8, remaining: 5 });
+    expect(loaded.nodeMap.nodes.some((n) => n.eclipse)).toBe(false);
+    // One slow victory: the sun stays at the cap, the act gathers the full gain.
+    winNext(loaded, slow, pickBattle);
+    expect(loaded.eclipse.shadow).toBe(100);
+    expect(loaded.eclipse.actShadow).toBe(9);
+    expect(loaded.lastEclipseCommit).toMatchObject({ gain: 6, meterGain: 0, actAfter: 9 });
+    const fell = loaded.nodeMap.nodes.find((n) => n.id === shop.id);
+    expect(fell.type).toBe('battle');
+    expect(fell.eclipse).toMatchObject({ fromType: 'shop', fellAtShadow: 100 });
+    expect(loaded.lastEclipseCommit.fell).toContain(shop.id);
+  });
+
+  it('a new act opening at 97 (cap minus boss relief) keeps losing land to slow play', () => {
+    const rm = freshRun(42);
+    bossPathTo(rm);
+    rm.advanceAct();
+    // Act II ends at the cap; the boss's flare leaves 97 for Act III.
+    rm.eclipse = { ...rm.eclipse, shadow: 100, actShadow: 40 };
+    bossPathTo(rm);
+    expect(rm.eclipse.shadow).toBe(100 - data.eclipse.bossRelief);
+    rm.advanceAct();
+    expect(rm.eclipse).toMatchObject({ shadow: 97, actStartShadow: 97, actShadow: 0 });
+    expect(rm.getEclipseView().nextFall).not.toBeNull();
+    const falls = [];
+    const pick = (nodes) => nodes.find((n) => n.type === 'battle' && !n.eclipse) || nodes[0];
+    for (let i = 0; i < 3; i++) {
+      winNext(rm, slow, pick);
+      falls.push(...rm.lastEclipseCommit.fell);
+    }
+    expect(rm.eclipse.shadow).toBe(100);
+    expect(rm.eclipse.actShadow).toBe(18);
+    expect(falls.length).toBeGreaterThan(0);
+  });
+
+  it('boundaries at the cap: the meter takes what fits, the act takes it all', () => {
+    const rm = freshRun(7);
+    rm.eclipse = { ...rm.eclipse, shadow: 94, actShadow: 0 };
+    winNext(rm, slow);
+    expect(rm.eclipse).toMatchObject({ shadow: 100, actShadow: 6 });
+    expect(rm.lastEclipseCommit).toMatchObject({ before: 94, after: 100, meterGain: 6 });
+    rm.eclipse = { ...rm.eclipse, shadow: 97, actShadow: 6 };
+    winNext(rm, slow);
+    expect(rm.eclipse).toMatchObject({ shadow: 100, actShadow: 12 });
+    expect(rm.lastEclipseCommit.meterGain).toBe(3);
+    winNext(rm, slow);
+    expect(rm.eclipse).toMatchObject({ shadow: 100, actShadow: 18 });
+    expect(rm.lastEclipseCommit.meterGain).toBe(0);
+    // A held sun adds to neither.
+    winNext(rm, { turnCount: 2, turnPar: 9 });
+    expect(rm.eclipse).toMatchObject({ shadow: 100, actShadow: 18 });
+  });
+
+  it('Kindle lowers both the capped meter and the uncapped act pressure', () => {
+    const rm = freshRun();
+    rm.gold = 5000;
+    rm.eclipse = { ...rm.eclipse, shadow: 100, actStartShadow: 97, actShadow: 21 };
+    const res = rm.kindleSun('act1_3_1');
+    expect(res).toMatchObject({ ok: true, removed: 8, actRemoved: 8, shadow: 92, actShadow: 13 });
+    expect(rm.eclipse).toMatchObject({ shadow: 92, actShadow: 13 });
+    // Act pressure floors at 0 independently.
+    rm.eclipse = { ...rm.eclipse, shadow: 50, actShadow: 3 };
+    expect(rm.kindleSun('act1_4_1')).toMatchObject({ ok: true, removed: 8, actRemoved: 3 });
+    expect(rm.eclipse).toMatchObject({ shadow: 42, actShadow: 0 });
+  });
+
+  it('falls stay deterministic (runSeed + node id), never drawing from Math.random', () => {
+    const play = () => {
+      const { rm } = act3Seed42();
+      rm.eclipse = { ...rm.eclipse, shadow: 97, actStartShadow: 97, actShadow: 0 };
+      const prev = Math.random;
+      let draws = 0;
+      Math.random = () => {
+        draws++;
+        return prev();
+      };
+      try {
+        for (let i = 0; i < 3; i++) winNext(rm, slow, pickBattle);
+      } finally {
+        Math.random = prev;
+      }
+      return { map: JSON.stringify(rm.nodeMap), draws, eclipse: rm.eclipse };
+    };
+    const a = play();
+    const b = play();
+    expect(a.map).toBe(b.map);
+    expect(a.eclipse).toEqual(b.eclipse);
+    expect(a.draws).toBe(0);
+    expect(a.map).toContain('"fromType":"shop"');
+  });
+
+  it('save round trip keeps act pressure beyond the global cap', () => {
+    const rm = freshRun(31);
+    rm.eclipse = { ...rm.eclipse, shadow: 100, actStartShadow: 97, actShadow: 23 };
+    rm.applyEclipseNow();
+    const settled = JSON.stringify(
+      RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data).toJSON(),
+    );
+    const loaded = RunManager.fromJSON(JSON.parse(settled), data);
+    expect(JSON.stringify(loaded.toJSON())).toBe(settled);
+    expect(loaded.eclipse).toEqual(rm.eclipse);
   });
 });

@@ -206,6 +206,7 @@ function createRunPreset(gameData, meta, config) {
       ...runManager.eclipse,
       shadow,
       actStartShadow: Math.max(0, shadow - act),
+      actShadow: Math.max(0, act),
     };
     runManager.applyEclipseNow();
   }

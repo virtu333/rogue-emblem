@@ -153,3 +153,90 @@ for (const vp of VIEWPORTS) {
     expect(errors).toEqual([]);
   });
 }
+
+// Review R2: the global meter stops at the cap, the act's own shadow does not. A
+// Hollow run whose act has gathered 3 shadow still counts down to its next fall, and a
+// slow victory still darkens the land.
+const SHOTS = process.env.ECLIPSE_SHOTS || '';
+for (const vp of VIEWPORTS) {
+  test(`at the cap the land still darkens: Loom and battle HUD (${vp.label})`, async ({ page }) => {
+    const errors = collectErrors(page);
+    const route = await openEclipseRoute(page, vp, '&shadow=100&actShadow=3');
+    const state = await page.evaluate(() => {
+      const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+      const view = rm.getEclipseView();
+      return {
+        shadow: rm.eclipse.shadow,
+        actShadow: rm.eclipse.actShadow,
+        nextFallAnywhere: view.nextFallAnywhere,
+      };
+    });
+    expect(state).toMatchObject({ shadow: 100, actShadow: 3 });
+    // Every threshold is at least 5, so some fall is still ahead and attainable.
+    expect(state.nextFallAnywhere).toBeGreaterThan(0);
+    const medal = route.locator('.re-eclipse-medal');
+    await expect(medal).toHaveAttribute('aria-label', /Hollow, 100 shadow/);
+    await medal.click();
+    const card = page.getByRole('dialog', { name: 'The Eclipse', exact: true });
+    await expect(card).toContainText('100 shadow');
+    await expect(card).toContainText('This act has gathered 3 shadow.');
+    await expect(card).toContainText('The sun can darken no further, but the land still can');
+    await expect(card.locator('.re-eclipse-card-next')).toHaveText(
+      /^(Next fall in \d+ shadow|The land within reach is safe this act\.)$/,
+    );
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/eclipse_card_cap_${vp.label}.png` });
+    await page.keyboard.press('Escape');
+    await expect(card).toHaveCount(0);
+
+    // A slow victory at the cap: the meter holds at 100, the act takes the whole gain.
+    const committed = await page.evaluate(() => {
+      const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
+      const node = rm.getAvailableNodes().find((n) => n.type === 'battle');
+      rm.completeBattle(rm.getRoster(), node.id, 0, { turnCount: 30, turnPar: 5 });
+      return { shadow: rm.eclipse.shadow, actShadow: rm.eclipse.actShadow };
+    });
+    expect(committed).toEqual({ shadow: 100, actShadow: 9 });
+    expect(errors).toEqual([]);
+  });
+
+  test(`battle HUD at the cap shows the land-only gain (${vp.label})`, async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.goto(
+      `/?devScene=battle&preset=eclipse&seed=42&shadow=100&actShadow=3${vp.mobile ? '&mobilePreview=1' : ''}`,
+    );
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+      null,
+      { timeout: 30_000 },
+    );
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      s.turnManager.turnNumber = s.turnPar + 2;
+    });
+    if (vp.mobile) {
+      const hud = page.getByRole('complementary', { name: 'Battle commands' });
+      await expect(hud.locator('.mb-shadow')).toHaveText('Shadow +5 (land only)');
+      await expect(hud.locator('.mb-counters')).toContainText(/Par \d+ · [SABC] \| Rewinds/);
+      // One line, inside the rail.
+      const [shadowBox, railBox] = await Promise.all([
+        hud.locator('.mb-shadow').boundingBox(),
+        hud.boundingBox(),
+      ]);
+      expect(shadowBox.height).toBeLessThan(20);
+      expect(shadowBox.x + shadowBox.width).toBeLessThanOrEqual(railBox.x + railBox.width);
+    } else {
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const t = window.__emblemRogueGame.scene.getScene('Battle').eclipseHudText;
+            return t?.visible ? t.text : null;
+          }),
+        )
+        .toBe('Shadow +5 (land only)');
+    }
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/battle_hud_cap_${vp.label}.png` });
+    expect(errors).toEqual([]);
+  });
+}

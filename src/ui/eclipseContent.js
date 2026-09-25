@@ -6,10 +6,27 @@
 
 import { eclipsePhase } from '../engine/EclipseSystem.js';
 
-/** HUD projection label: "Sun holds" or "Shadow +N". */
-export function shadowProjectionLabel(gain) {
+/**
+ * How much of a gain reaches the sun, when the global meter's cap stops part of it:
+ * '' when all of it does (or unknown), else "(sun +M)" or "(land only)". The act's
+ * pressure always takes the whole gain, so the land keeps darkening at the cap.
+ */
+function meterSuffix(n, meterGain) {
+  if (meterGain == null || !Number.isFinite(Number(meterGain))) return '';
+  const m = Math.max(0, Math.min(n, Math.trunc(Number(meterGain))));
+  if (m >= n) return '';
+  return m > 0 ? ` (sun +${m})` : ' (land only)';
+}
+
+/**
+ * HUD projection label: "Sun holds", "Shadow +N", or — when the sun's meter is at or
+ * near its cap — "Shadow +N (sun +M)" / "Shadow +N (land only)".
+ * @param {number} gain - shadow the act gathers at victory
+ * @param {number|null} [meterGain] - of that, what the global meter gains
+ */
+export function shadowProjectionLabel(gain, meterGain = null) {
   const n = Math.max(0, Math.trunc(Number(gain) || 0));
-  return n > 0 ? `Shadow +${n}` : 'Sun holds';
+  return n > 0 ? `Shadow +${n}${meterSuffix(n, meterGain)}` : 'Sun holds';
 }
 
 /** Projection tone for colour: 'held' (0), 'rising' (1-3) or 'dark' (4+). */
@@ -20,10 +37,10 @@ export function shadowProjectionTone(gain) {
 }
 
 /** Victory band suffix: "Sun held" or "Shadow +N" ('' when the Eclipse is off). */
-export function victoryShadowText(gain) {
+export function victoryShadowText(gain, meterGain = null) {
   if (gain == null || !Number.isFinite(Number(gain))) return '';
   const n = Math.max(0, Math.trunc(Number(gain)));
-  return n > 0 ? `Shadow +${n}` : 'Sun held';
+  return n > 0 ? `Shadow +${n}${meterSuffix(n, meterGain)}` : 'Sun held';
 }
 
 /** "Umbral · 58" style summary for run end and records. */
@@ -89,6 +106,11 @@ export function eclipseExplainer(view, config, { kindlePrice = null } = {}) {
         title: 'The land ahead',
         lines: [
           `This act has gathered ${view.actShadow} shadow. ${fallLine}`,
+          ...(view.atCap
+            ? [
+                'The sun can darken no further, but the land still can: every slow victory gathers shadow for this act.',
+              ]
+            : []),
           'Eclipsed knots become harder battles with elite spoils (pick 2 of 4).',
         ],
       },
