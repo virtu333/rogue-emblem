@@ -320,7 +320,7 @@ import {
 import { resolveRecruitScalingTargets } from '../src/engine/RecruitScaling.js';
 import { generateBossRecruitCandidates } from '../src/engine/BossRecruitSystem.js';
 import { findCommander } from '../src/engine/Commander.js';
-import { ROSTER_CAP } from '../src/utils/constants.js';
+
 import { buildRecruitNodeUnit } from '../src/engine/RecruitNodeSystem.js';
 
 const POLICY_PRIORITY = {
@@ -1642,24 +1642,6 @@ import {
 } from '../src/engine/WeaponArtSystem.js';
 import { sampleEnemyFromAct } from './lib/EnemySampling.js';
 import { createEnemy } from './lib/SimUnitFactory.js';
-
-function killChance(side, hp) {
-  const dmg = Math.max(0, Number(side?.damage) || 0);
-  const n = Math.max(0, Number(side?.attackCount) || 0);
-  if (dmg <= 0 || n <= 0) return 0;
-  const need = Math.ceil(hp / dmg);
-  if (need > n) return 0;
-  const p = hitProbability(side.hit);
-  // P(at least `need` hits out of n)
-  let total = 0;
-  const choose = (a, b) => {
-    let r = 1;
-    for (let i = 1; i <= b; i++) r = (r * (a - b + i)) / i;
-    return r;
-  };
-  for (let k = need; k <= n; k++) total += choose(n, k) * p ** k * (1 - p) ** (n - k);
-  return total;
-}
 
 import { hitProbability } from '../src/engine/HitRoll.js';
 import { getCombatForecast } from '../src/engine/Combat.js';

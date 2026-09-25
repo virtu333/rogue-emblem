@@ -214,7 +214,7 @@ export function seasonedGrowthRanges(growthRanges) {
   return out;
 }
 
-function seasonedClass(classData, classesData) {
+function seasonedClass(classData) {
   if (!classData) return classData;
   if (classData.growthRanges)
     return { ...classData, growthRanges: seasonedGrowthRanges(classData.growthRanges) };
@@ -367,7 +367,7 @@ export function buildRecruitNodeUnit(opts = {}) {
       const make = (d, cls, extra = {}) =>
         createRecruitUnit(
           d,
-          seasoned ? seasonedClass(cls, classes) : cls,
+          seasoned ? seasonedClass(cls) : cls,
           gameData.weapons,
           statBonuses,
           growthBonuses,
