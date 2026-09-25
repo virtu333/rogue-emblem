@@ -57,7 +57,9 @@ export async function startFirstRunFastPath(scene, { gameData, slot }) {
     scene,
     'NodeMap',
     { gameData, runManager, firstRun: true },
-    { reason: TRANSITION_REASONS.BEGIN_RUN },
+    // A tap can land inside the router's post-start cooldown (Title is barely
+    // 350 ms old on a fast boot); a silent BLOCKED dropped New Game entirely.
+    { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: true },
   );
 
   if (transitioned) {
