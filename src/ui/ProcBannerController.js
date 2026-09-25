@@ -21,6 +21,7 @@ import { themeFor, dominantCategory, classifySkillEventName } from './ProcVisual
 import { UI_PALETTE } from '../utils/uiStyles.js';
 import { battleSpeed } from '../utils/combatTiming.js';
 import { cutInContent } from './ceremonyContent.js';
+import { epithetText } from '../engine/DeedTitles.js';
 import { CeremonyLayer, canRenderCeremony, ceremonyPortrait, el, fitText } from './ceremonyDom.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 
@@ -279,6 +280,7 @@ export class ProcBannerController {
       unitName: unitName || unit?.name,
       weaponName: weaponName || unit?.weapon?.name,
       isArt: category === 'art',
+      epithet: unit?.faction === 'player' ? epithetText(unit) : '',
     });
     const layer = this._track(
       new CeremonyLayer(scene, {
@@ -306,6 +308,10 @@ export class ProcBannerController {
     const big = el('div', 'ce-cutin-big', content.word);
     word.append(big);
     if (content.small) word.append(el('div', 'ce-cutin-small', content.small));
+    if (content.epithet) {
+      word.append(el('div', 'ce-cutin-epithet', content.epithet));
+      band.classList.add('has-epithet');
+    }
     band.append(word);
     root.append(el('div', 'ce-cutin-flash'), band);
     layer.addFitter(() => fitText(big, { min: 16 }));

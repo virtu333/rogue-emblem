@@ -4,6 +4,11 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
 }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  const consoleLines = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warning')
+      consoleLines.push(msg.text().slice(0, 200));
+  });
   const external = [];
   await page.route('**/*', (route) => {
     const u = new URL(route.request().url());
@@ -24,7 +29,31 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   const newGame = page.getByRole('button', { name: 'New Game', exact: true });
   await expect(newGame).toBeVisible();
   await newGame.tap();
-  await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'));
+  try {
+    await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'), null, {
+      timeout: 40000,
+    });
+  } catch (err) {
+    // Say why the first run never started (CI-only intermittent; see PR #72).
+    const state = await page.evaluate(() => {
+      const game = window.__emblemRogueGame;
+      const title = game?.scene?.getScene?.('Title');
+      return {
+        active: game?.scene?.getScenes?.(true).map((s) => s.sys.settings.key),
+        titleTransitioning: title?.isTransitioning,
+        soundLocked: title?.sound?.locked,
+        titleMenuInert: document.querySelector('.re-title')?.inert ?? null,
+        dialogs: [...document.querySelectorAll('[role="dialog"]')].map((d) =>
+          (d.getAttribute('aria-label') || d.textContent || '').slice(0, 80),
+        ),
+        sceneState: globalThis.__sceneState?._pendingTransitionMeta || null,
+      };
+    });
+    throw new Error(
+      `NodeMap never started after New Game: ${JSON.stringify({ state, errors, consoleLines })}\n${err.message}`,
+      { cause: err },
+    );
+  }
   // The first-run fast path intentionally starts here; advance the visible narrative.
   for (let i = 0; i < 24; i++) {
     await page.waitForTimeout(200);

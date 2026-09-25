@@ -1009,6 +1009,41 @@
         },
         {
           "when": {
+            "commander": "Sera",
+            "commanderHasEpithet": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The soldiers have a name for you now: {epithet}. Wear it past those stones."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commanderHasEpithet": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The column says it like a name now: {epithet}. Let the lieutenant hear it too."
+            }
+          ]
+        },
+        {
+          "when": {
             "commander": "Edric"
           },
           "entries": [
