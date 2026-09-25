@@ -2,7 +2,8 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
-import { migrateCleverTrait, rollAndApplyLordTrait } from './TraitSystem.js';
+import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
+import { normalizeUnitDeeds, unitEpithet } from './DeedSystem.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -46,6 +47,8 @@ import {
   grantRecruitStartingAccessory,
   learnSkill,
   LETHAL_ARMORY_WEAPONS,
+  equipWeapon,
+  normalizeEquippedFirst,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -58,6 +61,7 @@ import {
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
   getWeaponArtBindings,
@@ -65,6 +69,16 @@ import {
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
+import {
+  applyEclipse,
+  buildEclipseView,
+  computeShadowGain,
+  createEclipseState,
+  eclipseBattleMods,
+  isEclipseActive,
+  kindleResult,
+  normalizeEclipseState,
+} from './EclipseSystem.js';
 import {
   findCommander,
   stampCommanderFlag,
@@ -223,6 +237,12 @@ function stampUnitItemUids(unit) {
   if (unit.accessory && typeof unit.accessory === 'object') ensureItemUid(unit.accessory);
 }
 
+/** Victory-record fields for a unit's title (omitted when it has none). */
+function deedRecordFields(unit) {
+  const epithet = unitEpithet(unit);
+  return epithet ? { epithet: epithet.text, epithetForm: epithet.form } : {};
+}
+
 function parsePersonalSkillId(personalSkillStr) {
   if (!personalSkillStr) return null;
   const colonIdx = personalSkillStr.indexOf(':');
@@ -250,6 +270,7 @@ export function serializeUnit(unit) {
   if (Array.isArray(data.proficiencies))
     data.proficiencies = data.proficiencies.map((p) => ({ ...p }));
   if (data.accessory) data.accessory = ensureItemUid(structuredClone(data.accessory));
+  if (data.deeds && typeof data.deeds === 'object') data.deeds = structuredClone(data.deeds);
   // Relink weapon to cloned inventory item (preserves identity invariant)
   if (data.weapon && Array.isArray(data.inventory) && Array.isArray(unit.inventory)) {
     const weaponUid = typeof unit.weapon?.uid === 'string' ? unit.weapon.uid : '';
@@ -261,6 +282,8 @@ export function serializeUnit(unit) {
     }
     if (origIdx >= 0 && origIdx < data.inventory.length) {
       data.weapon = data.inventory[origIdx];
+      // Run-level saves keep the FE invariant: equipped weapon first.
+      normalizeEquippedFirst(data);
     } else {
       // Weapon not in inventory (legacy/edge case) — deep-clone independently
       data.weapon = ensureItemUid(structuredClone(unit.weapon));
@@ -296,6 +319,10 @@ export function serializeUnit(unit) {
   delete data._battleTimedWeaponArtAppliedCombatMods;
   delete data._movementSpent;
   delete data._legendaryGraceTurn;
+  delete data._fortHealStreak;
+  // Deed progress commits at victory (commitBattleDeeds) or not at all.
+  delete data._battleDeeds;
+  delete data._slewAllies;
   return data;
 }
 
@@ -384,6 +411,10 @@ export class RunManager {
     // carrying this flag offers Resume-or-Revert on continue, so a refresh
     // can never undo an action that already resolved.
     this.battleInProgress = null;
+    // The Eclipse (visible run clock): shadow is committed only at battle victory,
+    // boss relief and church Kindle. See EclipseSystem.js / docs/specs/eclipse.md.
+    this.eclipse = createEclipseState();
+    this.lastEclipseCommit = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -464,6 +495,8 @@ export class RunManager {
       difficultyId = this.difficultyId || 'normal',
     } = options;
     this.applyDifficultySelection(difficultyId);
+    this.eclipse = createEclipseState({ enabled: options.tutorialMode !== true });
+    this.lastEclipseCommit = null;
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = Math.min(
@@ -476,6 +509,7 @@ export class RunManager {
       this.runSeed = Number(initialSeed);
     }
     this.roster = this.createInitialRoster();
+    this.ensurePortraitVariants();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
@@ -1070,9 +1104,7 @@ export class RunManager {
         if (!candidate) continue;
         if (!addToInventory(unit, candidate)) continue;
         const addedWeapon = unit.inventory[unit.inventory.length - 1];
-        if (addedWeapon && canEquip(unit, addedWeapon)) {
-          unit.weapon = addedWeapon;
-        }
+        if (addedWeapon && canEquip(unit, addedWeapon)) equipWeapon(unit, addedWeapon);
         granted++;
         grantedWeapons.push({ unit: unit.name, weapon: addedWeapon?.name || candidate.name });
       }
@@ -1918,6 +1950,24 @@ export class RunManager {
 
   // Called only at recruitment, never on resume or revival. Active blessings
   // already persist, including in older saves; no new migration flag is needed.
+  /**
+   * Portrait variety (src/engine/PortraitVariants.js): give units offered or
+   * joining together a stable face, avoiding people the roster already has.
+   * Hash-based on the run seed; never draws from Math.random.
+   */
+  assignPortraitVariants(units) {
+    return assignPortraitVariants(units, {
+      roster: this.roster,
+      fallen: this.fallenUnits,
+      seed: this.runSeed,
+    });
+  }
+
+  /** Every roster/fallen unit has its face (idempotent; legacy units get one). */
+  ensurePortraitVariants(seed = this.runSeed) {
+    return backfillPortraitVariants(this.roster, { fallen: this.fallenUnits, seed });
+  }
+
   grantRecruitBlessingConsumables(unit) {
     if (!unit || !this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
     const catalog = buildBlessingIndex(this.gameData.blessings);
@@ -2286,6 +2336,7 @@ export class RunManager {
       unit.inventory.find((w) => w.name === 'Steel Lance' && canEquip(unit, w)) ||
       unit.inventory.find((w) => canEquip(unit, w)) ||
       null;
+    normalizeEquippedFirst(unit);
   }
 
   _removeWeaponByName(unit, weaponName) {
@@ -2294,6 +2345,7 @@ export class RunManager {
     const [removed] = unit.inventory.splice(idx, 1);
     if (unit.weapon === removed || unit.weapon?.name === weaponName) {
       unit.weapon = unit.inventory.find((weapon) => canEquip(unit, weapon)) || null;
+      normalizeEquippedFirst(unit);
     }
     return true;
   }
@@ -2405,9 +2457,7 @@ export class RunManager {
     // Tier 2: add the silver weapon and auto-equip it.
     if (deadlyArsenalTier >= 2 && silver && addToInventory(unit, silver)) {
       const addedSilver = unit.inventory.find((weapon) => weapon?.name === byType.silver);
-      if (addedSilver && canEquip(unit, addedSilver)) {
-        unit.weapon = addedSilver;
-      }
+      if (addedSilver && canEquip(unit, addedSilver)) equipWeapon(unit, addedSilver);
     }
   }
 
@@ -2445,6 +2495,7 @@ export class RunManager {
         traitsData: this.gameData?.traits || null,
         skillsData: this.gameData?.skills,
         rng: Math.random,
+        traitClassData: hasRecruitTemplate ? null : classData,
       },
     );
     if (!hasRecruitTemplate) {
@@ -2616,10 +2667,22 @@ export class RunManager {
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
     );
     battleParams.difficultyId = this.difficultyId || 'normal';
+    // The Eclipse: phase + eclipsed-node enemy levels and affix overrides. Keys are
+    // only added when they change something, so a Pale run's params are unchanged.
+    const eclipseMods = eclipseBattleMods({
+      state: this.eclipse,
+      config: this.getEclipseConfig(),
+      difficultyId: battleParams.difficultyId,
+      isEclipsed: battleParams.isEclipsed === true,
+    });
+    if (eclipseMods.enemyLevelBonus) battleParams.enemyLevelBonus += eclipseMods.enemyLevelBonus;
+    if (eclipseMods.phaseIndex > 0) battleParams.eclipsePhaseIndex = eclipseMods.phaseIndex;
+    if (eclipseMods.affix) battleParams.eclipseAffix = eclipseMods.affix;
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     this._repairDuplicateRosterNames();
+    this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
   }
@@ -2707,7 +2770,10 @@ export class RunManager {
   getRoster() {
     this._sanitizeUnitPools();
     const cloned = JSON.parse(JSON.stringify(this.roster));
-    cloned.forEach((u) => relinkWeapon(u));
+    cloned.forEach((u) => {
+      relinkWeapon(u);
+      normalizeEquippedFirst(u);
+    });
     return cloned;
   }
 
@@ -2848,6 +2914,7 @@ export class RunManager {
     }
 
     relinkWeapon(fallenUnit);
+    normalizeEquippedFirst(fallenUnit);
     const retained = [...fallenUnit.inventory, ...fallenUnit.consumables];
     const moved = Math.max(0, carriedCount - retained.length);
     fallenUnit._fallenItemsNotice = `${fallenUnit.name}: ${moved} item${moved === 1 ? '' : 's'} moved to convoy.${hadAccessory ? ' Accessory returned to the team pool.' : ''}${retained.length ? ` Convoy full: ${retained.map((item) => item.name).join(', ')} remain with this ally until revival.` : ''}`;
@@ -2963,6 +3030,7 @@ export class RunManager {
     if (!node || node.completed) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
+    const eclipseCommit = this._commitBattleShadow(node, options);
 
     this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
@@ -3032,7 +3100,122 @@ export class RunManager {
       this.pendingCaravanShop = { actId: this.currentAct };
     }
     this.markNodeComplete(nodeId);
+    if (eclipseCommit) eclipseCommit.fell = this.applyEclipseNow().map((n) => n.id);
+    this.lastEclipseCommit = eclipseCommit;
     return true;
+  }
+
+  // ── The Eclipse ────────────────────────────────────────────────────────
+
+  /** data/eclipse.json, or null (the Eclipse is inert without it). */
+  getEclipseConfig() {
+    const config = this.gameData?.eclipse;
+    return config && typeof config === 'object' ? config : null;
+  }
+
+  isEclipseActive() {
+    return isEclipseActive(this.eclipse, this.getEclipseConfig());
+  }
+
+  /** Shadow a victory at `turnsTaken` against `par` would add (HUD projection). */
+  projectShadowGain(turnsTaken, par) {
+    if (!this.isEclipseActive()) return 0;
+    return computeShadowGain(
+      { turnsTaken, par: Number.isFinite(par) ? par : null, difficultyId: this.difficultyId },
+      this.getEclipseConfig(),
+    );
+  }
+
+  /**
+   * Victory commit: add the battle's shadow and, for the act boss, the flare.
+   * Returns the commit record (null when the Eclipse is off or nothing is known).
+   */
+  _commitBattleShadow(node, options = {}) {
+    if (!this.isEclipseActive()) return null;
+    const config = this.getEclipseConfig();
+    const before = this.eclipse.shadow;
+    const gain = computeShadowGain(
+      {
+        turnsTaken: options.turnCount,
+        par: Number.isFinite(options.turnPar) ? options.turnPar : null,
+        difficultyId: this.difficultyId,
+      },
+      config,
+    );
+    const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
+    const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
+    const cap = Math.max(1, Math.trunc(Number(config.cap) || 100));
+    const after = Math.max(0, Math.min(cap, before + gain) - relief);
+    this.eclipse = { ...this.eclipse, shadow: after };
+    return { nodeId: node.id, before, gain, relief, after, fell: [] };
+  }
+
+  /** Let the dark take this act's map at the current act shadow (idempotent). */
+  applyEclipseNow() {
+    if (!this.isEclipseActive() || !this.nodeMap) return [];
+    return applyEclipse({
+      state: this.eclipse,
+      config: this.getEclipseConfig(),
+      nodeMap: this.nodeMap,
+      runSeed: this.runSeed,
+      currentNodeId: this.currentNodeId,
+      activeNodeId: this.battleInProgress?.nodeId || null,
+      mapTemplates: this.gameData?.mapTemplates || null,
+      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+      halfFogChance: this.difficultyId === 'normal',
+    });
+  }
+
+  /** Presentation view of the Eclipse for this act (see EclipseSystem.buildEclipseView). */
+  getEclipseView({ reachableIds = null, activeNodeId = null } = {}) {
+    if (!this.nodeMap) return null;
+    return buildEclipseView({
+      state: this.eclipse,
+      config: this.getEclipseConfig(),
+      nodeMap: this.nodeMap,
+      runSeed: this.runSeed,
+      currentNodeId: this.currentNodeId,
+      activeNodeId: activeNodeId || this.battleInProgress?.nodeId || null,
+      reachableIds,
+    });
+  }
+
+  /** Enemy levels the Eclipse adds to a node's battle (phase + eclipsed node). */
+  getEclipseLevelBonus(node) {
+    if (!node?.battleParams) return 0;
+    return eclipseBattleMods({
+      state: this.eclipse,
+      config: this.getEclipseConfig(),
+      difficultyId: this.difficultyId || 'normal',
+      isEclipsed: node.battleParams.isEclipsed === true,
+    }).enemyLevelBonus;
+  }
+
+  /** Church Kindle: pay gold to lift shadow, once per church node. */
+  kindleSun(nodeId) {
+    const result = kindleResult({
+      state: this.eclipse,
+      config: this.getEclipseConfig(),
+      nodeId,
+      actId: this.currentAct,
+      gold: this.gold,
+    });
+    if (!result.ok) return result;
+    if (!this.spendGold(result.price)) return { ok: false, reason: 'Not enough gold.' };
+    this.eclipse = result.state;
+    return { ok: true, price: result.price, removed: result.removed, shadow: this.eclipse.shadow };
+  }
+
+  /** The Loom played these nodes' fall; never play it again (persisted by the caller). */
+  markEclipseSeen(nodeIds) {
+    const ids = new Set(Array.isArray(nodeIds) ? nodeIds : []);
+    let changed = false;
+    for (const node of this.nodeMap?.nodes || []) {
+      if (!ids.has(node.id) || !node.eclipse || node.eclipse.seen === true) continue;
+      node.eclipse.seen = true;
+      changed = true;
+    }
+    return changed;
   }
 
   /**
@@ -3069,6 +3252,7 @@ export class RunManager {
     if (classData) normalizeUnitClassState(unit, classData);
     ensureSeraBaseStaffProficiency(unit);
     relinkWeapon(unit);
+    normalizeEquippedFirst(unit);
     // Stable catch-up rolls on retry/reload; the action chooser does not consume this stream.
     let seed = Number(this.runSeed) >>> 0;
     for (const ch of `revive:${unit.name}:${unit.className}:${unit.level}`)
@@ -3140,6 +3324,8 @@ export class RunManager {
       }),
     );
     this.shopStateByNodeId = {};
+    // Every act opens on a fresh land: act shadow counts from here.
+    this.eclipse = { ...this.eclipse, actStartShadow: this.eclipse.shadow };
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -3147,6 +3333,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
     this.activeCaravanShop = null;
+    this.applyEclipseNow();
     return { unlockedArtIds: unlockedNow, displacedSkills };
   }
 
@@ -3403,11 +3590,15 @@ export class RunManager {
                 seed: this.runSeed,
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
-                roster: this.roster.map(({ name, className, level, isLord }) => ({
-                  name,
-                  className,
-                  level,
-                  isLord,
+                shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                roster: this.roster.map((unit) => ({
+                  name: unit.name,
+                  className: unit.className,
+                  level: unit.level,
+                  isLord: unit.isLord,
+                  tier: unit.tier,
+                  portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
+                  ...deedRecordFields(unit),
                 })),
               }
             : null,
@@ -3534,6 +3725,7 @@ export class RunManager {
       thirdLordRerolled: this.thirdLordRerolled || false,
       battleInProgress: this.battleInProgress || null,
       lastBattleReport: this.lastBattleReport || null,
+      eclipse: this.eclipse || createEclipseState(),
     };
   }
 
@@ -3798,8 +3990,8 @@ export class RunManager {
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
 
-    rm.roster = rm.roster.map((u) => migrateCleverTrait({ ...u }));
-    rm.fallenUnits = rm.fallenUnits.map((u) => migrateCleverTrait({ ...u }));
+    rm.roster = rm.roster.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
+    rm.fallenUnits = rm.fallenUnits.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
 
     // --- lord presence validation (only for non-empty rosters) ---
     if (rm.roster.length > 0) {
@@ -3992,6 +4184,10 @@ export class RunManager {
       : 0;
     rm.usedRecruitNames = saved.usedRecruitNames || {};
     rm._repairDuplicateRosterNames();
+    // Portrait variety: saves from before it get stable, de-duplicated faces.
+    // A legacy save without a seed hashes with 0, never the Date.now fallback,
+    // so reloading it without saving shows the same faces.
+    rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
@@ -4152,9 +4348,34 @@ export class RunManager {
 
     rm.roster.forEach((u) => relinkWeapon(u));
     rm.fallenUnits.forEach((u) => relinkWeapon(u));
+    // Legacy saves may carry the equipped weapon anywhere in the bag. Moving it
+    // to the top on load is deterministic, RNG-free and idempotent; it runs only
+    // at this run-level boundary, never on a battle checkpoint (those restore
+    // exactly — see BattleSuspendController.applyUnits).
+    rm.roster.forEach((u) => normalizeEquippedFirst(u));
+    rm.fallenUnits.forEach((u) => normalizeEquippedFirst(u));
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();
+
+    // The Eclipse: legacy saves start their clock now (enabled, shadow 0). Falls are
+    // re-applied idempotently; a consistent save changes nothing. The battle being
+    // fought (if any) is exempt like the current node.
+    rm.eclipse = normalizeEclipseState(saved.eclipse, rm.getEclipseConfig());
+    if (rm.nodeMap && rm.isEclipseActive()) {
+      applyEclipse({
+        state: rm.eclipse,
+        config: rm.getEclipseConfig(),
+        nodeMap: rm.nodeMap,
+        runSeed: rm.runSeed,
+        currentNodeId: rm.currentNodeId,
+        activeNodeId:
+          typeof saved.battleInProgress?.nodeId === 'string' ? saved.battleInProgress.nodeId : null,
+        mapTemplates: gameData?.mapTemplates || null,
+        fogChanceBonus: rm.getDifficultyModifier('fogChanceBonus', 0),
+        halfFogChance: rm.difficultyId === 'normal',
+      });
+    }
 
     // Suspended battle (anti-refresh): only a flag carrying a usable resume
     // checkpoint survives the load — a battle interrupted before its first

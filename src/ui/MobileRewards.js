@@ -1,4 +1,5 @@
 import { equipmentComparison } from './equipmentComparison.js';
+import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
@@ -442,8 +443,8 @@ export class MobileRewards {
     const needsChoice = item.forgeStat === 'choice' || item.imbueId === 'choice';
     this.pushStep({
       title: unit.name,
-      choices: unit.inventory.filter((w) => rewardWeaponEligible(item, w)),
-      label: (weapon) => weapon.name,
+      choices: inventoryDisplayOrder(unit).filter((w) => rewardWeaponEligible(item, w)),
+      label: (weapon) => `${weapon.name}${weapon === unit.weapon ? ' · Equipped' : ''}`,
       describe: (weapon) =>
         `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
       blocked: (weapon) =>

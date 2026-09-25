@@ -674,8 +674,8 @@ describe('BattleScene loot meta wiring', () => {
       // Labels are name-only (no stat lines)
       expect(row.label.split('\n')).toHaveLength(1);
     }
-    // Equipped marker present on first weapon
-    expect(rowCalls[0].label).toContain('\u25b6');
+    // Equipped marker (E) present on first weapon
+    expect(rowCalls[0].label.startsWith('E ')).toBe(true);
     expect(rowCalls[1].label).toContain('Steel Sword');
     // Auto-show tooltip fires
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalled();

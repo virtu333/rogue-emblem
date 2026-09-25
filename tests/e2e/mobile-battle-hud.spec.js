@@ -233,12 +233,13 @@ test('confirming the forecast commits combat once and removes the dialog', async
 test('forecast weapon cycling updates the preview without committing combat', async ({ page }) => {
   await bootBattle(page);
   await prepareForecast(page);
-  const before = await page.locator('.mb-ally .mb-weapon').innerText();
+  // The weapon stepper lives beside the attacker's name (◀ Iron Sword [E] 1/2 ▶).
+  const before = await page.locator('.mb-ally .mb-step-name').innerText();
   await page
     .getByRole('dialog', { name: 'Combat forecast' })
-    .getByRole('button', { name: 'Weapon ›', exact: true })
+    .getByRole('button', { name: 'Next weapon', exact: true })
     .tap();
-  await expect(page.locator('.mb-ally .mb-weapon')).not.toHaveText(before);
+  await expect(page.locator('.mb-ally .mb-step-name')).not.toHaveText(before);
   expect(await page.evaluate(() => window.__sceneState.battle.state)).toBe('SHOWING_FORECAST');
 });
 

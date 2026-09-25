@@ -87,13 +87,18 @@ test('unavailable consumables explain why; keyboard Back and gamepad focus are v
   expect(errors).toEqual([]);
 });
 
-for (const kind of ['weapon', 'staff', 'art', 'ability', 'reclass']) {
+// Attack no longer opens a weapon submenu (target first; weapons switch in the
+// forecast), so the Equip submenu stands in for the weapon list.
+for (const kind of ['equip', 'staff', 'art', 'ability', 'reclass']) {
   test(`${kind} submenu registers visible focus and cancels without mutation`, async ({ page }) => {
     const { hud, errors } = await boot(page);
     await page.evaluate((kind) => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const u = window.testUnit;
-      if (kind === 'weapon') s.showWeaponPicker(u, []);
+      if (kind === 'equip') {
+        u.inventory.push({ ...u.weapon, uid: 'submenu-spare', name: 'Spare blade' });
+        s.showEquipMenu(u);
+      }
       if (kind === 'staff')
         s.showStaffPicker(
           u,

@@ -1,14 +1,15 @@
 // battlefieldArtFlags — which battlefield presentation is active (pure, no Phaser).
 //
 // One game, not two (ART_BIBLE "Desktop"): phones and desktop present the same
-// battlefield art — painted terrain, rebuilt unit sprites and the contrast pass. The
-// phone-only side-pane layout is a separate switch (battlefieldLabEnabled).
+// battlefield art — painted terrain, traced unit sprites (tools/art/sprite-trace) and the
+// contrast pass. The phone-only side-pane layout is a separate switch
+// (battlefieldLabEnabled).
 //
 // Development escape hatches (ignored in production builds):
 //   ?battlefieldArt=classic  everything classic
 //   ?terrainArt=classic      classic terrain tiles (?terrainArt=<id> picks a renderer)
 //   ?spriteArt=classic       classic unit sprites
-//   ?spriteArt=traced        traced map sprites (tools/art/sprite-trace) where baked, else rebuilt
+//   ?spriteArt=rebuilt       the previous rebuilt 64 px sprite set instead of the traced one
 //   ?battleContrast=original no contour / palette lift / grass softening
 
 function readSearch(search) {
@@ -25,7 +26,8 @@ export function resolveBattlefieldArtFlags(search = '', { dev = false } = {}) {
   const terrain = all && terrainChoice !== 'classic';
   const sprites = all && devValue('spriteArt') !== 'classic';
   const contrast = sprites && devValue('battleContrast') !== 'original';
-  const traced = sprites && devValue('spriteArt') === 'traced';
+  // traced sprites are the default whenever the sprite presentation is on
+  const traced = sprites && devValue('spriteArt') !== 'rebuilt';
   return {
     terrain,
     sprites,
@@ -53,7 +55,7 @@ export function battlefieldSpriteArtEnabled(search) {
   return flags(search).sprites;
 }
 
-/** Dev review of the traced map sprites (?spriteArt=traced); never on in production. */
+/** Traced map sprites (default; dev ?spriteArt=rebuilt shows the rebuilt set instead). */
 export function battlefieldTracedSpritesEnabled(search) {
   return flags(search).traced;
 }

@@ -17,7 +17,13 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { applyForge } from './ForgeSystem.js';
-import { rollAndApplyTraits } from './TraitSystem.js';
+import {
+  rollAndApplyTraits,
+  resolveAttackStat,
+  hasAttackStatTrait,
+  getTraitReclassStatShift,
+  reapplyTraitGrowthMods,
+} from './TraitSystem.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -507,6 +513,30 @@ export function createPromotedEnemyUnit(
 }
 
 /**
+ * Unit-like stand-in for trait rolls when a freshly built recruit is about to
+ * become `classData` (promoted recruits are built on their base class and then
+ * promoted). Returns the unit itself when there is no target class.
+ */
+export function traitProfileForClass(unit, classData) {
+  if (!classData?.weaponProficiencies) return unit;
+  return {
+    name: unit.name,
+    isLord: unit.isLord,
+    skills: unit.skills,
+    className: classData.name,
+    moveType: classData.moveType || unit.moveType,
+    proficiencies: parseWeaponProficiencies(classData.weaponProficiencies),
+  };
+}
+
+/** The attack stat (STR/MAG) a class fights with, for trait retargeting. */
+function classAttackStat(classData) {
+  return resolveAttackStat({
+    proficiencies: parseWeaponProficiencies(classData?.weaponProficiencies),
+  });
+}
+
+/**
  * Create a recruit NPC unit for mid-battle recruitment.
  * Uses same pattern as createEnemyUnit but with faction: 'npc'.
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
@@ -645,7 +675,11 @@ export function createRecruitUnit(
   // stat/growth mods are baked immediately — same philosophy as rolled growths.
   // No-op unless options.traitsData is provided, keeping sim/harness/test paths
   // that omit it deterministic and unchanged. Always sets unit.traits = [].
-  rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random);
+  // A recruit about to be promoted (options.traitClassData) rolls against the
+  // class it will actually play, so its traits fit that class.
+  rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random, {
+    profile: traitProfileForClass(unit, options.traitClassData),
+  });
 
   return unit;
 }
@@ -743,9 +777,7 @@ export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) 
 
   if (!addToInventory(unit, weapon)) return false;
   const grantedWeapon = unit.inventory[unit.inventory.length - 1];
-  if (canEquip(unit, grantedWeapon)) {
-    unit.weapon = grantedWeapon;
-  }
+  if (canEquip(unit, grantedWeapon)) equipWeapon(unit, grantedWeapon);
   return true;
 }
 
@@ -1161,6 +1193,7 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   normalizeUnitClassState(unit, promotedClassData);
   if (unit.weapon && !canEquip(unit, unit.weapon)) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 
   // Add class-innate skills
@@ -1262,8 +1295,12 @@ function getEffectiveBaseStats(classData, classesData) {
   return out;
 }
 
-/** Deterministic reclass stats; safe to preview without rolling growths. */
-export function getReclassStats(unit, newClassData, oldClassData, classesData) {
+/**
+ * Deterministic reclass stats; safe to preview without rolling growths.
+ * With traitsData, a trait bonus baked into the unit's attack stat (Kindled)
+ * moves to the stat the new class fights with (STR ↔ MAG).
+ */
+export function getReclassStats(unit, newClassData, oldClassData, classesData, traitsData = null) {
   const oldBase = getEffectiveBaseStats(oldClassData, classesData);
   const newBase = getEffectiveBaseStats(newClassData, classesData);
   const stats = { ...unit.stats };
@@ -1272,6 +1309,12 @@ export function getReclassStats(unit, newClassData, oldClassData, classesData) {
       1,
       (unit.stats[stat] || 0) + (newBase[stat] || 0) - (oldBase[stat] || 0),
     );
+  }
+  if (traitsData && hasAttackStatTrait(unit, traitsData)) {
+    const shift = getTraitReclassStatShift(unit, classAttackStat(newClassData), traitsData);
+    for (const [stat, delta] of Object.entries(shift)) {
+      stats[stat] = Math.max(1, (stats[stat] || 0) + delta);
+    }
   }
   return stats;
 }
@@ -1294,8 +1337,17 @@ export function applyReclassSkills(unit, classesData, skillsData) {
  * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
  * Re-rolls growths from new class. Level/XP preserved.
  * Conservative skill handling: adds new class innates, does NOT remove old ones.
+ * With traitsData, trait growth mods survive the growth re-roll and an
+ * attack-stat trait follows the unit to the stat its new class fights with.
  */
-export function reclassUnit(unit, newClassData, oldClassData, classesData, skillsData) {
+export function reclassUnit(
+  unit,
+  newClassData,
+  oldClassData,
+  classesData,
+  skillsData,
+  traitsData = null,
+) {
   if (!unit || !newClassData || !oldClassData) return;
 
   const oldMaxHP = unit.stats.HP;
@@ -1304,7 +1356,13 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // Promoted classes in classes.json carry NO baseStats of their own — their
   // effective base is promotesFrom.baseStats + promotionBonuses. Without this,
   // a promoted-tier reclass computes a 0 delta for every stat (silent no-op).
-  Object.assign(unit.stats, getReclassStats(unit, newClassData, oldClassData, classesData));
+  Object.assign(
+    unit.stats,
+    getReclassStats(unit, newClassData, oldClassData, classesData, traitsData),
+  );
+  if (traitsData && hasAttackStatTrait(unit, traitsData)) {
+    unit.traitAttackStat = classAttackStat(newClassData);
+  }
 
   // Preserve HP ratio
   const newMaxHP = unit.stats.HP;
@@ -1339,6 +1397,8 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
       }
     }
     unit.growths = newGrowths;
+    // Trait growth mods were baked into the old roll; bake them into the new one.
+    if (traitsData) reapplyTraitGrowthMods(unit, traitsData);
   }
 
   // --- Class identity ---
@@ -1349,6 +1409,7 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // --- Weapon validity ---
   if (unit.weapon && !canEquip(unit, unit.weapon)) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 
   // Retain old skills, but report new grants blocked by the cap.
@@ -1406,11 +1467,50 @@ export function getWeaponByTier(proficiencies, allWeapons, targetTier) {
 
 // --- Inventory helpers ---
 
-/** Equip a weapon from inventory. Mutates unit. Rejects non-proficient weapons. */
-export function equipWeapon(unit, weapon) {
+/**
+ * Equip a weapon from inventory. Mutates unit. Rejects non-proficient weapons.
+ *
+ * Like Fire Emblem, the equipped weapon is always the first inventory item:
+ * equipping moves it to the top (the rest keep their relative order). Pass
+ * `{ reorder: false }` only for a provisional equip that is rolled back or
+ * committed later (forecast weapon preview, staff use); the caller then owns
+ * restoring the order or calling normalizeEquippedFirst on commit.
+ */
+export function equipWeapon(unit, weapon, { reorder = true } = {}) {
   if (!unit.inventory.includes(weapon)) return;
   if (!canEquip(unit, weapon)) return;
   unit.weapon = weapon;
+  if (reorder) normalizeEquippedFirst(unit);
+}
+
+/**
+ * Move the equipped weapon to inventory[0], keeping every other item's relative
+ * order. Deterministic, idempotent and RNG-free. Only reorders when the equipped
+ * weapon is the very object carried in the inventory (identity); a dangling or
+ * unrelinked weapon is left for relinkWeapon to repair. Returns true if the
+ * order changed.
+ */
+export function normalizeEquippedFirst(unit) {
+  const inventory = unit?.inventory;
+  if (!Array.isArray(inventory) || !unit.weapon) return false;
+  const index = inventory.indexOf(unit.weapon);
+  if (index <= 0) return false;
+  inventory.splice(index, 1);
+  inventory.unshift(unit.weapon);
+  return true;
+}
+
+/**
+ * Items in display order: the equipped weapon first, everything else in carried
+ * order. Views use this so an enemy (whose AI swaps weapons without reordering)
+ * or a legacy mid-battle checkpoint still reads equipped-first. Never mutates.
+ */
+export function inventoryDisplayOrder(unit, items = unit?.inventory) {
+  const list = Array.isArray(items) ? items : [];
+  const equipped = unit?.weapon;
+  const index = equipped ? list.indexOf(equipped) : -1;
+  if (index <= 0) return [...list];
+  return [equipped, ...list.slice(0, index), ...list.slice(index + 1)];
 }
 
 /** Add a weapon to inventory. Returns false if full or wrong type. Rejects consumables and scrolls. */
@@ -1420,6 +1520,17 @@ export function addToInventory(unit, weapon, max = 5) {
   // Clone weapon to avoid shared state (especially _usesSpent for staves)
   const clone = ensureItemUid(structuredClone(weapon));
   unit.inventory.push(clone);
+  return true;
+}
+
+/**
+ * A unit with nothing equipped that receives a usable combat weapon (trade,
+ * give, convoy) equips it — in FE the first usable weapon is the equipped one.
+ * Never replaces a deliberate choice. Returns true when it equipped.
+ */
+export function equipIfUnarmed(unit, item) {
+  if (!unit || unit.weapon || !item || !getCombatWeapons(unit).includes(item)) return false;
+  equipWeapon(unit, item);
   return true;
 }
 
@@ -1448,6 +1559,7 @@ export function removeFromInventory(unit, weapon) {
   unit.inventory.splice(idx, 1);
   if (unit.weapon === weapon) {
     unit.weapon = getCombatWeapons(unit)[0] || null;
+    normalizeEquippedFirst(unit);
   }
 }
 

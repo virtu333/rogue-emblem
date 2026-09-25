@@ -8,7 +8,7 @@ import {
   UI_COLORS,
   getHPBarColor,
 } from '../utils/uiStyles.js';
-import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { unitPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
@@ -28,14 +28,14 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
-import { canEquip, getDisplayLevel } from '../engine/UnitManager.js';
+import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
   getMasteryProgress,
   getMasteryThreshold,
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
@@ -45,6 +45,8 @@ import {
 } from '../utils/tooltipTiming.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { epithetText } from '../engine/DeedTitles.js';
+import { fitCanvasText } from './deedDisplay.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -222,7 +224,14 @@ export class UnitDetailOverlay {
     // --- Header ---
     const factionLabel =
       unit.faction === 'player' ? '' : unit.faction === 'npc' ? ' [NPC]' : ' [Enemy]';
-    this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    const nameText = this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    // Canvas fallback: the epithet follows the name, clear of the nav/portrait.
+    const epithet = unit.faction === 'player' ? epithetText(unit) : '';
+    if (epithet && nameText) {
+      const x = nameText.x + nameText.width + 6;
+      const line = this._unitText(x, y + 2, epithet, UI_PALETTE.accent, '10px');
+      fitCanvasText(line, left + OVERLAY_W - 92 - x);
+    }
 
     // Portrait (top-right)
     const face = portraitCanvasFrame(this.scene, this._getPortraitKey(unit), 48);
@@ -621,12 +630,12 @@ export class UnitDetailOverlay {
         }
       }
 
-      // Traits (recruits only; lords never roll)
-      const unitTraits = getUnitTraits(unit, traitsData);
+      // Traits (recruits roll 0-2; lords roll one)
+      const unitTraits = traitLines(unit, this.gameData);
       if (unitTraits.length > 0) {
         const names = unitTraits.map((t) => t.name).join(', ');
         const traitText = this._tabText(lx, y, `Traits: ${names}`, UI_PALETTE.rarityEpic, '9px');
-        const descriptions = unitTraits.map((t) => `${t.name}: ${t.description}`).join('\n');
+        const descriptions = unitTraits.map((t) => `${t.name}: ${t.text}`).join('\n');
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
         traitText.on('pointerout', () => this._hideSkillTooltip());
@@ -698,8 +707,8 @@ export class UnitDetailOverlay {
     this._tabSep(lx, y);
     y += 12;
     if (unit.inventory && unit.inventory.length > 0) {
-      for (const item of unit.inventory) {
-        const marker = item === unit.weapon ? '\u25b6' : ' ';
+      for (const item of inventoryDisplayOrder(unit)) {
+        const marker = item === unit.weapon ? 'E' : ' ';
         const usableNow = canEquip(unit, item);
         const rowColor = usableNow ? UI_COLORS.white : UI_PALETTE.lineStrong;
         const baseNameColor = usableNow ? this._getWeaponNameColor(item, rowColor) : rowColor;
@@ -1055,29 +1064,8 @@ export class UnitDetailOverlay {
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this.scene, unit);
-    if (rebuilt) return rebuilt;
-    const lordData = this.gameData?.lords?.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.scene.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.scene.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.scene.textures.exists(classKey)) return classKey;
-    const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.scene.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this.scene, unit, this.gameData || {});
   }
 
   _bindSceneCleanup() {

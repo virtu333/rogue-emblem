@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "The Eclipse (visible run clock)",
+  "type": "object",
+  "properties": {
+    "version": { "const": 1 },
+    "cap": { "type": "integer", "minimum": 1 },
+    "graceUnderPar": { "type": "integer", "minimum": 0 },
+    "maxGainPerBattle": { "type": "integer", "minimum": 0 },
+    "noParGain": { "type": "integer", "minimum": 0 },
+    "difficultyGain": {
+      "type": "object",
+      "properties": {
+        "normal": { "type": "number", "minimum": 0 },
+        "hard": { "type": "number", "minimum": 0 },
+        "lunatic": { "type": "number", "minimum": 0 }
+      },
+      "required": ["normal", "hard", "lunatic"],
+      "additionalProperties": false
+    },
+    "bossRelief": { "type": "integer", "minimum": 0 },
+    "kindleAmount": { "type": "integer", "minimum": 0 },
+    "kindlePrice": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "laneBase": {
+      "type": "object",
+      "properties": {
+        "outer": { "type": "integer", "minimum": 1 },
+        "inner": { "type": "integer", "minimum": 1 },
+        "center": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["outer", "inner", "center"],
+      "additionalProperties": false
+    },
+    "rowBias": { "type": "number", "minimum": 0 },
+    "jitter": { "type": "integer", "minimum": 0 },
+    "fallWarning": { "type": "integer", "minimum": 0 },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "min": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["id", "name", "min"],
+        "additionalProperties": false
+      }
+    },
+    "phaseEnemyLevelBonus": {
+      "type": "array",
+      "items": { "type": "integer" }
+    },
+    "phaseAffix": {
+      "type": "object",
+      "properties": {
+        "hardGatingFromPhase": { "type": "string" },
+        "extraMaxAffixFromPhase": { "type": "string" },
+        "extraMaxAffixes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "eclipsedEnemyLevelBonus": { "type": "integer" },
+    "eclipsedAffixCount": { "type": "integer", "minimum": 0 },
+    "eclipsedAffixTier": { "type": "integer", "minimum": 1 },
+    "falls": {
+      "type": "object",
+      "properties": {
+        "battle": { "$ref": "#/$defs/fall" },
+        "shop": { "$ref": "#/$defs/fall" },
+        "church": { "$ref": "#/$defs/fall" },
+        "recruit": { "$ref": "#/$defs/fall" },
+        "colosseum": { "$ref": "#/$defs/fall" }
+      },
+      "required": ["battle", "shop", "church", "recruit", "colosseum"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version",
+    "cap",
+    "graceUnderPar",
+    "maxGainPerBattle",
+    "noParGain",
+    "difficultyGain",
+    "bossRelief",
+    "kindleAmount",
+    "kindlePrice",
+    "laneBase",
+    "rowBias",
+    "jitter",
+    "phases",
+    "phaseEnemyLevelBonus",
+    "phaseAffix",
+    "eclipsedEnemyLevelBonus",
+    "eclipsedAffixCount",
+    "falls"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "fall": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "noun": { "type": "string", "minLength": 1 }
+      },
+      "required": ["label", "noun"],
+      "additionalProperties": false
+    }
+  }
+}

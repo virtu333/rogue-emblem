@@ -12,6 +12,7 @@ import {
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
+import { deedsFor } from './DeedController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -32,6 +33,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
+import { projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -136,6 +138,9 @@ export class PostCombatController {
       const classesData = scene.gameData?.classes || null;
       const traitsData = scene.gameData?.traits || null;
       const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      // Deeds commit with the win, before the units are serialized and the
+      // run is saved; their rite plays after the save (presentVictory).
+      deedsFor(scene).commitVictory(liveSurvivors);
       const newlyMastered = [];
       for (const u of liveSurvivors) {
         const wasMastered = classesData ? isMastered(u, classesData, traitsData) : false;
@@ -170,6 +175,7 @@ export class PostCombatController {
         scene.goldEarned,
         {
           turnCount: scene.turnManager?.turnNumber,
+          turnPar: scene.turnPar,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
         },
@@ -258,6 +264,8 @@ export class PostCombatController {
           console.warn('[BattleScene] boss defeat dialogue failed:', err);
         }
 
+        // Deeds earned this battle: committed and saved above; the rite only shows them.
+        if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
         if (!scene.scene?.isActive?.()) return;
         if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen
@@ -591,6 +599,10 @@ export class PostCombatController {
       turn,
       par: Number.isFinite(s.turnPar) ? s.turnPar : null,
       rating,
+      // The Eclipse: the shadow this victory commits (null when the clock is off),
+      // and the flare an act boss's fall lifts.
+      shadowGain: projectedShadow(s),
+      shadowRelief: projectedRelief(s),
     };
   }
 

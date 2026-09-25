@@ -1130,6 +1130,19 @@ export class NodeMapScene extends Phaser.Scene {
       infoY += 11;
     }
 
+    // The Eclipse (phase · shadow) — the canvas fallback's one-line medallion.
+    const eclipseView = rm.getEclipseView?.();
+    if (eclipseView) {
+      applyTextResolution(
+        this.add.text(infoX, infoY, `${eclipseView.phase.name} · ${eclipseView.shadow}`, {
+          fontFamily: 'Arial',
+          fontSize: '10px',
+          color: UI_PALETTE.accentText,
+        }),
+      ).setOrigin(1, 0);
+      infoY += 11;
+    }
+
     // Win streak display (only when >= 2)
     if (rm.winStreak >= 2) {
       applyTextResolution(
@@ -1277,6 +1290,7 @@ export class NodeMapScene extends Phaser.Scene {
           .setDisplaySize(NODE_SIZE + 18, NODE_SIZE + 18)
           .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(UI_HEX.line);
+        else if (node.eclipse) nodeObj.setTint(UI_HEX.lineDim);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.85);
       } else {
         nodeObj = this.add

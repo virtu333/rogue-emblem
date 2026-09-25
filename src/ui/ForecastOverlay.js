@@ -27,10 +27,24 @@ export class ForecastOverlay {
    * @param {object} config.forecast — result of getCombatForecast()
    * @param {object|null} config.weaponArt
    * @param {string|null} config.gamblerLine
-   * @param {object[]} config.validWeapons
+   * @param {object[]} config.validWeapons — weapons that can hit this target, equipped first
+   * @param {object|null} [config.equippedWeapon] — the equipped (pre-preview) weapon
+   * @param {number} [config.targetIndex] — this target's index among attackable targets
+   * @param {number} [config.targetCount] — number of attackable targets (0 = unknown)
    */
-  render({ attacker, defender, forecast, weaponArt, gamblerLine, validWeapons }) {
+  render({
+    attacker,
+    defender,
+    forecast,
+    weaponArt,
+    gamblerLine,
+    validWeapons = [],
+    equippedWeapon = attacker?.weapon || null,
+    targetIndex = -1,
+    targetCount = 0,
+  }) {
     const scene = this.scene;
+    validWeapons = Array.isArray(validWeapons) ? validWeapons : [];
     if (scene._mobileBattleHud) {
       scene._mobileBattleHud.showForecast({
         attacker,
@@ -39,6 +53,9 @@ export class ForecastOverlay {
         weaponArt,
         gamblerLine,
         validWeapons,
+        equippedWeapon,
+        targetIndex,
+        targetCount,
       });
       this.mobileHud = scene._mobileBattleHud;
       return;
@@ -96,6 +113,7 @@ export class ForecastOverlay {
       weaponArt,
       gamblerLine,
       validWeapons,
+      equippedWeapon,
       notes: notes[0],
       predictedHP: projection?.attackerHP,
     });
@@ -113,6 +131,8 @@ export class ForecastOverlay {
         validWeapons: null,
         notes: notes[1],
         predictedHP: projection?.defenderHP,
+        targetIndex,
+        targetCount,
       },
     );
 
@@ -134,7 +154,7 @@ export class ForecastOverlay {
     this.displayObjects.push(vs);
 
     // Confirm footer
-    this._drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons);
+    this._drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons, targetCount);
   }
 
   /**
@@ -192,6 +212,39 @@ export class ForecastOverlay {
         }),
       ).setDepth(textDepth);
       this.displayObjects.push(eff);
+    }
+
+    // Target counter (defender side): ▲ Target 1/3 ▼ — cycles the forecast's target.
+    if (!isAttacker && opts.targetCount >= 2 && opts.targetIndex >= 0) {
+      const makeStep = (glyph, px, direction) => {
+        const step = applyTextResolution(
+          scene.add.text(px, y + 31, glyph, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: UI_PALETTE.muted,
+          }),
+        )
+          .setDepth(textDepth)
+          .setInteractive({ useHandCursor: true });
+        step.on('pointerover', () => step.setColor(UI_PALETTE.accent));
+        step.on('pointerout', () => step.setColor(UI_PALETTE.muted));
+        step.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
+          scene._uiClickBlocked = true;
+          scene._cycleForecastTarget?.(direction);
+        });
+        this.displayObjects.push(step);
+      };
+      makeStep('\u25B2', nameX, -1);
+      const label = applyTextResolution(
+        scene.add.text(nameX + 13, y + 32, `Target ${opts.targetIndex + 1}/${opts.targetCount}`, {
+          fontFamily: 'Arial',
+          fontSize: '9px',
+          color: UI_PALETTE.muted,
+        }),
+      ).setDepth(textDepth);
+      this.displayObjects.push(label);
+      makeStep('\u25BC', nameX + 17 + label.width, 1);
     }
 
     // HP row -- below portrait area
@@ -360,11 +413,29 @@ export class ForecastOverlay {
     this.displayObjects.push(countText);
     y += 14;
 
-    // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons)
+    // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons).
+    // [E] marks the weapon that is equipped now; confirming with another weapon
+    // equips it and moves it to the top of the inventory.
     const wpnName = unit.weapon?.name || 'Unarmed';
     const wpnColor = unit.weapon && isForged(unit.weapon) ? UI_PALETTE.good : UI_PALETTE.info;
     const validWpns = opts.validWeapons;
     const canCycle = isAttacker && validWpns?.length >= 2;
+    const showBadge = isAttacker && unit.weapon && unit.weapon === opts.equippedWeapon;
+    const badgeW = showBadge ? 13 : 0;
+    if (showBadge) {
+      const badge = applyTextResolution(
+        scene.add.text(x + (canCycle ? 16 : 2), y, 'E', {
+          fontFamily: 'Arial',
+          fontSize: '8px',
+          color: UI_PALETTE.panel,
+          backgroundColor: UI_PALETTE.accent,
+          fontStyle: 'bold',
+          padding: { x: 2, y: 0 },
+        }),
+      ).setDepth(textDepth);
+      badge._equippedBadge = true;
+      this.displayObjects.push(badge);
+    }
 
     if (canCycle) {
       // Left arrow
@@ -386,15 +457,30 @@ export class ForecastOverlay {
       });
       this.displayObjects.push(leftArrow);
 
-      // Current weapon name (centered between arrows)
+      // Current weapon name (between arrows) + position in the valid list
       const wpn = applyTextResolution(
-        scene.add.text(x + 16, y, wpnName, {
+        scene.add.text(x + 16 + badgeW, y, wpnName, {
           fontFamily: 'Arial',
           fontSize: '9px',
           color: wpnColor,
         }),
       ).setDepth(textDepth);
       this.displayObjects.push(wpn);
+      const position = applyTextResolution(
+        scene.add.text(
+          x + sideW - 18,
+          y,
+          `${Math.max(1, validWpns.indexOf(unit.weapon) + 1)}/${validWpns.length}`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '8px',
+            color: UI_PALETTE.muted,
+          },
+        ),
+      )
+        .setOrigin(1, 0)
+        .setDepth(textDepth);
+      this.displayObjects.push(position);
 
       // Right arrow
       const rightArrow = applyTextResolution(
@@ -431,7 +517,7 @@ export class ForecastOverlay {
       }
     } else {
       const wpn = applyTextResolution(
-        scene.add.text(x + 2, y, wpnName, {
+        scene.add.text(x + 2 + badgeW, y, wpnName, {
           fontFamily: 'Arial',
           fontSize: '9px',
           color: wpnColor,
@@ -440,7 +526,7 @@ export class ForecastOverlay {
       this.displayObjects.push(wpn);
     }
 
-    y += 12;
+    y += canCycle ? 22 : 12;
 
     // Skills + Miracle (combined on one line if both present)
     const parts = [];
@@ -535,20 +621,15 @@ export class ForecastOverlay {
   /**
    * Render the footer: responsive hint text + CONFIRM ATTACK button.
    */
-  _drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons) {
+  _drawFooter(panelX, panelY, panelW, panelH, depth, validWeapons, targetCount = 0) {
     const scene = this.scene;
 
     const hintStyle = { fontFamily: 'Arial', fontSize: '8px', color: UI_PALETTE.muted };
-    const hintPrimary =
-      validWeapons.length >= 2
-        ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
-        : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
-    const hintCompact =
-      validWeapons.length >= 2
-        ? 'Click enemy or button | \u25C4 \u25BA weapon | ESC cancel'
-        : 'Click enemy or button | ESC cancel';
-    const hintUltraCompact =
-      validWeapons.length >= 2 ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC' : '[CONFIRM] | ESC';
+    const weaponHint = validWeapons.length >= 2 ? ' | \u25C4 \u25BA weapon' : '';
+    const targetHint = targetCount >= 2 ? ' | \u25B2 \u25BC target' : '';
+    const hintPrimary = `Enter, click enemy or [CONFIRM ATTACK]${weaponHint}${targetHint} | ESC back`;
+    const hintCompact = `Enter or click enemy${weaponHint}${targetHint} | ESC back`;
+    const hintUltraCompact = `[CONFIRM]${weaponHint}${targetHint} | ESC`;
 
     const measureHint = (text) => {
       const t = applyTextResolution(scene.add.text(-9999, -9999, text, hintStyle)).setVisible(

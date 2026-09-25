@@ -7,6 +7,7 @@
 //
 //   ┌ TURN / PAR (rating color) ┐                       ┌ objective (1–3 lines) ┐
 //   │ Eye charges               │                       └───────────────────────┘
+//   │ ◐ Shadow +N (Eclipse)     │
 //   └───────────────────────────┘ ┌ par tooltip ┐        [ fog chip ]
 //   ┌ terrain / unit hover ┐
 //   ...
@@ -24,6 +25,7 @@ const PAD_X = 8;
 const PAD_Y = 6;
 const CUT = 4; // chamfer
 const GAP = 4;
+const ECLIPSE_GLYPH = 10; // px reserved left of the Eclipse projection
 
 export const DESKTOP_HINT_TEXT =
   '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
@@ -125,6 +127,7 @@ export class DesktopBattleHud {
     return [
       s.turnCounterText,
       s.visionHudText,
+      s.eclipseHudText,
       s.objectiveText,
       s.infoText,
       s.parTooltipText,
@@ -172,6 +175,15 @@ export class DesktopBattleHud {
       statusBottom = eye.y + eye.displayHeight;
       statusRight = Math.max(statusRight, eye.x + eye.displayWidth);
     }
+    // The Eclipse projection: a small eclipsed-sun glyph, then "Shadow +N".
+    const shadow = s.eclipseHudText;
+    let glyph = null;
+    if (shadow?.visible && shadow.text) {
+      shadow.setOrigin(0, 0).setPosition(MARGIN + PAD_X + ECLIPSE_GLYPH + 3, statusBottom + 5);
+      glyph = { x: MARGIN + PAD_X + ECLIPSE_GLYPH / 2, y: shadow.y + shadow.displayHeight / 2 };
+      statusBottom = shadow.y + shadow.displayHeight;
+      statusRight = Math.max(statusRight, shadow.x + shadow.displayWidth);
+    }
     const status = {
       x: MARGIN,
       y: MARGIN,
@@ -179,6 +191,7 @@ export class DesktopBattleHud {
       h: statusBottom - MARGIN + PAD_Y,
     };
     if (turn.visible) this._plate(status, { gilt: true });
+    if (glyph && turn.visible) this._eclipseGlyph(glyph, s._eclipseHud?.tone?.());
 
     // Par tooltip (hover): to the right of the status plate.
     const tip = s.parTooltipText;
@@ -247,6 +260,20 @@ export class DesktopBattleHud {
 
   _pad(b, padX = PAD_X, padY = PAD_Y) {
     return { x: b.x - padX, y: b.y - padY, w: b.w + padX * 2, h: b.h + padY * 2 };
+  }
+
+  // The Hollow Sun in miniature: a gold disc bitten by ink. The bite deepens with the
+  // projection's tone (held → rising → dark).
+  _eclipseGlyph({ x, y }, tone) {
+    const g = this.plates;
+    const r = ECLIPSE_GLYPH / 2 - 1;
+    const bite = tone === 'dark' ? 0.25 : tone === 'rising' ? 0.9 : 1.7;
+    g.fillStyle(UI_HEX.accent, 0.35);
+    g.fillCircle(x, y, r + 1);
+    g.fillStyle(UI_HEX.accentText, 1);
+    g.fillCircle(x, y, r);
+    g.fillStyle(UI_HEX.void, 1);
+    g.fillCircle(x + bite * r * 0.62, y - bite * 0.4, r);
   }
 
   // Chamfered ink plate with a line border; gilt hairline on primary plates.

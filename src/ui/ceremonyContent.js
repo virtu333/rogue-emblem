@@ -8,6 +8,7 @@
 
 import regions from '../../data/regions.json';
 import framing from './ceremonyPortraitFraming.json';
+import { sentenceTitle } from '../engine/DeedTitles.js';
 
 // ── Acts ─────────────────────────────────────────────────────────────────
 
@@ -68,10 +69,11 @@ export function actGradeName(actId) {
   return GRADE_NAMES[ACT_GRADE_KEYS[actId]] || '';
 }
 
-/** ACT n · region (Cinzel) · grade name. */
-export function actCardContent(actId) {
+/** ACT n (· Eclipse phase) · region (Cinzel) · grade name. */
+export function actCardContent(actId, { phase = '' } = {}) {
+  const act = actLabel(actId);
   return {
-    kicker: actLabel(actId),
+    kicker: act && phase ? `${act} · ${phase}` : act,
     title: actRegion(actId),
     grade: actGradeName(actId),
   };
@@ -141,11 +143,23 @@ export function objectiveWord(objective) {
   return OBJECTIVE_WORDS[objective] || 'VICTORY';
 }
 
-export function victoryContent({ objective, turn, par, rating }) {
+export function victoryContent({
+  objective,
+  turn,
+  par,
+  rating,
+  shadowGain = null,
+  shadowRelief = 0,
+}) {
   const parts = [];
   if (Number.isFinite(turn) && turn > 0) parts.push(`Turn ${Math.trunc(turn)}`);
   if (Number.isFinite(par)) parts.push(`Par ${Math.trunc(par)}`);
   if (typeof rating === 'string' && rating) parts.push(`Rank ${rating}`);
+  // The Eclipse: what this victory does to the sun.
+  if (Number.isFinite(shadowGain))
+    parts.push(shadowGain > 0 ? `Shadow +${Math.trunc(shadowGain)}` : 'Sun held');
+  if (Number.isFinite(shadowGain) && shadowRelief > 0)
+    parts.push(`Sun flares −${Math.trunc(shadowRelief)}`);
   return { word: objectiveWord(objective), sub: parts.join(' · ') };
 }
 
@@ -172,7 +186,10 @@ export function shouldShowFelled({ objective, remaining = 0, reviving = 0 }) {
   return true;
 }
 
-export function fallenContent({ name, className }) {
+export function fallenContent({ name, className, epithet = null }) {
+  // A titled commander is named in full: "Edric, Who Held the Bridge, has fallen".
+  if (name && typeof epithet?.text === 'string' && epithet.text.trim())
+    return { word: 'FALLEN', sub: `${sentenceTitle(name, epithet)} has fallen` };
   return { word: 'FALLEN', sub: [name, className].filter(Boolean).join(' · ') };
 }
 
@@ -200,12 +217,15 @@ export function phaseContent({ phase, turn, place = '' }) {
   };
 }
 
-export function cutInContent({ label, unitName, weaponName, isArt = false }) {
+export function cutInContent({ label, unitName, weaponName, isArt = false, epithet = '' }) {
   const word = isArt ? String(label || '').toUpperCase() : 'CRITICAL';
-  return {
+  const content = {
     word,
     small: [unitName, weaponName].filter(Boolean).join(' · ').toUpperCase(),
   };
+  // A titled unit's epithet rides under the word (Deeds & Epithets).
+  if (typeof epithet === 'string' && epithet.trim()) content.epithet = epithet.trim();
+  return content;
 }
 
 // ── Battle notices ───────────────────────────────────────────────────────
@@ -260,12 +280,14 @@ export function runEndContent({
   turn = null,
   defeatContext = null,
   battlesWon = null,
+  eclipse = '',
 }) {
   const where = [actRegion(actId), actLabel(actId)].filter(Boolean);
   if (result === 'victory') {
     const meta = [...where];
     if (Number.isFinite(battlesWon) && battlesWon > 0)
       meta.push(`${battlesWon} ${battlesWon === 1 ? 'battle' : 'battles'} won`);
+    if (eclipse) meta.push(eclipse);
     return {
       tone: 'holds',
       word: 'THE THREAD HOLDS',
@@ -275,6 +297,7 @@ export function runEndContent({
   }
   const meta = [...where];
   if (Number.isFinite(turn) && turn > 0) meta.push(`Turn ${Math.trunc(turn)}`);
+  if (eclipse) meta.push(eclipse);
   let sub;
   if (!defeatContext) sub = 'The march was abandoned';
   else {

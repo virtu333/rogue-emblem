@@ -31,6 +31,7 @@ import {
   grantRecruitStartingAccessory,
   checkLevelUpSkills,
   learnSkill,
+  normalizeEquippedFirst,
 } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
@@ -274,6 +275,7 @@ export function createBossLordUnit(
     const index = unit.inventory.indexOf(previous);
     if (index >= 0) unit.inventory[index] = unit.weapon;
     else unit.inventory.unshift(unit.weapon);
+    normalizeEquippedFirst(unit);
   }
 
   // Give a Vulnerary
@@ -563,7 +565,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random, traitClassData: promotedClassData },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);

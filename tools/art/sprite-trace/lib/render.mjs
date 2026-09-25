@@ -4,8 +4,18 @@
 // (upper-left) side. Optional grade for corruption / acted states. Pure.
 import { Raster } from './raster.mjs';
 import { SLOT } from './slots.mjs';
-import { INK } from './ramps.mjs';
+import { INK, BIBLE_RAMPS } from './ramps.mjs';
 import { mix, luma } from './color.mjs';
+
+// materials a pose can add that the traced figure may not have had (a bowstring, an
+// arrow, a spell's flare): house ramps
+const FALLBACK = {
+  [SLOT.linen]: 'linen',
+  [SLOT.glow]: 'glowGold',
+  [SLOT.metal]: 'bladeP',
+  [SLOT.wood]: 'leather',
+  [SLOT.leather]: 'leather',
+};
 
 const N4 = [
   [0, 1, true], // fill below: this outline pixel sits on its lit top edge
@@ -24,7 +34,8 @@ export function render(sp, palette) {
   const shadowInk = palette.shadowInk ?? 0.78;
   const lineInk = palette.lineInk ?? 0.55;
   const grade = palette.grade || ((c) => c);
-  const ramp = (s) => palette.ramps[s] || palette.ramps[SLOT.sub];
+  const ramp = (s) =>
+    palette.ramps[s] || BIBLE_RAMPS[FALLBACK[s]] || palette.ramps[SLOT.sub] || BIBLE_RAMPS.charcoal;
   const base = (s) => {
     if (s === SLOT.ink || s === SLOT.eye) return INK;
     return ramp(s)[0];

@@ -3,6 +3,8 @@ import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
 import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { deedsOfTheMarchSection } from './deedDisplay.js';
+import { runEclipseSummary } from './eclipseContent.js';
 import { slotCardModel } from './slotCardModel.js';
 import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
 
@@ -29,12 +31,15 @@ export function runResultMenu(scene, rewards, meta) {
     ['Battles won', rm.completedBattles],
     ['Act reached', `${rm.actIndex + 1} / ${rm.actSequence?.length || 4}`],
     ['Difficulty', rm.difficultyModifiers?.label || rm.difficultyId || 'Normal'],
+    ...(runEclipseSummary(rm) ? [['Eclipse', runEclipseSummary(rm)]] : []),
     ['Currency multiplier', `×${rewards.currencyMultiplier.toFixed(2)}`],
     ['Valor earned', `+${rewards.valor}`],
     ['Supply earned', `+${rewards.supply}`],
   ])
     stats.append(element('dt', label), element('dd', String(value)));
   menu.body.append(stats);
+  const deeds = deedsOfTheMarchSection(rm);
+  if (deeds) menu.body.append(deeds);
   if (meta && rewards.appliedToMeta === false)
     menu.body.append(element('p', PAYOUT_PENDING_NOTE, 're-run-note'));
   if (meta)
