@@ -5,6 +5,34 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Items, rewards and services art (built)
+
+Every item, scroll, stone, blessing and upgrade has a pixel icon drawn in code from its
+data, in a socket whose shape is its category and whose rim is its tier; items shown large
+get a painted 96 px picture; blessings are tarot paintings; each service has its place.
+Spec and deviations: [`specs/items-art.md`](specs/items-art.md); captures:
+[`art-direction/items/production/`](art-direction/items/production/README.md).
+
+**Decisions**
+- Icons are generated, not painted: 302 icons render natively at 16/32/48 from
+  `tools/art/icons/`, byte-stable (a unit test rebuilds and compares). One atlas per size,
+  loaded as a CSS background only when a screen shows that size.
+- Paintings are only where an item is large (the detail pane); never shrunk — a smaller
+  slot shows the pixel icon at an integer scale. Scrolls, blessings and upgrades keep
+  their pixel glyph even large: the glyph is the information.
+- The reward reveal is presentation and plays once per battle: the reward record carries
+  `revealed`, so a resume never replays it. On the list, the tap that skips it selects.
+- Motion (forge sparks, candle flicker, card turn, the upgrade stamp) is CSS on DOM, off
+  under Reduce motion (game setting or OS).
+- The 37 legacy `icon_*` textures loaded at boot were unused: deleted.
+
+**Deferred**
+- The choice-screen redesign's reward cards and tarot blessing cards: wired on a preview
+  merge, ported when the redesign lands (its `itemArtSlot` must move off `icon_*`).
+- Canvas loot banner and HUD item names stay text.
+
+---
+
 ## 2026-09-25 — Deeds & Epithets (built)
 
 Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from

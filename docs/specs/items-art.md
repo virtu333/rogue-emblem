@@ -95,8 +95,18 @@ Captures and the as-built tour: [`art-direction/items/production/`](../art-direc
   buying stamps **TIER n** across the detail in Cinzel, flares the row socket and
   ignites the new gem.
 - Reward reveal (`src/ui/rewardReveal.js`): Hollow Sun card backs turn in order, 180 ms
-  with a 90 ms stagger, the rarest flashes ember; a tap skips (and never selects),
-  Reduce motion and Instant speed show the end state. Presentation only.
+  with a 90 ms stagger (rows of a list turn over their long axis), the rarest (Silver and
+  up) flashes ember; a tap or key skips. On the reward list the skipping tap also
+  selects (`passThrough`), on cards it is swallowed so it never picks. Reduce motion and
+  Instant speed show the end state. It plays **once per battle**: the reward record
+  gains `revealed: true` (saved with the record; records saved before this have no flag
+  and reveal once), and a resume, a restored half-made choice or a later pick never
+  replays it (`rewardRevealPending`). Presentation only — no RNG, no game state.
+- Blessing select: the chosen blessing is a tarot card in the detail pane — the painting
+  in a tier-coloured frame (tier IV adds a dotted ember inner frame), the numeral on a
+  Hollow Sun disc — beside its terms on phones, above them on the 640×480 base and a
+  tall desktop (2x). The card turns in when the choice changes (not under Reduce motion).
+  The price sits under a wax seal: crimson for a rolled cost, verdigris for a clean gift.
 
 ### Wiring
 
@@ -107,10 +117,32 @@ Captures and the as-built tour: [`art-direction/items/production/`](../art-direc
 | Colosseum (`ArenaMenu`) | the gate behind every arena screen, torch glow |
 | Roster equipment, consumables, accessories, convoy, team scrolls (`MobileRosterSheet`; also the unit details sheet) | item cards lead with the socketed icon; About this item shows the hero beside the story (lazy) |
 | Army upgrades (`MobileUpgradeMenu`) | icons, gem pips, the purchase moment |
+| Battle rewards (`MobileRewards`) | socketed icons on every reward row (socket = category, rim = tier; skip = gold); the detail leads with the painted hero; the reveal; forge/imbue weapon steps carry the weapon's icon and picture |
+| Blessing select (`RunSetupMenu`) | boon icons in sun-disc sockets on the rows; the tarot card and cost seal in the detail |
 | Boot | the 37 `icon_*` textures are no longer loaded; files deleted |
+
+## Generation
+
+All through `tools/art/gen/geminiImage.mjs` (provenance in each raw folder's
+`generations.jsonl`, under `References/items-art/`, not shipped):
+
+| Set | Images generated | Approved |
+| --- | --- | --- |
+| Hero paintings | 157 (Flash) | 139 — 18 were re-prompts of rejected takes |
+| Blessing cards | 47 (Flash) + 1 (Pro, the quota probe; not used) | 23 |
+| Service vignettes | 14 (Flash) | 6 |
 
 ## Deviations
 
+- The choice-screen redesign (`.ch-item-art[data-item-art-hook]` reward cards, tarot
+  blessing cards) had not landed on main when this shipped. The live reward list and
+  blessing list on main are wired instead; the same helpers (`itemIcon`, `itemHero`,
+  `blessingCardArt`, `costSeal`, `playRewardReveal`) were proven against the redesign
+  on a local preview merge and port as a small follow-up when it lands. Note: the
+  redesign's `itemArtSlot` still points at the deleted `icon_*` files, so that port is
+  required on merge (it swaps them for `itemIcon`/`itemHero`).
+- Canvas surfaces (the in-battle loot banner and HUD item names) keep text; the item
+  art is DOM-only.
 - Hero paintings stop at 96 px on a plate (the pane is ~205 px tall at 844×390); on short
   phones the plate rim is 8 px instead of 16. The numbers sit beside the picture so a
   phone reads them without scrolling.

@@ -28,6 +28,10 @@ and after (`after/`). All art in the captures is the shipping build's; nothing i
 
 | Surface | Before | After |
 |---|---|---|
+| Battle rewards (phone) | ![](before/rewards-mixed-844x390.webp) | ![](after/rewards-mixed-844x390.webp) |
+| Battle rewards (desktop) | ![](before/rewards-mixed-1280x800.webp) | ![](after/rewards-mixed-1280x800.webp) |
+| Blessing select (phone) | ![](before/blessing-hand-844x390.webp) | ![](after/blessing-hand-844x390.webp) |
+| Blessing select (desktop) | ![](before/blessing-hand-1280x800.webp) | ![](after/blessing-hand-1280x800.webp) |
 | Shop (phone) | ![](before/shop-buy-844x390.webp) | ![](after/shop-buy-844x390.webp) |
 | Shop (desktop) | ![](before/shop-buy-1280x800.webp) | ![](after/shop-buy-1280x800.webp) |
 | Forge tab | ![](before/shop-forge-844x390.webp) | ![](after/shop-forge-1280x800.webp) |
@@ -37,7 +41,9 @@ and after (`after/`). All art in the captures is the shipping build's; nothing i
 | Roster equipment | ![](before/roster-equipment-844x390.webp) | ![](after/roster-equipment-844x390.webp) |
 | Convoy | ![](before/convoy-844x390.webp) | ![](after/convoy-844x390.webp) |
 
-More: caravan ([phone](after/caravan-844x390.webp), [desktop](after/caravan-1280x800.webp)),
+More: the whetstone's weapon step ([phone](after/rewards-step-844x390.webp)), blessing
+select on the short screens ([667×375](after/blessing-hand-667x375.webp),
+[640×480](after/blessing-hand-640x480.webp)), caravan ([phone](after/caravan-844x390.webp), [desktop](after/caravan-1280x800.webp)),
 ruins ([phone](after/ruins-844x390.webp)), the Skills tab
 ([phone](after/upgrades-skills-844x390.webp), [desktop](after/upgrades-skills-1280x800.webp)),
 the purchase moment ([phone](after/upgrade-bought-844x390.webp),
@@ -50,7 +56,12 @@ the purchase moment ([phone](after/upgrade-bought-844x390.webp),
 - **Candle flicker:** warm glows breathe over the church and the ruins; torches at the gate.
 - **Upgrade bought:** TIER *n* stamps in (420 ms), the socket flares, the new gem ignites.
 - **Reward reveal:** Hollow Sun backs turn in order (180 ms each, 90 ms stagger), the
-  rarest flashes ember; a tap skips.
+  rarest flashes ember; a tap skips (and selects the row it lands on). Once per battle —
+  a resume shows the spoils face up. Frames at 0 / 240 / 520 ms and settled:
+
+  ![Reward reveal, phone](reward-reveal-strip-844x390.webp)
+
+- **Blessing card turn:** the tarot card turns in when the choice changes.
 
 All of it is CSS on DOM that stops when its menu closes; under **Reduce motion** (the game
 setting or the OS preference) the still painting and the end state show instead.
