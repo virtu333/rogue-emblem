@@ -746,7 +746,7 @@
 
 /* ─────────────────────────────────────────────── Joins your army */
 .gr-join-layer {
-  --ce-bust: min(calc(192px * var(--ce-bust-px, 1)), calc(var(--ce-w) * 0.34));
+  --ce-bust: min(calc(192px * var(--ce-bust-px, 1)), var(--ce-bust-cap));
   --ce-band-h: calc(132px * var(--ce-scale));
 }
 .gr-join {
@@ -755,8 +755,8 @@
 }
 .gr-join-band {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--ce-band-l, 0px);
+  right: var(--ce-band-r, 0px);
   top: calc(50% - var(--ce-band-h) / 2);
   height: var(--ce-band-h);
   background: linear-gradient(
