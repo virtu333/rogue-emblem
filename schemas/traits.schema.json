@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unit Traits (rules v2 — see docs/specs/traits-v2.md)",
+  "type": "array",
+  "minItems": 1,
+  "items": { "$ref": "#/$defs/trait" },
+  "$defs": {
+    "statKey": {
+      "enum": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK", "MOV", "ATTACK"]
+    },
+    "growthKey": {
+      "enum": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK", "ATTACK"]
+    },
+    "role": {
+      "enum": [
+        "attacker",
+        "support",
+        "caster",
+        "physical",
+        "infantry",
+        "armored",
+        "cavalry",
+        "flying",
+        "mounted",
+        "lord"
+      ]
+    },
+    "condition": {
+      "enum": [
+        "below50",
+        "above75",
+        "no_ally_within_2",
+        "on_forest",
+        "adjacent_ally",
+        "initiating",
+        "defending",
+        "foe_below50",
+        "in_cover",
+        "initiating_full_hp_foe",
+        "moved_3_plus_initiating",
+        "initiating_no_adjacent_ally"
+      ]
+    },
+    "combatPart": {
+      "type": "object",
+      "properties": {
+        "condition": { "$ref": "#/$defs/condition" },
+        "hitBonus": { "type": "integer" },
+        "avoidBonus": { "type": "integer" },
+        "critBonus": { "type": "integer" },
+        "atkBonus": { "type": "integer" },
+        "defBonus": { "type": "integer" },
+        "resBonus": { "type": "integer" },
+        "spdBonus": { "type": "integer" }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "trait": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 18 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 85 },
+        "rarity": { "enum": ["legendary"] },
+        "lordName": { "type": "string", "minLength": 1 },
+        "retired": { "type": "boolean" },
+        "staffSelfHeal": { "type": "integer", "minimum": 1 },
+        "xpMultiplier": { "type": "number", "exclusiveMinimum": 0 },
+        "masteryBattlesDelta": { "type": "integer" },
+        "masteryPerkMultiplier": { "type": "integer", "minimum": 1 },
+        "creationMods": {
+          "type": "object",
+          "properties": {
+            "stats": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/statKey" },
+              "additionalProperties": { "type": "integer" }
+            },
+            "growths": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/growthKey" },
+              "additionalProperties": { "type": "integer" }
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        },
+        "combatMods": {
+          "oneOf": [
+            { "$ref": "#/$defs/combatPart" },
+            { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/combatPart" } }
+          ]
+        },
+        "roll": {
+          "type": "object",
+          "properties": {
+            "weight": { "type": "number", "exclusiveMinimum": 0 },
+            "requires": { "type": "array", "items": { "$ref": "#/$defs/role" } },
+            "excludes": { "type": "array", "items": { "$ref": "#/$defs/role" } },
+            "roleWeights": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/role" },
+              "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
+            },
+            "lords": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["id", "name", "description"],
+      "additionalProperties": false
+    }
+  }
+}

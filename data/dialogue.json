@@ -1,88 +1,187 @@
 {
   "recruitLines": {
     "Fighter": [
-      "Need an axe? I'm with you.",
-      "Point me at something to hit."
+      "The quarry shut the day the levy came. I kept the axe. Seemed only fair.",
+      "Twelve years felling pine. Soldiers can't be harder. They dodge, you say? Rude.",
+      "The levy took my brother east. You're heading east. That's the whole plan.",
+      "Point me at something to hit.",
+      "My foreman said I'd never be more than a strong back. Watch this strong back.",
+      "I bet a month's pay you'd reach the capital. Can't let you lose my money."
     ],
     "Archer": [
+      "I owed the crown a quiver this season. Thought I'd deliver it by hand.",
+      "My father shot for the levy, and his mother before him. Tradition. Here I am.",
       "I don't miss. Point me at a target.",
-      "My arrows are yours."
+      "Somebody burned my orchard. I'd like a word with them, from about eighty paces.",
+      "I hunted rabbits for the lord's table. The lord's gone. The rabbits can rest.",
+      "The border wardens turned me down. Too chatty, they said. I'll show them. Loudly."
     ],
     "Mage": [
-      "My spells aren't gentle, but they're effective.",
-      "I've studied enough. Time to fight."
+      "Expelled for reading past chapter nine. Chapter ten is mostly fire. You'll like it.",
+      "The academy burned down. Not my fault. Mostly. I need somewhere else to practice.",
+      "My teacher went to the capital to ask a question and never came back. I'll ask louder.",
+      "They taught me fire at seven and never said where the words come from. I'm asking now.",
+      "Tutoring rich children paid well. Then the rich children were drafted. So.",
+      "Please don't stand directly in front of me. Or behind me, on bad days."
     ],
     "Cavalier": [
       "My lance is yours, Commander.",
-      "I rode from the front lines. Where do you need me?"
+      "I swore an oath nobody asks riders to take anymore. I'll keep it with you instead.",
+      "The garrison says I stole this mount. Her dam was my family's. They can argue it.",
+      "I rode dispatches for a captain who stopped writing back. I'd like new orders.",
+      "The empire kept the drills and dropped the oaths. I kept both. Lucky you.",
+      "Mount's fed, lance is sharp, and I've nowhere else to ride. Lead on."
     ],
     "Cleric": [
       "I can mend what's broken. Stay close.",
-      "The wounded need me. Lead on."
+      "The temple sent every staff out after the levies. I'm late. I'm sorry.",
+      "I've buried more than I've mended this year. I'd like to reverse that.",
+      "Don't thank me. Just stop standing where the arrows are.",
+      "My abbess said the light goes where it's needed. It's needed rather badly here.",
+      "I ran the village infirmary alone. You lot at least march in one direction."
     ],
     "Myrmidon": [
-      "I fight alone. But I'll fight beside you.",
-      "One blade is enough. Mine."
+      "The sword school paid my debt. I work it off in duels. I'd rather duel the empire.",
+      "One blade is enough. Mine.",
+      "My master said I wasn't ready. My master was also late to every fight for forty years.",
+      "I'm hunting the duelist who crippled my teacher. Until I find them, I'm yours.",
+      "Quick feet, a sharp blade, and a debt of thirty silver. Two out of three is good.",
+      "I've drilled the same cut ten thousand times. I'd like to use it once."
     ],
     "Thief": [
-      "I go where I please. Right now, I please to go with you.",
-      "Locks, traps, pockets - I handle them all."
+      "Locks, traps, pockets - I handle them all.",
+      "Your camp's cooking beats the jail's. That's my entire reasoning.",
+      "I lifted your quartermaster's purse and gave it back. Consider that my interview.",
+      "I stole a magistrate's signet. The magistrate wants it back. I want an army nearby.",
+      "Locks got cheap when the war started. What they guard didn't. Funny, that.",
+      "I go where I please. Right now, I please to go with you."
     ],
     "Mercenary": [
       "Coin's good. Cause is better. You've got both.",
-      "I've fought for worse reasons."
+      "My last contract ended when my employer did. Your terms can't be worse.",
+      "Half pay now, half when we win. If we lose, I'll invoice the grave.",
+      "Fought for the empire last spring. They paid in scrip. You pay in silver, I hope?",
+      "Twelve years a sellsword. Never once worked for anyone who said please. You did.",
+      "Don't expect loyalty. Expect punctuality and a clean edge. Loyalty costs extra."
     ],
     "Pegasus Knight": [
-      "The skies are mine. Let's see what's ahead.",
-      "From above, I've seen what the corruption does."
+      "My mount landed beside your camp and won't leave. So, apparently, we're joining.",
+      "The legion grounded me for insubordination. The sky didn't.",
+      "From above, I've seen what the corruption does.",
+      "I carried letters over the ridges until there was no one left to write to.",
+      "She chose me over a captain's heir. I've been trying to deserve it ever since.",
+      "My sister flies dispatches in the capital. I mean to get there before her news does."
     ],
     "Knight": [
       "I am the shield. You are the sword.",
-      "Nothing gets past me. Nothing."
+      "The levy put me on a wall. The wall fell. I didn't. So here I am.",
+      "This armor weighs as much as my cousin. My cousin complains more.",
+      "Nobody runs from a charge in full plate. You physically can't. I think that's the idea.",
+      "Twenty years guarding one gate. The gate's gone. The habit isn't.",
+      "Go on ahead. I'll catch up. Sometime tonight."
     ],
     "Dancer": [
       "A dance can turn the tide. Watch and see.",
-      "Morale wins wars. I'm here for that."
+      "I danced for a garrison every night for a year. None of them marched home. Yours will.",
+      "The troupe split up at the border. I kept the shoes and most of the songs.",
+      "Soldiers forget what they're marching back to. I'm the reminder.",
+      "Your people tipped best at the crossroads tavern last night. Easy choice, really.",
+      "My grandmother danced for kings. I dance for whoever's still breathing."
     ],
     "Wyvern Rider": [
       "My wyvern and I answer to no lord. But for this fight - we'll make an exception.",
-      "The skies belong to us."
+      "My clan sold three wyverns to the empire. Consider me the refund.",
+      "My wyvern ate a tax collector's hat. We had to leave the mountains rather quickly.",
+      "The elders said stay out of lowland wars. The elders don't ride my wyvern.",
+      "Clan law says never fly for a banner. I'm flying beside one. Different thing.",
+      "She hatched the winter my mother died. We've looked after each other since."
     ],
     "Hero": [
-      "I've fought in darker wars than this. What matters is seeing it through.",
-      "Another war. Let's end this one."
+      "Another war. Let's end this one.",
+      "The soldiers gave me the title. Command never did. I'd like to earn it twice.",
+      "I've buried two captains and a royal standard. I'd prefer not to bury you.",
+      "I was retired. The war wasn't. So here we both are.",
+      "They say I held a bridge alone. There were four of us. I'm the one they remember.",
+      "Somebody has to walk in front. I've had the practice."
     ],
     "Falcon Knight": [
-      "From above, I've seen what the corruption does. No more.",
-      "Lance and sky. That's all I need."
+      "Lance and sky. That's all I need.",
+      "I flew escort for the commission's seers. None of them saw this. Maybe yours does.",
+      "The high commission disbanded. My mount never got the letter.",
+      "Outflew three storms last month. The fourth one's on the ground. Let's go.",
+      "From above, the fens look like an old bruise. I'd rather not watch it spread.",
+      "I've landed where hope was thinnest for years. This is thinner. Good."
     ],
     "Sage": [
       "The old magic is failing. Perhaps your seer can show us a better path.",
-      "Knowledge is a weapon. I'm well-armed."
+      "The library ends at a locked door. I'd like to read past it before it reads me.",
+      "They made me a sage so they wouldn't have to admit they'd nothing left to teach me.",
+      "I've read the liturgy's last pages. I would very much like to be wrong about them.",
+      "Forty years of study. I'd planned to retire to a warm chair. The chair burned.",
+      "Do keep the young ones away from my notes. Page forty bites."
     ],
     "Assassin": [
       "I don't do speeches. Just tell me who dies.",
-      "Silence is my specialty."
+      "The empire paid me off the books. Then it closed the books, with me inside.",
+      "My last contract was you. I read the file and tore up the contract.",
+      "I've never appeared in a ledger. Don't start one on my account.",
+      "Someone in the capital owes me a name. I'll collect on the way.",
+      "Put me on the roster if you must. Don't expect me at roll call."
     ],
     "Sniper": [
-      "One shot. One kill. That's the only math that matters.",
-      "I see the target. That's enough."
+      "Every wall kept one of us. My wall fell. Now I need a new wall.",
+      "I see the target. That's enough.",
+      "The garrison pretended not to know my name. You can too. It's easier.",
+      "Won the provincial shoot three years running. The prize was a conscription notice.",
+      "I've counted every shot I fired this war. I'd like the count to mean something.",
+      "Tell me the distance and the wind. Don't tell me the name."
     ],
     "Bishop": [
       "The light fades, but it hasn't gone. Not yet.",
-      "Healing and faith. I bring both."
+      "The temple gave me mercy and judgment both. I've used up the mercy this year.",
+      "My cathedral is a stable now. The horses seem devout enough.",
+      "I've heard ten thousand confessions. Yours will be the dullest. Congratulations.",
+      "The bishops who fled to the capital left me the keys. I mean to return them.",
+      "Pray if it helps. Duck if it doesn't. I'll see to the rest."
     ],
     "Chevalier": [
       "My lance rides where honor demands. Lead, and I follow.",
-      "A knight without a charge is nothing. Give me one."
+      "A knight without a charge is nothing. Give me one.",
+      "Bred for distance, my mount and I both. Just tell me how far."
     ],
     "Sky Lancer": [
       "The wind answers to no one. Neither do I.",
-      "From up here, I see everything. Point me at the real threat."
+      "From up here, I see everything. Point me at the real threat.",
+      "I fly alone. Today alone looks like your whole army. Fine."
     ],
     "Sentinel": [
       "I don't move. I don't flinch. Come at me.",
-      "They'll break against me like waves on stone."
+      "They'll break against me like waves on stone.",
+      "Put me wherever it's worst. Then stop worrying about it."
+    ],
+    "Paladin": [
+      "I recite the oath whole, including the parts they cut. Someone ought to.",
+      "Three campaigns, two mounts, one oath. The oath has held up best.",
+      "The strong serve the weak. That's the line they struck. I'm putting it back.",
+      "My order sent me to hold a province. The province left. I'm still holding.",
+      "I trained your cavalry's instructors. They weren't listening. Perhaps you will.",
+      "I promised my father's grave I'd ride under a true banner once. Yours will do."
+    ],
+    "Warrior": [
+      "Everyone in my unit died but me. They promoted me for it. I'd like to earn it.",
+      "Bigger axe, same problems. Point me at them.",
+      "Quarryman, then levy, then survivor. Now I'm whatever this is.",
+      "The berserk school sent me a letter. I used it to light a fire. I keep my own temper.",
+      "I bet your quartermaster I could lift the supply wagon. Lost. I owe you a season.",
+      "I don't retreat. My knees don't bend that way anymore."
+    ],
+    "Wyvern Lord": [
+      "My wyvern's shadow settles arguments. You look like you've got a few.",
+      "The clans crown no kings. Good. I've no patience for bowing.",
+      "My clan voted to stay out of it. I lost the vote and took the biggest wyvern.",
+      "The empire offered a fortune for my mount. I answered from altitude.",
+      "Something stirs under the fens and my wyvern won't eat. I'd like to know why.",
+      "Twenty winters on the mountain. I came down because the smoke wouldn't stop rising."
     ]
   },
   "lordRecruitLines": {
@@ -905,6 +1004,41 @@
               "speaker": "Cael",
               "portrait": "portrait_lord_cael",
               "line": "The rear guard stays within sight this time."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commander": "Sera",
+            "commanderHasEpithet": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+            },
+            {
+              "speaker": "Edric",
+              "portrait": "portrait_lord_edric",
+              "line": "The soldiers have a name for you now: {epithet}. Wear it past those stones."
+            }
+          ]
+        },
+        {
+          "when": {
+            "commanderHasEpithet": true
+          },
+          "entries": [
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The sacred ground ahead is corrupted. The ritual is close — and so is the lieutenant."
+            },
+            {
+              "speaker": "Sera",
+              "portrait": "portrait_lord_sera",
+              "line": "The column says it like a name now: {epithet}. Let the lieutenant hear it too."
             }
           ]
         },
@@ -5155,105 +5289,135 @@
       "act1": [
         "The air tastes of iron here.",
         "Scouts spotted movement ahead.",
-        "Something stirs beyond the treeline.",
         "The ground is scarred from old battles.",
         "The quarry roads are empty. The levies took even the picks to war.",
-        "Half the blades dug from this ground still carry Varen's mark."
+        "Half the blades dug from this ground still carry Varen's mark.",
+        "Scout's report: six at the ford, poorly shod, well armed. Quarry picks, mostly.",
+        "Sign nailed to the mile post: LEVY BY ORDER. Someone has scratched beneath it: AGAIN.",
+        "'Whose side are they on?' 'Their own. Same as everyone this side of the river.'"
       ],
       "act2": [
         "Imperial banners hang in tatters.",
         "The corruption has touched this place.",
-        "Smoke rises from the far ridge.",
         "Old fortifications, hastily rebuilt.",
         "The old kingdom's roads run straight and true. The tolls are the empire's.",
-        "This province feeds the war economy a cartload at a time."
+        "This province feeds the war economy a cartload at a time.",
+        "Toll-house ledger, last entry: Soldiers, forty. Paid, none. Toll-keeper, departed.",
+        "The mile markers count down to the capital. Someone has scratched out the numbers.",
+        "Camp talk: the garrison here hasn't been paid since the thaw. They'll be cranky."
       ],
       "act3": [
         "The sky darkens without clouds.",
         "Reality bends at the edges here.",
         "The earth hums with a low, wrong note.",
-        "Even the wind sounds uncertain.",
         "The fens drain from the sacred ground. They always have.",
-        "The seers' liturgy names this place. The last pages are about it."
+        "The seers' liturgy names this place. The last pages are about it.",
+        "Scout's report: water's black past the reeds and the frogs have gone quiet. Don't drink.",
+        "A shrine post, its prayer board blank. The paint didn't fade. The words did.",
+        "'Didn't we fight here already?' 'Don't start that again.'"
       ],
       "act4": [
         "The air itself resists each step.",
-        "Shadows move against the light.",
         "This land remembers what was done to it.",
         "The corruption runs deep here. Deeper than roots.",
         "The court circle's seals are on every door.",
-        "These walls were raised to keep something in."
+        "These walls were raised to keep something in.",
+        "Posted on the gate: CURFEW AT DUSK. Beneath it, older and faded: CURFEW AT NOON.",
+        "The capital's streets are swept clean. Nobody is left to dirty them.",
+        "Quartermaster's note: arrows, low. Rations, lower. Morale, don't ask."
       ],
       "finalBoss": [
         "The end of the path. One way or another.",
         "Everything converges here.",
         "No more detours. No more preparation.",
-        "The world holds its breath.",
-        "Every timeline the seers have walked passes through this floor."
+        "Every timeline the seers have walked passes through this floor.",
+        "Carved into the stair, very old: WE CAME THIS FAR ALSO.",
+        "No scout returns from below. The last one's lantern still burns on the steps.",
+        "'Any orders?' 'Same as always. Everyone walks back up.'"
       ]
     },
     "elite": {
       "act1": [
         "A stronger presence guards this road.",
         "The scouts fell back. That's never good.",
-        "Something here doesn't want to be found.",
-        "The usual patrols don't come this way."
+        "The usual patrols don't come this way.",
+        "Scout's report: this lot marches in step. Somebody trained them properly.",
+        "Wanted poster on the mill door. The reward's been raised twice this month.",
+        "'The wardens won't go that way.' 'Why not?' 'Ask them. They won't say.'"
       ],
       "act2": [
         "An officer commands these troops. Stay sharp.",
         "Imperial elites. Not conscripts — true believers.",
         "This garrison was reinforced recently.",
-        "They knew we were coming."
+        "Requisition slip found in the mud: One captain, veteran. Delivered.",
+        "The pickets salute each other here. Bad sign. It means someone's in charge.",
+        "Tavern rumor: the officer here has never lost a duel, and keeps the loser's gloves."
       ],
       "act3": [
         "The corruption has champions of its own.",
-        "Power radiates from this place. Twisted power.",
         "Whatever guards this place has forgotten mercy.",
-        "The air crackles. Not lightning — something older."
+        "The air crackles. Not lightning — something older.",
+        "The reed-cutters won't cross this ground. They leave offerings at the edge instead.",
+        "Scout's report: one of them walked through the bog and didn't sink. Didn't even try to.",
+        "A priest's aside: whatever holds this ground once prayed. It has forgotten how."
       ],
       "act4": [
         "A fragment of the emperor's will, given form.",
         "This one was shaped by the ritual itself.",
-        "The corruption's finest soldier stands ready.",
-        "Even the ground trembles at what waits ahead."
+        "Even the ground trembles at what waits ahead.",
+        "Palace guard roster, one name circled in red ink: DO NOT ENGAGE ALONE.",
+        "The household knights still wear their parade plate. It's been reforged for war.",
+        "Overheard at the barricade: 'That one doesn't sleep. I've watched it not sleep.'"
       ],
       "finalBoss": [
-        "The last guardian. The strongest.",
         "All that power, concentrated in one vessel.",
         "This is the price of the final step.",
-        "It knows why we've come."
+        "It knows why we've come.",
+        "Its armor bears every standard the empire ever took, stacked like trophies.",
+        "Carved on the threshold in a seer's hand: IT REMEMBERS YOU. BE QUICKER.",
+        "'How many times have we done this?' 'Once. Just the once. Keep walking.'"
       ]
     },
     "boss": {
       "act1": [
         "A commander holds the line ahead.",
-        "The border's strongest awaits.",
         "Steel and discipline guard this crossing.",
-        "Their leader won't yield ground easily."
+        "Their leader won't yield ground easily.",
+        "The garrison captain's banner flies over the quarry works, freshly mended.",
+        "Scout's report: the captain eats with the troops. They'll fight hard for that one.",
+        "Tacked to the bridge post: CROSSING CLOSED BY ORDER OF THE MARCH. Signed in iron."
       ],
       "act2": [
         "The lieutenant's chosen blocks our path.",
-        "An imperial champion. Forged in conquest.",
         "This one answers directly to the throne.",
-        "Command tents and war banners. A true siege."
+        "Command tents and war banners. A true siege.",
+        "The governor fled the province. The general stayed, and the general is worse.",
+        "Supply wagons circled three deep. Someone means to wait us out.",
+        "Camp talk: the Lieutenant sent this one a letter. It said only: HOLD."
       ],
       "act3": [
         "The ritual's guardian manifests.",
-        "Something ancient defends this ground.",
         "The corruption's vessel awaits us.",
-        "Something presses against the edge of perception."
+        "Something presses against the edge of perception.",
+        "The shrine bells ring on their own out here. Twice, then silence. Then twice.",
+        "Scout's report: something big breathes under the fen. The water rises when it does.",
+        "In the liturgy's margin, in a shaking hand: do not wake it to kill it."
       ],
       "act4": [
         "The emperor's inner circle. The last wall.",
-        "Power like this shouldn't exist in mortal hands.",
         "This is what the ritual was building toward.",
-        "Beyond this, only the emperor himself."
+        "Beyond this, only the emperor himself.",
+        "The throne-room doors stand open. They have not been closed in a month.",
+        "Palace steward's list: Guests expected, one army. Chairs set out, one.",
+        "'They're waiting for us.' 'Longer than we think. Look at the dust.'"
       ],
       "finalBoss": [
         "The source of everything. Right here.",
-        "All roads led to this moment.",
         "No visions needed to see what comes next.",
-        "The world's fate rests on what happens here."
+        "The world's fate rests on what happens here.",
+        "Below the capital the stone is warm, and the warmth has a pulse.",
+        "The seers' notes end mid-sentence here. In every copy they ever made.",
+        "Carved above the last door: WHAT SLEEPS HERE WAS NOT MEANT TO BE FED."
       ]
     },
     "recruit": {
@@ -5261,31 +5425,41 @@
         "Someone signals from the roadside.",
         "A survivor. Still willing to fight.",
         "Not everyone has given up on this land.",
-        "Another blade for the cause."
+        "A quarryman flags you down with a hammer. A friendly wave. Probably.",
+        "Notice on the chapel door: WILLING HANDS WANTED. Someone has already signed it.",
+        "'You with the banner?' 'Depends who's asking.' 'Someone tired of hiding.'"
       ],
       "act2": [
         "A deserter from the imperial ranks.",
         "They've seen what the empire really is.",
-        "Courage finds strange vessels sometimes.",
-        "One more soul choosing the harder path."
+        "One more soul choosing the harder path.",
+        "Chalked on a milestone: IMPERIAL PAY OWED TO BEARER. The bearer waits nearby.",
+        "A figure at the crossroads, uniform turned inside out. Clever, if not subtle.",
+        "Camp gossip: someone's been following the column for two days, keeping pace."
       ],
       "act3": [
         "Even here, someone still resists.",
-        "The corruption hasn't claimed everyone.",
         "A fighter, hardened by what they've survived.",
-        "They don't need convincing. They need a direction."
+        "They don't need convincing. They need a direction.",
+        "Smoke from one chimney in a drowned village. Someone is still cooking.",
+        "Scout's report: one survivor. Well armed, poorly fed, very annoyed.",
+        "A reed boat drifts out of the mist carrying one passenger and far too many weapons."
       ],
       "act4": [
-        "Survival alone takes strength here.",
         "To still fight, this deep in — that's something.",
         "The corruption spat this one out. Their loss.",
-        "Another who refused to break."
+        "Another who refused to break.",
+        "A cellar door in the capital, knocked on thrice. It opens. Someone was waiting.",
+        "Chalked on an alley wall: STILL HERE. An arrow points down the alley.",
+        "'You the ones from the border?' 'What's left of us.' 'Good. I'm what's left too.'"
       ],
       "finalBoss": [
-        "Even at the end, allies find us.",
         "One last warrior, drawn to the final stand.",
         "They know the odds. They came anyway.",
-        "Some debts can only be paid in battle."
+        "Some debts can only be paid in battle.",
+        "Footsteps on the stair behind you. Friendly ones, for once.",
+        "'I dreamt you'd come this way. Thought I ought to be here when you did.'",
+        "Someone has been camped on the landing a long while. Their fire is still lit."
       ]
     }
   },
@@ -5406,56 +5580,76 @@
     "revival": {
       "act1": [
         "The light returns to their eyes, slowly.",
-        "A second chance. Don't waste it.",
-        "Breath returns. The wound remembers."
+        "Breath returns. The wound remembers.",
+        "The village chaplain asks no fee and apologizes for the draft.",
+        "Chalked on the chapel door: ONE RETURN PER SOUL PER SEASON. SEASON NEGOTIABLE.",
+        "A priest's aside: 'Breathe. Good. Now remember who you are. Take your time.'"
       ],
       "act2": [
-        "The altar's power runs deeper than faith.",
         "Pulled back from the edge. Not gently.",
-        "The old prayers still carry weight here."
+        "The old prayers still carry weight here.",
+        "The roadside shrine asks only a copper and a name. It keeps both.",
+        "'Coughing is normal. So is the taste of copper. So is weeping. Sit down.'",
+        "Offering box, carved lid: FOR THE LIGHT. Beneath, smaller: AND THE ROOF."
       ],
       "act3": [
-        "Even the light struggles against what's coming.",
         "Revival feels different now. Heavier.",
-        "The corruption makes the healing harder."
+        "The corruption makes the healing harder.",
+        "The fen priest works by candle, and the flame keeps leaning toward the water.",
+        "'They came back. Something else nearly did too. Don't tell them that.'",
+        "Triage note pinned to the altar: Returned, one. Asks for their mother. Let them."
       ],
       "act4": [
         "The altar burns brighter, as if in defiance.",
         "Brought back in spite of everything.",
-        "Light and dark, balanced on a knife's edge."
+        "A cathedral with no roof and one priest, who has not stopped praying in a week.",
+        "'Welcome back. The capital's worse than when you left, ten minutes ago.'",
+        "The priest writes the name in the book of returns. The book is nearly full."
       ],
       "finalBoss": [
         "One more miracle. Perhaps the last.",
-        "The light knows what's at stake.",
-        "Restoration, at the world's end."
+        "Restoration, at the world's end.",
+        "The last altar, lit by one lamp someone keeps refilling. Nobody sees who.",
+        "A tired healer's prayer: once more, and then once more after that.",
+        "'I remember doing this for you before,' says the priest. 'I'm sure I don't.'"
       ]
     },
     "promotion": {
       "act1": [
         "Growth, earned in blood and resolve.",
         "The change is visible. Sharper. Stronger.",
-        "A new chapter begins."
+        "The temple clerk updates the roster in careful ink and blots it twice.",
+        "Drill sergeant's verdict: 'New title. Same feet. Pick them up.'",
+        "The old insignia goes in the offering box. It is full of old insignia."
       ],
       "act2": [
-        "Power awakens where there was only potential.",
         "The battlefield has forged something new.",
         "Ready for what lies ahead. Almost.",
-        "The old title falls away. A new one fits better."
+        "The old title falls away. A new one fits better.",
+        "The provincial seal is stamped, then stamped again for luck.",
+        "'Stand straighter. No, straighter. There. That's what a rank looks like.'",
+        "Letter home, unsent: They made me something new today. It fits better than the boots."
       ],
       "act3": [
         "Transformation. Not gentle, but necessary.",
         "Stronger now. The corruption demands it.",
-        "Ascension in the face of darkness."
+        "The fen priest anoints with the last clean oil. Whatever's in the rest, not today.",
+        "'Promoted in a swamp. Tell it better when you're old.'",
+        "The change settles like a new coat of mail: heavy at first, then suddenly not."
       ],
       "act4": [
         "Even the altar seems impressed.",
         "The power to face what's coming. Finally.",
-        "Reborn for the final march."
+        "The capital's heraldry office is ash. The priest draws the new crest in chalk.",
+        "'Congratulations. The pay is the same. The pay is also nothing.'",
+        "Someone rings the cathedral bell for them. It has a crack and rings anyway."
       ],
       "finalBoss": [
-        "The ultimate form. For the ultimate battle.",
         "Everything they were, refined to a point.",
-        "One last evolution. Make it matter."
+        "One last evolution. Make it matter.",
+        "No clerk, no ledger, no ceremony. Just the altar, and it will do.",
+        "A priest's aside: 'Most never got this far to be changed. Make it count for them.'",
+        "The last rank anyone will ever grant them, and they know it."
       ]
     }
   },
@@ -5463,54 +5657,2028 @@
     "act1": [
       "The merchant eyes your coin purse hopefully.",
       "Frontier goods. Honest prices. Mostly.",
-      "Stock up while you can. The road only gets harder."
+      "Painted on the cart: HAGEN, GOODS. NO CREDIT. NO LEVY SCRIP. NO HAGGLING BEFORE NOON.",
+      "'Iron's iron, friend. Varen's mark costs extra, and it's worth it.'",
+      "'Vulneraries, fresh this week. Well. This month. Smell fine to me.'"
     ],
     "act2": [
       "Imperial supply lines make for good scavenging.",
-      "The merchant has seen better days. Haven't we all.",
-      "War is terrible for everything except business."
+      "War is terrible for everything except business.",
+      "'Army surplus. Don't ask which army. The answer's the same either way.'",
+      "The merchant's ledger has two columns: Paid, and Deceased. The second is longer.",
+      "'Tolls cost me a fortune on these roads. So, naturally, they cost you one too.'"
     ],
     "act3": [
       "The wares have a strange shimmer to them here.",
       "Even merchants feel the corruption. The prices reflect it.",
-      "Take what you need. Gold won't matter if we fail."
+      "'Fen-dried herbs, very potent. Don't ask why they glow. I don't.'",
+      "The merchant poles a barge of goods through the reeds, humming a hymn off-key.",
+      "'Hagen's the name. Seen me before? Everyone has. I get around.'"
     ],
     "act4": [
       "How this merchant survives here is its own mystery.",
       "Rare goods, for those who've made it this far.",
-      "The merchant nods. No words needed at this point."
+      "Old Hagen again, ahead of you as ever, stock fresh. Nobody saw the cart pass.",
+      "'Drowned in the fen, I did. Twice, I think. Still open every day but feast days.'",
+      "'Capital prices, friend. Everything's dearer when the capital's on fire.'"
     ],
     "finalBoss": [
       "Last chance to prepare. Choose wisely.",
       "The merchant's hands tremble as they lay out the wares.",
-      "Everything has a price. Especially what comes next."
+      "Hagen has set up on the last stair. 'Where else would I be? You're buying.'",
+      "'Last sale of the season. Or the world. Either way, no refunds.'",
+      "'Sold to you before, you know. Many times. You always buy the same things.'"
     ]
   },
   "eliteVictory": {
     "act1": [
       "The stronger ones fall. The road opens.",
       "That was no ordinary patrol.",
-      "A harder fight. A harder-won peace."
+      "Scout's report: the rest of the patrol ran. They'll tell the next one about us.",
+      "The captain's gloves are good leather. Someone claims them before the dust settles.",
+      "'Were they supposed to be the hard ones?' 'Yes.' 'Oh. Good.'"
     ],
     "act2": [
       "The empire's best, and it wasn't enough.",
       "Their commander fell. The rest will scatter.",
-      "Imperial elite. Now imperial dead."
+      "Casualty roll, imperial side: one officer. The rank is struck through by nightfall.",
+      "The garrison flag comes down. Nobody in the village cheers. Everyone watches.",
+      "Camp talk: that one had a reputation. Now it's ours."
     ],
     "act3": [
       "The corruption's champion is broken.",
       "Power like that, and still it fell.",
-      "The darkness loses a champion today."
+      "The reeds stand straight again where it fell. The water clears, a little.",
+      "A priest's aside: 'Burn it. Pray over the ash. Then burn the ash.'",
+      "'Did it scream?' 'It sang. I'd rather it had screamed.'"
     ],
     "act4": [
       "The emperor's inner guard, shattered.",
       "That was a fragment of his will. Now it's dust.",
-      "Closer to the source. The resistance weakens."
+      "Another name struck from the palace roster. The clerk's ink is running out.",
+      "Barricade graffiti, still wet: THEY BLEED. PASS IT ON.",
+      "The household knight's crest is older than the empire. It goes into the baggage."
     ],
     "finalBoss": [
-      "The last obstacle, overcome.",
       "Nothing stands between us and the end now.",
-      "The final guardian falls."
+      "The final guardian falls.",
+      "The stair ahead is clear. The silence behind is worse.",
+      "'Is that the last of them?' 'The last before the last.'",
+      "Scratched beside the fallen guardian, fresh: NOT THIS TIME."
     ]
+  },
+  "unitVoice": {
+    "temperaments": {
+      "earnest": {
+        "label": "Earnest",
+        "levelUp": {
+          "normal": [
+            "I'm getting better. I can feel it. Thank you for the chance.",
+            "Did you see that? I'll keep at it, I promise.",
+            "Every drill paid off. Thank you for trusting me out there.",
+            "A little stronger, a little surer. I won't let you down, {leader}.",
+            "I'll write home about today. Well, I will, once I find ink.",
+            "Whoever showed me that parry, I owe them supper.",
+            "I think I finally understand what the veterans meant.",
+            "Better than yesterday. That's all I ask of myself.",
+            "I'm grateful. Truly. Point me wherever I'm needed.",
+            "Still learning. Always learning. Gladly."
+          ],
+          "perfect": [
+            "Everything came together at once! I don't even know who to thank first.",
+            "I feel ready for anything. Anything! Well... most things.",
+            "All those cold mornings, and look. Thank you, all of you.",
+            "Is this what it feels like to be good at something?"
+          ],
+          "blank": [
+            "Not much today. That's all right. I'll work twice as hard.",
+            "A slow step is still a step forward. I'll keep going.",
+            "Sorry. I'll do better next time, I swear it.",
+            "I'll ask the veterans what I'm doing wrong. Tonight."
+          ]
+        },
+        "fallen": [
+          "Tell them... I tried my best. I really did.",
+          "Thank you... for letting me march with you.",
+          "I'm sorry... I wanted to see the end with you.",
+          "Don't stop on my account. Please. Keep going."
+        ]
+      },
+      "wry": {
+        "label": "Wry",
+        "levelUp": {
+          "normal": [
+            "Look at that. Improvement. Someone alert the chroniclers.",
+            "Stronger, apparently. My knees have not been informed.",
+            "Don't get used to it. I certainly won't.",
+            "One more good day and I'll start expecting them.",
+            "Well. A pleasant surprise. I distrust those.",
+            "Progress. Mind you, the bar was lying on the floor.",
+            "A little better. The enemy remains unimpressed, I'm sure.",
+            "I'd celebrate, but someone would make me carry the barrel.",
+            "Growth. The war's one reliable kindness, apparently.",
+            "Better at killing. Another thing I'll have to explain to my mother."
+          ],
+          "perfect": [
+            "Everything improved at once. Something terrible must be coming.",
+            "Flawless. I'll be insufferable for a week. Two, if we win.",
+            "Remind me of this day when I'm face-down in a ditch.",
+            "Suspiciously good. Who did I bribe?"
+          ],
+          "blank": [
+            "Ah. Well. Consistency is its own reward.",
+            "Nothing. Good. I'd hate to peak too early.",
+            "I'm saving my improvement for a special occasion.",
+            "Growing at the pace of a glacier. A dignified glacier."
+          ]
+        },
+        "fallen": [
+          "Well. That's inconvenient.",
+          "Should've taken my own advice. Never did.",
+          "Tell them I went out with a clever remark. Make one up.",
+          "Huh. Thought I'd be more surprised."
+        ]
+      },
+      "grim": {
+        "label": "Grim",
+        "levelUp": {
+          "normal": [
+            "Stronger. Doesn't change the arithmetic.",
+            "Good. One more day I don't die.",
+            "Harder to kill. That's all it means.",
+            "The ground's still waiting. It can wait longer.",
+            "I've buried better. I'll try not to join them.",
+            "Noted. Now move.",
+            "Lived long enough to learn something. Rare enough.",
+            "Still here. Still learning. Neither lasts.",
+            "Scars teach. I've had a lot of teachers.",
+            "It'll help. Until it doesn't."
+          ],
+          "perfect": [
+            "All of it, at once. Fate's fattening me up for something.",
+            "Everything sharper. Means something worse is coming.",
+            "Good day. Don't trust good days.",
+            "Strong as I'll ever be. Remember that when you bury me."
+          ],
+          "blank": [
+            "Nothing. Figures.",
+            "Same as yesterday. Same as tomorrow.",
+            "Didn't expect more. Wasn't disappointed.",
+            "The war takes more than it gives. Always has."
+          ]
+        },
+        "fallen": [
+          "Knew it'd be today.",
+          "Finally. Some rest.",
+          "Don't waste time on me. Move.",
+          "Put me with the others. It's fine."
+        ]
+      },
+      "proud": {
+        "label": "Proud",
+        "levelUp": {
+          "normal": [
+            "Of course. Did anyone doubt it? Don't answer.",
+            "Magnificent, if I say so myself. And I do.",
+            "Someone write this down. For posterity.",
+            "Better and better. It's almost unfair to the enemy.",
+            "Watch closely. You may learn something.",
+            "They'll sing about me. Perhaps not well, but loudly.",
+            "I improve. It's what I do. Among many other things.",
+            "Try to keep up, {leader}. I'm only getting started.",
+            "A fine day's work. Mine, specifically.",
+            "Any better and I'd need a statue. Two, for balance."
+          ],
+          "perfect": [
+            "Perfection. At last the world sees what I've seen all along.",
+            "Flawless. Commission the portrait. Both profiles.",
+            "Every inch improved. Every inch! Somebody faint, please.",
+            "Fetch a bard. No, fetch three. This needs harmony."
+          ],
+          "blank": [
+            "Hm. The world wasn't ready for more of me today.",
+            "A rest day. Even legends pace themselves.",
+            "Clearly I was already at my peak. There's nowhere to go.",
+            "We will not speak of this. Ever."
+          ]
+        },
+        "fallen": [
+          "This... was not in the song.",
+          "Remember me taller than I was. And undefeated.",
+          "Impossible. I was... magnificent.",
+          "Carve it deep. {name}. Big letters."
+        ]
+      },
+      "nervous": {
+        "label": "Nervous",
+        "levelUp": {
+          "normal": [
+            "I'm alive! Oh. And stronger? Both? Good. Good.",
+            "Did that just happen? I think that just happened.",
+            "Please don't expect this every time. I certainly don't.",
+            "Stronger. Still terrified, but stronger.",
+            "I didn't die! That's two good things today.",
+            "Oh no. Now they'll expect more of me.",
+            "My hands have almost stopped shaking. Almost.",
+            "Was that me? That can't have been me.",
+            "I'll try not to faint about it. No promises.",
+            "Is it bad luck to notice? Forget I noticed."
+          ],
+          "perfect": [
+            "Everything? All at once? Something must be about to eat me.",
+            "This is too much good news. I need to sit down.",
+            "I feel... capable? That's frightening in a whole new way.",
+            "Nobody look at me or it'll all go away."
+          ],
+          "blank": [
+            "Figured. Honestly, that's almost a relief.",
+            "Nothing? Oh, thank goodness. No one will expect anything.",
+            "At least I'm consistent. Consistently... this.",
+            "I knew it. I knew it. I'm so sorry."
+          ]
+        },
+        "fallen": [
+          "I knew... I knew this would happen.",
+          "Oh. It doesn't even hurt. Why doesn't it hurt?",
+          "I was scared the whole time. I stayed anyway. Tell them that.",
+          "Not now... I was only just getting brave..."
+        ]
+      },
+      "devout": {
+        "label": "Devout",
+        "levelUp": {
+          "normal": [
+            "Grace given. I'll spend it well.",
+            "She has no name left to thank, so I thank her in deeds.",
+            "A small mercy. I'll carry it where it's needed.",
+            "Every strength is borrowed. I'll return it with interest.",
+            "The prayer was answered. It usually is, just quietly.",
+            "I asked for steadiness, not glory. She listened.",
+            "Blessed be the hand that shapes us. It is shaping me still.",
+            "Another dawn's worth of strength. I won't waste the light.",
+            "The shrines stand empty, but the grace does not.",
+            "May I be worthy of it, {leader}. May we both be."
+          ],
+          "perfect": [
+            "Grace poured out, all at once. What is she asking of me?",
+            "A full cup. I had forgotten how heavy blessings are.",
+            "Every prayer answered in one breath. I am humbled.",
+            "She spent her name for us. Today she spent a little more."
+          ],
+          "blank": [
+            "Lean days teach patience. I'll keep praying.",
+            "Not every prayer is answered. Every prayer is heard.",
+            "Grace is not owed. I'll kneel and try again.",
+            "She gives what's needed. Perhaps I needed humility."
+          ]
+        },
+        "fallen": [
+          "I go to her... she won't need a name to find me.",
+          "Keep the vigil for me... just one candle.",
+          "Grace... I can feel it... it's warm.",
+          "Forgive me... I wasn't finished praying."
+        ]
+      },
+      "mercenary": {
+        "label": "Mercenary",
+        "levelUp": {
+          "normal": [
+            "Better at the job. I expect the wages to notice.",
+            "Stronger. That's a raise in any honest outfit.",
+            "Skill's the only thing in this war that holds its value.",
+            "I'll add this to my rate. Starting now.",
+            "Good investment, keeping me alive. Keep at it.",
+            "Every lesson paid for in blood. Mine. I'm billing someone.",
+            "More worth per coin than anyone in this camp. Just saying.",
+            "Worth more today than yesterday. Remember that at payday, {leader}.",
+            "Sharper. Doesn't come free. Nothing does.",
+            "Profit's profit. Even when it's just breathing."
+          ],
+          "perfect": [
+            "Everything went up. Everything. Now so does my fee.",
+            "That's a bonus if I ever saw one. Pay accordingly.",
+            "Best deal I've made all war, and I made it with myself.",
+            "At this rate you won't afford me. Enjoy me while you can."
+          ],
+          "blank": [
+            "Bad trade today. Can't win every bargain.",
+            "Nothing? I'll overlook it. The fee stays the same.",
+            "Some days you're paid in coppers. Keep marching.",
+            "Don't tell the paymaster about this one."
+          ]
+        },
+        "fallen": [
+          "Keep my wages... buy the company a round...",
+          "Should have asked for more coin... up front.",
+          "Worst contract I ever signed. Best company, though.",
+          "Send what's owed to my sister. The address is in my boot."
+        ]
+      },
+      "dreamer": {
+        "label": "Dreamer",
+        "levelUp": {
+          "normal": [
+            "Something in me unfolded, like a letter left out in the rain.",
+            "I dreamed I'd grow today. I dream a lot of things, though.",
+            "Did the clouds shift just then? Or was that me?",
+            "There's a tune in my head I've never heard before.",
+            "I feel taller. Not in body. Somewhere else.",
+            "The river back home would have liked to see this.",
+            "Each day I'm less who I was. I hope home still knows me.",
+            "I think the crows noticed. They nodded. Crows do that.",
+            "If I can change this fast, maybe the world can too.",
+            "Someday I'll tell the stars, and they'll pretend to be surprised."
+          ],
+          "perfect": [
+            "Everything bloomed at once, like a meadow in a single morning.",
+            "I feel like a lantern someone finally remembered to light.",
+            "The whole sky must have leaned down to help.",
+            "If only the orchard back home could see me now."
+          ],
+          "blank": [
+            "A quiet day. Seeds sleep before they sprout.",
+            "Nothing grew. Winter is only a pause, I think.",
+            "I was watching a moth. I think I missed my chance.",
+            "Some days the wind just passes through."
+          ]
+        },
+        "fallen": [
+          "It's so quiet... like the hills at home.",
+          "I can see the stars... they're closer than I thought.",
+          "Take me home... the long way... past the river...",
+          "I dreamed this once... it ended differently."
+        ]
+      }
+    },
+    "classes": {
+      "Myrmidon": {
+        "levelUp": {
+          "normal": [
+            "Quicker. I felt the air split a hair earlier that time.",
+            "My old master said the blade learns before the hand. The hand is catching up.",
+            "Another notch toward paying off the sword school. Maybe two.",
+            "Faster feet, same thin skin. I'll take the trade.",
+            "I drew, cut, and sheathed before I finished the thought. Good.",
+            "One more lesson carved into me. The school never taught gently.",
+            "Keep the fights short, {leader}, and I'll keep getting better at them."
+          ],
+          "perfect": [
+            "Every part of me sharpened at once. My masters never saw a day like this.",
+            "Faster, stronger, harder to kill. I'm almost worried about who I'm becoming.",
+            "I should write to the school, {leader}. They'd call me a liar and ask for the debt."
+          ],
+          "blank": [
+            "The blade was faster today. I wasn't. Tomorrow, then.",
+            "A swordsman polishes one cut ten thousand times. This was one of those times.",
+            "Nothing? Fine. Speed was never something you could hurry."
+          ]
+        },
+        "fallen": [
+          "Too slow... just once. That's all it takes.",
+          "Tell the school... the debt's paid.",
+          "I always said... one clean hit would do it."
+        ]
+      },
+      "Knight": {
+        "levelUp": {
+          "normal": [
+            "The armor feels lighter. It isn't. I'm just getting stronger inside it.",
+            "Let them come. I'm harder to dent than I was this morning.",
+            "Another dent hammered out, another one earned. That's the job.",
+            "They levied me to stand still. Turns out I have a gift for it.",
+            "Stronger arms, same slow legs. The lance reaches; I'll let it.",
+            "The smith will need a bigger breastplate. Or a smaller me. Unlikely.",
+            "Hold the line, they said. I've been holding it harder every day, {leader}."
+          ],
+          "perfect": [
+            "Wait. Did I just get faster? In this armor? Someone fetch a priest.",
+            "Everything, even my feet. {leader}, I'm going to be insufferable about this.",
+            "Stronger, sturdier, quicker. The whole suit finally feels like it fits me."
+          ],
+          "blank": [
+            "Nothing new. But nothing got through, either. I'll call it even.",
+            "Still slow. Still standing. Some would call that consistency.",
+            "The armor didn't improve, but I polished it. That counts, surely."
+          ]
+        },
+        "fallen": [
+          "Didn't move... not one step. Tell them.",
+          "Heavy... so heavy. Help me sit down.",
+          "Guess the wall had a gap after all."
+        ]
+      },
+      "Fighter": {
+        "levelUp": {
+          "normal": [
+            "Swung like a felling cut that time. Clean through, one stroke.",
+            "Back at the camp we'd call that a good day's timber.",
+            "Arms feel like fresh-split oak. Point me at something, {leader}.",
+            "Still can't aim for beans, but I'm hitting harder when I do.",
+            "The quarry never paid this well, and the rocks never swung back.",
+            "Every scar's a lesson. I've been a very good student lately.",
+            "An axe doesn't care about clever. Lucky me, I'm getting strong instead."
+          ],
+          "perfect": [
+            "Even my luck turned up. First time for everything, eh?",
+            "Stronger, steadier, sharper eyes. The foreman wouldn't know me.",
+            "Everything grew. I'm checking my axe for a curse."
+          ],
+          "blank": [
+            "Swung hard, learned nothing. Sounds like my whole apprenticeship.",
+            "Same arms, same axe. The trees never complained.",
+            "Nothing. Chop wood, carry water, try again tomorrow."
+          ]
+        },
+        "fallen": [
+          "Heh... timber...",
+          "Leave the axe... someone'll need it.",
+          "Tell the camp... I didn't miss the last one."
+        ]
+      },
+      "Cavalier": {
+        "levelUp": {
+          "normal": [
+            "My mount's stepping lighter. Or I'm sitting better. Either way, we're faster.",
+            "Steady progress. A cavalier should be nothing if not steady.",
+            "I'd salute, but my mount would take it as a signal to charge.",
+            "The drill-masters would be proud. Mine would be surprised.",
+            "A lance is only as good as the ride behind it. Both of us improved.",
+            "Every day in the saddle is a day the ground can't catch me.",
+            "Point the charge, {leader}. We're better for it than we were yesterday."
+          ],
+          "perfect": [
+            "Lance, seat, and mount, all at once. Even the old oaths wouldn't ask more.",
+            "Every stride, every thrust, better. I think my mount knew before I did.",
+            "Better at everything. I suspect my mount of doing half the work."
+          ],
+          "blank": [
+            "Nothing? My mount improved, at least. I'll ride on its merits.",
+            "Steady means steady. Not every day's a gallop.",
+            "The drill yard would call that discipline. I'd call it a trot."
+          ]
+        },
+        "fallen": [
+          "Take my mount home... it knows the way.",
+          "The oath... I never swore it. Wish I had.",
+          "Unhorsed... how embarrassing."
+        ]
+      },
+      "Archer": {
+        "levelUp": {
+          "normal": [
+            "Steadier draw. The arrow was gone before I felt it leave.",
+            "Keep them at arm's length, {leader}, and then some. I'll handle the rest.",
+            "My hands stopped shaking between shots. That's new.",
+            "One more quiver's worth of practice. The crown owes me for this one.",
+            "I can hear the string sing a little truer now.",
+            "Close in, I'm useless. At range, I'm getting frightening.",
+            "The wind's easier to read today. Or I'm better at reading it."
+          ],
+          "perfect": [
+            "Everything? Even my footwork? Don't let them close in to test it.",
+            "Sharper eyes, steadier arm, quicker hands. The yeomanry will hear of this.",
+            "Every arrow in the quiver just got better. Including me."
+          ],
+          "blank": [
+            "Missed the mark on that one. Not the first time. I'll nock another.",
+            "Nothing. Well, I've still got two hands and a string.",
+            "A quiet day at the butts. They happen."
+          ]
+        },
+        "fallen": [
+          "They got... too close.",
+          "Keep the bow... the string's new.",
+          "One more arrow... just one."
+        ]
+      },
+      "Mage": {
+        "levelUp": {
+          "normal": [
+            "The words come easier. Faster. Slightly more on fire.",
+            "My tutors said I'd understand eventually. Eventually is today.",
+            "I've added a footnote to my own soul. It seems to have held.",
+            "Stronger spells, same paper-thin robes. Stand in front of me, {leader}. Please.",
+            "The fire listens better now. I try not to wonder what else is listening.",
+            "Another chapter understood. The academy would charge tuition for this.",
+            "My fingers stopped smoking afterward. That means control, I'm told."
+          ],
+          "perfect": [
+            "All of me improved. Even my arms. I'm going to need a new theory.",
+            "Everything grew at once. There must be a formula. I will find it.",
+            "Remarkable. I've read of days like this, footnoted as unlikely."
+          ],
+          "blank": [
+            "I learned nothing. Which, academically, is still a finding.",
+            "A setback. My notes will call it an unexpected plateau.",
+            "The book stayed shut today. It happens to the best of us, and to me."
+          ]
+        },
+        "fallen": [
+          "I hadn't... finished the chapter.",
+          "Should have... worn thicker robes.",
+          "The words... they're going quiet."
+        ]
+      },
+      "Cleric": {
+        "levelUp": {
+          "normal": [
+            "The staff hums warmer now. More of them will get up again.",
+            "I can't strike them, but I can outlast them. That's a kind of fight.",
+            "Prayers come quicker. I needed them to, today.",
+            "The temple taught me to mend. The road taught me to mend fast.",
+            "Keep me behind the lines, {leader}. I'll keep the lines alive.",
+            "Stronger mending, steadier hands. Someone bring me the wounded.",
+            "Every bandage I tie is a little tighter than the last."
+          ],
+          "perfect": [
+            "Stronger arms as well? Don't hand me an axe. I'd only hold it wrong.",
+            "Every prayer answered at once. I'm grateful, and a little frightened.",
+            "Such a blessing. I'll assume it's meant for the wounded, not for me."
+          ],
+          "blank": [
+            "Nothing. Then the goddess needs me as I am. Very well.",
+            "No change. The wounded won't mind; they never ask about me.",
+            "Patience is a virtue. I have been extremely virtuous today."
+          ]
+        },
+        "fallen": [
+          "Who... who will heal me?",
+          "Don't grieve, {leader}. Just... keep the others standing.",
+          "I'm sorry... I couldn't mend this one."
+        ]
+      },
+      "Thief": {
+        "levelUp": {
+          "normal": [
+            "Lighter fingers, quicker feet. Mind your purses, everyone.",
+            "Found a better way through that lock. And through that officer's coat.",
+            "Faster than yesterday. Not that anyone saw me yesterday.",
+            "Every lock I open teaches me something. Mostly about the owner.",
+            "Nobody saw me get stronger. That's how I like it.",
+            "You watch the fog, {leader}. I'll watch the strongboxes.",
+            "Armor's still a problem. Everything else, less and less."
+          ],
+          "perfect": [
+            "I got better at everything. Who did I rob for this?",
+            "Every bit of me improved. I'd say I stole it, but I'd remember.",
+            "A whole haul, and I didn't even pick a lock. Suspicious."
+          ],
+          "blank": [
+            "Came away empty-handed. Don't tell anyone; it's bad for my name.",
+            "Nothing. Can't steal from yourself, apparently. I tried.",
+            "Some jobs don't pay. You still leave through the window."
+          ]
+        },
+        "fallen": [
+          "Guess I... couldn't slip this one.",
+          "Check my pockets, {leader}... some of it's yours.",
+          "Should've... run faster."
+        ]
+      },
+      "Dancer": {
+        "levelUp": {
+          "normal": [
+            "My feet remember more steps than yesterday. Want to see?",
+            "A dancer grows the way a song does. One verse at a time.",
+            "Lighter on my toes. Arrows will find that disappointing.",
+            "Watch me, {leader}. I'll give them one more reason to keep going.",
+            "The rhythm's in my bones now. Even the marching sounds like music.",
+            "I don't swing a blade. I just make sure the ones who do keep swinging.",
+            "The stage was smaller than this field. The applause was quieter too."
+          ],
+          "perfect": [
+            "Every step landed perfectly. I'd take a bow, but the enemy's watching.",
+            "All of me, better. Is this what the troupe meant by stage fever?",
+            "A flawless performance! Nobody clap; they'll hear us."
+          ],
+          "blank": [
+            "I missed a step. Everyone does. We dance it again.",
+            "Nothing new today. Some nights the house is empty.",
+            "Same old routine. Well, it's a crowd favorite."
+          ]
+        },
+        "fallen": [
+          "Don't stop... keep them marching.",
+          "The last dance... wasn't mine to finish.",
+          "Did they... clap?"
+        ]
+      },
+      "Pegasus Knight": {
+        "levelUp": {
+          "normal": [
+            "My pegasus chose well, {leader}. Today I proved it.",
+            "The wind feels thinner up here. Or I'm cutting through it cleaner.",
+            "Faster wings, steadier lance. Archers, take note, and then take cover.",
+            "The sky legions promised me nothing but weather. They were wrong.",
+            "Every flight I land in one piece, I come down a little stronger.",
+            "She's feeling it too. Her wings beat like she's proud of me.",
+            "Still scared of arrows. Less scared of everything else."
+          ],
+          "perfect": [
+            "Stronger, faster, steadier, all of it. My pegasus is preening.",
+            "Everything improved! Even my nerve around archers. Almost.",
+            "I've never flown like that. I'm not sure my feet should touch ground again."
+          ],
+          "blank": [
+            "A calm day aloft. Nothing gained, nothing shot off. I'll take it.",
+            "Nothing. My pegasus gave me a look I won't soon forget.",
+            "Some days the wind just won't lift you. You wait for tomorrow's."
+          ]
+        },
+        "fallen": [
+          "Arrows... always the arrows.",
+          "Let her fly home... don't let her see me.",
+          "The sky... it's so far away now."
+        ]
+      },
+      "Wyvern Rider": {
+        "levelUp": {
+          "normal": [
+            "My wyvern bit me less today. That's how you know you're getting stronger.",
+            "Every clan elder said I'd never break one. Now look at us.",
+            "Scales thicker, grip tighter. Mages still worry me.",
+            "The mountains raise you hard. The war's raising me harder.",
+            "We hit like a rockslide now. A rockslide with opinions.",
+            "Stronger again. The clan will raise my price, you watch.",
+            "Point us downhill, {leader}. Everything is downhill from up here."
+          ],
+          "perfect": [
+            "Every scale and sinew stronger. The elders will say I stole a better wyvern.",
+            "Even my wits sharpened. My wyvern hates that. It was the clever one.",
+            "Everything at once. I half expect the beast to demand a cut."
+          ],
+          "blank": [
+            "Nothing. I think my wyvern ate the lesson.",
+            "A stubborn day. The beast and I had that in common.",
+            "No change. In the mountains we call that surviving."
+          ]
+        },
+        "fallen": [
+          "Magic... always finds the gaps.",
+          "Don't let them... sell my wyvern, {leader}.",
+          "Fly home, you ugly brute... I loved you."
+        ]
+      },
+      "Mercenary": {
+        "levelUp": {
+          "normal": [
+            "Worth more than I was this morning. I'll be renegotiating.",
+            "Better at the trade. The trade being staying alive.",
+            "No weak spots, no surprises. That's what you're paying for.",
+            "Stronger, quicker, still cheap. Tell the paymaster before I do.",
+            "Every contract teaches you something. This one keeps teaching.",
+            "Fought for worse commanders than you, {leader}. None better, yet.",
+            "Good steel, good pay, good day. Two out of three, anyway."
+          ],
+          "perfect": [
+            "Everything grew. My rates are going up. Nothing personal.",
+            "Years in the trade and I've never had a day this good.",
+            "Everything at once. In my trade, that means someone's about to cheat you."
+          ],
+          "blank": [
+            "Nothing. Still, a contract's a contract, {leader}. I'll show up tomorrow.",
+            "Paid the same, learned nothing. Most jobs are like that.",
+            "Don't mention this to the guild. My reputation is my wages."
+          ]
+        },
+        "fallen": [
+          "Keep the pay, {leader}... it's yours now.",
+          "Should've... read the contract closer.",
+          "Worth it. Tell them it was worth it."
+        ]
+      },
+      "Swordmaster": {
+        "levelUp": {
+          "normal": [
+            "Every cut is closer to the one my master never managed.",
+            "The fight's over before they know it began. I'm getting quicker at that.",
+            "I barely had to swing. That's the whole art, in the end.",
+            "The blade grows heavier with every life. My arm doesn't mind.",
+            "Leave the long fights to others. Mine end in one breath.",
+            "I sense the opening before they give it. Unsettling, even for me.",
+            "Stand back, {leader}. The sword is having a very good day."
+          ],
+          "perfect": [
+            "Perfect form, from heel to edge. I may never draw carelessly again.",
+            "Nothing wasted, nothing lacking. My old master would weep, then check my blade.",
+            "Too perfect. A true master distrusts a day like this. I'll keep practicing."
+          ],
+          "blank": [
+            "Nothing new. A master learns that the last inch is the longest.",
+            "Stillness. Also a lesson, if a dull one.",
+            "Even masters have days when the sword teaches nothing."
+          ]
+        },
+        "fallen": [
+          "A perfect cut... just not mine.",
+          "I wasn't afraid, {leader}. Remember that.",
+          "Sheathe it for me... gently."
+        ],
+        "promotion": [
+          "I'm not afraid anymore. I only just noticed. When did that happen?",
+          "The school said a master never needs a second cut. Now I understand why.",
+          "Swordmaster. Let's see whether the title can keep up with me."
+        ]
+      },
+      "Duelist": {
+        "levelUp": {
+          "normal": [
+            "Hit me. Please. I've gotten so much better at answering.",
+            "I let them lead the dance. I always end it.",
+            "The halls say a duelist is a question with a sharp answer.",
+            "Steadier on the counter. They'll learn not to start things with me.",
+            "Swing, parry, reply. The rhythm's nearly perfect now.",
+            "Every cut I take teaches me where the next one's coming from.",
+            "Challenge accepted. Not that anyone issued one. I accept anyway."
+          ],
+          "perfect": [
+            "Every answer quicker, every guard firmer. The halls would ring for this.",
+            "Flawless. Someone send a challenge; I'd hate to waste it.",
+            "All of it improved. I can already hear the hall masters calling it luck."
+          ],
+          "blank": [
+            "No improvement. I demand a rematch with myself.",
+            "A drawn bout. It happens, even in the best halls.",
+            "Nothing. A duelist bows anyway."
+          ]
+        },
+        "fallen": [
+          "Good bout... good bout.",
+          "I yield. First time... last time.",
+          "You struck true... well played."
+        ],
+        "promotion": [
+          "The halls taught me to wait for their mistake. Now I wait with a lance, too.",
+          "Duelist. Come on, then. Take your swing. I insist.",
+          "Every hall has a ring. From today, wherever I stand is one."
+        ]
+      },
+      "General": {
+        "levelUp": {
+          "normal": [
+            "Another layer of iron, inside and out.",
+            "They broke three blades on me today. I'm keeping count.",
+            "I don't march. I arrive. Eventually.",
+            "The capital's walls could learn a thing or two from me.",
+            "Stronger. Slower too, probably, but who could tell?",
+            "Every blow they land now feels like weather. Unpleasant, and passing.",
+            "Place me in the gap, {leader}. The gap will stop being a problem."
+          ],
+          "perfect": [
+            "Swifter as well? A general who runs. The manuals will need rewriting.",
+            "Everything improved. I feel like a castle that grew another keep.",
+            "All of it? Check the plate for a hole. Nothing's this generous with me."
+          ],
+          "blank": [
+            "Unchanged. Unmoved. Unbothered. As a general should be.",
+            "Nothing new. Fortresses rarely grow; they simply endure.",
+            "No change. The armor didn't notice, and neither did I."
+          ]
+        },
+        "fallen": [
+          "Fortresses... do fall. Who knew.",
+          "Hold the gap, {leader}... without me.",
+          "Help me with the buckles... I want to breathe."
+        ],
+        "promotion": [
+          "They promoted me to fortress. The duties haven't changed much.",
+          "General. I suppose now I'm the stone they were wanting.",
+          "Heavier plate, heavier axe, heavier burden. I'll carry all three."
+        ]
+      },
+      "Great Knight": {
+        "levelUp": {
+          "normal": [
+            "The mount carries me easier. Either I'm stronger or it's resigned.",
+            "Heavy as a knight, quick as a cavalier. Almost. Getting there.",
+            "Ride in, hit hard, ride out. Just like the drills, only louder.",
+            "Every charge I survive, I'm a little more armor and a little more rider.",
+            "The ground shakes a bit more when I pass now. I've been noticing.",
+            "An axe, a sword, a lance, and a mount. I'm running out of hands.",
+            "Stronger again. My saddle-maker sends his regrets."
+          ],
+          "perfect": [
+            "Armor, arms, and speed, all improved. {leader}, I'm the whole cavalry now.",
+            "Everything grew. My poor mount deserves a medal.",
+            "Stronger and faster at once. Suspicious. Someone weigh me."
+          ],
+          "blank": [
+            "Nothing. Heavy things change slowly.",
+            "No progress. At least I'm no heavier. The mount will be pleased.",
+            "Same as before. Still a wall on four legs. I'll take it."
+          ]
+        },
+        "fallen": [
+          "Get my mount clear... it's done enough.",
+          "Too heavy... to run. Always was.",
+          "Rode in... didn't ride out."
+        ],
+        "promotion": [
+          "Less plate, more mount. My knees have never been happier.",
+          "A wall that arrives on time. I think I'll like this rank.",
+          "Great Knight. My mount's face says it was hoping for a smaller one."
+        ]
+      },
+      "Warrior": {
+        "levelUp": {
+          "normal": [
+            "Hit harder today than a falling tree. And I've been under falling trees.",
+            "Axe for the near ones, bow for the rest. It's simpler than it sounds.",
+            "Another war, another scar, another inch of muscle.",
+            "They keep sending tougher enemies. I keep getting tougher.",
+            "I don't know what the war wants from me. I keep giving it more.",
+            "My arms feel like old roots. Hard to cut, harder to shift.",
+            "Keep pointing, {leader}. I'll keep swinging until you stop."
+          ],
+          "perfect": [
+            "All of me, bigger and better. I'll need a larger axe to match.",
+            "Even my aim? The bow's going to be a problem for someone now.",
+            "Everything, at once. Where was this when I was chopping wood for coin?"
+          ],
+          "blank": [
+            "Nothing. Strange... I'd swear I've swung this exact swing before.",
+            "Didn't grow an inch. Good thing I was already enormous.",
+            "Same old me. The axe didn't seem to mind."
+          ]
+        },
+        "fallen": [
+          "Took a whole war... to get me.",
+          "Bury me... somewhere with trees.",
+          "Not falling... just sitting down a moment."
+        ],
+        "promotion": [
+          "Promoted by attrition, they say. Fine. I'm the one still here.",
+          "A bow as well? The old camp foreman would never believe this.",
+          "Warrior. Axes my whole life, and now they want me to aim. Terrifying."
+        ]
+      },
+      "Berserker": {
+        "levelUp": {
+          "normal": [
+            "More strength, more rage. The leash feels thinner.",
+            "The more they cut, the clearer everything gets. Is that normal?",
+            "I remembered my own name through the whole fight. Progress.",
+            "Bleeding makes me better. Please don't take that as an invitation.",
+            "Every wound is a drumbeat. Today's song was very loud.",
+            "The school warned me the red would get easier to find.",
+            "Stronger. The axe felt like a feather. The enemy didn't agree."
+          ],
+          "perfect": [
+            "Everything? Even my calm? Now I'm truly worried.",
+            "All of it grew. The rage, the reach, the restraint. Mostly the rage.",
+            "I feel magnificent. That's usually when somebody gets hurt."
+          ],
+          "blank": [
+            "Nothing grew but the anger. It doesn't count, they tell me.",
+            "Blank. Good. Something has to stay the same in here.",
+            "I learned nothing. I broke a table about it. Now I'm fine."
+          ]
+        },
+        "fallen": [
+          "Finally... it's quiet.",
+          "Let go of the leash, {leader}... I'm done.",
+          "More... I had more."
+        ],
+        "promotion": [
+          "The school didn't choose me. It just finally admitted what it saw.",
+          "They've handed me the leash. I'll try to hold my end.",
+          "Berserker. The quiet in my head has stopped arguing with the noise."
+        ]
+      },
+      "Paladin": {
+        "levelUp": {
+          "normal": [
+            "The oaths grow easier to keep as the arm grows stronger.",
+            "Every ride forward is a promise kept. I've kept several today.",
+            "Steady, like the old knights. Better, maybe; they didn't have my mount.",
+            "The strong must serve. I'm getting strong enough to serve properly.",
+            "My mount and I are one creature on a good day. Today was good.",
+            "No weak side, no wasted motion. The drills finally make sense.",
+            "Ride where you need me, {leader}. The oath goes where I go."
+          ],
+          "perfect": [
+            "Every virtue strengthened at once. I'll try to remain humble. Try.",
+            "All of me, better. Surely some knight of old is riding with me.",
+            "Everything improved. I must have kept a vow I don't remember making."
+          ],
+          "blank": [
+            "Nothing new. An oath kept is its own reward. Mostly.",
+            "No change. A paladin doesn't sulk. I am simply reflecting nobly.",
+            "Steady as ever. Some call it stagnation; I call it bearing."
+          ]
+        },
+        "fallen": [
+          "I kept it... the whole oath... didn't I?",
+          "Look after my mount. It was always the better knight.",
+          "Serve them... that was the part... they left out."
+        ],
+        "promotion": [
+          "I'll swear the old oath. All of it. Even the part they stopped reading aloud.",
+          "Paladin. The saddle feels the same, but the weight on it doesn't.",
+          "Sword at my hip, lance in hand, and {leader} to serve. Let's be worthy of all three."
+        ]
+      },
+      "Dark Knight": {
+        "levelUp": {
+          "normal": [
+            "The spells come colder and quicker. I've stopped asking why.",
+            "Lance or tome, they fall the same. I'm getting better at choosing.",
+            "My mount shies from the words less now. That, or it's given up.",
+            "I strike first and hard. Wherever the power comes from, it answers.",
+            "The shadows on the pages moved again. I think they approve.",
+            "Stronger in flesh and in the other thing. Don't ask about the other thing.",
+            "Point me at them, {leader}. Something in the tome wants to meet them."
+          ],
+          "perfect": [
+            "Everything, even my faith in this. That's the part that worries me.",
+            "All of me strengthened. I'll pretend I didn't hear the whisper that came with it.",
+            "Perfect. I've read that power this clean is always a loan."
+          ],
+          "blank": [
+            "Nothing. The tome went quiet today. I almost miss it.",
+            "No change. Perhaps the dark is rationing me.",
+            "Unchanged. I'll try reading louder."
+          ]
+        },
+        "fallen": [
+          "Was it... worth the pages?",
+          "The dark... it's warmer than I thought.",
+          "Help me down... I'd rather go standing."
+        ],
+        "promotion": [
+          "The court circle's lessons, at last. I won't ask the price. Not yet.",
+          "Lance in one hand, tome in the other. My mount looks nervous.",
+          "Dark Knight. They say the title is earned. I think it was lent."
+        ]
+      },
+      "Sniper": {
+        "levelUp": {
+          "normal": [
+            "One breath, one shot. The breath keeps getting shorter.",
+            "They hid in the trees. The trees didn't help.",
+            "Patience is a muscle. Mine's gotten enormous.",
+            "The string and I finally agree on everything.",
+            "I've started counting heartbeats between shots. Theirs, not mine.",
+            "Farther, steadier, quieter. If they hear it, I did it wrong.",
+            "Give me a wall and a morning, {leader}. I'll give you an empty field."
+          ],
+          "perfect": [
+            "Everything. Even my nerve. There's no shot I'd refuse now.",
+            "Every fiber tuned like a good string. Don't touch me; I might twang.",
+            "Improved in every way. Somewhere, a target just felt a chill."
+          ],
+          "blank": [
+            "Nothing. A sniper waits. I'm good at waiting.",
+            "No change. Still hit what I aimed at. That's the only measure.",
+            "Nothing. The wind moved. I didn't."
+          ]
+        },
+        "fallen": [
+          "Didn't see... that one coming.",
+          "My name... someone should... know it.",
+          "Tell the wall... I'm off duty."
+        ],
+        "promotion": [
+          "Sniper. So now nobody learns my name. Suits me.",
+          "No bush, no wall, no fog. Nowhere left for them to stand.",
+          "They handed me the rank and looked away. I understand the custom now."
+        ]
+      },
+      "Bow Knight": {
+        "levelUp": {
+          "normal": [
+            "Shoot, turn, ride. I'm getting the order right more often.",
+            "My mount knows the drill now. It swings wide before I even ask.",
+            "The sword's for when they catch me. They're catching me less.",
+            "Every opening strike lands cleaner. The first word is the one that counts.",
+            "The marches teach you to hit and not be there. I'm learning fast.",
+            "Loosed from the saddle and still hit the buckle. Well, near it.",
+            "I'll start the argument, {leader}. You finish it."
+          ],
+          "perfect": [
+            "Everything! Arrows, steel, stride. I could pick a fight with a regiment.",
+            "All of me, faster and sharper. The open road feels too small now.",
+            "Improved in every way. I'll celebrate once I've ridden somewhere safe."
+          ],
+          "blank": [
+            "Nothing. Rode in, rode out, learned nothing. Classic skirmish.",
+            "No change. Tomorrow I'll ride faster and hope it catches up.",
+            "Well. That was a wasted ride."
+          ]
+        },
+        "fallen": [
+          "Should've... kept riding.",
+          "Caught me... standing still. Stupid.",
+          "Let my mount run... it always wanted to."
+        ],
+        "promotion": [
+          "A bow and a saddle. Now I can shoot someone and be gone before they complain.",
+          "Bow Knight. Arrive, argue, leave. I've been practicing the arguing.",
+          "Finally, legs that never tire. They're just not mine."
+        ]
+      },
+      "Sage": {
+        "levelUp": {
+          "normal": [
+            "I understand another page. I'm less sure the page understands me.",
+            "Burn it, mend it, study it. My days have become wonderfully full.",
+            "My spells have stopped needing words. That's either mastery or a warning.",
+            "The staff and the tome share a shelf now. They're getting along.",
+            "Every lesson opens three more questions. Delightful.",
+            "Stronger in the mind. My knees remain unconvinced.",
+            "Ask me anything, {leader}. I'm nearly certain I know it now."
+          ],
+          "perfect": [
+            "Everything, all at once. I'll need a new volume just for today.",
+            "Improved in all respects. I'll write a treatise, and you're all in it.",
+            "Better in every respect. I've rechecked my reasoning twice. It holds, alarmingly."
+          ],
+          "blank": [
+            "Nothing. I've been reading the same page for an hour, apparently.",
+            "No new insight. Even a library has an empty shelf.",
+            "Unchanged. The truth is patient; so am I, reluctantly."
+          ]
+        },
+        "fallen": [
+          "So much... left unread.",
+          "Take my notes... the margins matter most.",
+          "At last... I'll learn what's past the final page."
+        ],
+        "promotion": [
+          "Sage. The academy's word for someone who found the library's back door.",
+          "Healing as well as burning. I suppose that's balance, of a sort.",
+          "I read past the last approved page. It was worth it."
+        ]
+      },
+      "Warlock": {
+        "levelUp": {
+          "normal": [
+            "Every wound I give, I take a little back. I'm getting hungrier.",
+            "The book feels warm in my hands. It never used to.",
+            "Stronger. Long fights suit me now; they're a meal with courses.",
+            "I've stopped counting the pages I've read. The pages count me.",
+            "My wounds close as theirs open. I no longer find that strange.",
+            "The whispers explained something new last night. I took notes.",
+            "Keep the fight going, {leader}. I only get better the longer it lasts."
+          ],
+          "perfect": [
+            "Everything strengthened. The tome looks fuller as well. Coincidence.",
+            "All of me, flourishing. I don't dare ask what went hungry for it.",
+            "Magnificent. I'll assume nothing will be collected later."
+          ],
+          "blank": [
+            "Nothing. The book kept it for itself this time.",
+            "Unchanged. Even darkness takes a day of rest.",
+            "No gain. I'll read deeper. That always works, in the end."
+          ]
+        },
+        "fallen": [
+          "The book... finally closes.",
+          "It fed on me... and I let it.",
+          "Don't open it. Whatever you do... don't open it."
+        ],
+        "promotion": [
+          "The pages past the end are reading me back. I'm told that's the promotion.",
+          "Warlock. The book fed on me for years. Now it's my turn to eat.",
+          "I never asked for this power. I just never stopped turning pages."
+        ]
+      },
+      "Bishop": {
+        "levelUp": {
+          "normal": [
+            "My wounds knit on their own now. It's a strange grace.",
+            "The light burns brighter for the wicked and warmer for the rest.",
+            "I spent years mending. It seems I may now also correct.",
+            "Every prayer said in a burning field counts double. I'm sure of it.",
+            "My vestments are ruined, but my faith is in better shape than ever.",
+            "The temples are empty, so the temple walks with me.",
+            "Rest a moment, {leader}. I've light enough for everyone now."
+          ],
+          "perfect": [
+            "Every gift at once. The goddess must be making up for the war.",
+            "All of me strengthened. I'll resist the pride. I'll resist it loudly.",
+            "Perfection. I'm searching my conscience for whatever I've missed."
+          ],
+          "blank": [
+            "No change. Humility is also a lesson, and I've had plenty.",
+            "Nothing. The light is testing me. Well, I'll pass.",
+            "Unchanged. The wounded still need bandages. Onward."
+          ]
+        },
+        "fallen": [
+          "I forgive them... I think I do.",
+          "The light is... so close now.",
+          "Heal the others first, {leader}. Always the others first."
+        ],
+        "promotion": [
+          "They say a bishop carries the whole temple. I'll carry what's left of it.",
+          "Mercy in one hand, judgment in the other. I'll try not to confuse them.",
+          "The light answers when I strike now. I pray I only ask it rightly."
+        ]
+      },
+      "Battle Monk": {
+        "levelUp": {
+          "normal": [
+            "I mend the ones beside me and bury the ones in front.",
+            "My prayers got louder. So did my axe.",
+            "Stand close. My presence keeps you whole now, apparently.",
+            "Stronger faith, stronger arms. The two turned out to be related.",
+            "I've learned to heal with blood on my hands. The goddess understands.",
+            "The front line is where the wounded are. So that's where I pray.",
+            "A good day's work: two healed, three felled, one hymn sung."
+          ],
+          "perfect": [
+            "Blessed in body and spirit. The abbot would be proud and slightly alarmed.",
+            "Everything improved. I'll offer thanks, then offer violence.",
+            "All of it at once! Either a miracle, or I finally prayed correctly."
+          ],
+          "blank": [
+            "Nothing. The spirit is willing and the axe is patient.",
+            "No change. I'll meditate on it, after I've hit something.",
+            "Unchanged. A monk learns to accept the empty bowl."
+          ]
+        },
+        "fallen": [
+          "Stand together, {leader}... I can't hold you now.",
+          "Put the axe down... pray for me instead.",
+          "I broke my vow... it was worth it."
+        ],
+        "promotion": [
+          "A staff for the wounded, an axe for whoever wounded them. Balance.",
+          "The abbot always said I prayed with my shoulders. Now it's official.",
+          "Battle Monk. I have taken a vow of peace. It's temporarily suspended."
+        ]
+      },
+      "Assassin": {
+        "levelUp": {
+          "normal": [
+            "Quieter. Quicker. Closer before they know I'm there.",
+            "One strike is all it takes. I'm getting better at finding which one.",
+            "I never raise my voice. I've never had to.",
+            "Every shadow knows me a little better now.",
+            "They'll say they saw nothing. They'll be telling the truth.",
+            "The blade and I have an arrangement: it doesn't miss, I don't hesitate.",
+            "Give me a name, {leader}. Just the one."
+          ],
+          "perfect": [
+            "Perfect. That troubles me. Perfection leaves a trail.",
+            "Everything sharpened. I'll try not to enjoy it where anyone can see.",
+            "Stronger in every way. Somewhere, somebody's luck just ran out."
+          ],
+          "blank": [
+            "Nothing. As far as anyone knows, I was never here.",
+            "No change. I'll keep it out of the ledger.",
+            "Unchanged. Silence is also a skill."
+          ]
+        },
+        "fallen": [
+          "Nobody... will write this down. Good.",
+          "Never... heard them coming. Funny.",
+          "Don't say my name... there isn't one."
+        ],
+        "promotion": [
+          "Assassin. There'll be no record of this, of course.",
+          "The empire pays for this work and never writes it down. Neither will I.",
+          "A bow too? Now I can end them from the next room over."
+        ]
+      },
+      "Trickster": {
+        "levelUp": {
+          "normal": [
+            "Faster hands, cleaner blessings. A very productive sermon.",
+            "Patched your wound and lifted a purse on the way back. Efficient.",
+            "I swear the staff works better after it's been stolen.",
+            "Quicker than a blink. Please check your belongings.",
+            "The goddess forgives thieves. I've made sure of it, personally.",
+            "Every door opens eventually. So does every heart, and every pocket.",
+            "A fair trade, {leader}: your safety for their valuables."
+          ],
+          "perfect": [
+            "Blessed and burgled at once. A perfect day on both sides of the altar.",
+            "All of me improved. I'll light a candle. Somebody else's candle.",
+            "Flawless. I know flawless when I see it; it's usually a forgery."
+          ],
+          "blank": [
+            "Nothing? I'll call it a tithe.",
+            "No gain. Even a trickster gets tricked.",
+            "Unchanged. I checked my pockets twice. Nothing new in either."
+          ]
+        },
+        "fallen": [
+          "Pray for me, {leader}... then check my sleeves.",
+          "I never... really believed. I hope I was wrong.",
+          "Last trick... didn't work. Sorry."
+        ],
+        "promotion": [
+          "Took the vows. Kept the lockpicks. Nobody said I had to choose.",
+          "Trickster. A priest of the open door, and every door is open to me.",
+          "I heal you, I rob them. Everyone leaves happier, mostly."
+        ]
+      },
+      "Bard": {
+        "levelUp": {
+          "normal": [
+            "I've learned a new verse. It's about you, if you're not careful.",
+            "Another song remembered. Another village that won't be forgotten.",
+            "The marchers hum along now. That's how you know it worked.",
+            "My voice carries farther. So does the healing.",
+            "Musical staves, healing staves. I'm fluent in both now.",
+            "Every checkpoint we pass, I hide one more old song in the baggage.",
+            "Sing with me, {leader}. The enemy hates harmony."
+          ],
+          "perfect": [
+            "A standing ovation from my own body. Every part applauding.",
+            "Everything improved! I'll need a longer ballad about myself.",
+            "Perfect pitch, perfect step. Mind the encore; I'll want one."
+          ],
+          "blank": [
+            "Nothing new. Even the best songs have a quiet bar.",
+            "No change. I'll write a ballad about persistence. It'll be short.",
+            "Unchanged. A rest is part of the music too."
+          ]
+        },
+        "fallen": [
+          "Sing it... for me. The last verse.",
+          "Don't let... the songs stop, {leader}.",
+          "Encore... no. Just the once."
+        ],
+        "promotion": [
+          "Bard. I'll carry the songs past every gate the banners can't cross.",
+          "A song for the tired and a staff for the hurt. My repertoire grows.",
+          "The troupe would be proud. They'd also want a share."
+        ]
+      },
+      "Falcon Knight": {
+        "levelUp": {
+          "normal": [
+            "Faster through the clouds. Even the storms can't keep up.",
+            "Grace is a weapon if you swing it right. I swing it daily.",
+            "Alone in the sky, I'm hardest to touch. I'm getting very hard to touch.",
+            "The archers below look smaller every day.",
+            "My mount's wingbeat and my heartbeat keep time now.",
+            "Wherever hope is thinnest, that's where I land. Busy days, lately.",
+            "I'll be where you need me, {leader}, before you know you need me."
+          ],
+          "perfect": [
+            "Faster, stronger, surer. The sky feels like mine for the first time.",
+            "Everything improved. I won't tell my mount; it'll be unbearable.",
+            "A flawless flight. I'm scanning the horizon for what it's warning me about."
+          ],
+          "blank": [
+            "Nothing. Even a falcon has to glide sometimes.",
+            "No change. The wind was against me today. It usually loses.",
+            "Unchanged. I'll try again once the clouds clear."
+          ]
+        },
+        "fallen": [
+          "Catch the wind... for me.",
+          "The escort's broken... get them clear.",
+          "I landed... where hope was thinnest. It was here."
+        ],
+        "promotion": [
+          "The commission's colors. I'll outfly the weather and still land on time.",
+          "A sword at my side, a lance in hand, and the whole sky to argue with.",
+          "Falcon Knight. My mount already acted like one. Now I'm allowed to."
+        ]
+      },
+      "Wyvern Lord": {
+        "levelUp": {
+          "normal": [
+            "They flinch when my shadow crosses them. They should.",
+            "Every beat of those wings says the same thing: we were here first.",
+            "My wyvern's teeth and my axe agree on most things.",
+            "The mountains taught me to be heavy. The sky taught me when to drop.",
+            "Stronger. The beast and I don't talk about feelings, but we both felt it.",
+            "Nobody attacks me twice. They remember the landing.",
+            "Just say where, {leader}. The shadow gets there before we do."
+          ],
+          "perfect": [
+            "Stronger in every way. My wyvern roared about it for an hour.",
+            "Everything improved. The clans will be telling this story wrong for years.",
+            "All of it. I'm starting to see why the old kings feared us."
+          ],
+          "blank": [
+            "Nothing. My wyvern snorted at me. I'd rather it hadn't.",
+            "No change. The mountain didn't move today either.",
+            "Unchanged. A lord doesn't need to grow. Just to land."
+          ]
+        },
+        "fallen": [
+          "The shadow... is lifting.",
+          "Don't let it... grieve alone. Wyverns remember.",
+          "Down... first time I've landed badly."
+        ],
+        "promotion": [
+          "Wyvern Lord. The clans crown no kings. They just step aside when I land.",
+          "An axe as well? My wyvern's grin just got wider.",
+          "Bigger wings, bigger shadow. Arguments below will be shorter now."
+        ]
+      },
+      "Hero": {
+        "levelUp": {
+          "normal": [
+            "The wounds close quicker while I'm fighting. Handy trick, that.",
+            "Veterans don't get faster. We just waste less.",
+            "Every fight teaches you where not to be. I'm rarely there anymore.",
+            "Sword or axe, doesn't matter. The hand knows the work.",
+            "I've buried better soldiers than me. So I keep getting better.",
+            "No gaps left to find. They're welcome to keep looking.",
+            "I'll go first, {leader}. That's what the word means."
+          ],
+          "perfect": [
+            "Everything, all at once? I'll try to be worthy of it.",
+            "A day like this is a gift at my age. I'll put it to work.",
+            "All of me improved. The ranks will make a song of this. I'll hate it."
+          ],
+          "blank": [
+            "Nothing. Doesn't matter. I still show up.",
+            "No change. I've had worse days. I've had much worse.",
+            "Same as before. The soldiers won't notice, and that's how it should be."
+          ]
+        },
+        "fallen": [
+          "Don't... make a song of it.",
+          "It was never... about the name.",
+          "Keep them together, {leader}. That's all a hero does."
+        ],
+        "promotion": [
+          "Hero. The soldiers gave me that word. It's heavier than any armor.",
+          "Command offered me a medal. The ranks gave me a name. I'll keep the name.",
+          "An axe too. Good. A hero shouldn't turn down honest work."
+        ]
+      },
+      "Hunter": {
+        "levelUp": {
+          "normal": [
+            "Every trail reads easier now. The enemy walks like a lost deer.",
+            "Swamp, thicket, scree. My feet don't care anymore.",
+            "I can smell the rain an hour out now. Useful, in a war.",
+            "The war drafted my aim. It didn't know it got my patience free.",
+            "I hunted rabbits to feed my family. The quarry's bigger now.",
+            "Quiet steps, steady hands. The forest taught me; the war is grading.",
+            "I'll find the way through, {leader}. There's always a deer path."
+          ],
+          "perfect": [
+            "Keener eyes, surer feet, stronger draw. A season's growth in a day.",
+            "Everything improved. The forest must have taken a liking to me.",
+            "In the woods, feeling this lucky usually means you're the bait."
+          ],
+          "blank": [
+            "Came home with an empty bag. Every hunter does, now and then.",
+            "No change. The deer don't grow every season either.",
+            "Unchanged. The woods don't hurry, so neither do I."
+          ]
+        },
+        "fallen": [
+          "Feed... the town. Someone has to.",
+          "Lost the trail... that's all.",
+          "Bury me under the trees. I'll know the way."
+        ],
+        "promotion": [
+          "Hunter. The woods have been calling me back for years.",
+          "No more fighting for the highest bidder. Now I track, and I wait.",
+          "A bow again. My family would say I finally came to my senses."
+        ]
+      }
+    },
+    "traits": {
+      "steady": [
+        "Slow and sure. It's kept me upright this long.",
+        "I don't rush. I don't break. That's the whole trick.",
+        "Let them hit me. I'll still be here when they tire.",
+        "Nothing fancy. One more step, then another."
+      ],
+      "nimble": [
+        "Light on my feet, and lighter every day.",
+        "They can't hit what isn't there anymore.",
+        "I barely touch the ground now. Feels right.",
+        "Quick feet, quicker exits. Both have saved my life."
+      ],
+      "hardy": [
+        "Takes more than that to put me down. A lot more.",
+        "I've been stabbed worse. Somewhere. Once. I think.",
+        "Bruised is just another word for alive.",
+        "Tough as old boot leather, and about as pretty."
+      ],
+      "keen": [
+        "Sharper eyes, steadier hands. I see the gaps now.",
+        "I don't waste a blow. Never have.",
+        "There's always an opening. You just have to look.",
+        "Missing is a habit. I've broken it."
+      ],
+      "brawny": [
+        "Not quick, but when I land it, it stays landed.",
+        "More muscle. My legs are complaining, but my arms are thrilled.",
+        "Why dodge when you can simply hit harder?",
+        "I'll get there. Slowly. And then they'll regret it."
+      ],
+      "clever": [
+        "The formulas come easier now. The headaches, less so.",
+        "I understand it now. Mostly. The rest I'll bluff.",
+        "A good mind is the only weapon that sharpens itself.",
+        "I studied the pattern. It studied me back. I won."
+      ],
+      "lucky": [
+        "I keep waiting for my luck to run out. It keeps not running.",
+        "Somebody up there likes me. I'd love to know why.",
+        "Found a coin on the road this morning. Today's been like that.",
+        "Can't believe that worked. I never can. It always does."
+      ],
+      "cornered": [
+        "I fight best with my back to the wall. Ask anyone who's pinned me.",
+        "Bleeding makes me clearer. Don't ask me why.",
+        "Hurt me. Go on. That's when it gets interesting.",
+        "Nothing sharpens you like nearly dying."
+      ],
+      "vigorous": [
+        "Fresh legs, full lungs. Let's go before the ache sets in.",
+        "I'm best in the first hour. Point me at something early.",
+        "Up with the sun and glad of it.",
+        "Keep me rested and I'll hit like a landslide."
+      ],
+      "lone_wolf": [
+        "Give me room. I work better where no one's watching.",
+        "I grow best alone. Fight best alone, too.",
+        "Nothing personal. I just like the quiet between us.",
+        "Stand back a few paces. For both our sakes."
+      ],
+      "woodsman": [
+        "Stronger, and still wise enough to stand behind something.",
+        "Heroes stand in the open. I stand behind the pillar and outlive them.",
+        "Find me a thicket, a wall, a rock. I've outlasted three wars behind them.",
+        "The forest taught me patience. The war's teaching me the rest."
+      ],
+      "studious": [
+        "I took notes. Page forty. Would you like to see?",
+        "Every fight's a lesson. I keep a ledger of them.",
+        "I've been studying the veterans. They don't know it.",
+        "Another chapter learned. My handwriting's getting worse, though."
+      ],
+      "lazy": [
+        "Stronger without trying. The drills were a waste, clearly.",
+        "Must we train tomorrow? I've already improved today.",
+        "I'll master this someday. No rush. None at all.",
+        "Wake me when there's something worth getting up for."
+      ],
+      "reckless": [
+        "Put me up front. Every time. That's where I grow.",
+        "Caution's for people who plan to grow old.",
+        "Let me charge next time. I'll try to wait for the order.",
+        "Stronger! Now let's see how deep into them I can get."
+      ],
+      "quick_study": [
+        "Oh, I get it now. That was quick, wasn't it?",
+        "Watched it done once. That's usually enough.",
+        "I pick things up fast. Put them down faster, sometimes.",
+        "One more lesson learned. What's next? Show me."
+      ],
+      "gifted": [
+        "There's a spark in me that catches easy. It caught again.",
+        "Born with an ember in the hand. I just keep feeding it.",
+        "Whatever I put my hand to burns a little brighter each season.",
+        "Some people have to learn it. I only have to remember it."
+      ],
+      "fleet": [
+        "I cover ground. Always have, mount or no mount.",
+        "One more stride than the rest of you. It adds up over a war.",
+        "Point me somewhere far. I'll be there before the order's finished.",
+        "First to the fight, first out of it. Long legs are a blessing."
+      ],
+      "bloodhound": [
+        "I can smell a wound from across the field. I finish what others start.",
+        "Let someone else open them up. I close the account.",
+        "Wounded things run slow. I've never let one get away.",
+        "Blood in the air and my hands go steady. Always have."
+      ],
+      "stalwart": [
+        "Let them come to me. I've never once been moved.",
+        "I plant my feet and the line holds. That's all I've ever been good for.",
+        "They swing, I stand. Stronger now, and just as stubborn.",
+        "Nobody breaks against me by accident. I make sure of it."
+      ],
+      "shieldmate": [
+        "Keep someone at my shoulder and I'll keep us both breathing.",
+        "I fight better with a friend in reach. Always have.",
+        "Stand with me. That's the whole plan.",
+        "Alone I'm ordinary. Beside you, I'm a wall."
+      ],
+      "slow_oath": [
+        "I learn slow. What I learn, I never lose.",
+        "Give me time. When it finally takes, it takes twice over.",
+        "Others rush their training. I swore to do mine properly.",
+        "The oath was to be patient. It's harder than any drill."
+      ]
+    },
+    "stats": {
+      "HP": [
+        "I can take a harder hit now. Please don't test that.",
+        "My heart beats slower and stronger. Like a war drum.",
+        "More blood in me than yesterday. Try spilling it all.",
+        "I could march two days on this breath.",
+        "Something in my chest has set like mortar."
+      ],
+      "STR": [
+        "My arms feel like they were swapped with a smith's.",
+        "Nearly tore the tent pole out of the ground this morning.",
+        "Heavier blows. The sparring post has filed a complaint.",
+        "My grip's gone iron. Check my hands for rust.",
+        "Lifted the supply cart alone. Don't tell the quartermaster."
+      ],
+      "MAG": [
+        "Why do my fingers tingle? What have I been eating?",
+        "The air hums when I breathe now. That's normal, right?",
+        "Candles lean toward me when I pass. I'd like them to stop.",
+        "My blood runs bright. I can feel the old words in it.",
+        "Something answers when I call now, from deeper than before."
+      ],
+      "SKL": [
+        "My hands know the work before my head does.",
+        "I can see the seams in their guard now.",
+        "Threaded a needle in the dark last night. First try.",
+        "Every motion trimmed down to what matters.",
+        "My aim's gone quiet. No wasted breath, no wasted strike."
+      ],
+      "SPD": [
+        "I can hear the arrows coming now. Plenty of time.",
+        "My feet are faster than my thoughts. Hope the thoughts catch up.",
+        "The world slowed down. Or I sped up. Either way.",
+        "Caught a fly out of the air. Let it go, of course.",
+        "They swing, I'm gone. I'm starting to enjoy that."
+      ],
+      "DEF": [
+        "Blades glance off me now. Rude of them.",
+        "My skin feels like it's been through a tannery.",
+        "Hit me. Go on. I barely noticed that last one.",
+        "Bruises don't take hold the way they used to.",
+        "I've become a wall with opinions."
+      ],
+      "RES": [
+        "Spells feel thinner now, like cold rain.",
+        "Magic slides off me. I felt it try.",
+        "My blood's gone stubborn. Hexes can't find a grip.",
+        "The old words can't get their hooks in me anymore.",
+        "Something in me says no to the dark, and means it."
+      ],
+      "LCK": [
+        "Found a four-leaf clover. Then another. Then a third.",
+        "Fortune's walking beside me. Hope it keeps pace.",
+        "I can feel the dice rolling my way before they land.",
+        "A crow dropped a coin at my feet. Omen or tip?",
+        "Arrows keep finding the soldier next to me. Sorry, friend."
+      ]
+    },
+    "milestones": {
+      "10": [
+        "Halfway there. The hard part's behind me. Probably.",
+        "No recruit anymore. The new ones salute me by accident.",
+        "Seasoned. That's what they call it when you survive long enough.",
+        "Half a master. The other half is going to hurt."
+      ],
+      "20": [
+        "There's nothing left this trade can teach me. What now?",
+        "The top of the mountain. The view is mostly more mountains.",
+        "Mastered. My old drill sergeant would've wept. Or shouted.",
+        "I've taken everything this craft had to give. Every scrap.",
+        "This is as far as this road goes. I'll need a new road."
+      ],
+      "extended": [
+        "Past the summit and still climbing. Where does this end?",
+        "They said there was a ceiling. I must have missed it.",
+        "Beyond what I was trained for. Beyond what anyone was.",
+        "No manual covers this. I'm writing my own."
+      ]
+    },
+    "skills": [
+      "{skill}. I've been reaching for that for months.",
+      "So that's {skill}. My hands knew before I did.",
+      "Add {skill} to the list of things they should fear.",
+      "{skill}! I'd hoped, but I never dared say it aloud.",
+      "{skill}. The veterans said it would come. It came.",
+      "Something clicked. They call it {skill}, I'm told."
+    ],
+    "dejaVu": [
+      "I've felt this exact ache before. In this exact shoulder.",
+      "Strange. I know the next stone on this road. I've never been here.",
+      "This strength feels returned, not earned. Odd, isn't it?",
+      "I dreamed I'd learned this already. The dream ended badly.",
+      "The same crow, the same field. Why do I always remember the crow?",
+      "Have I thanked you for this before, {leader}? It feels like I have."
+    ],
+    "beats": {
+      "perfect": [
+        "Every thread pulled taut.",
+        "The weave tightens, stitch by stitch.",
+        "A thread spun strong, end to end.",
+        "Nothing wasted. Nothing held back.",
+        "Growth in every limb at once.",
+        "The kind of day soldiers lie about.",
+        "All of it, all at once.",
+        "Whatever comes next, they're ready."
+      ],
+      "blank": [
+        "The thread barely stirred.",
+        "The loom paused, and waited.",
+        "Not every thread catches.",
+        "A long march. Little to show for it.",
+        "Some days only teach patience.",
+        "Mud, rain, and not much else.",
+        "Still alive. That counts for something.",
+        "The work goes on, unrewarded."
+      ]
+    },
+    "lords": {
+      "Edric": {
+        "levelUp": {
+          "normal": [
+            "Stronger. Good. That's one more of them I can stand in front of.",
+            "A little better today. The banner won't notice, but I will.",
+            "Whatever I gained, it belongs to the ones who kept me alive long enough to gain it.",
+            "I'll never be the finest blade here. I only need to be the one that stays.",
+            "Stronger, I think. Ask me again after I trip over the banner pole.",
+            "Kira says I'm improving. She said it slowly, so I think she meant it.",
+            "Every march teaches me something. Today, how much I still don't know.",
+            "Good. Now I can carry a little more of what we're all carrying.",
+            "The banner is no lighter. My arms are just getting used to it.",
+            "One step better. Everyone behind me, take it with me.",
+            "I felt that settle in, like a strap finally buckled right.",
+            "Sera saw a lord in me once. I'm still growing into her vision.",
+            "Better than yesterday. I'll count that, right after I count all of you.",
+            "The village smith would laugh to see me now. Then he'd check my grip."
+          ],
+          "perfect": [
+            "Everything at once? I didn't earn that alone. Whose prayer was that?",
+            "I feel like a lord out of a song. Don't tell anyone; they'll expect it every time.",
+            "That's what it feels like when an army stands behind you. All of it at once.",
+            "Every part of me, sharper. Someone stood close enough to lend me their luck.",
+            "If I'd known it could feel like this, I'd have stopped doubting sooner. Maybe."
+          ],
+          "blank": [
+            "Nothing. That's fine. The banner doesn't need me grand, only standing.",
+            "Not a thing gained. Well, humility. I had plenty of that already.",
+            "Some days you only march. Everyone's still here. That's enough.",
+            "No better than yesterday. No worse either. I'll take it and keep counting.",
+            "Maybe the lesson was meant for someone watching me. Did anyone learn anything?"
+          ],
+          "milestones": {
+            "10": [
+              "I've come a long way from the border hall. The ones who came with me, further.",
+              "Kira says I'm halfway there. She won't say where there is. She never does."
+            ],
+            "20": [
+              "I understand it now. When I step forward, the ones beside me step with me.",
+              "One more push, together, before they can answer. That's what the banner was for.",
+              "Every drill I ever grumbled through was for this: moving as one, one more time."
+            ],
+            "extended": [
+              "Small gains now, like adding one more name to a very long roll.",
+              "Still learning. The day I stop, somebody should take the banner from me.",
+              "A little more. There's always a little more to give them."
+            ]
+          }
+        },
+        "promotion": [
+          "The crown the old kingdom lost. I'll try very hard not to lose it again.",
+          "Great Lord. I'd rather they kept calling me Edric, if nobody minds.",
+          "A lance too? Someone show me which end goes forward. Rowan, not a word.",
+          "I swore this to the ones who never reached this road. It's theirs. I only carry it."
+        ]
+      },
+      "Kira": {
+        "levelUp": {
+          "normal": [
+            "Better position. Same board. Your move, empire.",
+            "One tempo gained. They won't feel it until three moves from now.",
+            "Sharper. I'd explain how, but you'd only take notes.",
+            "Improvement noted. Filed. Already planning around it.",
+            "Good. The line I saw this morning just got shorter.",
+            "The war colleges taught me patience. The war is teaching me speed.",
+            "Every piece improves if you keep it on the board. Even this one.",
+            "A small gain. Small gains win long games, and I plan to keep playing.",
+            "Edric counts the army by heads. I count it by what it can do. Mine just went up.",
+            "There. Now I can see one square further than I could yesterday.",
+            "I didn't get stronger. I got more annoying to play against.",
+            "Ask me what changed. No. Watch instead; it's more fun.",
+            "Progress. The game is still going, which is exactly how I like it.",
+            "My instructors said I'd never be patient. They were right, and I'm winning."
+          ],
+          "perfect": [
+            "Every line opened at once. I've seen boards like this. I've never been one.",
+            "A perfect position. Suspicious. I'm checking it twice.",
+            "Everything improved. Someone in the empire just lost a game they don't know about.",
+            "Flawless. Don't tell Edric; he'll want to celebrate and it wastes a turn.",
+            "All of it, at once. Remind me to never let this board close."
+          ],
+          "blank": [
+            "Nothing gained. A quiet move. Quiet moves are still moves.",
+            "Hm. A wasted tempo. Fine. I've won from worse.",
+            "No change. Good. My opponents will think I've plateaued.",
+            "Nothing. I'll call that a feint and pretend it was planned.",
+            "Blank. Even I misplay sometimes. Tell no one."
+          ],
+          "milestones": {
+            "10": [
+              "The opening's over. The middle game is where I live.",
+              "Ten moves deep and I still don't want it to end. Good sign."
+            ],
+            "20": [
+              "Stand beside me now and you're worth more. That's not a boast. It's arithmetic.",
+              "Every piece I touch plays better. The colleges called that theory. It isn't.",
+              "The endgame, finally. Which means I have to find a way to make it last."
+            ],
+            "extended": [
+              "Past the endgame and still finding moves. Nobody taught me this part.",
+              "One more small edge. Games like this never truly end if you're careful.",
+              "They closed the colleges. I just keep studying."
+            ]
+          }
+        },
+        "promotion": [
+          "Grandmaster. The empire shut the colleges before anyone could award it. I'll take it.",
+          "A sword as well? Fine. Some problems don't answer to theory.",
+          "Every rank has a final exam. This war's was particularly thorough.",
+          "My old instructors should see this. I'd like them to still be alive to see it."
+        ]
+      },
+      "Voss": {
+        "levelUp": {
+          "normal": [
+            "Still standing. A bit taller, maybe.",
+            "Stronger. Doesn't bring anyone back. Helps keep the next one off the ledger.",
+            "Hm. Twenty years on the border and I'm still learning. Don't tell the young ones.",
+            "Better. Good. Less for me to write down tonight.",
+            "Something sharpened. Hope it was me and not my temper.",
+            "Improving, at my age. Rowan will say it's luck. It's spite.",
+            "Harder to kill now. The emperor's going to have to try.",
+            "Good. The old knee still clicks, though.",
+            "Every scar taught me something. This one was a slow teacher.",
+            "Fine. One more thing I'm still good for.",
+            "The wardens said you stop growing on the border. You just stop. I didn't.",
+            "Steadier. The hands remember the bow better than my head remembers names.",
+            "I'll take it. The ground's patient, but I'm more stubborn.",
+            "Better. Tell the ledger to wait a bit longer."
+          ],
+          "perfect": [
+            "All of it at once? Hm. Somebody up there owes me, and finally paid.",
+            "Everything. Haven't felt like this since before the border burned.",
+            "Rowan's going to call that luck. Let him. I'll know better.",
+            "Whole body's singing. Feels wrong. Feels good. I'll sort it out later.",
+            "My wife used to say I'd sharpen up one day. Took a war. She'd laugh."
+          ],
+          "blank": [
+            "Nothing. Still standing, though. That's the part that counts.",
+            "Not a thing. Some years the harvest doesn't come either.",
+            "No change. I've been the same stubborn man since before you were born.",
+            "Nothing gained. Nothing lost. I'll take that trade every day.",
+            "Blank. Put it in the ledger under 'still here'."
+          ],
+          "milestones": {
+            "10": [
+              "Ten notches on the bow, for lessons. The ledger has more notches. Those are names.",
+              "Halfway to something. The wardens never told us what came after. Nobody lived."
+            ],
+            "20": [
+              "Now I take back what they take, and then I go straight through. About time.",
+              "Every name in the ledger is behind this blade now. Every one.",
+              "The sun and the moon in one stroke. The old wardens had a word for it. I forget."
+            ],
+            "extended": [
+              "Still going. Death keeps misplacing my name.",
+              "A little more. At this rate I'll outlive the war and have to find a hobby.",
+              "Past where I stopped expecting to be. Still standing. Still counting."
+            ]
+          }
+        },
+        "promotion": [
+          "Vanguard. They usually give this rank to a gravestone. I'll accept it upright.",
+          "Axes now, is it. Good. Some doors don't open for arrows.",
+          "First name on the breach roster. Fine. I've been first on worse lists.",
+          "My family's names are in my ledger. Today I'm adding one more. Mine. Still living."
+        ]
+      },
+      "Sera": {
+        "levelUp": {
+          "normal": [
+            "I feel the threads pull tighter. That's a good sign, I think.",
+            "The light sits easier in my hands. It used to shake.",
+            "Stronger. I saw this moment once, in a dream. It was smaller then.",
+            "One more thread holds. I'll tie it gently.",
+            "The visions are quieter today. Maybe I'm louder.",
+            "I grow, and the path ahead grows a little clearer.",
+            "Better. I promised I would be, on the last thread. Now I've kept it.",
+            "The light listens a little more closely. So do I.",
+            "Somewhere, the Lieutenant just frowned. I felt it.",
+            "Edric keeps telling me I carry too much. Today it's a bit lighter.",
+            "I've felt this exact warmth before. Different road, same step.",
+            "The order graduated me early. I'm finishing my lessons out here.",
+            "Stronger. The dark will have to reach a little further for us.",
+            "I see a little further. Not far enough. Never far enough, but further."
+          ],
+          "perfect": [
+            "Every thread shining at once. I've never seen the weave so bright.",
+            "All of it. I'm afraid to look at it too long, in case it fades.",
+            "This is the thread I kept looking for. Please, let it hold.",
+            "The light poured in everywhere. I think the goddess still remembers us.",
+            "Perfect. The Lieutenant saw every future but this one. I'm sure of it."
+          ],
+          "blank": [
+            "Nothing. Some threads are only for walking, not for weaving.",
+            "The light was silent. It's allowed to rest. So am I.",
+            "No change. I've walked this step before. It's always this quiet.",
+            "Nothing gained. But nobody lost. I'll hold on to that.",
+            "Still. Not every vision is a gift. This one was a pause."
+          ],
+          "milestones": {
+            "10": [
+              "Halfway, if the path is honest. It isn't always.",
+              "Ten turns of the weave. I remember every one. I'd rather not."
+            ],
+            "20": [
+              "My light goes through their wards now. What it takes from them, it gives back to me.",
+              "I don't just see the thread now. I can burn it clean.",
+              "All those failed threads... every one taught my hands this. It was not wasted."
+            ],
+            "extended": [
+              "Still growing. The weave has no edge I can find.",
+              "I keep going past where the visions stop. It's strange to be surprised.",
+              "A little more. I've stopped counting the threads. I only count us."
+            ]
+          }
+        },
+        "promotion": [
+          "The order's highest office. The last pages of the liturgy are mine to keep now.",
+          "What sleeps, and what wakes it. I swore to both. I hope I'm strong enough.",
+          "The Lieutenant serves an emperor. I serve the ones who walk beside me. Remember that.",
+          "I've knelt at this rite on other threads. This time I'll stand up and keep walking."
+        ]
+      },
+      "Rowan": {
+        "levelUp": {
+          "normal": [
+            "Better! And before anyone says luck: skill. All skill.",
+            "The lance is blessed. The improvement is all mine.",
+            "Hear that? That's my mount agreeing with me.",
+            "Stronger, faster, more handsome. Two of those are guaranteed.",
+            "Voss says I improve by accident. I improve on purpose. Loudly.",
+            "Fate owed me that one. I'm collecting.",
+            "Every charge makes me better. I plan to charge a great deal.",
+            "Getting good at this. Well. Better at it. I was already good.",
+            "That's the long marches paying off. Also the naps.",
+            "My mount carries me further every day. I'd like to think I help.",
+            "Improvement! Put it in the chronicle. Spell my name right.",
+            "Better aim, same blessing. Try to keep up.",
+            "Sharper. Steadier. Somewhere a lance-master is weeping with pride.",
+            "Luck doesn't grow like that. Men do. Well, I do."
+          ],
+          "perfect": [
+            "EVERYTHING? Voss, look! Tell me that's luck with a straight face.",
+            "Perfect. Naturally. I'd like a portrait. On horseback, please.",
+            "All of it! Somebody hold my mount; I need to take this in.",
+            "Blessed lance, blessed day, blessed me. That's three for three.",
+            "Perfect ride, perfect form. I'll be insufferable for weeks. You were warned."
+          ],
+          "blank": [
+            "Nothing? Well. Even skill takes a day off.",
+            "Hm. My mount improved, I think. One of us did.",
+            "Not a thing. Fine. Fate's clearly saving up something enormous.",
+            "Nothing gained. Don't tell Voss. He'll just grunt, and I'll know exactly what it means.",
+            "Blank. That wasn't luck. That was restraint. I'm being modest for once."
+          ],
+          "milestones": {
+            "10": [
+              "Halfway to legend. The first half was the easy part. Mostly the riding.",
+              "Ten long marches' worth. My mount deserves a statue. Next to mine."
+            ],
+            "20": [
+              "Now when my lance lands, a friend behind me breathes easier. Beat that for luck.",
+              "The blessing and I finally ride in step. We still argue about who does the aiming.",
+              "I strike, a friend mends. Took me this long to learn a lance could give back."
+            ],
+            "extended": [
+              "Still improving. At this point I'm doing it to annoy Voss.",
+              "Past the peak and still climbing. Skill, obviously. Luck gets tired.",
+              "A little more. My mount's gray at the muzzle. We're both still going."
+            ]
+          }
+        },
+        "promotion": [
+          "Holy Knight! Consecrated and everything. The lance was blessed first, but I caught up.",
+          "Magic? In me? Nobody tell my old lance-master. He'd never recover.",
+          "One saddle to mend and to end. My mount has no idea what it just signed up for.",
+          "I used to joke about the blessing. I think it was listening. Thank you, whoever."
+        ]
+      },
+      "Astrid": {
+        "levelUp": {
+          "normal": [
+            "Better. The wind noticed.",
+            "Faster on the turn. Good.",
+            "The air feels thinner from here. I like it.",
+            "Stronger. My mount's pleased. Hard to tell, but it is.",
+            "One more ridge I can clear.",
+            "Improved. I'll be over the far picket if anyone needs me. Nobody will.",
+            "I see a little further now. Mostly more of all of you.",
+            "Sharper. The ground below keeps getting smaller.",
+            "Hm. Good. Don't make a fuss.",
+            "The sky legions called me hopeless in formation. They were right. Look at me now.",
+            "Better. Whatever you're feeling about it, feel it quietly.",
+            "The wind gives, sometimes. Today it gave.",
+            "Growing. Still happier alone. Some things don't change.",
+            "Higher, faster, further. The three honest words of my trade."
+          ],
+          "perfect": [
+            "All of it. Even the wind is impressed. I've never seen it impressed.",
+            "Perfect. I'm going up for a while. Don't wait.",
+            "Everything at once. From up here, it looks like the whole sky moved.",
+            "Hm. That was perfect. I'll allow one small smile. There.",
+            "Everything. My mount did a loop. It doesn't do loops."
+          ],
+          "blank": [
+            "Nothing. Calm air. It happens.",
+            "Dead wind. We'll catch the next one.",
+            "Nothing gained. I've flown through worse weather.",
+            "No change. Good. Nobody will come looking.",
+            "Nothing. My mount looked disappointed. It's usually right."
+          ],
+          "milestones": {
+            "10": [
+              "I've flown every far picket on the border. Coming back is the part I'm still learning.",
+              "The legions sent me out alone. Somehow I'm still coming back. Here, to you."
+            ],
+            "20": [
+              "Every guard has a thin side. From above, I always see which. Now I strike there.",
+              "Armor or ward, whichever is weaker. The sky taught me to look down properly.",
+              "I used to see everything and hit what I could. Now I hit what matters."
+            ],
+            "extended": [
+              "Still climbing. There's no ceiling up here. I've checked.",
+              "A little higher. The ground doesn't miss me.",
+              "More. Sometimes I fly past the pickets just to see if the sky ends. Not yet."
+            ]
+          }
+        },
+        "promotion": [
+          "Seraph Knight. The light found me up here. I didn't think anything could.",
+          "Light in the hand. Useful at night. And against things that don't bleed.",
+          "My pickets aren't just over land now. I'll keep watch over wherever this leads.",
+          "I always flew alone. I'm still flying. I just keep circling back to you now."
+        ]
+      },
+      "Cael": {
+        "levelUp": {
+          "normal": [
+            "Sturdier. The back rank may now resume complaining.",
+            "Stronger. The wall appreciates your continued support.",
+            "Better. I'd tell you how, but it's all in the standing still.",
+            "Heavier in the good way. Archers, you may thank me later.",
+            "Improved. Please adjust your hiding spots accordingly.",
+            "The line holds a little harder now. You're welcome.",
+            "Good. Another thing that has to break before you do.",
+            "Tougher. Mages, stop peering around me. It's rude.",
+            "I felt that. Somewhere, a gate I once guarded is proud of me.",
+            "Stronger. Sera says the stone suits me. I've decided that's a compliment.",
+            "Better. Still won't move, though. That's the point.",
+            "Sharpened. Not in the pointy way. In the stubborn way.",
+            "One more reason they'll go around me. They never do.",
+            "Better. Rowan calls me slow. Rowan also calls for me whenever he's surrounded."
+          ],
+          "perfect": [
+            "Everything. I've become a slightly larger wall. Please applaud from behind me.",
+            "All of it. I'd celebrate, but I'd have to move.",
+            "Perfect. The back rank may now nap. Briefly.",
+            "Every inch of me, better. Even my patience. Don't test that.",
+            "Perfect. Kira, write that down. Then stand behind me again."
+          ],
+          "blank": [
+            "Nothing. Walls don't grow every day. They just stay.",
+            "Unchanged. As intended. Mostly.",
+            "Nothing gained. The stone is patient. I'm made of similar stuff.",
+            "No change. Don't worry. I'm still exactly as large as before.",
+            "Nothing. I'll stand here and think about what I did."
+          ],
+          "milestones": {
+            "10": [
+              "Ten sieges' worth of standing still. My feet have opinions about it.",
+              "They posted me at a gate that fell years ago. The order still stands. So do I."
+            ],
+            "20": [
+              "Nobody gets two swings at me anymore. One, if they're lucky. Then it's my turn.",
+              "They'll swing once and think twice. It's in the stance now.",
+              "The wall is finished. Well. Walls are never finished. But this one's close."
+            ],
+            "extended": [
+              "Still getting sturdier. At this point I'm mostly a landmark.",
+              "A little more. Every gate needs a wall that refuses to retire.",
+              "Past my prime? No. Past everyone else's. Stay behind me."
+            ]
+          }
+        },
+        "promotion": [
+          "Champion. The fighter everyone walks around. Please continue walking around me.",
+          "Lances too. Now I can be a wall that pokes.",
+          "The old kingdom never rescinded my orders. I've decided they meant this.",
+          "I stood at empty gates for years. Now there are people behind me. That's better."
+        ]
+      }
+    }
   }
 }

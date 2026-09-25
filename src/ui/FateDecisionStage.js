@@ -23,14 +23,18 @@ import { pc98PortraitElement } from './portraitArt.js';
 /**
  * @param {object} scene
  * @param {object} surface  MenuSurface built with { modal: true }
- * @param {{ fallen: {name, className}|null, sera: object|null, seraPresent: boolean,
+ * @param {{ fallen: {name, className, epithet?}|null, sera: object|null, seraPresent: boolean,
  *           remaining: number, reducedMotion?: boolean }} options
  */
 export function stageFateDecision(scene, surface, options) {
   if (typeof document === 'undefined' || !surface?.root?.classList || !surface.header)
     return surface;
   const { fallen, sera, seraPresent, remaining, reducedMotion = false } = options;
-  const band = fallenContent({ name: fallen?.name, className: fallen?.className });
+  const band = fallenContent({
+    name: fallen?.name,
+    className: fallen?.className,
+    epithet: fallen?.epithet || null,
+  });
   const offer = fateOfferContent({ seraPresent, remaining });
   const root = surface.root;
   const shield = surface.shield;

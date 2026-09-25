@@ -17,7 +17,13 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { applyForge } from './ForgeSystem.js';
-import { rollAndApplyTraits } from './TraitSystem.js';
+import {
+  rollAndApplyTraits,
+  resolveAttackStat,
+  hasAttackStatTrait,
+  getTraitReclassStatShift,
+  reapplyTraitGrowthMods,
+} from './TraitSystem.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -507,6 +513,30 @@ export function createPromotedEnemyUnit(
 }
 
 /**
+ * Unit-like stand-in for trait rolls when a freshly built recruit is about to
+ * become `classData` (promoted recruits are built on their base class and then
+ * promoted). Returns the unit itself when there is no target class.
+ */
+export function traitProfileForClass(unit, classData) {
+  if (!classData?.weaponProficiencies) return unit;
+  return {
+    name: unit.name,
+    isLord: unit.isLord,
+    skills: unit.skills,
+    className: classData.name,
+    moveType: classData.moveType || unit.moveType,
+    proficiencies: parseWeaponProficiencies(classData.weaponProficiencies),
+  };
+}
+
+/** The attack stat (STR/MAG) a class fights with, for trait retargeting. */
+function classAttackStat(classData) {
+  return resolveAttackStat({
+    proficiencies: parseWeaponProficiencies(classData?.weaponProficiencies),
+  });
+}
+
+/**
  * Create a recruit NPC unit for mid-battle recruitment.
  * Uses same pattern as createEnemyUnit but with faction: 'npc'.
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
@@ -645,7 +675,11 @@ export function createRecruitUnit(
   // stat/growth mods are baked immediately — same philosophy as rolled growths.
   // No-op unless options.traitsData is provided, keeping sim/harness/test paths
   // that omit it deterministic and unchanged. Always sets unit.traits = [].
-  rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random);
+  // A recruit about to be promoted (options.traitClassData) rolls against the
+  // class it will actually play, so its traits fit that class.
+  rollAndApplyTraits(unit, options.traitsData || null, options.rng || Math.random, {
+    profile: traitProfileForClass(unit, options.traitClassData),
+  });
 
   return unit;
 }
@@ -1262,8 +1296,12 @@ function getEffectiveBaseStats(classData, classesData) {
   return out;
 }
 
-/** Deterministic reclass stats; safe to preview without rolling growths. */
-export function getReclassStats(unit, newClassData, oldClassData, classesData) {
+/**
+ * Deterministic reclass stats; safe to preview without rolling growths.
+ * With traitsData, a trait bonus baked into the unit's attack stat (Kindled)
+ * moves to the stat the new class fights with (STR ↔ MAG).
+ */
+export function getReclassStats(unit, newClassData, oldClassData, classesData, traitsData = null) {
   const oldBase = getEffectiveBaseStats(oldClassData, classesData);
   const newBase = getEffectiveBaseStats(newClassData, classesData);
   const stats = { ...unit.stats };
@@ -1272,6 +1310,12 @@ export function getReclassStats(unit, newClassData, oldClassData, classesData) {
       1,
       (unit.stats[stat] || 0) + (newBase[stat] || 0) - (oldBase[stat] || 0),
     );
+  }
+  if (traitsData && hasAttackStatTrait(unit, traitsData)) {
+    const shift = getTraitReclassStatShift(unit, classAttackStat(newClassData), traitsData);
+    for (const [stat, delta] of Object.entries(shift)) {
+      stats[stat] = Math.max(1, (stats[stat] || 0) + delta);
+    }
   }
   return stats;
 }
@@ -1294,8 +1338,17 @@ export function applyReclassSkills(unit, classesData, skillsData) {
  * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
  * Re-rolls growths from new class. Level/XP preserved.
  * Conservative skill handling: adds new class innates, does NOT remove old ones.
+ * With traitsData, trait growth mods survive the growth re-roll and an
+ * attack-stat trait follows the unit to the stat its new class fights with.
  */
-export function reclassUnit(unit, newClassData, oldClassData, classesData, skillsData) {
+export function reclassUnit(
+  unit,
+  newClassData,
+  oldClassData,
+  classesData,
+  skillsData,
+  traitsData = null,
+) {
   if (!unit || !newClassData || !oldClassData) return;
 
   const oldMaxHP = unit.stats.HP;
@@ -1304,7 +1357,13 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // Promoted classes in classes.json carry NO baseStats of their own — their
   // effective base is promotesFrom.baseStats + promotionBonuses. Without this,
   // a promoted-tier reclass computes a 0 delta for every stat (silent no-op).
-  Object.assign(unit.stats, getReclassStats(unit, newClassData, oldClassData, classesData));
+  Object.assign(
+    unit.stats,
+    getReclassStats(unit, newClassData, oldClassData, classesData, traitsData),
+  );
+  if (traitsData && hasAttackStatTrait(unit, traitsData)) {
+    unit.traitAttackStat = classAttackStat(newClassData);
+  }
 
   // Preserve HP ratio
   const newMaxHP = unit.stats.HP;
@@ -1339,6 +1398,8 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
       }
     }
     unit.growths = newGrowths;
+    // Trait growth mods were baked into the old roll; bake them into the new one.
+    if (traitsData) reapplyTraitGrowthMods(unit, traitsData);
   }
 
   // --- Class identity ---

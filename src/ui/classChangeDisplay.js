@@ -24,7 +24,7 @@ export function classChangePreview(unit, item, target, gameData) {
     result = promoteUnit(projected, target, bonuses, gameData.skills);
   } else {
     const old = gameData.classes.find((c) => c.name === unit.className);
-    projected.stats = getReclassStats(unit, target, old, gameData.classes);
+    projected.stats = getReclassStats(unit, target, old, gameData.classes, gameData.traits || null);
     projected.className = target.name;
     normalizeUnitClassState(projected, target);
     result = applyReclassSkills(projected, gameData.classes, gameData.skills);
