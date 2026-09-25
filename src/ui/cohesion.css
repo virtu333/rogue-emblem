@@ -250,6 +250,19 @@ html.mobile-preview .re-screen {
 .re-party-row[aria-disabled='true'][aria-pressed='true'] {
   opacity: 1;
 }
+/* Face chips on text rows (service lists, recruit details, records): the
+   unit's own face (portrait variety) before its unchanged text. */
+.re-btn.has-face,
+.has-face:is(p, h3) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--re-s2);
+  text-align: left;
+}
+.has-face > .mr-unit-face {
+  flex: none;
+}
 /* Keep covered battle commands out of keyboard and accessibility navigation. */
 #game-wrapper:has(
     > .re-screen:not([hidden]),

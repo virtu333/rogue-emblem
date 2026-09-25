@@ -183,6 +183,58 @@ Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
 
 ---
 
+## 2026-09-25 — Portrait variety: every recruit their own face
+
+iPhone playtest: two Fighters (Bram, Roderick) wore the identical bald, bearded portrait. Every
+generic class had one face. Decisions:
+
+- **Five people per class line, drawn in every class of the line** (175 player-side drawings,
+  60 people; Falcon Knight and Wyvern Lord have ten via the cross promotions). Promotion keeps
+  the person and changes the gear; we chose matched promoted drawings over mapping promoted
+  units to their base face so the promotion rite shows *this* unit in the new class's armour.
+- **Enemies get four faces per human class** (128) in the Empire's iron and crimson; monsters,
+  lords and bosses keep theirs. All legacy generic/enemy defaults were remastered to the rebuilt
+  quality so old and new sit in one set.
+- **Stable, never random:** `unit.portraitVariant` is chosen once from a hash of run seed, name
+  and class, skipping faces the army already has; genders follow the recruit name pools (a
+  "Bram" is never drawn as a woman, a "Hedda" never as a man). Enemies hash their spawn identity.
+  Legacy saves backfill on load. Nothing reads `Math.random` (the battle RNG).
+- **No new texture memory at boot:** the atlases and baked textures still hold only the 94
+  defaults; variants are display-sized figures the DOM decodes on demand and the canvas loads
+  lazily (capped, released after battle).
+- Text lists that named units (church, colosseum, shop choosers, records) now show the same face.
+
+Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-variety/`.
+
+---
+
+## 2026-09-25 — Attack flow: target first, weapon second; equipped weapon always first
+
+From iPhone playtesting: picking a weapon before a target made every attack a two-menu
+detour, and the forecast arrows (#8) were the part players actually used. Decisions:
+
+- **Attack is target-first.** Highlight the range union over every usable weapon; the
+  forecast opens on the equipped weapon (else the first in inventory order that can hit)
+  and switches weapons and targets in place with live numbers. Each new target starts from
+  the equipped weapon (FE convention). Cancel → same target; Back → action menu. After
+  moving, tapping an enemy in reach opens its forecast directly.
+- **Forecast weapon changes are previews**; only confirming equips. The bag never moves
+  while cycling (stable list), Cancel restores weapon and exact order.
+- **Weapon arts stay their own action** (bound to one weapon); **staves stay
+  staff-then-target** when several are usable (ranges/targets/effects differ per staff)
+  and staff use no longer counts as an equipment change.
+- **Equipped weapon is always inventory slot 1** (FE). Normalized on load at run level
+  (legacy saves read right immediately; deterministic, idempotent, RNG-free); battle
+  checkpoints/rewind snapshots restore exactly (index-based state, exact-resume promise).
+  Weapon-art selections carry the weapon uid to survive the reorder. Enemy AI bags are
+  not reordered (AI determinism); every view displays equipped-first with an E mark.
+- Found the #23/#35 projection gap: descriptive weapon specials and static accessories
+  (Lightning, Soothing Stone) hid the HP/KO line. Now only HP-changing effects do.
+
+Spec: `specs/attack-flow.md`. Screens: `art-direction/ux-polish/attack-flow/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

@@ -47,6 +47,8 @@ import {
   grantRecruitStartingAccessory,
   learnSkill,
   LETHAL_ARMORY_WEAPONS,
+  equipWeapon,
+  normalizeEquippedFirst,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -59,6 +61,7 @@ import {
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
   getWeaponArtBindings,
@@ -279,6 +282,8 @@ export function serializeUnit(unit) {
     }
     if (origIdx >= 0 && origIdx < data.inventory.length) {
       data.weapon = data.inventory[origIdx];
+      // Run-level saves keep the FE invariant: equipped weapon first.
+      normalizeEquippedFirst(data);
     } else {
       // Weapon not in inventory (legacy/edge case) — deep-clone independently
       data.weapon = ensureItemUid(structuredClone(unit.weapon));
@@ -504,6 +509,7 @@ export class RunManager {
       this.runSeed = Number(initialSeed);
     }
     this.roster = this.createInitialRoster();
+    this.ensurePortraitVariants();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
@@ -1098,9 +1104,7 @@ export class RunManager {
         if (!candidate) continue;
         if (!addToInventory(unit, candidate)) continue;
         const addedWeapon = unit.inventory[unit.inventory.length - 1];
-        if (addedWeapon && canEquip(unit, addedWeapon)) {
-          unit.weapon = addedWeapon;
-        }
+        if (addedWeapon && canEquip(unit, addedWeapon)) equipWeapon(unit, addedWeapon);
         granted++;
         grantedWeapons.push({ unit: unit.name, weapon: addedWeapon?.name || candidate.name });
       }
@@ -1946,6 +1950,24 @@ export class RunManager {
 
   // Called only at recruitment, never on resume or revival. Active blessings
   // already persist, including in older saves; no new migration flag is needed.
+  /**
+   * Portrait variety (src/engine/PortraitVariants.js): give units offered or
+   * joining together a stable face, avoiding people the roster already has.
+   * Hash-based on the run seed; never draws from Math.random.
+   */
+  assignPortraitVariants(units) {
+    return assignPortraitVariants(units, {
+      roster: this.roster,
+      fallen: this.fallenUnits,
+      seed: this.runSeed,
+    });
+  }
+
+  /** Every roster/fallen unit has its face (idempotent; legacy units get one). */
+  ensurePortraitVariants(seed = this.runSeed) {
+    return backfillPortraitVariants(this.roster, { fallen: this.fallenUnits, seed });
+  }
+
   grantRecruitBlessingConsumables(unit) {
     if (!unit || !this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
     const catalog = buildBlessingIndex(this.gameData.blessings);
@@ -2314,6 +2336,7 @@ export class RunManager {
       unit.inventory.find((w) => w.name === 'Steel Lance' && canEquip(unit, w)) ||
       unit.inventory.find((w) => canEquip(unit, w)) ||
       null;
+    normalizeEquippedFirst(unit);
   }
 
   _removeWeaponByName(unit, weaponName) {
@@ -2322,6 +2345,7 @@ export class RunManager {
     const [removed] = unit.inventory.splice(idx, 1);
     if (unit.weapon === removed || unit.weapon?.name === weaponName) {
       unit.weapon = unit.inventory.find((weapon) => canEquip(unit, weapon)) || null;
+      normalizeEquippedFirst(unit);
     }
     return true;
   }
@@ -2433,9 +2457,7 @@ export class RunManager {
     // Tier 2: add the silver weapon and auto-equip it.
     if (deadlyArsenalTier >= 2 && silver && addToInventory(unit, silver)) {
       const addedSilver = unit.inventory.find((weapon) => weapon?.name === byType.silver);
-      if (addedSilver && canEquip(unit, addedSilver)) {
-        unit.weapon = addedSilver;
-      }
+      if (addedSilver && canEquip(unit, addedSilver)) equipWeapon(unit, addedSilver);
     }
   }
 
@@ -2660,6 +2682,7 @@ export class RunManager {
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     this._repairDuplicateRosterNames();
+    this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
   }
@@ -2747,7 +2770,10 @@ export class RunManager {
   getRoster() {
     this._sanitizeUnitPools();
     const cloned = JSON.parse(JSON.stringify(this.roster));
-    cloned.forEach((u) => relinkWeapon(u));
+    cloned.forEach((u) => {
+      relinkWeapon(u);
+      normalizeEquippedFirst(u);
+    });
     return cloned;
   }
 
@@ -2888,6 +2914,7 @@ export class RunManager {
     }
 
     relinkWeapon(fallenUnit);
+    normalizeEquippedFirst(fallenUnit);
     const retained = [...fallenUnit.inventory, ...fallenUnit.consumables];
     const moved = Math.max(0, carriedCount - retained.length);
     fallenUnit._fallenItemsNotice = `${fallenUnit.name}: ${moved} item${moved === 1 ? '' : 's'} moved to convoy.${hadAccessory ? ' Accessory returned to the team pool.' : ''}${retained.length ? ` Convoy full: ${retained.map((item) => item.name).join(', ')} remain with this ally until revival.` : ''}`;
@@ -3225,6 +3252,7 @@ export class RunManager {
     if (classData) normalizeUnitClassState(unit, classData);
     ensureSeraBaseStaffProficiency(unit);
     relinkWeapon(unit);
+    normalizeEquippedFirst(unit);
     // Stable catch-up rolls on retry/reload; the action chooser does not consume this stream.
     let seed = Number(this.runSeed) >>> 0;
     for (const ch of `revive:${unit.name}:${unit.className}:${unit.level}`)
@@ -3568,6 +3596,8 @@ export class RunManager {
                   className: unit.className,
                   level: unit.level,
                   isLord: unit.isLord,
+                  tier: unit.tier,
+                  portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
                   ...deedRecordFields(unit),
                 })),
               }
@@ -4154,6 +4184,10 @@ export class RunManager {
       : 0;
     rm.usedRecruitNames = saved.usedRecruitNames || {};
     rm._repairDuplicateRosterNames();
+    // Portrait variety: saves from before it get stable, de-duplicated faces.
+    // A legacy save without a seed hashes with 0, never the Date.now fallback,
+    // so reloading it without saving shows the same faces.
+    rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
@@ -4314,6 +4348,12 @@ export class RunManager {
 
     rm.roster.forEach((u) => relinkWeapon(u));
     rm.fallenUnits.forEach((u) => relinkWeapon(u));
+    // Legacy saves may carry the equipped weapon anywhere in the bag. Moving it
+    // to the top on load is deterministic, RNG-free and idempotent; it runs only
+    // at this run-level boundary, never on a battle checkpoint (those restore
+    // exactly — see BattleSuspendController.applyUnits).
+    rm.roster.forEach((u) => normalizeEquippedFirst(u));
+    rm.fallenUnits.forEach((u) => normalizeEquippedFirst(u));
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();

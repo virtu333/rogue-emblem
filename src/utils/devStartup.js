@@ -1,4 +1,4 @@
-import { createUnit } from '../engine/UnitManager.js';
+import { createUnit, normalizeEquippedFirst } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
@@ -236,7 +236,10 @@ function createRunPreset(gameData, meta, config) {
       const equippedSoulreaver = Array.isArray(commander.inventory)
         ? commander.inventory.find((weapon) => weapon?.name === 'Soulreaver')
         : null;
-      if (equippedSoulreaver) commander.weapon = equippedSoulreaver;
+      if (equippedSoulreaver) {
+        commander.weapon = equippedSoulreaver;
+        normalizeEquippedFirst(commander);
+      }
       if (Number.isFinite(commander?.stats?.HP)) {
         commander.currentHP = Math.min(
           commander.stats.HP,
@@ -277,6 +280,7 @@ function createRunPreset(gameData, meta, config) {
       if (name === 'Patient') unit.currentHP = Math.max(1, unit.stats.HP - 12);
       runManager.roster.push(unit);
     }
+    runManager.ensurePortraitVariants();
   }
 
   return runManager;

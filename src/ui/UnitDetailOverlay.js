@@ -8,7 +8,7 @@ import {
   UI_COLORS,
   getHPBarColor,
 } from '../utils/uiStyles.js';
-import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { unitPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
@@ -28,7 +28,7 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
-import { canEquip, getDisplayLevel } from '../engine/UnitManager.js';
+import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
   getMasteryProgress,
   getMasteryThreshold,
@@ -707,8 +707,8 @@ export class UnitDetailOverlay {
     this._tabSep(lx, y);
     y += 12;
     if (unit.inventory && unit.inventory.length > 0) {
-      for (const item of unit.inventory) {
-        const marker = item === unit.weapon ? '\u25b6' : ' ';
+      for (const item of inventoryDisplayOrder(unit)) {
+        const marker = item === unit.weapon ? 'E' : ' ';
         const usableNow = canEquip(unit, item);
         const rowColor = usableNow ? UI_COLORS.white : UI_PALETTE.lineStrong;
         const baseNameColor = usableNow ? this._getWeaponNameColor(item, rowColor) : rowColor;
@@ -1064,29 +1064,8 @@ export class UnitDetailOverlay {
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this.scene, unit);
-    if (rebuilt) return rebuilt;
-    const lordData = this.gameData?.lords?.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.scene.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.scene.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.scene.textures.exists(classKey)) return classKey;
-    const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.scene.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this.scene, unit, this.gameData || {});
   }
 
   _bindSceneCleanup() {

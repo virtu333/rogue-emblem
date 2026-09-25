@@ -1,8 +1,10 @@
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
+import { equippedBadgeElement } from './equippedBadge.js';
 import { saveServiceRun } from './serviceSave.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
+import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import {
   shopOwnedItems,
@@ -161,7 +163,10 @@ export class ShopMenu {
           : this.scene.activeShopTab === 'sell'
             ? `${row.owner} · +${getSellPrice(row.item)} G`
             : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
-      b.append(el('strong', row.item.name), el('span', sub));
+      const name = el('strong', row.item.name);
+      if (row.kind === 'inventory' && row.unit?.weapon === row.item)
+        name.append(equippedBadgeElement((tag) => el(tag)));
+      b.append(name, el('span', sub));
       stock.append(b);
     });
     const detail = el('article', null, 'shop-detail');
@@ -315,6 +320,15 @@ export class ShopMenu {
     this.render((result.message || '') + this.persist());
     return result;
   }
+  /** The unit's face for a chooser row (null for the pool / convoy rows). */
+  face(unit) {
+    if (!unit || typeof unit !== 'object') return null;
+    try {
+      return unitPortrait(this.scene, this.scene.gameData, unit, 'mr-unit-face');
+    } catch {
+      return null; // decoration only
+    }
+  }
   picker(options) {
     if (this.child || !this.surface) return;
     this.surface.root.inert = true;
@@ -349,6 +363,7 @@ export class ShopMenu {
         title: `Buy and equip ${entry.item.name}`,
         choices: [...this.run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
+        face: (unit) => this.face(unit),
         describe: (unit) =>
           `${entry.price} gold · ` +
           (unit === 'pool'
@@ -379,6 +394,7 @@ export class ShopMenu {
         )
         .concat('convoy'),
       label: (unit) => (unit === 'convoy' ? 'Convoy' : unit.name),
+      face: (unit) => this.face(unit),
       describe: (unit) => {
         if (unit === 'convoy') return `${entry.price} gold · Store for later.`;
         const count = supply ? (unit.consumables || []).length : (unit.inventory || []).length;

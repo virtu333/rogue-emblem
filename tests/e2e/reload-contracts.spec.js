@@ -217,8 +217,8 @@ for (const action of ['level up', 'promotion']) {
       await hud.getByRole('button', { name: 'Item', exact: true }).tap();
       await hud.getByRole('button', { name: /^Master Seal/ }).tap();
     } else {
+      // Target first: Attack goes straight to target selection.
       await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
-      await hud.getByRole('button', { name: /Iron Sword/ }).tap();
       await tapUnit(page, 'Reload Target', 'enemyUnits');
       await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
     }

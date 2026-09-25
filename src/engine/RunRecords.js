@@ -35,6 +35,11 @@ export function mergeRunRecords(...sources) {
                 epithetForm: DEED_FORMS.includes(u.epithetForm) ? u.epithetForm : 'the',
               }
             : {}),
+          // Optional (records from before portrait variety have neither).
+          ...(u.tier === 'promoted' ? { tier: 'promoted' } : {}),
+          ...(typeof u.portraitVariant === 'string' && /^[a-z0-9_]{1,64}$/.test(u.portraitVariant)
+            ? { portraitVariant: u.portraitVariant }
+            : {}),
         })),
     };
     if (!byId.has(clean.id) || clean.endedAt > byId.get(clean.id).endedAt)

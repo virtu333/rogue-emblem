@@ -12,7 +12,15 @@ import {
   beginWeaponPreview,
   restoreWeaponPreview,
   commitWeaponPreview,
+  equipForAttackPlanning,
 } from '../ui/WeaponPreviewSession.js';
+import { AttackFlowController } from '../ui/AttackFlowController.js';
+import {
+  getAttackRange,
+  getAttackWeapons,
+  isSilenceBlockedWeapon,
+} from '../engine/AttackOptions.js';
+import { EQUIPPED_MARKER } from '../ui/equippedBadge.js';
 import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
@@ -26,7 +34,8 @@ import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
-import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
+import { unitPortraitKey } from '../ui/RebuiltPortraits.js';
+import { placeBattlePortrait } from '../ui/BattlePortraitVariants.js';
 import { battleUnitSpriteKey } from '../ui/BattleUnitVisuals.js';
 import { startTracedIdle } from '../ui/TracedSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
@@ -45,11 +54,9 @@ import { Grid, computeEffectivePath } from '../engine/Grid.js';
 import { TurnManager } from '../engine/TurnManager.js';
 import { AIController } from '../engine/AIController.js';
 import {
-  getCombatForecast,
   resolveCombat,
   gridDistance,
   calculateEffectiveSpeed,
-  parseRange,
   isInRange,
   isStaff,
   getEffectivenessMultiplier,
@@ -97,6 +104,8 @@ import {
   canReclass,
   getReclassTargets,
   reclassUnit,
+  inventoryDisplayOrder,
+  equipIfUnarmed,
 } from '../engine/UnitManager.js';
 import { getTraitXpMultiplier } from '../engine/MasterySystem.js';
 import { getXpShareRatio, getXpShareRecipients, calculateSharedXp } from '../engine/XpShare.js';
@@ -106,7 +115,6 @@ import {
   rollDefenseSkills,
   checkAstra,
   getTurnStartEffects,
-  getWeaponRangeBonus,
   getTerrainCostReduction,
   checkPhoenixBrooch,
   resolveGamblerDelta,
@@ -279,7 +287,6 @@ import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
-import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { MobileBattleHUD } from '../ui/MobileBattleHUD.js';
 import { CaravanController } from '../ui/CaravanController.js';
 import { VillageController } from '../ui/VillageController.js';
@@ -584,6 +591,8 @@ export class BattleScene extends Phaser.Scene {
       this._abilityController.destroy();
       this._abilityController = null;
     }
+    this._attackFlowController?.destroy();
+    this._attackFlowController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
     this._combatSpeedSnapshot = undefined;
@@ -705,6 +714,11 @@ export class BattleScene extends Phaser.Scene {
   // they drive the action-menu focus while it is open, else the grid cursor.
   _onInputAction(action, payload) {
     if (this.isStoryInputLocked()) return;
+    if (
+      (this.battleState === 'SELECTING_TARGET' || this.battleState === 'SHOWING_FORECAST') &&
+      this._attackFlow().handleInputAction(action, payload, InputAction)
+    )
+      return;
     const inMenu = this.battleState === 'UNIT_ACTION_MENU';
     // The battle is over: the mouse path hides the cursor/info at BATTLE_END
     // (onPointerMove), so don't let the pad re-show the tile highlight or pan
@@ -1130,9 +1144,21 @@ export class BattleScene extends Phaser.Scene {
         if (this.unitDetailOverlay?.visible) return;
         this._cycleForecastWeapon(1);
       },
+      // Target-first attack: arrows cycle targets, Enter/Space open/confirm.
+      attackFlow: (event) => {
+        if (
+          !hasInputFocus(this) ||
+          hasOpenOverlay(this) ||
+          this.isStoryInputLocked() ||
+          this.unitDetailOverlay?.visible
+        )
+          return;
+        this._attackFlow().handleKey(event);
+      },
     };
 
     keyboard.on('keydown', this._gameplayKeyHandlers.menuNavigation);
+    keyboard.on('keydown', this._gameplayKeyHandlers.attackFlow);
     keyboard.on('keydown-T', this._gameplayKeyHandlers.pinThreat);
     keyboard.on('keydown-V', this._gameplayKeyHandlers.viewUnit);
     keyboard.on('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
@@ -1149,6 +1175,7 @@ export class BattleScene extends Phaser.Scene {
     const keyboard = this.input?.keyboard;
     if (keyboard?.off && this._gameplayKeyHandlers) {
       keyboard.off('keydown', this._gameplayKeyHandlers.menuNavigation);
+      keyboard.off('keydown', this._gameplayKeyHandlers.attackFlow);
       keyboard.off('keydown-T', this._gameplayKeyHandlers.pinThreat);
       keyboard.off('keydown-V', this._gameplayKeyHandlers.viewUnit);
       keyboard.off('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
@@ -3279,6 +3306,7 @@ export class BattleScene extends Phaser.Scene {
 
   addUnitGraphic(unit) {
     registerBattleEntity(this, unit);
+    placeBattlePortrait(this, unit); // stable face per unit (portrait variety)
     const color = FACTION_COLORS[unit.faction];
 
     // Entity: 3x3 footprint, center graphic on middle tile
@@ -4037,13 +4065,9 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
     if (this.battleState === 'SHOWING_FORECAST') {
-      this.hideForecast();
-      this._clearCombatRollSession();
-      this.battleState = 'SELECTING_TARGET';
+      this._attackFlow().cancelForecast();
     } else if (this.battleState === 'SELECTING_TARGET') {
-      this.grid.clearAttackHighlights();
-      this.attackTargets = [];
-      this.showActionMenu(this.selectedUnit);
+      this._attackFlow().cancelTargetSelection();
     } else if (this.battleState === 'SELECTING_HEAL_TARGET') {
       this._healController?.restoreCombatWeapon(this.selectedUnit);
       this.grid.clearAttackHighlights();
@@ -4582,7 +4606,13 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const target = this.forecastTarget;
+    const artEntry =
+      this._selectedWeaponArt?.unitName === this.selectedUnit.name
+        ? this._resolveSelectedWeaponArtEntry(this.selectedUnit)
+        : null;
+    // The confirmed weapon becomes the equipped weapon and moves to the top.
     commitWeaponPreview(this);
+    if (artEntry) this._setSelectedWeaponArt(this.selectedUnit, artEntry.art.id, artEntry.weapon);
     this.commitVisionSnapshotIfPending();
     this.hideForecast();
     this.executeCombat(this.selectedUnit, target);
@@ -4953,20 +4983,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
-    const { min: baseMin, max: baseMax } = parseRange(weapon.range);
-    const skillBonus = getWeaponRangeBonus(unit, weapon, this.gameData.skills);
-    let min = Math.max(1, baseMin);
-    let max = Math.max(min, baseMax + skillBonus);
-    if (weaponArt) {
-      const mods = getWeaponArtCombatMods(weaponArt);
-      if (mods.rangeOverride) {
-        min = Math.max(1, Number(mods.rangeOverride.min) || min);
-        max = Math.max(min, Number(mods.rangeOverride.max) || min);
-      } else if (mods.rangeBonus) {
-        max = Math.max(min, max + mods.rangeBonus);
-      }
-    }
-    return { min, max };
+    return getAttackRange(unit, weapon, { skillsData: this.gameData?.skills, weaponArt });
   }
 
   _isDistanceInWeaponRange(unit, weapon, distance, weaponArt = null) {
@@ -4974,16 +4991,19 @@ export class BattleScene extends Phaser.Scene {
     return distance >= range.min && distance <= range.max;
   }
 
+  /**
+   * Enemies attackable from the unit's tile: the union over every usable weapon
+   * (proficiency, silence, per-battle uses — AttackOptions.getAttackWeapons), or
+   * only `options.weapon` (+ its art) for a weapon-art attack.
+   */
   findAttackTargets(unit, options = {}) {
     const targets = [];
     const selectedWeapon = options.weapon || null;
     const selectedArt = options.weaponArt || null;
-    let combatWeapons = selectedWeapon ? [selectedWeapon] : getCombatWeapons(unit);
+    let combatWeapons = selectedWeapon ? [selectedWeapon] : getAttackWeapons(unit);
     // Silenced units cannot attack with magic weapons
     if (isSilenced(unit)) {
-      combatWeapons = combatWeapons.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
-      );
+      combatWeapons = combatWeapons.filter((w) => !isSilenceBlockedWeapon(w));
     }
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
@@ -5007,39 +5027,6 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     return targets;
-  }
-
-  /** Auto-swap to a combat weapon that can reach the given distance. */
-  ensureValidWeaponForRange(unit, dist, options = {}) {
-    const selectedArt = options.weaponArt || null;
-    const magicBlocked =
-      isSilenced(unit) &&
-      unit.weapon &&
-      (unit.weapon.type === 'Tome' ||
-        unit.weapon.type === 'Light' ||
-        unit.weapon.type === 'Staff' ||
-        unit.weapon.type === 'Breath');
-    if (
-      !magicBlocked &&
-      unit.weapon &&
-      this._isDistanceInWeaponRange(unit, unit.weapon, dist, selectedArt)
-    )
-      return;
-    if (selectedArt) return;
-    if (!magicBlocked && unit.weapon) {
-      if (this._isDistanceInWeaponRange(unit, unit.weapon, dist)) return;
-    }
-    // Find first combat weapon that can reach (skip magic if silenced)
-    let swapCandidates = getCombatWeapons(unit);
-    if (isSilenced(unit)) {
-      swapCandidates = swapCandidates.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
-      );
-    }
-    const validWeapon = swapCandidates.find((w) => {
-      return this._isDistanceInWeaponRange(unit, w, dist);
-    });
-    if (validWeapon) equipWeapon(unit, validWeapon);
   }
 
   finishUnitAction(unit, { skipCanto = false } = {}) {
@@ -5463,7 +5450,7 @@ export class BattleScene extends Phaser.Scene {
     // Two-column item lists (weapons + consumables)
     let yOffset = 90;
     const drawItems = (unit, x, otherUnit) => {
-      const inventory = unit.inventory || [];
+      const inventory = inventoryDisplayOrder(unit);
       const consumables = unit.consumables || [];
 
       // Weapons
@@ -5477,13 +5464,18 @@ export class BattleScene extends Phaser.Scene {
             : UI_PALETTE.text
           : UI_PALETTE.lineStrong;
         const btn = this.add
-          .text(x, yOffset + i * 20, item.name + suffix, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color,
-            backgroundColor: UI_PALETTE.panel,
-            padding: { x: 6, y: 2 },
-          })
+          .text(
+            x,
+            yOffset + i * 20,
+            `${item === unit.weapon ? EQUIPPED_MARKER : ''}${item.name}${suffix}`,
+            {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color,
+              backgroundColor: UI_PALETTE.panel,
+              padding: { x: 6, y: 2 },
+            },
+          )
           .setOrigin(0.5)
           .setDepth(401);
 
@@ -5495,7 +5487,8 @@ export class BattleScene extends Phaser.Scene {
             if (pointer?.button !== 0) return;
             if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
               removeFromInventory(unit, item);
-              addToInventory(otherUnit, item);
+              if (addToInventory(otherUnit, item))
+                equipIfUnarmed(otherUnit, otherUnit.inventory.at(-1));
               if (!this.tradeMutatedThisSession) {
                 this.tradeMutatedThisSession = true;
                 unitA._movementCommitted = true;
@@ -6309,23 +6302,14 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           if (label === 'Attack') {
-            beginWeaponPreview(this, unit);
-            // Auto-equip first combat weapon if staff is currently equipped
-            if (unit.weapon && isStaff(unit.weapon)) {
-              const combatWpn = getCombatWeapons(unit)[0];
-              if (combatWpn) {
-                equipWeapon(unit, combatWpn);
-                this.showAutoSwitchTooltip(unit, combatWpn);
-              }
-            }
-            this._clearSelectedWeaponArtIfInvalid(unit);
-            this._beginAttackSelection(unit);
+            // Target first: the weapon is chosen in the forecast.
+            this._attackFlow().begin(unit);
           } else if (label.startsWith('Weapon Art')) {
             beginWeaponPreview(this, unit);
             if (unit.weapon && isStaff(unit.weapon)) {
               const combatWpn = getCombatWeapons(unit)[0];
               if (combatWpn) {
-                equipWeapon(unit, combatWpn);
+                equipForAttackPlanning(this, unit, combatWpn);
                 this.showAutoSwitchTooltip(unit, combatWpn);
               }
             }
@@ -6727,110 +6711,6 @@ export class BattleScene extends Phaser.Scene {
     (this._abilityController ||= new AbilityController(this)).cancelTileSelection();
   }
 
-  showWeaponPicker(unit, attackTargets) {
-    this.hideActionMenu();
-    this._weaponPreviewedItem = null;
-    this.inEquipMenu = true;
-    this.battleState = 'UNIT_ACTION_MENU';
-
-    let combatWeapons = getCombatWeapons(unit);
-    // Silenced units cannot use magic weapons
-    if (isSilenced(unit)) {
-      combatWeapons = combatWeapons.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
-      );
-    }
-    // Edge case: if silence filtering removed all weapons, return to action menu
-    if (combatWeapons.length === 0) {
-      this.inEquipMenu = false;
-      this.showActionMenu(unit);
-      return;
-    }
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuWidth = 130;
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
-    const menuY = pos.y - 10;
-
-    this.actionMenu = [];
-
-    const itemHeight = this.isMobileInput ? 36 : 20;
-    const wpnFontSize = this.isMobileInput ? '13px' : '11px';
-    const menuHeight = combatWeapons.length * itemHeight + 12;
-    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
-    const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
-
-    const bg = this.add
-      .rectangle(
-        menuPos.x + menuWidth / 2,
-        menuPos.y + menuHeight / 2,
-        menuWidth,
-        menuHeight,
-        0x000000,
-        0.85,
-      )
-      .setDepth(400)
-      .setStrokeStyle(1, UI_HEX.line);
-    this.actionMenu.push(bg);
-
-    combatWeapons.forEach((wpn, i) => {
-      const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
-      const itemX = menuPos.x + 8;
-      const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
-      const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}`;
-      const defaultColor = wpn === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
-
-      const text = this._makeMenuTextButton(
-        itemX,
-        itemY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: wpnFontSize,
-          color: defaultColor,
-          lineSpacing: 1,
-        },
-        defaultColor,
-        () => {
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          equipWeapon(unit, wpn);
-          this._clearSelectedWeaponArtIfInvalid(unit);
-          this.inEquipMenu = false;
-          this.hideActionMenu();
-          this.attackTargets = this.findAttackTargets(unit);
-          const attackTiles = this.attackTargets.map((e) => ({ col: e.col, row: e.row }));
-          this.grid.showAttackRange(attackTiles);
-          this.battleState = 'SELECTING_TARGET';
-        },
-        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
-      );
-
-      text._menuItem = wpn;
-      text.on('pointerover', () => {
-        this._showWeaponDetailTooltip(wpn, menuRect, itemY);
-      });
-      text.on('pointerout', (pointer) => {
-        if (!this._isTouchPointer(pointer)) {
-          this._hideWeaponDetailTooltip();
-        }
-      });
-
-      this.actionMenu.push(text);
-    });
-
-    // Auto-show tooltip for equipped weapon
-    const equippedWpn = combatWeapons.find((w) => w === unit.weapon) || combatWeapons[0];
-    if (equippedWpn) {
-      const eqIdx = combatWeapons.indexOf(equippedWpn);
-      const autoY = menuPos.y + 6 + eqIdx * itemHeight + itemHeight / 2;
-      this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
-      this._weaponPreviewedItem = equippedWpn;
-    }
-    this._pinToScreen(this.actionMenu);
-    this._registerActionMenu();
-  }
-
   // --- Equip sub-menu ---
 
   showEquipMenu(unit) {
@@ -6846,7 +6726,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.actionMenu = [];
 
-    const displayWeapons = unit.inventory.filter(
+    const displayWeapons = inventoryDisplayOrder(unit).filter(
       (item) =>
         item.type !== 'Consumable' &&
         item.type !== 'Scroll' &&
@@ -6880,7 +6760,7 @@ export class BattleScene extends Phaser.Scene {
       const itemX = menuPos.x + menuWidth / 2;
       const isNonProficient = !hasProficiency(unit, wpn);
       const canEquipNow = canEquip(unit, wpn);
-      const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
+      const marker = wpn === unit.weapon ? EQUIPPED_MARKER : '  ';
       const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
       const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`;
       const defaultColor = isNonProficient
@@ -7817,34 +7697,13 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  _attackFlow() {
+    return (this._attackFlowController ||= new AttackFlowController(this));
+  }
+
+  /** Enter target selection (also the weapon-art picker's entry point). */
   _beginAttackSelection(unit) {
-    const selectedArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
-    const selectedEntry = selectedArt ? this._resolveSelectedWeaponArtEntry(unit) : null;
-    const attackTargets = selectedEntry
-      ? this.findAttackTargets(unit, { weapon: selectedEntry.weapon, weaponArt: selectedArt })
-      : this.findAttackTargets(unit);
-    if (attackTargets.length <= 0) {
-      this.showActionMenu(unit);
-      return;
-    }
-    if (selectedEntry) {
-      this.hideActionMenu();
-      this.attackTargets = attackTargets;
-      const attackTiles = attackTargets.map((e) => ({ col: e.col, row: e.row }));
-      this.grid.showAttackRange(attackTiles);
-      this.battleState = 'SELECTING_TARGET';
-      return;
-    }
-    const combatWeapons = getCombatWeapons(unit);
-    if (combatWeapons.length >= 2) {
-      this.showWeaponPicker(unit, attackTargets);
-      return;
-    }
-    this.hideActionMenu();
-    this.attackTargets = attackTargets;
-    const attackTiles = attackTargets.map((e) => ({ col: e.col, row: e.row }));
-    this.grid.showAttackRange(attackTiles);
-    this.battleState = 'SELECTING_TARGET';
+    return this._attackFlow().beginTargetSelection(unit);
   }
 
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
@@ -7922,130 +7781,21 @@ export class BattleScene extends Phaser.Scene {
   // --- Combat ---
 
   _cycleForecastWeapon(direction) {
-    if (this.isStoryInputLocked()) return;
-    if (this.battleState !== 'SHOWING_FORECAST' || !this.selectedUnit) return;
-    const validWeapons = this._forecastValidWeapons;
-    if (!validWeapons || validWeapons.length < 2) return;
+    return this._attackFlow().cycleWeapon(direction);
+  }
 
-    const currentIdx = validWeapons.indexOf(this.selectedUnit.weapon);
-    if (currentIdx < 0) return;
-    const nextIdx = (currentIdx + direction + validWeapons.length) % validWeapons.length;
-    equipWeapon(this.selectedUnit, validWeapons[nextIdx]);
-    this._clearSelectedWeaponArtIfInvalid(this.selectedUnit);
-
-    const audio = this.registry.get('audio');
-    if (audio) audio.playSFX('sfx_cursor');
-
-    // Rebuild forecast with new weapon
-    const target = this.forecastTarget;
-    this.hideForecast();
-    this.showForecast(this.selectedUnit, target);
+  _cycleForecastTarget(direction) {
+    return this._attackFlow().cycleTarget(direction);
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this, unit);
-    if (rebuilt) return rebuilt;
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData.classes.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.textures.exists(classKey)) return classKey;
-    const classData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this, unit, this.gameData);
   }
 
-  async showForecast(attacker, defender) {
-    this.forecastTarget = defender;
-    this.battleState = 'SHOWING_FORECAST';
-    this._clearSelectedWeaponArtIfInvalid(attacker);
-
-    // Shared context: distance, terrain, roll session, weapon art selection
-    const {
-      dist,
-      atkTerrain,
-      defTerrain,
-      selectedArt: weaponArt,
-      rollSession,
-    } = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
-
-    // Forecast-specific: weapon entry resolution + auto-swap
-    const selectedEntry = weaponArt ? this._resolveSelectedWeaponArtEntry(attacker) : null;
-    // Auto-swap only for normal attacks; art attacks stay bound to selected weapon + art range.
-    this.ensureValidWeaponForRange(attacker, dist, { weaponArt });
-    if (selectedEntry && attacker.weapon !== selectedEntry.weapon) {
-      equipWeapon(attacker, selectedEntry.weapon);
-    }
-
-    this._forecastWeaponArt = weaponArt;
-    if (
-      attacker?.accessory?.combatEffects?.gambler ||
-      attacker?.accessory?.combatEffects?.gamblerCoin
-    ) {
-      const delta = this._getGamblerAtkDelta(attacker, rollSession);
-      const signed = delta >= 0 ? `+${delta}` : `${delta}`;
-      this._forecastGamblerLine = `GAMBLER: ATK ${signed} (locked)`;
-    } else {
-      this._forecastGamblerLine = null;
-    }
-    const skillCtx = this._buildForecastSkillCtx(attacker, defender, weaponArt);
-
-    const forecast = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
-      dist,
-      atkTerrain,
-      defTerrain,
-      skillCtx,
-    );
-
-    // Compute valid weapons for cycling (weapons that can reach this target)
-    const validWeapons = selectedEntry
-      ? [selectedEntry.weapon]
-      : getCombatWeapons(attacker).filter((w) => {
-          if (
-            isSilenced(attacker) &&
-            (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff' || w.type === 'Breath')
-          )
-            return false;
-          return this._isDistanceInWeaponRange(attacker, w, dist);
-        });
-    this._forecastValidWeapons = validWeapons;
-
-    // Delegate rendering to ForecastOverlay
-    this._forecastOverlay = new ForecastOverlay(this);
-    this._forecastOverlay.render({
-      attacker,
-      defender,
-      forecast,
-      weaponArt: this._forecastWeaponArt,
-      gamblerLine: this._forecastGamblerLine,
-      validWeapons,
-    });
-    this.forecastObjects = this._forecastOverlay.displayObjects;
-    this._pinToScreen(this.forecastObjects);
-
-    if (this.battleParams?.tutorialMode) {
-      if (this.tutorialStep === 4) this.tutorialStep = 5;
-      await (this._tutorialController ||= new TutorialController(this)).showForecastLesson(
-        forecast,
-      );
-    }
+  /** Combat forecast for a target (see AttackFlowController.showForecast). */
+  showForecast(attacker, defender, options) {
+    return this._attackFlow().showForecast(attacker, defender, options);
   }
 
   hideForecast() {
@@ -8224,7 +7974,13 @@ export class BattleScene extends Phaser.Scene {
       unitId: attacker.battleEntityId,
       unitName: attacker.name,
       targetId: defender.battleEntityId,
-      weaponArt: art ? { artId: art.artId, weaponIndex: art.weaponIndex } : null,
+      weaponArt: art
+        ? {
+            artId: art.artId,
+            weaponIndex: art.weaponIndex,
+            ...(art.weaponUid ? { weaponUid: art.weaponUid } : {}),
+          }
+        : null,
     };
     // Gambler's Coin: the forecast already rolled the attack modifier. Legacy
     // battles roll it from the live battle stream, so a resume must reuse the
@@ -8278,6 +8034,7 @@ export class BattleScene extends Phaser.Scene {
           unitName: attacker.name,
           artId: intent.weaponArt.artId,
           weaponIndex: intent.weaponArt.weaponIndex,
+          ...(intent.weaponArt.weaponUid ? { weaponUid: intent.weaponArt.weaponUid } : {}),
         }
       : null;
     this.selectedUnit = attacker;
