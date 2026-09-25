@@ -140,6 +140,8 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
+import { computeDangerTiles } from '../engine/ThreatForecast.js';
+import { ThreatSightController } from '../ui/ThreatSightController.js';
 import {
   TILE_SIZE,
   FACTION_COLORS,
@@ -1965,6 +1967,8 @@ export class BattleScene extends Phaser.Scene {
       this.dangerZoneCache = null;
       this.dangerZoneStale = true;
       this._pinnedThreats?.invalidate();
+      // Who can reach the tile a selected unit is heading for (eye + line + count).
+      this._threatSight = new ThreatSightController(this).create();
 
       // Disable browser context menu
       this.input.mouse.disableContextMenu();
@@ -11163,89 +11167,19 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  calculateDangerZone(onlyEnemy = null) {
-    const threatened = new Map();
-    const addDamageSource = (tiles) => {
-      for (const key of tiles) threatened.set(key, (threatened.get(key) || 0) + 1);
+  /** Read-only view of this battle for ThreatForecast (danger, pins, threat sight). */
+  threatContext() {
+    return {
+      grid: this.grid,
+      enemyUnits: this.enemyUnits || [],
+      ballistas: this.ballistas || [],
+      positions: () => this.buildUnitPositionMap('enemy'),
+      costModifier: (unit) => this._getCostModifier(unit),
     };
-    const statusThreatened = new Set();
-    for (const enemy of onlyEnemy ? [onlyEnemy] : this.enemyUnits) {
-      if (enemy.currentHP <= 0 || !canInspectUnit(this.grid, enemy)) continue;
-      if (this.grid.fogEnabled) {
-        const fogVis = isEntity(enemy)
-          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
-          : this.grid.isVisible(enemy.col, enemy.row);
-        if (!fogVis) continue;
-      }
+  }
 
-      // Count each enemy once per tile, regardless of movement origins or body size.
-      const enemyThreatened = new Set();
-      // Entity: stationary, compute attack range from all body tiles using all weapons
-      if (isEntity(enemy)) {
-        for (const tile of getFootprint(enemy)) {
-          const atkTiles = this.grid.getAttackRange(tile.col, tile.row, {
-            range: `1-${ENTITY_PRIMARY_ATTACK_RANGE}`,
-          });
-          for (const t of atkTiles) {
-            enemyThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-        addDamageSource(enemyThreatened);
-        continue;
-      }
-
-      const positions = this.buildUnitPositionMap(enemy.faction);
-      // willRemainRootedNextPhase, not isRooted: a root expiring at the
-      // enemy's next phase start must not understate its threat range.
-      const moveRange = this.grid.getMovementRange(
-        enemy.col,
-        enemy.row,
-        willRemainRootedNextPhase(enemy) ? 0 : enemy.mov || enemy.stats.MOV,
-        enemy.moveType,
-        positions,
-        enemy.faction,
-        this._getCostModifier(enemy),
-      );
-      for (const [key, entry] of moveRange) {
-        if (entry.stoppable === false) continue;
-        const [mc, mr] = key.split(',').map(Number);
-        const staff = statusStaffThreat(enemy);
-        if (staff) {
-          for (const t of this.grid.getAttackRange(mc, mr, {
-            range: `${staff.min}-${staff.max}`,
-          })) {
-            statusThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-        // Get attack tiles from this position based on enemy weapon
-        if (enemy.weapon) {
-          const atkTiles = this.grid.getAttackRange(mc, mr, enemy.weapon);
-          for (const t of atkTiles) {
-            enemyThreatened.add(`${t.col},${t.row}`);
-          }
-        }
-      }
-      addDamageSource(enemyThreatened);
-    }
-    if (!onlyEnemy && this.ballistas?.length > 0) {
-      for (const ballista of this.ballistas) {
-        if (ballista.owner !== 'enemy') continue;
-        if (this.grid.fogEnabled && !this.grid.isVisible(ballista.col, ballista.row)) continue;
-        const tiles = getBallistaDangerTiles(ballista, this.grid.cols, this.grid.rows);
-        // Ballistas remain independent damage sources in the global threat view.
-        addDamageSource(new Set(tiles.map((t) => `${t.col},${t.row}`)));
-      }
-    }
-    return Array.from(new Set([...threatened.keys(), ...statusThreatened])).map((k) => {
-      const [col, row] = k.split(',').map(Number);
-      return {
-        col,
-        row,
-        count: threatened.get(k) || 0,
-        statusThreat: statusThreatened.has(k),
-        damageThreat: threatened.has(k),
-      };
-    });
+  calculateDangerZone(onlyEnemy = null) {
+    return computeDangerTiles(this.threatContext(), { onlyEnemy });
   }
 
   /** Hide/show enemy and NPC graphics based on fog visibility. */

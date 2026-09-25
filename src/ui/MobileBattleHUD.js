@@ -27,6 +27,7 @@ import { textureImageSource } from './textureImageSource.js';
 import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
+import { threatSummaryText } from '../engine/ThreatForecast.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 
 const PLAY_STATES = new Set([
@@ -508,7 +509,9 @@ export class MobileBattleHUD {
     const unit = canInspectUnit(s.grid, candidate) ? candidate : null;
     const turn = s.turnManager?.turnNumber || 1;
     const remaining = (s.playerUnits || []).filter((u) => u.currentHP > 0 && !u.hasActed).length;
+    const threat = s._threatSight?.current || null;
     const key = JSON.stringify([
+      threat ? [threat.col, threat.row, threat.result?.count, threat.result?.status?.length] : null,
       state,
       turn,
       remaining,
@@ -616,6 +619,13 @@ export class MobileBattleHUD {
         card.append(
           el('span', '', `Def ${bonus(terrain.defBonus)} · Avoid ${bonus(terrain.avoidBonus)}`),
         );
+        // Move preview: how many visible foes could strike this tile next phase.
+        if (threat && threat.col === focus.col && threat.row === focus.row) {
+          const line = el('span', 'mb-threat-line', threatSummaryText(threat.result));
+          line.dataset.threatCount = String(threat.result.count);
+          if (threat.result.count > 0) line.classList.add('mb-threat-line--reached');
+          card.append(line);
+        }
         if (terrain.special) {
           const help = this.button(
             'Terrain details ⓘ',

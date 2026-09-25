@@ -38,6 +38,7 @@ export class InputController {
     if (scene._isTouchPointer(pointer)) return;
     const gp = this._pointerToGrid(pointer);
     if (!gp) {
+      scene._threatFocusTile = null;
       scene.cursorHighlight.setVisible(false);
       scene.infoText.setText('');
       this.updateTopLeftHudLayout();
@@ -72,6 +73,9 @@ export class InputController {
     const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
     if (specialText) info += `\n${specialText}`;
 
+    const threat = scene._threatSight?.describe(col, row);
+    if (threat) info += `\nThreat: ${threat}`;
+
     if (hoveredVisible) {
       const lvl = getDisplayLevel(hovered);
       const cls = hovered.className || '';
@@ -90,6 +94,9 @@ export class InputController {
   // gamepad grid cursor. Memoized on _lastPathPreviewKey to skip recomputes.
   updatePathPreview(col, row) {
     const scene = this.scene;
+    // Threat sight follows the same hover/grid-cursor tile as the path preview.
+    scene._threatFocusTile = { col, row };
+    scene._threatSight?.sync();
     if (scene.battleState === 'UNIT_SELECTED' && scene.selectedUnit && scene.movementRange) {
       const key = `${col},${row}`;
       const previewEntry = scene.movementRange.get(key);

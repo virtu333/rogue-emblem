@@ -350,3 +350,13 @@
 .mb-tutorial-forecast .mb-stats {
   margin-top: 4px;
 }
+
+/* Threat sight move preview ("2 can reach") inside the terrain card. */
+.mb-terrain .mb-threat-line {
+  grid-column: 1 / -1;
+  color: var(--re-muted);
+}
+.mb-terrain .mb-threat-line--reached {
+  color: var(--re-threat-edge);
+  font-weight: 700;
+}
