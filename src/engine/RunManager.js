@@ -821,13 +821,18 @@ export class RunManager {
     return count;
   }
 
-  _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start') {
+  _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start', options = {}) {
     if (!blessing || blessing.tier < 2) return null;
-    if (isPlainObject(blessing.pact)) return normalizeBlessingCostEntry(blessing.pact);
+    // A pact is the price of a blessing taken now. A legacy save that never stored a
+    // price (see _normalizeActiveBlessingsForLoad) keeps the old rolled-pool rules.
+    if (isPlainObject(blessing.pact) && !options.ignorePact)
+      return normalizeBlessingCostEntry(blessing.pact);
     const pool = this.gameData?.blessings?.costPools?.[String(blessing.tier)];
     if (!Array.isArray(pool) || pool.length <= 0) return null;
     const rand = this._createBlessingRng(blessingId, `cost_roll:${contextKey}`);
-    return rollCostForBlessing(pool, blessing, rand, {
+    const rollAs =
+      options.ignorePact && blessing.pact ? { ...blessing, pact: undefined } : blessing;
+    return rollCostForBlessing(pool, rollAs, rand, {
       isApplicable: (entry) => this.isBlessingCostApplicable(entry),
     });
   }
@@ -885,7 +890,9 @@ export class RunManager {
         Array.isArray(blessing.costs) &&
         blessing.costs.length === 0;
       if (needsV2Cost) {
-        rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`);
+        rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`, {
+          ignorePact: true,
+        });
       }
       normalized.push(createActiveBlessingEntry(id, rolledCost));
     });

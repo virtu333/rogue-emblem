@@ -85,7 +85,9 @@ export class RunSetupMenu {
     if (blessing) {
       detail.append(element('p', chosen?.description || ''));
       if (chosen?.rolledCost?.label)
-        detail.append(element('p', `Cost: ${chosen.rolledCost.label}`, 're-note'));
+        detail.append(
+          element('p', `${chosen.pact ? 'Pact' : 'Cost'}: ${chosen.rolledCost.label}`, 're-note'),
+        );
     } else {
       for (const line of chosen?.summary || []) detail.append(element('p', line));
       if (!chosen?.summary?.length)
