@@ -247,7 +247,10 @@ export class GuidanceController {
         : null;
     };
     const a = toCss(g.offsetX, g.offsetY);
-    const b = toCss(g.offsetX + g.cols * TILE_SIZE, g.offsetY + g.rows * TILE_SIZE);
+    const b = toCss(
+      g.offsetX + (g.mapPixelWidth ?? g.cols * TILE_SIZE),
+      g.offsetY + (g.mapPixelHeight ?? g.rows * TILE_SIZE),
+    );
     if (!a || !b) return null;
     return { left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y };
   }
