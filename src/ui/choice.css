@@ -1,0 +1,1484 @@
+/* The draft — every "choose one" moment as cards side by side
+   (docs/art-direction/choice-screens/README.md). Boss recruit, lord arrival,
+   the mercenary board, battle rewards, shrine blessings, difficulty.
+
+   House style (docs/art-direction/ART_BIBLE.md, growth/README.md): ink
+   plates with chamfered corners, gold means the player's agency (the chosen
+   card lifts on an ember rim, the others dim), Cinzel only for the
+   ceremonial word (a candidate's name, a blessing's name, a difficulty),
+   Press Start 2P for short kickers, the body face for anything read.
+   Colours are palette tokens (uiTokens.css, ceremony.css); the alpha
+   variants below are named from the same palette values. Cards are
+   <button>s: the plate inside carries the chamfer so the rim glow and the
+   focus ring can sit outside it. Reduced motion (the OS or Settings, as
+   .is-still) keeps every state and drops the movement. */
+
+:root {
+  --ch-chamfer: 7px;
+  --ch-gap: 8px;
+  --ch-glow: rgba(243, 203, 108, 0.5); /* ember 5 */
+  --ch-glow-soft: rgba(220, 160, 68, 0.2); /* ember 4 */
+  --ch-sheen: rgba(255, 240, 189, 0.16); /* ember 6 */
+  --ch-shade: rgba(7, 6, 11, 0.55); /* ink 0 */
+  --ch-verd-glow: rgba(134, 178, 123, 0.45); /* verdigris 4 */
+  --ch-blood-glow: rgba(204, 64, 56, 0.35); /* blood 4 */
+  --ch-sprite-w: 48px;
+  --ch-fig: 96px;
+}
+@media (max-width: 700px) {
+  :root {
+    --ch-fig: 64px;
+    --ch-sprite-w: 40px;
+    --ch-gap: 6px;
+  }
+}
+
+/* ─────────────────────────────────────────────── The row of cards */
+.ch-draft {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--ch-n, 3), minmax(0, 1fr));
+  gap: var(--ch-gap);
+  /* Room for the lift, the rim glow and the focus ring (never a scroll). */
+  padding: 9px 5px 5px;
+}
+.ch-draft[data-count='1'] {
+  grid-template-columns: minmax(0, 400px);
+  justify-content: center;
+}
+.ch-draft[data-count='2'] {
+  grid-template-columns: repeat(2, minmax(0, 380px));
+  justify-content: center;
+}
+
+/* ─────────────────────────────────────────────── A card */
+.re .ch-card,
+.mu-screen .ch-card,
+.ch-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--re-text);
+  font: var(--re-t-body);
+  font-family: var(--re-body);
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  container-type: inline-size;
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 180ms linear,
+    opacity 180ms linear;
+}
+/* The kit's generic button looks (chamfer clip, pressed fill, left thread)
+   would clip the rim glow: a card draws its own plate. */
+.mu-screen button.ch-card,
+.mu-screen button.ch-card[aria-pressed]:not(.re-node),
+.mu-screen button.ch-card[aria-pressed]:not(.re-node):active {
+  clip-path: none;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+/* Focus is an ivory ring inside the plate (selection is the gold rim), so
+   both read at once and the ring follows the chamfered card. */
+.ch-card:focus-visible,
+.mu-screen .ch-card:focus-visible {
+  outline: none;
+}
+.ch-card:focus-visible > .ch-plate::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 2px var(--re-parchment),
+    inset 0 0 0 3px var(--ce-ink-0);
+  background: none;
+  opacity: 1;
+}
+.ch-card:disabled,
+.ch-card[aria-disabled='true'],
+.ch-card.is-static {
+  cursor: default;
+}
+.ch-plate {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background:
+    linear-gradient(180deg, var(--ch-sheen), transparent 38%),
+    linear-gradient(180deg, var(--re-raised), var(--re-panel) 55%, var(--re-sunken));
+  box-shadow:
+    inset 0 0 0 1px var(--re-line),
+    inset 0 -18px 30px var(--ch-shade);
+  clip-path: polygon(
+    var(--ch-chamfer) 0,
+    calc(100% - var(--ch-chamfer)) 0,
+    100% var(--ch-chamfer),
+    100% calc(100% - var(--ch-chamfer)),
+    calc(100% - var(--ch-chamfer)) 100%,
+    var(--ch-chamfer) 100%,
+    0 calc(100% - var(--ch-chamfer)),
+    0 var(--ch-chamfer)
+  );
+  overflow: hidden;
+}
+/* The gold thread along the top of the chosen card. */
+.ch-plate::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--ce-gold-3) 20%,
+    var(--ce-gold-5) 50%,
+    var(--ce-gold-3) 80%,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 180ms linear;
+}
+
+/* Chosen: the card lifts on an ember rim; the portrait brightens. */
+.ch-card:is([aria-pressed='true'], .is-chosen) {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 5px var(--ch-glow)) drop-shadow(0 8px 10px var(--ch-shade));
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-plate {
+  background:
+    radial-gradient(ellipse at 30% 0%, var(--ch-glow-soft), transparent 60%),
+    linear-gradient(180deg, var(--ch-sheen), transparent 38%),
+    linear-gradient(180deg, var(--re-selected), var(--re-panel) 60%, var(--re-sunken));
+  box-shadow:
+    inset 0 0 0 1px var(--re-accent),
+    inset 0 0 0 2px var(--re-ember-deep),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-plate::before {
+  opacity: 1;
+}
+/* The others step back a little (still readable: they are being compared). */
+.ch-draft:has(.ch-card:is([aria-pressed='true'], .is-chosen)) .ch-card[aria-pressed='false'] {
+  opacity: 0.84;
+}
+.ch-draft:has(.ch-card:is([aria-pressed='true'], .is-chosen))
+  .ch-card[aria-pressed='false']
+  .ch-figure
+  > * {
+  filter: saturate(0.55) brightness(0.78);
+}
+@media (hover: hover) {
+  .ch-card[aria-pressed='false']:not(:disabled):hover {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+/* The confirm beat: the chosen card seals with an ember flare. */
+.ch-card.is-sworn .ch-plate {
+  animation: ch-sworn 260ms ease-out both;
+}
+.is-sealing .ch-card:not(.is-sworn) {
+  opacity: 0.4;
+}
+
+/* ─────────────────────────────────────────────── Candidate cards */
+.ch-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.ch-figure {
+  position: relative;
+  width: var(--ch-fig);
+  height: var(--ch-fig);
+  flex: none;
+  background: radial-gradient(circle at 50% 40%, var(--re-raised), var(--re-sunken) 75%);
+  box-shadow:
+    0 0 0 1px var(--re-line),
+    0 0 0 2px var(--ce-ink-0);
+}
+.ch-portrait,
+.ch-figure .pc98-picture > img {
+  display: block;
+  width: var(--ch-fig);
+  height: var(--ch-fig);
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: filter 180ms linear;
+}
+.ch-portrait.is-classic {
+  object-fit: cover;
+}
+/* Small phones draw the 64 px variant; its plate is the second media source. */
+@media (max-width: 700px) {
+  .ch-portrait.pc98-portrait.has-plate.has-media {
+    background-image: var(--pc98-plate-2, var(--pc98-plate));
+  }
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-figure > .ch-portrait,
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-figure > .pc98-picture > img {
+  filter: brightness(1.08) contrast(1.04);
+}
+.ch-crest {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 1px 0 var(--ce-ink-0)) drop-shadow(0 0 2px var(--ce-ink-0));
+}
+.ch-sprite {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: var(--ch-sprite-w);
+  height: var(--ch-sprite-w);
+  background-image: var(--ch-sprite);
+  background-repeat: no-repeat;
+  background-size: calc(var(--ch-sprite-w) * var(--ch-frames, 1)) var(--ch-sprite-w);
+  image-rendering: pixelated;
+  /* An ink contour so the little figure reads over the portrait. */
+  filter: drop-shadow(1px 0 0 var(--ce-ink-0)) drop-shadow(-1px 0 0 var(--ce-ink-0))
+    drop-shadow(0 1px 0 var(--ce-ink-0)) drop-shadow(0 -1px 0 var(--ce-ink-0));
+  pointer-events: none;
+}
+.ch-sprite.is-idle {
+  animation: ch-idle calc(260ms * var(--ch-frames, 4)) steps(var(--ch-frames, 4)) infinite;
+}
+.ch-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ch-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  font: 8px/1.5 var(--re-pixel);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ce-gold-4);
+}
+.ch-kicker-part {
+  white-space: nowrap;
+}
+.ch-name {
+  display: block;
+  font: 700 18px/1.1 var(--re-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow: 0 1px 0 var(--ce-ink-0);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-name {
+  text-shadow:
+    0 1px 0 var(--ce-ink-0),
+    0 0 12px var(--ch-glow-soft);
+}
+.ch-epithet {
+  font: italic 11px/1.25 var(--re-body);
+  color: var(--ce-gold-5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-epithet[hidden] {
+  display: none;
+}
+.ch-class {
+  font: 12px/1.3 var(--re-body);
+  color: var(--re-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-level {
+  font: 700 12px/1 var(--re-body);
+  color: var(--re-info);
+  margin-right: 3px;
+  white-space: nowrap;
+}
+.ch-hp {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.ch-hp b {
+  font: 700 12px/1 var(--re-body);
+  color: var(--re-text);
+}
+.ch-hp-bar,
+.ch-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: var(--re-sunken);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+}
+.ch-hp-bar .ch-bar-fill {
+  background: var(--re-hp-high);
+}
+.ch-bar-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--ch-fill, 0));
+  background: var(--re-line-strong);
+}
+.ch-hp.is-best b,
+.ch-hp.is-best .ch-stat-k {
+  color: var(--re-accent-text);
+}
+.ch-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ch-weapons {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+.ch-weapon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+.ch-weapon-glyph,
+.ch-line-glyph {
+  display: inline-block;
+  flex: none;
+  background: var(--gr-glyph, none) center / contain no-repeat;
+}
+.ch-weapon-glyph {
+  width: 18px;
+  height: 18px;
+}
+.ch-weapon-rank {
+  font: 7px/1 var(--re-pixel);
+  color: var(--re-muted);
+  margin-left: -2px;
+  align-self: flex-end;
+}
+.ch-weapon.is-master .ch-weapon-rank {
+  color: var(--re-accent-text);
+}
+.ch-mov {
+  margin-left: auto;
+  flex: none;
+  font: 600 10px/1 var(--re-body);
+  letter-spacing: 0.04em;
+  color: var(--re-info);
+}
+
+/* The stat chart: bars against the draft, the best of each stat in gold. */
+.ch-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
+  padding: 5px 0 1px;
+  border-top: 1px solid var(--re-line-soft);
+}
+.ch-stat {
+  display: grid;
+  grid-template-columns: 36px 18px minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.ch-stat-k {
+  position: relative;
+  font: 600 10px/1.2 var(--re-body);
+  letter-spacing: 0.05em;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
+.ch-stat > b {
+  font: 700 13px/1.1 var(--re-body);
+  color: var(--re-text);
+  text-align: right;
+}
+.ch-stat.is-best > b,
+.ch-stat.is-best .ch-stat-k {
+  color: var(--re-accent-text);
+}
+.ch-stat.is-best .ch-bar-fill {
+  background: var(--re-ember-fill-deep);
+  box-shadow: 0 0 4px var(--ch-glow);
+}
+/* Growth hint: a verdigris chevron after the label. */
+.ch-stat.is-grows .ch-stat-k::after,
+.ch-legend-grows {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  vertical-align: 1px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-bottom: 5px solid var(--re-good);
+}
+.ch-legend-best {
+  display: inline-block;
+  width: 12px;
+  height: 4px;
+  background: var(--re-ember-fill-deep);
+  vertical-align: 2px;
+}
+
+/* Traits and skills: the name, then one line of what it does. */
+.ch-lines {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: none;
+  font: 12px/1.32 var(--re-body);
+  color: var(--re-muted);
+}
+.ch-lines::-webkit-scrollbar {
+  display: none;
+}
+/* Soft fade edges: only where there is more to read. */
+.ch-lines.has-more:not(.at-end) {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent);
+}
+.ch-lines.has-more:not(.at-start):not(.at-end) {
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 20px),
+    transparent
+  );
+  mask-image: linear-gradient(180deg, transparent, #000 16px, #000 calc(100% - 20px), transparent);
+}
+.ch-lines.has-more.at-end:not(.at-start) {
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 16px);
+  mask-image: linear-gradient(180deg, transparent, #000 16px);
+}
+.ch-role {
+  font: italic 12px/1.3 var(--re-body);
+  color: var(--re-parchment-dim);
+}
+.ch-line {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ch-line > b {
+  font-weight: 700;
+  color: var(--re-text);
+}
+.ch-line.is-trait > b {
+  color: var(--ce-unlight-5);
+}
+.ch-line.is-legend > b {
+  color: var(--re-rarity-legend);
+}
+.ch-line.is-skill > b {
+  color: var(--re-accent-text);
+}
+.ch-line-glyph {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+/* The roster cue: a verdigris thread, a quiet fact. */
+.ch-cue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding-top: 5px;
+  border-top: 1px solid var(--re-line-soft);
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-good);
+  min-width: 0;
+}
+.ch-cue-mark {
+  flex: none;
+  width: 12px;
+  height: 2px;
+  background: var(--re-good);
+  box-shadow: 0 0 6px var(--ch-verd-glow);
+}
+.ch-cue-text {
+  min-width: 0;
+}
+.ch-cue.is-bad {
+  color: var(--re-bad);
+}
+.ch-cue.is-bad .ch-cue-mark {
+  background: var(--re-bad);
+  box-shadow: 0 0 6px var(--ch-blood-glow);
+}
+.ch-cue.is-muted {
+  color: var(--re-muted);
+}
+.ch-cue.is-muted .ch-cue-mark {
+  background: var(--re-line-strong);
+  box-shadow: none;
+}
+.ch-cue.is-gold {
+  color: var(--re-accent-text);
+}
+.ch-cue.is-gold .ch-cue-mark {
+  background: var(--re-accent);
+  box-shadow: 0 0 6px var(--ch-glow);
+}
+
+/* Price seal (mercenaries): a gold coin line at the foot of the plate. */
+.ch-seal {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+  padding: 4px 8px;
+  margin: 0 8px 8px;
+  margin-top: -2px;
+  background: linear-gradient(180deg, var(--ce-gold-5), var(--ce-gold-4) 55%, var(--ce-gold-3));
+  color: var(--re-action-ink);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 5px 100%, 0 50%);
+}
+.ch-seal b {
+  font: 700 13px/1.2 var(--re-body);
+}
+.ch-seal-after {
+  margin-left: auto;
+  font: 11px/1.2 var(--re-body);
+}
+.ch-card:has(.ch-seal) .ch-plate {
+  padding-bottom: 10px;
+}
+.ch-unit:has(.ch-seal) {
+  gap: 0;
+}
+.ch-unit .ch-seal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.ch-unit:has(.ch-seal) .ch-plate {
+  padding-bottom: 38px;
+}
+/* A state stamp across the portrait (Hired, Claimed). */
+.ch-stamp {
+  position: absolute;
+  left: 8px;
+  top: 36px;
+  padding: 4px 8px;
+  font: 9px/1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-good);
+  background: var(--re-sunken);
+  border: 1px solid var(--re-verdigris-deep);
+  transform: rotate(-8deg);
+  box-shadow: 0 2px 8px var(--ch-shade);
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────── Footer and lead */
+.ch-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ch-footer-lead {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-muted);
+}
+.ch-footer .re-btn {
+  flex: none;
+  min-height: var(--re-tap);
+}
+.ch-footer .re-btn--primary {
+  min-width: 132px;
+}
+.ch-legend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+.ch-legend-text {
+  margin-right: 6px;
+}
+.ch-feedback:empty {
+  display: none;
+}
+.ch-feedback {
+  color: var(--re-warn);
+}
+.ch-footer-lead:has(.ch-feedback:not(:empty)) .ch-legend {
+  display: none;
+}
+/* One candidate has nothing to be best against. */
+.ch-draft[data-count='1'] ~ .ch-footer .ch-legend-best,
+.ch-draft[data-count='1'] ~ .ch-footer .ch-legend-best + .ch-legend-text {
+  display: none;
+}
+.ch-draft[data-count='1'] .ch-card:is([aria-pressed='true'], .is-chosen) {
+  transform: none;
+}
+.ch-lore {
+  font: italic 12px/1.35 var(--re-body);
+  color: var(--re-parchment-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Arrival menus: cards fill the body; the footer holds details + confirm. */
+.ch-arrival .re-menu-body,
+.ch-arena .re-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────── Mercenary contract */
+.ch-contract {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.ch-contract .ch-draft {
+  margin: 0;
+}
+.ch-terms {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 12px;
+  background: var(--re-panel);
+  box-shadow:
+    inset 0 0 0 1px var(--re-line),
+    var(--re-bevel);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ch-terms h3 {
+  margin: 0;
+  font: 8px/1.5 var(--re-pixel);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ce-gold-4);
+}
+.ch-terms p {
+  margin: 0;
+  font: 13px/1.4 var(--re-body);
+}
+.ch-terms .ch-terms-cost {
+  font: 700 22px/1.1 var(--re-body);
+  color: var(--re-accent-text);
+}
+.ch-terms .ch-terms-warn {
+  color: var(--re-warn);
+}
+.ch-terms .ch-terms-cue {
+  color: var(--re-good);
+}
+.ch-terms .ch-terms-line {
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.ch-terms-line > b {
+  color: var(--re-text);
+}
+.ch-terms-line.is-trait > b {
+  color: var(--ce-unlight-5);
+}
+.ch-terms-line.is-skill > b {
+  color: var(--re-accent-text);
+}
+.ch-terms .ch-terms-quote {
+  font: italic 13px/1.4 var(--re-body);
+  color: var(--re-parchment-dim);
+}
+
+/* ─────────────────────────────────────────────── Reward cards */
+.mu-screen .ch-rewards {
+  flex: 1 1 auto;
+}
+.ch-reward {
+  --reward-color: var(--re-muted);
+}
+.ch-reward .ch-plate {
+  gap: 5px;
+  box-shadow:
+    inset 0 0 0 1px var(--re-line),
+    inset 0 2px 0 var(--reward-color),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.mu-screen .ch-card.ch-reward:is([aria-pressed='true'], .is-chosen) .ch-plate {
+  box-shadow:
+    inset 0 0 0 1px var(--re-accent),
+    inset 0 2px 0 var(--reward-color),
+    inset 0 0 0 2px var(--re-ember-deep),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.ch-reward-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.ch-item-art {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 45%, var(--re-raised), var(--re-sunken) 72%);
+  box-shadow:
+    inset 0 0 0 1px var(--re-line-soft),
+    0 0 0 1px var(--ce-ink-0);
+}
+.ch-item-icon {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+/* No art yet: the category glyph stands in the slot. */
+.ch-item-art.is-glyph::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border: 2px solid var(--reward-color);
+  background: var(--re-sunken);
+}
+.ch-rarity {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  /* Beside the art when there is room, else on its own line below it. */
+  flex: 1 1 88px;
+  min-width: 88px;
+  font: 8px/1.5 var(--re-pixel);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--reward-color);
+}
+.ch-rarity .reward-glyph {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  grid-row: auto;
+  color: var(--reward-color);
+}
+.ch-rarity-text {
+  min-width: 0;
+}
+.ch-reward-name {
+  display: block;
+  font: 700 14px/1.2 var(--re-body);
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-reward-name {
+  color: var(--re-accent-text);
+}
+.ch-reward .ch-lines {
+  font-size: 12px;
+  color: var(--re-parchment-dim);
+}
+.ch-reward .ch-lines p {
+  margin: 0;
+  white-space: pre-line;
+}
+.ch-forwhom {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 1px;
+  padding-top: 5px;
+  border-top: 1px solid var(--re-line-soft);
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-muted);
+}
+.ch-forwhom b {
+  font: 700 12px/1.3 var(--re-body);
+  color: var(--re-text);
+}
+.ch-forwhom.is-good b {
+  color: var(--re-good);
+}
+.ch-forwhom.is-bad b {
+  color: var(--re-bad);
+}
+.ch-forwhom.is-gold b {
+  color: var(--re-accent-text);
+}
+/* Rarity frames: corner brackets in the tier colour; Rare and Legend gild. */
+.ch-reward .ch-plate::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--reward-color), var(--reward-color)) left top / 10px 1px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) left top / 1px 10px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) right top / 10px 1px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) right top / 1px 10px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) left bottom / 10px 1px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) left bottom / 1px 10px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) right bottom / 10px 1px no-repeat,
+    linear-gradient(var(--reward-color), var(--reward-color)) right bottom / 1px 10px no-repeat;
+  opacity: 0.8;
+}
+.ch-reward[data-tier='Rare'] .ch-item-art,
+.ch-reward[data-tier='Legend'] .ch-item-art {
+  box-shadow:
+    inset 0 0 0 1px var(--reward-color),
+    0 0 10px var(--ch-glow-soft);
+}
+.ch-reward[data-tier='Legend'] .ch-plate {
+  background:
+    linear-gradient(115deg, transparent 30%, var(--ch-sheen) 45%, transparent 60%) 0 0 / 250% 100%
+      no-repeat,
+    radial-gradient(ellipse at 50% 0%, var(--ch-glow-soft), transparent 65%),
+    linear-gradient(180deg, var(--re-raised), var(--re-panel) 55%, var(--re-sunken));
+  animation: ch-sheen 4.8s ease-in-out infinite;
+}
+.ch-reward.is-claimed .ch-plate,
+.ch-reward:disabled .ch-plate {
+  filter: saturate(0.3) brightness(0.7);
+}
+.mu-screen .ch-card:disabled {
+  opacity: 1;
+}
+.ch-reward .ch-stamp {
+  top: 18px;
+  left: auto;
+  right: 8px;
+}
+/* Notices (mastery, fallen) and a weapon's art ride under the cards. */
+.ch-notes {
+  flex: none;
+  max-height: 30%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 8px;
+  background: var(--re-panel);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+  font: 12px/1.35 var(--re-body);
+}
+.ch-notes p {
+  margin: 2px 0;
+}
+.mu-screen .ch-notes button {
+  min-height: var(--re-tap);
+  width: auto;
+}
+.ch-rewards-footer .mu-help {
+  font-size: 12px;
+}
+.mu-screen .ch-rewards-footer .mu-buy {
+  flex: none;
+  min-width: 150px;
+}
+/* Recipient rows: the unit's face beside its comparison. */
+.mh-skill.ch-recipient {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+}
+.mh-skill.ch-recipient .mr-unit-face {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+.mh-skill.ch-recipient strong,
+.mh-skill.ch-recipient small {
+  grid-column: 2;
+}
+
+/* ─────────────────────────────────────────────── Blessings: tarot */
+.ch-tarot .ch-plate {
+  align-items: center;
+  text-align: center;
+  gap: 5px;
+  padding: 8px 8px 9px;
+  box-shadow:
+    inset 0 0 0 1px var(--re-line),
+    inset 0 0 0 4px var(--re-sunken),
+    inset 0 0 0 5px var(--ch-tier, var(--re-line-strong)),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.ch-tarot[data-tier='1'] {
+  --ch-tier: var(--re-tier-1);
+}
+.ch-tarot[data-tier='2'] {
+  --ch-tier: var(--re-tier-2);
+}
+.ch-tarot[data-tier='3'] {
+  --ch-tier: var(--re-tier-3);
+}
+.ch-tarot[data-tier='4'] {
+  --ch-tier: var(--re-tier-4);
+}
+.ch-card.ch-tarot[aria-pressed='true'] .ch-plate {
+  box-shadow:
+    inset 0 0 0 1px var(--re-accent),
+    inset 0 0 0 4px var(--re-sunken),
+    inset 0 0 0 5px var(--ch-tier, var(--re-accent)),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.ch-numeral,
+.ch-tarot-name {
+  flex: none;
+}
+.ch-numeral {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 15px/1 var(--re-display);
+  letter-spacing: 0.08em;
+  color: var(--ce-gold-5);
+  text-shadow:
+    0 0 6px var(--ch-glow),
+    0 1px 0 var(--ce-ink-0);
+}
+/* The Hollow Sun medallion: black disc, gold corona; rings grow with the tier. */
+.ch-sun {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, var(--ce-ink-2), var(--ce-ink-0) 70%);
+  box-shadow:
+    0 0 0 1px var(--ce-gold-6),
+    0 0 0 3px var(--ce-ink-0),
+    0 0 0 4px var(--ch-tier, var(--ce-gold-3)),
+    0 0 14px 3px var(--ch-glow-soft);
+}
+.ch-tarot[data-tier='3'] .ch-sun,
+.ch-tarot[data-tier='4'] .ch-sun {
+  box-shadow:
+    0 0 0 1px var(--ce-gold-6),
+    0 0 0 3px var(--ce-ink-0),
+    0 0 0 4px var(--ch-tier),
+    0 0 0 6px var(--ce-ink-0),
+    0 0 0 7px var(--ce-gold-3),
+    0 0 16px 4px var(--ch-glow-soft);
+}
+.ch-card:is([aria-pressed='true'], .is-chosen) .ch-sun {
+  animation: ch-corona 3.6s ease-in-out infinite;
+}
+.ch-tarot-name {
+  display: block;
+  width: 100%;
+  font: 700 14px/1.15 var(--re-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow: 0 1px 0 var(--ce-ink-0);
+  /* Whole words only; fitDraft shrinks a long one to its card. */
+  overflow-wrap: normal;
+  word-break: keep-all;
+  overflow: hidden;
+}
+.ch-tarot .ch-plate {
+  justify-content: center;
+}
+.ch-tarot .ch-lines {
+  flex: 0 1 auto;
+  width: 100%;
+  gap: 6px;
+  text-align: left;
+}
+.ch-boon,
+.ch-cost {
+  display: block;
+  width: 100%;
+  flex: none;
+  text-align: left;
+  padding: 5px 6px;
+  font: 12px/1.35 var(--re-body);
+}
+.ch-boon {
+  color: var(--re-text);
+  background: var(--re-sunken);
+  box-shadow: inset 2px 0 0 var(--re-accent);
+}
+.ch-cost {
+  color: var(--re-bad);
+  background: var(--re-danger-bg);
+  box-shadow: inset 2px 0 0 var(--re-danger-line);
+}
+.ch-cost.is-none {
+  color: var(--re-muted);
+  background: transparent;
+  box-shadow: inset 2px 0 0 var(--re-line-soft);
+}
+.ch-boon-k {
+  display: block;
+  margin-bottom: 1px;
+  font: 7px/1.5 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ce-gold-4);
+}
+.ch-cost .ch-boon-k {
+  color: var(--ce-blood-5);
+}
+.ch-cost.is-none .ch-boon-k {
+  color: var(--re-muted-dim);
+}
+/* "No blessing" sits in the footer as a face-down card. */
+.re-btn.ch-blank {
+  gap: 8px;
+}
+.ch-blank-back {
+  flex: none;
+  width: 14px;
+  height: 20px;
+  background: repeating-linear-gradient(45deg, var(--re-line) 0 2px, var(--re-sunken) 2px 5px);
+  box-shadow: 0 0 0 1px var(--re-line-strong);
+}
+.re-btn.ch-blank[aria-pressed='true'] .ch-blank-back {
+  box-shadow: 0 0 0 1px var(--re-accent);
+}
+
+/* ─────────────────────────────────────────────── Difficulty: banners */
+.ch-setup .re-menu-body {
+  min-height: 0;
+}
+.ch-banners {
+  flex: 1 1 58%;
+}
+.ch-banner .ch-plate {
+  align-items: center;
+  text-align: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 12px 10px 14px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 14px),
+    50% 100%,
+    0 calc(100% - 14px)
+  ); /* a hanging banner: square top, swallow point below */
+  box-shadow:
+    inset 0 0 0 1px var(--re-line),
+    inset 0 3px 0 var(--ch-mode, var(--re-line-strong)),
+    inset 0 -18px 30px var(--ch-shade);
+}
+.ch-banner[data-mode='normal'] {
+  --ch-mode: var(--re-good);
+}
+.ch-banner[data-mode='hard'] {
+  --ch-mode: var(--re-warn);
+}
+.ch-banner[data-mode='lunatic'] {
+  --ch-mode: var(--re-bad);
+}
+.ch-card.ch-banner[aria-pressed='true'] .ch-plate {
+  box-shadow:
+    inset 0 0 0 1px var(--re-accent),
+    inset 0 3px 0 var(--ch-mode, var(--re-accent)),
+    inset 0 0 0 2px var(--re-ember-deep),
+    inset 0 -18px 30px var(--ch-shade);
+}
+/* Threads drawn taut: one per rank of difficulty. */
+.ch-threads {
+  display: flex;
+  gap: 5px;
+  height: 12px;
+  align-items: center;
+}
+.ch-threads i {
+  width: 16px;
+  height: 2px;
+  background: var(--ch-mode, var(--re-line-strong));
+  box-shadow: 0 0 5px var(--ch-mode, transparent);
+  transform: rotate(-12deg);
+}
+.ch-banner-name {
+  font: 700 18px/1.1 var(--re-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow: 0 1px 0 var(--ce-ink-0);
+}
+.ch-banner-tag {
+  font: italic 12px/1.3 var(--re-body);
+  color: var(--re-parchment-dim);
+}
+.ch-banner-reward {
+  font: 700 12px/1.3 var(--re-body);
+  color: var(--re-accent-text);
+}
+.ch-lock {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-muted);
+}
+.ch-lock::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 7px;
+  margin-top: 3px;
+  border: 1px solid var(--re-muted);
+  border-top-width: 3px;
+  box-shadow: 0 -4px 0 -2px var(--re-muted);
+}
+.ch-banner[data-locked='true'] .ch-plate {
+  filter: saturate(0.25) brightness(0.72);
+}
+.ch-banner[data-locked='true'] .ch-banner-name {
+  color: var(--re-muted);
+}
+.ch-banner-detail {
+  flex: 1 1 42%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 4px 16px;
+  align-content: start;
+  padding: 8px 12px;
+}
+.ch-banner-detail h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  font: 8px/1.5 var(--re-pixel);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ce-gold-4);
+}
+.ch-banner-detail ul {
+  margin: 0;
+  padding: 0 0 0 14px;
+  font: 12px/1.4 var(--re-body);
+}
+.ch-banner-detail .ch-pays {
+  color: var(--re-accent-text);
+}
+.ch-banner-detail .re-note {
+  grid-column: 1 / -1;
+}
+.ch-banner-detail p {
+  margin: 0;
+}
+
+/* Short landscape phones: every pixel of height goes to the reading. */
+@media (max-height: 420px) {
+  /* Five narrow spoils: the tier word sits beside the art; the category
+     (and its glyph) stays in the text for readers, out of the way. */
+  .ch-rewards[data-count='5'] .ch-rarity {
+    flex: 1 1 40px;
+    min-width: 40px;
+  }
+  .ch-rewards[data-count='5'] .ch-rarity .reward-glyph {
+    display: none;
+  }
+  .ch-rewards[data-count='5'] .ch-rarity-cat {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ch-rewards[data-count='5'] .ch-item-art,
+  .ch-rewards[data-count='5'] .ch-item-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .ch-plate {
+    padding: 7px;
+    gap: 5px;
+  }
+  .ch-stats {
+    gap: 2px 8px;
+    padding-top: 4px;
+  }
+  .ch-stat > b {
+    line-height: 1;
+  }
+  .ch-sun {
+    width: 34px;
+    height: 34px;
+  }
+  .ch-tarot .ch-plate {
+    gap: 4px;
+  }
+}
+
+/* ─────────────────────────────────────────────── Desktop: tall cards */
+@media (min-width: 1000px) and (min-height: 600px) {
+  :root {
+    --ch-fig: 192px;
+    --ch-sprite-w: 96px;
+    --ch-gap: 18px;
+  }
+  .ch-draft {
+    align-content: center;
+    grid-template-columns: repeat(var(--ch-n, 3), minmax(0, 340px));
+    justify-content: center;
+  }
+  .ch-draft[data-count='1'] {
+    grid-template-columns: minmax(0, 380px);
+  }
+  .ch-plate {
+    padding: 14px;
+    gap: 10px;
+  }
+  .ch-unit .ch-head {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+  .ch-unit .ch-id {
+    width: 100%;
+    align-items: center;
+  }
+  .ch-unit .ch-kicker {
+    justify-content: center;
+  }
+  .ch-unit .ch-hp {
+    width: 80%;
+  }
+  .ch-unit .ch-meta {
+    width: 80%;
+    justify-content: center;
+  }
+  .ch-crest {
+    width: 44px;
+    height: 44px;
+    left: -12px;
+    top: -8px;
+  }
+  .ch-sprite {
+    right: -70px;
+    bottom: 0;
+  }
+  .ch-name {
+    font-size: 24px;
+  }
+  .ch-kicker {
+    font-size: 9px;
+  }
+  .ch-class,
+  .ch-lines,
+  .ch-cue,
+  .ch-footer-lead {
+    font-size: 14px;
+  }
+  .ch-stat > b {
+    font-size: 15px;
+  }
+  .ch-stat-k {
+    font-size: 12px;
+  }
+  .ch-stat {
+    grid-template-columns: 44px 22px minmax(0, 1fr);
+  }
+  .ch-reward .ch-plate,
+  .ch-tarot .ch-plate {
+    padding: 14px;
+  }
+  .ch-reward-name {
+    font-size: 17px;
+  }
+  .ch-reward .ch-lines,
+  .ch-forwhom {
+    font-size: 14px;
+  }
+  .ch-tarot-name {
+    font-size: 18px;
+  }
+  .ch-numeral {
+    font-size: 26px;
+  }
+  .ch-boon,
+  .ch-cost {
+    font-size: 14px;
+  }
+  .ch-banner-name {
+    font-size: 26px;
+  }
+  .ch-banner-tag,
+  .ch-banner-reward,
+  .ch-banner-detail ul {
+    font-size: 14px;
+  }
+}
+
+/* Desktop: rewards, tarot and banners take the room like the recruits do. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .mu-screen.ch-reward-screen {
+    padding-inline: max(24px, calc((100vw - 1180px) / 2));
+  }
+  .ch-rewards,
+  .ch-tarots {
+    grid-auto-rows: minmax(min(100%, 440px), auto);
+  }
+  .ch-banners {
+    grid-auto-rows: minmax(min(100%, 300px), auto);
+  }
+  .ch-reward-top {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .ch-reward-top .ch-rarity {
+    flex: none;
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+  .ch-reward .ch-item-art,
+  .ch-reward .ch-item-icon {
+    width: 128px;
+    height: 128px;
+  }
+  .ch-reward .ch-plate {
+    gap: 10px;
+  }
+  .ch-reward-name {
+    text-align: center;
+  }
+  .ch-sun {
+    width: 96px;
+    height: 96px;
+  }
+  .ch-banner .ch-plate {
+    justify-content: center;
+    gap: 10px;
+  }
+  .ch-threads i {
+    width: 24px;
+  }
+  .ch-banner-detail {
+    flex: 0 1 auto;
+  }
+}
+
+/* ─────────────────────────────────────────────── Motion */
+@keyframes ch-idle {
+  to {
+    background-position-x: calc(var(--ch-sprite-w) * var(--ch-frames, 4) * -1);
+  }
+}
+@keyframes ch-sworn {
+  0% {
+    box-shadow:
+      inset 0 0 0 1px var(--ce-gold-6),
+      inset 0 0 40px var(--ch-glow),
+      inset 0 -18px 30px var(--ch-shade);
+  }
+}
+@keyframes ch-sheen {
+  0%,
+  100% {
+    background-position:
+      120% 0,
+      0 0,
+      0 0;
+  }
+  50% {
+    background-position:
+      -20% 0,
+      0 0,
+      0 0;
+  }
+}
+@keyframes ch-corona {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+}
+.is-still .ch-card,
+.is-still .ch-card *,
+.is-still .ch-card *::before,
+.is-still .ch-card *::after {
+  animation: none !important;
+  transition: none !important;
+}
+.is-still .ch-card:is([aria-pressed='true'], .is-chosen) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-card,
+  .ch-card *,
+  .ch-card *::before,
+  .ch-card *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ch-card:is([aria-pressed='true'], .is-chosen) {
+    transform: none;
+  }
+}
