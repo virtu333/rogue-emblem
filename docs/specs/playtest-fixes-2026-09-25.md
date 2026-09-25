@@ -83,7 +83,14 @@ See `docs/ios-development.md` → "Saves on iOS". Summary:
 - **(c) Native mirror.** `src/utils/nativeSaveMirror.js`: with `@capacitor/filesystem`,
   game keys are mirrored to `Library/emblem-rogue-saves/` (double-buffered, torn-write
   safe), read back before boot (evicted store → restore; lost newer run/meta write →
-  recover; deletions never resurrected), feature-detected off on the web.
+  recover; deletions never resurrected), feature-detected off on the web. Review
+  follow-up: a deletion WebKit lost (tombstone on disk, old save still in `localStorage`)
+  used to be mirrored back over the tombstone, so an ended run became resumable again.
+  Tombstones now carry `deletedSavedAt` (the newest `savedAt` seen live for the key) and
+  the launch removes a local save stamped at or below it, keeps one stamped after it (a
+  newer run whose native write was lost), and keeps the value when either stamp is
+  missing (legacy tombstone, or a key without `savedAt`). Decision table in
+  `planRestore`; regressions in `tests/NativeSaveMirror.test.js` ("lost deletions").
   `@capacitor/app` + `@capacitor/filesystem` are added for the native side only (called
   through the injected bridge; no plugin JS bundled; `Package.swift` matches `cap sync`).
 - **(d) Quota.** Measured sizes (see the iOS doc). `src/engine/SaveSpace.js`: a run or meta
