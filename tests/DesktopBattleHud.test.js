@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DesktopBattleHud, DESKTOP_HINT_TEXT } from '../src/ui/DesktopBattleHud.js';
+import {
+  DesktopBattleHud,
+  DESKTOP_HINT_TEXT,
+  DESKTOP_SELECTED_HINT_TEXT,
+} from '../src/ui/DesktopBattleHud.js';
 import { UI_DEPTHS } from '../src/utils/uiDepths.js';
 
 function makeText(text, width = 80, height = 10) {
@@ -111,6 +115,22 @@ describe('DesktopBattleHud', () => {
     expect(scene.graphics.clear.mock.calls.length).toBe(clears + 1);
     // Hover info sits below the status plate, never on top of the turn line.
     expect(scene.infoText.y).toBeGreaterThan(scene.turnCounterText.y + 10);
+  });
+
+  it('while a unit is selected the hint says what a map click does, then reverts', () => {
+    const scene = makeScene({ battleState: 'PLAYER_IDLE' });
+    new DesktopBattleHud(scene).create();
+    expect(scene.instructionText2.text).toBe(DESKTOP_HINT_TEXT);
+    scene.battleState = 'UNIT_SELECTED';
+    scene.selectedUnit = { name: 'Edric' };
+    scene.events.emit('postupdate');
+    expect(scene.instructionText2.text).toBe(DESKTOP_SELECTED_HINT_TEXT);
+    for (const key of ['move', 'enemy in reach: attack', 'unit: actions'])
+      expect(DESKTOP_SELECTED_HINT_TEXT).toContain(key);
+    scene.battleState = 'PLAYER_IDLE';
+    scene.selectedUnit = null;
+    scene.events.emit('postupdate');
+    expect(scene.instructionText2.text).toBe(DESKTOP_HINT_TEXT);
   });
 
   it('destroy removes plates and listeners and restores the camera background', () => {

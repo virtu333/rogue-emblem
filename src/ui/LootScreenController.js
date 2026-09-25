@@ -34,7 +34,7 @@ import {
   GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
-import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
+import { formatBundleUses, getConsumableDescription } from '../utils/consumableText.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -1425,7 +1425,7 @@ export class LootScreenController {
         : String(lines || '');
       return scene._formatSpecialLinesForUi(text, detailWrapChars, maxLines);
     };
-    const usesLine = formatUses(item);
+    const usesLine = formatBundleUses(item, choice?.quantity);
     const type = choice?.type;
     const consumableDescription = getConsumableDescription(item);
 
@@ -1579,7 +1579,7 @@ export class LootScreenController {
       const lines = [item.name || 'Consumable'];
       const description = getConsumableDescription(item);
       if (description) lines.push(description);
-      const usesText = formatUses(item);
+      const usesText = formatBundleUses(item, choice?.quantity);
       if (usesText) lines.push(usesText);
       return lines.join('\n');
     }

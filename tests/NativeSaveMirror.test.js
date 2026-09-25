@@ -116,6 +116,33 @@ describe('record format', () => {
     expect(decodeRecord('ERSAVE1 {broken\nvalue')).toBeNull();
   });
 
+  it('a tombstone carries the stamp of the save it deleted; older tombstones decode without it', () => {
+    const key = 'emblem_rogue_slot_1_run';
+    const stamped = encodeRecord({ key, seq: 4, value: null, deletedSavedAt: 42 });
+    expect(decodeRecord(stamped)).toEqual({
+      key,
+      seq: 4,
+      removed: true,
+      value: null,
+      savedAt: null,
+      deletedSavedAt: 42,
+    });
+    // The field is optional in the header: a record written before it existed
+    // (same magic, no deletedSavedAt) still decodes.
+    const legacy =
+      'ERSAVE1 {"key":"emblem_rogue_slot_1_run","seq":2,"removed":true,"length":0,"savedAt":null}\n';
+    expect(decodeRecord(legacy)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: null });
+    // A live record never carries it, whatever the caller passes.
+    expect(
+      decodeRecord(encodeRecord({ key, seq: 5, value: run(9), deletedSavedAt: 42 })),
+    ).toMatchObject({ savedAt: 9, deletedSavedAt: null });
+    // Unknown stamps are left out rather than written as null/NaN.
+    expect(encodeRecord({ key, seq: 6, value: null })).not.toContain('deletedSavedAt');
+    expect(encodeRecord({ key, seq: 6, value: null, deletedSavedAt: NaN })).not.toContain(
+      'deletedSavedAt',
+    );
+  });
+
   it('reads savedAt from the payload tail, falling back to a parse', () => {
     expect(readSavedAt(run(1727270000123))).toBe(1727270000123);
     expect(readSavedAt('{"savedAt":5,"x":1}')).toBe(5);
@@ -180,7 +207,71 @@ describe('restore planning', () => {
       sentinelPresent: true,
       records: new Map([[key, rec(run(12))]]),
     });
-    expect(plan).toEqual({ evicted: false, restore: [] });
+    expect(plan).toEqual({ evicted: false, restore: [], remove: [] });
+  });
+
+  // A deletion WebKit lost: the newest native record is a tombstone while the
+  // intact store still holds a value for the key.
+  describe('tombstone vs a present local value', () => {
+    const tomb = (deletedSavedAt, seq = 2) =>
+      decodeRecord(encodeRecord({ key, seq, value: null, deletedSavedAt }));
+    const plan = (record, localValue, sentinelPresent = true) =>
+      planRestore({
+        local: new Map(localValue === undefined ? [] : [[key, localValue]]),
+        sentinelPresent,
+        records: new Map([[key, record]]),
+      });
+
+    it('the deleted save itself (savedAt equal) is removed', () => {
+      expect(plan(tomb(10), run(10))).toEqual({ evicted: false, restore: [], remove: [key] });
+    });
+
+    it('a save older than the deleted one is removed', () => {
+      expect(plan(tomb(10), run(7)).remove).toEqual([key]);
+    });
+
+    it('a save made after the deletion is kept', () => {
+      expect(plan(tomb(10), run(11))).toEqual({ evicted: false, restore: [], remove: [] });
+    });
+
+    it('a legacy tombstone without deletedSavedAt keeps the local value', () => {
+      expect(tomb(null).deletedSavedAt).toBeNull();
+      expect(plan(tomb(null), run(10)).remove).toEqual([]);
+      expect(plan(tomb(undefined), run(10)).remove).toEqual([]);
+    });
+
+    it('a local value without savedAt is kept', () => {
+      expect(plan(tomb(10), '{"music":0}').remove).toEqual([]);
+      expect(plan(tomb(10), 'not json').remove).toEqual([]);
+    });
+
+    it('a stamped local value under a stampless tombstone (settings, flags) is kept', () => {
+      const settings = 'emblem_rogue_settings';
+      const record = { ...tomb(null), key: settings };
+      const result = planRestore({
+        local: new Map([[settings, '{"music":1,"savedAt":5}']]),
+        sentinelPresent: true,
+        records: new Map([[settings, record]]),
+      });
+      expect(result.remove).toEqual([]);
+    });
+
+    it('nothing local: the tombstone stays deleted, evicted or not', () => {
+      expect(plan(tomb(10), undefined, true)).toEqual({ evicted: false, restore: [], remove: [] });
+      expect(plan(tomb(10), undefined, false)).toEqual({ evicted: true, restore: [], remove: [] });
+    });
+
+    it('evicted store still holding a stale copy (sentinel never re-set): removed too', () => {
+      expect(plan(tomb(10), run(10), false)).toEqual({ evicted: true, restore: [], remove: [key] });
+      expect(plan(tomb(10), run(12), false).remove).toEqual([]);
+    });
+
+    it('a live newest record never removes anything', () => {
+      const live = decodeRecord(encodeRecord({ key, seq: 3, value: run(12) }));
+      expect(live.deletedSavedAt).toBeNull();
+      expect(plan(live, run(10)).remove).toEqual([]);
+      expect(plan(live, run(14)).remove).toEqual([]);
+    });
   });
 
   it('keys without savedAt keep the local value', () => {
@@ -659,5 +750,266 @@ describe('data-loss regressions', () => {
     second.timers.advance(5000);
     await second.mirror.writing;
     expect(evicted.getItem(runKey)).toBe(run(70));
+  });
+});
+
+// A deletion WebKit lost: the run ended (or the slot was deleted) and the
+// tombstone reached native storage, but the process died before WebKit
+// flushed the removal, so on relaunch localStorage still holds the old save
+// with its sentinel intact. Before the fix the stale save was kept and the
+// reconcile mirrored it back over the tombstone, so an ended run came back.
+describe('lost deletions', () => {
+  const runKey = 'emblem_rogue_slot_1_run';
+  const metaKey = 'emblem_rogue_slot_1_meta';
+  const newest = (backend, key) =>
+    collectRecords(Object.fromEntries(backend.files)).records.get(key);
+
+  /** A session: launch over `backend`, hook storage, run `play`, unhook. */
+  async function session(storage, backend, play) {
+    const { mirror, timers } = await launch(storage, backend);
+    const unhook = mirror.hookStorage(FakeStorage.prototype, storage);
+    try {
+      await play({ mirror, timers });
+    } finally {
+      unhook();
+    }
+    return mirror;
+  }
+
+  /** Relaunch over `backend` with `entries` still in the (intact) store. */
+  async function relaunch(backend, entries) {
+    const storage = new FakeStorage({ [MIRROR_SENTINEL_KEY]: '1', ...entries });
+    const { mirror, result, timers } = await launch(storage, backend);
+    timers.advance(5000);
+    await mirror.writing;
+    return { storage, mirror, result };
+  }
+
+  it("reviewers' repro: an ended run whose removal WebKit lost stays ended", async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey); // run over
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
+    // Relaunch: WebKit never flushed the removal.
+    const { storage, result } = await relaunch(backend, { [runKey]: run(10) });
+    expect(result).toMatchObject({ evicted: false, restored: [], removed: [runKey] });
+    expect(storage.getItem(runKey)).toBeNull();
+    expect(storage.getItem(MIRROR_SENTINEL_KEY)).not.toBeNull();
+    // The tombstone was not superseded by a live copy of the stale save.
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true });
+    // And the removal stays applied on the launch after that.
+    const again = await relaunch(backend, {});
+    expect(again.storage.getItem(runKey)).toBeNull();
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true });
+  });
+
+  it('a run started after the deletion is kept and mirrored above the tombstone', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+      mirror.storage.setItem(runKey, run(20, 'new run')); // its native write is lost
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
+    const { storage, result } = await relaunch(backend, { [runKey]: run(20, 'new run') });
+    expect(result).toMatchObject({ evicted: false, restored: [] });
+    expect(result.removed).toBeUndefined();
+    expect(storage.getItem(runKey)).toBe(run(20, 'new run'));
+    expect(newest(backend, runKey)).toMatchObject({
+      seq: 3,
+      removed: false,
+      value: run(20, 'new run'),
+    });
+  });
+
+  it('a save the debounce coalesced away still dates the tombstone', async () => {
+    // save 10 reached disk; save 11 was still debounced when the run ended.
+    // WebKit kept 11 but lost the removal: 11 is the deleted save, not a newer one.
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+      mirror.storage.setItem(runKey, run(11));
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 11 });
+    const { storage } = await relaunch(backend, { [runKey]: run(11) });
+    expect(storage.getItem(runKey)).toBeNull();
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true });
+  });
+
+  it('a run created and ended within one debounce gets a tombstone that dates it', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(30));
+      mirror.storage.removeItem(runKey); // no live record was ever written
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 1, removed: true, deletedSavedAt: 30 });
+    const { storage } = await relaunch(backend, { [runKey]: run(30) });
+    expect(storage.getItem(runKey)).toBeNull();
+  });
+
+  it('a key that never reached disk and has no stamp is not tombstoned', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem('emblem_rogue_active_slot', '2');
+      mirror.storage.removeItem('emblem_rogue_active_slot');
+      await mirror.flush();
+    });
+    expect(backend.files.size).toBe(0);
+  });
+
+  it('deleted slot: stale run and meta are both removed on relaunch', async () => {
+    const backend = fakeBackend();
+    const floorKey = 'emblem_rogue_slot_1_run_clock_floor';
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      mirror.storage.setItem(metaKey, run(9));
+      mirror.storage.setItem(floorKey, '5');
+      await mirror.flush();
+      // SlotManager.deleteSlot
+      for (const key of [metaKey, runKey, floorKey]) mirror.storage.removeItem(key);
+      await mirror.flush();
+    });
+    expect(newest(backend, metaKey)).toMatchObject({ removed: true, deletedSavedAt: 9 });
+    expect(newest(backend, runKey)).toMatchObject({ removed: true, deletedSavedAt: 10 });
+    expect(newest(backend, floorKey)).toMatchObject({ removed: true, deletedSavedAt: null });
+    const { storage, result } = await relaunch(backend, {
+      [runKey]: run(10),
+      [metaKey]: run(9),
+      [floorKey]: '5',
+    });
+    expect(result.removed.sort()).toEqual([metaKey, runKey]);
+    expect(storage.getItem(runKey)).toBeNull();
+    expect(storage.getItem(metaKey)).toBeNull();
+    // Unordered keys keep the local value (and are mirrored back as before).
+    expect(storage.getItem(floorKey)).toBe('5');
+    expect(newest(backend, floorKey)).toMatchObject({ removed: false, value: '5' });
+    // A new slot in the same place is mirrored live above both tombstones.
+    await session(storage, backend, async ({ mirror }) => {
+      mirror.storage.setItem(metaKey, run(40));
+      mirror.storage.setItem(runKey, run(41));
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 3, removed: false, savedAt: 41 });
+    expect(newest(backend, metaKey)).toMatchObject({ seq: 3, removed: false, savedAt: 40 });
+  });
+
+  it('legacy tombstone (no deletedSavedAt) + a present local save: the save is kept', async () => {
+    const backend = fakeBackend();
+    const [a, b] = recordFileNames(runKey);
+    backend.files.set(a, encodeRecord({ key: runKey, seq: 1, value: run(10) }));
+    backend.files.set(b, encodeRecord({ key: runKey, seq: 2, value: null })); // pre-field build
+    const { storage, result } = await relaunch(backend, { [runKey]: run(10) });
+    // Order cannot be proven (this could equally be a new run whose native
+    // write was lost), so nothing is deleted; the save is mirrored live again
+    // and from here on every tombstone carries its stamp.
+    expect(result.removed).toBeUndefined();
+    expect(storage.getItem(runKey)).toBe(run(10));
+    expect(newest(backend, runKey)).toMatchObject({ seq: 3, removed: false, savedAt: 10 });
+    await session(storage, backend, async ({ mirror }) => {
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ seq: 4, removed: true, deletedSavedAt: 10 });
+  });
+
+  it('evicted store + tombstone: the deletion stays deleted', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      mirror.storage.setItem(metaKey, run(9));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+    });
+    const evicted = new FakeStorage();
+    const { mirror, result, timers } = await launch(evicted, backend);
+    timers.advance(5000);
+    await mirror.writing;
+    expect(result).toMatchObject({ evicted: true, restored: [metaKey] });
+    expect(evicted.getItem(runKey)).toBeNull();
+    expect(evicted.getItem(metaKey)).toBe(run(9));
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
+  });
+
+  it('a deletion the mirror missed is tombstoned with the stamp it had mirrored', async () => {
+    // Intact store, key gone locally, live native record: the reconcile
+    // tombstone dates the deletion by the mirrored save.
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+    });
+    await relaunch(backend, {});
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
+    // ...which a later launch still holding that save honors.
+    const { storage } = await relaunch(backend, { [runKey]: run(10) });
+    expect(storage.getItem(runKey)).toBeNull();
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true });
+  });
+
+  it('a torn tombstone leaves the last live record in force', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+    });
+    const [, b] = recordFileNames(runKey);
+    backend.files.set(b, backend.files.get(b).slice(0, 30)); // killed mid-write
+    // The deletion reached neither store durably: the save is (rightly) still there.
+    const { storage } = await relaunch(backend, { [runKey]: run(10) });
+    expect(storage.getItem(runKey)).toBe(run(10));
+    // With the removal in the store, the reconcile tombstone goes to the torn buffer.
+    const gone = await relaunch(backend, {});
+    expect(gone.storage.getItem(runKey)).toBeNull();
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true, deletedSavedAt: 10 });
+  });
+
+  it('a stale save that cannot be removed is left out of the reconcile', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      await mirror.flush();
+      mirror.storage.removeItem(runKey);
+      await mirror.flush();
+    });
+    class StuckStorage extends FakeStorage {
+      removeItem(key) {
+        if (key === runKey) throw new Error('SecurityError');
+        super.removeItem(key);
+      }
+    }
+    const storage = new StuckStorage({ [MIRROR_SENTINEL_KEY]: '1', [runKey]: run(10) });
+    const { mirror, result, timers } = await launch(storage, backend);
+    timers.advance(5000);
+    await mirror.writing;
+    expect(result).toMatchObject({ unremoved: [runKey] });
+    expect(result.removed).toBeUndefined();
+    expect(newest(backend, runKey)).toMatchObject({ seq: 2, removed: true });
+  });
+
+  it('clear() dates every tombstone by the values it wiped', async () => {
+    const backend = fakeBackend();
+    await session(new FakeStorage(), backend, async ({ mirror }) => {
+      mirror.storage.setItem(runKey, run(10));
+      mirror.storage.setItem(metaKey, run(9));
+      await mirror.flush();
+      mirror.storage.setItem(runKey, run(12)); // still debounced
+      mirror.storage.clear();
+      await mirror.flush();
+    });
+    expect(newest(backend, runKey)).toMatchObject({ removed: true, deletedSavedAt: 12 });
+    expect(newest(backend, metaKey)).toMatchObject({ removed: true, deletedSavedAt: 9 });
   });
 });

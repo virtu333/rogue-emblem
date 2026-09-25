@@ -249,7 +249,9 @@ test('battle: an action taken before backgrounding is there after a reload', asy
 // Fake Capacitor bridge: PluginHeaders + nativePromise/addListener, with a
 // Filesystem whose files persist across reloads in sessionStorage. When
 // `__evictOnLoad` is set, localStorage is wiped before the app starts — iOS
-// evicting the WebKit store while the app was closed.
+// evicting the WebKit store while the app was closed. When `__unflushedOnLoad`
+// holds entries, they are put back before the app starts — WebKit's lazy
+// flush never persisted their removal before the process was killed.
 const FAKE_NATIVE = () => {
   const FS_KEY = '__fakeNativeFs';
   const read = () => JSON.parse(sessionStorage.getItem(FS_KEY) || '{}');
@@ -257,6 +259,12 @@ const FAKE_NATIVE = () => {
   if (sessionStorage.getItem('__evictOnLoad') === '1') {
     sessionStorage.removeItem('__evictOnLoad');
     localStorage.clear();
+  }
+  const unflushed = sessionStorage.getItem('__unflushedOnLoad');
+  if (unflushed) {
+    sessionStorage.removeItem('__unflushedOnLoad');
+    for (const [key, value] of Object.entries(JSON.parse(unflushed)))
+      localStorage.setItem(key, value);
   }
   const listeners = [];
   window.__fakeNativeListeners = listeners;
@@ -352,5 +360,68 @@ test('iOS: saves mirrored to native storage come back after WebKit storage is ev
     sentinel: localStorage.getItem('emblem_rogue_storage_sentinel') !== null,
   }));
   expect(restored).toEqual({ gold, sentinel: true });
+  expect(errors).toEqual([]);
+});
+
+test('iOS: an ended run whose removal WebKit lost is not resumable after a relaunch', async ({
+  page,
+}) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(FAKE_NATIVE);
+  await openRouteMap(page);
+  const RUN_KEY = 'emblem_rogue_slot_1_run';
+  // Newest native record of the run key: { seq, removed, deletedSavedAt }.
+  const newestRunRecord = () =>
+    page.evaluate((key) => {
+      const files = JSON.parse(sessionStorage.getItem('__fakeNativeFs') || '{}');
+      return Object.entries(files)
+        .filter(([name]) => name.includes(key))
+        .map(([, text]) => JSON.parse(text.slice(text.indexOf(' ') + 1, text.indexOf('\n'))))
+        .sort((a, b) => b.seq - a.seq)
+        .map(({ seq, removed, deletedSavedAt = null }) => ({ seq, removed, deletedSavedAt }))[0];
+    }, RUN_KEY);
+  await page.evaluate(() => window.__fakeCapFire('App', 'pause'));
+  await expect.poll(newestRunRecord).toMatchObject({ removed: false });
+  const ended = await page.evaluate((key) => localStorage.getItem(key), RUN_KEY);
+  const endedSavedAt = JSON.parse(ended).savedAt;
+  // The run ends: RunComplete clears the save, the mirror writes the tombstone.
+  await page.evaluate(async () => {
+    const { clearSavedRun } = await import('/src/engine/RunManager.js');
+    clearSavedRun(null, 1);
+  });
+  await expect
+    .poll(newestRunRecord)
+    .toEqual({ seq: 2, removed: true, deletedSavedAt: endedSavedAt });
+  // The process is killed before WebKit flushes the removal: at the next
+  // launch the old save is back in localStorage, sentinel intact.
+  await page.evaluate(
+    ([key, value]) => sessionStorage.setItem('__unflushedOnLoad', JSON.stringify({ [key]: value })),
+    [RUN_KEY, ended],
+  );
+  await page.evaluate(() => history.replaceState(null, '', '/'));
+  await page.reload();
+  await waitForScene(page, 'Title');
+  await page.waitForTimeout(1300);
+  expect(
+    await page.evaluate((key) => localStorage.getItem(key), RUN_KEY),
+    'the stale save was removed before boot',
+  ).toBeNull();
+  await expect.poll(newestRunRecord, 'the tombstone was not overwritten').toEqual({
+    seq: 2,
+    removed: true,
+    deletedSavedAt: endedSavedAt,
+  });
+  // Slot 1 keeps its progression but offers no run to continue.
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).tap();
+  await waitForScene(page, 'SlotPicker');
+  await expect(page.getByRole('button', { name: 'Select Slot 1', exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(async () => {
+      const { getSlotSummary } = await import('/src/engine/SlotManager.js');
+      const summary = getSlotSummary(1);
+      return summary && { hasActiveRun: summary.hasActiveRun, runCorrupt: summary.runCorrupt };
+    }),
+  ).toEqual({ hasActiveRun: false, runCorrupt: false });
   expect(errors).toEqual([]);
 });

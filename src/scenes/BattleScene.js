@@ -4337,8 +4337,8 @@ export class BattleScene extends Phaser.Scene {
       },
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: fromRewards
-        ? 'Your battle and remaining rewards are saved. Continue returns to the map, where you can reopen rewards.'
-        : 'Battle Suspended — Resume From Continue',
+        ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
+        : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
@@ -4754,6 +4754,7 @@ export class BattleScene extends Phaser.Scene {
       this._tutorialStrictGateReleased = true;
     }
     this.showActionMenu(unit);
+    this._inputController?.resumeMoveAttack(unit);
   }
 
   _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
@@ -10716,10 +10717,9 @@ export class BattleScene extends Phaser.Scene {
       color = UI_PALETTE.good; // green -- run for the exit
     } else {
       const tombCount = this._zombieTombstones?.length || 0;
-      label =
-        tombCount > 0
-          ? `Rout: ${this.enemyUnits.length} enemies + ${tombCount} reviving`
-          : `Rout: ${this.enemyUnits.length} ${this.enemyUnits.length === 1 ? 'enemy' : 'enemies'} remaining`;
+      const count = this.enemyUnits.length;
+      const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
+      label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
     }
     if (this.npcUnits.length > 0) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;
