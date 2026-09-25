@@ -16,7 +16,7 @@ const dom = vi.hoisted(() => {
       isConnected: true,
       scrollIntoView: vi.fn(),
       disabled: false,
-      classList: { add: vi.fn() },
+      classList: { add: vi.fn(), toggle: vi.fn() },
       append(...children) {
         this.children.push(...children);
       },
@@ -198,10 +198,13 @@ describe('Battle timeline view', () => {
   });
 
   it('renders only the saved visible projection, without touching scene, save, or RNG', () => {
+    // The view may ask whether a battlefield renderer exists (`game`); any
+    // other live-scene read would mean state leaking into history.
     const scene = new Proxy(
       {},
       {
-        get() {
+        get(_target, key) {
+          if (key === 'game') return undefined;
           throw new Error('Live scene read');
         },
       },
@@ -305,4 +308,73 @@ it('prioritizes recorded casualties, village rewards, and strike outcomes over m
     label: 'Cinder visited the village · Village saved! +250g, Vulnerary sent to convoy.',
   };
   expect(eventTitle({ actorId: 'a', beats: [moved, village] })).toBe(village.label);
+});
+
+describe('battlefield previews without an archived frame (playtest: "lo fi" timeline)', () => {
+  const session = () => ({
+    attach: vi.fn(),
+    show: vi.fn(),
+    hide: vi.fn(),
+    destroy: vi.fn(),
+    zoom: vi.fn(),
+    focus: vi.fn(),
+  });
+  const viewWith = (h, s = session()) =>
+    new BattleTimelineView(
+      { grid: { biome: 'plains' } },
+      { history: h, charges: 1, session: s, onClose: vi.fn(), onRewind: vi.fn() },
+    );
+
+  it('draws a board rebuilt from the compact preview instead of the text sketch', () => {
+    const s = session();
+    const view = viewWith(history(), s);
+    view.select(3); // enemy phase row: no archived frame, no rewind state
+    const [frame] = s.show.mock.calls.at(-1);
+    expect(frame).toMatchObject({ version: 2, cols: 3, rows: 2, biome: 'plains' });
+    expect(frame.tiles[0]).toMatchObject({ label: 'Forest', known: true });
+    expect(frame.units.map((u) => u.name)).toEqual(['Sera']);
+    expect(text(view.previewPanel)).toContain('Viewing history · Turn 1 · Enemy phase');
+    expect(text(view.previewPanel)).not.toContain('map sketch');
+    expect(view.previewPanel.children.some((n) => n.className === 'bt-board')).toBe(false);
+  });
+
+  it('never animates into a rebuilt board (it has no recorded movement)', () => {
+    const s = session();
+    const view = viewWith(history(), s);
+    view.select(2);
+    view.select(3);
+    expect(view.transition.animate).toBe(false);
+  });
+
+  it('keeps the sketch, labelled, only for rows with no board data', () => {
+    const h = history();
+    h.entries[2].preview = { cols: 3, rows: 2, units: [], summary: [] }; // no terrain
+    const s = session();
+    const view = viewWith(h, s);
+    view.select(3);
+    expect(text(view.previewPanel)).toContain('Preview unavailable — map sketch');
+    expect(s.hide).toHaveBeenCalled();
+  });
+
+  it('the sketch reads packed terrain (label table + one character per tile)', async () => {
+    const { packPreviewTiles } = await import('../src/engine/BattleTimelineFacts.js');
+    const h = history();
+    h.entries[2].preview = packPreviewTiles({
+      cols: 2,
+      rows: 1,
+      tiles: [
+        { col: 0, row: 0, label: 'Forest' },
+        { col: 1, row: 0, label: 'Plain' },
+      ],
+      units: [],
+      summary: [],
+    });
+    const view = make({ history: h });
+    view.select(3);
+    const board = view.previewPanel.children.find((node) => node.className === 'bt-board');
+    expect(board.children.filter((n) => n.className === 'bt-tile').map((n) => n.title)).toEqual([
+      'Forest',
+      'Plain',
+    ]);
+  });
 });
