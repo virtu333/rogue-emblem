@@ -108,7 +108,9 @@ describe('RunSimulationDriver', () => {
     } finally {
       restoreMathRandom();
     }
-  }, 15000);
+    // The scripted agent is slow enough to reach Totality under the Eclipse, so this
+    // Hard run fights stronger, affixed enemies (~530 turns vs ~320): a longer budget.
+  }, 30000);
 
   it('applies difficulty and blessing shop pricing in simulation', () => {
     const gameData = loadGameData();

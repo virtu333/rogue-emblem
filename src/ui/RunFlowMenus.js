@@ -4,6 +4,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
 import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { deedsOfTheMarchSection } from './deedDisplay.js';
+import { runEclipseSummary } from './eclipseContent.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
 export const PAYOUT_PENDING_NOTE =
@@ -28,6 +29,7 @@ export function runResultMenu(scene, rewards, meta) {
     ['Battles won', rm.completedBattles],
     ['Act reached', `${rm.actIndex + 1} / ${rm.actSequence?.length || 4}`],
     ['Difficulty', rm.difficultyModifiers?.label || rm.difficultyId || 'Normal'],
+    ...(runEclipseSummary(rm) ? [['Eclipse', runEclipseSummary(rm)]] : []),
     ['Currency multiplier', `×${rewards.currencyMultiplier.toFixed(2)}`],
     ['Valor earned', `+${rewards.valor}`],
     ['Supply earned', `+${rewards.supply}`],

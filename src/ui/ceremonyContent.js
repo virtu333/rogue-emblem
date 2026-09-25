@@ -69,10 +69,11 @@ export function actGradeName(actId) {
   return GRADE_NAMES[ACT_GRADE_KEYS[actId]] || '';
 }
 
-/** ACT n · region (Cinzel) · grade name. */
-export function actCardContent(actId) {
+/** ACT n (· Eclipse phase) · region (Cinzel) · grade name. */
+export function actCardContent(actId, { phase = '' } = {}) {
+  const act = actLabel(actId);
   return {
-    kicker: actLabel(actId),
+    kicker: act && phase ? `${act} · ${phase}` : act,
     title: actRegion(actId),
     grade: actGradeName(actId),
   };
@@ -142,11 +143,23 @@ export function objectiveWord(objective) {
   return OBJECTIVE_WORDS[objective] || 'VICTORY';
 }
 
-export function victoryContent({ objective, turn, par, rating }) {
+export function victoryContent({
+  objective,
+  turn,
+  par,
+  rating,
+  shadowGain = null,
+  shadowRelief = 0,
+}) {
   const parts = [];
   if (Number.isFinite(turn) && turn > 0) parts.push(`Turn ${Math.trunc(turn)}`);
   if (Number.isFinite(par)) parts.push(`Par ${Math.trunc(par)}`);
   if (typeof rating === 'string' && rating) parts.push(`Rank ${rating}`);
+  // The Eclipse: what this victory does to the sun.
+  if (Number.isFinite(shadowGain))
+    parts.push(shadowGain > 0 ? `Shadow +${Math.trunc(shadowGain)}` : 'Sun held');
+  if (Number.isFinite(shadowGain) && shadowRelief > 0)
+    parts.push(`Sun flares −${Math.trunc(shadowRelief)}`);
   return { word: objectiveWord(objective), sub: parts.join(' · ') };
 }
 
@@ -267,12 +280,14 @@ export function runEndContent({
   turn = null,
   defeatContext = null,
   battlesWon = null,
+  eclipse = '',
 }) {
   const where = [actRegion(actId), actLabel(actId)].filter(Boolean);
   if (result === 'victory') {
     const meta = [...where];
     if (Number.isFinite(battlesWon) && battlesWon > 0)
       meta.push(`${battlesWon} ${battlesWon === 1 ? 'battle' : 'battles'} won`);
+    if (eclipse) meta.push(eclipse);
     return {
       tone: 'holds',
       word: 'THE THREAD HOLDS',
@@ -282,6 +297,7 @@ export function runEndContent({
   }
   const meta = [...where];
   if (Number.isFinite(turn) && turn > 0) meta.push(`Turn ${Math.trunc(turn)}`);
+  if (eclipse) meta.push(eclipse);
   let sub;
   if (!defeatContext) sub = 'The march was abandoned';
   else {

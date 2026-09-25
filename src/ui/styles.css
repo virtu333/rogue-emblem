@@ -21,6 +21,8 @@
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';
+/* The Eclipse: medallion, eclipsed knots, fall ceremony, projection, Kindle. */
+@import './eclipse.css';
 @import './title.css';
 
 /* Reliquary detail layer last: decorates every kit surface (visual-only). */
