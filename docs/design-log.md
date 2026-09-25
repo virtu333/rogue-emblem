@@ -32,6 +32,9 @@ better path. Reactions to the bold-ideas list:
 **Backlog.**
 - Special forges: the shop occasionally rolls an imbue offer, including shop-only imbues.
 - Imbue balance: Vampiric and Warding look strong; fold into a broader balance pass.
+
+---
+
 ## 2026-09-25 — Two fixes from outside reports: staff heal penalty, offline atlases
 
 **Staff heals under a heal penalty.** The "Staff healing −20% effective" blessing
