@@ -8,6 +8,9 @@ import { waitForScene, collectErrors } from './helpers.js';
 // docs/art-direction/gameplay/strategy-layer/ when STRATEGY_LAYER_SHOTS is set.
 
 const SHOTS = process.env.STRATEGY_LAYER_SHOTS || null;
+// Each test boots the game and builds a run (and, for the battle, a map); allow for a
+// loaded CI box like the other battle specs do.
+test.setTimeout(90_000);
 const VIEWPORTS = [
   { label: 'desktop', width: 1280, height: 800, mobile: false },
   { label: 'phone', width: 844, height: 390, mobile: true },
