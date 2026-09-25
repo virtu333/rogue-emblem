@@ -32,24 +32,31 @@ export function registerSaveFlusher(id, flush) {
 
 /** Persist everything now. Returns the ids of flushers that ran. */
 export function flushSavesNow(reason = 'manual', { now = Date.now() } = {}) {
-  // hidden → pagehide → app pause arrive together; one flush covers them.
-  if (now - lastFlushAt < DUPLICATE_WINDOW_MS && reason !== 'manual') return [];
-  lastFlushAt = now;
+  // hidden → pagehide → app pause arrive together; one scene flush covers
+  // them. A negative gap is a wall clock set back, not a duplicate.
+  const sinceLast = now - lastFlushAt;
+  const duplicate = reason !== 'manual' && sinceLast >= 0 && sinceLast < DUPLICATE_WINDOW_MS;
   const ran = [];
-  for (const [id, flush] of [...flushers]) {
-    try {
-      flush(reason);
-      ran.push(id);
-    } catch (error) {
-      console.warn(`[SaveLifecycle] ${id} flush failed:`, error?.message || error);
+  if (!duplicate) {
+    lastFlushAt = now;
+    for (const [id, flush] of [...flushers]) {
+      try {
+        flush(reason);
+        ran.push(id);
+      } catch (error) {
+        console.warn(`[SaveLifecycle] ${id} flush failed:`, error?.message || error);
+      }
     }
   }
+  // Always dispatch native writes (cheap when nothing is pending): a save
+  // made between two signals of the burst must not wait for a debounce timer
+  // that a suspended page never fires.
   try {
     getNativeSaveMirror()?.flush();
   } catch (error) {
     console.warn('[SaveLifecycle] native mirror flush failed:', error?.message || error);
   }
-  lastFlush = { reason, at: now, ran };
+  if (!duplicate) lastFlush = { reason, at: now, ran };
   return ran;
 }
 

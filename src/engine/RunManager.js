@@ -4525,6 +4525,21 @@ function resolveSlotNumberForClear(slotNumber) {
   };
 }
 
+// savedAt of the run save each live RunManager last wrote, per slot (memory only).
+const lastRunSaveStamps = new WeakMap();
+
+/**
+ * True when the stored run save for `slotNumber` is still the one this
+ * RunManager last wrote — no other tab, cloud pull or run end has replaced or
+ * removed it since. Background saves (page hidden / app paused) check this so
+ * a stale in-memory run never overwrites a newer save or resurrects an ended run.
+ */
+export function isRunSaveCurrent(runManager, slotNumber) {
+  const key = resolveRunKey(slotNumber);
+  const stamp = key && runManager ? lastRunSaveStamps.get(runManager)?.get(slotNumber) : null;
+  return Number.isFinite(stamp) && readLocalRunSavedAt(key) === stamp;
+}
+
 export function saveRun(runManager, onSave, slotNumber) {
   const key = resolveRunKey(slotNumber);
   if (!key) return { ok: false, reason: 'missing_slot' };
@@ -4537,6 +4552,10 @@ export function saveRun(runManager, onSave, slotNumber) {
     // On a full store, other slots' optional battle history makes room first.
     setItemFreeingSpace(key, JSON.stringify(json), slotNumber);
     localOk = true;
+    if (runManager && typeof runManager === 'object') {
+      if (!lastRunSaveStamps.has(runManager)) lastRunSaveStamps.set(runManager, new Map());
+      lastRunSaveStamps.get(runManager).set(slotNumber, json.savedAt);
+    }
   } catch (err) {
     const isQuota = isQuotaExceededError(err);
     console.warn('[RunManager] localStorage write failed:', err?.message || err);

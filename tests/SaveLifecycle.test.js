@@ -129,6 +129,32 @@ describe('save lifecycle', () => {
     expect(order).toEqual(['scene', 'mirror']);
   });
 
+  it('a wall clock set back (manual change, network time) never suppresses a flush', () => {
+    const { win, doc } = env();
+    const flush = vi.fn();
+    registerSaveFlusher('NodeMap', flush);
+    installSaveLifecycle({ win, doc });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    win.dispatch('pagehide');
+    expect(flush).toHaveBeenCalledTimes(1);
+    now.mockReturnValue(1_000_000 - 3_600_000); // clock moved back an hour
+    win.dispatch('pagehide');
+    expect(flush).toHaveBeenCalledTimes(2);
+  });
+
+  it('a collapsed duplicate still dispatches native writes made since the first flush', () => {
+    const mirror = { flush: vi.fn() };
+    vi.spyOn(mirrorModule, 'getNativeSaveMirror').mockReturnValue(mirror);
+    const scene = vi.fn();
+    registerSaveFlusher('NodeMap', scene);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(50_000);
+    flushSavesNow('app_inactive');
+    now.mockReturnValue(50_100);
+    flushSavesNow('app_pause'); // within the window: scene flushers do not re-run
+    expect(scene).toHaveBeenCalledTimes(1);
+    expect(mirror.flush).toHaveBeenCalledTimes(2);
+  });
+
   it('unregister removes only its own registration', () => {
     const first = vi.fn();
     const second = vi.fn();
@@ -143,15 +169,29 @@ describe('save lifecycle', () => {
 
 describe('NodeMap lifecycle flusher', () => {
   let NodeMapScene;
+  let saveRun;
   // The scene module graph is large; load it once, with room on a busy runner.
   beforeAll(async () => {
     ({ NodeMapScene } = await import('../src/scenes/NodeMapScene.js'));
+    ({ saveRun } = await import('../src/engine/RunManager.js'));
   }, 120_000);
 
+  function memoryStorage() {
+    const map = new Map();
+    return {
+      getItem: (key) => (map.has(key) ? map.get(key) : null),
+      setItem: (key, value) => map.set(key, String(value)),
+      removeItem: (key) => map.delete(key),
+    };
+  }
+
   function makeScene(overrides = {}) {
+    vi.stubGlobal('localStorage', memoryStorage());
+    const runManager = { status: 'active', gold: 10, toJSON: () => ({ gold: runManager.gold }) };
+    saveRun(runManager, null, 1); // the scene's own save (entry autosave)
     const scene = Object.create(NodeMapScene.prototype);
     Object.assign(scene, {
-      runManager: { status: 'active' },
+      runManager,
       registry: { get: (key) => (key === 'activeSlot' ? 1 : null) },
       persistRunSave: vi.fn(),
       ...overrides,
@@ -159,10 +199,30 @@ describe('NodeMap lifecycle flusher', () => {
     return scene;
   }
 
+  afterEach(() => vi.unstubAllGlobals());
+
   it('saves the route state when the app is backgrounded', () => {
     const scene = makeScene();
     scene._flushRunForLifecycle();
     expect(scene.persistRunSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('never overwrites a save made elsewhere since (another tab, a cloud pull)', () => {
+    const scene = makeScene();
+    const stored = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
+    localStorage.setItem(
+      'emblem_rogue_slot_1_run',
+      JSON.stringify({ ...stored, gold: 999, savedAt: stored.savedAt + 5000 }),
+    );
+    scene._flushRunForLifecycle();
+    expect(scene.persistRunSave).not.toHaveBeenCalled();
+  });
+
+  it('never resurrects a run ended elsewhere', () => {
+    const scene = makeScene();
+    localStorage.removeItem('emblem_rogue_slot_1_run');
+    scene._flushRunForLifecycle();
+    expect(scene.persistRunSave).not.toHaveBeenCalled();
   });
 
   it.each([

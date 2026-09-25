@@ -14,6 +14,7 @@ import {
   clearSavedRun,
   settleAndPersistEndRun,
   endRunPayoutPending,
+  isRunSaveCurrent,
 } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -902,12 +903,17 @@ export class NodeMapScene extends Phaser.Scene {
    * Lifecycle flush (page hidden, app paused). Every route-map command saves
    * as it applies; this catches anything still only in memory. The route map
    * is consistent between tasks — Save & Exit writes the same way — but a
-   * transition in flight or an ended run is left to its own save.
+   * transition in flight or an ended run is left to its own save. So is a
+   * slot saved elsewhere since this scene last wrote it (another browser tab,
+   * a background cloud pull, a run ended in another tab): closing a stale tab
+   * must never overwrite that newer save or resurrect the ended run.
    */
   _flushRunForLifecycle() {
     if (this._sceneShuttingDown || this.isTransitioning || this.battleLaunchInFlight) return;
     if (!this.runManager || this.runManager.status !== 'active') return;
-    if (!Number.isInteger(this.registry.get('activeSlot'))) return;
+    const slot = this.registry.get('activeSlot');
+    if (!Number.isInteger(slot)) return;
+    if (!isRunSaveCurrent(this.runManager, slot)) return;
     this.persistRunSave();
   }
 

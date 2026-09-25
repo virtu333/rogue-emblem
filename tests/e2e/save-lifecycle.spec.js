@@ -81,6 +81,53 @@ test('route map: state still only in memory is saved when the app is backgrounde
   expect(errors).toEqual([]);
 });
 
+test('web: closing a stale tab never overwrites a newer save or resurrects an ended run', async ({
+  page,
+  context,
+}) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await openRouteMap(page); // tab A: an older session left open on the route map
+  const staleGold = await page.evaluate(
+    () => window.__emblemRogueGame.scene.getScene('NodeMap').runManager.gold,
+  );
+  // Tab B (same origin, same storage) plays on and saves the same slot.
+  const other = await context.newPage();
+  await other.goto('/data/terrain.json');
+  const newer = await other.evaluate(() => {
+    const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
+    run.gold += 2500;
+    run.savedAt += 60_000;
+    localStorage.setItem('emblem_rogue_slot_1_run', JSON.stringify(run));
+    return { gold: run.gold, savedAt: run.savedAt };
+  });
+  await background(page); // tab A is switched away from or closed (pagehide)
+  expect(await savedRun(page)).toMatchObject(newer);
+  expect(newer.gold).not.toBe(staleGold);
+  // Tab B ends the run; tab A is hidden again: the run must stay ended.
+  await other.evaluate(() => localStorage.removeItem('emblem_rogue_slot_1_run'));
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+  });
+  await page.waitForTimeout(300); // past the duplicate-signal window
+  await background(page);
+  expect(await savedRun(page)).toBeNull();
+  // A save made in this tab is still flushed as before.
+  await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+    s.persistRunSave();
+    s.runManager.gold += 11;
+  });
+  await page.waitForTimeout(300);
+  await background(page);
+  expect((await savedRun(page)).gold).toBe(staleGold + 11);
+  await other.close();
+  expect(errors).toEqual([]);
+});
+
 test('roster sheet: an accessory change is saved before the sheet closes', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -228,19 +275,31 @@ const FAKE_NATIVE = () => {
     nativePromise(plugin, method, options = {}) {
       if (plugin !== 'Filesystem') return Promise.reject(new Error('not implemented'));
       const files = read();
+      // Folders are "<path>/" entries. Like the real plugin, readdir rejects a
+      // missing folder, mkdir refuses an existing one, writeFile creates it.
       if (method === 'readdir') {
         const prefix = `${options.path}/`;
+        if (!(prefix in files))
+          return Promise.reject(new Error(`'readdir' failed because file does not exist.`));
         return Promise.resolve({
           files: Object.keys(files)
-            .filter((p) => p.startsWith(prefix))
+            .filter((p) => p.startsWith(prefix) && p !== prefix)
             .map((p) => ({ name: p.slice(prefix.length), type: 'file' })),
         });
+      }
+      if (method === 'mkdir') {
+        const prefix = `${options.path}/`;
+        if (prefix in files) return Promise.reject(new Error('Directory already exists.'));
+        files[prefix] = '';
+        write(files);
+        return Promise.resolve();
       }
       if (method === 'readFile')
         return options.path in files
           ? Promise.resolve({ data: files[options.path] })
           : Promise.reject(new Error('File does not exist.'));
       if (method === 'writeFile') {
+        files[`${options.path.slice(0, options.path.lastIndexOf('/'))}/`] = '';
         files[options.path] = options.data;
         write(files);
         window.__fakeNativeWrites = (window.__fakeNativeWrites || 0) + 1;
