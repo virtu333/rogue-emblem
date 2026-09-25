@@ -173,7 +173,7 @@ export class GuidanceController {
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
     if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))
-      return { id: 'guide_first_turn', context: { touch }, anchor: null };
+      return { id: 'guide_first_turn', context: { touch }, anchor: commander };
     return null;
   }
 
@@ -200,6 +200,11 @@ export class GuidanceController {
       id,
       text,
       anchor: this.screenPoint(anchor),
+      // Keep the army and the enemies it is about to meet in view.
+      avoid: () =>
+        [...(s.playerUnits || []), ...(s.enemyUnits || [])]
+          .filter((u) => u.currentHP > 0 && canInspectUnit(s.grid, u))
+          .map((u) => this.screenPoint(u)),
       reduceMotion: Boolean(s._reduceMotion?.()),
       onRead: () => hints?.markSeen?.(id),
       onFewerTips: settings?.setGuidance ? () => settings.setGuidance('light') : null,

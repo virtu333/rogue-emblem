@@ -11,6 +11,7 @@
 
 import { DOM_INPUT_EVENTS, hasDOMHost } from '../utils/domUI.js';
 import { hintReadingPolicy } from './HintDisplay.js';
+import { measureFrame } from './ceremonyDom.js';
 import './guidance.css';
 
 function el(tag, className, text) {
@@ -22,11 +23,12 @@ function el(tag, className, text) {
 
 /**
  * Show a note. Returns a handle { id, close(read), root } or null when there is no
- * DOM host. `anchor` (CSS px point on screen) keeps the note away from it.
+ * DOM host. `anchor` (CSS px point on screen) and `avoid` (points, or a function
+ * returning them) are kept clear of the note.
  */
 export function showGuidanceNote(
   scene,
-  { id, text, onRead, onFewerTips, anchor = null, reduceMotion = false } = {},
+  { id, text, onRead, onFewerTips, anchor = null, avoid = null, reduceMotion = false } = {},
 ) {
   if (!hasDOMHost() || !text) return null;
   const wrapper = document.getElementById('game-wrapper');
@@ -61,27 +63,39 @@ export function showGuidanceNote(
   let visibleSince = null;
   let read = false;
   let hovering = false;
-  const canvas = scene.game?.canvas;
 
+  // Dock in the corner of the map that covers the fewest of the points to keep
+  // clear (the anchor counts triple): never over the unit the note talks about.
   const place = () => {
-    const rect = canvas?.getBoundingClientRect?.();
+    const rect = measureFrame(scene, 'map');
     if (!rect || rect.width < 1) return;
     const inset = 8;
     const width = Math.min(340, Math.max(200, rect.width - inset * 2));
     root.style.width = `${Math.round(width)}px`;
-    // Dock at the top of the map, on the side away from the anchor.
-    const midX = rect.left + rect.width / 2;
-    const right = anchor && anchor.x < midX;
-    const top = Math.max(rect.top, 0) + inset;
-    root.style.top = `${Math.round(top)}px`;
-    root.style.left = right
-      ? `${Math.round(Math.min(rect.right, window.innerWidth) - width - inset)}px`
-      : `${Math.round(Math.max(rect.left, 0) + inset)}px`;
-    // If the anchor sits under the note's band, drop to the bottom of the map.
-    const noteH = root.offsetHeight || 90;
-    if (anchor && anchor.y < top + noteH + 12) {
-      root.style.top = `${Math.round(Math.min(rect.bottom, window.innerHeight) - noteH - inset)}px`;
+    const height = root.offsetHeight || 90;
+    const left = rect.left + inset;
+    const right = rect.left + rect.width - width - inset;
+    const top = rect.top + inset;
+    const bottom = rect.top + rect.height - height - inset;
+    const points = [
+      ...(anchor ? [anchor, anchor, anchor] : []),
+      ...((typeof avoid === 'function' ? avoid() : avoid) || []),
+    ].filter(Boolean);
+    const pad = 20; // a unit's sprite reaches ~half a tile around its centre
+    let best = null;
+    for (const [x, y] of [
+      [left, top],
+      [right, top],
+      [left, bottom],
+      [right, bottom],
+    ]) {
+      const covered = points.filter(
+        (p) => p.x > x - pad && p.x < x + width + pad && p.y > y - pad && p.y < y + height + pad,
+      ).length;
+      if (!best || covered < best.covered) best = { x, y, covered };
     }
+    root.style.left = `${Math.round(Math.max(0, best.x))}px`;
+    root.style.top = `${Math.round(Math.max(0, best.y))}px`;
   };
 
   const markRead = () => {
