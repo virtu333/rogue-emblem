@@ -1,6 +1,6 @@
 import { buildPromotionColumn } from './promotionComparison.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { promotionMenu } from './ProgressionMenus.js';
+import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { inputHint } from '../utils/inputHint.js';
 // PromotionChoicePanel — Side-by-side promotion choice overlay
 // Used by BattleScene, NodeMapScene (church), and RosterOverlay
@@ -52,8 +52,18 @@ export class PromotionChoicePanel {
       this._registerScenePromotionChoiceGuard();
       this._onShutdown = () => this.destroy();
       this.scene.events?.once?.('shutdown', this._onShutdown);
-      if (hasDOMHost()) this.surface = promotionMenu(this);
-      else this._build();
+      if (hasDOMHost()) {
+        // The rite's threshold: crests, portraits, sprites, ranks and bonuses.
+        this.surface = new PromotionPathChooser({
+          scene: this.scene,
+          unit: this.unit,
+          targets: this.targets,
+          gameData: this.scene.gameData || { skills: this.skillsData },
+          title: 'Choose promotion',
+          closeLabel: 'Cancel',
+          onClose: (cls) => this._finish(cls || null),
+        });
+      } else this._build();
     });
   }
 

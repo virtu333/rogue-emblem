@@ -1,5 +1,7 @@
 import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
-import { buildPromotionColumn } from './promotionComparison.js';
+import { PromotionPathChooser } from './PromotionPathChooser.js';
+import { promotionPathContent, projectUnit } from './growthContent.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
@@ -92,34 +94,7 @@ export class ChurchMenu {
       for (const unit of eligible) {
         const reason = churchPromotionBlock(run, unit, nodeId, this.scene.gameData);
         const b = button(`${unit.name} · ${unit.className} · Lv ${getDisplayLevel(unit)}`, () =>
-          this.choose({
-            title: `Promote ${unit.name}`,
-            choices: resolvePromotionTargets(
-              unit,
-              this.scene.gameData.classes,
-              this.scene.gameData.lords,
-            ),
-            label: (c) => c.name,
-            describe: (c) => {
-              const bonuses =
-                this.scene.gameData.lords.find((l) => l.name === unit.name)?.promotionBonuses ||
-                c.promotionBonuses;
-              return `${CHURCH_PROMOTE_COST} gold\n${buildPromotionColumn(
-                unit,
-                { ...c, promotionBonuses: bonuses },
-                this.scene.gameData.skills,
-              )
-                .lines.map((l) => l.text)
-                .filter(Boolean)
-                .join('\n')}`;
-            },
-            blocked: () => churchPromotionBlock(run, unit, nodeId, this.scene.gameData),
-            apply: (target) => {
-              const result = promoteAtChurch(run, unit, nodeId, target, this.scene.gameData);
-              this.scene._churchPromotionsThisVisit = run.getChurchPromotionCount(nodeId);
-              return this.finish(result);
-            },
-          }),
+          this.promote(unit, nodeId),
         );
         b.disabled = !!reason;
         body.append(b);
@@ -141,6 +116,65 @@ export class ChurchMenu {
       this.surface.focusContent();
     }
     return result;
+  }
+  // Promotion: the path chooser, then the rite over the church once the
+  // promotion, the gold and the save are committed (a refresh mid-rite
+  // keeps all three exactly once).
+  promote(unit, nodeId) {
+    if (this.child) return;
+    const run = this.scene.runManager;
+    const gameData = this.scene.gameData;
+    const targets = resolvePromotionTargets(unit, gameData.classes, gameData.lords);
+    let rite = null;
+    this.surface.root.inert = true;
+    this.child = new PromotionPathChooser({
+      scene: this.scene,
+      unit,
+      targets,
+      gameData,
+      title: `Promote ${unit.name}`,
+      closeLabel: 'Close',
+      note: `${CHURCH_PROMOTE_COST} G · you have ${run.gold} G`,
+      confirmLabel: (cls) => `Promote to ${cls.name} · ${CHURCH_PROMOTE_COST} G`,
+      blocked: () => churchPromotionBlock(run, unit, nodeId, gameData),
+      apply: (target) => {
+        const content = promotionPathContent(unit, target, gameData);
+        const before = projectUnit(unit);
+        const result = promoteAtChurch(run, unit, nodeId, target, gameData);
+        if (!result.ok) return result;
+        this.scene._churchPromotionsThisVisit = run.getChurchPromotionCount(nodeId);
+        this.status = result.message + saveServiceRun(this.scene);
+        rite = { content, before };
+        return result;
+      },
+      onClose: (cls) => {
+        this.child = null;
+        const finish = () => {
+          if (!this.surface || this.destroyed) return;
+          this.surface.root.inert = false;
+          this.render();
+          this.surface.focusContent();
+        };
+        const growth = cls && rite ? growthCeremonies(this.scene) : null;
+        if (!growth) {
+          if (cls) this.scene.registry.get('audio')?.playSFX('sfx_levelup');
+          finish();
+          return;
+        }
+        this.child = { destroy: () => {} };
+        void growth
+          .showPromotionRite({
+            unit,
+            content: rite.content,
+            beforeUnit: rite.before,
+            frame: 'screen',
+          })
+          .finally(() => {
+            this.child = null;
+            finish();
+          });
+      },
+    });
   }
   choose(options) {
     if (this.child) return;

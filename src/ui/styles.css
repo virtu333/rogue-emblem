@@ -14,6 +14,8 @@
 
 /* Ceremonies: boss cards, fate bands, cut-ins, act titles, the boss bar. */
 @import './ceremony.css';
+/* Growth ceremonies: promotion rite, level-up card, recruits, class crests. */
+@import './growth.css';
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';

@@ -36,7 +36,9 @@ export function el(tag, className = '', text = null) {
 }
 
 export function ceremonyHost() {
-  return typeof document === 'undefined' ? null : document.getElementById('game-wrapper');
+  return typeof document?.getElementById === 'function'
+    ? document.getElementById('game-wrapper')
+    : null;
 }
 
 /** A live DOM host exists (headless harnesses may report a host without a document). */

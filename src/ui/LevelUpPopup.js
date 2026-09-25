@@ -2,6 +2,7 @@ import { presentationText } from '../utils/presentationText.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { progressionResult } from './ProgressionMenus.js';
 import { inputHint } from '../utils/inputHint.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
 
@@ -46,6 +47,24 @@ export class LevelUpPopup {
       if (hasDOMHost()) {
         this._onSceneShutdown = () => this.destroy();
         this.scene.events?.once?.('shutdown', this._onSceneShutdown);
+        // Level-ups are a ceremony card: portrait, crest, ember pips, and a
+        // beat of their own for perfect or lean levels. Promotions have the rite.
+        const growth = this.isPromotion ? null : growthCeremonies(this.scene);
+        if (growth) {
+          this._growthHandle = {};
+          void growth
+            .showLevelUp({
+              unit: this.unit,
+              result: this.levelUpResult,
+              learnedNames: this.learnedSkills,
+              handle: this._growthHandle,
+            })
+            .then(
+              () => this.destroy(),
+              () => this.destroy(),
+            );
+          return;
+        }
         this.surface = progressionResult(
           this.scene,
           this.unit,
@@ -229,6 +248,9 @@ export class LevelUpPopup {
   destroy() {
     this.surface?.destroy();
     this.surface = null;
+    const growthHandle = this._growthHandle;
+    this._growthHandle = null;
+    growthHandle?.cancel?.();
     if (this._onSceneShutdown) {
       this.scene?.events?.off?.('shutdown', this._onSceneShutdown);
       this._onSceneShutdown = null;

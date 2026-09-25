@@ -63,4 +63,5 @@ export const DOM_UI_DEPTHS = {
   PAUSE: 1100,
   DIALOGUE: 1200,
   MENU: 1250,
+  RITE: 1300, // Promotion rite: plays over the church / roster menu that confirmed it.
 };

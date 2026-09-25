@@ -12,6 +12,7 @@ import {
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
+import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -506,11 +507,15 @@ export class PostCombatController {
       }
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
-      if (scene.runManager.shouldTriggerThirdLord()) {
-        scene._showThirdLordArrival();
-      } else {
-        scene.showLootScreen();
-      }
+      const next = () => {
+        if (scene.runManager.shouldTriggerThirdLord()) {
+          scene._showThirdLordArrival();
+        } else {
+          scene.showLootScreen();
+        }
+      };
+      if (selectedUnit && this._canPresentJoin()) this._presentJoin(selectedUnit, 'boss', next);
+      else next();
     });
   }
 
@@ -523,8 +528,37 @@ export class PostCombatController {
       scene.runManager.resolveThirdLord(selectedUnit);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
-      scene.showLootScreen();
+      const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);
+      const next = () => scene.showLootScreen();
+      if (joined && this._canPresentJoin()) this._presentJoin(selectedUnit, 'lord', next);
+      else next();
     });
+  }
+
+  _canPresentJoin() {
+    return hasDOMHost() && GrowthCeremonyController.available();
+  }
+
+  /**
+   * "Joins your army" for a unit already added to the roster: the join is
+   * saved first (the won battle and its pending rewards are already saved),
+   * so a refresh during the card can neither lose nor repeat the recruit.
+   */
+  _presentJoin(unit, kind, next) {
+    const scene = this.scene;
+    let card = null;
+    try {
+      scene._persistBattleRunState?.();
+      card = growthCeremonies(scene)?.showRecruit({ unit, kind });
+    } catch (err) {
+      console.warn('[PostCombatController] join card failed:', err);
+    }
+    void Promise.resolve(card)
+      .catch((err) => console.warn('[PostCombatController] join card failed:', err))
+      .then(() => {
+        if (scene.scene?.isActive?.() === false || scene.sys?.isActive?.() === false) return;
+        next();
+      });
   }
 
   /** Turn · par · rank for the victory band (presentation only). */

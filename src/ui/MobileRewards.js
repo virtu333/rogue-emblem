@@ -131,6 +131,8 @@ export class MobileRewards {
         units: this.scene.runManager.roster,
         run: this.scene.runManager,
         gameData: this.scene.gameData,
+        // A promotion saves before its rite (the rewards' own persistence).
+        persist: () => (this.controller.persist ? this.controller.persist() : true),
         onClose: close,
       });
     }

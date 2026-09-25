@@ -1,0 +1,16 @@
+{
+  "hash": "a25ff01e6c1a9d01",
+  "model": "gemini-3-pro-image",
+  "prompt": "A single heraldic class crest for a dark-fantasy tactics RPG, centred, front view, flat and symmetrical. Shape: a heater shield with cut (chamfered) upper corners, no rounded corners. Style: 1990s PC-98 / SNES era pixel art emblem, crisp hard pixel edges, no anti-aliasing, no gradients,  limited palette of about 12 colours: ink black #0e0c14 field with a faint lighter ink band,  ember gold #dca044 / #f3cb6c highlights, bone #ddd0bd, steel blue #4574a0 accents, deep crimson only as a thin inner line. Lit from the upper left, one-pixel dark outline around every shape. Plain solid black background outside the shield. No text, no letters, no numbers, no skulls, no spikes, no glowing runes, no drop shadow, no photo, no 3D.\nFrame: a gilded double rim in ember gold with a small five-point crown of notches above the shield (promoted tier).\nCharge (the picture on the shield): an upright single-bladed battle axe, crossed behind it an upright straight longsword, point up, and above it a thin crack through the shield.\nMatch the attached crests exactly in shape, rim, palette, pixel size and outline weight; only the charge and tier frame change.",
+  "refs": [
+    "/home/user/rogue-emblem/.claude/worktrees/agent-ad44fd0b2540e270a/docs/art/crests-gen/raw/myrmidon.jpg",
+    "/home/user/rogue-emblem/.claude/worktrees/agent-ad44fd0b2540e270a/docs/art/crests-gen/raw/swordmaster.jpg"
+  ],
+  "aspectRatio": "1:1",
+  "imageSize": "1K",
+  "files": [
+    "/home/user/rogue-emblem/.claude/worktrees/agent-ad44fd0b2540e270a/docs/art/crests-gen/raw/revenant.jpg"
+  ],
+  "text": "",
+  "at": "2026-09-25T00:07:39.522Z"
+}

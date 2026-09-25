@@ -105,6 +105,21 @@ export class CeremonyController {
     this._blocking = Math.max(0, this._blocking + delta);
   }
 
+  /**
+   * Claim the scene's story-input lock for a ceremony owned elsewhere (the
+   * growth ceremonies). Returns an idempotent release.
+   */
+  holdInput() {
+    if (this.destroyed) return () => {};
+    this._block(1);
+    let held = true;
+    return () => {
+      if (!held || this.destroyed) return;
+      held = false;
+      this._block(-1);
+    };
+  }
+
   // ── Boss encounter ─────────────────────────────────────────────────────
 
   /**

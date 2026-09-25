@@ -299,6 +299,7 @@ import { GridCursorController } from '../ui/GridCursorController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
+import { growthCeremonies } from '../ui/GrowthCeremonyController.js';
 import { BossPresenceController } from '../ui/BossPresenceController.js';
 import { shouldShowFelled } from '../ui/ceremonyContent.js';
 import { ProcBannerController } from '../ui/ProcBannerController.js';
@@ -6508,8 +6509,15 @@ export class BattleScene extends Phaser.Scene {
           recruitLines,
           `recruit:${npc.className}:${npc.isLord ? npc.name : 'class'}`,
         ) || recruitLines[0];
-      const portraitKey = this._getPortraitKey(npc);
-      await this.dialogueOverlay.show(npc.name, line, portraitKey);
+      // Joins your army: portrait, crest, the line (DOM ceremony); the
+      // dialogue box stays the canvas fallback. Shown before the join is
+      // applied, exactly where the line always played.
+      const growth = hasDOMHost() ? growthCeremonies(this) : null;
+      const carded = growth
+        ? await growth.showRecruit({ unit: npc, kind: 'recruit', line })
+        : false;
+      if (!carded) await this.dialogueOverlay.show(npc.name, line, this._getPortraitKey(npc));
+      if (this._sceneShutdownCleanedUp || this.sys?.isActive?.() === false) return;
 
       // Remove from NPC array
       const npcIdx = this.npcUnits.indexOf(npc);
