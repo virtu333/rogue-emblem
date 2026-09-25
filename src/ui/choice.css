@@ -278,7 +278,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0 6px;
-  font: 8px/1.5 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.5 var(--re-pixel);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
@@ -387,7 +387,7 @@
   height: 18px;
 }
 .ch-weapon-rank {
-  font: 7px/1 var(--re-pixel);
+  font: var(--re-pf-7, 7px)/1 var(--re-pixel);
   color: var(--re-muted);
   margin-left: -2px;
   align-self: flex-end;
@@ -610,7 +610,7 @@
   left: 8px;
   top: 36px;
   padding: 4px 8px;
-  font: 9px/1.4 var(--re-pixel);
+  font: var(--re-pf-9, 9px)/1.4 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--re-good);
@@ -714,7 +714,7 @@
 }
 .ch-terms h3 {
   margin: 0;
-  font: 8px/1.5 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.5 var(--re-pixel);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
@@ -812,7 +812,7 @@
   /* Beside the art when there is room, else on its own line below it. */
   flex: 1 1 88px;
   min-width: 88px;
-  font: 8px/1.5 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.5 var(--re-pixel);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--reward-color);
@@ -1077,7 +1077,7 @@
 .ch-boon-k {
   display: block;
   margin-bottom: 1px;
-  font: 7px/1.5 var(--re-pixel);
+  font: var(--re-pf-7, 7px)/1.5 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
@@ -1208,7 +1208,7 @@
 .ch-banner-detail h3 {
   grid-column: 1 / -1;
   margin: 0;
-  font: 8px/1.5 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.5 var(--re-pixel);
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
@@ -1324,7 +1324,7 @@
     font-size: 24px;
   }
   .ch-kicker {
-    font-size: 9px;
+    font-size: var(--re-pf-9, 9px);
   }
   .ch-class,
   .ch-lines,
