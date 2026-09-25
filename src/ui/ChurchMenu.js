@@ -13,7 +13,11 @@ import {
   promoteAtChurch,
   churchReviveBlock,
   reviveAtChurch,
+  churchKindleBlock,
+  kindleAtChurch,
 } from '../engine/ChurchCommands.js';
+import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
+import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 export class ChurchMenu {
   constructor(c) {
@@ -64,6 +68,7 @@ export class ChurchMenu {
           this.scene.handleShop(node, { ruins: true });
         }),
       );
+    if (!this.scene._churchRuinsMode) this.renderKindle(body, run);
     body.append(el('h3', 'Revive fallen ally'));
     if (!run.fallenUnits.length) body.append(el('p', 'No fallen allies.'));
     for (const unit of run.fallenUnits) {
@@ -108,6 +113,54 @@ export class ChurchMenu {
     );
     body.append(tools);
     body.scrollTop = scroll;
+  }
+  // The Eclipse: Kindle lifts shadow for gold, once per chapel.
+  renderKindle(body, run) {
+    const config = run.getEclipseConfig?.();
+    if (!run.isEclipseActive?.() || !config) return;
+    const price = kindlePrice(run.currentAct, config);
+    if (price == null) return;
+    const nodeId = this.scene._churchNode?.id;
+    const amount = Math.max(0, Math.trunc(Number(config.kindleAmount) || 0));
+    const shadow = run.eclipse.shadow;
+    const phase = eclipsePhase(shadow, config).name;
+    const head = el('div', null, 're-kindle-head');
+    head.append(
+      createEclipseSunCanvas((tag) => el(tag), {
+        size: 28,
+        shadow,
+        cap: config.cap,
+        phaseIndex: eclipsePhase(shadow, config).index,
+        dpr: Math.min(3, globalThis.window?.devicePixelRatio || 1),
+        seed: 'kindle',
+      }),
+      el('h3', `Kindle the sun · ${price} G`),
+    );
+    body.append(head);
+    body.append(
+      el(
+        'p',
+        `Lift ${amount} shadow from the Eclipse. Now ${phase} · ${shadow} shadow. Once per chapel.`,
+      ),
+    );
+    const reason = churchKindleBlock(run, nodeId);
+    const after = Math.max(0, shadow - amount);
+    const b = button(`Kindle · −${Math.min(amount, shadow)} shadow · ${price} G`, () =>
+      this.choose({
+        title: 'Kindle the sun?',
+        choices: [nodeId],
+        confirmation: true,
+        label: () => 'Kindle',
+        describe: () =>
+          `${price} gold. Shadow ${shadow} → ${after} (${eclipsePhase(after, config).name}). Nodes fall later this act; places already taken stay taken.`,
+        blocked: () => churchKindleBlock(run, nodeId),
+        apply: () => this.finish(kindleAtChurch(run, nodeId)),
+      }),
+    );
+    b.classList.add('re-kindle');
+    b.disabled = !!reason;
+    body.append(b);
+    if (reason) body.append(el('p', reason));
   }
   finish(result) {
     if (result.ok) {

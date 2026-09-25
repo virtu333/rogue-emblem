@@ -87,13 +87,82 @@ function resolveDifficultyRules(config, difficultyId) {
   };
 }
 
+/**
+ * Assign affixes to generated enemy spawns (runs inside battle generation, under the
+ * battle's seeded Math.random).
+ * @param {Array} enemySpawns
+ * @param {{ affixConfig?, difficultyId?, act?, eclipse? }} options
+ *   eclipse (optional, from RunManager.getBattleParams → battleParams.eclipseAffix):
+ *     gatingDifficultyId  use another difficulty's gating (Normal → Hard from Umbral)
+ *     extraMaxAffixes     +N max affixes per unit (Totality and Hollow)
+ *     guaranteedCount     eclipsed nodes: at least this many enemies carry an affix
+ *     guaranteedTier      highest affix tier the guarantee draws from
+ */
 export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
-  const { affixConfig = null, difficultyId = 'normal', act = 'act1' } = options;
+  const spawns = assignRolledAffixes(enemySpawns, options);
+  const eclipse = options.eclipse;
+  if (!eclipse || !(Number(eclipse.guaranteedCount) > 0)) return spawns;
+  return ensureGuaranteedAffixes(spawns, options);
+}
+
+function effectiveRules(config, difficultyId, eclipse) {
+  const gatingId =
+    typeof eclipse?.gatingDifficultyId === 'string' && eclipse.gatingDifficultyId
+      ? eclipse.gatingDifficultyId
+      : difficultyId;
+  const rules = resolveDifficultyRules(config, gatingId);
+  const extra = Math.max(0, Math.trunc(asNumber(eclipse?.extraMaxAffixes, 0)));
+  if (rules && extra > 0) rules.maxAffixesPerUnit += extra;
+  return rules;
+}
+
+// Eclipsed battles: at least `guaranteedCount` non-boss enemies carry one affix of tier
+// <= guaranteedTier, whatever the difficulty's chance or act gating. The difficulty's
+// affix exclusions and the class/mutual exclusion rules still hold.
+function ensureGuaranteedAffixes(enemySpawns, options) {
+  const { affixConfig: config = null, difficultyId = 'normal', eclipse } = options;
+  if (!Array.isArray(enemySpawns) || !config || !Array.isArray(config.affixes)) return enemySpawns;
+  const count = Math.max(0, Math.trunc(asNumber(eclipse.guaranteedCount, 0)));
+  const maxTier = Math.max(1, Math.trunc(asNumber(eclipse.guaranteedTier, 1)));
+  const rules = effectiveRules(config, difficultyId, eclipse);
+  const excluded = new Set(rules?.excludedAffixes || []);
+  const pool = config.affixes.filter((affix) => {
+    const tier = Math.trunc(asNumber(affix?.tier, 0));
+    return tier >= 1 && tier <= maxTier && !excluded.has(affix.id);
+  });
+  if (!pool.length) return enemySpawns;
+  const eligible = [];
+  let affixed = 0;
+  enemySpawns.forEach((spawn, index) => {
+    if (!spawn || spawn.isBoss) return;
+    if (Array.isArray(spawn.affixes) && spawn.affixes.length) affixed++;
+    else eligible.push(index);
+  });
+  let need = Math.min(count, affixed + eligible.length) - affixed;
+  if (need <= 0) return enemySpawns;
+  const exclusionMaps = buildExclusionMaps(config);
+  const out = [...enemySpawns];
+  while (need > 0 && eligible.length) {
+    const index = eligible.splice(Math.floor(Math.random() * eligible.length), 1)[0];
+    const spawn = out[index];
+    const available = pool
+      .filter((affix) => isAffixAllowed(affix, new Set(), spawn.className, exclusionMaps))
+      .map((affix) => ({ item: affix, weight: Math.max(0.01, asNumber(affix.weight, 1)) }));
+    const picked = available.length ? weightedPick(available) : null;
+    if (!picked) continue;
+    out[index] = { ...spawn, affixes: [picked.id] };
+    need--;
+  }
+  return out;
+}
+
+function assignRolledAffixes(enemySpawns, options = {}) {
+  const { affixConfig = null, difficultyId = 'normal', act = 'act1', eclipse = null } = options;
   if (!Array.isArray(enemySpawns) || enemySpawns.length === 0) return enemySpawns || [];
   const config = affixConfig;
   if (!config || !Array.isArray(config.affixes)) return enemySpawns;
 
-  const rules = resolveDifficultyRules(config, difficultyId);
+  const rules = effectiveRules(config, difficultyId, eclipse);
   if (
     !rules ||
     rules.excludedActs.includes(act) ||
