@@ -141,7 +141,7 @@ export class VisionRewindPicker {
     face.setAttribute('aria-hidden', 'true');
     if (row.kind === 'turn_start' || !row.action) {
       face.classList.add('vr-face--turn');
-      face.append(element('b', row.kind === 'turn_start' ? `T${row.turnNumber}` : '·'));
+      face.append(element('b', row.kind === 'turn_start' ? `T${row.turnNumber}` : '◆'));
       return face;
     }
     const unit = this.options.unitFor?.(row.action.actorId) || {

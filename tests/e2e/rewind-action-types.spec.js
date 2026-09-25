@@ -306,7 +306,13 @@ test('every action kind is a rewind point that restores the board exactly', asyn
     const after = await digest(page);
     expect(after, `${title}: the action changed the board`).not.toEqual(before);
     await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
-    await expect(picker.locator('.vr-row').first().locator('.vr-title')).toHaveText(title);
+    // Each action here is the first of the turn (every loop rewinds to the
+    // turn start), so the newest row is "Start of turn 1 · before <action>".
+    const newest = picker.locator('.vr-row').first();
+    await expect(newest.locator('.vr-title')).toHaveText('Start of turn 1');
+    const sub = (await newest.locator('.vr-sub').textContent()).replace(/^before/, 'Before');
+    if (title instanceof RegExp) expect(sub).toMatch(title);
+    else expect(sub).toBe(title);
     await picker.getByRole('button', { name: 'Rewind here · 1 charge', exact: true }).tap();
     await expect(picker).toHaveCount(0);
     await idle(page);

@@ -198,6 +198,19 @@ describe('rewind to before any action', () => {
     expect(board(scene)).toEqual(afterA);
   });
 
+  it('never opens over a recruit’s last words (the line is not state and uses no RNG)', () => {
+    const { scene } = fixture();
+    act(scene, scene.playerUnits[1]);
+    scene.battleState = 'PLAYER_IDLE';
+    const rng = scene._battleRng.getState();
+    scene.dialogueOverlay = { visible: true };
+    expect(scene._visionController.requestRewind()).toBe(false);
+    expect(pickers).toHaveLength(0);
+    scene.dialogueOverlay = { visible: false };
+    expect(scene._visionController.requestRewind()).toBe(true);
+    expect(scene._battleRng.getState()).toEqual(rng);
+  });
+
   it('a free equipment change before the next activation is its own point', () => {
     const { scene } = fixture();
     const [a, b, c] = scene.playerUnits;

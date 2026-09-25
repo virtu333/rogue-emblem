@@ -310,4 +310,16 @@ html.mobile-preview .vr-picker.vr-with-map.re-screen {
   .vr-row.re-btn {
     grid-template-columns: 44px minmax(0, 1fr) auto;
   }
+  .vr-title {
+    font-size: 15px;
+  }
+  .vr-sub,
+  .vr-chip,
+  .vr-status {
+    font-size: 12px;
+  }
+  .vr-picker .re-header .re-btn,
+  .vr-charges {
+    font-size: 14px;
+  }
 }

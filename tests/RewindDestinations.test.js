@@ -247,7 +247,7 @@ describe('listing rewind destinations', () => {
     const lunatic = listRewindDestinations(h, { currentEntryId: ids.b2, difficulty: 'lunatic' });
     expect(lunatic.granularity).toBe('turn');
     expect(lunatic.rows.filter((r) => r.available).map((r) => r.id)).toEqual([ids.t2, ids.t1]);
-    expect(lunatic.rows.find((r) => r.id === ids.b1).reason).toMatch(/turn starts only/);
+    expect(lunatic.rows.find((r) => r.id === ids.b1).reason).toMatch(/Turn starts only/);
     const opened = listRewindDestinations(h, {
       currentEntryId: ids.b2,
       difficulty: 'lunatic',
@@ -289,6 +289,28 @@ describe('listing rewind destinations', () => {
     const { rows } = listRewindDestinations(h, { currentEntryId: h.entries.at(-1).id });
     expect(rows.map((r) => r.title)).toEqual(['Before Edric fell']);
     expect(listRewindDestinations(createBattleTimeline()).rows).toEqual([]);
+  });
+
+  it('a re-recorded turn start supersedes the earlier one', () => {
+    let h = createBattleTimeline();
+    for (const kind of ['turn_start', 'turn_start'])
+      h = appendBattleTimeline(h, {
+        kind,
+        turnNumber: 1,
+        phase: 'player',
+        snapshot: state(1),
+        destination: true,
+      });
+    h = appendBattleTimeline(h, {
+      kind: 'player_action',
+      turnNumber: 1,
+      phase: 'player',
+      facts: [act('u4', 'wait')],
+      snapshot: state(1, 'player', ['u4']),
+      destination: true,
+    });
+    const { rows } = listRewindDestinations(h, { currentEntryId: 3 });
+    expect(rows.map((r) => [r.id, r.title])).toEqual([[2, 'Before Patient’s wait']]);
   });
 
   it('reads the run’s difficulty data before the difficulty default', () => {

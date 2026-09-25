@@ -267,6 +267,8 @@ export function listRewindDestinations(
     // Enemies move next from here: returning would only replay the enemy phase.
     if (entry.preview?.enemiesActNext || next.phase === 'enemy') continue;
     if (next.turnNumber !== entry.turnNumber) continue;
+    // A re-recorded turn start (e.g. after an interrupted turn-start) supersedes this one.
+    if (next.kind === 'turn_start' && next.destination) continue;
     const fact = entryActionFact(next);
     const endTurn = !fact && stringFacts(next).some((f) => /^End Turn\./.test(f));
     const stored = Boolean(entry.destination && entry.snapshotId);
@@ -280,7 +282,7 @@ export function listRewindDestinations(
       reason = !stored
         ? 'Too far back. This moment is no longer stored.'
         : resolved === 'turn' && entry.kind !== 'turn_start'
-          ? 'This difficulty rewinds to turn starts only.'
+          ? 'Turn starts only on this difficulty.'
           : 'This moment cannot be restored.';
     rows.push({
       id: entry.id,
