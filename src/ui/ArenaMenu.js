@@ -2,6 +2,7 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
+import { applyServiceVignette, prefersStill } from './itemMoments.js';
 
 // Responsive presentation only. The controller remains responsible for rolling
 // opponents, combat, rewards, hire costs, and per-visit limits.
@@ -12,6 +13,15 @@ export class ArenaMenu {
       if (!this.surface?.destroyed) back();
     });
     this.surface.root.classList.add('service-menu');
+    // The gate: the colosseum's painting behind every arena screen, torches breathing.
+    this.surface.body.append(
+      applyServiceVignette(this.surface.root, 'arena', {
+        title: 'Colosseum',
+        kicker: 'Arena · Mercenaries',
+        still: prefersStill(controller.scene),
+        backdrop: true,
+      }),
+    );
     this.surface.header.querySelector('button').textContent = 'Back';
     this.surface.header.insertBefore(
       el('span', `${controller.runManager.gold} G`, 'shop-gold'),
