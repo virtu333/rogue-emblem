@@ -5,6 +5,81 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Deeds & Epithets (built)
+
+Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from
+support conversations (rejected earlier). Spec and deviations:
+[`specs/deeds-epithets.md`](specs/deeds-epithets.md); presentation:
+[`art-direction/gameplay/deeds/`](art-direction/gameplay/deeds/README.md).
+
+**Decisions**
+- 19 deeds (9 battle, 10 run). Recorded from engine outcomes on the unit (`_battleDeeds`),
+  so Vision rewind and suspend carry them; committed only at victory, before the save.
+- Titles never touch `unit.name`; one set of display helpers composes them.
+- Held the Line counts enemy phases held **in a row** (the looser "three in a battle"
+  landed for almost every frontliner in the sim).
+- Oaths: the greatest deed teaches, on a player promotion, a skill no scroll or
+  curriculum offers (Pavise, Aegis, Lethality, Fury, Sure Shot, Renewal, Vigilance,
+  Unyielding, Colossus, Critical +15, Pathfinder, Skirmisher, Drain, Duelist Stance,
+  Discipline, Fiendish Blow). Skyward and Intimidate stay lord signatures.
+- No compendium list of conditions: the help page explains the idea, the deeds are found.
+
+**Sim (`npm run sim:deeds`, scripted agent)**
+- Normal, 60 seeds: the scripted army loses within ~1.4 battles, so only early deeds
+  show (Avenger 57% of runs — an ally falls and the killer is cut down — Held 2%,
+  Would Not Fall 3%). Not representative of a player.
+- Invincible, 40 seeds (a 2–3 unit army carries every kill and tanks every phase, so
+  counts are inflated): 14.2 deeds / run, every unit titled; Held the Line, Bossbane,
+  Weapon Sworn, Veteran ~100% of runs; Lord's Shield 88%; Red Harvest 98%; Greenwood 60%;
+  Would Not Fall 55%; Keen Edge 30%; Deathblow 23%; Untouched, Giantslayer, the Last
+  3–5%; Lantern, Tempo, Heights, Mire 0 (no healer/dancer/terrain play in the script).
+  Median first award ≈ battle 10–15 of ~21.
+- Reading: with a real 6–10 unit army sharing kills, the run-scope deeds land on carries
+  and specialists; battle-scope deeds are the common first title. Revisit thresholds with
+  playtest data (`tuning` and `min` values are data).
+
+**Deferred**: hidden promoted classes unlocked by deeds (needs traced sprites v3); a
+Deeds page in the victory records detail beyond the titled roster rows.
+
+---
+
+## 2026-09-25 — Traits v2: class-aware, additive, and spelled out per unit
+
+**Trigger:** the user saw a boss-recruit Cavalier offered with Reckless ("+2 ATK /
+-1 DEF *instead of the class perk*") and asked for a balance and design audit.
+Playtest #30 had flagged Brawny as downside-only on a tome mage.
+
+**Findings** (sim: `npm run sim:traits`; full table in `specs/traits-v2.md`):
+- Reckless lost against the perk it replaced for 11 of 12 recruit classes
+  (−3.1 duel win, −10.2 survival on average), and it was strictly worse than Frenzy and Focus.
+- Keen, Clever, Lucky and Cornered were near-blank (+1 to +2). Brawny lowered survival
+  everywhere. Lazy's +1 STR was dead on casters.
+- Woodsman did nothing on the 43% of act-2/3 maps with no forest or mountain.
+  Lone Wolf punished healers for healing.
+- Reclass silently wiped every trait growth bonus, and promoted recruits were
+  judged by their base class.
+
+**Decisions:**
+- **No trait replaces a class perk.** Mastery traits shift the threshold or
+  multiply the perk (the new Slow Oath doubles it for 2 more battles). The UI names the
+  perk and both numbers: "Wayfarer becomes +2 Atk, +2 Spd (from +1 Atk, +1 Spd)".
+- **Tradeoffs must be playable.** Reckless becomes +3 Atk when it initiates and
+  −2 Def when an enemy does, a positioning decision. Stalwart is its mirror;
+  Lone Wolf and Shieldmate pull opposite ways on formation.
+- **Rolling is class-aware.** Roles gate or weight every trait, and stat traits
+  target the stat the class fights with (`ATTACK`). Result: no downside-only rolls,
+  and healers draw Hungry and Shieldmate far more often.
+- Lords never roll Reckless, Lone Wolf or Slow Oath: no lone-lord juggernaut, and
+  legendaries stay special.
+- Saves migrate once and only ever gain stats. Brawny and Clever become Kindled in the
+  right stat (Brawny also refunds its speed growth), Lazy becomes Slow Oath at the
+  same threshold, and Steady, Keen and Lucky are grandfathered.
+- RNG cost is unchanged: one draw for the count plus one per pick.
+
+Spec: `specs/traits-v2.md`. Captures: `art-direction/gameplay/traits-v2/`.
+
+---
+
 ## 2026-09-25 — The Eclipse: the run clock made visible
 
 **Graduated to spec and built:** `specs/eclipse.md` (captures:

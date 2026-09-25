@@ -12,6 +12,7 @@ import {
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
+import { deedsFor } from './DeedController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -123,6 +124,9 @@ export class PostCombatController {
       const classesData = scene.gameData?.classes || null;
       const traitsData = scene.gameData?.traits || null;
       const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      // Deeds commit with the win, before the units are serialized and the
+      // run is saved; their rite plays after the save (presentVictory).
+      deedsFor(scene).commitVictory(liveSurvivors);
       const newlyMastered = [];
       for (const u of liveSurvivors) {
         const wasMastered = classesData ? isMastered(u, classesData, traitsData) : false;
@@ -246,6 +250,8 @@ export class PostCombatController {
           console.warn('[BattleScene] boss defeat dialogue failed:', err);
         }
 
+        // Deeds earned this battle: committed and saved above; the rite only shows them.
+        if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
         if (!scene.scene?.isActive?.()) return;
         if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen

@@ -346,7 +346,7 @@ export function generateMercenaryCandidates(
           null,
           null,
           classesData,
-          { traitsData, skillsData, rng },
+          { traitsData, skillsData, rng, traitClassData: classData },
         );
         promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 

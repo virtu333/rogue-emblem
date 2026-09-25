@@ -25,6 +25,8 @@ import {
   hairline,
 } from './ceremonyDom.js';
 import {
+  deedCardContent,
+  deedSchedule,
   growthTiming,
   levelSchedule,
   levelUpContent,
@@ -33,6 +35,7 @@ import {
   riteSchedule,
   sealedBeats,
 } from './growthContent.js';
+import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
 import { crestElement } from './crestArt.js';
 import { voiceContext } from '../engine/UnitVoice.js';
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
@@ -475,6 +478,147 @@ export class GrowthCeremonyController {
     return { root: layer.root, destroy: () => void this._close(layer, 0) };
   }
 
+  // ── Deeds (title cards) ────────────────────────────────────────────────
+
+  /**
+   * The deed rite: one anime-style title card per deed earned this battle
+   * (commitBattleDeeds announcements, already committed and saved). The
+   * band cuts across the map, the unit stands in it, the epithet slams in
+   * Cinzel over a brush stroke and the ember seal stamps it. One press
+   * reveals a card, the next moves on; "Skip all" ends the batch. Instant
+   * speed and reduced motion open each card revealed. Resolves when done.
+   */
+  async showDeeds({ entries, frame = 'map' } = {}) {
+    const list = (Array.isArray(entries) ? entries : []).filter((e) => e?.epithet);
+    if (!list.length || this.destroyed || !canRenderCeremony()) return false;
+    const skills = this.scene?.gameData?.skills || [];
+    const deeds = this.scene?.gameData?.deeds || null;
+    const timing = growthTiming('deed', this.prefs());
+    const schedule = deedSchedule(timing);
+    const layer = this._open({
+      frame,
+      className: 'gr-deed-layer',
+      label: 'Deed',
+      depth: DOM_UI_DEPTHS.RITE,
+      animate: timing.animate,
+    });
+    if (!layer) return false;
+    const root = layer.root;
+    root.style.setProperty('--gr-deed-slash', ms(timing.slash));
+    root.style.setProperty('--gr-deed-name-at', ms(schedule.nameAt));
+    root.style.setProperty('--gr-deed-epithet-at', ms(schedule.epithetAt));
+    root.style.setProperty('--gr-deed-epithet', ms(timing.epithet));
+    root.style.setProperty('--gr-deed-brush-at', ms(schedule.brushAt));
+    root.style.setProperty('--gr-deed-brush', ms(timing.brush));
+    root.style.setProperty('--gr-deed-seal-at', ms(schedule.sealAt));
+    root.style.setProperty('--gr-deed-seal', ms(timing.seal));
+    root.style.setProperty('--gr-deed-lore-at', ms(schedule.loreAt));
+    const stage = el('div', 'gr-deed-stage');
+    root.append(el('div', 'gr-deed-veil'), stage);
+    const releaseInput = this._holdSceneInput();
+    let index = 0;
+    let view = null;
+    let revealed = false;
+    let card = null; // token: stale timers of an earlier card do nothing
+    let bindSkip = null; // wires each card's "Skip all" once the batch is running
+    layer.addFitter(() => view && fitText(view.epithet, { min: 15 }));
+    layer.addFitter(() => view && fitText(view.name, { min: 13 }));
+    const nextLabel = () => (index + 1 < list.length ? 'Next deed' : 'Continue');
+    const finishReveal = () => {
+      revealed = true;
+      root.classList.add('is-done');
+      if (view) setLabel(view.button, nextLabel());
+    };
+    const show = (i) => {
+      const token = {};
+      card = token;
+      const content = deedCardContent(list[i], { skills, deeds, index: i, total: list.length });
+      view = buildDeedCard(this.scene, list[i].unit, content, { skipAll: list.length - i > 1 });
+      bindSkip?.(view.skip);
+      root.classList.remove('is-done');
+      root.classList.toggle('is-static', !timing.animate);
+      stage.replaceChildren(view.card);
+      root.setAttribute('aria-label', content.label);
+      layer.applyFrame();
+      // Refit once the display face has landed (a cold start measures the fallback).
+      try {
+        globalThis.document?.fonts?.ready?.then?.(() => {
+          if (card === token && !layer.destroyed) layer.applyFrame();
+        });
+      } catch {
+        /* optional */
+      }
+      revealed = !timing.animate;
+      if (revealed) {
+        finishReveal();
+        return;
+      }
+      setLabel(view.button, 'Skip');
+      const at = (msAt, fn) =>
+        void this._clock.wait(msAt).then((r) => {
+          if (r === 'elapsed' && card === token && !revealed) fn();
+        });
+      at(schedule.epithetAt, () => this._audio('sfx_cursor'));
+      at(schedule.sealAt, () => this._audio('sfx_hit'));
+      at(schedule.done, finishReveal);
+    };
+    const reveal = () => {
+      if (revealed) return;
+      root.classList.add('is-static');
+      finishReveal();
+    };
+    show(0);
+    this._audio('sfx_confirm');
+    try {
+      await new Promise((resolve) => {
+        let done = false;
+        const settle = () => {
+          if (done) return;
+          done = true;
+          this._settlers.delete(settle);
+          unbind();
+          resolve();
+        };
+        settle.layer = layer;
+        this._settlers.add(settle);
+        const end = () => {
+          // Dismissed: the dialog and its input end now; the layer fades.
+          releaseLayer(layer);
+          settle();
+          void this._close(layer, timing.exit);
+        };
+        const advance = () => {
+          if (done) return;
+          // Enter / pad confirm on the focused "Skip all" ends the batch.
+          if (view?.skip && globalThis.document?.activeElement === view.skip) return end();
+          if (!revealed) return reveal();
+          if (index + 1 >= list.length) return end();
+          index++;
+          show(index);
+          view.button?.focus?.({ preventScroll: true });
+        };
+        const unbindSkip = bindCeremonySkip(this.scene, root, advance, { name: 'Deed' });
+        const unbind = () => {
+          this._unbinders.delete(unbind);
+          unbindSkip();
+        };
+        this._unbinders.add(unbind);
+        // "Skip all" is its own control: its press never reaches the layer.
+        bindSkip = (skip) => {
+          skip?.addEventListener('pointerdown', (event) => event.stopPropagation());
+          skip?.addEventListener('click', () => end());
+        };
+        bindSkip(view?.skip);
+        view.button?.focus?.({ preventScroll: true });
+      });
+    } finally {
+      releaseInput();
+      if (!layer.destroyed && !layer.root.classList.contains('is-leaving'))
+        await this._close(layer, 0);
+    }
+    return true;
+  }
+
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -558,7 +702,8 @@ export function buildRite(scene, { unit, before, content, quote = null }) {
   card.append(figure);
 
   const text = el('div', 'gr-rite-text');
-  const kicker = el('div', 'gr-kicker', `Promotion · ${content.unitName}`);
+  const titled = unit?.name === content.unitName ? unitDisplayName(unit, { epithet: true }) : '';
+  const kicker = el('div', 'gr-kicker', `Promotion · ${titled || content.unitName}`);
   const classRow = el('div', 'gr-rite-class');
   const crests = el('div', 'gr-crest-stack');
   const fromCrest = content.fromCrest ? crestElement(content.fromCrest, { className: 'gr-burn-from' }) : null; // prettier-ignore
@@ -596,7 +741,7 @@ export function buildRite(scene, { unit, before, content, quote = null }) {
       const li = el('li', `gr-seal gr-seal--${beat.kind}`);
       li.style.setProperty('--i', String(i));
       li.append(
-        beat.kind === 'skill'
+        beat.kind === 'skill' || beat.kind === 'oath'
           ? skillGlyph(beat.skillId, 'gr-seal-glyph')
           : weaponGlyph(beat.weapon, 'gr-seal-glyph'),
       );
@@ -652,6 +797,8 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   const nameRow = el('h3', 'gr-level-name');
   nameRow.append(el('span', null, content.unitName));
   who.append(nameRow);
+  const epithet = unit?.name === content.unitName ? unitEpithet(unit) : null;
+  if (epithet) who.append(el('div', 're-epithet gr-level-epithet', epithet.text));
   const cls = el('div', 'gr-level-class');
   const crest = crestElement(content.className, { className: 'gr-level-crest' });
   if (crest) cls.append(crest);
@@ -717,6 +864,64 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   main.append(foot);
   card.append(main);
   return { card, button, status };
+}
+
+/**
+ * One deed title card (exported for review tooling and tests). The unit's
+ * portrait stands in a slashed ink band; kicker, NAME, the epithet over a
+ * brush stroke, the lore; an ember seal stamps the band's end.
+ */
+export function buildDeedCard(scene, unit, content, { skipAll = false } = {}) {
+  const card = el('div', `gr-deed gr-deed--p${content.prestige}`);
+  card.dataset.deed = content.deedId;
+  const slash = el('div', 'gr-deed-slash');
+  slash.append(el('span', 'gr-deed-streak'));
+  card.append(el('div', 'gr-deed-lines'), slash);
+  const bust = el('div', 'gr-deed-bust');
+  bust.append(el('span', 'gr-deed-ray'));
+  const portrait = portraitImage(scene, unit, 'gr-deed-portrait');
+  if (portrait) bust.append(portrait);
+  else card.classList.add('is-faceless');
+  card.append(bust);
+
+  const text = el('div', 'gr-deed-text');
+  text.append(el('div', 'gr-kicker gr-deed-kicker', content.kicker));
+  const name = el('div', 'gr-deed-name', content.appositive ? `${content.name},` : content.name);
+  const epithetRow = el('div', 'gr-deed-epithet');
+  const epithet = el('span', 'gr-deed-epithet-text', content.epithet);
+  const brush = el('i', 'gr-deed-brush');
+  brush.setAttribute('aria-hidden', 'true');
+  epithetRow.append(epithet, brush);
+  text.append(name, epithetRow);
+  if (content.lore) text.append(el('p', 'gr-deed-lore', `“${content.lore}”`));
+  if (content.note) text.append(el('p', 'gr-deed-note', content.note));
+  const foot = el('div', 'gr-deed-foot');
+  if (content.oath) foot.append(el('span', 'gr-deed-oath', content.oath));
+  if (content.count) foot.append(el('span', 'gr-deed-count', content.count));
+  if (foot.childElementCount) text.append(foot);
+  card.append(text);
+
+  const seal = el('div', 'gr-deed-seal');
+  seal.setAttribute('aria-hidden', 'true');
+  seal.append(
+    el('span', 'gr-deed-seal-wax'),
+    el('b', 'gr-deed-seal-mark', content.seal),
+    el('small', 'gr-deed-seal-rank', content.ordinal),
+  );
+  card.append(seal, el('div', 'gr-deed-flash'));
+
+  const controls = el('div', 'gr-deed-controls');
+  let skip = null;
+  if (skipAll) {
+    skip = el('button', 'gr-deed-skip re-btn', 'Skip all');
+    skip.type = 'button';
+    controls.append(skip);
+  }
+  const button = el('button', 'gr-continue re-btn re-btn--primary gr-deed-next', 'Continue');
+  button.type = 'button';
+  controls.append(button);
+  card.append(controls);
+  return { card, button, skip, name, epithet };
 }
 
 export function buildJoinCard(scene, unit, content) {

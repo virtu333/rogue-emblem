@@ -183,6 +183,8 @@ export class RunSimulationDriver {
     );
     const deployCount = Math.max(deployLimits.min, deployMax);
     battleParams.deployCount = Math.min(deployCount, this.runManager.roster.length);
+    // Deeds stamp the battle they were earned in (HeadlessBattle commits at victory).
+    battleParams.battleNumber = (this.runManager.completedBattles || 0) + 1;
 
     const fullRoster = this.runManager.getRoster();
     const deployed = chooseDeployRoster(fullRoster, battleParams.deployCount);

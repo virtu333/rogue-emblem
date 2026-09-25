@@ -1,6 +1,7 @@
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getMetaKey } from '../engine/SlotManager.js';
 import { mergeRunRecords } from '../engine/RunRecords.js';
+import { titledName } from '../engine/DeedTitles.js';
 import { shadowSummary } from './eclipseContent.js';
 
 export function showRunRecords(scene) {
@@ -55,13 +56,17 @@ export function showRunRecords(scene) {
         `${record.difficulty} · ${record.actsCleared} acts cleared${record.totalTurns == null ? '' : ` · ${record.totalTurns} turns`}${record.shadow == null ? '' : ` · ${shadowSummary(record.shadow, scene.gameData?.eclipse)}`} · Seed ${record.seed ?? 'unknown'}`,
       ),
     );
-    for (const unit of record.roster)
+    for (const unit of record.roster) {
+      const title = unit.epithet
+        ? titledName(unit.name, { text: unit.epithet, form: unit.epithetForm })
+        : unit.name;
       menu.body.append(
         element(
           'p',
-          `${unit.name} · ${unit.className} · Lv ${unit.level}${unit.isLord ? ' · Lord' : ''}`,
+          `${title} · ${unit.className} · Lv ${unit.level}${unit.isLord ? ' · Lord' : ''}`,
         ),
       );
+    }
     menu.focusContent();
   };
   list();

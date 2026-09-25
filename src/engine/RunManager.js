@@ -2,7 +2,8 @@ import { validateBattleState } from './BattleStateSnapshot.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
-import { migrateCleverTrait, rollAndApplyLordTrait } from './TraitSystem.js';
+import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
+import { normalizeUnitDeeds, unitEpithet } from './DeedSystem.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -233,6 +234,12 @@ function stampUnitItemUids(unit) {
   if (unit.accessory && typeof unit.accessory === 'object') ensureItemUid(unit.accessory);
 }
 
+/** Victory-record fields for a unit's title (omitted when it has none). */
+function deedRecordFields(unit) {
+  const epithet = unitEpithet(unit);
+  return epithet ? { epithet: epithet.text, epithetForm: epithet.form } : {};
+}
+
 function parsePersonalSkillId(personalSkillStr) {
   if (!personalSkillStr) return null;
   const colonIdx = personalSkillStr.indexOf(':');
@@ -260,6 +267,7 @@ export function serializeUnit(unit) {
   if (Array.isArray(data.proficiencies))
     data.proficiencies = data.proficiencies.map((p) => ({ ...p }));
   if (data.accessory) data.accessory = ensureItemUid(structuredClone(data.accessory));
+  if (data.deeds && typeof data.deeds === 'object') data.deeds = structuredClone(data.deeds);
   // Relink weapon to cloned inventory item (preserves identity invariant)
   if (data.weapon && Array.isArray(data.inventory) && Array.isArray(unit.inventory)) {
     const weaponUid = typeof unit.weapon?.uid === 'string' ? unit.weapon.uid : '';
@@ -306,6 +314,10 @@ export function serializeUnit(unit) {
   delete data._battleTimedWeaponArtAppliedCombatMods;
   delete data._movementSpent;
   delete data._legendaryGraceTurn;
+  delete data._fortHealStreak;
+  // Deed progress commits at victory (commitBattleDeeds) or not at all.
+  delete data._battleDeeds;
+  delete data._slewAllies;
   return data;
 }
 
@@ -2461,6 +2473,7 @@ export class RunManager {
         traitsData: this.gameData?.traits || null,
         skillsData: this.gameData?.skills,
         rng: Math.random,
+        traitClassData: hasRecruitTemplate ? null : classData,
       },
     );
     if (!hasRecruitTemplate) {
@@ -3550,11 +3563,12 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
-                roster: this.roster.map(({ name, className, level, isLord }) => ({
-                  name,
-                  className,
-                  level,
-                  isLord,
+                roster: this.roster.map((unit) => ({
+                  name: unit.name,
+                  className: unit.className,
+                  level: unit.level,
+                  isLord: unit.isLord,
+                  ...deedRecordFields(unit),
                 })),
               }
             : null,
@@ -3946,8 +3960,8 @@ export class RunManager {
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
 
-    rm.roster = rm.roster.map((u) => migrateCleverTrait({ ...u }));
-    rm.fallenUnits = rm.fallenUnits.map((u) => migrateCleverTrait({ ...u }));
+    rm.roster = rm.roster.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
+    rm.fallenUnits = rm.fallenUnits.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
 
     // --- lord presence validation (only for non-empty rosters) ---
     if (rm.roster.length > 0) {
