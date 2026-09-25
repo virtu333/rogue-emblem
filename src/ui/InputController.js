@@ -13,6 +13,11 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { UI_HEX } from '../utils/uiStyles.js';
+import { getFootprintKeys } from '../engine/EntitySystem.js';
+
+// A tap on any tile of a (possibly multi-tile) unit.
+const occupies = (unit, gp) =>
+  Boolean(unit) && getFootprintKeys(unit).includes(`${gp.col},${gp.row}`);
 
 export class InputController {
   constructor(scene) {
@@ -602,7 +607,7 @@ export class InputController {
 
   handleTargetClick(gp) {
     const scene = this.scene;
-    const target = scene.attackTargets.find((t) => t.col === gp.col && t.row === gp.row);
+    const target = scene.attackTargets.find((t) => occupies(t, gp));
     if (target) {
       if (scene._attackFlow) scene._attackFlow().openForecast(scene.selectedUnit, target);
       else scene.showForecast(scene.selectedUnit, target);
@@ -613,12 +618,12 @@ export class InputController {
     const scene = this.scene;
     if (scene._mobileBattleHud?.forecast) return;
     const current = scene.forecastTarget;
-    if (current && gp.col === current.col && gp.row === current.row) {
+    if (current && occupies(current, gp)) {
       scene.confirmForecastCombat();
       return;
     }
     // Another highlighted target: switch the forecast to it (equipped weapon first).
-    const other = (scene.attackTargets || []).find((t) => t.col === gp.col && t.row === gp.row);
+    const other = (scene.attackTargets || []).find((t) => occupies(t, gp));
     if (other && scene._attackFlow) scene._attackFlow().switchForecastTarget(other);
   }
 

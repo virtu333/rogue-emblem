@@ -23,7 +23,7 @@
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { TutorialController } from './TutorialController.js';
 import { getCombatForecast } from '../engine/Combat.js';
-import { combatDistance } from '../engine/EntitySystem.js';
+import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
   weaponsForDistance,
@@ -76,6 +76,8 @@ export class AttackFlowController {
   begin(unit, { target = null } = {}) {
     const scene = this.scene;
     if (!unit) return false;
+    // Attack always acts for the menu's unit (the flow reads selectedUnit).
+    if (scene.selectedUnit !== unit) scene.selectedUnit = unit;
     beginWeaponPreview(scene, unit);
     scene._clearSelectedWeaponArtIfInvalid?.(unit);
     return this.beginTargetSelection(unit, { target });
@@ -116,9 +118,8 @@ export class AttackFlowController {
   showTargetHighlights() {
     const scene = this.scene;
     scene.grid?.clearAttackHighlights?.();
-    scene.grid?.showAttackRange?.(
-      (scene.attackTargets || []).map((t) => ({ col: t.col, row: t.row })),
-    );
+    // Every tile of every target (multi-tile entities included).
+    scene.grid?.showAttackRange?.((scene.attackTargets || []).flatMap((t) => getFootprint(t)));
   }
 
   /** Put the (keyboard/pad/phone) cursor on a target and remember it. */
@@ -166,8 +167,23 @@ export class AttackFlowController {
       };
       scene.events?.on?.('update', this._onUpdate);
     }
-    const { x, y } = scene.grid.gridToPixel(target.col, target.row);
-    this._reticle.setPosition(x, y).setVisible(true);
+    // Multi-tile entities: frame the whole footprint.
+    const tiles = isEntity(target) ? getFootprint(target) : [target];
+    const cols = tiles.map((t) => t.col);
+    const rows = tiles.map((t) => t.row);
+    const [c0, c1, r0, r1] = [
+      Math.min(...cols),
+      Math.max(...cols),
+      Math.min(...rows),
+      Math.max(...rows),
+    ];
+    const a = scene.grid.gridToPixel(c0, r0);
+    const b = scene.grid.gridToPixel(c1, r1);
+    this._reticle
+      .setPosition((a.x + b.x) / 2, (a.y + b.y) / 2)
+      .setScale(c1 - c0 + 1, r1 - r0 + 1)
+      .setVisible(true);
+    this._reticleTween?.resume?.();
   }
 
   _drawBrackets(g, h, arm) {
@@ -187,6 +203,7 @@ export class AttackFlowController {
 
   hideReticle() {
     this._reticle?.setVisible?.(false);
+    this._reticleTween?.pause?.();
   }
 
   isAttacking() {

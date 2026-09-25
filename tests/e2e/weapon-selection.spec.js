@@ -385,13 +385,13 @@ test.describe('Weapon selection smoke', () => {
 
       const actionItems = (battle.actionMenu || []).filter((o) => o.type === 'Text');
       const equipBtn = actionItems.find((o) => o.text === 'Equip');
-      if (equipBtn) equipBtn.emit('pointerdown');
+      if (equipBtn) equipBtn.emit('pointerdown', { button: 0 });
 
       const weaponRows = (battle.actionMenu || []).filter(
         (o) => o.type === 'Text' && o.input?.enabled && o.text.startsWith('  '),
       );
       const weaponRowCount = weaponRows.length;
-      if (weaponRows[0]) weaponRows[0].emit('pointerdown');
+      if (weaponRows[0]) weaponRows[0].emit('pointerdown', { button: 0 });
 
       return {
         weaponRowCount,

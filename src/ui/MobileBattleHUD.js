@@ -28,7 +28,7 @@ import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
-import { equippedBadgeElement } from './equippedBadge.js';
+import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 
 // A horizontal swipe this long (and clearly more horizontal than vertical)
 // across the forecast switches weapons; shorter drags stay taps/scrolls.
@@ -887,8 +887,13 @@ export class MobileBattleHUD {
       }
       const list = el('div', s.inEquipMenu ? 'mb-actions mb-submenu' : 'mb-actions');
       for (const item of menu.items) {
+        // Canvas rows prefix the equipped weapon with "E "; show the badge instead.
+        const equippedRow =
+          Boolean(item.item) &&
+          item.item === menu.unit?.weapon &&
+          item.label.startsWith(EQUIPPED_MARKER);
         const button = this.button(
-          item.label,
+          equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
           () => {
             if (
               this.menu !== menu ||
@@ -902,6 +907,7 @@ export class MobileBattleHUD {
           },
           item.label === 'Attack' ? 'mb-primary' : '',
         );
+        if (equippedRow) button.append(equippedBadgeElement());
         const description = item.description || battleItemSummary(item.item, menu.unit);
         if (description) button.append(el('small', 'mb-item-summary', description));
         button.disabled = item.disabled;
