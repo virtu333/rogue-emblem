@@ -28,12 +28,15 @@ export function put(img, icon, x, y, scale = 1) {
 export async function save(img, file, { scale = 1, webp = false, quality = 90 } = {}) {
   let s = sharp(Buffer.from(img.px.buffer), { raw: { width: img.w, height: img.h, channels: 4 } });
   if (scale !== 1) s = s.resize(img.w * scale, img.h * scale, { kernel: 'nearest' });
-  if (webp || file.endsWith('.webp')) await s.webp({ quality, lossless: quality >= 100 }).toFile(file);
+  if (webp || file.endsWith('.webp'))
+    await s.webp({ quality, lossless: quality >= 100 }).toFile(file);
   else await s.png({ compressionLevel: 9 }).toFile(file);
 }
 
 export async function iconPng(icon, file, scale = 1) {
-  let s = sharp(Buffer.from(icon.rgba.buffer), { raw: { width: icon.size, height: icon.size, channels: 4 } });
+  let s = sharp(Buffer.from(icon.rgba.buffer), {
+    raw: { width: icon.size, height: icon.size, channels: 4 },
+  });
   if (scale !== 1) s = s.resize(icon.size * scale, icon.size * scale, { kernel: 'nearest' });
   await s.png({ compressionLevel: 9 }).toFile(file);
 }

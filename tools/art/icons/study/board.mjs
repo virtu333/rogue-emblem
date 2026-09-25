@@ -25,7 +25,10 @@ export async function renderBoard(html, file, { width = 1280, dpr = 2, height = 
   fs.mkdirSync(path.dirname(tmp), { recursive: true });
   fs.writeFileSync(tmp, html);
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-  const page = await browser.newPage({ viewport: { width, height: height || 800 }, deviceScaleFactor: dpr });
+  const page = await browser.newPage({
+    viewport: { width, height: height || 800 },
+    deviceScaleFactor: dpr,
+  });
   await page.goto(`file://${tmp}`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);

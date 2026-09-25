@@ -126,8 +126,7 @@ function spinePoints(shape) {
     const r = shape.kind === 'arc' ? shape.r : (shape.r0 + shape.r1) / 2;
     const a0 = shape.kind === 'arc' ? shape.a0 : 0;
     const tau = Math.PI * 2;
-    const span =
-      shape.kind === 'arc' ? ((((shape.a1 - shape.a0) % tau) + tau) % tau) || tau : tau;
+    const span = shape.kind === 'arc' ? (((shape.a1 - shape.a0) % tau) + tau) % tau || tau : tau;
     const n = 180;
     for (let i = 0; i <= n; i++) {
       const a = a0 + (span * i) / n;
@@ -198,7 +197,7 @@ export function renderIcon(spec, size, materials) {
   const masks = [];
   const SS = 4;
 
-  parts.forEach((part, pi) => {
+  parts.forEach((part) => {
     const { inside } = shapeFns(part.shape);
     const holes = (part.holes || []).map((h) => shapeFns(h).inside);
     const test = (x, y) => inside(x, y) && !holes.some((h) => h(x, y));
@@ -267,7 +266,8 @@ export function renderIcon(spec, size, materials) {
               for (let py = 0; py < n; py++)
                 for (let px = 0; px < n; px++) {
                   if (!mask[py * n + px]) continue;
-                  const s = ((px + 0.5) / S - centre[0]) * v[0] + ((py + 0.5) / S - centre[1]) * v[1];
+                  const s =
+                    ((px + 0.5) / S - centre[0]) * v[0] + ((py + 0.5) / S - centre[1]) * v[1];
                   m = Math.max(m, Math.abs(s) + 0.5 / S);
                 }
               return m;
@@ -313,8 +313,7 @@ export function renderIcon(spec, size, materials) {
             nz = Math.sqrt(1 - k * k);
           }
         } else if (shade === 'dome' || shade === 'bevel' || shade === 'pillow') {
-          const d = (xx, yy) =>
-            xx < 0 || yy < 0 || xx >= n || yy >= n ? 0 : dist[yy * n + xx];
+          const d = (xx, yy) => (xx < 0 || yy < 0 || xx >= n || yy >= n ? 0 : dist[yy * n + xx]);
           const gx = (d(px + 1, py) - d(px - 1, py)) / 2;
           const gy = (d(px, py + 1) - d(px, py - 1)) / 2;
           const g = Math.hypot(gx, gy) || 1;
@@ -363,7 +362,9 @@ export function renderIcon(spec, size, materials) {
   parts.forEach((part, pi) => {
     if (!part.stripes) return;
     const sh = part.shape;
-    const ax = part.stripes.axis || (sh.kind === 'capsule' ? [sh.b[0] - sh.a[0], sh.b[1] - sh.a[1]] : [0, 1]);
+    const ax =
+      part.stripes.axis ||
+      (sh.kind === 'capsule' ? [sh.b[0] - sh.a[0], sh.b[1] - sh.a[1]] : [0, 1]);
     const al = Math.hypot(ax[0], ax[1]);
     const origin = sh.kind === 'capsule' ? sh.a : [0, 0];
     const period = Math.max(2, Math.round(part.stripes.period * S));
@@ -371,7 +372,8 @@ export function renderIcon(spec, size, materials) {
       for (let px = 0; px < n; px++) {
         const i = py * n + px;
         if (owner[i] !== pi) continue;
-        const t = (((px + 0.5) / S - origin[0]) * ax[0] + ((py + 0.5) / S - origin[1]) * ax[1]) / al;
+        const t =
+          (((px + 0.5) / S - origin[0]) * ax[0] + ((py + 0.5) / S - origin[1]) * ax[1]) / al;
         const k = Math.floor((t * S + (part.stripes.phase || 0)) / (period / 2));
         if (k % 2 === 0) level[i] = Math.max(part.stripes.floor ?? 1, level[i] - 1);
       }

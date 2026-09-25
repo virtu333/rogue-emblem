@@ -7,7 +7,9 @@ import { SAMPLE } from './sample.mjs';
 import { BOARD_CSS, renderBoard } from './board.mjs';
 
 const argv = process.argv.slice(2);
-const OUT = argv.includes('--out') ? argv[argv.indexOf('--out') + 1] : 'References/items-study/boards';
+const OUT = argv.includes('--out')
+  ? argv[argv.indexOf('--out') + 1]
+  : 'References/items-study/boards';
 const SVG_OUT = 'References/items-study/sigil';
 fs.mkdirSync(SVG_OUT, { recursive: true });
 const svgs = SAMPLE.map((s, i) => {
@@ -19,12 +21,22 @@ const sized = (svg, px) => svg.replace('<svg ', `<svg width="${px}" height="${px
 const surfaces = ['#0e0c14', '#17141f', '#201c29', '#3a2c24'];
 const rows = [16, 24, 32, 48]
   .map(
-    (px) => `<div class="row"><div class="lab">${px}px</div>${surfaces
-      .map((c) => `<div class="surf" style="background:${c}">${svgs.slice(0, px >= 48 ? 8 : px >= 32 ? 12 : 24).map((s) => sized(s, px)).join('')}</div>`)
-      .join('')}</div>`,
+    (px) =>
+      `<div class="row"><div class="lab">${px}px</div>${surfaces
+        .map(
+          (c) =>
+            `<div class="surf" style="background:${c}">${svgs
+              .slice(0, px >= 48 ? 8 : px >= 32 ? 12 : 24)
+              .map((s) => sized(s, px))
+              .join('')}</div>`,
+        )
+        .join('')}</div>`,
   )
   .join('');
-const big = SAMPLE.map((s, i) => `<figure>${sized(svgs[i], 64)}<figcaption>${s.name}<br><span>${s.cat}</span></figcaption></figure>`).join('');
+const big = SAMPLE.map(
+  (s, i) =>
+    `<figure>${sized(svgs[i], 64)}<figcaption>${s.name}<br><span>${s.cat}</span></figcaption></figure>`,
+).join('');
 const html = `<!doctype html><style>${BOARD_CSS}
 .row { display: grid; grid-template-columns: 50px repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
 .lab { font: 9px 'Press Start 2P'; color: var(--gold); align-self: center; }

@@ -82,7 +82,7 @@ export const STUDY_STOCK = [
   'Vulnerary',
   'Master Seal',
   'Speedwing',
-  "Bounty Hunter's Mark",
+  'Power Ring',
   "Gambler's Coin",
   'Silver Whetstone',
 ];
@@ -153,9 +153,7 @@ async function openChurch(page, { ruins = false, fallen = false, promotable = fa
 }
 
 async function battleRewards(page, base, choices) {
-  await page.goto(
-    `${base}?${q(page, 'devScene=battle&preset=battle_smoke&seed=42&battleLab=1')}`,
-  );
+  await page.goto(`${base}?${q(page, 'devScene=battle&preset=battle_smoke&seed=42&battleLab=1')}`);
   await waitScene(page, 'Battle');
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());

@@ -6,7 +6,20 @@
 import { MATERIALS } from './palette.mjs';
 
 const INK = '#0e0c14';
-const ACCENTS = new Set(['blood', 'verdigris', 'sky', 'unlight', 'lilac', 'rose', 'pearl', 'leaf', 'ember', 'steel', 'earth', 'slate']);
+const ACCENTS = new Set([
+  'blood',
+  'verdigris',
+  'sky',
+  'unlight',
+  'lilac',
+  'rose',
+  'pearl',
+  'leaf',
+  'ember',
+  'steel',
+  'earth',
+  'slate',
+]);
 const LIGHT = [-0.62, -0.78];
 
 const f = (n) => Math.round(n * 100) / 100;
@@ -26,7 +39,10 @@ function shapePath(sh) {
         const a = (i / 36) * Math.PI * 2;
         const x = Math.cos(a) * sh.rx;
         const y = Math.sin(a) * sh.ry;
-        pts.push([sh.cx + x * Math.cos(rot) - y * Math.sin(rot), sh.cy + x * Math.sin(rot) + y * Math.cos(rot)]);
+        pts.push([
+          sh.cx + x * Math.cos(rot) - y * Math.sin(rot),
+          sh.cy + x * Math.sin(rot) + y * Math.cos(rot),
+        ]);
       }
       return shapePath({ kind: 'poly', pts });
     }
@@ -43,15 +59,21 @@ function shapePath(sh) {
     case 'arc': {
       const pts = [];
       const tau = Math.PI * 2;
-      const span = ((((sh.a1 - sh.a0) % tau) + tau) % tau) || tau;
+      const span = (((sh.a1 - sh.a0) % tau) + tau) % tau || tau;
       const N = 24;
       for (let i = 0; i <= N; i++) {
         const a = sh.a0 + (span * i) / N;
-        pts.push([sh.cx + Math.cos(a) * (sh.r + sh.w / 2), sh.cy + Math.sin(a) * (sh.r + sh.w / 2)]);
+        pts.push([
+          sh.cx + Math.cos(a) * (sh.r + sh.w / 2),
+          sh.cy + Math.sin(a) * (sh.r + sh.w / 2),
+        ]);
       }
       for (let i = N; i >= 0; i--) {
         const a = sh.a0 + (span * i) / N;
-        pts.push([sh.cx + Math.cos(a) * (sh.r - sh.w / 2), sh.cy + Math.sin(a) * (sh.r - sh.w / 2)]);
+        pts.push([
+          sh.cx + Math.cos(a) * (sh.r - sh.w / 2),
+          sh.cy + Math.sin(a) * (sh.r - sh.w / 2),
+        ]);
       }
       return shapePath({ kind: 'poly', pts });
     }
@@ -70,7 +92,10 @@ function bbox(sh) {
     xs.push(nums[i]);
     ys.push(nums[i + 1]);
   }
-  const c = sh.cx != null ? [sh.cx, sh.cy] : [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+  const c =
+    sh.cx != null
+      ? [sh.cx, sh.cy]
+      : [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
   return c;
 }
 
@@ -83,13 +108,23 @@ const PLAQUES = {
   upgrade: 'M3 2h26v22l-13 6.5L3 24Z',
 };
 
-const TIER_RIM = { Iron: '#7a7a80', Steel: '#77a5c6', Silver: '#ddd0bd', Legend: '#f3cb6c', Rare: '#a863cc', none: '#b3702c' };
+const TIER_RIM = {
+  Iron: '#7a7a80',
+  Steel: '#77a5c6',
+  Silver: '#ddd0bd',
+  Legend: '#f3cb6c',
+  Rare: '#a863cc',
+  none: '#b3702c',
+};
 
 /**
  * @param {{parts: object[]}} spec pixel-grammar spec
  * @param {{plaque?: string, tier?: string, metal?: string, id?: string}} o
  */
-export function sigilSvg(spec, { plaque = 'weapon', tier = 'none', metal = 'gilt', id = 's' } = {}) {
+export function sigilSvg(
+  spec,
+  { plaque = 'weapon', tier = 'none', metal = 'gilt', id = 's' } = {},
+) {
   const metalRamp = MATERIALS[metal];
   const defs = [];
   const under = [];
@@ -97,18 +132,33 @@ export function sigilSvg(spec, { plaque = 'weapon', tier = 'none', metal = 'gilt
   spec.parts.forEach((p, i) => {
     const matName = typeof p.mat === 'string' ? p.mat : null;
     const ramp = matName && ACCENTS.has(matName) ? MATERIALS[matName] : metalRamp;
-    const d = shapePath(p.shape) + (p.holes || []).map(shapePath).join('');
+    const d = shapePath(p.shape);
     const clip = `${id}c${i}`;
-    defs.push(`<clipPath id="${clip}"><path d="${d}" clip-rule="evenodd" fill-rule="evenodd"/></clipPath>`);
-    under.push(`<path d="${d}" fill-rule="evenodd" fill="${INK}" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>`);
+    defs.push(
+      `<clipPath id="${clip}"><path d="${d}" clip-rule="evenodd" fill-rule="evenodd"/></clipPath>`,
+    );
+    // Holes cut through the whole part (stroke included) via a mask.
+    let mask = '';
+    if (p.holes?.length) {
+      defs.push(
+        `<mask id="${id}m${i}" maskUnits="userSpaceOnUse" x="-8" y="-8" width="48" height="48"><rect x="-8" y="-8" width="48" height="48" fill="#fff"/>${p.holes.map((h) => `<path d="${shapePath(h)}" fill="#000"/>`).join('')}</mask>`,
+      );
+      mask = ` mask="url(#${id}m${i})"`;
+    }
+    under.push(
+      `<path d="${d}" fill-rule="evenodd" fill="${INK}" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"${mask}/>`,
+    );
     const shade = p.shade || 'dome';
     const g = [];
     if (p.level != null) {
-      g.push(`<path d="${d}" fill-rule="evenodd" fill="${ramp[Math.max(1, Math.min(4, p.level))]}"/>`);
+      g.push(
+        `<path d="${d}" fill-rule="evenodd" fill="${ramp[Math.max(1, Math.min(4, p.level))]}"/>`,
+      );
     } else if (shade === 'ridge' || shade === 'cyl') {
       // Two facets split along the spine: the half facing the light is lit.
       const sh = p.shape;
-      const axis = p.axis || (sh.kind === 'capsule' ? [sh.b[0] - sh.a[0], sh.b[1] - sh.a[1]] : [0, 1]);
+      const axis =
+        p.axis || (sh.kind === 'capsule' ? [sh.b[0] - sh.a[0], sh.b[1] - sh.a[1]] : [0, 1]);
       const al = Math.hypot(...axis) || 1;
       const u = [axis[0] / al, axis[1] / al];
       const v = [-u[1], u[0]];
@@ -128,16 +178,24 @@ export function sigilSvg(spec, { plaque = 'weapon', tier = 'none', metal = 'gilt
       const r = sh.r || sh.rx || 3;
       const c = [sh.cx, sh.cy];
       g.push(`<path d="${d}" fill-rule="evenodd" fill="${ramp[1]}"/>`);
-      g.push(`<circle cx="${f(c[0] - r * 0.22)}" cy="${f(c[1] - r * 0.22)}" r="${f(r * 0.78)}" fill="${ramp[2]}"/>`);
-      g.push(`<circle cx="${f(c[0] - r * 0.38)}" cy="${f(c[1] - r * 0.38)}" r="${f(r * 0.28)}" fill="${ramp[4]}"/>`);
+      g.push(
+        `<circle cx="${f(c[0] - r * 0.22)}" cy="${f(c[1] - r * 0.22)}" r="${f(r * 0.78)}" fill="${ramp[2]}"/>`,
+      );
+      g.push(
+        `<circle cx="${f(c[0] - r * 0.38)}" cy="${f(c[1] - r * 0.38)}" r="${f(r * 0.28)}" fill="${ramp[4]}"/>`,
+      );
     } else {
       // Bevel facets: dark base, lit copy nudged toward the light, mid face inset.
       const c = bbox(p.shape);
       g.push(`<path d="${d}" fill-rule="evenodd" fill="${ramp[1]}"/>`);
-      g.push(`<path d="${d}" fill-rule="evenodd" fill="${ramp[3]}" transform="translate(-0.8 -0.8)"/>`);
-      g.push(`<path d="${d}" fill-rule="evenodd" fill="${ramp[2]}" transform="translate(${f(c[0] * 0.16)} ${f(c[1] * 0.16)}) scale(0.84)"/>`);
+      g.push(
+        `<path d="${d}" fill-rule="evenodd" fill="${ramp[3]}" transform="translate(-0.8 -0.8)"/>`,
+      );
+      g.push(
+        `<path d="${d}" fill-rule="evenodd" fill="${ramp[2]}" transform="translate(${f(c[0] * 0.16)} ${f(c[1] * 0.16)}) scale(0.84)"/>`,
+      );
     }
-    over.push(`<g clip-path="url(#${clip})">${g.join('')}</g>`);
+    over.push(`<g${mask}><g clip-path="url(#${clip})">${g.join('')}</g></g>`);
   });
   const rim = TIER_RIM[tier] || TIER_RIM.none;
   const plq = PLAQUES[plaque] || PLAQUES.weapon;

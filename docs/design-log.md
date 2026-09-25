@@ -5,6 +5,24 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Art direction study: items, rewards and services
+
+The owner saw that Gambler's Coin had no art and asked for a bold art pass over blessings,
+rewards, forge, church, items and upgrades, using image generation for whatever
+procedural art can't reach. Result: a direction study with three icon directions and
+mocked moments (`docs/art-direction/items/README.md`, brief in
+`specs/items-art-study.md`). The audit found that the only item imagery in the loop is 10
+monochrome reward glyphs. It also found 37 legacy `icon_*` textures that are loaded at
+boot and never shown.
+
+**Recommendation (awaiting owner choice):** procedural pixel icons from one data-driven
+grammar (all 239 items, blessings and upgrades; silhouette = family, metal = tier, accent =
+effect) in plaque-shaped sockets, plus generated PC-98 paintings only for the 23 blessing
+cards and 6 service vignettes. The Gemini Pro daily quota ran out during the study, so the
+moments art is from the Flash model.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

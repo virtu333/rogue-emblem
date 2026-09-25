@@ -15,9 +15,10 @@ const icon = (size, id, css = size) =>
 {
   const groups = m.groups
     .map(
-      (g) => `<h2>${g.label} · ${g.items.length}</h2><div class="grid">${g.items
-        .map((it) => `<figure>${icon(32, it.id, 32)}<figcaption>${it.name}</figcaption></figure>`)
-        .join('')}</div>`,
+      (g) =>
+        `<h2>${g.label} · ${g.items.length}</h2><div class="grid">${g.items
+          .map((it) => `<figure>${icon(32, it.id, 32)}<figcaption>${it.name}</figcaption></figure>`)
+          .join('')}</div>`,
     )
     .join('');
   const html = `<!doctype html><style>${BOARD_CSS}
@@ -33,9 +34,30 @@ const icon = (size, id, css = size) =>
 // 2. Size ladder on real surfaces.
 {
   const pick = [
-    'iron-sword', 'silver-sword', 'ragnarok', 'killer-lance', 'hand-axe', 'hammer', 'longbow', 'bolganone', 'shine', 'physic',
-    'warp-staff', 'fire-breath', 'skill-scroll', 'weapon-art-scroll', 'vulnerary', 'elixir', 'master-seal', 'energy-drop',
-    'speedwing', 'power-ring', 'gambler-s-coin', 'phoenix-brooch', 'silver-whetstone', 'vampiric-imbuing-stone',
+    'iron-sword',
+    'silver-sword',
+    'ragnarok',
+    'killer-lance',
+    'hand-axe',
+    'hammer',
+    'longbow',
+    'bolganone',
+    'shine',
+    'physic',
+    'warp-staff',
+    'fire-breath',
+    'skill-scroll',
+    'weapon-art-scroll',
+    'vulnerary',
+    'elixir',
+    'master-seal',
+    'energy-drop',
+    'speedwing',
+    'power-ring',
+    'gambler-s-coin',
+    'phoenix-brooch',
+    'silver-whetstone',
+    'vampiric-imbuing-stone',
   ];
   const surfaces = [
     ['#0e0c14', 'ink bg'],
@@ -45,9 +67,16 @@ const icon = (size, id, css = size) =>
   ];
   const rows = [16, 24, 32, 48]
     .map(
-      (s) => `<div class="row"><div class="lab">${s}px</div>${surfaces
-        .map(([c]) => `<div class="surf" style="background:${c}">${pick.slice(0, s >= 48 ? 8 : s >= 32 ? 12 : 24).map((id) => icon(s, id)).join('')}</div>`)
-        .join('')}</div>`,
+      (s) =>
+        `<div class="row"><div class="lab">${s}px</div>${surfaces
+          .map(
+            ([c]) =>
+              `<div class="surf" style="background:${c}">${pick
+                .slice(0, s >= 48 ? 8 : s >= 32 ? 12 : 24)
+                .map((id) => icon(s, id))
+                .join('')}</div>`,
+          )
+          .join('')}</div>`,
     )
     .join('');
   const html = `<!doctype html><style>${BOARD_CSS}

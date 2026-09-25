@@ -10,7 +10,9 @@ import { MATERIALS } from './lib/palette.mjs';
 import { catalog } from './lib/itemGrammar.mjs';
 
 const argv = process.argv.slice(2);
-const OUT = argv.includes('--out') ? argv[argv.indexOf('--out') + 1] : 'References/items-study/pixel';
+const OUT = argv.includes('--out')
+  ? argv[argv.indexOf('--out') + 1]
+  : 'References/items-study/pixel';
 export const SIZES = [16, 24, 32, 48];
 const read = (f) => JSON.parse(fs.readFileSync(`data/${f}.json`, 'utf8'));
 const data = {
@@ -22,7 +24,11 @@ const data = {
   blessings: read('blessings'),
   metaUpgrades: read('metaUpgrades'),
 };
-export const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export const slug = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 const groups = catalog(data);
 const manifest = { sizes: SIZES, groups: [] };
@@ -63,8 +69,19 @@ for (const size of SIZES) {
   await sharp(atlas, { raw: { width: cols * size, height: rows * size, channels: 4 } })
     .png({ compressionLevel: 9, palette: true })
     .toFile(file);
-  manifest[`atlas${size}`] = { file: path.basename(file), w: cols * size, h: rows * size, bytes: fs.statSync(file).size, frames };
+  manifest[`atlas${size}`] = {
+    file: path.basename(file),
+    w: cols * size,
+    h: rows * size,
+    bytes: fs.statSync(file).size,
+    frames,
+  };
 }
 fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 1));
-console.log(`${all.length} icons x ${SIZES.length} sizes in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-for (const s of SIZES) console.log(`atlas ${s}: ${manifest[`atlas${s}`].w}x${manifest[`atlas${s}`].h}, ${manifest[`atlas${s}`].bytes} bytes`);
+console.log(
+  `${all.length} icons x ${SIZES.length} sizes in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
+);
+for (const s of SIZES)
+  console.log(
+    `atlas ${s}: ${manifest[`atlas${s}`].w}x${manifest[`atlas${s}`].h}, ${manifest[`atlas${s}`].bytes} bytes`,
+  );
