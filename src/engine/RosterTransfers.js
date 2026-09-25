@@ -5,6 +5,7 @@ import {
   addToConsumables,
   removeFromInventory,
   removeFromConsumables,
+  equipIfUnarmed,
 } from './UnitManager.js';
 
 export function teachScrollBlock(run, unit, scroll, skills) {
@@ -50,5 +51,6 @@ export function giveRosterItem(run, source, target, item) {
   if (!(consumable ? addToConsumables : addToInventory)(target, item))
     return { ok: false, reason: 'Cannot carry this item.' };
   (consumable ? removeFromConsumables : removeFromInventory)(source, item);
+  if (!consumable) equipIfUnarmed(target, target.inventory.at(-1));
   return { ok: true };
 }

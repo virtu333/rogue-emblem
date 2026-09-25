@@ -176,6 +176,33 @@ Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-va
 
 ---
 
+## 2026-09-25 — Attack flow: target first, weapon second; equipped weapon always first
+
+From iPhone playtesting: picking a weapon before a target made every attack a two-menu
+detour, and the forecast arrows (#8) were the part players actually used. Decisions:
+
+- **Attack is target-first.** Highlight the range union over every usable weapon; the
+  forecast opens on the equipped weapon (else the first in inventory order that can hit)
+  and switches weapons and targets in place with live numbers. Each new target starts from
+  the equipped weapon (FE convention). Cancel → same target; Back → action menu. After
+  moving, tapping an enemy in reach opens its forecast directly.
+- **Forecast weapon changes are previews**; only confirming equips. The bag never moves
+  while cycling (stable list), Cancel restores weapon and exact order.
+- **Weapon arts stay their own action** (bound to one weapon); **staves stay
+  staff-then-target** when several are usable (ranges/targets/effects differ per staff)
+  and staff use no longer counts as an equipment change.
+- **Equipped weapon is always inventory slot 1** (FE). Normalized on load at run level
+  (legacy saves read right immediately; deterministic, idempotent, RNG-free); battle
+  checkpoints/rewind snapshots restore exactly (index-based state, exact-resume promise).
+  Weapon-art selections carry the weapon uid to survive the reorder. Enemy AI bags are
+  not reordered (AI determinism); every view displays equipped-first with an E mark.
+- Found the #23/#35 projection gap: descriptive weapon specials and static accessories
+  (Lightning, Soothing Stone) hid the HP/KO line. Now only HP-changing effects do.
+
+Spec: `specs/attack-flow.md`. Screens: `art-direction/ux-polish/attack-flow/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

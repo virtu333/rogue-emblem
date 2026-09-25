@@ -306,14 +306,17 @@ describe('Roster gear tooltips', () => {
 
     overlay._drawGearTab(40, 60, unit);
 
-    const rowY = 74;
+    // The equipped Iron Sword is listed first (row 74); the long-named spare
+    // follows it and carries the [Equip] action.
+    const firstRowY = 74;
+    const equipButton = scene.created.texts.find((obj) => obj.text === '[Equip]');
+    expect(equipButton).toBeTruthy();
+    expect(equipButton.y).toBeGreaterThan(firstRowY);
     const hitZone = scene.created.rectangles.find(
-      (obj) => obj._interactive && obj.alpha === 0 && obj.y === rowY,
+      (obj) => obj._interactive && obj.alpha === 0 && obj.y === equipButton.y,
     );
-    const equipButton = scene.created.texts.find((obj) => obj.text === '[Equip]' && obj.y === rowY);
 
     expect(hitZone).toBeTruthy();
-    expect(equipButton).toBeTruthy();
     expect(hitZone.width).toBeGreaterThan(20);
     expect(hitZone.x + hitZone.width).toBeLessThanOrEqual(equipButton.x);
   });
