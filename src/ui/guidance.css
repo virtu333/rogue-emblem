@@ -14,8 +14,8 @@
     0 0 0 1px var(--re-void),
     0 6px 18px var(--re-shade);
   color: var(--re-text);
-  pointer-events: auto;
-  touch-action: manipulation;
+  /* Taps on the text fall through to the map; only the buttons take input. */
+  pointer-events: none;
   clip-path: polygon(
     var(--re-chamfer) 0,
     calc(100% - var(--re-chamfer)) 0,
@@ -41,6 +41,7 @@
 .re-guide-text {
   margin: 2px 0 4px;
   font: 13px/1.35 var(--re-body);
+  text-wrap: pretty;
   color: var(--re-text);
 }
 .re-guide-actions {
@@ -49,6 +50,8 @@
   justify-content: flex-end;
 }
 .re-guide-btn {
+  pointer-events: auto;
+  touch-action: manipulation;
   min-height: 32px;
   min-width: 44px;
   padding: 0 10px;

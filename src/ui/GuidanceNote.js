@@ -38,7 +38,11 @@ export function showGuidanceNote(
   root.setAttribute('aria-label', 'Field note');
   root.dataset.guide = id;
   if (reduceMotion) root.classList.add('re-guide--still');
-  for (const type of DOM_INPUT_EVENTS) root.addEventListener(type, (e) => e.stopPropagation());
+  // The plate is click-through (CSS); its buttons must not reach the map.
+  for (const type of DOM_INPUT_EVENTS)
+    root.addEventListener(type, (e) => {
+      if (e.target.closest?.('button')) e.stopPropagation();
+    });
   root.addEventListener('keydown', (e) => e.stopPropagation());
   root.addEventListener('keyup', (e) => e.stopPropagation());
 
@@ -70,7 +74,7 @@ export function showGuidanceNote(
     const rect = measureFrame(scene, 'map');
     if (!rect || rect.width < 1) return;
     const inset = 8;
-    const width = Math.min(340, Math.max(200, rect.width - inset * 2));
+    const width = Math.min(340, Math.max(200, rect.width * 0.62));
     root.style.width = `${Math.round(width)}px`;
     const height = root.offsetHeight || 90;
     const left = rect.left + inset;
