@@ -36,6 +36,7 @@ import {
   skipHint,
 } from './ceremonyDom.js';
 import { actPhaseName } from './eclipseContent.js';
+import { bossCardCue, duckMusic, playCue, stopCues } from './ceremonyMusic.js';
 
 export class CeremonyController {
   constructor(scene) {
@@ -152,9 +153,22 @@ export class CeremonyController {
       layer.addFitter(() => fitText(name, { min: 16 }));
       if (epithet) layer.addFitter(() => fitText(epithet, { min: 11 }));
     }
+    // Music: the boss's own motif over its ducked theme. The Entity has no
+    // motif: its card is heard as the music draining away.
+    const cue = entity ? null : bossCardCue(unit.name);
+    const hole = !cue;
+    if (hole) {
+      duckMusic(this.scene, 0.06, {
+        attack: 0.6,
+        hold: (t.enterMs + t.holdMs) / 1000,
+        release: 1.8,
+      });
+    } else void playCue(this.scene, cue, { waitMs: 600, duck: 0.2 });
     this._block(1);
     try {
       await this._holdUntilSkip(layer, t.enterMs + t.holdMs, 'Boss encounter');
+      if (hole) duckMusic(this.scene, 1, { attack: 1.2, hold: 0, release: 0 });
+      else stopCues(this.scene, 450);
       await this._close(layer, t.exitMs);
     } finally {
       this._block(-1);
@@ -209,6 +223,7 @@ export class CeremonyController {
     const content = felledContent({ objective, remaining });
     const built = this._band({ kind: 'bossFelled', tone: 'felled', ...content });
     if (!built) return null;
+    void playCue(this.scene, 'boss_felled', { duck: 0.3 });
     const { layer, timing } = built;
     void this._clock
       .wait(timing.enterMs + timing.holdMs)
@@ -337,6 +352,7 @@ export class CeremonyController {
     band.append(word, thread, el('div', 'ce-arrival-sub', content.sub));
     layer.root.append(band);
     layer.addFitter(() => fitText(word, { min: 14 }));
+    void playCue(this.scene, 'arrival', { duck: 0.5 });
     let closed = false;
     const close = (exitMs) => {
       if (closed) return Promise.resolve();
@@ -439,6 +455,8 @@ export class CeremonyController {
     // The run's Eclipse phase rides the kicker ("Act III · Umbral").
     const content = actCardContent(actId, { phase: actPhaseName(this.scene?.runManager) });
     if (!content.title && !content.kicker) return null;
+    // Edric's oath, voiced for the act (in that act's map key).
+    void playCue(this.scene, `act_card_${actId}`, { waitMs: 800, duck: 0.15 });
     return this._storyCard({
       kind: 'act',
       className: 'ce-act-layer',
