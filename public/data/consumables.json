@@ -1,7 +1,7 @@
 [
   {
     "name": "Vulnerary",
-    "lore": "Wax, herbs, and a prayer you only need it once.",
+    "lore": "Apply to the wound, not the mouth. Yes, we have to write that down now.",
     "type": "Consumable",
     "effect": "heal",
     "value": 10,
@@ -10,7 +10,7 @@
   },
   {
     "name": "Elixir",
-    "lore": "Mends the body whole. Few know the recipe now.",
+    "lore": "Price on request. The recipe died with the last temple apothecary.",
     "type": "Consumable",
     "effect": "healFull",
     "value": 0,
@@ -19,7 +19,7 @@
   },
   {
     "name": "Master Seal",
-    "lore": "An old rite pressed in wax. It remakes the one it names.",
+    "lore": "Commission, name line blank. Whoever signs it wakes up promoted, and sore.",
     "type": "Consumable",
     "effect": "promote",
     "value": 0,
@@ -28,7 +28,7 @@
   },
   {
     "name": "Energy Drop",
-    "lore": "Drink it and a month of drills passes in an afternoon.",
+    "lore": "One drop, one dose. Two drops, one fistfight you started. Keep from recruits.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "STR",
@@ -38,7 +38,7 @@
   },
   {
     "name": "Spirit Dust",
-    "lore": "Ground ward-stone that loosens the old words.",
+    "lore": "Ground from a chapel ward-stone. Taken on the tongue, the words come easier.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MAG",
@@ -48,7 +48,7 @@
   },
   {
     "name": "Secret Book",
-    "lore": "One duelist's footwork, diagrammed in a careful hand.",
+    "lore": "Margin note in a second hand: page nine is wrong. Do it my way.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SKL",
@@ -58,7 +58,7 @@
   },
   {
     "name": "Speedwing",
-    "lore": "A pegasus feather, still restless in the hand.",
+    "lore": "A pegasus pinion that still twitches whenever the wind changes.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "SPD",
@@ -68,7 +68,7 @@
   },
   {
     "name": "Dracoshield",
-    "lore": "Sewn into a gambeson, one dragon scale turns a killing blow.",
+    "lore": "Genuine dragon scale! Sew it over the heart. No refunds issued to the dead.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "DEF",
@@ -78,7 +78,7 @@
   },
   {
     "name": "Talisman",
-    "lore": "A seer's charm, worn against hexes.",
+    "lore": "Knot of red, knot of white, keep the hex-fire off tonight.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "RES",
@@ -88,7 +88,7 @@
   },
   {
     "name": "Angelic Robe",
-    "lore": "Temple cloth, blessed once and holding it still.",
+    "lore": "Temple linen, blessed once and holding it still. Wear it under the mail.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "HP",
@@ -98,7 +98,7 @@
   },
   {
     "name": "Swiftsoles",
-    "lore": "Courier's boots that make any road shorter.",
+    "lore": "Courier guild insoles. Once fitted, they refuse to walk anywhere slowly.",
     "type": "Consumable",
     "effect": "statBoost",
     "stat": "MOV",
@@ -108,7 +108,7 @@
   },
   {
     "name": "Infantry Seal",
-    "lore": "Reassignment to the foot ranks, stamped and final.",
+    "lore": "Form 9: reassigned to foot. Mount, saddle and dignity returned to stores.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "infantry",
@@ -118,7 +118,7 @@
   },
   {
     "name": "Mounted Seal",
-    "lore": "Rank and a mount to bear it, of the few that remain.",
+    "lore": "Requisition for one mount, hoof or wing. Feed it first; it will remember.",
     "type": "Consumable",
     "effect": "reclass",
     "subEffect": "mounted",
@@ -128,7 +128,7 @@
   },
   {
     "name": "Herb",
-    "lore": "Bitter fen-leaf that loosens poison's grip.",
+    "lore": "Fen-leaf. Chew slowly. If it tastes worse than the poison, it's working.",
     "type": "Consumable",
     "effect": "cure",
     "value": 0,
@@ -137,7 +137,7 @@
   },
   {
     "name": "Remedy",
-    "lore": "Antidote and bandage packed in one tin.",
+    "lore": "Antidote, gauze, and a tin that doubles as a cup. Sells best on fen roads.",
     "type": "Consumable",
     "effect": "cureHeal",
     "value": 10,
