@@ -18,6 +18,8 @@ shadow 14, falls not yet played), `&mobilePreview=1` for the 844×390 frame, and
 | `victory_band_phone.png` | The victory band appends what the win did to the sun (`Sun held` / `Shadow +N`, plus `Sun flares −3` on an act boss). |
 | `church_kindle_phone.png` | Church Kindle: pay gold to lift 8 shadow, once per chapel. |
 | `act_card_phone.png` | The act card carries the phase: ACT III · UMBRAL. |
+| `eclipse_card_cap_phone.png` | At the cap (review R2, `&shadow=100&actShadow=3`): HOLLOW · 100 shadow, yet "Next fall in N shadow" still counts down — the act's own shadow is uncapped; "The land ahead" says the sun can darken no further but the land still can. |
+| `battle_hud_cap_phone.png`, `battle_hud_cap_desktop.png` | The projection at the cap: `Shadow +5 (land only)` — the act gathers the whole gain, the sun's meter none (near the cap: `Shadow +6 (sun +3)`). One line on the phone rail. |
 
 Regenerate: start the dev server and open the routes above (the medallion and the
 ceremony are live on arrival; set a turn past par in the battle route to see the

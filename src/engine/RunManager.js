@@ -76,7 +76,9 @@ import {
 } from './RecruitNodeSystem.js';
 import {
   applyEclipse,
+  beginActShadow,
   buildEclipseView,
+  commitShadow,
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
@@ -3345,7 +3347,10 @@ export class RunManager {
     return isEclipseActive(this.eclipse, this.getEclipseConfig());
   }
 
-  /** Shadow a victory at `turnsTaken` against `par` would add (HUD projection). */
+  /**
+   * Shadow a victory at `turnsTaken` against `par` would gather (HUD projection): the
+   * act pressure gains all of it; the global meter up to its cap (projectedMeterGain).
+   */
   projectShadowGain(turnsTaken, par) {
     if (!this.isEclipseActive()) return 0;
     return computeShadowGain(
@@ -3372,10 +3377,20 @@ export class RunManager {
     );
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
-    const cap = Math.max(1, Math.trunc(Number(config.cap) || 100));
-    const after = Math.max(0, Math.min(cap, before + gain) - relief);
-    this.eclipse = { ...this.eclipse, shadow: after };
-    return { nodeId: node.id, before, gain, relief, after, fell: [] };
+    // The global meter stops at the cap; the act's pressure takes the whole gain.
+    const commit = commitShadow(this.eclipse, { gain, relief }, config);
+    this.eclipse = commit.state;
+    return {
+      nodeId: node.id,
+      before,
+      gain,
+      relief,
+      after: commit.after,
+      meterGain: commit.meterGain,
+      actBefore: commit.actBefore,
+      actAfter: commit.actAfter,
+      fell: [],
+    };
   }
 
   /** Let the dark take this act's map at the current act shadow (idempotent). */
@@ -3431,7 +3446,14 @@ export class RunManager {
     if (!result.ok) return result;
     if (!this.spendGold(result.price)) return { ok: false, reason: 'Not enough gold.' };
     this.eclipse = result.state;
-    return { ok: true, price: result.price, removed: result.removed, shadow: this.eclipse.shadow };
+    return {
+      ok: true,
+      price: result.price,
+      removed: result.removed,
+      actRemoved: result.actRemoved,
+      shadow: this.eclipse.shadow,
+      actShadow: this.eclipse.actShadow,
+    };
   }
 
   /** The Loom played these nodes' fall; never play it again (persisted by the caller). */
@@ -3553,8 +3575,9 @@ export class RunManager {
     );
     this.shopStateByNodeId = {};
     this.ensureRecruitPreviews();
-    // Every act opens on a fresh land: act shadow counts from here.
-    this.eclipse = { ...this.eclipse, actStartShadow: this.eclipse.shadow };
+    // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
+    // after any boss relief, carries on).
+    this.eclipse = beginActShadow(this.eclipse);
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
