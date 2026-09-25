@@ -40,12 +40,12 @@
   gap: 3px;
 }
 .re-eclipse-phase {
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   letter-spacing: 0.04em;
   color: var(--re-muted);
 }
 .re-eclipse-num {
-  font: 10px/1 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1 var(--re-pixel);
   color: var(--re-accent-text);
   font-variant-numeric: tabular-nums;
 }
@@ -394,7 +394,7 @@
   margin: 0;
 }
 .re-eclipse-card-phase {
-  font: 12px/1.4 var(--re-pixel);
+  font: var(--re-pf-12, 12px)/1.4 var(--re-pixel);
   letter-spacing: 0.06em;
   color: var(--re-accent-text);
 }
@@ -444,7 +444,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 5px;
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   color: var(--re-muted-dim);
 }
 .re-eclipse-names .is-now {
@@ -452,7 +452,7 @@
 }
 .re-eclipse-section h3 {
   margin: 6px 0 3px;
-  font: 8px/1.4 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.4 var(--re-pixel);
   letter-spacing: 0.04em;
   color: var(--re-accent-text);
 }

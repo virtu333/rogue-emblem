@@ -9,6 +9,7 @@
 // --ce-scale that grows type on large desktop canvases, and owns nothing but
 // presentation: no game state, no RNG, no saves.
 
+import { snapPixelFontSize } from '../utils/pixelFontGrid.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { DOM_INPUT_EVENTS, hasDOMHost } from '../utils/domUI.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
@@ -134,6 +135,17 @@ export function frameScale(rect) {
 }
 
 /**
+ * Pixel-font kickers grow with --ce-scale (calc(8px * scale)); publish the
+ * nearest sizes that land on whole device pixels as --ce-pf-7 / --ce-pf-8.
+ */
+export function applyCeremonyPixelFonts(style, rect) {
+  const dpr = globalThis.devicePixelRatio || 1;
+  const scale = frameScale(rect);
+  for (const size of [6, 7, 8])
+    style?.setProperty?.(`--ce-pf-${size}`, `${snapPixelFontSize(size * scale, { dpr })}px`);
+}
+
+/**
  * Integer pixel scale for PC-98 portraits (dither must not be resampled):
  * the scale nearest the fluid --ce-scale.
  */
@@ -203,6 +215,7 @@ export class CeremonyLayer {
     style.width = `${Math.round(rect.width)}px`;
     style.height = `${Math.round(rect.height)}px`;
     style.setProperty('--ce-scale', String(frameScale(rect)));
+    applyCeremonyPixelFonts(style, rect);
     style.setProperty('--ce-px', String(portraitPixelScale(rect)));
     style.setProperty('--ce-bust-px', String(bustPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
@@ -254,12 +267,22 @@ export function fitText(node, { max = null, min = 12 } = {}) {
   if (!node?.isConnected) return;
   node.style.fontSize = '';
   node.style.whiteSpace = 'nowrap';
-  const computed = parseFloat(globalThis.getComputedStyle?.(node)?.fontSize) || 16;
+  const style = globalThis.getComputedStyle?.(node);
+  const computed = parseFloat(style?.fontSize) || 16;
+  // Press Start 2P shrinks along the device-pixel grid so it stays crisp.
+  const pixel = /Press Start/i.test(style?.fontFamily || '');
+  const dpr = globalThis.devicePixelRatio || 1;
+  const smaller = (value) =>
+    pixel
+      ? snapPixelFontSize(value - 0.01, { dpr, mode: 'down', tolerance: 1 })
+      : Math.max(min, value - 1);
   let size = max ? Math.min(max, computed) : computed;
   node.style.fontSize = `${size}px`;
   let guard = 60;
   while (node.scrollWidth > node.clientWidth + 1 && size > min && guard-- > 0) {
-    size = Math.max(min, size - 1);
+    const next = smaller(size);
+    if (!(next < size) || next < min) break;
+    size = next;
     node.style.fontSize = `${size}px`;
   }
   if (node.scrollWidth > node.clientWidth + 1) node.style.whiteSpace = 'normal';
