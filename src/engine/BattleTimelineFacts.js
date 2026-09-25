@@ -59,6 +59,59 @@ export function battleTimelinePreview(state, terrain = []) {
     ],
   };
 }
+// Stored previews carry terrain as a label table plus one character per tile
+// (row-major) instead of one {col,row,label} object per tile: ~30x smaller.
+const TILE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+/** Compact copy of a preview for storage; tiles that cannot be packed are kept as-is. */
+export function packPreviewTiles(preview) {
+  if (!preview || !Array.isArray(preview.tiles) || !Number.isInteger(preview.cols)) return preview;
+  const labels = [];
+  const index = new Map();
+  let cells = '';
+  for (let i = 0; i < preview.tiles.length; i++) {
+    const tile = preview.tiles[i];
+    if (
+      !tile ||
+      tile.col !== i % preview.cols ||
+      tile.row !== Math.floor(i / preview.cols) ||
+      typeof tile.label !== 'string' ||
+      Object.keys(tile).length !== 3
+    )
+      return preview;
+    if (!index.has(tile.label)) {
+      if (labels.length >= TILE_ALPHABET.length) return preview;
+      index.set(tile.label, labels.length);
+      labels.push(tile.label);
+    }
+    cells += TILE_ALPHABET[index.get(tile.label)];
+  }
+  const { tiles: _tiles, ...rest } = preview;
+  return { ...rest, terrain: { labels, cells } };
+}
+
+/** Tile list of a stored preview in either form (never throws). */
+export function previewTiles(preview) {
+  if (!preview || typeof preview !== 'object') return [];
+  if (Array.isArray(preview.tiles)) return preview.tiles;
+  const terrain = preview.terrain;
+  if (
+    !terrain ||
+    !Array.isArray(terrain.labels) ||
+    typeof terrain.cells !== 'string' ||
+    !Number.isInteger(preview.cols) ||
+    preview.cols < 1
+  )
+    return [];
+  const tiles = [];
+  for (let i = 0; i < terrain.cells.length && i < 16384; i++) {
+    const label = terrain.labels[TILE_ALPHABET.indexOf(terrain.cells[i])];
+    if (typeof label !== 'string') return [];
+    tiles.push({ col: i % preview.cols, row: Math.floor(i / preview.cols), label });
+  }
+  return tiles;
+}
+
 export function timelineChanges(previous, next) {
   if (!previous) return [];
   const facts = [];
