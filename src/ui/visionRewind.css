@@ -1,0 +1,313 @@
+/* Rewind picker — "Before <unit>'s <action>" rows, newest first, over a map
+   preview. Ink surfaces, ember for the player's choice, gold thread for the
+   selected row. Metrics: 44px targets, rows >= 50px, safe areas respected. */
+
+.vr-picker.re-screen {
+  gap: 6px;
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+.vr-picker.vr-with-map.re-screen {
+  background: transparent;
+}
+html.mobile-preview .vr-picker.vr-with-map.re-screen {
+  width: 100%;
+  height: 100dvh;
+}
+.vr-picker .re-header {
+  gap: var(--re-s2);
+  padding: 0 0 6px;
+  background: var(--re-bg);
+  box-shadow: 0 0 0 6px var(--re-bg);
+}
+.vr-picker .re-header h2 {
+  letter-spacing: 1px;
+}
+.vr-picker .re-header .re-btn {
+  min-height: 40px;
+  padding: 4px 12px;
+}
+
+.vr-charges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--re-t-small);
+  font-weight: 700;
+  color: var(--re-accent-text);
+  white-space: nowrap;
+}
+.vr-pips {
+  display: inline-flex;
+  gap: 3px;
+}
+.vr-pip {
+  width: 9px;
+  height: 9px;
+  background: var(--re-accent);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 1px var(--re-ember-deep);
+}
+.vr-pip--spent {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--re-line-strong);
+}
+
+.vr-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, min(380px, 44%));
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.vr-map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  touch-action: none;
+  cursor: grab;
+  border: 1px solid var(--re-line-soft);
+  border-right: 0;
+}
+.vr-map--text,
+.vr-map--missing {
+  background: var(--re-sunken);
+}
+.vr-map--missing::after {
+  content: 'Board preview unavailable for this moment.';
+  position: absolute;
+  inset: auto 12px 12px;
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
+.vr-ribbon {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  max-width: calc(100% - 12px);
+  margin: 0;
+  padding: 4px 10px 4px 8px;
+  background: var(--re-bg);
+  border-left: 3px solid var(--re-accent);
+  font: var(--re-t-small);
+  font-weight: 700;
+  color: var(--re-text);
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vr-ribbon:empty {
+  display: none;
+}
+
+.vr-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--re-bg);
+  border: 1px solid var(--re-line-soft);
+}
+.vr-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0 6px 6px;
+}
+.vr-turn {
+  position: sticky;
+  top: 0;
+  margin: 0;
+  padding: 8px 2px 5px;
+  background: var(--re-bg);
+  font: var(--re-t-label);
+  font-family: var(--re-pixel);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--re-muted);
+  text-transform: uppercase;
+}
+.vr-row.re-btn {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--re-tap-row);
+  margin: 0 0 4px;
+  padding: 5px 8px 5px 6px;
+  text-align: left;
+  justify-content: stretch;
+  background: var(--re-panel);
+  border-color: var(--re-line-soft);
+  border-left: 3px solid transparent;
+  font-weight: 400;
+}
+.vr-row.re-btn[aria-selected='true'] {
+  background: var(--re-selected);
+  border-color: var(--re-line);
+  border-left-color: var(--re-accent);
+}
+.vr-row--unavailable .vr-title,
+.vr-row--unavailable .vr-face {
+  opacity: 0.55;
+}
+.vr-face {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line);
+}
+.vr-face .vr-portrait {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  object-position: 50% 18%;
+  image-rendering: pixelated;
+}
+.vr-face b {
+  font-family: var(--re-pixel);
+  font-size: 9px;
+  color: var(--re-accent-text);
+}
+.vr-face--initial b {
+  font-size: 12px;
+  color: var(--re-info);
+}
+.vr-face--turn {
+  background: var(--re-ember-deep);
+  border-color: var(--re-accent);
+}
+.vr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.vr-title {
+  font: var(--re-t-body);
+  font-weight: 700;
+  color: var(--re-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.vr-row[aria-selected='true'] .vr-title {
+  color: var(--re-accent-text);
+}
+.vr-sub {
+  font: var(--re-t-micro);
+  color: var(--re-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vr-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.vr-chip {
+  padding: 1px 6px;
+  font: var(--re-t-micro);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--re-text);
+  background: var(--re-raised);
+  border: 1px solid var(--re-line);
+}
+.vr-chip--miss {
+  color: var(--re-muted);
+  border-style: dashed;
+}
+.vr-chip--crit {
+  color: var(--re-bg);
+  background: var(--re-accent);
+  border-color: var(--re-accent-text);
+}
+.vr-chip--ko,
+.vr-chip--fell {
+  color: var(--re-text);
+  background: var(--re-danger-bg);
+  border-color: var(--re-danger-line);
+}
+.vr-chip--taken {
+  color: var(--re-warn);
+}
+.vr-chip--heal {
+  color: var(--re-good);
+}
+.vr-note,
+.vr-empty {
+  margin: 8px 4px;
+  font: var(--re-t-small);
+  color: var(--re-muted);
+}
+.vr-empty {
+  font: var(--re-t-body);
+  color: var(--re-text);
+}
+
+.vr-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px;
+  border-top: 1px solid var(--re-line-soft);
+  background: var(--re-bg);
+}
+.vr-status {
+  margin: 0;
+  font: var(--re-t-micro);
+  color: var(--re-muted);
+  min-height: 15px;
+}
+.vr-confirm.re-btn {
+  width: 100%;
+  min-height: var(--re-tap);
+  font-weight: 700;
+}
+
+/* The preview scene owns the canvas while the live battle is paused. */
+#game-wrapper.battle-history-active > .mobile-battle-hud {
+  display: none;
+}
+
+/* Tall phones in portrait fall back to a stacked layout (rotation guard aside). */
+@media (max-width: 560px) and (orientation: portrait) {
+  .vr-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 0.8fr) minmax(160px, 1fr);
+  }
+  .vr-map {
+    border-right: 1px solid var(--re-line-soft);
+  }
+}
+/* Desktop: a roomier list. */
+@media (min-width: 1100px) and (min-height: 640px) {
+  .vr-layout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+  .vr-row.re-btn {
+    min-height: 56px;
+  }
+  .vr-face,
+  .vr-face .vr-portrait {
+    width: 44px;
+    height: 44px;
+  }
+  .vr-row.re-btn {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+}
