@@ -7,6 +7,7 @@ import {
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { kindleBlock } from './EclipseSystem.js';
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (!run.roster.includes(unit) || !canPromote(unit)) return 'Unit is not eligible for promotion.';
   if (!resolvePromotionTargets(unit, gameData.classes, gameData.lords)?.length)
@@ -52,5 +53,25 @@ export function reviveAtChurch(run, unit) {
   return {
     ok: true,
     message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
+  };
+}
+// Kindle: pay gold to lift the Eclipse's shadow, once per church node.
+export function churchKindleBlock(run, nodeId) {
+  return kindleBlock({
+    state: run.eclipse,
+    config: run.getEclipseConfig?.(),
+    nodeId,
+    actId: run.currentAct,
+    gold: run.gold,
+  });
+}
+export function kindleAtChurch(run, nodeId) {
+  const reason = churchKindleBlock(run, nodeId);
+  if (reason) return { ok: false, reason };
+  const result = run.kindleSun(nodeId);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    message: `The sun flares. Shadow −${result.removed} (now ${result.shadow}) for ${result.price} G.`,
   };
 }

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "cap": 100,
+  "graceUnderPar": 3,
+  "maxGainPerBattle": 6,
+  "noParGain": 1,
+  "difficultyGain": { "normal": 1, "hard": 1, "lunatic": 1 },
+  "bossRelief": 3,
+  "kindleAmount": 8,
+  "kindlePrice": { "act1": 400, "act2": 700, "act3": 1000, "act4": 1300, "finalBoss": 1500 },
+  "laneBase": { "outer": 5, "inner": 12, "center": 22 },
+  "rowBias": 4,
+  "jitter": 4,
+  "fallWarning": 3,
+  "phases": [
+    { "id": "pale", "name": "Pale", "min": 0 },
+    { "id": "waning", "name": "Waning", "min": 25 },
+    { "id": "umbral", "name": "Umbral", "min": 50 },
+    { "id": "totality", "name": "Totality", "min": 75 },
+    { "id": "hollow", "name": "Hollow", "min": 100 }
+  ],
+  "phaseEnemyLevelBonus": [0, 0, 1, 1, 2],
+  "phaseAffix": {
+    "hardGatingFromPhase": "umbral",
+    "extraMaxAffixFromPhase": "totality",
+    "extraMaxAffixes": 1
+  },
+  "eclipsedEnemyLevelBonus": 1,
+  "eclipsedAffixCount": 2,
+  "eclipsedAffixTier": 1,
+  "falls": {
+    "battle": { "label": "Eclipsed battle", "noun": "battlefield" },
+    "shop": { "label": "Burned village", "noun": "village" },
+    "church": { "label": "Desecrated chapel", "noun": "chapel" },
+    "recruit": { "label": "Lost to the dark", "noun": "would-be ally" },
+    "colosseum": { "label": "Silent arena", "noun": "arena" }
+  }
+}

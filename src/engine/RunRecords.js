@@ -14,6 +14,10 @@ export function mergeRunRecords(...sources) {
       totalTurns: Number.isFinite(record.totalTurns)
         ? Math.max(0, Math.trunc(record.totalTurns))
         : null,
+      // The Eclipse's final shadow (null for runs before it or with it off).
+      shadow: Number.isFinite(record.shadow)
+        ? Math.max(0, Math.min(1000, Math.trunc(record.shadow)))
+        : null,
       roster: (Array.isArray(record.roster) ? record.roster : [])
         .slice(0, 20)
         .filter((u) => typeof u?.name === 'string')
