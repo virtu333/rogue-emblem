@@ -3,10 +3,10 @@
     "duration": 80.389,
     "loopEnd": 79.789456,
     "loopStart": 10.315782,
-    "lufs": -14.01,
+    "lufs": -14.02,
     "peakDb": -1.09,
     "score": "battle_act1",
-    "seamDb": -55.2,
+    "seamDb": -54.9,
     "title": "Ember Dusk",
     "tonic": "D"
   },
@@ -17,7 +17,7 @@
     "lufs": -14.0,
     "peakDb": -1.09,
     "score": "battle_act1_2",
-    "seamDb": -70.1,
+    "seamDb": -70.0,
     "title": "Border Marches",
     "tonic": "G"
   },
@@ -28,7 +28,7 @@
     "lufs": -17.0,
     "peakDb": -5.3,
     "score": "battle_act1_2",
-    "seamDb": -87.8,
+    "seamDb": -88.1,
     "title": "Border Marches",
     "tonic": "G"
   },
@@ -153,6 +153,28 @@
     "title": "Ashfall",
     "tonic": "Db"
   },
+  "music_battle_escape": {
+    "duration": 62.378,
+    "loopEnd": 61.777778,
+    "loopStart": 8.444444,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_escape",
+    "seamDb": -53.9,
+    "title": "One More Crossing",
+    "tonic": "E"
+  },
+  "music_battle_escape_calm": {
+    "duration": 62.378,
+    "loopEnd": 61.777778,
+    "loopStart": 8.444444,
+    "lufs": -17.5,
+    "peakDb": -5.18,
+    "score": "battle_escape",
+    "seamDb": -69.5,
+    "title": "One More Crossing",
+    "tonic": "E"
+  },
   "music_boss_act1": {
     "duration": 74.165,
     "loopEnd": 73.565215,
@@ -161,6 +183,28 @@
     "peakDb": -1.09,
     "score": "boss_act1",
     "seamDb": -80.5,
+    "title": "The Border Holds",
+    "tonic": "D"
+  },
+  "music_boss_act1_enrage_iron_captain": {
+    "duration": 74.165,
+    "loopEnd": 73.565215,
+    "loopStart": 10.956531,
+    "lufs": -13.51,
+    "peakDb": -1.09,
+    "score": "boss_act1",
+    "seamDb": -81.6,
+    "title": "The Border Holds",
+    "tonic": "D"
+  },
+  "music_boss_act1_enrage_warchief": {
+    "duration": 74.165,
+    "loopEnd": 73.565215,
+    "loopStart": 10.956531,
+    "lufs": -13.51,
+    "peakDb": -1.09,
+    "score": "boss_act1",
+    "seamDb": -69.9,
     "title": "The Border Holds",
     "tonic": "D"
   },
@@ -175,6 +219,39 @@
     "title": "Doctrine of Lances",
     "tonic": "F"
   },
+  "music_boss_act2_enrage_archmage": {
+    "duration": 62.431,
+    "loopEnd": 61.831315,
+    "loopStart": 9.783129,
+    "lufs": -13.5,
+    "peakDb": -1.11,
+    "score": "boss_act2",
+    "seamDb": -81.1,
+    "title": "Doctrine of Lances",
+    "tonic": "F"
+  },
+  "music_boss_act2_enrage_dark_rider": {
+    "duration": 62.431,
+    "loopEnd": 61.831315,
+    "loopStart": 9.783129,
+    "lufs": -13.51,
+    "peakDb": -1.11,
+    "score": "boss_act2",
+    "seamDb": -81.0,
+    "title": "Doctrine of Lances",
+    "tonic": "F"
+  },
+  "music_boss_act2_enrage_knight_commander": {
+    "duration": 62.431,
+    "loopEnd": 61.831315,
+    "loopStart": 9.783129,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_act2",
+    "seamDb": -81.5,
+    "title": "Doctrine of Lances",
+    "tonic": "F"
+  },
   "music_boss_act3": {
     "duration": 60.414,
     "loopEnd": 59.813968,
@@ -183,6 +260,39 @@
     "peakDb": -1.09,
     "score": "boss_act3",
     "seamDb": -85.1,
+    "title": "The Perfect Duel",
+    "tonic": "E"
+  },
+  "music_boss_act3_enrage_berserker_king": {
+    "duration": 60.414,
+    "loopEnd": 59.813968,
+    "loopStart": 9.581406,
+    "lufs": -13.51,
+    "peakDb": -1.09,
+    "score": "boss_act3",
+    "seamDb": -73.7,
+    "title": "The Perfect Duel",
+    "tonic": "E"
+  },
+  "music_boss_act3_enrage_blade_lord": {
+    "duration": 60.414,
+    "loopEnd": 59.813968,
+    "loopStart": 9.581406,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_act3",
+    "seamDb": -85.8,
+    "title": "The Perfect Duel",
+    "tonic": "E"
+  },
+  "music_boss_act3_enrage_iron_wall": {
+    "duration": 60.414,
+    "loopEnd": 59.813968,
+    "loopStart": 9.581406,
+    "lufs": -13.5,
+    "peakDb": -1.1,
+    "score": "boss_act3",
+    "seamDb": -86.2,
     "title": "The Perfect Duel",
     "tonic": "E"
   },
@@ -197,14 +307,36 @@
     "title": "Human, Powerful, and Wrong",
     "tonic": "Bb"
   },
+  "music_boss_emperor_enrage_emperor": {
+    "duration": 84.6,
+    "loopEnd": 84.0,
+    "loopStart": 12.0,
+    "lufs": -13.53,
+    "peakDb": -1.09,
+    "score": "boss_emperor",
+    "seamDb": -74.3,
+    "title": "Human, Powerful, and Wrong",
+    "tonic": "Bb"
+  },
   "music_boss_entity": {
-    "duration": 101.775,
-    "loopEnd": 101.175011,
-    "loopStart": 15.841678,
-    "lufs": -14.5,
-    "peakDb": -1.2,
+    "duration": 108.632,
+    "loopEnd": 108.032154,
+    "loopStart": 16.603583,
+    "lufs": -19.0,
+    "peakDb": -4.27,
     "score": "boss_entity",
-    "seamDb": -65.8,
+    "seamDb": -60.5,
+    "title": "\u00b7 \u00b7 \u00b7",
+    "tonic": "D"
+  },
+  "music_boss_entity_enrage_entity": {
+    "duration": 108.632,
+    "loopEnd": 108.032154,
+    "loopStart": 16.603583,
+    "lufs": -22.0,
+    "peakDb": -8.49,
+    "score": "boss_entity",
+    "seamDb": -58.7,
     "title": "\u00b7 \u00b7 \u00b7",
     "tonic": "D"
   },
@@ -218,6 +350,28 @@
     "seamDb": -78.7,
     "title": "Every Future You Could Reach",
     "tonic": "D"
+  },
+  "music_boss_lieutenant_enrage_lieutenant": {
+    "duration": 73.171,
+    "loopEnd": 72.571429,
+    "loopStart": 9.714286,
+    "lufs": -13.2,
+    "peakDb": -1.09,
+    "score": "boss_lieutenant",
+    "seamDb": -80.0,
+    "title": "Every Future You Could Reach",
+    "tonic": "D"
+  },
+  "music_colosseum": {
+    "duration": 49.817,
+    "loopEnd": 49.217392,
+    "loopStart": 7.478254,
+    "lufs": -15.51,
+    "peakDb": -1.09,
+    "score": "colosseum",
+    "seamDb": -58.0,
+    "title": "The Pit Answers",
+    "tonic": "A"
   },
   "music_defeat": {
     "duration": 58.763,
@@ -273,6 +427,17 @@
     "seamDb": -70.5,
     "title": "The Loom: Ashfall",
     "tonic": "B"
+  },
+  "music_explore_deep": {
+    "duration": 87.535,
+    "loopEnd": 86.935261,
+    "loopStart": 11.145782,
+    "lufs": -24.0,
+    "peakDb": -8.53,
+    "score": "loom_deep",
+    "seamDb": -54.5,
+    "title": "The Loom: Unlight",
+    "tonic": "D"
   },
   "music_home_base": {
     "duration": 81.743,
@@ -338,6 +503,17 @@
     "score": "shop",
     "seamDb": -128.4,
     "title": "Varen's Mark",
+    "tonic": "G"
+  },
+  "music_shrine": {
+    "duration": 69.6,
+    "loopEnd": 69.0,
+    "loopStart": 9.0,
+    "lufs": -19.0,
+    "peakDb": -6.19,
+    "score": "shrine",
+    "seamDb": -65.7,
+    "title": "What the Sun Kept",
     "tonic": "G"
   },
   "music_title": {

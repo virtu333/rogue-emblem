@@ -175,10 +175,14 @@ def build_stingers(names, args, tonics, stingers):
         mod = importlib.import_module(f'stingers.{name}')
         keyed = bool(getattr(mod, 'KEYED', True))
         targets = tonics if keyed else [None]
+        # an unkeyed stinger may still name the key it is heard in (an act card
+        # plays in its act's map key); it is written in D like the others
+        fixed = getattr(mod, 'TONIC', None)
         rendered = {}
         for pc in targets:
             t = time.time()
-            score = mod.build(transpose=offset_from_d(pc) if pc else 0)
+            home = pc or (pitch_class(fixed) if fixed else None)
+            score = mod.build(transpose=offset_from_d(home) if home else 0)
             if not score.one_shot:
                 raise SystemExit(f'stinger {name} must be a one-shot score')
             check_or_exit(score)

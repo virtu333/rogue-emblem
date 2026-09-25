@@ -57,6 +57,67 @@ describe('BattleMusicController', () => {
     expect(audio.setMusicIntensity).not.toHaveBeenCalled();
   });
 
+  it('plays the pursuit theme on escape maps, on its calm layer first', () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene, { playersInDanger: () => false });
+    const key = ctrl.create({ act: 'act3', objective: 'escape' });
+    expect(key).toBe(MUSIC.escape);
+    expect(MUSIC_LAYERS[key]).toBeTruthy();
+    expect(audio.setMusicIntensity).toHaveBeenCalledWith('calm', 0);
+    // a boss on an escape map still gets its own theme
+    expect(ctrl.create({ act: 'act3', isBoss: true, objective: 'escape' })).toBe(MUSIC.boss.act3);
+    // other objectives use the act pool
+    expect(MUSIC.battle.act3).toContain(ctrl.create({ act: 'act3', objective: 'seize' }));
+  });
+
+  it("layers a boss theme with that boss's enrage layer and crossfades to it on enrage", () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene, { bossEnraged: () => false });
+    const key = ctrl.create({ act: 'act1', isBoss: true, bossName: 'Iron Captain' });
+    expect(key).toBe(MUSIC.boss.act1);
+    expect(audio.playMusic).toHaveBeenCalledWith(key, scene, 800, {
+      layers: { enrage: 'music_boss_act1_enrage_iron_captain' },
+    });
+    expect(audio.setMusicIntensity).toHaveBeenLastCalledWith('full', 0);
+    expect(ctrl.onBossEnrage()).toBe(true);
+    expect(audio.setMusicIntensity).toHaveBeenLastCalledWith('enrage', expect.any(Number));
+    audio.setMusicIntensity.mockClear();
+    expect(ctrl.onBossEnrage()).toBe(false); // once
+    expect(audio.setMusicIntensity).not.toHaveBeenCalled();
+  });
+
+  it('opens a resumed, already-enraged boss battle on the enrage layer', () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene, { bossEnraged: () => true });
+    ctrl.create({ act: 'act3', isBoss: true, bossName: 'Blade Lord' });
+    expect(audio.setMusicIntensity).toHaveBeenCalledWith('enrage', 0);
+  });
+
+  it('catches up at the next phase when the enrage came without the hook', () => {
+    const { audio, scene } = makeScene();
+    let enraged = false;
+    const ctrl = new BattleMusicController(scene, { bossEnraged: () => enraged });
+    ctrl.create({ act: 'act2', isBoss: true, bossName: 'Archmage' });
+    enraged = true;
+    ctrl.onPhaseStart('enemy');
+    expect(audio.setMusicIntensity).toHaveBeenLastCalledWith('enrage', expect.any(Number));
+  });
+
+  it('gives the story bosses their enrage layers on their own themes', () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene);
+    for (const [name, act] of [
+      ['The Emperor', 'act4'],
+      ['The Lieutenant', 'finalBoss'],
+      ['The Entity', 'finalBoss'],
+    ]) {
+      const key = ctrl.create({ act, isBoss: true, bossName: name });
+      expect(audio.playMusic).toHaveBeenLastCalledWith(key, scene, 800, {
+        layers: { enrage: expect.stringMatching(new RegExp(`^${key}_enrage_`)) },
+      });
+    }
+  });
+
   it('uses the act boss theme for other bosses', () => {
     const { scene } = makeScene();
     const ctrl = new BattleMusicController(scene);

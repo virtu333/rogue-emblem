@@ -20,10 +20,17 @@ with `-DSFIZZ_RENDER=ON`) for the drum kit, bass guitar and grand piano.
 ```bash
 python3 tools/music/build.py battle_act1 --preview   # one score, + jump previews
 python3 tools/music/build.py --all                   # every score
+python3 tools/music/build.py --stingers levelup      # one ceremony cue, in every key
+python3 tools/music/build.py --stingers              # every ceremony cue
 ```
 
 This writes `assets/audio/music/<key>.mp3` (plus `<key>_calm.mp3` for adaptive
-battle themes) and regenerates `src/utils/musicLoops.js`. Then run `npm run sync-assets`
+battle themes and `<key>_enrage_<boss>.mp3` for boss themes) and regenerates
+`src/utils/musicLoops.js`. Stingers go to `assets/audio/stingers/` and
+`src/utils/musicStingers.js`: a keyed stinger (`KEYED = True`) is written in D and
+rendered once per tonic the scores declare; an unkeyed one may name a fixed `TONIC`.
+Before rendering, a form check refuses any score with a bar in which nothing sounds
+(declare intended silences in `score.silent_ok`). Then run `npm run sync-assets`
 to copy the files to `public/`. `--preview` also writes files to `References/music-preview/`
 that play through the loop jump, so you can listen to the seam.
 
@@ -32,7 +39,8 @@ that play through the loop jump, so you can listen to the seam.
 | Script | Purpose |
 |---|---|
 | `build.py` | Render scores and export game-ready loops |
-| `lint.py <score>` | Symbolic check: sustained semitone clashes between parts, for catching typos and wrong octaves |
+| `lint.py <score> [--variant v]` | Symbolic check: sustained semitone clashes between parts, for catching typos and wrong octaves |
+| `pitchcheck.py <file.mp3>` | The strongest pitch classes per window of a rendered file: is the cue in the key it should be? |
 | `analyze.py <score> [--png]` | Per-part levels in each mix variant, tonal balance, width, spectrogram |
 | `solo.py <score> <parts…>` | Audition a subset of parts |
 | `listen.py <files…> --prompt` | Ask a Gemini audio model for a critique. It is useful for glaring problems only; its detailed perception is unreliable |

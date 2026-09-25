@@ -73,6 +73,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { fitCanvasText } from './deedDisplay.js';
+import { playCue } from './ceremonyMusic.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1779,7 +1780,7 @@ export class RosterOverlay {
       const audio = this.scene.registry.get('audio');
       if (typeof this.scene.sound?.stopByKey === 'function')
         this.scene.sound.stopByKey('sfx_levelup');
-      if (audio) audio.playSFX('sfx_levelup');
+      if (audio) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
       const droppedNames = getSkillDisplayNames(
         promotionResult?.droppedSkills,
         this.gameData.skills,

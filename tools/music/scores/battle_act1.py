@@ -4,7 +4,7 @@ The main battle theme. Its melody is the Thread motif (A-D-E-A: Sera's sight,
 a line pulled taut) set at battle tempo. Two layers share one timeline:
 
   calm  ("rain")    strings, piano, harp and winds carry the tune; light kit
-  full  ("thunder") rock kit, bass, brass unisons, choir
+  full  ("thunder") rock kit, bass, brass unisons (no choir: Act I stays human-sized)
 
 Form (bars): intro 1-4 | A1 5-12 | A2 13-20 | B 21-28 (relative major; the
 thread motif sequenced down, the celli sing it augmented) | C 29-36 (the
@@ -110,7 +110,10 @@ def build():
     mel8.at(37).play('@ff' + MEL_A, transpose=-10)
 
     ost = s.part('ost_vn', 'violins2', role='ostinato', art='spic', pan=-0.3)
-    arp(ost, 13, CH_A, '0 1 2 1', step=0.25, lo=62, hi=81, vel=0.6, accent_every=1)
+    # A2: a straight sixteenth grid accented every third note, so the figure
+    # leans against the beat without anything getting louder
+    arp(ost, 13, CH_A, '0 1 2 1', step=0.25, lo=62, hi=81, vel=0.56, accent_every=0.75,
+        accent=0.2)
     arp(ost, 29, CH_C, '0 1 2 1', step=0.25, lo=57, hi=74, vel=0.6, accent_every=1)
     arp(ost, 45, CH_BUILD, '0 1 2 3', step=0.25, lo=60, hi=84, vel=0.62, accent_every=1)
 
@@ -167,8 +170,6 @@ def build():
     hn_mel.at(13).play('@f' + MEL_A_BR, transpose=-12)
     hn_mel.at(37).play('@ff' + MEL_A_BR, transpose=-10)
 
-    tpt_mel = s.part('tpt_mel', 'trumpets', role='lead2')
-    tpt_mel.at(37).play('@f' + MEL_A_BR, transpose=-10)
 
     stabs = s.part('stabs', 'trumpets', role='accent', art='stac', pan=0.2)
     ostinato(stabs, 13, CH_A, 'q. q. q', '1 1 2', lo=62, hi=76, vel=0.64)
@@ -193,10 +194,6 @@ def build():
     hn_c = s.part('hn_c', 'horns', role='lead2', pan=-0.35)
     hn_c.at(33).play('@ff' + EMPIRE_C_TOP)
 
-    # air on the tune: piccolo an octave above the violins (full only)
-    picc = s.part('picc', 'piccolo', role='lead2', gain=-5)
-    picc.at(5).play('@mf' + MEL_A_BR, transpose=12)
-    picc.at(37).play('@f' + MEL_A_BR, transpose=14)
 
     # ================================================================ percussion
     timp = s.part('timp', 'timpani', role='timp')
@@ -251,11 +248,7 @@ def build():
     eb.at(29).play('@f' + EMPIRE_C, transpose=-12)
     bass(eb, 45, CH_BUILD, 'e e e e e e e e', 'r r r r r r r r', floor=28, vel=0.72)
 
-    choir = s.part('choir_b', 'oohs', role='choir')
-    pad(choir, 21, CH_B, n=3, lo=55, hi=72, vel=0.6)
-    choir_a = s.part('choir_a', 'choir', role='choir')
-    pad(choir_a, 33, CH_C[4:], n=3, lo=55, hi=72, vel=0.66)
-    pad(choir_a, 37, CH_A3, n=3, lo=57, hi=74, vel=0.68)
+    # No choir in Act I: voices are saved for the later acts and the story bosses.
 
     sub = s.part('sub', 'sub', role='sub')
     for bar, ch in ((5, CH_A), (13, CH_A), (21, CH_B), (37, CH_A3), (45, CH_BUILD)):

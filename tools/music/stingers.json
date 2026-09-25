@@ -1,57 +1,597 @@
 {
+  "act_card_act1": {
+    "duration": 6.962,
+    "files": {
+      "stinger_act_card_act1": {
+        "duration": 6.962,
+        "lufs": -17.0,
+        "notesEnd": 5.0,
+        "peakDb": -4.83
+      }
+    },
+    "keyed": false,
+    "notesEnd": 5.0,
+    "title": "Act I",
+    "tonics": []
+  },
+  "act_card_act2": {
+    "duration": 5.933,
+    "files": {
+      "stinger_act_card_act2": {
+        "duration": 5.933,
+        "lufs": -17.0,
+        "notesEnd": 4.8,
+        "peakDb": -2.34
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.8,
+    "title": "Act II",
+    "tonics": []
+  },
+  "act_card_act3": {
+    "duration": 8.187,
+    "files": {
+      "stinger_act_card_act3": {
+        "duration": 8.187,
+        "lufs": -18.0,
+        "notesEnd": 6.0,
+        "peakDb": -7.21
+      }
+    },
+    "keyed": false,
+    "notesEnd": 6.0,
+    "title": "Act III",
+    "tonics": []
+  },
+  "act_card_act4": {
+    "duration": 9.722,
+    "files": {
+      "stinger_act_card_act4": {
+        "duration": 9.722,
+        "lufs": -19.0,
+        "notesEnd": 6.667,
+        "peakDb": -1.37
+      }
+    },
+    "keyed": false,
+    "notesEnd": 6.667,
+    "title": "Act IV",
+    "tonics": []
+  },
+  "act_card_finalBoss": {
+    "duration": 11.247,
+    "files": {
+      "stinger_act_card_finalBoss": {
+        "duration": 11.247,
+        "lufs": -21.0,
+        "notesEnd": 8.0,
+        "peakDb": -9.17
+      }
+    },
+    "keyed": false,
+    "notesEnd": 8.0,
+    "title": "The Deep",
+    "tonics": []
+  },
+  "arrival": {
+    "duration": 3.579,
+    "files": {
+      "stinger_arrival_A": {
+        "duration": 3.579,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -4.74
+      },
+      "stinger_arrival_B": {
+        "duration": 3.243,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -3.66
+      },
+      "stinger_arrival_Bb": {
+        "duration": 3.424,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -2.55
+      },
+      "stinger_arrival_C": {
+        "duration": 3.409,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -5.8
+      },
+      "stinger_arrival_D": {
+        "duration": 3.359,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -4.47
+      },
+      "stinger_arrival_Db": {
+        "duration": 3.381,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -2.91
+      },
+      "stinger_arrival_E": {
+        "duration": 3.359,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -4.35
+      },
+      "stinger_arrival_F": {
+        "duration": 3.153,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -3.78
+      },
+      "stinger_arrival_G": {
+        "duration": 3.243,
+        "lufs": -17.0,
+        "notesEnd": 2.0,
+        "peakDb": -4.3
+      }
+    },
+    "keyed": true,
+    "notesEnd": 2.0,
+    "title": "Reinforcements",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "boss_archmage": {
+    "duration": 6.016,
+    "files": {
+      "stinger_boss_archmage": {
+        "duration": 6.016,
+        "lufs": -18.0,
+        "notesEnd": 4.138,
+        "peakDb": -6.8
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.138,
+    "title": "Archmage",
+    "tonics": []
+  },
+  "boss_berserker_king": {
+    "duration": 5.358,
+    "files": {
+      "stinger_boss_berserker_king": {
+        "duration": 5.358,
+        "lufs": -15.5,
+        "notesEnd": 3.429,
+        "peakDb": -3.22
+      }
+    },
+    "keyed": false,
+    "notesEnd": 3.429,
+    "title": "Berserker King",
+    "tonics": []
+  },
+  "boss_blade_lord": {
+    "duration": 5.479,
+    "files": {
+      "stinger_boss_blade_lord": {
+        "duration": 5.479,
+        "lufs": -18.65,
+        "notesEnd": 4.0,
+        "peakDb": -2.16
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.0,
+    "title": "Blade Lord",
+    "tonics": []
+  },
+  "boss_card": {
+    "duration": 5.938,
+    "files": {
+      "stinger_boss_card_A": {
+        "duration": 5.785,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -3.03
+      },
+      "stinger_boss_card_B": {
+        "duration": 5.812,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -3.37
+      },
+      "stinger_boss_card_Bb": {
+        "duration": 5.907,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -1.56
+      },
+      "stinger_boss_card_C": {
+        "duration": 5.854,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -2.84
+      },
+      "stinger_boss_card_D": {
+        "duration": 5.793,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -3.84
+      },
+      "stinger_boss_card_Db": {
+        "duration": 5.857,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -1.83
+      },
+      "stinger_boss_card_E": {
+        "duration": 5.855,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.46
+      },
+      "stinger_boss_card_F": {
+        "duration": 5.83,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.56
+      },
+      "stinger_boss_card_G": {
+        "duration": 5.938,
+        "lufs": -16.5,
+        "notesEnd": 4.286,
+        "peakDb": -4.0
+      }
+    },
+    "keyed": true,
+    "notesEnd": 4.286,
+    "title": "Boss",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "boss_dark_rider": {
+    "duration": 5.115,
+    "files": {
+      "stinger_boss_dark_rider": {
+        "duration": 5.115,
+        "lufs": -17.0,
+        "notesEnd": 3.81,
+        "peakDb": -5.34
+      }
+    },
+    "keyed": false,
+    "notesEnd": 3.81,
+    "title": "Dark Rider",
+    "tonics": []
+  },
+  "boss_emperor_card": {
+    "duration": 6.421,
+    "files": {
+      "stinger_boss_emperor_card": {
+        "duration": 6.421,
+        "lufs": -16.0,
+        "notesEnd": 4.615,
+        "peakDb": -4.61
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.615,
+    "title": "The Emperor",
+    "tonics": []
+  },
+  "boss_felled": {
+    "duration": 4.873,
+    "files": {
+      "stinger_boss_felled_A": {
+        "duration": 4.778,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.9
+      },
+      "stinger_boss_felled_B": {
+        "duration": 4.564,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.27
+      },
+      "stinger_boss_felled_Bb": {
+        "duration": 4.601,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.58
+      },
+      "stinger_boss_felled_C": {
+        "duration": 4.669,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.0
+      },
+      "stinger_boss_felled_D": {
+        "duration": 4.873,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.44
+      },
+      "stinger_boss_felled_Db": {
+        "duration": 4.533,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -4.75
+      },
+      "stinger_boss_felled_E": {
+        "duration": 4.474,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -4.36
+      },
+      "stinger_boss_felled_F": {
+        "duration": 4.582,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.14
+      },
+      "stinger_boss_felled_G": {
+        "duration": 4.53,
+        "lufs": -16.0,
+        "notesEnd": 2.5,
+        "peakDb": -3.55
+      }
+    },
+    "keyed": true,
+    "notesEnd": 2.5,
+    "title": "Foe Vanquished",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "boss_iron_captain": {
+    "duration": 5.001,
+    "files": {
+      "stinger_boss_iron_captain": {
+        "duration": 5.001,
+        "lufs": -16.5,
+        "notesEnd": 4.138,
+        "peakDb": -2.61
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.138,
+    "title": "Iron Captain",
+    "tonics": []
+  },
+  "boss_iron_wall": {
+    "duration": 6.663,
+    "files": {
+      "stinger_boss_iron_wall": {
+        "duration": 6.663,
+        "lufs": -17.0,
+        "notesEnd": 5.0,
+        "peakDb": -6.14
+      }
+    },
+    "keyed": false,
+    "notesEnd": 5.0,
+    "title": "Iron Wall",
+    "tonics": []
+  },
+  "boss_knight_commander": {
+    "duration": 5.71,
+    "files": {
+      "stinger_boss_knight_commander": {
+        "duration": 5.71,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -6.1
+      }
+    },
+    "keyed": false,
+    "notesEnd": 3.636,
+    "title": "Knight Commander",
+    "tonics": []
+  },
+  "boss_lieutenant_card": {
+    "duration": 5.927,
+    "files": {
+      "stinger_boss_lieutenant_card": {
+        "duration": 5.927,
+        "lufs": -17.5,
+        "notesEnd": 4.8,
+        "peakDb": -4.05
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.8,
+    "title": "The Lieutenant",
+    "tonics": []
+  },
+  "boss_warchief": {
+    "duration": 6.04,
+    "files": {
+      "stinger_boss_warchief": {
+        "duration": 6.04,
+        "lufs": -16.5,
+        "notesEnd": 4.0,
+        "peakDb": -5.22
+      }
+    },
+    "keyed": false,
+    "notesEnd": 4.0,
+    "title": "Warchief",
+    "tonics": []
+  },
+  "deed": {
+    "duration": 5.757,
+    "files": {
+      "stinger_deed_A": {
+        "duration": 5.53,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -3.9
+      },
+      "stinger_deed_B": {
+        "duration": 5.725,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -2.62
+      },
+      "stinger_deed_Bb": {
+        "duration": 5.757,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -3.6
+      },
+      "stinger_deed_C": {
+        "duration": 5.699,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -4.39
+      },
+      "stinger_deed_D": {
+        "duration": 5.576,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -3.8
+      },
+      "stinger_deed_Db": {
+        "duration": 5.699,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -4.12
+      },
+      "stinger_deed_E": {
+        "duration": 5.618,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -2.96
+      },
+      "stinger_deed_F": {
+        "duration": 5.549,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -4.88
+      },
+      "stinger_deed_G": {
+        "duration": 5.441,
+        "lufs": -16.5,
+        "notesEnd": 1.875,
+        "peakDb": -3.62
+      }
+    },
+    "keyed": true,
+    "notesEnd": 1.875,
+    "title": "Deed",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "eclipse": {
+    "duration": 6.765,
+    "files": {
+      "stinger_eclipse_A": {
+        "duration": 6.559,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -5.54
+      },
+      "stinger_eclipse_B": {
+        "duration": 6.552,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -5.28
+      },
+      "stinger_eclipse_Bb": {
+        "duration": 6.596,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -4.72
+      },
+      "stinger_eclipse_C": {
+        "duration": 6.59,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -4.95
+      },
+      "stinger_eclipse_D": {
+        "duration": 6.66,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -3.71
+      },
+      "stinger_eclipse_Db": {
+        "duration": 6.693,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -4.87
+      },
+      "stinger_eclipse_E": {
+        "duration": 6.656,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -6.31
+      },
+      "stinger_eclipse_F": {
+        "duration": 6.765,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -5.21
+      },
+      "stinger_eclipse_G": {
+        "duration": 6.656,
+        "lufs": -19.5,
+        "notesEnd": 3.636,
+        "peakDb": -5.7
+      }
+    },
+    "keyed": true,
+    "notesEnd": 3.636,
+    "title": "The Eclipse",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
   "levelup": {
-    "duration": 5.885,
+    "duration": 4.489,
     "files": {
       "stinger_levelup_A": {
-        "duration": 5.862,
+        "duration": 4.489,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -4.7
       },
       "stinger_levelup_B": {
-        "duration": 5.862,
+        "duration": 4.48,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -3.94
       },
       "stinger_levelup_Bb": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -4.38
       },
       "stinger_levelup_C": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -4.74
       },
       "stinger_levelup_D": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -2.79
       },
       "stinger_levelup_Db": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -4.11
       },
       "stinger_levelup_E": {
-        "duration": 5.885,
+        "duration": 4.48,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -5.23
       },
       "stinger_levelup_F": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -3.76
       },
       "stinger_levelup_G": {
-        "duration": 5.862,
+        "duration": 4.4,
         "lufs": -17.0,
         "notesEnd": 1.818,
         "peakDb": -5.79
@@ -60,6 +600,510 @@
     "keyed": true,
     "notesEnd": 1.818,
     "title": "Level Up",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "levelup_blank": {
+    "duration": 3.221,
+    "files": {
+      "stinger_levelup_blank_A": {
+        "duration": 2.776,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -7.1
+      },
+      "stinger_levelup_blank_B": {
+        "duration": 2.948,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -3.89
+      },
+      "stinger_levelup_blank_Bb": {
+        "duration": 2.893,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -5.36
+      },
+      "stinger_levelup_blank_C": {
+        "duration": 3.221,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -3.83
+      },
+      "stinger_levelup_blank_D": {
+        "duration": 3.021,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -3.68
+      },
+      "stinger_levelup_blank_Db": {
+        "duration": 2.834,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -5.03
+      },
+      "stinger_levelup_blank_E": {
+        "duration": 2.3,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -4.92
+      },
+      "stinger_levelup_blank_F": {
+        "duration": 2.287,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -5.15
+      },
+      "stinger_levelup_blank_G": {
+        "duration": 2.876,
+        "lufs": -19.0,
+        "notesEnd": 0.909,
+        "peakDb": -4.42
+      }
+    },
+    "keyed": true,
+    "notesEnd": 0.909,
+    "title": "Level Up \u2014 Lean",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "levelup_perfect": {
+    "duration": 5.588,
+    "files": {
+      "stinger_levelup_perfect_A": {
+        "duration": 5.509,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -3.58
+      },
+      "stinger_levelup_perfect_B": {
+        "duration": 5.347,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -1.5
+      },
+      "stinger_levelup_perfect_Bb": {
+        "duration": 5.32,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -3.0
+      },
+      "stinger_levelup_perfect_C": {
+        "duration": 5.588,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -1.56
+      },
+      "stinger_levelup_perfect_D": {
+        "duration": 5.459,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -4.52
+      },
+      "stinger_levelup_perfect_Db": {
+        "duration": 5.567,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -4.15
+      },
+      "stinger_levelup_perfect_E": {
+        "duration": 5.29,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -2.61
+      },
+      "stinger_levelup_perfect_F": {
+        "duration": 5.246,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -4.22
+      },
+      "stinger_levelup_perfect_G": {
+        "duration": 5.396,
+        "lufs": -16.0,
+        "notesEnd": 3.636,
+        "peakDb": -1.49
+      }
+    },
+    "keyed": true,
+    "notesEnd": 3.636,
+    "title": "Level Up \u2014 Perfect",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "lord_fallen": {
+    "duration": 5.201,
+    "files": {
+      "stinger_lord_fallen_A": {
+        "duration": 5.041,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -4.42
+      },
+      "stinger_lord_fallen_B": {
+        "duration": 5.09,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -5.07
+      },
+      "stinger_lord_fallen_Bb": {
+        "duration": 5.018,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -6.4
+      },
+      "stinger_lord_fallen_C": {
+        "duration": 5.158,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -6.87
+      },
+      "stinger_lord_fallen_D": {
+        "duration": 5.098,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -4.62
+      },
+      "stinger_lord_fallen_Db": {
+        "duration": 4.993,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -6.72
+      },
+      "stinger_lord_fallen_E": {
+        "duration": 5.201,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -5.78
+      },
+      "stinger_lord_fallen_F": {
+        "duration": 4.952,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -5.45
+      },
+      "stinger_lord_fallen_G": {
+        "duration": 4.98,
+        "lufs": -19.0,
+        "notesEnd": 3.333,
+        "peakDb": -7.67
+      }
+    },
+    "keyed": true,
+    "notesEnd": 3.333,
+    "title": "A Lord Falls",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "promotion_crown": {
+    "duration": 7.318,
+    "files": {
+      "stinger_promotion_crown_A": {
+        "duration": 7.301,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -2.03
+      },
+      "stinger_promotion_crown_B": {
+        "duration": 7.222,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -3.78
+      },
+      "stinger_promotion_crown_Bb": {
+        "duration": 7.19,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -3.85
+      },
+      "stinger_promotion_crown_C": {
+        "duration": 7.318,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -4.98
+      },
+      "stinger_promotion_crown_D": {
+        "duration": 7.179,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -3.46
+      },
+      "stinger_promotion_crown_Db": {
+        "duration": 7.264,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -3.18
+      },
+      "stinger_promotion_crown_E": {
+        "duration": 7.183,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -4.48
+      },
+      "stinger_promotion_crown_F": {
+        "duration": 7.117,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -4.67
+      },
+      "stinger_promotion_crown_G": {
+        "duration": 7.117,
+        "lufs": -15.5,
+        "notesEnd": 4.545,
+        "peakDb": -4.16
+      }
+    },
+    "keyed": true,
+    "notesEnd": 4.545,
+    "title": "Promotion \u2014 Crown",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "promotion_gather": {
+    "duration": 4.624,
+    "files": {
+      "stinger_promotion_gather_A": {
+        "duration": 4.522,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -4.92
+      },
+      "stinger_promotion_gather_B": {
+        "duration": 4.39,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -5.97
+      },
+      "stinger_promotion_gather_Bb": {
+        "duration": 4.494,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -5.84
+      },
+      "stinger_promotion_gather_C": {
+        "duration": 4.57,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -5.89
+      },
+      "stinger_promotion_gather_D": {
+        "duration": 4.624,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -5.83
+      },
+      "stinger_promotion_gather_Db": {
+        "duration": 4.511,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -4.63
+      },
+      "stinger_promotion_gather_E": {
+        "duration": 4.496,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -6.24
+      },
+      "stinger_promotion_gather_F": {
+        "duration": 4.548,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -4.72
+      },
+      "stinger_promotion_gather_G": {
+        "duration": 4.563,
+        "lufs": -18.0,
+        "notesEnd": 3.0,
+        "peakDb": -5.79
+      }
+    },
+    "keyed": true,
+    "notesEnd": 3.0,
+    "title": "Promotion \u2014 Gather",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "recruit": {
+    "duration": 6.553,
+    "files": {
+      "stinger_recruit_A": {
+        "duration": 6.2,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -6.75
+      },
+      "stinger_recruit_B": {
+        "duration": 5.875,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -6.43
+      },
+      "stinger_recruit_Bb": {
+        "duration": 6.553,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -5.8
+      },
+      "stinger_recruit_C": {
+        "duration": 6.275,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -5.59
+      },
+      "stinger_recruit_D": {
+        "duration": 6.148,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -5.38
+      },
+      "stinger_recruit_Db": {
+        "duration": 6.126,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -4.95
+      },
+      "stinger_recruit_E": {
+        "duration": 5.964,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -4.42
+      },
+      "stinger_recruit_F": {
+        "duration": 6.21,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -6.65
+      },
+      "stinger_recruit_G": {
+        "duration": 6.045,
+        "lufs": -17.5,
+        "notesEnd": 3.6,
+        "peakDb": -4.94
+      }
+    },
+    "keyed": true,
+    "notesEnd": 3.6,
+    "title": "Recruit",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "rewind": {
+    "duration": 4.498,
+    "files": {
+      "stinger_rewind_A": {
+        "duration": 4.498,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -5.23
+      },
+      "stinger_rewind_B": {
+        "duration": 4.091,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -4.6
+      },
+      "stinger_rewind_Bb": {
+        "duration": 4.313,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -5.39
+      },
+      "stinger_rewind_C": {
+        "duration": 4.269,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -3.63
+      },
+      "stinger_rewind_D": {
+        "duration": 3.854,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -3.44
+      },
+      "stinger_rewind_Db": {
+        "duration": 4.021,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -5.76
+      },
+      "stinger_rewind_E": {
+        "duration": 3.999,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -5.96
+      },
+      "stinger_rewind_F": {
+        "duration": 3.781,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -4.37
+      },
+      "stinger_rewind_G": {
+        "duration": 3.678,
+        "lufs": -18.5,
+        "notesEnd": 2.4,
+        "peakDb": -6.12
+      }
+    },
+    "keyed": true,
+    "notesEnd": 2.4,
+    "title": "Rewind",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  },
+  "sealed": {
+    "duration": 4.254,
+    "files": {
+      "stinger_sealed_A": {
+        "duration": 3.845,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -3.72
+      },
+      "stinger_sealed_B": {
+        "duration": 3.439,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -2.81
+      },
+      "stinger_sealed_Bb": {
+        "duration": 4.254,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -4.28
+      },
+      "stinger_sealed_C": {
+        "duration": 3.983,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -3.22
+      },
+      "stinger_sealed_D": {
+        "duration": 3.964,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -3.24
+      },
+      "stinger_sealed_Db": {
+        "duration": 4.038,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -4.55
+      },
+      "stinger_sealed_E": {
+        "duration": 4.067,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -3.62
+      },
+      "stinger_sealed_F": {
+        "duration": 4.019,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -5.27
+      },
+      "stinger_sealed_G": {
+        "duration": 4.13,
+        "lufs": -18.5,
+        "notesEnd": 2.0,
+        "peakDb": -3.12
+      }
+    },
+    "keyed": true,
+    "notesEnd": 2.0,
+    "title": "Sealed",
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   }
 }

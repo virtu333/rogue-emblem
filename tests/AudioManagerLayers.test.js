@@ -146,3 +146,35 @@ describe('AudioManager — seamless loops and adaptive layers', () => {
     expect(audio.currentMusicLayerKeys).toEqual([]);
   });
 });
+
+describe('AudioManager — extra layers (a boss enrage layer)', () => {
+  it('plays a boss theme with its enrage layer and crossfades to it on request', async () => {
+    const theme = 'music_boss_act1';
+    const layer = 'music_boss_act1_enrage_iron_captain';
+    const sound = makeSound([theme, layer]);
+    const audio = new AudioManager(sound);
+    audio.setMusicIntensity('full', 0);
+    await audio.playMusic(theme, null, 0, { layers: { enrage: layer } });
+    expect(audio.currentMusic).toBeInstanceOf(LoopedMusic);
+    expect(audio.currentMusic.layerNames).toEqual(['full', 'enrage']);
+    expect(audio.currentMusic.layer).toBe('full');
+    audio.setMusicIntensity('enrage', 2000);
+    expect(audio.currentMusic.layer).toBe('enrage');
+    expect(audio.getMusicIntensity()).toBe('enrage');
+  });
+
+  it('opens on the enrage layer when the intensity was set first (a resumed battle)', async () => {
+    const theme = 'music_boss_act2';
+    const layer = 'music_boss_act2_enrage_archmage';
+    const sound = makeSound([theme, layer]);
+    const audio = new AudioManager(sound);
+    audio.setMusicIntensity('enrage', 0);
+    await audio.playMusic(theme, null, 0, { layers: { enrage: layer } });
+    expect(audio.currentMusic.layer).toBe('enrage');
+  });
+
+  it('treats unknown intensity names as full', () => {
+    const audio = new AudioManager(makeSound([]));
+    expect(audio.setMusicIntensity('thunder')).toBe('full');
+  });
+});

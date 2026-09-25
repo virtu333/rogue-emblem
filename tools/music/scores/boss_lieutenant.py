@@ -14,6 +14,7 @@ minor and the choir sings the Thread over everything.
 from engine.patterns import chart, ostinato
 from engine.score import Score
 
+from scores import _enrage
 from scores._battle import Battle
 from scores.battle_act1 import MEL_A
 
@@ -129,4 +130,7 @@ def build():
     glock = b.part('glass', 'glock', role='accent')
     for bar in (5, 7, 21, 23):
         glock.at(bar).play('@mf A6q D6q C6q A5q | rq Eb6q Ab5q Gb5q |')
+    # enrage layer (scores/_enrage.py)
+    _enrage.lieutenant(b, [b.sections[k] for k in ('A', 'A2')],
+                       [b.sections[k] for k in ('C', 'D')])
     return b.finish()

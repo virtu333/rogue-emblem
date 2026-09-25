@@ -100,8 +100,9 @@ def build():
         b.brass_pad(sec, 'horns', n=3, lo=50, hi=65, vel=0.5)
     b.stabs('A2', rhythm='q. q.', lo=60, hi=74)
     b.brass_pad('B2', 'trombones', n=2, lo=43, hi=60, vel=0.6)
-    b.choir('B2', 'choir', n=3)
-    b.choir('A3', 'choir', n=3)
+    # no choir in Act I: the horns carry the harmony (headroom for later acts)
+    b.brass_pad('B2', 'horns', n=3, lo=53, hi=69, vel=0.58, name='b2_hn')
+    b.brass_pad('A3', 'horns', n=3, lo=53, hi=69, vel=0.6, name='b2_hn')
 
     # ---------------------------------------------------------------- rhythm section
     b.groove('intro', {'kick': 'x..x..', 'tom_lo': 'x.xx.x'}, crash=False)

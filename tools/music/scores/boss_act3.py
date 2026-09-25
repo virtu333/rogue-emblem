@@ -10,6 +10,7 @@ rising, shadowed a tritone away, E minor against B-flat, a future split in two.
 from engine.patterns import chart
 from engine.score import Score
 
+from scores import _enrage
 from scores._battle import Battle
 
 KEY = 'music_boss_act3'
@@ -91,4 +92,9 @@ def build():
     for bar in (5, 13, 21, 29):
         b.hit(bar)
     b.riser(35, beats=8)
+    # enrage layers: one boss-specific behaviour each (scores/_enrage.py)
+    loop = [b.sections[k] for k in ['A', 'A2', 'B', 'A3', 'build']]
+    _enrage.blade_lord(b, loop)
+    _enrage.iron_wall(b, loop)
+    _enrage.berserker_king(b, loop)
     return b.finish()

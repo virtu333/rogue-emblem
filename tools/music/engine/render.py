@@ -571,7 +571,7 @@ class Renderer:
             return 0, min(self.n_f, self.I_f + SR)
         return self.loop_start_f, self.loop_end_f
 
-    def one_shot_end(self, y, floor_db=-56.0):
+    def one_shot_end(self, y, floor_db=-50.0):
         """Frame where a one-shot's tail has decayed below floor_db (plus a short fade)."""
         env = np.abs(y).max(axis=1)
         loud = np.nonzero(env > dsp.undb(floor_db))[0]
@@ -624,7 +624,7 @@ class Renderer:
 
     def _export_one_shot(self, name, y, out_dir, preview_dir, mp3, quality):
         end = self.one_shot_end(y)
-        fade = min(int(0.03 * SR), end)
+        fade = min(int(0.25 * SR), end - self.I_f) if end > self.I_f else 0
         f = y[:end].copy()
         if fade:
             f[end - fade:] *= np.linspace(1.0, 0.0, fade, dtype=np.float32)[:, None]

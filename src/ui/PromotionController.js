@@ -228,7 +228,7 @@ export class PromotionController {
         [],
         promotedClassData.growthBonuses || null,
       );
-      scene._playLevelUpSfx?.();
+      scene._playLevelUpSfx?.('promotion');
       try {
         await popup.show();
       } finally {

@@ -68,7 +68,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 33 original music files)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 49 original music files + 141 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -122,11 +122,13 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Player units = blue palette, enemies = red palette, NPCs = green palette
 
 ## Music (composed in code)
-All music is original: 24 cues written as Python scores in `tools/music/scores/` and rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/`. Read `tools/music/SCORE.md` (leitmotifs, cue list) and `tools/music/README.md` (setup, build, lint/analyze tools).
-- **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points), so never hand-edit it.
-- **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio.
-- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API.
-- **Adding a cue:** write a score, build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans or bad loop points.
+All music is original: 29 loop scores in `tools/music/scores/` and 29 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+- **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
+- **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.
+- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API. Escape maps play `MUSIC.escape`.
+- **Boss enrage:** each boss theme ships `<theme>_enrage_<boss>` (same timeline, `getBossEnrageLayer`); `BattleMusicController.onBossEnrage()` crossfades to it when turn pressure enrages the boss (`setMusicIntensity('enrage')`).
+- **Stingers:** `audio.playStinger(name, { fallbackSfx, duck, waitMs })` plays a cue in the key of the current track (keyed cues exist per tonic) and ducks the music; `stopStingers()` fades them. Ceremonies call them through `src/ui/ceremonyMusic.js`; boss cards map in `BOSS_CARD_CUES` (the Entity: silence).
+- **Adding a cue:** write a score (or stinger), build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans, bad loop points, a boss without an enrage layer or a keyed stinger missing a key.
 
 ## Art Pipeline (Imagen API)
 AI-generated pixel art via Google Imagen 4 API.

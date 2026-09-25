@@ -11,6 +11,8 @@ function isDecodedAudioBuffer(buffer) {
   );
 }
 
+const MUSIC_INTENSITIES = ['calm', 'full', 'enrage'];
+
 export class AudioManager {
   constructor(soundManager, options = {}) {
     this.sound = soundManager;
@@ -50,8 +52,11 @@ export class AudioManager {
     return linear * linear;
   }
 
-  /** Play looping background music with optional fade-in. */
-  async playMusic(key, ownerOrScene, fadeMs = 500) {
+  /**
+   * Play looping background music with optional fade-in. `layers` adds layers
+   * beyond the track's own (a boss's enrage layer: { enrage: key }).
+   */
+  async playMusic(key, ownerOrScene, fadeMs = 500, { layers = null } = {}) {
     try {
       if (!key) return;
       const owner = this._resolveOwnerToken(ownerOrScene);
@@ -103,7 +108,7 @@ export class AudioManager {
       }
       // Adaptive tracks also need their other layers; a layer that fails to
       // load just leaves the track single-layered.
-      const layerKeys = this._layerKeysFor(key);
+      const layerKeys = this._layerKeysFor(key, layers);
       if (layerKeys.length > 0 && this._canUseLoopedMusic()) {
         await Promise.allSettled(
           layerKeys
@@ -132,6 +137,7 @@ export class AudioManager {
       this.currentMusic = this._createMusicSound(
         key,
         fadeMs > 0 ? 0 : this._curve(this.musicVolume),
+        layers,
       );
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
@@ -158,8 +164,16 @@ export class AudioManager {
     );
   }
 
-  _layerKeysFor(key) {
-    const layers = getMusicLayers(key);
+  /** Layer name -> key for a track: its own adaptive layers plus any requested extras. */
+  _layerMapFor(key, extra = null) {
+    const own = getMusicLayers(key);
+    const more = extra && typeof extra === 'object' ? extra : null;
+    if (!own && !more) return null;
+    return { ...(own || {}), ...(more || {}), full: key };
+  }
+
+  _layerKeysFor(key, extra = null) {
+    const layers = this._layerMapFor(key, extra);
     if (!layers) return [];
     return Object.entries(layers)
       .filter(([name]) => name !== 'full')
@@ -171,11 +185,11 @@ export class AudioManager {
    * adaptive layers) when the decoded buffer and loop points are available;
    * otherwise a plain Phaser looping sound.
    */
-  _createMusicSound(key, volume) {
+  _createMusicSound(key, volume, extraLayers = null) {
     const cache = this.sound.game.cache.audio;
     const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
     const loop = getMusicLoop(key);
-    const layerMap = getMusicLayers(key);
+    const layerMap = this._layerMapFor(key, extraLayers);
     this.currentMusicLayerKeys = [];
     if (this._canUseLoopedMusic() && isDecodedAudioBuffer(buffer) && (loop || layerMap)) {
       const layers = { full: buffer };
@@ -208,12 +222,13 @@ export class AudioManager {
   }
 
   /**
-   * Choose the layer of adaptive music: 'calm' (map, no fighting) or 'full'
-   * (combat). Applies to the current track with a crossfade, and to the next
-   * adaptive track that starts. Single-layer tracks ignore it.
+   * Choose the layer of layered music: 'calm' (map, no fighting), 'full'
+   * (combat) or 'enrage' (a boss's enrage layer). Applies to the current track
+   * with a crossfade, and to the next layered track that starts; a track
+   * without that layer plays its full mix.
    */
   setMusicIntensity(level, fadeMs = 1500) {
-    this.musicIntensity = level === 'calm' ? 'calm' : 'full';
+    this.musicIntensity = MUSIC_INTENSITIES.includes(level) ? level : 'full';
     const music = this.currentMusic;
     if (music && typeof music.setLayer === 'function' && music.hasLayer?.(this.musicIntensity)) {
       music.setLayer(this.musicIntensity, fadeMs);

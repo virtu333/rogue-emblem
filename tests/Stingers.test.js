@@ -198,18 +198,18 @@ describe('AudioManager stingers', () => {
       sfx_levelup: {},
     });
     const audio = new AudioManager(sound);
-    let release;
+    const release = new Map();
     audio._fetchAndDecodeStinger = vi.fn(
-      () =>
+      (key) =>
         new Promise((resolve) => {
-          release = () => resolve(stingerBuffer());
+          release.set(key, () => resolve(stingerBuffer()));
         }),
     );
     await audio.playMusic('music_battle_act1', null, 0);
     const result = await audio.playStinger('levelup', { fallbackSfx: 'sfx_levelup' });
     expect(result).toBeNull();
     expect(sound.play).toHaveBeenCalledWith('sfx_levelup', expect.any(Object));
-    release();
+    release.get('stinger_levelup_D')();
     await new Promise((r) => setTimeout(r, 0));
     expect(audio.stingers.has('stinger_levelup_D')).toBe(true);
   });

@@ -15,7 +15,8 @@ export const MUSIC = {
     act2: 'music_explore_act2',
     act3: 'music_explore_act3',
     act4: 'music_explore_act4',
-    finalBoss: 'music_explore_act4',
+    // the Deep: Act I's loom with its notes taken away
+    finalBoss: 'music_explore_deep',
   },
 
   battle: {
@@ -41,6 +42,11 @@ export const MUSIC = {
     'The Entity': 'music_boss_entity',
   },
 
+  // Escape maps (get out before the dark closes) have their own pursuit theme.
+  escape: 'music_battle_escape',
+  colosseum: 'music_colosseum',
+  // Choosing blessings at the start of a run.
+  shrine: 'music_shrine',
   shop: 'music_shop',
   rest: 'music_rest',
   victory: 'music_victory',
@@ -59,6 +65,24 @@ export const MUSIC_LAYERS = {
   music_battle_act3: { calm: 'music_battle_act3_calm' },
   music_battle_act3_2: { calm: 'music_battle_act3_2_calm' },
   music_battle_act4: { calm: 'music_battle_act4_calm' },
+  music_battle_escape: { calm: 'music_battle_escape_calm' },
+};
+
+// Each boss's encounter card plays its own motif (tools/music/stingers/boss_*).
+// The Entity's card is a hole in the music instead (null); an unlisted boss
+// gets the generic card cue.
+export const BOSS_CARD_CUES = {
+  'Iron Captain': 'boss_iron_captain',
+  Warchief: 'boss_warchief',
+  'Knight Commander': 'boss_knight_commander',
+  Archmage: 'boss_archmage',
+  'Dark Rider': 'boss_dark_rider',
+  'Blade Lord': 'boss_blade_lord',
+  'Iron Wall': 'boss_iron_wall',
+  'Berserker King': 'boss_berserker_king',
+  'The Emperor': 'boss_emperor_card',
+  'The Lieutenant': 'boss_lieutenant_card',
+  'The Entity': null,
 };
 
 // Stingers decoded ahead whenever a track starts (in that track's key): the
@@ -117,4 +141,20 @@ export function getBossMusicKey(bossName, act) {
     return MUSIC.bossByName[bossName];
   }
   return getMusicKey('boss', act);
+}
+
+/**
+ * The enrage layer a boss adds to the theme playing (null when that theme has
+ * none for this boss). Layers are rendered as `<theme>_enrage_<boss>`:
+ * 'Iron Captain' -> 'iron_captain', 'The Emperor' -> 'emperor'.
+ */
+export function getBossEnrageLayer(themeKey, bossName) {
+  if (!themeKey || typeof bossName !== 'string' || !bossName) return null;
+  const slug = bossName
+    .replace(/^the\s+/i, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_');
+  const key = `${themeKey}_enrage_${slug}`;
+  return MUSIC_LOOPS[key] ? key : null;
 }

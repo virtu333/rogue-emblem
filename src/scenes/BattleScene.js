@@ -227,6 +227,7 @@ import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import BattleMusicController from '../ui/BattleMusicController.js';
+import { levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import {
   generateBossRecruitCandidates,
@@ -2063,11 +2064,13 @@ export class BattleScene extends Phaser.Scene {
       this._musicCtrl?.destroy();
       this._musicCtrl = new BattleMusicController(this, {
         playersInDanger: () => this._anyPlayerInDanger(),
+        bossEnraged: () => Boolean(this.antiTurtleState?.turnEnrageActive),
       });
       this._musicCtrl.create({
         act: this.battleParams?.act || 'act1',
         isBoss: this.isBoss,
         bossName: (this.enemyUnits || []).find((unit) => unit.isBoss)?.name || null,
+        objective: this.battleConfig?.objective || null,
         releaseFirst: Boolean(this.battleParams?.tutorialMode),
       });
 
@@ -3175,6 +3178,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
   _playBossEnrageFx() {
+    this._musicCtrl?.onBossEnrage();
     const fx = (this._combatFx ||= new CombatFxController(this));
     for (const boss of this.enemyUnits) {
       if (!boss?.isBoss || boss.currentHP <= 0 || !boss.graphic) continue;
@@ -9292,12 +9296,14 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  _playLevelUpSfx() {
+  /** Level-up music: the cue for `kind` ('normal' | 'perfect' | 'blank' | 'promotion'). */
+  _playLevelUpSfx(kind = 'normal') {
     this._stopLevelUpSfx();
     const audio = this.registry.get('audio');
     if (!audio) return;
     this._levelUpSfxKey = 'sfx_levelup';
-    audio.playSFX(this._levelUpSfxKey);
+    const cue = kind === 'promotion' ? 'promotion_crown' : levelUpCue(kind);
+    void playCue(this, cue, { fallbackSfx: this._levelUpSfxKey });
   }
 
   _stopLevelUpSfx() {
@@ -9305,6 +9311,7 @@ export class BattleScene extends Phaser.Scene {
     if (typeof this.sound?.stopByKey === 'function') {
       this.sound.stopByKey(this._levelUpSfxKey);
     }
+    stopCues(this);
     this._levelUpSfxKey = null;
   }
 

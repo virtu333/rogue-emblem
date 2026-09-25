@@ -10,6 +10,7 @@ over the drill itself, now just a bass line under it.
 from engine.patterns import chart, pad
 from engine.score import Score
 
+from scores import _enrage
 from scores._battle import Battle
 
 KEY = 'music_boss_emperor'
@@ -112,4 +113,6 @@ def build():
     b.riser(35, beats=8)
     bells = b.part('bells', 'bells', role='accent')
     bells.at(5).play('@f Bb4w | rw | rw | rw | Db5w | rw | rw | rw |')
+    # enrage layer (scores/_enrage.py)
+    _enrage.emperor(b, [b.sections[k] for k in ('A', 'B', 'C', 'D', 'build')])
     return b.finish()

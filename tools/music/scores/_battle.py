@@ -30,6 +30,11 @@ class Battle:
         self.calm_kit = None
         self.full_lufs = full_lufs
         self.calm_lufs = calm_lufs
+        # extra mixes of the same score (a boss's enrage layer): parts heard only
+        # in that mix, and parts (or globs) that mix takes away
+        self.variant_only: dict[str, set[str]] = {}
+        self.variant_mutes: dict[str, set[str]] = {}
+        self.variant_lufs: dict[str, float] = {}
 
     # ------------------------------------------------------------ plumbing
     def part(self, name, inst, layer='both', calm_db=None, **opts):
@@ -43,6 +48,21 @@ class Battle:
             self.calm_gain[name] = calm_db
         return self.s.parts[name]
 
+    def extra(self, variant, name, inst, **opts):
+        """A part heard only in the mix `variant` (e.g. 'enrage_blade_lord')."""
+        p = self.part(name, inst, **opts)
+        self.variant_only.setdefault(variant, set()).add(name)
+        return p
+
+    def extra_variant(self, variant, mute=(), lufs=None):
+        """Declare mix `variant`; `mute` lists parts (or globs) it takes away and
+        `lufs` overrides its loudness (a mix that takes away should not be
+        normalised back up to the full mix's level)."""
+        self.variant_only.setdefault(variant, set())
+        self.variant_mutes[variant] = set(mute)
+        if lufs is not None:
+            self.variant_lufs[variant] = lufs
+
     def section(self, name, bar, ch):
         self.sections[name] = (bar, ch)
         return self
@@ -55,13 +75,21 @@ class Battle:
 
     def finish(self):
         s = self.s
+        extras = set().union(*self.variant_only.values()) if self.variant_only else set()
+        hide = {p: None for p in extras}
         if not self.adaptive:
-            s.variant('full', {}, lufs=self.full_lufs)
-            return s
-        calm = {p: None for p in self.full_only}
-        calm.update(self.calm_gain)
-        s.variant('full', {p: None for p in self.calm_only}, lufs=self.full_lufs)
-        s.variant('calm', calm, lufs=self.calm_lufs)
+            s.variant('full', dict(hide), lufs=self.full_lufs)
+        else:
+            calm = {p: None for p in self.full_only}
+            calm.update(self.calm_gain)
+            calm.update(hide)
+            s.variant('full', {**{p: None for p in self.calm_only}, **hide}, lufs=self.full_lufs)
+            s.variant('calm', calm, lufs=self.calm_lufs)
+        # each extra mix is the full mix plus its own parts, minus its mutes
+        for variant, own in self.variant_only.items():
+            gains = {p: None for p in (extras - own) | self.calm_only}
+            gains.update({p: None for p in self.variant_mutes.get(variant, ())})
+            s.variant(variant, gains, lufs=self.variant_lufs.get(variant, self.full_lufs))
         return s
 
     # ------------------------------------------------------------ melody

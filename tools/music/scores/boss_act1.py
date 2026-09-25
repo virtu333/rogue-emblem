@@ -3,13 +3,15 @@
 The Iron Captain and the Warchief: the first wall. A heavy march in D minor
 built from the Empire drill (D-Eb-D-C, down to B-flat), stated by the whole
 low orchestra in octaves, answered by a trumpet call that pushes back with
-the first four notes of the Thread. The choir enters when the march turns
-to F minor, and the last strain stacks both motifs on top of each other.
+the first four notes of the Thread. When the march turns to F minor the
+horns take the harmony, and the last strain stacks both motifs on top of each
+other. (No choir: Act I keeps its voices human-sized; see SCORE.md.)
 """
 
 from engine.patterns import chart, drums
 from engine.score import Score
 
+from scores import _enrage
 from scores._battle import Battle
 
 KEY = 'music_boss_act1'
@@ -76,8 +78,8 @@ def build():
     b.spic16('D', 'violins2', pattern='0 1 2 1', lo=62, hi=81)
     b.spic16('build', 'violins2', pattern='0 1 2 3', lo=60, hi=84)
     b.brass_pad('B', 'horns', n=3, lo=53, hi=69, vel=0.6, name='b_hn')
-    b.choir('C', 'choir', n=3, lo=55, hi=72, vel=0.66)
-    b.choir('D', 'choir', n=3, lo=55, hi=74, vel=0.7)
+    b.brass_pad('C', 'horns', n=3, lo=55, hi=70, vel=0.6, name='c_hn')
+    b.brass_pad('D', 'horns', n=3, lo=55, hi=70, vel=0.64, name='c_hn')
     b.brass_pad('build', 'horns', n=3, lo=53, hi=69, vel=0.66, name='b_hn')
 
     b.groove('intro', {'snare': 'x.oox.oox.oox.oo', 'kick': 'x.......x.......'}, crash=False)
@@ -103,4 +105,8 @@ def build():
     anvil = b.part('anvil', 'orch_perc', role='accent')
     for bar in range(5, 13):
         drums(anvil, bar, {'anvil': '........x.......'}, vel=0.55)
+    # enrage layers: one boss-specific behaviour each (scores/_enrage.py)
+    loop = [b.sections[k] for k in ['A', 'B', 'C', 'D', 'build']]
+    _enrage.iron_captain(b, loop)
+    _enrage.warchief(b, loop)
     return b.finish()
