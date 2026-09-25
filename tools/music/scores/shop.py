@@ -25,7 +25,7 @@ CH_B = chart('Eb Bb Cm D7 Eb Bb/D Cm:2 D7:2 Gm')
 
 
 def build():
-    s = Score('shop', bpm=112, intro_bars=1, loop_bars=24, title="Varen's Mark", seed=11)
+    s = Score('shop', tonic='G', bpm=112, intro_bars=1, loop_bars=24, title="Varen's Mark", seed=11)
     s.reverb = dict(rt60=1.4, predelay_ms=14, wet_db=-3.0)
     s.master = dict(lufs=-17.0, glue_ratio=1.4)
     s.variant('full', {}, lufs=-17.0)

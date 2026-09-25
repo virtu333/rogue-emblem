@@ -37,7 +37,7 @@ HALF = {'kick': 'x.........x.....', 'xstick': '........x.......', 'hat': 'x.x.x.
 
 
 def build():
-    s = Score('battle_act2_2', bpm=144, intro_bars=4, loop_bars=36, title='Steel and Thread',
+    s = Score('battle_act2_2', tonic='A', bpm=144, intro_bars=4, loop_bars=36, title='Steel and Thread',
               seed=71)
     s.reverb = dict(rt60=2.2, predelay_ms=24, wet_db=-1.0)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)

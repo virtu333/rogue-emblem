@@ -34,7 +34,7 @@ CHANT = {'kick': 'x...x..', 'tom_lo': '..x..x.', 'tom_hi': '......x'}
 
 
 def build():
-    s = Score('battle_act3', bpm=144, meter=(7, 8), intro_bars=2, loop_bars=44,
+    s = Score('battle_act3', tonic='E', bpm=144, meter=(7, 8), intro_bars=2, loop_bars=44,
               title='Bleached Rite', seed=73)
     s.reverb = dict(rt60=3.0, predelay_ms=32, wet_db=0.0, damp=0.4, bright=1.2)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)

@@ -36,7 +36,7 @@ ASHBEAT = {'kick': 'x...............', 'tom_lo': '........x.......'}
 
 
 def build():
-    s = Score('battle_act4', bpm=132, intro_bars=4, loop_bars=36, title='Ashfall', seed=83)
+    s = Score('battle_act4', tonic='C#', bpm=132, intro_bars=4, loop_bars=36, title='Ashfall', seed=83)
     s.reverb = dict(rt60=3.0, predelay_ms=30, wet_db=0.5, damp=0.6)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)
     b = Battle(s, calm_lufs=-18.0, full_lufs=-14.0)

@@ -25,7 +25,7 @@ CH_TURN = chart('Bb C')
 
 
 def build():
-    s = Score('loom_act1', bpm=100, intro_bars=2, loop_bars=34, title='The Loom: Ember Dusk',
+    s = Score('loom_act1', tonic='D', bpm=100, intro_bars=2, loop_bars=34, title='The Loom: Ember Dusk',
               seed=43)
     s.reverb = dict(rt60=2.0, predelay_ms=20, wet_db=-1.0)
     s.master = dict(lufs=-17.0, glue_ratio=1.3)

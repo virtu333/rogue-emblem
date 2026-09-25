@@ -44,7 +44,7 @@ HALF = {'kick': 'x.........x.....', 'rim': '........X.......', 'ride': 'x.x.x.x.
 
 
 def build():
-    s = Score('boss_lieutenant', bpm=168, intro_bars=4, loop_bars=44,
+    s = Score('boss_lieutenant', tonic='D', bpm=168, intro_bars=4, loop_bars=44,
               title='Every Future You Could Reach', seed=107)
     s.reverb = dict(rt60=2.4, predelay_ms=26, wet_db=0.0)
     s.master = dict(lufs=-13.2, glue_ratio=1.6)

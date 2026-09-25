@@ -43,7 +43,7 @@ DRILL68 = {'kick': 'x.xx.x', 'snare': '...x..', 'tom_lo': 'x.....'}
 
 
 def build():
-    s = Score('battle_act1_2', bpm=150, meter=(6, 8), intro_bars=2, loop_bars=52,
+    s = Score('battle_act1_2', tonic='G', bpm=150, meter=(6, 8), intro_bars=2, loop_bars=52,
               title='Border Marches', seed=61)
     s.reverb = dict(rt60=2.0, predelay_ms=24, wet_db=-1.0)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)

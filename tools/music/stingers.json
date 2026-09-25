@@ -1,0 +1,65 @@
+{
+  "levelup": {
+    "duration": 5.885,
+    "files": {
+      "stinger_levelup_A": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -4.7
+      },
+      "stinger_levelup_B": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -3.94
+      },
+      "stinger_levelup_Bb": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -4.38
+      },
+      "stinger_levelup_C": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -4.74
+      },
+      "stinger_levelup_D": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -2.79
+      },
+      "stinger_levelup_Db": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -4.11
+      },
+      "stinger_levelup_E": {
+        "duration": 5.885,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -5.23
+      },
+      "stinger_levelup_F": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -3.76
+      },
+      "stinger_levelup_G": {
+        "duration": 5.862,
+        "lufs": -17.0,
+        "notesEnd": 1.818,
+        "peakDb": -5.79
+      }
+    },
+    "keyed": true,
+    "notesEnd": 1.818,
+    "title": "Level Up",
+    "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
+  }
+}

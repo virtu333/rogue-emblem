@@ -37,7 +37,7 @@ RIDE = {'kick': 'x.......x.......', 'tom_lo': 'x..x..x.x..x..x.', 'rim': '....x.
 
 
 def build():
-    s = Score('boss_act2', bpm=166, intro_bars=4, loop_bars=36, title='Doctrine of Lances',
+    s = Score('boss_act2', tonic='F', bpm=166, intro_bars=4, loop_bars=36, title='Doctrine of Lances',
               seed=97)
     s.reverb = dict(rt60=2.2, predelay_ms=24, wet_db=-0.5)
     s.master = dict(lufs=-13.5, glue_ratio=1.6)

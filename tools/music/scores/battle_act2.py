@@ -46,7 +46,7 @@ DOUBLE = {'kick': 'x.x.x.x.x.x.x.x.', 'rim': '....X.......X...', 'ride': 'XxXxXx
 
 
 def build():
-    s = Score('battle_act2', bpm=160, intro_bars=4, loop_bars=44, title='Iron Rain', seed=67)
+    s = Score('battle_act2', tonic='C', bpm=160, intro_bars=4, loop_bars=44, title='Iron Rain', seed=67)
     s.reverb = dict(rt60=2.0, predelay_ms=22, wet_db=-1.5, damp=0.55)
     s.master = dict(lufs=-13.5, glue_ratio=1.6)
     b = Battle(s, calm_lufs=-17.0, full_lufs=-13.5)

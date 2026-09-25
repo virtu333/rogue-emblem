@@ -14,7 +14,7 @@ CH = chart('F C Dm C Bb F Gm:2 C:2 F')
 
 
 def build():
-    s = Score('loot', bpm=128, intro_bars=1, loop_bars=8, title='Spoils of the March', seed=29)
+    s = Score('loot', tonic='F', bpm=128, intro_bars=1, loop_bars=8, title='Spoils of the March', seed=29)
     s.reverb = dict(rt60=1.8, predelay_ms=18, wet_db=-2.0)
     s.master = dict(lufs=-16.5, glue_ratio=1.4)
     s.variant('full', {}, lufs=-16.5)

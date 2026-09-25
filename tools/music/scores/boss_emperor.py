@@ -39,7 +39,7 @@ PUSH = {'kick': 'x.x...x.x.x...x.', 'rim': '....X.......X...', 'ride': 'X.x.X.x.
 
 
 def build():
-    s = Score('boss_emperor', bpm=120, intro_bars=4, loop_bars=36,
+    s = Score('boss_emperor', tonic='Bb', bpm=120, intro_bars=4, loop_bars=36,
               title='Human, Powerful, and Wrong', seed=103)
     s.reverb = dict(rt60=3.0, predelay_ms=32, wet_db=0.5)
     s.master = dict(lufs=-13.5, glue_ratio=1.6)

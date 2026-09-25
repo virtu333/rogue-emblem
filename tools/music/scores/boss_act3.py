@@ -33,7 +33,7 @@ SPLIT = {'kick': 'x.......x.......', 'tom_lo': '...x...x...x..xx', 'rim': '.....
 
 
 def build():
-    s = Score('boss_act3', bpm=172, intro_bars=4, loop_bars=36, title='The Perfect Duel',
+    s = Score('boss_act3', tonic='E', bpm=172, intro_bars=4, loop_bars=36, title='The Perfect Duel',
               seed=101)
     s.reverb = dict(rt60=2.0, predelay_ms=22, wet_db=-1.0)
     s.master = dict(lufs=-13.5, glue_ratio=1.6)

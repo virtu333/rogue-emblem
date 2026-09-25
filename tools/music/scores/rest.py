@@ -26,7 +26,7 @@ CH2 = chart('F:2 Am:2 Bb:3 F:1 Gm:1 F/A:1 C/E:1 Dm:1 C:4 '
 
 
 def build():
-    s = Score('rest', bpm=60, intro_bars=2, loop_bars=40, title='Liturgy of the Spent Name',
+    s = Score('rest', tonic='F', bpm=60, intro_bars=2, loop_bars=40, title='Liturgy of the Spent Name',
               seed=23)
     s.reverb = dict(rt60=4.2, predelay_ms=40, wet_db=1.5, damp=0.5)
     s.master = dict(lufs=-18.0, glue_ratio=1.2, lead_duck=1.0)

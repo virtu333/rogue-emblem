@@ -30,7 +30,7 @@ CH_C = chart('Dm Bbmaj7 Gm7:2 C/E:2 A Dm F Gm:2 A7:2')     # 7 bars; bar 28 is t
 
 
 def build():
-    s = Score('title', bpm=66, intro_bars=4, loop_bars=28, title='The Hollow Sun', seed=3)
+    s = Score('title', tonic='D', bpm=66, intro_bars=4, loop_bars=28, title='The Hollow Sun', seed=3)
     s.reverb = dict(rt60=3.2, predelay_ms=34, wet_db=1.0, damp=0.45)
     s.master = dict(lufs=-16.0, glue_ratio=1.3, lead_duck=1.5)
     s.tempo(27, 66, ramp_to=56)

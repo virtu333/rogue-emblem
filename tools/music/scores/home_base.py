@@ -35,7 +35,7 @@ CH_TAG = chart('Bb:3 C:3')
 
 
 def build():
-    s = Score('home_base', bpm=84, meter=(6, 8), intro_bars=2, loop_bars=34,
+    s = Score('home_base', tonic='F', bpm=84, meter=(6, 8), intro_bars=2, loop_bars=34,
               title='Embers of the Old Kingdom', seed=5)
     s.reverb = dict(rt60=2.2, predelay_ms=22, wet_db=-1.0)
     s.master = dict(lufs=-17.0, glue_ratio=1.3, lead_duck=1.5)

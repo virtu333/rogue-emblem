@@ -7,7 +7,8 @@
     "peakDb": -1.09,
     "score": "battle_act1",
     "seamDb": -55.2,
-    "title": "Ember Dusk"
+    "title": "Ember Dusk",
+    "tonic": "D"
   },
   "music_battle_act1_2": {
     "duration": 69.4,
@@ -17,7 +18,8 @@
     "peakDb": -1.09,
     "score": "battle_act1_2",
     "seamDb": -70.1,
-    "title": "Border Marches"
+    "title": "Border Marches",
+    "tonic": "G"
   },
   "music_battle_act1_2_calm": {
     "duration": 69.4,
@@ -27,7 +29,8 @@
     "peakDb": -5.3,
     "score": "battle_act1_2",
     "seamDb": -87.8,
-    "title": "Border Marches"
+    "title": "Border Marches",
+    "tonic": "G"
   },
   "music_battle_act1_calm": {
     "duration": 80.389,
@@ -37,7 +40,8 @@
     "peakDb": -4.63,
     "score": "battle_act1",
     "seamDb": -89.9,
-    "title": "Ember Dusk"
+    "title": "Ember Dusk",
+    "tonic": "D"
   },
   "music_battle_act2": {
     "duration": 76.6,
@@ -47,7 +51,8 @@
     "peakDb": -1.09,
     "score": "battle_act2",
     "seamDb": -73.1,
-    "title": "Iron Rain"
+    "title": "Iron Rain",
+    "tonic": "C"
   },
   "music_battle_act2_2": {
     "duration": 71.267,
@@ -57,7 +62,8 @@
     "peakDb": -1.09,
     "score": "battle_act2_2",
     "seamDb": -59.9,
-    "title": "Steel and Thread"
+    "title": "Steel and Thread",
+    "tonic": "A"
   },
   "music_battle_act2_2_calm": {
     "duration": 71.267,
@@ -67,7 +73,8 @@
     "peakDb": -4.47,
     "score": "battle_act2_2",
     "seamDb": -128.7,
-    "title": "Steel and Thread"
+    "title": "Steel and Thread",
+    "tonic": "A"
   },
   "music_battle_act2_calm": {
     "duration": 76.6,
@@ -77,7 +84,8 @@
     "peakDb": -4.95,
     "score": "battle_act2",
     "seamDb": -105.3,
-    "title": "Iron Rain"
+    "title": "Iron Rain",
+    "tonic": "C"
   },
   "music_battle_act3": {
     "duration": 71.683,
@@ -87,7 +95,8 @@
     "peakDb": -1.09,
     "score": "battle_act3",
     "seamDb": -73.0,
-    "title": "Bleached Rite"
+    "title": "Bleached Rite",
+    "tonic": "E"
   },
   "music_battle_act3_2": {
     "duration": 66.138,
@@ -97,7 +106,8 @@
     "peakDb": -1.11,
     "score": "battle_act3_2",
     "seamDb": -76.0,
-    "title": "Against the Rite"
+    "title": "Against the Rite",
+    "tonic": "B"
   },
   "music_battle_act3_2_calm": {
     "duration": 66.138,
@@ -107,7 +117,8 @@
     "peakDb": -5.63,
     "score": "battle_act3_2",
     "seamDb": -99.3,
-    "title": "Against the Rite"
+    "title": "Against the Rite",
+    "tonic": "B"
   },
   "music_battle_act3_calm": {
     "duration": 71.683,
@@ -117,7 +128,8 @@
     "peakDb": -5.47,
     "score": "battle_act3",
     "seamDb": -83.7,
-    "title": "Bleached Rite"
+    "title": "Bleached Rite",
+    "tonic": "E"
   },
   "music_battle_act4": {
     "duration": 77.327,
@@ -127,7 +139,8 @@
     "peakDb": -1.14,
     "score": "battle_act4",
     "seamDb": -73.4,
-    "title": "Ashfall"
+    "title": "Ashfall",
+    "tonic": "Db"
   },
   "music_battle_act4_calm": {
     "duration": 77.327,
@@ -137,7 +150,8 @@
     "peakDb": -5.23,
     "score": "battle_act4",
     "seamDb": -81.0,
-    "title": "Ashfall"
+    "title": "Ashfall",
+    "tonic": "Db"
   },
   "music_boss_act1": {
     "duration": 74.165,
@@ -147,7 +161,8 @@
     "peakDb": -1.09,
     "score": "boss_act1",
     "seamDb": -80.5,
-    "title": "The Border Holds"
+    "title": "The Border Holds",
+    "tonic": "D"
   },
   "music_boss_act2": {
     "duration": 62.431,
@@ -157,7 +172,8 @@
     "peakDb": -1.09,
     "score": "boss_act2",
     "seamDb": -80.6,
-    "title": "Doctrine of Lances"
+    "title": "Doctrine of Lances",
+    "tonic": "F"
   },
   "music_boss_act3": {
     "duration": 60.414,
@@ -167,7 +183,8 @@
     "peakDb": -1.09,
     "score": "boss_act3",
     "seamDb": -85.1,
-    "title": "The Perfect Duel"
+    "title": "The Perfect Duel",
+    "tonic": "E"
   },
   "music_boss_emperor": {
     "duration": 84.6,
@@ -177,7 +194,8 @@
     "peakDb": -1.09,
     "score": "boss_emperor",
     "seamDb": -72.9,
-    "title": "Human, Powerful, and Wrong"
+    "title": "Human, Powerful, and Wrong",
+    "tonic": "Bb"
   },
   "music_boss_entity": {
     "duration": 101.775,
@@ -187,7 +205,8 @@
     "peakDb": -1.2,
     "score": "boss_entity",
     "seamDb": -65.8,
-    "title": "\u00b7 \u00b7 \u00b7"
+    "title": "\u00b7 \u00b7 \u00b7",
+    "tonic": "D"
   },
   "music_boss_lieutenant": {
     "duration": 73.171,
@@ -197,7 +216,8 @@
     "peakDb": -1.09,
     "score": "boss_lieutenant",
     "seamDb": -78.7,
-    "title": "Every Future You Could Reach"
+    "title": "Every Future You Could Reach",
+    "tonic": "D"
   },
   "music_defeat": {
     "duration": 58.763,
@@ -207,7 +227,8 @@
     "peakDb": -1.09,
     "score": "defeat",
     "seamDb": -65.8,
-    "title": "The Thread Is Cut"
+    "title": "The Thread Is Cut",
+    "tonic": "D"
   },
   "music_explore_act1": {
     "duration": 91.0,
@@ -217,7 +238,8 @@
     "peakDb": -3.22,
     "score": "loom_act1",
     "seamDb": -65.5,
-    "title": "The Loom: Ember Dusk"
+    "title": "The Loom: Ember Dusk",
+    "tonic": "D"
   },
   "music_explore_act2": {
     "duration": 93.296,
@@ -227,7 +249,8 @@
     "peakDb": -4.55,
     "score": "loom_act2",
     "seamDb": -83.4,
-    "title": "The Loom: Iron Rain"
+    "title": "The Loom: Iron Rain",
+    "tonic": "C"
   },
   "music_explore_act3": {
     "duration": 70.2,
@@ -237,7 +260,8 @@
     "peakDb": -4.78,
     "score": "loom_act3",
     "seamDb": -65.2,
-    "title": "The Loom: Bleached Rite"
+    "title": "The Loom: Bleached Rite",
+    "tonic": "E"
   },
   "music_explore_act4": {
     "duration": 109.775,
@@ -247,7 +271,8 @@
     "peakDb": -5.24,
     "score": "loom_act4",
     "seamDb": -70.5,
-    "title": "The Loom: Ashfall"
+    "title": "The Loom: Ashfall",
+    "tonic": "B"
   },
   "music_home_base": {
     "duration": 81.743,
@@ -257,7 +282,8 @@
     "peakDb": -4.25,
     "score": "home_base",
     "seamDb": -128.6,
-    "title": "Embers of the Old Kingdom"
+    "title": "Embers of the Old Kingdom",
+    "tonic": "F"
   },
   "music_login": {
     "duration": 102.432,
@@ -267,7 +293,8 @@
     "peakDb": -6.02,
     "score": "title",
     "seamDb": -79.7,
-    "title": "The Hollow Sun"
+    "title": "The Hollow Sun",
+    "tonic": "D"
   },
   "music_loot": {
     "duration": 21.475,
@@ -277,7 +304,8 @@
     "peakDb": -4.48,
     "score": "loot",
     "seamDb": -105.0,
-    "title": "Spoils of the March"
+    "title": "Spoils of the March",
+    "tonic": "F"
   },
   "music_rest": {
     "duration": 174.016,
@@ -287,7 +315,8 @@
     "peakDb": -5.56,
     "score": "rest",
     "seamDb": -77.2,
-    "title": "Liturgy of the Spent Name"
+    "title": "Liturgy of the Spent Name",
+    "tonic": "F"
   },
   "music_run_win": {
     "duration": 100.978,
@@ -297,7 +326,8 @@
     "peakDb": -1.1,
     "score": "run_win",
     "seamDb": -62.3,
-    "title": "The Last Light"
+    "title": "The Last Light",
+    "tonic": "D"
   },
   "music_shop": {
     "duration": 58.171,
@@ -307,7 +337,8 @@
     "peakDb": -2.59,
     "score": "shop",
     "seamDb": -128.4,
-    "title": "Varen's Mark"
+    "title": "Varen's Mark",
+    "tonic": "G"
   },
   "music_title": {
     "duration": 121.577,
@@ -317,7 +348,8 @@
     "peakDb": -2.85,
     "score": "title",
     "seamDb": -81.5,
-    "title": "The Hollow Sun"
+    "title": "The Hollow Sun",
+    "tonic": "D"
   },
   "music_victory": {
     "duration": 37.831,
@@ -327,6 +359,7 @@
     "peakDb": -4.94,
     "score": "victory",
     "seamDb": -68.4,
-    "title": "Routed"
+    "title": "Routed",
+    "tonic": "D"
   }
 }

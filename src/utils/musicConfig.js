@@ -61,6 +61,10 @@ export const MUSIC_LAYERS = {
   music_battle_act4: { calm: 'music_battle_act4_calm' },
 };
 
+// Stingers decoded ahead whenever a track starts (in that track's key): the
+// cues that can fire at any moment of a battle. Rarer ones load on demand.
+export const STINGER_PRELOAD = ['levelup', 'levelup_perfect', 'levelup_blank', 'sealed', 'deed'];
+
 /** Layer name -> music key for an adaptive track (null for single-layer tracks). */
 export function getMusicLayers(key) {
   const extra = MUSIC_LAYERS[key];

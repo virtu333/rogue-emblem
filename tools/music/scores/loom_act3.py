@@ -25,7 +25,7 @@ CH_B = chart('Am:3 Em:3 F:3 G:3 Dm:3 E:3 Am:3 Em:3 Dm:3 Fmaj7:3 E:3 E:3')
 
 
 def build():
-    s = Score('loom_act3', bpm=72, meter=(3, 4), intro_bars=2, loop_bars=24,
+    s = Score('loom_act3', tonic='E', bpm=72, meter=(3, 4), intro_bars=2, loop_bars=24,
               title='The Loom: Bleached Rite', seed=53)
     s.reverb = dict(rt60=4.0, predelay_ms=40, wet_db=1.5, damp=0.4, bright=1.2)
     s.master = dict(lufs=-18.0, glue_ratio=1.2, lead_duck=1.0)

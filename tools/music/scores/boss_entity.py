@@ -19,7 +19,7 @@ UNTHREAD = 'A5q E5q D5q A4q'
 
 
 def build():
-    s = Score('boss_entity', bpm=90, intro_bars=4, loop_bars=32, title='· · ·', seed=113)
+    s = Score('boss_entity', tonic='D', bpm=90, intro_bars=4, loop_bars=32, title='· · ·', seed=113)
     s.reverb = dict(rt60=4.5, predelay_ms=40, wet_db=2.0, damp=0.5)
     s.master = dict(lufs=-14.5, glue_ratio=1.5, lead_duck=0)
     b = Battle(s, full_lufs=-14.5, adaptive=False)

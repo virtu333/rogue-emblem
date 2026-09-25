@@ -175,6 +175,12 @@ class Renderer:
         s = score
         self.I_b = s.intro_beats
         self.P_b = s.loop_beats
+        self.one_shot = s.one_shot
+        if self.one_shot:
+            # no loop: a silent stand-in region, long enough to hold the tail margin
+            rt = max([s.reverb.get('rt60', 2.2)] + [2.0])
+            need_s = max(M_MIN, 1.15 * rt) / 0.8 + 1.0
+            self.P_b = math.ceil(need_s * s.bpm_at(max(0.0, self.I_b - 1e-6)) / 60)
         self.I_s = s.seconds(self.I_b)
         self.P_s = s.seconds(self.I_b + self.P_b) - self.I_s
         self.P_f = int(round(self.P_s * SR))
@@ -212,8 +218,11 @@ class Renderer:
         for n in notes:
             if n.start >= end_b - 1e-9:
                 raise ValueError(f'{s.name}/{part.name}: note at beat {n.start} after loop end')
-            if not inst.get('fixed_pitch') and not (lo <= n.pitch <= hi):
-                raise ValueError(f'{s.name}/{part.name}: pitch {n.pitch} outside {inst["range"]}'
+            if self.one_shot and n.start >= self.I_b - 1e-9:
+                raise ValueError(f'{s.name}/{part.name}: note at beat {n.start} after the cue ends')
+            pitch = n.pitch if inst.get('fixed_pitch') else n.pitch + s.transpose
+            if not inst.get('fixed_pitch') and not (lo <= pitch <= hi):
+                raise ValueError(f'{s.name}/{part.name}: pitch {pitch} outside {inst["range"]}'
                                  f' at bar {n.start / s.bar_beats + 1:.2f}')
             t0 = s.seconds(n.start)
             written = n.dur
@@ -234,7 +243,7 @@ class Renderer:
             jitter = float(np.clip(rng.normal(0, hum / 2), -hum, hum)) if hum > 0 else 0.0
             vj = part.opts.get('vel_jitter', inst.get('vel_jitter', 0.06))
             vel = float(np.clip(n.vel + rng.normal(0, vj), 0.02, 1.0))
-            ev = NoteEvent(t=t0 - pre + jitter, dur=max(0.02, t1 - t0), key=n.pitch, vel=vel, art=art)
+            ev = NoteEvent(t=t0 - pre + jitter, dur=max(0.02, t1 - t0), key=pitch, vel=vel, art=art)
             ev.rearticulate = n.rearticulate
             ev.in_loop = n.start >= self.I_b - 1e-9
             ev.beat_start, ev.beat_end = n.start, n.start + n.dur
@@ -448,6 +457,8 @@ class Renderer:
                 continue
             dry = self.render_part(part)
             out[name] = self._process_part(part, dry)
+            if self.one_shot:
+                continue
             err = seam_error_db(out[name][0], self.loop_start_f, self.loop_end_f)
             if err > -50:
                 self.log(f'  WARN stem {name} not periodic at the loop point ({err:.1f} dB)')
@@ -543,7 +554,7 @@ class Renderer:
         x = dsp.compress(x, thresh_db=m.get('glue_thresh', -16), ratio=m.get('glue_ratio', 1.8),
                          attack_ms=30, release_ms=250, knee_db=8)
         target = s.targets_lufs.get(variant, m.get('lufs', -15.0))
-        a, b = self.loop_start_f, self.loop_end_f
+        a, b = self.norm_region()
         for _ in range(3):
             l = dsp.lufs(x[a:b])
             x = x * dsp.undb(target - l)
@@ -554,6 +565,19 @@ class Renderer:
             x = x * dsp.undb((target - l2) * 0.9)
         return y
 
+    def norm_region(self):
+        """Frames loudness is measured over: the loop, or a one-shot's notes and first second of tail."""
+        if self.one_shot:
+            return 0, min(self.n_f, self.I_f + SR)
+        return self.loop_start_f, self.loop_end_f
+
+    def one_shot_end(self, y, floor_db=-56.0):
+        """Frame where a one-shot's tail has decayed below floor_db (plus a short fade)."""
+        env = np.abs(y).max(axis=1)
+        loud = np.nonzero(env > dsp.undb(floor_db))[0]
+        end = int(loud[-1]) + 1 if len(loud) else self.I_f
+        return min(max(end, self.I_f), self.n_f)
+
     # -------------------------------------------------------------- export
     def export(self, key: str, variants=None, out_dir=None, preview_dir=None, mp3=True,
                quality=4):
@@ -563,9 +587,12 @@ class Renderer:
         meta = {}
         for var in variants:
             y = self.mix(stems, var)
+            name = s.variant_keys.get(var) or (key if var == 'full' else f'{key}_{var}')
+            if self.one_shot:
+                meta[name] = self._export_one_shot(name, y, out_dir, preview_dir, mp3, quality)
+                continue
             f = y[: self.file_f]
             seam = seam_error_db(f, self.loop_start_f, self.loop_end_f)
-            name = s.variant_keys.get(var) or (key if var == 'full' else f'{key}_{var}')
             ls, le = self.loop_start_f, self.loop_end_f
             if var in s.whole_loop:
                 # a file that is exactly one loop period, for players that can
@@ -594,6 +621,27 @@ class Renderer:
                 write_audio(os.path.join(preview_dir, name + '.mp3'), jump, quality=2)
             meta[name] = info
         return meta
+
+    def _export_one_shot(self, name, y, out_dir, preview_dir, mp3, quality):
+        end = self.one_shot_end(y)
+        fade = min(int(0.03 * SR), end)
+        f = y[:end].copy()
+        if fade:
+            f[end - fade:] *= np.linspace(1.0, 0.0, fade, dtype=np.float32)[:, None]
+        a, b = self.norm_region()
+        info = {
+            'duration': round(len(f) / SR, 3),
+            'notesEnd': round(self.I_s, 3),
+            'lufs': round(dsp.lufs(f[a:min(b, len(f))]), 2),
+            'peakDb': round(dsp.db(float(np.abs(f).max())), 2),
+        }
+        self.log(f'  {name}: {info}')
+        for d in (out_dir, preview_dir):
+            if d:
+                os.makedirs(d, exist_ok=True)
+                write_audio(os.path.join(d, name + ('.mp3' if mp3 else '.wav')), f,
+                            quality=quality if d == out_dir else 2)
+        return info
 
 
 # level (dBFS RMS while playing) each role is brought to before the mix

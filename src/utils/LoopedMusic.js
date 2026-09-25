@@ -33,6 +33,17 @@ export function validLoopFor(buffer, loop) {
 
 const LOOP_POINT_TOLERANCE_S = 0.001;
 
+/** Freeze an AudioParam at its current value so a new ramp starts from there. */
+function holdAt(param, now) {
+  if (typeof param.cancelAndHoldAtTime === 'function') {
+    param.cancelAndHoldAtTime(now);
+  } else {
+    const current = param.value;
+    param.cancelScheduledValues?.(now);
+    param.setValueAtTime(current, now);
+  }
+}
+
 /**
  * A secondary layer can play alongside the primary only if it is the same
  * length and loops over the same region: it must fit the primary's loop, and
@@ -80,7 +91,11 @@ export class LoopedMusic {
 
     this._out = context.createGain();
     this._out.gain.value = volume;
-    this._out.connect(destination);
+    // Ducking has its own stage so it never fights the volume fades on _out.
+    this._duck = context.createGain();
+    this._duck.gain.value = 1;
+    this._out.connect(this._duck);
+    this._duck.connect(destination);
 
     const given = Object.keys(layers).filter((n) => layers[n]);
     const primaryName = given.includes('full') ? 'full' : given[0];
@@ -162,6 +177,9 @@ export class LoopedMusic {
     try {
       this._out.disconnect();
     } catch (_) {}
+    try {
+      this._duck.disconnect();
+    } catch (_) {}
     this._layers.clear();
     this._destroyed = true;
     this.pendingRemove = true;
@@ -182,6 +200,38 @@ export class LoopedMusic {
     return this;
   }
 
+  /**
+   * Lower the music under a stinger: ramp to `level` over `attack` seconds,
+   * hold it `hold` seconds, then return to full over `release` seconds.
+   * A later duck or unduck replaces the pending envelope.
+   */
+  duck(level, { attack = 0.08, hold = 0, release = 0.8 } = {}) {
+    if (this._destroyed) return false;
+    const target = Math.max(0, Math.min(1, Number(level)));
+    if (!Number.isFinite(target)) return false;
+    const param = this._duck.gain;
+    const now = this.context.currentTime;
+    holdAt(param, now);
+    const down = now + Math.max(0.005, attack);
+    param.linearRampToValueAtTime(target, down);
+    if (hold > 0 || release > 0) {
+      const up = down + Math.max(0, hold);
+      param.setValueAtTime(target, up);
+      param.linearRampToValueAtTime(1, up + Math.max(0.005, release));
+    }
+    return true;
+  }
+
+  /** Bring a ducked track back to full over `release` seconds. */
+  unduck(release = 0.4) {
+    if (this._destroyed) return false;
+    const param = this._duck.gain;
+    const now = this.context.currentTime;
+    holdAt(param, now);
+    param.linearRampToValueAtTime(1, now + Math.max(0.005, release));
+    return true;
+  }
+
   /** Crossfade to another layer over fadeMs (equal-gain: the layers share material). */
   setLayer(name, fadeMs = 1500) {
     if (!this._layers.has(name) || this._destroyed) return false;
@@ -194,13 +244,7 @@ export class LoopedMusic {
       const param = entry.gain.gain;
       if (dur > 0 && typeof param.linearRampToValueAtTime === 'function') {
         // Hold wherever an earlier crossfade had got to, then ramp from there.
-        if (typeof param.cancelAndHoldAtTime === 'function') {
-          param.cancelAndHoldAtTime(now);
-        } else {
-          const current = param.value;
-          param.cancelScheduledValues?.(now);
-          param.setValueAtTime(current, now);
-        }
+        holdAt(param, now);
         param.linearRampToValueAtTime(target, now + dur);
       } else {
         param.cancelScheduledValues?.(now);

@@ -23,7 +23,7 @@ CH_C = chart('Fm Db Fm Db Bbm Db G7sus4 G7')
 
 
 def build():
-    s = Score('loom_act2', bpm=92, intro_bars=2, loop_bars=32, title='The Loom: Iron Rain', seed=47)
+    s = Score('loom_act2', tonic='C', bpm=92, intro_bars=2, loop_bars=32, title='The Loom: Iron Rain', seed=47)
     s.reverb = dict(rt60=2.4, predelay_ms=24, wet_db=0.0, damp=0.55)
     s.master = dict(lufs=-18.0, glue_ratio=1.3)
     s.variant('full', {}, lufs=-18.0)

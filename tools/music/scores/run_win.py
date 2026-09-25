@@ -23,7 +23,7 @@ CH = chart('D Bm7 Em7:2 G/D:2 A D F#m:2 Bm:2 G:2 A7:2 D')
 
 
 def build():
-    s = Score('run_win', bpm=76, intro_bars=2, loop_bars=28, title='The Last Light', seed=41)
+    s = Score('run_win', tonic='D', bpm=76, intro_bars=2, loop_bars=28, title='The Last Light', seed=41)
     s.reverb = dict(rt60=2.8, predelay_ms=30, wet_db=0.5)
     s.master = dict(lufs=-16.0, glue_ratio=1.3)
     s.tempo(25, 76, ramp_to=64)

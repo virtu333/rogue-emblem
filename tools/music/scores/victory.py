@@ -17,7 +17,7 @@ CH = chart('D Bm7 A:2 E/G#:2 A D F#m:2 Bm:2 G:2 A7:2 D')
 
 
 def build():
-    s = Score('victory', bpm=104, intro_bars=4, loop_bars=8, title='Routed', seed=31)
+    s = Score('victory', tonic='D', bpm=104, intro_bars=4, loop_bars=8, title='Routed', seed=31)
     s.tempo(5, 80)
     s.reverb = dict(rt60=2.4, predelay_ms=26, wet_db=0.0)
     s.master = dict(lufs=-16.5, glue_ratio=1.3)

@@ -79,7 +79,7 @@ def kit_section(kit, start, n, beat, fill, fill_every=4):
 
 
 def build():
-    s = Score('battle_act1', bpm=152, intro_bars=4, loop_bars=44, title='Ember Dusk', seed=17)
+    s = Score('battle_act1', tonic='D', bpm=152, intro_bars=4, loop_bars=44, title='Ember Dusk', seed=17)
     s.reverb = dict(rt60=2.1, predelay_ms=26, wet_db=-1.0)
     s.master = dict(lufs=-14.0, glue_ratio=1.5)
     calm_only = ['pno', 'fl', 'ob', 'cl', 'bsn', 'hp', 'ckit_*', 'mel_calm', 'lowpad*',

@@ -42,7 +42,7 @@ DRIVE = {'kick': 'x.x...x.x.x...x.', 'rim': '....X.......X...', 'ride': 'X.x.X.x
 
 
 def build():
-    s = Score('boss_act1', bpm=138, intro_bars=4, loop_bars=36, title='The Border Holds', seed=89)
+    s = Score('boss_act1', tonic='D', bpm=138, intro_bars=4, loop_bars=36, title='The Border Holds', seed=89)
     s.reverb = dict(rt60=2.4, predelay_ms=26, wet_db=0.0)
     s.master = dict(lufs=-13.5, glue_ratio=1.6)
     b = Battle(s, full_lufs=-13.5, adaptive=False)

@@ -13,7 +13,7 @@ KEY = 'music_explore_act4'
 
 
 def build():
-    s = Score('loom_act4', bpm=60, intro_bars=2, loop_bars=24, title='The Loom: Ashfall', seed=59)
+    s = Score('loom_act4', tonic='B', bpm=60, intro_bars=2, loop_bars=24, title='The Loom: Ashfall', seed=59)
     s.reverb = dict(rt60=4.5, predelay_ms=44, wet_db=2.0, damp=0.6)
     s.master = dict(lufs=-19.5, glue_ratio=1.2, lead_duck=0.5)
     s.variant('full', {}, lufs=-19.5)

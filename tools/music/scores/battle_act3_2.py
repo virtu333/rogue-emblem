@@ -40,7 +40,7 @@ BRIDGE_BEAT = {'kick': 'x.......x.......', 'rim': '........X.......', 'ride': 'x
 
 
 def build():
-    s = Score('battle_act3_2', bpm=156, intro_bars=4, loop_bars=36, title='Against the Rite',
+    s = Score('battle_act3_2', tonic='B', bpm=156, intro_bars=4, loop_bars=36, title='Against the Rite',
               seed=79)
     s.reverb = dict(rt60=2.4, predelay_ms=26, wet_db=0.0)
     s.master = dict(lufs=-13.8, glue_ratio=1.5)

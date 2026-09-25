@@ -234,8 +234,18 @@ class Score:
     """A piece: tempo, meter, parts, loop structure and mix variants."""
 
     def __init__(self, name: str, bpm: float, meter=(4, 4), intro_bars: float = 0,
-                 loop_bars: float = 16, title: str | None = None, seed: int = 1):
+                 loop_bars: float = 16, title: str | None = None, seed: int = 1,
+                 tonic: str | None = None, one_shot: bool = False, transpose: int = 0):
         self.name = name
+        # home key's pitch class (e.g. 'D', 'Db'): stingers are rendered to match it
+        self.tonic = tonic
+        # a cue that plays once (a stinger): no loop region, the tail rings out
+        self.one_shot = one_shot
+        if one_shot:
+            loop_bars = 0
+        # semitones applied to every pitched note at render time
+        self.transpose = transpose
+        self.silent_ok: set = set()
         self.title = title or name
         self.meter = meter
         self.bar_beats = meter[0] * 4 / meter[1]
