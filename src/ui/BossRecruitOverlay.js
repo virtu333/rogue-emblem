@@ -57,6 +57,8 @@ export class BossRecruitOverlay {
       onComplete(null);
       return;
     }
+    // Each candidate shows (and keeps, once chosen) a face the army lacks.
+    this.runManager?.assignPortraitVariants?.(candidates);
 
     // One-shot resolution guard
     let _resolved = false;

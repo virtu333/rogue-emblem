@@ -1,0 +1,8075 @@
+{
+  "enemy_archer": {
+    "raw": "References/portrait-variants/raw/enemy_archer.jpg",
+    "rawSha256": "3588cbbeaf142e39",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Archer",
+    "person": "archer_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.327,
+      "cx": 0.63,
+      "faceH": 0.275,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.299,
+      "dy": -0.064
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.366,
+    "pockets": 3
+  },
+  "enemy_archer__b": {
+    "raw": "References/portrait-variants/raw/enemy_archer__b.jpg",
+    "rawSha256": "3dae51f920a17a18",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Archer",
+    "person": "archer_b",
+    "mode": "new",
+    "native": 120,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.583,
+      "faceH": 0.355,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.07,
+      "dx": -0.07,
+      "dy": 0.02
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.555
+    },
+    "background": 0.435,
+    "pockets": 0
+  },
+  "enemy_archer__c": {
+    "raw": "References/portrait-variants/raw/enemy_archer__c.jpg",
+    "rawSha256": "8e2c48e8c068a17c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Archer",
+    "person": "archer_c",
+    "mode": "new",
+    "native": 179,
+    "detected": {
+      "eye": 0.321,
+      "cx": 0.568,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.115,
+      "dy": 0.002
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 1
+  },
+  "enemy_archer__d": {
+    "raw": "References/portrait-variants/raw/enemy_archer__d.jpg",
+    "rawSha256": "f260f47b838cbe35",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Archer",
+    "person": "archer_d",
+    "mode": "new",
+    "native": 145,
+    "detected": {
+      "eye": 0.296,
+      "cx": 0.611,
+      "faceH": 0.43,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.884,
+      "dx": -0.02,
+      "dy": 0.116
+    },
+    "framing": {
+      "eye": 0.38,
+      "cx": 0.52
+    },
+    "background": 0.401,
+    "pockets": 3
+  },
+  "enemy_assassin": {
+    "raw": "References/portrait-variants/raw/enemy_assassin.jpg",
+    "rawSha256": "f0757bb9831ec183",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Assassin",
+    "person": "assassin_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.534,
+      "faceH": 0.282,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.174,
+      "dy": -0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.456,
+    "pockets": 0
+  },
+  "enemy_assassin__b": {
+    "raw": "References/portrait-variants/raw/enemy_assassin__b.jpg",
+    "rawSha256": "1458f17c0705cf65",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Assassin",
+    "person": "assassin_b",
+    "mode": "new",
+    "native": 108,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.535,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.188,
+      "dx": -0.115,
+      "dy": 0.001
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.453,
+    "pockets": 0
+  },
+  "enemy_assassin__c": {
+    "raw": "References/portrait-variants/raw/enemy_assassin__c.jpg",
+    "rawSha256": "cb7b0aaae6728a54",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Assassin",
+    "person": "assassin_c",
+    "mode": "new",
+    "native": 110,
+    "detected": {
+      "eye": 0.305,
+      "cx": 0.583,
+      "faceH": 0.328,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.159,
+      "dx": -0.155,
+      "dy": 0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "enemy_assassin__d": {
+    "raw": "References/portrait-variants/raw/enemy_assassin__d.jpg",
+    "rawSha256": "cb1627c90de27cf1",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Assassin",
+    "person": "assassin_d",
+    "mode": "new",
+    "native": 114,
+    "detected": {
+      "eye": 0.328,
+      "cx": 0.54,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.084,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "enemy_battle_monk": {
+    "raw": "References/portrait-variants/raw/enemy_battle_monk.jpg",
+    "rawSha256": "2c9d4059ea9eb2bc",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Battle Monk",
+    "person": "battle_monk_a",
+    "mode": "remaster",
+    "native": 99,
+    "detected": {
+      "eye": 0.239,
+      "cx": 0.445,
+      "faceH": 0.295,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.288,
+      "dx": -0.053,
+      "dy": 0.052
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.392,
+    "pockets": 2
+  },
+  "enemy_battle_monk__b": {
+    "raw": "References/portrait-variants/raw/enemy_battle_monk__b.jpg",
+    "rawSha256": "d4a04f5acfd169a2",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Battle Monk",
+    "person": "battle_monk_b",
+    "mode": "new",
+    "native": 103,
+    "detected": {
+      "eye": 0.275,
+      "cx": 0.54,
+      "faceH": 0.306,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.242,
+      "dx": -0.15,
+      "dy": 0.018
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 1
+  },
+  "enemy_battle_monk__c": {
+    "raw": "References/portrait-variants/raw/enemy_battle_monk__c.jpg",
+    "rawSha256": "63931cf94ef478bd",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Battle Monk",
+    "person": "battle_monk_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.271,
+      "cx": 0.555,
+      "faceH": 0.292,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.201,
+      "dy": 0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.428,
+    "pockets": 1
+  },
+  "enemy_battle_monk__d": {
+    "raw": "References/portrait-variants/raw/enemy_battle_monk__d.jpg",
+    "rawSha256": "910322cb7c0d5496",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Battle Monk",
+    "person": "battle_monk_d",
+    "mode": "new",
+    "native": 119,
+    "detected": {
+      "eye": 0.272,
+      "cx": 0.515,
+      "faceH": 0.354,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.073,
+      "dx": -0.033,
+      "dy": 0.069
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.457,
+    "pockets": 1
+  },
+  "enemy_berserker": {
+    "raw": "References/portrait-variants/raw/enemy_berserker.jpg",
+    "rawSha256": "8f116b72148e2036",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Berserker",
+    "person": "berserker_a",
+    "mode": "remaster",
+    "native": 136,
+    "detected": {
+      "eye": 0.371,
+      "cx": 0.6,
+      "faceH": 0.405,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.938,
+      "dx": -0.043,
+      "dy": 0.062
+    },
+    "framing": {
+      "eye": 0.41,
+      "cx": 0.52
+    },
+    "background": 0.278,
+    "pockets": 2
+  },
+  "enemy_berserker__b": {
+    "raw": "References/portrait-variants/raw/enemy_berserker__b.jpg",
+    "rawSha256": "dbd2bd51b2faef32",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Berserker",
+    "person": "berserker_b",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.317,
+      "cx": 0.649,
+      "faceH": 0.407,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.934,
+      "dx": -0.085,
+      "dy": 0.066
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.355,
+    "pockets": 0
+  },
+  "enemy_berserker__c": {
+    "raw": "References/portrait-variants/raw/enemy_berserker__c.jpg",
+    "rawSha256": "554eb41d2a53b8f5",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Berserker",
+    "person": "berserker_c",
+    "mode": "new",
+    "native": 199,
+    "detected": {
+      "eye": 0.297,
+      "cx": 0.536,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": 0.061
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.374,
+    "pockets": 4
+  },
+  "enemy_berserker__d": {
+    "raw": "References/portrait-variants/raw/enemy_berserker__d.jpg",
+    "rawSha256": "73008632fcff1973",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Berserker",
+    "person": "berserker_d",
+    "mode": "new",
+    "native": 116,
+    "detected": {
+      "eye": 0.344,
+      "cx": 0.565,
+      "faceH": 0.345,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.101,
+      "dx": -0.101,
+      "dy": -0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.393,
+    "pockets": 2
+  },
+  "enemy_bishop": {
+    "raw": "References/portrait-variants/raw/enemy_bishop.jpg",
+    "rawSha256": "34d55dcb6a035b0b",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bishop",
+    "person": "bishop_a",
+    "mode": "remaster",
+    "native": 104,
+    "detected": {
+      "eye": 0.416,
+      "cx": 0.554,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.16,
+      "dy": -0.151
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.48,
+    "pockets": 0
+  },
+  "enemy_bishop__b": {
+    "raw": "References/portrait-variants/raw/enemy_bishop__b.jpg",
+    "rawSha256": "adb4fa5c1a09404e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bishop",
+    "person": "bishop_b",
+    "mode": "new",
+    "native": 140,
+    "detected": {
+      "eye": 0.276,
+      "cx": 0.53,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.916,
+      "dx": 0.035,
+      "dy": 0.107
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.432,
+    "pockets": 0
+  },
+  "enemy_bishop__c": {
+    "raw": "References/portrait-variants/raw/enemy_bishop__c.jpg",
+    "rawSha256": "6a980fd406e6c6d7",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bishop",
+    "person": "bishop_c",
+    "mode": "new",
+    "native": 142,
+    "detected": {
+      "eye": 0.399,
+      "cx": 0.531,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.153,
+      "dy": -0.145
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.514,
+    "pockets": 0
+  },
+  "enemy_bishop__d": {
+    "raw": "References/portrait-variants/raw/enemy_bishop__d.jpg",
+    "rawSha256": "cda1d3e031284570",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bishop",
+    "person": "bishop_d",
+    "mode": "new",
+    "native": 99,
+    "detected": {
+      "eye": 0.425,
+      "cx": 0.552,
+      "faceH": 0.293,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.297,
+      "dx": -0.197,
+      "dy": -0.191
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.545,
+    "pockets": 0
+  },
+  "enemy_bow_knight": {
+    "raw": "References/portrait-variants/raw/enemy_bow_knight.jpg",
+    "rawSha256": "27acc0426ab3cc22",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bow Knight",
+    "person": "bow_knight_a",
+    "mode": "remaster",
+    "native": 161,
+    "detected": {
+      "eye": 0.415,
+      "cx": 0.623,
+      "faceH": 0.305,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.246,
+      "dx": -0.246,
+      "dy": -0.157
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.388,
+    "pockets": 1
+  },
+  "enemy_bow_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_bow_knight__b.jpg",
+    "rawSha256": "72988bb83b2998b1",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bow Knight",
+    "person": "bow_knight_b",
+    "mode": "new",
+    "native": 192,
+    "detected": {
+      "eye": 0.362,
+      "cx": 0.58,
+      "faceH": 0.365,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.041,
+      "dx": -0.041,
+      "dy": -0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.565
+    },
+    "background": 0.392,
+    "pockets": 1
+  },
+  "enemy_bow_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_bow_knight__c.jpg",
+    "rawSha256": "56f49e4fd34462e7",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bow Knight",
+    "person": "bow_knight_c",
+    "mode": "new",
+    "native": 199,
+    "detected": {
+      "eye": 0.367,
+      "cx": 0.591,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": -0.005
+    },
+    "framing": {
+      "eye": 0.365,
+      "cx": 0.59
+    },
+    "background": 0.383,
+    "pockets": 5
+  },
+  "enemy_bow_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_bow_knight__d.jpg",
+    "rawSha256": "6db22b232be7884b",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Bow Knight",
+    "person": "bow_knight_d",
+    "mode": "new",
+    "native": 189,
+    "detected": {
+      "eye": 0.359,
+      "cx": 0.579,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": -0.061,
+      "dy": -0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.555
+    },
+    "background": 0.404,
+    "pockets": 1
+  },
+  "enemy_cavalier": {
+    "raw": "References/portrait-variants/raw/enemy_cavalier.jpg",
+    "rawSha256": "084c24eb1df2265a",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cavalier",
+    "person": "cavalier_a",
+    "mode": "remaster",
+    "native": 126,
+    "detected": {
+      "eye": 0.338,
+      "cx": 0.578,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.57
+    },
+    "background": 0.393,
+    "pockets": 1
+  },
+  "enemy_cavalier__b": {
+    "raw": "References/portrait-variants/raw/enemy_cavalier__b.jpg",
+    "rawSha256": "c2a85f1ae44df9eb",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cavalier",
+    "person": "cavalier_b",
+    "mode": "new",
+    "native": 126,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.521,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.008,
+      "dy": 0.038
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.388,
+    "pockets": 1
+  },
+  "enemy_cavalier__c": {
+    "raw": "References/portrait-variants/raw/enemy_cavalier__c.jpg",
+    "rawSha256": "f09a851d63594c9d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cavalier",
+    "person": "cavalier_c",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.334,
+      "cx": 0.547,
+      "faceH": 0.368,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.033,
+      "dx": -0.033,
+      "dy": 0.015
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.399,
+    "pockets": 1
+  },
+  "enemy_cavalier__d": {
+    "raw": "References/portrait-variants/raw/enemy_cavalier__d.jpg",
+    "rawSha256": "42836efa5f5ff450",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cavalier",
+    "person": "cavalier_d",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.34,
+      "cx": 0.582,
+      "faceH": 0.368,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.033,
+      "dx": -0.033,
+      "dy": 0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.57
+    },
+    "background": 0.363,
+    "pockets": 1
+  },
+  "enemy_cleric": {
+    "raw": "References/portrait-variants/raw/enemy_cleric.jpg",
+    "rawSha256": "34dba3d24e178d35",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cleric",
+    "person": "cleric_a",
+    "mode": "remaster",
+    "native": 129,
+    "detected": {
+      "eye": 0.348,
+      "cx": 0.557,
+      "faceH": 0.382,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.995,
+      "dx": -0.034,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.363,
+    "pockets": 0
+  },
+  "enemy_cleric__b": {
+    "raw": "References/portrait-variants/raw/enemy_cleric__b.jpg",
+    "rawSha256": "a788aa1e5120e312",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cleric",
+    "person": "cleric_b",
+    "mode": "new",
+    "native": 133,
+    "detected": {
+      "eye": 0.362,
+      "cx": 0.59,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": -0.048,
+      "dy": 0.038
+    },
+    "framing": {
+      "eye": 0.385,
+      "cx": 0.52
+    },
+    "background": 0.326,
+    "pockets": 0
+  },
+  "enemy_cleric__c": {
+    "raw": "References/portrait-variants/raw/enemy_cleric__c.jpg",
+    "rawSha256": "537fc06baf40aa42",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cleric",
+    "person": "cleric_c",
+    "mode": "new",
+    "native": 133,
+    "detected": {
+      "eye": 0.326,
+      "cx": 0.575,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": -0.033,
+      "dy": 0.047
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.398,
+    "pockets": 0
+  },
+  "enemy_cleric__d": {
+    "raw": "References/portrait-variants/raw/enemy_cleric__d.jpg",
+    "rawSha256": "be79cb7db44fe889",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Cleric",
+    "person": "cleric_d",
+    "mode": "new",
+    "native": 127,
+    "detected": {
+      "eye": 0.351,
+      "cx": 0.613,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": 0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.61
+    },
+    "background": 0.384,
+    "pockets": 0
+  },
+  "enemy_dancer": {
+    "raw": "References/portrait-variants/raw/enemy_dancer.jpg",
+    "rawSha256": "a40cabff20d2b6d7",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dancer",
+    "person": "dancer_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.326,
+      "cx": 0.477,
+      "faceH": 0.25,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.101,
+      "dy": -0.064
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.5,
+    "pockets": 1
+  },
+  "enemy_dancer__b": {
+    "raw": "References/portrait-variants/raw/enemy_dancer__b.jpg",
+    "rawSha256": "fe78eab120e27c7e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dancer",
+    "person": "dancer_b",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.315,
+      "cx": 0.514,
+      "faceH": 0.27,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.148,
+      "dy": -0.05
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.566,
+    "pockets": 0
+  },
+  "enemy_dancer__c": {
+    "raw": "References/portrait-variants/raw/enemy_dancer__c.jpg",
+    "rawSha256": "e29aa4158862eb3e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dancer",
+    "person": "dancer_c",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.264,
+      "cx": 0.528,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.053,
+      "dy": 0.073
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.429,
+    "pockets": 1
+  },
+  "enemy_dancer__d": {
+    "raw": "References/portrait-variants/raw/enemy_dancer__d.jpg",
+    "rawSha256": "901850e0a50e70f8",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dancer",
+    "person": "dancer_d",
+    "mode": "new",
+    "native": 168,
+    "detected": {
+      "eye": 0.277,
+      "cx": 0.536,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.187,
+      "dx": -0.116,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.503,
+    "pockets": 1
+  },
+  "enemy_dark_knight": {
+    "raw": "References/portrait-variants/raw/enemy_dark_knight.jpg",
+    "rawSha256": "ba682a14251daafd",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dark Knight",
+    "person": "dark_knight_a",
+    "mode": "remaster",
+    "native": 184,
+    "detected": {
+      "eye": 0.284,
+      "cx": 0.574,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.086,
+      "dy": 0.052
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.389,
+    "pockets": 0
+  },
+  "enemy_dark_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_dark_knight__b.jpg",
+    "rawSha256": "c4a991a9d3df5bf2",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dark Knight",
+    "person": "dark_knight_b",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.239,
+      "cx": 0.531,
+      "faceH": 0.258,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.171,
+      "dy": 0.049
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.472,
+    "pockets": 2
+  },
+  "enemy_dark_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_dark_knight__c.jpg",
+    "rawSha256": "f5e506600a0b87e9",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dark Knight",
+    "person": "dark_knight_c",
+    "mode": "new",
+    "native": 190,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.535,
+      "faceH": 0.362,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.05,
+      "dx": -0.042,
+      "dy": 0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.445,
+    "pockets": 0
+  },
+  "enemy_dark_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_dark_knight__d.jpg",
+    "rawSha256": "7ad3418605f8a8a4",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Dark Knight",
+    "person": "dark_knight_d",
+    "mode": "new",
+    "native": 192,
+    "detected": {
+      "eye": 0.284,
+      "cx": 0.538,
+      "faceH": 0.365,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.041,
+      "dx": -0.04,
+      "dy": 0.065
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.401,
+    "pockets": 1
+  },
+  "enemy_duelist": {
+    "raw": "References/portrait-variants/raw/enemy_duelist.jpg",
+    "rawSha256": "16f7589af7ac10e3",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Duelist",
+    "person": "duelist_a",
+    "mode": "remaster",
+    "native": 103,
+    "detected": {
+      "eye": 0.267,
+      "cx": 0.525,
+      "faceH": 0.306,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.242,
+      "dx": -0.132,
+      "dy": 0.028
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.465,
+    "pockets": 0
+  },
+  "enemy_duelist__b": {
+    "raw": "References/portrait-variants/raw/enemy_duelist__b.jpg",
+    "rawSha256": "ca68b42364cb6cec",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Duelist",
+    "person": "duelist_b",
+    "mode": "new",
+    "native": 110,
+    "detected": {
+      "eye": 0.286,
+      "cx": 0.545,
+      "faceH": 0.326,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.166,
+      "dx": -0.115,
+      "dy": 0.027
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.463,
+    "pockets": 1
+  },
+  "enemy_duelist__c": {
+    "raw": "References/portrait-variants/raw/enemy_duelist__c.jpg",
+    "rawSha256": "2612dd8cf5bcad0a",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Duelist",
+    "person": "duelist_c",
+    "mode": "new",
+    "native": 120,
+    "detected": {
+      "eye": 0.285,
+      "cx": 0.524,
+      "faceH": 0.357,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.064,
+      "dx": -0.038,
+      "dy": 0.057
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.488,
+    "pockets": 1
+  },
+  "enemy_duelist__d": {
+    "raw": "References/portrait-variants/raw/enemy_duelist__d.jpg",
+    "rawSha256": "d0635ee5b5a198ea",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Duelist",
+    "person": "duelist_d",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.331,
+      "cx": 0.538,
+      "faceH": 0.36,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.056,
+      "dx": -0.048,
+      "dy": 0.011
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.493,
+    "pockets": 0
+  },
+  "enemy_falcon_knight": {
+    "raw": "References/portrait-variants/raw/enemy_falcon_knight.jpg",
+    "rawSha256": "e4ea24feb5dadc26",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Falcon Knight",
+    "person": "falcon_knight_a",
+    "mode": "remaster",
+    "native": 154,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.45,
+      "faceH": 0.2,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.065,
+      "dy": -0.113
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.42,
+    "pockets": 2
+  },
+  "enemy_falcon_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_falcon_knight__b.jpg",
+    "rawSha256": "1ceaeace6ec28a06",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Falcon Knight",
+    "person": "falcon_knight_b",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.37,
+      "cx": 0.589,
+      "faceH": 0.283,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.246,
+      "dy": -0.121
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.455,
+    "pockets": 0
+  },
+  "enemy_falcon_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_falcon_knight__c.jpg",
+    "rawSha256": "013f593b4ee0e5d9",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Falcon Knight",
+    "person": "falcon_knight_c",
+    "mode": "new",
+    "native": 189,
+    "detected": {
+      "eye": 0.37,
+      "cx": 0.529,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": -0.042,
+      "dy": -0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.44,
+    "pockets": 0
+  },
+  "enemy_falcon_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_falcon_knight__d.jpg",
+    "rawSha256": "b36d3153f579c5e9",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Falcon Knight",
+    "person": "falcon_knight_d",
+    "mode": "new",
+    "native": 163,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.515,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.111,
+      "dy": 0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.449,
+    "pockets": 0
+  },
+  "enemy_fighter": {
+    "raw": "References/portrait-variants/raw/enemy_fighter.jpg",
+    "rawSha256": "f44196d1d3790c16",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Fighter",
+    "person": "fighter_a",
+    "mode": "remaster",
+    "native": 121,
+    "detected": {
+      "eye": 0.231,
+      "cx": 0.4,
+      "faceH": 0.36,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.056,
+      "dx": 0,
+      "dy": 0.116
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.42
+    },
+    "background": 0.339,
+    "pockets": 0
+  },
+  "enemy_fighter__b": {
+    "raw": "References/portrait-variants/raw/enemy_fighter__b.jpg",
+    "rawSha256": "dbe28c8777509a80",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Fighter",
+    "person": "fighter_b",
+    "mode": "new",
+    "native": 197,
+    "detected": {
+      "eye": 0.292,
+      "cx": 0.56,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.064
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.555
+    },
+    "background": 0.383,
+    "pockets": 0
+  },
+  "enemy_fighter__c": {
+    "raw": "References/portrait-variants/raw/enemy_fighter__c.jpg",
+    "rawSha256": "c3b28001eac07951",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Fighter",
+    "person": "fighter_c",
+    "mode": "new",
+    "native": 203,
+    "detected": {
+      "eye": 0.301,
+      "cx": 0.513,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": 0.014,
+      "dy": 0.063
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.386,
+    "pockets": 1
+  },
+  "enemy_fighter__d": {
+    "raw": "References/portrait-variants/raw/enemy_fighter__d.jpg",
+    "rawSha256": "df1172fee8bcd8bc",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Fighter",
+    "person": "fighter_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.488,
+      "faceH": 0.498,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.1,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.385,
+      "cx": 0.52
+    },
+    "background": 0.345,
+    "pockets": 0
+  },
+  "enemy_general": {
+    "raw": "References/portrait-variants/raw/enemy_general.jpg",
+    "rawSha256": "27877f136b51448c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "General",
+    "person": "general_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.33,
+      "cx": 0.63,
+      "faceH": 0.252,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.299,
+      "dy": -0.069
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.368,
+    "pockets": 1
+  },
+  "enemy_general__b": {
+    "raw": "References/portrait-variants/raw/enemy_general__b.jpg",
+    "rawSha256": "044afa9cfa9978b8",
+    "options": "{}",
+    "side": "enemy",
+    "className": "General",
+    "person": "general_b",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.286,
+      "cx": 0.578,
+      "faceH": 0.305,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.246,
+      "dx": -0.2,
+      "dy": 0.004
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.348,
+    "pockets": 0
+  },
+  "enemy_general__c": {
+    "raw": "References/portrait-variants/raw/enemy_general__c.jpg",
+    "rawSha256": "27fec23c8773a0d5",
+    "options": "{}",
+    "side": "enemy",
+    "className": "General",
+    "person": "general_c",
+    "mode": "new",
+    "native": 108,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.583,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.188,
+      "dx": -0.172,
+      "dy": -0.001
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.361,
+    "pockets": 0
+  },
+  "enemy_general__d": {
+    "raw": "References/portrait-variants/raw/enemy_general__d.jpg",
+    "rawSha256": "1461c367c44338fb",
+    "options": "{}",
+    "side": "enemy",
+    "className": "General",
+    "person": "general_d",
+    "mode": "new",
+    "native": 109,
+    "detected": {
+      "eye": 0.308,
+      "cx": 0.575,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.152,
+      "dy": 0
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.395,
+    "pockets": 0
+  },
+  "enemy_great_knight": {
+    "raw": "References/portrait-variants/raw/enemy_great_knight.jpg",
+    "rawSha256": "125247861fa41578",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Great Knight",
+    "person": "great_knight_a",
+    "mode": "remaster",
+    "native": 154,
+    "detected": {
+      "eye": 0.256,
+      "cx": 0.544,
+      "faceH": 0.292,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.188,
+      "dy": 0.028
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.413,
+    "pockets": 0
+  },
+  "enemy_great_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_great_knight__b.jpg",
+    "rawSha256": "aad894553efc9dd9",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Great Knight",
+    "person": "great_knight_b",
+    "mode": "new",
+    "native": 174,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.535,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.097,
+      "dy": 0.012
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.431,
+    "pockets": 0
+  },
+  "enemy_great_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_great_knight__c.jpg",
+    "rawSha256": "a59f487cbda7eb72",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Great Knight",
+    "person": "great_knight_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.263,
+      "cx": 0.525,
+      "faceH": 0.257,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.163,
+      "dy": 0.018
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.399,
+    "pockets": 0
+  },
+  "enemy_great_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_great_knight__d.jpg",
+    "rawSha256": "ee4da32fa5a91d26",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Great Knight",
+    "person": "great_knight_d",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.263,
+      "cx": 0.539,
+      "faceH": 0.288,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.181,
+      "dy": 0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.421,
+    "pockets": 0
+  },
+  "enemy_hero": {
+    "raw": "References/portrait-variants/raw/enemy_hero.jpg",
+    "rawSha256": "f8a9906548856583",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hero",
+    "person": "hero_a",
+    "mode": "remaster",
+    "native": 108,
+    "detected": {
+      "eye": 0.295,
+      "cx": 0.528,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.187,
+      "dx": -0.107,
+      "dy": 0.01
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.397,
+    "pockets": 0
+  },
+  "enemy_hero__b": {
+    "raw": "References/portrait-variants/raw/enemy_hero__b.jpg",
+    "rawSha256": "6c47a9b22454295e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hero",
+    "person": "hero_b",
+    "mode": "new",
+    "native": 127,
+    "detected": {
+      "eye": 0.309,
+      "cx": 0.544,
+      "faceH": 0.376,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.011,
+      "dx": -0.011,
+      "dy": 0.047
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.54
+    },
+    "background": 0.392,
+    "pockets": 1
+  },
+  "enemy_hero__c": {
+    "raw": "References/portrait-variants/raw/enemy_hero__c.jpg",
+    "rawSha256": "3644908d5ad116d1",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hero",
+    "person": "hero_c",
+    "mode": "new",
+    "native": 145,
+    "detected": {
+      "eye": 0.303,
+      "cx": 0.538,
+      "faceH": 0.432,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.88,
+      "dx": 0.046,
+      "dy": 0.12
+    },
+    "framing": {
+      "eye": 0.385,
+      "cx": 0.52
+    },
+    "background": 0.372,
+    "pockets": 0
+  },
+  "enemy_hero__d": {
+    "raw": "References/portrait-variants/raw/enemy_hero__d.jpg",
+    "rawSha256": "40e86b1b93b656cf",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hero",
+    "person": "hero_d",
+    "mode": "new",
+    "native": 113,
+    "detected": {
+      "eye": 0.306,
+      "cx": 0.531,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.083,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.375,
+    "pockets": 0
+  },
+  "enemy_hunter": {
+    "raw": "References/portrait-variants/raw/enemy_hunter.jpg",
+    "rawSha256": "14bd81b4a08d24ac",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hunter",
+    "person": "hunter_a",
+    "mode": "remaster",
+    "native": 135,
+    "detected": {
+      "eye": 0.32,
+      "cx": 0.427,
+      "faceH": 0.4,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.95,
+      "dx": 0.114,
+      "dy": 0.056
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.299,
+    "pockets": 1
+  },
+  "enemy_hunter__b": {
+    "raw": "References/portrait-variants/raw/enemy_hunter__b.jpg",
+    "rawSha256": "9f1cfd8e59db2afc",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hunter",
+    "person": "hunter_b",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.296,
+      "cx": 0.543,
+      "faceH": 0.45,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.053,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.395,
+      "cx": 0.52
+    },
+    "background": 0.339,
+    "pockets": 1
+  },
+  "enemy_hunter__c": {
+    "raw": "References/portrait-variants/raw/enemy_hunter__c.jpg",
+    "rawSha256": "5d64f664d61e6c03",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hunter",
+    "person": "hunter_c",
+    "mode": "new",
+    "native": 136,
+    "detected": {
+      "eye": 0.319,
+      "cx": 0.568,
+      "faceH": 0.404,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.941,
+      "dx": -0.014,
+      "dy": 0.06
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.34,
+    "pockets": 1
+  },
+  "enemy_hunter__d": {
+    "raw": "References/portrait-variants/raw/enemy_hunter__d.jpg",
+    "rawSha256": "244dea6a5e8d4d45",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Hunter",
+    "person": "hunter_d",
+    "mode": "new",
+    "native": 112,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.524,
+      "faceH": 0.332,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.145,
+      "dx": -0.08,
+      "dy": 0.014
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.385,
+    "pockets": 1
+  },
+  "enemy_knight": {
+    "raw": "References/portrait-variants/raw/enemy_knight.jpg",
+    "rawSha256": "ea5b5a71f614ed81",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Knight",
+    "person": "knight_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.568,
+      "faceH": 0.285,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.218,
+      "dy": -0.06
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.35,
+    "pockets": 1
+  },
+  "enemy_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_knight__b.jpg",
+    "rawSha256": "4b5cb92a075cdf26",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Knight",
+    "person": "knight_b",
+    "mode": "new",
+    "native": 147,
+    "detected": {
+      "eye": 0.353,
+      "cx": 0.532,
+      "faceH": 0.424,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.896,
+      "dx": 0.043,
+      "dy": 0.104
+    },
+    "framing": {
+      "eye": 0.42,
+      "cx": 0.52
+    },
+    "background": 0.434,
+    "pockets": 0
+  },
+  "enemy_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_knight__c.jpg",
+    "rawSha256": "418b04c523e9e993",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Knight",
+    "person": "knight_c",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.319,
+      "cx": 0.537,
+      "faceH": 0.368,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.033,
+      "dx": -0.033,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.35,
+    "pockets": 0
+  },
+  "enemy_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_knight__d.jpg",
+    "rawSha256": "ceaff951be5f08cd",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Knight",
+    "person": "knight_d",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.332,
+      "cx": 0.527,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.021,
+      "dy": 0.02
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.406,
+    "pockets": 0
+  },
+  "enemy_mage": {
+    "raw": "References/portrait-variants/raw/enemy_mage.jpg",
+    "rawSha256": "076dece40ebcca82",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mage",
+    "person": "mage_a",
+    "mode": "remaster",
+    "native": 121,
+    "detected": {
+      "eye": 0.322,
+      "cx": 0.449,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": 0,
+      "dy": 0.018
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.475
+    },
+    "background": 0.392,
+    "pockets": 0
+  },
+  "enemy_mage__b": {
+    "raw": "References/portrait-variants/raw/enemy_mage__b.jpg",
+    "rawSha256": "77d51ca31bcd6c94",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mage",
+    "person": "mage_b",
+    "mode": "new",
+    "native": 133,
+    "detected": {
+      "eye": 0.314,
+      "cx": 0.5,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": 0.039,
+      "dy": 0.058
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.493,
+    "pockets": 0
+  },
+  "enemy_mage__c": {
+    "raw": "References/portrait-variants/raw/enemy_mage__c.jpg",
+    "rawSha256": "bea8edec09514ca7",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mage",
+    "person": "mage_c",
+    "mode": "new",
+    "native": 136,
+    "detected": {
+      "eye": 0.333,
+      "cx": 0.527,
+      "faceH": 0.405,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.938,
+      "dx": 0.026,
+      "dy": 0.062
+    },
+    "framing": {
+      "eye": 0.375,
+      "cx": 0.52
+    },
+    "background": 0.456,
+    "pockets": 0
+  },
+  "enemy_mage__d": {
+    "raw": "References/portrait-variants/raw/enemy_mage__d.jpg",
+    "rawSha256": "f612b06798e9db5c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mage",
+    "person": "mage_d",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.499,
+      "faceH": 0.36,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.056,
+      "dx": -0.007,
+      "dy": 0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.432,
+    "pockets": 0
+  },
+  "enemy_mercenary": {
+    "raw": "References/portrait-variants/raw/enemy_mercenary.jpg",
+    "rawSha256": "08df91605158c319",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mercenary",
+    "person": "mercenary_a",
+    "mode": "remaster",
+    "native": 111,
+    "detected": {
+      "eye": 0.263,
+      "cx": 0.438,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": 0,
+      "dy": 0.058
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.505
+    },
+    "background": 0.354,
+    "pockets": 0
+  },
+  "enemy_mercenary__b": {
+    "raw": "References/portrait-variants/raw/enemy_mercenary__b.jpg",
+    "rawSha256": "784a0d814365b575",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mercenary",
+    "person": "mercenary_b",
+    "mode": "new",
+    "native": 107,
+    "detected": {
+      "eye": 0.268,
+      "cx": 0.483,
+      "faceH": 0.318,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.195,
+      "dx": -0.057,
+      "dy": 0.04
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.435,
+    "pockets": 0
+  },
+  "enemy_mercenary__c": {
+    "raw": "References/portrait-variants/raw/enemy_mercenary__c.jpg",
+    "rawSha256": "328cc90777660c06",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mercenary",
+    "person": "mercenary_c",
+    "mode": "new",
+    "native": 119,
+    "detected": {
+      "eye": 0.273,
+      "cx": 0.567,
+      "faceH": 0.352,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.08,
+      "dx": -0.08,
+      "dy": 0.065
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.391,
+    "pockets": 0
+  },
+  "enemy_mercenary__d": {
+    "raw": "References/portrait-variants/raw/enemy_mercenary__d.jpg",
+    "rawSha256": "a7f053037d34a3b3",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Mercenary",
+    "person": "mercenary_d",
+    "mode": "new",
+    "native": 130,
+    "detected": {
+      "eye": 0.273,
+      "cx": 0.499,
+      "faceH": 0.386,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.984,
+      "dx": 0.029,
+      "dy": 0.091
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.418,
+    "pockets": 0
+  },
+  "enemy_myrmidon": {
+    "raw": "References/portrait-variants/raw/enemy_myrmidon.jpg",
+    "rawSha256": "2eabb972d8e4d23c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Myrmidon",
+    "person": "myrmidon_a",
+    "mode": "remaster",
+    "native": 127,
+    "detected": {
+      "eye": 0.41,
+      "cx": 0.524,
+      "faceH": 0.376,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.011,
+      "dx": -0.01,
+      "dy": -0.011
+    },
+    "framing": {
+      "eye": 0.405,
+      "cx": 0.52
+    },
+    "background": 0.392,
+    "pockets": 0
+  },
+  "enemy_myrmidon__b": {
+    "raw": "References/portrait-variants/raw/enemy_myrmidon__b.jpg",
+    "rawSha256": "4412b89464608d2d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Myrmidon",
+    "person": "myrmidon_b",
+    "mode": "new",
+    "native": 103,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.52,
+      "faceH": 0.305,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.246,
+      "dx": -0.128,
+      "dy": -0.036
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.483,
+    "pockets": 1
+  },
+  "enemy_myrmidon__c": {
+    "raw": "References/portrait-variants/raw/enemy_myrmidon__c.jpg",
+    "rawSha256": "0b69cf537e3ee80f",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Myrmidon",
+    "person": "myrmidon_c",
+    "mode": "new",
+    "native": 134,
+    "detected": {
+      "eye": 0.286,
+      "cx": 0.534,
+      "faceH": 0.398,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.955,
+      "dx": 0.01,
+      "dy": 0.087
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.412,
+    "pockets": 0
+  },
+  "enemy_myrmidon__d": {
+    "raw": "References/portrait-variants/raw/enemy_myrmidon__d.jpg",
+    "rawSha256": "93b635753673e1f0",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Myrmidon",
+    "person": "myrmidon_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.339,
+      "cx": 0.544,
+      "faceH": 0.444,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.052,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.43,
+      "cx": 0.52
+    },
+    "background": 0.435,
+    "pockets": 1
+  },
+  "enemy_paladin": {
+    "raw": "References/portrait-variants/raw/enemy_paladin.jpg",
+    "rawSha256": "a0517a412623726c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Paladin",
+    "person": "paladin_a",
+    "mode": "remaster",
+    "native": 154,
+    "detected": {
+      "eye": 0.331,
+      "cx": 0.457,
+      "faceH": 0.246,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.075,
+      "dy": -0.07
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.385,
+    "pockets": 1
+  },
+  "enemy_paladin__b": {
+    "raw": "References/portrait-variants/raw/enemy_paladin__b.jpg",
+    "rawSha256": "4586177352b73db3",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Paladin",
+    "person": "paladin_b",
+    "mode": "new",
+    "native": 155,
+    "detected": {
+      "eye": 0.315,
+      "cx": 0.505,
+      "faceH": 0.295,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.288,
+      "dx": -0.131,
+      "dy": -0.046
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 1
+  },
+  "enemy_paladin__c": {
+    "raw": "References/portrait-variants/raw/enemy_paladin__c.jpg",
+    "rawSha256": "9dcafd854c8ce2e9",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Paladin",
+    "person": "paladin_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.296,
+      "cx": 0.536,
+      "faceH": 0.292,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.177,
+      "dy": -0.025
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.493,
+    "pockets": 0
+  },
+  "enemy_paladin__d": {
+    "raw": "References/portrait-variants/raw/enemy_paladin__d.jpg",
+    "rawSha256": "06e7a16b4ddc127e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Paladin",
+    "person": "paladin_d",
+    "mode": "new",
+    "native": 163,
+    "detected": {
+      "eye": 0.306,
+      "cx": 0.503,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.097,
+      "dy": -0.015
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.416,
+    "pockets": 3
+  },
+  "enemy_pegasus_knight": {
+    "raw": "References/portrait-variants/raw/enemy_pegasus_knight.jpg",
+    "rawSha256": "4a23b9e3f24f6e54",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Pegasus Knight",
+    "person": "pegasus_knight_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.377,
+      "cx": 0.557,
+      "faceH": 0.265,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.205,
+      "dy": -0.13
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.407,
+    "pockets": 4
+  },
+  "enemy_pegasus_knight__b": {
+    "raw": "References/portrait-variants/raw/enemy_pegasus_knight__b.jpg",
+    "rawSha256": "e40ddf253702720b",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Pegasus Knight",
+    "person": "pegasus_knight_b",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.365,
+      "cx": 0.532,
+      "faceH": 0.275,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.172,
+      "dy": -0.114
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "enemy_pegasus_knight__c": {
+    "raw": "References/portrait-variants/raw/enemy_pegasus_knight__c.jpg",
+    "rawSha256": "6ebcfd697594a00f",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Pegasus Knight",
+    "person": "pegasus_knight_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.378,
+      "cx": 0.56,
+      "faceH": 0.28,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.208,
+      "dy": -0.131
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.481,
+    "pockets": 0
+  },
+  "enemy_pegasus_knight__d": {
+    "raw": "References/portrait-variants/raw/enemy_pegasus_knight__d.jpg",
+    "rawSha256": "35ae734690474165",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Pegasus Knight",
+    "person": "pegasus_knight_d",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.345,
+      "cx": 0.546,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.005
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.406,
+    "pockets": 0
+  },
+  "enemy_sage": {
+    "raw": "References/portrait-variants/raw/enemy_sage.jpg",
+    "rawSha256": "8c79c87e79168e4f",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sage",
+    "person": "sage_a",
+    "mode": "remaster",
+    "native": 124,
+    "detected": {
+      "eye": 0.327,
+      "cx": 0.543,
+      "faceH": 0.369,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.03,
+      "dx": -0.03,
+      "dy": 0.024
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.347,
+    "pockets": 1
+  },
+  "enemy_sage__b": {
+    "raw": "References/portrait-variants/raw/enemy_sage__b.jpg",
+    "rawSha256": "991df6408693bfe8",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sage",
+    "person": "sage_b",
+    "mode": "new",
+    "native": 140,
+    "detected": {
+      "eye": 0.32,
+      "cx": 0.555,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.916,
+      "dx": 0.012,
+      "dy": 0.084
+    },
+    "framing": {
+      "eye": 0.375,
+      "cx": 0.52
+    },
+    "background": 0.446,
+    "pockets": 0
+  },
+  "enemy_sage__c": {
+    "raw": "References/portrait-variants/raw/enemy_sage__c.jpg",
+    "rawSha256": "d8899056682c2c56",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sage",
+    "person": "sage_c",
+    "mode": "new",
+    "native": 111,
+    "detected": {
+      "eye": 0.321,
+      "cx": 0.544,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.106,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.38,
+    "pockets": 1
+  },
+  "enemy_sage__d": {
+    "raw": "References/portrait-variants/raw/enemy_sage__d.jpg",
+    "rawSha256": "175684fd5cd2fa03",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sage",
+    "person": "sage_d",
+    "mode": "new",
+    "native": 133,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.54,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": 0.001,
+      "dy": 0.049
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.39,
+    "pockets": 1
+  },
+  "enemy_sniper": {
+    "raw": "References/portrait-variants/raw/enemy_sniper.jpg",
+    "rawSha256": "e7f637ea43e3ec6f",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sniper",
+    "person": "sniper_a",
+    "mode": "remaster",
+    "native": 116,
+    "detected": {
+      "eye": 0.305,
+      "cx": 0.583,
+      "faceH": 0.345,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.101,
+      "dx": -0.101,
+      "dy": 0.024
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.54
+    },
+    "background": 0.375,
+    "pockets": 2
+  },
+  "enemy_sniper__b": {
+    "raw": "References/portrait-variants/raw/enemy_sniper__b.jpg",
+    "rawSha256": "d39aa84e6f980e9e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sniper",
+    "person": "sniper_b",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.59,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.086,
+      "dy": 0.032
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.555
+    },
+    "background": 0.404,
+    "pockets": 0
+  },
+  "enemy_sniper__c": {
+    "raw": "References/portrait-variants/raw/enemy_sniper__c.jpg",
+    "rawSha256": "aa333448b2457116",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sniper",
+    "person": "sniper_c",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.597,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.212,
+      "dy": -0.03
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.404,
+    "pockets": 0
+  },
+  "enemy_sniper__d": {
+    "raw": "References/portrait-variants/raw/enemy_sniper__d.jpg",
+    "rawSha256": "4ccb8d7c8dd4d002",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Sniper",
+    "person": "sniper_d",
+    "mode": "new",
+    "native": 123,
+    "detected": {
+      "eye": 0.311,
+      "cx": 0.586,
+      "faceH": 0.366,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.038,
+      "dx": -0.038,
+      "dy": 0.037
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.57
+    },
+    "background": 0.334,
+    "pockets": 1
+  },
+  "enemy_swordmaster": {
+    "raw": "References/portrait-variants/raw/enemy_swordmaster.jpg",
+    "rawSha256": "15278d533411992d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Swordmaster",
+    "person": "swordmaster_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.238,
+      "cx": 0.482,
+      "faceH": 0.272,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.107,
+      "dy": 0.05
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.395,
+    "pockets": 4
+  },
+  "enemy_swordmaster__b": {
+    "raw": "References/portrait-variants/raw/enemy_swordmaster__b.jpg",
+    "rawSha256": "e05acbe4d0030cc2",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Swordmaster",
+    "person": "swordmaster_b",
+    "mode": "new",
+    "native": 204,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.567,
+      "faceH": 0.387,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.982,
+      "dx": -0.036,
+      "dy": 0.061
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.362,
+    "pockets": 2
+  },
+  "enemy_swordmaster__c": {
+    "raw": "References/portrait-variants/raw/enemy_swordmaster__c.jpg",
+    "rawSha256": "cba4d7c1cccc886f",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Swordmaster",
+    "person": "swordmaster_c",
+    "mode": "new",
+    "native": 111,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.565,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.131,
+      "dy": -0.012
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.432,
+    "pockets": 1
+  },
+  "enemy_swordmaster__d": {
+    "raw": "References/portrait-variants/raw/enemy_swordmaster__d.jpg",
+    "rawSha256": "c8f1053810f80c36",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Swordmaster",
+    "person": "swordmaster_d",
+    "mode": "new",
+    "native": 112,
+    "detected": {
+      "eye": 0.316,
+      "cx": 0.545,
+      "faceH": 0.332,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.145,
+      "dx": -0.104,
+      "dy": -0.002
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.453,
+    "pockets": 2
+  },
+  "enemy_thief": {
+    "raw": "References/portrait-variants/raw/enemy_thief.jpg",
+    "rawSha256": "33a91b2f192561d2",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Thief",
+    "person": "thief_a",
+    "mode": "remaster",
+    "native": 108,
+    "detected": {
+      "eye": 0.294,
+      "cx": 0.64,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.188,
+      "dx": -0.187,
+      "dy": 0.011
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.575
+    },
+    "background": 0.311,
+    "pockets": 1
+  },
+  "enemy_thief__b": {
+    "raw": "References/portrait-variants/raw/enemy_thief__b.jpg",
+    "rawSha256": "e342d28bf64406aa",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Thief",
+    "person": "thief_b",
+    "mode": "new",
+    "native": 128,
+    "detected": {
+      "eye": 0.332,
+      "cx": 0.572,
+      "faceH": 0.38,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1,
+      "dx": -0.052,
+      "dy": 0.028
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.459,
+    "pockets": 0
+  },
+  "enemy_thief__c": {
+    "raw": "References/portrait-variants/raw/enemy_thief__c.jpg",
+    "rawSha256": "09d6cc1febc475d0",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Thief",
+    "person": "thief_c",
+    "mode": "new",
+    "native": 128,
+    "detected": {
+      "eye": 0.329,
+      "cx": 0.56,
+      "faceH": 0.38,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1,
+      "dx": -0.04,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 0
+  },
+  "enemy_thief__d": {
+    "raw": "References/portrait-variants/raw/enemy_thief__d.jpg",
+    "rawSha256": "77ccc890c84e8b2c",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Thief",
+    "person": "thief_d",
+    "mode": "new",
+    "native": 120,
+    "detected": {
+      "eye": 0.286,
+      "cx": 0.598,
+      "faceH": 0.355,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.07,
+      "dx": -0.07,
+      "dy": 0.053
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.57
+    },
+    "background": 0.399,
+    "pockets": 0
+  },
+  "enemy_trickster": {
+    "raw": "References/portrait-variants/raw/enemy_trickster.jpg",
+    "rawSha256": "66c063a6cedfb00e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Trickster",
+    "person": "trickster_a",
+    "mode": "remaster",
+    "native": 121,
+    "detected": {
+      "eye": 0.347,
+      "cx": 0.448,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": 0,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.475
+    },
+    "background": 0.412,
+    "pockets": 0
+  },
+  "enemy_trickster__b": {
+    "raw": "References/portrait-variants/raw/enemy_trickster__b.jpg",
+    "rawSha256": "a7dc859fea65abd4",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Trickster",
+    "person": "trickster_b",
+    "mode": "new",
+    "native": 137,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.521,
+      "faceH": 0.408,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.931,
+      "dx": 0.035,
+      "dy": 0.069
+    },
+    "framing": {
+      "eye": 0.365,
+      "cx": 0.52
+    },
+    "background": 0.453,
+    "pockets": 0
+  },
+  "enemy_trickster__c": {
+    "raw": "References/portrait-variants/raw/enemy_trickster__c.jpg",
+    "rawSha256": "d7ff6bf9f60686f4",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Trickster",
+    "person": "trickster_c",
+    "mode": "new",
+    "native": 140,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.524,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.916,
+      "dx": 0.04,
+      "dy": 0.084
+    },
+    "framing": {
+      "eye": 0.365,
+      "cx": 0.52
+    },
+    "background": 0.479,
+    "pockets": 0
+  },
+  "enemy_trickster__d": {
+    "raw": "References/portrait-variants/raw/enemy_trickster__d.jpg",
+    "rawSha256": "52402f26db399dc0",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Trickster",
+    "person": "trickster_d",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.327,
+      "cx": 0.523,
+      "faceH": 0.368,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.033,
+      "dx": -0.02,
+      "dy": 0.022
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.472,
+    "pockets": 0
+  },
+  "enemy_warlock": {
+    "raw": "References/portrait-variants/raw/enemy_warlock.jpg",
+    "rawSha256": "7523ac08a50d782e",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warlock",
+    "person": "warlock_a",
+    "mode": "remaster",
+    "native": 111,
+    "detected": {
+      "eye": 0.35,
+      "cx": 0.53,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.09,
+      "dy": -0.043
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.425,
+    "pockets": 0
+  },
+  "enemy_warlock__b": {
+    "raw": "References/portrait-variants/raw/enemy_warlock__b.jpg",
+    "rawSha256": "dd4532f8afada7c0",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warlock",
+    "person": "warlock_b",
+    "mode": "new",
+    "native": 197,
+    "detected": {
+      "eye": 0.348,
+      "cx": 0.535,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.435,
+    "pockets": 0
+  },
+  "enemy_warlock__c": {
+    "raw": "References/portrait-variants/raw/enemy_warlock__c.jpg",
+    "rawSha256": "67f5d5f908545859",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warlock",
+    "person": "warlock_c",
+    "mode": "new",
+    "native": 167,
+    "detected": {
+      "eye": 0.334,
+      "cx": 0.543,
+      "faceH": 0.317,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.199,
+      "dx": -0.131,
+      "dy": -0.04
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.434,
+    "pockets": 0
+  },
+  "enemy_warlock__d": {
+    "raw": "References/portrait-variants/raw/enemy_warlock__d.jpg",
+    "rawSha256": "f1a0b781cdc39ab7",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warlock",
+    "person": "warlock_d",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.547,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.101,
+      "dy": -0.053
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.421,
+    "pockets": 0
+  },
+  "enemy_warrior": {
+    "raw": "References/portrait-variants/raw/enemy_warrior.jpg",
+    "rawSha256": "3acb4fef15e1136d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warrior",
+    "person": "warrior_a",
+    "mode": "remaster",
+    "native": 110,
+    "detected": {
+      "eye": 0.348,
+      "cx": 0.615,
+      "faceH": 0.328,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.159,
+      "dx": -0.159,
+      "dy": -0.043
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.555
+    },
+    "background": 0.217,
+    "pockets": 1
+  },
+  "enemy_warrior__b": {
+    "raw": "References/portrait-variants/raw/enemy_warrior__b.jpg",
+    "rawSha256": "07537a65fa71f5b1",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warrior",
+    "person": "warrior_b",
+    "mode": "new",
+    "native": 110,
+    "detected": {
+      "eye": 0.324,
+      "cx": 0.56,
+      "faceH": 0.328,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.159,
+      "dx": -0.129,
+      "dy": -0.015
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.281,
+    "pockets": 3
+  },
+  "enemy_warrior__c": {
+    "raw": "References/portrait-variants/raw/enemy_warrior__c.jpg",
+    "rawSha256": "ffab22f3022dcb70",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warrior",
+    "person": "warrior_c",
+    "mode": "new",
+    "native": 106,
+    "detected": {
+      "eye": 0.289,
+      "cx": 0.59,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.192,
+      "dy": 0.011
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.235,
+    "pockets": 4
+  },
+  "enemy_warrior__d": {
+    "raw": "References/portrait-variants/raw/enemy_warrior__d.jpg",
+    "rawSha256": "d068dc38d40d09ae",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Warrior",
+    "person": "warrior_d",
+    "mode": "new",
+    "native": 108,
+    "detected": {
+      "eye": 0.284,
+      "cx": 0.555,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.188,
+      "dx": -0.139,
+      "dy": 0.023
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.346,
+    "pockets": 0
+  },
+  "enemy_wyvern_lord": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_lord.jpg",
+    "rawSha256": "4537d68b8d6fdb99",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Lord",
+    "person": "wyvern_lord_a",
+    "mode": "remaster",
+    "native": 154,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.611,
+      "faceH": 0.25,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.275,
+      "dy": -0.114
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.381,
+    "pockets": 2
+  },
+  "enemy_wyvern_lord__b": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_lord__b.jpg",
+    "rawSha256": "dbd405a0cc849192",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Lord",
+    "person": "wyvern_lord_b",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.593,
+      "faceH": 0.258,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.251,
+      "dy": -0.113
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.409,
+    "pockets": 0
+  },
+  "enemy_wyvern_lord__c": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_lord__c.jpg",
+    "rawSha256": "e19a83710bce2520",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Lord",
+    "person": "wyvern_lord_c",
+    "mode": "new",
+    "native": 155,
+    "detected": {
+      "eye": 0.387,
+      "cx": 0.575,
+      "faceH": 0.294,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.293,
+      "dx": -0.223,
+      "dy": -0.14
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.365,
+    "pockets": 2
+  },
+  "enemy_wyvern_lord__d": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_lord__d.jpg",
+    "rawSha256": "f3e058d3e4051c71",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Lord",
+    "person": "wyvern_lord_d",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.394,
+      "cx": 0.55,
+      "faceH": 0.278,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.195,
+      "dy": -0.153
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.458,
+    "pockets": 0
+  },
+  "enemy_wyvern_rider": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_rider.jpg",
+    "rawSha256": "cde850f0f5840372",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Rider",
+    "person": "wyvern_rider_a",
+    "mode": "remaster",
+    "native": 118,
+    "detected": {
+      "eye": 0.386,
+      "cx": 0.527,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.053,
+      "dy": -0.059
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.367,
+    "pockets": 0
+  },
+  "enemy_wyvern_rider__b": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_rider__b.jpg",
+    "rawSha256": "e7c283f4c5938db1",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Rider",
+    "person": "wyvern_rider_b",
+    "mode": "new",
+    "native": 119,
+    "detected": {
+      "eye": 0.351,
+      "cx": 0.531,
+      "faceH": 0.352,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.08,
+      "dx": -0.054,
+      "dy": -0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.444,
+    "pockets": 0
+  },
+  "enemy_wyvern_rider__c": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_rider__c.jpg",
+    "rawSha256": "797e4ce10e1963e4",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Rider",
+    "person": "wyvern_rider_c",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.363,
+      "cx": 0.52,
+      "faceH": 0.476,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.073,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.45,
+      "cx": 0.52
+    },
+    "background": 0.411,
+    "pockets": 0
+  },
+  "enemy_wyvern_rider__d": {
+    "raw": "References/portrait-variants/raw/enemy_wyvern_rider__d.jpg",
+    "rawSha256": "43cbe769840efef2",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Wyvern Rider",
+    "person": "wyvern_rider_d",
+    "mode": "new",
+    "native": 141,
+    "detected": {
+      "eye": 0.33,
+      "cx": 0.552,
+      "faceH": 0.42,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.905,
+      "dx": 0.02,
+      "dy": 0.095
+    },
+    "framing": {
+      "eye": 0.395,
+      "cx": 0.52
+    },
+    "background": 0.411,
+    "pockets": 0
+  },
+  "generic_archer": {
+    "raw": "References/portrait-variants/raw/generic_archer.jpg",
+    "rawSha256": "42384d37345a0ff1",
+    "options": "{}",
+    "side": "player",
+    "className": "Archer",
+    "person": "archer_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.35,
+      "cx": 0.598,
+      "faceH": 0.252,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.257,
+      "dy": -0.094
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.512,
+    "pockets": 0
+  },
+  "generic_archer__archer_b": {
+    "raw": "References/portrait-variants/raw/generic_archer__archer_b.jpg",
+    "rawSha256": "66c55245c3b21b17",
+    "options": "{}",
+    "side": "player",
+    "className": "Archer",
+    "person": "archer_b",
+    "mode": "new",
+    "native": 101,
+    "detected": {
+      "eye": 0.37,
+      "cx": 0.592,
+      "faceH": 0.315,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.194,
+      "dy": -0.086
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.365,
+    "pockets": 1
+  },
+  "generic_archer__archer_c": {
+    "raw": "References/portrait-variants/raw/generic_archer__archer_c.jpg",
+    "rawSha256": "526384a548dedb49",
+    "options": "{}",
+    "side": "player",
+    "className": "Archer",
+    "person": "archer_c",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.357,
+      "cx": 0.602,
+      "faceH": 0.36,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.056,
+      "dx": -0.056,
+      "dy": -0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.58
+    },
+    "background": 0.465,
+    "pockets": 0
+  },
+  "generic_archer__archer_d": {
+    "raw": "References/portrait-variants/raw/generic_archer__archer_d.jpg",
+    "rawSha256": "f969ce6b57234fd1",
+    "options": "{}",
+    "side": "player",
+    "className": "Archer",
+    "person": "archer_d",
+    "mode": "new",
+    "native": 114,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.563,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.109,
+      "dy": -0.003
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.501,
+    "pockets": 0
+  },
+  "generic_archer__archer_e": {
+    "raw": "References/portrait-variants/raw/generic_archer__archer_e.jpg",
+    "rawSha256": "f7d3d06113b6e8a9",
+    "options": "{}",
+    "side": "player",
+    "className": "Archer",
+    "person": "archer_e",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.335,
+      "cx": 0.583,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.086,
+      "dy": -0.004
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.545
+    },
+    "background": 0.492,
+    "pockets": 0
+  },
+  "generic_assassin": {
+    "raw": "References/portrait-variants/raw/generic_assassin.jpg",
+    "rawSha256": "67705cf452e4d42e",
+    "options": "{}",
+    "side": "player",
+    "className": "Assassin",
+    "person": "thief_a",
+    "mode": "remaster",
+    "native": 183,
+    "detected": {
+      "eye": 0.361,
+      "cx": 0.526,
+      "faceH": 0.348,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.092,
+      "dx": -0.054,
+      "dy": -0.035
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.461,
+    "pockets": 0
+  },
+  "generic_assassin__thief_b": {
+    "raw": "References/portrait-variants/raw/generic_assassin__thief_b.jpg",
+    "rawSha256": "238948403df736b7",
+    "options": "{}",
+    "side": "player",
+    "className": "Assassin",
+    "person": "thief_b",
+    "mode": "new",
+    "native": 183,
+    "detected": {
+      "eye": 0.363,
+      "cx": 0.524,
+      "faceH": 0.348,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.092,
+      "dx": -0.052,
+      "dy": -0.036
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.476,
+    "pockets": 0
+  },
+  "generic_assassin__thief_c": {
+    "raw": "References/portrait-variants/raw/generic_assassin__thief_c.jpg",
+    "rawSha256": "81cf561055c1efdd",
+    "options": "{}",
+    "side": "player",
+    "className": "Assassin",
+    "person": "thief_c",
+    "mode": "new",
+    "native": 197,
+    "detected": {
+      "eye": 0.365,
+      "cx": 0.531,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": -0.01
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.449,
+    "pockets": 1
+  },
+  "generic_assassin__thief_d": {
+    "raw": "References/portrait-variants/raw/generic_assassin__thief_d.jpg",
+    "rawSha256": "5e50d729612fa6d9",
+    "options": "{}",
+    "side": "player",
+    "className": "Assassin",
+    "person": "thief_d",
+    "mode": "new",
+    "native": 197,
+    "detected": {
+      "eye": 0.36,
+      "cx": 0.531,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": -0.005
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "generic_assassin__thief_e": {
+    "raw": "References/portrait-variants/raw/generic_assassin__thief_e.jpg",
+    "rawSha256": "9a63cbd93aaae3fd",
+    "options": "{}",
+    "side": "player",
+    "className": "Assassin",
+    "person": "thief_e",
+    "mode": "new",
+    "native": 218,
+    "detected": {
+      "eye": 0.379,
+      "cx": 0.554,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.916,
+      "dx": 0.013,
+      "dy": 0.084
+    },
+    "framing": {
+      "eye": 0.43,
+      "cx": 0.52
+    },
+    "background": 0.531,
+    "pockets": 0
+  },
+  "generic_bard__dancer_a": {
+    "raw": "References/portrait-variants/raw/generic_bard__dancer_a.jpg",
+    "rawSha256": "8efe60fa337bced5",
+    "options": "{}",
+    "side": "player",
+    "className": "Bard",
+    "person": "dancer_a",
+    "mode": "new",
+    "native": 171,
+    "detected": {
+      "eye": 0.279,
+      "cx": 0.534,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.104,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.485,
+    "pockets": 1
+  },
+  "generic_bard__dancer_b": {
+    "raw": "References/portrait-variants/raw/generic_bard__dancer_b.jpg",
+    "rawSha256": "fb6ee583cf45671e",
+    "options": "{}",
+    "side": "player",
+    "className": "Bard",
+    "person": "dancer_b",
+    "mode": "new",
+    "native": 179,
+    "detected": {
+      "eye": 0.276,
+      "cx": 0.539,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.082,
+      "dy": 0.051
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.463,
+    "pockets": 3
+  },
+  "generic_bard__dancer_c": {
+    "raw": "References/portrait-variants/raw/generic_bard__dancer_c.jpg",
+    "rawSha256": "bad95ab111a10db9",
+    "options": "{}",
+    "side": "player",
+    "className": "Bard",
+    "person": "dancer_c",
+    "mode": "new",
+    "native": 166,
+    "detected": {
+      "eye": 0.281,
+      "cx": 0.534,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.124,
+      "dy": 0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.424,
+    "pockets": 3
+  },
+  "generic_bard__dancer_d": {
+    "raw": "References/portrait-variants/raw/generic_bard__dancer_d.jpg",
+    "rawSha256": "156e242bd0f40698",
+    "options": "{}",
+    "side": "player",
+    "className": "Bard",
+    "person": "dancer_d",
+    "mode": "new",
+    "native": 171,
+    "detected": {
+      "eye": 0.281,
+      "cx": 0.535,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.106,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.426,
+    "pockets": 2
+  },
+  "generic_bard__dancer_e": {
+    "raw": "References/portrait-variants/raw/generic_bard__dancer_e.jpg",
+    "rawSha256": "49c44c27fbed38ae",
+    "options": "{}",
+    "side": "player",
+    "className": "Bard",
+    "person": "dancer_e",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.282,
+      "cx": 0.534,
+      "faceH": 0.285,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.174,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.488,
+    "pockets": 2
+  },
+  "generic_battle_monk__cleric_a": {
+    "raw": "References/portrait-variants/raw/generic_battle_monk__cleric_a.jpg",
+    "rawSha256": "3d664485dd18ed3d",
+    "options": "{}",
+    "side": "player",
+    "className": "Battle Monk",
+    "person": "cleric_a",
+    "mode": "new",
+    "native": 114,
+    "detected": {
+      "eye": 0.31,
+      "cx": 0.529,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.071,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.461,
+    "pockets": 0
+  },
+  "generic_battle_monk__cleric_b": {
+    "raw": "References/portrait-variants/raw/generic_battle_monk__cleric_b.jpg",
+    "rawSha256": "59d103c61b3577e4",
+    "options": "{}",
+    "side": "player",
+    "className": "Battle Monk",
+    "person": "cleric_b",
+    "mode": "new",
+    "native": 129,
+    "detected": {
+      "eye": 0.296,
+      "cx": 0.538,
+      "faceH": 0.384,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.99,
+      "dx": -0.012,
+      "dy": 0.067
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.434,
+    "pockets": 1
+  },
+  "generic_battle_monk__cleric_d": {
+    "raw": "References/portrait-variants/raw/generic_battle_monk__cleric_d.jpg",
+    "rawSha256": "d590a3c5e6618fee",
+    "options": "{}",
+    "side": "player",
+    "className": "Battle Monk",
+    "person": "cleric_d",
+    "mode": "new",
+    "native": 138,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.525,
+      "faceH": 0.41,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.927,
+      "dx": 0.033,
+      "dy": 0.082
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.416,
+    "pockets": 1
+  },
+  "generic_battle_monk__cleric_e": {
+    "raw": "References/portrait-variants/raw/generic_battle_monk__cleric_e.jpg",
+    "rawSha256": "1162968bb04365b3",
+    "options": "{}",
+    "side": "player",
+    "className": "Battle Monk",
+    "person": "cleric_e",
+    "mode": "new",
+    "native": 123,
+    "detected": {
+      "eye": 0.31,
+      "cx": 0.536,
+      "faceH": 0.364,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.044,
+      "dx": -0.04,
+      "dy": 0.036
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.447,
+    "pockets": 2
+  },
+  "generic_berserker": {
+    "raw": "References/portrait-variants/raw/generic_berserker.jpg",
+    "rawSha256": "e164c03c9a075acc",
+    "options": "{}",
+    "side": "player",
+    "className": "Berserker",
+    "person": "fighter_c",
+    "mode": "remaster",
+    "native": 135,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.568,
+      "faceH": 0.4,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.95,
+      "dx": -0.019,
+      "dy": 0.073
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.322,
+    "pockets": 2
+  },
+  "generic_berserker__fighter_a": {
+    "raw": "References/portrait-variants/raw/generic_berserker__fighter_a.jpg",
+    "rawSha256": "50c66d8421ba6453",
+    "options": "{}",
+    "side": "player",
+    "className": "Berserker",
+    "person": "fighter_a",
+    "mode": "new",
+    "native": 233,
+    "detected": {
+      "eye": 0.315,
+      "cx": 0.54,
+      "faceH": 0.468,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.056,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.41,
+      "cx": 0.52
+    },
+    "background": 0.327,
+    "pockets": 3
+  },
+  "generic_berserker__fighter_b": {
+    "raw": "References/portrait-variants/raw/generic_berserker__fighter_b.jpg",
+    "rawSha256": "7944f3b620a4eebd",
+    "options": "{}",
+    "side": "player",
+    "className": "Berserker",
+    "person": "fighter_b",
+    "mode": "new",
+    "native": 100,
+    "detected": {
+      "eye": 0.32,
+      "cx": 0.633,
+      "faceH": 0.298,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.275,
+      "dx": -0.275,
+      "dy": -0.048
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.238,
+    "pockets": 1
+  },
+  "generic_berserker__fighter_d": {
+    "raw": "References/portrait-variants/raw/generic_berserker__fighter_d.jpg",
+    "rawSha256": "13a35968c407449a",
+    "options": "{}",
+    "side": "player",
+    "className": "Berserker",
+    "person": "fighter_d",
+    "mode": "new",
+    "native": 91,
+    "detected": {
+      "eye": 0.347,
+      "cx": 0.503,
+      "faceH": 0.347,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.095,
+      "dx": -0.031,
+      "dy": -0.02
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.367,
+    "pockets": 3
+  },
+  "generic_berserker__fighter_e": {
+    "raw": "References/portrait-variants/raw/generic_berserker__fighter_e.jpg",
+    "rawSha256": "8126c7da81478fa8",
+    "options": "{}",
+    "side": "player",
+    "className": "Berserker",
+    "person": "fighter_e",
+    "mode": "new",
+    "native": 97,
+    "detected": {
+      "eye": 0.334,
+      "cx": 0.51,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.004,
+      "dy": 0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.417,
+    "pockets": 6
+  },
+  "generic_bishop": {
+    "raw": "References/portrait-variants/raw/generic_bishop.jpg",
+    "rawSha256": "fac0407ec7902cb6",
+    "options": "{}",
+    "side": "player",
+    "className": "Bishop",
+    "person": "cleric_b",
+    "mode": "remaster",
+    "native": 131,
+    "detected": {
+      "eye": 0.297,
+      "cx": 0.537,
+      "faceH": 0.388,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.979,
+      "dx": -0.006,
+      "dy": 0.069
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.486,
+    "pockets": 0
+  },
+  "generic_bishop__cleric_a": {
+    "raw": "References/portrait-variants/raw/generic_bishop__cleric_a.jpg",
+    "rawSha256": "7da375d26664fa59",
+    "options": "{}",
+    "side": "player",
+    "className": "Bishop",
+    "person": "cleric_a",
+    "mode": "new",
+    "native": 115,
+    "detected": {
+      "eye": 0.312,
+      "cx": 0.528,
+      "faceH": 0.342,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.111,
+      "dx": -0.067,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.504,
+    "pockets": 0
+  },
+  "generic_bishop__cleric_c": {
+    "raw": "References/portrait-variants/raw/generic_bishop__cleric_c.jpg",
+    "rawSha256": "cac4af703eb0b061",
+    "options": "{}",
+    "side": "player",
+    "className": "Bishop",
+    "person": "cleric_c",
+    "mode": "new",
+    "native": 117,
+    "detected": {
+      "eye": 0.361,
+      "cx": 0.52,
+      "faceH": 0.348,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.092,
+      "dx": -0.048,
+      "dy": -0.034
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.47,
+    "pockets": 0
+  },
+  "generic_bishop__cleric_d": {
+    "raw": "References/portrait-variants/raw/generic_bishop__cleric_d.jpg",
+    "rawSha256": "90e49eb9944c2b4c",
+    "options": "{}",
+    "side": "player",
+    "className": "Bishop",
+    "person": "cleric_d",
+    "mode": "new",
+    "native": 140,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.524,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.916,
+      "dx": 0.04,
+      "dy": 0.085
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.537,
+    "pockets": 0
+  },
+  "generic_bishop__cleric_e": {
+    "raw": "References/portrait-variants/raw/generic_bishop__cleric_e.jpg",
+    "rawSha256": "e30ec81eabb23b8d",
+    "options": "{}",
+    "side": "player",
+    "className": "Bishop",
+    "person": "cleric_e",
+    "mode": "new",
+    "native": 135,
+    "detected": {
+      "eye": 0.31,
+      "cx": 0.545,
+      "faceH": 0.402,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.945,
+      "dx": 0.005,
+      "dy": 0.066
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.459,
+    "pockets": 0
+  },
+  "generic_bow_knight": {
+    "raw": "References/portrait-variants/raw/generic_bow_knight.jpg",
+    "rawSha256": "82b0c1db165aa288",
+    "options": "{}",
+    "side": "player",
+    "className": "Bow Knight",
+    "person": "archer_a",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.348,
+      "cx": 0.598,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.257,
+      "dy": -0.093
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.467,
+    "pockets": 2
+  },
+  "generic_bow_knight__archer_b": {
+    "raw": "References/portrait-variants/raw/generic_bow_knight__archer_b.jpg",
+    "rawSha256": "9fdf702b1b169594",
+    "options": "{}",
+    "side": "player",
+    "className": "Bow Knight",
+    "person": "archer_b",
+    "mode": "new",
+    "native": 106,
+    "detected": {
+      "eye": 0.367,
+      "cx": 0.59,
+      "faceH": 0.315,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.192,
+      "dy": -0.083
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.448,
+    "pockets": 2
+  },
+  "generic_bow_knight__archer_c": {
+    "raw": "References/portrait-variants/raw/generic_bow_knight__archer_c.jpg",
+    "rawSha256": "a098c80c78eb1613",
+    "options": "{}",
+    "side": "player",
+    "className": "Bow Knight",
+    "person": "archer_c",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.358,
+      "cx": 0.6,
+      "faceH": 0.36,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.056,
+      "dx": -0.056,
+      "dy": -0.018
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.58
+    },
+    "background": 0.463,
+    "pockets": 1
+  },
+  "generic_bow_knight__archer_d": {
+    "raw": "References/portrait-variants/raw/generic_bow_knight__archer_d.jpg",
+    "rawSha256": "c63279ed6b2a4ccf",
+    "options": "{}",
+    "side": "player",
+    "className": "Bow Knight",
+    "person": "archer_d",
+    "mode": "new",
+    "native": 113,
+    "detected": {
+      "eye": 0.324,
+      "cx": 0.565,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.121,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.452,
+    "pockets": 1
+  },
+  "generic_bow_knight__archer_e": {
+    "raw": "References/portrait-variants/raw/generic_bow_knight__archer_e.jpg",
+    "rawSha256": "01d8ef73547818cf",
+    "options": "{}",
+    "side": "player",
+    "className": "Bow Knight",
+    "person": "archer_e",
+    "mode": "new",
+    "native": 116,
+    "detected": {
+      "eye": 0.334,
+      "cx": 0.584,
+      "faceH": 0.345,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.101,
+      "dx": -0.101,
+      "dy": -0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.54
+    },
+    "background": 0.476,
+    "pockets": 2
+  },
+  "generic_cavalier": {
+    "raw": "References/portrait-variants/raw/generic_cavalier.jpg",
+    "rawSha256": "d374e141262b3bb5",
+    "options": "{}",
+    "side": "player",
+    "className": "Cavalier",
+    "person": "cavalier_a",
+    "mode": "remaster",
+    "native": 119,
+    "detected": {
+      "eye": 0.316,
+      "cx": 0.505,
+      "faceH": 0.354,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.073,
+      "dx": -0.022,
+      "dy": 0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.408,
+    "pockets": 0
+  },
+  "generic_cavalier__cavalier_b": {
+    "raw": "References/portrait-variants/raw/generic_cavalier__cavalier_b.jpg",
+    "rawSha256": "e44b82ede3cd8f28",
+    "options": "{}",
+    "side": "player",
+    "className": "Cavalier",
+    "person": "cavalier_b",
+    "mode": "new",
+    "native": 123,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.547,
+      "faceH": 0.365,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.041,
+      "dx": -0.041,
+      "dy": 0.045
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.4,
+    "pockets": 0
+  },
+  "generic_cavalier__cavalier_c": {
+    "raw": "References/portrait-variants/raw/generic_cavalier__cavalier_c.jpg",
+    "rawSha256": "45f396f0907383f8",
+    "options": "{}",
+    "side": "player",
+    "className": "Cavalier",
+    "person": "cavalier_c",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.321,
+      "cx": 0.525,
+      "faceH": 0.372,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.022,
+      "dx": -0.016,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.324,
+    "pockets": 2
+  },
+  "generic_cavalier__cavalier_d": {
+    "raw": "References/portrait-variants/raw/generic_cavalier__cavalier_d.jpg",
+    "rawSha256": "ce809d4bbeaaa828",
+    "options": "{}",
+    "side": "player",
+    "className": "Cavalier",
+    "person": "cavalier_d",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.513,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": -0.025,
+      "dy": 0.023
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.372,
+    "pockets": 0
+  },
+  "generic_cavalier__cavalier_e": {
+    "raw": "References/portrait-variants/raw/generic_cavalier__cavalier_e.jpg",
+    "rawSha256": "4556784cab5746b8",
+    "options": "{}",
+    "side": "player",
+    "className": "Cavalier",
+    "person": "cavalier_e",
+    "mode": "new",
+    "native": 123,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.505,
+      "faceH": 0.366,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.038,
+      "dx": -0.004,
+      "dy": 0.03
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.396,
+    "pockets": 0
+  },
+  "generic_cleric": {
+    "raw": "References/portrait-variants/raw/generic_cleric.jpg",
+    "rawSha256": "4b46928682913bdc",
+    "options": "{}",
+    "side": "player",
+    "className": "Cleric",
+    "person": "cleric_a",
+    "mode": "remaster",
+    "native": 125,
+    "detected": {
+      "eye": 0.311,
+      "cx": 0.537,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.041
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.462,
+    "pockets": 0
+  },
+  "generic_cleric__cleric_b": {
+    "raw": "References/portrait-variants/raw/generic_cleric__cleric_b.jpg",
+    "rawSha256": "38ee2aac4eb618a6",
+    "options": "{}",
+    "side": "player",
+    "className": "Cleric",
+    "person": "cleric_b",
+    "mode": "new",
+    "native": 133,
+    "detected": {
+      "eye": 0.296,
+      "cx": 0.573,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": -0.031,
+      "dy": 0.075
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.449,
+    "pockets": 0
+  },
+  "generic_cleric__cleric_c": {
+    "raw": "References/portrait-variants/raw/generic_cleric__cleric_c.jpg",
+    "rawSha256": "40a70122a184c10c",
+    "options": "{}",
+    "side": "player",
+    "className": "Cleric",
+    "person": "cleric_c",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.552,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.157,
+      "dy": -0.035
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.465,
+    "pockets": 0
+  },
+  "generic_cleric__cleric_d": {
+    "raw": "References/portrait-variants/raw/generic_cleric__cleric_d.jpg",
+    "rawSha256": "28224ff6e133687f",
+    "options": "{}",
+    "side": "player",
+    "className": "Cleric",
+    "person": "cleric_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.535,
+      "faceH": 0.468,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.06,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.4,
+      "cx": 0.52
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "generic_cleric__cleric_e": {
+    "raw": "References/portrait-variants/raw/generic_cleric__cleric_e.jpg",
+    "rawSha256": "8c0098ef47440820",
+    "options": "{}",
+    "side": "player",
+    "className": "Cleric",
+    "person": "cleric_e",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.311,
+      "cx": 0.535,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.04
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.462,
+    "pockets": 0
+  },
+  "generic_dancer": {
+    "raw": "References/portrait-variants/raw/generic_dancer.jpg",
+    "rawSha256": "786269db581fa0a6",
+    "options": "{}",
+    "side": "player",
+    "className": "Dancer",
+    "person": "dancer_a",
+    "mode": "new",
+    "native": 171,
+    "detected": {
+      "eye": 0.28,
+      "cx": 0.534,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.104,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.485,
+    "pockets": 0
+  },
+  "generic_dancer__dancer_b": {
+    "raw": "References/portrait-variants/raw/generic_dancer__dancer_b.jpg",
+    "rawSha256": "a70d77ecc777714c",
+    "options": "{}",
+    "side": "player",
+    "className": "Dancer",
+    "person": "dancer_b",
+    "mode": "new",
+    "native": 179,
+    "detected": {
+      "eye": 0.275,
+      "cx": 0.539,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.082,
+      "dy": 0.053
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.479,
+    "pockets": 1
+  },
+  "generic_dancer__dancer_c": {
+    "raw": "References/portrait-variants/raw/generic_dancer__dancer_c.jpg",
+    "rawSha256": "00029ad686d83fe2",
+    "options": "{}",
+    "side": "player",
+    "className": "Dancer",
+    "person": "dancer_c",
+    "mode": "new",
+    "native": 165,
+    "detected": {
+      "eye": 0.279,
+      "cx": 0.534,
+      "faceH": 0.314,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.21,
+      "dx": -0.126,
+      "dy": 0.022
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.456,
+    "pockets": 0
+  },
+  "generic_dancer__dancer_d": {
+    "raw": "References/portrait-variants/raw/generic_dancer__dancer_d.jpg",
+    "rawSha256": "c2d37b39cbe309a8",
+    "options": "{}",
+    "side": "player",
+    "className": "Dancer",
+    "person": "dancer_d",
+    "mode": "new",
+    "native": 171,
+    "detected": {
+      "eye": 0.28,
+      "cx": 0.534,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.104,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.46,
+    "pockets": 0
+  },
+  "generic_dancer__dancer_e": {
+    "raw": "References/portrait-variants/raw/generic_dancer__dancer_e.jpg",
+    "rawSha256": "30b7d7b5552ef9c5",
+    "options": "{}",
+    "side": "player",
+    "className": "Dancer",
+    "person": "dancer_e",
+    "mode": "new",
+    "native": 167,
+    "detected": {
+      "eye": 0.28,
+      "cx": 0.536,
+      "faceH": 0.318,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.195,
+      "dx": -0.121,
+      "dy": 0.025
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.51,
+    "pockets": 0
+  },
+  "generic_dark_knight": {
+    "raw": "References/portrait-variants/raw/generic_dark_knight.jpg",
+    "rawSha256": "9a7ec22ffcc4416b",
+    "options": "{}",
+    "side": "player",
+    "className": "Dark Knight",
+    "person": "cavalier_a",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.316,
+      "cx": 0.504,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.027,
+      "dy": 0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.417,
+    "pockets": 0
+  },
+  "generic_dark_knight__cavalier_b": {
+    "raw": "References/portrait-variants/raw/generic_dark_knight__cavalier_b.jpg",
+    "rawSha256": "377062636524ba55",
+    "options": "{}",
+    "side": "player",
+    "className": "Dark Knight",
+    "person": "cavalier_b",
+    "mode": "new",
+    "native": 121,
+    "detected": {
+      "eye": 0.301,
+      "cx": 0.545,
+      "faceH": 0.358,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.061,
+      "dx": -0.058,
+      "dy": 0.04
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.43,
+    "pockets": 0
+  },
+  "generic_dark_knight__cavalier_c": {
+    "raw": "References/portrait-variants/raw/generic_dark_knight__cavalier_c.jpg",
+    "rawSha256": "7cc9d4128506899b",
+    "options": "{}",
+    "side": "player",
+    "className": "Dark Knight",
+    "person": "cavalier_c",
+    "mode": "new",
+    "native": 122,
+    "detected": {
+      "eye": 0.32,
+      "cx": 0.516,
+      "faceH": 0.362,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.05,
+      "dx": -0.022,
+      "dy": 0.024
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.348,
+    "pockets": 1
+  },
+  "generic_dark_knight__cavalier_d": {
+    "raw": "References/portrait-variants/raw/generic_dark_knight__cavalier_d.jpg",
+    "rawSha256": "06b6ca2e832788fe",
+    "options": "{}",
+    "side": "player",
+    "className": "Dark Knight",
+    "person": "cavalier_d",
+    "mode": "new",
+    "native": 120,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.515,
+      "faceH": 0.357,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.064,
+      "dx": -0.028,
+      "dy": 0.022
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.392,
+    "pockets": 0
+  },
+  "generic_dark_knight__cavalier_e": {
+    "raw": "References/portrait-variants/raw/generic_dark_knight__cavalier_e.jpg",
+    "rawSha256": "cb75d93381142e2a",
+    "options": "{}",
+    "side": "player",
+    "className": "Dark Knight",
+    "person": "cavalier_e",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.505,
+      "faceH": 0.368,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.033,
+      "dx": -0.001,
+      "dy": 0.032
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.408,
+    "pockets": 0
+  },
+  "generic_duelist": {
+    "raw": "References/portrait-variants/raw/generic_duelist.jpg",
+    "rawSha256": "e2ca9e373aa7a8f4",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "myrmidon_a",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.282,
+      "cx": 0.505,
+      "faceH": 0.266,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.137,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.524,
+    "pockets": 1
+  },
+  "generic_duelist__myrmidon_b": {
+    "raw": "References/portrait-variants/raw/generic_duelist__myrmidon_b.jpg",
+    "rawSha256": "605a572f03caf21e",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "myrmidon_b",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.313,
+      "cx": 0.532,
+      "faceH": 0.275,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.172,
+      "dy": -0.046
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.521,
+    "pockets": 2
+  },
+  "generic_duelist__myrmidon_c": {
+    "raw": "References/portrait-variants/raw/generic_duelist__myrmidon_c.jpg",
+    "rawSha256": "d2a6c0cd0c83f0e7",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "myrmidon_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.519,
+      "faceH": 0.26,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.155,
+      "dy": -0.014
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.501,
+    "pockets": 3
+  },
+  "generic_duelist__myrmidon_d": {
+    "raw": "References/portrait-variants/raw/generic_duelist__myrmidon_d.jpg",
+    "rawSha256": "ece2d7e5440ee97c",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "myrmidon_d",
+    "mode": "new",
+    "native": 106,
+    "detected": {
+      "eye": 0.291,
+      "cx": 0.506,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.091,
+      "dy": 0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.587,
+    "pockets": 1
+  },
+  "generic_duelist__myrmidon_e": {
+    "raw": "References/portrait-variants/raw/generic_duelist__myrmidon_e.jpg",
+    "rawSha256": "b4881ff7a78598f6",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "myrmidon_e",
+    "mode": "new",
+    "native": 101,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.534,
+      "faceH": 0.3,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.156,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.558,
+    "pockets": 1
+  },
+  "generic_falcon_knight": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight.jpg",
+    "rawSha256": "8097ca6432a34d06",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "pegasus_a",
+    "mode": "remaster",
+    "native": 138,
+    "detected": {
+      "eye": 0.301,
+      "cx": 0.529,
+      "faceH": 0.258,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.168,
+      "dy": -0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.487,
+    "pockets": 0
+  },
+  "generic_falcon_knight__pegasus_b": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__pegasus_b.jpg",
+    "rawSha256": "cceb8c04dc178975",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "pegasus_b",
+    "mode": "new",
+    "native": 147,
+    "detected": {
+      "eye": 0.309,
+      "cx": 0.524,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.122,
+      "dy": -0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.443,
+    "pockets": 0
+  },
+  "generic_falcon_knight__pegasus_c": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__pegasus_c.jpg",
+    "rawSha256": "dde833ca8d86b7b9",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "pegasus_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.336,
+      "cx": 0.526,
+      "faceH": 0.288,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.164,
+      "dy": -0.076
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.459,
+    "pockets": 0
+  },
+  "generic_falcon_knight__pegasus_d": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__pegasus_d.jpg",
+    "rawSha256": "95d137bcc3bf5b4e",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "pegasus_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.305,
+      "cx": 0.526,
+      "faceH": 0.314,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.21,
+      "dx": -0.117,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.467,
+    "pockets": 0
+  },
+  "generic_falcon_knight__pegasus_e": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__pegasus_e.jpg",
+    "rawSha256": "b0cc190f87f967d6",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "pegasus_e",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.303,
+      "cx": 0.534,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.124,
+      "dy": -0.006
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.466,
+    "pockets": 1
+  },
+  "generic_falcon_knight__wyvern_a": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__wyvern_a.jpg",
+    "rawSha256": "c574fc97a2735f3d",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "wyvern_a",
+    "mode": "new",
+    "native": 178,
+    "detected": {
+      "eye": 0.253,
+      "cx": 0.538,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.104
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.39,
+    "pockets": 0
+  },
+  "generic_falcon_knight__wyvern_b": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__wyvern_b.jpg",
+    "rawSha256": "37857483ffd8f848",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "wyvern_b",
+    "mode": "new",
+    "native": 144,
+    "detected": {
+      "eye": 0.307,
+      "cx": 0.54,
+      "faceH": 0.305,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.246,
+      "dx": -0.153,
+      "dy": -0.022
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.518,
+    "pockets": 0
+  },
+  "generic_falcon_knight__wyvern_c": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__wyvern_c.jpg",
+    "rawSha256": "13b4fceb8a8a8693",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "wyvern_c",
+    "mode": "new",
+    "native": 105,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.54,
+      "faceH": 0.312,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.218,
+      "dx": -0.138,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 0
+  },
+  "generic_falcon_knight__wyvern_d": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__wyvern_d.jpg",
+    "rawSha256": "f7b8b6fb452e6061",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "wyvern_d",
+    "mode": "new",
+    "native": 153,
+    "detected": {
+      "eye": 0.267,
+      "cx": 0.544,
+      "faceH": 0.324,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.173,
+      "dx": -0.118,
+      "dy": 0.047
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.436,
+    "pockets": 0
+  },
+  "generic_falcon_knight__wyvern_e": {
+    "raw": "References/portrait-variants/raw/generic_falcon_knight__wyvern_e.jpg",
+    "rawSha256": "4e6b571fb769d393",
+    "options": "{}",
+    "side": "player",
+    "className": "Falcon Knight",
+    "person": "wyvern_e",
+    "mode": "new",
+    "native": 139,
+    "detected": {
+      "eye": 0.298,
+      "cx": 0.533,
+      "faceH": 0.294,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.293,
+      "dx": -0.169,
+      "dy": -0.025
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.512,
+    "pockets": 0
+  },
+  "generic_fighter__fighter_b": {
+    "raw": "References/portrait-variants/raw/generic_fighter__fighter_b.jpg",
+    "rawSha256": "887d87100cf0d4e9",
+    "options": "{}",
+    "side": "player",
+    "className": "Fighter",
+    "person": "fighter_b",
+    "mode": "new",
+    "native": 92,
+    "detected": {
+      "eye": 0.366,
+      "cx": 0.504,
+      "faceH": 0.382,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.995,
+      "dx": 0.019,
+      "dy": 0.005
+    },
+    "framing": {
+      "eye": 0.37,
+      "cx": 0.52
+    },
+    "background": 0.318,
+    "pockets": 0
+  },
+  "generic_fighter__fighter_c": {
+    "raw": "References/portrait-variants/raw/generic_fighter__fighter_c.jpg",
+    "rawSha256": "569df29b53a0c336",
+    "options": "{}",
+    "side": "player",
+    "className": "Fighter",
+    "person": "fighter_c",
+    "mode": "new",
+    "native": 134,
+    "detected": {
+      "eye": 0.303,
+      "cx": 0.57,
+      "faceH": 0.397,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.957,
+      "dx": -0.026,
+      "dy": 0.07
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.298,
+    "pockets": 1
+  },
+  "generic_fighter__fighter_d": {
+    "raw": "References/portrait-variants/raw/generic_fighter__fighter_d.jpg",
+    "rawSha256": "8a802fd7c68b12f3",
+    "options": "{}",
+    "side": "player",
+    "className": "Fighter",
+    "person": "fighter_d",
+    "mode": "new",
+    "native": 91,
+    "detected": {
+      "eye": 0.346,
+      "cx": 0.504,
+      "faceH": 0.346,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.098,
+      "dx": -0.034,
+      "dy": -0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.406,
+    "pockets": 1
+  },
+  "generic_fighter__fighter_e": {
+    "raw": "References/portrait-variants/raw/generic_fighter__fighter_e.jpg",
+    "rawSha256": "51f343ebbec36040",
+    "options": "{}",
+    "side": "player",
+    "className": "Fighter",
+    "person": "fighter_e",
+    "mode": "new",
+    "native": 97,
+    "detected": {
+      "eye": 0.335,
+      "cx": 0.513,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.007,
+      "dy": 0.016
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.382,
+    "pockets": 4
+  },
+  "generic_general": {
+    "raw": "References/portrait-variants/raw/generic_general.jpg",
+    "rawSha256": "b18c7b4c448732f8",
+    "options": "{}",
+    "side": "player",
+    "className": "General",
+    "person": "knight_b",
+    "mode": "remaster",
+    "native": 137,
+    "detected": {
+      "eye": 0.236,
+      "cx": 0.568,
+      "faceH": 0.366,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.038,
+      "dx": -0.038,
+      "dy": 0.115
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.55
+    },
+    "background": 0.374,
+    "pockets": 0
+  },
+  "generic_general__knight_a": {
+    "raw": "References/portrait-variants/raw/generic_general__knight_a.jpg",
+    "rawSha256": "a9e1d7861002731e",
+    "options": "{}",
+    "side": "player",
+    "className": "General",
+    "person": "knight_a",
+    "mode": "new",
+    "native": 107,
+    "detected": {
+      "eye": 0.268,
+      "cx": 0.556,
+      "faceH": 0.317,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.199,
+      "dx": -0.147,
+      "dy": 0.039
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.391,
+    "pockets": 0
+  },
+  "generic_general__knight_c": {
+    "raw": "References/portrait-variants/raw/generic_general__knight_c.jpg",
+    "rawSha256": "2dbcdb9466dbd152",
+    "options": "{}",
+    "side": "player",
+    "className": "General",
+    "person": "knight_c",
+    "mode": "new",
+    "native": 131,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.547,
+      "faceH": 0.388,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.979,
+      "dx": -0.016,
+      "dy": 0.062
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.388,
+    "pockets": 0
+  },
+  "generic_general__knight_d": {
+    "raw": "References/portrait-variants/raw/generic_general__knight_d.jpg",
+    "rawSha256": "e58aeb781d97f83c",
+    "options": "{}",
+    "side": "player",
+    "className": "General",
+    "person": "knight_d",
+    "mode": "new",
+    "native": 126,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.533,
+      "faceH": 0.374,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.016,
+      "dx": -0.016,
+      "dy": 0.03
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.423,
+    "pockets": 0
+  },
+  "generic_general__knight_e": {
+    "raw": "References/portrait-variants/raw/generic_general__knight_e.jpg",
+    "rawSha256": "8fb702e87e024eed",
+    "options": "{}",
+    "side": "player",
+    "className": "General",
+    "person": "knight_e",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.256,
+      "cx": 0.522,
+      "faceH": 0.274,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.158,
+      "dy": 0.027
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.371,
+    "pockets": 1
+  },
+  "generic_great_knight": {
+    "raw": "References/portrait-variants/raw/generic_great_knight.jpg",
+    "rawSha256": "ae889fa1a56d7f57",
+    "options": "{}",
+    "side": "player",
+    "className": "Great Knight",
+    "person": "knight_a",
+    "mode": "new",
+    "native": 137,
+    "detected": {
+      "eye": 0.285,
+      "cx": 0.538,
+      "faceH": 0.406,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.936,
+      "dx": 0.016,
+      "dy": 0.093
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.4,
+    "pockets": 0
+  },
+  "generic_great_knight__knight_b": {
+    "raw": "References/portrait-variants/raw/generic_great_knight__knight_b.jpg",
+    "rawSha256": "6945f68349c19d20",
+    "options": "{}",
+    "side": "player",
+    "className": "Great Knight",
+    "person": "knight_b",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.315,
+      "cx": 0.543,
+      "faceH": 0.462,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.053,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.41,
+      "cx": 0.52
+    },
+    "background": 0.433,
+    "pockets": 0
+  },
+  "generic_great_knight__knight_c": {
+    "raw": "References/portrait-variants/raw/generic_great_knight__knight_c.jpg",
+    "rawSha256": "3db5a20fad548ad7",
+    "options": "{}",
+    "side": "player",
+    "className": "Great Knight",
+    "person": "knight_c",
+    "mode": "new",
+    "native": 130,
+    "detected": {
+      "eye": 0.305,
+      "cx": 0.542,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": -0.015,
+      "dy": 0.059
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.385,
+    "pockets": 0
+  },
+  "generic_great_knight__knight_d": {
+    "raw": "References/portrait-variants/raw/generic_great_knight__knight_d.jpg",
+    "rawSha256": "d287a19447d8823a",
+    "options": "{}",
+    "side": "player",
+    "className": "Great Knight",
+    "person": "knight_d",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.535,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.026
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.42,
+    "pockets": 0
+  },
+  "generic_great_knight__knight_e": {
+    "raw": "References/portrait-variants/raw/generic_great_knight__knight_e.jpg",
+    "rawSha256": "f7df803e31b3a997",
+    "options": "{}",
+    "side": "player",
+    "className": "Great Knight",
+    "person": "knight_e",
+    "mode": "new",
+    "native": 126,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.532,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.056
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.388,
+    "pockets": 0
+  },
+  "generic_hero": {
+    "raw": "References/portrait-variants/raw/generic_hero.jpg",
+    "rawSha256": "d402f8b6bc4d66e6",
+    "options": "{}",
+    "side": "player",
+    "className": "Hero",
+    "person": "mercenary_b",
+    "mode": "remaster",
+    "native": 114,
+    "detected": {
+      "eye": 0.315,
+      "cx": 0.52,
+      "faceH": 0.34,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.118,
+      "dx": -0.061,
+      "dy": 0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.396,
+    "pockets": 1
+  },
+  "generic_hero__mercenary_a": {
+    "raw": "References/portrait-variants/raw/generic_hero__mercenary_a.jpg",
+    "rawSha256": "1596305639bcb8a8",
+    "options": "{}",
+    "side": "player",
+    "className": "Hero",
+    "person": "mercenary_a",
+    "mode": "new",
+    "native": 101,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.541,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.166,
+      "dy": -0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.41,
+    "pockets": 1
+  },
+  "generic_hero__mercenary_c": {
+    "raw": "References/portrait-variants/raw/generic_hero__mercenary_c.jpg",
+    "rawSha256": "bf077e0361afcc39",
+    "options": "{}",
+    "side": "player",
+    "className": "Hero",
+    "person": "mercenary_c",
+    "mode": "new",
+    "native": 233,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.53,
+      "faceH": 0.457,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.064,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.37,
+      "cx": 0.52
+    },
+    "background": 0.462,
+    "pockets": 2
+  },
+  "generic_hero__mercenary_d": {
+    "raw": "References/portrait-variants/raw/generic_hero__mercenary_d.jpg",
+    "rawSha256": "ce2705aeef9d2629",
+    "options": "{}",
+    "side": "player",
+    "className": "Hero",
+    "person": "mercenary_d",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.546,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.1,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.459,
+    "pockets": 1
+  },
+  "generic_hero__mercenary_e": {
+    "raw": "References/portrait-variants/raw/generic_hero__mercenary_e.jpg",
+    "rawSha256": "5ce0cf2721d24822",
+    "options": "{}",
+    "side": "player",
+    "className": "Hero",
+    "person": "mercenary_e",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.288,
+      "cx": 0.549,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.103,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.448,
+    "pockets": 2
+  },
+  "generic_hunter": {
+    "raw": "References/portrait-variants/raw/generic_hunter.jpg",
+    "rawSha256": "445c3d61049768b6",
+    "options": "{}",
+    "side": "player",
+    "className": "Hunter",
+    "person": "mercenary_a",
+    "mode": "new",
+    "native": 158,
+    "detected": {
+      "eye": 0.291,
+      "cx": 0.54,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.164,
+      "dy": -0.008
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.42,
+    "pockets": 1
+  },
+  "generic_hunter__mercenary_b": {
+    "raw": "References/portrait-variants/raw/generic_hunter__mercenary_b.jpg",
+    "rawSha256": "aab5d24e0ed0bcca",
+    "options": "{}",
+    "side": "player",
+    "className": "Hunter",
+    "person": "mercenary_b",
+    "mode": "new",
+    "native": 166,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.532,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.122,
+      "dy": -0.002
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.426,
+    "pockets": 1
+  },
+  "generic_hunter__mercenary_c": {
+    "raw": "References/portrait-variants/raw/generic_hunter__mercenary_c.jpg",
+    "rawSha256": "22ce3cbe351a5760",
+    "options": "{}",
+    "side": "player",
+    "className": "Hunter",
+    "person": "mercenary_c",
+    "mode": "new",
+    "native": 205,
+    "detected": {
+      "eye": 0.272,
+      "cx": 0.538,
+      "faceH": 0.39,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.974,
+      "dx": -0.004,
+      "dy": 0.095
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.433,
+    "pockets": 1
+  },
+  "generic_hunter__mercenary_d": {
+    "raw": "References/portrait-variants/raw/generic_hunter__mercenary_d.jpg",
+    "rawSha256": "6c34a375b76dfd50",
+    "options": "{}",
+    "side": "player",
+    "className": "Hunter",
+    "person": "mercenary_d",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.291,
+      "cx": 0.544,
+      "faceH": 0.334,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.138,
+      "dx": -0.099,
+      "dy": 0.029
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.418,
+    "pockets": 1
+  },
+  "generic_hunter__mercenary_e": {
+    "raw": "References/portrait-variants/raw/generic_hunter__mercenary_e.jpg",
+    "rawSha256": "f66433ee0a3a36e4",
+    "options": "{}",
+    "side": "player",
+    "className": "Hunter",
+    "person": "mercenary_e",
+    "mode": "new",
+    "native": 174,
+    "detected": {
+      "eye": 0.288,
+      "cx": 0.549,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.112,
+      "dy": 0.028
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.407,
+    "pockets": 1
+  },
+  "generic_knight": {
+    "raw": "References/portrait-variants/raw/generic_knight.jpg",
+    "rawSha256": "7d870786f4c179a2",
+    "options": "{}",
+    "side": "player",
+    "className": "Knight",
+    "person": "knight_a",
+    "mode": "remaster",
+    "native": 137,
+    "detected": {
+      "eye": 0.293,
+      "cx": 0.541,
+      "faceH": 0.406,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.936,
+      "dx": 0.014,
+      "dy": 0.086
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.403,
+    "pockets": 0
+  },
+  "generic_knight__knight_b": {
+    "raw": "References/portrait-variants/raw/generic_knight__knight_b.jpg",
+    "rawSha256": "1734329d07031e09",
+    "options": "{}",
+    "side": "player",
+    "className": "Knight",
+    "person": "knight_b",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.295,
+      "cx": 0.531,
+      "faceH": 0.46,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.86,
+      "dx": 0.063,
+      "dy": 0.14
+    },
+    "framing": {
+      "eye": 0.395,
+      "cx": 0.52
+    },
+    "background": 0.427,
+    "pockets": 0
+  },
+  "generic_knight__knight_c": {
+    "raw": "References/portrait-variants/raw/generic_knight__knight_c.jpg",
+    "rawSha256": "a7a6746c946faa0f",
+    "options": "{}",
+    "side": "player",
+    "className": "Knight",
+    "person": "knight_c",
+    "mode": "new",
+    "native": 130,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.542,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": -0.015,
+      "dy": 0.06
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.388,
+    "pockets": 0
+  },
+  "generic_knight__knight_d": {
+    "raw": "References/portrait-variants/raw/generic_knight__knight_d.jpg",
+    "rawSha256": "fbe4244935cb7c17",
+    "options": "{}",
+    "side": "player",
+    "className": "Knight",
+    "person": "knight_d",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.324,
+      "cx": 0.534,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.027
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.423,
+    "pockets": 0
+  },
+  "generic_knight__knight_e": {
+    "raw": "References/portrait-variants/raw/generic_knight__knight_e.jpg",
+    "rawSha256": "3f6bac5e074c403f",
+    "options": "{}",
+    "side": "player",
+    "className": "Knight",
+    "person": "knight_e",
+    "mode": "new",
+    "native": 126,
+    "detected": {
+      "eye": 0.299,
+      "cx": 0.532,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.057
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.391,
+    "pockets": 0
+  },
+  "generic_mage": {
+    "raw": "References/portrait-variants/raw/generic_mage.jpg",
+    "rawSha256": "5700a864a730d8d9",
+    "options": "{}",
+    "side": "player",
+    "className": "Mage",
+    "person": "mage_a",
+    "mode": "remaster",
+    "native": 116,
+    "detected": {
+      "eye": 0.328,
+      "cx": 0.432,
+      "faceH": 0.345,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.101,
+      "dx": 0,
+      "dy": -0.001
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.475
+    },
+    "background": 0.396,
+    "pockets": 0
+  },
+  "generic_mage__mage_b": {
+    "raw": "References/portrait-variants/raw/generic_mage__mage_b.jpg",
+    "rawSha256": "87f73dee7dba20b9",
+    "options": "{}",
+    "side": "player",
+    "className": "Mage",
+    "person": "mage_b",
+    "mode": "new",
+    "native": 160,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.551,
+      "faceH": 0.337,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.128,
+      "dx": -0.101,
+      "dy": 0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.438,
+    "pockets": 0
+  },
+  "generic_mage__mage_c": {
+    "raw": "References/portrait-variants/raw/generic_mage__mage_c.jpg",
+    "rawSha256": "f226c140db699609",
+    "options": "{}",
+    "side": "player",
+    "className": "Mage",
+    "person": "mage_c",
+    "mode": "new",
+    "native": 127,
+    "detected": {
+      "eye": 0.355,
+      "cx": 0.537,
+      "faceH": 0.377,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.008,
+      "dx": -0.008,
+      "dy": 0.002
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.449,
+    "pockets": 0
+  },
+  "generic_mage__mage_d": {
+    "raw": "References/portrait-variants/raw/generic_mage__mage_d.jpg",
+    "rawSha256": "30b548edf2af26fa",
+    "options": "{}",
+    "side": "player",
+    "className": "Mage",
+    "person": "mage_d",
+    "mode": "new",
+    "native": 106,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.466,
+      "faceH": 0.314,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.21,
+      "dx": -0.044,
+      "dy": -0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.42,
+    "pockets": 0
+  },
+  "generic_mage__mage_e": {
+    "raw": "References/portrait-variants/raw/generic_mage__mage_e.jpg",
+    "rawSha256": "cb6dbb513d3ddcb2",
+    "options": "{}",
+    "side": "player",
+    "className": "Mage",
+    "person": "mage_e",
+    "mode": "new",
+    "native": 131,
+    "detected": {
+      "eye": 0.323,
+      "cx": 0.495,
+      "faceH": 0.388,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.979,
+      "dx": 0.035,
+      "dy": 0.043
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.42,
+    "pockets": 0
+  },
+  "generic_mercenary": {
+    "raw": "References/portrait-variants/raw/generic_mercenary.jpg",
+    "rawSha256": "aa8c5e7ea5f89896",
+    "options": "{}",
+    "side": "player",
+    "className": "Mercenary",
+    "person": "mercenary_a",
+    "mode": "remaster",
+    "native": 159,
+    "detected": {
+      "eye": 0.289,
+      "cx": 0.54,
+      "faceH": 0.302,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.258,
+      "dx": -0.159,
+      "dy": -0.004
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.5,
+    "pockets": 1
+  },
+  "generic_mercenary__mercenary_b": {
+    "raw": "References/portrait-variants/raw/generic_mercenary__mercenary_b.jpg",
+    "rawSha256": "ec55b316ad375199",
+    "options": "{}",
+    "side": "player",
+    "className": "Mercenary",
+    "person": "mercenary_b",
+    "mode": "new",
+    "native": 171,
+    "detected": {
+      "eye": 0.282,
+      "cx": 0.54,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.111,
+      "dy": 0.03
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.498,
+    "pockets": 1
+  },
+  "generic_mercenary__mercenary_c": {
+    "raw": "References/portrait-variants/raw/generic_mercenary__mercenary_c.jpg",
+    "rawSha256": "0d34893a267aa47d",
+    "options": "{}",
+    "side": "player",
+    "className": "Mercenary",
+    "person": "mercenary_c",
+    "mode": "new",
+    "native": 205,
+    "detected": {
+      "eye": 0.273,
+      "cx": 0.537,
+      "faceH": 0.39,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.974,
+      "dx": -0.003,
+      "dy": 0.094
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.508,
+    "pockets": 1
+  },
+  "generic_mercenary__mercenary_d": {
+    "raw": "References/portrait-variants/raw/generic_mercenary__mercenary_d.jpg",
+    "rawSha256": "58b3054330890103",
+    "options": "{}",
+    "side": "player",
+    "className": "Mercenary",
+    "person": "mercenary_d",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.544,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.097,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.498,
+    "pockets": 1
+  },
+  "generic_mercenary__mercenary_e": {
+    "raw": "References/portrait-variants/raw/generic_mercenary__mercenary_e.jpg",
+    "rawSha256": "4d465f6e3f04f14e",
+    "options": "{}",
+    "side": "player",
+    "className": "Mercenary",
+    "person": "mercenary_e",
+    "mode": "new",
+    "native": 177,
+    "detected": {
+      "eye": 0.289,
+      "cx": 0.549,
+      "faceH": 0.336,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.131,
+      "dx": -0.101,
+      "dy": 0.033
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.484,
+    "pockets": 1
+  },
+  "generic_myrmidon": {
+    "raw": "References/portrait-variants/raw/generic_myrmidon.jpg",
+    "rawSha256": "4fe7d86fb4f402dd",
+    "options": "{}",
+    "side": "player",
+    "className": "Myrmidon",
+    "person": "myrmidon_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.289,
+      "cx": 0.502,
+      "faceH": 0.254,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.133,
+      "dy": -0.016
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.538,
+    "pockets": 1
+  },
+  "generic_myrmidon__myrmidon_b": {
+    "raw": "References/portrait-variants/raw/generic_myrmidon__myrmidon_b.jpg",
+    "rawSha256": "a5ed4e640b10dfa6",
+    "options": "{}",
+    "side": "player",
+    "className": "Myrmidon",
+    "person": "myrmidon_b",
+    "mode": "new",
+    "native": 203,
+    "detected": {
+      "eye": 0.399,
+      "cx": 0.56,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": -0.033,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.405,
+      "cx": 0.52
+    },
+    "background": 0.426,
+    "pockets": 3
+  },
+  "generic_myrmidon__myrmidon_c": {
+    "raw": "References/portrait-variants/raw/generic_myrmidon__myrmidon_c.jpg",
+    "rawSha256": "c4351c108726162d",
+    "options": "{}",
+    "side": "player",
+    "className": "Myrmidon",
+    "person": "myrmidon_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.521,
+      "faceH": 0.258,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.157,
+      "dy": -0.014
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.563,
+    "pockets": 1
+  },
+  "generic_myrmidon__myrmidon_d": {
+    "raw": "References/portrait-variants/raw/generic_myrmidon__myrmidon_d.jpg",
+    "rawSha256": "798d138494c6cf95",
+    "options": "{}",
+    "side": "player",
+    "className": "Myrmidon",
+    "person": "myrmidon_d",
+    "mode": "new",
+    "native": 105,
+    "detected": {
+      "eye": 0.291,
+      "cx": 0.506,
+      "faceH": 0.312,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.218,
+      "dx": -0.097,
+      "dy": 0.006
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.6,
+    "pockets": 1
+  },
+  "generic_myrmidon__myrmidon_e": {
+    "raw": "References/portrait-variants/raw/generic_myrmidon__myrmidon_e.jpg",
+    "rawSha256": "51cc8342204be8da",
+    "options": "{}",
+    "side": "player",
+    "className": "Myrmidon",
+    "person": "myrmidon_e",
+    "mode": "new",
+    "native": 102,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.532,
+      "faceH": 0.303,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.254,
+      "dx": -0.148,
+      "dy": -0.001
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.556,
+    "pockets": 0
+  },
+  "generic_paladin": {
+    "raw": "References/portrait-variants/raw/generic_paladin.jpg",
+    "rawSha256": "d04cd275d72558d1",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "cavalier_b",
+    "mode": "remaster",
+    "native": 125,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.547,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.049
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.441,
+    "pockets": 0
+  },
+  "generic_paladin__cavalier_a": {
+    "raw": "References/portrait-variants/raw/generic_paladin__cavalier_a.jpg",
+    "rawSha256": "8494f0e68f3f4c95",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "cavalier_a",
+    "mode": "new",
+    "native": 111,
+    "detected": {
+      "eye": 0.299,
+      "cx": 0.53,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.09,
+      "dy": 0.015
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.446,
+    "pockets": 0
+  },
+  "generic_paladin__cavalier_c": {
+    "raw": "References/portrait-variants/raw/generic_paladin__cavalier_c.jpg",
+    "rawSha256": "96c2db2337c02bb0",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "cavalier_c",
+    "mode": "new",
+    "native": 122,
+    "detected": {
+      "eye": 0.319,
+      "cx": 0.513,
+      "faceH": 0.362,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.05,
+      "dx": -0.018,
+      "dy": 0.025
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.363,
+    "pockets": 1
+  },
+  "generic_paladin__cavalier_d": {
+    "raw": "References/portrait-variants/raw/generic_paladin__cavalier_d.jpg",
+    "rawSha256": "56e5d10434165372",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "cavalier_d",
+    "mode": "new",
+    "native": 120,
+    "detected": {
+      "eye": 0.318,
+      "cx": 0.513,
+      "faceH": 0.356,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.067,
+      "dx": -0.027,
+      "dy": 0.021
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.417,
+    "pockets": 0
+  },
+  "generic_paladin__cavalier_e": {
+    "raw": "References/portrait-variants/raw/generic_paladin__cavalier_e.jpg",
+    "rawSha256": "44d3bfc2486c926e",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "cavalier_e",
+    "mode": "new",
+    "native": 123,
+    "detected": {
+      "eye": 0.317,
+      "cx": 0.505,
+      "faceH": 0.364,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.044,
+      "dx": -0.007,
+      "dy": 0.029
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.431,
+    "pockets": 0
+  },
+  "generic_pegasus_knight": {
+    "raw": "References/portrait-variants/raw/generic_pegasus_knight.jpg",
+    "rawSha256": "9eb7a6e239c8ebe3",
+    "options": "{}",
+    "side": "player",
+    "className": "Pegasus Knight",
+    "person": "pegasus_a",
+    "mode": "new",
+    "native": 138,
+    "detected": {
+      "eye": 0.301,
+      "cx": 0.526,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.163,
+      "dy": -0.032
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.461,
+    "pockets": 0
+  },
+  "generic_pegasus_knight__pegasus_b": {
+    "raw": "References/portrait-variants/raw/generic_pegasus_knight__pegasus_b.jpg",
+    "rawSha256": "9cea8fe3a1584f88",
+    "options": "{}",
+    "side": "player",
+    "className": "Pegasus Knight",
+    "person": "pegasus_b",
+    "mode": "new",
+    "native": 167,
+    "detected": {
+      "eye": 0.309,
+      "cx": 0.521,
+      "faceH": 0.317,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.199,
+      "dx": -0.105,
+      "dy": -0.01
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.522,
+    "pockets": 2
+  },
+  "generic_pegasus_knight__pegasus_c": {
+    "raw": "References/portrait-variants/raw/generic_pegasus_knight__pegasus_c.jpg",
+    "rawSha256": "e67d177bf7f90bb6",
+    "options": "{}",
+    "side": "player",
+    "className": "Pegasus Knight",
+    "person": "pegasus_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.335,
+      "cx": 0.529,
+      "faceH": 0.29,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.168,
+      "dy": -0.075
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.484,
+    "pockets": 2
+  },
+  "generic_pegasus_knight__pegasus_d": {
+    "raw": "References/portrait-variants/raw/generic_pegasus_knight__pegasus_d.jpg",
+    "rawSha256": "e6f241d5d6e7f115",
+    "options": "{}",
+    "side": "player",
+    "className": "Pegasus Knight",
+    "person": "pegasus_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.306,
+      "cx": 0.528,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.116,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.467,
+    "pockets": 0
+  },
+  "generic_pegasus_knight__pegasus_e": {
+    "raw": "References/portrait-variants/raw/generic_pegasus_knight__pegasus_e.jpg",
+    "rawSha256": "b43636ac35974c67",
+    "options": "{}",
+    "side": "player",
+    "className": "Pegasus Knight",
+    "person": "pegasus_e",
+    "mode": "new",
+    "native": 165,
+    "detected": {
+      "eye": 0.304,
+      "cx": 0.541,
+      "faceH": 0.348,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.092,
+      "dx": -0.071,
+      "dy": 0.028
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.466,
+    "pockets": 1
+  },
+  "generic_sage": {
+    "raw": "References/portrait-variants/raw/generic_sage.jpg",
+    "rawSha256": "d1e2370605b229fd",
+    "options": "{}",
+    "side": "player",
+    "className": "Sage",
+    "person": "mage_b",
+    "mode": "remaster",
+    "native": 164,
+    "detected": {
+      "eye": 0.302,
+      "cx": 0.56,
+      "faceH": 0.347,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.095,
+      "dx": -0.093,
+      "dy": 0.029
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.444,
+    "pockets": 2
+  },
+  "generic_sage__mage_a": {
+    "raw": "References/portrait-variants/raw/generic_sage__mage_a.jpg",
+    "rawSha256": "b68ce36ac240b13a",
+    "options": "{}",
+    "side": "player",
+    "className": "Sage",
+    "person": "mage_a",
+    "mode": "new",
+    "native": 138,
+    "detected": {
+      "eye": 0.308,
+      "cx": 0.532,
+      "faceH": 0.29,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.172,
+      "dy": -0.041
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.442,
+    "pockets": 3
+  },
+  "generic_sage__mage_c": {
+    "raw": "References/portrait-variants/raw/generic_sage__mage_c.jpg",
+    "rawSha256": "bec6a494b6346c58",
+    "options": "{}",
+    "side": "player",
+    "className": "Sage",
+    "person": "mage_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.314,
+      "cx": 0.55,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.123,
+      "dy": -0.007
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.472,
+    "pockets": 2
+  },
+  "generic_sage__mage_d": {
+    "raw": "References/portrait-variants/raw/generic_sage__mage_d.jpg",
+    "rawSha256": "3cecebd58e121870",
+    "options": "{}",
+    "side": "player",
+    "className": "Sage",
+    "person": "mage_d",
+    "mode": "new",
+    "native": 138,
+    "detected": {
+      "eye": 0.305,
+      "cx": 0.512,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.146,
+      "dy": -0.037
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.43,
+    "pockets": 3
+  },
+  "generic_sage__mage_e": {
+    "raw": "References/portrait-variants/raw/generic_sage__mage_e.jpg",
+    "rawSha256": "8df75702ca2b339e",
+    "options": "{}",
+    "side": "player",
+    "className": "Sage",
+    "person": "mage_e",
+    "mode": "new",
+    "native": 138,
+    "detected": {
+      "eye": 0.306,
+      "cx": 0.55,
+      "faceH": 0.28,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.195,
+      "dy": -0.038
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.436,
+    "pockets": 3
+  },
+  "generic_sniper__archer_a": {
+    "raw": "References/portrait-variants/raw/generic_sniper__archer_a.jpg",
+    "rawSha256": "885c33098e29161b",
+    "options": "{}",
+    "side": "player",
+    "className": "Sniper",
+    "person": "archer_a",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.349,
+      "cx": 0.627,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.267,
+      "dy": -0.082
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.323,
+    "pockets": 1
+  },
+  "generic_sniper__archer_c": {
+    "raw": "References/portrait-variants/raw/generic_sniper__archer_c.jpg",
+    "rawSha256": "ffed917d349baaf6",
+    "options": "{}",
+    "side": "player",
+    "className": "Sniper",
+    "person": "archer_c",
+    "mode": "new",
+    "native": 124,
+    "detected": {
+      "eye": 0.358,
+      "cx": 0.615,
+      "faceH": 0.369,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.03,
+      "dx": -0.03,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.605
+    },
+    "background": 0.428,
+    "pockets": 0
+  },
+  "generic_sniper__archer_d": {
+    "raw": "References/portrait-variants/raw/generic_sniper__archer_d.jpg",
+    "rawSha256": "977c7fd54e7feb98",
+    "options": "{}",
+    "side": "player",
+    "className": "Sniper",
+    "person": "archer_d",
+    "mode": "new",
+    "native": 126,
+    "detected": {
+      "eye": 0.324,
+      "cx": 0.598,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": 0.032
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.59
+    },
+    "background": 0.346,
+    "pockets": 1
+  },
+  "generic_sniper__archer_e": {
+    "raw": "References/portrait-variants/raw/generic_sniper__archer_e.jpg",
+    "rawSha256": "a8d6a0e6d43e6605",
+    "options": "{}",
+    "side": "player",
+    "className": "Sniper",
+    "person": "archer_e",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.355,
+      "cx": 0.603,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.086,
+      "dy": -0.025
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.57
+    },
+    "background": 0.306,
+    "pockets": 1
+  },
+  "generic_swordmaster": {
+    "raw": "References/portrait-variants/raw/generic_swordmaster.jpg",
+    "rawSha256": "6f5326b86262dbf6",
+    "options": "{}",
+    "side": "player",
+    "className": "Swordmaster",
+    "person": "myrmidon_b",
+    "mode": "remaster",
+    "native": 200,
+    "detected": {
+      "eye": 0.398,
+      "cx": 0.565,
+      "faceH": 0.38,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1,
+      "dx": 0,
+      "dy": 0
+    },
+    "framing": {
+      "eye": 0.4,
+      "cx": 0.565
+    },
+    "background": 0.413,
+    "pockets": 1
+  },
+  "generic_swordmaster__myrmidon_a": {
+    "raw": "References/portrait-variants/raw/generic_swordmaster__myrmidon_a.jpg",
+    "rawSha256": "f918069a2c341bf2",
+    "options": "{}",
+    "side": "player",
+    "className": "Swordmaster",
+    "person": "myrmidon_a",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.289,
+      "cx": 0.5,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.13,
+      "dy": -0.016
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.532,
+    "pockets": 1
+  },
+  "generic_swordmaster__myrmidon_c": {
+    "raw": "References/portrait-variants/raw/generic_swordmaster__myrmidon_c.jpg",
+    "rawSha256": "79f50bc382bcbdec",
+    "options": "{}",
+    "side": "player",
+    "className": "Swordmaster",
+    "person": "myrmidon_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.287,
+      "cx": 0.518,
+      "faceH": 0.26,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.153,
+      "dy": -0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.531,
+    "pockets": 1
+  },
+  "generic_swordmaster__myrmidon_d": {
+    "raw": "References/portrait-variants/raw/generic_swordmaster__myrmidon_d.jpg",
+    "rawSha256": "4feb56a94e6731d9",
+    "options": "{}",
+    "side": "player",
+    "className": "Swordmaster",
+    "person": "myrmidon_d",
+    "mode": "new",
+    "native": 205,
+    "detected": {
+      "eye": 0.372,
+      "cx": 0.563,
+      "faceH": 0.39,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.974,
+      "dx": -0.029,
+      "dy": 0.026
+    },
+    "framing": {
+      "eye": 0.39,
+      "cx": 0.52
+    },
+    "background": 0.505,
+    "pockets": 0
+  },
+  "generic_swordmaster__myrmidon_e": {
+    "raw": "References/portrait-variants/raw/generic_swordmaster__myrmidon_e.jpg",
+    "rawSha256": "ca82fc7d7e1af9a0",
+    "options": "{}",
+    "side": "player",
+    "className": "Swordmaster",
+    "person": "myrmidon_e",
+    "mode": "new",
+    "native": 206,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.559,
+      "faceH": 0.392,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.969,
+      "dx": -0.022,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.385,
+      "cx": 0.52
+    },
+    "background": 0.486,
+    "pockets": 1
+  },
+  "generic_thief": {
+    "raw": "References/portrait-variants/raw/generic_thief.jpg",
+    "rawSha256": "c3ea71d729e3edb6",
+    "options": "{}",
+    "side": "player",
+    "className": "Thief",
+    "person": "thief_a",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.362,
+      "cx": 0.525,
+      "faceH": 0.334,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.138,
+      "dx": -0.077,
+      "dy": -0.052
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.456,
+    "pockets": 0
+  },
+  "generic_thief__thief_b": {
+    "raw": "References/portrait-variants/raw/generic_thief__thief_b.jpg",
+    "rawSha256": "e69c737aa53229c3",
+    "options": "{}",
+    "side": "player",
+    "className": "Thief",
+    "person": "thief_b",
+    "mode": "new",
+    "native": 183,
+    "detected": {
+      "eye": 0.358,
+      "cx": 0.525,
+      "faceH": 0.348,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.092,
+      "dx": -0.053,
+      "dy": -0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.471,
+    "pockets": 0
+  },
+  "generic_thief__thief_c": {
+    "raw": "References/portrait-variants/raw/generic_thief__thief_c.jpg",
+    "rawSha256": "998e295bc5d8740e",
+    "options": "{}",
+    "side": "player",
+    "className": "Thief",
+    "person": "thief_c",
+    "mode": "new",
+    "native": 199,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.532,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": -0.005
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.484,
+    "pockets": 0
+  },
+  "generic_thief__thief_d": {
+    "raw": "References/portrait-variants/raw/generic_thief__thief_d.jpg",
+    "rawSha256": "7683f32912504f41",
+    "options": "{}",
+    "side": "player",
+    "className": "Thief",
+    "person": "thief_d",
+    "mode": "new",
+    "native": 197,
+    "detected": {
+      "eye": 0.361,
+      "cx": 0.531,
+      "faceH": 0.375,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.013,
+      "dx": -0.013,
+      "dy": -0.006
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.466,
+    "pockets": 0
+  },
+  "generic_thief__thief_e": {
+    "raw": "References/portrait-variants/raw/generic_thief__thief_e.jpg",
+    "rawSha256": "8379980edf0e7afe",
+    "options": "{}",
+    "side": "player",
+    "className": "Thief",
+    "person": "thief_e",
+    "mode": "new",
+    "native": 216,
+    "detected": {
+      "eye": 0.375,
+      "cx": 0.555,
+      "faceH": 0.41,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.927,
+      "dx": 0.006,
+      "dy": 0.073
+    },
+    "framing": {
+      "eye": 0.42,
+      "cx": 0.52
+    },
+    "background": 0.539,
+    "pockets": 0
+  },
+  "generic_trickster": {
+    "raw": "References/portrait-variants/raw/generic_trickster.jpg",
+    "rawSha256": "34b6ce3581d57052",
+    "options": "{}",
+    "side": "player",
+    "className": "Trickster",
+    "person": "thief_a",
+    "mode": "new",
+    "native": 176,
+    "detected": {
+      "eye": 0.361,
+      "cx": 0.525,
+      "faceH": 0.334,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.138,
+      "dx": -0.077,
+      "dy": -0.051
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.472,
+    "pockets": 0
+  },
+  "generic_trickster__thief_b": {
+    "raw": "References/portrait-variants/raw/generic_trickster__thief_b.jpg",
+    "rawSha256": "2561392d9207a63d",
+    "options": "{}",
+    "side": "player",
+    "className": "Trickster",
+    "person": "thief_b",
+    "mode": "new",
+    "native": 177,
+    "detected": {
+      "eye": 0.363,
+      "cx": 0.529,
+      "faceH": 0.336,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.131,
+      "dx": -0.078,
+      "dy": -0.051
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.487,
+    "pockets": 0
+  },
+  "generic_trickster__thief_c": {
+    "raw": "References/portrait-variants/raw/generic_trickster__thief_c.jpg",
+    "rawSha256": "bcf809237ad9999b",
+    "options": "{}",
+    "side": "player",
+    "className": "Trickster",
+    "person": "thief_c",
+    "mode": "new",
+    "native": 203,
+    "detected": {
+      "eye": 0.364,
+      "cx": 0.538,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": -0.011,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.375,
+      "cx": 0.52
+    },
+    "background": 0.467,
+    "pockets": 0
+  },
+  "generic_trickster__thief_d": {
+    "raw": "References/portrait-variants/raw/generic_trickster__thief_d.jpg",
+    "rawSha256": "9581fd706b849bfe",
+    "options": "{}",
+    "side": "player",
+    "className": "Trickster",
+    "person": "thief_d",
+    "mode": "new",
+    "native": 199,
+    "detected": {
+      "eye": 0.36,
+      "cx": 0.533,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": -0.002
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.53
+    },
+    "background": 0.483,
+    "pockets": 0
+  },
+  "generic_trickster__thief_e": {
+    "raw": "References/portrait-variants/raw/generic_trickster__thief_e.jpg",
+    "rawSha256": "5f9fa1c9ad5eac39",
+    "options": "{}",
+    "side": "player",
+    "className": "Trickster",
+    "person": "thief_e",
+    "mode": "new",
+    "native": 217,
+    "detected": {
+      "eye": 0.379,
+      "cx": 0.556,
+      "faceH": 0.412,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.922,
+      "dx": 0.007,
+      "dy": 0.078
+    },
+    "framing": {
+      "eye": 0.425,
+      "cx": 0.52
+    },
+    "background": 0.541,
+    "pockets": 0
+  },
+  "generic_warlock__mage_a": {
+    "raw": "References/portrait-variants/raw/generic_warlock__mage_a.jpg",
+    "rawSha256": "738abd54c6a7b032",
+    "options": "{}",
+    "side": "player",
+    "className": "Warlock",
+    "person": "mage_a",
+    "mode": "new",
+    "native": 84,
+    "detected": {
+      "eye": 0.414,
+      "cx": 0.521,
+      "faceH": 0.313,
+      "eyes": 1
+    },
+    "transform": {
+      "scale": 1.214,
+      "dx": -0.113,
+      "dy": -0.143
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.377,
+    "pockets": 0
+  },
+  "generic_warlock__mage_b": {
+    "raw": "References/portrait-variants/raw/generic_warlock__mage_b.jpg",
+    "rawSha256": "3d5d1aaaa6e2156f",
+    "options": "{}",
+    "side": "player",
+    "className": "Warlock",
+    "person": "mage_b",
+    "mode": "new",
+    "native": 155,
+    "detected": {
+      "eye": 0.398,
+      "cx": 0.54,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": -0.013,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.405,
+      "cx": 0.52
+    },
+    "background": 0.38,
+    "pockets": 1
+  },
+  "generic_warlock__mage_d": {
+    "raw": "References/portrait-variants/raw/generic_warlock__mage_d.jpg",
+    "rawSha256": "a4459af5f59ef624",
+    "options": "{}",
+    "side": "player",
+    "className": "Warlock",
+    "person": "mage_d",
+    "mode": "new",
+    "native": 85,
+    "detected": {
+      "eye": 0.426,
+      "cx": 0.538,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.129,
+      "dy": -0.154
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.381,
+    "pockets": 0
+  },
+  "generic_warlock__mage_e": {
+    "raw": "References/portrait-variants/raw/generic_warlock__mage_e.jpg",
+    "rawSha256": "8f7fcb7d68f81224",
+    "options": "{}",
+    "side": "player",
+    "className": "Warlock",
+    "person": "mage_e",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.325,
+      "cx": 0.499,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": 0,
+      "dy": 0.027
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.51
+    },
+    "background": 0.413,
+    "pockets": 1
+  },
+  "generic_warrior": {
+    "raw": "References/portrait-variants/raw/generic_warrior.jpg",
+    "rawSha256": "af80037741a38866",
+    "options": "{}",
+    "side": "player",
+    "className": "Warrior",
+    "person": "fighter_b",
+    "mode": "remaster",
+    "native": 101,
+    "detected": {
+      "eye": 0.319,
+      "cx": 0.633,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.267,
+      "dy": -0.044
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.535
+    },
+    "background": 0.222,
+    "pockets": 2
+  },
+  "generic_warrior__fighter_a": {
+    "raw": "References/portrait-variants/raw/generic_warrior__fighter_a.jpg",
+    "rawSha256": "82b661837e52f2df",
+    "options": "{}",
+    "side": "player",
+    "className": "Warrior",
+    "person": "fighter_a",
+    "mode": "new",
+    "native": 141,
+    "detected": {
+      "eye": 0.255,
+      "cx": 0.603,
+      "faceH": 0.417,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.911,
+      "dx": -0.029,
+      "dy": 0.128
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.227,
+    "pockets": 2
+  },
+  "generic_warrior__fighter_c": {
+    "raw": "References/portrait-variants/raw/generic_warrior__fighter_c.jpg",
+    "rawSha256": "abb74226295af69f",
+    "options": "{}",
+    "side": "player",
+    "className": "Warrior",
+    "person": "fighter_c",
+    "mode": "new",
+    "native": 127,
+    "detected": {
+      "eye": 0.301,
+      "cx": 0.568,
+      "faceH": 0.378,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.005,
+      "dx": -0.005,
+      "dy": 0.057
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.565
+    },
+    "background": 0.216,
+    "pockets": 2
+  },
+  "generic_warrior__fighter_d": {
+    "raw": "References/portrait-variants/raw/generic_warrior__fighter_d.jpg",
+    "rawSha256": "80bc098931868da9",
+    "options": "{}",
+    "side": "player",
+    "className": "Warrior",
+    "person": "fighter_d",
+    "mode": "new",
+    "native": 91,
+    "detected": {
+      "eye": 0.347,
+      "cx": 0.504,
+      "faceH": 0.345,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.101,
+      "dx": -0.035,
+      "dy": -0.022
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.311,
+    "pockets": 5
+  },
+  "generic_warrior__fighter_e": {
+    "raw": "References/portrait-variants/raw/generic_warrior__fighter_e.jpg",
+    "rawSha256": "48fe1100bd7a1eb7",
+    "options": "{}",
+    "side": "player",
+    "className": "Warrior",
+    "person": "fighter_e",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.262,
+      "cx": 0.557,
+      "faceH": 0.308,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.234,
+      "dx": -0.167,
+      "dy": 0.037
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.225,
+    "pockets": 2
+  },
+  "generic_wyvern_lord": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord.jpg",
+    "rawSha256": "82833f619011f44c",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "wyvern_a",
+    "mode": "remaster",
+    "native": 125,
+    "detected": {
+      "eye": 0.255,
+      "cx": 0.537,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.098
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.375,
+    "pockets": 1
+  },
+  "generic_wyvern_lord__pegasus_a": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__pegasus_a.jpg",
+    "rawSha256": "4eb3123351977a6b",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "pegasus_a",
+    "mode": "new",
+    "native": 151,
+    "detected": {
+      "eye": 0.3,
+      "cx": 0.527,
+      "faceH": 0.318,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.195,
+      "dx": -0.11,
+      "dy": 0.001
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.487,
+    "pockets": 0
+  },
+  "generic_wyvern_lord__pegasus_b": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__pegasus_b.jpg",
+    "rawSha256": "0c46d964d6c84a27",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "pegasus_b",
+    "mode": "new",
+    "native": 164,
+    "detected": {
+      "eye": 0.311,
+      "cx": 0.524,
+      "faceH": 0.312,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.218,
+      "dx": -0.118,
+      "dy": -0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.444,
+    "pockets": 0
+  },
+  "generic_wyvern_lord__pegasus_c": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__pegasus_c.jpg",
+    "rawSha256": "b3c7624cbe6842c6",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "pegasus_c",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.335,
+      "cx": 0.526,
+      "faceH": 0.288,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.164,
+      "dy": -0.076
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.434,
+    "pockets": 1
+  },
+  "generic_wyvern_lord__pegasus_d": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__pegasus_d.jpg",
+    "rawSha256": "7d81862cce620ff0",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "pegasus_d",
+    "mode": "new",
+    "native": 149,
+    "detected": {
+      "eye": 0.306,
+      "cx": 0.525,
+      "faceH": 0.315,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.206,
+      "dx": -0.113,
+      "dy": -0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.489,
+    "pockets": 0
+  },
+  "generic_wyvern_lord__pegasus_e": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__pegasus_e.jpg",
+    "rawSha256": "2c61f3cbfb78f101",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "pegasus_e",
+    "mode": "new",
+    "native": 151,
+    "detected": {
+      "eye": 0.303,
+      "cx": 0.539,
+      "faceH": 0.318,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.195,
+      "dx": -0.124,
+      "dy": -0.003
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.415,
+    "pockets": 2
+  },
+  "generic_wyvern_lord__wyvern_b": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__wyvern_b.jpg",
+    "rawSha256": "56dd2b412ff72a79",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "wyvern_b",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.539,
+      "faceH": 0.284,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.181,
+      "dy": 0.01
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.356,
+    "pockets": 1
+  },
+  "generic_wyvern_lord__wyvern_c": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__wyvern_c.jpg",
+    "rawSha256": "628aa2db31066ae3",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "wyvern_c",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.54,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.142,
+      "dy": 0.029
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.341,
+    "pockets": 1
+  },
+  "generic_wyvern_lord__wyvern_d": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__wyvern_d.jpg",
+    "rawSha256": "00e998bbb7e0d47d",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "wyvern_d",
+    "mode": "new",
+    "native": 109,
+    "detected": {
+      "eye": 0.268,
+      "cx": 0.542,
+      "faceH": 0.325,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.169,
+      "dx": -0.114,
+      "dy": 0.047
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.37,
+    "pockets": 1
+  },
+  "generic_wyvern_lord__wyvern_e": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_lord__wyvern_e.jpg",
+    "rawSha256": "04037f5aaded5ec5",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Lord",
+    "person": "wyvern_e",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.298,
+      "cx": 0.536,
+      "faceH": 0.286,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.177,
+      "dy": -0.027
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.414,
+    "pockets": 0
+  },
+  "generic_wyvern_rider": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_rider.jpg",
+    "rawSha256": "d8f04e940880b777",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Rider",
+    "person": "wyvern_b",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.269,
+      "cx": 0.538,
+      "faceH": 0.285,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.179,
+      "dy": 0.01
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.403,
+    "pockets": 0
+  },
+  "generic_wyvern_rider__wyvern_a": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_rider__wyvern_a.jpg",
+    "rawSha256": "6e9734b0d8e6db43",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Rider",
+    "person": "wyvern_a",
+    "mode": "new",
+    "native": 125,
+    "detected": {
+      "eye": 0.255,
+      "cx": 0.538,
+      "faceH": 0.37,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.027,
+      "dx": -0.027,
+      "dy": 0.098
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.525
+    },
+    "background": 0.415,
+    "pockets": 1
+  },
+  "generic_wyvern_rider__wyvern_c": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_rider__wyvern_c.jpg",
+    "rawSha256": "79c72f0d01197c2b",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Rider",
+    "person": "wyvern_c",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.542,
+      "faceH": 0.31,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.226,
+      "dx": -0.144,
+      "dy": 0.029
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.452,
+    "pockets": 1
+  },
+  "generic_wyvern_rider__wyvern_d": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_rider__wyvern_d.jpg",
+    "rawSha256": "3b141d4919343c60",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Rider",
+    "person": "wyvern_d",
+    "mode": "new",
+    "native": 111,
+    "detected": {
+      "eye": 0.265,
+      "cx": 0.542,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.105,
+      "dy": 0.055
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.431,
+    "pockets": 2
+  },
+  "generic_wyvern_rider__wyvern_e": {
+    "raw": "References/portrait-variants/raw/generic_wyvern_rider__wyvern_e.jpg",
+    "rawSha256": "6534458577c31c82",
+    "options": "{}",
+    "side": "player",
+    "className": "Wyvern Rider",
+    "person": "wyvern_e",
+    "mode": "new",
+    "native": 101,
+    "detected": {
+      "eye": 0.298,
+      "cx": 0.532,
+      "faceH": 0.3,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.267,
+      "dx": -0.155,
+      "dy": -0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.453,
+    "pockets": 0
+  }
+}

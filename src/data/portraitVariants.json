@@ -1,0 +1,905 @@
+{
+  "version": 1,
+  "generator": "tools/art/portrait-variants",
+  "identities": {
+    "fighter_a": {
+      "line": "fighter",
+      "gender": "m",
+      "renders": {
+        "Fighter": "generic_fighter",
+        "Warrior": "generic_warrior__fighter_a",
+        "Berserker": "generic_berserker__fighter_a"
+      }
+    },
+    "fighter_b": {
+      "line": "fighter",
+      "gender": "m",
+      "renders": {
+        "Warrior": "generic_warrior",
+        "Fighter": "generic_fighter__fighter_b",
+        "Berserker": "generic_berserker__fighter_b"
+      }
+    },
+    "fighter_c": {
+      "line": "fighter",
+      "gender": "m",
+      "renders": {
+        "Berserker": "generic_berserker",
+        "Fighter": "generic_fighter__fighter_c",
+        "Warrior": "generic_warrior__fighter_c"
+      }
+    },
+    "fighter_d": {
+      "line": "fighter",
+      "gender": "f",
+      "renders": {
+        "Fighter": "generic_fighter__fighter_d",
+        "Warrior": "generic_warrior__fighter_d",
+        "Berserker": "generic_berserker__fighter_d"
+      }
+    },
+    "fighter_e": {
+      "line": "fighter",
+      "gender": "f",
+      "renders": {
+        "Fighter": "generic_fighter__fighter_e",
+        "Warrior": "generic_warrior__fighter_e",
+        "Berserker": "generic_berserker__fighter_e"
+      }
+    },
+    "myrmidon_a": {
+      "line": "myrmidon",
+      "gender": "f",
+      "renders": {
+        "Myrmidon": "generic_myrmidon",
+        "Swordmaster": "generic_swordmaster__myrmidon_a",
+        "Duelist": "generic_duelist"
+      }
+    },
+    "myrmidon_b": {
+      "line": "myrmidon",
+      "gender": "m",
+      "renders": {
+        "Swordmaster": "generic_swordmaster",
+        "Myrmidon": "generic_myrmidon__myrmidon_b",
+        "Duelist": "generic_duelist__myrmidon_b"
+      }
+    },
+    "myrmidon_c": {
+      "line": "myrmidon",
+      "gender": "m",
+      "renders": {
+        "Myrmidon": "generic_myrmidon__myrmidon_c",
+        "Swordmaster": "generic_swordmaster__myrmidon_c",
+        "Duelist": "generic_duelist__myrmidon_c"
+      }
+    },
+    "myrmidon_d": {
+      "line": "myrmidon",
+      "gender": "f",
+      "renders": {
+        "Myrmidon": "generic_myrmidon__myrmidon_d",
+        "Swordmaster": "generic_swordmaster__myrmidon_d",
+        "Duelist": "generic_duelist__myrmidon_d"
+      }
+    },
+    "myrmidon_e": {
+      "line": "myrmidon",
+      "gender": "m",
+      "renders": {
+        "Myrmidon": "generic_myrmidon__myrmidon_e",
+        "Swordmaster": "generic_swordmaster__myrmidon_e",
+        "Duelist": "generic_duelist__myrmidon_e"
+      }
+    },
+    "knight_a": {
+      "line": "knight",
+      "gender": "m",
+      "renders": {
+        "Knight": "generic_knight",
+        "General": "generic_general__knight_a",
+        "Great Knight": "generic_great_knight"
+      }
+    },
+    "knight_b": {
+      "line": "knight",
+      "gender": "m",
+      "renders": {
+        "General": "generic_general",
+        "Knight": "generic_knight__knight_b",
+        "Great Knight": "generic_great_knight__knight_b"
+      }
+    },
+    "knight_c": {
+      "line": "knight",
+      "gender": "f",
+      "renders": {
+        "Knight": "generic_knight__knight_c",
+        "General": "generic_general__knight_c",
+        "Great Knight": "generic_great_knight__knight_c"
+      }
+    },
+    "knight_d": {
+      "line": "knight",
+      "gender": "f",
+      "renders": {
+        "Knight": "generic_knight__knight_d",
+        "General": "generic_general__knight_d",
+        "Great Knight": "generic_great_knight__knight_d"
+      }
+    },
+    "knight_e": {
+      "line": "knight",
+      "gender": "m",
+      "renders": {
+        "Knight": "generic_knight__knight_e",
+        "General": "generic_general__knight_e",
+        "Great Knight": "generic_great_knight__knight_e"
+      }
+    },
+    "cavalier_a": {
+      "line": "cavalier",
+      "gender": "m",
+      "renders": {
+        "Cavalier": "generic_cavalier",
+        "Paladin": "generic_paladin__cavalier_a",
+        "Dark Knight": "generic_dark_knight"
+      }
+    },
+    "cavalier_b": {
+      "line": "cavalier",
+      "gender": "m",
+      "renders": {
+        "Paladin": "generic_paladin",
+        "Cavalier": "generic_cavalier__cavalier_b",
+        "Dark Knight": "generic_dark_knight__cavalier_b"
+      }
+    },
+    "cavalier_c": {
+      "line": "cavalier",
+      "gender": "f",
+      "renders": {
+        "Cavalier": "generic_cavalier__cavalier_c",
+        "Paladin": "generic_paladin__cavalier_c",
+        "Dark Knight": "generic_dark_knight__cavalier_c"
+      }
+    },
+    "cavalier_d": {
+      "line": "cavalier",
+      "gender": "f",
+      "renders": {
+        "Cavalier": "generic_cavalier__cavalier_d",
+        "Paladin": "generic_paladin__cavalier_d",
+        "Dark Knight": "generic_dark_knight__cavalier_d"
+      }
+    },
+    "cavalier_e": {
+      "line": "cavalier",
+      "gender": "m",
+      "renders": {
+        "Cavalier": "generic_cavalier__cavalier_e",
+        "Paladin": "generic_paladin__cavalier_e",
+        "Dark Knight": "generic_dark_knight__cavalier_e"
+      }
+    },
+    "archer_a": {
+      "line": "archer",
+      "gender": "m",
+      "renders": {
+        "Archer": "generic_archer",
+        "Sniper": "generic_sniper__archer_a",
+        "Bow Knight": "generic_bow_knight"
+      }
+    },
+    "archer_b": {
+      "line": "archer",
+      "gender": "m",
+      "renders": {
+        "Sniper": "generic_sniper",
+        "Archer": "generic_archer__archer_b",
+        "Bow Knight": "generic_bow_knight__archer_b"
+      }
+    },
+    "archer_c": {
+      "line": "archer",
+      "gender": "f",
+      "renders": {
+        "Archer": "generic_archer__archer_c",
+        "Sniper": "generic_sniper__archer_c",
+        "Bow Knight": "generic_bow_knight__archer_c"
+      }
+    },
+    "archer_d": {
+      "line": "archer",
+      "gender": "f",
+      "renders": {
+        "Archer": "generic_archer__archer_d",
+        "Sniper": "generic_sniper__archer_d",
+        "Bow Knight": "generic_bow_knight__archer_d"
+      }
+    },
+    "archer_e": {
+      "line": "archer",
+      "gender": "f",
+      "renders": {
+        "Archer": "generic_archer__archer_e",
+        "Sniper": "generic_sniper__archer_e",
+        "Bow Knight": "generic_bow_knight__archer_e"
+      }
+    },
+    "mage_a": {
+      "line": "mage",
+      "gender": "f",
+      "renders": {
+        "Mage": "generic_mage",
+        "Sage": "generic_sage__mage_a",
+        "Warlock": "generic_warlock__mage_a"
+      }
+    },
+    "mage_b": {
+      "line": "mage",
+      "gender": "m",
+      "renders": {
+        "Sage": "generic_sage",
+        "Mage": "generic_mage__mage_b",
+        "Warlock": "generic_warlock__mage_b"
+      }
+    },
+    "mage_c": {
+      "line": "mage",
+      "gender": "m",
+      "renders": {
+        "Warlock": "generic_warlock",
+        "Mage": "generic_mage__mage_c",
+        "Sage": "generic_sage__mage_c"
+      }
+    },
+    "mage_d": {
+      "line": "mage",
+      "gender": "f",
+      "renders": {
+        "Mage": "generic_mage__mage_d",
+        "Sage": "generic_sage__mage_d",
+        "Warlock": "generic_warlock__mage_d"
+      }
+    },
+    "mage_e": {
+      "line": "mage",
+      "gender": "f",
+      "renders": {
+        "Mage": "generic_mage__mage_e",
+        "Sage": "generic_sage__mage_e",
+        "Warlock": "generic_warlock__mage_e"
+      }
+    },
+    "cleric_a": {
+      "line": "cleric",
+      "gender": "f",
+      "renders": {
+        "Cleric": "generic_cleric",
+        "Bishop": "generic_bishop__cleric_a",
+        "Battle Monk": "generic_battle_monk__cleric_a"
+      }
+    },
+    "cleric_b": {
+      "line": "cleric",
+      "gender": "f",
+      "renders": {
+        "Bishop": "generic_bishop",
+        "Cleric": "generic_cleric__cleric_b",
+        "Battle Monk": "generic_battle_monk__cleric_b"
+      }
+    },
+    "cleric_c": {
+      "line": "cleric",
+      "gender": "m",
+      "renders": {
+        "Battle Monk": "generic_battle_monk",
+        "Cleric": "generic_cleric__cleric_c",
+        "Bishop": "generic_bishop__cleric_c"
+      }
+    },
+    "cleric_d": {
+      "line": "cleric",
+      "gender": "m",
+      "renders": {
+        "Cleric": "generic_cleric__cleric_d",
+        "Bishop": "generic_bishop__cleric_d",
+        "Battle Monk": "generic_battle_monk__cleric_d"
+      }
+    },
+    "cleric_e": {
+      "line": "cleric",
+      "gender": "f",
+      "renders": {
+        "Cleric": "generic_cleric__cleric_e",
+        "Bishop": "generic_bishop__cleric_e",
+        "Battle Monk": "generic_battle_monk__cleric_e"
+      }
+    },
+    "thief_a": {
+      "line": "thief",
+      "gender": "m",
+      "renders": {
+        "Assassin": "generic_assassin",
+        "Thief": "generic_thief",
+        "Trickster": "generic_trickster"
+      }
+    },
+    "thief_b": {
+      "line": "thief",
+      "gender": "m",
+      "renders": {
+        "Thief": "generic_thief__thief_b",
+        "Assassin": "generic_assassin__thief_b",
+        "Trickster": "generic_trickster__thief_b"
+      }
+    },
+    "thief_c": {
+      "line": "thief",
+      "gender": "f",
+      "renders": {
+        "Thief": "generic_thief__thief_c",
+        "Assassin": "generic_assassin__thief_c",
+        "Trickster": "generic_trickster__thief_c"
+      }
+    },
+    "thief_d": {
+      "line": "thief",
+      "gender": "f",
+      "renders": {
+        "Thief": "generic_thief__thief_d",
+        "Assassin": "generic_assassin__thief_d",
+        "Trickster": "generic_trickster__thief_d"
+      }
+    },
+    "thief_e": {
+      "line": "thief",
+      "gender": "m",
+      "renders": {
+        "Thief": "generic_thief__thief_e",
+        "Assassin": "generic_assassin__thief_e",
+        "Trickster": "generic_trickster__thief_e"
+      }
+    },
+    "dancer_a": {
+      "line": "dancer",
+      "gender": "f",
+      "renders": {
+        "Dancer": "generic_dancer",
+        "Bard": "generic_bard__dancer_a"
+      }
+    },
+    "dancer_b": {
+      "line": "dancer",
+      "gender": "f",
+      "renders": {
+        "Dancer": "generic_dancer__dancer_b",
+        "Bard": "generic_bard__dancer_b"
+      }
+    },
+    "dancer_c": {
+      "line": "dancer",
+      "gender": "f",
+      "renders": {
+        "Dancer": "generic_dancer__dancer_c",
+        "Bard": "generic_bard__dancer_c"
+      }
+    },
+    "dancer_d": {
+      "line": "dancer",
+      "gender": "f",
+      "renders": {
+        "Dancer": "generic_dancer__dancer_d",
+        "Bard": "generic_bard__dancer_d"
+      }
+    },
+    "dancer_e": {
+      "line": "dancer",
+      "gender": "m",
+      "renders": {
+        "Dancer": "generic_dancer__dancer_e",
+        "Bard": "generic_bard__dancer_e"
+      }
+    },
+    "pegasus_a": {
+      "line": "pegasus",
+      "gender": "f",
+      "renders": {
+        "Falcon Knight": "generic_falcon_knight",
+        "Pegasus Knight": "generic_pegasus_knight",
+        "Wyvern Lord": "generic_wyvern_lord__pegasus_a"
+      }
+    },
+    "pegasus_b": {
+      "line": "pegasus",
+      "gender": "f",
+      "renders": {
+        "Pegasus Knight": "generic_pegasus_knight__pegasus_b",
+        "Falcon Knight": "generic_falcon_knight__pegasus_b",
+        "Wyvern Lord": "generic_wyvern_lord__pegasus_b"
+      }
+    },
+    "pegasus_c": {
+      "line": "pegasus",
+      "gender": "f",
+      "renders": {
+        "Pegasus Knight": "generic_pegasus_knight__pegasus_c",
+        "Falcon Knight": "generic_falcon_knight__pegasus_c",
+        "Wyvern Lord": "generic_wyvern_lord__pegasus_c"
+      }
+    },
+    "pegasus_d": {
+      "line": "pegasus",
+      "gender": "m",
+      "renders": {
+        "Pegasus Knight": "generic_pegasus_knight__pegasus_d",
+        "Falcon Knight": "generic_falcon_knight__pegasus_d",
+        "Wyvern Lord": "generic_wyvern_lord__pegasus_d"
+      }
+    },
+    "pegasus_e": {
+      "line": "pegasus",
+      "gender": "f",
+      "renders": {
+        "Pegasus Knight": "generic_pegasus_knight__pegasus_e",
+        "Falcon Knight": "generic_falcon_knight__pegasus_e",
+        "Wyvern Lord": "generic_wyvern_lord__pegasus_e"
+      }
+    },
+    "wyvern_a": {
+      "line": "wyvern",
+      "gender": "m",
+      "renders": {
+        "Wyvern Lord": "generic_wyvern_lord",
+        "Wyvern Rider": "generic_wyvern_rider__wyvern_a",
+        "Falcon Knight": "generic_falcon_knight__wyvern_a"
+      }
+    },
+    "wyvern_b": {
+      "line": "wyvern",
+      "gender": "m",
+      "renders": {
+        "Wyvern Rider": "generic_wyvern_rider",
+        "Wyvern Lord": "generic_wyvern_lord__wyvern_b",
+        "Falcon Knight": "generic_falcon_knight__wyvern_b"
+      }
+    },
+    "wyvern_c": {
+      "line": "wyvern",
+      "gender": "f",
+      "renders": {
+        "Wyvern Rider": "generic_wyvern_rider__wyvern_c",
+        "Wyvern Lord": "generic_wyvern_lord__wyvern_c",
+        "Falcon Knight": "generic_falcon_knight__wyvern_c"
+      }
+    },
+    "wyvern_d": {
+      "line": "wyvern",
+      "gender": "m",
+      "renders": {
+        "Wyvern Rider": "generic_wyvern_rider__wyvern_d",
+        "Wyvern Lord": "generic_wyvern_lord__wyvern_d",
+        "Falcon Knight": "generic_falcon_knight__wyvern_d"
+      }
+    },
+    "wyvern_e": {
+      "line": "wyvern",
+      "gender": "f",
+      "renders": {
+        "Wyvern Rider": "generic_wyvern_rider__wyvern_e",
+        "Wyvern Lord": "generic_wyvern_lord__wyvern_e",
+        "Falcon Knight": "generic_falcon_knight__wyvern_e"
+      }
+    },
+    "mercenary_a": {
+      "line": "mercenary",
+      "gender": "m",
+      "renders": {
+        "Mercenary": "generic_mercenary",
+        "Hero": "generic_hero__mercenary_a",
+        "Hunter": "generic_hunter"
+      }
+    },
+    "mercenary_b": {
+      "line": "mercenary",
+      "gender": "m",
+      "renders": {
+        "Hero": "generic_hero",
+        "Mercenary": "generic_mercenary__mercenary_b",
+        "Hunter": "generic_hunter__mercenary_b"
+      }
+    },
+    "mercenary_c": {
+      "line": "mercenary",
+      "gender": "m",
+      "renders": {
+        "Mercenary": "generic_mercenary__mercenary_c",
+        "Hero": "generic_hero__mercenary_c",
+        "Hunter": "generic_hunter__mercenary_c"
+      }
+    },
+    "mercenary_d": {
+      "line": "mercenary",
+      "gender": "f",
+      "renders": {
+        "Mercenary": "generic_mercenary__mercenary_d",
+        "Hero": "generic_hero__mercenary_d",
+        "Hunter": "generic_hunter__mercenary_d"
+      }
+    },
+    "mercenary_e": {
+      "line": "mercenary",
+      "gender": "f",
+      "renders": {
+        "Mercenary": "generic_mercenary__mercenary_e",
+        "Hero": "generic_hero__mercenary_e",
+        "Hunter": "generic_hunter__mercenary_e"
+      }
+    }
+  },
+  "classes": {
+    "Fighter": ["fighter_a", "fighter_b", "fighter_c", "fighter_d", "fighter_e"],
+    "Warrior": ["fighter_a", "fighter_b", "fighter_c", "fighter_d", "fighter_e"],
+    "Berserker": ["fighter_a", "fighter_b", "fighter_c", "fighter_d", "fighter_e"],
+    "Myrmidon": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
+    "Swordmaster": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
+    "Duelist": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
+    "Knight": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
+    "General": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
+    "Great Knight": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
+    "Cavalier": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
+    "Paladin": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
+    "Dark Knight": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
+    "Archer": ["archer_a", "archer_b", "archer_c", "archer_d", "archer_e"],
+    "Sniper": ["archer_a", "archer_b", "archer_c", "archer_d", "archer_e"],
+    "Bow Knight": ["archer_a", "archer_b", "archer_c", "archer_d", "archer_e"],
+    "Mage": ["mage_a", "mage_b", "mage_c", "mage_d", "mage_e"],
+    "Sage": ["mage_a", "mage_b", "mage_c", "mage_d", "mage_e"],
+    "Warlock": ["mage_a", "mage_b", "mage_c", "mage_d", "mage_e"],
+    "Cleric": ["cleric_a", "cleric_b", "cleric_c", "cleric_d", "cleric_e"],
+    "Bishop": ["cleric_a", "cleric_b", "cleric_c", "cleric_d", "cleric_e"],
+    "Battle Monk": ["cleric_a", "cleric_b", "cleric_c", "cleric_d", "cleric_e"],
+    "Assassin": ["thief_a", "thief_b", "thief_c", "thief_d", "thief_e"],
+    "Thief": ["thief_a", "thief_b", "thief_c", "thief_d", "thief_e"],
+    "Trickster": ["thief_a", "thief_b", "thief_c", "thief_d", "thief_e"],
+    "Dancer": ["dancer_a", "dancer_b", "dancer_c", "dancer_d", "dancer_e"],
+    "Bard": ["dancer_a", "dancer_b", "dancer_c", "dancer_d", "dancer_e"],
+    "Falcon Knight": [
+      "pegasus_a",
+      "pegasus_b",
+      "pegasus_c",
+      "pegasus_d",
+      "pegasus_e",
+      "wyvern_a",
+      "wyvern_b",
+      "wyvern_c",
+      "wyvern_d",
+      "wyvern_e"
+    ],
+    "Pegasus Knight": ["pegasus_a", "pegasus_b", "pegasus_c", "pegasus_d", "pegasus_e"],
+    "Wyvern Lord": [
+      "pegasus_a",
+      "pegasus_b",
+      "pegasus_c",
+      "pegasus_d",
+      "pegasus_e",
+      "wyvern_a",
+      "wyvern_b",
+      "wyvern_c",
+      "wyvern_d",
+      "wyvern_e"
+    ],
+    "Wyvern Rider": ["wyvern_a", "wyvern_b", "wyvern_c", "wyvern_d", "wyvern_e"],
+    "Mercenary": ["mercenary_a", "mercenary_b", "mercenary_c", "mercenary_d", "mercenary_e"],
+    "Hero": ["mercenary_a", "mercenary_b", "mercenary_c", "mercenary_d", "mercenary_e"],
+    "Hunter": ["mercenary_a", "mercenary_b", "mercenary_c", "mercenary_d", "mercenary_e"]
+  },
+  "enemy": {
+    "Archer": ["enemy_archer", "enemy_archer__b", "enemy_archer__c", "enemy_archer__d"],
+    "Assassin": ["enemy_assassin", "enemy_assassin__b", "enemy_assassin__c", "enemy_assassin__d"],
+    "Battle Monk": [
+      "enemy_battle_monk",
+      "enemy_battle_monk__b",
+      "enemy_battle_monk__c",
+      "enemy_battle_monk__d"
+    ],
+    "Berserker": [
+      "enemy_berserker",
+      "enemy_berserker__b",
+      "enemy_berserker__c",
+      "enemy_berserker__d"
+    ],
+    "Bishop": ["enemy_bishop", "enemy_bishop__b", "enemy_bishop__c", "enemy_bishop__d"],
+    "Bow Knight": [
+      "enemy_bow_knight",
+      "enemy_bow_knight__b",
+      "enemy_bow_knight__c",
+      "enemy_bow_knight__d"
+    ],
+    "Cavalier": ["enemy_cavalier", "enemy_cavalier__b", "enemy_cavalier__c", "enemy_cavalier__d"],
+    "Cleric": ["enemy_cleric", "enemy_cleric__b", "enemy_cleric__c", "enemy_cleric__d"],
+    "Dancer": ["enemy_dancer", "enemy_dancer__b", "enemy_dancer__c", "enemy_dancer__d"],
+    "Dark Knight": [
+      "enemy_dark_knight",
+      "enemy_dark_knight__b",
+      "enemy_dark_knight__c",
+      "enemy_dark_knight__d"
+    ],
+    "Duelist": ["enemy_duelist", "enemy_duelist__b", "enemy_duelist__c", "enemy_duelist__d"],
+    "Falcon Knight": [
+      "enemy_falcon_knight",
+      "enemy_falcon_knight__b",
+      "enemy_falcon_knight__c",
+      "enemy_falcon_knight__d"
+    ],
+    "Fighter": ["enemy_fighter", "enemy_fighter__b", "enemy_fighter__c", "enemy_fighter__d"],
+    "General": ["enemy_general", "enemy_general__b", "enemy_general__c", "enemy_general__d"],
+    "Great Knight": [
+      "enemy_great_knight",
+      "enemy_great_knight__b",
+      "enemy_great_knight__c",
+      "enemy_great_knight__d"
+    ],
+    "Hero": ["enemy_hero", "enemy_hero__b", "enemy_hero__c", "enemy_hero__d"],
+    "Hunter": ["enemy_hunter", "enemy_hunter__b", "enemy_hunter__c", "enemy_hunter__d"],
+    "Knight": ["enemy_knight", "enemy_knight__b", "enemy_knight__c", "enemy_knight__d"],
+    "Mage": ["enemy_mage", "enemy_mage__b", "enemy_mage__c", "enemy_mage__d"],
+    "Mercenary": [
+      "enemy_mercenary",
+      "enemy_mercenary__b",
+      "enemy_mercenary__c",
+      "enemy_mercenary__d"
+    ],
+    "Myrmidon": ["enemy_myrmidon", "enemy_myrmidon__b", "enemy_myrmidon__c", "enemy_myrmidon__d"],
+    "Paladin": ["enemy_paladin", "enemy_paladin__b", "enemy_paladin__c", "enemy_paladin__d"],
+    "Pegasus Knight": [
+      "enemy_pegasus_knight",
+      "enemy_pegasus_knight__b",
+      "enemy_pegasus_knight__c",
+      "enemy_pegasus_knight__d"
+    ],
+    "Sage": ["enemy_sage", "enemy_sage__b", "enemy_sage__c", "enemy_sage__d"],
+    "Sniper": ["enemy_sniper", "enemy_sniper__b", "enemy_sniper__c", "enemy_sniper__d"],
+    "Swordmaster": [
+      "enemy_swordmaster",
+      "enemy_swordmaster__b",
+      "enemy_swordmaster__c",
+      "enemy_swordmaster__d"
+    ],
+    "Thief": ["enemy_thief", "enemy_thief__b", "enemy_thief__c", "enemy_thief__d"],
+    "Trickster": [
+      "enemy_trickster",
+      "enemy_trickster__b",
+      "enemy_trickster__c",
+      "enemy_trickster__d"
+    ],
+    "Warlock": ["enemy_warlock", "enemy_warlock__b", "enemy_warlock__c", "enemy_warlock__d"],
+    "Warrior": ["enemy_warrior", "enemy_warrior__b", "enemy_warrior__c", "enemy_warrior__d"],
+    "Wyvern Lord": [
+      "enemy_wyvern_lord",
+      "enemy_wyvern_lord__b",
+      "enemy_wyvern_lord__c",
+      "enemy_wyvern_lord__d"
+    ],
+    "Wyvern Rider": [
+      "enemy_wyvern_rider",
+      "enemy_wyvern_rider__b",
+      "enemy_wyvern_rider__c",
+      "enemy_wyvern_rider__d"
+    ]
+  },
+  "names": {
+    "Ada": "f",
+    "Adela": "f",
+    "Aerin": "f",
+    "Agathe": "f",
+    "Ajax": "m",
+    "Aldo": "m",
+    "Aldous": "m",
+    "Aldric": "m",
+    "Althea": "f",
+    "Amara": "f",
+    "Anouk": "f",
+    "Ansa": "f",
+    "Ansel": "m",
+    "Anselm": "m",
+    "Aria": "f",
+    "Artemis": "f",
+    "Ashara": "f",
+    "Asta": "f",
+    "Aurel": "m",
+    "Baldric": "m",
+    "Barnaby": "m",
+    "Beneda": "f",
+    "Benedetta": "f",
+    "Benet": "m",
+    "Bertrand": "m",
+    "Bjarke": "m",
+    "Bjorn": "m",
+    "Bodil": "f",
+    "Bram": "m",
+    "Brandt": "m",
+    "Branwen": "f",
+    "Brenna": "f",
+    "Brogan": "m",
+    "Brunna": "f",
+    "Brynn": "f",
+    "Cadence": "f",
+    "Caelen": "m",
+    "Castor": "m",
+    "Celeste": "f",
+    "Clement": "m",
+    "Clovis": "m",
+    "Colm": "m",
+    "Constance": "f",
+    "Coralie": "f",
+    "Corin": "m",
+    "Corvus": "m",
+    "Corwin": "m",
+    "Cyrus": "m",
+    "Dagna": "f",
+    "Dante": "m",
+    "Daska": "f",
+    "Dobbin": "m",
+    "Drakon": "m",
+    "Draven": "m",
+    "Duvik": "m",
+    "Edda": "f",
+    "Eirik": "m",
+    "Elara": "f",
+    "Elysia": "f",
+    "Emeric": "m",
+    "Emmeline": "f",
+    "Esme": "f",
+    "Evin": "m",
+    "Faustin": "m",
+    "Faye": "f",
+    "Galvin": "m",
+    "Gareth": "m",
+    "Garran": "m",
+    "Garret": "m",
+    "Garrick": "m",
+    "Genevra": "f",
+    "Gerd": "f",
+    "Godric": "m",
+    "Grace": "f",
+    "Grig": "m",
+    "Grisel": "f",
+    "Gunther": "m",
+    "Hakon": "m",
+    "Halvar": "m",
+    "Hamond": "m",
+    "Hana": "f",
+    "Hector": "m",
+    "Hedda": "f",
+    "Helena": "f",
+    "Helga": "f",
+    "Hesper": "f",
+    "Hilde": "f",
+    "Hob": "m",
+    "Honora": "f",
+    "Horst": "m",
+    "Hrolf": "m",
+    "Hugo": "m",
+    "Ilka": "f",
+    "Ilse": "f",
+    "Ingrid": "f",
+    "Iona": "f",
+    "Iris": "f",
+    "Ismay": "f",
+    "Isolde": "f",
+    "Isra": "f",
+    "Ivo": "m",
+    "Jaro": "m",
+    "Jessa": "f",
+    "Jorun": "f",
+    "Kael": "m",
+    "Kestra": "f",
+    "Leona": "f",
+    "Leonidas": "m",
+    "Liane": "f",
+    "Liesl": "f",
+    "Linnet": "f",
+    "Lira": "f",
+    "Lothar": "m",
+    "Lowen": "m",
+    "Lucan": "m",
+    "Lucius": "m",
+    "Lumina": "f",
+    "Lunara": "f",
+    "Lyric": "f",
+    "Lysander": "m",
+    "Maelis": "f",
+    "Magnus": "m",
+    "Mags": "f",
+    "Marcus": "m",
+    "Maren": "f",
+    "Marisse": "f",
+    "Maro": "m",
+    "Mathea": "f",
+    "Maud": "f",
+    "Melodia": "f",
+    "Merric": "m",
+    "Mira": "f",
+    "Mirel": "f",
+    "Miriel": "f",
+    "Mott": "m",
+    "Nell": "f",
+    "Neve": "f",
+    "Nico": "m",
+    "Nyx": "f",
+    "Oren": "m",
+    "Oriane": "f",
+    "Orla": "f",
+    "Orm": "m",
+    "Osric": "m",
+    "Oswald": "m",
+    "Oswin": "m",
+    "Otho": "m",
+    "Ottar": "m",
+    "Ottoline": "f",
+    "Percival": "m",
+    "Perrin": "m",
+    "Petra": "f",
+    "Pia": "f",
+    "Piran": "m",
+    "Radek": "m",
+    "Ragna": "f",
+    "Rennick": "m",
+    "Rhapsody": "f",
+    "Rhosyn": "f",
+    "Roderick": "m",
+    "Roland": "m",
+    "Rowena": "f",
+    "Runa": "f",
+    "Sabeth": "f",
+    "Sabine": "f",
+    "Sefa": "f",
+    "Senna": "f",
+    "Seraphina": "f",
+    "Sigrid": "f",
+    "Sigurd": "m",
+    "Silas": "m",
+    "Soleil": "f",
+    "Solenne": "f",
+    "Soren": "m",
+    "Stig": "m",
+    "Sunniva": "f",
+    "Sylvie": "f",
+    "Talia": "f",
+    "Tamsin": "f",
+    "Tancred": "m",
+    "Tarvek": "m",
+    "Teo": "m",
+    "Tess": "f",
+    "Thane": "m",
+    "Theron": "m",
+    "Thyra": "f",
+    "Tobiah": "m",
+    "Tobin": "m",
+    "Tolly": "m",
+    "Tomas": "m",
+    "Tormund": "m",
+    "Torvi": "f",
+    "Ulf": "m",
+    "Ulrike": "f",
+    "Vaelan": "m",
+    "Valen": "m",
+    "Valkyrie": "f",
+    "Vera": "f",
+    "Vesna": "f",
+    "Vesper": "f",
+    "Vianne": "f",
+    "Vigdis": "f",
+    "Vivia": "f",
+    "Wendel": "m",
+    "Wilmot": "m",
+    "Wren": "f",
+    "Yara": "f",
+    "Ysabel": "f",
+    "Ysolt": "f",
+    "Zephyr": "m",
+    "Zora": "f"
+  }
+}

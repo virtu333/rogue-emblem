@@ -65,54 +65,204 @@
       "frame": 10
     },
     "enemy_archer": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 11
     },
+    "enemy_archer__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_archer__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_archer__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_assassin": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 12
     },
+    "enemy_assassin__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_assassin__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_assassin__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_battle_monk": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 13
     },
+    "enemy_battle_monk__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_battle_monk__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_battle_monk__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_berserker": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 14
     },
+    "enemy_berserker__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_berserker__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_berserker__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_bishop": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 15
     },
+    "enemy_bishop__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_bishop__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_bishop__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_bow_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 16
     },
+    "enemy_bow_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_bow_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_bow_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_cavalier": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 17
     },
+    "enemy_cavalier__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_cavalier__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_cavalier__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_cleric": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 18
     },
+    "enemy_cleric__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_cleric__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_cleric__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_dancer": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 19
     },
+    "enemy_dancer__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_dancer__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_dancer__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_dark_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 20
+    },
+    "enemy_dark_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_dark_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_dark_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
     },
     "enemy_dragon": {
       "source": "legacy",
@@ -125,9 +275,24 @@
       "frame": 22
     },
     "enemy_duelist": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 23
+    },
+    "enemy_duelist__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_duelist__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_duelist__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
     },
     "enemy_entity": {
       "source": "legacy",
@@ -135,64 +300,244 @@
       "frame": 24
     },
     "enemy_falcon_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 25
     },
+    "enemy_falcon_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_falcon_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_falcon_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_fighter": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 26
     },
+    "enemy_fighter__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_fighter__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_fighter__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_general": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 27
     },
+    "enemy_general__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_general__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_general__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_great_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 28
     },
+    "enemy_great_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_great_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_great_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_hero": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 29
     },
+    "enemy_hero__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_hero__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_hero__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_hunter": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 30
     },
+    "enemy_hunter__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_hunter__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_hunter__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 31
     },
+    "enemy_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_mage": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 32
     },
+    "enemy_mage__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_mage__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_mage__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_mercenary": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 33
     },
+    "enemy_mercenary__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_mercenary__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_mercenary__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_myrmidon": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 34
     },
+    "enemy_myrmidon__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_myrmidon__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_myrmidon__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_paladin": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 35
     },
+    "enemy_paladin__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_paladin__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_paladin__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_pegasus_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 36
+    },
+    "enemy_pegasus_knight__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_pegasus_knight__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_pegasus_knight__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
     },
     "enemy_revenant": {
       "source": "legacy",
@@ -200,49 +545,184 @@
       "frame": 37
     },
     "enemy_sage": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 38
     },
+    "enemy_sage__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_sage__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_sage__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_sniper": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 39
     },
+    "enemy_sniper__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_sniper__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_sniper__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_swordmaster": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 40
     },
+    "enemy_swordmaster__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_swordmaster__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_swordmaster__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_thief": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 41
     },
+    "enemy_thief__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_thief__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_thief__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_trickster": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 42
     },
+    "enemy_trickster__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_trickster__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_trickster__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_warlock": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 43
     },
+    "enemy_warlock__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_warlock__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_warlock__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_warrior": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 44
     },
+    "enemy_warrior__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_warrior__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_warrior__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_wyvern_lord": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 45
     },
+    "enemy_wyvern_lord__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_wyvern_lord__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_wyvern_lord__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
     "enemy_wyvern_rider": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "blood",
       "frame": 46
+    },
+    "enemy_wyvern_rider__b": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_wyvern_rider__c": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
+    },
+    "enemy_wyvern_rider__d": {
+      "source": "generated",
+      "faction": "blood",
+      "variant": true
     },
     "enemy_zombie": {
       "source": "legacy",
@@ -250,164 +730,879 @@
       "frame": 47
     },
     "generic_archer": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 48
     },
+    "generic_archer__archer_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_archer__archer_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_archer__archer_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_archer__archer_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_assassin": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 49
+    },
+    "generic_assassin__thief_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_assassin__thief_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_assassin__thief_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_assassin__thief_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bard__dancer_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bard__dancer_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bard__dancer_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bard__dancer_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bard__dancer_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
     },
     "generic_battle_monk": {
       "source": "rebuilt",
       "faction": "steel",
       "frame": 50
     },
+    "generic_battle_monk__cleric_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_battle_monk__cleric_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_battle_monk__cleric_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_battle_monk__cleric_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_berserker": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 51
     },
+    "generic_berserker__fighter_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_berserker__fighter_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_berserker__fighter_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_berserker__fighter_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_bishop": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 52
     },
+    "generic_bishop__cleric_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bishop__cleric_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bishop__cleric_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bishop__cleric_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_bow_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 53
     },
+    "generic_bow_knight__archer_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bow_knight__archer_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bow_knight__archer_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_bow_knight__archer_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_cavalier": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 54
     },
+    "generic_cavalier__cavalier_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cavalier__cavalier_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cavalier__cavalier_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cavalier__cavalier_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_cleric": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 55
     },
+    "generic_cleric__cleric_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cleric__cleric_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cleric__cleric_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_cleric__cleric_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_dancer": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 56
     },
+    "generic_dancer__dancer_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dancer__dancer_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dancer__dancer_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dancer__dancer_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_dark_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 57
     },
+    "generic_dark_knight__cavalier_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dark_knight__cavalier_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dark_knight__cavalier_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_dark_knight__cavalier_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_duelist": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 58
     },
+    "generic_duelist__myrmidon_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_duelist__myrmidon_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_duelist__myrmidon_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_duelist__myrmidon_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_falcon_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 59
+    },
+    "generic_falcon_knight__pegasus_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__pegasus_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__pegasus_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__pegasus_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__wyvern_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__wyvern_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__wyvern_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__wyvern_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_falcon_knight__wyvern_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
     },
     "generic_fighter": {
       "source": "rebuilt",
       "faction": "steel",
       "frame": 60
     },
+    "generic_fighter__fighter_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_fighter__fighter_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_fighter__fighter_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_fighter__fighter_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_general": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 61
     },
+    "generic_general__knight_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_general__knight_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_general__knight_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_general__knight_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_great_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 62
     },
+    "generic_great_knight__knight_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_great_knight__knight_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_great_knight__knight_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_great_knight__knight_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_hero": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 63
     },
+    "generic_hero__mercenary_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hero__mercenary_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hero__mercenary_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hero__mercenary_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_hunter": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 64
     },
+    "generic_hunter__mercenary_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hunter__mercenary_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hunter__mercenary_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_hunter__mercenary_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 65
     },
+    "generic_knight__knight_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_knight__knight_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_knight__knight_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_knight__knight_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_mage": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 66
     },
+    "generic_mage__mage_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mage__mage_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mage__mage_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mage__mage_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_mercenary": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 67
     },
+    "generic_mercenary__mercenary_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mercenary__mercenary_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mercenary__mercenary_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_mercenary__mercenary_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_myrmidon": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 68
     },
+    "generic_myrmidon__myrmidon_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_myrmidon__myrmidon_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_myrmidon__myrmidon_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_myrmidon__myrmidon_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_paladin": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 69
     },
+    "generic_paladin__cavalier_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_paladin__cavalier_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_paladin__cavalier_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_paladin__cavalier_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_pegasus_knight": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 70
     },
+    "generic_pegasus_knight__pegasus_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_pegasus_knight__pegasus_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_pegasus_knight__pegasus_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_pegasus_knight__pegasus_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_sage": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 71
+    },
+    "generic_sage__mage_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sage__mage_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sage__mage_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sage__mage_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
     },
     "generic_sniper": {
       "source": "rebuilt",
       "faction": "steel",
       "frame": 72
     },
+    "generic_sniper__archer_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sniper__archer_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sniper__archer_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_sniper__archer_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_swordmaster": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 73
     },
+    "generic_swordmaster__myrmidon_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_swordmaster__myrmidon_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_swordmaster__myrmidon_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_swordmaster__myrmidon_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_thief": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 74
     },
+    "generic_thief__thief_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_thief__thief_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_thief__thief_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_thief__thief_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_trickster": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 75
+    },
+    "generic_trickster__thief_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_trickster__thief_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_trickster__thief_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_trickster__thief_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
     },
     "generic_warlock": {
       "source": "rebuilt",
       "faction": "steel",
       "frame": 76
     },
+    "generic_warlock__mage_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warlock__mage_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warlock__mage_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warlock__mage_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_warrior": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 77
     },
+    "generic_warrior__fighter_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warrior__fighter_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warrior__fighter_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_warrior__fighter_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_wyvern_lord": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 78
     },
+    "generic_wyvern_lord__pegasus_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__pegasus_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__pegasus_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__pegasus_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__pegasus_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__wyvern_b": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__wyvern_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__wyvern_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_lord__wyvern_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
     "generic_wyvern_rider": {
-      "source": "legacy",
+      "source": "generated",
       "faction": "steel",
       "frame": 79
+    },
+    "generic_wyvern_rider__wyvern_a": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_rider__wyvern_c": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_rider__wyvern_d": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
+    },
+    "generic_wyvern_rider__wyvern_e": {
+      "source": "generated",
+      "faction": "steel",
+      "variant": true
     },
     "lord_astrid": {
       "source": "rebuilt",

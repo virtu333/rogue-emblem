@@ -116,7 +116,9 @@ describe('PC-98 portraits', () => {
     };
     walk(dir);
     expect(bytes / 1e6).toBeLessThan(6);
-    const provenance = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+    const provenance = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'tools/art/pc98/provenance.json'), 'utf8'),
+    );
     const rebuilt = Object.values(provenance.portraits).filter((p) => p.kind === 'rebuilt');
     expect(rebuilt.length).toBeGreaterThan(0);
     for (const p of rebuilt) {

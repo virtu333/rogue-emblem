@@ -16,7 +16,12 @@ import { skillGlyph } from './growthGlyphs.js';
 
 function portraitImg(scene, unit, className) {
   const shown = className
-    ? { ...projectedSpriteUnit(unit, className), name: unit.name, isLord: unit.isLord }
+    ? {
+        ...projectedSpriteUnit(unit, className),
+        name: unit.name,
+        isLord: unit.isLord,
+        portraitVariant: unit.portraitVariant, // the same person in the new class
+      }
     : unit;
   const portrait = ceremonyPortrait(scene, shown);
   if (!portrait?.src) return null;

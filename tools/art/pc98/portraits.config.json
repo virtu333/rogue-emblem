@@ -1,50 +1,9 @@
 {
   "portraits": {
-    "enemy_dancer": { "crop": [4, 4, 4, 4] },
-    "generic_bow_knight": {
-      "crop": [9, 9, 9, 9],
-      "outlier": "Bright mint armour, framed forest scene: off-palette, needs a new reference"
-    },
     "enemy_entity": {
       "keepBackground": true,
       "faction": "unlight",
       "outlier": "A texture of eyes, not a bust; boss_the_entity art covers the boss"
-    },
-    "generic_knight": { "segment": { "erode": 1, "enclosed": 12 } },
-    "enemy_warrior": {
-      "crop": [2, 2, 2, 2],
-      "segment": { "step": 0.05, "global": 0.12, "erode": 1, "enclosed": 12 },
-      "outlier": "Shredded cut-out on white: lower body missing, needs a new reference"
-    },
-    "enemy_great_knight": {
-      "outlier": "Old cut-out punched holes through dark armour; silhouette rebuilt by closing"
-    },
-    "enemy_paladin": {
-      "outlier": "Old cut-out punched holes through dark armour; silhouette rebuilt by closing"
-    },
-    "generic_great_knight": { "segment": { "step": 0.05, "global": 0.16 } },
-    "generic_trickster": {
-      "segment": { "step": 0.06, "global": 0.14 },
-      "outlier": "Rainbow hair, saturated purple/orange/green cape: clashes with every ramp"
-    },
-    "generic_thief": {
-      "segment": { "step": 0.05, "global": 0.14 },
-      "outlier": "Painted wall/tree scene baked into the figure"
-    },
-    "generic_hunter": {
-      "segment": { "step": 0.06, "global": 0.2 },
-      "outlier": "Painted forest scene; tree trunks survive the cut-out"
-    },
-    "generic_dancer": {
-      "segment": { "step": 0.04, "global": 0.1 },
-      "outlier": "Glossy semi-realistic painting, not anime line work"
-    },
-    "generic_duelist": { "outlier": "Bright shonen style, saturated blue/yellow" },
-    "generic_pegasus_knight": { "outlier": "Pastel chibi proportions, lavender hair" },
-    "generic_dark_knight": {
-      "outlier": "Saturated violet glow armour, purple backdrop painted in"
-    },
-    "generic_wyvern_lord": { "outlier": "Chunky SNES sprite style, flat shading, cropped oddly" },
-    "generic_wyvern_rider": { "outlier": "Chunky SNES sprite style, flat shading" }
+    }
   }
 }
