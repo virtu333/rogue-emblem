@@ -7,6 +7,18 @@ import { findCommander } from '../engine/Commander.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { candidateCards } from './choiceContent.js';
+import {
+  choiceReducedMotion,
+  draftFooter,
+  draftRow,
+  fitDraft,
+  sealChoice,
+  statLegend,
+  unitCardLabel,
+  unitChoiceCard,
+} from './choiceCards.js';
+import { unitTemperament } from './unitVoiceDisplay.js';
 
 function unitRow(scene, gameData, unit, action, selected) {
   const row = button(null, action, 're-btn re-row re-party-row');
@@ -56,6 +68,11 @@ export function describeUnit(gameData, unit) {
   return box;
 }
 
+// Boss recruit and lord arrival: the draft. Candidates stand side by side as
+// cards (portrait, crest, idling sprite, stats against each other, traits,
+// the roster cue); selection lifts a card, confirm seals it and hands the
+// unit to the caller, whose join ceremony follows. `resolve` is the same
+// one-shot command as before; nothing here touches the run.
 export function showArrivalMenu(
   owner,
   title,
@@ -63,64 +80,91 @@ export function showArrivalMenu(
   resolve,
   { skip = false, reroll = null } = {},
 ) {
+  const lord = title === 'Lord arrival';
+  const confirmLabel = lord ? 'Welcome' : 'Recruit';
   let selected = candidates[0];
   let done = false;
+  let sealing = false;
   const finish = (unit) => {
     if (done || surface.destroyed) return;
     done = true;
     resolve(unit);
   };
-  const feedback = element('p');
+  const decline = () => {
+    if (!sealing) finish(null);
+  };
+  const feedback = element('span', null, 'ch-feedback');
   feedback.setAttribute('role', 'status');
   const surface = new MenuSurface(owner.scene, title, () => {
-    if (skip) finish(null);
-    else feedback.textContent = 'Choose a lord and press Welcome to continue.';
+    if (skip) decline();
+    else if (!sealing) feedback.textContent = 'Choose a lord and press Welcome to continue.';
   });
   owner.domMenu = surface;
+  surface.root.classList.add('ch-arrival');
+  if (choiceReducedMotion(owner.scene)) surface.root.classList.add('is-still');
   surface.header.querySelector('button').remove();
-  if (skip) surface.header.append(button('Skip recruit', () => finish(null)));
+  if (skip) surface.header.append(button('Skip recruit', decline));
   if (reroll)
     surface.header.append(
       button('Reroll', () => {
-        if (!done) {
+        if (!done && !sealing) {
           done = true;
           reroll();
         }
       }),
     );
+  const units = candidates.map((c) => c.unit);
+  const content = candidateCards(units, {
+    roster: owner.runManager?.roster || owner.scene?.runManager?.roster || [],
+    gameData: owner.gameData,
+    temperamentOf: (unit) => unitTemperament(owner.scene, unit),
+  });
   const render = () => {
-    surface.body.replaceChildren();
-    const split = element('div', null, 'mu-split');
-    const list = element('div', null, 're-scroll re-party-list');
-    for (const candidate of candidates)
-      list.append(
-        unitRow(
-          owner.scene,
-          owner.gameData,
-          candidate.unit,
-          () => {
-            selected = candidate;
-            render();
-            surface.body.querySelector('[aria-pressed="true"]')?.focus();
-          },
-          selected === candidate,
-        ),
-      );
-    const detail = element('section', null, 'mu-detail');
-    const copy = element('div', null, 'mu-copy');
-    copy.append(describeUnit(owner.gameData, selected.unit));
+    const row = draftRow(candidates.length, 'ch-candidates');
+    candidates.forEach((candidate, i) => {
+      const card = unitChoiceCard({
+        scene: owner.scene,
+        gameData: owner.gameData,
+        unit: candidate.unit,
+        content: content[i],
+        selected: selected === candidate,
+        label: unitCardLabel(content[i]),
+        onSelect: () => {
+          if (sealing || done) return;
+          if (selected !== candidate)
+            owner.scene?.registry?.get?.('audio')?.playSFX?.('sfx_cursor');
+          selected = candidate;
+          render();
+          surface.body
+            .querySelector('.ch-card[aria-pressed="true"]')
+            ?.focus({ preventScroll: true });
+        },
+      });
+      row.append(card);
+    });
     const confirm = button(
-      title === 'Lord arrival' ? 'Welcome' : 'Recruit',
-      () => finish(selected.unit),
+      confirmLabel,
+      () => {
+        if (sealing || done) return;
+        sealing = true;
+        for (const b of surface.root.querySelectorAll('button')) b.disabled = true;
+        owner.scene?.registry?.get?.('audio')?.playSFX?.('sfx_confirm');
+        sealChoice(
+          row,
+          row.querySelector('.ch-card[aria-pressed="true"]'),
+          choiceReducedMotion(owner.scene),
+          () => finish(selected.unit),
+        );
+      },
       're-btn re-btn--primary',
     );
     const inspect = button('Full unit details', () => {
-      if (owner.inspector && !owner.inspector.destroyed) return;
+      if (sealing || (owner.inspector && !owner.inspector.destroyed)) return;
       surface.root.inert = true;
       owner.inspector = new MobileRosterSheet({
         scene: owner.scene,
         gameData: owner.gameData,
-        units: candidates.map((c) => c.unit),
+        units,
         index: candidates.indexOf(selected),
         run: null,
         onClose: () => {
@@ -130,13 +174,15 @@ export function showArrivalMenu(
         },
       });
     });
-    detail.append(copy, inspect, confirm);
-    split.append(list, detail);
-    surface.body.append(feedback, split);
+    const { footer, lead } = draftFooter(inspect, confirm);
+    lead.append(statLegend(), feedback);
+    surface.body.replaceChildren(row, footer);
+    stopFit?.();
+    stopFit = fitDraft(row);
   };
-  surface.body.style.display = 'flex';
+  let stopFit = null;
   render();
-  surface.focusContent();
+  surface.body.querySelector('.ch-card[aria-pressed="true"]')?.focus({ preventScroll: true });
 }
 
 export function showDeploymentMenu(owner, roster, limits, onConfirm, initialNames) {

@@ -16,6 +16,8 @@
 @import './ceremony.css';
 /* Growth ceremonies: promotion rite, level-up card, recruits, class crests. */
 @import './growth.css';
+/* The draft: every "choose one" screen as cards side by side. */
+@import './choice.css';
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';
