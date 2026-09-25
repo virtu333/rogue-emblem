@@ -333,7 +333,7 @@ export class TitleScene extends Phaser.Scene {
     );
     if (conflicts.length) {
       this._setLogoutNotice(
-        'Choose which save to keep in Continue before logging out. Both versions are still safe.',
+        'Choose which save to keep in Save Slots before logging out. Both versions are still safe.',
         'warn',
       );
       if (hasDOMHost()) {
@@ -341,7 +341,7 @@ export class TitleScene extends Phaser.Scene {
         menu.body.append(
           element(
             'p',
-            `Slot ${conflicts.join(', ')} has both a device and cloud save. Logging out would remove the unchosen device version. Open Continue to choose which version to keep first.`,
+            `Slot ${conflicts.join(', ')} has both a device and cloud save. Logging out would remove the unchosen device version. Open Save Slots to choose which version to keep first.`,
           ),
         );
         menu.body.append(
@@ -496,7 +496,7 @@ export class TitleScene extends Phaser.Scene {
   async handleNewGame({ confirmed = false } = {}) {
     const nextSlot = getNextAvailableSlot();
     if (!nextSlot) {
-      this.showMessage('All 3 save slots are full.\nDelete a slot from Continue to free space.');
+      this.showMessage('All 3 save slots are full.\nDelete a slot from Save Slots to free space.');
       return false;
     }
 
@@ -506,7 +506,7 @@ export class TitleScene extends Phaser.Scene {
         menu.body.append(
           element(
             'p',
-            `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Continue to return to them.`,
+            `A new run will use Slot ${nextSlot}. Your existing saves, including any suspended battle, stay in their current slots. Use Save Slots to return to them.`,
           ),
         );
         menu.body.append(
@@ -533,7 +533,7 @@ export class TitleScene extends Phaser.Scene {
           }),
         );
         menu.focusContent();
-      } else this.showMessage(`Existing saves are preserved. Choose Continue to return to them.`);
+      } else this.showMessage(`Existing saves are preserved. Choose Save Slots to return to them.`);
       return false;
     }
 

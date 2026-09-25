@@ -5,6 +5,30 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Playtest 3 polish: tile choice, click-to-attack, copy, route rail (built)
+
+A short phone + desktop spot check of main through PR84. No crash or save loss; five
+polish items. Spec: [`specs/playtest-polish.md`](specs/playtest-polish.md); captures:
+[`art-direction/ux-polish/playtest-3/`](art-direction/ux-polish/playtest-3/README.md).
+
+- **Phone, after Back undoes a move** the rail says "Choose a tile · Sera" with a Cancel
+  beside End turn (it used to fall back to the idle commands while blue tiles showed).
+- **Desktop, a unit selected + click an enemy in reach** now attacks: the forecast opens
+  from the current tile, or after walking to the closest attack tile (least movement →
+  equipped weapon reaches → terrain → reading order; hover previews the walk). Not a
+  documented desktop decision before — only the touch selection menu keeps
+  tap-to-inspect. Unreachable enemies still deselect; the footer guide explains clicks.
+- **Copy:** "Vulnerary ×3 · 3 uses each"; "Rout · 1 enemy remains"; Save & Exit now
+  points to Resume on the Title (Title messages name Save Slots, not a "Continue" button
+  that no longer exists).
+- **Desktop route rail** widens with the window (to 300 px) and its reading text steps up;
+  phones and 640×480 unchanged.
+- **"Triangle advantage · −1 damage"** was not a copy bug: label and sign share one
+  source; the minus was a "+" losing its vertical stroke under NEAREST text sampling,
+  which crisp canvas text (playtest 2) fixes. Verified at 1676×858, DPR 1 and 2.
+
+---
+
 ## 2026-09-25 — Threat sight, Guidance and Mac font scaling (playtest 2) (built)
 
 A second playtest round: a Three Houses veteran wanted "the little red arc" that shows who

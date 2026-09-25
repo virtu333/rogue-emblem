@@ -281,3 +281,14 @@
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
   mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
 }
+
+/* ── Choosing a tile (UNIT_SELECTED, e.g. after Back undid a move) ─────────── */
+/* A plain line naming the selected unit and the task; Cancel sits beside End turn. */
+.battlefield-lab .mobile-battle-hud .mb-choose-tile,
+.mobile-battle-hud .mb-choose-tile {
+  display: block;
+  margin: 0;
+  font: 600 12px/1.25 var(--re-body);
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}

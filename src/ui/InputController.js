@@ -13,7 +13,8 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { UI_HEX } from '../utils/uiStyles.js';
-import { getFootprintKeys } from '../engine/EntitySystem.js';
+import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
+import { chooseAttackTile } from '../engine/AttackOptions.js';
 
 // A tap on any tile of a (possibly multi-tile) unit.
 const occupies = (unit, gp) =>
@@ -105,53 +106,63 @@ export class InputController {
     if (scene.battleState === 'UNIT_SELECTED' && scene.selectedUnit && scene.movementRange) {
       const key = `${col},${row}`;
       const previewEntry = scene.movementRange.get(key);
-      if (
-        previewEntry &&
-        previewEntry.stoppable !== false &&
-        key !== `${scene.selectedUnit.col},${scene.selectedUnit.row}`
-      ) {
-        if (scene._lastPathPreviewKey === key) return;
-        const icePath = scene.grid.reconstructIcePath(
-          scene.movementRange,
-          scene.selectedUnit.col,
-          scene.selectedUnit.row,
-          col,
-          row,
-        );
-        const path =
-          icePath ||
-          scene.grid.findPath(
-            scene.selectedUnit.col,
-            scene.selectedUnit.row,
-            col,
-            row,
-            scene.selectedUnit.moveType,
-            scene.unitPositions,
-            scene.selectedUnit.faction,
-            scene._getCostModifier(scene.selectedUnit),
-          );
-        if (path) {
-          const occupied = scene.buildOccupiedSet(scene.selectedUnit);
-          const effective = computeEffectivePath(
-            path,
-            scene.grid.mapLayout,
-            scene.grid.terrainData,
-            scene.grid.cols,
-            scene.grid.rows,
-            scene.selectedUnit.moveType,
-            occupied,
-            scene._getCostModifier(scene.selectedUnit),
-          );
-          scene.grid.showPath(effective.effectivePath);
-          for (const seg of effective.slideSegments) {
-            scene.grid.showSlidePath(seg.slidePath);
-          }
-        }
-        scene._lastPathPreviewKey = key;
+      const unit = scene.selectedUnit;
+      let dest = null;
+      if (previewEntry && previewEntry.stoppable !== false && key !== `${unit.col},${unit.row}`)
+        dest = { col, row, key };
+      else {
+        // Hovering an enemy it can reach by moving: preview the walk to the attack tile.
+        const tile = this.attackApproach({ col, row })?.tile;
+        if (tile && (tile.col !== unit.col || tile.row !== unit.row))
+          dest = { col: tile.col, row: tile.row, key: `attack:${key}` };
+      }
+      if (dest) {
+        if (scene._lastPathPreviewKey === dest.key) return;
+        this._showPreviewPath(unit, dest.col, dest.row);
+        scene._lastPathPreviewKey = dest.key;
       } else {
         scene.grid.clearPath();
         scene._lastPathPreviewKey = null;
       }
+    }
+  }
+
+  _showPreviewPath(unit, col, row) {
+    const scene = this.scene;
+    const icePath = scene.grid.reconstructIcePath(
+      scene.movementRange,
+      unit.col,
+      unit.row,
+      col,
+      row,
+    );
+    const path =
+      icePath ||
+      scene.grid.findPath(
+        unit.col,
+        unit.row,
+        col,
+        row,
+        unit.moveType,
+        scene.unitPositions,
+        unit.faction,
+        scene._getCostModifier(unit),
+      );
+    if (!path) return;
+    const occupied = scene.buildOccupiedSet(unit);
+    const effective = computeEffectivePath(
+      path,
+      scene.grid.mapLayout,
+      scene.grid.terrainData,
+      scene.grid.cols,
+      scene.grid.rows,
+      unit.moveType,
+      occupied,
+      scene._getCostModifier(unit),
+    );
+    scene.grid.showPath(effective.effectivePath);
+    for (const seg of effective.slideSegments) {
+      scene.grid.showSlidePath(seg.slidePath);
     }
   }
 
@@ -395,6 +406,8 @@ export class InputController {
         scene.showActionMenu(unit);
         this.registerSelectionMenu(unit);
       }
+      // The desktop footer shows [X] Cancel and the selection hint from the first click.
+      scene.refreshEndTurnControl?.();
       return;
     }
     if (unit?.faction === 'player' && isSleeping(unit)) {
@@ -472,6 +485,8 @@ export class InputController {
 
   handleSelectedClick(gp) {
     const scene = this.scene;
+    // A move-then-attack intent belongs only to the move that tryAttackFromSelection starts.
+    this._pendingMoveAttack = null;
     if (scene.selectedUnit?._movementCommitted) {
       scene.showActionMenu(scene.selectedUnit);
       return;
@@ -509,6 +524,8 @@ export class InputController {
       return;
     }
 
+    if (this.tryAttackFromSelection(gp)) return;
+
     const key = `${gp.col},${gp.row}`;
     const moveEntry = scene.movementRange?.get(key);
     if (moveEntry && moveEntry.stoppable !== false) {
@@ -518,6 +535,82 @@ export class InputController {
       if (audio) audio.playSFX('sfx_cancel');
       scene.deselectUnit();
     }
+  }
+
+  /**
+   * Desktop pre-move selection: the enemy on `gp` and the tile the selected unit would
+   * attack it from (its own tile when it already reaches), or null. Touch keeps
+   * tap-to-inspect for enemies (docs/specs/attack-flow.md), so this is pointer/pad only.
+   */
+  attackApproach(gp) {
+    const s = this.scene;
+    if (!gp || s.isMobileInput || !this.isPlanningSelection()) return null;
+    const unit = s.selectedUnit;
+    const target = s.getUnitAt(gp.col, gp.row);
+    if (
+      !target ||
+      !s.enemyUnits?.includes(target) ||
+      !(target.currentHP > 0) ||
+      !canInspectUnit(s.grid, target)
+    )
+      return null;
+    const tile = chooseAttackTile(unit, target, s.movementRange, {
+      distanceFrom: (col, row) => combatDistance({ col, row }, target),
+      isFree: (col, row) => !s.getUnitAt(col, row),
+      terrainScore: (col, row) => {
+        const terrain = s.grid.getTerrainAt(col, row);
+        return (parseInt(terrain?.defBonus, 10) || 0) + (parseInt(terrain?.avoidBonus, 10) || 0);
+      },
+      skillsData: s.gameData?.skills || null,
+    });
+    return tile ? { unit, target, tile } : null;
+  }
+
+  /**
+   * Desktop: with a unit selected (movement shown), clicking an enemy it can attack —
+   * from where it stands or from a reachable tile — goes straight to that enemy's
+   * forecast (target-first flow), moving first when needed. Cancel/Back unwind as
+   * after any move (forecast → targets → action menu → undo move). Enemies it cannot
+   * reach this turn keep the old behaviour.
+   */
+  tryAttackFromSelection(gp) {
+    const s = this.scene;
+    const approach = this.attackApproach(gp);
+    if (!approach) return false;
+    const { unit, target, tile } = approach;
+    if (tile.col === unit.col && tile.row === unit.row) {
+      // Same as clicking the unit's own tile, then tapping the enemy in its menu.
+      s.grid.clearHighlights();
+      unit.graphic?.clearTint?.();
+      s.preMoveLoc = { col: unit.col, row: unit.row };
+      s._preFogSnapshot = s.grid.snapshotFogState();
+      s.showActionMenu(unit);
+      this.tryDirectAttack({ col: target.col, row: target.row });
+      return true;
+    }
+    this._pendingMoveAttack = { unit, target };
+    s.moveUnit(unit, tile.col, tile.row);
+    return true;
+  }
+
+  /**
+   * After a move that tryAttackFromSelection started (BattleScene.afterMove, once the
+   * action menu is up): open the forecast when the target is still attackable from
+   * where the unit actually stopped. Otherwise the ordinary post-move menu stays.
+   */
+  resumeMoveAttack(unit) {
+    const pending = this._pendingMoveAttack;
+    this._pendingMoveAttack = null;
+    const s = this.scene;
+    if (
+      !pending ||
+      pending.unit !== unit ||
+      s.selectedUnit !== unit ||
+      s.battleState !== 'UNIT_ACTION_MENU' ||
+      !(pending.target.currentHP > 0)
+    )
+      return false;
+    return this.tryDirectAttack({ col: pending.target.col, row: pending.target.row });
   }
 
   registerSelectionMenu(unit) {

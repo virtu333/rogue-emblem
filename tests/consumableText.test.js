@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatUses, getConsumableDescription } from '../src/utils/consumableText.js';
+import {
+  formatBundleUses,
+  formatUses,
+  getConsumableDescription,
+} from '../src/utils/consumableText.js';
 
 describe('consumableText', () => {
   it('formats consumable descriptions by effect', () => {
@@ -42,5 +46,13 @@ describe('consumableText', () => {
     expect(formatUses(null)).toBe('');
     expect(formatUses({})).toBe('');
     expect(formatUses({ uses: 'x' })).toBe('');
+  });
+
+  it('says "each" when a reward bundle grants several full items', () => {
+    expect(formatBundleUses({ uses: 3 }, 3)).toBe('3 uses each');
+    expect(formatBundleUses({ uses: 1 }, 2)).toBe('1 use each');
+    expect(formatBundleUses({ uses: 3 }, 1)).toBe('3 uses');
+    expect(formatBundleUses({ uses: 3 })).toBe('3 uses');
+    expect(formatBundleUses({}, 3)).toBe('');
   });
 });

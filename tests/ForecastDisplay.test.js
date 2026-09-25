@@ -5,6 +5,7 @@ import {
   forecastProjection,
   counterRisk,
   forecastTeachingHints,
+  triangleText,
 } from '../src/ui/forecastDisplay.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
@@ -124,5 +125,30 @@ describe('conservative forecast estimates', () => {
     const before = JSON.stringify(f);
     expect(forecastTeachingHints(f).some((h) => h.id === 'battle_doubling')).toBe(true);
     expect(JSON.stringify(f)).toBe(before);
+  });
+});
+
+describe('triangle note sign (playtest 3: "Triangle advantage · −1 damage")', () => {
+  const real = (name) => structuredClone(data.weapons.find((w) => w.name === name));
+  it.each([
+    ['Iron Sword', 'Iron Axe', 'Prof', 'Triangle advantage · +1 damage · +10 Hit'],
+    ['Iron Axe', 'Iron Sword', 'Prof', 'Triangle disadvantage · -1 damage · -10 Hit'],
+    ['Iron Sword', 'Iron Axe', 'Mast', 'Triangle advantage · +2 damage · +15 Hit'],
+    ['Iron Axe', 'Iron Sword', 'Mast', 'Triangle disadvantage · -1 damage · -5 Hit'],
+  ])('%s vs %s (%s) reads with matching label and signs', (atk, def, rank, text) => {
+    const a = unit('A', real(atk));
+    a.weaponRank = rank;
+    expect(triangleText(forecast(a, unit('D', real(def))))).toBe(text);
+  });
+  it('the label always agrees with both signs', () => {
+    for (const damage of [-2, -1, 1, 2])
+      for (const hit of [-15, -10, -5, 5, 10, 15].filter(
+        (h) => Math.sign(h) === Math.sign(damage),
+      )) {
+        const text = triangleText({ display: { triangle: { damage, hit } } });
+        const advantage = text.includes('advantage') && !text.includes('disadvantage');
+        expect(advantage).toBe(damage > 0);
+        expect(text).toContain(`${damage > 0 ? '+' : ''}${damage} damage`);
+      }
   });
 });

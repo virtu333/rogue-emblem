@@ -742,7 +742,9 @@ export class MobileBattleHUD {
       if (!this.lab)
         this.summary.append(el('h2', '', s.inspectMode ? 'Inspect a unit' : 'Your battlefield'));
       if (!this.lab || !focus)
-        this.summary.append(el('div', 'mb-detail', `${remaining} units ready`));
+        this.summary.append(
+          el('div', 'mb-detail', `${remaining} ${remaining === 1 ? 'unit' : 'units'} ready`),
+        );
     }
     if (focus) {
       const terrain = s.grid.getTerrainAt(focus.col, focus.row);
@@ -922,7 +924,12 @@ export class MobileBattleHUD {
       if (restoreMenuFocus) this.body.querySelector('button')?.focus({ preventScroll: true });
       return;
     }
-    if (!this.lab || !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state))
+    // UNIT_SELECTED names its task in the tile-choice row below instead.
+    const tileChoice = state === 'UNIT_SELECTED' && s.selectedUnit && !s.inspectMode;
+    if (
+      !tileChoice &&
+      (!this.lab || !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state))
+    )
       this.body.append(
         el(
           'p',
@@ -998,6 +1005,10 @@ export class MobileBattleHUD {
       const commands = el('div', 'mb-command-grid');
       const secondary = el('div', 'mb-command-grid mb-secondary-grid');
       const inspecting = s.inspectionPanel?.visible && s.inspectionPanel._unit === unit && unit;
+      // A unit is still selected (e.g. after Back undid its move): the rail says so and
+      // offers an explicit Cancel, like the desktop [X] Cancel footer.
+      const cancel =
+        state === 'UNIT_SELECTED' && s.selectedUnit ? this.appendTileChoice(s.selectedUnit) : null;
       if (inspecting) {
         const view = this.button('View unit', () => s.openUnitDetailOverlay());
         view.setAttribute('aria-label', 'View unit details');
@@ -1028,15 +1039,43 @@ export class MobileBattleHUD {
       if (trio.childElementCount) commands.append(trio);
       const endTurn = this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn');
       if (inspecting) commands.append(endTurn);
+      // Cancel pairs with End turn (or joins the inspection grid): one row, no scroll.
+      if (cancel && inspecting) commands.append(cancel);
       this.body.append(commands);
       if (inspecting) this.body.append(secondary);
-      else this.body.append(endTurn);
+      else if (cancel) {
+        const pair = el('div', 'mb-command-grid mb-tile-choice-actions');
+        pair.append(cancel, endTurn);
+        this.body.append(pair);
+      } else this.body.append(endTurn);
       if (s._escapeController)
         this.body.append(
           this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
         );
     }
     if (!this.menu && !this.endTurnPending) this.body.append(details);
+  }
+
+  /**
+   * UNIT_SELECTED: a "Choose a tile · <name>" line, and a Cancel that deselects
+   * (returned for the caller to place; null during a tutorial movement gate).
+   */
+  appendTileChoice(selected) {
+    const s = this.scene;
+    this.body.append(el('p', 'mb-hint mb-choose-tile', `Choose a tile · ${selected.name}`));
+    if (s._isTutorialStrictGateActive?.()) return null;
+    const cancel = this.button(
+      'Cancel',
+      () => {
+        if (s.battleState !== 'UNIT_SELECTED' || s.selectedUnit !== selected) return;
+        // One press deselects, even while an enemy is being inspected.
+        s._inputController?.clearPlanningInspection?.();
+        s.requestCancel({ allowPause: false });
+      },
+      'mb-cancel-selection',
+    );
+    cancel.setAttribute('aria-label', 'Cancel selection');
+    return cancel;
   }
 
   targetListKey() {
