@@ -16,6 +16,7 @@ import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from
 import { battleUnitSpriteKey } from './BattleUnitVisuals.js';
 import { unitSpriteImage } from './growthSprites.js';
 import { ROSTER_DESKTOP_QUERY } from './unitPortrait.js';
+import { itemIcon, itemHero, itemIconId } from './itemIcons.js';
 
 export const CHOICE_SMALL_QUERY = '(max-width: 700px)';
 
@@ -139,46 +140,15 @@ export function choiceSprite(scene, unit) {
   return node;
 }
 
-// Existing item art (assets/sprites/ui/icon_*.png). The items/icons study
-// will fill `[data-item-art-hook]` (by item id / name / category) without
-// touching these screens; until then these icons, else the category glyph.
-const ITEM_ICONS = new Set([
-  'sword', 'axe', 'lance', 'bow', 'tome', 'staff', 'potion', 'gold', 'scroll', 'light',
-  'energy_drop', 'spirit_dust', 'secret_book', 'speedwing', 'dracoshield', 'talisman',
-  'angelic_robe', 'whetstone', 'master_seal', 'elixir', 'power_ring', 'magic_ring',
-  'speed_ring', 'shield_ring', 'barrier_ring', 'skill_ring', 'goddess_icon', 'seraph_robe',
-  'boots', 'delphi_shield', 'veterans_crest', 'wrath_band', 'counter_seal', 'pursuit_ring',
-  'nullify_ring', 'life_ring', 'forest_charm',
-]); // prettier-ignore
-const TYPE_ICONS = { Sword: 'sword', Axe: 'axe', Lance: 'lance', Bow: 'bow', Tome: 'tome', Staff: 'staff', Light: 'light', Scroll: 'scroll', Whetstone: 'whetstone' }; // prettier-ignore
+// Item art (docs/art-direction/items/README.md): every reward has its socketed pixel
+// icon; on desktop the slot shows the item's painted hero (96 px) on its plate instead.
+// The hook attributes stay for tools and tests.
 
-/** Icon key for a reward, or '' (pure; exported for tests). */
-export function itemIconKey(choice) {
-  const item = choice?.item;
-  if (!item) return choice?.type === 'gold' || choice?.type === 'skip' ? 'gold' : '';
-  const own = String(item.name || '')
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
-  if (ITEM_ICONS.has(own)) return own;
-  if (item.teachesWeaponArtId || item.type === 'Scroll') return 'scroll';
-  if (item.effect === 'promote' || item.effect === 'reclass') return 'master_seal';
-  if (item.type === 'Consumable') return item.effect === 'healFull' ? 'elixir' : 'potion';
-  if (item.type === 'Accessory' || choice.type === 'accessory') return 'goddess_icon';
-  return TYPE_ICONS[item.type] || '';
-}
-
-function assetBase() {
-  try {
-    return import.meta.env?.BASE_URL ?? '/';
-  } catch {
-    return '/';
-  }
-}
-
-/** The art slot of a reward card: existing item art, else the category glyph. */
-export function itemArtSlot(choice, category) {
+/**
+ * The art slot of a reward card. `count` = cards in the draft (five narrow cards draw
+ * the 32 px icon).
+ */
+export function itemArtSlot(choice, category, { count = 0 } = {}) {
   const slot = span(null, 'ch-item-art');
   slot.dataset.itemArtHook = 'item-icon';
   slot.dataset.itemCategory = category || '';
@@ -186,24 +156,11 @@ export function itemArtSlot(choice, category) {
   if (choice?.item?.name) slot.dataset.itemName = String(choice.item.name);
   if (!hasDocument()) return slot;
   slot.setAttribute('aria-hidden', 'true');
-  const key = itemIconKey(choice);
-  if (key) {
-    const img = document.createElement('img');
-    img.className = 'ch-item-icon';
-    img.src = `${assetBase()}assets/sprites/ui/icon_${key}.png`;
-    img.alt = '';
-    img.decoding = 'async';
-    img.draggable = false;
-    img.addEventListener(
-      'error',
-      () => {
-        img.remove();
-        slot.classList.add('is-glyph');
-      },
-      { once: true },
-    );
-    slot.append(img);
-  } else slot.classList.add('is-glyph');
+  slot.dataset.itemIcon = itemIconId(choice);
+  slot.append(
+    itemIcon(choice, { size: count >= 5 ? 32 : 48, className: 'ch-item-compact' }),
+    itemHero(choice, { size: 96, className: 'ch-item-hero' }),
+  );
   return slot;
 }
 

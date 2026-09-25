@@ -79,6 +79,7 @@ import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
+import { itemIcon, itemHero } from './itemIcons.js';
 import { playCue } from './ceremonyMusic.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
@@ -340,9 +341,15 @@ export class MobileRosterSheet {
         preventScroll: true,
       });
   }
-  card(title, description = '') {
+  card(title, description = '', item = null) {
     const c = el('article', null, 'mr-card');
-    c.append(el('h4', title));
+    if (item) {
+      // Item cards lead with the item's socketed icon.
+      c.classList.add('mr-item-card');
+      const head = el('div', null, 'mr-card-head');
+      head.append(itemIcon(item, { size: 32 }), el('h4', title));
+      c.append(head);
+    } else c.append(el('h4', title));
     if (description) c.append(el('p', description));
     this.body.append(c);
     return c;
@@ -575,6 +582,7 @@ export class MobileRosterSheet {
           scroll.teachesWeaponArtId
             ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
             : skill?.description || scroll.description || '',
+          scroll,
         );
         card.classList.add('mr-scroll-description');
         if (!scroll.teachesWeaponArtId)
@@ -890,7 +898,7 @@ export class MobileRosterSheet {
     const displayName = forgeLevel
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
-    const c = this.card(displayName, this.itemDescription(item, unit));
+    const c = this.card(displayName, this.itemDescription(item, unit), item);
     if (unit && item === unit.weapon) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
       c.append(
@@ -910,7 +918,9 @@ export class MobileRosterSheet {
     appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
     if (item.lore) {
       const d = el('details');
-      d.append(el('summary', 'About this item'), el('p', item.lore));
+      const about = el('div', null, 'mr-about');
+      about.append(itemHero(item, { size: 96 }), el('p', item.lore, 'mr-lore'));
+      d.append(el('summary', 'About this item'), about);
       c.append(d);
     }
     return c;
@@ -1025,6 +1035,7 @@ export class MobileRosterSheet {
       unit.accessory
         ? `${unit.accessory.name} · ${formatAccessoryDetail(unit.accessory)}`
         : 'No accessory equipped.',
+      unit.accessory || null,
     );
     if (this.run) {
       if (unit.accessory)
@@ -1039,7 +1050,7 @@ export class MobileRosterSheet {
       if (this.run.accessories?.length)
         this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
-        const c = this.card(item.name, formatAccessoryDetail(item));
+        const c = this.card(item.name, formatAccessoryDetail(item), item);
         c.append(
           this.button('Equip accessory', () =>
             this.render(

@@ -20,6 +20,7 @@ import {
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { playCue } from './ceremonyMusic.js';
 export class ChurchMenu {
   constructor(c) {
@@ -51,6 +52,15 @@ export class ChurchMenu {
       run = this.scene.runManager;
     const scroll = body.scrollTop;
     body.replaceChildren();
+    const ruins = !!this.scene._churchRuinsMode;
+    body.append(
+      applyServiceVignette(this.surface.root, ruins ? 'ruins' : 'church', {
+        title: ruins ? 'Ruins sanctuary' : 'Church',
+        kicker: ruins ? 'Heal · Revive · Wares' : 'Heal · Revive · Promote',
+        still: prefersStill(this.scene),
+        backdrop: true,
+      }),
+    );
     this.gold.textContent = `${run.gold} G`;
     const status = el('p', this.status);
     status.setAttribute('role', 'status');

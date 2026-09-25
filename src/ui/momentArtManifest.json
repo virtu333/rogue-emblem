@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "generator": "tools/art/moments/treat.mjs",
+  "card": [192, 256],
+  "vignette": [640, 360],
+  "cards": {
+    "steady_hands": { "v": "edaaa696", "model": "gemini-3.1-flash-image" },
+    "coin_of_fate": { "v": "ad50526c", "model": "gemini-3.1-flash-image" },
+    "blessed_vigor": { "v": "3650c2ca", "model": "gemini-3.1-flash-image" },
+    "swift_instinct": { "v": "f11e6605", "model": "gemini-3.1-flash-image" },
+    "field_medic": { "v": "7fc60de6", "model": "gemini-3.1-flash-image" },
+    "iron_oath": { "v": "80fe432f", "model": "gemini-3.1-flash-image" },
+    "scout_blessing": { "v": "79547e6c", "model": "gemini-3.1-flash-image" },
+    "scholar_vow": { "v": "267b6ecc", "model": "gemini-3.1-flash-image" },
+    "rally_cry": { "v": "da7551b9", "model": "gemini-3.1-flash-image" },
+    "war_veteran": { "v": "6048f789", "model": "gemini-3.1-flash-image" },
+    "frugal_smith": { "v": "f47a24a0", "model": "gemini-3.1-flash-image" },
+    "arsenal_pact": { "v": "646a19b8", "model": "gemini-3.1-flash-image" },
+    "pilgrim_coin": { "v": "ca14902d", "model": "gemini-3.1-flash-image" },
+    "merchant_bane": { "v": "3075d3b1", "model": "gemini-3.1-flash-image" },
+    "nomad_pact": { "v": "bfaa1a34", "model": "gemini-3.1-flash-image" },
+    "terrain_mastery": { "v": "24a6eb3f", "model": "gemini-3.1-flash-image" },
+    "quartermaster_cache": { "v": "ede36737", "model": "gemini-3.1-flash-image" },
+    "forbidden_tome": { "v": "edd059a1", "model": "gemini-3.1-flash-image" },
+    "blood_forge": { "v": "ee12224a", "model": "gemini-3.1-flash-image" },
+    "war_tutelage": { "v": "6165bfda", "model": "gemini-3.1-flash-image" },
+    "armory_stash": { "v": "510c1a33", "model": "gemini-3.1-flash-image" },
+    "scroll_archive": { "v": "0c6b90c6", "model": "gemini-3.1-flash-image" },
+    "focused_curriculum": { "v": "152d8ab8", "model": "gemini-3.1-flash-image" }
+  },
+  "vignettes": {
+    "forge": { "v": "0c20490d", "model": "gemini-3.1-flash-image" },
+    "church": { "v": "1c3d5a04", "model": "gemini-3.1-flash-image" },
+    "shop": { "v": "023320b0", "model": "gemini-3.1-flash-image" },
+    "arena": { "v": "b53511e0", "model": "gemini-3.1-flash-image" },
+    "ruins": { "v": "1f1ba58c", "model": "gemini-3.1-flash-image" },
+    "caravan": { "v": "eafdbd77", "model": "gemini-3.1-flash-image" }
+  }
+}

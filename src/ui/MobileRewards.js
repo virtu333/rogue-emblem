@@ -25,6 +25,8 @@ import { forgeStatBlock } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
+import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
+import { itemIcon, itemHero } from './itemIcons.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -50,6 +52,8 @@ export class MobileRewards {
   constructor(scene, controller, choices, summary, skipGold) {
     Object.assign(this, { scene, controller, choices, summary, skipGold });
     this.selected = controller.record?.draft?.selected || 0;
+    // The spoils turn face up once per battle (the rolled record is already saved).
+    this.revealPending = rewardRevealPending(controller.record);
     this.steps = [];
     this.overlayScene = controller.host || scene;
     this.onShutdown = () => this.destroy();
@@ -226,7 +230,7 @@ export class MobileRewards {
       const top = node('span', null, 'ch-reward-top');
       const rarity = node('span', null, 'ch-rarity reward-quality');
       rarity.append(rewardIcon(presentation.category), rarityText(presentation));
-      top.append(itemArtSlot(c, presentation.category), rarity);
+      top.append(itemArtSlot(c, presentation.category, { count: all.length }), rarity);
       const lines = fadeScroll(node('span', null, 'ch-lines'));
       // The tooltip may open with the item's own name: the card already shows it.
       const text = String(describe(c) || '').split('\n');
@@ -317,6 +321,20 @@ export class MobileRewards {
     if (notes.childElementCount) this.root.append(notes);
     this.root.append(actions);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
+    if (this.revealPending) this.startReveal(row, all);
+  }
+  /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
+  startReveal(row, all) {
+    this.revealPending = false;
+    this.controller.record.revealed = true;
+    if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
+    const speed = this.overlayScene.registry?.get?.('settings')?.getBattleSpeed?.();
+    this.reveal = playRewardReveal(row, [...row.children], {
+      still: choiceReducedMotion(this.overlayScene) || speed === 'instant',
+      tiers: all.map((c) => rewardPresentation(c).tier),
+      // A card tap only selects: the tap that ends the reveal selects too.
+      passThrough: true,
+    });
   }
   draftKey(choice) {
     return typeof choice === 'string'
@@ -412,6 +430,12 @@ export class MobileRewards {
         row.classList.add('ch-recipient');
         row.append(face);
       }
+      // Weapon rows (forge / imbue targets) carry the weapon's socketed icon.
+      const subject = face ? null : step.icon?.(choice);
+      if (subject) {
+        row.classList.add('reward-step-item');
+        row.append(itemIcon(subject, { size: 32, className: 'reward-icon' }));
+      }
       row.append(
         node('strong', step.label(choice)),
         node('small', reason || step.describe?.(choice) || ''),
@@ -421,15 +445,22 @@ export class MobileRewards {
     const detail = node('section', null, 'mu-detail');
     const copy = node('div', null, 'mu-copy');
     const chosen = step.selected;
-    copy.append(
-      node('h2', chosen ? step.label(chosen) : 'No available choices'),
-      node(
-        'p',
-        chosen
-          ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
-          : 'Go back to choose another reward.',
-      ),
+    const title = node('h2', chosen ? step.label(chosen) : 'No available choices');
+    const line = node(
+      'p',
+      chosen
+        ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
+        : 'Go back to choose another reward.',
     );
+    const subject = chosen ? step.icon?.(chosen) : null;
+    if (subject) {
+      // The chosen weapon's picture beside its name.
+      const head = node('div', null, 'reward-hero');
+      const text = node('div', null, 'reward-hero-title');
+      text.append(title, line);
+      head.append(itemHero(subject, { size: 96 }), text);
+      copy.append(head);
+    } else copy.append(title, line);
     const status = node('p', message);
     status.setAttribute('role', 'status');
     copy.append(status);
@@ -504,6 +535,7 @@ export class MobileRewards {
       title: unit.name,
       choices: inventoryDisplayOrder(unit).filter((w) => rewardWeaponEligible(item, w)),
       label: (weapon) => `${weapon.name}${weapon === unit.weapon ? ' · Equipped' : ''}`,
+      icon: (weapon) => weapon,
       describe: (weapon) =>
         `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
       blocked: (weapon) =>
@@ -558,6 +590,7 @@ export class MobileRewards {
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this.reveal?.skip();
     this.child?.destroy();
     this.child = null;
     popInputScope(this);

@@ -1,0 +1,36 @@
+{
+  "note": "Curated picks: raw generation (References/items-art/moments/<kind>/<source>) per moment. crop = [left, top, right, bottom] fractions trimmed before the resize (drops stray borders).",
+  "cards": {
+    "steady_hands": { "source": "steady_hands-t2" },
+    "coin_of_fate": { "source": "coin_of_fate-t2" },
+    "blessed_vigor": { "source": "blessed_vigor-t2" },
+    "swift_instinct": { "source": "swift_instinct-t1" },
+    "field_medic": { "source": "field_medic-t2" },
+    "iron_oath": { "source": "iron_oath-t1" },
+    "scout_blessing": { "source": "scout_blessing-t1" },
+    "scholar_vow": { "source": "scholar_vow-t1" },
+    "rally_cry": { "source": "rally_cry-t3", "crop": [0.01, 0.01, 0.03, 0.03] },
+    "war_veteran": { "source": "war_veteran-t1" },
+    "frugal_smith": { "source": "frugal_smith-t1" },
+    "arsenal_pact": { "source": "arsenal_pact-t2" },
+    "pilgrim_coin": { "source": "pilgrim_coin-t1" },
+    "merchant_bane": { "source": "merchant_bane-t1" },
+    "nomad_pact": { "source": "nomad_pact-t1" },
+    "terrain_mastery": { "source": "terrain_mastery-t1" },
+    "quartermaster_cache": { "source": "quartermaster_cache-t2" },
+    "forbidden_tome": { "source": "forbidden_tome-t1" },
+    "blood_forge": { "source": "blood_forge-t1" },
+    "war_tutelage": { "source": "war_tutelage-t2" },
+    "armory_stash": { "source": "armory_stash-t2" },
+    "scroll_archive": { "source": "scroll_archive-t1" },
+    "focused_curriculum": { "source": "focused_curriculum-t1" }
+  },
+  "vignettes": {
+    "forge": { "source": "forge-t2" },
+    "church": { "source": "church-t4" },
+    "shop": { "source": "shop-t2" },
+    "arena": { "source": "arena-t2" },
+    "ruins": { "source": "ruins-t2" },
+    "caravan": { "source": "caravan-t2" }
+  }
+}

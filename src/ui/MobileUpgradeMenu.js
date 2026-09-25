@@ -2,6 +2,10 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
+import { itemIcon } from './itemIcons.js';
+import { prefersStill } from './itemMoments.js';
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const roman = (n) => ROMAN[n] || String(n);
 const categories = [
   ['recruit_stats', 'Recruits'],
   ['lord_bonuses', 'Lords'],
@@ -111,6 +115,7 @@ export class MobileUpgradeMenu {
     }
   }
   selectCategory(category) {
+    this.justBought = null;
     this.offsets.set(this.category, this.list.scrollTop);
     this.selections.set(this.category, this.selected);
     this.category = category;
@@ -162,6 +167,7 @@ export class MobileUpgradeMenu {
         hidden = level === 0 && m.isMilestoneLocked(item),
         maxed = m.isMaxed(item.id);
       const b = this.button('', () => {
+        if (this.selected !== item.id) this.justBought = null;
         this.selected = item.id;
         this.refundPending = false;
         this.status.textContent = '';
@@ -171,6 +177,7 @@ export class MobileUpgradeMenu {
       b.dataset.upgrade = item.id;
       b.dataset.focus = 'row-' + item.id;
       b.setAttribute('aria-pressed', String(item.id === this.selected));
+      b.append(this.upgradeIcon(item, { level, hidden, maxed, size: 32 }));
       b.append(node('strong', '', hidden ? '???' : item.name));
       b.append(
         node(
@@ -187,6 +194,8 @@ export class MobileUpgradeMenu {
       pips.setAttribute('aria-label', `Tier ${level} of ${item.maxLevel}`);
       for (let i = 0; i < item.maxLevel; i++) {
         const pip = node('i', i < level ? 'filled' : '');
+        // The purchase moment: the gem just bought ignites.
+        if (this.justBought?.id === item.id && i === level - 1) pip.classList.add('ignite');
         pip.setAttribute('aria-hidden', 'true');
         pips.append(pip);
       }
@@ -207,7 +216,17 @@ export class MobileUpgradeMenu {
       maxed = m.isMaxed(u.id),
       requirements = m.getPrerequisiteInfo(u.id);
     const copy = node('div', 'mu-copy');
-    copy.append(node('h2', '', hidden ? 'Unknown upgrade' : u.name));
+    const head = node('div', 'mu-head');
+    head.append(
+      this.upgradeIcon(u, { level, hidden, maxed, size: 64 }),
+      node('h2', '', hidden ? 'Unknown upgrade' : u.name),
+    );
+    if (this.justBought?.id === u.id && !hidden) {
+      const stamp = node('span', 'mu-stamp', `Tier ${roman(this.justBought.level)}`);
+      stamp.setAttribute('aria-hidden', 'true');
+      head.append(stamp);
+    }
+    copy.append(head);
     if (!hidden) {
       copy.append(node('p', '', u.description || this.scene._getActionDesc(u)));
       const values = this.scene._getValueTexts(u, level);
@@ -280,18 +299,33 @@ export class MobileUpgradeMenu {
     this.detail.append(copy, actions);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]`)?.focus({ preventScroll: true });
   }
+  /**
+   * The upgrade's icon; the rim shows progress (plain, bronze once bought, gilt at max).
+   * A locked upgrade shows only its silhouette.
+   */
+  upgradeIcon(u, { level, hidden, maxed, size }) {
+    const icon = itemIcon(u, { size, kind: 'upgrade' });
+    icon.dataset.rim = maxed ? 'Legend' : level > 0 ? 'fine' : 'plain';
+    if (hidden) icon.classList.add('is-locked');
+    if (this.justBought?.id === u.id) icon.classList.add('is-flare');
+    return icon;
+  }
   purchase(u) {
     if (!this.meta.purchaseUpgrade(u.id)) {
       this.status.textContent = 'Purchase unavailable.';
       this.render();
       return;
     }
+    // Stamp the new tier across the detail; the row's socket flares and its gem ignites.
+    this.justBought = { id: u.id, level: this.meta.getUpgradeLevel(u.id) };
+    this.root.classList.toggle('ia-still', prefersStill(this.scene));
     this.refundPending = false;
     this.scene.registry.get('audio')?.playSFX('sfx_confirm');
     this.render();
     this.status.textContent = `${u.name}: tier ${this.meta.getUpgradeLevel(u.id)} purchased.`;
   }
   refund(u) {
+    this.justBought = null;
     const r = this.meta.refundUpgrade(u.id);
     this.refundPending = false;
     this.render();

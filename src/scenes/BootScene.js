@@ -422,52 +422,8 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);
     }
 
-    // UI icons (37) - keyed as icon_{type}
-    const uiIcons = [
-      'sword',
-      'axe',
-      'lance',
-      'bow',
-      'tome',
-      'staff',
-      'potion',
-      'gold',
-      'scroll',
-      'light',
-      // Stat boosters
-      'energy_drop',
-      'spirit_dust',
-      'secret_book',
-      'speedwing',
-      'dracoshield',
-      'talisman',
-      'angelic_robe',
-      // Extra items
-      'whetstone',
-      'master_seal',
-      'elixir',
-      // Accessories
-      'power_ring',
-      'magic_ring',
-      'speed_ring',
-      'shield_ring',
-      'barrier_ring',
-      'skill_ring',
-      'goddess_icon',
-      'seraph_robe',
-      'boots',
-      'delphi_shield',
-      'veterans_crest',
-      'wrath_band',
-      'counter_seal',
-      'pursuit_ring',
-      'nullify_ring',
-      'life_ring',
-      'forest_charm',
-    ];
-    for (const name of uiIcons) {
-      this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);
-    }
+    // Item icons are DOM atlases (src/ui/itemIcons.js), loaded by the menus that show
+    // them; the 37 legacy `icon_*` textures were never drawn and are no longer loaded.
 
     // Combat effects (Combat v2): every effect in one palette-indexed atlas baked by
     // tools/art/combat-fx. Frames are `<key>/<i>` (+ `<key>~ink/<i>` ink layers); the
