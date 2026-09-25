@@ -121,5 +121,8 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    // Agent worktrees and local tooling live under .claude/; watching them
+    // exhausts the OS file-watcher limit and crashes the dev server.
+    watch: { ignored: ['**/.claude/**', '**/References/**'] },
   },
 });
