@@ -13,6 +13,19 @@
 //  - localStorage intact → only a strictly newer run/meta save (by its
 //    monotonic `savedAt`) replaces the local copy (a write WebKit lost). A key
 //    missing locally is never resurrected: it was deliberately removed.
+//  - A deletion WebKit lost (the run ended or the slot was deleted, the
+//    tombstone reached disk, but the process died before WebKit flushed the
+//    removal, so the old save is still in localStorage) is replayed: the
+//    tombstone records `deletedSavedAt`, the newest `savedAt` of the key the
+//    mirror had seen live, and a local value stamped at or before it is the
+//    deleted save (or older) and is removed before the game boots — otherwise
+//    the reconcile below would mirror the stale save back over the deletion
+//    and an ended run would be resumable again. A local value stamped after
+//    the deletion is a newer save (a run started after the deletion whose
+//    native write was lost) and is kept and mirrored. Without both stamps
+//    (a tombstone from before this field existed, or a key whose payload has
+//    no `savedAt`) order cannot be proven and the local value is kept — the
+//    error that loses nothing.
 //
 // Each key is double-buffered in two files (A/B) with a header carrying a
 // sequence number and the value length, so a write torn by a kill leaves the
@@ -43,10 +56,17 @@ export function shouldMirrorKey(key) {
 
 // --- Record encoding -------------------------------------------------------
 
-export function encodeRecord({ key, seq, value }) {
+/**
+ * A live record carries the payload's `savedAt`; a tombstone carries
+ * `deletedSavedAt`, the newest `savedAt` the mirror had seen live for the key
+ * (omitted when the key never had one — the header field is optional, so
+ * older tombstones decode with `deletedSavedAt: null`).
+ */
+export function encodeRecord({ key, seq, value, deletedSavedAt = null }) {
   const removed = value === null || value === undefined;
   const body = removed ? '' : String(value);
   const header = { key, seq, removed, length: body.length, savedAt: readSavedAt(body) };
+  if (removed && Number.isFinite(deletedSavedAt)) header.deletedSavedAt = deletedSavedAt;
   return `${RECORD_MAGIC} ${JSON.stringify(header)}\n${body}`;
 }
 
@@ -71,22 +91,27 @@ export function decodeRecord(text) {
     return null;
   const body = text.slice(newline + 1);
   if (body.length !== header.length) return null; // torn write
+  const removed = header.removed === true;
   return {
     key: header.key,
     seq: header.seq,
-    removed: header.removed === true,
-    value: header.removed === true ? null : body,
-    savedAt: Number.isFinite(header.savedAt) ? header.savedAt : null,
+    removed,
+    value: removed ? null : body,
+    savedAt: !removed && Number.isFinite(header.savedAt) ? header.savedAt : null,
+    deletedSavedAt:
+      removed && Number.isFinite(header.deletedSavedAt) ? header.deletedSavedAt : null,
   };
 }
 
 /** Monotonic save stamp of a run/meta payload (null when absent or not JSON). */
 export function readSavedAt(value) {
-  if (typeof value !== 'string' || !value.includes('"savedAt"')) return null;
+  if (typeof value !== 'string') return null;
   // Run and meta saves write savedAt as their last top-level key: read the
-  // tail instead of parsing a payload that can reach a megabyte.
+  // tail instead of scanning or parsing a payload that can reach a megabyte
+  // (this runs on every localStorage.setItem of a mirrored key).
   const tail = /"savedAt":(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\}\s*$/.exec(value.slice(-96));
   if (tail) return Number(tail[1]);
+  if (!value.includes('"savedAt"')) return null;
   try {
     const parsed = JSON.parse(value);
     return Number.isFinite(parsed?.savedAt) ? parsed.savedAt : null;
@@ -130,23 +155,57 @@ export function collectRecords(files) {
 }
 
 /**
- * Decide what the launch read-back restores into localStorage.
+ * Decide what the launch read-back restores into, and removes from, localStorage.
+ *
+ * Newest native record per key × local value:
+ *
+ *   live, local missing        → restore only when the store was evicted
+ *   live, local older savedAt  → restore (a write WebKit lost)
+ *   live, otherwise            → keep local
+ *   tombstone, local missing   → nothing (stays deleted, evicted or not)
+ *   tombstone, local savedAt <= deletedSavedAt → remove local: it is the
+ *                                deleted save or older (a deletion WebKit lost)
+ *   tombstone, local savedAt >  deletedSavedAt → keep local: a save made after
+ *                                the deletion whose native write was lost
+ *   tombstone, either stamp missing → keep local (order unprovable: a legacy
+ *                                tombstone without the field, or a key such as
+ *                                settings/flags whose payload has no savedAt)
+ *
+ * `savedAt` is monotonic per key while the key exists (each save takes
+ * max(now, previous + 1, cloud floor + 1)), which is what makes "stamped at or
+ * before the deleted save" mean "written before the deletion". After a
+ * deletion the chain restarts from the wall clock, so a device whose clock was
+ * set back (or a deleted save stamped ahead of it by a faster device's cloud
+ * floor) could stamp a new run at or below the tombstone; that run is only
+ * lost if its native write was also lost, and the alternative — keeping every
+ * stale save — reopens the ended run every time a deletion is lost.
+ *
  * @param {{ local: Map<string,string>, sentinelPresent: boolean, records: Map<string,object> }} input
- * @returns {{ evicted: boolean, restore: Array<[string,string]> }}
+ * @returns {{ evicted: boolean, restore: Array<[string,string]>, remove: string[] }}
  */
 export function planRestore({ local, sentinelPresent, records }) {
   const evicted = !sentinelPresent && records.size > 0;
   const restore = [];
+  const remove = [];
   for (const [key, record] of records) {
-    if (!shouldMirrorKey(key) || record.removed) continue;
+    if (!shouldMirrorKey(key)) continue;
     const current = local.get(key);
     if (current === undefined || current === null) {
       // Missing locally: restore only when the whole store was evicted.
-      if (evicted) restore.push([key, record.value]);
+      if (evicted && !record.removed) restore.push([key, record.value]);
+      continue;
+    }
+    const localStamp = readSavedAt(current);
+    if (record.removed) {
+      if (
+        Number.isFinite(record.deletedSavedAt) &&
+        Number.isFinite(localStamp) &&
+        localStamp <= record.deletedSavedAt
+      )
+        remove.push(key);
       continue;
     }
     if (current === record.value) continue;
-    const localStamp = readSavedAt(current);
     if (
       Number.isFinite(record.savedAt) &&
       Number.isFinite(localStamp) &&
@@ -154,7 +213,7 @@ export function planRestore({ local, sentinelPresent, records }) {
     )
       restore.push([key, record.value]);
   }
-  return { evicted, restore };
+  return { evicted, restore, remove };
 }
 
 // --- Native backend --------------------------------------------------------
@@ -249,6 +308,12 @@ export class NativeSaveMirror {
     // key → { seq: last issued, value: last issued, slot: buffer holding the
     //   newest complete record (never overwritten), pending: writes in flight }
     this.records = new Map();
+    // key → the newest `savedAt` seen live for the key: every value read back
+    // or mirrored, and every value written or removed through the hooks (also
+    // the ones a debounce coalesced away, which never reach disk). A tombstone
+    // carries it as `deletedSavedAt` so a later launch can tell the deleted
+    // save from one made after the deletion.
+    this.stamps = new Map();
     this.dirty = new Set();
     this.active = false;
     this.timer = null;
@@ -297,13 +362,30 @@ export class NativeSaveMirror {
         this.log('restore_write_failed', { key, error: error?.message || String(error) });
       }
     }
-    for (const [key, record] of records)
+    // Stale saves whose deletion WebKit lost: removed here, before reconcile
+    // snapshots `local`, so they are never mirrored back over the tombstone.
+    // One that cannot be removed is left out of reconcile for the same reason
+    // (the tombstone stands; the next launch removes it again).
+    const unremoved = new Set();
+    for (const key of plan.remove) {
+      try {
+        this.storage.removeItem(key);
+        local.delete(key);
+      } catch (error) {
+        unremoved.add(key);
+        this.log('restore_remove_failed', { key, error: error?.message || String(error) });
+      }
+    }
+    for (const [key, record] of records) {
       this.records.set(key, {
         seq: record.seq,
         value: record.value,
         slot: slots.get(key),
         pending: 0,
       });
+      this.noteStamp(key, record.removed ? record.deletedSavedAt : record.savedAt);
+    }
+    for (const [key, value] of local) this.noteStamp(key, readSavedAt(value));
     // The sentinel ends "evicted" mode. Keep that mode (so the next launch
     // restores again) while a mirrored save is still missing locally because
     // it could not be read or written back this time — with the sentinel set,
@@ -319,18 +401,21 @@ export class NativeSaveMirror {
     // Reconcile: mirror every local key that differs, tombstone every record
     // whose key is gone locally (a removal the mirror missed).
     for (const [key, value] of local) {
-      if (unrestored.has(key)) continue;
+      if (unrestored.has(key) || unremoved.has(key)) continue;
       if (shouldMirrorKey(key) && this.records.get(key)?.value !== value) this.dirty.add(key);
     }
     for (const [key, record] of this.records) {
       if (unrestored.has(key)) continue;
       if (!local.has(key) && record.value !== null) this.dirty.add(key);
     }
+    const removed = plan.remove.filter((key) => !unremoved.has(key));
     this.lastRestore = {
       evicted: plan.evicted,
       restored: plan.restore.map(([key]) => key).filter((key) => !unrestored.has(key)),
       records: records.size,
+      ...(removed.length ? { removed } : {}),
       ...(unrestored.size ? { unrestored: [...unrestored] } : {}),
+      ...(unremoved.size ? { unremoved: [...unremoved] } : {}),
       ...(incomplete ? { incomplete: true } : {}),
     };
     this.log('restore', this.lastRestore);
@@ -349,14 +434,35 @@ export class NativeSaveMirror {
     return keys;
   }
 
-  noteWrite(key) {
+  /** Remember `stamp` as the newest `savedAt` seen live for `key` (null: no-op). */
+  noteStamp(key, stamp) {
+    if (!Number.isFinite(stamp)) return;
+    const known = this.stamps.get(key);
+    if (known === undefined || stamp > known) this.stamps.set(key, stamp);
+  }
+
+  /** Newest live stamp of every mirrored key in localStorage (before a clear). */
+  noteLocalStamps() {
+    for (const key of this.localKeys()) {
+      try {
+        this.noteStamp(key, readSavedAt(this.storage.getItem(key)));
+      } catch {
+        /* unreadable: nothing to remember */
+      }
+    }
+  }
+
+  noteWrite(key, value) {
     if (!this.active || !shouldMirrorKey(key)) return;
+    if (value !== null && value !== undefined) this.noteStamp(key, readSavedAt(String(value)));
     this.dirty.add(key);
     this.schedule(WRITE_DEBOUNCE_MS);
   }
 
-  noteRemove(key) {
+  /** `previous` is the value the key held before removal (its stamp dates the deletion). */
+  noteRemove(key, previous = null) {
     if (!this.active || !shouldMirrorKey(key)) return;
+    if (typeof previous === 'string') this.noteStamp(key, readSavedAt(previous));
     this.dirty.add(key);
     // A deletion (ended run, deleted slot) must not linger as a live copy.
     this.schedule(0);
@@ -404,7 +510,12 @@ export class NativeSaveMirror {
       }
       const previous = this.records.get(key);
       if (previous && previous.value === value) continue;
-      if (!previous && value === null) continue;
+      // A key that never reached disk needs no tombstone — unless a stamped
+      // save of it was seen (written, then removed within one debounce): its
+      // tombstone is what lets a launch remove that save if WebKit kept it.
+      if (!previous && value === null && !this.stamps.has(key)) continue;
+      if (value !== null) this.noteStamp(key, readSavedAt(value));
+      const deletedSavedAt = value === null ? (this.stamps.get(key) ?? null) : null;
       const entry = previous || { seq: 0, value: undefined, slot: null, pending: 0 };
       const [a, b] = recordFileNames(key);
       // writeFile is not atomic (a kill or a full disk can tear the file), so
@@ -437,7 +548,9 @@ export class NativeSaveMirror {
       // suspended right after a lifecycle flush cannot hold it back.
       try {
         writes.push(
-          Promise.resolve(this.backend.write(target, encodeRecord({ key, seq, value }))).then(
+          Promise.resolve(
+            this.backend.write(target, encodeRecord({ key, seq, value, deletedSavedAt })),
+          ).then(
             () => settle(true),
             (error) => settle(false, error),
           ),
@@ -456,17 +569,30 @@ export class NativeSaveMirror {
     const originalSet = proto.setItem;
     const originalRemove = proto.removeItem;
     const originalClear = proto.clear;
+    // The value a key holds before its removal dates the deletion (its
+    // `savedAt` becomes the tombstone's `deletedSavedAt`), so it is read
+    // before the original call; a failing original call notes nothing.
+    const previousValue = (storage, key) => {
+      if (storage !== target || !mirror.active || !shouldMirrorKey(key)) return null;
+      try {
+        return storage.getItem(key);
+      } catch {
+        return null;
+      }
+    };
     proto.setItem = function setItem(key, value) {
       const result = originalSet.call(this, key, value);
-      if (this === target) mirror.noteWrite(String(key));
+      if (this === target) mirror.noteWrite(String(key), value);
       return result;
     };
     proto.removeItem = function removeItem(key) {
+      const previous = previousValue(this, String(key));
       const result = originalRemove.call(this, key);
-      if (this === target) mirror.noteRemove(String(key));
+      if (this === target) mirror.noteRemove(String(key), previous);
       return result;
     };
     proto.clear = function clear() {
+      if (this === target && mirror.active) mirror.noteLocalStamps();
       const result = originalClear.call(this);
       if (this === target) mirror.noteClear();
       return result;
