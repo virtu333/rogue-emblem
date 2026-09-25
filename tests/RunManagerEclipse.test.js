@@ -184,7 +184,14 @@ describe('RunManager · the dark takes the map', () => {
         caravanChanceBonus: 0,
       }),
     );
-    expect(JSON.stringify(rm.nodeMap)).toBe(JSON.stringify(direct));
+    // Recruit previews are added after generation on their own seeded stream
+    // (RecruitNodeSystem); everything the generator produced is unchanged.
+    const withoutPreviews = structuredClone(rm.nodeMap);
+    for (const node of withoutPreviews.nodes) delete node.recruitPreview;
+    expect(JSON.stringify(withoutPreviews)).toBe(JSON.stringify(direct));
+    expect(
+      rm.nodeMap.nodes.filter((n) => n.type === 'recruit').every((n) => n.recruitPreview),
+    ).toBe(true);
   });
 });
 

@@ -328,19 +328,52 @@
     },
     {
       "id": "forbidden_tome",
-      "lore": "Crypt shelf, top row, chained. Read it fast, the priest says, and never twice.",
+      "lore": "Chained on the crypt's top shelf. It teaches the blood of lords and bleeds the rest.",
       "name": "Forbidden Tome",
       "tier": 4,
-      "description": "All growth rates increase by 15 percentage points for this run.",
+      "description": "Your lords' growth rates +12 for this run.",
       "weight": 0.2,
       "boons": [
         {
-          "type": "all_growths_delta",
+          "type": "targeted_growths_delta",
           "params": {
-            "value": 15
+            "stats": [
+              "HP",
+              "STR",
+              "MAG",
+              "SKL",
+              "SPD",
+              "DEF",
+              "RES",
+              "LCK"
+            ],
+            "value": 12,
+            "scope": "lords"
           }
         }
       ],
+      "pact": {
+        "label": "Recruits' growth rates -10, all run",
+        "effects": [
+          {
+            "type": "targeted_growths_delta",
+            "params": {
+              "stats": [
+                "HP",
+                "STR",
+                "MAG",
+                "SKL",
+                "SPD",
+                "DEF",
+                "RES",
+                "LCK"
+              ],
+              "value": -10,
+              "scope": "recruits"
+            }
+          }
+        ]
+      },
       "costs": []
     },
     {
@@ -397,19 +430,31 @@
     },
     {
       "id": "scroll_archive",
-      "lore": "The seer order copied each art twice and hid the spare where the empire won't dig.",
+      "lore": "The seers inked every art in the reader's blood. Open one and the ink wants more.",
       "name": "Scroll Archive",
       "tier": 4,
-      "description": "Immediately gain 2 random weapon-art scrolls.",
+      "description": "Gain 2 weapon-art scrolls, drawn from arts that open by Act II.",
       "weight": 0.2,
       "boons": [
         {
           "type": "starting_scroll",
           "params": {
-            "count": 2
+            "count": 2,
+            "maxUnlockAct": "act2"
           }
         }
       ],
+      "pact": {
+        "label": "Every weapon art costs +2 HP, all run",
+        "effects": [
+          {
+            "type": "weapon_art_hp_cost_delta",
+            "params": {
+              "value": 2
+            }
+          }
+        ]
+      },
       "costs": []
     },
     {
@@ -601,7 +646,7 @@
         ]
       },
       {
-        "label": "Deforge lord weapons by 1",
+        "label": "Lords' forged weapons lose one forge (never below +0)",
         "effects": [
           {
             "type": "starting_weapon_forge_delta",
