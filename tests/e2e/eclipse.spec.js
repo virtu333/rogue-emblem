@@ -144,12 +144,23 @@ for (const vp of VIEWPORTS) {
         )
         .toBe('Shadow +5');
     }
-    // The turn label keeps its parsed format and carries no silent-decay line.
+    // The turn label keeps its parsed format; two over par is still inside the grace.
     const label = await page.evaluate(
       () => window.__emblemRogueGame.scene.getScene('Battle').turnCounterText.text,
     );
     expect(label).toMatch(/^Turn: \d+ \/ Par: \d+ \([SABC]\)/);
     expect(label).not.toMatch(/Pressure/);
+    // Past the grace, late pressure (XP/gold decay) runs alongside the Eclipse.
+    const late = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      s.turnManager.turnNumber = s.turnPar + 3;
+      s.renderTurnCounter(s.turnPar + 3);
+      return { label: s.turnCounterText.text, shadow: s._eclipseHud.label() };
+    });
+    expect(late.label).toMatch(
+      /^Turn: \d+ \/ Par: \d+ \([SABC]\) \| Pressure: XP x0\.70 Gold x0\.80/,
+    );
+    expect(late.shadow).toMatch(/^Shadow \+\d+/);
     expect(errors).toEqual([]);
   });
 }

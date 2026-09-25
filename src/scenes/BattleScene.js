@@ -42,7 +42,7 @@ import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
-import { EclipseHudController, isEclipseClock } from '../ui/EclipseHudController.js';
+import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -1926,9 +1926,7 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerover', () => {
         if (this.turnPar == null || !this.turnBonusConfig) return;
         const turn = this.getCurrentTurnNumber();
-        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig, {
-          eclipseActive: isEclipseClock(this),
-        });
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
         if (!text) return;
         this.parTooltipText.setText(text);
         const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
@@ -3155,10 +3153,8 @@ export class BattleScene extends Phaser.Scene {
 
   getTurnPressureState(turnOverride = null) {
     const turn = this.getCurrentTurnNumber(turnOverride);
-    // The Eclipse replaces the hidden clock: no silent XP/gold decay while it runs.
-    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig, {
-      eclipseActive: isEclipseClock(this),
-    });
+    // Late pressure (XP/gold decay past par) applies alongside the Eclipse.
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
   }
 
   formatPressureMultiplier(value) {
