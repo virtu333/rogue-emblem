@@ -36,7 +36,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
   create() {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.homeBase, this);
+    if (audio) audio.playMusic(MUSIC.shrine, this);
 
     this._onKeyUp = () => this._navigate(-1);
     this._onKeyDown = () => this._navigate(1);

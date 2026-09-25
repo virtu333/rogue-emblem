@@ -217,10 +217,20 @@ export function sealedBeats(content) {
 // ── Level-up ────────────────────────────────────────────────────────────
 
 /**
+ * How a level-up reads: 'perfect' (every stat grew), 'blank' (one stat or
+ * none — the engine's floor), or 'normal'. The card and its music share it.
+ */
+export function levelUpKind(result) {
+  const gains = XP_STAT_NAMES.map((stat) => Math.max(0, Number(result?.gains?.[stat]) || 0));
+  const total = gains.reduce((sum, g) => sum + g, 0);
+  if (gains.every((g) => g > 0)) return 'perfect';
+  if (!result?.isExtended && total <= 1) return 'blank';
+  return 'normal';
+}
+
+/**
  * Rows and the beat for one level-up result (XP already applied; the
- * display stats reconstruct the intermediate values).
- * kind: 'perfect' (every stat grew), 'blank' (one stat or none — the
- * engine's floor), 'normal'.
+ * display stats reconstruct the intermediate values). kind: see levelUpKind.
  */
 export function levelUpContent(unit, result, learnedNames = [], voice = null) {
   const stats = result?.displayStats || unit?.stats || {};
@@ -230,11 +240,8 @@ export function levelUpContent(unit, result, learnedNames = [], voice = null) {
     return { stat, gain, before: after - gain, after };
   });
   const total = rows.reduce((sum, r) => sum + r.gain, 0);
-  const grew = rows.filter((r) => r.gain > 0).length;
   const extended = Boolean(result?.isExtended);
-  let kind = 'normal';
-  if (grew === rows.length) kind = 'perfect';
-  else if (!extended && total <= 1) kind = 'blank';
+  const kind = levelUpKind(result);
   const newLevel = extended ? `20+${result.extendedLevel}` : String(result?.newLevel ?? '');
   const oldLevel = extended
     ? result.extendedLevel - 1 > 0

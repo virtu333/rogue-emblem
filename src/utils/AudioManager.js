@@ -1,5 +1,18 @@
 // AudioManager - lightweight wrapper around Phaser's sound manager.
 
+import { LoopedMusic } from './LoopedMusic.js';
+import { STINGER_PRELOAD, getMusicLayers, getMusicLoop } from './musicConfig.js';
+import { MUSIC_STINGERS } from './musicStingers.js';
+import { STINGER_FADE_MS, StingerPlayer } from './StingerPlayer.js';
+
+function isDecodedAudioBuffer(buffer) {
+  return Boolean(
+    buffer && typeof buffer.getChannelData === 'function' && Number.isFinite(buffer.duration),
+  );
+}
+
+const MUSIC_INTENSITIES = ['calm', 'full', 'enrage'];
+
 export class AudioManager {
   constructor(soundManager, options = {}) {
     this.sound = soundManager;
@@ -13,10 +26,25 @@ export class AudioManager {
     this._musicRequestSeq = 0;
     this._musicCacheLru = [];
     this.maxCachedMusicTracks = this._toPositiveInt(options.maxCachedMusicTracks, 4);
+    // Decoded PCM is what costs memory (a 90 s stereo track is ~35 MB), so the
+    // cache also answers to a byte budget. 0 disables it.
+    this.maxCachedMusicBytes =
+      this._toPositiveInt(options.maxCachedMusicMegabytes, 0) * 1024 * 1024;
     this.musicLoadTimeoutMs = this._toPositiveInt(options.musicLoadTimeoutMs, 7000);
     this.mobileMusicLoadTimeoutMs = this._toPositiveInt(options.mobileMusicLoadTimeoutMs, 12000);
     this.isMobile = Boolean(options.isMobile);
     this._trackedMusicSounds = new Set();
+    // Adaptive tracks: which layer ('calm' | 'full') new and current music plays.
+    this.musicIntensity = 'full';
+    this.currentMusicLayerKeys = [];
+    // One-shot cues (level up, promotion, boss cards) in the current track's key.
+    this.stingers = new StingerPlayer({
+      getContext: () => (this._canUseLoopedMusic() ? this.sound.context : null),
+      getDestination: () => this.sound?.destination || this.sound?.context?.destination || null,
+      loadBuffer: (key) => this._fetchAndDecodeStinger(key),
+      maxCached: this._toPositiveInt(options.maxCachedStingers, 10),
+    });
+    this._stingerSeq = 0;
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -24,8 +52,11 @@ export class AudioManager {
     return linear * linear;
   }
 
-  /** Play looping background music with optional fade-in. */
-  async playMusic(key, ownerOrScene, fadeMs = 500) {
+  /**
+   * Play looping background music with optional fade-in. `layers` adds layers
+   * beyond the track's own (a boss's enrage layer: { enrage: key }).
+   */
+  async playMusic(key, ownerOrScene, fadeMs = 500, { layers = null } = {}) {
     try {
       if (!key) return;
       const owner = this._resolveOwnerToken(ownerOrScene);
@@ -75,6 +106,16 @@ export class AudioManager {
           return;
         }
       }
+      // Adaptive tracks also need their other layers; a layer that fails to
+      // load just leaves the track single-layered.
+      const layerKeys = this._layerKeysFor(key, layers);
+      if (layerKeys.length > 0 && this._canUseLoopedMusic()) {
+        await Promise.allSettled(
+          layerKeys
+            .filter((k) => !this.sound.game.cache.audio.has(k))
+            .map((k) => this._ensureMusicLoaded(k, scene)),
+        );
+      }
 
       // A newer request started while this one was loading.
       if (requestSeq !== this._musicRequestSeq) return;
@@ -93,14 +134,17 @@ export class AudioManager {
         audioCtx.resume?.().catch(() => {});
       }
 
-      this.currentMusic = this.sound.add(key, {
-        loop: true,
-        volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume),
-      });
+      this.currentMusic = this._createMusicSound(
+        key,
+        fadeMs > 0 ? 0 : this._curve(this.musicVolume),
+        layers,
+      );
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
       this.currentMusic.play();
+      // The common ceremony cues, decoded ahead in this track's key.
+      this.preloadStingers(STINGER_PRELOAD);
 
       if (fadeMs > 0 && scene?.tweens) {
         this._tweenSoundVolume(scene, this.currentMusic, 0, 1, fadeMs);
@@ -109,6 +153,191 @@ export class AudioManager {
       // Never surface async audio errors to scene callers (fire-and-forget usage).
       if (this.debugMusic) console.warn('[AudioManager] playMusic failed:', key, err);
     }
+  }
+
+  // --- Seamless loops and adaptive layers ---
+
+  _canUseLoopedMusic() {
+    const ctx = this.sound?.context;
+    return Boolean(
+      ctx && typeof ctx.createBufferSource === 'function' && typeof ctx.createGain === 'function',
+    );
+  }
+
+  /** Layer name -> key for a track: its own adaptive layers plus any requested extras. */
+  _layerMapFor(key, extra = null) {
+    const own = getMusicLayers(key);
+    const more = extra && typeof extra === 'object' ? extra : null;
+    if (!own && !more) return null;
+    return { ...(own || {}), ...(more || {}), full: key };
+  }
+
+  _layerKeysFor(key, extra = null) {
+    const layers = this._layerMapFor(key, extra);
+    if (!layers) return [];
+    return Object.entries(layers)
+      .filter(([name]) => name !== 'full')
+      .map(([, layerKey]) => layerKey);
+  }
+
+  /**
+   * A Web Audio voice with the track's intro + seamless loop region (and its
+   * adaptive layers) when the decoded buffer and loop points are available;
+   * otherwise a plain Phaser looping sound.
+   */
+  _createMusicSound(key, volume, extraLayers = null) {
+    const cache = this.sound.game.cache.audio;
+    const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
+    const loop = getMusicLoop(key);
+    const layerMap = this._layerMapFor(key, extraLayers);
+    this.currentMusicLayerKeys = [];
+    if (this._canUseLoopedMusic() && isDecodedAudioBuffer(buffer) && (loop || layerMap)) {
+      const layers = { full: buffer };
+      const loops = { full: loop };
+      for (const [name, layerKey] of Object.entries(layerMap || {})) {
+        if (name === 'full') continue;
+        const layerBuffer = cache.get(layerKey);
+        if (!isDecodedAudioBuffer(layerBuffer)) continue;
+        layers[name] = layerBuffer;
+        loops[name] = getMusicLoop(layerKey);
+        this.currentMusicLayerKeys.push(layerKey);
+        this._touchMusicCacheKey(layerKey);
+      }
+      try {
+        return new LoopedMusic({
+          context: this.sound.context,
+          destination: this.sound.destination || this.sound.context.destination,
+          key,
+          layers,
+          loops,
+          layer: layers[this.musicIntensity] ? this.musicIntensity : 'full',
+          volume,
+        });
+      } catch (err) {
+        if (this.debugMusic) console.warn('[AudioManager] looped music failed:', key, err);
+        this.currentMusicLayerKeys = [];
+      }
+    }
+    return this.sound.add(key, { loop: true, volume });
+  }
+
+  /**
+   * Choose the layer of layered music: 'calm' (map, no fighting), 'full'
+   * (combat) or 'enrage' (a boss's enrage layer). Applies to the current track
+   * with a crossfade, and to the next layered track that starts; a track
+   * without that layer plays its full mix.
+   */
+  setMusicIntensity(level, fadeMs = 1500) {
+    this.musicIntensity = MUSIC_INTENSITIES.includes(level) ? level : 'full';
+    const music = this.currentMusic;
+    if (music && typeof music.setLayer === 'function' && music.hasLayer?.(this.musicIntensity)) {
+      music.setLayer(this.musicIntensity, fadeMs);
+    }
+    return this.musicIntensity;
+  }
+
+  getMusicIntensity() {
+    return this.musicIntensity;
+  }
+
+  // --- Stingers: one-shot cues in the key of the music under them ---
+
+  /** File key of stinger `name` in `tonic` (default: the current track's key). */
+  stingerKeyFor(name, tonic = null) {
+    const entry = MUSIC_STINGERS[name];
+    if (!entry) return null;
+    if (!entry.keyed) return `stinger_${name}`;
+    const want = tonic || getMusicLoop(this.currentMusicKey)?.tonic || 'D';
+    const pick = entry.tonics.includes(want)
+      ? want
+      : entry.tonics.includes('D')
+        ? 'D'
+        : entry.tonics[0];
+    return pick ? `stinger_${name}_${pick}` : null;
+  }
+
+  /** Decode stingers ahead of use (fire-and-forget). */
+  preloadStingers(names, tonic = null) {
+    if (!this._canUseLoopedMusic()) return;
+    for (const name of names || []) {
+      const key = this.stingerKeyFor(name, tonic);
+      if (key && !this.stingers.has(key)) this.stingers.load(key).catch(() => {});
+    }
+  }
+
+  /**
+   * Play stinger `name` at the music volume, ducking the current track under
+   * it until its notes end. When it can't sound (no Web Audio, music muted,
+   * not decoded within `waitMs`), `fallbackSfx` plays instead so a ceremony
+   * never goes silent. Resolves to the voice (stop(fadeMs)) or null.
+   */
+  async playStinger(
+    name,
+    { volume = 1, duck = 0.35, fallbackSfx = null, tonic = null, waitMs = 0 } = {},
+  ) {
+    const seq = ++this._stingerSeq;
+    const entry = MUSIC_STINGERS[name];
+    const key = this.stingerKeyFor(name, tonic);
+    const gain = this._curve(this.musicVolume) * volume;
+    const fallback = () => {
+      if (fallbackSfx) this.playSFX(fallbackSfx);
+      return null;
+    };
+    if (!entry || !key || !(gain > 0) || !this._canUseLoopedMusic()) return fallback();
+    if (!this.stingers.has(key)) {
+      const loaded = this.stingers.load(key).catch(() => null);
+      if (!(waitMs > 0)) return fallback();
+      const buffer = await Promise.race([
+        loaded,
+        new Promise((resolve) => setTimeout(() => resolve(null), waitMs)),
+      ]);
+      // stopStingers() or a newer cue came first: stay silent
+      if (seq !== this._stingerSeq) return null;
+      if (!buffer) return fallback();
+    }
+    const voice = this.stingers.play(key, { volume: gain });
+    if (!voice) return fallback();
+    if (duck < 1) {
+      this.duckMusic(duck, { hold: Math.max(0, (entry.notesEnd || 0) - 0.1), release: 0.9 });
+    }
+    return voice;
+  }
+
+  /** Fade out every stinger (a skipped ceremony) and bring the music back up. */
+  stopStingers(fadeMs = STINGER_FADE_MS) {
+    this._stingerSeq++;
+    const wasPlaying = this.stingers.playing;
+    this.stingers.stopAll(fadeMs);
+    if (wasPlaying) this.currentMusic?.unduck?.(0.35);
+  }
+
+  /** Lower the current track (e.g. under a ceremony); see LoopedMusic.duck. */
+  duckMusic(level, opts) {
+    return Boolean(this.currentMusic?.duck?.(level, opts));
+  }
+
+  _getStingerSources(key) {
+    return [`assets/audio/stingers/${key}.mp3`];
+  }
+
+  async _fetchAndDecodeStinger(key) {
+    const context = this.sound?.context;
+    if (!context || typeof fetch !== 'function') throw new Error('no-audio-context');
+    let lastErr = null;
+    for (const src of this._getStingerSources(key)) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeout = setTimeout(() => controller?.abort(), this.musicLoadTimeoutMs);
+      try {
+        const response = await fetch(src, { signal: controller?.signal });
+        if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
+        return await this._decodeAudioData(context, await response.arrayBuffer());
+      } catch (err) {
+        lastErr = err;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    throw lastErr || new Error(`stinger-load-failed:${key}`);
   }
 
   _getMusicSources(key) {
@@ -311,6 +540,7 @@ export class AudioManager {
     this.currentMusic = null;
     this.currentMusicKey = null;
     this.currentMusicOwner = null;
+    this.currentMusicLayerKeys = [];
   }
 
   /** Return active looping music keys for diagnostics. */
@@ -389,15 +619,37 @@ export class AudioManager {
   _enforceMusicCacheBudget({ preserveKeys = [] } = {}) {
     const max = this.maxCachedMusicTracks;
     if (!Number.isFinite(max) || max <= 0) return;
-    if (this._musicCacheLru.length <= max) return;
+    const maxBytes = this.maxCachedMusicBytes;
+    const over = () =>
+      this._musicCacheLru.length > max || (maxBytes > 0 && this._cachedMusicBytes() > maxBytes);
+    if (!over()) return;
     const preserve = new Set(
-      [...preserveKeys, this.currentMusicKey, ...this.loadingMusic.keys()].filter(Boolean),
+      [
+        ...preserveKeys,
+        this.currentMusicKey,
+        ...(this.currentMusicLayerKeys || []),
+        ...this.loadingMusic.keys(),
+      ].filter(Boolean),
     );
-    while (this._musicCacheLru.length > max) {
+    while (over()) {
       const victim = this._musicCacheLru.find((key) => !preserve.has(key));
       if (!victim) break;
       if (!this._evictCachedMusic(victim)) break;
     }
+  }
+
+  /** Decoded bytes held by cached music tracks (PCM float32; 0 for non-Web-Audio entries). */
+  _cachedMusicBytes() {
+    const cache = this.sound?.game?.cache?.audio;
+    if (!cache || typeof cache.get !== 'function') return 0;
+    let total = 0;
+    for (const key of this._musicCacheLru) {
+      const buffer = cache.get(key);
+      if (isDecodedAudioBuffer(buffer)) {
+        total += (Number(buffer.length) || 0) * (Number(buffer.numberOfChannels) || 1) * 4;
+      }
+    }
+    return total;
   }
 
   _evictCachedMusic(key) {
@@ -405,6 +657,7 @@ export class AudioManager {
     if (!cache || typeof cache.remove !== 'function') return false;
     if (!this._isMusicKey(key)) return false;
     if (key === this.currentMusicKey) return false;
+    if ((this.currentMusicLayerKeys || []).includes(key)) return false;
     if (this._hasLiveSoundForKey(key)) return false;
     try {
       cache.remove(key);
@@ -444,6 +697,7 @@ export class AudioManager {
     this.currentMusic = null;
     this.currentMusicKey = null;
     this.currentMusicOwner = null;
+    this.currentMusicLayerKeys = [];
     if (!music) return;
 
     if (fadeMs > 0 && scene?.tweens) {
