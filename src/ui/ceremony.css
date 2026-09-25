@@ -153,8 +153,17 @@
 
 /* ─────────────────────────────────────────────── Boss encounter */
 .ce-boss-layer {
-  --ce-bust: min(calc(190px * var(--ce-scale)), calc(var(--ce-w) * 0.36));
   --ce-band-h: calc(128px * var(--ce-scale));
+  --ce-bust: min(calc(190px * var(--ce-scale)), var(--ce-bust-cap));
+}
+/* One bust rule for every band card with a portrait: the figure stands on the
+   band's bottom edge and breaks out above it (the band stays the frame), never
+   wider than 36% of the band and never taller than the room above the band. */
+.ce-layer {
+  --ce-bust-cap: min(
+    calc(var(--ce-band-w, var(--ce-w, 640px)) * 0.36),
+    calc(var(--ce-band-h, 128px) + (var(--ce-h, 480px) - var(--ce-band-h, 128px)) / 2 - 10px)
+  );
 }
 .ce-boss-layer .ce-dim {
   -webkit-backdrop-filter: saturate(0.5);
@@ -166,8 +175,8 @@
 }
 .ce-boss-band {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--ce-band-l, 0px);
+  right: var(--ce-band-r, 0px);
   top: calc(50% - var(--ce-band-h) / 2);
   height: var(--ce-band-h);
   background: linear-gradient(
@@ -342,8 +351,8 @@
 /* ─────────────────────────────────────────────── Fate bands */
 .ce-band {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--ce-band-l, 0px);
+  right: var(--ce-band-r, 0px);
   top: calc(40% - 52px * var(--ce-scale));
   min-height: calc(104px * var(--ce-scale));
   padding: calc(10px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
@@ -520,8 +529,10 @@
 /* ─────────────────────────────────────────────── Phase banner */
 .ce-phase {
   position: absolute;
-  left: 0;
-  right: 0;
+  /* One band rule for every band card: span the battlefield, not the letterbox
+     (ceremonyDom.js bandSpan sets these for map frames). */
+  left: var(--ce-band-l, 0px);
+  right: var(--ce-band-r, 0px);
   top: calc(50% - 30px * var(--ce-scale));
   padding: calc(6px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
     calc(7px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));
@@ -888,162 +899,7 @@
   animation: ce-late 420ms 700ms ease-out both;
 }
 
-/* ─────────────────────────────────────────────── Boss bar */
-.ce-bossbar-layer {
-  --ce-bar-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-}
-/* Desktop draws its command row inside the canvas; dock above it. */
-.ce-bossbar-layer--desktop {
-  --ce-bar-bottom: calc(76px * var(--ce-scale));
-}
-.ce-bossbar {
-  position: absolute;
-  left: 50%;
-  bottom: var(--ce-bar-bottom);
-  transform: translateX(-50%);
-  width: min(calc(460px * var(--ce-scale)), calc(100% - 44px));
-  transition: opacity 240ms ease;
-}
-.ce-bossbar[hidden] {
-  display: none;
-}
-.ce-bossbar.is-entering {
-  animation: ce-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.ce-bossbar.is-suppressed {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 160ms ease,
-    visibility 0s 160ms;
-}
-.ce-bossbar.is-leaving {
-  opacity: 0;
-  transition: opacity 900ms ease-in;
-}
-.ce-bossbar.is-static,
-.ce-bossbar.is-static * {
-  transition: none !important;
-}
-.ce-bossbar-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 3px;
-  text-shadow:
-    0 1px 0 var(--ce-ink-0),
-    0 0 6px var(--ce-ink-0);
-}
-.ce-bossbar-name {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font: 700 calc(14px * var(--ce-scale)) / 1.2 var(--re-display);
-  letter-spacing: 0.1em;
-  font-variant: small-caps;
-  color: var(--ce-ivory);
-}
-.ce-bossbar-hp {
-  flex: none;
-  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
-  color: var(--ce-bone);
-}
-.ce-bossbar-track {
-  position: relative;
-  height: calc(7px * var(--ce-scale));
-  background: var(--ce-ink-1);
-  border: 1px solid var(--ce-ink-0);
-  box-shadow:
-    0 0 0 1px var(--ce-gold-3),
-    0 2px 10px rgba(0, 0, 0, 0.7);
-}
-.ce-bossbar-track::before,
-.ce-bossbar-track::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 5px;
-  height: 5px;
-  background: var(--ce-gold-5);
-  transform: translateY(-50%) rotate(45deg);
-  box-shadow: 0 0 0 1px var(--ce-ink-0);
-}
-.ce-bossbar-track::before {
-  left: -5px;
-}
-.ce-bossbar-track::after {
-  right: -5px;
-}
-.ce-bossbar-lost {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--ce-gold-5);
-  opacity: 0.6;
-  transition: width 650ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.ce-bossbar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: linear-gradient(
-    180deg,
-    var(--ce-blood-5) 0 1px,
-    var(--ce-blood-4) 1px 3px,
-    var(--ce-blood-3) 3px
-  );
-  transition:
-    width 120ms ease-out,
-    background 400ms ease;
-}
-.ce-bossbar.is-ember .ce-bossbar-fill {
-  background: linear-gradient(
-    180deg,
-    var(--ce-ember-hi) 0 1px,
-    var(--ce-ember) 1px 3px,
-    var(--ce-ember-lo) 3px
-  );
-  box-shadow: 0 0 10px rgba(232, 120, 46, 0.8);
-}
-.ce-bossbar.is-unlight .ce-bossbar-fill {
-  background: linear-gradient(
-    180deg,
-    var(--ce-unlight-5) 0 1px,
-    var(--ce-unlight-4) 1px 3px,
-    var(--ce-unlight-3) 3px
-  );
-}
-.ce-bossbar.is-unlight .ce-bossbar-name {
-  color: var(--ce-unlight-5);
-  letter-spacing: 0.3em;
-}
-.ce-bossbar-status {
-  margin-top: 4px;
-  font: var(--ce-pf-7, calc(7px * var(--ce-scale))) / 1.2 var(--re-pixel);
-  letter-spacing: 1px;
-  color: var(--ce-gold-4);
-  text-align: right;
-  text-transform: uppercase;
-  text-shadow: 0 1px 0 var(--ce-ink-0);
-}
-.ce-bossbar.is-ember .ce-bossbar-status {
-  color: var(--ce-ember-text);
-}
-.ce-bossbar-status[hidden] {
-  display: none;
-}
-/* Menus, forecasts, sheets and story dialogue need the space. */
-#game-wrapper:has(
-    > .re-screen:not([hidden]),
-    > .re-modal-shield,
-    > .mb-forecast-backdrop:not([hidden]),
-    > .mp-backdrop:not([hidden]),
-    > .mr-sheet,
-    > .mu-screen
-  )
-  > .ce-bossbar-layer {
-  visibility: hidden;
-}
+/* Boss bar: now a world-space bar on the boss unit (BossPresenceController). */
 
 /* ─────────────────────────────────────────────── Battle notices */
 /* A slim band high over the map: the fact in the body face (it is read),
@@ -1180,12 +1036,13 @@
     opacity: 0;
   }
 }
+/* Wipes clip horizontally only: a bust may break out above its band. */
 @keyframes ce-wipe {
   from {
-    clip-path: inset(0 100% 0 0);
+    clip-path: inset(-100vh 100% -100vh 0);
   }
   to {
-    clip-path: inset(0 0 0 0);
+    clip-path: inset(-100vh 0 -100vh 0);
   }
 }
 @keyframes ce-bust-in {

@@ -64,6 +64,9 @@ export class TitleScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    // The tutorial's "Start first run" lands here and continues into New Game, so
+    // slot staging and the first-run fast path live in one place (handleNewGame).
+    this._autoAction = data?.autoAction === 'newGame' ? 'newGame' : null;
   }
 
   create() {
@@ -155,6 +158,16 @@ export class TitleScene extends Phaser.Scene {
 
     this._refreshCloudSyncStatusNotice();
     this._setupMenuGamepadFocus();
+
+    if (this._autoAction) {
+      const action = this._autoAction;
+      this._autoAction = null;
+      // After the router's scene-start cooldown (350 ms) so the hand-off is not blocked.
+      this.time?.delayedCall?.(450, () => {
+        if (this.sys?.isActive?.() === false || this.isTransitioning) return;
+        void this._runAction(action);
+      });
+    }
   }
 
   _reducedMotion() {

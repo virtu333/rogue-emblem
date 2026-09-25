@@ -457,3 +457,58 @@
 .mr-scroll-description p {
   white-space: pre-line;
 }
+
+/* Unit list: name/level, class, then HP numbers riding the bar — no mid-line wraps. */
+.mr-unit-info > .mr-unit-class {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mr-unit-info > .mr-unit-hp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mr-unit-hp .re-health {
+  flex: 1;
+  min-width: 0;
+  margin: 3px 0;
+}
+.mr-unit-hp small {
+  flex: none;
+  color: var(--re-muted);
+  font: var(--re-t-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section kickers inside a tab (Traits, Weapon arts…): pixel label, gilt rule. */
+.mr-sheet h3.mr-section {
+  margin: 14px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--re-line-soft);
+  font: var(--re-t-label);
+  color: var(--re-gold-hi);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* The content pane fades at its lower edge, so a cut-off card or heading reads
+   as "more below" instead of a clipped layout. */
+.mr-content {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
+  padding-bottom: 22px;
+}
+
+/* Flavor (Temperament): reads as character, not a rule — quieter than trait cards. */
+.mr-card.mr-flavor {
+  background: transparent;
+  border-style: dashed;
+}
+.mr-card.mr-flavor h4 {
+  color: var(--re-parchment);
+}
+.mr-card.mr-flavor p {
+  font-style: italic;
+  color: var(--re-muted);
+}
