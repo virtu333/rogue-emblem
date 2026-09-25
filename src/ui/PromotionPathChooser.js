@@ -96,6 +96,16 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
     if (skill.description) line.append(element('span', ` — ${skill.description}`));
     card.append(line);
   }
+  // A deed's Oath rides every path (it belongs to the unit, not the class).
+  if (content.oath?.learned) {
+    const line = element('span', null, 'gr-path-skill gr-path-oath');
+    line.append(
+      skillGlyph(content.oath.skillId, 'gr-glyph'),
+      element('b', `${content.oath.name} · ${content.oath.skillName}`),
+    );
+    if (content.oath.description) line.append(element('span', ` — ${content.oath.description}`));
+    card.append(line);
+  }
   const notes = [];
   if (content.growths.length)
     notes.push(`Growth ${content.growths.map((g) => `${g.stat} +${g.bonus}%`).join(', ')}`);

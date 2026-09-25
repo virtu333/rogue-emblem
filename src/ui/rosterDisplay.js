@@ -19,7 +19,7 @@ export function formatPerkMods(mods) {
 export const MASTERY_HELP = [
   'Class mastery counts battles, not turns or kills. A deployed unit gains one battle of progress when you win and that unit survives. Escaped units count; benched and fallen units do not.',
   'Promotion carries progress from the base class into its promoted class. Reclassing changes the class family being counted; returning to a previous family restores its recorded progress.',
-  'The current class family grants its perk once the threshold is reached. Perks from other families do not stack. Traits can change the threshold or replace the perk.',
+  'The current class family grants its perk once the threshold is reached. Perks from other families do not stack. Traits can change the threshold or strengthen the perk; none replace it.',
 ];
 
 export function proficiencyLabel(proficiency) {

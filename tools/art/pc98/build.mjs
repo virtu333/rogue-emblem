@@ -59,7 +59,9 @@ const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null
 const ONLY = opt('--only')?.split(',');
 const OUT = join(ROOT, 'assets/portraits/pc98');
 const LEGACY_DIR = join(ROOT, 'assets/portraits');
-const REBUILT_DIR = join(ROOT, 'assets/portraits/rebuilt');
+// full-size rebuilt portrait sources (not shipped: the game's copies are capped at 512 px,
+// docs/mobile-memory-budget.md); PC-98 renders are made from these originals
+const REBUILT_DIR = join(ROOT, 'docs/art/rebuilt-portrait-sources');
 const FRAMING_FILE = join(ROOT, 'src/ui/ceremonyPortraitFraming.json');
 const RUNTIME_MANIFEST = join(ROOT, 'src/ui/Pc98PortraitManifest.json');
 const VARIANT_TABLE = join(ROOT, 'src/data/portraitVariants.json');

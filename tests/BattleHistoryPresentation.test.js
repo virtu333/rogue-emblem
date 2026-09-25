@@ -220,7 +220,7 @@ describe('history hardening and retention', () => {
   });
 
   it('drops malformed optional history while preserving legacy destinations and cursor', async () => {
-    const { createBattleTimeline, hydrateBattleTimeline } =
+    const { createBattleTimeline, hydrateBattleTimeline, BATTLE_TIMELINE_VERSION } =
       await import('../src/engine/BattleTimeline.js');
     const timeline = createBattleTimeline();
     timeline.presentation = appendHistoryPresentation(null, frame(), info(1));
@@ -233,7 +233,7 @@ describe('history hardening and retention', () => {
     const legacy = { ...timeline, version: 1 };
     delete legacy.presentation;
     delete legacy.presentationNextId;
-    expect(hydrateBattleTimeline(legacy).version).toBe(2);
+    expect(hydrateBattleTimeline(legacy).version).toBe(BATTLE_TIMELINE_VERSION);
   });
 
   it('quota fallback sheds art before core history and keeps identity monotonic', async () => {

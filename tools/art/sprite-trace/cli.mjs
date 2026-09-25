@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// sprite-trace — reference -> map-sprite tracer (see docs/art-direction/sprites-v2/README.md).
+// sprite-trace — reference -> map-sprite tracer (docs/art-direction/sprites-v2 and sprites-v3).
 //
 //   node tools/art/sprite-trace/cli.mjs recover <png> [--figure i] [--out native.png] [--zoom 1]
 //   node tools/art/sprite-trace/cli.mjs trace <png> [--figure i] [--recipe '{json}'] [--density 1.5] [--out sprite.png]
 //   node tools/art/sprite-trace/cli.mjs lineup <out.png> [--keys a,b] [--zoom 3] [--density 1.5]
-//   node tools/art/sprite-trace/cli.mjs bake [--density 1.5] [--atlas assets/sprites/traced/traced-atlas.png]
+//   node tools/art/sprite-trace/cli.mjs bake [--density 1.5] [--dir assets/sprites/traced]
 //                                             [--manifest src/ui/TracedSpriteManifest.json]
+//     writes <dir>/traced-atlas-<page>.png (trimmed idle0..3, windup, strike of every sprite) and
+//     the manifest, mirrored into public/<dir> (what the game serves).
 //
 // Deterministic: the same references and roster always produce identical bytes.
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { mkdirSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { readRaster, writePng, textRaster } from './lib/io.mjs';
 import { splitFigures } from './lib/figures.mjs';
 import { recoverFigure, traceNative } from './lib/trace.mjs';
 import { render } from './lib/render.mjs';
 import { Raster, hstack, vstack } from './lib/raster.mjs';
-import { bakeFrames, recruitEntries } from './lib/pipeline.mjs';
+import { bakeFrames, allEntries } from './lib/pipeline.mjs';
 import { packAtlas } from './lib/atlas.mjs';
-import { BAKE } from './roster.mjs';
 
 const args = process.argv.slice(2);
 const cmd = args.shift();
@@ -62,6 +62,7 @@ if (cmd === 'recover') {
   const Z = +flag('zoom', 3);
   const density = +flag('density', 1.5);
   const keys = flag('keys');
+  const BAKE = allEntries();
   const entries = keys ? BAKE.filter((e) => keys.split(',').includes(e.key)) : BAKE;
   const tiles = [];
   for (const e of entries) {
@@ -88,26 +89,34 @@ if (cmd === 'recover') {
   await writePng(vstack(rows, 4, [24, 24, 28, 255]), positional[0]);
 } else if (cmd === 'bake') {
   const density = +flag('density', 1.5);
-  const atlasPath = flag('atlas', 'assets/sprites/traced/traced-atlas.png');
+  const dir = flag('dir', 'assets/sprites/traced');
   const manifestPath = flag('manifest', 'src/ui/TracedSpriteManifest.json');
-  const entries = [...BAKE];
-  for (const r of recruitEntries()) entries.push(r.base, r.promoted);
+  const entries = allEntries();
   const baked = [];
   for (const e of entries) {
     const f = await bakeFrames(e, { density });
     baked.push({ key: e.key, kind: f.sprite.meta.kind, frames: [...f.idle, ...f.attack] });
   }
-  const { atlas, manifest } = packAtlas(baked, { density });
-  mkdirSync(dirname(atlasPath), { recursive: true });
-  await writePng(atlas, atlasPath);
+  const { pages, manifest } = packAtlas(baked, { density });
+  // the source folder and its public/ mirror (what the dev server and the build serve)
+  for (const out of [dir, `public/${dir.replace(/^public\//, '')}`]) {
+    mkdirSync(out, { recursive: true });
+    // stale pages (and the v1 single atlas) go, so the folder always matches the manifest
+    for (const f of readdirSync(out))
+      if (/^traced-atlas(-\d+)?\.png$/.test(f) && !manifest.pages.includes(f))
+        rmSync(`${out}/${f}`);
+    for (const [i, page] of pages.entries()) await writePng(page, `${out}/${manifest.pages[i]}`);
+  }
   const prettier = await import('prettier');
   const options = (await prettier.resolveConfig(manifestPath)) || {};
   writeFileSync(
     manifestPath,
     await prettier.format(JSON.stringify(manifest), { ...options, parser: 'json' }),
   );
+  const px = pages.reduce((a, p) => a + p.w * p.h, 0);
   console.log(
-    `baked ${baked.length} sprites (${atlas.w}x${atlas.h}) -> ${atlasPath}, ${manifestPath}`,
+    `baked ${baked.length} sprites into ${pages.length} page(s) ${pages.map((p) => `${p.w}x${p.h}`).join(', ')} ` +
+      `(${((px * 4) / 1048576).toFixed(1)} MB decoded) -> ${dir}, ${manifestPath}`,
   );
 } else {
   console.log(

@@ -212,6 +212,7 @@ export function generateBattle(params, deps) {
     affixConfig: deps.affixes,
     difficultyId: params.difficultyId || 'normal',
     act,
+    eclipse: params.eclipseAffix || null,
   });
 
   // 7. NPC spawn for recruit battles

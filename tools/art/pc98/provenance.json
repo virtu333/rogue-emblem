@@ -2,7 +2,7 @@
   "generator": "tools/art/pc98/build.mjs",
   "portraits": {
     "boss_archmage": {
-      "source": "assets/portraits/rebuilt/boss_archmage.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_archmage.png",
       "sourceSha256": "8e973eb70a8dcdda",
       "kind": "rebuilt",
       "nativeGrid": 139,
@@ -118,7 +118,7 @@
       }
     },
     "boss_berserker_king": {
-      "source": "assets/portraits/rebuilt/boss_berserker_king.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_berserker_king.png",
       "sourceSha256": "f3c9f040f83f87a2",
       "kind": "rebuilt",
       "nativeGrid": 128,
@@ -234,7 +234,7 @@
       }
     },
     "boss_blade_lord": {
-      "source": "assets/portraits/rebuilt/boss_blade_lord.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_blade_lord.png",
       "sourceSha256": "b86208bf48f983de",
       "kind": "rebuilt",
       "nativeGrid": 128,
@@ -350,7 +350,7 @@
       }
     },
     "boss_dark_rider": {
-      "source": "assets/portraits/rebuilt/boss_dark_rider.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_dark_rider.png",
       "sourceSha256": "a3c8abd256bb1586",
       "kind": "rebuilt",
       "nativeGrid": 126,
@@ -466,7 +466,7 @@
       }
     },
     "boss_iron_captain": {
-      "source": "assets/portraits/rebuilt/boss_iron_captain.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_iron_captain.png",
       "sourceSha256": "bc47d177968a5100",
       "kind": "rebuilt",
       "nativeGrid": 129,
@@ -582,7 +582,7 @@
       }
     },
     "boss_iron_wall": {
-      "source": "assets/portraits/rebuilt/boss_iron_wall.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_iron_wall.png",
       "sourceSha256": "0c779ad2b168fe86",
       "kind": "rebuilt",
       "nativeGrid": 180,
@@ -698,7 +698,7 @@
       }
     },
     "boss_knight_commander": {
-      "source": "assets/portraits/rebuilt/boss_knight_commander.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_knight_commander.png",
       "sourceSha256": "13301a7256dfe08f",
       "kind": "rebuilt",
       "nativeGrid": 148,
@@ -814,7 +814,7 @@
       }
     },
     "boss_the_emperor": {
-      "source": "assets/portraits/rebuilt/boss_the_emperor.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_the_emperor.png",
       "sourceSha256": "67763acefab09732",
       "kind": "rebuilt",
       "nativeGrid": 145,
@@ -930,7 +930,7 @@
       }
     },
     "boss_the_entity": {
-      "source": "assets/portraits/rebuilt/boss_the_entity.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_the_entity.png",
       "sourceSha256": "c07f9d1eeb51fa76",
       "kind": "rebuilt",
       "nativeGrid": 128,
@@ -1046,7 +1046,7 @@
       }
     },
     "boss_the_lieutenant": {
-      "source": "assets/portraits/rebuilt/boss_the_lieutenant.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_the_lieutenant.png",
       "sourceSha256": "128d4c39a40ed4ed",
       "kind": "rebuilt",
       "nativeGrid": 129,
@@ -1162,7 +1162,7 @@
       }
     },
     "boss_warchief": {
-      "source": "assets/portraits/rebuilt/boss_warchief.png",
+      "source": "docs/art/rebuilt-portrait-sources/boss_warchief.png",
       "sourceSha256": "2d11215b20176652",
       "kind": "rebuilt",
       "nativeGrid": 127,
@@ -18388,7 +18388,7 @@
       }
     },
     "generic_battle_monk": {
-      "source": "assets/portraits/rebuilt/generic_battle_monk.png",
+      "source": "docs/art/rebuilt-portrait-sources/generic_battle_monk.png",
       "sourceSha256": "a0f7251b07c5f175",
       "kind": "rebuilt",
       "nativeGrid": 85,
@@ -24750,7 +24750,7 @@
       }
     },
     "generic_fighter": {
-      "source": "assets/portraits/rebuilt/generic_fighter.png",
+      "source": "docs/art/rebuilt-portrait-sources/generic_fighter.png",
       "sourceSha256": "2860db3c828422b0",
       "kind": "rebuilt",
       "nativeGrid": 97,
@@ -31703,7 +31703,7 @@
       }
     },
     "generic_sniper": {
-      "source": "assets/portraits/rebuilt/generic_sniper.png",
+      "source": "docs/art/rebuilt-portrait-sources/generic_sniper.png",
       "sourceSha256": "f26c5dfa39dec8f1",
       "kind": "rebuilt",
       "nativeGrid": 122,
@@ -34005,7 +34005,7 @@
       }
     },
     "generic_warlock": {
-      "source": "assets/portraits/rebuilt/generic_warlock.png",
+      "source": "docs/art/rebuilt-portrait-sources/generic_warlock.png",
       "sourceSha256": "ff50c34d157eb406",
       "kind": "rebuilt",
       "nativeGrid": 99,
@@ -36898,7 +36898,7 @@
       }
     },
     "lord_astrid": {
-      "source": "assets/portraits/rebuilt/lord_astrid.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_astrid.png",
       "sourceSha256": "1b34037d76687dff",
       "kind": "rebuilt",
       "nativeGrid": 104,
@@ -37014,7 +37014,7 @@
       }
     },
     "lord_astrid_promoted": {
-      "source": "assets/portraits/rebuilt/lord_astrid_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_astrid_promoted.png",
       "sourceSha256": "dd2442442eb3ea3f",
       "kind": "rebuilt",
       "nativeGrid": 102,
@@ -37130,7 +37130,7 @@
       }
     },
     "lord_cael": {
-      "source": "assets/portraits/rebuilt/lord_cael.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_cael.png",
       "sourceSha256": "234edfa8ab84ce9b",
       "kind": "rebuilt",
       "nativeGrid": 120,
@@ -37246,7 +37246,7 @@
       }
     },
     "lord_cael_promoted": {
-      "source": "assets/portraits/rebuilt/lord_cael_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_cael_promoted.png",
       "sourceSha256": "dc6eba030ed7373d",
       "kind": "rebuilt",
       "nativeGrid": 119,
@@ -37362,7 +37362,7 @@
       }
     },
     "lord_edric": {
-      "source": "assets/portraits/rebuilt/lord_edric.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_edric.png",
       "sourceSha256": "ad5843f5961aab1a",
       "kind": "rebuilt",
       "nativeGrid": 88,
@@ -37478,7 +37478,7 @@
       }
     },
     "lord_edric_promoted": {
-      "source": "assets/portraits/rebuilt/lord_edric_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_edric_promoted.png",
       "sourceSha256": "9f11409104bacaf7",
       "kind": "rebuilt",
       "nativeGrid": 98,
@@ -37594,7 +37594,7 @@
       }
     },
     "lord_kira": {
-      "source": "assets/portraits/rebuilt/lord_kira.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_kira.png",
       "sourceSha256": "3bd1301c511fba25",
       "kind": "rebuilt",
       "nativeGrid": 106,
@@ -37710,7 +37710,7 @@
       }
     },
     "lord_kira_promoted": {
-      "source": "assets/portraits/rebuilt/lord_kira_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_kira_promoted.png",
       "sourceSha256": "18108b92127775ba",
       "kind": "rebuilt",
       "nativeGrid": 112,
@@ -37826,7 +37826,7 @@
       }
     },
     "lord_rowan": {
-      "source": "assets/portraits/rebuilt/lord_rowan.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_rowan.png",
       "sourceSha256": "201e43f4dd7945a2",
       "kind": "rebuilt",
       "nativeGrid": 91,
@@ -37942,7 +37942,7 @@
       }
     },
     "lord_rowan_promoted": {
-      "source": "assets/portraits/rebuilt/lord_rowan_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_rowan_promoted.png",
       "sourceSha256": "f7fab381a174d6c0",
       "kind": "rebuilt",
       "nativeGrid": 89,
@@ -38058,7 +38058,7 @@
       }
     },
     "lord_sera": {
-      "source": "assets/portraits/rebuilt/lord_sera.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_sera.png",
       "sourceSha256": "c9309f9b4821e2fa",
       "kind": "rebuilt",
       "nativeGrid": 96,
@@ -38174,7 +38174,7 @@
       }
     },
     "lord_sera_promoted": {
-      "source": "assets/portraits/rebuilt/lord_sera_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_sera_promoted.png",
       "sourceSha256": "2290387832f7f370",
       "kind": "rebuilt",
       "nativeGrid": 96,
@@ -38290,7 +38290,7 @@
       }
     },
     "lord_voss": {
-      "source": "assets/portraits/rebuilt/lord_voss.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_voss.png",
       "sourceSha256": "7cfba4a975cb931e",
       "kind": "rebuilt",
       "nativeGrid": 124,
@@ -38406,7 +38406,7 @@
       }
     },
     "lord_voss_promoted": {
-      "source": "assets/portraits/rebuilt/lord_voss_promoted.png",
+      "source": "docs/art/rebuilt-portrait-sources/lord_voss_promoted.png",
       "sourceSha256": "68190e719eb2404f",
       "kind": "rebuilt",
       "nativeGrid": 125,

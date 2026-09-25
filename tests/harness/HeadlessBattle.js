@@ -3,6 +3,13 @@
 
 import { HeadlessGrid } from './HeadlessGrid.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
+import {
+  commitBattleDeeds,
+  recordCombat,
+  recordEnemyPhaseEnd,
+  recordHeal,
+  recordKill,
+} from '../../src/engine/DeedSystem.js';
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle } from '../../src/engine/MapGenerator.js';
 import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
@@ -81,6 +88,7 @@ import {
   processConditionRecovery,
 } from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
+import { calculatePar } from '../../src/engine/TurnBonusCalculator.js';
 import {
   createVillageState,
   visitVillage,
@@ -515,6 +523,23 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+
+    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it).
+    this.turnPar = this.gameData.turnBonus
+      ? calculatePar(
+          {
+            cols: bc.cols,
+            rows: bc.rows,
+            enemyCount: this.enemyUnits.length,
+            objective: bc.objective,
+            mapLayout: bc.mapLayout,
+            terrainData: this.gameData.terrain,
+            parBonus: bc.parBonus || 0,
+          },
+          this.gameData.turnBonus,
+          this.battleParams?.difficultyId,
+        )
+      : null;
 
     // Initialize turn system
     this.turnManager = new TurnManager({
@@ -1166,13 +1191,23 @@ export class HeadlessBattle {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
+    const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
       const spec = this._buildReinforcementSpawnSpec(scheduledSpawn, i);
       if (!spec) continue;
       const enemy = this._addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
-      if (enemy) spawned++;
+      if (enemy) {
+        spawned++;
+        // Mirrors BattleScene: each non-repeating wave that arrived bumps par by 1.
+        if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating')
+          successfulWaveKeys.add(
+            `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
+          );
+      }
     }
+    if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0)
+      this.turnPar += successfulWaveKeys.size;
     return { ...schedule, spawned };
   }
 
@@ -1234,6 +1269,14 @@ export class HeadlessBattle {
     this._clearCombatRollSession();
     this._expireTimedWeaponArtBuffs(phase, turn);
     if (phase === 'player') {
+      // Deeds: the enemy phase that just ended (mirrors DeedController).
+      if (turn > 1 && this.gameData?.deeds)
+        recordEnemyPhaseEnd(this.playerUnits, {
+          turn,
+          terrainAt: (u) => this._terrainName(u),
+          commander: this.playerUnits.find((u) => u?.isCommander) || null,
+          deedsData: this.gameData.deeds,
+        });
       // Condition recovery mirrors BattleScene: tick at the start of the
       // afflicted side's phase, before units act (art statuses expire here).
       processConditionRecovery(this.playerUnits);
@@ -1259,6 +1302,37 @@ export class HeadlessBattle {
   _onVictory() {
     this.result = 'victory';
     this.battleState = HEADLESS_STATES.BATTLE_END;
+    // Deeds commit with the win, like PostCombatController.onVictory (the
+    // harness is one battle, so no idempotency key is needed).
+    this.deedAnnouncements = [];
+    if (this.gameData?.deeds) {
+      if (this.turnManager?.currentPhase === 'enemy')
+        recordEnemyPhaseEnd(this.playerUnits, {
+          turn: (this.turnManager.turnNumber || 0) + 1,
+          terrainAt: (u) => this._terrainName(u),
+          commander: this.playerUnits.find((u) => u?.isCommander) || null,
+          deedsData: this.gameData.deeds,
+        });
+      this.deedAnnouncements = commitBattleDeeds(
+        [...this.playerUnits, ...(this.escapedUnits || [])],
+        this.gameData.deeds,
+        {
+          act: this.battleParams?.act || null,
+          battle: this.battleParams?.battleNumber ?? null,
+          deployedCount: this.battleParams?.deployCount,
+        },
+      );
+    }
+  }
+
+  _terrainName(unit) {
+    if (!unit || typeof this.grid?.getTerrainAt !== 'function') return null;
+    return this.grid.getTerrainAt(unit.col, unit.row)?.name || null;
+  }
+
+  _recordDeedCombat(attacker, defender, result) {
+    if (!this.gameData?.deeds) return;
+    recordCombat(result, attacker, defender, { phase: this.turnManager?.currentPhase || null });
   }
 
   _onDefeat() {
@@ -2307,6 +2381,7 @@ export class HeadlessBattle {
 
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
+    this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
       attacker,
@@ -2387,7 +2462,9 @@ export class HeadlessBattle {
         this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
     };
     const result = resolveHeal(staff, healer, target, healOpts);
+    const hpBefore = target.currentHP;
     target.currentHP = result.targetHPAfter;
+    if (this.gameData?.deeds && healer !== target) recordHeal(healer, target.currentHP - hpBefore);
     spendStaffUse(staff);
 
     // Award XP for healing
@@ -2513,6 +2590,7 @@ export class HeadlessBattle {
 
   _removeUnit(unit, options = {}) {
     const killer = options?.killer || null;
+    if (this.gameData?.deeds) recordKill(unit, killer, { terrain: this._terrainName(killer) });
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
       if (idx !== -1) this.playerUnits.splice(idx, 1);
@@ -2672,6 +2750,7 @@ export class HeadlessBattle {
 
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
+    this._recordDeedCombat(attacker, defender, result);
 
     this._applyResolvedCombatPostEffects({
       attacker,

@@ -35,7 +35,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
@@ -45,6 +45,8 @@ import {
 } from '../utils/tooltipTiming.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { epithetText } from '../engine/DeedTitles.js';
+import { fitCanvasText } from './deedDisplay.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -222,7 +224,14 @@ export class UnitDetailOverlay {
     // --- Header ---
     const factionLabel =
       unit.faction === 'player' ? '' : unit.faction === 'npc' ? ' [NPC]' : ' [Enemy]';
-    this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    const nameText = this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    // Canvas fallback: the epithet follows the name, clear of the nav/portrait.
+    const epithet = unit.faction === 'player' ? epithetText(unit) : '';
+    if (epithet && nameText) {
+      const x = nameText.x + nameText.width + 6;
+      const line = this._unitText(x, y + 2, epithet, UI_PALETTE.accent, '10px');
+      fitCanvasText(line, left + OVERLAY_W - 92 - x);
+    }
 
     // Portrait (top-right)
     const face = portraitCanvasFrame(this.scene, this._getPortraitKey(unit), 48);
@@ -621,12 +630,12 @@ export class UnitDetailOverlay {
         }
       }
 
-      // Traits (recruits only; lords never roll)
-      const unitTraits = getUnitTraits(unit, traitsData);
+      // Traits (recruits roll 0-2; lords roll one)
+      const unitTraits = traitLines(unit, this.gameData);
       if (unitTraits.length > 0) {
         const names = unitTraits.map((t) => t.name).join(', ');
         const traitText = this._tabText(lx, y, `Traits: ${names}`, UI_PALETTE.rarityEpic, '9px');
-        const descriptions = unitTraits.map((t) => `${t.name}: ${t.description}`).join('\n');
+        const descriptions = unitTraits.map((t) => `${t.name}: ${t.text}`).join('\n');
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
         traitText.on('pointerout', () => this._hideSkillTooltip());

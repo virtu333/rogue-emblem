@@ -30,7 +30,7 @@ const label = (text, width, size = 11) =>
 /** Source portrait flattened on the old dialogue ink, at size px (smooth). */
 async function before(id, size) {
   const file = rebuilt[id]
-    ? join(ROOT, 'assets/portraits/rebuilt', rebuilt[id].file)
+    ? join(ROOT, 'docs/art/rebuilt-portrait-sources', rebuilt[id].file)
     : join(ROOT, 'assets/portraits', `${id}.png`);
   return sharp(file)
     .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })

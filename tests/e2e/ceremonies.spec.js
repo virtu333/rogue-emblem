@@ -201,7 +201,8 @@ test.describe('victory band and act title', () => {
     const card = page.locator('.ce-act-layer');
     await expect(card.locator('.ce-act-title')).toHaveText('Border Marches');
     await expect(card.locator('.ce-act-grade')).toHaveText('Ember Dusk');
-    await expect(card.locator('.ce-act-kicker')).toHaveText('Act I');
+    // The Eclipse's phase rides the kicker; every run opens Pale.
+    await expect(card.locator('.ce-act-kicker')).toHaveText('Act I · Pale');
     const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
     await expect(skip).toBeVisible();
     await skip.tap();

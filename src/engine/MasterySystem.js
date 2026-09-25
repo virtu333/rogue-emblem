@@ -8,8 +8,8 @@
 //
 // A mastered unit gains a permanent, class-flavored combat-mod perk (authored on
 // the base/lord class entry in classes.json as `masteryPerk`). Traits can shift
-// the mastery threshold (`masteryBattlesDelta`) or replace the perk entirely
-// (`masteryPerkOverride`).
+// the mastery threshold (`masteryBattlesDelta`) or strengthen the perk
+// (`masteryPerkMultiplier`); no trait replaces a class perk.
 //
 // No mods are baked into `unit.stats` — the perk is applied at combat time via
 // getSkillCombatMods, exactly like skill/affix mods.
@@ -108,19 +108,21 @@ function sumTraitField(unit, traitsData, field) {
   return sum;
 }
 
-/** First trait on the unit that carries the given field (for overrides). */
-function findTraitField(unit, traitsData, field) {
-  if (!Array.isArray(unit?.traits) || !Array.isArray(traitsData)) return null;
+/** Product of a numeric trait field across the unit's traits (default 1). */
+function productTraitField(unit, traitsData, field) {
+  if (!Array.isArray(unit?.traits) || !Array.isArray(traitsData)) return 1;
+  let product = 1;
   for (const id of unit.traits) {
     const t = traitsData.find((td) => td?.id === id);
-    if (t && t[field] != null) return t[field];
+    const v = t?.[field];
+    if (Number.isFinite(v) && v > 0) product *= v;
   }
-  return null;
+  return product;
 }
 
 /**
  * Effective mastery threshold for a unit: base MASTERY_BATTLES plus the sum of
- * trait `masteryBattlesDelta` (e.g. Studious −2, Lazy +2), floored at
+ * trait `masteryBattlesDelta` (e.g. Studious −2, Slow Oath +2), floored at
  * MASTERY_MIN_BATTLES so no trait combination trivializes mastery.
  */
 export function getMasteryThreshold(unit, traitsData) {
@@ -145,10 +147,12 @@ function sanitizePerkMods(mods) {
 
 /**
  * The mastery perk for the unit's class family, resolved from the base/lord
- * class entry's `masteryPerk`. Returns `{ name, mods }` or null.
+ * class entry's `masteryPerk`. Returns `{ name, mods, classMods, multiplier }`
+ * or null when the family has no perk.
  *
- * Trait `masteryPerkOverride` (e.g. Reckless) fully REPLACES the class perk's
- * mods — the returned name is tagged so the UI can show the override source.
+ * Traits only ever strengthen the class perk: `masteryPerkMultiplier` scales
+ * every mod (Slow Oath doubles it) and tags the name (e.g. "Bulwark ×2").
+ * `classMods` is the unmodified class perk, for side-by-side display.
  */
 export function getMasteryPerk(unit, classesData, traitsData = null) {
   if (!unit?.className) return null;
@@ -158,27 +162,18 @@ export function getMasteryPerk(unit, classesData, traitsData = null) {
       classesData.find((c) => c?.name === unit.className)
     : null;
   const classPerk = entry?.masteryPerk;
-
-  const override = findTraitField(unit, traitsData, 'masteryPerkOverride');
-  if (override && typeof override === 'object') {
-    // Find which trait supplied it, for the display name.
-    const overrideTrait = Array.isArray(unit.traits)
-      ? (traitsData || []).find(
-          (t) => unit.traits.includes(t?.id) && t?.masteryPerkOverride != null,
-        )
-      : null;
-    return {
-      name: overrideTrait?.name ? `${overrideTrait.name} Mastery` : 'Mastery',
-      mods: sanitizePerkMods(override),
-      overridden: true,
-    };
-  }
-
   if (!classPerk || typeof classPerk !== 'object') return null;
+
+  const classMods = sanitizePerkMods(classPerk.mods);
+  const multiplier = productTraitField(unit, traitsData, 'masteryPerkMultiplier');
+  const mods = {};
+  for (const [key, value] of Object.entries(classMods)) mods[key] = Math.round(value * multiplier);
+  const baseName = typeof classPerk.name === 'string' ? classPerk.name : 'Mastery';
   return {
-    name: typeof classPerk.name === 'string' ? classPerk.name : 'Mastery',
-    mods: sanitizePerkMods(classPerk.mods),
-    overridden: false,
+    name: multiplier !== 1 ? `${baseName} ×${multiplier}` : baseName,
+    mods,
+    classMods,
+    multiplier,
   };
 }
 

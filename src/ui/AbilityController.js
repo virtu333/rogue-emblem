@@ -17,6 +17,7 @@ import {
   abilityHasTargets,
 } from '../engine/ActionAbilitySystem.js';
 import { applyCondition } from '../engine/StatusConditionSystem.js';
+import { deedsFor } from './DeedController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -422,6 +423,7 @@ export class AbilityController {
       ally.currentHP = Math.min(maxHp, oldHP + amount);
       const healed = ally.currentHP - oldHP;
       if (healed <= 0) continue;
+      deedsFor(scene).onHeal(unit, ally, oldHP);
       observeHistoryAction(scene, 'healed', unit, ally, `${healed} HP`, { amount: healed });
       scene.updateHPBar(ally);
       const pos = scene.grid.gridToPixel(ally.col, ally.row);

@@ -34,6 +34,7 @@ import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
+import { EclipseHudController, isEclipseClock } from '../ui/EclipseHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -252,6 +253,8 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
+import { deedsFor } from '../ui/DeedController.js';
+import { unitEpithet } from '../engine/DeedTitles.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -442,6 +445,8 @@ export class BattleScene extends Phaser.Scene {
     this._ceremonies = null;
     this._bossPresence = null;
     this._fallenCommander = null;
+    this._deedController = null;
+    this._newDeeds = null;
     this._bossName = null;
     this._commanderKillerName = null;
     this._battleCommanderName = null;
@@ -676,6 +681,8 @@ export class BattleScene extends Phaser.Scene {
     this._atmosphere = null;
     this._desktopHud?.destroy();
     this._desktopHud = null;
+    this._eclipseHud?.destroy();
+    this._eclipseHud = null;
     this._battlefieldTerrain?.destroy();
     this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
@@ -1537,6 +1544,7 @@ export class BattleScene extends Phaser.Scene {
                       traitsData: this.gameData.traits || null,
                       skillsData: this.gameData.skills,
                       rng: Math.random,
+                      traitClassData: npcClassData,
                     },
                   );
                   for (const sid of getClassInnateSkills(
@@ -1867,7 +1875,9 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerover', () => {
         if (this.turnPar == null || !this.turnBonusConfig) return;
         const turn = this.getCurrentTurnNumber();
-        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig, {
+          eclipseActive: isEclipseClock(this),
+        });
         if (!text) return;
         this.parTooltipText.setText(text);
         const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
@@ -2124,7 +2134,10 @@ export class BattleScene extends Phaser.Scene {
       this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
 
-      // Presentation: reliquary desktop HUD plates, then the act mood (grade + night).
+      // Presentation: the Eclipse projection, reliquary desktop HUD plates, then the
+      // act mood (grade + night).
+      this._eclipseHud?.destroy();
+      this._eclipseHud = new EclipseHudController(this).create();
       this._desktopHud?.destroy();
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
@@ -3073,7 +3086,10 @@ export class BattleScene extends Phaser.Scene {
 
   getTurnPressureState(turnOverride = null) {
     const turn = this.getCurrentTurnNumber(turnOverride);
-    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
+    // The Eclipse replaces the hidden clock: no silent XP/gold decay while it runs.
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig, {
+      eclipseActive: isEclipseClock(this),
+    });
   }
 
   formatPressureMultiplier(value) {
@@ -3268,10 +3284,9 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        unit.graphic.setDisplaySize(
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-        );
+        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
+        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
         unit.label = null;
       } else {
         unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
@@ -4315,6 +4330,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (!this.canForceEndTurn()) return;
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
     restoreWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
@@ -4571,6 +4587,8 @@ export class BattleScene extends Phaser.Scene {
 
   selectUnit(unit) {
     if (this.battleState === 'TURN_START_RESOLVING') return;
+    // A set-aside partial action (e.g. trade) becomes its own rewind point.
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     if (this._isTutorialStrictGateActive() && this.tutorialStep === 2) {
       const edric = this._getTutorialEdricUnit();
       if (unit !== edric) {
@@ -5656,6 +5674,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     observeHistoryAction(this, 'danced for', unit, target.ally);
+    deedsFor(this).onRefresh(unit);
     // Reset target's action state
     target.ally.hasMoved = false;
     target.ally._movementCommitted = false;
@@ -7394,7 +7413,14 @@ export class BattleScene extends Phaser.Scene {
     // Track old proficiency types to detect new ones
     const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
-    reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
+    reclassUnit(
+      unit,
+      newClassData,
+      oldClassData,
+      this.gameData.classes,
+      this.gameData.skills,
+      this.gameData.traits || null,
+    );
     observeHistoryAction(this, 'reclassed', unit, null, newClassData.name);
 
     // Refresh sprite
@@ -8077,7 +8103,7 @@ export class BattleScene extends Phaser.Scene {
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
 
-    observeHistoryAction(this, 'attacked', attacker, defender);
+    observeHistoryAction(this, 'attacked', attacker, defender, selectedArt?.name || '');
     for (const event of result.events || []) {
       if (event.type !== 'strike') continue;
       const striker = event.attackerSide === 'defender' ? defender : attacker;
@@ -8130,6 +8156,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    deedsFor(this).onCombat(attacker, defender, result);
     this.updateHPBar(attacker);
     this.updateHPBar(defender);
 
@@ -9412,6 +9439,7 @@ export class BattleScene extends Phaser.Scene {
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     if (killer) observeHistoryAction(this, 'defeated', killer, unit);
     else observeHistoryAction(this, 'fell', unit);
+    deedsFor(this).onUnitRemoved(unit, killer);
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -9439,7 +9467,11 @@ export class BattleScene extends Phaser.Scene {
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
         // Presentation only: the FALLEN band names the commander that fell.
         if (unit.isCommander)
-          this._fallenCommander = { name: unit.name, className: unit.className };
+          this._fallenCommander = {
+            name: unit.name,
+            className: unit.className,
+            epithet: unitEpithet(unit),
+          };
         // Last words of a fallen recruit (permadeath): class + temperament voice,
         // a pure pick (never the RNG or the narrative log).
         if (!unit.isLord && !this.battleParams?.tutorialMode) {
@@ -9457,6 +9489,8 @@ export class BattleScene extends Phaser.Scene {
             } catch (_) {}
           }
         }
+        // After the last words: a titled unit is named in full as it falls.
+        deedsFor(this).announceFall(unit);
         // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
         if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
@@ -9640,6 +9674,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (phase === 'player') {
+      // Deeds: the enemy phase that just ended (held ground, the lord's shield).
+      if (turn > 1) deedsFor(this).onEnemyPhaseEnd(turn);
       resetPlayerUnitsForTurn(this, turn);
       // Input stays locked through the banner AND every awaited effect.
       this.battleState = 'TURN_START_RESOLVING';
@@ -9853,7 +9889,7 @@ export class BattleScene extends Phaser.Scene {
                   showContextualHint(
                     this,
                     'battle_vision_scope_v2',
-                    'Open Rewind to review the battle timeline for free. Select an event to preview, then confirm to spend 1 charge. Normal and Hard allow completed player actions; Lunatic allows turn starts. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
+                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Lunatic returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },
