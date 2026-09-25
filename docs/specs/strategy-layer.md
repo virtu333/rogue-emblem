@@ -31,7 +31,7 @@ Scroll Archive; probably need bigger trade-offs. Does deforge even go negative?"
 
 ## How the numbers were measured
 
-`node sim/strategy.js --section <name>` (new). The stock harness agent charges and loses
+`npm run sim:strategy -- --section <name>` (new, `sim/strategy.js`). The stock harness agent charges and loses
 its commander in most act-2 battles, so the audit uses a new **TacticianAgent**
 (threat-map planning: it only attacks where the counter and the next enemy phase are
 survivable, holds lords out of lethal reach, heals, and walks a lord to the recruit

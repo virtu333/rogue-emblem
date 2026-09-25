@@ -1,6 +1,17 @@
-// sim/strategy.js — strategic-layer audit (docs/specs/strategy-layer-proposal.md).
+// sim/strategy.js — strategic-layer audit (docs/specs/strategy-layer.md, method and
+// numbers; docs/specs/strategy-layer-proposal.md, proposals).
 //
-//   node sim/strategy.js --section spawn    [--seeds 30] [--replays 4] [--difficulty normal]
+//   npm run sim:strategy -- --section <name> [--seeds N] [--seed S] [--difficulty normal]
+//
+//   spawn      recruit survival vs spawn placement      [--replays 4]
+//   unitvalue  one more unit vs other node rewards      [--trials 60; the spec used 150]
+//   route      recruit-first vs other routing policies  [--policies recruit,battle,church] [--muster N]
+//   graph      recruit nodes and services per route (generated node maps)
+//   blessings  blessing and price power                 [--candidates 1-4] [--only id,…]
+//   arts       what Scroll Archive can hand out on day one
+//
+// Battles are played by TacticianAgent (sim/lib/TacticianAgent.js; --agent scripted for
+// the stock harness agent) with casual-mode KOs; see the spec for the method's limits.
 //
 // spawn: recruit survival. Real node maps and real rosters come from invincible
 //   full runs (RunSimulationDriver, recruit-first routing, RescueAgent battles), which
