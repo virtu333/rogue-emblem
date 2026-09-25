@@ -249,10 +249,7 @@ export class PostCombatController {
         }
 
         // Deeds earned this battle: committed and saved above; the rite only shows them.
-        if (scene._newDeeds?.length) {
-          await deedsFor(scene).presentVictory();
-          if (!scene.scene?.isActive?.()) return;
-        }
+        if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
         if (!scene.scene?.isActive?.()) return;
         if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen
