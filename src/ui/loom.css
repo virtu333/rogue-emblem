@@ -703,6 +703,91 @@
   box-shadow: 0 0 0 1px var(--re-void);
 }
 
+/* ───────── Recruit preview (who waits at a recruit node) ───────── */
+.re-loom-recruit {
+  margin: 8px 0 0;
+  padding: 7px 8px 6px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--re-raised-haze), transparent 80%), var(--re-panel);
+  box-shadow:
+    inset 0 0 0 1px var(--re-line-soft),
+    inset 2px 0 0 var(--re-verdigris-deep);
+}
+.re-loom-recruit-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.re-loom-recruit-crest {
+  width: 28px;
+  height: 28px;
+}
+.re-loom-recruit-titles {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.re-loom-screen .re-loom-recruit-name {
+  font: 600 13px/1.1 var(--re-body);
+  color: var(--re-parchment);
+  overflow-wrap: anywhere;
+}
+.re-loom-screen .re-loom-recruit-kicker {
+  font: 7px/1.25 var(--re-pixel);
+  letter-spacing: 0.03em;
+  color: var(--re-good);
+  overflow-wrap: anywhere;
+}
+.re-loom-recruit-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 2px 4px;
+  margin: 6px 0 0;
+}
+.re-loom-recruit-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 2px 3px;
+  border-radius: 2px;
+  background: var(--re-bg);
+}
+.re-loom-recruit-stats dt {
+  font: 600 9.5px/1 var(--re-body);
+  color: var(--re-muted);
+}
+.re-loom-recruit-stats dd {
+  margin: 0;
+  font: 700 10.5px/1 var(--re-body);
+  color: var(--re-parchment);
+  font-variant-numeric: tabular-nums;
+}
+.re-loom-screen .re-loom-recruit-growth {
+  margin: 5px 0 0;
+  font: 600 10.5px/1.3 var(--re-body);
+  color: var(--re-accent-text);
+}
+.re-loom-recruit-traits {
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+.re-loom-recruit-traits li {
+  font: 10.5px/1.3 var(--re-body);
+  color: var(--re-text);
+}
+.re-loom-recruit-traits strong {
+  font-weight: 700;
+  color: var(--re-parchment);
+}
+.re-loom-recruit-traits li.is-legendary strong {
+  color: var(--re-accent-text);
+}
+
 /* ───────── Campaign Map (in-battle, read-only) ───────── */
 .re-campaign-map .re-header .re-loom-heading {
   margin-right: auto;

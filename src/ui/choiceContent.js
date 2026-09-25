@@ -360,6 +360,9 @@ export function blessingCardContent(blessing) {
     numeral: TIER_NUMERALS[tier] || String(tier || ''),
     boon: String(blessing.description || ''),
     cost,
+    // Pacts (Forbidden Tome, Scroll Archive) carry a fixed price, named as such.
+    pact: Boolean(blessing.pact),
+    costLabel: blessing.pact ? 'Pact' : 'Cost',
     lore: typeof blessing.lore === 'string' ? blessing.lore : '',
   };
 }

@@ -340,11 +340,16 @@ export class BlessingSelectScene extends Phaser.Scene {
       }
       if (hasCostLine) {
         applyTextResolution(
-          this.add.text(nameX, row1Y + cardH - 34, `Cost: ${blessing.rolledCost.label}`, {
-            fontFamily: 'Arial',
-            fontSize: '9px',
-            color: '#c8a27b',
-          }),
+          this.add.text(
+            nameX,
+            row1Y + cardH - 34,
+            `${blessing.pact ? 'Pact' : 'Cost'}: ${blessing.rolledCost.label}`,
+            {
+              fontFamily: 'Arial',
+              fontSize: '9px',
+              color: '#c8a27b',
+            },
+          ),
         );
       }
 

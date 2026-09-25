@@ -48,6 +48,20 @@ describe('dev startup helpers', () => {
     );
   });
 
+  it('devNode=recruit routes into a recruit battle with its previewed recruit', () => {
+    const config = parseDevStartupConfig(
+      '?devScene=battle&preset=battle_smoke&seed=42&devNode=recruit',
+      { devMode: true },
+    );
+    expect(config.nodeType).toBe('recruit');
+    const route = buildDevStartupRoute(loadGameData(), createRegistry(), config);
+    expect(route.key).toBe('Battle');
+    const node = route.data.runManager.nodeMap.nodes.find((n) => n.id === route.data.nodeId);
+    expect(node.type).toBe('recruit');
+    expect(route.data.battleParams.isRecruitBattle).toBe(true);
+    expect(route.data.battleParams.recruitPreview?.className).toBeTruthy();
+  });
+
   it('ignores unknown scene aliases', () => {
     const config = parseDevStartupConfig('?devScene=unknown', { devMode: true });
     expect(config).toBeNull();

@@ -41,6 +41,7 @@
             "type": "array",
             "items": { "$ref": "#/$defs/costEntry" }
           },
+          "pact": { "$ref": "#/$defs/costEntry" },
           "excludes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
           "lore": { "type": "string", "minLength": 1 }
         },
