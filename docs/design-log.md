@@ -135,6 +135,47 @@ Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/
 
 ---
 
+## 2026-09-25 — Traced map sprites are the battlefield art; lords and bosses redrawn at map size
+
+Traced sprites (owner: "they look great, make them the default") are now what every unit
+wears on the battlefield — 335 sprites, six frames each, two atlas pages (24.8 MB
+decoded); the rebuilt set is a dev comparison (`?spriteArt=rebuilt`). The weak spot of the
+v2 study was the lords and bosses traced from ~128 px rebuilt art (scale 0.11–0.45, faces
+collapsed). Decision: redraw those 19 at map size with the shared image client (style
+board + an approved map sprite for scale + the unit's rebuilt sprite and portrait for
+identity) and trace the redraws at 0.55–0.8. Kept: identity first — a take that matched
+the portrait beat a take with a higher scale. The empire's iron swap no longer greys a
+boss's own gold (Emperor, Knight Commander). Combat v2 fix found on the way: a rewind
+mid-lunge left the striker off its tile (`CombatFxController.reset` now stops the lunge).
+Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
+
+---
+
+## 2026-09-25 — Portrait variety: every recruit their own face
+
+iPhone playtest: two Fighters (Bram, Roderick) wore the identical bald, bearded portrait. Every
+generic class had one face. Decisions:
+
+- **Five people per class line, drawn in every class of the line** (175 player-side drawings,
+  60 people; Falcon Knight and Wyvern Lord have ten via the cross promotions). Promotion keeps
+  the person and changes the gear; we chose matched promoted drawings over mapping promoted
+  units to their base face so the promotion rite shows *this* unit in the new class's armour.
+- **Enemies get four faces per human class** (128) in the Empire's iron and crimson; monsters,
+  lords and bosses keep theirs. All legacy generic/enemy defaults were remastered to the rebuilt
+  quality so old and new sit in one set.
+- **Stable, never random:** `unit.portraitVariant` is chosen once from a hash of run seed, name
+  and class, skipping faces the army already has; genders follow the recruit name pools (a
+  "Bram" is never drawn as a woman, a "Hedda" never as a man). Enemies hash their spawn identity.
+  Legacy saves backfill on load. Nothing reads `Math.random` (the battle RNG).
+- **No new texture memory at boot:** the atlases and baked textures still hold only the 94
+  defaults; variants are display-sized figures the DOM decodes on demand and the canvas loads
+  lazily (capped, released after battle).
+- Text lists that named units (church, colosseum, shop choosers, records) now show the same face.
+
+Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-variety/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

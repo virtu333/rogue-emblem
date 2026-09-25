@@ -32,6 +32,9 @@ export const FAMILIES = {
   silverHair: ({ L, C }) => C < 14 && L >= 50,
   blackHair: ({ L, C }) => L < 38 && C < 18,
   skin: ({ L, C, h }) => C >= 12 && C <= 46 && inHue(h, 40, 82) && L >= 58,
+  // deep skin tones (the later player passes) sit below the light-skin lightness floor;
+  // only ever read inside the head box, where brown cloth and leather are rare
+  skinDeep: ({ L, C, h }) => C >= 14 && C <= 44 && inHue(h, 35, 72) && L >= 26 && L < 58,
   leather: ({ L, C, h }) => C >= 9 && C <= 45 && inHue(h, 28, 80) && L >= 14 && L < 60,
   steel: ({ L, C }) => C < 10 && L >= 58,
   charcoal: ({ L, C }) => C < 14 && L >= 13 && L < 52,
@@ -220,7 +223,17 @@ export function segment(native, recipe = {}) {
       const y = (p / w) | 0;
       if (opaque[p] && !slot[p] && y < bb.y + bb.height * 0.4 && FAMILIES.skin(px(p))) mask[p] = 1;
     }
-    const { comps } = components(mask, w, h);
+    let { comps } = components(mask, w, h);
+    // no light face: look for a deep-toned one (never with a brown-haired recipe, whose
+    // hair shares the hue)
+    if (!comps.some((c) => c.length >= 6) && recipe.hair !== 'brown' && recipe.hair !== 'red') {
+      for (let p = 0; p < n; p++) {
+        const y = (p / w) | 0;
+        if (opaque[p] && !slot[p] && y < bb.y + bb.height * 0.4 && FAMILIES.skinDeep(px(p)))
+          mask[p] = 1;
+      }
+      comps = components(mask, w, h).comps;
+    }
     // the face is the skin patch with hair (or headgear) right above it: count non-skin,
     // non-ink pixels in the band above each candidate, prefer higher and larger patches
     const hairLike = hairFamOf(recipe);
@@ -279,6 +292,13 @@ export function segment(native, recipe = {}) {
   // --- rule seeds (precedence order) -------------------------------------------
   const mainFam = recipe.main ? FAMILIES[recipe.main] : null;
   const hairFam = recipe.hair ? FAMILIES[HAIR[recipe.hair] || recipe.hair] : null;
+  let lightFace = 0;
+  for (let y = Math.max(0, head[1]); y < Math.min(h, head[3]); y++)
+    for (let x = Math.max(0, head[0]); x < Math.min(w, head[2]); x++) {
+      const p = y * w + x;
+      if (opaque[p] && FAMILIES.skin(px(p))) lightFace++;
+    }
+  const deepFace = recipe.deepSkin ?? lightFace < 6;
   const rules = [
     [
       SLOT.trim,
@@ -294,6 +314,17 @@ export function segment(native, recipe = {}) {
         mainFam && mainFam(px(p)) && !(recipe.hair === 'red' && recipe.main === 'red' && inHead(p)),
     ],
     [SLOT.skin, (p) => FAMILIES.skin(px(p)) && (inHead(p) || C[p] >= 18)],
+    // a deep-toned face (only when the head holds no light-toned face): lower head box
+    // only (the hair rule owns the top), not hair-coloured
+    [
+      SLOT.skin,
+      (p) =>
+        deepFace &&
+        inHead(p) &&
+        ((p / w) | 0) >= head[1] + (head[3] - head[1]) * 0.4 &&
+        FAMILIES.skinDeep(px(p)) &&
+        !(hairFam && hairFam(px(p))),
+    ],
     [
       SLOT.hair,
       (p) => {

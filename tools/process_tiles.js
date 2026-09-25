@@ -6,6 +6,8 @@ import { resolve, join } from 'path';
 
 const TILE_SIZE = 32;
 const DIR = resolve('assets/sprites/tilesets');
+// the raw generations are kept out of the shipped assets (docs/mobile-memory-budget.md)
+const RAW_DIR = resolve('docs/art/raw-sprites/tilesets');
 const PUBLIC_DIR = resolve('public/assets/sprites/tilesets');
 
 const tiles = [
@@ -31,7 +33,7 @@ import { mkdirSync } from 'fs';
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
 for (const name of tiles) {
-  const input = join(DIR, `${name}_raw.png`);
+  const input = join(RAW_DIR, `${name}_raw.png`);
   const output = join(DIR, `${name}.png`);
   const publicOutput = join(PUBLIC_DIR, `${name}.png`);
 

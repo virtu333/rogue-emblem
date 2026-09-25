@@ -1,0 +1,323 @@
+{
+  "astrid": {
+    "take": "astrid-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Astrid, pegasus knight lord riding a white winged horse: pale silver-blonde hair tied back, light silver armour over a navy-blue tunic, a short blue scarf, a long steel lance held level and clearly visible, pointing forward-right past the horse head. Mounted: the pegasus faces right with wings raised behind the rider, all four legs visible.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_astrid.png",
+      "assets/portraits/pc98/192/lord_astrid.png"
+    ],
+    "native": [
+      90,
+      86
+    ],
+    "pitch": 20.44,
+    "at": "2026-09-25T07:07:15.080Z"
+  },
+  "astrid_promoted": {
+    "take": "astrid_promoted-1",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. Subject: Astrid promoted (Seraph Knight) riding a white winged horse: pale silver-blonde hair, a winged silver circlet-helm, ornate silver armour with navy-blue and gold panels, blue scarf, a long steel lance held level and clearly visible pointing forward-right past the horse head. Mounted: the pegasus faces right with large wings raised behind, all four legs visible. (Variation 2.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_astrid_promoted.png",
+      "assets/portraits/pc98/192/lord_astrid.png"
+    ],
+    "native": [
+      91,
+      84
+    ],
+    "pitch": 20.43,
+    "at": "2026-09-25T07:00:59.436Z"
+  },
+  "boss_archmage": {
+    "take": "boss_archmage-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Archmage, sorcerer boss: long white hair and beard, gaunt face, long black and crimson robe with gold patterns, a gold staff with a red orb in his right hand, an open crimson tome in his left. Tall and stooped.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_archmage.png",
+      "assets/portraits/pc98/192/boss_archmage.png"
+    ],
+    "native": [
+      71,
+      80
+    ],
+    "pitch": 20.42,
+    "at": "2026-09-25T07:09:03.765Z"
+  },
+  "boss_berserker_king": {
+    "take": "boss_berserker_king-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Berserker King: wild spiky red hair, bare muscular torso with crossed straps, ragged crimson loincloth and fur boots, a huge double-bladed steel axe held in both hands at his left. Crouched, savage.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_berserker_king.png",
+      "assets/portraits/pc98/192/boss_berserker_king.png"
+    ],
+    "native": [
+      95,
+      92
+    ],
+    "pitch": 20.44,
+    "at": "2026-09-25T07:09:26.140Z"
+  },
+  "boss_blade_lord": {
+    "take": "boss_blade_lord-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Blade Lord, duelist boss: long black hair, pale sharp face, crimson longcoat with gold buttons over dark armour, a single silver shoulder guard, a long curved sabre held low at his right. Lean, elegant, dangerous.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_blade_lord.png",
+      "assets/portraits/pc98/192/boss_blade_lord.png"
+    ],
+    "native": [
+      46,
+      69
+    ],
+    "pitch": 20.42,
+    "at": "2026-09-25T07:08:25.420Z"
+  },
+  "boss_dark_rider": {
+    "take": "boss_dark_rider-3",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Dark Rider, sinister knight boss on a black horse with a long black mane and tail: black plate armour with crimson accents and a winged horned helm, tattered crimson-black cape, a black halberd held raised. Mounted: the horse faces right, all four legs visible. (Variation 4.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_dark_rider.png",
+      "assets/portraits/pc98/192/boss_dark_rider.png"
+    ],
+    "native": [
+      117,
+      140
+    ],
+    "pitch": 14.61,
+    "at": "2026-09-25T07:08:09.314Z"
+  },
+  "boss_iron_captain": {
+    "take": "boss_iron_captain-5",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 is an approved MOUNTED map sprite: match its pixel scale exactly — horse and rider together only about 60 pixels tall and 70 wide, the rider about 30 pixels tall. Subject: Iron Captain, imperial cavalry boss riding a dark bay warhorse: silver plate armour and open steel helmet, crimson cape and crimson saddle cloth, a lance held upright with a small crimson pennant. Mounted: the horse faces right, all four legs visible, rider seated. (Variation 6.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/sprite-refs-2026-09-25/exemplar-cavalier_e.png",
+      "docs/art/rebuilt-sprite-sources/boss_iron_captain.png",
+      "assets/portraits/pc98/192/boss_iron_captain.png"
+    ],
+    "native": [
+      75,
+      92
+    ],
+    "pitch": 20.42,
+    "at": "2026-09-25T07:44:28.010Z"
+  },
+  "boss_iron_wall": {
+    "take": "boss_iron_wall-1",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. Subject: Iron Wall, fortress-knight boss: great helm with a cross visor, massive silver plate armour, crimson cape and tabard, an enormous crimson tower shield with a pale stripe on his left, a long spear held upright on his right. Very broad, immovable, heavy silhouette. (Variation 2.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_iron_wall.png",
+      "assets/portraits/pc98/192/boss_iron_wall.png"
+    ],
+    "native": [
+      70,
+      91
+    ],
+    "pitch": 20.42,
+    "at": "2026-09-25T07:01:51.636Z"
+  },
+  "boss_knight_commander": {
+    "take": "boss_knight_commander-5",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 is an approved MOUNTED map sprite: match its pixel scale exactly — horse and rider together only about 60 pixels tall and 70 wide, the rider about 30 pixels tall. Subject: Knight Commander, imperial paladin boss riding a grey dapple warhorse: grey-haired man in silver plate with gold trim, long crimson and gold caparison with a pale cross, a lance held upright with a crimson-and-gold pennant. Mounted: the horse faces right, all four legs visible. (Variation 6.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/sprite-refs-2026-09-25/exemplar-cavalier_e.png",
+      "docs/art/rebuilt-sprite-sources/boss_knight_commander.png",
+      "assets/portraits/pc98/192/boss_knight_commander.png"
+    ],
+    "native": [
+      60,
+      76
+    ],
+    "pitch": 25.66,
+    "at": "2026-09-25T07:44:25.495Z"
+  },
+  "boss_the_emperor": {
+    "take": "boss_the_emperor-0",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. Subject: The Emperor, final boss: grey-haired older man with a gold crown, ornate navy-blue and gold plate armour, crimson cape, a gold tower shield with a black eagle on his left, a tall spear held upright on his right. Regal, broad, imposing.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_the_emperor.png",
+      "assets/portraits/pc98/192/boss_the_emperor.png"
+    ],
+    "native": [
+      46,
+      70
+    ],
+    "pitch": 20.38,
+    "at": "2026-09-25T07:02:26.095Z"
+  },
+  "boss_the_lieutenant": {
+    "take": "boss_the_lieutenant-3",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: The Lieutenant, the Emperor's enforcer: short black and white streaked hair, scarred face, dark charcoal plate with crimson lines, a long tattered crimson cape, a straight steel sword held low at his right. Tall and lean. (Variation 4.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_the_lieutenant.png",
+      "assets/portraits/pc98/192/boss_the_lieutenant.png"
+    ],
+    "native": [
+      61,
+      74
+    ],
+    "pitch": 25.66,
+    "at": "2026-09-25T07:08:56.308Z"
+  },
+  "boss_warchief": {
+    "take": "boss_warchief-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Warchief, barbarian boss: bald head with a red mohawk crest, bare muscular arms, studded leather and a few steel plates, ragged crimson cape, a heavy steel war axe held in his right hand. Broad and brutish.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/boss_warchief.png",
+      "assets/portraits/pc98/192/boss_warchief.png"
+    ],
+    "native": [
+      58,
+      92
+    ],
+    "pitch": 20.39,
+    "at": "2026-09-25T07:13:01.808Z"
+  },
+  "cael": {
+    "take": "cael-2",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Cael, stoic veteran guardian lord: open-faced steel kettle helmet over a stern clean-shaven face with dark brows, dark steel plate armour with a crimson scarf wrapped at the neck and a crimson tabard with a pale cross, a tall kite shield slung on his back, a long-hafted steel battle axe held upright in both hands in front of him, axe head low at his right. Broad and square.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_cael.png",
+      "assets/portraits/pc98/192/lord_cael.png"
+    ],
+    "native": [
+      77,
+      69
+    ],
+    "pitch": 20.43,
+    "at": "2026-09-25T07:06:43.993Z"
+  },
+  "cael_promoted": {
+    "take": "cael_promoted-8",
+    "model": "gemini-3.1-flash-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person before promotion, already approved at map size: keep exactly its pixel scale, face, hair, build and proportions, and change only the costume and weapon as described (the identity images show the promoted outfit). Subject: Cael promoted: the same helmeted veteran in heavier dark steel plate with crimson layered pauldrons and a crimson tabard with a pale cross, a steel spear-tipped poleaxe held upright in both hands (spike above his head, broad axe blade low at his right). Tall, broad, square silhouette.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-25/sources/cael.png",
+      "assets/portraits/pc98/192/lord_cael.png"
+    ],
+    "native": [
+      60,
+      79
+    ],
+    "pitch": 20.43,
+    "at": "2026-09-25T07:53:25.329Z"
+  },
+  "kira": {
+    "take": "kira-3",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Kira, young tactician lord: long silver-white hair in a high ponytail, pale face, long plum-purple coat with cream lining over a charcoal tunic, brown belt and tall brown boots, an open brown tome held in her left hand at the chest, right arm extended pointing forward. Slender, commanding. (Variation 4.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_kira.png",
+      "assets/portraits/pc98/192/lord_kira.png"
+    ],
+    "native": [
+      66,
+      89
+    ],
+    "pitch": 20.42,
+    "at": "2026-09-25T07:06:00.383Z"
+  },
+  "kira_promoted": {
+    "take": "kira_promoted-0",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. Subject: Kira promoted (Grandmaster): the same silver-ponytailed woman, longer plum-purple greatcoat with cream trim and a few gold-thread motifs, silver clasps, open tome in her left hand, right arm pointing forward. More ornate than her base form but the same silhouette.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_kira_promoted.png",
+      "assets/portraits/pc98/192/lord_kira.png"
+    ],
+    "native": [
+      62,
+      82
+    ],
+    "pitch": 20.43,
+    "at": "2026-09-25T06:59:13.865Z"
+  },
+  "sera_promoted": {
+    "take": "sera_promoted-10",
+    "model": "gemini-3.1-flash-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person before promotion, already approved at map size: keep exactly its pixel scale, face, hair, build and proportions, and change only the costume and weapon as described (the identity images show the promoted outfit). Subject: Sera promoted (Light Priestess): the same red-haired woman as her base sprite (the third image), long flowing red hair, warm face, now a longer cream and plum robe with a little gold trim and a pale sash, a tall silver staff topped with a small radiant cross-star held upright at her right, a small open book in her left hand. Serene; cream and red dominate.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/sera.png",
+      "assets/portraits/pc98/192/lord_sera.png"
+    ],
+    "native": [
+      48,
+      62
+    ],
+    "pitch": 26.22,
+    "at": "2026-09-25T07:54:03.800Z"
+  },
+  "voss": {
+    "take": "voss-0",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. Subject: Voss, veteran ranger lord: dark brown hair swept back, full dark beard, weathered face, ragged moss-green hooded mantle over brown leather and a little dull mail, a bow and quiver slung on his back, a long broad steel greatsword held low in both hands angled down to his right. Heavy, grounded stance.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_voss.png",
+      "assets/portraits/pc98/192/lord_voss.png"
+    ],
+    "native": [
+      58,
+      76
+    ],
+    "pitch": 20.43,
+    "at": "2026-09-25T06:59:40.293Z"
+  },
+  "voss_promoted": {
+    "take": "voss_promoted-3",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Subject: Voss promoted: the same bearded ranger now in dark steel plate over chainmail, ragged moss-green mantle, bow and quiver on his back, long broad greatsword held low in both hands angled down to his right. Broad armoured silhouette. (Variation 4.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/sprite-candidates-2026-09-22/sources/edric.png",
+      "docs/art/rebuilt-sprite-sources/lord_voss_promoted.png",
+      "assets/portraits/pc98/192/lord_voss.png"
+    ],
+    "native": [
+      53,
+      74
+    ],
+    "pitch": 21.24,
+    "at": "2026-09-25T07:06:33.034Z"
+  }
+}

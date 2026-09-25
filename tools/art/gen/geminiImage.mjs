@@ -93,6 +93,20 @@ function refPart(ref) {
 }
 
 /**
+ * The cache key generateImage uses for a request (model, prompt, config and
+ * reference bytes). Lets a pipeline tell whether a cached output is current
+ * before it depends on it.
+ */
+export function generationHash({ prompt, refs = [], model = MODELS.pro, aspectRatio, imageSize }) {
+  const refBytes = refs.map((r) => fs.readFileSync(typeof r === 'string' ? r : r.path));
+  return createHash('sha256')
+    .update(JSON.stringify({ model, prompt, aspectRatio, imageSize }))
+    .update(Buffer.concat(refBytes.map((b) => createHash('sha256').update(b).digest())))
+    .digest('hex')
+    .slice(0, 16);
+}
+
+/**
  * Generate image(s) from a prompt plus optional reference images.
  * @param {object} o
  * @param {string} o.prompt
@@ -114,12 +128,7 @@ export async function generateImage({
   force = false,
 }) {
   if (!prompt || !out) throw new Error('generateImage needs prompt and out');
-  const refBytes = refs.map((r) => fs.readFileSync(typeof r === 'string' ? r : r.path));
-  const hash = createHash('sha256')
-    .update(JSON.stringify({ model, prompt, aspectRatio, imageSize }))
-    .update(Buffer.concat(refBytes.map((b) => createHash('sha256').update(b).digest())))
-    .digest('hex')
-    .slice(0, 16);
+  const hash = generationHash({ prompt, refs, model, aspectRatio, imageSize });
   const dir = path.dirname(out);
   fs.mkdirSync(dir, { recursive: true });
   const cacheFile = `${out}.gen.json`;
@@ -235,4 +244,62 @@ export async function generateVideo({
     );
   });
   return file;
+}
+
+/**
+ * Ask a text model about image(s) and get JSON back (e.g. bounding boxes:
+ * Gemini returns box_2d as [ymin, xmin, ymax, xmax] on a 0-1000 grid).
+ * Cached like generateImage: `<out>.json` holds the answer, keyed by a hash of
+ * model, prompt and image bytes; provenance goes to generations.jsonl.
+ * @param {object} o { prompt, images: string[], model, out (path without extension) }
+ * @returns {Promise<{ json: any, cached: boolean }>}
+ */
+export async function describeImage({
+  prompt,
+  images = [],
+  model = 'gemini-2.5-flash',
+  out,
+  force = false,
+}) {
+  if (!prompt || !out) throw new Error('describeImage needs prompt and out');
+  const hash = createHash('sha256')
+    .update(JSON.stringify({ model, prompt }))
+    .update(
+      Buffer.concat(images.map((f) => createHash('sha256').update(fs.readFileSync(f)).digest())),
+    )
+    .digest('hex')
+    .slice(0, 16);
+  const file = `${out}.json`;
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  if (!force && fs.existsSync(file)) {
+    const c = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (c.hash === hash) return { json: c.json, cached: true };
+  }
+  const body = {
+    contents: [{ parts: [...images.map(refPart), { text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+  };
+  const res = await withRetry(() => curlJson(`${API}/models/${model}:generateContent`, body));
+  if (res.error) throw new Error(`${res.error.code} ${res.error.message}`);
+  const text = (res.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`non-JSON answer: ${text.slice(0, 200)}`);
+  }
+  const record = {
+    hash,
+    model,
+    prompt,
+    images: images.map(String),
+    json,
+    at: new Date().toISOString(),
+  };
+  fs.writeFileSync(file, JSON.stringify(record, null, 2));
+  fs.appendFileSync(
+    path.join(path.dirname(out), 'generations.jsonl'),
+    `${JSON.stringify(record)}\n`,
+  );
+  return { json, cached: false };
 }
