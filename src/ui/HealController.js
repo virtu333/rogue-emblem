@@ -1,6 +1,7 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { TutorialController } from './TutorialController.js';
 import { applyLegendaryStaffHeal } from '../engine/TraitSystem.js';
+import { deedsFor } from './DeedController.js';
 // HealController -- staff heal flow extracted from BattleScene.
 // Owns staff selection, heal target selection, and heal resolution/animation.
 // Cross-cutting seams (finishUnitAction, awardScaledXP, showActionMenu,
@@ -381,7 +382,9 @@ export class HealController {
       const result = resolveHeal(staff, healer, target, healOpts);
 
       // Apply heal
+      const hpBefore = target.currentHP;
       target.currentHP = result.targetHPAfter;
+      deedsFor(scene).onHeal(healer, target, hpBefore);
       observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
         amount: result.healAmount,
       });
@@ -428,7 +431,9 @@ export class HealController {
 
       for (const target of targets) {
         const result = resolveHeal(staff, healer, target, healOpts);
+        const hpBefore = target.currentHP;
         target.currentHP = result.targetHPAfter;
+        deedsFor(scene).onHeal(healer, target, hpBefore);
         observeHistoryAction(scene, 'healed', healer, target, `${result.healAmount} HP`, {
           amount: result.healAmount,
         });

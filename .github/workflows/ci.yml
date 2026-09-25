@@ -75,3 +75,11 @@ jobs:
       - run: npm run check:ui-theme
       - run: npm run build
       - run: npx playwright test --config playwright.release.config.js
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-failures
+          path: |
+            test-results/
+            test-results-release/
+          if-no-files-found: ignore

@@ -1,0 +1,598 @@
+/* Deeds & Epithets (docs/specs/deeds-epithets.md): the deed title card,
+   epithets under names, the Oath seal, the Deeds of the March.
+   Built on ceremony.css (.ce-layer, --ce-scale, --ce-px, .is-static) and
+   growth.css (.gr-kicker, .gr-seal). Cinzel only for the ceremonial words
+   (the name and the epithet on the card); Press Start 2P for kickers and
+   counts; the body face for anything read (lore, epithets in lists). */
+
+/* ─────────────────────────────────────────────── Epithet (everywhere) */
+.re-epithet {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: italic 500 12px / 1.3 var(--re-body);
+  letter-spacing: 0.01em;
+  color: var(--re-accent);
+}
+
+/* ─────────────────────────────────────────────── The deed title card */
+.gr-deed-layer {
+  --gr-deed-band: calc(168px * var(--ce-scale));
+  --gr-deed-bust: min(
+    calc(192px * var(--ce-bust-px, 1)),
+    calc(var(--ce-w) * 0.32),
+    calc(var(--ce-h) * 0.7)
+  );
+  --gr-deed-seal-size: calc(66px * var(--ce-scale));
+  --gr-deed-skew: -5deg;
+}
+.gr-deed-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(52, 32, 16, 0.6), rgba(7, 6, 11, 0.94) 66%);
+  animation: ce-fade 260ms ease-out both;
+}
+.gr-deed-stage,
+.gr-deed {
+  position: absolute;
+  inset: 0;
+}
+.gr-deed {
+  animation: gr-deed-shake 240ms var(--gr-deed-seal-at, 0ms) linear both;
+}
+/* Speed lines, anime title-card style, settling as the band lands. */
+.gr-deed-lines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -5deg,
+    transparent 0 14px,
+    rgba(255, 240, 189, 0.05) 14px 15px,
+    transparent 15px 31px,
+    rgba(243, 203, 108, 0.09) 31px 32px
+  ); /* prettier-ignore */
+  -webkit-mask-image: radial-gradient(ellipse at 36% 50%, transparent 28%, #000 78%);
+  mask-image: radial-gradient(ellipse at 36% 50%, transparent 28%, #000 78%);
+  opacity: 0.35;
+  animation: gr-deed-lines 900ms ease-out both;
+}
+/* The band: an ink slash across the map, gold above and ember below. */
+.gr-deed-slash {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: calc(50% - var(--gr-deed-band) / 2);
+  height: var(--gr-deed-band);
+  transform: skewY(var(--gr-deed-skew));
+  background: linear-gradient(
+    90deg,
+    rgba(7, 6, 11, 0.97) 0%,
+    rgba(22, 19, 30, 0.97) 46%,
+    rgba(79, 44, 22, 0.95) 100%
+  ); /* prettier-ignore */
+  border-top: 2px solid var(--ce-gold-5);
+  border-bottom: 2px solid var(--ce-ember-lo);
+  box-shadow:
+    0 0 0 1px var(--ce-ink-0),
+    0 24px 60px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  animation: ce-wipe var(--gr-deed-slash, 380ms) cubic-bezier(0.7, 0, 0.2, 1) both;
+}
+/* The ember streak that runs the band as it cuts in. */
+.gr-deed-streak {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -34%;
+  width: 34%;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(232, 120, 46, 0.25) 40%,
+    rgba(255, 240, 189, 0.6) 85%,
+    transparent
+  ); /* prettier-ignore */
+  animation: gr-deed-streak calc(var(--gr-deed-slash, 380ms) * 1.8) calc(var(--gr-deed-slash, 380ms) * 0.4) ease-out both; /* prettier-ignore */
+}
+/* The unit stands in the band, rim-lit by an ember glow, breaking out of it. */
+.gr-deed-bust {
+  position: absolute;
+  left: calc(3% + env(safe-area-inset-left, 0px));
+  top: calc(50% + var(--gr-deed-band) / 2 - var(--gr-deed-bust) + 6px);
+  width: var(--gr-deed-bust);
+  height: var(--gr-deed-bust);
+  animation: ce-bust-in 620ms calc(var(--gr-deed-slash, 380ms) * 0.5) cubic-bezier(0.2, 0.8, 0.2, 1)
+    both; /* prettier-ignore */
+}
+.gr-deed-ray {
+  position: absolute;
+  inset: -16%;
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(255, 208, 138, 0.42),
+    rgba(232, 120, 46, 0.16) 38%,
+    transparent 64%
+  ); /* prettier-ignore */
+  animation: ce-fade 700ms var(--gr-deed-slash, 380ms) ease-out both;
+}
+.gr-deed-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  filter: drop-shadow(-2px -1px 0 rgba(255, 240, 189, 0.55))
+    drop-shadow(0 0 12px rgba(243, 203, 108, 0.3));
+}
+.gr-deed-portrait.is-legacy {
+  object-fit: cover;
+}
+/* Words ride the slash. */
+.gr-deed-text {
+  position: absolute;
+  left: calc(3% + var(--gr-deed-bust) + 14px + env(safe-area-inset-left, 0px));
+  right: calc(var(--gr-deed-seal-size) + 7% + env(safe-area-inset-right, 0px));
+  top: calc(50% - var(--gr-deed-band) / 2);
+  height: var(--gr-deed-band);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  transform: skewY(var(--gr-deed-skew));
+}
+.gr-deed.is-faceless .gr-deed-text {
+  left: calc(8% + env(safe-area-inset-left, 0px));
+}
+.gr-deed-text > * {
+  max-width: 100%;
+}
+.gr-deed-kicker {
+  animation: ce-rise 380ms calc(var(--gr-deed-name-at, 0ms) - 80ms) both;
+}
+.gr-deed-name {
+  font: 700 calc(17px * var(--ce-scale)) / 1.15 var(--re-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ce-ivory);
+  text-shadow: 0 2px 0 var(--ce-ink-0);
+  margin-top: calc(4px * var(--ce-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  animation: gr-deed-in 360ms var(--gr-deed-name-at, 0ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* One shrinkable column: the brush spans exactly the epithet's width, and
+   neither can outgrow the text block (the track may shrink below content). */
+.gr-deed-epithet {
+  display: grid;
+  grid-template-columns: minmax(0, max-content);
+  max-width: 100%;
+  min-width: 0;
+}
+.gr-deed-epithet-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  /* Room for the glow inside the box (fitText measures it). */
+  padding: 0.12em 0.1em 0.02em 0;
+  font: 700 calc(30px * var(--ce-scale)) / 1.06 var(--re-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ce-gold-5);
+  text-shadow:
+    0 2px 0 var(--ce-ink-0),
+    3px 3px 0 var(--ce-ember-lo),
+    0 0 22px var(--ce-glow-gold);
+  animation: gr-deed-slam var(--gr-deed-epithet, 420ms) var(--gr-deed-epithet-at, 0ms)
+    cubic-bezier(0.2, 1.3, 0.3, 1) both; /* prettier-ignore */
+}
+/* The brush: a dry ember stroke drawn under the epithet, left to right. */
+.gr-deed-brush {
+  display: block;
+  height: calc(9px * var(--ce-scale));
+  margin: calc(1px * var(--ce-scale)) 0 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 1px, rgba(7, 6, 11, 0.35) 1px 2px),
+    linear-gradient(
+      90deg,
+      rgba(179, 69, 42, 0.2),
+      var(--ce-ember) 6%,
+      var(--ce-ember-hi) 34%,
+      var(--ce-gold-4) 72%,
+      rgba(220, 160, 68, 0.35) 94%,
+      transparent
+    ); /* prettier-ignore */
+  clip-path: polygon(
+    0 55%, 2% 20%, 18% 8%, 45% 0, 72% 12%, 94% 22%, 100% 48%,
+    97% 70%, 80% 88%, 52% 100%, 26% 92%, 6% 100%, 1% 84%
+  ); /* prettier-ignore */
+  transform-origin: 0 50%;
+  animation: gr-deed-brush var(--gr-deed-brush, 380ms) var(--gr-deed-brush-at, 0ms)
+    cubic-bezier(0.6, 0, 0.2, 1) both; /* prettier-ignore */
+}
+.gr-deed-lore {
+  margin: calc(7px * var(--ce-scale)) 0 0;
+  font: italic calc(12px * var(--ce-scale)) / 1.35 var(--re-body);
+  color: var(--ce-bone);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  animation: ce-rise 420ms var(--gr-deed-lore-at, 0ms) both;
+}
+.gr-deed-note {
+  margin: calc(2px * var(--ce-scale)) 0 0;
+  font: calc(11px * var(--ce-scale)) / 1.3 var(--re-body);
+  color: var(--re-muted);
+  animation: ce-fade 400ms var(--gr-deed-lore-at, 0ms) both;
+}
+.gr-deed-foot {
+  display: flex;
+  align-items: baseline;
+  gap: calc(10px * var(--ce-scale));
+  margin-top: calc(6px * var(--ce-scale));
+  min-width: 0;
+  animation: ce-fade 400ms var(--gr-deed-lore-at, 0ms) both;
+}
+.gr-deed-oath {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 600 calc(11px * var(--ce-scale)) / 1.3 var(--re-body);
+  color: var(--ce-ember-text);
+}
+.gr-deed-count {
+  flex: none;
+  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  color: var(--re-muted);
+}
+/* The ember seal, stamped at the band's end like a signet. */
+.gr-deed-seal {
+  position: absolute;
+  right: calc(4% + env(safe-area-inset-right, 0px));
+  top: calc(50% - var(--gr-deed-band) / 2 - var(--gr-deed-seal-size) * 0.18);
+  width: var(--gr-deed-seal-size);
+  height: var(--gr-deed-seal-size);
+  display: grid;
+  place-items: center;
+  transform: rotate(-12deg);
+  animation: gr-deed-stamp var(--gr-deed-seal, 300ms) var(--gr-deed-seal-at, 0ms)
+    cubic-bezier(0.3, 1.5, 0.4, 1) both; /* prettier-ignore */
+}
+.gr-deed-seal-wax {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 38% 32%,
+    var(--ce-ember-hi) 0%,
+    var(--ce-ember) 30%,
+    var(--ce-ember-lo) 62%,
+    var(--re-ember-deep) 100%
+  ); /* prettier-ignore */
+  clip-path: polygon(
+    50% 0, 61% 4%, 72% 2%, 80% 10%, 91% 14%, 94% 26%, 100% 37%, 97% 50%,
+    100% 62%, 94% 73%, 91% 86%, 80% 90%, 71% 98%, 60% 95%, 50% 100%, 39% 96%,
+    28% 99%, 20% 90%, 9% 86%, 6% 74%, 0 63%, 3% 50%, 0 38%, 6% 26%,
+    9% 14%, 20% 10%, 29% 2%, 40% 5%
+  ); /* prettier-ignore */
+  box-shadow: inset 0 0 0 3px rgba(79, 44, 22, 0.55);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
+}
+.gr-deed-seal::after {
+  /* the signet's ring pressed into the wax */
+  content: '';
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 240, 189, 0.55);
+  box-shadow:
+    inset 0 0 0 2px rgba(79, 44, 22, 0.45),
+    0 0 0 1px rgba(79, 44, 22, 0.5);
+}
+.gr-deed-seal-mark {
+  position: relative;
+  font: 700 calc(24px * var(--ce-scale)) / 1 var(--re-display);
+  color: var(--ce-gold-6);
+  text-shadow:
+    0 1px 0 var(--re-ember-deep),
+    0 0 8px rgba(255, 208, 138, 0.6);
+}
+.gr-deed-seal-rank {
+  position: absolute;
+  bottom: 9%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: calc(6px * var(--ce-scale)) / 1 var(--re-pixel);
+  letter-spacing: 1px;
+  color: var(--ce-gold-6);
+}
+.gr-deed-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at calc(100% - 4% - var(--gr-deed-seal-size) / 2)
+      calc(50% - var(--gr-deed-band) / 2 + var(--gr-deed-seal-size) * 0.3),
+    rgba(255, 240, 189, 0.42),
+    rgba(232, 120, 46, 0.12) 22%,
+    transparent 42%
+  ); /* prettier-ignore */
+  animation: gr-deed-flash 480ms var(--gr-deed-seal-at, 0ms) ease-out both;
+}
+.gr-deed-controls {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.gr-deed-controls .re-btn {
+  min-height: var(--re-tap, 44px);
+  padding: 0 calc(14px * var(--ce-scale));
+  font: 700 calc(13px * var(--ce-scale)) / 1 var(--re-body);
+}
+.gr-deed-skip {
+  opacity: 0.85;
+}
+/* Prestige V (a boss slain): a brighter band edge and a steadier glow. */
+.gr-deed--p5 .gr-deed-slash {
+  border-top-width: 3px;
+  border-top-color: var(--ce-gold-6);
+}
+.gr-deed--p5 .gr-deed-ray {
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(255, 240, 189, 0.55),
+    rgba(243, 203, 108, 0.22) 36%,
+    transparent 64%
+  ); /* prettier-ignore */
+}
+/* Short frames (landscape phones): tighter band, one line of lore. */
+@media (max-height: 420px) {
+  .gr-deed-layer {
+    --gr-deed-band: calc(158px * var(--ce-scale));
+  }
+  .gr-deed-lore {
+    -webkit-line-clamp: 2;
+    font-size: calc(11px * var(--ce-scale));
+  }
+}
+/* Effects quality Low: no speed lines, streak, flash or shake. */
+.ce-layer.is-low-fx .gr-deed-lines,
+.ce-layer.is-low-fx .gr-deed-streak,
+.ce-layer.is-low-fx .gr-deed-flash {
+  display: none;
+}
+.ce-layer.is-low-fx .gr-deed {
+  animation: none;
+}
+.ce-layer.is-low-fx .gr-deed-epithet-text {
+  text-shadow:
+    0 2px 0 var(--ce-ink-0),
+    3px 3px 0 var(--ce-ember-lo);
+}
+
+/* ─────────────────────────────────────────────── Oath (promotion) */
+.gr-seal--oath .gr-seal-glyph {
+  background-color: rgba(179, 69, 42, 0.55);
+  box-shadow:
+    0 0 0 1px var(--ce-ember-hi),
+    0 0 0 3px var(--ce-ink-0),
+    0 0 10px rgba(232, 120, 46, 0.55);
+}
+.gr-seal--oath b {
+  color: var(--ce-ember-text);
+}
+/* Skill lines keep their two lines when a path card grows (the list scrolls). */
+.re-btn.gr-path > .gr-path-skill {
+  flex: none;
+}
+.gr-path-oath b {
+  color: var(--ce-ember-text);
+}
+
+/* ─────────────────────────────────────────────── Level card, cut-in */
+.gr-level-epithet {
+  font-size: calc(11px * var(--ce-scale));
+  margin-top: -1px;
+}
+/* A third line under the word: the block rides higher in the strip. */
+.ce-cutin.has-epithet .ce-cutin-word {
+  top: calc(var(--ce-cut-h) * 0.08);
+}
+.ce-cutin-epithet {
+  margin-top: calc(4px * var(--ce-scale));
+  font: italic 600 calc(12px * var(--ce-scale)) / 1.2 var(--re-body);
+  color: var(--ce-gold-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────── Roster */
+.mr-unit-info > .mr-unit-epithet {
+  font: italic 500 11px / 1.25 var(--re-body);
+  color: var(--re-accent);
+}
+.mr-summary p.mr-epithet {
+  margin: -2px 0 4px;
+  font: italic 500 13px / 1.3 var(--re-body);
+  color: var(--re-accent);
+}
+.mr-deed-tally {
+  font: var(--re-t-small, 12px / 1.4 var(--re-body));
+  color: var(--re-muted);
+  margin: 0 0 8px;
+}
+.mr-card.mr-deed h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.mr-card.mr-deed h4 small {
+  display: inline;
+  margin: 0;
+  font: 8px / 1.4 var(--re-pixel);
+  letter-spacing: 1px;
+  color: var(--re-accent);
+  text-transform: uppercase;
+}
+.mr-card.mr-deed p.re-epithet {
+  white-space: normal;
+  font-size: 13px;
+  margin: 2px 0 4px;
+  color: var(--re-accent);
+}
+.mr-card.mr-deed .mr-deed-lore {
+  font-style: italic;
+}
+.mr-card.mr-deed .mr-deed-meta {
+  font-size: 11px;
+  color: var(--re-muted-dim);
+}
+.mr-card.mr-deed.is-title {
+  border-color: var(--re-accent);
+  box-shadow: inset 3px 0 var(--re-accent);
+}
+
+/* ─────────────────────────────────────────────── Deeds of the March */
+.re-deeds-march {
+  margin: 10px 0;
+}
+.re-deeds-march h3 {
+  font: 10px / 1.5 var(--re-pixel);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+  margin: 0 0 6px;
+}
+.re-deeds-march ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.re-deeds-march li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font: 13px / 1.35 var(--re-body);
+  color: var(--re-text);
+}
+.re-deeds-march li b {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.re-deeds-march li b i {
+  font-weight: 500;
+  color: var(--re-accent);
+}
+.re-deeds-march li small {
+  flex: none;
+  margin-left: auto;
+  color: var(--re-muted);
+  font-size: 11px;
+}
+.re-deeds-march li.is-fallen {
+  color: var(--re-muted);
+}
+.re-deeds-march li.is-fallen small {
+  color: var(--re-bad);
+}
+
+/* ─────────────────────────────────────────────── Motion */
+@keyframes gr-deed-lines {
+  from {
+    opacity: 1;
+    background-position: 140px 0;
+  }
+}
+@keyframes gr-deed-streak {
+  from {
+    left: -34%;
+    opacity: 1;
+  }
+  to {
+    left: 110%;
+    opacity: 0;
+  }
+}
+@keyframes gr-deed-in {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+}
+@keyframes gr-deed-slam {
+  0% {
+    opacity: 0;
+    transform: translateX(22px) scale(1.55);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(0) scale(0.97);
+    filter: none;
+  }
+}
+@keyframes gr-deed-brush {
+  from {
+    transform: scaleX(0);
+    opacity: 0.4;
+  }
+}
+@keyframes gr-deed-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-12deg) scale(2.3);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(-12deg) scale(0.9);
+  }
+  78% {
+    transform: rotate(-12deg) scale(1.05);
+  }
+}
+@keyframes gr-deed-flash {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes gr-deed-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translate(2px, -1px);
+  }
+  50% {
+    transform: translate(-2px, 1px);
+  }
+  75% {
+    transform: translate(1px, 0);
+  }
+}

@@ -20,6 +20,7 @@ import { UI_PALETTE } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import { applyPromotionOath } from '../engine/DeedSystem.js';
 
 const sceneEnded = (scene) => scene._sceneShutdownCleanedUp || scene.sys?.isActive?.() === false;
 
@@ -154,6 +155,10 @@ export class PromotionController {
       scene.gameData.skills,
     );
     markPromotionApplied();
+    // A deed's Oath, sworn with the promotion (the rite's content projected it).
+    const oath = applyPromotionOath(unit, scene.gameData);
+    if (oath?.dropped)
+      promotionResult.droppedSkills = [...(promotionResult.droppedSkills || []), oath.skillId];
     observeHistoryAction(scene, 'promoted', unit, null, promotedClassData.name);
     // Commit the seal with the promotion, before any dismissible/awaited UI.
     seal.uses = (seal.uses ?? 1) - 1;

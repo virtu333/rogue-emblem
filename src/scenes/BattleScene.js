@@ -251,6 +251,8 @@ import {
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
+import { deedsFor } from '../ui/DeedController.js';
+import { unitEpithet } from '../engine/DeedTitles.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -441,6 +443,8 @@ export class BattleScene extends Phaser.Scene {
     this._ceremonies = null;
     this._bossPresence = null;
     this._fallenCommander = null;
+    this._deedController = null;
+    this._newDeeds = null;
     this._bossName = null;
     this._commanderKillerName = null;
     this._battleCommanderName = null;
@@ -5655,6 +5659,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     observeHistoryAction(this, 'danced for', unit, target.ally);
+    deedsFor(this).onRefresh(unit);
     // Reset target's action state
     target.ally.hasMoved = false;
     target.ally._movementCommitted = false;
@@ -8157,6 +8162,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    deedsFor(this).onCombat(attacker, defender, result);
     this.updateHPBar(attacker);
     this.updateHPBar(defender);
 
@@ -9439,6 +9445,7 @@ export class BattleScene extends Phaser.Scene {
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     if (killer) observeHistoryAction(this, 'defeated', killer, unit);
     else observeHistoryAction(this, 'fell', unit);
+    deedsFor(this).onUnitRemoved(unit, killer);
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -9466,7 +9473,11 @@ export class BattleScene extends Phaser.Scene {
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
         // Presentation only: the FALLEN band names the commander that fell.
         if (unit.isCommander)
-          this._fallenCommander = { name: unit.name, className: unit.className };
+          this._fallenCommander = {
+            name: unit.name,
+            className: unit.className,
+            epithet: unitEpithet(unit),
+          };
         // Last words of a fallen recruit (permadeath): class + temperament voice,
         // a pure pick (never the RNG or the narrative log).
         if (!unit.isLord && !this.battleParams?.tutorialMode) {
@@ -9484,6 +9495,8 @@ export class BattleScene extends Phaser.Scene {
             } catch (_) {}
           }
         }
+        // After the last words: a titled unit is named in full as it falls.
+        deedsFor(this).announceFall(unit);
         // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
         if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
@@ -9667,6 +9680,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (phase === 'player') {
+      // Deeds: the enemy phase that just ended (held ground, the lord's shield).
+      if (turn > 1) deedsFor(this).onEnemyPhaseEnd(turn);
       resetPlayerUnitsForTurn(this, turn);
       // Input stays locked through the banner AND every awaited effect.
       this.battleState = 'TURN_START_RESOLVING';
