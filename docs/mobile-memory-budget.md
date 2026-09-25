@@ -115,6 +115,22 @@ timings are only comparable with each other; the decoded bytes do not depend on 
 | Travel → units on the map (median) | 2.1 s | 2.3 s |
 | JS heap at Title / battle | 24.6 / 30.5 MB | 26.8 / 27.7 MB |
 
+## Item art (icons, heroes, cards, vignettes)
+
+`docs/specs/items-art.md`. All DOM, none of it a Phaser texture, none loaded at boot:
+
+| Asset | Decoded | Loaded when |
+| --- | --- | --- |
+| Icon atlases 16 / 32 / 48 px (302 icons each) | 0.30 / 1.19 / 2.67 MB | a screen shows an icon of that size (CSS background); the 16 px atlas is not used by any screen yet |
+| Painted heroes, 96 px (139) | 0.035 MB each | its detail pane or desktop reward card is shown (`<img loading=lazy>`) |
+| Blessing card paintings, 192×256 (23) | 0.19 MB each | the blessing draft (three or four at once) |
+| Service vignettes, 640×360 (6) | 0.88 MB each | its service menu; a layout shows either the desktop band or the phone backdrop, so one decodes |
+
+Worst screen measured: the shop at 2.10 MB (32 px atlas, one vignette, one hero). The 37
+legacy `icon_*` boot textures (0.58 MB) were deleted. The memory probe
+(`tools/art/icons/memoryProbe.mjs`) reports both Phaser textures and the item art on
+screen; `tests/ItemIcons.test.js` and `tests/ItemMoments.test.js` hold the budgets.
+
 ## Rules for new or regenerated art
 
 - **Ship art at the size it is drawn, not the size it was generated.** Budget

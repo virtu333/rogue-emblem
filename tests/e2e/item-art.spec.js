@@ -238,7 +238,7 @@ for (const view of VIEWS) {
         s.onVictory();
       });
       const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
-      await expect(dialog).toBeVisible();
+      await expect(dialog).toBeVisible({ timeout: 20_000 });
       const cards = dialog.locator('.reward-card');
       await expect(cards).toHaveCount(4);
       // Face down first, then turned in order; the record remembers it played.

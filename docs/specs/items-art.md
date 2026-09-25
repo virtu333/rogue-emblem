@@ -96,17 +96,18 @@ Captures and the as-built tour: [`art-direction/items/production/`](../art-direc
   ignites the new gem.
 - Reward reveal (`src/ui/rewardReveal.js`): Hollow Sun card backs turn in order, 180 ms
   with a 90 ms stagger (rows of a list turn over their long axis), the rarest (Silver and
-  up) flashes ember; a tap or key skips. On the reward list the skipping tap also
-  selects (`passThrough`), on cards it is swallowed so it never picks. Reduce motion and
-  Instant speed show the end state. It plays **once per battle**: the reward record
+  up) flashes ember; a tap or key skips. A reward card tap only selects, so the tap that
+  skips also selects (`passThrough`; by default the skipping tap is swallowed). Reduce
+  motion and Instant speed show the end state. It plays **once per battle**: the reward record
   gains `revealed: true` (saved with the record; records saved before this have no flag
   and reveal once), and a resume, a restored half-made choice or a later pick never
   replays it (`rewardRevealPending`). Presentation only — no RNG, no game state.
-- Blessing select: the chosen blessing is a tarot card in the detail pane — the painting
-  in a tier-coloured frame (tier IV adds a dotted ember inner frame), the numeral on a
-  Hollow Sun disc — beside its terms on phones, above them on the 640×480 base and a
-  tall desktop (2x). The card turns in when the choice changes (not under Reduce motion).
-  The price sits under a wax seal: crimson for a rolled cost, verdigris for a clean gift.
+- Blessing tarot cards (the choice screens' draft): the shrine painting fills the top of
+  each card behind the tier numeral and the name, fading into the ink where the boon and
+  cost are read; 1x on phones (a phone card is wider than the painting, so the same
+  painting blurred and dimmed fills the margins), 2x on desktop. Tier IV adds a dotted
+  ember inner frame. The cost wears a wax seal: crimson for a price, verdigris for a clean
+  gift. Cards set aside dim with their painting.
 
 ### Wiring
 
@@ -117,8 +118,8 @@ Captures and the as-built tour: [`art-direction/items/production/`](../art-direc
 | Colosseum (`ArenaMenu`) | the gate behind every arena screen, torch glow |
 | Roster equipment, consumables, accessories, convoy, team scrolls (`MobileRosterSheet`; also the unit details sheet) | item cards lead with the socketed icon; About this item shows the hero beside the story (lazy) |
 | Army upgrades (`MobileUpgradeMenu`) | icons, gem pips, the purchase moment |
-| Battle rewards (`MobileRewards`) | socketed icons on every reward row (socket = category, rim = tier; skip = gold); the detail leads with the painted hero; the reveal; forge/imbue weapon steps carry the weapon's icon and picture |
-| Blessing select (`RunSetupMenu`) | boon icons in sun-disc sockets on the rows; the tarot card and cost seal in the detail |
+| Battle rewards (`MobileRewards`, `choiceCards.itemArtSlot`) | each reward card's art slot (`.ch-item-art[data-item-art-hook="item-icon"]`) shows the socketed icon on phones (48 px; 32 px in a five-card draft) and the painted 96 px hero on desktop, replacing the deleted `icon_*` images; the reveal; forge/imbue weapon steps carry the weapon's icon and picture |
+| Blessing select (`RunSetupMenu`) | tarot cards carry the shrine painting, the tier IV frame and the wax cost seal |
 | Boot | the 37 `icon_*` textures are no longer loaded; files deleted |
 
 ## Generation
@@ -134,13 +135,10 @@ All through `tools/art/gen/geminiImage.mjs` (provenance in each raw folder's
 
 ## Deviations
 
-- The choice-screen redesign (`.ch-item-art[data-item-art-hook]` reward cards, tarot
-  blessing cards) had not landed on main when this shipped. The live reward list and
-  blessing list on main are wired instead; the same helpers (`itemIcon`, `itemHero`,
-  `blessingCardArt`, `costSeal`, `playRewardReveal`) were proven against the redesign
-  on a local preview merge and port as a small follow-up when it lands. Note: the
-  redesign's `itemArtSlot` still points at the deleted `icon_*` files, so that port is
-  required on merge (it swaps them for `itemIcon`/`itemHero`).
+- The reward and blessing screens were redesigned on main (the choice screens) while this
+  was in progress; the item art targets the new cards. Before they landed, the older
+  reward list and blessing list were wired and verified too, then that wiring was dropped
+  in the merge.
 - Canvas surfaces (the in-battle loot banner and HUD item names) keep text; the item
   art is DOM-only.
 - Hero paintings stop at 96 px on a plate (the pane is ~205 px tall at 844×390); on short

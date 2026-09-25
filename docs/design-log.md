@@ -21,14 +21,13 @@ Spec and deviations: [`specs/items-art.md`](specs/items-art.md); captures:
   slot shows the pixel icon at an integer scale. Scrolls, blessings and upgrades keep
   their pixel glyph even large: the glyph is the information.
 - The reward reveal is presentation and plays once per battle: the reward record carries
-  `revealed`, so a resume never replays it. On the list, the tap that skips it selects.
+  `revealed`, so a resume never replays it. The tap that skips it also selects the card.
 - Motion (forge sparks, candle flicker, card turn, the upgrade stamp) is CSS on DOM, off
   under Reduce motion (game setting or OS).
-- The 37 legacy `icon_*` textures loaded at boot were unused: deleted.
+- The 37 legacy `icon_*` textures loaded at boot were unused: deleted. The choice
+  screens' reward cards now take the socketed icon / painted hero in their art slot.
 
 **Deferred**
-- The choice-screen redesign's reward cards and tarot blessing cards: wired on a preview
-  merge, ported when the redesign lands (its `itemArtSlot` must move off `icon_*`).
 - Canvas loot banner and HUD item names stay text.
 
 ---

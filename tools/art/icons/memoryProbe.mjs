@@ -56,9 +56,11 @@ async function measure(page) {
       if (!visible(el)) continue;
       add(bg(el));
       add(bg(el, '::before'));
+      add(bg(el, '::after'));
     }
     for (const img of document.querySelectorAll('img'))
-      if (visible(img)) add(img.currentSrc || img.src);
+      if (visible(img) && /assets\/ui\/(items|moments)\//.test(img.currentSrc || img.src))
+        urls.add(img.currentSrc || img.src);
     const art = [];
     for (const url of urls) {
       const im = new Image();
