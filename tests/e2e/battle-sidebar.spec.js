@@ -29,13 +29,20 @@ for (const viewport of [
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await expect(hud.locator('.mb-terrain')).toContainText('Avoid');
     await expect(hud.locator('.mb-counters')).toContainText('Rewinds');
-    const visibleWithoutScroll = async (label) => {
+    // region: the scroll box, or the fixed dock that pins Wait beside Danger (playtest 4).
+    const visibleWithoutScroll = async (label, region = '.mb-body') => {
       const b = hud.getByRole('button', { name: label, exact: true });
       await expect
         .poll(async () => {
           const bb = await b.boundingBox(),
-            body = await hud.locator('.mb-body').boundingBox();
-          return !!bb && !!body && bb.y >= body.y && bb.y + bb.height <= body.y + body.height + 1;
+            body = await hud.locator(region).boundingBox();
+          return (
+            !!bb &&
+            !!body &&
+            bb.y >= body.y &&
+            bb.y + bb.height <= body.y + body.height + 1 &&
+            bb.y + bb.height <= viewport.height + 1
+          );
         })
         .toBe(true);
     };
@@ -62,7 +69,7 @@ for (const viewport of [
       s.showActionMenu(s.playerUnits[0]);
     });
     await expect(hud.getByRole('button', { name: 'Wait', exact: true })).toBeVisible();
-    await visibleWithoutScroll('Wait');
+    await visibleWithoutScroll('Wait', '.mb-dock');
     await expect(hud.locator('.mb-terrain')).toContainText('Def');
     await page.screenshot({ path: info.outputPath('selected.png') });
     const danger = hud.getByRole('button', { name: 'Danger', exact: true });

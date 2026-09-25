@@ -359,3 +359,139 @@ test('end-turn prompt locates a ready unit without spending its action, then the
     )
     .toBe(true);
 });
+
+// Playtest 4: Wait, the most common command, sat below the fold of a six-command menu
+// (Guidance Full keeps a greyed Attack row). It is pinned in the fixed dock beside a
+// compact Danger; the list keeps the canvas order, primary first, and scrolls the rest.
+// 667x375 (iPhone SE 2nd gen) is the smallest supported landscape; 568x320 is a margin.
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 667, height: 375 },
+  { width: 568, height: 320 },
+]) {
+  test(`Wait is pinned in view in a six-command menu at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        'emblem_rogue_settings',
+        JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: true, guidance: 'full' }),
+      ),
+    );
+    await page.goto('/?devScene=battle&preset=combat_actions&seed=42');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    // Idle: the dock is Danger alone, full width.
+    await expect(hud.locator('.mb-dock .mb-danger-toggle')).toBeVisible();
+    await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveCount(0);
+
+    // Support has six commands on Full: greyed Attack, Shove, Pull, Trade, Swap, Wait.
+    const canvas = await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits.find((p) => p.name === 'Support');
+      s.selectUnit(u);
+      s.showActionMenu(u);
+      return {
+        labels: s.actionMenu.filter((o) => typeof o?._action === 'function').map((o) => o.text),
+        focus: s._menuFocus.items.map((item) => item.label),
+      };
+    });
+    // The canvas menu and the keyboard/gamepad order are unchanged: Wait last.
+    expect(canvas.labels).toEqual(['Attack', 'Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
+    expect(canvas.focus).toEqual(['Shove', 'Pull', 'Trade', 'Swap', 'Wait']);
+    const list = hud.locator('.mb-body .mb-actions > button');
+    await expect(list).toHaveCount(5);
+    await expect(list.first()).toContainText('No target in range 1');
+    await expect(list.first()).toBeDisabled();
+    const wait = hud.getByRole('button', { name: 'Wait', exact: true });
+    await expect(wait).toHaveCount(1);
+    await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveText('Wait');
+
+    const layout = () =>
+      page.evaluate(() => {
+        const body = document.querySelector('.mobile-battle-hud .mb-body');
+        const root = document.querySelector('.mobile-battle-hud').getBoundingClientRect();
+        const b = body.getBoundingClientRect();
+        const w = document.querySelector('.mb-dock .mb-pinned-command').getBoundingClientRect();
+        const d = document.querySelector('.mb-dock .mb-danger-toggle').getBoundingClientRect();
+        const hit = document.elementFromPoint(w.left + w.width / 2, w.top + w.height / 2);
+        return {
+          scrollTop: body.scrollTop,
+          // Fully on screen, inside the rail, clear of the scroll region: no scroll needed.
+          waitInView:
+            w.top >= root.top &&
+            w.bottom <= Math.min(root.bottom, innerHeight) + 0.5 &&
+            w.left >= root.left - 0.5 &&
+            w.right <= root.right + 0.5 &&
+            w.top >= b.bottom - 0.5 &&
+            w.height >= 44,
+          waitOnTop: Boolean(hit?.closest('.mb-pinned-command')),
+          sameRow: Math.abs(w.top - d.top) < 1 && d.height >= 44 && d.left >= w.right,
+          dangerInView: d.bottom <= innerHeight + 0.5,
+        };
+      });
+    await expect.poll(layout).toEqual({
+      scrollTop: 0,
+      waitInView: true,
+      waitOnTop: true,
+      sameRow: true,
+      dangerInView: true,
+    });
+    await expect(hud.getByRole('button', { name: 'Danger', exact: true })).toBeVisible();
+
+    // The other commands stay reachable in the scroll region ("more ▾" when they overflow).
+    const overflows = await page.evaluate(() => {
+      const body = document.querySelector('.mobile-battle-hud .mb-body');
+      return body.scrollHeight > body.clientHeight + 2;
+    });
+    if (overflows) await expect(page.locator('.mb-scroll-cue')).toHaveText('more ▾');
+    for (const label of ['Shove', 'Pull', 'Trade', 'Swap']) {
+      const button = hud.getByRole('button', { name: label, exact: true });
+      await button.scrollIntoViewIfNeeded();
+      const reachable = await button.evaluate((el) => {
+        const body = el.closest('.mb-body').getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        // Scrolled fully into view (a row taller than the 568x320 viewport: its centre).
+        const inside =
+          r.height > body.height || (r.top >= body.top - 0.5 && r.bottom <= body.bottom + 0.5);
+        return inside && Boolean(hit && el.contains(hit));
+      });
+      expect(reachable, label).toBe(true);
+    }
+    // Scrolling the list never moves Wait.
+    await expect.poll(layout).toMatchObject({ waitInView: true, waitOnTop: true });
+
+    // Keyboard/gamepad: focus walks the list and ends on the pinned Wait.
+    await hud.getByRole('button', { name: 'Shove', exact: true }).focus();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+    await expect(wait).toBeFocused();
+    await expect(wait).toHaveClass(/mb-menu-focused/);
+    await page.keyboard.press('ArrowDown'); // wraps back to the first enabled command
+    await expect(hud.getByRole('button', { name: 'Shove', exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(wait).toBeFocused();
+
+    if (viewport.width === 844)
+      await page.screenshot({ path: test.info().outputPath('pinned-wait.png') });
+    await wait.tap();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            window.__emblemRogueGame.scene
+              .getScene('Battle')
+              .playerUnits.find((u) => u.name === 'Support').hasActed,
+        ),
+      )
+      .toBe(true);
+    await expect(hud.locator('.mb-dock .mb-pinned-command')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+}
