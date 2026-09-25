@@ -337,8 +337,8 @@ for (const speed of ['normal', 'fast', 'instant'])
     });
     await tapUnit(page, 'Edric');
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
+    // Target first: Attack goes straight to target selection.
     await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
-    await hud.getByRole('button', { name: /Iron Sword/ }).tap();
     await tapUnit(page, 'Growth Target', 'enemyUnits');
     await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
     const card = page.getByRole('dialog', { name: 'Level up', exact: true });

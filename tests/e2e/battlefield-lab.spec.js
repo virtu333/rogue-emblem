@@ -77,8 +77,8 @@ test('real touch movement, attack cancellation, combat and next turn remain play
     .poll(() => page.evaluate(() => window.__sceneState.battle.state))
     .toBe('UNIT_ACTION_MENU');
   expect(await page.locator('#game-container canvas').boundingBox()).toEqual(viewport);
+  // Target first: Attack goes straight to target selection.
   await page.getByRole('button', { name: 'Attack', exact: true }).tap();
-  await page.getByRole('button', { name: /Iron Sword/ }).tap();
   await tapTile(page, 10, 3);
   await expect(page.getByRole('dialog', { name: 'Combat forecast' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
