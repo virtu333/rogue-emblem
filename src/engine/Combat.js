@@ -398,24 +398,54 @@ export function getStaticCombatStats(unit, weapon) {
 // --- Healing ---
 
 /**
- * Calculate how much HP a staff heals, clamped to missing HP.
- * Uses MAG-based formula: healer.stats.MAG + staff.healBase.
+ * Normalize a heal-effectiveness multiplier (blessing penalty/bonus).
+ * Non-finite values fall back to 1; negative values clamp to 0.
  */
-export function calculateHealAmount(staff, healer, target) {
-  const healBase = staff.healBase ?? 0;
-  const healAmount = healer.stats.MAG + healBase;
-  const missingHP = target.stats.HP - target.currentHP;
-  return Math.min(healAmount, missingHP);
+export function normalizeHealingMultiplier(multiplier) {
+  const value = Number(multiplier ?? 1);
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, value);
+}
+
+/**
+ * Effective staff output BEFORE the missing-HP cap: floor((MAG + healBase) × multiplier).
+ * The multiplier scales what the staff produces, never the already-capped amount —
+ * otherwise a -20% penalty would round a 1-HP top-off down to 0 and a >1 bonus
+ * could push the target past max HP.
+ * A tiny epsilon keeps accumulated float error (e.g. 1 - 0.9) from flooring a whole
+ * number down by one.
+ * @param {object} opts - Optional. `healingMultiplier` scales the heal (default 1).
+ */
+export function calculateStaffHealOutput(staff, healer, opts = {}) {
+  // Intentionally dereferences staff/healer: a missing staff is a caller bug and
+  // must throw so the scene's action-error recovery sees it.
+  const raw = healer.stats.MAG + (staff.healBase ?? 0);
+  const multiplier = normalizeHealingMultiplier(opts.healingMultiplier);
+  if (multiplier === 1) return Math.max(0, raw);
+  return Math.max(0, Math.floor(raw * multiplier + 1e-9));
+}
+
+/**
+ * Calculate how much HP a staff actually restores: the effective staff output
+ * (multiplier applied first) clamped to the target's missing HP. Never negative,
+ * so a target somehow above max HP is left untouched rather than drained.
+ * With no multiplier this is exactly min(MAG + healBase, missingHP).
+ * @param {object} opts - Optional. `healingMultiplier` scales the heal (default 1).
+ */
+export function calculateHealAmount(staff, healer, target, opts = {}) {
+  const effective = calculateStaffHealOutput(staff, healer, opts);
+  const missingHP = Math.max(0, target.stats.HP - target.currentHP);
+  return Math.min(effective, missingHP);
 }
 
 /**
  * Resolve a heal action (pure — mutates nothing).
- * Returns { healAmount, targetHPAfter }.
+ * Returns { healAmount, targetHPAfter }. The heal never pushes a target past max HP
+ * and never lowers HP.
  * @param {object} opts - Optional. `healingMultiplier` scales heal (default 1).
  */
 export function resolveHeal(staff, healer, target, opts = {}) {
-  const baseHealAmount = calculateHealAmount(staff, healer, target);
-  const healAmount = Math.max(0, Math.floor(baseHealAmount * (opts.healingMultiplier ?? 1)));
+  const healAmount = calculateHealAmount(staff, healer, target, opts);
   return {
     healAmount,
     targetHPAfter: target.currentHP + healAmount,

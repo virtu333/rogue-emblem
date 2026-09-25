@@ -1444,10 +1444,13 @@ export class HeadlessBattle {
     const staff = this._getActiveHealStaff(unit);
     if (!staff) return [];
     const range = getEffectiveStaffRange(staff, unit);
+    const healOpts = this._healOptions();
     const targets = [];
     for (const ally of this.playerUnits) {
       if (ally === unit) continue;
       if (ally.currentHP >= ally.stats.HP) continue;
+      // Mirrors HealController: never offer a target the heal would restore 0 HP to.
+      if (resolveHeal(staff, unit, ally, healOpts).healAmount <= 0) continue;
       const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
       if (dist >= range.min && dist <= range.max) {
         targets.push(ally);
@@ -2454,14 +2457,17 @@ export class HeadlessBattle {
     this._finishUnitAction(attacker);
   }
 
-  _executeHeal(healer, target) {
-    const staff = this._getActiveHealStaff(healer);
-    if (!staff) return;
-    const healOpts = {
+  _healOptions() {
+    return {
       healingMultiplier:
         this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
     };
-    const result = resolveHeal(staff, healer, target, healOpts);
+  }
+
+  _executeHeal(healer, target) {
+    const staff = this._getActiveHealStaff(healer);
+    if (!staff) return;
+    const result = resolveHeal(staff, healer, target, this._healOptions());
     const hpBefore = target.currentHP;
     target.currentHP = result.targetHPAfter;
     if (this.gameData?.deeds && healer !== target) recordHeal(healer, target.currentHP - hpBefore);
