@@ -33,6 +33,7 @@ import {
   resolveGuidance,
 } from '../engine/Guidance.js';
 import { hasDOMHost } from '../utils/domUI.js';
+import { TILE_SIZE } from '../utils/constants.js';
 import { showGuidanceNote } from './GuidanceNote.js';
 
 const COACH_NOTES_PER_BATTLE = 2;
@@ -198,6 +199,59 @@ export class GuidanceController {
     };
   }
 
+  /** Desktop canvas HUD plates and the action menu: points to keep clear. */
+  hudPoints() {
+    const s = this.scene;
+    const rect = s.game?.canvas?.getBoundingClientRect?.();
+    if (!rect || !s.scale?.width) return [];
+    const points = [];
+    const menuPlate = Array.isArray(s.actionMenu) ? s.actionMenu[0] : null;
+    for (const label of [
+      s.turnCounterText,
+      s.infoText,
+      s.objectiveText,
+      s.visionHudText,
+      menuPlate,
+    ]) {
+      if (!label?.visible || !label.getBounds) continue;
+      if (label !== menuPlate && !label.text) continue;
+      const b = label.getBounds();
+      const kx = rect.width / s.scale.width;
+      const ky = rect.height / s.scale.height;
+      for (const [x, y] of [
+        [b.x, b.y],
+        [b.x + b.width, b.y],
+        [b.x, b.y + b.height],
+        [b.x + b.width, b.y + b.height],
+        [b.x + b.width / 2, b.y + b.height / 2],
+      ])
+        points.push({ x: rect.left + x * kx, y: rect.top + y * ky });
+    }
+    return points;
+  }
+
+  /** Screen rect (CSS px) of the visible battlefield tiles, or null. */
+  battlefieldRect() {
+    const s = this.scene;
+    const g = s.grid;
+    if (!g || typeof s._worldToScreen !== 'function') return null;
+    const rect = s.game?.canvas?.getBoundingClientRect?.();
+    if (!rect || !s.scale?.width) return null;
+    const toCss = (x, y) => {
+      const p = s._worldToScreen(x, y);
+      return p
+        ? {
+            x: rect.left + (p.x * rect.width) / s.scale.width,
+            y: rect.top + (p.y * rect.height) / s.scale.height,
+          }
+        : null;
+    };
+    const a = toCss(g.offsetX, g.offsetY);
+    const b = toCss(g.offsetX + g.cols * TILE_SIZE, g.offsetY + g.rows * TILE_SIZE);
+    if (!a || !b) return null;
+    return { left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y };
+  }
+
   show({ id, context, anchor }) {
     const s = this.scene;
     const text = guidanceText(id, context);
@@ -208,11 +262,14 @@ export class GuidanceController {
       id,
       text,
       anchor: this.screenPoint(anchor),
+      bounds: () => this.battlefieldRect(),
       // Keep the army and the enemies it is about to meet in view.
-      avoid: () =>
-        [...(s.playerUnits || []), ...(s.enemyUnits || [])]
+      avoid: () => [
+        ...[...(s.playerUnits || []), ...(s.enemyUnits || [])]
           .filter((u) => u.currentHP > 0 && canInspectUnit(s.grid, u))
           .map((u) => this.screenPoint(u)),
+        ...this.hudPoints(),
+      ],
       reduceMotion: Boolean(s._reduceMotion?.()),
       onRead: () => hints?.markSeen?.(id),
       onFewerTips: settings?.setGuidance ? () => settings.setGuidance('light') : null,

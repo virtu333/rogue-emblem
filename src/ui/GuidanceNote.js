@@ -14,6 +14,17 @@ import { hintReadingPolicy } from './HintDisplay.js';
 import { measureFrame } from './ceremonyDom.js';
 import './guidance.css';
 
+function intersect(a, b) {
+  if (!a || !b) return a || b;
+  const left = Math.max(a.left, b.left);
+  const top = Math.max(a.top, b.top);
+  const right = Math.min(a.left + a.width, b.left + b.width);
+  const bottom = Math.min(a.top + a.height, b.top + b.height);
+  // Too small to hold a note: fall back to the whole frame.
+  if (right - left < 220 || bottom - top < 110) return a;
+  return { left, top, width: right - left, height: bottom - top };
+}
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -28,7 +39,16 @@ function el(tag, className, text) {
  */
 export function showGuidanceNote(
   scene,
-  { id, text, onRead, onFewerTips, anchor = null, avoid = null, reduceMotion = false } = {},
+  {
+    id,
+    text,
+    onRead,
+    onFewerTips,
+    anchor = null,
+    avoid = null,
+    bounds = null,
+    reduceMotion = false,
+  } = {},
 ) {
   if (!hasDOMHost() || !text) return null;
   const wrapper = document.getElementById('game-wrapper');
@@ -71,7 +91,10 @@ export function showGuidanceNote(
   // Dock in the corner of the map that covers the fewest of the points to keep
   // clear (the anchor counts triple): never over the unit the note talks about.
   const place = () => {
-    const rect = measureFrame(scene, 'map');
+    const frame = measureFrame(scene, 'map');
+    // Prefer the battlefield itself (desktop HUD plates sit around it).
+    const area = typeof bounds === 'function' ? bounds() : bounds;
+    const rect = area ? intersect(frame, area) : frame;
     if (!rect || rect.width < 1) return;
     const inset = 8;
     const width = Math.min(340, Math.max(200, rect.width * 0.62));
