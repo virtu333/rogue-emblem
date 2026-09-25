@@ -228,6 +228,33 @@ Spec: `specs/attack-flow.md`. Screens: `art-direction/ux-polish/attack-flow/`.
 
 ---
 
+## 2026-09-25 — UX polish pass from the iPhone landscape playtest
+
+Phone playtest at ~844×390 surfaced six sore spots; all addressed, plus a mobile audit.
+**Spec:** `specs/ux-polish-2026-09-25.md`; captures in `art-direction/ux-polish/`.
+
+Decisions worth remembering:
+- **The tutorial teaches by doing.** A persistent, non-modal coach states one goal at a time
+  and always offers Leave; blocking notes are reserved for real lessons (terrain, forecast,
+  resources). A fresh player can jump from the tutorial straight into a first run.
+- **Explain, don't label.** "About …" buttons became a compact ⓘ plus press-and-hold on the
+  card itself, with a hover preview on desktop; the gesture is taught once.
+- **Danger must win against every grade and ground.** Fill + bright edge + hatch, stepping
+  with the number of threats; its toggle is docked and never scrolls away.
+- **Scrolling in the rail is a necessary evil — make it graceful.** One bounded region,
+  fades and a "more ▾/▴" cue, primary action first, fixed controls outside the scroller.
+- **Boss presence belongs on the boss.** World-space bar on the unit; words live off-map.
+- **One rule for every band card.** Bands span the battlefield; busts break out above the
+  band, sized by a shared cap; kickers never ellipsize; spoken lines read in full.
+- **Save select is a ceremony, not a form.** Candle shrine over the Hollow Sun: who, where,
+  how far, one action. An empty slot is an unlit candle that begins a run.
+
+Deferred (audit residuals): Loom node card text can run past its panel at 844×390; the
+"Tap to continue" hint on band cards sits a few px into the sidebar gutter; dev-route
+"Save failed" toasts on NodeMap (no active slot) obscure captures.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

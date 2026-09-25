@@ -129,3 +129,12 @@ Unit / scene-level:
 Integration / harness:
 1. Tutorial scripted flow smoke: Edric->Fort->danger/inspect dismissal progresses, then normal tutorial flow continues.
 2. Regression smoke: non-tutorial battle hint sequence unchanged.
+
+## Addendum (2026-09-25): coach and exits
+
+When a DOM host exists, the intro notes ("Welcome", "tap a blue unit", "tap the highlighted
+Fort") are replaced by the persistent `TutorialCoach` (goal per step from
+`tutorialCoachModel.js`); gate violations nudge the coach instead of opening a blocking
+note. The tutorial always offers Leave (coach, pause, Field notes) and, for a player with
+no saves, Start First Run (pause, victory). Canvas-only builds keep the original notes.
+See `ux-polish-2026-09-25.md` section 1.

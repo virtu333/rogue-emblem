@@ -109,7 +109,7 @@ describe('pinned enemy threat lifecycle', () => {
     const unit = scene.enemyUnits[0];
     scene.dangerZone = { visible: false, show: vi.fn() };
     controller.toggle(unit);
-    const oldRects = [...controller.overlay.tiles];
+    const oldTiles = controller.overlay.tiles.map((t) => `${t.col},${t.row}`);
     scene.calculateDangerZone.mockClear();
     controller.refresh();
     controller.refresh();
@@ -119,8 +119,8 @@ describe('pinned enemy threat lifecycle', () => {
     expect(controller.dirty).toBe(true);
     controller.refresh();
     expect(scene.calculateDangerZone).toHaveBeenCalledExactlyOnceWith(unit);
-    expect(controller.overlay.tiles.every((r) => r.args[0] >= 9 * 32)).toBe(true);
-    expect(oldRects.every((r) => r.destroy.mock.calls.length === 1)).toBe(true);
+    expect(controller.overlay.tiles.every((t) => t.col >= 9)).toBe(true);
+    expect(controller.overlay.tiles.map((t) => `${t.col},${t.row}`)).not.toEqual(oldTiles);
     expect(scene.dangerZone.show).not.toHaveBeenCalled();
   });
 
@@ -137,10 +137,12 @@ describe('pinned enemy threat lifecycle', () => {
     ]);
     for (const unit of scene.enemyUnits) controller.toggle(unit);
     expect(controller.overlay.tiles).toHaveLength(1);
-    const rectangle = controller.overlay.tiles[0];
-    expect(rectangle.args[4]).toBe(0xd8342c);
-    expect(rectangle.args[5]).toBe(0.3);
-    expect(rectangle.setStrokeStyle).toHaveBeenCalledWith(2, 0xb08bd6);
+    const tile = controller.overlay.tiles[0];
+    expect(controller.overlay.color).toBe(0xd8342c);
+    expect(controller.overlay.variant).toBe('pinned');
+    expect(tile.count).toBe(2);
+    expect(tile.tier).toBe(2);
+    expect(tile.statusThreat).toBe(true);
   });
 
   it('does not consume battle RNG or change the real suspend checkpoint', () => {
@@ -158,14 +160,15 @@ describe('pinned enemy threat lifecycle', () => {
     expect(Object.keys(after).some((key) => /pin|threat/i.test(key))).toBe(false);
   });
 
-  it('destroys all rectangles and references without disturbing the units', () => {
+  it('destroys its drawing and references without disturbing the units', () => {
     const { scene, controller } = fixture(1);
     controller.toggle(scene.enemyUnits[0]);
-    const rectangles = [...controller.overlay.tiles];
+    expect(controller.overlay.tiles.length).toBeGreaterThan(0);
+    const destroy = vi.spyOn(controller.overlay, 'destroy');
     controller.destroy();
     expect(controller.enemies.size).toBe(0);
     expect(controller.overlay.tiles).toEqual([]);
-    expect(rectangles.every((r) => r.destroy.mock.calls.length === 1)).toBe(true);
+    expect(destroy).toHaveBeenCalledOnce();
     expect(scene.enemyUnits).toHaveLength(1);
   });
 });

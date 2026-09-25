@@ -3,6 +3,7 @@ import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
+import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
@@ -210,30 +211,38 @@ export class MobileRewards {
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
       copy.append(node('p', notice, 'mu-help'));
     }
-    for (const mastery of this.masteryNotices || []) {
-      const notice = node(
+    const openMasteryHelp = () => {
+      if (this.child || this.busy) return;
+      this.child = new ContextHelp(
+        this.overlayScene,
+        this.root,
+        'Class mastery',
+        MASTERY_HELP,
+        () => {
+          this.child = null;
+        },
+      );
+    };
+    for (const [index, mastery] of (this.masteryNotices || []).entries()) {
+      const notice = node('div', null, 'mu-help mu-mastery-notice');
+      const line = node(
         'p',
         `${mastery.name} mastered ${mastery.className}! ${mastery.perk?.name || ''}${mastery.perk?.mods ? ` — ${formatPerkMods(mastery.perk.mods)}` : ''}`,
-        'mu-help',
       );
-      notice.setAttribute('role', 'status');
+      line.setAttribute('role', 'status');
+      notice.append(line);
       copy.append(notice);
+      // One ⓘ for the topic (first notice); every notice answers press-and-hold.
+      if (index === 0)
+        attachInfo(notice, {
+          title: 'class mastery',
+          heading: notice,
+          preview: MASTERY_HELP[0],
+          open: openMasteryHelp,
+          enabled: () => !this.child && !this.busy,
+        });
+      else bindHold(notice, openMasteryHelp, { enabled: () => !this.child && !this.busy });
     }
-    if (this.masteryNotices?.length)
-      copy.append(
-        this.button('About class mastery', () => {
-          if (this.child) return;
-          this.child = new ContextHelp(
-            this.overlayScene,
-            this.root,
-            'Class mastery',
-            MASTERY_HELP,
-            () => {
-              this.child = null;
-            },
-          );
-        }),
-      );
     const actions = node('div', null, 'mu-actions');
     actions.append(
       node(

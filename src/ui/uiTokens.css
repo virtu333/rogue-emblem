@@ -19,6 +19,10 @@
   --re-alarm: #f0503c;
   --re-danger-bg: #4a1520;
   --re-danger-line: #9e2632;
+  --re-threat-fill: #c8322c;
+  --re-threat-edge: #ff6a48;
+  --re-threat-ink: #1c0609;
+  --re-threat-status: #b98ee0;
   --re-hp-high: #86b27b;
   --re-hp-medium: #dca044;
   --re-hp-low: #cc4038;
