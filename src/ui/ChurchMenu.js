@@ -20,6 +20,7 @@ import {
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { playCue } from './ceremonyMusic.js';
 export class ChurchMenu {
   constructor(c) {
     this.c = c;
@@ -214,7 +215,7 @@ export class ChurchMenu {
         };
         const growth = cls && rite ? growthCeremonies(this.scene) : null;
         if (!growth) {
-          if (cls) this.scene.registry.get('audio')?.playSFX('sfx_levelup');
+          if (cls) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
           finish();
           return;
         }

@@ -438,6 +438,7 @@ export class ColosseumOverlay {
           result: results[i],
           learnedNames: i === results.length - 1 ? learned : [],
           frame: 'screen',
+          cue: true,
         });
       }
       show();

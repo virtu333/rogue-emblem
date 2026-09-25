@@ -1808,7 +1808,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   handleColosseum(node) {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
+    if (audio) audio.playMusic(MUSIC.colosseum, this, 300);
 
     // Reuse existing overlay only if same node + same act (state is still valid)
     if (
