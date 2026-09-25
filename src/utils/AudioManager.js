@@ -254,6 +254,12 @@ export class AudioManager {
     return this.musicIntensity;
   }
 
+  /** The Web Audio clock (seconds), or null without Web Audio. */
+  audioTime() {
+    const t = Number(this.sound?.context?.currentTime);
+    return this._canUseLoopedMusic() && Number.isFinite(t) ? t : null;
+  }
+
   /** Level (0-1) of an additive layer of the current track, over fadeMs. */
   setMusicLayerGain(name, gain, fadeMs = 800) {
     const music = this.currentMusic;

@@ -43,8 +43,20 @@ one note). The first time anyone wounds the Entity, everything it took comes bac
    pulse without its downbeat). It plays as an additive layer whose level is the
    Entity's remaining HP: the dissonance drains out of the harmony as it is wounded.
 
+4. **The army answers.** On the finale's first downbeat the army speaks, one line every
+   two bars over each speaker's unit, timed from the audio clock (`BattleMusicController`
+   `onFinale` → `BattleBeatsController.entityRally`, composed by `engine/FinaleRally.js`
+   from `dialogue.json` `finaleRally`). The commander opens; the lords answer each other
+   by name; the two strongest recruits join in their temperament's voice; Sera, whose
+   sight the Thread is, closes. Lines remember the run: a unit lost along the way, a
+   save that has met the Entity before, a speaker below half HP. Never more than seven
+   lines, so the rally ends inside the first strain, and it never blocks input: the
+   music keeps time, the words ride on it. A unit that falls before its line leaves it
+   unsaid.
+
 If turn pressure enrages the Entity before anyone wounds it, the same hinge starts the
-finale. A resumed battle whose Entity is already wounded opens on the finale.
+finale. A resumed battle whose Entity is already wounded opens on the finale (no rally:
+it was heard when the wound was dealt).
 
 
 ## Cue list

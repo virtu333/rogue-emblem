@@ -1835,6 +1835,8 @@ export class BattleScene extends Phaser.Scene {
         playersInDanger: () => this._anyPlayerInDanger(),
         bossEnraged: () => Boolean(this.antiTurtleState?.turnEnrageActive),
         entityHealth: () => entityHealth(this.enemyUnits),
+        onFinale: (beat) =>
+          (this._battleBeats ||= new BattleBeatsController(this)).entityRally(beat),
       });
       this._musicCtrl.create({
         act: this.battleParams?.act || 'act1',

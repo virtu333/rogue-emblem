@@ -31,6 +31,8 @@ const ENRAGE_FADE_MS = 2500;
 const HUM_FADE_MS = 900;
 // how long the hinge cue may take to decode before the finale starts without it
 const HINGE_WAIT_MS = 1500;
+// one bar of the finale (12/8 at dotted quarter = 136): the hinge cue is two
+const FINALE_BAR_MS = 1000 * ((MUSIC_STINGERS[ENTITY_FINALE.hinge]?.handoff || 3.529) / 2);
 
 /** The Entity's hum level under its finale: full at full HP, gone as it dies. */
 export function entityHumGain(ratio) {
@@ -48,12 +50,16 @@ export default class BattleMusicController {
    *   enraged the boss (read at start and each phase, so a resumed battle catches up)
    * @param {() => ({current: number, max: number, ratio: number}|null)} [options.entityHealth]
    *   the Entity's health (null when there is no Entity)
+   * @param {(beat: {leadMs: number, barMs: number}) => void} [options.onFinale]
+   *   the finale's answer is coming: its first downbeat is `leadMs` from now
+   *   (the allies' rally lines ride on it); not called for a resumed battle
    */
-  constructor(scene, { playersInDanger, bossEnraged, entityHealth } = {}) {
+  constructor(scene, { playersInDanger, bossEnraged, entityHealth, onFinale } = {}) {
     this.scene = scene;
     this._playersInDanger = playersInDanger || (() => false);
     this._bossEnraged = bossEnraged || (() => false);
     this._entityHealth = entityHealth || (() => null);
+    this._onFinale = onFinale || null;
     this.state = createIntensityState();
     this.key = null;
     this.adaptive = false;
@@ -248,6 +254,15 @@ export default class BattleMusicController {
         ? voice.startTime + handoff
         : null;
     this._playFinale({ startAt });
+    // the downbeat everyone answers on: how far away it is on the audio clock
+    const now = audio.audioTime?.();
+    const leadMs =
+      startAt !== null && Number.isFinite(now) ? Math.max(0, (startAt - now) * 1000) : 0;
+    try {
+      this._onFinale?.({ leadMs, barMs: FINALE_BAR_MS });
+    } catch (_) {
+      /* the rally is decoration */
+    }
   }
 
   _playFinale({ startAt = null, fadeMs = 0 } = {}) {
@@ -271,5 +286,6 @@ export default class BattleMusicController {
     this._playersInDanger = () => false;
     this._bossEnraged = () => false;
     this._entityHealth = () => null;
+    this._onFinale = null;
   }
 }

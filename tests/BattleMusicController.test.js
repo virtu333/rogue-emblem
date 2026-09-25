@@ -158,19 +158,23 @@ function makeEntityScene() {
     preloadMusic: vi.fn(),
     preloadStingers: vi.fn(),
     playStinger: vi.fn(async () => ({ startTime: 12.5, stop: vi.fn() })),
+    audioTime: vi.fn(() => 13),
   };
   const entity = { isEntity: true, isBoss: true, stats: { HP: 80 }, currentHP: 80 };
   let enraged = false;
   const scene = { registry: { get: (k) => (k === 'audio' ? audio : null) } };
+  const onFinale = vi.fn();
   const ctrl = new BattleMusicController(scene, {
     bossEnraged: () => enraged,
     entityHealth: () => entityHealth([{ isBoss: false }, entity]),
+    onFinale,
   });
   return {
     audio,
     entity,
     scene,
     ctrl,
+    onFinale,
     enrage: () => {
       enraged = true;
     },
@@ -237,6 +241,28 @@ describe("BattleMusicController — the Entity's finale", () => {
     entity.currentHP = 0;
     ctrl.onPhaseStart('enemy');
     expect(audio.setMusicLayerGain).toHaveBeenLastCalledWith('hum', 0, expect.any(Number));
+  });
+
+  it('tells the allies when the answer lands, on the audio clock', async () => {
+    const { entity, ctrl, onFinale } = makeEntityScene();
+    startEntity(ctrl);
+    entity.currentHP = 50;
+    ctrl.onCombatResolved();
+    expect(onFinale).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(ENTITY_FINALE.silenceMs + 10);
+    const handoff = MUSIC_STINGERS[ENTITY_FINALE.hinge].handoff;
+    expect(onFinale).toHaveBeenCalledTimes(1);
+    const beat = onFinale.mock.calls[0][0];
+    // the cue started at 12.5 s, the clock reads 13 s: the downbeat is handoff - 0.5 s away
+    expect(beat.leadMs).toBeCloseTo((12.5 + handoff - 13) * 1000, 3);
+    expect(beat.barMs).toBeCloseTo((handoff / 2) * 1000, 3);
+  });
+
+  it('a resumed finale does not replay the rally', () => {
+    const { entity, ctrl, onFinale } = makeEntityScene();
+    entity.currentHP = 30;
+    startEntity(ctrl);
+    expect(onFinale).not.toHaveBeenCalled();
   });
 
   it('turn pressure starts the finale when nobody has wounded the Entity yet', async () => {
