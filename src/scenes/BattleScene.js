@@ -3289,10 +3289,9 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        unit.graphic.setDisplaySize(
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-        );
+        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
+        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
         unit.label = null;
       } else {
         unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);

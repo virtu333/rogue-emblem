@@ -135,6 +135,22 @@ Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/
 
 ---
 
+## 2026-09-25 — Traced map sprites are the battlefield art; lords and bosses redrawn at map size
+
+Traced sprites (owner: "they look great, make them the default") are now what every unit
+wears on the battlefield — 335 sprites, six frames each, two atlas pages (24.8 MB
+decoded); the rebuilt set is a dev comparison (`?spriteArt=rebuilt`). The weak spot of the
+v2 study was the lords and bosses traced from ~128 px rebuilt art (scale 0.11–0.45, faces
+collapsed). Decision: redraw those 19 at map size with the shared image client (style
+board + an approved map sprite for scale + the unit's rebuilt sprite and portrait for
+identity) and trace the redraws at 0.55–0.8. Kept: identity first — a take that matched
+the portrait beat a take with a higher scale. The empire's iron swap no longer greys a
+boss's own gold (Emperor, Knight Commander). Combat v2 fix found on the way: a rewind
+mid-lunge left the striker off its tile (`CombatFxController.reset` now stops the lunge).
+Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

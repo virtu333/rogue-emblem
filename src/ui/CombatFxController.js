@@ -245,6 +245,15 @@ export class CombatFxController {
   /** Drop everything, including lingering overlays, motes and dissolves. */
   reset() {
     this.epoch++;
+    // A strike cut short mid-lunge: the lunge / windup / return run as scene tweens on the
+    // unit (awaited by the choreography, not owned by _motionTweens). Stop them (stop
+    // fires onStop, which releases the awaiting step) so none carries the unit on after
+    // finishStrike has put it home.
+    for (const unit of this._units) {
+      const g = unit?.graphic;
+      if (g?._fxHomeX === undefined) continue;
+      for (const tween of this.scene.tweens?.getTweensOf?.(g) || []) tween.stop?.();
+    }
     this.finishStrike();
     for (const sprite of this._lingering) sprite.destroy?.();
     this._lingering.clear();

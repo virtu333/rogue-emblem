@@ -6,7 +6,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { writeWebp, writeGif, textRaster, readRaster } from './lib/io.mjs';
 import { Raster, hstack, vstack } from './lib/raster.mjs';
-import { bakeFrames, recruitEntries, loadNative, traceId } from './lib/pipeline.mjs';
+import { bakeFrames, recruitEntries, loadNative, traceId, allEntries } from './lib/pipeline.mjs';
 import { swatch, SWATCHES } from './lib/terrain.mjs';
 import { render } from './lib/render.mjs';
 import { paletteFor, actedGrade, hitFlash, multiplyActed } from './lib/treat.mjs';
@@ -14,7 +14,9 @@ import { SLOT_DEBUG } from './lib/slots.mjs';
 import { segment } from './lib/segment.mjs';
 import { traceNative } from './lib/trace.mjs';
 import { splitFigures } from './lib/figures.mjs';
-import { BAKE, ROSTER } from './roster.mjs';
+import { ROSTER, reviewEntry } from './roster.mjs';
+
+const BAKE = allEntries();
 
 const args = process.argv.slice(2);
 const flag = (n, d) => {
@@ -36,7 +38,7 @@ const tight = (img, pad = 2) => {
 const on = (bg, img) => bg.clone().draw(img, 0, 0);
 const flat = (img, c = [92, 104, 84, 255]) =>
   new Raster(img.w, img.h).fillRect(0, 0, img.w, img.h, c).draw(img, 0, 0);
-const byKey = (k) => BAKE.find((e) => e.key === k);
+const byKey = (k) => reviewEntry(k, BAKE);
 const lum = ([r, g, b, a]) => {
   const l = 0.299 * r + 0.587 * g + 0.114 * b;
   return [l, l, l, a];
@@ -75,7 +77,7 @@ if (want('lineup')) {
     rows.push(hstack(await Promise.all(head.map((h, i) => label(h, i ? cw : 120))), 4, INK));
     for (const cls of CLASSES) {
       const cells = [await label(cls, 120)];
-      for (const key of [cls, `enemy_${cls}`, `enemy_${cls}~corrupt`, `npc_${cls}`]) {
+      for (const key of [cls, `enemy_${cls}`, `enemy_${cls}-corrupt`, `npc_${cls}`]) {
         const { still } = await bakeFrames(byKey(key));
         cells.push(on(grass, still).scale(zoom));
       }
@@ -229,12 +231,12 @@ if (want('states')) {
   for (const key of ['lord_edric', 'knight', 'enemy_myrmidon', 'enemy_cavalier', 'lord_sera']) {
     const e = byKey(key);
     const f = await bakeFrames(e);
-    const corrupt = BAKE.find((b) => b.key === `${key.replace(/^enemy_/, 'enemy_')}~corrupt`) || {
+    const corrupt = BAKE.find((b) => b.key === `${key.replace(/^enemy_/, 'enemy_')}-corrupt`) || {
       ...e,
       faction: 'corrupted',
       corrupt: true,
     };
-    const c = (await bakeFrames({ ...corrupt, key: `${key}~corrupt` })).still;
+    const c = (await bakeFrames({ ...corrupt, key: `${key}-corrupt` })).still;
     const acted = render(f.sprite, { ...f.palette, grade: actedGrade() });
     const cells = [
       f.still,
@@ -269,7 +271,7 @@ if (want('anim')) {
     'enemy_archer',
     'cavalier',
     'pegasus_knight',
-    'enemy_mage~corrupt',
+    'enemy_mage-corrupt',
   ]) {
     const f = await bakeFrames(byKey(key));
     const z = (s) => on(grass, s).scale(3);
@@ -356,7 +358,7 @@ if (want('density')) {
       myrmidon_a: 'enemy_myrmidon',
       knight_e: 'enemy_knight',
     }[id];
-    const rsrc = await readRaster(`assets/sprites/rebuilt/${rebuiltKey}.png`);
+    const rsrc = await readRaster(`docs/art/rebuilt-sprite-sources/${rebuiltKey}.png`);
     const rb = rsrc.alphaBounds(10);
     const sc = Math.min(38 / rb.width, (e.kind === 'heavy' ? 36 : 34) / rb.height);
     const rw = Math.max(1, Math.round(rb.width * sc)),
@@ -408,7 +410,7 @@ if (want('sources')) {
     return on(grass, scaled).crop(8, 4, 80, 70).scale(3);
   };
   for (const [name, rebuiltKey, kitName, earlier, chosen, faction] of units) {
-    const rsrc = await readRaster(`assets/sprites/rebuilt/${rebuiltKey}.png`);
+    const rsrc = await readRaster(`docs/art/rebuilt-sprite-sources/${rebuiltKey}.png`);
     const rb = rsrc.alphaBounds(10);
     const sc = Math.min(38 / rb.width, (rebuiltKey.includes('knight') ? 36 : 34) / rb.height);
     const rw = Math.max(1, Math.round(rb.width * sc)),
