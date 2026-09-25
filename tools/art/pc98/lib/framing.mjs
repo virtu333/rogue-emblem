@@ -9,7 +9,7 @@ export const DEFAULT_FRAMING = Object.freeze({ eye: 0.36, cx: 0.52 });
 
 /**
  * @param {Uint8Array} rgba square, straight alpha
- * @returns {{eye:number, cx:number, estimated:boolean}}
+ * @returns {{eye:number, cx:number, estimated:boolean, faceW?:number, faceTop?:number}}
  */
 export function estimateFraming(rgba, size) {
   const img = toLab(rgba, size, size);
@@ -60,5 +60,8 @@ export function estimateFraming(rgba, size) {
     eye: Math.round(Math.min(0.6, Math.max(0.2, eye)) * 200) / 200,
     cx: Math.round(Math.min(0.75, Math.max(0.25, cx)) * 200) / 200,
     estimated: true,
+    // Face size (skin blob width near its top) and top, for scale checks.
+    faceW: faceW / size,
+    faceTop: top / size,
   };
 }
