@@ -1049,14 +1049,21 @@ export class MobileRosterSheet {
       'Shared convoy',
       `Weapons ${counts.weapons}/${caps.weapons} · Consumables ${counts.consumables}/${caps.consumables}`,
     );
-    // Plain words for new players: what the convoy is and what Store / Withdraw do.
+    // Plain words for new players: what the convoy is and what Store / Withdraw do,
+    // with the longer explanation one gesture away (ⓘ / press and hold).
     shared.append(
       el(
         'p',
-        `Storage shared by the whole army, used between battles. Units fight only with what they carry (${INVENTORY_MAX} weapons, ${CONSUMABLE_MAX} items). Store puts a carried item here; Withdraw gives a stored item to the unit chosen below.`,
+        'Storage shared by the whole army between battles. Store puts a carried item here; Withdraw gives it to the unit below.',
         'mr-convoy-explain',
       ),
     );
+    this.explain(shared, 'the convoy', 'Convoy', [
+      'The convoy is storage shared by your whole army. You manage it between battles, from Roster › Convoy.',
+      `Units fight only with what they carry: up to ${INVENTORY_MAX} weapons or staves and ${CONSUMABLE_MAX} consumables each.`,
+      'Store moves a carried item into the convoy. Withdraw gives a stored item to the unit shown below (tap it to choose another unit).',
+      'Rewards, shop purchases and a fallen ally’s gear go to the convoy when nobody has room.',
+    ]);
     if (!unit) {
       this.card('No recipient', 'A roster unit is needed to withdraw items.');
       return;
