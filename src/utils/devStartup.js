@@ -288,6 +288,13 @@ function pickBattleNode(runManager, nodeType = null) {
     const boss = (runManager.nodeMap?.nodes || []).find((node) => node?.type === NODE_TYPES.BOSS);
     if (boss) return boss;
   }
+  // devNode=recruit: the act's first recruit knot (the Loom preview's own battle).
+  if (nodeType === NODE_TYPES.RECRUIT) {
+    const recruit = (runManager.nodeMap?.nodes || []).find(
+      (node) => node?.type === NODE_TYPES.RECRUIT && node.battleParams,
+    );
+    if (recruit) return recruit;
+  }
   const available = runManager.getAvailableNodes();
   const preferred = available.find(
     (node) =>
@@ -332,7 +339,12 @@ export function parseDevStartupConfig(search, options = {}) {
     devTools: parseBool(params.get('devTools')),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
-    nodeType: params.get('devNode') === 'boss' ? NODE_TYPES.BOSS : null,
+    nodeType:
+      params.get('devNode') === 'boss'
+        ? NODE_TYPES.BOSS
+        : params.get('devNode') === 'recruit'
+          ? NODE_TYPES.RECRUIT
+          : null,
     // Eclipse review route overrides (only present when given).
     ...(parseSeed(params.get('shadow')) != null ? { shadow: parseSeed(params.get('shadow')) } : {}),
     ...(parseSeed(params.get('actShadow')) != null

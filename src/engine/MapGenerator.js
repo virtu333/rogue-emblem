@@ -2860,8 +2860,12 @@ function generateNPCSpawn(
 
 // --- Recruit placement (strategy-layer spec) ---------------------------------------
 
-/** Path cost a lord pays to stand beside the recruit: two turns at MOV 4. */
-export const RECRUIT_REACH_BAND = Object.freeze({ min: 2, max: 8 });
+// Lord path cost to stand beside the recruit. `max` is two moves at MOV 4 (reachable
+// by the second player phase). The preferred window straddles one infantry move (MOV 5):
+// close enough that the recruit sits on the player's half of an act-1 map, far enough
+// that a rescue usually means stepping toward the hunters rather than a free Talk
+// (sim/strategy.js --section spawn, docs/specs/strategy-layer.md).
+export const RECRUIT_REACH_BAND = Object.freeze({ min: 2, max: 8, preferMin: 4, preferMax: 7 });
 const RECRUIT_TILE_EXCLUDED = new Set([
   'Lava Crack',
   'Acidic Swamp',
@@ -3047,7 +3051,10 @@ export function pickRecruitSpawnTile({
     const pool = candidates.filter(accept);
     if (!pool.length) continue;
     const score = (t) =>
-      t.cover + (t.reach >= 3 && t.reach <= 6 ? 2 : 0) - Math.min(3, t.threats2) - t.threats1 * 2;
+      t.cover +
+      (t.reach >= (band.preferMin ?? band.min) && t.reach <= (band.preferMax ?? band.max) ? 3 : 0) -
+      Math.min(3, t.threats2) -
+      t.threats1 * 2;
     const best = Math.max(...pool.map(score));
     const top = pool.filter((t) => score(t) === best);
     const pick = top[Math.floor(Math.random() * top.length)];

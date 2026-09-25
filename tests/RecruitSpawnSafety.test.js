@@ -164,10 +164,13 @@ describe('pickRecruitSpawnTile', () => {
     Array.from({ length: rows }, () => Array(cols).fill(fill));
   const passable = (idx) => Number.isFinite(cost(idx));
 
-  it('picks a tile inside the reach band and outside first-phase strikes, in cover when offered', () => {
-    // The Fighter (MOV 5, a Hand Axe reaches 2) strikes cols 8+ on its first move.
+  it('picks a tile in the preferred reach window, outside first-phase strikes, in cover when offered', () => {
+    // The Fighter (MOV 5, a Hand Axe reaches 2) strikes cols 8+ on its first move. The
+    // preferred reach window (4–7) is cols 5–8 on the lords' row; col 8 is struck, and
+    // the forest at col 7 beats the plain tiles beside it.
     const mapLayout = base(16, 6);
-    mapLayout[2][4] = forest;
+    mapLayout[2][7] = forest;
+    mapLayout[4][2] = forest; // cover right beside the lords: a free turn-1 Talk
     const pick = pickRecruitSpawnTile({
       mapLayout,
       cols: 16,
@@ -179,7 +182,9 @@ describe('pickRecruitSpawnTile', () => {
       weaponsData: data.weapons,
       tilePassable: passable,
     });
-    expect(pick).toEqual({ col: 4, row: 2, reach: 3 });
+    expect(pick).toEqual({ col: 7, row: 2, reach: 6 });
+    expect(pick.reach).toBeGreaterThanOrEqual(RECRUIT_REACH_BAND.preferMin);
+    expect(pick.reach).toBeLessThanOrEqual(RECRUIT_REACH_BAND.preferMax);
   });
 
   it('returns null when no tile is reachable (caller falls back)', () => {

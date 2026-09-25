@@ -37,15 +37,28 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 
+// A permissive Phaser display object: every method exists and chains, so the HUD
+// controllers beginBattle builds (Eclipse, beacon, objective) run to completion.
 function makeDisplayObject() {
-  return {
-    setOrigin: vi.fn().mockReturnThis(),
-    setDepth: vi.fn().mockReturnThis(),
-    setVisible: vi.fn().mockReturnThis(),
-    setInteractive: vi.fn().mockReturnThis(),
-    on: vi.fn().mockReturnThis(),
-    destroy: vi.fn(),
-  };
+  const fns = new Map();
+  const target = { visible: true, text: '' };
+  const proxy = new Proxy(target, {
+    get(obj, key) {
+      if (key in obj) return obj[key];
+      if (key === 'then') return undefined;
+      if (!fns.has(key))
+        fns.set(
+          key,
+          vi.fn((...args) => {
+            if (key === 'setText') obj.text = args[0];
+            if (key === 'setVisible') obj.visible = args[0];
+            return proxy;
+          }),
+        );
+      return fns.get(key);
+    },
+  });
+  return proxy;
 }
 
 function makeScene({ runManager, deployed, npcSpawn }) {

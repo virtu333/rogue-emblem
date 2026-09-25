@@ -1408,6 +1408,17 @@ export class BattleScene extends Phaser.Scene {
                 act: this.battleParams?.act || 'act1',
                 roster: this.playerUnits,
                 gameData: this.gameData,
+                metaEffects:
+                  this.runManager?.getEffectiveMetaEffects?.() ??
+                  (this.runManager?.metaEffects
+                    ? {
+                        ...this.runManager.metaEffects,
+                        growthBonuses:
+                          this.runManager.getEffectiveRecruitGrowthBonuses?.() ||
+                          this.runManager.metaEffects.growthBonuses ||
+                          null,
+                      }
+                    : null),
               });
         const npc = built?.unit || null;
         if (npc) {

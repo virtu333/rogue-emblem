@@ -321,6 +321,7 @@ import { resolveRecruitScalingTargets } from '../src/engine/RecruitScaling.js';
 import { generateBossRecruitCandidates } from '../src/engine/BossRecruitSystem.js';
 import { findCommander } from '../src/engine/Commander.js';
 import { ROSTER_CAP } from '../src/utils/constants.js';
+import { buildRecruitNodeUnit } from '../src/engine/RecruitNodeSystem.js';
 
 const POLICY_PRIORITY = {
   recruit: ['recruit', 'battle', 'colosseum', 'shop', 'church', 'ruins', 'boss'],
@@ -381,10 +382,45 @@ class ProtectedDriver extends RunSimulationDriver {
     return this.actStats[a];
   }
 
+  /**
+   * Proposal A (--muster N): a guaranteed, unseasoned recruit joins once the act's
+   * N-th node is done, in acts 1 and 2 (docs/specs/strategy-layer-proposal.md).
+   */
+  _maybeMuster() {
+    const after = Number(opts.muster) || 0;
+    const rm = this.runManager;
+    if (!after || !['act1', 'act2'].includes(rm.currentAct)) return;
+    this._mustered ||= new Set();
+    if (this._mustered.has(rm.currentAct)) return;
+    const done = rm.nodeMap.nodes.filter((n) => n.completed).length;
+    if (done < after || rm.roster.length >= rm.getRosterCap()) return;
+    this._mustered.add(rm.currentAct);
+    const pool = this.gameData.recruits?.[rm.currentAct]?.classPool || [];
+    if (!pool.length) return;
+    const className = pool[hash32(`muster:${rm.runSeed}:${rm.currentAct}`) % pool.length];
+    const built = buildRecruitNodeUnit({
+      preview: { className, name: `Muster ${rm.currentAct}` },
+      nodeId: `muster-${rm.currentAct}`,
+      runSeed: rm.runSeed,
+      act: rm.currentAct,
+      roster: rm.roster,
+      fallenUnits: rm.fallenUnits,
+      gameData: this.gameData,
+      metaEffects: rm.getEffectiveMetaEffects(),
+      startingLordNames: rm.getStartingLordNames(),
+      seasoned: false,
+    });
+    if (!built?.unit || built.isLord) return;
+    built.unit.faction = 'player';
+    rm.roster.push(built.unit);
+    this._act().mustered = (this._act().mustered || 0) + 1;
+  }
+
   async run() {
     if (!this.runManager) this.init();
     for (let step = 0; step < this.options.maxNodes; step++) {
       if (this.runManager.isRunComplete()) return this._buildResult('victory');
+      this._maybeMuster();
       const available = this.runManager.getAvailableNodes();
       if (!available?.length) return this._buildResult('stuck');
       const node = this.chooser(available);
@@ -1477,8 +1513,32 @@ async function sectionBlessings() {
       type: 'enemy_level_delta',
       params: act ? { value: v, act } : { value: v },
     });
-    const set = String(opts.candidates) === '2' ? 2 : 1;
-    if (set === 1)
+    const all = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
+    const scoped = (v, scope) => ({
+      type: 'targeted_growths_delta',
+      params: { stats: all, value: v, scope },
+    });
+    const set = ['1', '2', '3', '4'].includes(String(opts.candidates))
+      ? Number(opts.candidates)
+      : 1;
+    if (set === 4)
+      configs.push(
+        ['tome +15', 'candidate', [growth(15)]],
+        ['lords +15, recruits -10', 'candidate', [scoped(15, 'lords'), scoped(-10, 'recruits')]],
+        ['lords +12, recruits -10', 'candidate', [scoped(12, 'lords'), scoped(-10, 'recruits')]],
+        ['lords +10, recruits -10', 'candidate', [scoped(10, 'lords'), scoped(-10, 'recruits')]],
+      );
+    else if (set === 3)
+      configs.push(
+        ['tome +15', 'candidate', [growth(15)]],
+        ['lords +15', 'candidate', [scoped(15, 'lords')]],
+        ['lords +15, recruits -10', 'candidate', [scoped(15, 'lords'), scoped(-10, 'recruits')]],
+        ['lords +15, recruits -15', 'candidate', [scoped(15, 'lords'), scoped(-15, 'recruits')]],
+        ['lords +20, recruits -10', 'candidate', [scoped(20, 'lords'), scoped(-10, 'recruits')]],
+        ['recruits -10 alone', 'candidate', [scoped(-10, 'recruits')]],
+        ['tome +10, -2 DEF A1', 'candidate', [growth(10), def1]],
+      );
+    else if (set === 1)
       configs.push(
         ['tome +15', 'candidate', [growth(15)]],
         ['tome +15, shadow 25', 'candidate', [growth(15), shadow(25)]],
@@ -1501,13 +1561,11 @@ async function sectionBlessings() {
         ['tome +15, foes +2 Lv A1', 'candidate', [growth(15), foes(2, 'act1')]],
         ['tome +15, foes +1 Lv, -2 DEF A1', 'candidate', [growth(15), foes(1), def1]],
       );
-    for (const id of [
-      'arsenal_pact',
-      'blood_forge',
-      'war_tutelage',
-      'armory_stash',
-      'scholar_vow',
-    ]) {
+    const peers =
+      set >= 3
+        ? ['scholar_vow']
+        : ['arsenal_pact', 'blood_forge', 'war_tutelage', 'armory_stash', 'scholar_vow'];
+    for (const id of peers) {
       const b = catalog.blessings.find((x) => x.id === id);
       if (b) configs.push([b.id, `T${b.tier} boon`, b.boons]);
     }

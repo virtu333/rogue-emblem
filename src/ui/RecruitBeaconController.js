@@ -43,6 +43,14 @@ export class RecruitBeaconController {
     this.sync();
     const scene = this.scene;
     const npc = this.npc;
+    // The objective line was drawn before the recruit existed; name them now.
+    if (npc) {
+      try {
+        scene?.updateObjectiveText?.();
+      } catch {
+        /* the HUD may not be built in headless scenes */
+      }
+    }
     if (!npc || scene?._resumeCheckpoint || scene?.battleParams?.tutorialMode) return;
     try {
       Promise.resolve(showMinorHint(scene, recruitIntroHint(npc))).catch(() => {});
