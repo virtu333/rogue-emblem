@@ -26,7 +26,8 @@ import { hasDOMHost } from '../utils/domUI.js';
 import { BattleTradeMenu } from '../ui/BattleTradeMenu.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { canUseTouchUI } from '../utils/domUI.js';
-import { rebuiltPortraitKey } from '../ui/RebuiltPortraits.js';
+import { unitPortraitKey } from '../ui/RebuiltPortraits.js';
+import { placeBattlePortrait } from '../ui/BattlePortraitVariants.js';
 import { battleUnitSpriteKey } from '../ui/BattleUnitVisuals.js';
 import { startTracedIdle } from '../ui/TracedSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
@@ -3274,6 +3275,7 @@ export class BattleScene extends Phaser.Scene {
 
   addUnitGraphic(unit) {
     registerBattleEntity(this, unit);
+    placeBattlePortrait(this, unit); // stable face per unit (portrait variety)
     const color = FACTION_COLORS[unit.faction];
 
     // Entity: 3x3 footprint, center graphic on middle tile
@@ -3284,10 +3286,9 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        unit.graphic.setDisplaySize(
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-        );
+        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
+        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
         unit.label = null;
       } else {
         unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
@@ -7933,29 +7934,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this, unit);
-    if (rebuilt) return rebuilt;
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData.classes.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.textures.exists(classKey)) return classKey;
-    const classData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this, unit, this.gameData);
   }
 
   async showForecast(attacker, defender) {

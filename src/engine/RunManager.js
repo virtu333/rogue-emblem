@@ -59,6 +59,7 @@ import {
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
   getWeaponArtBindings,
@@ -504,6 +505,7 @@ export class RunManager {
       this.runSeed = Number(initialSeed);
     }
     this.roster = this.createInitialRoster();
+    this.ensurePortraitVariants();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
@@ -1946,6 +1948,24 @@ export class RunManager {
 
   // Called only at recruitment, never on resume or revival. Active blessings
   // already persist, including in older saves; no new migration flag is needed.
+  /**
+   * Portrait variety (src/engine/PortraitVariants.js): give units offered or
+   * joining together a stable face, avoiding people the roster already has.
+   * Hash-based on the run seed; never draws from Math.random.
+   */
+  assignPortraitVariants(units) {
+    return assignPortraitVariants(units, {
+      roster: this.roster,
+      fallen: this.fallenUnits,
+      seed: this.runSeed,
+    });
+  }
+
+  /** Every roster/fallen unit has its face (idempotent; legacy units get one). */
+  ensurePortraitVariants(seed = this.runSeed) {
+    return backfillPortraitVariants(this.roster, { fallen: this.fallenUnits, seed });
+  }
+
   grantRecruitBlessingConsumables(unit) {
     if (!unit || !this.activeBlessings?.length || !this.gameData?.blessings?.blessings) return;
     const catalog = buildBlessingIndex(this.gameData.blessings);
@@ -2660,6 +2680,7 @@ export class RunManager {
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     this._repairDuplicateRosterNames();
+    this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
   }
@@ -3579,6 +3600,8 @@ export class RunManager {
                   className: unit.className,
                   level: unit.level,
                   isLord: unit.isLord,
+                  tier: unit.tier,
+                  portraitVariant: unit.portraitVariant, // the face the unit wore (portrait variety)
                   ...deedRecordFields(unit),
                 })),
               }
@@ -4165,6 +4188,10 @@ export class RunManager {
       : 0;
     rm.usedRecruitNames = saved.usedRecruitNames || {};
     rm._repairDuplicateRosterNames();
+    // Portrait variety: saves from before it get stable, de-duplicated faces.
+    // A legacy save without a seed hashes with 0, never the Date.now fallback,
+    // so reloading it without saving shows the same faces.
+    rm.ensurePortraitVariants(Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : 0);
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');

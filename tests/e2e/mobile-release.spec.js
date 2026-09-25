@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-test('production mobile bundle boots offline and uses rebuilt battle art without lab flags', async ({
+test('production mobile bundle boots offline and uses traced battle art without lab flags', async ({
   page,
 }) => {
   const errors = [];
@@ -101,7 +101,7 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
     .poll(() =>
       page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
-        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('contrast-rebuilt-'));
+        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('traced-'));
       }),
     )
     .toBe(true);

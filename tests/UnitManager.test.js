@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   parseWeaponProficiencies,
   rollGrowthRates,
@@ -1269,6 +1269,13 @@ describe('applyStatBoost', () => {
 });
 
 describe('Enemy skill scaling by act', () => {
+  // Seeded so the binomial bounds cannot flake (unseeded, act3 once drew 558/1000).
+  let random;
+  beforeEach(() => {
+    random = vi.spyOn(Math, 'random').mockImplementation(createSeededRng(1337));
+  });
+  afterEach(() => random.mockRestore());
+
   it('createEnemyUnit respects act1 skill chance (10%)', () => {
     const fighter = data.classes.find((c) => c.name === 'Fighter');
     // Generate 1000 level 5 enemies in act1, expect ~80-120 with combat skills
