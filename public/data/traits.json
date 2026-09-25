@@ -1,37 +1,11 @@
 [
   {
-    "id": "steady",
-    "name": "Steady",
-    "description": "+1 DEF and +5 HP growth. Weathers punishment.",
-    "creationMods": {
-      "stats": {
-        "DEF": 1
-      },
-      "growths": {
-        "HP": 5
-      }
-    }
-  },
-  {
-    "id": "nimble",
-    "name": "Nimble",
-    "description": "+1 SPD and +5 SPD growth. Hard to pin down.",
-    "creationMods": {
-      "stats": {
-        "SPD": 1
-      },
-      "growths": {
-        "SPD": 5
-      }
-    }
-  },
-  {
     "id": "hardy",
-    "name": "Hardy",
-    "description": "+2 HP and +10 HP growth. Slow to fall.",
+    "name": "Hard to Kill",
+    "description": "+3 HP and +10% HP growth.",
     "creationMods": {
       "stats": {
-        "HP": 2
+        "HP": 3
       },
       "growths": {
         "HP": 10
@@ -39,141 +13,207 @@
     }
   },
   {
-    "id": "keen",
-    "name": "Keen",
-    "description": "+1 SKL and +5 SKL growth. Rarely misses.",
+    "id": "nimble",
+    "name": "Quicksilver",
+    "description": "+1 Spd and +10% Spd growth.",
     "creationMods": {
       "stats": {
-        "SKL": 1
+        "SPD": 1
       },
       "growths": {
-        "SKL": 5
+        "SPD": 10
+      }
+    },
+    "roll": {
+      "roleWeights": {
+        "armored": 0.5
       }
     }
   },
   {
-    "id": "brawny",
-    "name": "Brawny",
-    "description": "+1 STR but -5 SPD growth. Hits hard, hefts slow.",
+    "id": "gifted",
+    "name": "Kindled",
+    "description": "+1 Str or Mag (whichever it fights with) and +10% growth to it.",
     "creationMods": {
       "stats": {
-        "STR": 1
+        "ATTACK": 1
       },
       "growths": {
-        "SPD": -5
+        "ATTACK": 10
       }
-    },
-    "eligibleWeaponTypes": [
-      "Sword",
-      "Lance",
-      "Axe",
-      "Bow"
-    ]
+    }
   },
   {
-    "id": "clever",
-    "name": "Clever",
-    "description": "+1 MAG and +5 MAG growth. A practiced mind for magic.",
+    "id": "fleet",
+    "name": "Long Stride",
+    "description": "+1 Move.",
     "creationMods": {
       "stats": {
-        "MAG": 1
-      },
-      "growths": {
-        "MAG": 5
+        "MOV": 1
       }
     },
-    "eligibleWeaponTypes": [
-      "Tome",
-      "Light",
-      "Staff"
-    ]
+    "roll": {
+      "weight": 5,
+      "roleWeights": {
+        "mounted": 0.5
+      }
+    }
   },
   {
-    "id": "lucky",
-    "name": "Lucky",
-    "description": "+2 LCK and +5 LCK growth. Fortune favors them.",
-    "creationMods": {
-      "stats": {
-        "LCK": 2
-      },
-      "growths": {
-        "LCK": 5
+    "id": "vigorous",
+    "name": "Unscarred",
+    "description": "+2 Atk while above 75% HP.",
+    "combatMods": {
+      "atkBonus": 2,
+      "condition": "above75"
+    },
+    "roll": {
+      "requires": [
+        "attacker"
+      ],
+      "roleWeights": {
+        "support": 0.5
       }
     }
   },
   {
     "id": "cornered",
-    "name": "Cornered",
-    "description": "+15 crit while below half HP. Fights hardest wounded.",
+    "name": "Last Ember",
+    "description": "+2 Atk and +15 Crit at half HP or less.",
     "combatMods": {
+      "atkBonus": 2,
       "critBonus": 15,
       "condition": "below50"
+    },
+    "roll": {
+      "requires": [
+        "attacker"
+      ],
+      "roleWeights": {
+        "support": 0.5
+      }
     }
   },
   {
-    "id": "vigorous",
-    "name": "Vigorous",
-    "description": "+2 ATK while above three-quarters HP. Strong when fresh.",
+    "id": "bloodhound",
+    "name": "Scent of Blood",
+    "description": "+2 Atk and +10 Hit against foes at half HP or less.",
     "combatMods": {
       "atkBonus": 2,
-      "condition": "above75"
+      "hitBonus": 10,
+      "condition": "foe_below50"
+    },
+    "roll": {
+      "requires": [
+        "attacker"
+      ],
+      "roleWeights": {
+        "support": 0.5
+      }
+    }
+  },
+  {
+    "id": "reckless",
+    "name": "Reckless",
+    "description": "+3 Atk when it initiates; -2 Def when an enemy initiates.",
+    "combatMods": [
+      {
+        "atkBonus": 3,
+        "condition": "initiating"
+      },
+      {
+        "defBonus": -2,
+        "condition": "defending"
+      }
+    ],
+    "roll": {
+      "requires": [
+        "attacker"
+      ],
+      "excludes": [
+        "support"
+      ],
+      "lords": false
+    }
+  },
+  {
+    "id": "stalwart",
+    "name": "Stalwart",
+    "description": "+2 Def when an enemy initiates.",
+    "combatMods": {
+      "defBonus": 2,
+      "condition": "defending"
     }
   },
   {
     "id": "lone_wolf",
     "name": "Lone Wolf",
-    "description": "+10 avoid with no ally within 2 tiles. Fights alone.",
+    "description": "+10 Avo with no ally within 2 tiles.",
     "combatMods": {
       "avoidBonus": 10,
       "condition": "no_ally_within_2"
+    },
+    "roll": {
+      "excludes": [
+        "support"
+      ],
+      "lords": false
+    }
+  },
+  {
+    "id": "shieldmate",
+    "name": "Shieldmate",
+    "description": "+10 Avo while adjacent to an ally.",
+    "combatMods": {
+      "avoidBonus": 10,
+      "condition": "adjacent_ally"
+    },
+    "roll": {
+      "roleWeights": {
+        "support": 2
+      }
     }
   },
   {
     "id": "woodsman",
-    "name": "Woodsman",
-    "description": "+2 DEF while standing in forest. At home in the trees.",
+    "name": "Old Campaigner",
+    "description": "+2 Def in cover: forest, mountain, fort or pillar.",
     "combatMods": {
       "defBonus": 2,
-      "condition": "on_forest"
+      "condition": "in_cover"
     }
   },
   {
     "id": "studious",
     "name": "Studious",
-    "description": "Masters a class 2 battles sooner. A quick learner.",
+    "description": "Masters its class 2 battles sooner.",
     "masteryBattlesDelta": -2
   },
   {
-    "id": "lazy",
-    "name": "Lazy",
-    "description": "+1 STR and +1 DEF, but masters a class 2 battles later.",
-    "creationMods": {
-      "stats": {
-        "STR": 1,
-        "DEF": 1
-      }
-    },
-    "masteryBattlesDelta": 2
-  },
-  {
-    "id": "reckless",
-    "name": "Reckless",
-    "description": "When mastered, gains +2 ATK / -1 DEF instead of the class perk.",
-    "masteryPerkOverride": {
-      "atkBonus": 2,
-      "defBonus": -1
+    "id": "slow_oath",
+    "name": "Slow Oath",
+    "description": "Masters its class 2 battles later, but its mastery perk is doubled.",
+    "masteryBattlesDelta": 2,
+    "masteryPerkMultiplier": 2,
+    "roll": {
+      "lords": false
     }
   },
   {
     "id": "quick_study",
-    "name": "Quick Study",
-    "description": "Earns 15% more XP. Grows faster than most.",
-    "xpMultiplier": 1.15
+    "name": "Hungry",
+    "description": "Earns 20% more battle XP.",
+    "xpMultiplier": 1.2,
+    "roll": {
+      "roleWeights": {
+        "support": 2
+      }
+    }
   },
   {
     "id": "standard_bearer",
     "name": "Standard Bearer",
-    "description": "+2 ATK and +2 DEF while adjacent to a living ally.",
+    "description": "+2 Atk and +2 Def while adjacent to a living ally.",
     "rarity": "legendary",
     "lordName": "Edric",
     "combatMods": {
@@ -185,7 +225,7 @@
   {
     "id": "overflowing_grace",
     "name": "Overflowing Grace",
-    "description": "Once per player phase, restoring HP to another unit with a healing staff also restores 3 HP to Sera.",
+    "description": "Once per player phase, healing an ally with a staff also restores 3 HP to Sera.",
     "rarity": "legendary",
     "lordName": "Sera",
     "staffSelfHeal": 3
@@ -204,7 +244,7 @@
   {
     "id": "unbroken",
     "name": "Unbroken",
-    "description": "+2 RES and +10 Hit at half HP or less.",
+    "description": "+2 Res and +10 Hit at half HP or less.",
     "rarity": "legendary",
     "lordName": "Voss",
     "combatMods": {
@@ -216,7 +256,7 @@
   {
     "id": "riding_guard",
     "name": "Riding Guard",
-    "description": "+2 DEF and +2 RES during combat initiated after spending at least 3 movement cost.",
+    "description": "+2 Def and +2 Res when initiating after spending 3+ movement.",
     "rarity": "legendary",
     "lordName": "Rowan",
     "combatMods": {
@@ -247,5 +287,88 @@
       "hitBonus": 10,
       "condition": "defending"
     }
+  },
+  {
+    "id": "steady",
+    "name": "Steady",
+    "description": "+1 Def and +5% HP growth.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "DEF": 1
+      },
+      "growths": {
+        "HP": 5
+      }
+    }
+  },
+  {
+    "id": "keen",
+    "name": "Keen",
+    "description": "+1 Skl and +5% Skl growth.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "SKL": 1
+      },
+      "growths": {
+        "SKL": 5
+      }
+    }
+  },
+  {
+    "id": "lucky",
+    "name": "Lucky",
+    "description": "+2 Lck and +5% Lck growth.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "LCK": 2
+      },
+      "growths": {
+        "LCK": 5
+      }
+    }
+  },
+  {
+    "id": "brawny",
+    "name": "Brawny",
+    "description": "+1 Str but -5% Spd growth.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "STR": 1
+      },
+      "growths": {
+        "SPD": -5
+      }
+    }
+  },
+  {
+    "id": "clever",
+    "name": "Clever",
+    "description": "+1 Mag and +5% Mag growth.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "MAG": 1
+      },
+      "growths": {
+        "MAG": 5
+      }
+    }
+  },
+  {
+    "id": "lazy",
+    "name": "Lazy",
+    "description": "+1 Str and +1 Def, but masters its class 2 battles later.",
+    "retired": true,
+    "creationMods": {
+      "stats": {
+        "STR": 1,
+        "DEF": 1
+      }
+    },
+    "masteryBattlesDelta": 2
   }
 ]

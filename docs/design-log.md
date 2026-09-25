@@ -41,6 +41,45 @@ support conversations (rejected earlier). Spec and deviations:
 **Deferred**: hidden promoted classes unlocked by deeds (needs traced sprites v3); a
 Deeds page in the victory records detail beyond the titled roster rows.
 
+---
+
+## 2026-09-25 — Traits v2: class-aware, additive, and spelled out per unit
+
+**Trigger:** the user saw a boss-recruit Cavalier offered with Reckless ("+2 ATK /
+-1 DEF *instead of the class perk*") and asked for a balance and design audit.
+Playtest #30 had flagged Brawny as downside-only on a tome mage.
+
+**Findings** (sim: `npm run sim:traits`; full table in `specs/traits-v2.md`):
+- Reckless lost against the perk it replaced for 11 of 12 recruit classes
+  (−3.1 duel win, −10.2 survival on average), and it was strictly worse than Frenzy and Focus.
+- Keen, Clever, Lucky and Cornered were near-blank (+1 to +2). Brawny lowered survival
+  everywhere. Lazy's +1 STR was dead on casters.
+- Woodsman did nothing on the 43% of act-2/3 maps with no forest or mountain.
+  Lone Wolf punished healers for healing.
+- Reclass silently wiped every trait growth bonus, and promoted recruits were
+  judged by their base class.
+
+**Decisions:**
+- **No trait replaces a class perk.** Mastery traits shift the threshold or
+  multiply the perk (the new Slow Oath doubles it for 2 more battles). The UI names the
+  perk and both numbers: "Wayfarer becomes +2 Atk, +2 Spd (from +1 Atk, +1 Spd)".
+- **Tradeoffs must be playable.** Reckless becomes +3 Atk when it initiates and
+  −2 Def when an enemy does, a positioning decision. Stalwart is its mirror;
+  Lone Wolf and Shieldmate pull opposite ways on formation.
+- **Rolling is class-aware.** Roles gate or weight every trait, and stat traits
+  target the stat the class fights with (`ATTACK`). Result: no downside-only rolls,
+  and healers draw Hungry and Shieldmate far more often.
+- Lords never roll Reckless, Lone Wolf or Slow Oath: no lone-lord juggernaut, and
+  legendaries stay special.
+- Saves migrate once and only ever gain stats. Brawny and Clever become Kindled in the
+  right stat (Brawny also refunds its speed growth), Lazy becomes Slow Oath at the
+  same threshold, and Steady, Keen and Lucky are grandfathered.
+- RNG cost is unchanged: one draw for the count plus one per pick.
+
+Spec: `specs/traits-v2.md`. Captures: `art-direction/gameplay/traits-v2/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

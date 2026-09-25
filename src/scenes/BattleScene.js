@@ -1540,6 +1540,7 @@ export class BattleScene extends Phaser.Scene {
                       traitsData: this.gameData.traits || null,
                       skillsData: this.gameData.skills,
                       rng: Math.random,
+                      traitClassData: npcClassData,
                     },
                   );
                   for (const sid of getClassInnateSkills(
@@ -7397,7 +7398,14 @@ export class BattleScene extends Phaser.Scene {
     // Track old proficiency types to detect new ones
     const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
-    reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
+    reclassUnit(
+      unit,
+      newClassData,
+      oldClassData,
+      this.gameData.classes,
+      this.gameData.skills,
+      this.gameData.traits || null,
+    );
     observeHistoryAction(this, 'reclassed', unit, null, newClassData.name);
 
     // Refresh sprite

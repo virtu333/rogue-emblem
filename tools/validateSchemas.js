@@ -24,6 +24,7 @@ const AJV_SCHEMAS = [
   { schema: 'metaUpgrades.schema.json', data: 'metaUpgrades.json' },
   { schema: 'imbues.schema.json', data: 'imbues.json' },
   { schema: 'deeds.schema.json', data: 'deeds.json' },
+  { schema: 'traits.schema.json', data: 'traits.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });

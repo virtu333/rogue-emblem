@@ -99,3 +99,33 @@ describe('lore content contract', () => {
     expect(finalBosses.some((b) => b.difficultyFilter?.includes('lunatic'))).toBe(true);
   });
 });
+
+// Traits are stat-line text (clarity over variety — see the style guide), read
+// on recruit cards, the roster sheet and the unit-details tooltip: one line,
+// item budget, a short distinct name, and one consistent stat vocabulary.
+describe('trait text contract', () => {
+  it('every trait has a one-line description within the item budget', () => {
+    expect(gameData.traits.length).toBeGreaterThan(0);
+    for (const trait of gameData.traits) {
+      const label = `trait "${trait.id}"`;
+      expect(typeof trait.description, label).toBe('string');
+      expect(trait.description.trim().length, label).toBeGreaterThan(0);
+      expect(trait.description.length, `${label} exceeds ${ITEM_BUDGET}`).toBeLessThanOrEqual(
+        ITEM_BUDGET,
+      );
+      expect(trait.description.includes('\n'), label).toBe(false);
+      expect(trait.description.endsWith('.'), `${label} ends on a full stop`).toBe(true);
+    }
+  });
+
+  it('trait names are short and unique', () => {
+    const names = gameData.traits.map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) expect(name.length, name).toBeLessThanOrEqual(18);
+  });
+
+  it('descriptions use the combat vocabulary (Atk/Def/Res/Spd…), never shouted stat caps', () => {
+    for (const trait of gameData.traits)
+      expect(trait.description, trait.id).not.toMatch(/\b(ATK|DEF|RES|SPD|STR|MAG|SKL|LCK)\b/);
+  });
+});

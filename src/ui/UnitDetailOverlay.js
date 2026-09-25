@@ -35,7 +35,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import { getImbueDisplayInfo, isImbued } from '../engine/ImbueSystem.js';
 import {
@@ -630,12 +630,12 @@ export class UnitDetailOverlay {
         }
       }
 
-      // Traits (recruits only; lords never roll)
-      const unitTraits = getUnitTraits(unit, traitsData);
+      // Traits (recruits roll 0-2; lords roll one)
+      const unitTraits = traitLines(unit, this.gameData);
       if (unitTraits.length > 0) {
         const names = unitTraits.map((t) => t.name).join(', ');
         const traitText = this._tabText(lx, y, `Traits: ${names}`, UI_PALETTE.rarityEpic, '9px');
-        const descriptions = unitTraits.map((t) => `${t.name}: ${t.description}`).join('\n');
+        const descriptions = unitTraits.map((t) => `${t.name}: ${t.text}`).join('\n');
         traitText.setInteractive({ useHandCursor: true });
         traitText.on('pointerover', () => this._showSkillTooltip(traitText, descriptions));
         traitText.on('pointerout', () => this._hideSkillTooltip());

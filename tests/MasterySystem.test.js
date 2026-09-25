@@ -106,8 +106,14 @@ describe('MasterySystem — threshold & trait deltas', () => {
     expect(getMasteryThreshold({ traits: ['studious'] }, traits)).toBe(MASTERY_BATTLES - 2);
   });
 
-  it('Lazy raises threshold by 2', () => {
-    expect(getMasteryThreshold({ traits: ['lazy'] }, traits)).toBe(MASTERY_BATTLES + 2);
+  it('Slow Oath raises threshold by 2', () => {
+    expect(getMasteryThreshold({ traits: ['slow_oath'] }, traits)).toBe(MASTERY_BATTLES + 2);
+  });
+
+  it('Studious and Slow Oath cancel out', () => {
+    expect(getMasteryThreshold({ traits: ['studious', 'slow_oath'] }, traits)).toBe(
+      MASTERY_BATTLES,
+    );
   });
 
   it('threshold is floored at MASTERY_MIN_BATTLES', () => {
@@ -117,12 +123,13 @@ describe('MasterySystem — threshold & trait deltas', () => {
   });
 });
 
-describe('MasterySystem — perk lookup & Reckless override', () => {
+describe('MasterySystem — perk lookup & trait amplification', () => {
   it('returns the class-family perk', () => {
     const perk = getMasteryPerk({ className: 'Knight' }, classes, traits);
     expect(perk.name).toBe('Bulwark');
     expect(perk.mods).toEqual({ defBonus: 2 });
-    expect(perk.overridden).toBe(false);
+    expect(perk.classMods).toEqual({ defBonus: 2 });
+    expect(perk.multiplier).toBe(1);
   });
 
   it('promoted class inherits the base-family perk', () => {
@@ -130,10 +137,31 @@ describe('MasterySystem — perk lookup & Reckless override', () => {
     expect(perk.name).toBe("Duelist's Edge");
   });
 
-  it('Reckless replaces the class perk', () => {
+  it('Reckless no longer touches the class perk', () => {
     const perk = getMasteryPerk({ className: 'Knight', traits: ['reckless'] }, classes, traits);
-    expect(perk.overridden).toBe(true);
-    expect(perk.mods).toEqual({ atkBonus: 2, defBonus: -1 });
+    expect(perk.name).toBe('Bulwark');
+    expect(perk.mods).toEqual({ defBonus: 2 });
+  });
+
+  it('Slow Oath doubles the class perk and tags its name', () => {
+    const perk = getMasteryPerk({ className: 'Cavalier', traits: ['slow_oath'] }, classes, traits);
+    expect(perk.name).toBe('Wayfarer ×2');
+    expect(perk.mods).toEqual({ atkBonus: 2, spdBonus: 2 });
+    expect(perk.classMods).toEqual({ atkBonus: 1, spdBonus: 1 });
+  });
+
+  it('no trait ever lowers any class perk mod', () => {
+    const regular = traits.filter((t) => !t.lordName);
+    for (const cls of classes.filter((c) => c.masteryPerk)) {
+      const base = getMasteryPerk({ className: cls.name }, classes, traits).mods;
+      for (const trait of regular) {
+        const perk = getMasteryPerk({ className: cls.name, traits: [trait.id] }, classes, traits);
+        for (const [key, value] of Object.entries(base))
+          expect(Math.abs(perk.mods[key]), `${trait.id} on ${cls.name}`).toBeGreaterThanOrEqual(
+            Math.abs(value),
+          );
+      }
+    }
   });
 });
 
@@ -154,8 +182,8 @@ describe('MasterySystem — combat mods', () => {
 });
 
 describe('MasterySystem — trait XP multiplier', () => {
-  it('applies Quick Study 1.15x', () => {
-    expect(getTraitXpMultiplier({ traits: ['quick_study'] }, traits)).toBeCloseTo(1.15);
+  it('applies Hungry (quick_study) 1.2x', () => {
+    expect(getTraitXpMultiplier({ traits: ['quick_study'] }, traits)).toBeCloseTo(1.2);
   });
   it('defaults to 1 for no traits', () => {
     expect(getTraitXpMultiplier({ traits: [] }, traits)).toBe(1);
@@ -213,7 +241,7 @@ describe('getSkillCombatMods — mastery/trait integration', () => {
   });
 
   it('applies trait combat mod only when the condition holds', () => {
-    // Cornered: +15 crit below 50% HP
+    // Last Ember (cornered): +2 Atk, +15 crit at half HP or less
     const low = mkUnit({ traits: ['cornered'], currentHP: 5, stats: { HP: 20 } });
     const oppL = mkUnit({ name: 'O', col: 5, row: 5 });
     const lowMods = getSkillCombatMods(low, oppL, [low], [oppL], data.skills, plain, true, null, {
@@ -221,6 +249,7 @@ describe('getSkillCombatMods — mastery/trait integration', () => {
       traitsData: traits,
     });
     expect(lowMods.critBonus).toBe(15);
+    expect(lowMods.atkBonus).toBe(2);
 
     const high = mkUnit({ traits: ['cornered'], currentHP: 20, stats: { HP: 20 } });
     const oppH = mkUnit({ name: 'O', col: 5, row: 5 });
