@@ -97,6 +97,15 @@ function socketElement() {
   return s;
 }
 
+const ITEM_TIERS = new Set(['Iron', 'Steel', 'Silver', 'Rare', 'Legend']);
+
+/** The rim: the item's own tier when it carries one (a rolled or renamed instance),
+ *  else the catalog's. */
+function rimFor(meta, subject) {
+  const item = typeof subject === 'object' ? subject?.item || subject : null;
+  return ITEM_TIERS.has(item?.tier) ? item.tier : meta.rim;
+}
+
 function glyphElement(id, size) {
   const st = atlasStyle(id, size);
   const glyph = document.createElement('span');
@@ -126,7 +135,7 @@ export function itemIcon(subject, options = {}) {
   el.className = `ia-icon ${className}`.trim();
   el.dataset.iconId = meta.id;
   el.dataset.socket = meta.socket;
-  el.dataset.rim = meta.rim;
+  el.dataset.rim = rimFor(meta, subject);
   el.dataset.size = String(size);
   if (!socket) el.classList.add('is-bare');
   el.style.setProperty('--ia-size', `${size}px`);
@@ -169,7 +178,7 @@ export function itemHero(subject, options = {}) {
   frame.className = `ia-hero ${className}`.trim();
   frame.dataset.iconId = meta.id;
   frame.dataset.socket = meta.socket;
-  frame.dataset.rim = meta.rim;
+  frame.dataset.rim = rimFor(meta, subject);
   frame.style.setProperty('--ia-size', `${size}px`);
   frame.setAttribute('aria-hidden', 'true');
   frame.append(socketElement());

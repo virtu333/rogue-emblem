@@ -201,6 +201,17 @@ describe('itemIcon helper', () => {
     expect(bare.classList.set.has('is-bare')).toBe(true);
   });
 
+  it("an instance's own tier sets the rim (renamed or rolled items)", () => {
+    const el = itemIcon({ name: 'Legend test sword', type: 'Sword', tier: 'Legend' });
+    expect(el.dataset.socket).toBe('weapon');
+    expect(el.dataset.rim).toBe('Legend');
+    expect(itemHero({ name: 'Iron Sword', type: 'Sword', tier: 'Silver' }).dataset.rim).toBe(
+      'Silver',
+    );
+    // No tier on the instance: the catalog's rim.
+    expect(itemIcon({ name: 'Iron Sword', type: 'Sword' }).dataset.rim).toBe('Iron');
+  });
+
   it('shows the pixel icon at 2x when an item has no approved painting', () => {
     const hero = itemHero({ name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' });
     expect(hero.dataset.art).toBe('pixel');
