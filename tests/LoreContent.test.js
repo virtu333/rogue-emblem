@@ -42,6 +42,19 @@ describe('lore content contract', () => {
     }
   });
 
+  it('every deed has lore within the item budget, in the chronicle register', () => {
+    const deeds = gameData.deeds.deeds;
+    expect(deeds.length).toBeGreaterThan(0);
+    for (const deed of deeds) {
+      expectValidLore(deed, ITEM_BUDGET, `deed "${deed.id}"`);
+      // A deed's lore is not its title or its name restated.
+      expect(deed.lore.toLowerCase()).not.toContain(deed.epithet.text.toLowerCase());
+    }
+    // Style guide: no more than ~40% may open with a bare "A/An".
+    const bareA = deeds.filter((d) => /^(A|An) /.test(d.lore)).length;
+    expect(bareA / deeds.length).toBeLessThanOrEqual(0.4);
+  });
+
   it('every whetstone has lore within the item budget', () => {
     expect(gameData.whetstones.length).toBeGreaterThan(0);
     for (const item of gameData.whetstones) {

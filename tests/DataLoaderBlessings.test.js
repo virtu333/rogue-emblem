@@ -131,6 +131,18 @@ describe('DataLoader blessings integration', () => {
     const data = await loader.loadAll();
     expect(data.blessings).toBeNull();
     expect(data.difficulty).toBeTruthy();
+    // Deeds are optional too: absent data means no deeds are recorded.
+    expect(data.deeds).toBeNull();
+  });
+
+  it('loads deeds.json as an optional file', async () => {
+    const deeds = { version: 1, places: {}, weapons: {}, deeds: [] };
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => makeMinimalPayload(path);
+    loader.loadOptionalJSON = async (path) => (path === 'data/deeds.json' ? deeds : null);
+    const data = await loader.loadAll();
+    expect(data.deeds).toBe(deeds);
+    expect(loader.deeds).toBe(deeds);
   });
 
   it('throws cleanly for invalid blessings payload', async () => {

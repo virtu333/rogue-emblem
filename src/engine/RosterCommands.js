@@ -11,6 +11,7 @@ import {
   removeFromConsumables,
   getCombatWeapons,
 } from './UnitManager.js';
+import { applyPromotionOath } from './DeedSystem.js';
 
 export function rosterClassChangeBlock(run, unit, item, gameData) {
   if (!run?.roster?.includes(unit)) return 'Unit is no longer in the roster.';
@@ -85,6 +86,11 @@ function promote(unit, item, promotedClassData, gameData) {
   const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
   const promotionResult = promoteUnit(unit, promotedClassData, promotionBonuses, gameData.skills);
+  // A deed's Oath: sworn on player promotions only (never silent engine ones).
+  const oath = applyPromotionOath(unit, gameData);
+  const droppedSkills = [...(promotionResult?.droppedSkills || [])];
+  if (oath?.learned) notices.push(`${oath.name}: learned ${oath.skillName}.`);
+  if (oath?.dropped) droppedSkills.push(oath.skillId);
 
   for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, gameData, true)) {
     if (!addToInventory(unit, newWeapon))
@@ -97,7 +103,7 @@ function promote(unit, item, promotedClassData, gameData) {
     removeFromConsumables(unit, item);
   }
 
-  return { ok: true, notices, droppedSkills: promotionResult?.droppedSkills || [] };
+  return { ok: true, notices, droppedSkills, oath };
 }
 function reclass(unit, sealItem, newClassData, gameData) {
   const notices = [];

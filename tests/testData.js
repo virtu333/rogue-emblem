@@ -34,5 +34,6 @@ export function loadGameData() {
     colosseum: loadJSON('colosseum.json'),
     traits: loadJSON('traits.json'),
     imbues: loadJSON('imbues.json'),
+    deeds: loadJSON('deeds.json'),
   };
 }
