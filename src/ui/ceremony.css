@@ -529,8 +529,10 @@
 /* ─────────────────────────────────────────────── Phase banner */
 .ce-phase {
   position: absolute;
-  left: 0;
-  right: 0;
+  /* One band rule for every band card: span the battlefield, not the letterbox
+     (ceremonyDom.js bandSpan sets these for map frames). */
+  left: var(--ce-band-l, 0px);
+  right: var(--ce-band-r, 0px);
   top: calc(50% - 30px * var(--ce-scale));
   padding: calc(6px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
     calc(7px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));

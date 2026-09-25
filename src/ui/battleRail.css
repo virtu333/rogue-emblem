@@ -252,3 +252,32 @@
     display: none;
   }
 }
+
+/* ── Tap targets that must stay visually compact ──────────────────────────── */
+/* The objective line keeps its 24px row but takes taps across a 44px band. */
+.battlefield-lab .mobile-battle-hud .mb-objective.mb-button {
+  position: relative;
+}
+.battlefield-lab .mobile-battle-hud .mb-objective.mb-button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  bottom: -10px;
+}
+/* "How to read this forecast" is a real row, not a 17px line. */
+.mobile-battle-hud details.mb-detail > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--re-tap);
+  cursor: pointer;
+}
+
+/* The forecast's scrolling rows fade out at the edge instead of slicing a line in
+   half; the padding lets the last row clear the fade once scrolled to the end. */
+.mobile-battle-hud .mb-forecast-sides {
+  padding-bottom: 14px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 16px), transparent);
+}
