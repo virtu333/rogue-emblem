@@ -3,6 +3,31 @@ import { canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
 import { withUnitFace } from './unitPortrait.js';
+import { candidateCards } from './choiceContent.js';
+import {
+  choiceReducedMotion,
+  draftRow,
+  fitDraft,
+  unitCardLabel,
+  unitChoiceCard,
+} from './choiceCards.js';
+import { unitTemperament } from './unitVoiceDisplay.js';
+import { recruitLine } from './growthContent.js';
+
+// Mercenary cards compare the whole board (best-of-board marks, roster cue).
+function mercContent(c) {
+  return candidateCards(
+    c._mercCandidates.map(({ unit }) => unit),
+    {
+      roster: c.runManager.roster,
+      gameData: c.gameData,
+      temperamentOf: (unit) => unitTemperament(c.scene, unit),
+    },
+  );
+}
+function mercLabel(u, hireCost) {
+  return `${u.name} · ${u.className} · Lv ${getDisplayLevel(u)} · ${hireCost} G${u._hired ? ' · Hired' : ''}`;
+}
 
 // Responsive presentation only. The controller remains responsible for rolling
 // opponents, combat, rewards, hire costs, and per-visit limits.
@@ -159,16 +184,35 @@ export class ArenaMenu {
   }
   static mercs(c) {
     const m = new ArenaMenu(c, 'Mercenary board', () => c._showMenu());
-    m.text('Hire one mercenary per visit. Select a candidate to review their full details.');
-    c._mercCandidates.forEach(({ unit: u, hireCost }, i) =>
-      m.action(
-        `${u.name} · ${u.className} · Lv ${getDisplayLevel(u)} · ${hireCost} G${u._hired ? ' · Hired' : ''}`,
-        () => c._showMercConfirm(i),
-        '',
-        u,
-      ),
-    );
-    if (!c._mercCandidates.length)
+    m.draft();
+    m.text('Hire one mercenary per visit. Choose a card to review the contract.');
+    const candidates = c._mercCandidates;
+    if (candidates.length) {
+      const content = mercContent(c);
+      const row = draftRow(candidates.length, 'ch-mercs');
+      candidates.forEach(({ unit: u, hireCost }, i) => {
+        const label = mercLabel(u, hireCost);
+        row.append(
+          unitChoiceCard({
+            scene: c.scene,
+            gameData: c.gameData,
+            unit: u,
+            content: content[i],
+            selected: false,
+            label: unitCardLabel(content[i], `${hireCost} G${u._hired ? ' · Hired' : ''}`),
+            seal: { amount: hireCost, after: u._hired ? null : c.runManager.gold - hireCost },
+            stamp: u._hired ? 'Hired' : '',
+            onSelect: () => {
+              if (!m.surface.destroyed) c._showMercConfirm(i);
+            },
+            // The scripted journeys read and press the card by this text.
+            harnessLabel: label,
+          }),
+        );
+      });
+      m.surface.body.append(row);
+      fitDraft(m.surface.body);
+    } else
       m.text(
         c._mercGenerationFailed ? 'Mercenary board unavailable.' : 'No mercenaries available.',
       );
@@ -177,8 +221,8 @@ export class ArenaMenu {
   static hire(c, index) {
     const { unit: u, hireCost } = c._mercCandidates[index];
     const m = new ArenaMenu(c, `Hire ${u.name}`, () => c._showMercBrowse());
-    m.unit(u);
-    m.text(`Hire cost: ${hireCost} G · Gold after hire ${c.runManager.gold - hireCost} G`);
+    m.draft();
+    const content = mercContent(c)[index];
     const reason = u._hired
       ? 'Already hired.'
       : c._mercHired
@@ -188,10 +232,57 @@ export class ArenaMenu {
           : c.runManager.gold < hireCost
             ? 'Not enough gold.'
             : '';
-    const confirm = m.action('Confirm hire', () => c._hireMercenary(index), reason);
+    const contract = el('div', null, 'ch-contract');
+    const row = draftRow(1, 'ch-hire');
+    row.append(
+      unitChoiceCard({
+        scene: c.scene,
+        gameData: c.gameData,
+        unit: u,
+        content,
+        selected: true,
+        interactive: false,
+        label: unitCardLabel(content),
+        stamp: u._hired ? 'Hired' : '',
+      }),
+    );
+    const terms = el('section', null, 'ch-terms');
+    terms.setAttribute('aria-label', 'Contract');
+    terms.append(
+      el('h3', 'Contract'),
+      el('p', `${hireCost} G`, 'ch-terms-cost'),
+      el('p', `Hire cost: ${hireCost} G · Gold after hire ${c.runManager.gold - hireCost} G`),
+      el('p', `Roster ${c.runManager.roster.length} / ${c._getRosterCap()} · One hire per visit`),
+    );
+    if (reason) terms.append(el('p', reason, 'ch-terms-warn'));
+    if (content?.cue) terms.append(el('p', content.cue.text, 'ch-terms-cue'));
+    // The card's lines may fade on a phone; the contract reads them in full.
+    if (content?.lines?.length) {
+      terms.append(el('h3', 'Traits and skills'));
+      for (const line of content.lines) {
+        const p = el('p', null, `ch-terms-line is-${line.kind}`);
+        p.append(el('b', line.name), el('span', line.text ? ` ${line.text}` : ''));
+        terms.append(p);
+      }
+    }
+    const quote = recruitLine(u, c.gameData?.dialogue, c.gameData?.classes);
+    if (quote) terms.append(el('p', `“${quote}”`, 'ch-terms-quote'));
+    contract.append(row, terms);
+    m.surface.body.append(contract);
+    fitDraft(m.surface.body);
+    const confirm = button('Confirm hire', () => {
+      if (!m.surface.destroyed) c._hireMercenary(index);
+    });
+    confirm.className = 're-btn re-btn--primary';
+    confirm.disabled = !!reason;
     const footer = el('footer', null, 'service-footer');
     footer.append(confirm);
     m.surface.root.append(footer);
     return m.focus();
+  }
+  /** Draft screens: cards fill the body; reduced motion holds them still. */
+  draft() {
+    this.surface.root.classList.add('ch-arena');
+    if (choiceReducedMotion(this.c.scene)) this.surface.root.classList.add('is-still');
   }
 }

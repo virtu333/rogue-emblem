@@ -99,7 +99,8 @@ describe('startFirstRunFastPath', () => {
     expect(key).toBe('NodeMap');
     expect(data.firstRun).toBe(true);
     expect(data.gameData).toBe(gameData);
-    expect(opts).toEqual({ reason: 'begin_run' });
+    // A New Game tap inside the router cooldown must retry, not vanish.
+    expect(opts).toEqual({ reason: 'begin_run', retryBlocked: true });
 
     // Committed RunManager state matches the Blessing-skip path exactly.
     const rm = data.runManager;
