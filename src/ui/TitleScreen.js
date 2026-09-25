@@ -1,6 +1,7 @@
 import { element } from './MenuSurface.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
+import { GAME_TITLE } from '../utils/gameIdentity.js';
 
 // TitleScreen — DOM title over The Hollow Sun key art (ART_BIBLE "Title").
 // Owns presentation only: the lockup, the reliquary menu, corner actions, notices and
@@ -13,7 +14,7 @@ const DESIGN_W = 640;
 /** The key-art lockup shared by the title and the auth screen. */
 export function createKeyArtLockup({ subtitle = 'The Hollow Sun', level = 'h1' } = {}) {
   const lockup = element('div', null, 're-keyart-lockup');
-  const title = element(level, 'Rogue Emblem', 're-keyart-title');
+  const title = element(level, GAME_TITLE, 're-keyart-title');
   const rule = element('div', null, 're-keyart-rule');
   rule.setAttribute('aria-hidden', 'true');
   rule.append(element('span'), element('i'), element('span'));
@@ -48,7 +49,7 @@ export class TitleScreen {
     root.classList.add(this.phone ? 're-title--phone' : 're-title--stage');
     root.dataset.variant = opts.variant;
     root.style.setProperty('--re-z', DOM_UI_DEPTHS.TITLE);
-    root.setAttribute('aria-label', 'Rogue Emblem');
+    root.setAttribute('aria-label', GAME_TITLE);
 
     this.art = element('div', null, 're-title-art');
     const veil = element('div', null, 're-title-veil');

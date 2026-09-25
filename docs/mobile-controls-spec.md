@@ -1,4 +1,4 @@
-# Rogue Emblem — Mobile Virtual Controls Spec
+# Rogue Dawn — Mobile Virtual Controls Spec
 
 **Version:** 1.0
 **Date:** 2026-02-13
@@ -10,7 +10,7 @@
 
 ## Problem Statement
 
-Rogue Emblem is playable on mobile browsers but two issues make the experience poor:
+Rogue Dawn is playable on mobile browsers but two issues make the experience poor:
 
 1. **Resolution/readability:** The 640x480 canvas scales to ~520x390 on phones in landscape (0.65x), making 32px tiles render at ~21px and 12px fonts at ~8px — below usable thresholds.
 2. **Missing inputs:** 11 keyboard shortcuts + right-click have no touch equivalents, blocking core gameplay actions (cancel, danger zone, roster viewer, end turn, etc.).
