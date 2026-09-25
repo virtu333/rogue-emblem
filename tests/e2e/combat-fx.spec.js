@@ -190,9 +190,11 @@ function expectClean(out, where) {
   expect(out.pooledFx, where).toBeLessThanOrEqual(120);
 }
 
+// traced map sprites are the default (they carry the windup / strike pose frames); the
+// rebuilt set is the dev comparison without pose frames
 for (const [spriteLabel, extra] of [
-  ['default sprites', ''],
-  ['traced sprites', '&spriteArt=traced'],
+  ['traced sprites', ''],
+  ['rebuilt sprites', '&spriteArt=rebuilt'],
 ]) {
   test(`every weapon family: identical outcomes and battle RNG with effects on or off, no leaks (${spriteLabel})`, async ({
     page,
@@ -366,13 +368,27 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
         await run;
         s.battleState = 'PLAYER_IDLE';
         await h.quiet();
+        // This harness drops the presentation but (unlike a real rewind) lets the exchange
+        // run on, so a later strike (the counter) still floats its own damage number. With
+        // the traced default the reset lands mid-lunge, before the first contact, so that
+        // number can still be fading here; let the self-destroying floaters finish before
+        // counting what was left behind.
+        const t1 = performance.now();
+        const floating = () => s.children.list.some((o) => o.type === 'Text' && o.depth === 300);
+        while (floating() && performance.now() - t1 < 3000)
+          await new Promise((r) => setTimeout(r, 50));
         return { mid, created, after: s.children.list.length, home, ...h.aftermath([a, b]) };
       },
       { weapon, distance, waitMs },
     );
     const where = `${weapon} rewound mid-strike`;
-    // It really was mid-strike, and nothing more was drawn after the reset.
-    expect(out.mid.live.strike + out.mid.live.tweens, where).toBeGreaterThan(0);
+    // It really was mid-strike, and nothing more was drawn after the reset. A held pose
+    // counts: with the traced default the striker holds windup / strike from the start of
+    // its lunge (whose own tween is the scene's, not a reaction tween) until finishStrike,
+    // the same signal `striking()` waits for above.
+    expect(out.mid.live.strike + out.mid.live.tweens + out.mid.live.poses, where).toBeGreaterThan(
+      0,
+    );
     expect(out.after, where).toBeLessThanOrEqual(out.created);
     expectClean(out, where);
   }
