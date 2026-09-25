@@ -1,7 +1,18 @@
-import { historyDisplayEntries, groupHistoryEntries } from '../engine/BattleHistoryPresentation.js';
+import {
+  historyDisplayEntries,
+  groupHistoryEntries,
+  frameFromCompactPreview,
+  validHistoryFrame,
+} from '../engine/BattleHistoryPresentation.js';
+import { previewTiles } from '../engine/BattleTimelineFacts.js';
 import { BattleHistorySession } from './BattleHistorySession.js';
+import { captureHistoryFrame } from './BattleHistoryRecorder.js';
 import { InputAction } from '../utils/InputActions.js';
-import { canRewindToEntry, resolveRewindGranularity } from '../engine/BattleTimeline.js';
+import {
+  canRewindToEntry,
+  getEntryState,
+  resolveRewindGranularity,
+} from '../engine/BattleTimeline.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { MenuSurface, element } from './MenuSurface.js';
 import './battleTimeline.css';
@@ -76,9 +87,14 @@ export class BattleTimelineView {
     });
     this.scene = scene;
     this.entries = groupHistoryEntries(historyDisplayEntries(history));
+    this.frames = new Map();
+    this.rebuiltFrames = new WeakSet();
+    // The battlefield renderer draws any row with board data: its archived
+    // frame, or one rebuilt from its rewind state or compact preview. Only a
+    // row with no board data at all falls back to the text sketch.
     this.session =
       session ||
-      (this.entries.some((e) => e.preview?.version === 2) && scene.game?.scene
+      (this.entries.some((e) => e.preview || e.snapshotId) && scene.game?.scene
         ? new BattleHistorySession(scene)
         : null);
     this.ownsSession = !session;
@@ -284,22 +300,86 @@ export class BattleTimelineView {
     return 'View only. This event is not an available rewind destination.';
   }
 
+  /**
+   * The board to draw for a row: its archived frame, else one rebuilt from
+   * the row's rewind state (exact, fog included), else from its compact
+   * preview (coarse fog). Null when the row carries no board data.
+   */
+  frameFor(entry) {
+    // Without a battlefield renderer (headless hosts) there is nothing to draw.
+    if (!entry || !this.session) return null;
+    if (this.frames.has(entry.id)) return this.frames.get(entry.id);
+    let frame;
+    try {
+      const archived = entry.preview;
+      frame =
+        archived?.version === 2 && validHistoryFrame(archived)
+          ? archived
+          : this.rebuildFrame(entry);
+    } catch {
+      frame = null;
+    }
+    this.frames.set(entry.id, frame);
+    return frame;
+  }
+
+  rebuildFrame(entry) {
+    const core = this.history.entries?.find((item) => item.id === entry.id) || null;
+    let frame = null;
+    if (core?.snapshotId && this.history.snapshots?.[core.snapshotId]) {
+      const state = getEntryState(this.history, core.id);
+      // No archive: a later frame's terrain memory must not leak into the past.
+      if (state) frame = captureHistoryFrame(this.scene, state, null);
+      if (frame && !validHistoryFrame(frame)) frame = null;
+    }
+    const compact = core?.preview || (entry.preview?.version === 2 ? null : entry.preview);
+    if (!frame && compact)
+      frame = frameFromCompactPreview(compact, {
+        biome: this.scene.grid?.biome || '',
+        unitLook: (id) => this.unitLook(id),
+      });
+    if (frame) this.rebuiltFrames.add(frame);
+    return frame;
+  }
+
+  /** Class and sprite for a unit id, from the live battle when it is still there. */
+  unitLook(id) {
+    const scene = this.scene;
+    const unit = [
+      ...(scene.playerUnits || []),
+      ...(scene.enemyUnits || []),
+      ...(scene.npcUnits || []),
+      ...(scene.escapedUnits || []),
+    ].find((u) => u?.battleEntityId === id);
+    if (!unit) return null;
+    let spriteKey;
+    try {
+      spriteKey = scene.getSpriteKey?.(unit) || '';
+    } catch {
+      spriteKey = '';
+    }
+    return { className: unit.className || '', spriteKey, size: unit.isEntity ? 3 : 1 };
+  }
+
   select(entryId) {
     if (this.destroyed) return;
     const entry = this.entries.find((item) => item.id === entryId);
     if (!entry) return;
-    if (this.session && entry.preview?.version !== 2) {
+    const frame = this.frameFor(entry);
+    if (this.session && !frame) {
       this.session.hide();
       this.busy = false;
     }
-    if (this.session)
-      this.previewPanel.classList.toggle('bt-legacy-preview', entry.preview?.version !== 2);
+    if (this.session) this.previewPanel.classList.toggle('bt-legacy-preview', !frame);
     const before = this.entries.find((e) => e.id === this.selectedId);
     const beforeIndex = this.entries.indexOf(before),
       index = this.entries.indexOf(entry);
     const settings = this.session ? this.scene.registry?.get?.('settings') : null;
+    const fromFrame = before ? this.frameFor(before) : null;
+    // Rebuilt boards carry no recorded movement: show them, never animate into them.
+    const recorded = (f) => Boolean(f) && !this.rebuiltFrames.has(f);
     this.transition = {
-      from: before?.preview?.version === 2 ? before.preview : null,
+      from: fromFrame,
       beats: index < beforeIndex ? before?.beats || [] : entry.beats || [],
       reverse: index < beforeIndex,
       label: index < beforeIndex ? `Undoing: ${eventTitle(before)}` : '',
@@ -309,7 +389,8 @@ export class BattleTimelineView {
           ? before?.gap || before?.endpointOnly
           : entry.gap || entry.endpointOnly) &&
         Math.abs(index - beforeIndex) === 1 &&
-        before?.preview?.version === 2 &&
+        recorded(fromFrame) &&
+        recorded(frame) &&
         settings?.getBattleSpeed?.() !== 'instant' &&
         settings?.getReduceMotion?.() !== true,
     };
@@ -327,10 +408,10 @@ export class BattleTimelineView {
     this.previewPanel.replaceChildren(
       element(
         'h3',
-        `${this.session ? 'Viewing history' : 'Preview'} · Turn ${entry.turnNumber} · ${phaseName(entry.phase)} phase`,
+        `${this.session && frame ? 'Viewing history' : 'Preview'} · Turn ${entry.turnNumber} · ${phaseName(entry.phase)} phase`,
       ),
     );
-    const preview = entry.preview;
+    const preview = frame || this.history.entries?.find((e) => e.id === entry.id)?.preview || null;
     const summary = element('div', null, 'bt-summary');
     const facts = strings(entry.facts);
     const details = [...new Set([eventTitle(entry), ...facts])];
@@ -346,7 +427,7 @@ export class BattleTimelineView {
     );
     for (const line of context) summary.append(element('p', line, 'bt-history-note'));
     this.renderBoard(preview);
-    if (!this.session)
+    if (!this.session || !frame)
       this.previewPanel.insertBefore(summary, this.previewPanel.querySelector('.bt-board-key'));
   }
 
@@ -429,12 +510,16 @@ export class BattleTimelineView {
       this.previewPanel.append(element('p', 'No recorded board preview for this event.'));
       return;
     }
+    // Only a row without any board data lands here: say so.
+    if (this.session)
+      this.previewPanel.append(element('p', 'Preview unavailable — map sketch', 'bt-sketch-label'));
     const board = element('div', null, 'bt-board');
     board.setAttribute('aria-hidden', 'true');
     board.style.setProperty('--bt-cols', preview.cols);
     board.style.setProperty('--bt-rows', preview.rows);
     const tiles = new Map();
-    for (const tile of (Array.isArray(preview.tiles) ? preview.tiles : []).slice(0, 16384)) {
+    // Stored previews pack their terrain (label table + one character per tile).
+    for (const tile of previewTiles(preview).slice(0, 16384)) {
       if (!tile || !coordinate(tile.col, preview.cols) || !coordinate(tile.row, preview.rows))
         continue;
       const label = typeof tile.label === 'string' ? tile.label : 'Terrain';

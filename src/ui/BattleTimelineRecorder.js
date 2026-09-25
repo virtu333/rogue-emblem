@@ -163,11 +163,15 @@ export function recordBattleTimeline(scene, state) {
   const entry = next.entries.at(-1);
   if (entry && frame) {
     try {
+      const info = historyRecordInfo(scene, history, entry, frame);
+      // The frame before this one could not be captured: never animate across it.
+      if (scene._historyFrameMissed) info.gap = true;
       const presentation = appendHistoryPresentation(
         history.presentation || createHistoryPresentation(history.presentationNextId),
         frame,
-        historyRecordInfo(scene, history, entry, frame),
+        info,
       );
+      scene._historyFrameMissed = false;
       next.presentationNextId = Math.max(next.presentationNextId || 1, presentation.nextId);
       next.presentation = retainHistoryPresentation(
         presentation,
@@ -184,8 +188,11 @@ export function recordBattleTimeline(scene, state) {
       next.presentationGeneration = (next.presentationGeneration || 0) + 1;
     }
   } else if (!frame) {
-    next.presentation = null;
-    next.presentationGeneration = (next.presentationGeneration || 0) + 1;
+    // One frame that could not be captured costs only its own row: the row
+    // keeps its compact preview and the archive (already retained with the
+    // timeline) keeps every earlier board. Dropping the archive here used to
+    // turn the whole history into the text board.
+    scene._historyFrameMissed = true;
   }
   scene._historyBeats = [];
   scene._historyActor = null;
