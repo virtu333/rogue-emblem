@@ -18,6 +18,8 @@
 @import './growth.css';
 /* Deeds & Epithets: the deed title card, epithets, Oaths, Deeds of the March. */
 @import './deeds.css';
+/* The draft: every "choose one" screen as cards side by side. */
+@import './choice.css';
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';
@@ -28,5 +30,15 @@
 /* Reliquary detail layer last: decorates every kit surface (visual-only). */
 @import './reliquary.css';
 
+/* Compact explain affordance (ⓘ + press-and-hold) over the kit and reliquary. */
+@import './infoAffordance.css';
+/* Tutorial coach: the persistent objective line over the map. */
+@import './tutorialCoach.css';
+/* Battle rail: Danger toggle, 44px commands, details row, bottom tool glyphs. */
+@import './battleRail.css';
+
 /* PC-98 portraits: pixel-true figures over faction plates. */
 @import './portraits.css';
+
+/* Save select: the candle shrine (SlotPickerView.js). */
+@import './slotPicker.css';

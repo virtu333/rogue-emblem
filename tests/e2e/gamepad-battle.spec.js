@@ -155,8 +155,9 @@ test.describe('Gamepad battle loop', () => {
     });
 
     // Pick a reachable destination with an empty neighbor, park an adjacent melee
-    // enemy there, and ensure the unit has exactly one (melee) combat weapon so
-    // Attack goes straight to target selection (no weapon picker).
+    // enemy there, and ensure the unit has exactly one (melee) combat weapon.
+    // Attack is target-first: it goes straight to target selection and the
+    // cursor snaps to the focused target (the d-pad cycles targets).
     const plan = await page.evaluate(() => {
       const b = window.__emblemRogueGame.scene.getScene('Battle');
       const unit = b.selectedUnit;
@@ -213,7 +214,7 @@ test.describe('Gamepad battle loop', () => {
         unit.inventory.unshift(iron);
         unit.weapon = iron;
       }
-      // Drop any extra combat weapons so Attack skips the weapon picker.
+      // Drop any extra combat weapons (one weapon: no forecast weapon choice).
       const isCombat = (w) =>
         w && w.type !== 'Consumable' && w.type !== 'Staff' && w.type !== 'Scroll';
       unit.inventory = unit.inventory.filter((w) => !isCombat(w) || w === unit.weapon);

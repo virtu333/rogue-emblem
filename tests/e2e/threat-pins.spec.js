@@ -37,7 +37,7 @@ test('desktop T toggles inspected threat independently of global Danger', async 
   expect(
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
-      return s.dangerZone.tiles.every((t) => [0, 0.18, 0.3, 0.42].includes(t.fillAlpha));
+      return s.dangerZone.tiles.every((t) => [0, 0.2, 0.3, 0.4].includes(t.fillAlpha));
     }),
   ).toBe(true);
   await page.waitForTimeout(1200); // Capture after the opening banner clears.

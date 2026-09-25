@@ -1,0 +1,724 @@
+/* Save select — the candle shrine (SlotPickerView.js). Ink & Ember: three candle
+   cards over the dimmed Hollow Sun with a slow ember drift. Cinzel only for the
+   region title (the ceremonial word); Press Start 2P kickers; body face for
+   reading. Tokens only. Reduced motion (.is-still or the OS) freezes everything. */
+
+.re-screen.sp-shrine {
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--re-void);
+}
+.sp-shrine > .re-header,
+.sp-shrine > .re-menu-body {
+  position: relative;
+}
+
+/* ───────── Backdrop ───────── */
+.sp-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--re-void);
+}
+.sp-art > .re-keyart-canvas {
+  filter: saturate(0.8) brightness(0.72);
+}
+.sp-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 65% at 50% 50%, transparent 0%, var(--re-shade) 100%),
+    linear-gradient(180deg, var(--re-shade) 0%, transparent 30%, var(--re-shade) 100%);
+}
+.sp-embers {
+  position: absolute;
+  inset: 0;
+}
+.sp-embers i {
+  position: absolute;
+  bottom: -8px;
+  left: var(--x, 50%);
+  width: 3px;
+  height: 3px;
+  background: var(--re-ember-pale);
+  box-shadow: 0 0 6px var(--re-ember-glow);
+  opacity: 0;
+  animation: sp-drift var(--d, 13s) linear var(--t, 0s) infinite;
+}
+.sp-embers i:nth-child(1) {
+  --x: 8%;
+  --d: 14s;
+  --t: -2s;
+}
+.sp-embers i:nth-child(2) {
+  --x: 21%;
+  --d: 11s;
+  --t: -7s;
+  width: 2px;
+  height: 2px;
+}
+.sp-embers i:nth-child(3) {
+  --x: 33%;
+  --d: 16s;
+  --t: -11s;
+}
+.sp-embers i:nth-child(4) {
+  --x: 46%;
+  --d: 12s;
+  --t: -4s;
+  width: 2px;
+  height: 2px;
+}
+.sp-embers i:nth-child(5) {
+  --x: 58%;
+  --d: 15s;
+  --t: -9s;
+}
+.sp-embers i:nth-child(6) {
+  --x: 67%;
+  --d: 10s;
+  --t: -1s;
+  width: 2px;
+  height: 2px;
+}
+.sp-embers i:nth-child(7) {
+  --x: 79%;
+  --d: 17s;
+  --t: -13s;
+}
+.sp-embers i:nth-child(8) {
+  --x: 88%;
+  --d: 12s;
+  --t: -6s;
+  width: 2px;
+  height: 2px;
+}
+.sp-embers i:nth-child(9) {
+  --x: 95%;
+  --d: 14s;
+  --t: -10s;
+}
+@keyframes sp-drift {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(14px, -55vh);
+  }
+  80% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-6px, -108vh);
+    opacity: 0;
+  }
+}
+
+/* ───────── Header ───────── */
+.sp-shrine > .re-header {
+  gap: var(--re-s2);
+  padding-bottom: 6px;
+}
+.sp-shrine > .re-header h2 {
+  margin-right: 0;
+}
+.sp-shrine > .re-header > button {
+  order: 2;
+  min-height: var(--re-tap);
+}
+.sp-motto {
+  order: 1;
+  margin: 0 auto 0 var(--re-s2);
+  font: 500 13px/1.2 var(--re-display);
+  letter-spacing: 0.14em;
+  color: var(--re-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 720px) {
+  .sp-motto {
+    display: none;
+  }
+  .sp-shrine > .re-header h2 {
+    margin-right: auto;
+  }
+}
+
+/* ───────── Cards ───────── */
+.re-run-flow.sp-shrine .re-menu-body {
+  width: min(100%, 1060px);
+  padding: 6px 0 2px;
+  overflow-y: auto;
+}
+.sp-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-block: auto;
+}
+.sp-card {
+  --sp-mood: var(--re-accent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 12px 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 230, 190, 0.05), transparent 40%),
+    linear-gradient(180deg, var(--re-panel) 0%, var(--re-sunken) 100%);
+  border: 1px solid var(--re-line);
+  box-shadow:
+    inset 0 2px 0 var(--sp-mood),
+    inset 0 0 0 1px var(--re-shade-deep);
+  clip-path: polygon(
+    var(--re-chamfer) 0,
+    calc(100% - var(--re-chamfer)) 0,
+    100% var(--re-chamfer),
+    100% calc(100% - var(--re-chamfer)),
+    calc(100% - var(--re-chamfer)) 100%,
+    var(--re-chamfer) 100%,
+    0 calc(100% - var(--re-chamfer)),
+    0 var(--re-chamfer)
+  );
+  transition:
+    opacity 0.3s ease-out,
+    border-color 0.3s ease-out;
+}
+/* Warm light from the candle, strongest when chosen. */
+.sp-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 18px 16px, var(--re-ember-glow) 0%, transparent 42%);
+  opacity: 0.35;
+  transition: opacity 0.35s ease-out;
+}
+.sp-card[data-grade='act1'] {
+  --sp-mood: var(--re-accent);
+}
+.sp-card[data-grade='act2'] {
+  --sp-mood: var(--re-info);
+}
+.sp-card[data-grade='act3'] {
+  --sp-mood: var(--re-parchment);
+}
+.sp-card[data-grade='act4'] {
+  --sp-mood: var(--re-bad);
+}
+.sp-card[data-grade='deep'] {
+  --sp-mood: var(--re-rarity-epic);
+}
+.sp-card[data-grade='hearth'] {
+  --sp-mood: var(--re-accent-text);
+}
+.sp-card[data-grade='unlit'] {
+  --sp-mood: var(--re-line-soft);
+}
+
+.sp-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 22px;
+  padding-right: 30px;
+}
+.sp-kicker {
+  flex-shrink: 0;
+  font: 8px/1.4 var(--re-pixel);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.sp-saved {
+  min-width: 0;
+  margin-left: auto;
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.sp-crest {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: radial-gradient(circle at 50% 60%, var(--re-raised) 0%, var(--re-sunken) 75%);
+  border: 1px solid var(--re-line);
+  box-shadow:
+    inset 0 0 0 1px var(--re-shade-deep),
+    0 0 0 1px var(--re-shade-deep);
+}
+.sp-crest.has-portrait {
+  border-color: var(--re-gilt);
+}
+.sp-portrait {
+  display: block;
+  width: 64px;
+  height: 64px;
+}
+.sp-sun {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--re-void) 0 46%,
+    var(--re-accent-text) 50%,
+    var(--re-ember-deep) 72%,
+    transparent 74%
+  );
+  box-shadow: 0 0 14px var(--re-ember-glow);
+}
+.sp-crest .sp-candle {
+  transform: scale(2.4);
+  transform-origin: 50% 70%;
+}
+/* A thin thread of smoke from the unlit wick. */
+.sp-crest .sp-candle:not(.is-lit)::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  bottom: 12px;
+  width: 1px;
+  height: 9px;
+  background: linear-gradient(0deg, var(--re-muted-dim), transparent);
+  transform-origin: 50% 100%;
+  animation: sp-smoke 3.2s ease-in-out infinite;
+}
+.sp-card.is-kindling .sp-crest .sp-candle::after {
+  opacity: 0;
+}
+@keyframes sp-smoke {
+  50% {
+    transform: skewX(-14deg) translateX(1px);
+  }
+}
+.sp-titles {
+  min-width: 0;
+}
+.sp-act {
+  margin: 0 0 3px;
+  font: 8px/1.4 var(--re-pixel);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sp-mood);
+}
+.sp-card[data-grade='unlit'] .sp-act {
+  color: var(--re-muted);
+}
+.sp-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  overflow: hidden;
+  font: 700 16px/1.15 var(--re-display);
+  letter-spacing: 0.06em;
+  color: var(--re-parchment);
+  text-shadow: 0 1px 0 var(--re-shade-deep);
+}
+.sp-grade {
+  margin: 1px 0 0;
+  font: 500 12px/1.2 var(--re-display);
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--re-muted);
+}
+
+/* The Loom thread: one knot per act, the current one burning. */
+.sp-thread {
+  display: flex;
+  justify-content: space-between;
+  width: fit-content;
+  min-width: 64px;
+  gap: 10px;
+  margin-top: 5px;
+  background: linear-gradient(var(--re-line), var(--re-line)) center / 100% 1px no-repeat;
+}
+.sp-knot {
+  width: 7px;
+  height: 7px;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-strong);
+  transform: rotate(45deg);
+}
+.sp-knot.is-past {
+  background: var(--re-gilt);
+  border-color: var(--re-accent);
+}
+.sp-knot.is-here {
+  background: var(--re-accent-text);
+  border-color: var(--re-ember-pale);
+  box-shadow: 0 0 6px var(--re-ember-glow);
+  animation: sp-burn 2.4s ease-in-out infinite;
+}
+@keyframes sp-burn {
+  50% {
+    box-shadow: 0 0 11px var(--re-ember-glow);
+  }
+}
+
+.sp-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sp-lines p {
+  margin: 0;
+}
+.sp-who {
+  font: 13px/1.3 var(--re-body);
+  color: var(--re-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-who strong {
+  font-weight: 700;
+  color: var(--re-text);
+}
+.sp-status {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font: 13px/1.3 var(--re-body);
+  color: var(--re-text);
+}
+.sp-card[data-tone='battle'] .sp-status {
+  color: var(--re-ember-pale);
+}
+.sp-card[data-tone='battle'] .sp-status::before {
+  content: '◆ ';
+  color: var(--re-bad);
+}
+.sp-note {
+  font: 12px/1.3 var(--re-body);
+  color: var(--re-warn);
+}
+
+.sp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
+  margin-top: auto;
+  font: 11px/1.3 var(--re-body);
+  color: var(--re-muted);
+}
+.sp-seals {
+  display: flex;
+  gap: 5px;
+  padding: 0 2px;
+}
+.sp-seal {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--re-line-strong);
+  transform: rotate(45deg);
+}
+.sp-seal.is-lit {
+  background: var(--re-accent);
+  border-color: var(--re-accent-text);
+  box-shadow: 0 0 5px var(--re-ember-glow);
+}
+.sp-seal.is-crown.is-lit {
+  background: var(--re-accent-text);
+  border-color: var(--re-ember-pale);
+}
+.sp-tally,
+.sp-currency {
+  white-space: nowrap;
+}
+
+.sp-card .sp-primary {
+  width: 100%;
+  min-height: var(--re-tap);
+  margin-top: 2px;
+}
+
+/* Delete: small, quiet, in the corner; the dialog confirms. */
+.sp-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--re-muted);
+  cursor: pointer;
+}
+.sp-delete-glyph {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-shade);
+}
+.sp-delete-glyph::before,
+.sp-delete-glyph::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 1.5px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.sp-delete-glyph::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.sp-delete:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -6px;
+}
+@media (hover: hover) {
+  .sp-delete:hover {
+    color: var(--re-bad);
+  }
+  .sp-delete:hover .sp-delete-glyph {
+    border-color: var(--re-danger-line);
+  }
+}
+.sp-delete:active {
+  color: var(--re-bad);
+}
+
+/* ───────── Candle ───────── */
+.sp-candle {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 18px;
+}
+.sp-wax {
+  position: absolute;
+  left: 1px;
+  bottom: 0;
+  width: 6px;
+  height: 9px;
+  background: linear-gradient(90deg, var(--re-parchment) 0%, var(--re-parchment-dim) 100%);
+}
+.sp-wick {
+  position: absolute;
+  left: 3.5px;
+  bottom: 9px;
+  width: 1px;
+  height: 3px;
+  background: var(--re-void);
+}
+.sp-flame {
+  position: absolute;
+  left: 1px;
+  bottom: 11px;
+  width: 6px;
+  height: 8px;
+  border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(
+    ellipse at 50% 72%,
+    var(--re-parchment) 0%,
+    var(--re-accent-text) 40%,
+    var(--re-ember-deep) 100%
+  );
+  box-shadow: 0 0 7px var(--re-ember-glow);
+  transform-origin: 50% 100%;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.3s ease-out;
+}
+.sp-candle.is-lit .sp-flame {
+  opacity: 1;
+  animation: sp-flicker 1.9s ease-in-out infinite;
+}
+@keyframes sp-flicker {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(0.92, 1.08) skewX(-3deg);
+  }
+  60% {
+    transform: scale(1.05, 0.95) skewX(2deg);
+  }
+}
+
+/* ───────── Empty slot: an unlit candle ───────── */
+.sp-card.is-empty {
+  background: var(--re-scrim-heavy);
+  border-style: dashed;
+  border-color: var(--re-line-soft);
+  box-shadow: none;
+}
+.sp-card.is-empty::before {
+  opacity: 0;
+}
+.sp-card.is-empty .sp-title {
+  color: var(--re-muted);
+}
+.sp-card.is-empty .sp-status {
+  color: var(--re-muted);
+  font-family: var(--re-display);
+  letter-spacing: 0.06em;
+}
+.sp-card.is-empty .sp-head {
+  margin-top: auto;
+}
+.sp-card.is-empty .sp-lines {
+  margin-bottom: auto;
+}
+.sp-card.is-empty .sp-primary.re-btn--primary,
+.sp-card.is-corrupt .sp-primary.re-btn--primary {
+  background: var(--re-shade-deep);
+  background-color: var(--re-shade-deep);
+  border-color: var(--re-line);
+  color: var(--re-accent-text);
+  text-shadow: none;
+}
+@media (hover: hover) {
+  .sp-card.is-empty .sp-primary.re-btn--primary:hover {
+    background: var(--re-raised);
+    color: var(--re-accent-text);
+  }
+}
+
+/* ───────── Kindle: the chosen candle flares ───────── */
+.sp-card.is-kindling {
+  border-color: var(--re-accent);
+}
+.sp-card.is-kindling::before {
+  opacity: 1;
+  background: radial-gradient(
+    circle at 18px 16px,
+    var(--re-ember-glow) 0%,
+    var(--re-ember-glow-soft) 38%,
+    transparent 80%
+  );
+}
+.sp-card.is-kindling .sp-top .sp-flame {
+  opacity: 1;
+  transform: scale(1.9);
+  animation: none;
+}
+.sp-card.is-kindling .sp-crest .sp-flame {
+  opacity: 1;
+}
+.is-choosing .sp-card:not(.is-kindling) {
+  opacity: 0.5;
+}
+
+/* ───────── Sizes ───────── */
+@media (max-width: 720px) {
+  .sp-card {
+    padding: 8px 9px 10px;
+  }
+  .sp-head {
+    gap: 8px;
+  }
+  .sp-crest,
+  .sp-portrait {
+    width: 48px;
+    height: 48px;
+  }
+  .sp-title {
+    font-size: 14px;
+  }
+  .sp-currency,
+  .sp-saved-verb {
+    display: none;
+  }
+  .sp-kicker {
+    letter-spacing: 0.06em;
+  }
+  .sp-top {
+    gap: 5px;
+  }
+}
+@media (max-height: 400px) {
+  .sp-shrine > .re-header h2 {
+    font-size: 10px;
+  }
+}
+@media (min-height: 600px) and (min-width: 900px) {
+  .sp-cards {
+    gap: 16px;
+  }
+  .sp-card {
+    gap: 9px;
+    padding: 12px 16px 16px;
+  }
+  .sp-crest,
+  .sp-portrait {
+    width: 96px;
+    height: 96px;
+  }
+  .sp-title {
+    font-size: 20px;
+  }
+  .sp-status,
+  .sp-who {
+    font-size: 14px;
+  }
+  .sp-kicker,
+  .sp-act {
+    font-size: 9px;
+  }
+}
+@media (max-width: 500px) {
+  .sp-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ───────── Reduced motion ───────── */
+.sp-shrine.is-still .sp-embers,
+.sp-shrine.is-still .sp-flame,
+.sp-shrine.is-still .sp-candle::after,
+.sp-shrine.is-still .sp-knot,
+.sp-shrine.is-still .sp-card,
+.sp-shrine.is-still .sp-card::before {
+  animation: none;
+  transition: none;
+}
+.sp-shrine.is-still .sp-embers {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-embers {
+    display: none;
+  }
+  .sp-flame,
+  .sp-candle::after,
+  .sp-knot,
+  .sp-card,
+  .sp-card::before {
+    animation: none;
+    transition: none;
+  }
+}

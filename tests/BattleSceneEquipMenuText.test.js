@@ -201,8 +201,8 @@ describe('BattleScene equip menu text', () => {
     const nonEquippedLabel = labels.find((label) => label.includes('Steel Sword'));
     expect(equippedLabel).toBeTruthy();
     expect(nonEquippedLabel).toBeTruthy();
-    // Equipped weapon has marker
-    expect(equippedLabel.startsWith('\u25b6')).toBe(true);
+    // Equipped weapon carries the shared E marker
+    expect(equippedLabel.startsWith('E ')).toBe(true);
     expect(nonEquippedLabel.startsWith('  ')).toBe(true);
 
     // Auto-show tooltip fires for equipped weapon

@@ -733,6 +733,58 @@ export function canCounter(defender, defenderWeapon, distance) {
 // --- Combat Forecast (deterministic preview for UI) ---
 
 /**
+ * True when a weapon's special text changes HP during or right after the
+ * exchange in a way the forecast numbers do not show (drain, post-combat
+ * poison). Descriptive specials ("Lightest magic", "Throwable, lower stats") and
+ * specials already folded into damage/hit/count (effectiveness, brave, reavers,
+ * Sunder, "+N stat when equipped", Gae Bolg) keep the HP projection — the
+ * blanket `!weapon.special` rule hid it for Lightning (playtest #23).
+ */
+export function weaponSpecialChangesExchangeHp(weapon) {
+  const special = typeof weapon?.special === 'string' ? weapon.special : '';
+  return /Drains HP|Poison:/i.test(special);
+}
+
+// Accessory combatEffects the forecast already includes (conditional combat
+// mods, doubling rules, effectiveness negation, the locked Gambler roll,
+// Moontide's turn bonus) or that never act inside an exchange (turn-start heal,
+// gold, XP share, movement, art costs). Anything else — per-hit healing, the
+// Phoenix Brooch, unknown future effects — keeps the conservative omission.
+const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
+  'condition',
+  'critBonus',
+  'atkBonus',
+  'defBonus',
+  'resBonus',
+  'hitBonus',
+  'avoidBonus',
+  'preventEnemyDouble',
+  'doubleThresholdReduction',
+  'negateEffectiveness',
+  'negateFlierWeakness',
+  'gambler',
+  'gamblerCoin',
+  'moontide',
+  'turnStartHealPercent',
+  'turnStartHealFlat',
+  'goldPerKill',
+  'statusImmunity',
+  'xpShare',
+  'moveTypeOverride',
+  'weaponArtCostReduction',
+  'weaponArtDefBuff',
+  'buffDEF',
+  'buffRES',
+]);
+
+/** True when a unit's accessory can change HP inside the exchange (see above). */
+export function accessoryChangesExchangeHp(unit) {
+  const effects = unit?.accessory?.combatEffects;
+  if (!effects || typeof effects !== 'object') return false;
+  return Object.keys(effects).some((key) => !EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS.has(key));
+}
+
+/**
  * Returns what WOULD happen — no RNG, just the numbers.
  * Used by StatPanel/HUD to show combat preview before the player commits.
  *
@@ -988,8 +1040,8 @@ export function getCombatForecast(
         ) &&
         !getImbuePostCombatPoison(atkWeapon, skillCtx?.imbuesData) &&
         !(defCanCounter && getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)) &&
-        !atkWeapon.special &&
-        !defWeapon?.special &&
+        !weaponSpecialChangesExchangeHp(atkWeapon) &&
+        !(defCanCounter && weaponSpecialChangesExchangeHp(defWeapon)) &&
         !atkWarnings.length &&
         !defWarnings.length &&
         ![
@@ -997,7 +1049,7 @@ export function getCombatForecast(
           [defender, defWeapon],
         ].some(
           ([u, weapon]) =>
-            u.accessory?.combatEffects ||
+            accessoryChangesExchangeHp(u) ||
             (u.affixes || []).some((id) => ['venomous', 'deathburst'].includes(id)) ||
             [...(u.skills || []), weapon?._grantedSkill].some((s) =>
               [

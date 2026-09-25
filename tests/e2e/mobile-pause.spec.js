@@ -52,7 +52,7 @@ test('battle information replaces canvas labels and preserves terrain, par and r
     ),
   ).toBe(true);
 });
-test('pause is scrollable, child settings return correctly, and resume releases input', async ({
+test('every pause action fits in landscape, child settings return correctly, and resume releases input', async ({
   page,
 }) => {
   await battle(page);
@@ -67,9 +67,16 @@ test('pause is scrollable, child settings return correctly, and resume releases 
       .locator('button')
       .evaluateAll((bs) => bs.every((b) => b.getBoundingClientRect().height >= 44)),
   ).toBe(true);
-  expect(await pause.locator('.mp-actions').evaluate((e) => e.scrollHeight > e.clientHeight)).toBe(
-    true,
-  );
+  // Landscape phones lay the actions out in two columns: all of them in view, no scrolling.
+  expect(
+    await pause.locator('.mp-actions').evaluate((e) => ({
+      scrolls: e.scrollHeight > e.clientHeight + 1,
+      allInView: [...e.querySelectorAll('button')].every((b) => {
+        const r = b.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= window.innerHeight;
+      }),
+    })),
+  ).toEqual({ scrolls: false, allInView: true });
   await page.screenshot({ path: 'test-results/mobile-pause.png' });
   await pause.getByRole('button', { name: 'Settings', exact: true }).tap();
   await expect(pause).toBeHidden();

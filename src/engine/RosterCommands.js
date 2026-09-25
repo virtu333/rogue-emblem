@@ -10,6 +10,7 @@ import {
   addToInventory,
   removeFromConsumables,
   getCombatWeapons,
+  normalizeEquippedFirst,
 } from './UnitManager.js';
 import { applyPromotionOath } from './DeedSystem.js';
 
@@ -129,6 +130,7 @@ function reclass(unit, sealItem, newClassData, gameData) {
   // A new proficiency's starter weapon is granted after reclass invalidates
   // the old equipment. Preserve valid equipment; repair only an empty slot.
   if (!unit.weapon) unit.weapon = getCombatWeapons(unit)[0] || null;
+  normalizeEquippedFirst(unit);
   if (!unit.weapon)
     notices.push('No combat weapon equipped. Equip a compatible weapon before battle.');
 
