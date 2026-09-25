@@ -912,11 +912,13 @@ export class MobileBattleHUD {
     const below = body.scrollTop + body.clientHeight < body.scrollHeight - 2;
     body.classList.toggle('has-more-above', above);
     body.classList.toggle('has-more-below', below);
+    // One cue, pointing where the rest is: below first, else back up.
     const cue = this.moreCue;
-    cue.hidden = !below || this.root.hidden;
+    cue.hidden = !(below || above) || this.root.hidden;
     if (!cue.hidden) {
-      cue.textContent = 'more ▾';
-      cue.style.top = `${Math.round(body.offsetTop + body.clientHeight - 16)}px`;
+      cue.textContent = below ? 'more ▾' : 'more ▴';
+      cue.classList.toggle('is-up', !below);
+      cue.style.top = `${Math.round(below ? body.offsetTop + body.clientHeight - 16 : body.offsetTop + 2)}px`;
     }
     const place = (fade, show, top) => {
       fade.hidden = !show || this.root.hidden;
