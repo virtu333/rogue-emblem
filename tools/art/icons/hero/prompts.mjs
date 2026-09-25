@@ -22,7 +22,7 @@ export const HERO_SUBJECTS = {
   'iron-sword': `a plain iron arming sword, dull grey iron blade, simple iron crossguard, brown cord-wrapped grip, ${DIAG}`,
   'steel-sword': `a steel longsword with a cold blue-grey blade, steel crossguard and a dark cord grip, ${DIAG}`,
   rapier: `a slender steel rapier with a thin needle blade and a swept steel basket guard, ${DIAG}`,
-  'silver-sword': `a bright silver longsword, polished pale blade, silver crossguard, grip wrapped in grey cloth, ${DIAG}`,
+  'silver-sword': `a bright silver longsword with a plain mirror-polished white-silver blade with no colour on it, silver crossguard, grip wrapped in grey cloth, ${DIAG}`,
   'killing-edge': `a silver sword with a crimson gem set in the crossguard and a thin red line along the edge, ${DIAG}`,
   'wo-dao': `a curved single-edged steel blade with a wavy temper line, small round guard and dark wrapped grip, ${DIAG}`,
   'wind-sword': `a short light steel throwing sword with a sky-blue wrapped grip, ${DIAG}`,
@@ -129,7 +129,8 @@ export const HERO_SUBJECTS = {
   'infantry-seal': 'a steel-blue wax seal stamped with a silver boot emblem, with ribbons',
   'mounted-seal': 'an earth-brown wax seal stamped with a silver horseshoe, with ribbons',
   herb: 'a sprig of fresh green medicinal herb',
-  remedy: 'a small round dark tin of salve with a red cross on the lid, plain dark metal sides',
+  remedy:
+    'a small round pewter tin of salve, the lid painted with a small red cross, grey metal all over',
   // Accessories
   'power-ring': 'a gold ring set with a round crimson gem',
   'magic-ring': 'a gold ring set with a round violet gem',
@@ -153,14 +154,15 @@ export const HERO_SUBJECTS = {
   'vampires-bloodshard': 'a jagged crimson crystal shard',
   'soothing-stone': 'a smooth green teardrop-shaped stone',
   'phoenix-brooch': 'an ember-gold winged brooch with a crimson gem',
-  'recoil-guard': 'a small crimson shield with a silver cross',
+  'recoil-guard':
+    'a small crimson kite shield with a silver rim and a round silver boss in the centre',
   'bounty-hunters-mark':
     'a bronze diamond-shaped medal with a crimson eye emblem on a crimson ribbon',
   'moontide-amulet': 'a silver crescent-moon amulet on a chain',
   'gamblers-coin':
     'a gold coin whose face is split between a golden sun and a violet crescent moon',
   'vanguard-crest':
-    'a silver shield-shaped medal with a crimson star, hanging from a crimson ribbon',
+    'a silver shield-shaped medal with a crimson spearhead emblem, hanging from a crimson ribbon',
   'diamond-medallion':
     'a silver diamond-shaped medal with a sky-blue diamond emblem, on a blue ribbon',
   'hunters-cloak': 'a hooded green cloak with a bronze clasp, folded',
@@ -179,7 +181,8 @@ export const HERO_SUBJECTS = {
   'sundering-imbuing-stone': 'a cluster of steel-blue crystals growing from a grey stone base',
   'keen-imbuing-stone': 'a cluster of ember-gold crystals growing from a grey stone base',
   'venomous-imbuing-stone': 'a cluster of green crystals growing from a grey stone base',
-  'binding-imbuing-stone': 'a cluster of earth-brown crystals growing from a grey stone base',
+  'binding-imbuing-stone':
+    'a cluster of dull olive-green and muddy brown crystals, like dark moss agate, growing from a grey stone base',
   'warded-imbuing-stone': 'a cluster of lilac crystals growing from a grey stone base',
   'prismatic-stone':
     'a cluster of crystals in six colours (crimson, blue, gold, green, brown, lilac) on a grey stone base',

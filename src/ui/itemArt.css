@@ -175,9 +175,12 @@
 }
 
 /* ── Hero (detail panels) ─────────────────────────────────────────────── */
+/* Default rim for heroes (zero specificity, so [data-rim] always wins). */
+:where(.ia-hero) {
+  --ia-rim: var(--ia-ink-6);
+}
 .ia-hero {
   --ia-box: calc(var(--ia-size, 96px) + 16px);
-  --ia-rim: var(--ia-ink-6);
   --ia-shape: polygon(8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%, 0 8%);
   position: relative;
   display: grid;
