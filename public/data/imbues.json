@@ -5,7 +5,7 @@
       "name": "Vampiric",
       "adjective": "Vampiric",
       "description": "Heal 15% of damage dealt on each strike, rounded down",
-      "lore": "The blade drinks first; the wielder walks away fed.",
+      "lore": "Soldiers who carried one stopped eating their rations. Nobody asked why.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
@@ -22,7 +22,7 @@
       "name": "Sundering",
       "adjective": "Sundering",
       "description": "Deals 2x effective damage to Armored foes",
-      "lore": "Plate is a promise. This is the argument that breaks it.",
+      "lore": "Siege-smiths swear by it: plate is only a door nobody has knocked on yet.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
@@ -31,7 +31,7 @@
       "stone": {
         "name": "Sundering Imbuing Stone",
         "price": 1000,
-        "lore": "Quarried from a fortress gate that lost."
+        "lore": "Chipped off a fortress gate that lost. Price includes the story."
       }
     },
     {
@@ -39,7 +39,7 @@
       "name": "Keen",
       "adjective": "Keen",
       "description": "+10 Crit, +5 Hit",
-      "lore": "An edge honed past honest steel, into intent.",
+      "lore": "The edge hums near a gap in armor, like a dowsing rod near water.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
@@ -48,7 +48,7 @@
       "stone": {
         "name": "Keen Imbuing Stone",
         "price": 1000,
-        "lore": "It teaches a weapon exactly where to look."
+        "lore": "Hold it by the rim. It already knows where your fingers are soft."
       }
     },
     {
@@ -56,7 +56,7 @@
       "name": "Venomous",
       "adjective": "Venomous",
       "description": "Foe loses 5 HP after combat (cannot kill)",
-      "lore": "The wound closes. The debt does not.",
+      "lore": "The cut looks clean. It stays that way for about an hour.",
       "weight": 10,
       "effect": {
         "type": "postCombatPoison",
@@ -73,7 +73,7 @@
       "name": "Binding",
       "adjective": "Binding",
       "description": "30% chance to Root the foe for 1 phase after combat",
-      "lore": "Some oaths are sworn to the ground itself.",
+      "lore": "Struck foes find their boots answering to the ground instead of to them.",
       "weight": 10,
       "effect": {
         "type": "postCombatStatus",
@@ -84,7 +84,7 @@
       "stone": {
         "name": "Binding Imbuing Stone",
         "price": 1000,
-        "lore": "Etched with knots no sailor will name."
+        "lore": "Don't set it down on the counter. The last one took a week to pry up."
       }
     },
     {
@@ -92,7 +92,7 @@
       "name": "Warded",
       "adjective": "Warded",
       "description": "+2 DEF, +2 RES while wielding",
-      "lore": "A weapon that remembers it is also a shield.",
+      "lore": "A chaplain blessed it to defend, and the blade took the word personally.",
       "weight": 10,
       "effect": {
         "type": "combatMods",
@@ -101,13 +101,13 @@
       "stone": {
         "name": "Warded Imbuing Stone",
         "price": 1000,
-        "lore": "Chapel-cut stone, still humming its last hymn."
+        "lore": "Cut from a burned chapel's altar. Hold it to your ear; it's still at vespers."
       }
     }
   ],
   "prismaticStone": {
     "name": "Prismatic Stone",
     "price": 1500,
-    "lore": "Six colors sleep inside it. The weapon chooses which one wakes."
+    "lore": "Six colors, one stone. Which one wakes is up to your weapon. No returns."
   }
 }
