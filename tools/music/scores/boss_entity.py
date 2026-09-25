@@ -15,8 +15,9 @@ the loop it takes more away, in three stages:
 
 No choir, no brass proclamation, no drop, and it sits well under the battle
 themes' loudness: in its presence the orchestra thins out. The hum never
-stops, so the silences are never mistaken for the music failing. When it
-enrages it takes away even the pulse, the glass and the player's line.
+stops, so the silences are never mistaken for the music failing, until the
+first time someone wounds the Entity: then the hum cuts out, and the game
+hands over to its finale (boss_entity_finale.py, "All of Us Across").
 """
 
 from engine.patterns import Kit, chart, drums
@@ -89,6 +90,4 @@ def build():
     player.at(D + 2).play('@mf A4h D5q E5q | A5w |')
     player.expr_beats((s.bar(D + 2), 0.7), (s.bar(D + 3), 1.0), (s.bar(D + 4), 0.6))
 
-    # when it enrages it takes away the pulse, the glass and the player's line
-    b.extra_variant('enrage_entity', mute=['kit_*', 'col_legno', 'glass', 'player'], lufs=-22.0)
     return b.finish()

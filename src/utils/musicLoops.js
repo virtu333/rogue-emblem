@@ -105,10 +105,16 @@ export const MUSIC_LOOPS = {
     tonic: 'Bb',
   },
   music_boss_entity: { loopStart: 16.603583, loopEnd: 108.032154, duration: 108.632, tonic: 'D' },
-  music_boss_entity_enrage_entity: {
-    loopStart: 16.603583,
-    loopEnd: 108.032154,
-    duration: 108.632,
+  music_boss_entity_finale: {
+    loopStart: 11.058821,
+    loopEnd: 81.647052,
+    duration: 82.247,
+    tonic: 'D',
+  },
+  music_boss_entity_finale_hum: {
+    loopStart: 11.058821,
+    loopEnd: 81.647052,
+    duration: 82.247,
     tonic: 'D',
   },
   music_boss_lieutenant: { loopStart: 9.714286, loopEnd: 72.571429, duration: 73.171, tonic: 'D' },

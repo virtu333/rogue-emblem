@@ -54,9 +54,17 @@ export class AudioManager {
 
   /**
    * Play looping background music with optional fade-in. `layers` adds layers
-   * beyond the track's own (a boss's enrage layer: { enrage: key }).
+   * beyond the track's own (a boss's enrage layer: { enrage: key }); those
+   * named in `layerGains` are additive, sounding at their own level alongside
+   * the mix (see setMusicLayerGain). `startAt` (a Web Audio context time)
+   * schedules the start, e.g. on the downbeat a hinge cue hands over to.
    */
-  async playMusic(key, ownerOrScene, fadeMs = 500, { layers = null } = {}) {
+  async playMusic(
+    key,
+    ownerOrScene,
+    fadeMs = 500,
+    { layers = null, layerGains = null, startAt = null } = {},
+  ) {
     try {
       if (!key) return;
       const owner = this._resolveOwnerToken(ownerOrScene);
@@ -125,7 +133,7 @@ export class AudioManager {
 
       if (!this.sound.game.cache.audio.has(key)) return;
       this._touchMusicCacheKey(key);
-      this._enforceMusicCacheBudget({ preserveKeys: [key] });
+      this._enforceMusicCacheBudget({ preserveKeys: [key, ...layerKeys] });
 
       // iOS can leave the shared Web Audio context suspended/interrupted after a
       // backgrounding even when Phaser still reports unlocked — nudge it running.
@@ -138,11 +146,16 @@ export class AudioManager {
         key,
         fadeMs > 0 ? 0 : this._curve(this.musicVolume),
         layers,
+        layerGains,
       );
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
-      this.currentMusic.play();
+      if (Number.isFinite(startAt) && this.currentMusic instanceof LoopedMusic) {
+        this.currentMusic.play(startAt);
+      } else {
+        this.currentMusic.play();
+      }
       // The common ceremony cues, decoded ahead in this track's key.
       this.preloadStingers(STINGER_PRELOAD);
 
@@ -185,7 +198,7 @@ export class AudioManager {
    * adaptive layers) when the decoded buffer and loop points are available;
    * otherwise a plain Phaser looping sound.
    */
-  _createMusicSound(key, volume, extraLayers = null) {
+  _createMusicSound(key, volume, extraLayers = null, layerGains = null) {
     const cache = this.sound.game.cache.audio;
     const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
     const loop = getMusicLoop(key);
@@ -211,6 +224,7 @@ export class AudioManager {
           layers,
           loops,
           layer: layers[this.musicIntensity] ? this.musicIntensity : 'full',
+          layerGains: layerGains || {},
           volume,
         });
       } catch (err) {
@@ -238,6 +252,24 @@ export class AudioManager {
 
   getMusicIntensity() {
     return this.musicIntensity;
+  }
+
+  /** Level (0-1) of an additive layer of the current track, over fadeMs. */
+  setMusicLayerGain(name, gain, fadeMs = 800) {
+    const music = this.currentMusic;
+    if (!music || typeof music.setLayerGain !== 'function') return false;
+    return music.setLayerGain(name, gain, fadeMs);
+  }
+
+  /** Decode tracks ahead of use (fire-and-forget), e.g. a finale waiting on a trigger. */
+  preloadMusic(keys, ownerOrScene = null) {
+    const scene = this._resolveSceneContext(ownerOrScene);
+    for (const key of keys || []) {
+      if (!key || this.sound?.game?.cache?.audio?.has?.(key)) continue;
+      this._ensureMusicLoaded(key, scene)
+        .then(() => this._touchMusicCacheKey(key))
+        .catch(() => {});
+    }
   }
 
   // --- Stingers: one-shot cues in the key of the music under them ---

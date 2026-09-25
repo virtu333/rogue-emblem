@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
+  ENTITY_FINALE,
   MUSIC,
   MUSIC_LAYERS,
   getBossEnrageLayer,
@@ -37,6 +38,9 @@ function collectKeys(value, out = new Set()) {
 const referenced = collectKeys(MUSIC);
 for (const layers of Object.values(MUSIC_LAYERS)) collectKeys(layers, referenced);
 for (const { layer } of bossEnrage) if (layer) referenced.add(layer);
+// the Entity's finale and its hum stem (BattleMusicController)
+referenced.add(ENTITY_FINALE.track);
+referenced.add(ENTITY_FINALE.hum);
 // the HTML login screen plays this one directly (index.html)
 referenced.add('music_login');
 
@@ -90,6 +94,11 @@ describe('music library', () => {
 
   it('every boss has its own enrage layer on the theme it is fought to', () => {
     for (const { name, act, theme, layer } of bossEnrage) {
+      // the Entity has no enrage layer: turn pressure starts its finale instead
+      if (theme === ENTITY_FINALE.theme) {
+        expect(layer, name).toBeNull();
+        continue;
+      }
       expect(layer, `${name} (${act}) has an enrage layer on ${theme}`).toBeTruthy();
       const base = getMusicLoop(theme);
       const loop = getMusicLoop(layer);
@@ -97,6 +106,23 @@ describe('music library', () => {
       expect(loop.loopEnd).toBe(base.loopEnd);
       expect(loop.duration).toBe(base.duration);
     }
+  });
+
+  it("the Entity's finale: hum stem on its timeline, a hinge cue that hands over to it", () => {
+    expect(MUSIC.bossByName['The Entity']).toBe(ENTITY_FINALE.theme);
+    const finale = getMusicLoop(ENTITY_FINALE.track);
+    const hum = getMusicLoop(ENTITY_FINALE.hum);
+    expect(finale.tonic).toBe(getMusicLoop(ENTITY_FINALE.theme).tonic);
+    expect(hum.loopStart).toBe(finale.loopStart);
+    expect(hum.loopEnd).toBe(finale.loopEnd);
+    expect(hum.duration).toBe(finale.duration);
+    const hinge = MUSIC_STINGERS[ENTITY_FINALE.hinge];
+    expect(hinge?.keyed).toBe(false);
+    // the finale's downbeat falls as the violin's last note ends, before the tail
+    expect(hinge.handoff).toBeGreaterThan(1);
+    expect(Math.abs(hinge.handoff - hinge.notesEnd)).toBeLessThan(0.01);
+    expect(hinge.handoff).toBeLessThan(hinge.duration);
+    expect(ENTITY_FINALE.silenceMs).toBeGreaterThanOrEqual(1000);
   });
 
   it('the story antagonists get their own themes, wherever they are fought', () => {

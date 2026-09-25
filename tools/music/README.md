@@ -29,6 +29,10 @@ battle themes and `<key>_enrage_<boss>.mp3` for boss themes) and regenerates
 `src/utils/musicLoops.js`. Stingers go to `assets/audio/stingers/` and
 `src/utils/musicStingers.js`: a keyed stinger (`KEYED = True`) is written in D and
 rendered once per tonic the scores declare; an unkeyed one may name a fixed `TONIC`.
+A hinge cue declares `HANDOFF_BARS`: the build records `handoff`, the time the next
+track's first downbeat falls (the Entity's finale starts there, sample-aligned). A score
+can also ship a stem as its own variant (the finale's `_hum`), which the game plays as
+an additive layer.
 Before rendering, a form check refuses any score with a bar in which nothing sounds
 (declare intended silences in `score.silent_ok`). Then run `npm run sync-assets`
 to copy the files to `public/`. `--preview` also writes files to `References/music-preview/`

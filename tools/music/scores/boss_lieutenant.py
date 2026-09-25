@@ -1,11 +1,11 @@
 """The Lieutenant — "Every Future You Could Reach".
 
-A seer like Sera, whose power fractures the timeline. Her motif is the
+A seer like Sera, whose power fractures the timeline. His motif is the
 Thread's rhythm falling instead of rising (A-D-C-A) and every statement is shadowed
 a beat later a tritone away: two futures at once. Octatonic sixteenths run
 under it like clockwork that has lost count.
 
-Then the one path she could not block: the main battle theme returns in the
+Then the one path he could not block: the main battle theme returns in the
 violins and trumpets, the player's own melody, with the Lieutenant's motif
 grinding against it in the low brass. The last strain rises a step to E
 minor and the choir sings the Thread over everything.
@@ -62,7 +62,7 @@ def build():
         # the same clock a dotted eighth late and a tritone away
         echo.at_beat(s.bar(bar) + 0.75).play('@mf Eb5e Ab4e Eb5e Ab4e Eb5e Ab4e r:0.25')
 
-    # A / A2: the Lieutenant and her shadow
+    # A / A2: the Lieutenant and his shadow
     for sec in ('A', 'A2'):
         b.lead(sec, LIEUT, inst='violins', dyn='ff', art='sus')
         b.lead(sec, LIEUT, inst='violins2', name='lead8', transpose=-12, dyn='f', role='lead2',
@@ -79,7 +79,7 @@ def build():
     b.lead('B', AUG, inst='trombones', name='aug_tbn', transpose=-12, dyn='ff', role='lead2')
     b.choir('B', 'oohs', n=3, lo=53, hi=70, vel=0.6)
 
-    # C: the one path she couldn't block (the player's battle theme)
+    # C: the one path he couldn't block (the player's battle theme)
     b.lead('C', MEL_A, inst='violins', dyn='ff')
     b.lead('C', MEL_A, inst='trumpets', transpose=-12, dyn='ff', name='c_tpt')
     b.lead('C', LIEUT_LOW, inst='trombones', name='grind', dyn='ff', role='counter')

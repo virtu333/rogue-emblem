@@ -8,7 +8,9 @@
 //
 // Every layer is started at the same context time with the same loop points,
 // so switching layers is a sample-aligned crossfade of gains: the music never
-// restarts or drifts.
+// restarts or drifts. An additive layer (e.g. the Entity's hum under its
+// finale) is not part of that crossfade: it sounds alongside the others at a
+// level of its own (setLayerGain).
 
 export const LOOP_DURATION_TOLERANCE_S = 0.25;
 
@@ -32,6 +34,11 @@ export function validLoopFor(buffer, loop) {
 }
 
 const LOOP_POINT_TOLERANCE_S = 0.001;
+
+function clampGain(value) {
+  const v = Number(value);
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+}
 
 /** Freeze an AudioParam at its current value so a new ramp starts from there. */
 function holdAt(param, now) {
@@ -73,9 +80,19 @@ export class LoopedMusic {
    * @param {Object<string, AudioBuffer>} opts.layers  layer name -> buffer ('full' required)
    * @param {Object<string, object>} [opts.loops]      layer name -> loop entry
    * @param {string} [opts.layer]        initially audible layer
+   * @param {Object<string, number>} [opts.layerGains]  additive layers -> starting gain
    * @param {number} [opts.volume]
    */
-  constructor({ context, destination, key, layers, loops = {}, layer = 'full', volume = 1 }) {
+  constructor({
+    context,
+    destination,
+    key,
+    layers,
+    loops = {},
+    layer = 'full',
+    layerGains = {},
+    volume = 1,
+  }) {
     this.context = context;
     this.destination = destination;
     this.key = key;
@@ -112,13 +129,25 @@ export class LoopedMusic {
           primaryLoop,
         ),
     );
-    this.layer = names.includes(layer) ? layer : primaryName;
+    this._additive = new Set(
+      names.filter((n) => n !== primaryName && Number.isFinite(Number(layerGains?.[n]))),
+    );
+    this.layer = names.includes(layer) && !this._additive.has(layer) ? layer : primaryName;
     for (const name of names) {
       const gain = context.createGain();
-      gain.gain.value = name === this.layer ? 1 : 0;
+      gain.gain.value = this._additive.has(name)
+        ? clampGain(layerGains[name])
+        : name === this.layer
+          ? 1
+          : 0;
       gain.connect(this._out);
       this._layers.set(name, { buffer: layers[name], loop: primaryLoop, gain, source: null });
     }
+  }
+
+  /** Context time the layers started (or will start) at; null before play(). */
+  get startTime() {
+    return this._startTime;
   }
 
   get layerNames() {
@@ -129,11 +158,16 @@ export class LoopedMusic {
     return this._layers.has(name);
   }
 
-  play() {
+  /**
+   * Start every layer. `at` (a context time) schedules the start, e.g. on the
+   * downbeat a hinge cue hands over to; a time already past starts now.
+   */
+  play(at = null) {
     if (this._destroyed || this.isPlaying) return false;
     // All layers share one start time; a small lead keeps them sample-aligned
     // even if creating the sources takes a moment.
-    const when = this.context.currentTime + 0.03;
+    const soonest = this.context.currentTime + 0.03;
+    const when = Number.isFinite(at) && at > soonest ? at : soonest;
     for (const entry of this._layers.values()) {
       const source = this.context.createBufferSource();
       source.buffer = entry.buffer;
@@ -236,10 +270,12 @@ export class LoopedMusic {
   setLayer(name, fadeMs = 1500) {
     if (!this._layers.has(name) || this._destroyed) return false;
     if (name === this.layer) return false;
+    if (this._additive.has(name)) return false;
     this.layer = name;
     const now = this.context.currentTime;
     const dur = Math.max(0, fadeMs) / 1000;
     for (const [layerName, entry] of this._layers) {
+      if (this._additive.has(layerName)) continue;
       const target = layerName === name ? 1 : 0;
       const param = entry.gain.gain;
       if (dur > 0 && typeof param.linearRampToValueAtTime === 'function') {
@@ -250,6 +286,23 @@ export class LoopedMusic {
         param.cancelScheduledValues?.(now);
         param.value = target;
       }
+    }
+    return true;
+  }
+
+  /** Set an additive layer's level (0-1) over fadeMs. */
+  setLayerGain(name, value, fadeMs = 800) {
+    if (this._destroyed || !this._additive.has(name)) return false;
+    const param = this._layers.get(name).gain.gain;
+    const target = clampGain(value);
+    const now = this.context.currentTime;
+    const dur = Math.max(0, fadeMs) / 1000;
+    if (dur > 0 && typeof param.linearRampToValueAtTime === 'function') {
+      holdAt(param, now);
+      param.linearRampToValueAtTime(target, now + dur);
+    } else {
+      param.cancelScheduledValues?.(now);
+      param.value = target;
     }
     return true;
   }

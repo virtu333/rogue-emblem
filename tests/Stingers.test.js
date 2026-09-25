@@ -78,7 +78,9 @@ describe('StingerPlayer', () => {
     expect(voice).not.toBeNull();
     expect(player.playing).toBe(true);
     const source = context.sources[0];
-    expect(source.start).toHaveBeenCalled();
+    // starts now, and says when (a hinge cue schedules the next track from it)
+    expect(source.start).toHaveBeenCalledWith(5);
+    expect(voice.startTime).toBe(5);
     expect(voice.gain.gain.value).toBe(0.4);
     voice.stop(200);
     expect(voice.gain.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 5.2);
