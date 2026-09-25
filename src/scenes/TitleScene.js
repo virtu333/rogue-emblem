@@ -193,7 +193,7 @@ export class TitleScene extends Phaser.Scene {
             this,
             'SlotPicker',
             { gameData: this.gameData, resumeSlot: this._resumeSlot?.slot },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           ),
         );
       case 'saveSlots':
@@ -202,7 +202,7 @@ export class TitleScene extends Phaser.Scene {
             this,
             'SlotPicker',
             { gameData: this.gameData },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           ),
         );
       case 'tutorial':
@@ -355,7 +355,7 @@ export class TitleScene extends Phaser.Scene {
                 this,
                 'SlotPicker',
                 { gameData: this.gameData },
-                { reason: TRANSITION_REASONS.CONTINUE },
+                { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
               ),
             );
           }),
@@ -519,7 +519,7 @@ export class TitleScene extends Phaser.Scene {
                   this,
                   'SlotPicker',
                   { gameData: this.gameData },
-                  { reason: TRANSITION_REASONS.CONTINUE },
+                  { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
                 ),
               );
             },
