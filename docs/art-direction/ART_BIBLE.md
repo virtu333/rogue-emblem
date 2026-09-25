@@ -110,6 +110,12 @@ motion, memory).
   `strike` — the follow-through (sweep, thrust, chop, loose, thrust with a flare).
 - **Budget**: one or two 2048 px atlas pages (~25 MB decoded for the whole roster); each
   sprite is a texture whose frames borrow the page — no per-sprite canvases.
+- **References at map size**: a sprite is only as good as its reference at trace scale
+  ~0.55 or more. Where the reviewed art is a large drawing (the rebuilt lords and bosses),
+  it is redrawn at map size first (`tools/art/sprite-trace/gen-refs.mjs`: style board, an
+  approved map sprite for scale, the unit's sprite and portrait for identity) and the
+  redraw is traced. Identity beats scale when choosing a take. A named boss keeps its own
+  gold and plate through the empire's faction swap.
 
 ## Terrain
 

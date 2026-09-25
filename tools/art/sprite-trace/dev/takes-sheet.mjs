@@ -33,7 +33,8 @@ const ids = flag('ids')?.split(',') || [...byId.keys()].sort();
 const grass = swatch('grass');
 const ground = (img) => {
   const bg = new Raster(img.w, img.h);
-  for (let y = 0; y < img.h; y += grass.h) for (let x = 0; x < img.w; x += grass.w) bg.draw(grass, x, y);
+  for (let y = 0; y < img.h; y += grass.h)
+    for (let x = 0; x < img.w; x += grass.w) bg.draw(grass, x, y);
   return bg.draw(img, 0, 0);
 };
 const ALL = allEntries();

@@ -607,7 +607,9 @@ const GENERATED = {
   // a pale, bloodless face reads as plate to the colour rules
   boss_blade_lord: {
     head: [0.3, 0.02, 0.7, 0.3],
-    rects: [{ slot: 'skin', box: [0.4, 0.12, 0.6, 0.29], from: ['armor', 'linen', 'metal', 'sub'] }],
+    rects: [
+      { slot: 'skin', box: [0.4, 0.12, 0.6, 0.29], from: ['armor', 'linen', 'metal', 'sub'] },
+    ],
   },
   // the Emperor's gold plate and crown are his; the empire's iron swap would grey them
   boss_the_emperor: { keep: ['trim', 'armor'] },

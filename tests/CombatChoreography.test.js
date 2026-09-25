@@ -374,6 +374,60 @@ describe('CombatChoreography', () => {
       }
       expect(rng).not.toHaveBeenCalled();
     });
+
+  it('a rewind while the lunge tween is still running stops it (the unit stays home)', async () => {
+    // Traced sprites hold their pose from the start of the lunge, so a rewind can land
+    // before contact, with the scene's lunge tween still carrying the striker forward.
+    const scene = makeScene();
+    const live = [];
+    scene._awaitSceneTween = vi.fn(
+      (cfg, { label: l } = {}) =>
+        new Promise((resolve) => {
+          scene.labels.push(l);
+          const tween = {
+            cfg,
+            stopped: false,
+            stop: vi.fn(() => {
+              tween.stopped = true;
+              cfg.onStop?.();
+              resolve();
+            }),
+            finish() {
+              // the game loop running the tween to its end
+              const targets = Array.isArray(cfg.targets) ? cfg.targets : [cfg.targets];
+              for (const t of targets) for (const k of ['x', 'y']) if (k in cfg) t[k] = cfg[k];
+              resolve();
+            },
+          };
+          live.push(tween);
+        }),
+    );
+    scene.tweens.getTweensOf = vi.fn((g) =>
+      live.filter((t) => !t.stopped && [].concat(t.cfg.targets).includes(g)),
+    );
+    const a = unit('Edric', 'player', 2, 2);
+    const b = unit('Knight', 'enemy', 3, 2);
+    a.weapon = { name: 'Iron Sword', type: 'Sword' };
+    const before = [home(a), home(b)];
+    const contacts = [];
+    const run = new CombatChoreography(scene).playStrike({
+      event: { damage: 4 },
+      striker: a,
+      target: b,
+      split: { striker: [], target: [] },
+      onContact: () => contacts.push('contact'),
+    });
+    await Promise.resolve();
+    expect(scene.labels).toContain('combat_fx_lunge_forward');
+    scene._combatFx.reset();
+    // whatever the game loop still runs afterwards must not move anyone
+    for (const t of live.filter((x) => !x.stopped)) t.finish();
+    await run;
+    expect(live[0].stop).toHaveBeenCalled();
+    expect(contacts).toEqual([]);
+    expect([home(a), home(b)]).toEqual(before);
+    expect(scene._combatFx.liveObjects).toMatchObject({ poses: 0, tweens: 0 });
+  });
 });
 
 describe('CombatFxController lifecycle', () => {

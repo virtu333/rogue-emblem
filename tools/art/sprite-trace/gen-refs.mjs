@@ -6,13 +6,23 @@
 // on-map style board and the unit's approved identity (its rebuilt sprite, plus the
 // PC-98 portrait for the face), so the trace runs near 1:1 where it matches the bar.
 //
-//   node tools/art/sprite-trace/gen-refs.mjs [--only a,b] [--model pro|flash] [--takes 2] [--force]
+//   node tools/art/sprite-trace/gen-refs.mjs [--only a,b] [--model pro|flash] [--takes 2]
+//        [--from n] [--prompt v1|v2|v3] [--text-identity] [--concurrency 3] [--force]
+//   node tools/art/sprite-trace/gen-refs.mjs --rekey [--only a,b | --takes-of id-n,id-n]
+//   node tools/art/sprite-trace/gen-refs.mjs --choose id:n,id:n
+//
+// Prompts: v1 style + identity; v2 adds an explicit pixel budget (the model tends to copy
+// the identity sprite's resolution); v3 swaps image 2 for a closer exemplar (a promoted
+// lord from the chosen base redraw, a mounted boss from a reviewed mounted figure).
+// --text-identity leaves the large identity sprite out (costume from the subject text).
 //
 // Raw generations (flat magenta backdrop) go to References/sprite-refs-2026-09-25/raw/
-// (gitignored, cached by tools/art/gen/geminiImage.mjs); each take is keyed to alpha,
-// trimmed and written to docs/art/sprite-candidates-2026-09-25/takes/<id>-<n>.png. The
-// chosen take is copied to docs/art/sprite-candidates-2026-09-25/sources/<id>.png, which
-// roster.mjs reads. Nothing here ships: the tracer turns sources into the atlas.
+// (gitignored, cached by tools/art/gen/geminiImage.mjs); each take is keyed to alpha and
+// trimmed into References/sprite-refs-2026-09-25/takes/<id>-<n>.png for review
+// (dev/takes-sheet.mjs, dev/takes-scales.mjs). --choose stores a take's recovered pixel
+// grid at 6x in docs/art/sprite-candidates-2026-09-25/sources/<id>.png (which roster.mjs
+// reads as `<id>_g`) and its provenance in prompts.json. Nothing here ships: the tracer
+// turns sources into the atlas.
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { generateAll, MODELS } from '../gen/geminiImage.mjs';
@@ -67,7 +77,10 @@ const EXEMPLARS = {
   kira_promoted: { file: CHOSEN('kira'), note: PROMOTED_NOTE },
   voss_promoted: { file: CHOSEN('voss'), note: PROMOTED_NOTE },
   cael_promoted: { file: CHOSEN('cael'), note: PROMOTED_NOTE },
-  sera_promoted: { file: 'docs/art/sprite-candidates-2026-09-22/sources/sera.png', note: PROMOTED_NOTE },
+  sera_promoted: {
+    file: 'docs/art/sprite-candidates-2026-09-22/sources/sera.png',
+    note: PROMOTED_NOTE,
+  },
   astrid_promoted: { file: CHOSEN('astrid'), note: PROMOTED_NOTE },
   boss_iron_captain: { roster: 'cavalier_e', note: MOUNTED_NOTE },
   boss_knight_commander: { roster: 'cavalier_e', note: MOUNTED_NOTE },
@@ -107,7 +120,11 @@ export const SUBJECTS = {
       'Cael promoted: the same helmeted veteran in heavier dark steel plate with crimson layered pauldrons and a crimson tabard with a pale cross, a steel spear-tipped poleaxe held upright in both hands (spike above his head, broad axe blade low at his right). Tall, broad, square silhouette.',
   },
   sera_promoted: {
-    refs: [R('lord_sera_promoted'), 'docs/art/sprite-candidates-2026-09-22/sources/sera.png', PORTRAIT('lord_sera')],
+    refs: [
+      R('lord_sera_promoted'),
+      'docs/art/sprite-candidates-2026-09-22/sources/sera.png',
+      PORTRAIT('lord_sera'),
+    ],
     subject:
       'Sera promoted (Light Priestess): the same red-haired woman as her base sprite (the third image), long flowing red hair, warm face, now a longer cream and plum robe with a little gold trim and a pale sash, a tall silver staff topped with a small radiant cross-star held upright at her right, a small open book in her left hand. Serene; cream and red dominate.',
   },
@@ -246,7 +263,9 @@ export async function keyMagenta(file, out) {
   const border = [];
   for (let x = 0; x < w; x += 4) border.push(px(x), px((h - 1) * w + x));
   for (let y = 0; y < h; y += 4) border.push(px(y * w), px(y * w + w - 1));
-  const med = [0, 1, 2].map((c) => border.map((p) => p[c]).sort((m, n) => m - n)[border.length >> 1]);
+  const med = [0, 1, 2].map(
+    (c) => border.map((p) => p[c]).sort((m, n) => m - n)[border.length >> 1],
+  );
   const magenta = med[0] > 150 && med[2] > 150 && med[1] < 110;
   const dist = (i) => {
     const p = px(i);
@@ -303,7 +322,13 @@ export async function keyMagenta(file, out) {
   for (let i = 0; i < w * h; i++) if (bg[i]) data[i * 4 + 3] = 0;
   await sharp(data, { raw: { width: w, height: h, channels: 4 } })
     .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 1 })
-    .extend({ top: 24, bottom: 24, left: 24, right: 24, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .extend({
+      top: 24,
+      bottom: 24,
+      left: 24,
+      right: 24,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .png({ compressionLevel: 9 })
     .toFile(out);
 }

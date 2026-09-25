@@ -14,7 +14,7 @@ import { bakeFrames, allEntries, identities, traceId, loadNative } from './lib/p
 import { swatch } from './lib/terrain.mjs';
 import { render } from './lib/render.mjs';
 import { paletteFor } from './lib/treat.mjs';
-import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES, ROSTER } from './roster.mjs';
+import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES } from './roster.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n, d) => {
@@ -271,8 +271,11 @@ if (want('outliers')) {
   ];
   for (const key of keys) {
     const e = entry(key);
-    const before = e.source.replace(/_g$/, '');
-    const was = { ...e, source: ROSTER.sources[before] ? before : `${before}_s` };
+    // what shipped before the redraw (e9b94c4): the class-sheet figure for Sera+ and
+    // Astrid, the rebuilt art for the others
+    const base = e.source.replace(/_g$/, '');
+    const SHEET = ['sera_promoted', 'astrid', 'astrid_promoted'];
+    const was = { ...e, source: SHEET.includes(base) ? `${base}_s` : base };
     const n = await loadNative(e.source);
     const src = n.native;
     const scale = Math.max(1, Math.floor(Math.min(W / src.w, (64 * 3) / src.h)));
