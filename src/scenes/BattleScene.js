@@ -54,6 +54,7 @@ import { Grid, computeEffectivePath } from '../engine/Grid.js';
 import { TurnManager } from '../engine/TurnManager.js';
 import { AIController } from '../engine/AIController.js';
 import {
+  getCombatForecast,
   resolveCombat,
   gridDistance,
   calculateEffectiveSpeed,
@@ -236,6 +237,7 @@ import {
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
+import { recordBattleRecruit } from '../engine/BattleRecruits.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
@@ -1226,6 +1228,7 @@ export class BattleScene extends Phaser.Scene {
       );
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
+      this._battleRecruits = [];
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
@@ -6324,6 +6327,8 @@ export class BattleScene extends Phaser.Scene {
       // Recruit can move + act this turn (FE convention); force fresh action flags.
       npc.hasMoved = false;
       npc.hasActed = false;
+      // Fallen-ally record should the recruit die before the battle ends.
+      this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
 
       this.finishUnitAction(lord);
     } catch (err) {
@@ -7463,7 +7468,35 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
-    if (!weaponArt) return this.buildSkillCtx(attacker, defender, null);
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      this.buildSkillCtx(attacker, defender, weaponArt),
+    );
+  }
+
+  /**
+   * The player's combat forecast, computed in the state resolution will use:
+   * with a weapon art, after its HP cost, the Recoil Guard buff and a Phoenix
+   * Brooch heal (see _runCombatResolutionAtSpeed). Reading the numbers after
+   * that state was restored overstated a Recoil Guard art's counter damage.
+   */
+  _computePlayerForecast(attacker, defender, weaponArt, { weapon, dist, atkTerrain, defTerrain }) {
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      getCombatForecast(
+        attacker,
+        weapon ?? attacker.weapon,
+        defender,
+        defender.weapon,
+        dist,
+        atkTerrain,
+        defTerrain,
+        this.buildSkillCtx(attacker, defender, weaponArt),
+      ),
+    );
+  }
+
+  /** Run `fn` with the attacker as resolution will see it after an art's cost; restore after. */
+  _withForecastArtState(attacker, weaponArt, fn) {
+    if (!weaponArt) return fn();
     const hadPhoenixFlag = Object.prototype.hasOwnProperty.call(attacker, '_phoenixBroochUsed');
     const hadTimedBuffs = Object.prototype.hasOwnProperty.call(
       attacker,
@@ -7501,7 +7534,7 @@ export class BattleScene extends Phaser.Scene {
     this._applyRecoilGuardAfterArtUse(attacker, weaponArt);
     checkPhoenixBrooch(attacker);
     try {
-      return this.buildSkillCtx(attacker, defender, weaponArt);
+      return fn();
     } finally {
       attacker.currentHP = originalHP;
       if (originalStats && attacker?.stats && typeof attacker.stats === 'object') {
