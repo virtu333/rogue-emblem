@@ -33,3 +33,6 @@
 
 /* PC-98 portraits: pixel-true figures over faction plates. */
 @import './portraits.css';
+
+/* Save select: the candle shrine (SlotPickerView.js). */
+@import './slotPicker.css';
