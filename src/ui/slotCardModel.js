@@ -40,7 +40,7 @@ const DAY = 24 * HOUR;
 export function friendlySavedTime(savedAt, now = Date.now()) {
   if (!Number.isFinite(savedAt)) return { text: 'Save time unknown', title: '' };
   const date = new Date(savedAt);
-  let title = '';
+  let title;
   try {
     title = date.toLocaleString(undefined, {
       dateStyle: 'medium',
@@ -57,7 +57,7 @@ export function friendlySavedTime(savedAt, now = Date.now()) {
   else if (age < 2 * DAY) text = 'Saved yesterday';
   else if (age < 7 * DAY) text = `Saved ${Math.floor(age / DAY)} days ago`;
   else {
-    let day = '';
+    let day;
     try {
       day = date.toLocaleDateString(undefined, {
         month: 'short',
