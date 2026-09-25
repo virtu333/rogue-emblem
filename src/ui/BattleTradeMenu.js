@@ -1,7 +1,14 @@
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
-import { addToInventory, removeFromInventory, hasProficiency } from '../engine/UnitManager.js';
+import {
+  addToInventory,
+  removeFromInventory,
+  hasProficiency,
+  equipIfUnarmed,
+  inventoryDisplayOrder,
+} from '../engine/UnitManager.js';
+import { equippedBadgeElement } from './equippedBadge.js';
 
 // Battle-only trading retains movement commitment and separate bag capacities.
 export class BattleTradeMenu {
@@ -31,7 +38,8 @@ export class BattleTradeMenu {
         ['inventory', INVENTORY_MAX],
         ['consumables', CONSUMABLE_MAX],
       ]) {
-        for (const item of owner[key] || []) {
+        const items = key === 'inventory' ? inventoryDisplayOrder(owner) : owner[key] || [];
+        for (const item of items) {
           const full = (recipient[key]?.length || 0) >= cap;
           const detail =
             key === 'inventory'
@@ -46,8 +54,11 @@ export class BattleTradeMenu {
             },
             're-btn re-row',
           );
+          const name = element('strong', item.name);
+          if (key === 'inventory' && item === owner.weapon)
+            name.append(equippedBadgeElement((tag) => element(tag)));
           row.append(
-            element('strong', item.name),
+            name,
             element('small', detail),
             element(
               'small',
@@ -97,6 +108,7 @@ export class BattleTradeMenu {
         return;
       }
       removeFromInventory(owner, item);
+      equipIfUnarmed(recipient, recipient.inventory.at(-1));
     } else {
       recipient.consumables ||= [];
       recipient.consumables.push(item);

@@ -1,0 +1,206 @@
+/* Tutorial coach (TutorialCoach.js): the persistent objective line over the map.
+   Ink plate with a gilt thread; gold is the player's goal (ART_BIBLE "Gold means you"). */
+
+.re-coach[hidden] {
+  display: none !important;
+}
+.re-coach {
+  position: fixed;
+  z-index: var(--re-depth-bossbar);
+  box-sizing: border-box;
+  padding: 4px 6px 7px 10px;
+  background: var(--re-shade-deep);
+  border: 1px solid var(--re-line-soft);
+  border-left: 3px solid var(--re-accent);
+  box-shadow:
+    0 0 0 1px var(--re-void),
+    0 6px 18px var(--re-shade);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  pointer-events: auto;
+  touch-action: manipulation;
+  clip-path: polygon(
+    var(--re-chamfer) 0,
+    calc(100% - var(--re-chamfer)) 0,
+    100% var(--re-chamfer),
+    100% calc(100% - var(--re-chamfer)),
+    calc(100% - var(--re-chamfer)) 100%,
+    var(--re-chamfer) 100%,
+    0 calc(100% - var(--re-chamfer)),
+    0 var(--re-chamfer)
+  );
+  animation: re-coach-arrive 260ms ease-out both;
+}
+.re-coach-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--re-tap);
+}
+.re-coach-lead {
+  flex: 1;
+  min-width: 0;
+}
+.re-coach-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.re-coach-kicker {
+  font: 8px/1.5 var(--re-pixel);
+  letter-spacing: 1px;
+  color: var(--re-accent-text);
+  text-transform: uppercase;
+}
+.re-coach-pips {
+  display: flex;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.re-coach-pips li {
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1px solid var(--re-gilt);
+  transform: rotate(45deg);
+}
+.re-coach-pips li.is-done {
+  background: var(--re-gilt);
+}
+.re-coach-pips li[aria-current='step'] {
+  border-color: var(--re-accent-text);
+  background: var(--re-accent-text);
+  box-shadow: 0 0 6px var(--re-ember-glow);
+}
+.re-coach-goal {
+  margin: 1px 0 0;
+  font: 700 15px/1.25 var(--re-body);
+  color: var(--re-accent-text);
+  overflow-wrap: anywhere;
+}
+.re-coach-detail {
+  margin: 0;
+  color: var(--re-text);
+  font: var(--re-t-small);
+  overflow-wrap: anywhere;
+}
+.re-coach-nudge {
+  margin: 5px 0 0;
+  padding-left: 7px;
+  border-left: 2px solid var(--re-warn);
+  color: var(--re-warn);
+  font: 600 12px/1.35 var(--re-body);
+}
+.re-coach-nudge[data-tone='info'] {
+  border-left-color: var(--re-accent);
+  color: var(--re-accent-text);
+  font-weight: 500;
+}
+.re-coach-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.re-coach-btn {
+  min-height: var(--re-tap);
+  min-width: var(--re-tap);
+  padding: 0 10px;
+  border: 1px solid var(--re-line);
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: 600 12px/1 var(--re-body);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.re-coach-btn[hidden] {
+  display: none;
+}
+.re-coach-leave {
+  color: var(--re-muted);
+}
+.re-coach-btn:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -2px;
+}
+.re-coach-btn:active {
+  background: var(--re-selected);
+  border-color: var(--re-accent);
+}
+@media (hover: hover) {
+  .re-coach-btn:hover {
+    border-color: var(--re-accent);
+    color: var(--re-accent-text);
+  }
+}
+.re-coach.is-nudged {
+  animation: re-coach-nudge 360ms ease-in-out;
+  border-left-color: var(--re-warn);
+}
+@keyframes re-coach-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes re-coach-nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .re-coach,
+  .re-coach.is-nudged {
+    animation: none;
+  }
+}
+
+/* The rail command the coach points at carries a gilt pulse. */
+.mobile-battle-hud[data-coach-target='end-turn'] .mb-end-turn,
+.mobile-battle-hud[data-coach-target='attack'] .mb-actions .mb-primary {
+  outline: 2px solid var(--re-accent-text);
+  outline-offset: 2px;
+  animation: re-coach-target 1.1s ease-in-out infinite;
+}
+@keyframes re-coach-target {
+  50% {
+    outline-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-battle-hud[data-coach-target] .mb-button {
+    animation: none;
+  }
+}
+
+/* Tutorial notes stay over the map pane, never over the command rail. */
+.battlefield-lab .re-modal-shield:has(.re-tutorial-note) {
+  right: calc(clamp(222px, 24vw, 240px) + env(safe-area-inset-right));
+}
+.re-tutorial-note .re-header h2::before {
+  content: '◆ ';
+  color: var(--re-accent);
+}
+.re-tutorial-note .re-tutorial-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.re-tutorial-note .re-tutorial-actions > .re-btn--primary {
+  flex: 1 1 60%;
+}
+.re-tutorial-note .re-tutorial-actions > .re-btn:not(.re-btn--primary) {
+  flex: 0 1 auto;
+}

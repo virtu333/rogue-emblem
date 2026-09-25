@@ -27,7 +27,8 @@ const CUT = 4; // chamfer
 const GAP = 4;
 const ECLIPSE_GLYPH = 10; // px reserved left of the Eclipse projection
 
-export const DESKTOP_HINT_TEXT = '[R] Vision · [V]/right-click: details · Esc/off-map: cancel';
+export const DESKTOP_HINT_TEXT =
+  '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
 
 const pixel = (size, color) => ({
   fontFamily: UI_FONT_FAMILIES.pixel,
@@ -80,6 +81,15 @@ export class DesktopBattleHud {
       this.plates = s.add.graphics().setDepth(UI_DEPTHS.SCREEN_UI);
     });
     s._pinToScreen?.(this.plates);
+    // Boss reading (name · HP · enrage) under the objective: the map shows only its bar.
+    if (s.add?.text) {
+      withPresentationRandom(() => {
+        this.bossText = applyTextResolution(
+          s.add.text(0, 0, '', body(11, UI_PALETTE.bad, 'bold')).setOrigin(1, 0),
+        ).setVisible(false);
+      });
+      s._pinToScreen?.(this.bossText);
+    }
     const muted = UI_PALETTE.muted;
     restyle(s.turnCounterText, pixel(8, UI_PALETTE.text), { lineSpacing: 4 });
     restyle(s.visionHudText, body(11, UI_PALETTE.info));
@@ -122,6 +132,7 @@ export class DesktopBattleHud {
       s.infoText,
       s.parTooltipText,
       s.fogOfWarLabel,
+      this.bossText,
       s.dangerButton,
       s.rosterButton,
       s.endTurnButton,
@@ -133,7 +144,7 @@ export class DesktopBattleHud {
   _sig() {
     const s = this.scene;
     const cam = s.cameras?.main;
-    let sig = `${cam?.width}x${cam?.height}`;
+    let sig = `${cam?.width}x${cam?.height}|${s._bossPresence?.summaryLine?.() || ''}`;
     for (const t of this._texts()) {
       sig += `|${t.visible ? 1 : 0}:${t.text}:${t.scaleX}`;
     }
@@ -205,6 +216,18 @@ export class DesktopBattleHud {
       this._plate(b, { gilt: true });
       rightBottom = b.y + b.h;
     }
+    const boss = this.bossText;
+    if (boss) {
+      const line = s._bossPresence?.summaryLine?.() || '';
+      if (boss.text !== line) boss.setText(line);
+      boss.setVisible(Boolean(line) && obj?.visible !== false);
+      if (boss.visible) {
+        boss.setPosition(W - MARGIN - PAD_X, rightBottom + GAP + PAD_Y);
+        const b = this._pad(bounds(boss));
+        this._plate(b, { tone: 'danger' });
+        rightBottom = b.y + b.h;
+      }
+    }
     const fog = s.fogOfWarLabel;
     if (fog?.visible) {
       fog.setOrigin(1, 0).setPosition(W - MARGIN - PAD_X, rightBottom + GAP + PAD_Y - 2);
@@ -273,7 +296,11 @@ export class DesktopBattleHud {
     ];
     g.fillStyle(UI_HEX.panel, faint ? 0.72 : 0.9);
     g.fillPoints(pts, true);
-    g.lineStyle(1, tone === 'warn' ? UI_HEX.warn : UI_HEX.line, faint ? 0.6 : 0.95);
+    g.lineStyle(
+      1,
+      tone === 'warn' ? UI_HEX.warn : tone === 'danger' ? UI_HEX.dangerLine : UI_HEX.line,
+      faint ? 0.6 : 0.95,
+    );
     g.strokePoints(pts, true);
     if (gilt) {
       g.lineStyle(1, UI_HEX.accent, 0.55);
@@ -286,6 +313,8 @@ export class DesktopBattleHud {
     this._onPostUpdate = null;
     this.plates?.destroy();
     this.plates = null;
+    this.bossText?.destroy?.();
+    this.bossText = null;
     if (this._background) this.scene?.cameras?.main?.setBackgroundColor?.(this._background);
     this._background = null;
     this.active = false;

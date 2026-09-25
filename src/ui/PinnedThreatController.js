@@ -6,7 +6,11 @@ export class PinnedThreatController {
   constructor(scene) {
     this.scene = scene;
     this.enemies = new Set();
-    this.overlay = new DangerZoneOverlay(scene, scene.grid, { color: 0xd8342c, depth: 4.5 });
+    this.overlay = new DangerZoneOverlay(scene, scene.grid, {
+      color: 0xd8342c,
+      depth: 4.5,
+      variant: 'pinned',
+    });
     this.dirty = false;
   }
 
@@ -63,6 +67,6 @@ export class PinnedThreatController {
 
   destroy() {
     this.enemies.clear();
-    this.overlay.hide();
+    this.overlay.destroy();
   }
 }

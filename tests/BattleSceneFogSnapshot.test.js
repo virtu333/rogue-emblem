@@ -40,6 +40,7 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
+import { getAttackWeapons, pickDefaultAttackWeapon } from '../src/engine/AttackOptions.js';
 import {
   applyCondition,
   getConditions,
@@ -768,7 +769,8 @@ describe('BattleScene trade weapon gating', () => {
     scene.preMoveLoc = { col: 2, row: 2 };
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
-    const elfireRow = texts.find((obj) => obj.text === 'Elfire');
+    // Equipped weapons carry the shared E marker.
+    const elfireRow = texts.find((obj) => obj.text === 'E Elfire');
     expect(elfireRow).toBeTruthy();
     expect(elfireRow.handlers.pointerdown).toBeTruthy();
 
@@ -823,7 +825,7 @@ describe('BattleScene trade weapon gating', () => {
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
     const swordRow = texts.find(
-      (obj) => typeof obj.text === 'string' && obj.text.startsWith('Iron Sword'),
+      (obj) => typeof obj.text === 'string' && obj.text.startsWith('E Iron Sword'),
     );
     expect(swordRow).toBeTruthy();
     expect(swordRow.style?.color).toBe('#8a7f86');
@@ -1485,21 +1487,18 @@ describe('scene-level silence enforcement (hybrid magic/physical)', () => {
     expect(targets).toEqual([]);
   });
 
-  it('ensureValidWeaponForRange swaps from magic to physical when silenced', () => {
-    const { scene, unit, sword, tome } = setupSilenceScene();
+  it('default attack weapon skips the equipped magic weapon when silenced', () => {
+    const { unit, sword, tome } = setupSilenceScene();
     expect(unit.weapon).toBe(tome);
-    scene.ensureValidWeaponForRange(unit, 1);
-    // Should have swapped to sword
-    expect(unit.weapon).toBe(sword);
+    // Distance 1 is in the tome's range, but silence blocks it: first physical wins.
+    expect(pickDefaultAttackWeapon(unit, 1)).toBe(sword);
+    // Planning never equips.
+    expect(unit.weapon).toBe(tome);
   });
 
-  it('ensureValidWeaponForRange does not early-return with magic weapon when silenced', () => {
-    const { scene, unit, tome } = setupSilenceScene();
-    // Tome has range 1-2, distance is 1, so without silence check the early return would fire
-    expect(unit.weapon).toBe(tome);
-    scene.ensureValidWeaponForRange(unit, 1);
-    // Should NOT keep the tome equipped
-    expect(unit.weapon.type).not.toBe('Tome');
+  it('attack weapons exclude magic when silenced (no early return on the equipped tome)', () => {
+    const { unit, sword } = setupSilenceScene();
+    expect(getAttackWeapons(unit)).toEqual([sword]);
   });
 
   it('forecast valid weapons exclude magic when attacker is silenced', () => {

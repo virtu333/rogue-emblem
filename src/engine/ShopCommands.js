@@ -5,6 +5,7 @@ import {
   removeFromInventory,
   removeFromConsumables,
   isLastCombatWeapon,
+  inventoryDisplayOrder,
 } from './UnitManager.js';
 import { getSellPrice } from './LootSystem.js';
 import { forgeStatBlock, applyForge, getForgeCost } from './ForgeSystem.js';
@@ -13,7 +14,7 @@ import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 export function shopOwnedItems(run) {
   return [
     ...(run.roster || []).flatMap((unit) => [
-      ...(unit.inventory || []).map((item) => ({
+      ...inventoryDisplayOrder(unit).map((item) => ({
         unit,
         item,
         kind: 'inventory',

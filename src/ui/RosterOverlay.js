@@ -37,7 +37,10 @@ import {
   canReclass,
   getReclassTargets,
   getDisplayLevel,
+  equipIfUnarmed,
+  inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
+import { equippedMarker } from './equippedBadge.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isMastered } from '../engine/MasterySystem.js';
 import {
@@ -1274,9 +1277,9 @@ export class RosterOverlay {
       this._text(x + 8, y, '(empty)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
-      for (const item of unit.inventory) {
+      for (const item of inventoryDisplayOrder(unit)) {
         const isEquipped = item === unit.weapon;
-        const marker = isEquipped ? '\u25b6 ' : '  ';
+        const marker = equippedMarker(unit, item);
         let tooltipAnchor = null;
         let tooltipLine = null;
         const usableNow = canEquip(unit, item);
@@ -1699,8 +1702,10 @@ export class RosterOverlay {
           const withdrawBtn = this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
             const pulled = this.runManager.takeFromConvoy(type, idx);
             if (!pulled) return;
-            if (type === 'weapon') addToInventory(targetUnit, pulled);
-            else addToConsumables(targetUnit, pulled);
+            if (type === 'weapon') {
+              if (addToInventory(targetUnit, pulled))
+                equipIfUnarmed(targetUnit, targetUnit.inventory.at(-1));
+            } else addToConsumables(targetUnit, pulled);
             this.drawUnitDetails();
           });
           withdrawBtn._convoyRowKey = `${type}:${idx}`;

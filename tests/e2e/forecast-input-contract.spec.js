@@ -84,6 +84,11 @@ test('phone keyboard reads all forecast content and Escape cancels exactly once'
   await openForecast(page);
   const dialog = page.getByRole('dialog', { name: 'Combat forecast' });
   await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  // Reading order: header scroll controls, the weapon stepper, then the footer.
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: 'Next weapon' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button', { name: 'Previous weapon' })).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(dialog.getByRole('button', { name: 'Scroll forecast down' })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -122,7 +127,7 @@ test('controller owns forecast reading, weapon rebuild, overlay recovery and one
   await openForecast(page);
   const dialog = page.getByRole('dialog', { name: 'Combat forecast' });
   expect(await owner(page)).toBe('forecast');
-  await pad(page, 'NAVIGATE', { dy: -1 });
+  for (let i = 0; i < 3; i++) await pad(page, 'NAVIGATE', { dy: -1 });
   await expect(dialog.getByRole('button', { name: 'Scroll forecast down' })).toBeFocused();
   await pad(page, 'CONFIRM');
   await expect
@@ -156,8 +161,8 @@ test('controller owns forecast reading, weapon rebuild, overlay recovery and one
   await expect(dialog).toBeVisible();
   expect(await owner(page)).toBe('forecast');
   await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
-  // Walk the real controller order through both weapon choices to Confirm.
-  for (let i = 0; i < 3; i++) await pad(page, 'NAVIGATE', { dy: 1 });
+  // The weapon stepper sits with the weapon; Confirm follows Cancel.
+  await pad(page, 'NAVIGATE', { dy: 1 });
   await expect(dialog.getByRole('button', { name: 'Confirm attack' })).toBeFocused();
   await pad(page, 'CONFIRM');
   await expect(dialog).toHaveCount(0);
