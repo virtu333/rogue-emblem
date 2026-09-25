@@ -1,0 +1,169 @@
+import { describe, it, expect, vi } from 'vitest';
+import { LoopedMusic, validLoopFor } from '../src/utils/LoopedMusic.js';
+
+function makeParam(value) {
+  return {
+    value,
+    setTargetAtTime: vi.fn(function (v) {
+      this.value = v;
+    }),
+    setValueAtTime: vi.fn(),
+    linearRampToValueAtTime: vi.fn(function (v) {
+      this.value = v;
+    }),
+    cancelScheduledValues: vi.fn(),
+  };
+}
+
+function makeContext() {
+  const sources = [];
+  const gains = [];
+  const ctx = {
+    currentTime: 10,
+    destination: { id: 'dest' },
+    createGain: vi.fn(() => {
+      const g = { gain: makeParam(1), connect: vi.fn(), disconnect: vi.fn() };
+      gains.push(g);
+      return g;
+    }),
+    createBufferSource: vi.fn(() => {
+      const s = {
+        buffer: null,
+        loop: false,
+        loopStart: 0,
+        loopEnd: 0,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      };
+      sources.push(s);
+      return s;
+    }),
+  };
+  return { ctx, sources, gains };
+}
+
+const buf = (duration) => ({ duration, getChannelData: () => new Float32Array(1) });
+
+describe('validLoopFor', () => {
+  it('accepts loop points that fit the decoded buffer', () => {
+    expect(validLoopFor(buf(80.4), { loopStart: 9.3, loopEnd: 79.8, duration: 80.39 })).toEqual({
+      loopStart: 9.3,
+      loopEnd: 79.8,
+    });
+  });
+
+  it('rejects loop points for a different (e.g. stale cached) file', () => {
+    expect(validLoopFor(buf(62), { loopStart: 18.5, loopEnd: 120.9, duration: 121.5 })).toBeNull();
+    expect(validLoopFor(buf(130), { loopStart: 18.5, loopEnd: 120.9, duration: 121.5 })).toBeNull();
+  });
+
+  it('rejects malformed loop entries', () => {
+    expect(validLoopFor(buf(10), null)).toBeNull();
+    expect(validLoopFor(buf(10), { loopStart: 5, loopEnd: 4 })).toBeNull();
+    expect(validLoopFor(null, { loopStart: 1, loopEnd: 2 })).toBeNull();
+  });
+});
+
+describe('LoopedMusic', () => {
+  const loops = {
+    full: { loopStart: 9.3, loopEnd: 79.8, duration: 80.4 },
+    calm: { loopStart: 9.3, loopEnd: 79.8, duration: 80.4 },
+  };
+
+  it('starts every layer at one shared time with the loop region set', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'music_battle_act1',
+      layers: { full: buf(80.4), calm: buf(80.4) },
+      loops,
+      layer: 'calm',
+    });
+    expect(m.play()).toBe(true);
+    expect(sources).toHaveLength(2);
+    const whens = sources.map((s) => s.start.mock.calls[0][0]);
+    expect(whens[0]).toBe(whens[1]);
+    for (const s of sources) {
+      expect(s.loop).toBe(true);
+      expect(s.loopStart).toBe(9.3);
+      expect(s.loopEnd).toBe(79.8);
+      expect(s.start.mock.calls[0][1]).toBe(0);
+    }
+    expect(m.isPlaying).toBe(true);
+    expect(m.layer).toBe('calm');
+  });
+
+  it('opens with only the chosen layer audible and crossfades on request', () => {
+    const { ctx } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), calm: buf(80.4) },
+      loops,
+      layer: 'calm',
+    });
+    const full = m._layers.get('full').gain.gain;
+    const calm = m._layers.get('calm').gain.gain;
+    expect(full.value).toBe(0);
+    expect(calm.value).toBe(1);
+    expect(m.setLayer('full', 1200)).toBe(true);
+    expect(full.linearRampToValueAtTime).toHaveBeenCalledWith(1, ctx.currentTime + 1.2);
+    expect(calm.linearRampToValueAtTime).toHaveBeenCalledWith(0, ctx.currentTime + 1.2);
+    expect(m.layer).toBe('full');
+    expect(m.setLayer('full')).toBe(false);
+    expect(m.setLayer('nonexistent')).toBe(false);
+  });
+
+  it('plays a whole-file loop when no valid loop points exist', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(30) },
+      loops: { full: { loopStart: 5, loopEnd: 90, duration: 91 } },
+    });
+    m.play();
+    expect(sources[0].loop).toBe(true);
+    expect(sources[0].loopEnd).toBe(0);
+  });
+
+  it('keeps layers aligned: a layer without its own loop uses the primary one', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), calm: buf(80.4) },
+      loops: { full: loops.full },
+    });
+    m.play();
+    expect(sources.map((s) => s.loopStart)).toEqual([9.3, 9.3]);
+  });
+
+  it('behaves like a Phaser sound for the manager: volume, stop, destroy', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4) },
+      loops,
+      volume: 0,
+    });
+    m.play();
+    m.setVolume(0.25);
+    expect(m.volume).toBe(0.25);
+    expect(m._out.gain.setTargetAtTime).toHaveBeenCalled();
+    m.stop();
+    expect(sources[0].stop).toHaveBeenCalled();
+    expect(m.isPlaying).toBe(false);
+    m.destroy();
+    expect(m.pendingRemove).toBe(true);
+    expect(m.play()).toBe(false);
+  });
+});

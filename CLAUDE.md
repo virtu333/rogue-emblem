@@ -67,7 +67,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 33 original music files)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -116,6 +116,13 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Character portraits: 128x128
 - Battle sprites (post-MVP): 64x64 or 96x96
 - Player units = blue palette, enemies = red palette, NPCs = green palette
+
+## Music (composed in code)
+All music is original: 24 cues written as Python scores in `tools/music/scores/` and rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/`. Read `tools/music/SCORE.md` (leitmotifs, cue list) and `tools/music/README.md` (setup, build, lint/analyze tools).
+- **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points), so never hand-edit it.
+- **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio.
+- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API.
+- **Adding a cue:** write a score, build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans or bad loop points.
 
 ## Art Pipeline (Imagen API)
 AI-generated pixel art via Google Imagen 4 API.

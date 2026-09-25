@@ -1,5 +1,14 @@
 // AudioManager - lightweight wrapper around Phaser's sound manager.
 
+import { LoopedMusic } from './LoopedMusic.js';
+import { getMusicLayers, getMusicLoop } from './musicConfig.js';
+
+function isDecodedAudioBuffer(buffer) {
+  return Boolean(
+    buffer && typeof buffer.getChannelData === 'function' && Number.isFinite(buffer.duration),
+  );
+}
+
 export class AudioManager {
   constructor(soundManager, options = {}) {
     this.sound = soundManager;
@@ -17,6 +26,9 @@ export class AudioManager {
     this.mobileMusicLoadTimeoutMs = this._toPositiveInt(options.mobileMusicLoadTimeoutMs, 12000);
     this.isMobile = Boolean(options.isMobile);
     this._trackedMusicSounds = new Set();
+    // Adaptive tracks: which layer ('calm' | 'full') new and current music plays.
+    this.musicIntensity = 'full';
+    this.currentMusicLayerKeys = [];
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -75,6 +87,16 @@ export class AudioManager {
           return;
         }
       }
+      // Adaptive tracks also need their other layers; a layer that fails to
+      // load just leaves the track single-layered.
+      const layerKeys = this._layerKeysFor(key);
+      if (layerKeys.length > 0 && this._canUseLoopedMusic()) {
+        await Promise.allSettled(
+          layerKeys
+            .filter((k) => !this.sound.game.cache.audio.has(k))
+            .map((k) => this._ensureMusicLoaded(k, scene)),
+        );
+      }
 
       // A newer request started while this one was loading.
       if (requestSeq !== this._musicRequestSeq) return;
@@ -93,10 +115,10 @@ export class AudioManager {
         audioCtx.resume?.().catch(() => {});
       }
 
-      this.currentMusic = this.sound.add(key, {
-        loop: true,
-        volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume),
-      });
+      this.currentMusic = this._createMusicSound(
+        key,
+        fadeMs > 0 ? 0 : this._curve(this.musicVolume),
+      );
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
@@ -109,6 +131,82 @@ export class AudioManager {
       // Never surface async audio errors to scene callers (fire-and-forget usage).
       if (this.debugMusic) console.warn('[AudioManager] playMusic failed:', key, err);
     }
+  }
+
+  // --- Seamless loops and adaptive layers ---
+
+  _canUseLoopedMusic() {
+    const ctx = this.sound?.context;
+    return Boolean(
+      ctx && typeof ctx.createBufferSource === 'function' && typeof ctx.createGain === 'function',
+    );
+  }
+
+  _layerKeysFor(key) {
+    const layers = getMusicLayers(key);
+    if (!layers) return [];
+    return Object.entries(layers)
+      .filter(([name]) => name !== 'full')
+      .map(([, layerKey]) => layerKey);
+  }
+
+  /**
+   * A Web Audio voice with the track's intro + seamless loop region (and its
+   * adaptive layers) when the decoded buffer and loop points are available;
+   * otherwise a plain Phaser looping sound.
+   */
+  _createMusicSound(key, volume) {
+    const cache = this.sound.game.cache.audio;
+    const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
+    const loop = getMusicLoop(key);
+    const layerMap = getMusicLayers(key);
+    this.currentMusicLayerKeys = [];
+    if (this._canUseLoopedMusic() && isDecodedAudioBuffer(buffer) && (loop || layerMap)) {
+      const layers = { full: buffer };
+      const loops = { full: loop };
+      for (const [name, layerKey] of Object.entries(layerMap || {})) {
+        if (name === 'full') continue;
+        const layerBuffer = cache.get(layerKey);
+        if (!isDecodedAudioBuffer(layerBuffer)) continue;
+        layers[name] = layerBuffer;
+        loops[name] = getMusicLoop(layerKey);
+        this.currentMusicLayerKeys.push(layerKey);
+        this._touchMusicCacheKey(layerKey);
+      }
+      try {
+        return new LoopedMusic({
+          context: this.sound.context,
+          destination: this.sound.destination || this.sound.context.destination,
+          key,
+          layers,
+          loops,
+          layer: layers[this.musicIntensity] ? this.musicIntensity : 'full',
+          volume,
+        });
+      } catch (err) {
+        if (this.debugMusic) console.warn('[AudioManager] looped music failed:', key, err);
+        this.currentMusicLayerKeys = [];
+      }
+    }
+    return this.sound.add(key, { loop: true, volume });
+  }
+
+  /**
+   * Choose the layer of adaptive music: 'calm' (map, no fighting) or 'full'
+   * (combat). Applies to the current track with a crossfade, and to the next
+   * adaptive track that starts. Single-layer tracks ignore it.
+   */
+  setMusicIntensity(level, fadeMs = 1500) {
+    this.musicIntensity = level === 'calm' ? 'calm' : 'full';
+    const music = this.currentMusic;
+    if (music && typeof music.setLayer === 'function' && music.hasLayer?.(this.musicIntensity)) {
+      music.setLayer(this.musicIntensity, fadeMs);
+    }
+    return this.musicIntensity;
+  }
+
+  getMusicIntensity() {
+    return this.musicIntensity;
   }
 
   _getMusicSources(key) {
@@ -311,6 +409,7 @@ export class AudioManager {
     this.currentMusic = null;
     this.currentMusicKey = null;
     this.currentMusicOwner = null;
+    this.currentMusicLayerKeys = [];
   }
 
   /** Return active looping music keys for diagnostics. */
@@ -391,7 +490,12 @@ export class AudioManager {
     if (!Number.isFinite(max) || max <= 0) return;
     if (this._musicCacheLru.length <= max) return;
     const preserve = new Set(
-      [...preserveKeys, this.currentMusicKey, ...this.loadingMusic.keys()].filter(Boolean),
+      [
+        ...preserveKeys,
+        this.currentMusicKey,
+        ...(this.currentMusicLayerKeys || []),
+        ...this.loadingMusic.keys(),
+      ].filter(Boolean),
     );
     while (this._musicCacheLru.length > max) {
       const victim = this._musicCacheLru.find((key) => !preserve.has(key));
@@ -405,6 +509,7 @@ export class AudioManager {
     if (!cache || typeof cache.remove !== 'function') return false;
     if (!this._isMusicKey(key)) return false;
     if (key === this.currentMusicKey) return false;
+    if ((this.currentMusicLayerKeys || []).includes(key)) return false;
     if (this._hasLiveSoundForKey(key)) return false;
     try {
       cache.remove(key);
@@ -444,6 +549,7 @@ export class AudioManager {
     this.currentMusic = null;
     this.currentMusicKey = null;
     this.currentMusicOwner = null;
+    this.currentMusicLayerKeys = [];
     if (!music) return;
 
     if (fadeMs > 0 && scene?.tweens) {

@@ -224,7 +224,7 @@ import {
 import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
-import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
+import BattleMusicController from '../ui/BattleMusicController.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import {
   generateBossRecruitCandidates,
@@ -518,6 +518,8 @@ export class BattleScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
+    this._musicCtrl?.destroy();
+    this._musicCtrl = null;
 
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
@@ -2044,16 +2046,18 @@ export class BattleScene extends Phaser.Scene {
         this._mobileBattleHud = new MobileBattleHUD(this);
       }
 
-      // Start battle music -- per-act tracks
-      const audio = this.registry.get('audio');
-      if (audio) {
-        const act = this.battleParams?.act || 'act1';
-        const key = this.isBoss ? getMusicKey('boss', act) : getMusicKey('battle', act);
-        if (this.battleParams?.tutorialMode) {
-          audio.releaseMusic(this, 0);
-        }
-        audio.playMusic(key, this, 800);
-      }
+      // Start battle music: per-act tracks, the antagonists' own themes, and
+      // the calm/full layers of adaptive battle themes.
+      this._musicCtrl?.destroy();
+      this._musicCtrl = new BattleMusicController(this, {
+        playersInDanger: () => this._anyPlayerInDanger(),
+      });
+      this._musicCtrl.create({
+        act: this.battleParams?.act || 'act1',
+        isBoss: this.isBoss,
+        bossName: (this.enemyUnits || []).find((unit) => unit.isBoss)?.name || null,
+        releaseFirst: Boolean(this.battleParams?.tutorialMode),
+      });
 
       // Initial fog of war update
       if (this.grid.fogEnabled) {
@@ -8051,6 +8055,7 @@ export class BattleScene extends Phaser.Scene {
    * @returns {Promise<{ result: object, selectedArt: object|null }>}
    */
   async _runCombatResolution(attacker, defender, ctx) {
+    this._musicCtrl?.onCombat();
     const previous = this._combatSpeedSnapshot;
     this._combatSpeedSnapshot = battleSpeed(this);
     try {
@@ -9635,6 +9640,7 @@ export class BattleScene extends Phaser.Scene {
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this._pinnedThreats?.invalidate();
+    this._musicCtrl?.onPhaseStart(phase);
     if (!this.keepDangerVisible) this.dangerZone.hide();
     if (typeof this._expireTimedWeaponArtBuffs === 'function') {
       this._expireTimedWeaponArtBuffs(phase, turn);
@@ -11135,6 +11141,16 @@ export class BattleScene extends Phaser.Scene {
       this.dangerZone.show(this.dangerZoneCache);
       this.dangerZoneStale = false;
     }
+  }
+
+  /** True when a living player unit stands inside the visible enemy threat range. */
+  _anyPlayerInDanger() {
+    const tiles = this.calculateDangerZone();
+    if (!tiles?.length) return false;
+    const threatened = new Set(tiles.map((t) => `${t.col},${t.row}`));
+    return (this.playerUnits || []).some(
+      (unit) => unit && unit.currentHP > 0 && threatened.has(`${unit.col},${unit.row}`),
+    );
   }
 
   calculateDangerZone(onlyEnemy = null) {
