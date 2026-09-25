@@ -106,7 +106,7 @@ export class RunSetupMenu {
           content.name,
           content.numeral ? `Tier ${content.numeral}` : '',
           content.boon,
-          content.cost ? `Cost: ${content.cost}` : 'No cost',
+          content.cost ? `${content.costLabel}: ${content.cost}` : 'No cost',
         ]
           .filter(Boolean)
           .join(' · '),
@@ -123,7 +123,7 @@ export class RunSetupMenu {
       lines.append(boon);
       const cost = element('span', null, `ch-cost${content.cost ? '' : ' is-none'}`);
       cost.append(
-        element('span', 'Cost', 'ch-boon-k'),
+        element('span', content.costLabel, 'ch-boon-k'),
         element('span', content.cost || 'None: a clean gift'),
       );
       // The shrine's painting behind the numeral and the name (items art: blessing cards);

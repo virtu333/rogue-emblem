@@ -1,5 +1,37 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import {
+  HASHED_BUILD_OUTPUT,
+  PRECACHE_GLOB_PATTERNS,
+  workboxRuntimeCaching,
+} from './tools/pwa/offlineCachePolicy.js';
+
+// Cache policy (precache list, revisioning, runtime routes) lives in
+// tools/pwa/offlineCachePolicy.js so tests can prove every runtime asset is covered
+// and every texture atlas ships as one versioned set. Exported for those tests.
+export const pwaWorkboxOptions = {
+  // Precache the small revisioned app shell plus every texture atlas (image and
+  // frame data together, ~3.5 MB). The rest of the game's media (well over
+  // 100 MB of sprites/audio/portraits) is runtime-cached, never precached.
+  // NOTE: do NOT add broad png/mp3 globs — Vite's JS chunks and the game's media
+  // both live under dist/assets/, so **/*.png would pull in the whole sprite set.
+  globPatterns: [...PRECACHE_GLOB_PATTERNS],
+  // Only Vite's flat content-hashed files skip revisioning. The plugin default
+  // (/^assets\//) would also cover the game's atlases and pin old bytes forever.
+  dontCacheBustURLsMatching: HASHED_BUILD_OUTPUT,
+  // Headroom for the vendor-phaser chunk (>2 MB default cap).
+  maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+  cleanupOutdatedCaches: true,
+  // clientsClaim lets the FIRST-installed worker control the initial page load, so
+  // offline works after the very first visit. skipWaiting is intentionally NOT set
+  // (defaults false): updates wait for old clients to close before activating, so a
+  // new deploy never swaps the build under a live run — see the registerType note.
+  clientsClaim: true,
+  // SPA: navigations fall back to the cached shell, except real asset/data/SW paths.
+  navigateFallback: 'index.html',
+  navigateFallbackDenylist: [/^\/assets\//, /^\/data\//, /\/sw\.js$/, /\/registerSW\.js$/],
+  runtimeCaching: workboxRuntimeCaching(),
+};
 
 export default defineConfig({
   base: './',
@@ -21,79 +53,7 @@ export default defineConfig({
       manifest: false,
       // No service worker in dev — avoids stale-cache headaches while iterating.
       devOptions: { enabled: false },
-      workbox: {
-        // Precache the small, essential, revisioned app shell only. The game's
-        // 236 MB of media (sprites/audio/portraits) is runtime-cached below, never
-        // precached. NOTE: do NOT add png/mp3 globs here — Vite's JS chunks and the
-        // game's media both live under dist/assets/, so a broad **/*.png would pull
-        // in the 115 MB sprite set. data/*.json (349 KB) is required for boot.
-        globPatterns: [
-          '**/*.{js,css,html,woff,woff2}',
-          'data/*.json',
-          'icons/*.png',
-          'manifest.webmanifest',
-        ],
-        // Headroom for the vendor-phaser chunk (>2 MB default cap).
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        cleanupOutdatedCaches: true,
-        // clientsClaim lets the FIRST-installed worker control the initial page load, so
-        // offline works after the very first visit. skipWaiting is intentionally NOT set
-        // (defaults false): updates wait for old clients to close before activating, so a
-        // new deploy never swaps the build under a live run — see the registerType note.
-        clientsClaim: true,
-        // SPA: navigations fall back to the cached shell, except real asset/data/SW paths.
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/assets\//, /^\/data\//, /\/sw\.js$/, /\/registerSW\.js$/],
-        runtimeCaching: [
-          {
-            // Sprites / portraits. StaleWhileRevalidate (not CacheFirst) because these
-            // filenames are stable, not content-hashed: serve instantly from cache (and
-            // offline), but revalidate in the background so a replaced asset refreshes on
-            // the next online load instead of being pinned until the 60-day expiry. maxAge
-            // now bounds cache GC, not staleness.
-            // assets/ui holds the item art (atlases, painted heroes, vignettes, blessing
-            // cards); those URLs carry a ?v=<content hash> so a regenerated file refreshes.
-            urlPattern: /\/assets\/(sprites|portraits|ui)\/.*\.(png|jpe?g|webp|gif)(\?.*)?$/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'er-image-assets',
-              expiration: {
-                // ~1030 image files under assets/{sprites,portraits}: ~340 sprites and
-                // portraits (the traced map sprites are two atlas pages; raw generations
-                // and the old sprites-v1 set live in docs/art/, not shipped) and ~690
-                // PC-98 portrait renders (6 sizes per portrait, plates, atlases), plus
-                // ~170 item-art files under assets/ui (3 atlases, 139 heroes, 29 moments);
-                // the set grew ~95/month during recent sprite upgrades. 1200 leaves
-                // headroom through the roster/FX roadmap so LRU eviction never
-                // silently drops sprites from the offline cache. purgeOnQuotaError
-                // below is the real safety valve if disk quota is actually hit.
-                maxEntries: 2400,
-                maxAgeSeconds: 60 * 24 * 60 * 60,
-                purgeOnQuotaError: true,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Music + SFX — same stable-filename reasoning as images: StaleWhileRevalidate
-            // serves from cache instantly/offline and refreshes a replaced track in the
-            // background.
-            urlPattern: /\/assets\/audio\/.*\.(mp3|ogg|wav|m4a)$/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'er-audio-assets',
-              expiration: {
-                // 57 audio files today (music + SFX); 120 leaves matching headroom
-                // for new tracks. purgeOnQuotaError is the real safety valve.
-                maxEntries: 120,
-                maxAgeSeconds: 60 * 24 * 60 * 60,
-                purgeOnQuotaError: true,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
-      },
+      workbox: pwaWorkboxOptions,
     }),
   ],
   test: {
