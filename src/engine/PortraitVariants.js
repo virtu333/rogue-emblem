@@ -14,7 +14,7 @@
 // the roster (or the recently fallen) already wears. A name that reads as a
 // man or a woman (data/recruits.json name pools) gets a matching face.
 // Lords and bosses keep their own portraits and never get a variant.
-import table from '../data/portraitVariants.json';
+import table from '../data/portraitVariants.json' with { type: 'json' };
 
 export const PORTRAIT_VARIANTS = table;
 
