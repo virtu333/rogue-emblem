@@ -5,6 +5,25 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — App icon: Hollow Dawn
+
+The winged-sword icon was generic and too close to the series' heraldry. Ahead of the
+Rogue Dawn rename, I drew six procedural candidates from the key art's own palette and
+dither: Hollow Dawn, Hollow Helm, Hollow Crest, The Gap, Diamond Ring and The Last
+Warden. I checked each at 1024, 180, 60 and 29 px on dark and light grounds and in a
+home-screen row. **Hollow Dawn** ships. The Hollow Sun rises over a hedge of imperial
+pikes and dawn burns around the black disc. It's the only candidate that shows both dawn
+and the eclipse, and at 29 px it's a black disc in a burning band. The Hollow Helm is the
+runner-up. Any candidate can be swapped in with one command:
+`npm run gen:icons -- --from docs/art-direction/app-icon/<id>.png`, which also writes the
+iOS 1024 icon. The maskable PWA icon is now full-bleed, and Capacitor's placeholder launch
+image is replaced by the Hollow Dawn mark on the void (the storyboard background is the
+void too). Spec:
+[`specs/app-icon.md`](specs/app-icon.md); sheets and ranking:
+[`art-direction/app-icon/`](art-direction/app-icon/README.md).
+
+---
+
 ## 2026-09-25 — Two fixes from outside reports: staff heal penalty, offline atlases
 
 **Staff heals under a heal penalty.** The "Staff healing −20% effective" blessing
