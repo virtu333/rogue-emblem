@@ -15,9 +15,9 @@
   /* Ceremony only: boss names, act titles, fate cards, the logo. Never body copy. */
   --re-display: 'Cinzel', 'Times New Roman', serif;
   --re-mono: ui-monospace, monospace;
-  --re-t-display: 16px/1.5 var(--re-pixel);
-  --re-t-title: 12px/1.6 var(--re-pixel);
-  --re-t-label: 10px/1.5 var(--re-pixel);
+  --re-t-display: var(--re-pf-16, 16px)/1.5 var(--re-pixel);
+  --re-t-title: var(--re-pf-12, 12px)/1.6 var(--re-pixel);
+  --re-t-label: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
   --re-t-lede: 18px/1.3 var(--re-body);
   --re-t-body: 13px/1.4 var(--re-body);
   --re-t-small: 12px/1.4 var(--re-body);

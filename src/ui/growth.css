@@ -34,7 +34,7 @@
   background: rgba(7, 6, 11, 0.62);
 }
 .gr-kicker {
-  font: calc(8px * var(--ce-scale)) / 1.5 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.5 var(--re-pixel);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
@@ -372,7 +372,7 @@
     cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .gr-stat dt {
-  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   color: var(--re-muted);
 }
 .gr-stat dd {
@@ -476,7 +476,7 @@
   background: transparent;
   border: 0;
   color: var(--re-muted);
-  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
   opacity: 0.8;
@@ -603,7 +603,7 @@
   color: var(--ce-bone);
 }
 .gr-lv-k {
-  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   color: var(--re-muted);
 }
 .gr-lv-from {
@@ -635,7 +635,7 @@
 }
 .gr-level-row dt {
   width: calc(34px * var(--ce-scale));
-  font: calc(8px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   color: var(--re-muted);
 }
 .gr-level-row dd {
@@ -961,7 +961,7 @@
   min-width: 0;
 }
 .gr-sealed-kicker {
-  font: 8px / 1.5 var(--re-pixel);
+  font: var(--re-pf-8, 8px) / 1.5 var(--re-pixel);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--ce-gold-4);
