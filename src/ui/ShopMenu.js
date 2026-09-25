@@ -262,7 +262,9 @@ export class ShopMenu {
     title.append(
       el(
         'p',
+        // The kicker already names the type; drop it from the numbers' first line.
         detailText
+          .replace(new RegExp(`^${item.type}\\n`), '')
           .replace(/\bMt:/g, 'Might:')
           .replace(/\bCrt:/g, 'Crit:')
           .replace(/\bWt:/g, 'Weight:')

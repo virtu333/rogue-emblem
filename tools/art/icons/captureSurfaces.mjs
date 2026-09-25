@@ -36,6 +36,11 @@ const browser = await chromium.launch(exe ? { executablePath: exe } : {});
 const views = [];
 if (!argv.includes('--desktop-only')) views.push({ name: '844x390', w: 844, h: 390, mobile: true });
 if (!argv.includes('--phone-only')) views.push({ name: '1280x800', w: 1280, h: 800, mobile: false });
+if (argv.includes('--small'))
+  views.push(
+    { name: '667x375', w: 667, h: 375, mobile: true },
+    { name: '640x480', w: 640, h: 480, mobile: false },
+  );
 for (const [name, drive] of Object.entries(SCREENS)) {
   if (only && !only.includes(name)) continue;
   for (const v of views) {

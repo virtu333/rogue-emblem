@@ -92,7 +92,14 @@ for (const view of VIEWS) {
       await expect(shop.locator('.shop-hero .shop-mechanics')).toBeInViewport();
       await expect(shop.locator('.shop-lore')).toContainText('thumb');
       const box = await hero.boundingBox();
-      expect(Math.round(box.width)).toBe(112);
+      // 96 px picture on a plate: 8 px of rim on short phones, 16 px elsewhere.
+      expect(Math.round(box.width)).toBe(view.desktop ? 112 : 104);
+      if ((await hero.getAttribute('data-art')) === 'painted')
+        expect(
+          await hero
+            .locator('img')
+            .evaluate((i) => i.decode().then(() => [i.naturalWidth, i.clientWidth])),
+        ).toEqual([96, 96]);
       // Scroll: the pixel icon at 2x (its glyph is the point).
       await rows.nth(1).click();
       await expect(hero).toHaveAttribute('data-icon-id', 'sol-scroll');

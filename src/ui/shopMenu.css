@@ -78,6 +78,16 @@
   min-width: 0;
   flex: 1;
 }
+/* Short landscape phones: a slimmer plate (the picture itself stays 96 px). */
+@media (max-height: 420px) {
+  .shop-hero .ia-hero {
+    --ia-box: calc(var(--ia-size, 96px) + 8px);
+  }
+  .shop-hero {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+}
 .shop-copy .shop-hero-title h3 {
   margin: 0;
 }
