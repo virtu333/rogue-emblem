@@ -5,6 +5,36 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Layered music under the cache budget (outside report)
+
+**The bug.** On the mobile budget (3 tracks / 120 MB) a layered track could go
+silent while it loaded. Each file that finished decoding ran the cache budget but
+protected only itself, the playing track and in-flight loads. The new track's primary
+had already finished loading, so it counted as none of those. Loading its calm or
+enrage layer could evict it, and `playMusic` then stopped the old music and returned
+at `!cache.has(key)`. Example: a battle theme (full + calm) playing, then a boss theme
+(+ enrage) requested. The enrage load pushed the cache to 4 tracks and evicted the boss
+primary, leaving no music at all. In the byte-budget version, the new track's
+already-cached calm layer was evicted first, then refetched, and its refetch evicted
+the primary. The pass just before the new voice was built had the same gap: it
+protected only the primary, not the layers.
+
+**Fix** (`AudioManager`, `LoopedMusic`). The newest request's primary and all its layers
+are pinned (`_pendingMusicKeys`) from the start of loading until the voice is built. Any
+buffer a sounding voice holds is also pinned: LoopedMusic reports `bufferKeys`, so a
+fading-out track is covered too. A budget pass runs again once a fade ends. If the
+primary is somehow missing after loading, the old music keeps playing instead of
+stopping. When a layer the track wants is missing (it failed to load), `setMusicIntensity`
+keeps the current layer. It then reloads the missing one once per voice and, via
+`LoopedMusic.addLayer`, starts it silent at the primary's playhead so it can crossfade
+in. A track started while audio was locked keeps its enrage layer after unlock. Under
+budget nothing changes. While both tracks are needed the cache can briefly go over
+budget. That costs no extra memory: evicting a playing buffer never freed it, because
+the running source still holds it. Stingers have their own cache and never touch
+music keys. Test: `tests/MusicLayerCache.test.js`.
+
+---
+
 ## 2026-09-25 — Two fixes from outside reports: staff heal penalty, offline atlases
 
 **Staff heals under a heal penalty.** The "Staff healing −20% effective" blessing
