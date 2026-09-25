@@ -46,6 +46,8 @@ import {
   grantRecruitStartingAccessory,
   learnSkill,
   LETHAL_ARMORY_WEAPONS,
+  equipWeapon,
+  normalizeEquippedFirst,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -261,6 +263,8 @@ export function serializeUnit(unit) {
     }
     if (origIdx >= 0 && origIdx < data.inventory.length) {
       data.weapon = data.inventory[origIdx];
+      // Run-level saves keep the FE invariant: equipped weapon first.
+      normalizeEquippedFirst(data);
     } else {
       // Weapon not in inventory (legacy/edge case) — deep-clone independently
       data.weapon = ensureItemUid(structuredClone(unit.weapon));
@@ -1070,9 +1074,7 @@ export class RunManager {
         if (!candidate) continue;
         if (!addToInventory(unit, candidate)) continue;
         const addedWeapon = unit.inventory[unit.inventory.length - 1];
-        if (addedWeapon && canEquip(unit, addedWeapon)) {
-          unit.weapon = addedWeapon;
-        }
+        if (addedWeapon && canEquip(unit, addedWeapon)) equipWeapon(unit, addedWeapon);
         granted++;
         grantedWeapons.push({ unit: unit.name, weapon: addedWeapon?.name || candidate.name });
       }
@@ -2286,6 +2288,7 @@ export class RunManager {
       unit.inventory.find((w) => w.name === 'Steel Lance' && canEquip(unit, w)) ||
       unit.inventory.find((w) => canEquip(unit, w)) ||
       null;
+    normalizeEquippedFirst(unit);
   }
 
   _removeWeaponByName(unit, weaponName) {
@@ -2294,6 +2297,7 @@ export class RunManager {
     const [removed] = unit.inventory.splice(idx, 1);
     if (unit.weapon === removed || unit.weapon?.name === weaponName) {
       unit.weapon = unit.inventory.find((weapon) => canEquip(unit, weapon)) || null;
+      normalizeEquippedFirst(unit);
     }
     return true;
   }
@@ -2405,9 +2409,7 @@ export class RunManager {
     // Tier 2: add the silver weapon and auto-equip it.
     if (deadlyArsenalTier >= 2 && silver && addToInventory(unit, silver)) {
       const addedSilver = unit.inventory.find((weapon) => weapon?.name === byType.silver);
-      if (addedSilver && canEquip(unit, addedSilver)) {
-        unit.weapon = addedSilver;
-      }
+      if (addedSilver && canEquip(unit, addedSilver)) equipWeapon(unit, addedSilver);
     }
   }
 
@@ -2707,7 +2709,10 @@ export class RunManager {
   getRoster() {
     this._sanitizeUnitPools();
     const cloned = JSON.parse(JSON.stringify(this.roster));
-    cloned.forEach((u) => relinkWeapon(u));
+    cloned.forEach((u) => {
+      relinkWeapon(u);
+      normalizeEquippedFirst(u);
+    });
     return cloned;
   }
 
@@ -2848,6 +2853,7 @@ export class RunManager {
     }
 
     relinkWeapon(fallenUnit);
+    normalizeEquippedFirst(fallenUnit);
     const retained = [...fallenUnit.inventory, ...fallenUnit.consumables];
     const moved = Math.max(0, carriedCount - retained.length);
     fallenUnit._fallenItemsNotice = `${fallenUnit.name}: ${moved} item${moved === 1 ? '' : 's'} moved to convoy.${hadAccessory ? ' Accessory returned to the team pool.' : ''}${retained.length ? ` Convoy full: ${retained.map((item) => item.name).join(', ')} remain with this ally until revival.` : ''}`;
@@ -3069,6 +3075,7 @@ export class RunManager {
     if (classData) normalizeUnitClassState(unit, classData);
     ensureSeraBaseStaffProficiency(unit);
     relinkWeapon(unit);
+    normalizeEquippedFirst(unit);
     // Stable catch-up rolls on retry/reload; the action chooser does not consume this stream.
     let seed = Number(this.runSeed) >>> 0;
     for (const ch of `revive:${unit.name}:${unit.className}:${unit.level}`)
@@ -4152,6 +4159,12 @@ export class RunManager {
 
     rm.roster.forEach((u) => relinkWeapon(u));
     rm.fallenUnits.forEach((u) => relinkWeapon(u));
+    // Legacy saves may carry the equipped weapon anywhere in the bag. Moving it
+    // to the top on load is deterministic, RNG-free and idempotent; it runs only
+    // at this run-level boundary, never on a battle checkpoint (those restore
+    // exactly — see BattleSuspendController.applyUnits).
+    rm.roster.forEach((u) => normalizeEquippedFirst(u));
+    rm.fallenUnits.forEach((u) => normalizeEquippedFirst(u));
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();

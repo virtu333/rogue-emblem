@@ -1,6 +1,9 @@
 // E2E: Weapon selection smoke tests.
-// Verifies weapon picker and equip menu use pointerdown (not pointerup)
-// to prevent bleed-through selection when submenus spawn under the cursor.
+// Attack is target-first: it goes straight to target selection (no weapon
+// submenu) and weapons are switched inside the forecast. These tests verify the
+// Equip menu and Attack use pointerdown (not pointerup) so a release on the spot
+// where a submenu/target appears cannot select anything, and that the forecast
+// weapon arrows act on pointerdown only.
 // Tests 1-2 dispatch native MouseEvents on canvas to exercise Phaser's
 // full InputManager pipeline. Tests 3-5 use synthetic emits for targeted checks.
 
@@ -242,15 +245,18 @@ async function ensureTwoCombatWeapons(page) {
 }
 
 /**
- * Open weapon picker directly for first unmoved player unit.
+ * Open the forecast for the first unmoved unit against the adjacent enemy
+ * (via Attack → target), with two usable weapons.
  */
-async function openWeaponPickerForFirstUnit(page) {
+async function openForecastForFirstUnit(page) {
+  await forceAttackableEnemy(page);
   await ensureTwoCombatWeapons(page);
-  await page.evaluate(() => {
+  await openActionMenuForFirstUnit(page);
+  await page.evaluate(async () => {
     const battle = window.__emblemRogueGame.scene.getScene('Battle');
-    const unit = battle.playerUnits.find((u) => !u.hasMoved);
-    if (!unit || !unit.weapon) return;
-    battle.showWeaponPicker(unit, battle.enemyUnits);
+    battle.actionMenu.find((o) => o.text === 'Attack')._action();
+    const target = battle._attackFlowController.focusedTarget;
+    await battle._attackFlowController.openForecast(battle.selectedUnit, target);
   });
 }
 
@@ -308,7 +314,9 @@ test.describe('Weapon selection smoke', () => {
     expect(result.weaponName).toBe(originalWeapon);
   });
 
-  test('Attack real click does not auto-select spawned weapon row', async ({ page }) => {
+  test('Attack real click enters target selection without picking a target on release', async ({
+    page,
+  }) => {
     await setupBattle(page);
     await forceAttackableEnemy(page);
     await ensureTwoCombatWeapons(page);
@@ -318,22 +326,12 @@ test.describe('Weapon selection smoke', () => {
     expect(center, 'Attack button not found - no enemy in range?').not.toBeNull();
 
     await dispatchCanvasMouseEvent(page, 'mousedown', center.x, center.y);
-
     await page.waitForFunction(
-      () => {
-        const b = window.__emblemRogueGame?.scene?.getScene?.('Battle');
-        return b?.inEquipMenu === true;
-      },
+      () =>
+        window.__emblemRogueGame?.scene?.getScene?.('Battle')?.battleState === 'SELECTING_TARGET',
       null,
       { timeout: 5_000 },
     );
-
-    const hitRows = await getInteractiveRowsHitAtWorldPoint(page, center.x, center.y);
-    expect(
-      hitRows.hitCount,
-      `Expected pointer to overlap spawned attack rows; got [${hitRows.hitLabels.join(', ')}]`,
-    ).toBeGreaterThan(0);
-
     await dispatchCanvasMouseEvent(page, 'mouseup', center.x, center.y);
 
     const result = await page.evaluate(() => {
@@ -341,36 +339,38 @@ test.describe('Weapon selection smoke', () => {
       return {
         battleState: battle.battleState,
         inEquipMenu: battle.inEquipMenu,
+        targets: battle.attackTargets.length,
       };
     });
 
-    expect(result.battleState).toBe('UNIT_ACTION_MENU');
-    expect(result.inEquipMenu).toBe(true);
+    expect(result.battleState).toBe('SELECTING_TARGET');
+    expect(result.inEquipMenu).toBe(false);
+    expect(result.targets).toBeGreaterThan(0);
   });
 
-  test('weapon picker - pointerdown selects weapon and enters target selection', async ({
-    page,
-  }) => {
+  test('forecast weapon arrow - pointerdown switches the previewed weapon', async ({ page }) => {
     await setupBattle(page);
-    await openWeaponPickerForFirstUnit(page);
+    await openForecastForFirstUnit(page);
 
     const result = await page.evaluate(() => {
       const battle = window.__emblemRogueGame.scene.getScene('Battle');
-      const weaponRows = (battle.actionMenu || []).filter(
-        (o) => o.type === 'Text' && o.input?.enabled && /^(\u25b6 | {2})/.test(o.text),
+      const unit = battle.selectedUnit;
+      const before = unit.weapon;
+      const order = unit.inventory.map((w) => w.name);
+      const arrow = battle._forecastOverlay.displayObjects.find(
+        (o) => o.text === '\u25BA' && o.input?.enabled,
       );
-      const weaponRowCount = weaponRows.length;
-      if (weaponRows[0]) weaponRows[0].emit('pointerdown');
+      arrow.emit('pointerdown', { button: 0 });
       return {
-        weaponRowCount,
         battleState: battle.battleState,
-        inEquipMenu: battle.inEquipMenu,
+        changed: unit.weapon !== before,
+        orderKept: unit.inventory.map((w) => w.name).join() === order.join(),
       };
     });
 
-    expect(result.weaponRowCount).toBeGreaterThan(0);
-    expect(result.battleState).toBe('SELECTING_TARGET');
-    expect(result.inEquipMenu).toBe(false);
+    expect(result.battleState).toBe('SHOWING_FORECAST');
+    expect(result.changed).toBe(true);
+    expect(result.orderKept).toBe(true);
   });
 
   test('equip menu - pointerdown selects weapon and returns to action menu', async ({ page }) => {
@@ -407,28 +407,24 @@ test.describe('Weapon selection smoke', () => {
     expect(result.weaponChanged).toBe(true);
   });
 
-  test('weapon picker - pointerup does not trigger selection (synthetic emit regression)', async ({
+  test('forecast weapon arrow - pointerup does not switch (synthetic emit regression)', async ({
     page,
   }) => {
     await setupBattle(page);
-    await openWeaponPickerForFirstUnit(page);
+    await openForecastForFirstUnit(page);
 
     const result = await page.evaluate(() => {
       const battle = window.__emblemRogueGame.scene.getScene('Battle');
-      const weaponRows = (battle.actionMenu || []).filter(
-        (o) => o.type === 'Text' && o.input?.enabled && /^(\u25b6 | {2})/.test(o.text),
+      const unit = battle.selectedUnit;
+      const before = unit.weapon;
+      const arrow = battle._forecastOverlay.displayObjects.find(
+        (o) => o.text === '\u25BA' && o.input?.enabled,
       );
-      const weaponRowCount = weaponRows.length;
-      if (weaponRows[0]) weaponRows[0].emit('pointerup');
-      return {
-        weaponRowCount,
-        battleState: battle.battleState,
-        inEquipMenu: battle.inEquipMenu,
-      };
+      arrow.emit('pointerup', { button: 0 });
+      return { battleState: battle.battleState, unchanged: unit.weapon === before };
     });
 
-    expect(result.weaponRowCount).toBeGreaterThan(0);
-    expect(result.battleState).toBe('UNIT_ACTION_MENU');
-    expect(result.inEquipMenu).toBe(true);
+    expect(result.battleState).toBe('SHOWING_FORECAST');
+    expect(result.unchanged).toBe(true);
   });
 });

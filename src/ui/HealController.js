@@ -17,7 +17,14 @@ import {
   spendStaffUse,
   gridDistance,
 } from '../engine/Combat.js';
-import { equipWeapon, canEquip, hasStaff, getCombatWeapons } from '../engine/UnitManager.js';
+import {
+  equipWeapon,
+  canEquip,
+  hasStaff,
+  getCombatWeapons,
+  normalizeEquippedFirst,
+  inventoryDisplayOrder,
+} from '../engine/UnitManager.js';
 import { isCureStaff, clearAllConditions } from '../engine/StatusConditionSystem.js';
 import {
   isRelocateStaff,
@@ -27,6 +34,7 @@ import {
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
+import { EQUIPPED_MARKER } from './equippedBadge.js';
 
 /** Heal motes cross from a visible healer to the target (presentation only). */
 function healSource(source, target, scene) {
@@ -44,22 +52,39 @@ export class HealController {
     this.previousCombatWeapons = new WeakMap();
   }
 
+  // Using a staff is not an equipment change: the staff is held provisionally
+  // (no inventory reorder) and the prior equipment comes back afterwards, so the
+  // equipped-first bag order survives a heal or a cancelled staff pick.
   rememberCombatWeapon(unit) {
-    if (unit.weapon && unit.weapon.type !== 'Staff' && canEquip(unit, unit.weapon))
-      this.previousCombatWeapons.set(unit, unit.weapon);
+    const held = this.previousCombatWeapons.get(unit);
+    // Re-entering the flow while the staff is still held keeps the true prior.
+    if (held && held.staff && held.staff === unit.weapon) return;
+    this.previousCombatWeapons.set(unit, { prior: unit.weapon || null, staff: null });
+  }
+
+  holdStaff(unit, staff) {
+    this.rememberCombatWeapon(unit);
+    equipWeapon(unit, staff, { reorder: false });
+    const held = this.previousCombatWeapons.get(unit);
+    if (held && unit.weapon === staff) held.staff = staff;
   }
 
   restoreCombatWeapon(unit) {
     if (!unit) return;
-    const prior = this.previousCombatWeapons.get(unit);
+    const prior = this.previousCombatWeapons.get(unit)?.prior ?? null;
     this.previousCombatWeapons.delete(unit);
-    const weapons = Array.isArray(unit.inventory) ? getCombatWeapons(unit) : [];
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    const weapons = inventory.length ? getCombatWeapons(unit) : [];
+    // Counter-ready: prefer the prior combat weapon, else the first carried one
+    // (a unit that had a staff equipped switches to a weapon — a real equip).
     const weapon = weapons.includes(prior) ? prior : weapons[0];
     if (weapon) equipWeapon(unit, weapon);
+    else if (prior && inventory.includes(prior) && canEquip(unit, prior)) equipWeapon(unit, prior);
+    else normalizeEquippedFirst(unit);
   }
 
   getUsableStaves(unit) {
-    return unit.inventory.filter(
+    return inventoryDisplayOrder(unit).filter(
       (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
     );
   }
@@ -114,8 +139,7 @@ export class HealController {
             this.startHealTargetSelection(unit, targets, chosenStaff);
         });
     }
-    this.rememberCombatWeapon(unit);
-    if (staff) equipWeapon(unit, staff);
+    if (staff) this.holdStaff(unit, staff);
     if (!staff) {
       scene.showActionMenu(unit);
       return;
@@ -185,7 +209,7 @@ export class HealController {
     usableStaves.forEach((staff, i) => {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
-      const marker = staff === unit.weapon ? '\u25b6 ' : '  ';
+      const marker = staff === unit.weapon ? EQUIPPED_MARKER : '  ';
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
       const rng = getEffectiveStaffRange(staff, unit);
@@ -206,8 +230,7 @@ export class HealController {
         async () => {
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
-          this.rememberCombatWeapon(unit);
-          equipWeapon(unit, staff);
+          this.holdStaff(unit, staff);
           const healTargets = scene.findHealTargets(unit, staff);
           if (healTargets.length === 0) {
             this.restoreCombatWeapon(unit);

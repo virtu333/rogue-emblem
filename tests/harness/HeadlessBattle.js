@@ -1466,10 +1466,12 @@ export class HeadlessBattle {
     const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
     const activeWeapon = weapon || unit.weapon || null;
     const weaponIndex = activeWeapon ? inventory.indexOf(activeWeapon) : -1;
+    // Mirrors WeaponArtController: the uid survives the equipped-first reorder.
     this._selectedWeaponArt = {
       unitName: unit.name,
       artId,
       weaponIndex,
+      ...(typeof activeWeapon?.uid === 'string' ? { weaponUid: activeWeapon.uid } : {}),
     };
   }
 
@@ -1483,6 +1485,12 @@ export class HeadlessBattle {
     const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
     if (entries.length <= 0) return null;
 
+    if (typeof selected.weaponUid === 'string' && selected.weaponUid) {
+      const byUid = entries.find(
+        (entry) => entry.art.id === selected.artId && entry.weapon?.uid === selected.weaponUid,
+      );
+      if (byUid) return byUid;
+    }
     if (
       Number.isInteger(selected.weaponIndex) &&
       selected.weaponIndex >= 0 &&

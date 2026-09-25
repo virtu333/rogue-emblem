@@ -1,5 +1,6 @@
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
+import { equippedBadgeElement } from './equippedBadge.js';
 import { saveServiceRun } from './serviceSave.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -161,7 +162,10 @@ export class ShopMenu {
           : this.scene.activeShopTab === 'sell'
             ? `${row.owner} · +${getSellPrice(row.item)} G`
             : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
-      b.append(el('strong', row.item.name), el('span', sub));
+      const name = el('strong', row.item.name);
+      if (row.kind === 'inventory' && row.unit?.weapon === row.item)
+        name.append(equippedBadgeElement((tag) => el(tag)));
+      b.append(name, el('span', sub));
       stock.append(b);
     });
     const detail = el('article', null, 'shop-detail');

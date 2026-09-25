@@ -11,7 +11,7 @@ import {
   getWeaponArtKillEffects,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
-import { equipWeapon } from '../engine/UnitManager.js';
+import { equipForAttackPlanning } from './WeaponPreviewSession.js';
 import { isStaff } from '../engine/Combat.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
@@ -138,7 +138,7 @@ export class WeaponArtController {
           }
           const audio = scene.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
-          if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+          if (unit.weapon !== weapon) equipForAttackPlanning(scene, unit, weapon);
           this._setSelectedWeaponArt(unit, art.id, weapon);
           scene.inEquipMenu = false;
           scene._beginAttackSelection(unit);
@@ -296,10 +296,13 @@ export class WeaponArtController {
     const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
     const activeWeapon = weapon || unit.weapon || null;
     const weaponIndex = activeWeapon ? inventory.indexOf(activeWeapon) : -1;
+    // The index is kept for saved intents; the uid survives the equipped-first
+    // reorder that happens when the attack is confirmed.
     scene._selectedWeaponArt = {
       unitName: unit.name,
       artId,
       weaponIndex,
+      ...(typeof activeWeapon?.uid === 'string' ? { weaponUid: activeWeapon.uid } : {}),
     };
   }
 
@@ -315,6 +318,12 @@ export class WeaponArtController {
     const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
     if (entries.length <= 0) return null;
 
+    if (typeof selected.weaponUid === 'string' && selected.weaponUid) {
+      const byUid = entries.find(
+        (entry) => entry.art.id === selected.artId && entry.weapon?.uid === selected.weaponUid,
+      );
+      if (byUid) return byUid;
+    }
     if (
       Number.isInteger(selected.weaponIndex) &&
       selected.weaponIndex >= 0 &&
@@ -345,9 +354,7 @@ export class WeaponArtController {
     });
     if (!valid.ok) return null;
 
-    if (unit.weapon !== weapon) {
-      equipWeapon(unit, weapon);
-    }
+    if (unit.weapon !== weapon) equipForAttackPlanning(scene, unit, weapon);
     return art;
   }
 

@@ -28,7 +28,7 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
-import { canEquip, getDisplayLevel } from '../engine/UnitManager.js';
+import { canEquip, getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import {
   getMasteryProgress,
   getMasteryThreshold,
@@ -698,8 +698,8 @@ export class UnitDetailOverlay {
     this._tabSep(lx, y);
     y += 12;
     if (unit.inventory && unit.inventory.length > 0) {
-      for (const item of unit.inventory) {
-        const marker = item === unit.weapon ? '\u25b6' : ' ';
+      for (const item of inventoryDisplayOrder(unit)) {
+        const marker = item === unit.weapon ? 'E' : ' ';
         const usableNow = canEquip(unit, item);
         const rowColor = usableNow ? UI_COLORS.white : UI_PALETTE.lineStrong;
         const baseNameColor = usableNow ? this._getWeaponNameColor(item, rowColor) : rowColor;
