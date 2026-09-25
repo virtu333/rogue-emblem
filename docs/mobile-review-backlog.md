@@ -1,4 +1,4 @@
-# Emblem Rogue — mobile review backlog
+# Rogue Dawn — mobile review backlog
 
 Updated September 15, 2026. Proposed work below is for review; it has not been implemented unless marked completed.
 

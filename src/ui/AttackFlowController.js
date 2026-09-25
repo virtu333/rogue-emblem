@@ -18,11 +18,10 @@
 //
 // The controller owns no Phaser objects of its own: ForecastOverlay renders the
 // canvas panel and MobileBattleHUD the phone panel. It never draws RNG — the
-// forecast is the pure getCombatForecast.
+// forecast is the pure getCombatForecast (via scene._computePlayerForecast).
 
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { TutorialController } from './TutorialController.js';
-import { getCombatForecast } from '../engine/Combat.js';
 import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
@@ -333,18 +332,14 @@ export class AttackFlowController {
     } else {
       scene._forecastGamblerLine = null;
     }
-    const skillCtx = scene._buildForecastSkillCtx(attacker, defender, weaponArt);
-
-    const forecast = getCombatForecast(
-      attacker,
-      attacker.weapon,
-      defender,
-      defender.weapon,
+    // Computed in the state resolution uses (after a weapon art's HP cost,
+    // Recoil Guard buff and Phoenix Brooch heal); see BattleScene._computePlayerForecast.
+    const forecast = scene._computePlayerForecast(attacker, defender, weaponArt, {
+      weapon: attacker.weapon,
       dist,
       atkTerrain,
       defTerrain,
-      skillCtx,
-    );
+    });
 
     scene._forecastValidWeapons = validWeapons;
     const targets = scene.attackTargets || [];

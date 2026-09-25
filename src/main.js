@@ -2,7 +2,7 @@ import { showUpdateToast } from './ui/UpdateToast.js';
 import { ownRecoveryInput, installDOMDragRelease } from './utils/domInputBoundary.js';
 import { UI_PALETTE } from './utils/uiStyles.js';
 import { installAudioRecovery } from './utils/audioRecovery.js';
-// Emblem Rogue - Entry Point
+// Rogue Dawn - Entry Point
 
 import Phaser from 'phaser';
 import { installSeedSafeCanvasTextures } from './utils/seedSafeCanvasTextures.js';
@@ -34,6 +34,9 @@ import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 import { registerSW } from 'virtual:pwa-register';
 import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
 import { throttledRead } from './utils/throttledRead.js';
+import { installSaveLifecycle } from './utils/saveLifecycle.js';
+import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
+import { GAME_TITLE } from './utils/gameIdentity.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -52,7 +55,7 @@ if (!startupFlags.isMobile) {
 }
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('mobilePreview') === '1') {
   document.documentElement.classList.add('mobile-preview');
-  document.title = 'Emblem Rogue · Mobile preview';
+  document.title = `${GAME_TITLE} · Mobile preview`;
 }
 
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
@@ -61,6 +64,22 @@ const STARTUP_VIEWPORT_GUARD_TIMEOUT_MS = Math.max(
   BOOT_WATCHDOG_TIMEOUT_MS,
   startupFlags.mobileSafeBoot ? 18000 : 14000,
 );
+// iOS app only: read the durable native save mirror back before anything reads
+// a save (see nativeSaveMirror.js). Web builds keep their synchronous boot.
+const nativeSavesReady = nativeCapacitor(globalThis)
+  ? startNativeSaveMirror({
+      log: (event, data) => markStartup(`save_mirror_${event}`, data || {}),
+    }).catch(() => null)
+  : null;
+// Persist on page hide / pagehide / freeze / app pause (all platforms).
+installSaveLifecycle();
+
+/** Boot once native saves are read back (immediately on the web). */
+function bootGameWhenSavesReady(user) {
+  if (!nativeSavesReady) return bootGame(user);
+  return nativeSavesReady.then(() => bootGame(user));
+}
+
 const startupQuery = new URLSearchParams(globalThis?.location?.search || '');
 const devStartupRequested = startupQuery.has('qaStep') || startupQuery.has('devScene');
 
@@ -564,7 +583,7 @@ if (!supabase) {
   // Local-only by default; no session restoration or cloud pulls.
   authOverlay.style.display = 'none';
   markStartup('local_play_boot');
-  bootGame(null);
+  bootGameWhenSavesReady(null);
 } else {
   authOverlay.style.display = 'flex';
   mountAuthBackdrop();
@@ -577,6 +596,8 @@ if (!supabase) {
           return;
         }
         activateStartupViewportGuard('session_restore');
+        // Local saves (and any native read-back) settle before a cloud pull.
+        if (nativeSavesReady) await nativeSavesReady;
         let pullResult;
         try {
           pullResult = await startCloudPull(session.user.id, 'session');
@@ -626,6 +647,7 @@ async function handleSkip() {
   // SOUND" hint even though this click already unlocked audio.
   await unlockAudio();
   activateStartupViewportGuard('offline_skip');
+  if (nativeSavesReady) await nativeSavesReady;
   bootGame(null);
 }
 
@@ -658,6 +680,7 @@ async function handleSubmit(e) {
     }
 
     const user = requireAuthUser(result);
+    if (nativeSavesReady) await nativeSavesReady;
     let cloudPullResult;
     try {
       cloudPullResult = await startCloudPull(user.id, 'login');

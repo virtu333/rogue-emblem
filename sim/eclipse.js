@@ -86,6 +86,9 @@ function runOnce(data, seed, offset) {
   rm.startRun({ runSeed: seed, difficultyId: DIFFICULTY, applyBlessingsAtStart: false });
   const out = {
     byAct: {},
+    // Act pressure (the act's own shadow, uncapped by the global meter) at act end.
+    byActPressure: {},
+    fallsByAct: {},
     falls: 0,
     lostServices: 0,
     aheadFalls: 0,
@@ -121,6 +124,7 @@ function runOnce(data, seed, offset) {
       const fell = rm.lastEclipseCommit?.fell || [];
       const ahead = reachableAhead(rm);
       out.falls += fell.length;
+      out.fallsByAct[rm.currentAct] = (out.fallsByAct[rm.currentAct] || 0) + fell.length;
       for (const id of fell) {
         const from = rm.nodeMap.nodes.find((n) => n.id === id)?.eclipse?.fromType;
         const service = SERVICES.has(from);
@@ -133,6 +137,7 @@ function runOnce(data, seed, offset) {
     } else rm.markNodeComplete(node.id);
     if (rm.isActComplete()) {
       out.byAct[rm.currentAct] = rm.eclipse.shadow;
+      out.byActPressure[rm.currentAct] = rm.eclipse.actShadow ?? 0;
       if (rm.isRunComplete()) break;
       rm.advanceAct();
     }
@@ -174,8 +179,9 @@ for (const [label, offset] of PROFILES) {
     const vals = runs.map((r) => r.byAct[act]).filter(Number.isFinite);
     if (!vals.length) continue;
     const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const mean = (key) => runs.reduce((a, r) => a + (r[key][act] || 0), 0) / runs.length;
     console.log(
-      `  end of ${act.padEnd(9)} shadow avg ${avg.toFixed(1).padStart(5)}  p10 ${String(pct(vals, 0.1)).padStart(3)}  p50 ${String(pct(vals, 0.5)).padStart(3)}  p90 ${String(pct(vals, 0.9)).padStart(3)}  · ${phaseMix(vals)}`,
+      `  end of ${act.padEnd(9)} shadow avg ${avg.toFixed(1).padStart(5)}  p10 ${String(pct(vals, 0.1)).padStart(3)}  p50 ${String(pct(vals, 0.5)).padStart(3)}  p90 ${String(pct(vals, 0.9)).padStart(3)}  · ${phaseMix(vals)}  · act pressure ${mean('byActPressure').toFixed(1)} · knots taken ${mean('fallsByAct').toFixed(1)}`,
     );
   }
   const avg = (key) => runs.reduce((a, r) => a + r[key], 0) / runs.length;

@@ -846,7 +846,9 @@ describe('BattleScene shim delegation contracts', () => {
       }));
       scene._resolveSelectedWeaponArtEntry = vi.fn(() => null);
       scene.ensureValidWeaponForRange = vi.fn();
-      scene._buildForecastSkillCtx = vi.fn(() => ({
+      // The forecast builds its skill context inside the weapon-art state
+      // (_computePlayerForecast), so the stub sits on buildSkillCtx.
+      scene.buildSkillCtx = vi.fn(() => ({
         atkMods: {},
         defMods: {},
         rollStrikeSkills: vi.fn(() => ({})),

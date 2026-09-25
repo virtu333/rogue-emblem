@@ -9,6 +9,7 @@
 import regions from '../../data/regions.json';
 import framing from './ceremonyPortraitFraming.json';
 import { sentenceTitle } from '../engine/DeedTitles.js';
+import { victoryShadowText } from './eclipseContent.js';
 
 // ── Acts ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ export function victoryContent({
   par,
   rating,
   shadowGain = null,
+  shadowMeterGain = null,
   shadowRelief = 0,
 }) {
   const parts = [];
@@ -156,8 +158,7 @@ export function victoryContent({
   if (Number.isFinite(par)) parts.push(`Par ${Math.trunc(par)}`);
   if (typeof rating === 'string' && rating) parts.push(`Rank ${rating}`);
   // The Eclipse: what this victory does to the sun.
-  if (Number.isFinite(shadowGain))
-    parts.push(shadowGain > 0 ? `Shadow +${Math.trunc(shadowGain)}` : 'Sun held');
+  if (Number.isFinite(shadowGain)) parts.push(victoryShadowText(shadowGain, shadowMeterGain));
   if (Number.isFinite(shadowGain) && shadowRelief > 0)
     parts.push(`Sun flares −${Math.trunc(shadowRelief)}`);
   return { word: objectiveWord(objective), sub: parts.join(' · ') };

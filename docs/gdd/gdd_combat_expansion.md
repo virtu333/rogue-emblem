@@ -21,7 +21,7 @@ Weapon Arts give players a resource-management decision each combat: spend HP fo
 - **Echoes model (HP cost, weapon-tied):** Arts are intrinsic to specific weapons. Iron Sword always has Wrath Strike. Creates strong weapon identity but limits build diversity.
 - **Three Houses model (durability cost, character-learned):** Arts learned by characters, equipped in 3 slots, usable with any weapon of that type. More customizable but less weapon identity.
 - **Engage model (movement-integrated, type-bonus effects):** Arts interact with positioning — Lunge, Override, Advance. Movement is a combat resource alongside damage.
-- **Emblem Rogue hybrid:** Arts are tied to weapons (like Echoes), but can be added via scrolls (like Three Houses equipping). HP cost model (no durability system). Random innate art assignment from tier pools makes every weapon drop unique across runs. Only Legendary weapons have fixed signature arts.
+- **Rogue Dawn hybrid:** Arts are tied to weapons (like Echoes), but can be added via scrolls (like Three Houses equipping). HP cost model (no durability system). Random innate art assignment from tier pools makes every weapon drop unique across runs. Only Legendary weapons have fixed signature arts.
 
 ### 1.2 Core Mechanics
 

@@ -670,13 +670,16 @@ export class VisionRewindController {
     )
       return false;
     // A partial action (trade) left a fragment, or a free change (equip,
-    // bag reshuffle) happened since the last point was recorded.
+    // bag reshuffle, convoy / gold) happened since the last point was recorded.
     const changed =
-      last.kind === 'recovery' ? [] : fingerprintChanges(scene, scene._rewindFingerprint);
-    if (last.kind !== 'recovery' && !changed?.length) return false;
-    if (changed?.length) {
-      const unit = scene.playerUnits.find((u) => u.battleEntityId === changed[0]);
+      last.kind === 'recovery' ? null : fingerprintChanges(scene, scene._rewindFingerprint);
+    if (last.kind !== 'recovery' && !changed?.changed) return false;
+    if (changed?.units.length) {
+      const unit = scene.playerUnits.find((u) => changed.units.includes(u.battleEntityId));
       if (unit) observeHistoryAction(scene, 'changed equipment', unit);
+    } else if (changed?.run) {
+      // Run supplies only (no unit's own state): still its own point.
+      (scene._timelineFacts ||= []).push('Supplies changed.');
     }
     scene._timelineBoundary = 'player_action';
     scene._captureSuspendCheckpoint?.();

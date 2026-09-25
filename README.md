@@ -1,6 +1,6 @@
-# Emblem Rogue
+# Rogue Dawn
 
-A browser-based tactical RPG combining Fire Emblem grid combat with roguelike run structure. SNES-inspired pixel art, all game data driven by JSON.
+A browser-based tactical RPG (formerly "Emblem Rogue" / "Rogue Emblem") combining Fire Emblem grid combat with roguelike run structure. SNES-inspired pixel art, all game data driven by JSON.
 
 **Play now:** https://emblem-rogue.netlify.app/
 

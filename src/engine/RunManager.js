@@ -53,6 +53,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
+import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import {
   buildBlessingIndex,
@@ -76,7 +77,9 @@ import {
 } from './RecruitNodeSystem.js';
 import {
   applyEclipse,
+  beginActShadow,
   buildEclipseView,
+  commitShadow,
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
@@ -3247,7 +3250,9 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[] }} [options]
+   *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
+   *   before victory — recorded as fallen allies like roster casualties.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -3264,6 +3269,15 @@ export class RunManager {
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map((u) => u.name));
     const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
+    // A recruit who joined during this battle and fell before it ended never
+    // reached the roster, so the diff above cannot see it.
+    const rosterNames = new Set(this.roster.map((u) => u.name));
+    for (const recruit of Array.isArray(options?.fallenRecruits) ? options.fallenRecruits : []) {
+      if (!this._isValidSerializedUnit(recruit)) continue;
+      if (survivingNames.has(recruit.name) || rosterNames.has(recruit.name)) continue;
+      if (newlyFallen.some((u) => u.name === recruit.name)) continue;
+      newlyFallen.push(recruit);
+    }
     this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {
       if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
@@ -3345,7 +3359,10 @@ export class RunManager {
     return isEclipseActive(this.eclipse, this.getEclipseConfig());
   }
 
-  /** Shadow a victory at `turnsTaken` against `par` would add (HUD projection). */
+  /**
+   * Shadow a victory at `turnsTaken` against `par` would gather (HUD projection): the
+   * act pressure gains all of it; the global meter up to its cap (projectedMeterGain).
+   */
   projectShadowGain(turnsTaken, par) {
     if (!this.isEclipseActive()) return 0;
     return computeShadowGain(
@@ -3372,10 +3389,20 @@ export class RunManager {
     );
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
-    const cap = Math.max(1, Math.trunc(Number(config.cap) || 100));
-    const after = Math.max(0, Math.min(cap, before + gain) - relief);
-    this.eclipse = { ...this.eclipse, shadow: after };
-    return { nodeId: node.id, before, gain, relief, after, fell: [] };
+    // The global meter stops at the cap; the act's pressure takes the whole gain.
+    const commit = commitShadow(this.eclipse, { gain, relief }, config);
+    this.eclipse = commit.state;
+    return {
+      nodeId: node.id,
+      before,
+      gain,
+      relief,
+      after: commit.after,
+      meterGain: commit.meterGain,
+      actBefore: commit.actBefore,
+      actAfter: commit.actAfter,
+      fell: [],
+    };
   }
 
   /** Let the dark take this act's map at the current act shadow (idempotent). */
@@ -3431,7 +3458,14 @@ export class RunManager {
     if (!result.ok) return result;
     if (!this.spendGold(result.price)) return { ok: false, reason: 'Not enough gold.' };
     this.eclipse = result.state;
-    return { ok: true, price: result.price, removed: result.removed, shadow: this.eclipse.shadow };
+    return {
+      ok: true,
+      price: result.price,
+      removed: result.removed,
+      actRemoved: result.actRemoved,
+      shadow: this.eclipse.shadow,
+      actShadow: this.eclipse.actShadow,
+    };
   }
 
   /** The Loom played these nodes' fall; never play it again (persisted by the caller). */
@@ -3553,8 +3587,9 @@ export class RunManager {
     );
     this.shopStateByNodeId = {};
     this.ensureRecruitPreviews();
-    // Every act opens on a fresh land: act shadow counts from here.
-    this.eclipse = { ...this.eclipse, actStartShadow: this.eclipse.shadow };
+    // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
+    // after any boss relief, carries on).
+    this.eclipse = beginActShadow(this.eclipse);
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -4757,12 +4792,19 @@ function resolveSlotNumberForClear(slotNumber) {
   };
 }
 
-function isQuotaExceededError(err) {
-  if (err?.name === 'QuotaExceededError') return true;
-  if (typeof DOMException !== 'undefined' && err instanceof DOMException && err.code === 22)
-    return true;
-  if (typeof err?.message === 'string' && /quota/i.test(err.message)) return true;
-  return false;
+// savedAt of the run save each live RunManager last wrote, per slot (memory only).
+const lastRunSaveStamps = new WeakMap();
+
+/**
+ * True when the stored run save for `slotNumber` is still the one this
+ * RunManager last wrote — no other tab, cloud pull or run end has replaced or
+ * removed it since. Background saves (page hidden / app paused) check this so
+ * a stale in-memory run never overwrites a newer save or resurrects an ended run.
+ */
+export function isRunSaveCurrent(runManager, slotNumber) {
+  const key = resolveRunKey(slotNumber);
+  const stamp = key && runManager ? lastRunSaveStamps.get(runManager)?.get(slotNumber) : null;
+  return Number.isFinite(stamp) && readLocalRunSavedAt(key) === stamp;
 }
 
 export function saveRun(runManager, onSave, slotNumber) {
@@ -4774,8 +4816,13 @@ export function saveRun(runManager, onSave, slotNumber) {
   };
   let localOk = false;
   try {
-    localStorage.setItem(key, JSON.stringify(json));
+    // On a full store, other slots' optional battle history makes room first.
+    setItemFreeingSpace(key, JSON.stringify(json), slotNumber);
     localOk = true;
+    if (runManager && typeof runManager === 'object') {
+      if (!lastRunSaveStamps.has(runManager)) lastRunSaveStamps.set(runManager, new Map());
+      lastRunSaveStamps.get(runManager).set(slotNumber, json.savedAt);
+    }
   } catch (err) {
     const isQuota = isQuotaExceededError(err);
     console.warn('[RunManager] localStorage write failed:', err?.message || err);
@@ -4856,7 +4903,7 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     }
     parsed.battleInProgress = null;
     parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
-    localStorage.setItem(key, JSON.stringify(parsed));
+    setItemFreeingSpace(key, JSON.stringify(parsed), slotNumber);
     if (onSave) {
       try {
         onSave(parsed);

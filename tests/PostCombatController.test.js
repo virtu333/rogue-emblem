@@ -163,6 +163,33 @@ describe('PostCombatController', () => {
     expect(persistOrder).toBeGreaterThan(completeOrder);
   });
 
+  it('hands recruits who joined and then fell this battle to completeBattle (fallen allies)', () => {
+    const scene = makeScene();
+    const unit = (name) => ({
+      name,
+      className: 'Archer',
+      faction: 'player',
+      stats: {},
+      inventory: [],
+    });
+    scene.playerUnits = [unit('Edric'), unit('Wren')];
+    scene.runManager.roster = [{ name: 'Edric' }];
+    scene._battleRecruits = [
+      { name: 'Daska', entityId: 'u7', unit: { ...unit('Daska'), stats: { HP: 18 } } },
+      { name: 'Wren', entityId: 'u8', unit: { ...unit('Wren'), stats: { HP: 18 } } },
+    ];
+    new PostCombatController(scene).onVictory();
+    const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+    expect(options.fallenRecruits.map((u) => u.name)).toEqual(['Daska']);
+  });
+
+  it('passes no fallen recruits when nobody joined mid-battle', () => {
+    const scene = makeScene();
+    new PostCombatController(scene).onVictory();
+    const [, , , options] = scene.runManager.completeBattle.mock.calls[0];
+    expect(options.fallenRecruits).toEqual([]);
+  });
+
   it('deeds commit before the units are serialized and saved; the rite plays after the save', async () => {
     const { loadGameData } = await import('./testData.js');
     const { DeedController } = await import('../src/ui/DeedController.js');
