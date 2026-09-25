@@ -64,6 +64,8 @@
     "ios:open": "cap open ios",
     "predev": "node tools/buildUITheme.js",
     "check:ui-theme": "node tools/buildUITheme.js --check",
+    "check:sprites": "node tools/bakeRebuiltSprites.mjs --check",
+    "bake:sprites": "node tools/bakeRebuiltSprites.mjs && node tools/syncAssets.js",
     "test:ux-contracts": "playwright test tests/e2e/battle-contracts.spec.js tests/e2e/battle-information.spec.js tests/e2e/reload-contracts.spec.js tests/e2e/save-choice-contracts.spec.js tests/e2e/mobile-shell-contracts.spec.js tests/e2e/management-contracts.spec.js tests/e2e/forecast-input-contract.spec.js tests/e2e/contextual-help.spec.js tests/e2e/journey-contracts.spec.js tests/e2e/battle-timeline.spec.js --workers=2",
     "fuzz:journey": "node tests/agents/journey-runner.js",
     "test:journey": "vitest run tests/harness/JourneyPersistence.test.js tests/harness/JourneyFuzz.test.js tests/harness/JourneyCombat.test.js",

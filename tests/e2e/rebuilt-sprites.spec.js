@@ -1,5 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
+// The rebuilt 64 px set is the dev comparison since traced sprites became the default
+// (traced-sprites.spec.js); every test here opts in with ?spriteArt=rebuilt.
 test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -10,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 test('rebuilt sprites load with tile anchors and remain aligned after rewind', async ({ page }) => {
-  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1');
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1&spriteArt=rebuilt');
   await waitForScene(page, 'Battle');
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').playerUnits?.length > 0,
@@ -77,20 +79,24 @@ test('rebuilt sprites load with tile anchors and remain aligned after rewind', a
     expect(u.y).toBe(u.pos.y);
   }
 });
-test('classic comparison does not load rebuilt textures', async ({ page }) => {
+test('classic comparison loads neither rebuilt nor traced textures', async ({ page }) => {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1&spriteArt=classic');
   await waitForScene(page, 'Battle');
   expect(
     await page.evaluate(() =>
       Object.keys(window.__emblemRogueGame.textures.list).filter(
-        (k) => k.startsWith('rebuilt-') && !k.startsWith('rebuilt-portrait-'),
+        (k) =>
+          (k.startsWith('rebuilt-') && !k.startsWith('rebuilt-portrait-')) ||
+          k.startsWith('traced-'),
       ),
     ),
   ).toEqual([]);
 });
 
 test('flyers and mages share visible size and foot anchors across factions', async ({ page }) => {
-  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+  await page.goto(
+    '/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&spriteArt=rebuilt',
+  );
   await waitForScene(page, 'Battle');
   const result = await page.evaluate(async () => {
     const { contrastSpriteKey } = await import('/src/ui/BattleContrast.js');

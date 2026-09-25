@@ -109,6 +109,48 @@ Decisions:
 
 ---
 
+## 2026-09-25 — Rewind to before any unit's action
+
+Player request (high priority): Vision rewind must reach the moment before any player
+unit's action, not only the turn start. Playtesting origin/main showed the capability
+existed on paper but not in practice: the timeline labelled rows by the event *after*
+which it restored (so undoing an action meant picking the row above it, and the first
+action of a turn could only be undone via "Turn begins"), and the 512 KB history evicted
+action snapshots first — in a late-game battle no rewind point survived past turn 2.
+
+Decisions:
+- **Rewind opens a picker of "Before <unit>'s <action>" points** (newest first, portrait,
+  target, outcome chips, map preview, one tap to preview, one to spend). The full battle
+  timeline stays under History.
+- **Budget:** points after a keyframe are stored as exact structural patches; review-only
+  previews are shed before any rewind point; this turn's points are shed last. All actions
+  of the current and three previous turns now fit at late-game size (~375 KB).
+- **Set-aside partial actions** (trade, re-equip) become their own point at the next
+  activation, so "before Y" never undoes X's trade.
+- **Lunatic keeps turn-start rewinds**, now as `difficulty.json` `rewindGranularity`
+  (flip to `action` to change). Legacy-v1 battles gain action points and keep their
+  reroll-on-rewind rule.
+
+Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/`.
+
+---
+
+## 2026-09-25 — Traced map sprites are the battlefield art; lords and bosses redrawn at map size
+
+Traced sprites (owner: "they look great, make them the default") are now what every unit
+wears on the battlefield — 335 sprites, six frames each, two atlas pages (24.8 MB
+decoded); the rebuilt set is a dev comparison (`?spriteArt=rebuilt`). The weak spot of the
+v2 study was the lords and bosses traced from ~128 px rebuilt art (scale 0.11–0.45, faces
+collapsed). Decision: redraw those 19 at map size with the shared image client (style
+board + an approved map sprite for scale + the unit's rebuilt sprite and portrait for
+identity) and trace the redraws at 0.55–0.8. Kept: identity first — a take that matched
+the portrait beat a take with a higher scale. The empire's iron swap no longer greys a
+boss's own gold (Emperor, Knight Commander). Combat v2 fix found on the way: a rewind
+mid-lunge left the striker off its tile (`CombatFxController.reset` now stops the lunge).
+Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

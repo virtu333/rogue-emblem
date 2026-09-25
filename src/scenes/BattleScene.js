@@ -2955,10 +2955,9 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        unit.graphic.setDisplaySize(
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-          spriteKey.startsWith('rebuilt-') ? 128 : entitySize - 4,
-        );
+        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
+        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
         unit.label = null;
       } else {
         unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
@@ -4003,6 +4002,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (!this.canForceEndTurn()) return;
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
     restoreWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
@@ -4259,6 +4259,8 @@ export class BattleScene extends Phaser.Scene {
 
   selectUnit(unit) {
     if (this.battleState === 'TURN_START_RESOLVING') return;
+    // A set-aside partial action (e.g. trade) becomes its own rewind point.
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     if (this._isTutorialStrictGateActive() && this.tutorialStep === 2) {
       const edric = this._getTutorialEdricUnit();
       if (unit !== edric) {
@@ -7794,7 +7796,7 @@ export class BattleScene extends Phaser.Scene {
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
 
-    observeHistoryAction(this, 'attacked', attacker, defender);
+    observeHistoryAction(this, 'attacked', attacker, defender, selectedArt?.name || '');
     for (const event of result.events || []) {
       if (event.type !== 'strike') continue;
       const striker = event.attackerSide === 'defender' ? defender : attacker;
@@ -9580,7 +9582,7 @@ export class BattleScene extends Phaser.Scene {
                   showContextualHint(
                     this,
                     'battle_vision_scope_v2',
-                    'Open Rewind to review the battle timeline for free. Select an event to preview, then confirm to spend 1 charge. Normal and Hard allow completed player actions; Lunatic allows turn starts. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
+                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Lunatic returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },

@@ -22,7 +22,8 @@ test('named boss art, promoted lord portraits and roster use the same identity',
     };
   });
   expect(before.name).toBe('Warchief');
-  expect(before.sprite).toBe('contrast-rebuilt-boss_warchief');
+  // traced battlefield art is the default; the boss keeps its own sprite
+  expect(before.sprite).toBe('traced-boss_warchief');
   expect(before.portrait).toBe('rebuilt-portrait-boss_warchief');
   expect(before.x).toBe(before.pos.x);
   expect(before.y).toBe(before.pos.y);
@@ -40,7 +41,7 @@ test('named boss art, promoted lord portraits and roster use the same identity',
     return { sprite: b.getSpriteKey(u), portrait: b._getPortraitKey(u), tier: u.tier };
   });
   expect(promoted).toEqual({
-    sprite: 'rebuilt-lord_edric_promoted',
+    sprite: 'traced-lord_edric_promoted',
     portrait: 'rebuilt-portrait-lord_edric_promoted',
     tier: 'promoted',
   });
@@ -71,6 +72,62 @@ test('named boss art, promoted lord portraits and roster use the same identity',
   expect(shown.id).toBe('lord_edric_promoted');
   expect(shown.src).toMatch(/assets\/portraits\/pc98\/40\/lord_edric_promoted\.png$/);
   expect(shown.size).toBe('40');
+  // shipped at its display size (docs/mobile-memory-budget.md: never above 3x)
+  const natural = await sheet.locator('.mr-portrait').evaluate(async (img) => {
+    await img.decode();
+    return img.naturalWidth;
+  });
+  expect(natural).toBeLessThanOrEqual(40 * 3);
   await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
   await expect(sheet).toHaveCount(0);
+});
+
+test('classic portraits (dev) reuse the downloaded 512 px file, not a re-encoded PNG', async ({
+  page,
+}) => {
+  await page.goto(
+    '/?devScene=battle&preset=battle_smoke&seed=42&battleLab=1&characterReview=1&portraitArt=classic',
+  );
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(() =>
+    window.__emblemRogueGame.scene.getScene('Battle').enemyUnits?.some((u) => u.isBoss),
+  );
+  await page.evaluate(async () => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = b.playerUnits.find((u) => u.name === 'Edric');
+    const { promoteUnit } = await import('/src/engine/UnitManager.js');
+    const lord = b.gameData.lords.find((l) => l.name === 'Edric');
+    promoteUnit(
+      u,
+      b.gameData.classes.find((c) => c.name === lord.promotedClass),
+      lord.promotionBonuses,
+      b.gameData.skills,
+    );
+    if (b.battleState === 'DEPLOY_SELECTION')
+      b.children.list
+        .filter((o) => o.type === 'Rectangle' && o.input?.enabled && o.listenerCount('pointerdown'))
+        .at(-1)
+        ?.emit('pointerdown');
+  });
+  await page
+    .getByRole('complementary', { name: 'Battle commands' })
+    .getByRole('button', { name: 'Roster', exact: true })
+    .tap();
+  const sheet = page.getByRole('dialog', { name: 'Inspect roster' });
+  await expect(sheet.locator('.mr-portrait')).toBeVisible();
+  expect(
+    await page.evaluate(async () => {
+      const { textureImageSource } = await import('/src/ui/textureImageSource.js');
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return (
+        document.querySelector('.mr-portrait').src ===
+        textureImageSource(b.textures.get('rebuilt-portrait-lord_edric_promoted'))
+      );
+    }),
+  ).toBe(true);
+  const portrait = await sheet.locator('.mr-portrait').evaluate(async (img) => {
+    await img.decode();
+    return { blob: img.src.startsWith('blob:'), width: img.naturalWidth };
+  });
+  expect(portrait).toEqual({ blob: true, width: 512 });
 });

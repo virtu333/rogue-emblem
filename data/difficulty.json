@@ -32,6 +32,7 @@
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": -1,
       "growthBonusMultiplier": 1.0,
+      "rewindGranularity": "action",
       "recruitEnemyCountBonus": 1,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 3,
@@ -81,6 +82,7 @@
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": 3,
       "growthBonusMultiplier": 0.8,
+      "rewindGranularity": "action",
       "recruitEnemyCountBonus": 2,
       "recruitAffixCount": 1,
       "act1EnemyCountDeployCap": 0,
@@ -134,6 +136,7 @@
       "extendedLevelingEnabled": true,
       "churchPromotionLimit": 2,
       "growthBonusMultiplier": 0.5,
+      "rewindGranularity": "turn",
       "siegeWeaponConfig": {
         "act1": 0,
         "act2": 0,

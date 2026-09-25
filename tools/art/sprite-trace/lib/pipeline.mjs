@@ -7,7 +7,8 @@ import { render } from './render.mjs';
 import { paletteFor, unlightGrade, splitImage } from './treat.mjs';
 import { idleFrames, attackFrames } from './motion.mjs';
 import { rollIdentity, hashString, addHeadband } from './identity.mjs';
-import { ROSTER, RECRUITS } from '../roster.mjs';
+import { SLOT } from './slots.mjs';
+import { ROSTER, RECRUITS, bakeEntries, poseFor } from '../roster.mjs';
 
 const sheets = new Map();
 const natives = new Map();
@@ -60,38 +61,73 @@ export async function bakeFrames(entry, { density = 1.5 } = {}) {
   const palette = paletteFor(t, {
     faction: entry.faction,
     keepMain: entry.keepMain,
+    keep: ROSTER.sources[entry.source]?.keep || null,
     identity: entry.identity,
     grade,
   });
   let sprite = t.sprite;
+  // a person's hair and skin read the same in every design: their shading is centred
+  // on the identity ramp (a pale-haired design would otherwise wear only its top steps)
+  if (entry.identity?.hair) sprite = centreShades(sprite, SLOT.hair, 2);
+  if (entry.identity?.skin) sprite = centreShades(sprite, SLOT.skin, 3);
   if (entry.identity?.band) sprite = addHeadband(sprite);
   const draw = (sp) => {
     const img = render(sp, palette);
     return entry.corrupt ? splitImage(img, hashString(entry.key || entry.source)) : img;
   };
   const idle = idleFrames(sprite).map(draw);
-  const attack = attackFrames(sprite).map(draw);
-  return { idle, attack, still: idle[0], sprite, palette, trace: t };
+  const pose = entry.pose || poseFor(entry.source);
+  const hint = ROSTER.sources[entry.source]?.weaponAt || null;
+  const attack = attackFrames(sprite, { weapon: pose, hint }).map(draw);
+  return { idle, attack, still: idle[0], sprite, palette, trace: t, pose };
 }
 
-/** The review's seeded recruits: [{ seed, identity, base: entry, promoted: entry }]. */
-export function recruitEntries(line = RECRUITS.lines[0], count = RECRUITS.count) {
+/** The six seeded identities shared by every generic class: [{ seed, design, colours }]. */
+export function identities(count = RECRUITS.count) {
   const out = [];
   for (let i = 0; i < count; i++) {
     const seed = hashString(`${RECRUITS.seedPrefix}${i}`);
-    const id = rollIdentity(seed, line.base.length);
-    const identity = { hair: id.hair, skin: id.skin, accent: id.band, band: !!id.band };
+    // the designed cast when there is one (designs alternate A / B so both reviewed
+    // designs of every class are equally common), else colours rolled from the seed
+    const id = RECRUITS.cast?.[i]
+      ? { ...RECRUITS.cast[i] }
+      : { ...rollIdentity(seed, 2), design: i % 2 };
     out.push({
       seed,
       identity: id,
-      base: { key: `${line.key}#${i}`, source: line.base[id.design], faction: 'player', identity },
-      promoted: {
-        key: `${line.promotedKey}#${i}`,
-        source: line.promoted[id.design],
-        faction: 'player',
-        identity,
-      },
+      design: id.design,
+      colours: { hair: id.hair, skin: id.skin, accent: id.band, band: !!id.band },
     });
   }
+  return out;
+}
+
+/** Every runtime bake entry (lords, classes x identities / factions, bosses). */
+export function allEntries() {
+  return bakeEntries(identities());
+}
+
+/** A class line's seeded people: [{ seed, identity, base: entry, promoted: entry }]. */
+export function recruitEntries(baseKey = 'myrmidon', promotedKey = 'swordmaster') {
+  const all = allEntries();
+  return identities().map((id, i) => ({
+    seed: id.seed,
+    identity: id.identity,
+    base: all.find((e) => e.key === `${baseKey}-${i}`),
+    promoted: all.find((e) => e.key === `${promotedKey}-${i}`),
+  }));
+}
+
+/** Shift a slot's shades so their median sits on `target` (0..4), keeping the spread. */
+export function centreShades(sp, slot, target) {
+  const shades = [];
+  for (let i = 0; i < sp.w * sp.h; i++) if (sp.slot[i] === slot) shades.push(sp.shade[i]);
+  if (!shades.length) return sp;
+  shades.sort((a, b) => a - b);
+  const delta = target - shades[shades.length >> 1];
+  if (!delta) return sp;
+  const out = sp.clone();
+  for (let i = 0; i < out.w * out.h; i++)
+    if (out.slot[i] === slot) out.shade[i] = Math.max(0, Math.min(4, out.shade[i] + delta));
   return out;
 }

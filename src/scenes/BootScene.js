@@ -11,6 +11,7 @@ import {
 } from '../ui/portraitArt.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
 import { preloadTracedSprites, prepareTracedSprites } from '../ui/TracedSprites.js';
+import { retainPortraitDownloads } from '../ui/textureImageSource.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
@@ -64,6 +65,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    retainPortraitDownloads(this.load);
     preloadRebuiltSprites(this);
     preloadTracedSprites(this);
     preloadRebuiltPortraits(this);

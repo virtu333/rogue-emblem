@@ -60,6 +60,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   extendedLevelingEnabled: false,
   churchPromotionLimit: -1,
   growthBonusMultiplier: 1,
+  // 'action': Vision can return to before any completed player action;
+  // 'turn': only to player-turn starts.
+  rewindGranularity: 'action',
   siegeWeaponConfig: null,
 });
 
@@ -181,6 +184,11 @@ export function validateDifficultyConfig(config) {
     for (const key of DIFFICULTY_REQUIRED_KEYS) {
       if (!(key in mode)) errors.push(`modes.${difficultyId} missing required key: ${key}`);
     }
+    if (
+      mode.rewindGranularity !== undefined &&
+      !['action', 'turn'].includes(mode.rewindGranularity)
+    )
+      errors.push(`modes.${difficultyId}.rewindGranularity must be 'action' or 'turn'`);
 
     for (const key of DIFFICULTY_REQUIRED_KEYS) {
       const value = mode[key];

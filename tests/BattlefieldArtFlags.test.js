@@ -2,29 +2,35 @@ import { describe, it, expect } from 'vitest';
 import { resolveBattlefieldArtFlags } from '../src/ui/battlefieldArtFlags.js';
 
 describe('resolveBattlefieldArtFlags', () => {
-  it('production: terrain, sprites and contrast are on for every device', () => {
-    for (const search of ['', '?mobilePreview=1', '?terrainArt=classic&spriteArt=classic']) {
+  it('production: terrain, traced sprites and contrast are on for every device', () => {
+    for (const search of [
+      '',
+      '?mobilePreview=1',
+      '?terrainArt=classic&spriteArt=classic',
+      '?spriteArt=rebuilt',
+    ]) {
       expect(resolveBattlefieldArtFlags(search, { dev: false })).toEqual({
         terrain: true,
         sprites: true,
         contrast: true,
-        traced: false,
+        traced: true,
         terrainRenderer: null,
       });
     }
-    // the traced review sprites are a dev-only switch
-    expect(resolveBattlefieldArtFlags('?spriteArt=traced', { dev: false }).traced).toBe(false);
   });
 
-  it('dev ?spriteArt=traced keeps the sprite presentation on and selects traced sprites', () => {
-    expect(resolveBattlefieldArtFlags('?spriteArt=traced', { dev: true })).toMatchObject({
-      sprites: true,
-      contrast: true,
-      traced: true,
-    });
-    expect(
-      resolveBattlefieldArtFlags('?spriteArt=traced&battlefieldArt=classic', { dev: true }),
-    ).toMatchObject({ sprites: false, traced: false });
+  it('dev: traced is the default; ?spriteArt=rebuilt shows the rebuilt set instead', () => {
+    const f = (s) => resolveBattlefieldArtFlags(s, { dev: true });
+    expect(f('')).toMatchObject({ sprites: true, contrast: true, traced: true });
+    // the old review switch is now simply the default
+    expect(f('?spriteArt=traced')).toMatchObject({ sprites: true, traced: true });
+    expect(f('?spriteArt=rebuilt')).toMatchObject({ sprites: true, contrast: true, traced: false });
+    // classic sprites switch the whole sprite presentation (traced included) off
+    expect(f('?spriteArt=classic')).toMatchObject({ sprites: false, traced: false });
+    expect(f('?battlefieldArt=classic')).toMatchObject({ sprites: false, traced: false });
+    // terrain and contrast switches leave the traced sprites alone
+    expect(f('?terrainArt=classic')).toMatchObject({ terrain: false, traced: true });
+    expect(f('?battleContrast=original')).toMatchObject({ contrast: false, traced: true });
   });
 
   it('dev escape hatches switch pieces back to classic independently', () => {
