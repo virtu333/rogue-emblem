@@ -704,10 +704,9 @@ describe('MapGenerator', () => {
     });
 
     it('NPC spawn maintains distance from enemy spawns', () => {
-      for (let i = 0; i < 20; i++) {
-        const config = generateBattle(
-          { act: 'act1', objective: 'rout', isRecruitBattle: true },
-          data,
+      for (let seed = 201; seed <= 260; seed++) {
+        const config = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data),
         );
         const npc = config.npcSpawn;
         for (const es of config.enemySpawns) {

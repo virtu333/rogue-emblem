@@ -2988,7 +2988,8 @@ function enemyStrikeCounts(
  * cannot reach by the second enemy phase either. Among equally safe tiles, one on the
  * player's side of the foes (the lords' path to it is shorter than the nearest foe's)
  * comes first, so a narrow map does not seat the recruit behind the enemy line when it
- * need not; first-phase safety still outranks the side. Returns null when the map
+ * need not; first-phase safety still outranks the side. A tile beside a foe's starting
+ * tile is never taken. Returns null when the map
  * allows no such tile (the caller falls back to the legacy placement).
  */
 export function pickRecruitSpawnTile({
@@ -3005,6 +3006,13 @@ export function pickRecruitSpawnTile({
 }) {
   if (!playerSpawns.length) return null;
   const occupied = new Set([...playerSpawns, ...enemySpawns].map((s) => `${s.col},${s.row}`));
+  // Never seat the recruit beside a foe's starting tile.
+  for (const e of enemySpawns) {
+    occupied.add(`${e.col - 1},${e.row}`);
+    occupied.add(`${e.col + 1},${e.row}`);
+    occupied.add(`${e.col},${e.row - 1}`);
+    occupied.add(`${e.col},${e.row + 1}`);
+  }
   const lordField = costField(mapLayout, cols, rows, terrainData, playerSpawns, 'Infantry');
   const foeField = costField(mapLayout, cols, rows, terrainData, enemySpawns, 'Infantry');
   const strikes = enemyStrikeCounts(
