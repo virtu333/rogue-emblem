@@ -260,6 +260,21 @@ export class FakeElement extends FakeEventTarget {
   querySelector(selector) {
     return this.querySelectorAll(selector)[0] || null;
   }
+  // closest() also understands bare attribute-presence selectors such as
+  // '[hidden], [inert]' (cancelable presses check them before activating).
+  closest(selector) {
+    const hit = (el, part) => {
+      const attr = /^\[([\w-]+)\]$/.exec(part.trim());
+      if (attr) return el[attr[1]] === true || el.hasAttribute(attr[1]);
+      return matchesSimple(el, part);
+    };
+    for (let node = this; node && node.tagName; node = node.parentNode)
+      if (selector.split(',').some((part) => hit(node, part))) return node;
+    return null;
+  }
+  getClientRects() {
+    return this.isConnected && !this.hidden ? [this.getBoundingClientRect()] : [];
+  }
   focus() {
     this.ownerDocument.activeElement = this;
   }

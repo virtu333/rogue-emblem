@@ -1,15 +1,21 @@
 import { BattleHistorySession } from './BattleHistorySession.js';
-import { resetHistoryRecording } from './BattleHistoryRecorder.js';
+import { observeHistoryAction, resetHistoryRecording } from './BattleHistoryRecorder.js';
+import { fingerprintChanges, rewindFingerprint } from './BattleTimelineRecorder.js';
 import { validateBattleState } from '../engine/BattleStateSnapshot.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { persistFatalDecision } from './BattleFatalDecision.js';
 import { BattleTimelineView } from './BattleTimelineView.js';
+import { VisionRewindPicker } from './VisionRewindPicker.js';
 import {
   branchBattleTimeline,
   canRewindToEntry,
   getEntryState,
   hydrateBattleTimeline,
 } from '../engine/BattleTimeline.js';
+import { listRewindDestinations, rewindGranularityForRun } from '../engine/RewindDestinations.js';
+import { historyFrameAt, validHistoryFrame } from '../engine/BattleHistoryPresentation.js';
+import { captureHistoryFrame } from './BattleHistoryRecorder.js';
+import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 import { presentationText } from '../utils/presentationText.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
@@ -436,7 +442,7 @@ export class VisionRewindController {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return false;
     if (!force && !this.canUseNow()) return false;
-    if (hasDOMHost() && scene._battleTimeline?.entries?.length) return this.openTimeline();
+    if (hasDOMHost() && scene._battleTimeline?.entries?.length) return this.openRewind();
     if (!scene.visionSnapshot) return false;
     const remaining = this.getChargesRemaining();
     if (remaining <= 0) return false;
@@ -464,10 +470,125 @@ export class VisionRewindController {
     return true;
   }
 
-  openTimeline({ fatal = false } = {}) {
+  _history() {
     const scene = this.scene;
-    const history =
-      scene._battleTimeline || hydrateBattleTimeline(this.runManager?.battleInProgress?.timeline);
+    return (
+      scene._battleTimeline || hydrateBattleTimeline(this.runManager?.battleInProgress?.timeline)
+    );
+  }
+
+  _rewindRules() {
+    return {
+      difficulty: this.runManager?.difficultyId || 'normal',
+      granularity: rewindGranularityForRun(this.runManager),
+      allowPlayerActions: true,
+    };
+  }
+
+  /** Board preview for a destination: the recorded frame, else one built from its state. */
+  _destinationFrame(history, entryId) {
+    const archive = history.presentation;
+    const index = archive?.records?.findLastIndex?.((record) => record.entryId === entryId) ?? -1;
+    if (index >= 0) {
+      const frame = historyFrameAt(archive, index);
+      if (frame && validHistoryFrame(frame)) return frame;
+    }
+    const state = getEntryState(history, entryId);
+    if (!state) return null;
+    // No archive: a later frame's terrain memory must not leak into the past.
+    const frame = captureHistoryFrame(this.scene, state, null);
+    return validHistoryFrame(frame) ? frame : null;
+  }
+
+  _unitForPortrait(id) {
+    const scene = this.scene;
+    return (
+      [
+        ...(scene.playerUnits || []),
+        ...(scene.escapedUnits || []),
+        ...(scene.nonDeployedUnits || []),
+      ].find((unit) => unit?.battleEntityId === id) || null
+    );
+  }
+
+  _ensureHistorySession() {
+    const scene = this.scene;
+    if (!this._historySession && scene.game?.scene)
+      this._historySession = new BattleHistorySession(scene);
+    return this._historySession;
+  }
+
+  /**
+   * The Rewind surface: every stored "before <unit>'s <action>" point, newest
+   * first. Previewing is free; the Rewind button spends one charge.
+   */
+  openRewind({ fatal = false, selectedId = null } = {}) {
+    const scene = this.scene;
+    const history = this._history();
+    if (!hasDOMHost() || !history?.entries?.length) return false;
+    this.closeDialog();
+    const prevState = this._historyReturnState || scene.battleState;
+    this._historyReturnState = prevState;
+    const rules = this._rewindRules();
+    const listing = listRewindDestinations(history, {
+      currentEntryId: scene._timelineCurrentEntryId,
+      difficulty: rules.difficulty,
+      granularity: rules.granularity,
+    });
+    const session = this._ensureHistorySession();
+    const close = () => {
+      this._pickerSelection = null;
+      this.endHistorySession();
+      this.closeDialog();
+      if (fatal) this.returnToFatalDecision();
+    };
+    scene.visionDialog = { group: [], prevState, onCancel: close };
+    scene.battleState = 'PAUSED';
+    const picker = new VisionRewindPicker(scene, {
+      listing,
+      charges: this.getChargesRemaining(),
+      policy: history.policy,
+      fatal,
+      session,
+      selectedId: selectedId ?? this._pickerSelection ?? null,
+      frameFor: (row) => this._destinationFrame(history, row.id),
+      unitFor: (id) => this._unitForPortrait(id),
+      onClose: close,
+      onHistory: () => {
+        this._pickerSelection = picker.selectedId;
+        this.openTimeline({ fatal, fromRewind: true });
+      },
+      onConfirm: (id) => {
+        if (
+          this.getChargesRemaining() <= 0 ||
+          id === scene._timelineCurrentEntryId ||
+          !canRewindToEntry(history, id, rules)
+        )
+          return;
+        const target = getEntryState(history, id);
+        if (!target) return;
+        let branch;
+        try {
+          branch = branchBattleTimeline(history, id);
+        } catch {
+          return;
+        }
+        const intent = this.createRewindIntent(target);
+        this._pickerSelection = null;
+        // The picker was the confirmation; keep the preview session until the
+        // durable commit hands the battle back (executeRewind owns it now).
+        this.closeDialog();
+        this.executeRewind(target, branch, intent);
+      },
+    });
+    scene.visionDialog.surface = picker;
+    return true;
+  }
+
+  /** Full battle history (enemy phases included). Reviewing is free. */
+  openTimeline({ fatal = false, fromRewind = false } = {}) {
+    const scene = this.scene;
+    const history = this._history();
     if (!hasDOMHost() || !history?.entries?.length) return false;
     this.closeDialog();
     const prevState = this._historyReturnState || scene.battleState;
@@ -475,29 +596,30 @@ export class VisionRewindController {
     if (!this._historySession && history.presentation?.records.length && scene.game?.scene)
       this._historySession = new BattleHistorySession(scene);
     const close = () => {
+      if (fromRewind && this.openRewind({ fatal })) return;
       this.endHistorySession();
       this.closeDialog();
       if (fatal) this.returnToFatalDecision();
     };
     scene.visionDialog = { group: [], prevState, onCancel: close };
     scene.battleState = 'PAUSED';
+    const rules = this._rewindRules();
     const view = new BattleTimelineView(scene, {
       history,
       session: this._historySession,
       selectedId: this._historySelection,
       charges: this.getChargesRemaining(),
-      difficulty: this.runManager?.difficultyId || 'normal',
+      difficulty: rules.difficulty,
+      granularity: rules.granularity,
       allowPlayerActions: true,
       currentEntryId: scene._timelineCurrentEntryId,
       fatal,
+      backLabel: fromRewind ? 'Back to rewind' : null,
       onClose: close,
       onRewind: (id) => {
         if (
           id === scene._timelineCurrentEntryId ||
-          !canRewindToEntry(history, id, {
-            difficulty: this.runManager?.difficultyId || 'normal',
-            allowPlayerActions: true,
-          }) ||
+          !canRewindToEntry(history, id, rules) ||
           this.getChargesRemaining() <= 0
         )
           return;
@@ -513,16 +635,50 @@ export class VisionRewindController {
         this.closeDialog();
         this.showDialog({
           title: 'Rewind to this point?',
-          body: `Return to turn ${target.turnNumber}, ${row.kind === 'turn_start' ? 'start of player phase' : 'after this player action'}?${row.preview?.enemiesActNext ? ' Enemies will act next.' : ''} This spends 1 rewind charge. Later actions will be removed.`,
+          body: `Return to turn ${target.turnNumber}, ${row.kind === 'turn_start' ? 'start of player phase' : 'right after this player action'}?${row.preview?.enemiesActNext ? ' Enemies will act next.' : ''} This spends 1 rewind charge. Later actions will be removed.`,
           confirmLabel: 'Spend 1 rewind',
           cancelLabel: 'Back',
           onConfirm: () => this.executeRewind(target, branch, intent),
-          onCancel: () => this.openTimeline({ fatal }),
+          onCancel: () => this.openTimeline({ fatal, fromRewind }),
         });
       },
     });
     scene.visionDialog.surface = view;
     return true;
+  }
+
+  /**
+   * A unit that traded (or otherwise committed) and was then set aside leaves
+   * a settled board with no destination. Record it before the next activation
+   * so "before <next unit>'s action" restores exactly that board.
+   * @returns {boolean} true when a destination was recorded
+   */
+  settleParkedActivation() {
+    const scene = this.scene;
+    const last = scene._battleTimeline?.entries?.at(-1);
+    if (
+      !this.runManager?.battleInProgress ||
+      !last ||
+      last.phase !== 'player' ||
+      last.kind === 'rewind' ||
+      scene.turnManager?.currentPhase !== 'player' ||
+      scene._pendingActionCompletion ||
+      scene._fatalDecision ||
+      classifyBattleBoundary(scene) !== 'destination'
+    )
+      return false;
+    // A partial action (trade) left a fragment, or a free change (equip,
+    // bag reshuffle) happened since the last point was recorded.
+    const changed =
+      last.kind === 'recovery' ? [] : fingerprintChanges(scene, scene._rewindFingerprint);
+    if (last.kind !== 'recovery' && !changed?.length) return false;
+    if (changed?.length) {
+      const unit = scene.playerUnits.find((u) => u.battleEntityId === changed[0]);
+      if (unit) observeHistoryAction(scene, 'changed equipment', unit);
+    }
+    scene._timelineBoundary = 'player_action';
+    scene._captureSuspendCheckpoint?.();
+    return Boolean(scene._battleTimeline?.entries?.at(-1)?.destination);
   }
 
   endHistorySession() {
@@ -564,13 +720,14 @@ export class VisionRewindController {
       (!this.runManager?.battleInProgress || anchor.runBattleState) &&
       (this.scene._battleRewindPolicy !== 'fixed-v1' || validateBattleState(anchor)),
     );
+    // Only points the picker can offer count: never an enemy-phase handoff,
+    // which would just replay the same enemy phase.
     const hasUsableTimeline = () =>
       hasDOMHost() &&
-      this.scene._battleTimeline?.entries?.some((entry) =>
-        canRewindToEntry(this.scene._battleTimeline, entry.id, {
-          difficulty: this.runManager?.difficultyId || 'normal',
-          allowPlayerActions: this.scene._battleRewindPolicy === 'fixed-v1',
-        }),
+      this.scene._battleTimeline?.entries?.some(
+        (entry) =>
+          (!entry.preview?.enemiesActNext || this.scene._battleTimeline.policy === 'legacy-v1') &&
+          canRewindToEntry(this.scene._battleTimeline, entry.id, this._rewindRules()),
       );
     if (!usableAnchor && !hasUsableTimeline()) return false;
     if (this.runManager?.battleInProgress) {
@@ -609,12 +766,11 @@ export class VisionRewindController {
       },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
-      confirmLabel:
-        hasDOMHost() && this.scene._battleTimeline?.entries?.length ? 'Review timeline' : 'Rewind',
+      confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',
       onConfirm: () => {
-        if (!this.openTimeline({ fatal: true }) && intent)
-          this.executeRewind(intent.target, null, intent);
+        if (hasUsableTimeline()) this.openRewind({ fatal: true });
+        else if (intent) this.executeRewind(intent.target, null, intent);
       },
       onCancel: () => {
         this._rewindFatalOrigin = false;
@@ -867,12 +1023,16 @@ export class VisionRewindController {
       scene._battleTimeline = candidate.battleInProgress.timeline;
       scene._timelineCurrentEntryId = candidate.battleInProgress.timelineCurrentEntryId;
       this.lastRewindError = null;
+      scene._rewindFingerprint = null;
       // Reconstruction is after durability. Never refund/retry the debit if
       // rendering fails; reload adopts the already-committed checkpoint.
       try {
         this._historySession?.destroy();
         this._historySession = null;
-        return this._applySnapshot({ committed: true });
+        const applied = this._applySnapshot({ committed: true });
+        // The restored board is exactly the target point.
+        if (applied) scene._rewindFingerprint = rewindFingerprint(scene);
+        return applied;
       } catch (error) {
         scene.battleState = 'PAUSED';
         this.showDialog({
@@ -947,6 +1107,19 @@ export class VisionRewindController {
     const charges = this.getChargesRemaining();
     this.scene.visionHudText.setText(`Eye: ${charges} left this run`);
     this.scene.visionHudText.setColor(charges > 0 ? UI_PALETTE.info : UI_PALETTE.lineStrong);
+    this._bindHudPress(this.scene.visionHudText);
     this.scene.updateTopLeftHudLayout();
+  }
+
+  /** Desktop: the charges plate is also the Rewind button (same as [R]). */
+  _bindHudPress(text) {
+    if (!text?.setInteractive || !text.on || text._rewindPressBound) return;
+    text._rewindPressBound = true;
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0 || this.scene.isMobileInput) return;
+      this.scene._uiClickBlocked = true;
+      this.scene.requestVisionRewind?.();
+    });
   }
 }

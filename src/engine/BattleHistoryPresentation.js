@@ -1,5 +1,6 @@
 // Plain, visibility-filtered display data. This module never restores gameplay.
 import { serializedBytes } from './BattleStateSnapshot.js';
+import { previewTiles } from './BattleTimelineFacts.js';
 
 export const HISTORY_BYTES = 128 * 1024;
 export const HISTORY_RECORDS = 4096;
@@ -459,19 +460,24 @@ export function hydrateHistoryPresentation(value, entries = []) {
         if (entry) {
           if (['revision', 'kind', 'turnNumber', 'phase'].some((k) => r[k] !== entry[k]))
             return null;
+          // Under byte pressure the timeline drops review-only board previews
+          // (this archive keeps their frames); a present preview must match.
+          const preview = entry.preview;
           const units = new Map(previousFrame.units.map((u) => [u.id, u]));
           if (
-            !entry.preview ||
-            entry.preview.units.length !== units.size ||
-            entry.preview.units.some(
-              (u) =>
-                !units.has(u.id) ||
-                Object.entries(u).some(([k, v]) => !equal(v, units.get(u.id)[k])),
-            )
+            preview &&
+            (!Array.isArray(preview.units) ||
+              preview.units.length !== units.size ||
+              preview.units.some(
+                (u) =>
+                  !units.has(u.id) ||
+                  Object.entries(u).some(([k, v]) => !equal(v, units.get(u.id)[k])),
+              ))
           )
             return null;
           if (
-            entry.preview.tiles.some(
+            preview &&
+            previewTiles(preview).some(
               (t) => previousFrame.tiles[t.row * previousFrame.cols + t.col]?.label !== t.label,
             )
           )
