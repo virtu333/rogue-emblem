@@ -446,11 +446,11 @@ html.mobile-preview .mu-screen {
 .mu-screen .reward-card {
   border-left: 4px solid var(--reward-color);
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   gap: 4px 10px;
   align-items: center;
 }
-/* Item art: the spoil's socketed icon (its socket is the category, its rim the tier). */
+/* Item art: a forge / imbue target row leads with the weapon's socketed icon. */
 .mu-screen .reward-step-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -460,11 +460,6 @@ html.mobile-preview .mu-screen {
 .mu-screen .reward-step-item .reward-icon {
   grid-row: 1 / span 2;
   grid-column: 1;
-  margin-block: -4px;
-}
-.mu-screen .reward-card .reward-icon {
-  grid-row: span 2;
-  /* The plaque may overhang the row padding: rows keep their pre-art height. */
   margin-block: -4px;
 }
 .reward-hero {

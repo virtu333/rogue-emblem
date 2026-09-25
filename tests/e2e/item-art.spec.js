@@ -229,15 +229,22 @@ for (const view of VIEWS) {
             record = value;
           },
         });
+        // Witness the reveal: cards face down at some point after the screen opens.
+        window.__faceDown = 0;
+        new MutationObserver(() => {
+          if (document.querySelector('.ch-rewards .ia-face-down .ia-card-back'))
+            window.__faceDown += 1;
+        }).observe(document.body, { subtree: true, childList: true, attributes: true });
         s.onVictory();
       });
       const dialog = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
       await expect(dialog).toBeVisible();
-      const list = dialog.locator('.mu-list');
+      const cards = dialog.locator('.reward-card');
+      await expect(cards).toHaveCount(4);
       // Face down first, then turned in order; the record remembers it played.
-      await expect(list).toHaveClass(/ia-reveal-rows/);
-      await expect(list.locator('.ia-face-down')).toHaveCount(0, { timeout: 3000 });
-      await expect(list.locator('.ia-card-back')).toHaveCount(0);
+      await expect(dialog.locator('.ia-face-down')).toHaveCount(0, { timeout: 5000 });
+      await expect(dialog.locator('.ia-card-back')).toHaveCount(0);
+      expect(await page.evaluate(() => window.__faceDown)).toBeGreaterThan(0);
       expect(
         await page.evaluate(
           () =>
@@ -245,34 +252,48 @@ for (const view of VIEWS) {
               .revealed,
         ),
       ).toBe(true);
-      const rows = dialog.locator('.reward-card');
-      await expect(rows).toHaveCount(4);
-      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'killer-lance');
-      await expect(rows.nth(1).locator('.ia-icon')).toHaveAttribute('data-socket', 'accessory');
-      await expect(rows.nth(2).locator('.ia-icon')).toHaveAttribute('data-rim', 'Legend');
-      await expect(rows.nth(3).locator('.ia-icon')).toHaveAttribute('data-icon-id', 'gold');
-      const hero = dialog.locator('.reward-hero .ia-hero');
-      await expect(hero).toHaveAttribute('data-icon-id', 'killer-lance');
-      await expect(hero).toHaveAttribute('data-art', 'painted');
-      await rows.nth(2).click();
-      await expect(hero).toHaveAttribute('data-icon-id', 'ragnarok');
-      await expect(rows.nth(2)).toHaveAttribute('aria-pressed', 'true');
+      const art = (i) => cards.nth(i).locator('.ch-item-art');
+      await expect(art(0)).toHaveAttribute('data-item-icon', 'killer-lance');
+      await expect(art(1).locator('.ch-item-compact')).toHaveAttribute('data-socket', 'accessory');
+      await expect(art(2).locator('.ch-item-compact')).toHaveAttribute('data-rim', 'Legend');
+      await expect(art(3)).toHaveAttribute('data-item-icon', 'gold');
+      // Phones read the socketed icon; desktop shows the painted hero on its plate.
+      const compact = art(0).locator('.ch-item-compact');
+      const hero = art(0).locator('.ch-item-hero');
+      if (view.desktop) {
+        await expect(compact).toBeHidden();
+        await expect(hero).toBeVisible();
+        await expect(hero).toHaveAttribute('data-art', 'painted');
+        expect(
+          await hero
+            .locator('img')
+            .evaluate((i) => i.decode().then(() => [i.naturalWidth, i.clientWidth])),
+        ).toEqual([96, 96]);
+      } else {
+        await expect(compact).toBeVisible();
+        await expect(hero).toBeHidden();
+      }
+      await cards.nth(2).click();
+      await expect(cards.nth(2)).toHaveAttribute('aria-pressed', 'true');
       // A reopened screen (resume, back from a step) never replays the reveal.
       await page.evaluate(() => {
+        window.__faceDown = 0;
         const c = window.__emblemRogueGame.scene.getScene('Battle')._lootController;
         c.mobileRewards.hide();
         c.mobileRewards.open();
       });
       await expect(dialog).toBeVisible();
-      await expect(dialog.locator('.ia-face-down')).toHaveCount(0);
-      await expect(dialog.locator('.mu-list')).not.toHaveClass(/ia-reveal-rows/);
+      await page.waitForTimeout(400);
+      expect(await page.evaluate(() => window.__faceDown)).toBe(0);
       const overflow = await dialog.evaluate((e) => e.scrollWidth > e.clientWidth + 1);
       expect(overflow).toBe(false);
       await page.screenshot({ path: `test-results/item-art-rewards-${view.name}.png` });
       expect(errors).toEqual([]);
     });
 
-    test('blessing select: boon icons, the tarot card and its cost seal', async ({ page }) => {
+    test('blessing tarot cards: shrine paintings, tier frame and the cost seal', async ({
+      page,
+    }) => {
       const errors = collectErrors(page);
       await page.goto(`/?devScene=blessing&seed=7${view.query}`);
       await waitForScene(page, 'BlessingSelect');
@@ -283,33 +304,32 @@ for (const view of VIEWS) {
         s.selectedIndex = 0;
         s._draw();
       });
-      const rows = page.locator('.re-row.ia-row');
-      await expect(rows).toHaveCount(3);
-      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute(
-        'data-icon-id',
-        'blessing-blood_forge',
-      );
-      await expect(rows.nth(0).locator('.ia-icon')).toHaveAttribute('data-socket', 'blessing');
-      // "No blessing" stays a plain row.
-      await expect(
-        page.locator('.re-row', { hasText: 'No blessing' }).locator('.ia-icon'),
-      ).toHaveCount(0);
-      const card = page.locator('.ia-tarot-detail .ia-tarot');
-      await expect(card).toBeVisible();
-      await expect(card).toHaveAttribute('data-tier', '4');
-      await expect(card.locator('.ia-tarot-numeral')).toHaveText('IV');
+      const cards = page.locator('.ch-tarot');
+      await expect(cards).toHaveCount(3);
+      await expect(page.locator('.ch-tarot.has-art')).toHaveCount(3);
+      const paint = (i) =>
+        cards
+          .nth(i)
+          .locator('.ia-card-art')
+          .evaluate((el) => getComputedStyle(el, '::after').backgroundImage);
+      expect(await paint(0)).toMatch(/moments\/cards\/blood_forge\.png/);
+      expect(await paint(2)).toMatch(/moments\/cards\/field_medic\.png/);
+      // Tier IV wears the dotted ember frame; the numeral stays in its corner disc.
+      await expect(cards.nth(0)).toHaveAttribute('data-tier', '4');
       expect(
-        await card.locator('.ia-tarot-art').evaluate((el) => getComputedStyle(el).backgroundImage),
-      ).toMatch(/moments\/cards\/blood_forge\.png/);
-      // A tier IV blessing has a price: crimson seal. Field Medic is a clean gift.
-      await expect(page.locator('.ia-cost .ia-seal:not(.is-clean)')).toBeVisible();
-      await expect(page.locator('.ia-cost')).toContainText('Cost:');
-      await rows.nth(2).click();
-      await expect(card).toHaveAttribute('data-blessing', 'field_medic');
-      await expect(page.locator('.ia-cost .ia-seal.is-clean')).toBeVisible();
-      await expect(page.locator('.ia-cost')).toContainText('clean gift');
-      // The terms stay readable beside or under the card.
-      await expect(page.locator('.ia-tarot-text h3')).toBeInViewport();
+        await cards
+          .nth(0)
+          .locator('.ch-plate')
+          .evaluate((el) => getComputedStyle(el, '::after').borderTopStyle),
+      ).toBe('dotted');
+      // A priced blessing is sealed crimson; Field Medic is a clean gift (verdigris).
+      await expect(cards.nth(0).locator('.ch-cost .ia-seal:not(.is-clean)')).toBeVisible();
+      await expect(cards.nth(2).locator('.ch-cost .ia-seal.is-clean')).toBeVisible();
+      // The name and the cost stay readable over the painting, inside the card.
+      for (let i = 0; i < 3; i++) {
+        await expect(cards.nth(i).locator('.ch-tarot-name')).toBeInViewport();
+        await expect(cards.nth(i).locator('.ch-cost')).toBeInViewport();
+      }
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       );

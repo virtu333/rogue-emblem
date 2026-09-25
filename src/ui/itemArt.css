@@ -209,132 +209,128 @@
   image-rendering: pixelated;
 }
 
-/* ── Blessings: row icons, the tarot card, the cost seal ──────────────── */
-.re-row.ia-row {
-  grid-template-columns: auto minmax(0, 1fr);
+/* ── Reward cards (choice screens): compact icon on phones, hero on desktop ─ */
+.ch-item-art .ch-item-hero {
+  display: none;
 }
-.re-row.ia-row > .ia-icon {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  margin-block: -4px;
+@media (min-width: 1000px) and (min-height: 600px) {
+  .ch-item-art .ch-item-compact {
+    display: none;
+  }
+  .ch-item-art .ch-item-hero {
+    display: grid;
+  }
 }
-.re-row.ia-row > :not(.ia-icon) {
-  grid-column: 2;
-}
-/* The chosen blessing: its card beside its terms; stacked in a narrow pane. The painting
-   is 192x256, dithered, drawn at 1x (2x on a tall desktop), cropped by the frame. */
-.ia-tarot-detail {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  align-content: start;
-  gap: 12px;
-  white-space: normal;
-}
-.ia-tarot {
+
+/* ── Blessing cards: the shrine painting behind the numeral and the name ─── */
+/* Painted 192x256 and dithered: 1x on phones, 2x on desktop. Inset inside the tier ring
+   and faded into the card's ink where the boon and the cost are read. */
+.ia-card-art {
   --ia-card-w: 192px;
   --ia-card-h: 256px;
-  --ia-frame: var(--re-tier-1);
-  position: relative;
-  display: block;
-  width: 144px;
-  height: 196px;
-  border: 2px solid var(--ia-frame);
-  box-shadow:
-    inset 0 0 0 3px var(--ia-ink-0),
-    0 0 0 1px var(--ia-ink-0);
-  background: var(--ia-ink-0);
+  --ia-card-y: 28%;
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  height: calc(66% - 6px);
   overflow: hidden;
-}
-.ia-tarot[data-tier='2'] {
-  --ia-frame: var(--re-tier-2);
-}
-.ia-tarot[data-tier='3'] {
-  --ia-frame: var(--re-tier-3);
-}
-.ia-tarot[data-tier='4'] {
-  --ia-frame: var(--re-tier-4);
-}
-.ia-tarot-art {
-  position: absolute;
-  inset: 3px;
-  background: var(--ia-card) center 30% / var(--ia-card-w) var(--ia-card-h) no-repeat;
-  image-rendering: pixelated;
-}
-/* Tier IV: a dotted ember frame inside the rim. */
-.ia-tarot[data-tier='4']::after {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border: 1px dotted var(--ia-ember);
-  opacity: 0.75;
+  background: var(--ia-ink-0);
+  -webkit-mask-image: linear-gradient(180deg, black 52%, transparent);
+  mask-image: linear-gradient(180deg, black 52%, transparent);
   pointer-events: none;
 }
-/* The tier numeral burns on a Hollow Sun disc in the corner. */
-.ia-tarot-numeral {
+/* A card wider than the painting (phone cards are landscape): the same painting,
+   blurred and dimmed, fills the margins so the crisp integer-scaled art never sits
+   between bare black bands. */
+.ia-card-art::before,
+.ia-card-art::after {
+  content: '';
   position: absolute;
-  z-index: 1;
-  top: 8px;
-  left: 8px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--ia-ink-0);
-  box-shadow:
-    0 0 0 1px var(--ia-gilt),
-    0 0 0 3px var(--ia-ink-0);
-  color: var(--ia-gilt-hi);
-  font: 700 11px/1 var(--re-display);
+  inset: 0;
 }
-.ia-tarot-text h3 {
-  margin-top: 0;
+.ia-card-art::before {
+  inset: -8px;
+  background: var(--ia-card) center / cover no-repeat;
+  filter: blur(6px) brightness(0.42) saturate(0.7);
 }
-/* A narrow pane (phones under ~760 px, the 640x480 base): the card sits above. */
-@media (max-width: 759px) {
-  .ia-tarot-detail {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .ia-tarot {
-    width: min(100%, 192px);
-    height: 128px;
-  }
+.ia-card-art::after {
+  background: var(--ia-card) center var(--ia-card-y) / var(--ia-card-w) var(--ia-card-h) no-repeat;
+  image-rendering: pixelated;
+  -webkit-mask: linear-gradient(
+      90deg,
+      transparent,
+      black 14px,
+      black calc(100% - 14px),
+      transparent
+    )
+    center / var(--ia-card-w) 100% no-repeat;
+  mask: linear-gradient(90deg, transparent, black 14px, black calc(100% - 14px), transparent)
+    center / var(--ia-card-w) 100% no-repeat;
 }
-/* ...and on a short phone it is a strip of the painting, so the terms stay in view. */
-@media (max-width: 759px) and (max-height: 420px) {
-  .ia-tarot {
-    height: 84px;
-  }
+.ch-tarot.has-art .ch-plate {
+  justify-content: flex-end;
 }
-@media (min-width: 1000px) and (min-height: 760px) {
-  .ia-tarot-detail {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .ia-tarot {
+.ch-tarot.has-art .ch-plate > :not(.ia-card-art) {
+  position: relative;
+}
+/* The numeral moves to the painting's corner: the Hollow Sun is already in the art. */
+.ch-tarot.has-art .ch-plate > .ch-sun {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  height: 32px;
+}
+.ch-tarot.has-art .ch-numeral {
+  font-size: 12px;
+}
+.ch-tarot.has-art .ch-tarot-name {
+  text-shadow:
+    0 1px 0 var(--ia-ink-0),
+    0 0 8px var(--ia-ink-0),
+    0 0 14px var(--ia-ink-0);
+}
+/* Cards set aside while another is chosen: the painting dims with them. */
+.ch-draft:has(.ch-card:is([aria-pressed='true'], .is-chosen))
+  .ch-card[aria-pressed='false']
+  .ia-card-art {
+  filter: saturate(0.6) brightness(0.8);
+}
+/* Tier IV: a dotted ember frame inside the ring. */
+.ch-tarot[data-tier='4'] .ch-plate::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px dotted var(--ia-ember);
+  opacity: 0.7;
+  pointer-events: none;
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .ia-card-art {
     --ia-card-w: 384px;
     --ia-card-h: 512px;
-    width: min(100%, 390px);
-    height: 400px;
+    --ia-card-y: 30%;
+    height: calc(64% - 6px);
   }
-  .ia-tarot-numeral {
-    top: 12px;
-    left: 12px;
-    width: 40px;
-    height: 40px;
+  .ch-tarot.has-art .ch-plate > .ch-sun {
+    width: 44px;
+    height: 44px;
+  }
+  .ch-tarot.has-art .ch-numeral {
     font-size: 15px;
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .ia-tarot--turn {
-    animation: ia-turn 240ms ease-out both;
-  }
+/* The cost is a price: a wax seal (crimson with a cost, verdigris for a clean gift). */
+.ch-cost {
+  position: relative;
+  padding-right: 34px;
 }
-/* A price is sealed in wax: crimson with a cost, verdigris for a clean gift. */
-.ia-cost {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ch-cost .ia-seal {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  translate: 0 -50%;
 }
 .ia-seal {
   position: relative;
@@ -550,33 +546,6 @@
     transform: perspective(700px) rotateY(0deg);
   }
 }
-/* Rows of a reward list turn over their long axis, top edge first. */
-.ia-reveal-rows .ia-face-down {
-  animation-name: ia-turn-row;
-}
-.ia-reveal-rows .ia-card-back {
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      var(--ia-ink-0) 0 11px,
-      var(--ia-gilt-hi) 12px 13px,
-      transparent 14px
-    ),
-    radial-gradient(circle at 50% 50%, var(--ia-glow-gilt), transparent 34px),
-    repeating-linear-gradient(135deg, var(--ia-ink-2) 0 6px, var(--ia-ink-3) 6px 7px),
-    var(--ia-ink-0);
-}
-@keyframes ia-turn-row {
-  0% {
-    transform: perspective(500px) rotateX(0deg);
-  }
-  50% {
-    transform: perspective(500px) rotateX(88deg);
-  }
-  100% {
-    transform: perspective(500px) rotateX(0deg);
-  }
-}
 @keyframes ia-back {
   0%,
   49.9% {
@@ -599,22 +568,6 @@
   }
   100% {
     box-shadow: 0 0 0 0 transparent;
-    filter: none;
-  }
-}
-/* A row sits in a scrolling list that clips an outer glow: its flash burns inward. */
-.ia-reveal-rows .ia-flash {
-  animation-name: ia-flash-row;
-}
-@keyframes ia-flash-row {
-  0% {
-    box-shadow:
-      inset 0 0 0 2px var(--ia-gilt-hi),
-      inset 0 0 28px 4px var(--ia-glow-ember);
-    filter: brightness(1.35);
-  }
-  100% {
-    box-shadow: inset 0 0 0 0 transparent;
     filter: none;
   }
 }

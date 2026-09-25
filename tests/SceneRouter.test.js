@@ -147,6 +147,29 @@ describe('SceneRouter', () => {
     }
   });
 
+  it('a New Game tap inside the post-boot cooldown starts the run instead of vanishing', async () => {
+    // CI release smoke: Boot -> Title, Boot shut down (lock released), and the
+    // New Game tap landed ~290ms later -- inside the 350ms start cooldown.
+    vi.useFakeTimers();
+    try {
+      const boot = makeScene({ key: 'Boot' });
+      expect(await transitionToScene(boot, 'Title', {})).toBe(true);
+      boot.__emitLifecycle('shutdown');
+      await vi.advanceTimersByTimeAsync(290);
+
+      const title = makeScene({ key: 'Title' });
+      const blocked = await transitionToSceneDetailed(title, 'NodeMap', {});
+      expect(blocked).toEqual({ status: TRANSITION_RESULTS.BLOCKED, blockReason: 'cooldown' });
+
+      const pending = transitionToScene(title, 'NodeMap', {}, { retryBlocked: true });
+      await vi.advanceTimersByTimeAsync(850);
+      expect(await pending).toBe(true);
+      expect(title.scene.start).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('transitionToSceneWithBlockedRetry does not retry hard failures', async () => {
     const broken = makeScene({ active: true, key: 'Title' });
     broken.scene.start.mockImplementation(() => {

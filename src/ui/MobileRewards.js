@@ -6,10 +6,10 @@ import { ContextHelp } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { rewardPresentation } from './rewardDisplay.js';
-import { itemIcon, itemHero } from './itemIcons.js';
-import { prefersStill } from './itemMoments.js';
-import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
+import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
+import { rewardForWhom } from './choiceContent.js';
+import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
+import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import {
@@ -25,12 +25,28 @@ import { forgeStatBlock } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
+import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
+import { itemIcon, itemHero } from './itemIcons.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
   if (text != null) el.textContent = text;
   return el;
 };
+// "Legend · Weapon" as two parts, so a narrow card can keep the tier alone in
+// view (the category stays in the text and the card's name).
+function rarityText({ tier, category, label }) {
+  const text = node('span', null, 'ch-rarity-text');
+  if (!tier) {
+    text.textContent = label;
+    return text;
+  }
+  text.append(
+    node('span', tier, 'ch-rarity-tier'),
+    node('span', ` · ${category}`, 'ch-rarity-cat'),
+  );
+  return text;
+}
 // Reuses the reward controller's commands; never rolls or awards rewards itself.
 export class MobileRewards {
   constructor(scene, controller, choices, summary, skipGold) {
@@ -93,7 +109,10 @@ export class MobileRewards {
         document.activeElement.click();
     });
     this.render();
-    this.root.querySelector('.mh-skill:not(:disabled)')?.focus();
+    (
+      this.root.querySelector('[aria-pressed="true"]:not(:disabled)') ||
+      this.root.querySelector('.reward-card:not(:disabled), .mh-skill:not(:disabled)')
+    )?.focus();
   }
   tools(header) {
     const tools = node('div', null, 'reward-tools');
@@ -158,6 +177,8 @@ export class MobileRewards {
       ? document.activeElement.dataset.focus
       : null;
     this.root.replaceChildren();
+    this.root.classList.add('ch-reward-screen');
+    this.root.classList.toggle('is-still', choiceReducedMotion(this.overlayScene));
     const header = node('header', null, 'mu-header');
     header.append(
       node('h1', 'Battle rewards'),
@@ -169,9 +190,6 @@ export class MobileRewards {
       earnings.append(node('summary', 'Battle earnings · already added'), node('p', this.summary));
       header.append(earnings);
     }
-    const split = node('div', null, 'mu-split');
-    const list = node('div', null, 'mu-list');
-    const detail = node('section', null, 'mu-detail');
     const all = [...this.choices, { type: 'skip' }];
     if (!this.controller.isRewardAvailable(this.selected)) {
       const available = all.findIndex((_, i) => this.controller.isRewardAvailable(i));
@@ -182,44 +200,69 @@ export class MobileRewards {
         ? `Take ${this.skipGold} gold instead`
         : (c.item ? `${c.item.name}${c.quantity > 1 ? ` ×${c.quantity}` : ''}` : '') ||
           `${c.goldAmount || 0} gold${c.xpAmount ? ` + ${c.xpAmount} team XP` : ''}`;
-    all.forEach((c, i) => {
-      const b = this.button(label(c), () => {
-        this.selected = i;
-        this.saveDraft();
-        this.render();
-      });
-      b.dataset.focus = `reward-${i}`;
-      b.className = 'mh-skill reward-card';
-      const presentation = rewardPresentation(c);
-      b.style.setProperty('--reward-color', `var(--re-${presentation.token})`);
-      b.classList.toggle('reward-legend', presentation.tier === 'Legend');
-      b.replaceChildren(
-        itemIcon(c, { size: 32, className: 'reward-icon' }),
-        node('strong', label(c)),
-        node('small', presentation.label, 'reward-quality'),
-      );
-      b.setAttribute('aria-pressed', String(this.selected === i));
-      b.disabled = !this.controller.isRewardAvailable(i);
-      list.append(b);
-    });
-    const c = all[this.selected];
-    const copy = node('div', null, 'mu-copy');
-    // The spoil's painted hero (96 px) beside its name, as in the shop.
-    const head = node('div', null, 'reward-hero');
-    const title = node('div', null, 'reward-hero-title');
-    title.append(node('h2', label(c)), node('p', rewardPresentation(c).label, 'mu-help'));
-    head.append(itemHero(c, { size: 96 }), title);
-    copy.append(head);
-    const description =
+    const describe = (c) =>
       c.type === 'skip'
         ? 'Pass on the remaining rewards and add this gold to your vault.'
         : c.item
           ? scene._getLootTooltipText(c, c.item)
           : 'Gold is added to your vault. Team XP is shared with your roster.';
-    copy.append(node('p', description));
-    appendItemArtDetails(copy, c.item, scene.gameData.weaponArts?.arts || []);
+    // The spoils as cards: art, rarity frame, what it does, and for whom.
+    const row = node('div', null, 'ch-draft ch-rewards');
+    row.dataset.count = String(all.length);
+    row.style.setProperty('--ch-n', String(all.length));
+    all.forEach((c, i) => {
+      const presentation = rewardPresentation(c);
+      const available = this.controller.isRewardAvailable(i);
+      const claimed = !available && Boolean(this.controller.claimed?.has?.(i));
+      const b = this.button(null, () => {
+        this.selected = i;
+        this.saveDraft();
+        this.render();
+      });
+      b.dataset.focus = `reward-${i}`;
+      b.className = 'ch-card ch-reward reward-card';
+      b.style.setProperty('--reward-color', `var(--re-${presentation.token})`);
+      b.dataset.tier =
+        presentation.tier || (c.type === 'skip' || c.type === 'gold' ? 'Gold' : 'none');
+      b.classList.toggle('reward-legend', presentation.tier === 'Legend');
+      b.classList.toggle('is-claimed', claimed);
+      const plate = node('span', null, 'ch-plate');
+      const top = node('span', null, 'ch-reward-top');
+      const rarity = node('span', null, 'ch-rarity reward-quality');
+      rarity.append(rewardIcon(presentation.category), rarityText(presentation));
+      top.append(itemArtSlot(c, presentation.category, { count: all.length }), rarity);
+      const lines = fadeScroll(node('span', null, 'ch-lines'));
+      // The tooltip may open with the item's own name: the card already shows it.
+      const text = String(describe(c) || '').split('\n');
+      if (c.item?.name && text[0]?.trim() === c.item.name) text.shift();
+      for (const line of text) if (line.trim()) lines.append(node('p', line));
+      plate.append(top, node('strong', label(c), 'ch-reward-name'), lines);
+      const whom = rewardForWhom(c, scene.runManager);
+      if (whom) {
+        const forWhom = node('span', null, `ch-forwhom is-${whom.tone || 'muted'}`);
+        forWhom.append(node('b', whom.who));
+        if (whom.detail) forWhom.append(node('span', whom.detail));
+        plate.append(forWhom);
+      }
+      b.append(plate);
+      if (claimed) b.append(node('span', 'Claimed', 'ch-stamp'));
+      b.setAttribute(
+        'aria-label',
+        [label(c), presentation.label, whom?.who, whom?.detail, claimed ? 'Claimed' : '']
+          .filter(Boolean)
+          .join(' · '),
+      );
+      b.setAttribute('aria-pressed', String(this.selected === i));
+      b.disabled = !available;
+      row.append(b);
+    });
+    const c = all[this.selected];
+    // Notes ride under the cards: this battle's news and the chosen item's art.
+    const notes = node('section', null, 'ch-notes');
+    notes.setAttribute('aria-label', 'Notes');
+    appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || []);
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
-      copy.append(node('p', notice, 'mu-help'));
+      notes.append(node('p', notice, 'mu-help'));
     }
     const openMasteryHelp = () => {
       if (this.child || this.busy) return;
@@ -241,7 +284,7 @@ export class MobileRewards {
       );
       line.setAttribute('role', 'status');
       notice.append(line);
-      copy.append(notice);
+      notes.append(notice);
       // One ⓘ for the topic (first notice); every notice answers press-and-hold.
       if (index === 0)
         attachInfo(notice, {
@@ -253,12 +296,13 @@ export class MobileRewards {
         });
       else bindHold(notice, openMasteryHelp, { enabled: () => !this.child && !this.busy });
     }
-    const actions = node('div', null, 'mu-actions');
+    const actions = node('div', null, 'ch-footer ch-rewards-footer');
+    const picks = scene._elitePicksRemaining || 1;
     actions.append(
       node(
         'span',
-        `Choose ${scene._elitePicksRemaining || 1} reward${scene._elitePicksRemaining > 1 ? 's' : ''}`,
-        'mu-help',
+        `Choose ${picks} reward${picks > 1 ? 's' : ''}${scene.isBoss ? ' · the boss’s spoils' : ''}`,
+        'mu-help ch-footer-lead',
       ),
     );
     const claim = this.button(c.type === 'skip' ? 'Take gold' : 'Choose reward', () => {
@@ -272,24 +316,23 @@ export class MobileRewards {
     claim.className = 'mu-buy';
     claim.disabled = !this.controller.isRewardAvailable(this.selected);
     actions.append(claim);
-    detail.append(copy, actions);
-    split.append(list, detail);
     if (!header.querySelector('.reward-tools')) this.tools(header);
-    this.root.append(header, split);
+    this.root.append(header, row);
+    if (notes.childElementCount) this.root.append(notes);
+    this.root.append(actions);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
-    if (this.revealPending) this.startReveal(list, all);
+    if (this.revealPending) this.startReveal(row, all);
   }
   /** Reward reveal: Hollow Sun backs turn in order (presentation only; tap skips). */
-  startReveal(list, all) {
+  startReveal(row, all) {
     this.revealPending = false;
     this.controller.record.revealed = true;
     if (this.controller.persist && !this.controller.persist()) return this.renderSaveFailure();
     const speed = this.overlayScene.registry?.get?.('settings')?.getBattleSpeed?.();
-    list.classList.add('ia-reveal-rows');
-    this.reveal = playRewardReveal(list, [...list.children], {
-      still: prefersStill(this.overlayScene) || speed === 'instant',
+    this.reveal = playRewardReveal(row, [...row.children], {
+      still: choiceReducedMotion(this.overlayScene) || speed === 'instant',
       tiers: all.map((c) => rewardPresentation(c).tier),
-      // A row tap only selects: the tap that ends the reveal selects too.
+      // A card tap only selects: the tap that ends the reveal selects too.
       passThrough: true,
     });
   }
@@ -378,8 +421,17 @@ export class MobileRewards {
       });
       row.className = 'mh-skill';
       row.setAttribute('aria-pressed', String(step.selected === choice));
+      // A unit recipient shows its face beside the comparison.
+      const face =
+        choice && typeof choice === 'object' && choice.className && choice.stats
+          ? unitPortrait(this.overlayScene, this.scene.gameData, choice, 'mr-unit-face')
+          : null;
+      if (face) {
+        row.classList.add('ch-recipient');
+        row.append(face);
+      }
       // Weapon rows (forge / imbue targets) carry the weapon's socketed icon.
-      const subject = step.icon?.(choice);
+      const subject = face ? null : step.icon?.(choice);
       if (subject) {
         row.classList.add('reward-step-item');
         row.append(itemIcon(subject, { size: 32, className: 'reward-icon' }));
@@ -402,7 +454,7 @@ export class MobileRewards {
     );
     const subject = chosen ? step.icon?.(chosen) : null;
     if (subject) {
-      // The chosen weapon's picture beside its name, as on the first screen.
+      // The chosen weapon's picture beside its name.
       const head = node('div', null, 'reward-hero');
       const text = node('div', null, 'reward-hero-title');
       text.append(title, line);

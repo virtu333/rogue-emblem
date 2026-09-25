@@ -95,6 +95,7 @@ test('rewards expose tier icons and return from roster/settings without losing c
     menu.render();
   });
   // The tier icon: the item's socketed icon, its rim the tier (item art).
+  await expect(rewards.locator('.reward-legend svg')).toHaveCount(1);
   await expect(rewards.locator('.reward-legend .ia-icon[data-rim="Legend"]')).toHaveCount(1);
   await expect(rewards.locator('.reward-legend')).toContainText('Legend · Weapon');
   await rewards.getByRole('button', { name: 'Roster', exact: true }).tap();

@@ -258,6 +258,29 @@ Deferred (audit residuals): Loom node card text can run past its panel at 844×3
 
 ---
 
+## 2026-09-25 — The draft: choice screens as cards
+
+Owner playtest (iPhone landscape, boss recruit): "spice up more of these menus and make them
+compelling and exciting." Every "choose one" moment of a run was a list plus a text pane.
+
+**Decision:** one card kit for all of them (`choiceCards.js`, `choice.css`, pure content in
+`choiceContent.js`), in the growth-rite house style: candidates side by side with the PC-98
+portrait, crest, idling map sprite, stats compared across the draft (best in gold, fastest
+growths chevroned), traits and skills with their effect, and a quiet roster cue ("Your army
+lacks a flier"); rewards as rarity-framed cards with item art and "for whom"; blessings as tarot
+(boon above, cost always in view); difficulty as hanging banners. Selection lifts a card on an
+ember rim; confirm seals it and hands off to the existing join ceremony.
+
+**Rules kept:** presentation only (same commands, no RNG, no save changes); the cue states a
+fact about the roster and never ranks or recommends; three candidates at 844×390 without
+scrolling, soft fade edges where a card's reading overflows; Cinzel only for names.
+
+**Deferred:** item art from the icons study (slots are hooked), Deeds epithets (hook), a
+"sealed" beat for a blessing taken (sketched in the growth audit).
+**Spec:** `specs/choice-screens.md` · **Captures:** `art-direction/choice-screens/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
