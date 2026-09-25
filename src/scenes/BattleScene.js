@@ -33,6 +33,7 @@ import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
+import { EclipseHudController, isEclipseClock } from '../ui/EclipseHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -680,6 +681,8 @@ export class BattleScene extends Phaser.Scene {
     this._atmosphere = null;
     this._desktopHud?.destroy();
     this._desktopHud = null;
+    this._eclipseHud?.destroy();
+    this._eclipseHud = null;
     this._battlefieldTerrain?.destroy();
     this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
@@ -1873,7 +1876,9 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerover', () => {
         if (this.turnPar == null || !this.turnBonusConfig) return;
         const turn = this.getCurrentTurnNumber();
-        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig, {
+          eclipseActive: isEclipseClock(this),
+        });
         if (!text) return;
         this.parTooltipText.setText(text);
         const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
@@ -2130,7 +2135,10 @@ export class BattleScene extends Phaser.Scene {
       this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
 
-      // Presentation: reliquary desktop HUD plates, then the act mood (grade + night).
+      // Presentation: the Eclipse projection, reliquary desktop HUD plates, then the
+      // act mood (grade + night).
+      this._eclipseHud?.destroy();
+      this._eclipseHud = new EclipseHudController(this).create();
       this._desktopHud?.destroy();
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
@@ -3079,7 +3087,10 @@ export class BattleScene extends Phaser.Scene {
 
   getTurnPressureState(turnOverride = null) {
     const turn = this.getCurrentTurnNumber(turnOverride);
-    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
+    // The Eclipse replaces the hidden clock: no silent XP/gold decay while it runs.
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig, {
+      eclipseActive: isEclipseClock(this),
+    });
   }
 
   formatPressureMultiplier(value) {

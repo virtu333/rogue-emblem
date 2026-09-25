@@ -34,6 +34,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
+import { projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -161,6 +162,7 @@ export class PostCombatController {
         scene.goldEarned,
         {
           turnCount: scene.turnManager?.turnNumber,
+          turnPar: scene.turnPar,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
           // Recruits who joined this battle and then fell have no roster
@@ -587,6 +589,10 @@ export class PostCombatController {
       turn,
       par: Number.isFinite(s.turnPar) ? s.turnPar : null,
       rating,
+      // The Eclipse: the shadow this victory commits (null when the clock is off),
+      // and the flare an act boss's fall lifts.
+      shadowGain: projectedShadow(s),
+      shadowRelief: projectedRelief(s),
     };
   }
 

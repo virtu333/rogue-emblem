@@ -25,6 +25,7 @@ const AJV_SCHEMAS = [
   { schema: 'imbues.schema.json', data: 'imbues.json' },
   { schema: 'deeds.schema.json', data: 'deeds.json' },
   { schema: 'traits.schema.json', data: 'traits.json' },
+  { schema: 'eclipse.schema.json', data: 'eclipse.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });
