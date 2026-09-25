@@ -204,3 +204,210 @@
   height: var(--ia-size, 96px);
   image-rendering: pixelated;
 }
+
+/* ── Service vignettes ────────────────────────────────────────────────── */
+/* Painted 640x360, dithered: 1x behind a phone pane, 2x in the desktop band. Only one
+   of the two is displayed at a viewport, so only one decode happens. */
+.ia-band {
+  display: none;
+}
+@media (min-width: 1000px) and (min-height: 640px) {
+  .ia-band {
+    position: relative;
+    display: block;
+    flex: none;
+    height: 150px;
+    overflow: hidden;
+    background: var(--ia-vignette) right var(--ia-band-y, 60%) / 1280px 720px no-repeat
+      var(--ia-ink-0);
+    image-rendering: pixelated;
+    box-shadow:
+      inset 0 0 0 1px var(--re-line-soft),
+      inset 0 -1px 0 var(--re-ember-deep);
+  }
+  /* Where each painting's subject sits in the 2x strip. */
+  .ia-band[data-service='forge'] {
+    --ia-band-y: 74%;
+  }
+  .ia-band[data-service='shop'] {
+    --ia-band-y: 52%;
+  }
+  .ia-band[data-service='church'] {
+    --ia-band-y: 66%;
+  }
+  .ia-band[data-service='arena'] {
+    --ia-band-y: 62%;
+  }
+  .ia-band[data-service='ruins'] {
+    --ia-band-y: 70%;
+  }
+  .ia-band[data-service='caravan'] {
+    --ia-band-y: 78%;
+  }
+  .ia-band::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, var(--re-bg) 0%, transparent 42%),
+      linear-gradient(0deg, var(--ia-ink-0) 0%, transparent 45%);
+    pointer-events: none;
+  }
+}
+.ia-band-caption {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  display: grid;
+  gap: 4px;
+}
+.ia-band-kicker {
+  font: 8px/1.4 var(--re-pixel);
+  letter-spacing: 0.5px;
+  color: var(--re-parchment-dim);
+}
+.ia-band-title {
+  font: 700 22px/1.1 var(--re-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ia-gilt-hi);
+  text-shadow: 0 1px 0 var(--ia-ink-0);
+}
+/* Phone and small screens: the place sits behind the detail pane, fading into ink
+   under the text. */
+@media (max-width: 999px), (max-height: 639px) {
+  .ia-has-vignette .ia-pane {
+    position: relative;
+    isolation: isolate;
+  }
+  .ia-has-vignette .ia-pane::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ia-vignette) right center / 640px 360px no-repeat;
+    image-rendering: pixelated;
+    opacity: 0.34;
+    -webkit-mask-image: linear-gradient(90deg, transparent 10%, black 72%);
+    mask-image: linear-gradient(90deg, transparent 10%, black 72%);
+    pointer-events: none;
+  }
+  .ia-has-vignette .ia-pane > * {
+    position: relative;
+  }
+  .ia-has-vignette .ia-pane {
+    text-shadow: 0 1px 2px var(--ia-ink-0);
+  }
+  .ia-has-vignette .ia-pane > .ia-pane-motes {
+    position: absolute;
+  }
+}
+@media (min-width: 1000px) and (min-height: 640px) {
+  .ia-pane-motes,
+  .ia-backdrop {
+    display: none;
+  }
+}
+.ia-backdrop {
+  display: none;
+}
+@media (max-width: 999px), (max-height: 639px) {
+  .ia-backdrop {
+    position: absolute;
+    inset: 0;
+    display: block;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .ia-backdrop::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ia-vignette) right center / 640px 360px no-repeat;
+    image-rendering: pixelated;
+    opacity: 0.4;
+    -webkit-mask-image: linear-gradient(90deg, transparent 18%, black 70%);
+    mask-image: linear-gradient(90deg, transparent 18%, black 70%);
+  }
+  .ia-has-backdrop > :not(.ia-backdrop) {
+    position: relative;
+  }
+}
+
+/* ── Motes: forge sparks, candle flicker, torch breath ────────────────── */
+.ia-motes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ia-motes i {
+  position: absolute;
+  display: block;
+}
+.ia-motes--sparks i {
+  left: calc(52% + var(--i) * 3.7% - (var(--i) * var(--i)) * 0.21%);
+  bottom: 6%;
+  width: 2px;
+  height: 2px;
+  background: var(--ia-gilt-hi);
+  box-shadow: 0 0 3px var(--ia-glow-ember);
+  opacity: 0;
+  animation: ia-spark calc(2.2s + var(--i) * 0.17s) linear calc(var(--i) * -0.41s) infinite;
+}
+.ia-motes--sparks i:nth-child(3n) {
+  background: var(--ia-ember);
+}
+@keyframes ia-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-10px + var(--i) * 2px), -110px);
+  }
+}
+.ia-motes--candles i,
+.ia-motes--torches i {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--ia-glow-gilt), transparent 68%);
+  mix-blend-mode: screen;
+  animation: ia-flicker calc(1.7s + var(--i) * 0.37s) ease-in-out calc(var(--i) * -0.6s) infinite;
+}
+.ia-motes--candles i {
+  right: calc(12% + var(--i) * 13%);
+  bottom: calc(18% + var(--i) * 4%);
+}
+.ia-motes--torches i {
+  right: calc(8% + var(--i) * 26%);
+  top: 22%;
+  background: radial-gradient(circle, var(--ia-glow-ember), transparent 68%);
+}
+@keyframes ia-flicker {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  40% {
+    opacity: 0.9;
+  }
+  55% {
+    opacity: 0.62;
+  }
+  70% {
+    opacity: 0.84;
+  }
+}
+.ia-still .ia-motes {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-motes {
+    display: none;
+  }
+}

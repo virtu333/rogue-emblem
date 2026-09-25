@@ -125,16 +125,105 @@
   align-items: center;
   flex-wrap: wrap;
 }
+/* Pips are gems: dark sockets that fill steel as tiers are bought, gilt at max. */
+.mu-pips {
+  gap: 5px;
+  padding-left: 2px;
+}
 .mu-pips i {
-  width: 10px;
+  width: 7px;
   height: 7px;
+  transform: rotate(45deg);
   background: var(--re-sunken);
+  box-shadow: 0 0 0 1px var(--re-line);
 }
 .mu-pips .filled {
   background: var(--re-info);
+  box-shadow: 0 0 0 1px var(--re-line-strong);
 }
 .mu-pips.maxed .filled {
   background: var(--re-accent);
+  box-shadow: 0 0 0 1px var(--re-accent-text);
+}
+.mu-pips .ignite {
+  background: var(--re-accent-text);
+  box-shadow:
+    0 0 0 1px var(--re-ember-pale),
+    0 0 6px var(--ia-glow-ember);
+}
+/* Rows: the upgrade's icon beside its name, cost and tier. */
+.mu-list .mu-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+}
+.mu-row > .ia-icon {
+  grid-row: span 2;
+}
+.ia-icon.is-locked .ia-glyph {
+  filter: brightness(0) saturate(0);
+  opacity: 0.75;
+}
+.mu-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.mu-detail .mu-head h2 {
+  margin: 0;
+}
+/* The purchase moment: the new tier stamped across the detail in Cinzel. */
+.mu-stamp {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  padding: 2px 10px;
+  font: 700 16px/1.2 var(--re-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+  border: 2px solid var(--re-accent);
+  background: var(--ia-ink-0);
+  transform: rotate(-6deg);
+  box-shadow: 0 0 10px var(--ia-glow-ember);
+  pointer-events: none;
+}
+.ia-icon.is-flare .ia-socket {
+  filter: drop-shadow(0 0 6px var(--ia-glow-ember));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mu-screen:not(.ia-still) .mu-stamp {
+    animation: mu-stamp 420ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  .mu-screen:not(.ia-still) .mu-pips .ignite {
+    animation: mu-ignite 900ms ease-out both;
+  }
+  .mu-screen:not(.ia-still) .ia-icon.is-flare .ia-socket {
+    animation: mu-flare 900ms ease-out both;
+  }
+}
+@keyframes mu-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-14deg) scale(1.6);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1);
+  }
+}
+@keyframes mu-ignite {
+  0% {
+    background: var(--re-ember-pale);
+    box-shadow: 0 0 14px var(--ia-glow-ember);
+  }
+}
+@keyframes mu-flare {
+  0% {
+    filter: drop-shadow(0 0 14px var(--ia-glow-ember)) brightness(1.6);
+  }
 }
 .mu-detail h2 {
   font-size: 18px;

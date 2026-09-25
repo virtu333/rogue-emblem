@@ -33,6 +33,13 @@ import {
   RUINS_SHOP_MARKUP,
 } from '../utils/constants.js';
 import { InputAction } from '../utils/InputActions.js';
+import { itemIcon, itemHero } from './itemIcons.js';
+import {
+  applyServiceVignette,
+  serviceVignetteFor,
+  prefersStill,
+  vignetteMotes,
+} from './itemMoments.js';
 
 export class ShopMenu {
   constructor(controller) {
@@ -114,6 +121,23 @@ export class ShopMenu {
     this.renderedTab = this.scene.activeShopTab;
     const focus = document.activeElement?.dataset.shopFocus;
     body.replaceChildren();
+    // The place: a painted vignette (header band on desktop, behind the detail on phones);
+    // the forge tab swaps to the forge and its sparks.
+    const tabList = this.controller._getShopTabs();
+    const band = applyServiceVignette(
+      this.surface.root,
+      serviceVignetteFor({
+        caravan: this.scene._currentShopIsCaravan,
+        ruins: this.scene._currentShopIsRuins,
+        tab: this.scene.activeShopTab,
+      }),
+      {
+        title: this.surface.header.querySelector('h2')?.textContent || '',
+        kicker: tabList.map((t) => t.label).join(' · '),
+        still: prefersStill(this.scene),
+      },
+    );
+    body.append(band);
     this.gold.textContent = `${this.run.gold} G`;
     const tabs = el('nav', null, 'shop-tabs');
     tabs.setAttribute('aria-label', 'Shop sections');
@@ -161,10 +185,14 @@ export class ShopMenu {
           : this.scene.activeShopTab === 'sell'
             ? `${row.owner} · +${getSellPrice(row.item)} G`
             : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
-      b.append(el('strong', row.item.name), el('span', sub));
+      const text = el('span', null, 'shop-row-text');
+      text.append(el('strong', row.item.name), el('span', sub));
+      b.append(itemIcon(row.item, { size: 32 }), text);
       stock.append(b);
     });
-    const detail = el('article', null, 'shop-detail');
+    const detail = el('article', null, 'shop-detail ia-pane');
+    const paneMotes = vignetteMotes(this.surface.root.dataset.vignette);
+    if (paneMotes) detail.append(paneMotes);
     if (this.scene.activeShopTab === 'buy') {
       if (this.scene._currentShopIsRuins)
         detail.append(
@@ -220,13 +248,18 @@ export class ShopMenu {
   details(container, row) {
     const { item } = row;
     const copy = el('div', null, 'shop-copy re-scroll');
-    copy.append(el('h3', item.name));
-    const meta = [item.tier, item.type, item.rankRequired ? `Requires ${item.rankRequired}` : null]
-      .filter(Boolean)
-      .join(' · ');
-    copy.append(el('p', meta, 'shop-meta'));
+    // The item, large: its painting (or pixel icon at 2x) beside the name and its kind.
+    const head = el('div', null, 'shop-hero');
+    const title = el('div', null, 'shop-hero-title');
+    const kicker = [item.tier, item.type].filter(Boolean).join(' · ');
+    if (kicker) title.append(el('p', kicker, 'shop-kicker'));
+    title.append(el('h3', item.name));
+    if (item.rankRequired) title.append(el('p', `Requires ${item.rankRequired}`, 'shop-meta'));
+    head.append(itemHero(item, { size: 96 }), title);
+    copy.append(head);
     const detailText = this.controller._getShopItemDetailText(row.entry || { item });
-    copy.append(
+    // What it does reads beside the picture, so a phone shows it without scrolling.
+    title.append(
       el(
         'p',
         detailText
@@ -237,6 +270,7 @@ export class ShopMenu {
         'shop-mechanics',
       ),
     );
+    if (item.lore) copy.append(el('p', item.lore, 'shop-lore'));
     appendItemArtDetails(copy, item, this.scene.gameData.weaponArts?.arts || []);
     if (item.might != null || item.type === 'Staff') {
       const comparisons = el('details');
@@ -258,11 +292,6 @@ export class ShopMenu {
       );
     const imbue = getImbueDisplayInfo(item, this.scene.gameData.imbues);
     if (imbue) copy.append(el('p', `${imbue.name}: ${imbue.description}`));
-    if (item.lore) {
-      const lore = el('details', null, 'shop-lore');
-      lore.append(el('summary', 'Item story'), el('p', item.lore));
-      copy.append(lore);
-    }
     const action = el('div', null, 'shop-commit');
     const tab = this.scene.activeShopTab;
     let reason = '';
