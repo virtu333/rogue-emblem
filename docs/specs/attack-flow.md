@@ -52,6 +52,9 @@ Action menu ─Attack─▶ SELECTING_TARGET ─pick─▶ SHOWING_FORECAST ─c
 - **Minimal taps:** after moving, tapping (or clicking) an enemy in reach opens its
   forecast directly (skips Attack → target). Only from the post-move top-level menu when
   Attack is offered and enabled; the unmoved planning menu keeps tap-to-inspect.
+  Desktop (pointer/pad) also attacks from the pre-move selection: clicking an enemy in
+  reach — now or after moving to the closest attack tile — opens its forecast
+  (`specs/playtest-polish.md` §2).
 - A pulsing ember **reticle** (corner brackets; static under Reduce Motion) marks the
   focused target on the map during target selection and the forecast; the grid cursor
   snaps to it (the camera follows).

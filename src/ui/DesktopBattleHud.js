@@ -29,6 +29,10 @@ const ECLIPSE_GLYPH = 10; // px reserved left of the Eclipse projection
 
 export const DESKTOP_HINT_TEXT =
   '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
+// While a unit is selected (movement shown): what a click on the map will do. Short
+// enough to fit the 640px footer between End Turn and [X] Cancel (the idle line hides).
+export const DESKTOP_SELECTED_HINT_TEXT =
+  'Blue tile: move · enemy in reach: attack · unit: actions';
 
 const pixel = (size, color) => ({
   fontFamily: UI_FONT_FAMILIES.pixel,
@@ -154,6 +158,7 @@ export class DesktopBattleHud {
   /** Position the HUD text and redraw plates (cheap no-op when nothing changed). */
   layout(force = false) {
     if (!this.active) return;
+    this._syncHint();
     const sig = this._sig();
     if (!force && sig === this._signature) return;
     this._signature = sig;
@@ -256,6 +261,18 @@ export class DesktopBattleHud {
     }
     // Remember the state this layout produced, so its own tweaks never re-trigger it.
     this._signature = this._sig();
+  }
+
+  /** The bottom hint follows the input state: selection gets its own click guide. */
+  _syncHint() {
+    const s = this.scene;
+    const hint = s.instructionText2;
+    if (!hint?.setText) return;
+    const text =
+      s.battleState === 'UNIT_SELECTED' && s.selectedUnit
+        ? DESKTOP_SELECTED_HINT_TEXT
+        : DESKTOP_HINT_TEXT;
+    if (hint.text !== text) hint.setText(text);
   }
 
   _pad(b, padX = PAD_X, padY = PAD_Y) {

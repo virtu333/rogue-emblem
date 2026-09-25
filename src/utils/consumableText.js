@@ -38,3 +38,13 @@ export function formatUses(item) {
   const normalizedUses = Math.trunc(uses);
   return `${normalizedUses} use${normalizedUses === 1 ? '' : 's'}`;
 }
+
+/**
+ * Uses line for a reward that grants `quantity` separate copies of an item, each with
+ * its full uses (LootRewardCommands.applyRewardBundle): "3 uses each" for a bundle,
+ * the plain "3 uses" for a single item.
+ */
+export function formatBundleUses(item, quantity = 1) {
+  const text = formatUses(item);
+  return text && Number(quantity) > 1 ? `${text} each` : text;
+}

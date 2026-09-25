@@ -556,6 +556,23 @@ describe('LootScreenController', () => {
       expect(result.lines).toContainEqual(expect.stringContaining('3 uses'));
     });
 
+    it('reads "uses each" on a bundle card (each copy keeps its full uses)', () => {
+      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const bundle = LootScreenController.getCardDetailLines(
+        stubScene,
+        { type: 'consumable', quantity: 3 },
+        item,
+      );
+      expect(bundle.lines).toContain('3 uses each');
+      const single = LootScreenController.getCardDetailLines(
+        stubScene,
+        { type: 'consumable', quantity: 1 },
+        item,
+      );
+      expect(single.lines).toContain('3 uses');
+      expect(single.lines).not.toContain('3 uses each');
+    });
+
     it('shows reclass text for reclass consumables in the promotion pool', () => {
       const item = {
         name: 'Infantry Seal',
@@ -645,6 +662,17 @@ describe('LootScreenController', () => {
       expect(result).not.toBeNull();
       expect(result).toContain('Vulnerary');
       expect(result).toContain('10 HP');
+      expect(result.split('\n')).toContain('3 uses');
+    });
+
+    it('bundle tooltips say each copy has its own uses', () => {
+      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const result = LootScreenController.getTooltipText(
+        stubScene,
+        { type: 'consumable', quantity: 3 },
+        item,
+      );
+      expect(result.split('\n')).toContain('3 uses each');
     });
 
     it('returns text for cure-heal consumables', () => {
