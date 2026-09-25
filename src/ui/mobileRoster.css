@@ -499,3 +499,16 @@
   mask-image: linear-gradient(180deg, #000 calc(100% - 18px), transparent);
   padding-bottom: 22px;
 }
+
+/* Flavor (Temperament): reads as character, not a rule — quieter than trait cards. */
+.mr-card.mr-flavor {
+  background: transparent;
+  border-style: dashed;
+}
+.mr-card.mr-flavor h4 {
+  color: var(--re-parchment);
+}
+.mr-card.mr-flavor p {
+  font-style: italic;
+  color: var(--re-muted);
+}

@@ -423,7 +423,7 @@ export class MobileRosterSheet {
         this.card(
           `Temperament · ${temperament}`,
           'Colors what they say when they grow, promote or fall. No effect in battle.',
-        );
+        ).classList.add('mr-flavor');
     }
     for (const id of unit.affixes || []) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
