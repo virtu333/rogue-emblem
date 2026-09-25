@@ -607,6 +607,32 @@ describe('ColosseumOverlay', () => {
     vi.mocked(generateMercenaryCandidates).mockRestore();
   });
 
+  it('mercenaries never take a taken or promised name, and a hire gets a run identity', () => {
+    // A recruit node still ahead promised "Tamsin" (the Loom shows it): the board must
+    // not offer a Tamsin, or a Talk recruit and a merc would share one name.
+    const scene = makeScene();
+    const runManager = makeRunManager({
+      gold: 1000,
+      roster: [makeUnit(gameData, 'Edric', 3, 'Lord')],
+      getTakenUnitNames: () => new Set(['Edric', 'Tamsin']),
+      assignUnitUid: vi.fn((unit) => (unit.unitUid = 'ru7')),
+    });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-merc-reserved' }, vi.fn());
+    overlay._mercCandidates = null;
+    const merc = makeUnit(gameData, 'Hob', 3, 'Archer');
+    vi.mocked(generateMercenaryCandidates).mockClear();
+    vi.mocked(generateMercenaryCandidates).mockReturnValueOnce([{ unit: merc, hireCost: 100 }]);
+    overlay._showMercBrowse();
+    const args = vi.mocked(generateMercenaryCandidates).mock.calls[0];
+    expect(args[10]).toEqual(['Edric', 'Tamsin']);
+
+    expect(overlay._hireMercenary(0)).toBe(true);
+    expect(runManager.assignUnitUid).toHaveBeenCalledWith(merc);
+    expect(runManager.roster.at(-1)).toBe(merc);
+    expect(merc.unitUid).toBe('ru7');
+  });
+
   it('non-array merc candidate generation falls back to empty list', () => {
     const scene = makeScene();
     const runManager = makeRunManager({ gold: 1000, roster: [] });

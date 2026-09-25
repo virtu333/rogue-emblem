@@ -8,6 +8,7 @@ import {
   planAttackTargets,
   orderAttackTargets,
   stepTarget,
+  chooseAttackTile,
 } from '../src/engine/AttackOptions.js';
 import { gridDistance } from '../src/engine/Combat.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
@@ -188,5 +189,87 @@ describe('AttackOptions — target union', () => {
     expect(stepTarget(ordered, null, 1)).toBe(c);
     expect(stepTarget(ordered, null, -1)).toBe(a);
     expect(stepTarget([], null, 1)).toBeNull();
+  });
+});
+
+describe('AttackOptions — chooseAttackTile (move-then-attack from a selection)', () => {
+  // A 5-wide open row of tiles around the unit at (5,5); cost = walking distance.
+  const range = (u, mov = 3) => {
+    const map = new Map();
+    for (let col = u.col - mov; col <= u.col + mov; col++)
+      for (let row = u.row - mov; row <= u.row + mov; row++) {
+        const cost = Math.abs(col - u.col) + Math.abs(row - u.row);
+        if (cost <= mov) map.set(`${col},${row}`, { cost });
+      }
+    return map;
+  };
+  const opts = (target, extra = {}) => ({
+    distanceFrom: (col, row) => gridDistance(col, row, target.col, target.row),
+    ...extra,
+  });
+
+  it('stays put when the unit already reaches the target', () => {
+    const u = unit([w('Iron Sword')]);
+    const foe = enemy('Fighter', 6, 5);
+    expect(chooseAttackTile(u, foe, range(u), opts(foe))).toEqual({ col: 5, row: 5, cost: 0 });
+  });
+
+  it('otherwise picks the closest tile, then the equipped weapon, terrain and reading order', () => {
+    const sword = w('Iron Sword');
+    const u = unit([sword, w('Iron Bow')]);
+    const foe = enemy('Fighter', 8, 5);
+    // Cost 1 at (6,5) reaches with the bow only; cost 2 at (7,5) with the sword.
+    expect(chooseAttackTile(u, foe, range(u), opts(foe))).toEqual({ col: 6, row: 5, cost: 1 });
+    // Only the sword: the adjacent tiles at cost 2 — (7,5) — and reading order among ties.
+    const swordOnly = unit([sword]);
+    expect(chooseAttackTile(swordOnly, foe, range(swordOnly), opts(foe))).toEqual({
+      col: 7,
+      row: 5,
+      cost: 2,
+    });
+    // Better terrain wins a cost tie.
+    const foe2 = enemy('Fighter', 7, 7);
+    // (6,7) and (7,6) both cost 3: reading order picks (7,6), a forest at (6,7) wins.
+    expect(chooseAttackTile(swordOnly, foe2, range(swordOnly), opts(foe2))).toEqual({
+      col: 7,
+      row: 6,
+      cost: 3,
+    });
+    const forest = (col, row) => (col === 6 && row === 7 ? 21 : 0);
+    expect(
+      chooseAttackTile(swordOnly, foe2, range(swordOnly), opts(foe2, { terrainScore: forest })),
+    ).toEqual({ col: 6, row: 7, cost: 3 });
+  });
+
+  it('prefers a tile the equipped weapon reaches when costs tie', () => {
+    const sword = w('Iron Sword');
+    const bow = w('Iron Bow');
+    const u = unit([sword, bow], { weapon: sword });
+    const foe = enemy('Fighter', 9, 5);
+    // Two cost-2 tiles: (7,5) bow only (distance 2), (8,5) sword (adjacent). Reading
+    // order alone would pick (7,5); the equipped sword's tile wins.
+    const map = new Map([
+      ['7,5', { cost: 2 }],
+      ['8,5', { cost: 2 }],
+    ]);
+    expect(chooseAttackTile(u, foe, map, opts(foe))).toEqual({ col: 8, row: 5, cost: 2 });
+    // With the bow equipped the bow tile wins instead.
+    const archer = unit([bow, sword], { weapon: bow });
+    expect(chooseAttackTile(archer, foe, map, opts(foe))).toEqual({ col: 7, row: 5, cost: 2 });
+  });
+
+  it('skips occupied and pass-through tiles, and returns null when nothing reaches', () => {
+    const u = unit([w('Iron Sword')]);
+    const foe = enemy('Fighter', 7, 5);
+    const map = range(u);
+    map.set('6,5', { cost: 1, stoppable: false });
+    const blocked = (col, row) => !(col === 7 && row === 4);
+    const tile = chooseAttackTile(u, foe, map, opts(foe, { isFree: blocked }));
+    // (6,5) is pass-through only and (7,4) is occupied: (8,5) and (7,6) remain.
+    expect(tile).toEqual({ col: 8, row: 5, cost: 3 });
+    const far = enemy('Fighter', 15, 15);
+    expect(chooseAttackTile(u, far, range(u), opts(far))).toBeNull();
+    const staffOnly = unit([w('Heal')]);
+    expect(chooseAttackTile(staffOnly, foe, range(staffOnly), opts(foe))).toBeNull();
   });
 });

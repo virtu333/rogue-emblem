@@ -28,7 +28,7 @@ import {
   REVIVE_PROMOTION_MULTIPLIER,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
-import { sanitizeEscapeTilePassability } from './MapGenerator.js';
+import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
@@ -53,6 +53,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
+import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import {
   buildBlessingIndex,
@@ -73,10 +74,20 @@ import {
   RECRUIT_PREVIEW_VERSION,
   buildRecruitNodeUnit,
   ensureRecruitPreviews,
+  resolveRecruitNodeSpawnClass,
 } from './RecruitNodeSystem.js';
 import {
+  formatUnitUid,
+  isSameUnit,
+  matchUnitsToSurvivors,
+  unitUidNumber,
+  unitUidOf,
+} from './UnitIdentity.js';
+import {
   applyEclipse,
+  beginActShadow,
   buildEclipseView,
+  commitShadow,
   computeShadowGain,
   createEclipseState,
   eclipseBattleMods,
@@ -361,6 +372,9 @@ export class RunManager {
     this.roster = [];
     this.lastDeployment = [];
     this.fallenUnits = []; // Serialized units that died in battle
+    // Run-scoped unit identity counter (UnitIdentity.js): the next `unitUid` is
+    // `ru${nextUnitUid}`. Saved with the run; never drawn from Math.random.
+    this.nextUnitUid = 1;
     this.nodeMap = null;
     this.currentNodeId = null; // last completed node (null = start of act)
     this.completedBattles = 0;
@@ -514,7 +528,9 @@ export class RunManager {
       const initialSeed = runSeed ?? Date.now();
       this.runSeed = Number(initialSeed);
     }
+    this.nextUnitUid = 1;
     this.roster = this.createInitialRoster();
+    this.ensureUnitUids();
     this.ensurePortraitVariants();
     this.runRecordId ||= globalThis.crypto?.randomUUID?.() || `run-${this.runSeed}-${Date.now()}`;
     this.rngSeed = this.runSeed >>> 0;
@@ -2126,6 +2142,7 @@ export class RunManager {
         this.legendaryLordChance,
       );
       this.grantRecruitBlessingConsumables(unit);
+      this.assignUnitUid(unit);
       this.roster.push(unit);
     }
   }
@@ -2390,6 +2407,86 @@ export class RunManager {
     }
   }
 
+  /**
+   * Give `unit` a run identity (`unitUid`, UnitIdentity.js) when it has none; a unit
+   * that already carries one keeps it and moves the counter past it. Counter-based:
+   * never consumes Math.random. Returns the uid.
+   */
+  assignUnitUid(unit) {
+    if (!unit || typeof unit !== 'object') return null;
+    if (!Number.isSafeInteger(this.nextUnitUid) || this.nextUnitUid < 1) this.nextUnitUid = 1;
+    const existing = unitUidOf(unit);
+    if (existing) {
+      this.nextUnitUid = Math.max(this.nextUnitUid, unitUidNumber(existing) + 1);
+      return existing;
+    }
+    unit.unitUid = formatUnitUid(this.nextUnitUid++);
+    return unit.unitUid;
+  }
+
+  /**
+   * Every roster and fallen unit carries a distinct uid. Missing ones (legacy saves,
+   * units added by a path that did not stamp them) are allocated after the highest
+   * uid in use; a uid seen twice keeps its first holder (roster before fallen) and
+   * the later copy gets a fresh one. Idempotent.
+   */
+  ensureUnitUids() {
+    const units = [
+      ...(Array.isArray(this.roster) ? this.roster : []),
+      ...(Array.isArray(this.fallenUnits) ? this.fallenUnits : []),
+    ].filter((u) => u && typeof u === 'object');
+    if (!Number.isSafeInteger(this.nextUnitUid) || this.nextUnitUid < 1) this.nextUnitUid = 1;
+    for (const unit of units)
+      this.nextUnitUid = Math.max(this.nextUnitUid, unitUidNumber(unitUidOf(unit)) + 1);
+    const seen = new Set();
+    for (const unit of units) {
+      const uid = unitUidOf(unit);
+      if (uid && !seen.has(uid)) {
+        seen.add(uid);
+        continue;
+      }
+      delete unit.unitUid;
+      seen.add(this.assignUnitUid(unit));
+    }
+  }
+
+  /**
+   * Names promised to the player by recruit nodes not yet walked: the Loom card
+   * already shows who waits there (RecruitNodeSystem previews; a locked encounter's
+   * NPC counts too). No other unit source may take them.
+   * @param {{ excludeNodeId?: string|null }} [options]
+   * @returns {Set<string>}
+   */
+  getPromisedRecruitNames({ excludeNodeId = null } = {}) {
+    const promised = new Set();
+    for (const node of Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : []) {
+      if (node?.type !== 'recruit' || node.completed || node.id === excludeNodeId) continue;
+      const names = [
+        node.recruitPreview?.name,
+        this.battleConfigsByNodeId?.[node.id]?.npcSpawn?.name,
+      ];
+      for (const name of names)
+        if (typeof name === 'string' && name.trim()) promised.add(name.trim());
+    }
+    return promised;
+  }
+
+  /**
+   * Every name a new unit must not take: the roster, the fallen, names already used
+   * this run, and names promised by pending recruit nodes.
+   * @param {{ excludeNodeId?: string|null }} [options]
+   * @returns {Set<string>}
+   */
+  getTakenUnitNames(options = {}) {
+    const taken = this._getTrackedRecruitNames();
+    for (const unit of Array.isArray(this.fallenUnits) ? this.fallenUnits : []) {
+      const name = typeof unit?.name === 'string' ? unit.name.trim() : '';
+      if (name) taken.add(name);
+    }
+    for (const name of this.getPromisedRecruitNames(options)) taken.add(name);
+    return taken;
+  }
+
   _repairDuplicateRosterNames() {
     if (!Array.isArray(this.roster) || this.roster.length <= 1) return;
 
@@ -2418,7 +2515,7 @@ export class RunManager {
     const usedByClass = Array.isArray(this.usedRecruitNames?.[className])
       ? this.usedRecruitNames[className]
       : [];
-    const usedGlobal = this._getTrackedRecruitNames();
+    const usedGlobal = this.getTakenUnitNames();
 
     let name = className;
     if (classNames.length > 0) {
@@ -2809,6 +2906,25 @@ export class RunManager {
   }
 
   /**
+   * The class of the unit a recruit node would spawn right now (the lord roll can
+   * replace the preview's class), without building it. Same stream and run state as
+   * getRecruitNodeUnit, so the two always agree.
+   * @returns {string|null}
+   */
+  getRecruitNodeSpawnClass(node, options = {}) {
+    const preview = options.preview || node?.recruitPreview;
+    if (node?.type !== 'recruit' || !preview) return null;
+    return (
+      resolveRecruitNodeSpawnClass({
+        preview,
+        gameData: this.gameData,
+        ...this.getRecruitBattleContext(node),
+        roster: Array.isArray(options.roster) ? options.roster : this.roster,
+      })?.className || null
+    );
+  }
+
+  /**
    * The recruit a recruit node would spawn right now (deterministic for the run's
    * current state; the Loom preview and the battle both come from here).
    * @param {object} node
@@ -2904,12 +3020,24 @@ export class RunManager {
           className: node.recruitPreview.className,
           name: node.recruitPreview.name,
         };
+        // The unit that actually spawns can differ from the preview's class (a lord
+        // roll: a Myrmidon preview can resolve to Rowan, a Chevalier). MapGenerator
+        // seats the recruit on a tile that unit can stand on.
+        const spawnClassName = this.getRecruitNodeSpawnClass(node);
+        if (spawnClassName && spawnClassName !== node.recruitPreview.className)
+          battleParams.recruitPreview.spawnClassName = spawnClassName;
       }
+      // A recruit battle without a preview (legacy fallback) must not draw a name
+      // another recruit node has promised.
+      const promised = [...this.getPromisedRecruitNames({ excludeNodeId: node.id })];
+      if (promised.length) battleParams.reservedRecruitNames = promised;
     }
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     this._repairDuplicateRosterNames();
+    // Units enter the battle (RunManager.getRoster clones) with their run identity.
+    this.ensureUnitUids();
     this.ensurePortraitVariants();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
@@ -2952,9 +3080,30 @@ export class RunManager {
   getLockedBattleConfig(nodeId) {
     const cfg = this.battleConfigsByNodeId?.[nodeId];
     if (!cfg) return null;
+    // Recruit encounters locked by older builds seated the recruit by the preview's
+    // class; a lord roll can spawn a Cavalry unit there (Rowan on a Mountain). Re-seat
+    // it for the unit that spawns (deterministic; the stored lock keeps the fix).
+    this._reconcileLockedRecruitTile(nodeId, cfg);
     // Heal exits locked by older builds that only forced Infantry passability
     // (a Mountain exit would soft-lock Cavalry lords on resume).
     return sanitizeEscapeTilePassability(structuredClone(cfg), this.gameData?.terrain);
+  }
+
+  _reconcileLockedRecruitTile(nodeId, cfg) {
+    if (!cfg?.npcSpawn) return false;
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
+    if (node?.type !== 'recruit') return false;
+    const preview = { className: cfg.npcSpawn.className, name: cfg.npcSpawn.name };
+    const spawnClassName = this.getRecruitNodeSpawnClass(node, { preview });
+    if (!spawnClassName) return false;
+    const moveType =
+      (this.gameData?.classes || []).find((c) => c.name === spawnClassName)?.moveType || 'Infantry';
+    return reconcileRecruitSpawnTile(cfg, {
+      moveType,
+      terrainData: this.gameData?.terrain,
+      classesData: this.gameData?.classes,
+      weaponsData: this.gameData?.weapons,
+    });
   }
 
   lockBattleConfig(nodeId, battleConfig) {
@@ -3247,7 +3396,9 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
-   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean }} [options]
+   * @param {{ completionGoldOverride?: number, caravanSurvived?: boolean, fallenRecruits?: object[] }} [options]
+   *   fallenRecruits: serialized units that joined mid-battle (Talk) and fell
+   *   before victory — recorded as fallen allies like roster casualties.
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
@@ -3261,13 +3412,32 @@ export class RunManager {
     const eclipseCommit = this._commitBattleShadow(node, options);
 
     this._sanitizeUnitPools();
-    // Track newly fallen units before overwriting roster
-    const survivingNames = new Set(survivingUnits.map((u) => u.name));
-    const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
+    this.ensureUnitUids();
+    // Who fell: every unit that entered the battle — the roster as it entered, then
+    // recruits who joined mid-battle (Talk) and fell before it ended (they never
+    // reached the roster) — that no survivor accounts for. Matched by unit identity,
+    // one survivor per unit, so a living namesake (a mercenary hired under the name a
+    // recruit node promised, a legacy save) can never hide a casualty.
+    const recruits = [];
+    for (const recruit of Array.isArray(options?.fallenRecruits) ? options.fallenRecruits : []) {
+      if (!this._isValidSerializedUnit(recruit)) continue;
+      const uid = unitUidOf(recruit);
+      // A mid-battle recruit is never a unit that entered on the roster.
+      if (uid && this.roster.some((u) => unitUidOf(u) === uid)) continue;
+      if (recruits.some((r) => isSameUnit(r, recruit))) continue;
+      recruits.push(recruit);
+    }
+    const { unmatched: newlyFallen, survivorOf } = matchUnitsToSurvivors(
+      [...this.roster, ...recruits],
+      survivingUnits,
+    );
+    const entrantOf = new Map([...survivorOf].map(([entrant, survivor]) => [survivor, entrant]));
     this.lastBattleCasualtyNotices = [];
     for (const fallen of newlyFallen) {
-      if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
+      const fallenUid = unitUidOf(fallen);
+      if (!fallenUid || !this.fallenUnits.some((f) => unitUidOf(f) === fallenUid)) {
         const serializedFallen = serializeUnit(fallen);
+        this.assignUnitUid(serializedFallen);
         this._transferFallenUnitItems(serializedFallen);
         this.lastBattleCasualtyNotices.push(serializedFallen._fallenItemsNotice);
         this.fallenUnits.push(serializedFallen);
@@ -3280,7 +3450,15 @@ export class RunManager {
       }
     }
 
-    this.roster = survivingUnits.map((u) => serializeUnit(u));
+    this.roster = survivingUnits.map((u) => {
+      const data = serializeUnit(u);
+      // Legacy battle units (a checkpoint from before unit identity) inherit the
+      // identity of the roster unit they account for; new recruits get one below.
+      const entrantUid = unitUidOf(entrantOf.get(u));
+      if (!unitUidOf(data) && entrantUid) data.unitUid = entrantUid;
+      return data;
+    });
+    this.ensureUnitUids();
     // Refill at the completed-battle boundary so rewards and the node-map
     // roster show ready staves. Never do this during serialization/resume.
     // Include stored and casualty-retained equipment, not consumables.
@@ -3345,7 +3523,10 @@ export class RunManager {
     return isEclipseActive(this.eclipse, this.getEclipseConfig());
   }
 
-  /** Shadow a victory at `turnsTaken` against `par` would add (HUD projection). */
+  /**
+   * Shadow a victory at `turnsTaken` against `par` would gather (HUD projection): the
+   * act pressure gains all of it; the global meter up to its cap (projectedMeterGain).
+   */
   projectShadowGain(turnsTaken, par) {
     if (!this.isEclipseActive()) return 0;
     return computeShadowGain(
@@ -3372,10 +3553,20 @@ export class RunManager {
     );
     const isBoss = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
     const relief = isBoss ? Math.max(0, Math.trunc(Number(config.bossRelief) || 0)) : 0;
-    const cap = Math.max(1, Math.trunc(Number(config.cap) || 100));
-    const after = Math.max(0, Math.min(cap, before + gain) - relief);
-    this.eclipse = { ...this.eclipse, shadow: after };
-    return { nodeId: node.id, before, gain, relief, after, fell: [] };
+    // The global meter stops at the cap; the act's pressure takes the whole gain.
+    const commit = commitShadow(this.eclipse, { gain, relief }, config);
+    this.eclipse = commit.state;
+    return {
+      nodeId: node.id,
+      before,
+      gain,
+      relief,
+      after: commit.after,
+      meterGain: commit.meterGain,
+      actBefore: commit.actBefore,
+      actAfter: commit.actAfter,
+      fell: [],
+    };
   }
 
   /** Let the dark take this act's map at the current act shadow (idempotent). */
@@ -3431,7 +3622,14 @@ export class RunManager {
     if (!result.ok) return result;
     if (!this.spendGold(result.price)) return { ok: false, reason: 'Not enough gold.' };
     this.eclipse = result.state;
-    return { ok: true, price: result.price, removed: result.removed, shadow: this.eclipse.shadow };
+    return {
+      ok: true,
+      price: result.price,
+      removed: result.removed,
+      actRemoved: result.actRemoved,
+      shadow: this.eclipse.shadow,
+      actShadow: this.eclipse.actShadow,
+    };
   }
 
   /** The Loom played these nodes' fall; never play it again (persisted by the caller). */
@@ -3459,16 +3657,17 @@ export class RunManager {
 
   /**
    * Revive a fallen unit, restore to roster at 1 HP.
-   * @param {string} unitName - name of fallen unit to revive
+   * @param {object|string} unitRef - the fallen unit (preferred: two fallen allies may
+   *   share a name), its `unitUid`, or — legacy callers — its name (first match)
    * @param {number} cost - gold cost (scales with level/promotion)
    * @returns {boolean} true if revived, false if roster full or insufficient gold
    */
-  reviveFallenUnit(unitName, cost) {
+  reviveFallenUnit(unitRef, cost) {
     const rosterCap = this.getRosterCap();
     if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
 
     // Verify unit exists before spending gold (prevents burning currency on stale names)
-    const idx = this.fallenUnits.findIndex((u) => u.name === unitName);
+    const idx = this._findFallenIndex(unitRef);
     if (idx === -1) return false;
 
     if (!this.spendGold(cost)) return false;
@@ -3495,6 +3694,20 @@ export class RunManager {
 
     this.roster.push(unit);
     return true;
+  }
+
+  _findFallenIndex(unitRef) {
+    const fallen = Array.isArray(this.fallenUnits) ? this.fallenUnits : [];
+    if (unitRef && typeof unitRef === 'object') {
+      const exact = fallen.indexOf(unitRef);
+      if (exact !== -1) return exact;
+      const uid = unitUidOf(unitRef);
+      if (uid) return fallen.findIndex((u) => unitUidOf(u) === uid);
+      return fallen.findIndex((u) => u?.name === unitRef.name);
+    }
+    if (typeof unitRef !== 'string' || !unitRef) return -1;
+    const byUid = fallen.findIndex((u) => unitUidOf(u) === unitRef);
+    return byUid !== -1 ? byUid : fallen.findIndex((u) => u?.name === unitRef);
   }
 
   /** Mark a node as completed and update currentNodeId. */
@@ -3553,8 +3766,9 @@ export class RunManager {
     );
     this.shopStateByNodeId = {};
     this.ensureRecruitPreviews();
-    // Every act opens on a fresh land: act shadow counts from here.
-    this.eclipse = { ...this.eclipse, actStartShadow: this.eclipse.shadow };
+    // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
+    // after any boss relief, carries on).
+    this.eclipse = beginActShadow(this.eclipse);
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -3897,6 +4111,7 @@ export class RunManager {
       roster: this.roster,
       lastDeployment: normalizeDeploymentNames(this.lastDeployment),
       fallenUnits: this.fallenUnits,
+      nextUnitUid: this.nextUnitUid,
       lastBattleCasualtyNotices: this.lastBattleCasualtyNotices || [],
       nodeMap: this.nodeMap,
       currentNodeId: this.currentNodeId,
@@ -4221,6 +4436,11 @@ export class RunManager {
 
     rm.roster = rm.roster.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
     rm.fallenUnits = rm.fallenUnits.map((u) => normalizeUnitDeeds(migrateUnitTraits({ ...u })));
+    // Unit identity: legacy saves stamp every roster/fallen unit now (roster order,
+    // then fallen), counter-based and RNG-free, so a reload stamps the same way.
+    rm.nextUnitUid =
+      Number.isSafeInteger(saved.nextUnitUid) && saved.nextUnitUid > 0 ? saved.nextUnitUid : 1;
+    rm.ensureUnitUids();
 
     // --- lord presence validation (only for non-empty rosters) ---
     if (rm.roster.length > 0) {
@@ -4757,12 +4977,19 @@ function resolveSlotNumberForClear(slotNumber) {
   };
 }
 
-function isQuotaExceededError(err) {
-  if (err?.name === 'QuotaExceededError') return true;
-  if (typeof DOMException !== 'undefined' && err instanceof DOMException && err.code === 22)
-    return true;
-  if (typeof err?.message === 'string' && /quota/i.test(err.message)) return true;
-  return false;
+// savedAt of the run save each live RunManager last wrote, per slot (memory only).
+const lastRunSaveStamps = new WeakMap();
+
+/**
+ * True when the stored run save for `slotNumber` is still the one this
+ * RunManager last wrote — no other tab, cloud pull or run end has replaced or
+ * removed it since. Background saves (page hidden / app paused) check this so
+ * a stale in-memory run never overwrites a newer save or resurrects an ended run.
+ */
+export function isRunSaveCurrent(runManager, slotNumber) {
+  const key = resolveRunKey(slotNumber);
+  const stamp = key && runManager ? lastRunSaveStamps.get(runManager)?.get(slotNumber) : null;
+  return Number.isFinite(stamp) && readLocalRunSavedAt(key) === stamp;
 }
 
 export function saveRun(runManager, onSave, slotNumber) {
@@ -4774,8 +5001,13 @@ export function saveRun(runManager, onSave, slotNumber) {
   };
   let localOk = false;
   try {
-    localStorage.setItem(key, JSON.stringify(json));
+    // On a full store, other slots' optional battle history makes room first.
+    setItemFreeingSpace(key, JSON.stringify(json), slotNumber);
     localOk = true;
+    if (runManager && typeof runManager === 'object') {
+      if (!lastRunSaveStamps.has(runManager)) lastRunSaveStamps.set(runManager, new Map());
+      lastRunSaveStamps.get(runManager).set(slotNumber, json.savedAt);
+    }
   } catch (err) {
     const isQuota = isQuotaExceededError(err);
     console.warn('[RunManager] localStorage write failed:', err?.message || err);
@@ -4856,7 +5088,7 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     }
     parsed.battleInProgress = null;
     parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
-    localStorage.setItem(key, JSON.stringify(parsed));
+    setItemFreeingSpace(key, JSON.stringify(parsed), slotNumber);
     if (onSave) {
       try {
         onSave(parsed);

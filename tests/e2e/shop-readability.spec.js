@@ -36,8 +36,10 @@ for (const width of [667, 844]) {
           .locator('.shop-mechanics')
           .evaluate((e) => parseFloat(getComputedStyle(e).fontSize)),
       ).toBeGreaterThanOrEqual(14);
-      await shop.getByText('Item story', { exact: true }).tap();
-      await expect(shop.locator('.shop-lore p')).toBeVisible();
+      // The item's story reads under its picture without a disclosure tap.
+      await expect(shop.locator('.shop-hero .ia-hero')).toBeVisible();
+      await expect(shop.locator('.shop-lore')).toBeVisible();
+      await expect(shop.locator('.shop-lore')).not.toBeEmpty();
       await shop.locator('.shop-row').filter({ hasText: 'Goddess Icon' }).tap();
       await expect(shop.locator('.shop-mechanics')).toContainText('LCK');
       await page.screenshot({ path: `test-results/shop-${width}-details.png` });

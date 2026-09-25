@@ -235,6 +235,7 @@ export function generateBattle(params, deps) {
         usedRecruitNames,
         biome,
         params.recruitPreview || null,
+        params.reservedRecruitNames,
       );
     }
   }
@@ -2656,6 +2657,7 @@ function generateNPCSpawn(
   usedRecruitNames = {},
   biome,
   preview = null,
+  reservedNames = [],
 ) {
   const { classPool, namePool, levelRange } = recruitPool;
   // The node's preview (RecruitNodeSystem) fixes who waits here: the Loom already
@@ -2672,10 +2674,17 @@ function generateNPCSpawn(
       ? classPool[Math.floor(Math.random() * classPool.length)]
       : recruitPool.pool[Math.floor(Math.random() * recruitPool.pool.length)].className;
 
-  // Pick name from pool, avoiding duplicates in current run
+  // Pick name from pool, avoiding duplicates in current run and names other recruit
+  // nodes have already promised (RunManager.getPromisedRecruitNames).
   const usedGlobalNames = getUsedRecruitNameSet(usedRecruitNames);
+  for (const reserved of Array.isArray(reservedNames) ? reservedNames : [])
+    if (typeof reserved === 'string' && reserved.trim()) usedGlobalNames.add(reserved.trim());
   let name = makeUniqueRecruitName(className, usedGlobalNames); // Fallback
   if (hasPreview) {
+    // The preview is a promise: the Loom showed this name, so it is kept even when a
+    // legacy save already holds a namesake (unit identity, not the name, tells them
+    // apart — UnitIdentity.js). New runs never get there: other unit sources skip
+    // names a pending recruit node has promised.
     name = preview.name;
     trackRecruitNameUsage(usedRecruitNames, className, name);
   } else if (namePool && namePool[className]) {
@@ -2713,7 +2722,15 @@ function generateNPCSpawn(
   // The NPC must be able to stand on its tile: a Cavalry/Flying recruit placed on
   // Infantry-only terrain (e.g. Mountain) would sit on an impassable square. Require
   // passability for BOTH Infantry (player-reach guarantee) and the NPC's move type.
-  const npcMoveType = classesData?.find((c) => c.name === className)?.moveType || 'Infantry';
+  // The unit that spawns can differ from the preview's class (a lord roll turns a
+  // Myrmidon preview into Rowan, Cavalry): RunManager resolves it first and passes
+  // it as `spawnClassName` (RecruitNodeSystem.resolveRecruitNodeSpawnClass).
+  const spawnClassName =
+    hasPreview && typeof preview.spawnClassName === 'string' && preview.spawnClassName.trim()
+      ? preview.spawnClassName.trim()
+      : className;
+  const npcMoveType = classesData?.find((c) => c.name === spawnClassName)?.moveType || 'Infantry';
+  const spawnFields = spawnClassName !== className ? { spawnClassName } : {};
   const npcTilePassable = (idx) =>
     isPassable(terrainData, idx, 'Infantry') && isPassable(terrainData, idx, npcMoveType);
 
@@ -2732,7 +2749,7 @@ function generateNPCSpawn(
     tilePassable: npcTilePassable,
   });
   if (safe) {
-    return { className, name, level, col: safe.col, row: safe.row };
+    return { className, name, level, col: safe.col, row: safe.row, ...spawnFields };
   }
 
   // Occupied positions
@@ -2855,6 +2872,7 @@ function generateNPCSpawn(
     level,
     col: pos.col,
     row: pos.row,
+    ...spawnFields,
   };
 }
 
@@ -2985,8 +3003,12 @@ function enemyStrikeCounts(
  * Pick the recruit's tile: the cost for a lord on the nearest player spawn to stand
  * beside it lies in RECRUIT_REACH_BAND (reachable by the second player phase), no foe
  * can strike it in the first enemy phase, cover is preferred and so are tiles the foes
- * cannot reach by the second enemy phase either. Returns null when the map allows no
- * such tile (the caller falls back to the legacy placement).
+ * cannot reach by the second enemy phase either. Among equally safe tiles, one on the
+ * player's side of the foes (the lords' path to it is shorter than the nearest foe's)
+ * comes first, so a narrow map does not seat the recruit behind the enemy line when it
+ * need not; first-phase safety still outranks the side. A tile beside a foe's starting
+ * tile is never taken. Returns null when the map
+ * allows no such tile (the caller falls back to the legacy placement).
  */
 export function pickRecruitSpawnTile({
   mapLayout,
@@ -2999,10 +3021,22 @@ export function pickRecruitSpawnTile({
   weaponsData = null,
   tilePassable,
   band = RECRUIT_REACH_BAND,
+  blocked = [],
+  rng = Math.random,
 }) {
   if (!playerSpawns.length) return null;
-  const occupied = new Set([...playerSpawns, ...enemySpawns].map((s) => `${s.col},${s.row}`));
+  const occupied = new Set(
+    [...playerSpawns, ...enemySpawns, ...blocked].filter(Boolean).map((s) => `${s.col},${s.row}`),
+  );
+  // Never seat the recruit beside a foe's starting tile.
+  for (const e of enemySpawns) {
+    occupied.add(`${e.col - 1},${e.row}`);
+    occupied.add(`${e.col + 1},${e.row}`);
+    occupied.add(`${e.col},${e.row - 1}`);
+    occupied.add(`${e.col},${e.row + 1}`);
+  }
   const lordField = costField(mapLayout, cols, rows, terrainData, playerSpawns, 'Infantry');
+  const foeField = costField(mapLayout, cols, rows, terrainData, enemySpawns, 'Infantry');
   const strikes = enemyStrikeCounts(
     mapLayout,
     cols,
@@ -3031,6 +3065,7 @@ export function pickRecruitSpawnTile({
         col: c,
         row: r,
         reach,
+        playerSide: reach < foeField[r * cols + c],
         threats1: strikes.turn1[r * cols + c],
         threats2: strikes.turn2[r * cols + c],
         cover:
@@ -3042,9 +3077,12 @@ export function pickRecruitSpawnTile({
       });
     }
   }
+  const inBand = (t) => t.reach >= band.min && t.reach <= band.max;
   const tiers = [
-    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 === 0,
-    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 <= 1,
+    (t) => inBand(t) && t.playerSide && t.threats1 === 0,
+    (t) => inBand(t) && t.threats1 === 0,
+    (t) => inBand(t) && t.playerSide && t.threats1 <= 1,
+    (t) => inBand(t) && t.threats1 <= 1,
     (t) => t.reach >= 1 && t.reach <= band.max + 4 && t.threats1 === 0,
   ];
   for (const accept of tiers) {
@@ -3057,10 +3095,84 @@ export function pickRecruitSpawnTile({
       t.threats1 * 2;
     const best = Math.max(...pool.map(score));
     const top = pool.filter((t) => score(t) === best);
-    const pick = top[Math.floor(Math.random() * top.length)];
+    const pick = top[Math.floor(rng() * top.length)];
     return { col: pick.col, row: pick.row, reach: pick.reach };
   }
   return null;
+}
+
+/**
+ * Make a battle config's recruit tile valid for the unit that actually spawns there
+ * (defense in depth for `spawnClassName`: encounters locked by older builds, and
+ * callers that seated the recruit by the preview's class). A tile the unit and an
+ * Infantry lord can both stand on is kept; otherwise the recruit is re-seated with
+ * pickRecruitSpawnTile's rules (reach band, no first-phase strike, never beside a
+ * foe) for that move type, then on the nearest such free tile, and the player spawns
+ * are re-ordered nearest-first to the new tile. Deterministic (never draws
+ * Math.random), so a battle's seeded stream is untouched. Mutates `config`.
+ * @returns {boolean} true when the recruit was moved
+ */
+export function reconcileRecruitSpawnTile(
+  config,
+  { moveType = 'Infantry', terrainData, classesData = null, weaponsData = null } = {},
+) {
+  const npc = config?.npcSpawn;
+  const mapLayout = config?.mapLayout;
+  if (!npc || !Array.isArray(mapLayout) || !Array.isArray(terrainData)) return false;
+  const rows = mapLayout.length;
+  const cols = Number.isInteger(config.cols) ? config.cols : mapLayout[0]?.length || 0;
+  const standable = (idx) =>
+    isPassable(terrainData, idx, 'Infantry') && isPassable(terrainData, idx, moveType);
+  if (standable(mapLayout[npc.row]?.[npc.col])) return false;
+
+  const playerSpawns = Array.isArray(config.playerSpawns) ? config.playerSpawns : [];
+  const enemySpawns = Array.isArray(config.enemySpawns) ? config.enemySpawns : [];
+  const blocked = [
+    config.caravanSpawn,
+    config.villageTile,
+    config.thronePos,
+    ...(Array.isArray(config.escapeTiles) ? config.escapeTiles : []),
+    ...(Array.isArray(config.ballistas) ? config.ballistas : []),
+  ].filter((t) => Number.isInteger(t?.col) && Number.isInteger(t?.row));
+  let tile = pickRecruitSpawnTile({
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    playerSpawns,
+    enemySpawns,
+    classesData,
+    weaponsData,
+    tilePassable: standable,
+    blocked,
+    rng: () => 0,
+  });
+  if (!tile) {
+    const taken = new Set(
+      [...playerSpawns, ...enemySpawns, ...blocked].map((t) => `${t.col},${t.row}`),
+    );
+    let best = null;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (taken.has(`${c},${r}`) || !standable(mapLayout[r][c])) continue;
+        if (RECRUIT_TILE_EXCLUDED.has(terrainData[mapLayout[r][c]]?.name)) continue;
+        const d = Math.abs(c - npc.col) + Math.abs(r - npc.row);
+        if (!best || d < best.d) best = { col: c, row: r, d };
+      }
+    tile = best;
+  }
+  if (!tile) return false;
+  npc.col = tile.col;
+  npc.row = tile.row;
+  config.playerSpawns = orderSpawnsTowardTarget(
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    playerSpawns,
+    npc,
+  );
+  return true;
 }
 
 /**
@@ -3243,8 +3355,10 @@ export function validateBattleConfig(config, deps, options = {}) {
     }
 
     const moveTypeOf = (spawn) => {
-      if (!spawn?.className) return 'Infantry';
-      const cd = classData?.find((c) => c.name === spawn.className);
+      // A recruit whose preview resolved to another class (a lord) stands as that class.
+      const name = spawn?.spawnClassName || spawn?.className;
+      if (!name) return 'Infantry';
+      const cd = classData?.find((c) => c.name === name);
       return cd?.moveType || 'Infantry';
     };
     const inBounds = (t) => t && t.col >= 0 && t.col < cols && t.row >= 0 && t.row < rows;

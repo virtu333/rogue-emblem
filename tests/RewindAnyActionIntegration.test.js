@@ -30,6 +30,9 @@ import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { getEntryState } from '../src/engine/BattleTimeline.js';
 import { loadRun } from '../src/engine/RunManager.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
+import { applyForge, canForge } from '../src/engine/ForgeSystem.js';
+import { canEquip, equipWeapon } from '../src/engine/UnitManager.js';
+import { ensureItemUid } from '../src/utils/itemUid.js';
 
 let storage;
 beforeEach(() => {
@@ -235,6 +238,116 @@ describe('rewind to before any action', () => {
     expect(board(scene)).toEqual(equipped);
     expect(scene.playerUnits[1].weapon.name).toBe(equippedWeapon);
     expect(scene.playerUnits[1].weapon).toBe(scene.playerUnits[1].inventory.at(-1));
+  });
+
+  it('equipping the other equally named forge is its own point (review R1)', () => {
+    const { scene, driver } = fixture();
+    const [a, b, c] = scene.playerUnits;
+    // Two real forges of B's weapon: one for might, one for hit. Both are
+    // "<weapon> +1" with the same uses; only identity and stats differ.
+    const iron = driver.data.weapons.find(
+      (w) => w.name === b.weapon?.name && canEquip(b, w) && canForge(w),
+    );
+    expect(iron).toBeTruthy();
+    const [forMight, forHit] = [0, 1].map(() => ensureItemUid(structuredClone(iron)));
+    expect(applyForge(forMight, 'might').success).toBe(true);
+    expect(applyForge(forHit, 'hit').success).toBe(true);
+    expect(forHit.name).toBe(forMight.name);
+    b.inventory = [forMight, forHit, ...b.inventory].slice(0, 5);
+    equipWeapon(b, forMight);
+    act(scene, a);
+    const beforeEquip = board(scene);
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    // B equips the hit forge without moving and is set aside.
+    equipWeapon(b, forHit);
+    expect(b.inventory[0]).toBe(forHit);
+    expect(scene._visionController.settleParkedActivation()).toBe(true);
+    act(scene, c);
+    scene._visionController.openRewind();
+    const { rows } = pickers.at(-1).options.listing;
+    expect(rows.map((r) => r.title)).toEqual([
+      `Before ${c.name}’s wait`,
+      `Before ${b.name}’s equipment change`,
+      `Before ${a.name}’s wait`,
+    ]);
+    // "Before C's wait" keeps B's equip choice (the hit forge, first).
+    pickers.at(-1).options.onConfirm(rows[0].id);
+    const restored = scene.playerUnits[1];
+    expect(restored.weapon.uid).toBe(forHit.uid);
+    expect(restored.weapon.hit).toBe(forHit.hit);
+    expect(restored.weapon.might).toBe(forHit.might);
+    expect(restored.inventory[0]).toBe(restored.weapon);
+    // One further back undoes it: the might forge is equipped again.
+    pickers.length = 0;
+    scene._visionController.openRewind();
+    const back = pickers.at(-1).options.listing.rows;
+    expect(back[0].title).toBe(`Before ${b.name}’s equipment change`);
+    pickers.at(-1).options.onConfirm(back[0].id);
+    expect(board(scene)).toEqual(beforeEquip);
+    expect(scene.playerUnits[1].weapon.uid).toBe(forMight.uid);
+  });
+
+  it('an action’s own rewards (gold, convoy item, bag) belong to its point, not a free change', () => {
+    // E.g. a village visit at the end of a Canto move: gold and supplies land before the
+    // action completes, so the recorded point already contains them.
+    const { scene, run, driver } = fixture();
+    const [a, b] = scene.playerUnits;
+    const entries = scene._battleTimeline.entries.length;
+    a.row += 1;
+    a.hasMoved = true;
+    run.gold += 300;
+    scene.goldEarned = (scene.goldEarned || 0) + 300;
+    const tonic = ensureItemUid(structuredClone(driver.data.consumables[0]));
+    expect(run.addToConvoy(tonic)).toBe(true);
+    a.consumables = [...(a.consumables || []), ensureItemUid(structuredClone(tonic))];
+    scene._battleRng();
+    observeHistoryAction(scene, 'visited the village', a);
+    completeBattleAction(scene, a);
+    expect(scene._battleTimeline.entries.length).toBe(entries + 1);
+    expect(scene._battleTimeline.entries.at(-1)).toMatchObject({
+      kind: 'player_action',
+      destination: true,
+    });
+    // Exactly one point: the next activation finds nothing left over.
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    act(scene, b);
+    expect(scene._battleTimeline.entries.length).toBe(entries + 2);
+  });
+
+  it('a fresh instance of a same-name item swapped in between activations is a free change', () => {
+    // Identity, not name: the item a rewind restores is this exact instance.
+    const { scene, driver } = fixture();
+    const [a, b, c] = scene.playerUnits;
+    act(scene, a);
+    const vulnerary = driver.data.consumables.find((i) => i.name === 'Vulnerary');
+    b.consumables = [ensureItemUid(structuredClone(vulnerary))];
+    scene._timelineBoundary = 'player_action';
+    scene._captureSuspendCheckpoint();
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    b.consumables = [ensureItemUid(structuredClone(vulnerary))];
+    expect(b.consumables[0].name).toBe('Vulnerary');
+    expect(scene._visionController.settleParkedActivation()).toBe(true);
+    act(scene, c);
+  });
+
+  it('a run-only free change (supplies, no unit) is its own point', () => {
+    const { scene, run } = fixture();
+    const [a, , c] = scene.playerUnits;
+    act(scene, a);
+    const gold = run.gold;
+    run.gold = gold + 250;
+    expect(scene._visionController.settleParkedActivation()).toBe(true);
+    expect(scene._visionController.settleParkedActivation()).toBe(false);
+    act(scene, c);
+    scene._visionController.openRewind();
+    const { rows } = pickers.at(-1).options.listing;
+    expect(rows.map((r) => r.title)).toEqual([
+      `Before ${c.name}’s wait`,
+      'Before: Supplies changed',
+      `Before ${a.name}’s wait`,
+    ]);
+    pickers.at(-1).options.onConfirm(rows[0].id);
+    expect(run.gold).toBe(gold + 250);
   });
 
   it('the fallen-commander decision opens the picker and Back returns to it', () => {

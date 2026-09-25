@@ -129,3 +129,59 @@ export function stepTarget(ordered, current, direction = 1) {
   const step = direction < 0 ? -1 : 1;
   return ordered[(index + step + ordered.length) % ordered.length];
 }
+
+/**
+ * Move-then-attack from a pre-move selection (desktop: click an enemy while a unit is
+ * selected). The tile from which `unit` can attack `target` with any usable weapon,
+ * or null. Candidates are the unit's own tile and every stoppable, free destination
+ * of `movementRange` (Grid.getMovementRange entries: `{ cost, stoppable? }`).
+ *
+ * Preference, most important first — predictable rather than clever:
+ *   1. least movement (the own tile first: never move when you can already strike),
+ *   2. the equipped weapon reaches (the forecast then opens on it),
+ *   3. better terrain (`terrainScore`, e.g. Def + Avoid),
+ *   4. reading order (row, then column) for a stable tie-break.
+ * `distanceFrom(col, row)` is the combat distance to the target from that tile
+ * (entity footprints aware); `isFree(col, row)` rejects occupied tiles.
+ */
+export function chooseAttackTile(
+  unit,
+  target,
+  movementRange,
+  { distanceFrom, isFree = () => true, terrainScore = () => 0, skillsData = null } = {},
+) {
+  if (!unit || !target || typeof distanceFrom !== 'function') return null;
+  const weapons = getAttackWeapons(unit);
+  if (!weapons.length) return null;
+  const equipped = weapons.includes(unit.weapon) ? unit.weapon : null;
+  const candidates = new Map([[`${unit.col},${unit.row}`, { cost: 0 }]]);
+  for (const [key, entry] of movementRange || [])
+    if (!candidates.has(key)) candidates.set(key, entry);
+  let best = null;
+  for (const [key, entry] of candidates) {
+    const [col, row] = key.split(',').map(Number);
+    const own = col === unit.col && row === unit.row;
+    if (!own && (entry?.stoppable === false || !isFree(col, row))) continue;
+    const reach = weaponsForDistance(unit, weapons, distanceFrom(col, row), { skillsData });
+    if (!reach.length) continue;
+    const candidate = {
+      col,
+      row,
+      cost: own ? 0 : Number(entry?.cost) || 0,
+      equipped: Boolean(equipped && reach.includes(equipped)),
+      terrain: Number(terrainScore(col, row)) || 0,
+    };
+    if (!best || compareAttackTiles(candidate, best) < 0) best = candidate;
+  }
+  return best ? { col: best.col, row: best.row, cost: best.cost } : null;
+}
+
+function compareAttackTiles(a, b) {
+  return (
+    a.cost - b.cost ||
+    Number(b.equipped) - Number(a.equipped) ||
+    b.terrain - a.terrain ||
+    a.row - b.row ||
+    a.col - b.col
+  );
+}

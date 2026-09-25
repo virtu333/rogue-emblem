@@ -1,5 +1,6 @@
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords } from './RunRecords.js';
+import { setItemFreeingSpace } from './SaveSpace.js';
 // MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
@@ -1177,7 +1178,9 @@ export class MetaProgressionManager {
     };
     let localOk = false;
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(payload));
+      // On a full store, other slots' optional battle history makes room first.
+      const slot = Number(/^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1]) || null;
+      setItemFreeingSpace(this.storageKey, JSON.stringify(payload), slot);
       localOk = true;
     } catch (err) {
       console.warn('[MetaProgression] localStorage write failed:', err?.message || err);

@@ -1,0 +1,854 @@
+{
+  "note": "Painted heroes (direction B) approved at 96 px on the detail-pane plate. Candidates: References/items-art/hero/cand; raw + provenance: References/items-art/hero/raw.",
+  "items": {
+    "iron-sword": {
+      "approved": true,
+      "source": "iron-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "18418333881c898c"
+    },
+    "steel-sword": {
+      "approved": true,
+      "source": "steel-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "dda5493c2f2ad931"
+    },
+    "rapier": {
+      "approved": true,
+      "source": "rapier-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "9227c7af278cc7dd"
+    },
+    "silver-sword": {
+      "approved": true,
+      "source": "silver-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "0a8a3442df288c9b",
+      "note": "Re-prompted: the first take striped the blade red and gold."
+    },
+    "killing-edge": {
+      "approved": true,
+      "source": "killing-edge-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "cc0559e648d7baae"
+    },
+    "wo-dao": {
+      "approved": true,
+      "source": "wo-dao-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "5bd45a5ec437eb5b"
+    },
+    "wind-sword": {
+      "approved": true,
+      "source": "wind-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "cca5cad6105abbb9"
+    },
+    "tempest-blade": {
+      "approved": true,
+      "source": "tempest-blade-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "fb1a31e78c7c9aee",
+      "note": "Re-prompted: no wind ribbons."
+    },
+    "lancereaver": {
+      "approved": true,
+      "source": "lancereaver-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8cbbcf951ebeea53"
+    },
+    "brave-sword": {
+      "approved": true,
+      "source": "brave-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e5ffd1ea5e86c117"
+    },
+    "levin-sword": {
+      "approved": true,
+      "source": "levin-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "bba45f1148f9e6ce"
+    },
+    "gemini": {
+      "approved": true,
+      "source": "gemini-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "5f9a4e9537a7cdd3"
+    },
+    "armorslayer": {
+      "approved": true,
+      "source": "armorslayer-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f2160de48464ac4c"
+    },
+    "ragnarok": {
+      "approved": true,
+      "source": "ragnarok-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "74ee16c09ae680bf"
+    },
+    "soulreaver": {
+      "approved": true,
+      "source": "soulreaver-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "4889a3b30445dc4f"
+    },
+    "venin-blade": {
+      "approved": true,
+      "source": "venin-blade-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "bc1afbb41482672e"
+    },
+    "sunder-sword": {
+      "approved": true,
+      "source": "sunder-sword-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "3ba907ff21060010"
+    },
+    "eldritch-grasp": {
+      "approved": true,
+      "source": "eldritch-grasp-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "b2b9ab539c07cfae"
+    },
+    "iron-lance": {
+      "approved": true,
+      "source": "iron-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "116b6dac16dc2a6f"
+    },
+    "steel-lance": {
+      "approved": true,
+      "source": "steel-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "18f1a93b52b6cfc3"
+    },
+    "silver-lance": {
+      "approved": true,
+      "source": "silver-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1678e12d45e08e27"
+    },
+    "javelin": {
+      "approved": true,
+      "source": "javelin-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "ad8e15190d3988b0"
+    },
+    "swordreaver": {
+      "approved": true,
+      "source": "swordreaver-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "cca44398dab63ab7"
+    },
+    "brave-lance": {
+      "approved": true,
+      "source": "brave-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7be0c145505ecd02"
+    },
+    "doomblade": {
+      "approved": true,
+      "source": "doomblade-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "4789fa05dbb40781"
+    },
+    "gae-bolg": {
+      "approved": true,
+      "source": "gae-bolg-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7f26bb192a787568"
+    },
+    "horseslayer": {
+      "approved": true,
+      "source": "horseslayer-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "25e0005b7382b9cd"
+    },
+    "killer-lance": {
+      "approved": true,
+      "source": "killer-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "58cabf72fd5f6042"
+    },
+    "short-spear": {
+      "approved": true,
+      "source": "short-spear-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "a26a7a2bf8025923"
+    },
+    "spear": {
+      "approved": true,
+      "source": "spear-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "33e72a0d48264ffb"
+    },
+    "sunder-lance": {
+      "approved": true,
+      "source": "sunder-lance-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8b01be0dceaa14d7"
+    },
+    "iron-axe": {
+      "approved": true,
+      "source": "iron-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "b4fe301a03e60e58"
+    },
+    "steel-axe": {
+      "approved": true,
+      "source": "steel-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "4db979a79d7a6f7f"
+    },
+    "silver-axe": {
+      "approved": true,
+      "source": "silver-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "492a9c53c072bed9"
+    },
+    "short-axe": {
+      "approved": true,
+      "source": "short-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "bf8cd552386de81b"
+    },
+    "killer-axe": {
+      "approved": true,
+      "source": "killer-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "544f6f76b919f4b9"
+    },
+    "hammer": {
+      "approved": true,
+      "source": "hammer-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "95c1408a2e8e0641"
+    },
+    "axereaver": {
+      "approved": true,
+      "source": "axereaver-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "bafaf3ddc24f7c95"
+    },
+    "brave-axe": {
+      "approved": true,
+      "source": "brave-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e20ad4982e509551"
+    },
+    "stormbreaker": {
+      "approved": true,
+      "source": "stormbreaker-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "097425ceafcc1e1e"
+    },
+    "ruin": {
+      "approved": true,
+      "source": "ruin-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "ab7686d831739b61"
+    },
+    "hand-axe": {
+      "approved": true,
+      "source": "hand-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6cee67e3083ecc00"
+    },
+    "tomahawk": {
+      "approved": true,
+      "source": "tomahawk-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6a0fab142fb02651",
+      "note": "Re-prompted without feathers."
+    },
+    "sunder-axe": {
+      "approved": true,
+      "source": "sunder-axe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "3041d039408ec29a"
+    },
+    "iron-bow": {
+      "approved": true,
+      "source": "iron-bow-flash-t2",
+      "model": "gemini-3.1-flash-image",
+      "hash": "380d6bd988d171b2",
+      "note": "Take 1 was a hairline at 96 px; take 2 carries an arrow and reads."
+    },
+    "steel-bow": {
+      "approved": true,
+      "source": "steel-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1421e2a304d959ef"
+    },
+    "silver-bow": {
+      "approved": true,
+      "source": "silver-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "a7ecabc8f459bb1b"
+    },
+    "killer-bow": {
+      "approved": true,
+      "source": "killer-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1335429f53b40dc9"
+    },
+    "longbow": {
+      "approved": true,
+      "source": "longbow-flash-t2",
+      "model": "gemini-3.1-flash-image",
+      "hash": "473d73afde2a7c49",
+      "note": "Take 2 is the clearer silhouette; bows stay thin by nature."
+    },
+    "brave-bow": {
+      "approved": true,
+      "source": "brave-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6c9db47563272107"
+    },
+    "starfall": {
+      "approved": true,
+      "source": "starfall-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f80b3578b8106a2b"
+    },
+    "venin-bow": {
+      "approved": true,
+      "source": "venin-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f00f71a8569c84c5"
+    },
+    "sunder-bow": {
+      "approved": true,
+      "source": "sunder-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "2b47573bc467598e"
+    },
+    "shortbow": {
+      "approved": true,
+      "source": "shortbow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "cce3682c6e9f49d4"
+    },
+    "recurve-bow": {
+      "approved": true,
+      "source": "recurve-bow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "dc051e68e4ec9285"
+    },
+    "doublebow": {
+      "approved": true,
+      "source": "doublebow-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8d7614a8ce5af410"
+    },
+    "fire": {
+      "approved": true,
+      "source": "fire-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "43c0f88dec3af628"
+    },
+    "elfire": {
+      "approved": true,
+      "source": "elfire-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "d49cb435ff9c535d"
+    },
+    "bolganone": {
+      "approved": true,
+      "source": "bolganone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "90e49dc2c823f661"
+    },
+    "witchfire": {
+      "approved": true,
+      "source": "witchfire-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "95750b3c8a0e4925"
+    },
+    "excalibur": {
+      "approved": true,
+      "source": "excalibur-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "2fe338c03db2998f"
+    },
+    "bolting": {
+      "approved": true,
+      "source": "bolting-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "9ade0c1243bd7889"
+    },
+    "twisting-vortex": {
+      "approved": true,
+      "source": "twisting-vortex-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "aec82255870a6a18"
+    },
+    "lightning": {
+      "approved": true,
+      "source": "lightning-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "efe9396f4d8d9e5d"
+    },
+    "shine": {
+      "approved": true,
+      "source": "shine-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "858936d7bc75b8e0"
+    },
+    "aura": {
+      "approved": true,
+      "source": "aura-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "454fbfdad9f50859"
+    },
+    "sunflare": {
+      "approved": true,
+      "source": "sunflare-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "b7869214f525fd69",
+      "note": "Re-prompted: a sunburst instead of a star that read as an emblem."
+    },
+    "luce": {
+      "approved": true,
+      "source": "luce-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "691ae154efb9d567"
+    },
+    "heal": {
+      "approved": true,
+      "source": "heal-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f1dfd73cc7645168"
+    },
+    "mend": {
+      "approved": true,
+      "source": "mend-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6a2752fe4a1dec01"
+    },
+    "physic": {
+      "approved": true,
+      "source": "physic-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "d977fcfc4f20f530"
+    },
+    "recover": {
+      "approved": true,
+      "source": "recover-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "c49aa6eb27bf1619"
+    },
+    "restore": {
+      "approved": true,
+      "source": "restore-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6b40d744b6346208"
+    },
+    "fortify": {
+      "approved": true,
+      "source": "fortify-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "98d28efe127761b3"
+    },
+    "sleep-staff": {
+      "approved": true,
+      "source": "sleep-staff-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8597c1022277f493"
+    },
+    "silence-staff": {
+      "approved": true,
+      "source": "silence-staff-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "070fb3dba40b386d",
+      "note": "Re-prompted: no rainbow ring."
+    },
+    "rescue-staff": {
+      "approved": true,
+      "source": "rescue-staff-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "51325fe81f19c313"
+    },
+    "warp-staff": {
+      "approved": true,
+      "source": "warp-staff-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "aa4a6398a3bf441c"
+    },
+    "vulnerary": {
+      "approved": true,
+      "source": "vulnerary-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1b3496ed66b57e8f"
+    },
+    "elixir": {
+      "approved": true,
+      "source": "elixir-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "db07b3db8c6e9769"
+    },
+    "master-seal": {
+      "approved": true,
+      "source": "master-seal-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "839a650f9f2012cd"
+    },
+    "energy-drop": {
+      "approved": true,
+      "source": "energy-drop-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "3ae0dca3ee490f0c"
+    },
+    "spirit-dust": {
+      "approved": true,
+      "source": "spirit-dust-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "2b18a71e3068c073"
+    },
+    "secret-book": {
+      "approved": true,
+      "source": "secret-book-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "2ddddc42e70e286e"
+    },
+    "speedwing": {
+      "approved": true,
+      "source": "speedwing-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "41d6e711e1dda0b3"
+    },
+    "dracoshield": {
+      "approved": true,
+      "source": "dracoshield-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "a1b9d87b4b27c103"
+    },
+    "talisman": {
+      "approved": true,
+      "source": "talisman-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "b9b927bbbfa0215d"
+    },
+    "angelic-robe": {
+      "approved": true,
+      "source": "angelic-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "ad2099cc942938e9"
+    },
+    "swiftsoles": {
+      "approved": true,
+      "source": "swiftsoles-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e192978fa3577df2"
+    },
+    "infantry-seal": {
+      "approved": true,
+      "source": "infantry-seal-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8984b4fb40459e4d"
+    },
+    "mounted-seal": {
+      "approved": true,
+      "source": "mounted-seal-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "851fd32517b9c5c3"
+    },
+    "herb": {
+      "approved": true,
+      "source": "herb-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "d6f56f655456fee3"
+    },
+    "remedy": {
+      "approved": true,
+      "source": "remedy-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "33f5ed5966c331ef",
+      "note": "Re-prompted twice: striped tins were palette artefacts."
+    },
+    "power-ring": {
+      "approved": true,
+      "source": "power-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "bc9676ae6cc61428"
+    },
+    "magic-ring": {
+      "approved": true,
+      "source": "magic-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "965e24f289eeff88"
+    },
+    "speed-ring": {
+      "approved": true,
+      "source": "speed-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "18b10895eb84ea58"
+    },
+    "shield-ring": {
+      "approved": true,
+      "source": "shield-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7f93853b3874a9ab",
+      "note": "Re-prompted for a plain band."
+    },
+    "barrier-ring": {
+      "approved": true,
+      "source": "barrier-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "fbb85d9b5487dbf1",
+      "note": "Re-prompted for a plain band."
+    },
+    "skill-ring": {
+      "approved": true,
+      "source": "skill-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "8a99e9892fbaf9ae",
+      "note": "Re-prompted for a plain band."
+    },
+    "goddess-icon": {
+      "approved": true,
+      "source": "goddess-icon-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "9bf2094e457bc110"
+    },
+    "seraph-robe": {
+      "approved": true,
+      "source": "seraph-robe-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e7cb60b016ace89b"
+    },
+    "boots": {
+      "approved": true,
+      "source": "boots-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "532179db2303d47d"
+    },
+    "delphi-shield": {
+      "approved": true,
+      "source": "delphi-shield-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "02b417e351a73260"
+    },
+    "veterans-crest": {
+      "approved": true,
+      "source": "veterans-crest-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "c45ee72e85c3f787"
+    },
+    "wrath-band": {
+      "approved": true,
+      "source": "wrath-band-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "4a8c69b5f21fb85c"
+    },
+    "counter-seal": {
+      "approved": true,
+      "source": "counter-seal-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7c3d5da6580f8956",
+      "note": "Re-prompted: the first take drew a war-medal cross."
+    },
+    "pursuit-ring": {
+      "approved": true,
+      "source": "pursuit-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "a5200460b26c2092"
+    },
+    "nullify-ring": {
+      "approved": true,
+      "source": "nullify-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7e90b6a68775ff5a"
+    },
+    "life-ring": {
+      "approved": true,
+      "source": "life-ring-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "26ef7caf53b08869"
+    },
+    "forest-charm": {
+      "approved": true,
+      "source": "forest-charm-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "61ccaca67789c0c6"
+    },
+    "blood-gem": {
+      "approved": true,
+      "source": "blood-gem-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6b9b4cc1ad253174"
+    },
+    "vampires-bloodshard": {
+      "approved": true,
+      "source": "vampires-bloodshard-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f6a39b2f0a504323"
+    },
+    "soothing-stone": {
+      "approved": true,
+      "source": "soothing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "0a86e4e23804daee"
+    },
+    "phoenix-brooch": {
+      "approved": true,
+      "source": "phoenix-brooch-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6a9d8670fa901b87"
+    },
+    "recoil-guard": {
+      "approved": true,
+      "source": "recoil-guard-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7b9a0522fe3ad290",
+      "note": "Re-prompted: a boss instead of a crusader cross."
+    },
+    "bounty-hunters-mark": {
+      "approved": true,
+      "source": "bounty-hunters-mark-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "376c07aa697e062c"
+    },
+    "moontide-amulet": {
+      "approved": true,
+      "source": "moontide-amulet-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "29cf3b0bf6c26362"
+    },
+    "gamblers-coin": {
+      "approved": true,
+      "source": "gamblers-coin-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6acaa0cc5892cbc5"
+    },
+    "vanguard-crest": {
+      "approved": true,
+      "source": "vanguard-crest-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7a5f8ef64a25a945",
+      "note": "Re-prompted: a spearhead instead of a red star."
+    },
+    "diamond-medallion": {
+      "approved": true,
+      "source": "diamond-medallion-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7be7b1eab47b5e1f"
+    },
+    "hunters-cloak": {
+      "approved": true,
+      "source": "hunters-cloak-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "df2e67e00e3a6931"
+    },
+    "duelists-glove": {
+      "approved": true,
+      "source": "duelists-glove-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "253209addb06c5cc"
+    },
+    "warding-charm": {
+      "approved": true,
+      "source": "warding-charm-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "e9436eef6ae4c686"
+    },
+    "mentors-band": {
+      "approved": true,
+      "source": "mentors-band-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "29a677acfe51bb29"
+    },
+    "mercury-sandals": {
+      "approved": true,
+      "source": "mercury-sandals-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6caf31ee72676103"
+    },
+    "phalanx-band": {
+      "approved": true,
+      "source": "phalanx-band-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "98dd17adfdb1b394"
+    },
+    "silver-whetstone": {
+      "approved": true,
+      "source": "silver-whetstone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "7e1b86026b663951"
+    },
+    "might-whetstone": {
+      "approved": true,
+      "source": "might-whetstone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f7ddb441094f6772"
+    },
+    "crit-whetstone": {
+      "approved": true,
+      "source": "crit-whetstone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "a555e67f75b9a96c"
+    },
+    "hit-whetstone": {
+      "approved": true,
+      "source": "hit-whetstone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "db5fab6b43a1cf85"
+    },
+    "weight-whetstone": {
+      "approved": true,
+      "source": "weight-whetstone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "22cc7e7fa2cebdac"
+    },
+    "vampiric-imbuing-stone": {
+      "approved": true,
+      "source": "vampiric-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "2e5f6410338cf62b"
+    },
+    "sundering-imbuing-stone": {
+      "approved": true,
+      "source": "sundering-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "cae800bbbb52f716"
+    },
+    "keen-imbuing-stone": {
+      "approved": true,
+      "source": "keen-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "6c9da7c28219e828"
+    },
+    "venomous-imbuing-stone": {
+      "approved": true,
+      "source": "venomous-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "f7a8252078e58879"
+    },
+    "binding-imbuing-stone": {
+      "approved": true,
+      "source": "binding-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "c4b78b16ede9712a",
+      "note": "Re-prompted: earth-brown snapped to gold; now olive."
+    },
+    "warded-imbuing-stone": {
+      "approved": true,
+      "source": "warded-imbuing-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1b95f8f2b385d1ad"
+    },
+    "prismatic-stone": {
+      "approved": true,
+      "source": "prismatic-stone-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "d3377813e22a8962"
+    },
+    "gold": {
+      "approved": true,
+      "source": "gold-flash-t1",
+      "model": "gemini-3.1-flash-image",
+      "hash": "1619e6009978c835"
+    }
+  }
+}

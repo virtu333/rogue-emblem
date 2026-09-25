@@ -21,43 +21,85 @@ import { summarizeActionFact } from '../engine/RewindDestinations.js';
 import { classifyBattleBoundary } from './BattleCheckpointAdapter.js';
 
 /**
+ * Deterministic serialization of one carried item: its identity plus every
+ * per-instance field. Two equally named items (two "Iron Sword +1" forged
+ * differently) differ by `uid` and by their forged stat fields; legacy items
+ * without a uid are told apart by content alone (forge level / allocations /
+ * history, might-hit-crit-weight, `_imbueId`, uses and `_usesSpent`, granted
+ * skills, ...). A battle checkpoint restores items as full structured clones
+ * (which keep key order), so any field difference is a different board.
+ * Items are plain persisted data; native JSON keeps this cheap enough to run
+ * at every activation. Pure: never allocates a uid, never draws randomness.
+ */
+export function itemFingerprint(item) {
+  if (item === null || item === undefined) return 'null';
+  try {
+    return JSON.stringify(item) ?? 'null';
+  } catch {
+    // Not plain data (never expected): fall back to what identifies it.
+    return JSON.stringify([item.uid ?? null, item.name ?? null, item.uses ?? null]);
+  }
+}
+
+const itemList = (items) =>
+  Array.isArray(items) ? `[${items.map(itemFingerprint).join(',')}]` : 'null';
+
+/**
  * What free (no-action) changes can touch between two actions: positions and
  * commitment, equipment, bags, accessories, convoy and gold. Compared at the
  * next activation so an equip-then-set-aside is not folded into the next
- * unit's rewind point. Cheap: a few strings per unit, no clone.
+ * unit's rewind point. Items are fingerprinted by identity and instance
+ * fields (itemFingerprint), never by name, so equipping a different item
+ * with the same name is a change. Cheap: a few short strings per unit and
+ * one for the run domain; no clone.
  */
 export function rewindFingerprint(scene) {
   const units = {};
   for (const unit of scene.playerUnits || []) {
-    units[unit.battleEntityId] = JSON.stringify([
-      unit.col,
-      unit.row,
-      unit.hasMoved === true,
-      unit._movementCommitted === true,
-      (unit.inventory || []).indexOf(unit.weapon),
-      (unit.inventory || []).map((w) => [w?.name, w?.uses ?? null, w?._usesSpent ?? 0]),
-      (unit.consumables || []).map((c) => [c?.name, c?.uses ?? null]),
-      unit.accessory?.name || null,
-    ]);
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    units[unit.battleEntityId] = [
+      JSON.stringify([
+        unit.col,
+        unit.row,
+        unit.hasMoved === true,
+        unit._movementCommitted === true,
+        inventory.indexOf(unit.weapon),
+      ]),
+      // The equipped item itself (identity + fields), even if not carried.
+      unit.weapon ? itemFingerprint(unit.weapon) : 'null',
+      itemList(inventory),
+      itemList(unit.consumables || []),
+      unit.accessory ? itemFingerprint(unit.accessory) : 'null',
+    ].join('|');
   }
+  // The run domain a checkpoint restores (runBattleState): gold, convoy and
+  // the unequipped accessory pool — by identity, not by counts.
   const rm = scene.runManager;
   return {
     units,
-    run: JSON.stringify([
-      rm?.gold ?? null,
-      rm?.convoy?.weapons?.length ?? 0,
-      rm?.convoy?.consumables?.length ?? 0,
-      (rm?.accessories || []).length,
-    ]),
+    run: [
+      JSON.stringify(rm?.gold ?? null),
+      itemList(rm?.convoy?.weapons),
+      itemList(rm?.convoy?.consumables),
+      itemList(rm?.accessories),
+    ].join('|'),
   };
 }
 
-/** Player units whose free state differs from the fingerprint (null: unknown). */
+/**
+ * Free state that differs from `before` (a rewindFingerprint).
+ * @returns {{ units: string[], run: boolean, changed: boolean } | null}
+ *   `units`: player units whose free state changed (including units that
+ *   appeared or left); `run`: the run domain (gold, convoy, accessory pool)
+ *   changed; `changed`: either. null when there is no baseline (unknown).
+ */
 export function fingerprintChanges(scene, before) {
-  if (!before) return null;
+  if (!before || typeof before !== 'object' || !before.units) return null;
   const now = rewindFingerprint(scene);
   const ids = Object.keys(now.units).filter((id) => now.units[id] !== before.units[id]);
-  return ids.length || now.run !== before.run ? ids : [];
+  for (const id of Object.keys(before.units)) if (!(id in now.units)) ids.push(id);
+  const run = now.run !== before.run;
+  return { units: ids, run, changed: ids.length > 0 || run };
 }
 
 function playerActionFact(scene) {
@@ -163,11 +205,15 @@ export function recordBattleTimeline(scene, state) {
   const entry = next.entries.at(-1);
   if (entry && frame) {
     try {
+      const info = historyRecordInfo(scene, history, entry, frame);
+      // The frame before this one could not be captured: never animate across it.
+      if (scene._historyFrameMissed) info.gap = true;
       const presentation = appendHistoryPresentation(
         history.presentation || createHistoryPresentation(history.presentationNextId),
         frame,
-        historyRecordInfo(scene, history, entry, frame),
+        info,
       );
+      scene._historyFrameMissed = false;
       next.presentationNextId = Math.max(next.presentationNextId || 1, presentation.nextId);
       next.presentation = retainHistoryPresentation(
         presentation,
@@ -184,8 +230,11 @@ export function recordBattleTimeline(scene, state) {
       next.presentationGeneration = (next.presentationGeneration || 0) + 1;
     }
   } else if (!frame) {
-    next.presentation = null;
-    next.presentationGeneration = (next.presentationGeneration || 0) + 1;
+    // One frame that could not be captured costs only its own row: the row
+    // keeps its compact preview and the archive (already retained with the
+    // timeline) keeps every earlier board. Dropping the archive here used to
+    // turn the whole history into the text board.
+    scene._historyFrameMissed = true;
   }
   scene._historyBeats = [];
   scene._historyActor = null;

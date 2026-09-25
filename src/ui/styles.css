@@ -40,6 +40,9 @@
 /* PC-98 portraits: pixel-true figures over faction plates. */
 @import './portraits.css';
 
+/* Item art: socketed pixel icons, painted heroes, blessing cards and service vignettes. */
+@import './itemArt.css';
+
 /* Save select: the candle shrine (SlotPickerView.js). */
 @import './slotPicker.css';
 /* Portrait battles (beta): upright phone layout, map above a thumb-reach rail. Last. */

@@ -2,6 +2,7 @@ import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent } from './choiceContent.js';
+import { blessingCardArt, costSeal } from './itemMoments.js';
 import {
   choiceButton,
   choiceReducedMotion,
@@ -125,6 +126,14 @@ export class RunSetupMenu {
         element('span', content.costLabel, 'ch-boon-k'),
         element('span', content.cost || 'None: a clean gift'),
       );
+      // The shrine's painting behind the numeral and the name (items art: blessing cards);
+      // the cost wears a wax seal: crimson with a price, verdigris when the gift is clean.
+      const art = content.id ? blessingCardArt(content.id) : null;
+      if (art) {
+        card.classList.add('has-art');
+        plate.append(art);
+      }
+      cost.prepend(costSeal(!content.cost));
       plate.append(sun, element('strong', content.name, 'ch-tarot-name'), lines, cost);
       card.append(plate);
       row.append(card);

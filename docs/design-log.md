@@ -5,6 +5,187 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Items, rewards and services art (built)
+
+Every item, scroll, stone, blessing and upgrade has a pixel icon drawn in code from its
+data, in a socket whose shape is its category and whose rim is its tier; items shown large
+get a painted 96 px picture; blessings are tarot paintings; each service has its place.
+Spec and deviations: [`specs/items-art.md`](specs/items-art.md); captures:
+[`art-direction/items/production/`](art-direction/items/production/README.md).
+
+**Decisions**
+- Icons are generated, not painted: 302 icons render natively at 16/32/48 from
+  `tools/art/icons/`, byte-stable (a unit test rebuilds and compares). One atlas per size,
+  loaded as a CSS background only when a screen shows that size.
+- Paintings are only where an item is large (the detail pane); never shrunk — a smaller
+  slot shows the pixel icon at an integer scale. Scrolls, blessings and upgrades keep
+  their pixel glyph even large: the glyph is the information.
+- The reward reveal is presentation and plays once per battle: the reward record carries
+  `revealed`, so a resume never replays it. The tap that skips it also selects the card.
+- Motion (forge sparks, candle flicker, card turn, the upgrade stamp) is CSS on DOM, off
+  under Reduce motion (game setting or OS).
+- The 37 legacy `icon_*` textures loaded at boot were unused: deleted. The choice
+  screens' reward cards now take the socketed icon / painted hero in their art slot.
+
+**Deferred**
+- Canvas loot banner and HUD item names stay text.
+
+---
+
+## 2026-09-25 — Playtest 3 polish: tile choice, click-to-attack, copy, route rail (built)
+
+A short phone + desktop spot check of main through PR84. No crash or save loss; five
+polish items. Spec: [`specs/playtest-polish.md`](specs/playtest-polish.md); captures:
+[`art-direction/ux-polish/playtest-3/`](art-direction/ux-polish/playtest-3/README.md).
+
+- **Phone, after Back undoes a move** the rail says "Choose a tile · Sera" with a Cancel
+  beside End turn (it used to fall back to the idle commands while blue tiles showed).
+- **Desktop, a unit selected + click an enemy in reach** now attacks: the forecast opens
+  from the current tile, or after walking to the closest attack tile (least movement →
+  equipped weapon reaches → terrain → reading order; hover previews the walk). Not a
+  documented desktop decision before — only the touch selection menu keeps
+  tap-to-inspect. Unreachable enemies still deselect; the footer guide explains clicks.
+- **Copy:** "Vulnerary ×3 · 3 uses each"; "Rout · 1 enemy remains"; Save & Exit now
+  points to Resume on the Title (Title messages name Save Slots, not a "Continue" button
+  that no longer exists).
+- **Desktop route rail** widens with the window (to 300 px) and its reading text steps up;
+  phones and 640×480 unchanged.
+- **"Triangle advantage · −1 damage"** was not a copy bug: label and sign share one
+  source; the minus was a "+" losing its vertical stroke under NEAREST text sampling,
+  which crisp canvas text (playtest 2) fixes. Verified at 1676×858, DPR 1 and 2.
+
+---
+
+## 2026-09-25 — Layered music under the cache budget (outside report)
+
+**The bug.** On the mobile budget (3 tracks / 120 MB) a layered track could go
+silent while it loaded. Each file that finished decoding ran the cache budget but
+protected only itself, the playing track and in-flight loads. The new track's primary
+had already finished loading, so it counted as none of those. Loading its calm or
+enrage layer could evict it, and `playMusic` then stopped the old music and returned
+at `!cache.has(key)`. Example: a battle theme (full + calm) playing, then a boss theme
+(+ enrage) requested. The enrage load pushed the cache to 4 tracks and evicted the boss
+primary, leaving no music at all. In the byte-budget version, the new track's
+already-cached calm layer was evicted first, then refetched, and its refetch evicted
+the primary. The pass just before the new voice was built had the same gap: it
+protected only the primary, not the layers.
+
+**Fix** (`AudioManager`, `LoopedMusic`). The newest request's primary and all its layers
+are pinned (`_pendingMusicKeys`) from the start of loading until the voice is built. Any
+buffer a sounding voice holds is also pinned: LoopedMusic reports `bufferKeys`, so a
+fading-out track is covered too. A budget pass runs again once a fade ends. If the
+primary is somehow missing after loading, the old music keeps playing instead of
+stopping. When a layer the track wants is missing (it failed to load), `setMusicIntensity`
+keeps the current layer. It then reloads the missing one once per voice and, via
+`LoopedMusic.addLayer`, starts it silent at the primary's playhead so it can crossfade
+in. A track started while audio was locked keeps its enrage layer after unlock. Under
+budget nothing changes. While both tracks are needed the cache can briefly go over
+budget. That costs no extra memory: evicting a playing buffer never freed it, because
+the running source still holds it. Stingers have their own cache and never touch
+music keys. Test: `tests/MusicLayerCache.test.js`.
+
+---
+
+## 2026-09-25 — App icon: Hollow Dawn
+
+The winged-sword icon was generic and too close to the series' heraldry. Ahead of the
+Rogue Dawn rename, I drew six procedural candidates from the key art's own palette and
+dither: Hollow Dawn, Hollow Helm, Hollow Crest, The Gap, Diamond Ring and The Last
+Warden. I checked each at 1024, 180, 60 and 29 px on dark and light grounds and in a
+home-screen row. **Hollow Dawn** ships. The Hollow Sun rises over a hedge of imperial
+pikes and dawn burns around the black disc. It's the only candidate that shows both dawn
+and the eclipse, and at 29 px it's a black disc in a burning band. The Hollow Helm is the
+runner-up. Any candidate can be swapped in with one command:
+`npm run gen:icons -- --from docs/art-direction/app-icon/<id>.png`, which also writes the
+iOS 1024 icon. The maskable PWA icon is now full-bleed, and Capacitor's placeholder launch
+image is replaced by the Hollow Dawn mark on the void (the storyboard background is the
+void too). Spec:
+[`specs/app-icon.md`](specs/app-icon.md); sheets and ranking:
+[`art-direction/app-icon/`](art-direction/app-icon/README.md).
+
+---
+
+## 2026-09-25 — Playtest fixes: fallen recruits, forecast bar, iOS saves, timeline preview (built)
+
+Four playtest reports (iPhone app and desktop). Spec, root causes and tests:
+[`specs/playtest-fixes-2026-09-25.md`](specs/playtest-fixes-2026-09-25.md); screenshots:
+[`art-direction/gameplay/playtest-fixes/`](art-direction/gameplay/playtest-fixes/README.md).
+
+**Decisions**
+- A Talk recruit who falls in the battle it joined is a fallen ally like any roster
+  casualty; its record is the unit as it joined. The as-joined list is battle world
+  state, so rewind and suspend treat it like everything else. Old saves that already
+  lost a recruit cannot get it back (no copy survives a victory).
+- The forecast numbers were already honest (a 2,500-matchup property test now pins
+  forecast == resolution). The bug was presentation: the projected loss on the canvas
+  HP bar was the same color as a 40–70% HP fill. The loss is now a dark hatched segment
+  on every surface. Weapon-art forecasts are computed in the state resolution uses.
+- iOS saves: every roster mutation saves as it applies; lifecycle events flush; with the
+  native Filesystem plugin, game keys are mirrored to `Library/` and restored before boot
+  if WebKit evicted or lost them (never resurrecting deleted keys). On a full store, the
+  other slots' optional battle history is shed before the write fails.
+- Timeline: a missing or rejected frame costs one row, never the archive; the view
+  rebuilds a board from rewind state or the compact preview before it falls back to the
+  sketch, and the sketch says "Preview unavailable — map sketch".
+
+---
+
+## 2026-09-25 — The game is called Rogue Dawn
+
+Renamed from "Rogue Emblem" (title, manifest) / "Emblem Rogue" (home-screen label, docs) to
+**Rogue Dawn**, to keep clear of the Fire Emblem trademark before the TestFlight build. The
+name pairs with the Hollow Sun motif (an eclipse; the title's post-victory variant is
+`rising`), and "Dawn" is already the game's word for Light magic (`deeds.json`: Light → "the
+Dawn", the Dawn-office liturgy, Dawn's Judgment). Subtitle kept: *Rogue Dawn — The Hollow
+Sun*. One tension to judge by eye, not rewritten here: the default title variant is `dusk`,
+so a first-time player reads "Dawn" over a dusk eclipse.
+
+Player- and distribution-facing names changed: title/auth lockups, `<title>`,
+`apple-mobile-web-app-title`, manifest `name`/`short_name` (description no longer cites Fire
+Emblem), Capacitor `appName`, iOS `CFBundleDisplayName`, How to Play, dev pages. The name now
+lives in `src/utils/gameIdentity.js` (`GAME_TITLE`); `tests/GameIdentity.test.js` holds the
+static surfaces to it and fails if the old name returns to shipped code or data.
+
+Deliberately unchanged (renaming would orphan saves or split the App Store record):
+`emblem_rogue_*` storage keys, `__emblemRogue*` globals, the `@emblem-rogue.local` auth email
+domain, bundle ID `com.davechen.emblemrogue`, the npm package name, the repo, the Netlify site
+and file names (e.g. `docs/emblem_rogue_gdd.docx`). Historical records (earlier log entries,
+dated reviews, generation prompts, mockups, archive paths) keep the name they were written
+under. External follow-ups for the owner: App Store Connect name/subtitle, TestFlight test
+information, Netlify site name/domain, Supabase project display name, GitHub repo name.
+Captures: [`art-direction/rename/`](art-direction/rename/README.md).
+
+---
+
+## 2026-09-25 — Review fixes: rewind item identity (R1), Eclipse act pressure (R2)
+
+From the stability review of PRs #70–78 (both P2).
+
+**R1 — rewind free-change fingerprint is by item identity.** The set-aside detector
+compared items by name/uses and the equipped index; with the equipped weapon always first,
+equipping the other of two equally named forges ("Iron Sword +1" for might vs for hit)
+looked unchanged, so rewinding "before the next unit's action" also undid the equip.
+Items (carried, equipped, consumables, accessory, convoy, accessory pool) are now
+fingerprinted as their full per-instance data (uid + forge/imbue/uses/art bindings;
+legacy uid-less items by content), and `fingerprintChanges` returns
+`{ units, run, changed }` so a run-only change (gold/convoy/accessory pool) is its own
+point too ("Before: Supplies changed"). Spec:
+[`specs/rewind-any-action.md`](specs/rewind-any-action.md).
+
+**R2 — act pressure is separate from the capped global meter** (lead decision). The old
+`shadow - actStartShadow` saturated near the cap: an act opening at 97 could gather at most
+3, below every fall threshold, so nothing could fall and the countdown lied. `actShadow`
+is now its own field: full per-victory gain (uncapped), lowered by Kindle and boss relief
+like the meter, reset at act start; the global `shadow` stays 0–100 and still drives
+phases, levels and affixes. Version-1 saves derive it as `shadow - actStartShadow`. The
+battle HUD and victory band say when the cap stops part of a gain (`Shadow +6 (sun +3)`,
+`Shadow +6 (land only)`); the explainer notes that the land still darkens at Hollow.
+Sims: act-end shadow/phases unchanged for every profile; only runs that reach the cap lose
+more land (Hard B 41 → 48 knots/run, Hard C 37 → 51; Normal C 36.5 → 37.7). Spec:
+[`specs/eclipse.md`](specs/eclipse.md) deviation 11.
+
+---
+
 ## 2026-09-25 — Threat sight, Guidance and Mac font scaling (playtest 2) (built)
 
 A second playtest round: a Three Houses veteran wanted "the little red arc" that shows who

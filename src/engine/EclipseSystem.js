@@ -2,10 +2,13 @@
 //
 // Every turn spent in battle darkens the Hollow Sun. Shadow (0..cap) is committed only
 // at a battle's victory (RunManager.completeBattle), so Vision rewind, suspend/resume
-// and "Continue from Map" never see a half-applied clock. Act shadow — the shadow
-// gained since the act's map was generated — makes nodes on the map fall: they are
-// transformed into eclipsed battles (never deleted), so edges and boss reachability
-// never change.
+// and "Continue from Map" never see a half-applied clock. Two numbers move together:
+//   - `shadow`, the run's global meter (0..cap): phases, enemy levels, affixes;
+//   - `actShadow`, the pressure gathered in this act (reset at act start, NOT capped
+//     by the global meter): it makes nodes on the map fall. They are transformed into
+//     eclipsed battles (never deleted), so edges and boss reachability never change.
+// Keeping them apart means a run whose sun is already Hollow still loses land when it
+// plays slowly (review R2: an act starting at 97 used to gather at most 3).
 //
 // Pure: no Phaser, no DOM. Nothing here reads the caller's Math.random; node
 // conversions run under their own seeded stream and restore the caller's generator.
@@ -14,11 +17,14 @@
 import { createSeededRng } from './BlessingEngine.js';
 import { convertNodeToRoutBattle } from './NodeMapGenerator.js';
 
-export const ECLIPSE_STATE_VERSION = 1;
+// 2: `actShadow` (act pressure) is its own field. Version-1 saves derive it on load.
+export const ECLIPSE_STATE_VERSION = 2;
 
 // Node types (NODE_TYPES values) that can fall, and what they become.
 const FALLABLE_TYPES = new Set(['battle', 'shop', 'church', 'recruit', 'colosseum']);
 const DEFAULT_CAP = 100;
+// Act pressure is uncapped by the global meter; this only bounds corrupt saves.
+const ACT_SHADOW_LIMIT = 9999;
 
 /** 32-bit FNV-1a: stable per-string hash for thresholds and seeded streams. */
 export function eclipseHash(input) {
@@ -45,12 +51,18 @@ function clampShadow(value, config) {
   return Math.max(0, Math.min(capOf(config), int(value, 0)));
 }
 
+function clampActShadow(value) {
+  return Math.max(0, Math.min(ACT_SHADOW_LIMIT, int(value, 0)));
+}
+
 /** A fresh run's Eclipse state. */
 export function createEclipseState({ enabled = true } = {}) {
   return {
     version: ECLIPSE_STATE_VERSION,
     shadow: 0,
+    // Global shadow when this act began (kept for older readers of the save).
     actStartShadow: 0,
+    actShadow: 0,
     enabled: enabled !== false,
     kindledNodeIds: [],
   };
@@ -58,12 +70,18 @@ export function createEclipseState({ enabled = true } = {}) {
 
 /**
  * Guarded load of a saved Eclipse state. Legacy saves (no state) start their clock
- * now: enabled, shadow 0. Values are clamped; unknown fields are dropped.
+ * now: enabled, shadow 0. Values are clamped; unknown fields are dropped. A version-1
+ * save has no `actShadow`: it is derived as `shadow - actStartShadow` (what the act
+ * had gathered under the old rule), so falls and countdowns carry on unchanged.
  */
 export function normalizeEclipseState(raw, config = null) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return createEclipseState();
   const shadow = clampShadow(raw.shadow, config);
   const actStart = clampShadow(raw.actStartShadow, config);
+  const savedAct = Number(raw.actShadow);
+  const actShadow = Number.isFinite(savedAct)
+    ? clampActShadow(savedAct)
+    : Math.max(0, shadow - actStart);
   const kindled = Array.isArray(raw.kindledNodeIds)
     ? [...new Set(raw.kindledNodeIds.filter((id) => typeof id === 'string' && id))]
     : [];
@@ -71,6 +89,7 @@ export function normalizeEclipseState(raw, config = null) {
     version: ECLIPSE_STATE_VERSION,
     shadow,
     actStartShadow: actStart,
+    actShadow,
     enabled: raw.enabled !== false,
     kindledNodeIds: kindled,
   };
@@ -154,10 +173,57 @@ function phaseIndexOf(id, config) {
   return sortedPhases(config).findIndex((p) => p.id === id);
 }
 
-/** Act shadow: shadow gained since this act's map was generated (floored at 0). */
+/**
+ * Act shadow (act pressure): the shadow this act has gathered since its map was
+ * generated, net of in-act relief. Not limited by the global cap. A state without the
+ * field (a version-1 object that skipped normalization) falls back to the old rule.
+ */
 export function actShadowOf(state) {
   if (!state) return 0;
+  const act = Number(state.actShadow);
+  if (Number.isFinite(act)) return clampActShadow(act);
   return Math.max(0, int(state.shadow, 0) - int(state.actStartShadow, 0));
+}
+
+/**
+ * What a victory commit does to both numbers (pure). The gain raises the act pressure
+ * in full and the global meter up to the cap; relief (an act boss's flare) is applied
+ * after the cap to both, floored at 0.
+ * @returns {{ state:object, before:number, after:number, meterGain:number,
+ *   actBefore:number, actAfter:number }}
+ */
+export function commitShadow(state, { gain = 0, relief = 0 } = {}, config = null) {
+  const g = Math.max(0, int(gain, 0));
+  const r = Math.max(0, int(relief, 0));
+  const cap = capOf(config);
+  const before = clampShadow(state?.shadow, config);
+  const raised = Math.min(cap, before + g);
+  const after = Math.max(0, raised - r);
+  const actBefore = actShadowOf(state);
+  const actAfter = clampActShadow(actBefore + g - r);
+  return {
+    state: { ...state, shadow: after, actShadow: actAfter },
+    before,
+    after,
+    meterGain: raised - before,
+    actBefore,
+    actAfter,
+  };
+}
+
+/**
+ * Shadow a victory would add to the global meter for a projected gain (the rest of the
+ * gain still darkens the land). 0..gain.
+ */
+export function projectedMeterGain(state, gain, config = null) {
+  const g = Math.max(0, int(gain, 0));
+  const before = clampShadow(state?.shadow, config);
+  return Math.min(capOf(config), before + g) - before;
+}
+
+/** A new act: fresh land. Act pressure restarts at 0; the global meter carries on. */
+export function beginActShadow(state) {
+  return { ...state, actStartShadow: int(state?.shadow, 0), actShadow: 0 };
 }
 
 // ── The map ──────────────────────────────────────────────────────────────
@@ -398,13 +464,18 @@ export function kindleResult({ state, config, nodeId, actId, gold }) {
   const amount = Math.max(0, int(config.kindleAmount, 0));
   const before = int(state.shadow, 0);
   const after = Math.max(0, before - amount);
+  // Kindle lowers both: the global meter and this act's pressure (nodes fall later).
+  const actBefore = actShadowOf(state);
+  const actAfter = Math.max(0, actBefore - amount);
   return {
     ok: true,
     price,
     removed: before - after,
+    actRemoved: actBefore - actAfter,
     state: {
       ...state,
       shadow: after,
+      actShadow: actAfter,
       kindledNodeIds: [...(state.kindledNodeIds || []), nodeId],
     },
   };
@@ -480,6 +551,8 @@ export function buildEclipseView({
   return {
     shadow,
     cap: capOf(config),
+    // The global meter is full, yet the act keeps gathering (the land still darkens).
+    atCap: shadow >= capOf(config),
     actShadow: act,
     phase,
     nodes,

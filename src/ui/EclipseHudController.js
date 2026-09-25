@@ -1,7 +1,10 @@
 // EclipseHudController — the battle's Eclipse projection (create()/destroy() controller).
 //
 // Shows how much shadow a victory *this turn* would commit: "Shadow +2", or "Sun holds"
-// while the clear is still inside the grace window. It is a pure function of the turn
+// while the clear is still inside the grace window. The act's pressure (what takes the
+// land) gathers all of it; when the sun's meter is at or near its cap only part reaches
+// the sun, and the label says so: "Shadow +6 (sun +2)" / "Shadow +6 (land only)".
+// It is a pure function of the turn
 // number and the battle's par (RunManager.projectShadowGain), recomputed on postupdate,
 // so Vision rewind, suspend/resume and reinforcement par bumps are reflected for free.
 // Nothing is written to the run here: shadow is only committed at victory.
@@ -15,6 +18,7 @@ import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { showContextualHint } from './HintDisplay.js';
 import { shadowProjectionLabel, shadowProjectionTone } from './eclipseContent.js';
+import { projectedMeterGain } from '../engine/EclipseSystem.js';
 
 const TONE_COLORS = {
   held: UI_PALETTE.accentText,
@@ -39,6 +43,16 @@ export function projectedShadow(scene) {
   return scene.runManager.projectShadowGain(turn, scene.turnPar);
 }
 
+/**
+ * Of the projected gain, what the run's global meter would take (the cap stops the
+ * rest, which still darkens this act's land). null when the Eclipse is off.
+ */
+export function projectedMeterShadow(scene, gain = projectedShadow(scene)) {
+  if (gain == null) return null;
+  const rm = scene.runManager;
+  return projectedMeterGain(rm.eclipse, gain, rm.getEclipseConfig?.());
+}
+
 /** Shadow an act boss's fall lifts at this victory (0 for other battles or when off). */
 export function projectedRelief(scene) {
   if (!isEclipseClock(scene) || !scene.isBoss) return 0;
@@ -51,6 +65,7 @@ export class EclipseHudController {
     this.scene = scene;
     this.text = null;
     this.gain = null;
+    this.meterGain = null;
     this._onPostUpdate = null;
     this.destroyed = false;
   }
@@ -81,7 +96,7 @@ export class EclipseHudController {
 
   /** Current projection text ('' when the Eclipse is off). */
   label() {
-    return this.gain == null ? '' : shadowProjectionLabel(this.gain);
+    return this.gain == null ? '' : shadowProjectionLabel(this.gain, this.meterGain);
   }
 
   tone() {
@@ -91,9 +106,11 @@ export class EclipseHudController {
   sync() {
     if (this.destroyed) return;
     const gain = projectedShadow(this.scene);
-    if (gain === this.gain) return;
+    const meterGain = projectedMeterShadow(this.scene, gain);
+    if (gain === this.gain && meterGain === this.meterGain) return;
     const rose = gain > 0 && !(this.gain > 0);
     this.gain = gain;
+    this.meterGain = meterGain;
     if (this.text) {
       this.text.setText(this.label());
       this.text.setColor(TONE_COLORS[this.tone()] || UI_PALETTE.text);
@@ -104,7 +121,9 @@ export class EclipseHudController {
         this.scene,
         'eclipse_projection',
         // Short enough to stay a passing note (no modal mid-battle).
-        `The sun darkens: win now and the run gains ${gain} shadow.`,
+        meterGain != null && meterGain < gain
+          ? `The land darkens: win now and this act gathers ${gain} shadow.`
+          : `The sun darkens: win now and the run gains ${gain} shadow.`,
       );
     }
   }

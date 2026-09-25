@@ -63,11 +63,14 @@ export const RUNTIME_CACHE_ROUTES = Object.freeze([
     // instantly from cache (and offline), but revalidate in the background so a
     // replaced asset refreshes on the next online load. maxAge bounds cache GC, not
     // staleness. Atlas pages also match this pattern but are served by the precache
-    // route, which workbox registers first.
-    urlPattern: /\/assets\/(sprites|portraits|terrain)\/.*\.(png|jpe?g|webp|gif)$/i,
+    // route, which workbox registers first. assets/ui holds the item art (icon atlases,
+    // painted heroes, blessing cards, service vignettes); those URLs carry ?v=<content
+    // hash>, so a regenerated file is a new URL and refreshes on its own.
+    urlPattern: /\/assets\/(sprites|portraits|terrain|ui)\/.*\.(png|jpe?g|webp|gif)(\?.*)?$/i,
     cacheName: 'er-image-assets',
     // ~2450 image files ship under assets/{sprites,portraits,terrain} (2126 of them
-    // PC-98 portrait renders: 6 sizes per face incl. the variant faces, plates, baked).
+    // PC-98 portrait renders: 6 sizes per face incl. the variant faces, plates, baked),
+    // plus ~170 item-art files under assets/ui (3 atlases, 139 heroes, 29 paintings).
     // maxEntries must stay above the whole shipped set so LRU eviction never silently
     // drops a file from the offline cache (tests/OfflineCachePolicy.test.js enforces
     // it); purgeOnQuotaError is the real safety valve if disk quota is hit.

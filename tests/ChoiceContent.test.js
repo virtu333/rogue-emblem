@@ -19,7 +19,7 @@ import {
   unitLines,
   weaponMarks,
 } from '../src/ui/choiceContent.js';
-import { itemIconKey } from '../src/ui/choiceCards.js';
+import { itemIconId } from '../src/ui/itemIcons.js';
 import { generateModifierSummary } from '../src/engine/DifficultyEngine.js';
 
 let data;
@@ -242,16 +242,19 @@ describe('blessings and difficulty', () => {
   });
 });
 
-describe('itemIconKey', () => {
-  it('finds existing item art by name, then by kind', () => {
-    expect(itemIconKey({ type: 'weapon', item: { name: 'Steel Sword', type: 'Sword' } })).toBe(
-      'sword',
+describe('reward item art', () => {
+  it('every reward card resolves to its own item icon (the atlas, not legacy art)', () => {
+    expect(itemIconId({ type: 'weapon', item: { name: 'Steel Sword', type: 'Sword' } })).toBe(
+      'steel-sword',
     );
-    expect(itemIconKey({ type: 'consumable', item: { name: 'Speedwing', type: 'Consumable' } })).toBe('speedwing'); // prettier-ignore
-    expect(itemIconKey({ type: 'accessory', item: { name: "Veteran's Crest", type: 'Accessory' } })).toBe('veterans_crest'); // prettier-ignore
-    expect(itemIconKey({ type: 'consumable', item: { name: 'Herb', type: 'Consumable', effect: 'cure' } })).toBe('potion'); // prettier-ignore
-    expect(itemIconKey({ type: 'forge', item: { name: 'Prismatic Stone', type: 'Whetstone' } })).toBe('whetstone'); // prettier-ignore
-    expect(itemIconKey({ type: 'gold' })).toBe('gold');
-    expect(itemIconKey({ type: 'weapon', item: { name: 'Odd', type: 'Breath' } })).toBe('');
+    expect(itemIconId({ type: 'consumable', item: { name: 'Speedwing', type: 'Consumable' } })).toBe('speedwing'); // prettier-ignore
+    expect(itemIconId({ type: 'accessory', item: { name: "Veteran's Crest", type: 'Accessory' } })).toBe('veterans-crest'); // prettier-ignore
+    expect(itemIconId({ type: 'consumable', item: { name: 'Herb', type: 'Consumable', effect: 'cure' } })).toBe('herb'); // prettier-ignore
+    expect(itemIconId({ type: 'forge', item: { name: 'Prismatic Stone', type: 'Whetstone' } })).toBe('prismatic-stone'); // prettier-ignore
+    expect(itemIconId({ type: 'gold' })).toBe('gold');
+    expect(itemIconId({ type: 'skip' })).toBe('gold');
+    expect(itemIconId({ type: 'weapon', item: { name: 'Odd', type: 'Breath' } })).toBe(
+      'generic-breath',
+    );
   });
 });

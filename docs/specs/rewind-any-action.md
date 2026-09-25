@@ -71,6 +71,19 @@ reach turn starts:
   `rewindFingerprint`), that board is recorded as its own point first
   (`VisionRewindController.settleParkedActivation`). So "Before Y's attack" never undoes X's
   trade or re-equip.
+- **Free-change fingerprint is by item identity** (review R1, 2026-09-25). Every carried
+  item, the equipped weapon, consumables, the accessory, the convoy and the accessory pool
+  are fingerprinted as their full per-instance data (`itemFingerprint`: `uid` plus forge
+  level / allocations / history, might-hit-crit-weight, `_imbueId`, weapon-art bindings,
+  uses and `_usesSpent`, ...), never by name. Equipping the other of two equally named
+  forges ("Iron Sword +1" forged for might vs for hit) is therefore a change even though
+  the equipped weapon is always first. Legacy items without a `uid` fall back to their
+  content (deterministic; two truly identical copies are the same combat setup, so swapping
+  them is correctly not a change). The fingerprint never allocates uids or draws RNG.
+  `fingerprintChanges` returns `{ units, run, changed }` (or `null` without a baseline):
+  a run-only change (gold, convoy, accessory pool with no unit's own state changed) is
+  recorded too, labelled "Before: Supplies changed". Cost ≈ 0.6 ms per activation for a
+  14-unit army with a full convoy.
 - **Granularity is difficulty data**: `difficulty.json` `rewindGranularity` — `action` on
   Normal/Hard, `turn` on Lunatic (unchanged rule, now data; one line to change). Missing
   in older saves → the difficulty's default.
@@ -134,10 +147,13 @@ went down (≈21 ms vs ≈33 ms per recorded row in Node for the late-game fixtu
   (DOM: rows, preview, confirm once, reasons, keyboard, gamepad, empty, fatal),
   `RewindAnyActionIntegration.test.js` (controller + transaction on the production
   checkpoint path: exact restore + reload, refusals, traded/equipped set-aside points,
-  fatal decision, legacy reroll).
+  same-name forge re-equip point, run-only supplies point, fatal decision, legacy
+  reroll), `RewindFingerprint.test.js` (item identity with real forge/imbue/equip
+  functions, legacy items without uids, run-only changes, no false positives).
 - E2E: `rewind-any-action.spec.js` (phone: three units, rewind before the second, exact
   state, the repeated attack resolves identically, reload resumes exactly; preview is free;
-  trade point; desktop keyboard + mouse), `rewind-action-types.spec.js` (wait, move, attack,
+  trade point; equal-name forge re-equip survives rewinding the next unit; desktop
+  keyboard + mouse), `rewind-action-types.spec.js` (wait, move, attack,
   weapon art, heal, warp, cure, item, shove, pull, healing circle, rally, ensnare, blink,
   dance, end turn: act → rewind → exact), updated `battle-timeline.spec.js` and
   `battle-contracts.spec.js`.

@@ -16,6 +16,31 @@ vi.mock('../../src/ui/PromotionPathChooser.js', async () => ({
 vi.mock('../../src/ui/PauseOverlay.js', async () => ({
   PauseOverlay: (await import('./JourneyPresentation.js')).PauseOverlay,
 }));
+// Item art is presentation only: icons, heroes and vignettes render as inert nodes.
+vi.mock('../../src/ui/itemIcons.js', async (original) => {
+  const actual = await original();
+  const { element } = await import('./JourneyPresentation.js');
+  const node = (cls) => (subject) => {
+    const n = element('span', '', cls);
+    n.dataset.iconId = actual.itemIconId(subject);
+    return n;
+  };
+  return { ...actual, itemIcon: node('ia-icon'), itemHero: node('ia-hero') };
+});
+vi.mock('../../src/ui/itemMoments.js', async (original) => {
+  const actual = await original();
+  const { element } = await import('./JourneyPresentation.js');
+  return {
+    ...actual,
+    applyServiceVignette: (root, service) => {
+      root.dataset.vignette = service;
+      return element('div', '', 'ia-band');
+    },
+    vignetteMotes: () => null,
+    motes: () => element('span', '', 'ia-motes'),
+    prefersStill: () => true,
+  };
+});
 vi.mock('../../src/ui/HintDisplay.js', () => ({
   showMinorHint: vi.fn(),
   showImportantHint: vi.fn(),

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Item art gallery</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        background: var(--re-bg);
+        color: var(--re-text);
+        font: 12px/1.3 var(--re-body, sans-serif);
+      }
+      h2 {
+        font: 10px/1.4 var(--re-pixel);
+        color: var(--re-accent-text);
+        margin: 14px 0 6px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-end;
+      }
+      .cell {
+        display: grid;
+        justify-items: center;
+        gap: 2px;
+        min-width: 88px;
+        padding: 4px;
+        background: var(--re-panel);
+      }
+      .cell small {
+        text-align: center;
+        font-size: 9px;
+        color: var(--re-muted);
+        overflow-wrap: anywhere;
+      }
+      .sizes {
+        display: flex;
+        gap: 2px;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./gallery.js"></script>
+  </body>
+</html>

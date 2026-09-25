@@ -1,7 +1,9 @@
-# Emblem Rogue — Claude Code Guide
+# Rogue Dawn — Claude Code Guide
 
 ## Project Overview
-Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat with roguelike run structure. Built with Phaser.js (HTML5 Canvas), SNES-inspired pixel art, all game data driven by JSON.
+Rogue Dawn (formerly "Emblem Rogue" / "Rogue Emblem") is a browser-based tactical RPG combining Fire Emblem grid combat with roguelike run structure. Built with Phaser.js (HTML5 Canvas), SNES-inspired pixel art, all game data driven by JSON.
+
+**Name:** the player-facing name lives in `src/utils/gameIdentity.js` (`GAME_TITLE`); `tests/GameIdentity.test.js` holds index.html, the web manifest, Capacitor and Info.plist to it. Internal identifiers keep the old spelling on purpose and must not be renamed: `emblem_rogue_*` storage keys, `__emblemRogue*` window globals, the `@emblem-rogue.local` auth email domain, the iOS bundle ID `com.davechen.emblemrogue`, the npm package name, the repo and the Netlify site.
 
 **Full GDD:** `docs/emblem_rogue_gdd.docx`
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)

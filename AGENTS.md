@@ -1,5 +1,5 @@
 ## Project Snapshot
-Emblem Rogue is a browser tactical RPG that combines Fire Emblem style grid combat with a roguelike run loop. The codebase is JavaScript ES modules on Phaser 3 with JSON-driven game data.
+Rogue Dawn (formerly Emblem Rogue) is a browser tactical RPG that combines Fire Emblem style grid combat with a roguelike run loop. The codebase is JavaScript ES modules on Phaser 3 with JSON-driven game data.
 
 ## Agent Priorities
 1. Optimize for correctness and behavioral safety over speed.

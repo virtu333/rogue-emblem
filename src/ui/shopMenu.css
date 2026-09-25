@@ -47,19 +47,69 @@
 }
 .shop-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
   text-align: left;
-  gap: 2px;
+  gap: 10px;
   flex-shrink: 0;
-  padding: 8px 10px;
+  padding: 6px 10px 6px 6px;
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.shop-row span {
+.shop-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.shop-row-text span {
   color: var(--re-muted);
   font-size: 13px;
+}
+/* The item, large: painted hero (or 2x pixel icon) beside kicker and name. */
+.shop-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+.shop-hero-title {
+  min-width: 0;
+  flex: 1;
+}
+/* Short landscape phones: a slimmer plate (the picture itself stays 96 px). */
+@media (max-height: 420px) {
+  .shop-hero .ia-hero {
+    --ia-box: calc(var(--ia-size, 96px) + 8px);
+  }
+  .shop-hero {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+}
+.shop-copy .shop-hero-title h3 {
+  margin: 0;
+}
+.shop-copy .shop-hero-title p {
+  margin: 4px 0 0;
+}
+.shop-copy .shop-hero-title .shop-kicker {
+  margin: 2px 0 4px;
+}
+.shop-kicker {
+  margin: 0 0 4px;
+  font: 8px/1.4 var(--re-pixel);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--re-accent-text);
+}
+.shop-copy .shop-lore {
+  margin: 0 0 12px;
+  padding-left: 10px;
+  border-left: 2px solid var(--re-ember-deep);
+  font-style: italic;
+  color: var(--re-parchment-dim);
 }
 .shop-detail {
   display: flex;
@@ -92,24 +142,14 @@
 .shop-mechanics {
   white-space: pre-line;
 }
-/* Every disclosure in the item copy is a full tap target (Compare with your roster). */
-.shop-copy details > summary,
-.shop-lore summary {
+/* Every disclosure in the item copy is a full tap target (Compare with your roster).
+   The item's story is no longer a disclosure: it reads as a quote under the picture. */
+.shop-copy details > summary {
   min-height: var(--re-tap);
   display: flex;
   align-items: center;
   cursor: pointer;
   color: var(--re-accent);
-}
-.shop-lore summary::before {
-  content: '▸';
-  margin-right: 8px;
-}
-.shop-lore[open] summary::before {
-  content: '▾';
-}
-.shop-lore p {
-  color: var(--re-muted);
 }
 .shop-commit {
   padding: 8px 12px;

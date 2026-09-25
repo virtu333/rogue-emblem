@@ -165,6 +165,11 @@ test.describe('phone Canto and rewind contracts', () => {
           s.gameData.terrain.findIndex((t) => t.name === 'Village'),
         );
         s._villageController._renderMarker();
+        // The injected loadout (a fresh Vulnerary instance) is fixture state that belongs
+        // to the turn start, not a free bag change between activations: rewind
+        // fingerprints items by identity, so record it as the turn-start point.
+        s._timelineBoundary = 'turn_start';
+        s._captureSuspendCheckpoint();
         return u.stats.HP;
       }, village);
       const before = await summary(page);
@@ -184,6 +189,17 @@ test.describe('phone Canto and rewind contracts', () => {
       expect(after.village.status).toBe('visited');
       expect(after.gold).toBeGreaterThan(before.gold);
       expect(after.checkpoint.checkpointIndex).toBe(before.checkpoint.checkpointIndex + 1);
+      // The visit's gold and supplies belong to this action's point: nothing is left over
+      // for the next activation to record as a free change.
+      expect(
+        await page.evaluate(() => {
+          const s = window.__emblemRogueGame.scene.getScene('Battle');
+          return {
+            settled: s._visionController.settleParkedActivation(),
+            index: s.runManager.battleInProgress.checkpoint.checkpointIndex,
+          };
+        }),
+      ).toEqual({ settled: false, index: after.checkpoint.checkpointIndex });
       expect(after.checkpoint.villageState.status).toBe('visited');
       expect(after.checkpoint.playerUnits.find((u) => u.name === 'Edric')).toMatchObject({
         col: village.col,

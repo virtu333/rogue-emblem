@@ -54,6 +54,7 @@ import { Grid, computeEffectivePath } from '../engine/Grid.js';
 import { TurnManager } from '../engine/TurnManager.js';
 import { AIController } from '../engine/AIController.js';
 import {
+  getCombatForecast,
   resolveCombat,
   gridDistance,
   calculateEffectiveSpeed,
@@ -180,7 +181,7 @@ import {
   UI_PALETTE,
   UI_HEX,
 } from '../utils/uiStyles.js';
-import { generateBattle } from '../engine/MapGenerator.js';
+import { generateBattle, reconcileRecruitSpawnTile } from '../engine/MapGenerator.js';
 import {
   computeAcidDamage,
   computeLavaCrackHp,
@@ -237,6 +238,8 @@ import {
   resolveDialogueCast,
 } from '../engine/DialogueCast.js';
 import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
+import { recordBattleRecruit } from '../engine/BattleRecruits.js';
+import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
@@ -1233,11 +1236,16 @@ export class BattleScene extends Phaser.Scene {
       );
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
+      this._battleRecruits = [];
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
-        const deployedNames = new Set(deployedRoster.map((u) => u.name));
-        this.nonDeployedUnits = this.roster.filter((u) => !deployedNames.has(u.name));
+        // By unit identity: a benched unit that shares a deployed unit's name must
+        // still come back on victory (UnitIdentity.js).
+        const deployed = new Set(deployedRoster);
+        this.nonDeployedUnits = this.roster.filter(
+          (u) => !deployed.has(u) && !deployedRoster.some((d) => isSameUnit(d, u)),
+        );
       } else {
         this.nonDeployedUnits = [];
       }
@@ -1487,8 +1495,19 @@ export class BattleScene extends Phaser.Scene {
               });
         const npc = built?.unit || null;
         if (npc) {
+          // The tile must suit the unit that actually spawned (a lord roll can turn a
+          // Myrmidon preview into Cavalry Rowan); RNG-free re-seat if it does not.
+          reconcileRecruitSpawnTile(bc, {
+            moveType: npc.moveType || 'Infantry',
+            terrainData: this.gameData.terrain,
+            classesData: this.gameData.classes,
+            weaponsData: this.gameData.weapons,
+          });
           npc.col = npcSpawn.col;
           npc.row = npcSpawn.row;
+          // Run identity from the start, so a fallen-recruit record and a living
+          // namesake are never confused (UnitIdentity.js).
+          this.runManager?.assignUnitUid?.(npc);
           this.npcUnits.push(npc);
           this.addUnitGraphic(npc);
         }
@@ -4338,8 +4357,8 @@ export class BattleScene extends Phaser.Scene {
       },
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: fromRewards
-        ? 'Your battle and remaining rewards are saved. Continue returns to the map, where you can reopen rewards.'
-        : 'Battle Suspended — Resume From Continue',
+        ? 'Your battle and remaining rewards are saved. Resume returns to the map, where you can reopen rewards.'
+        : 'Battle suspended. Choose Resume on the Title screen to pick up where you left off.',
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
@@ -4755,6 +4774,7 @@ export class BattleScene extends Phaser.Scene {
       this._tutorialStrictGateReleased = true;
     }
     this.showActionMenu(unit);
+    this._inputController?.resumeMoveAttack(unit);
   }
 
   _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
@@ -6345,6 +6365,10 @@ export class BattleScene extends Phaser.Scene {
       // Recruit can move + act this turn (FE convention); force fresh action flags.
       npc.hasMoved = false;
       npc.hasActed = false;
+      // Fallen-ally record should the recruit die before the battle ends. An NPC
+      // restored from a checkpoint older than unit identity gets its uid now.
+      this.runManager?.assignUnitUid?.(npc);
+      this._battleRecruits = recordBattleRecruit(this._battleRecruits, npc);
 
       this.finishUnitAction(lord);
     } catch (err) {
@@ -7488,7 +7512,35 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
-    if (!weaponArt) return this.buildSkillCtx(attacker, defender, null);
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      this.buildSkillCtx(attacker, defender, weaponArt),
+    );
+  }
+
+  /**
+   * The player's combat forecast, computed in the state resolution will use:
+   * with a weapon art, after its HP cost, the Recoil Guard buff and a Phoenix
+   * Brooch heal (see _runCombatResolutionAtSpeed). Reading the numbers after
+   * that state was restored overstated a Recoil Guard art's counter damage.
+   */
+  _computePlayerForecast(attacker, defender, weaponArt, { weapon, dist, atkTerrain, defTerrain }) {
+    return this._withForecastArtState(attacker, weaponArt, () =>
+      getCombatForecast(
+        attacker,
+        weapon ?? attacker.weapon,
+        defender,
+        defender.weapon,
+        dist,
+        atkTerrain,
+        defTerrain,
+        this.buildSkillCtx(attacker, defender, weaponArt),
+      ),
+    );
+  }
+
+  /** Run `fn` with the attacker as resolution will see it after an art's cost; restore after. */
+  _withForecastArtState(attacker, weaponArt, fn) {
+    if (!weaponArt) return fn();
     const hadPhoenixFlag = Object.prototype.hasOwnProperty.call(attacker, '_phoenixBroochUsed');
     const hadTimedBuffs = Object.prototype.hasOwnProperty.call(
       attacker,
@@ -7526,7 +7578,7 @@ export class BattleScene extends Phaser.Scene {
     this._applyRecoilGuardAfterArtUse(attacker, weaponArt);
     checkPhoenixBrooch(attacker);
     try {
-      return this.buildSkillCtx(attacker, defender, weaponArt);
+      return fn();
     } finally {
       attacker.currentHP = originalHP;
       if (originalStats && attacker?.stats && typeof attacker.stats === 'object') {
@@ -10691,10 +10743,9 @@ export class BattleScene extends Phaser.Scene {
       color = UI_PALETTE.good; // green -- run for the exit
     } else {
       const tombCount = this._zombieTombstones?.length || 0;
-      label =
-        tombCount > 0
-          ? `Rout: ${this.enemyUnits.length} enemies + ${tombCount} reviving`
-          : `Rout: ${this.enemyUnits.length} ${this.enemyUnits.length === 1 ? 'enemy' : 'enemies'} remaining`;
+      const count = this.enemyUnits.length;
+      const foes = `${count} ${count === 1 ? 'enemy' : 'enemies'}`;
+      label = tombCount > 0 ? `Rout: ${foes} + ${tombCount} reviving` : `Rout: ${foes} remaining`;
     }
     if (this.npcUnits.length > 0) {
       label += `\n${this._recruitBeacon?.getObjectiveSuffix() || 'Recruit: Talk to green unit'}`;

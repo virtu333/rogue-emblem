@@ -79,6 +79,7 @@ import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
+import { itemIcon, itemHero } from './itemIcons.js';
 import { playCue } from './ceremonyMusic.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
@@ -340,9 +341,15 @@ export class MobileRosterSheet {
         preventScroll: true,
       });
   }
-  card(title, description = '') {
+  card(title, description = '', item = null) {
     const c = el('article', null, 'mr-card');
-    c.append(el('h4', title));
+    if (item) {
+      // Item cards lead with the item's socketed icon.
+      c.classList.add('mr-item-card');
+      const head = el('div', null, 'mr-card-head');
+      head.append(itemIcon(item, { size: 32 }), el('h4', title));
+      c.append(head);
+    } else c.append(el('h4', title));
     if (description) c.append(el('p', description));
     this.body.append(c);
     return c;
@@ -575,6 +582,7 @@ export class MobileRosterSheet {
           scroll.teachesWeaponArtId
             ? weaponArtScrollText(scroll, this.gameData.weaponArts?.arts || [])
             : skill?.description || scroll.description || '',
+          scroll,
         );
         card.classList.add('mr-scroll-description');
         if (!scroll.teachesWeaponArtId)
@@ -656,7 +664,8 @@ export class MobileRosterSheet {
           blocked: () => rosterArtBlock(this.run, unit, weapon, scroll, arts),
           apply: () => {
             const result = bindRosterArt(this.run, unit, weapon, scroll, arts, replacement);
-            if (result.ok) this.render(`${scroll.name} bound to ${weapon.name}.`);
+            if (result.ok)
+              this.render(`${scroll.name} bound to ${weapon.name}.${this.persistNow()}`);
             return result;
           },
         },
@@ -741,7 +750,7 @@ export class MobileRosterSheet {
       (target) => giveRosterItemBlock(this.run, source, target, item),
       (target) => {
         const result = giveRosterItem(this.run, source, target, item);
-        if (result.ok) this.render(`${item.name} given to ${target.name}.`);
+        if (result.ok) this.render(`${item.name} given to ${target.name}.${this.persistNow()}`);
         return result;
       },
       (target) => {
@@ -761,7 +770,7 @@ export class MobileRosterSheet {
         if (result.ok) {
           const skillName =
             this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
-          this.render(`${unit.name} learned ${skillName}.`);
+          this.render(`${unit.name} learned ${skillName}.${this.persistNow()}`);
           growthCeremonies(this.scene)?.showSealed({
             title: `${unit.name} learned ${skillName}`,
             detail: 'New skill',
@@ -774,21 +783,23 @@ export class MobileRosterSheet {
     );
   }
   /**
-   * Save a class change before its ceremony: the menu's context decides how
-   * (rewards pass their own persist); the route map saves the run directly.
-   * Returns a notice ('' when saved or when the context saves on close).
+   * Save a roster change the moment it applies — before any ceremony, and
+   * without waiting for the sheet to close, so closing or killing the app
+   * cannot drop it. The menu's context decides how (rewards pass their own
+   * persist); otherwise the run is saved directly. Management only exists
+   * between battles (in battle the sheet is read-only), so the run is never
+   * written mid-fight from here. Returns a notice ('' when saved).
    */
   persistNow() {
+    if (!this.run) return '';
     try {
       if (typeof this.persist === 'function')
         return this.persist() === false ? ' Save failed.' : '';
-      if (this.run && this.scene?.sys?.settings?.key === 'NodeMap')
-        return saveServiceRun(this.scene);
+      return saveServiceRun(this.scene);
     } catch (error) {
-      console.warn('[MobileRosterSheet] save before promotion failed:', error);
+      console.warn('[MobileRosterSheet] roster save failed:', error);
       return ' Save failed.';
     }
-    return '';
   }
   promoteWithSeal(unit, item) {
     if (this.picker || this.destroyed) return;
@@ -861,7 +872,7 @@ export class MobileRosterSheet {
             void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
           else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
-            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}`,
+            `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`,
           );
         }
         return result;
@@ -887,7 +898,7 @@ export class MobileRosterSheet {
     const displayName = forgeLevel
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
-    const c = this.card(displayName, this.itemDescription(item, unit));
+    const c = this.card(displayName, this.itemDescription(item, unit), item);
     if (unit && item === unit.weapon) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
       c.append(
@@ -907,7 +918,9 @@ export class MobileRosterSheet {
     appendItemArtDetails(c, item, this.gameData.weaponArts?.arts || []);
     if (item.lore) {
       const d = el('details');
-      d.append(el('summary', 'About this item'), el('p', item.lore));
+      const about = el('div', null, 'mr-about');
+      about.append(itemHero(item, { size: 96 }), el('p', item.lore, 'mr-lore'));
+      d.append(el('summary', 'About this item'), about);
       c.append(d);
     }
     return c;
@@ -925,7 +938,7 @@ export class MobileRosterSheet {
           const result = rosterItemAction(this.run, unit, item, action);
           if (!result && ['heal', 'healFull', 'cureHeal'].includes(item.effect))
             this.scene.registry.get('audio')?.playSFX('sfx_heal');
-          this.render(result || `${label}: ${item.name}${saveServiceRun(this.scene)}`);
+          this.render(result || `${label}: ${item.name}${this.persistNow()}`);
         },
         reason,
       ),
@@ -948,7 +961,7 @@ export class MobileRosterSheet {
       apply: () => {
         const reason = rosterItemAction(this.run, unit, item, 'use');
         if (reason) return { ok: false, reason };
-        const warning = saveServiceRun(this.scene);
+        const warning = this.persistNow();
         this.render(`${unit.name}: +${item.value} ${item.stat} from ${item.name}.${warning}`);
         return { ok: true };
       },
@@ -1022,21 +1035,28 @@ export class MobileRosterSheet {
       unit.accessory
         ? `${unit.accessory.name} · ${formatAccessoryDetail(unit.accessory)}`
         : 'No accessory equipped.',
+      unit.accessory || null,
     );
     if (this.run) {
       if (unit.accessory)
         a.append(
           this.button('Unequip accessory', () =>
-            this.render(rosterAccessoryAction(this.run, unit) || 'Accessory returned to the pool.'),
+            this.render(
+              rosterAccessoryAction(this.run, unit) ||
+                `Accessory returned to the pool.${this.persistNow()}`,
+            ),
           ),
         );
       if (this.run.accessories?.length)
         this.body.append(el('h4', 'Available accessories · Shared pool'));
       for (const item of this.run.accessories || []) {
-        const c = this.card(item.name, formatAccessoryDetail(item));
+        const c = this.card(item.name, formatAccessoryDetail(item), item);
         c.append(
           this.button('Equip accessory', () =>
-            this.render(rosterAccessoryAction(this.run, unit, item) || `${item.name} equipped.`),
+            this.render(
+              rosterAccessoryAction(this.run, unit, item) ||
+                `${item.name} equipped.${this.persistNow()}`,
+            ),
           ),
         );
       }

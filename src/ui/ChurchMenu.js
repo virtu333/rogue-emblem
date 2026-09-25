@@ -20,6 +20,7 @@ import {
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { playCue } from './ceremonyMusic.js';
 export class ChurchMenu {
   constructor(c) {
@@ -51,6 +52,15 @@ export class ChurchMenu {
       run = this.scene.runManager;
     const scroll = body.scrollTop;
     body.replaceChildren();
+    const ruins = !!this.scene._churchRuinsMode;
+    body.append(
+      applyServiceVignette(this.surface.root, ruins ? 'ruins' : 'church', {
+        title: ruins ? 'Ruins sanctuary' : 'Church',
+        kicker: ruins ? 'Heal · Revive · Wares' : 'Heal · Revive · Promote',
+        still: prefersStill(this.scene),
+        backdrop: true,
+      }),
+    );
     this.gold.textContent = `${run.gold} G`;
     const status = el('p', this.status);
     status.setAttribute('role', 'status');
@@ -147,7 +157,10 @@ export class ChurchMenu {
     );
     const reason = churchKindleBlock(run, nodeId);
     const after = Math.max(0, shadow - amount);
-    const b = button(`Kindle · −${Math.min(amount, shadow)} shadow · ${price} G`, () =>
+    const lift = Math.min(amount, shadow);
+    // A clear sun has nothing to lift: no "−0 shadow" on the (disabled) button.
+    const label = lift > 0 ? `Kindle · −${lift} shadow · ${price} G` : `Kindle · ${price} G`;
+    const b = button(label, () =>
       this.choose({
         title: 'Kindle the sun?',
         choices: [nodeId],

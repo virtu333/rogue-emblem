@@ -35,6 +35,7 @@ vi.mock('../src/engine/AIController.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import { createLordUnit } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 
 // A permissive Phaser display object: every method exists and chains, so the HUD
@@ -233,6 +234,80 @@ describe('BattleScene · recruit battles', () => {
     expect([galvin.col, galvin.row]).not.toEqual([1, 2]);
     // Unit order is untouched; only the tiles move.
     expect(scene.playerUnits[0].name).toBe('Galvin');
+  });
+
+  it('gives the recruit a run identity at spawn (a namesake can never stand in for it)', () => {
+    const rm = realRun();
+    const deployed = rm.roster.map((u) => structuredClone(u));
+    const scene = makeScene({
+      runManager: rm,
+      deployed,
+      npcSpawn: { className: 'Archer', name: 'Wren', col: 3, row: 2, level: 1 },
+    });
+    BattleScene.prototype.beginBattle.call(scene, deployed);
+    const npc = scene.npcUnits[0];
+    expect(npc.unitUid).toMatch(/^ru[1-9]\d*$/);
+    expect(rm.roster.map((u) => u.unitUid)).not.toContain(npc.unitUid);
+  });
+
+  it('re-seats a lord recruit whose tile its class cannot stand on, without battle RNG', () => {
+    const gameData = loadGameData();
+    const rowanDef = gameData.lords.find((l) => l.name === 'Rowan');
+    const rowanClass = gameData.classes.find((c) => c.name === rowanDef.class);
+    expect(rowanClass.moveType).toBe('Cavalry');
+    const swamp = gameData.terrain.findIndex((t) => t.name === 'Swamp');
+    const spawnWith = (layoutTile) => {
+      const rm = realRun();
+      const deployed = rm.roster.map((u) => structuredClone(u));
+      const rowan = createLordUnit(rowanDef, rowanClass, gameData.weapons);
+      rowan.faction = 'npc';
+      rm.getRecruitNodeUnit = vi.fn(() => ({ unit: rowan, isLord: true, level: rowan.level }));
+      const scene = makeScene({
+        runManager: rm,
+        deployed,
+        npcSpawn: { className: 'Myrmidon', name: 'Kenji', col: 3, row: 2, level: 1 },
+      });
+      const bc = rm.getLockedBattleConfig();
+      bc.cols = 10;
+      bc.rows = 6;
+      bc.mapLayout = Array.from({ length: 6 }, () => Array(10).fill(0));
+      bc.mapLayout[2][3] = layoutTile;
+      let draws = 0;
+      const prev = Math.random;
+      Math.random = () => {
+        draws++;
+        return 0.5;
+      };
+      try {
+        BattleScene.prototype.beginBattle.call(scene, deployed);
+      } finally {
+        Math.random = prev;
+      }
+      return { npc: scene.npcUnits[0], draws, bc };
+    };
+    const plain = spawnWith(0);
+    expect([plain.npc.col, plain.npc.row]).toEqual([3, 2]);
+    const moved = spawnWith(swamp);
+    expect([moved.npc.col, moved.npc.row]).not.toEqual([3, 2]);
+    expect(moved.bc.mapLayout[moved.npc.row][moved.npc.col]).toBe(0);
+    expect(moved.draws).toBe(plain.draws);
+  });
+
+  it('a benched unit that shares a deployed unit’s name still comes back on victory', () => {
+    const rm = realRun();
+    const [edric] = rm.roster;
+    const twin = { ...structuredClone(rm.roster[1]), name: 'Wren', unitUid: 'ru90' };
+    const other = { ...structuredClone(rm.roster[1]), name: 'Wren', unitUid: 'ru91' };
+    const roster = [structuredClone(edric), twin, other];
+    const deployed = [roster[0], roster[1]];
+    const scene = makeScene({
+      runManager: rm,
+      deployed,
+      npcSpawn: { className: 'Archer', name: 'Wren', col: 3, row: 2, level: 1 },
+    });
+    scene.roster = roster;
+    BattleScene.prototype.beginBattle.call(scene, deployed);
+    expect(scene.nonDeployedUnits.map((u) => u.unitUid)).toEqual(['ru91']);
   });
 
   it('falls back to a standalone build when the node is not on the run map', () => {

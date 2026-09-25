@@ -1,10 +1,10 @@
 # Imagen Asset Pipeline Prompt (Tracked)
 
-Use this prompt when generating tactical RPG assets with Imagen for Emblem Rogue.
+Use this prompt when generating tactical RPG assets with Imagen for Rogue Dawn.
 
 ## Context
 
-- Game: Emblem Rogue (Phaser tactical RPG)
+- Game: Rogue Dawn (Phaser tactical RPG)
 - Style: SNES-inspired pixel art
 - Common sizes: 32x32 map sprites, 64x64 FX icons, 128x128 portraits
 - Source of truth: `assets/`

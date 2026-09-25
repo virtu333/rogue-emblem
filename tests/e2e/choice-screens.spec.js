@@ -272,7 +272,12 @@ test('battle rewards: rarity-framed cards with art, for whom, and an elite secon
   const cards = dialog.locator('.reward-card');
   const count = await expectDraftInView(page, dialog, '.reward-card');
   await expect(dialog.locator('[data-item-art-hook="item-icon"]')).toHaveCount(count);
-  await expect(cards.first().locator('.ch-item-icon')).toBeVisible();
+  // Item art: the socketed icon of the spoil (the painted hero replaces it on desktop).
+  await expect(cards.first().locator('.ch-item-art .ia-icon')).toBeVisible();
+  await expect(cards.first().locator('.ch-item-art')).toHaveAttribute(
+    'data-item-icon',
+    'steel-sword',
+  );
   // For whom: the Steel Sword names the wielder who gains the most attack.
   await expect(cards.first().locator('.ch-forwhom')).toContainText(/For \w+/);
   await expect(cards.first().locator('.ch-forwhom')).toContainText(/Atk \d+ → \d+/);

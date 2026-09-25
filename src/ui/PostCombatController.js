@@ -1,4 +1,6 @@
 import { persistBattleDefeat } from './BattleFatalDecision.js';
+import { fallenBattleRecruits } from '../engine/BattleRecruits.js';
+import { unitIdentityKey, unitUidOf } from '../engine/UnitIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { recordBattleTimeline } from './BattleTimelineRecorder.js';
 import { readOnlyBattleReport } from '../engine/BattleTimelineFacts.js';
@@ -33,7 +35,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
-import { projectedRelief, projectedShadow } from './EclipseHudController.js';
+import { projectedMeterShadow, projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -152,9 +154,21 @@ export class PostCombatController {
       }
       scene._newlyMasteredUnits = newlyMastered;
       const surviving = liveSurvivors.map((u) => serializeUnit(u));
-      const rosterOrder = new Map((scene.runManager.roster || []).map((u, i) => [u.name, i]));
+      // Roster order by unit identity (two units may share a name).
+      const rosterOrder = new Map(
+        (scene.runManager.roster || []).map((u, i) => [unitIdentityKey(u), i]),
+      );
+      const nameOrder = new Map();
+      (scene.runManager.roster || []).forEach((u, i) => {
+        if (!nameOrder.has(u?.name)) nameOrder.set(u?.name, i);
+      });
+      // Legacy battle units (no uid) fall back to the name; a new recruit sorts last.
+      const orderOf = (u) =>
+        rosterOrder.get(unitIdentityKey(u)) ??
+        (unitUidOf(u) ? undefined : nameOrder.get(u?.name)) ??
+        Infinity;
       const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])].sort(
-        (a, b) => (rosterOrder.get(a.name) ?? Infinity) - (rosterOrder.get(b.name) ?? Infinity),
+        (a, b) => orderOf(a) - orderOf(b),
       );
       const turnPressure = scene.getTurnPressureState();
       const completionGoldAward = Math.max(
@@ -178,6 +192,13 @@ export class PostCombatController {
           turnPar: scene.turnPar,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
+          // Recruits who joined this battle and then fell have no roster
+          // entry to diff against; hand over their as-joined records.
+          fallenRecruits: fallenBattleRecruits(
+            scene._battleRecruits,
+            allUnits,
+            scene.runManager.roster,
+          ),
         },
       );
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
@@ -525,6 +546,7 @@ export class PostCombatController {
     overlay.show((selectedUnit) => {
       if (selectedUnit) {
         scene.runManager.grantRecruitBlessingConsumables?.(selectedUnit);
+        scene.runManager.assignUnitUid?.(selectedUnit);
         scene.runManager.roster.push(selectedUnit);
       }
       scene.lootGroup = null;
@@ -602,6 +624,8 @@ export class PostCombatController {
       // The Eclipse: the shadow this victory commits (null when the clock is off),
       // and the flare an act boss's fall lifts.
       shadowGain: projectedShadow(s),
+      // Of that, what reaches the sun's capped meter (the land takes all of it).
+      shadowMeterGain: projectedMeterShadow(s),
       shadowRelief: projectedRelief(s),
     };
   }

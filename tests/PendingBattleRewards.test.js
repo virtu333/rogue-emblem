@@ -17,6 +17,7 @@ import { prepareBattleRewards } from '../src/engine/PendingBattleRewards.js';
 import { PendingRewardController } from '../src/ui/PendingRewardController.js';
 import { loadGameData } from './testData.js';
 import { saveServiceRun } from '../src/ui/serviceSave.js';
+import { rewardRevealPending } from '../src/ui/rewardReveal.js';
 let writesFail;
 beforeEach(() => {
   writesFail = false;
@@ -58,6 +59,15 @@ describe('durable native rewards', () => {
     expect(s.runManager.gold).toBe(gold);
     const restored = loadRun(s.gameData, 1);
     expect(restored.pendingBattleReward).toEqual(before);
+  });
+  it('the reveal flag survives reload, so a resumed reward screen never replays it', () => {
+    const s = setup();
+    expect(rewardRevealPending(s.runManager.pendingBattleReward)).toBe(true);
+    s.runManager.pendingBattleReward.revealed = true;
+    expect(saveServiceRun(s)).toBe('');
+    const restored = loadRun(s.gameData, 1);
+    expect(restored.pendingBattleReward.revealed).toBe(true);
+    expect(rewardRevealPending(restored.pendingBattleReward)).toBe(false);
   });
   it('persists first elite pick and final claim in the same write as their value', () => {
     const s = setup();
