@@ -81,6 +81,7 @@ import {
   processConditionRecovery,
 } from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
+import { calculatePar } from '../../src/engine/TurnBonusCalculator.js';
 import {
   createVillageState,
   visitVillage,
@@ -515,6 +516,23 @@ export class HeadlessBattle {
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       unit._phoenixBroochUsed = false;
     }
+
+    // Turn par — mirrors BattleScene (full-run sims commit the Eclipse against it).
+    this.turnPar = this.gameData.turnBonus
+      ? calculatePar(
+          {
+            cols: bc.cols,
+            rows: bc.rows,
+            enemyCount: this.enemyUnits.length,
+            objective: bc.objective,
+            mapLayout: bc.mapLayout,
+            terrainData: this.gameData.terrain,
+            parBonus: bc.parBonus || 0,
+          },
+          this.gameData.turnBonus,
+          this.battleParams?.difficultyId,
+        )
+      : null;
 
     // Initialize turn system
     this.turnManager = new TurnManager({
@@ -1166,13 +1184,23 @@ export class HeadlessBattle {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
+    const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
       const spec = this._buildReinforcementSpawnSpec(scheduledSpawn, i);
       if (!spec) continue;
       const enemy = this._addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
-      if (enemy) spawned++;
+      if (enemy) {
+        spawned++;
+        // Mirrors BattleScene: each non-repeating wave that arrived bumps par by 1.
+        if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating')
+          successfulWaveKeys.add(
+            `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
+          );
+      }
     }
+    if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0)
+      this.turnPar += successfulWaveKeys.size;
     return { ...schedule, spawned };
   }
 
