@@ -226,11 +226,14 @@ export function threatWorldSignature(ctx, units = []) {
   return parts.join('|');
 }
 
-/** Short, plain move-preview text: "2 can reach", "No foe can reach". */
+/** Short, plain move-preview text: "2 foes can reach", "No foe can reach". */
 export function threatSummaryText(result) {
   if (!result) return '';
   const statusOnly = result.status?.length || 0;
-  let text = result.count === 0 ? 'No foe can reach' : `${result.count} can reach`;
+  let text =
+    result.count === 0
+      ? 'No foe can reach'
+      : `${result.count} ${result.count === 1 ? 'foe' : 'foes'} can reach`;
   if (statusOnly) text += ` · ${statusOnly} staff`;
   if (result.fogged) text += ' · fog may hide more';
   return text;

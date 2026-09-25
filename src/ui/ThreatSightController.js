@@ -5,7 +5,7 @@
 // tile — after a tap-move that is the tentatively chosen destination) next enemy
 // phase gets a crimson eye above its head and a crimson ring at its feet, and a
 // short dashed ink line runs from it to the tile. A small tag on the tile gives
-// the count; the HUDs print the same count ("2 can reach").
+// the count; the HUDs print the same count ("2 foes can reach").
 //
 // Correctness: answers come from ThreatForecast.threatsOnTile — the Danger
 // overlay's own computation, evaluated with the mover set down on the tile.
@@ -116,7 +116,7 @@ export class ThreatSightController {
     return this._memo.get(key);
   }
 
-  /** HUD line for a tile: "2 can reach" (null when the tile is not a move preview). */
+  /** HUD line for a tile: "2 foes can reach" (null when the tile is not a move preview). */
   describe(col, row) {
     const focus = this.focus();
     if (!focus) return null;

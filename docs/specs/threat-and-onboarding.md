@@ -27,9 +27,10 @@ While a player unit is selected (`UNIT_SELECTED`, or the action menu before it a
   slit pupil; violet for status staves), crimson **corner ticks** on its tile and a short
   dashed **ink line** with an arrowhead from it to the tile (max 8 lines). A crimson
   **count tag** sits on the tile.
-- **Move preview.** Phone rail terrain card: "2 can reach" (crimson when > 0; "No foe can
+- **Move preview.** Phone rail terrain card: "2 foes can reach" (crimson when > 0; "No foe can
   reach" otherwise; "· 1 staff"; "· fog may hide more" under fog). Desktop info panel:
-  `Threat: 2 can reach`.
+  `Threat: 2 foes can reach`. Worded "foes can reach" so it never reads like the Danger
+  dock's "2 in reach" (allies standing inside the overlay).
 - **Same computation as Danger.** `src/engine/ThreatForecast.js` now owns the Danger
   overlay's math (`computeDangerTiles`; `BattleScene.calculateDangerZone` delegates) and
   `threatsOnTile` evaluates the same rules — movement, terrain costs, roots that outlast the

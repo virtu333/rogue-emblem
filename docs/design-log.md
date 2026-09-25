@@ -17,7 +17,7 @@ convoy; a Mac desktop player saw "chunky" text. Spec and deviations:
 **Decisions**
 - **Threat sight.** While moving, every visible enemy that could strike the chosen tile
   next phase gets a crimson eye, corner ticks and a dashed ink line; the tile gets a count
-  and the HUD says "2 can reach". Eyes instead of 3D arcs; lines kept short and 2D.
+  and the HUD says "2 foes can reach". Eyes instead of 3D arcs; lines kept short and 2D.
 - **One threat computation.** The Danger overlay's math moved to `engine/ThreatForecast.js`;
   threat sight asks it the same question with the mover set down on the destination.
   Hidden (fogged) enemies are never evaluated.

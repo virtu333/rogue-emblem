@@ -3,6 +3,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 
+const foes = (n) => `${n} ${n === 1 ? 'foe' : 'foes'}`;
 const QUIET = { musicVolume: 0, sfxVolume: 0, hints: false };
 
 async function openBattle(page, settings = QUIET) {
@@ -107,7 +108,7 @@ test.describe('desktop hover', () => {
     const hovered = await sightState(page);
     expect(hovered.eyes).toBeGreaterThanOrEqual(target.count);
     expect(hovered.eyesOnSources).toBe(true);
-    expect(hovered.info).toContain(`Threat: ${target.count} can reach`);
+    expect(hovered.info).toContain(`Threat: ${foes(target.count)} can reach`);
     // Presentation never touches battle RNG.
     expect(hovered.rng).toEqual(rngBefore);
     await page.screenshot({ path: test.info().outputPath('threat-sight-desktop.png') });
@@ -177,7 +178,7 @@ test.describe('touch (844x390)', () => {
       });
     const moved = await sightState(page);
     expect(moved.eyes).toBeGreaterThanOrEqual(target.count);
-    expect(moved.rail).toBe(`${target.count} can reach`);
+    expect(moved.rail).toBe(`${foes(target.count)} can reach`);
     await page.screenshot({ path: test.info().outputPath('threat-sight-touch.png') });
 
     // Back undoes the tentative move; the eyes follow Sera home.

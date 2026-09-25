@@ -173,7 +173,7 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
     const result = threatsOnTile(ctx, 2, 1);
     expect(result.damage).toEqual([seen]);
     expect(result.fogged).toBe(true);
-    expect(threatSummaryText(result)).toBe('1 can reach · fog may hide more');
+    expect(threatSummaryText(result)).toBe('1 foe can reach · fog may hide more');
   });
 
   it('respects roots that last through the enemy phase', () => {
@@ -198,7 +198,7 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
     expect(result.damage).toEqual([]);
     expect(result.ballistas).toEqual([ballista]);
     expect(result.count).toBe(1);
-    expect(threatSummaryText(result)).toBe('1 can reach · 1 staff');
+    expect(threatSummaryText(result)).toBe('1 foe can reach · 1 staff');
   });
 
   it('entities strike from their footprint without moving', () => {
@@ -239,7 +239,7 @@ describe('ThreatForecast — one computation for Danger and threat sight', () =>
 
   it('summaries read plainly', () => {
     expect(threatSummaryText({ count: 0, status: [], fogged: false })).toBe('No foe can reach');
-    expect(threatSummaryText({ count: 2, status: [], fogged: false })).toBe('2 can reach');
+    expect(threatSummaryText({ count: 2, status: [], fogged: false })).toBe('2 foes can reach');
     expect(threatSummaryText(null)).toBe('');
   });
 });

@@ -9,8 +9,8 @@ into reach; palette PNGs.
 
 | | |
 |---|---|
-| `threat-1280.png` | Desktop: hovering a destination. Each enemy that can reach it gets a crimson eye, corner ticks and a dashed ink line; the tile carries the count; the info panel reads `Threat: 4 can reach`. |
-| `threat-844.png` | Phone: after the tap-move (tentative, Back undoes it) the eyes stay on; the rail's terrain card says **4 can reach**. |
+| `threat-1280.png` | Desktop: hovering a destination. Each enemy that can reach it gets a crimson eye, corner ticks and a dashed ink line; the tile carries the count; the info panel reads `Threat: 4 foes can reach`. |
+| `threat-844.png` | Phone: after the tap-move (tentative, Back undoes it) the eyes stay on; the rail's terrain card says **4 foes can reach**. |
 | `threat-grades-1280.png` | The same marks under the act grades act1, act2, act3 (top) and act4 night, the Deep (bottom), Atmosphere Full. |
 
 ## Guidance (new players)

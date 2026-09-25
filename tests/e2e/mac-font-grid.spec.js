@@ -79,6 +79,7 @@ for (const [label, viewport, deviceScaleFactor] of MACS) {
     test('title, blessing and node-map pixel labels sit on whole device pixels', async ({
       page,
     }) => {
+      test.setTimeout(120_000); // four screens in one test
       const results = [];
       await boot(page, '/', 'Title');
       results.push(['title', await auditPixelFonts(page)]);

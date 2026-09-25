@@ -137,7 +137,7 @@ describe('ThreatSightController', () => {
     const sight = new ThreatSightController(scene).create();
     sight.sync();
     expect(sight.current).toMatchObject({ col: 6, row: 2, hovering: false });
-    expect(sight.describe(6, 2)).toBe('1 can reach');
+    expect(sight.describe(6, 2)).toBe('1 foe can reach');
     scene.battleState = 'PLAYER_IDLE';
     scene.selectedUnit = null;
     sight.sync();
