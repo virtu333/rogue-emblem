@@ -3,8 +3,8 @@
 The sacred ground, overfed by the ritual: pale, holy, faintly wrong. A slow
 3/4 on organ and wordless choir that alternates E major with the Phrygian
 F major beside it, so the light never settles. The solo violin sings the
-Thread motif with a raised fourth (A-sharp over E: too bright), then bends it
-back down; the celesta repeats it like something remembered wrong.
+Thread in E (B-E-F#-B), then bends it back down through F natural, the
+Phrygian neighbour; the celesta repeats it like something remembered wrong.
 """
 
 from engine.patterns import arp, bass, chart, pad

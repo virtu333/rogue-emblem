@@ -3,8 +3,8 @@
 The Blade Lord, the Iron Wall, the Berserker King: the Lieutenant's own
 champions. E minor at a sprint. The violins fence in sixteenth-note runs and
 the brass answer blade for blade; then, for eight bars, the Lieutenant's
-sign appears for the first time: the Thread inverted and shadowed a tritone
-away, E minor against B-flat, a future split in two.
+sign appears for the first time: the Thread's rhythm falling instead of
+rising, shadowed a tritone away, E minor against B-flat, a future split in two.
 """
 
 from engine.patterns import chart

@@ -11,6 +11,7 @@ KEY = 'music_defeat'
 def build():
     s = Score('defeat', bpm=58, intro_bars=5, loop_bars=8, title='The Thread Is Cut', seed=37)
     s.reverb = dict(rt60=3.8, predelay_ms=36, wet_db=1.5)
+    s.silent_ok = {5}  # the bar of dark after the cello breaks off
     s.master = dict(lufs=-20.0, glue_ratio=1.2, lead_duck=0)
     s.variant('full', {}, lufs=-20.0)
     vc = s.part('cello', 'celli', role='lead', art='sus')

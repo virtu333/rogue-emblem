@@ -90,23 +90,23 @@
     "title": "Bleached Rite"
   },
   "music_battle_act3_2": {
-    "duration": 72.292,
-    "loopEnd": 71.692313,
+    "duration": 66.138,
+    "loopEnd": 65.538481,
     "loopStart": 10.153855,
-    "lufs": -13.83,
+    "lufs": -13.81,
     "peakDb": -1.11,
     "score": "battle_act3_2",
-    "seamDb": -75.5,
+    "seamDb": -76.0,
     "title": "Against the Rite"
   },
   "music_battle_act3_2_calm": {
-    "duration": 72.292,
-    "loopEnd": 71.692313,
+    "duration": 66.138,
+    "loopEnd": 65.538481,
     "loopStart": 10.153855,
     "lufs": -17.0,
-    "peakDb": -5.6,
+    "peakDb": -5.63,
     "score": "battle_act3_2",
-    "seamDb": -98.9,
+    "seamDb": -99.3,
     "title": "Against the Rite"
   },
   "music_battle_act3_calm": {

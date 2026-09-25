@@ -132,7 +132,7 @@ describe('LoopedMusic', () => {
     expect(sources[0].loopEnd).toBe(0);
   });
 
-  it('keeps layers aligned: a layer without its own loop uses the primary one', () => {
+  it('keeps layers aligned: a same-length layer without its own loop uses the primary one', () => {
     const { ctx, sources } = makeContext();
     const m = new LoopedMusic({
       context: ctx,
@@ -143,6 +143,70 @@ describe('LoopedMusic', () => {
     });
     m.play();
     expect(sources.map((s) => s.loopStart)).toEqual([9.3, 9.3]);
+    expect(sources.map((s) => s.loopEnd)).toEqual([79.8, 79.8]);
+  });
+
+  it('drops a stale layer instead of handing it loop points it cannot hold', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), calm: buf(30) },
+      loops,
+      layer: 'calm',
+    });
+    // the valid primary plays alone and audibly; the calm layer is unavailable
+    expect(m.layerNames).toEqual(['full']);
+    expect(m.hasLayer('calm')).toBe(false);
+    expect(m.layer).toBe('full');
+    expect(m._layers.get('full').gain.gain.value).toBe(1);
+    expect(m.setLayer('calm')).toBe(false);
+    m.play();
+    expect(sources).toHaveLength(1);
+    expect(sources[0].buffer.duration).toBe(80.4);
+    expect(sources[0].loopEnd).toBe(79.8);
+  });
+
+  it('drops a layer whose own loop region differs from the primary', () => {
+    const { ctx } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), calm: buf(80.4) },
+      loops: { full: loops.full, calm: { loopStart: 10.1, loopEnd: 79.8, duration: 80.4 } },
+    });
+    expect(m.layerNames).toEqual(['full']);
+  });
+
+  it('drops a fresh layer when the primary is stale, so both never loop differently', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), calm: buf(80.4) },
+      // primary metadata describes another build; calm's own entry is valid
+      loops: { full: { loopStart: 5, loopEnd: 90, duration: 91 }, calm: loops.calm },
+    });
+    expect(m.layerNames).toEqual(['full']);
+    m.play();
+    expect(sources[0].loopEnd).toBe(0); // whole-file loop
+  });
+
+  it('keeps same-length layers on a shared whole-file loop when no metadata validates', () => {
+    const { ctx, sources } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(60), calm: buf(60) },
+      loops: {},
+    });
+    expect(m.layerNames).toEqual(['full', 'calm']);
+    m.play();
+    expect(sources.map((s) => s.loopEnd)).toEqual([0, 0]);
   });
 
   it('behaves like a Phaser sound for the manager: volume, stop, destroy', () => {

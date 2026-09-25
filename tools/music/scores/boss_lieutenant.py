@@ -1,7 +1,7 @@
 """The Lieutenant — "Every Future You Could Reach".
 
 A seer like Sera, whose power fractures the timeline. Her motif is the
-Thread turned upside down (A-D-C-A falling) and every statement is shadowed
+Thread's rhythm falling instead of rising (A-D-C-A) and every statement is shadowed
 a beat later a tritone away: two futures at once. Octatonic sixteenths run
 under it like clockwork that has lost count.
 

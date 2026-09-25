@@ -21,6 +21,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from engine.form import check_form  # noqa: E402
 from engine.render import Renderer  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
@@ -68,6 +69,9 @@ def main():
         t = time.time()
         mod = importlib.import_module(f'scores.{name}')
         score = mod.build()
+        problems = check_form(score)
+        if problems:
+            raise SystemExit('\n'.join(['form check failed:', *problems]))
         key = getattr(mod, 'KEY', f'music_{name}')
         print(f'[{name}] -> {key}  ({score.title})')
         r = Renderer(score)
@@ -79,7 +83,8 @@ def main():
         print(f'[{name}] done in {time.time() - t:.1f}s')
     if not args.no_out:
         with open(LOOPS_JSON, 'w') as f:
-            json.dump(table, f, indent=1, sort_keys=True)
+            json.dump(table, f, indent=2, sort_keys=True)
+            f.write('\n')
         write_loops_js(table)
 
 

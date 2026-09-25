@@ -13,7 +13,7 @@ the story.
 | **The Thread** | scale degrees 5-1-2-5: rise a fourth, a step, a fourth, and hold (A-D-E-A in D minor) | Sera's sight, the gold thread, the player | The main theme. Title (solo violin), every battle melody, the route maps, home base (turned major), run victory |
 | **The Hollow Sun** | a phrase that climbs to the leading tone and never reaches the tonic; a bar of silence where the last note should be | the goddess whose name was spent | Title (the orchestra stops on C-sharp), the church hymn (the choir stops before its final note; one bell sounds the third, never the root) |
 | **The Empire** | Phrygian half-step drill: D-Eb-D-C, falling to B-flat | the Empire's iron drills | Act I battle C strain, Act II battles and route map, the Act IV riff, the Act I boss march, the Emperor's chorale and anthem |
-| **The Lieutenant** | the Thread inverted (A-D-C-A falling), shadowed one beat later a tritone away | a seer who fractures time: two futures at once | First heard in the Act III boss theme; the Normal final boss |
+| **The Lieutenant** | the Thread's rhythm falling instead of rising (A-D-C-A; a free answer, not a strict inversion), shadowed one beat later a tritone away | a seer who fractures time: two futures at once | First heard in the Act III boss theme; the Normal final boss |
 | **The Old Kingdom** | an open-fourths horn call | Edric's oath | Title B strain, home base, victory fanfare, loot, Border Marches |
 | **Unlight** | no melody: a D/E-flat cluster hum, the Thread played backwards (A-E-D-A) | the Entity, which has no words | The secret boss |
 
@@ -35,7 +35,7 @@ leaves hanging finally resolves, and the bells toll D, the root no other cue pla
 | `music_run_win` | The Last Light | The Thread in D major; the hollow cadence resolves |
 | `music_explore_act1` | The Loom: Ember Dusk | Harp/pizzicato "shuttle", flute Thread in D dorian |
 | `music_explore_act2` | The Loom: Iron Rain | Celesta rain, muted-horn Empire drill, oboe Thread |
-| `music_explore_act3` | The Loom: Bleached Rite | 3/4, organ and choir between E and the Phrygian F; raised-fourth Thread |
+| `music_explore_act3` | The Loom: Bleached Rite | 3/4, organ and choir between E and the Phrygian F; the Thread in E, bent down through F natural |
 | `music_explore_act4` | The Loom: Ashfall | Night: drone, heartbeat, bells, oboe fragments |
 | `music_battle_act1` | Ember Dusk | 152 bpm D minor, the main battle theme |
 | `music_battle_act1_2` | Border Marches | 6/8 cavalry gallop, G minor |

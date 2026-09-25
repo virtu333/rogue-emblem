@@ -31,6 +31,28 @@ export function validLoopFor(buffer, loop) {
   return { loopStart, loopEnd };
 }
 
+const LOOP_POINT_TOLERANCE_S = 0.001;
+
+/**
+ * A secondary layer can play alongside the primary only if it is the same
+ * length and loops over the same region: it must fit the primary's loop, and
+ * any valid loop points of its own must match it. A layer with no usable loop
+ * entry of its own inherits the primary's when its buffer fits.
+ */
+export function sharesTimeline(buffer, loop, primaryBuffer, primaryLoop) {
+  const dur = Number(buffer?.duration);
+  const primaryDur = Number(primaryBuffer?.duration);
+  if (!Number.isFinite(dur) || !Number.isFinite(primaryDur)) return false;
+  if (Math.abs(dur - primaryDur) > LOOP_DURATION_TOLERANCE_S) return false;
+  if (!primaryLoop) return !loop;
+  if (primaryLoop.loopEnd > dur) return false;
+  if (!loop) return true;
+  return (
+    Math.abs(loop.loopStart - primaryLoop.loopStart) <= LOOP_POINT_TOLERANCE_S &&
+    Math.abs(loop.loopEnd - primaryLoop.loopEnd) <= LOOP_POINT_TOLERANCE_S
+  );
+}
+
 export class LoopedMusic {
   /**
    * @param {object} opts
@@ -60,18 +82,27 @@ export class LoopedMusic {
     this._out.gain.value = volume;
     this._out.connect(destination);
 
-    const names = Object.keys(layers).filter((n) => layers[n]);
-    this.layer = names.includes(layer) ? layer : names.includes('full') ? 'full' : names[0];
+    const given = Object.keys(layers).filter((n) => layers[n]);
+    const primaryName = given.includes('full') ? 'full' : given[0];
+    const primaryLoop = validLoopFor(layers[primaryName], loops[primaryName]);
+    // Every layer loops with the primary's region; a layer that can't share it
+    // (e.g. a stale cached file) is dropped and the primary plays alone.
+    const names = given.filter(
+      (n) =>
+        n === primaryName ||
+        sharesTimeline(
+          layers[n],
+          validLoopFor(layers[n], loops[n]),
+          layers[primaryName],
+          primaryLoop,
+        ),
+    );
+    this.layer = names.includes(layer) ? layer : primaryName;
     for (const name of names) {
       const gain = context.createGain();
       gain.gain.value = name === this.layer ? 1 : 0;
       gain.connect(this._out);
-      this._layers.set(name, {
-        buffer: layers[name],
-        loop: validLoopFor(layers[name], loops[name]),
-        gain,
-        source: null,
-      });
+      this._layers.set(name, { buffer: layers[name], loop: primaryLoop, gain, source: null });
     }
   }
 
@@ -88,17 +119,13 @@ export class LoopedMusic {
     // All layers share one start time; a small lead keeps them sample-aligned
     // even if creating the sources takes a moment.
     const when = this.context.currentTime + 0.03;
-    // Layers only stay aligned if they loop identically; a layer whose loop
-    // points don't validate falls back to the primary layer's.
-    const primary = this._layers.get('full') || this._layers.values().next().value;
     for (const entry of this._layers.values()) {
       const source = this.context.createBufferSource();
       source.buffer = entry.buffer;
       source.loop = true;
-      const loop = entry.loop || primary?.loop;
-      if (loop) {
-        source.loopStart = loop.loopStart;
-        source.loopEnd = loop.loopEnd;
+      if (entry.loop) {
+        source.loopStart = entry.loop.loopStart;
+        source.loopEnd = entry.loop.loopEnd;
       }
       source.connect(entry.gain);
       source.start(when, 0);

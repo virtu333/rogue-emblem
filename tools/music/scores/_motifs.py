@@ -8,7 +8,8 @@ HOLLOW SUN   The goddess whose name was spent. A hymn cadence that climbs to
              the leading tone and never reaches the tonic: the missing note
              is the name. Cues that quote it leave a bar of silence there.
 EMPIRE       The iron drill. Phrygian half-step: D-Eb-D-C, falling to Bb.
-LIEUTENANT   The thread inverted and doubled a tritone apart, in canon a beat
+LIEUTENANT   The thread's rhythm falling instead of rising (a free answer, not
+             a strict inversion), doubled a tritone apart in canon a beat
              behind itself: a future fractured into two.
 OLD KINGDOM  Edric's oath: a horn call built on open fourths and fifths.
 UNLIGHT      The Entity: no melody. A cluster hum, and the thread reversed.
@@ -33,6 +34,7 @@ EMPIRE = 'D3q. Eb3e D3q C3q | Bb2h. rq |'
 # OLD KINGDOM: Edric's call (D mixolydian colour)
 OLD_KINGDOM = 'D4q. A4e A4q G4e A4e | D5h A4h |'
 
-# LIEUTENANT: inverted thread (5-1-7-5 downward) and its tritone shadow
+# LIEUTENANT: the thread's rhythm falling (5-1-b7-5 downward; a strict inversion
+# would be A-E-D-A) and its tritone shadow
 LIEUT = 'A5q D5q C5q A4q'
 LIEUT_SHADOW = 'Eb5q Ab4q Gb4q Eb4q'
