@@ -190,6 +190,50 @@ describe('PostCombatController', () => {
     expect(options.fallenRecruits).toEqual([]);
   });
 
+  it('deeds commit before the units are serialized and saved; the rite plays after the save', async () => {
+    const { loadGameData } = await import('./testData.js');
+    const { DeedController } = await import('../src/ui/DeedController.js');
+    const scene = makeScene();
+    scene.gameData = { deeds: loadGameData().deeds };
+    scene.nodeId = 'n4';
+    scene.battleParams = { deployCount: 2 };
+    scene.runManager.completedBattles = 3;
+    scene.playerUnits = [
+      {
+        name: 'Edric',
+        className: 'Lord',
+        faction: 'player',
+        isLord: true,
+        currentHP: 9,
+        stats: { HP: 20 },
+        inventory: [],
+        _battleDeeds: { v: 1, crits: 3 },
+      },
+    ];
+    const order = [];
+    scene.runManager.completeBattle = vi.fn((units) => {
+      order.push({ saved: units[0].deeds?.epithet?.text, scratch: '_battleDeeds' in units[0] });
+      return true;
+    });
+    scene._persistBattleRunState = vi.fn(() => order.push('persist'));
+    const present = vi
+      .spyOn(DeedController.prototype, 'presentVictory')
+      .mockImplementation(async function () {
+        order.push({ rite: this.scene._newDeeds.map((d) => d.deedId) });
+        this.scene._newDeeds = null;
+        return true;
+      });
+    new PostCombatController(scene).onVictory();
+    await vi.waitFor(() => expect(scene.transitionAfterBattle).toHaveBeenCalled());
+    present.mockRestore();
+    expect(order).toEqual([
+      { saved: 'the Keen Edge', scratch: false },
+      'persist',
+      { rite: ['keen_edge'] },
+    ]);
+    expect(scene.playerUnits[0].deeds.lastBattle).toBe('act1:n4:3');
+  });
+
   describe('Merchant Caravan reward wiring', () => {
     it('passes caravanSurvived: true to completeBattle when the caravan survived', () => {
       const scene = makeScene();

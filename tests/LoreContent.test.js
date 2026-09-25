@@ -42,6 +42,23 @@ describe('lore content contract', () => {
     }
   });
 
+  it('every deed has lore within the item budget, in voices from the world', () => {
+    const deeds = gameData.deeds.deeds;
+    expect(deeds.length).toBeGreaterThan(0);
+    for (const deed of deeds) {
+      expectValidLore(deed, ITEM_BUDGET, `deed "${deed.id}"`);
+      // The UI wraps lore in quotes: speech uses single quotes.
+      expect(deed.lore.includes('"'), `deed "${deed.id}": double quote`).toBe(false);
+      // A deed's lore is not its title restated.
+      expect(deed.lore.toLowerCase()).not.toContain(deed.epithet.text.toLowerCase());
+    }
+    // Style guide v2: ≤25% open on "A/An", ≤15% semicolon/em-dash antithesis.
+    const bareA = deeds.filter((d) => /^(A|An) /.test(d.lore)).length;
+    expect(bareA / deeds.length).toBeLessThanOrEqual(0.25);
+    const antithesis = deeds.filter((d) => /[;—]/.test(d.lore)).length;
+    expect(antithesis / deeds.length).toBeLessThanOrEqual(0.15);
+  });
+
   it('every whetstone has lore within the item budget', () => {
     expect(gameData.whetstones.length).toBeGreaterThan(0);
     for (const item of gameData.whetstones) {

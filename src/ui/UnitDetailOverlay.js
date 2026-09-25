@@ -45,6 +45,8 @@ import {
 } from '../utils/tooltipTiming.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { epithetText } from '../engine/DeedTitles.js';
+import { fitCanvasText } from './deedDisplay.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -222,7 +224,14 @@ export class UnitDetailOverlay {
     // --- Header ---
     const factionLabel =
       unit.faction === 'player' ? '' : unit.faction === 'npc' ? ' [NPC]' : ' [Enemy]';
-    this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    const nameText = this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    // Canvas fallback: the epithet follows the name, clear of the nav/portrait.
+    const epithet = unit.faction === 'player' ? epithetText(unit) : '';
+    if (epithet && nameText) {
+      const x = nameText.x + nameText.width + 6;
+      const line = this._unitText(x, y + 2, epithet, UI_PALETTE.accent, '10px');
+      fitCanvasText(line, left + OVERLAY_W - 92 - x);
+    }
 
     // Portrait (top-right)
     const face = portraitCanvasFrame(this.scene, this._getPortraitKey(unit), 48);
