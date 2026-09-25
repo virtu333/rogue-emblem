@@ -31,6 +31,9 @@ const UNMIRRORED_KEYS = new Set([
   'emblem_rogue_dev_meta',
   MIRROR_SENTINEL_KEY,
 ]);
+// Stands for "the last write of this key did not reach disk": never equal to
+// a stored value, so the next flush writes the key again.
+const UNWRITTEN = Symbol('unwritten');
 const WRITE_DEBOUNCE_MS = 600;
 const WRITE_MAX_WAIT_MS = 3000;
 
@@ -95,6 +98,17 @@ export function readSavedAt(value) {
 export function recordFileNames(key) {
   const base = encodeURIComponent(key);
   return [`${base}.a.txt`, `${base}.b.txt`];
+}
+
+/** The key a mirror file name belongs to (null for foreign names). */
+export function keyForFileName(name) {
+  const match = /^(.+)\.[ab]\.txt$/.exec(String(name));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 /** Newest valid record per key from { fileName: text } (either buffer may be torn). */
@@ -167,14 +181,29 @@ export function createFilesystemBackend(cap) {
   const path = (name) => `${MIRROR_FOLDER}/${name}`;
   return {
     async list() {
+      let result;
       try {
-        const result = await call('readdir', { path: MIRROR_FOLDER, directory: MIRROR_DIRECTORY });
-        return (result?.files || [])
-          .map((file) => (typeof file === 'string' ? file : file?.name))
-          .filter((name) => typeof name === 'string');
-      } catch {
-        return []; // folder not created yet
+        result = await call('readdir', { path: MIRROR_FOLDER, directory: MIRROR_DIRECTORY });
+      } catch (error) {
+        // "No folder yet" (first launch) must not be confused with a folder
+        // that exists but could not be listed: reading the latter as empty
+        // would, after an eviction, let the next launch tombstone every save.
+        // mkdir succeeds only when the folder did not exist (it refuses an
+        // existing one), which proves the mirror is really empty.
+        try {
+          await call('mkdir', {
+            path: MIRROR_FOLDER,
+            directory: MIRROR_DIRECTORY,
+            recursive: true,
+          });
+        } catch {
+          throw error;
+        }
+        return [];
       }
+      return (result?.files || [])
+        .map((file) => (typeof file === 'string' ? file : file?.name))
+        .filter((name) => typeof name === 'string');
     },
     async read(name) {
       try {
@@ -217,7 +246,9 @@ export class NativeSaveMirror {
   }) {
     Object.assign(this, { storage, backend, log, setTimer, clearTimer, now });
     this.cancelled = false;
-    this.records = new Map(); // key → { seq, value, slot }
+    // key → { seq: last issued, value: last issued, slot: buffer holding the
+    //   newest complete record (never overwritten), pending: writes in flight }
+    this.records = new Map();
     this.dirty = new Set();
     this.active = false;
     this.timer = null;
@@ -239,11 +270,13 @@ export class NativeSaveMirror {
   async restore() {
     const names = await this.backend.list();
     const files = {};
+    const unreadKeys = new Set();
     for (const name of names) {
       if (this.cancelled) return null;
       if (!name.endsWith('.txt')) continue;
       const text = await this.backend.read(name);
       if (text !== null) files[name] = text;
+      else if (keyForFileName(name)) unreadKeys.add(keyForFileName(name));
     }
     // Everything below is synchronous: it applies entirely or (cancelled) not at all.
     if (this.cancelled) return null;
@@ -252,33 +285,53 @@ export class NativeSaveMirror {
     for (const key of this.localKeys()) local.set(key, this.storage.getItem(key));
     const sentinelPresent = this.storage.getItem(MIRROR_SENTINEL_KEY) !== null;
     const plan = planRestore({ local, sentinelPresent, records });
+    // Saves the plan could not write back (quota): the native copy is the one
+    // to keep, so reconcile must neither overwrite nor tombstone it.
+    const unrestored = new Set();
     for (const [key, value] of plan.restore) {
       try {
         this.storage.setItem(key, value);
         local.set(key, value);
       } catch (error) {
+        unrestored.add(key);
         this.log('restore_write_failed', { key, error: error?.message || String(error) });
       }
     }
     for (const [key, record] of records)
-      this.records.set(key, { seq: record.seq, value: record.value, slot: slots.get(key) });
+      this.records.set(key, {
+        seq: record.seq,
+        value: record.value,
+        slot: slots.get(key),
+        pending: 0,
+      });
+    // The sentinel ends "evicted" mode. Keep that mode (so the next launch
+    // restores again) while a mirrored save is still missing locally because
+    // it could not be read or written back this time — with the sentinel set,
+    // the next launch would take its absence for a deletion and tombstone it.
+    const incomplete =
+      unrestored.size > 0 || [...unreadKeys].some((key) => shouldMirrorKey(key) && !local.has(key));
     try {
-      if (!sentinelPresent) this.storage.setItem(MIRROR_SENTINEL_KEY, String(this.now()));
+      if (!sentinelPresent && !incomplete)
+        this.storage.setItem(MIRROR_SENTINEL_KEY, String(this.now()));
     } catch {
       /* quota: the next launch treats storage as evicted and restores again */
     }
     // Reconcile: mirror every local key that differs, tombstone every record
     // whose key is gone locally (a removal the mirror missed).
     for (const [key, value] of local) {
+      if (unrestored.has(key)) continue;
       if (shouldMirrorKey(key) && this.records.get(key)?.value !== value) this.dirty.add(key);
     }
     for (const [key, record] of this.records) {
+      if (unrestored.has(key)) continue;
       if (!local.has(key) && record.value !== null) this.dirty.add(key);
     }
     this.lastRestore = {
       evicted: plan.evicted,
-      restored: plan.restore.map(([key]) => key),
+      restored: plan.restore.map(([key]) => key).filter((key) => !unrestored.has(key)),
       records: records.size,
+      ...(unrestored.size ? { unrestored: [...unrestored] } : {}),
+      ...(incomplete ? { incomplete: true } : {}),
     };
     this.log('restore', this.lastRestore);
     this.active = true;
@@ -352,30 +405,45 @@ export class NativeSaveMirror {
       const previous = this.records.get(key);
       if (previous && previous.value === value) continue;
       if (!previous && value === null) continue;
-      const seq = (previous?.seq || 0) + 1;
+      const entry = previous || { seq: 0, value: undefined, slot: null, pending: 0 };
       const [a, b] = recordFileNames(key);
-      // Overwrite the buffer that does not hold the newest record.
-      const slot = previous?.slot === a ? b : a;
-      const record = { seq, value, slot };
-      this.records.set(key, record);
-      const failed = (error) => {
-        this.log('write_failed', { key, error: error?.message || String(error) });
-        if (this.records.get(key) !== record) return;
-        // Keep the last good record's slot; retry on the next flush.
-        if (previous) this.records.set(key, previous);
-        else this.records.delete(key);
-        this.dirty.add(key);
+      // writeFile is not atomic (a kill or a full disk can tear the file), so
+      // `slot` — the buffer holding the newest record known to be complete —
+      // is never written. Overlapping writes (a lifecycle flush while the
+      // previous write is still on the bridge) all go to the other buffer;
+      // `slot` moves only once every write in flight has settled and the
+      // newest of them succeeded.
+      const target = entry.slot === a ? b : a;
+      const seq = entry.seq + 1;
+      entry.seq = seq;
+      entry.value = value;
+      entry.pending = (entry.pending || 0) + 1;
+      this.records.set(key, entry);
+      const settle = (ok, error) => {
+        if (!ok) this.log('write_failed', { key, error: error?.message || String(error) });
+        if (seq === entry.seq) entry.ok = ok; // the newest write decides
+        entry.pending -= 1;
+        if (entry.pending > 0) return;
+        if (entry.ok) {
+          entry.slot = target;
+        } else {
+          // The target may be torn; `slot` still holds the last good record.
+          // Retry on the next flush, whatever the value is by then.
+          entry.value = UNWRITTEN;
+          this.dirty.add(key);
+        }
       };
       // Dispatch now: the bridge message leaves JS synchronously, so a page
       // suspended right after a lifecycle flush cannot hold it back.
       try {
         writes.push(
-          Promise.resolve(this.backend.write(slot, encodeRecord({ key, seq, value }))).catch(
-            failed,
+          Promise.resolve(this.backend.write(target, encodeRecord({ key, seq, value }))).then(
+            () => settle(true),
+            (error) => settle(false, error),
           ),
         );
       } catch (error) {
-        failed(error);
+        settle(false, error);
       }
     }
     this.writing = Promise.all([this.writing, ...writes]).then(() => undefined);

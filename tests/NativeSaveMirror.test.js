@@ -5,6 +5,7 @@ import {
   MIRROR_SENTINEL_KEY,
   NativeSaveMirror,
   collectRecords,
+  createFilesystemBackend,
   decodeRecord,
   encodeRecord,
   planRestore,
@@ -455,5 +456,208 @@ describe('startNativeSaveMirror', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// Review of the iOS persistence change: paths that could lose or regress a
+// save. Each test failed before its fix.
+describe('data-loss regressions', () => {
+  const runKey = 'emblem_rogue_slot_1_run';
+  const metaKey = 'emblem_rogue_slot_1_meta';
+
+  /** Storage whose setItem throws a WebKit-style quota error for chosen keys. */
+  class QuotaStorage extends FakeStorage {
+    constructor(entries, fullFor = new Set()) {
+      super(entries);
+      this.fullFor = fullFor;
+    }
+    setItem(key, value) {
+      if (this.fullFor.has(key)) {
+        const error = new Error('The quota has been exceeded.');
+        error.name = 'QuotaExceededError';
+        throw error;
+      }
+      super.setItem(key, value);
+    }
+  }
+
+  async function mirrored(entries) {
+    const backend = fakeBackend();
+    const { mirror, timers } = await launch(new FakeStorage(entries), backend);
+    timers.advance(0);
+    await mirror.writing;
+    return backend;
+  }
+
+  it('evicted store: a save that cannot be written back stays mirrored and is retried', async () => {
+    const backend = await mirrored({ [runKey]: run(40), [metaKey]: run(39) });
+    // iOS evicted WebKit's store; restoring the run hits the quota this launch.
+    const full = new QuotaStorage({}, new Set([runKey]));
+    const second = await launch(full, backend);
+    expect(full.getItem(metaKey)).toBe(run(39));
+    expect(full.getItem(runKey)).toBeNull();
+    second.timers.advance(5000);
+    await second.mirror.writing;
+    // Reconcile must not tombstone the only copy of the run...
+    const { records } = collectRecords(Object.fromEntries(backend.files));
+    expect(records.get(runKey)).toMatchObject({ removed: false, value: run(40) });
+    // ...and the next launch still treats the store as evicted and restores it.
+    expect(full.getItem(MIRROR_SENTINEL_KEY)).toBeNull();
+    full.fullFor.clear();
+    await launch(full, backend);
+    expect(full.getItem(runKey)).toBe(run(40));
+  });
+
+  it('intact store: a newer mirrored save that cannot be written back is not overwritten', async () => {
+    const backend = await mirrored({ [runKey]: run(50) });
+    // WebKit lost the newest write (local is older), and restoring hits the quota.
+    const storage = new QuotaStorage(
+      { [runKey]: run(45), [MIRROR_SENTINEL_KEY]: '1' },
+      new Set([runKey]),
+    );
+    const second = await launch(storage, backend);
+    second.timers.advance(5000);
+    await second.mirror.writing;
+    const { records } = collectRecords(Object.fromEntries(backend.files));
+    expect(records.get(runKey).value).toBe(run(50));
+  });
+
+  /** Backend whose writes stay in flight until the test settles them in order. */
+  function deferredBackend() {
+    const files = new Map();
+    const inflight = [];
+    return {
+      files,
+      inflight,
+      async list() {
+        return [...files.keys()];
+      },
+      async read(name) {
+        return files.has(name) ? files.get(name) : null;
+      },
+      write(name, text) {
+        return new Promise((resolve, reject) => inflight.push({ name, text, resolve, reject }));
+      },
+      /** Settle the oldest write (the bridge runs plugin calls in order). */
+      settle(outcome) {
+        const w = inflight.shift();
+        if (outcome === 'ok') {
+          files.set(w.name, w.text);
+          w.resolve();
+          return;
+        }
+        // writeFile is not atomic: a failed or killed write leaves a torn file.
+        files.set(w.name, w.text.slice(0, Math.floor(w.text.length / 2)));
+        if (outcome === 'fail') w.reject(new Error('No space left on device'));
+      },
+    };
+  }
+
+  it('overlapping writes never overwrite the last good buffer', async () => {
+    const storage = new FakeStorage();
+    const backend = deferredBackend();
+    const { mirror } = await launch(storage, backend);
+    const restore = mirror.hookStorage(FakeStorage.prototype, storage);
+    try {
+      storage.setItem(runKey, run(1));
+      mirror.flush();
+      backend.settle('ok'); // v1 on disk
+      await mirror.writing;
+      storage.setItem(runKey, run(2));
+      mirror.flush(); // v2 in flight...
+      storage.setItem(runKey, run(3));
+      mirror.flush(); // ...v3 dispatched before v2 settled (app backgrounded)
+      backend.settle('fail'); // disk full: v2 fails and tears its file
+      backend.settle('killed'); // the app is killed while v3 is written
+    } finally {
+      restore();
+    }
+    const evicted = new FakeStorage();
+    await launch(evicted, { ...backend, write: () => Promise.resolve() });
+    // A complete save survives (v1 at least) — never nothing.
+    expect(evicted.getItem(runKey)).toBe(run(1));
+  });
+
+  it('a folder that exists but cannot be listed fails the read-back instead of reading as empty', async () => {
+    const calls = [];
+    const broken = {
+      nativePromise: (plugin, method) => {
+        calls.push(method);
+        if (method === 'mkdir') return Promise.reject(new Error('Directory already exists.'));
+        return Promise.reject(new Error('The operation could not be completed.'));
+      },
+    };
+    await expect(createFilesystemBackend(broken).list()).rejects.toThrow();
+    expect(calls).toEqual(['readdir', 'mkdir']);
+    // First launch: the folder does not exist yet — creating it proves that.
+    const fresh = {
+      nativePromise: (plugin, method) =>
+        method === 'mkdir' ? Promise.resolve() : Promise.reject(new Error('does not exist')),
+    };
+    await expect(createFilesystemBackend(fresh).list()).resolves.toEqual([]);
+  });
+
+  /** Filesystem plugin over the fake backend's files (folder exists). */
+  function capOver(files, state) {
+    const prefix = 'emblem-rogue-saves/';
+    return {
+      nativePromise: (plugin, method, options) => {
+        if (method === 'readdir')
+          return state.failReaddir
+            ? Promise.reject(new Error('The operation could not be completed.'))
+            : Promise.resolve({ files: [...files.keys()].map((name) => ({ name })) });
+        if (method === 'mkdir') return Promise.reject(new Error('Directory already exists.'));
+        if (method === 'readFile') {
+          const name = options.path.slice(prefix.length);
+          return files.has(name)
+            ? Promise.resolve({ data: files.get(name) })
+            : Promise.reject(new Error('does not exist'));
+        }
+        if (method === 'writeFile') {
+          files.set(options.path.slice(prefix.length), options.data);
+          return Promise.resolve({});
+        }
+        return Promise.reject(new Error(`unexpected ${method}`));
+      },
+    };
+  }
+
+  it('evicted store + a failed listing: the following launch still restores every save', async () => {
+    const { files } = await mirrored({ [runKey]: run(60), [metaKey]: run(59) });
+    const state = { failReaddir: true };
+    const backend = createFilesystemBackend(capOver(files, state));
+    const evicted = new FakeStorage();
+    // Launch 1: the WebKit store was evicted and the listing fails once.
+    const first = await launch(evicted, backend).catch(() => null);
+    if (first) {
+      first.timers.advance(5000);
+      await first.mirror.writing;
+    }
+    expect(evicted.getItem(MIRROR_SENTINEL_KEY)).toBeNull();
+    // Launch 2: the listing works; the saves must come back, not be tombstoned.
+    state.failReaddir = false;
+    const second = await launch(evicted, backend);
+    second.timers.advance(5000);
+    await second.mirror.writing;
+    expect(evicted.getItem(runKey)).toBe(run(60));
+    expect(evicted.getItem(metaKey)).toBe(run(59));
+  });
+
+  it('evicted store + a mirror file that fails to read: it is restored on a later launch', async () => {
+    const backend = await mirrored({ [runKey]: run(70), [metaKey]: run(69) });
+    const readOk = backend.read;
+    const [a] = recordFileNames(runKey);
+    backend.read = async (name) => (name === a ? null : readOk.call(backend, name));
+    const evicted = new FakeStorage();
+    const first = await launch(evicted, backend);
+    expect(evicted.getItem(metaKey)).toBe(run(69));
+    expect(evicted.getItem(runKey)).toBeNull();
+    first.timers.advance(5000);
+    await first.mirror.writing;
+    backend.read = readOk;
+    const second = await launch(evicted, backend);
+    second.timers.advance(5000);
+    await second.mirror.writing;
+    expect(evicted.getItem(runKey)).toBe(run(70));
   });
 });
