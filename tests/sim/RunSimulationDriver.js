@@ -175,6 +175,16 @@ export class RunSimulationDriver {
     battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
       ? structuredClone(this.runManager.fallenUnits)
       : [];
+    if (node.type === NODE_TYPES.RECRUIT) {
+      // The recruit the Loom previews (RecruitNodeSystem needs the run's state).
+      const ctx = this.runManager.getRecruitBattleContext(node);
+      battleParams.recruitNodeId = ctx.nodeId;
+      battleParams.recruitRunSeed = ctx.runSeed;
+      battleParams.recruitRoster = structuredClone(ctx.roster);
+      battleParams.startingLordNames = ctx.startingLordNames;
+      battleParams.recruitLevelBonus = ctx.recruitLevelBonus;
+      battleParams.deployBonus = ctx.deployBonus;
+    }
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();
     const deployMax = Math.max(

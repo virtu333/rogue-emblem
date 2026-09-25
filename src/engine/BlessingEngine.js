@@ -106,6 +106,30 @@ export function validateBlessingsConfig(config, options = {}) {
         errors.push(`${path}.costs must be empty for tier ${blessing.tier}; use costPools`);
       }
     }
+    // A pact is a fixed, always-shown price that replaces the rolled cost.
+    if (blessing.pact !== undefined) {
+      if (blessing.tier < 2) errors.push(`${path}.pact is only allowed for tier 2+`);
+      if (!isObject(blessing.pact)) {
+        errors.push(`${path}.pact must be an object`);
+      } else {
+        if (typeof blessing.pact.label !== 'string' || blessing.pact.label.trim() === '')
+          errors.push(`${path}.pact.label must be a non-empty string`);
+        if (!Array.isArray(blessing.pact.effects) || blessing.pact.effects.length === 0) {
+          errors.push(`${path}.pact.effects must be a non-empty array`);
+        } else {
+          blessing.pact.effects.forEach((effect, effectIdx) => {
+            const effectPath = `${path}.pact.effects[${effectIdx}]`;
+            if (!isObject(effect)) {
+              errors.push(`${effectPath} must be an object`);
+              return;
+            }
+            if (typeof effect.type !== 'string' || effect.type.trim() === '')
+              errors.push(`${effectPath}.type must be a non-empty string`);
+            if (!isObject(effect.params)) errors.push(`${effectPath}.params must be an object`);
+          });
+        }
+      }
+    }
 
     for (const effectKey of ['boons', 'costs']) {
       const effects = blessing[effectKey];
@@ -217,27 +241,41 @@ function pickWeighted(items, rand) {
 
 /**
  * Roll one runtime cost entry for a blessing from a tier pool.
- * Cost entries sharing an effect type with the boon are excluded when possible.
+ * A blessing with a `pact` always costs its pact (one draw is still spent so every
+ * other offer's roll is unchanged). Otherwise cost entries sharing an effect type with
+ * the boon are excluded when possible, and so are entries `options.isApplicable`
+ * rejects (a cost that would do nothing, e.g. deforging weapons that carry no forge):
+ * a shrine never offers a void price.
  * @param {object[]} costPool
  * @param {object} blessing
  * @param {() => number} rand
+ * @param {{ isApplicable?: (entry: object) => boolean }} [options]
  * @returns {{label: string, effects: object[]} | null}
  */
-export function rollCostForBlessing(costPool, blessing, rand) {
-  if (!Array.isArray(costPool) || costPool.length === 0) return null;
+export function rollCostForBlessing(costPool, blessing, rand, options = {}) {
   if (typeof rand !== 'function') {
     throw new Error('rollCostForBlessing requires an RNG function argument');
   }
+  if (isObject(blessing?.pact)) {
+    rand();
+    return cloneDeep(blessing.pact);
+  }
+  if (!Array.isArray(costPool) || costPool.length === 0) return null;
   const boonTypes = new Set(
     (Array.isArray(blessing?.boons) ? blessing.boons : [])
       .map((effect) => effect?.type)
       .filter(Boolean),
   );
-  const nonConflicting = costPool.filter((entry) => {
+  const applicable =
+    typeof options.isApplicable === 'function'
+      ? costPool.filter((entry) => options.isApplicable(entry))
+      : costPool;
+  const base = applicable.length > 0 ? applicable : costPool;
+  const nonConflicting = base.filter((entry) => {
     const effects = Array.isArray(entry?.effects) ? entry.effects : [];
     return !effects.some((effect) => boonTypes.has(effect?.type));
   });
-  const eligible = nonConflicting.length > 0 ? nonConflicting : costPool;
+  const eligible = nonConflicting.length > 0 ? nonConflicting : base;
   const picked = eligible[Math.floor(rand() * eligible.length)];
   if (!picked) return null;
   return cloneDeep(picked);
@@ -321,7 +359,9 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
     const copy = cloneDeep(blessing);
     if (copy.tier >= 2) {
       const tierPool = valid.costPools?.[String(copy.tier)];
-      copy.rolledCost = rollCostForBlessing(tierPool, copy, rand);
+      copy.rolledCost = rollCostForBlessing(tierPool, copy, rand, {
+        isApplicable: options.isCostApplicable,
+      });
     } else {
       copy.rolledCost = null;
     }
