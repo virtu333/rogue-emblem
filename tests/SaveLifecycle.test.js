@@ -1,6 +1,6 @@
 // Page hidden / pagehide / freeze / Capacitor App pause flush the active
 // scene's in-memory state and dispatch pending native-mirror writes.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
 
@@ -142,8 +142,13 @@ describe('save lifecycle', () => {
 });
 
 describe('NodeMap lifecycle flusher', () => {
-  async function makeScene(overrides = {}) {
-    const { NodeMapScene } = await import('../src/scenes/NodeMapScene.js');
+  let NodeMapScene;
+  // The scene module graph is large; load it once, with room on a busy runner.
+  beforeAll(async () => {
+    ({ NodeMapScene } = await import('../src/scenes/NodeMapScene.js'));
+  }, 120_000);
+
+  function makeScene(overrides = {}) {
     const scene = Object.create(NodeMapScene.prototype);
     Object.assign(scene, {
       runManager: { status: 'active' },
@@ -154,8 +159,8 @@ describe('NodeMap lifecycle flusher', () => {
     return scene;
   }
 
-  it('saves the route state when the app is backgrounded', async () => {
-    const scene = await makeScene();
+  it('saves the route state when the app is backgrounded', () => {
+    const scene = makeScene();
     scene._flushRunForLifecycle();
     expect(scene.persistRunSave).toHaveBeenCalledTimes(1);
   });
@@ -166,8 +171,8 @@ describe('NodeMap lifecycle flusher', () => {
     ['the scene is shutting down', { _sceneShuttingDown: true }],
     ['the run has ended', { runManager: { status: 'defeat' } }],
     ['no save slot is attached', { registry: { get: () => null } }],
-  ])('leaves the save alone when %s', async (_label, overrides) => {
-    const scene = await makeScene(overrides);
+  ])('leaves the save alone when %s', (_label, overrides) => {
+    const scene = makeScene(overrides);
     scene._flushRunForLifecycle();
     expect(scene.persistRunSave).not.toHaveBeenCalled();
   });
