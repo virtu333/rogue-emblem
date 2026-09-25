@@ -42,17 +42,21 @@ describe('lore content contract', () => {
     }
   });
 
-  it('every deed has lore within the item budget, in the chronicle register', () => {
+  it('every deed has lore within the item budget, in voices from the world', () => {
     const deeds = gameData.deeds.deeds;
     expect(deeds.length).toBeGreaterThan(0);
     for (const deed of deeds) {
       expectValidLore(deed, ITEM_BUDGET, `deed "${deed.id}"`);
-      // A deed's lore is not its title or its name restated.
+      // The UI wraps lore in quotes: speech uses single quotes.
+      expect(deed.lore.includes('"'), `deed "${deed.id}": double quote`).toBe(false);
+      // A deed's lore is not its title restated.
       expect(deed.lore.toLowerCase()).not.toContain(deed.epithet.text.toLowerCase());
     }
-    // Style guide: no more than ~40% may open with a bare "A/An".
+    // Style guide v2: ≤25% open on "A/An", ≤15% semicolon/em-dash antithesis.
     const bareA = deeds.filter((d) => /^(A|An) /.test(d.lore)).length;
-    expect(bareA / deeds.length).toBeLessThanOrEqual(0.4);
+    expect(bareA / deeds.length).toBeLessThanOrEqual(0.25);
+    const antithesis = deeds.filter((d) => /[;—]/.test(d.lore)).length;
+    expect(antithesis / deeds.length).toBeLessThanOrEqual(0.15);
   });
 
   it('every whetstone has lore within the item budget', () => {

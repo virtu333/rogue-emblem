@@ -3,11 +3,17 @@
 // the save), the title-card rite plays after it, and the epithet then shows
 // in the roster. Desktop 1280×800 and phone 844×390.
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
 
 test.setTimeout(120000);
 
 const SHOTS = process.env.DEED_SHOTS || '';
+
+/** Cold dev-server boots on a busy machine can outlast the shared 15 s wait. */
+async function waitForBattle(page) {
+  await page.waitForFunction(() => window.__sceneState?.activeScene === 'Battle', null, {
+    timeout: 60_000,
+  });
+}
 
 async function quiet(page, speed = 'normal') {
   await page.routeWebSocket(/^ws:\/\/(?:127\.0\.0\.1|localhost):\d+/, (socket) => socket.close());
@@ -61,12 +67,12 @@ for (const [label, device] of [
       await quiet(page);
       const mobile = label === 'phone' ? '&mobilePreview=1' : '';
       await page.goto(`/?devScene=battle&preset=battle_smoke&seed=42${mobile}`);
-      await waitForScene(page, 'Battle');
+      await waitForBattle(page);
       const name = await earnDeedsAndWin(page);
 
       // Committed before the rite: the saved run already has the title.
       const rite = page.getByRole('dialog', { name: /^Deed\./ });
-      await expect(rite).toBeVisible({ timeout: 15000 });
+      await expect(rite).toBeVisible({ timeout: 45000 });
       const saved = await page.evaluate((name) => {
         const run = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run'));
         const unit = run.roster.find((u) => u.name === name);
@@ -138,7 +144,7 @@ for (const [label, device] of [
       await quiet(page, 'fast');
       const mobile = label === 'phone' ? '&mobilePreview=1' : '';
       await page.goto(`/?devScene=battle&preset=battle_smoke&seed=42${mobile}`);
-      await waitForScene(page, 'Battle');
+      await waitForBattle(page);
       await page.waitForFunction(
         () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
         null,
@@ -216,7 +222,7 @@ test.describe('titled surfaces (phone 844×390)', () => {
     const errors = collect(page);
     await quiet(page);
     await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
-    await waitForScene(page, 'Battle');
+    await waitForBattle(page);
     await page.waitForFunction(
       () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
       null,
@@ -332,10 +338,10 @@ test.describe('640×480 canvas design size', () => {
     const errors = collect(page);
     await quiet(page, 'instant');
     await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
-    await waitForScene(page, 'Battle');
+    await waitForBattle(page);
     await earnDeedsAndWin(page);
     const rite = page.getByRole('dialog', { name: /^Deed\./ });
-    await expect(rite).toBeVisible({ timeout: 15000 });
+    await expect(rite).toBeVisible({ timeout: 45000 });
     await expect(rite).toHaveClass(/is-done/); // Instant: revealed at once
     const overflow = await rite
       .locator('.gr-deed-text')

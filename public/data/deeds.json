@@ -39,7 +39,7 @@
       "prestige": 4,
       "oathSkill": "pavise",
       "oathName": "Oath of {place}",
-      "lore": "Three nights the line bent. It did not break."
+      "lore": "Three nights the line bent and held."
     },
     {
       "id": "untouched",
@@ -56,7 +56,7 @@
       "prestige": 3,
       "oathSkill": "vigilance",
       "oathName": "Oath of the Untouched",
-      "lore": "Blades went where this soldier had stood a breath before."
+      "lore": "'Did they miss?' 'Every one. I counted.'"
     },
     {
       "id": "would_not_fall",
@@ -67,7 +67,7 @@
       "prestige": 3,
       "oathSkill": "unyielding",
       "oathName": "Oath of the Unfallen",
-      "lore": "Struck down to a thread of breath, and still standing at dusk."
+      "lore": "Surgeon's note: should be dead. Is not. Returned to duty."
     },
     {
       "id": "red_harvest",
@@ -78,7 +78,7 @@
       "prestige": 3,
       "oathSkill": "colossus",
       "oathName": "Oath of the Harvest",
-      "lore": "Five fell to one blade before the smoke had cleared."
+      "lore": "Sung round the fires after: five to one blade, and the blade still sharp."
     },
     {
       "id": "giantslayer",
@@ -89,7 +89,7 @@
       "prestige": 4,
       "oathSkill": "lethality",
       "oathName": "Oath of the Giantslayer",
-      "lore": "The larger the foe, the plainer the killing stroke."
+      "lore": "The bigger they come, the fewer people believe how they fell."
     },
     {
       "id": "bossbane",
@@ -100,7 +100,7 @@
       "prestige": 5,
       "oathSkill": "fiendish_blow",
       "oathName": "Oath of the Bane",
-      "lore": "Ended a name the empire had written into its own ledgers."
+      "lore": "Struck from the empire's roll of officers: one name, one blow."
     },
     {
       "id": "avenger",
@@ -111,7 +111,7 @@
       "prestige": 4,
       "oathSkill": "fury",
       "oathName": "Oath of Vengeance",
-      "lore": "Owed a debt at noon and paid it before the field went quiet."
+      "lore": "Tell her family it was answered before sundown."
     },
     {
       "id": "lordshield",
@@ -122,7 +122,7 @@
       "prestige": 3,
       "oathSkill": "aegis",
       "oathName": "Oath of the Shield",
-      "lore": "Stood where the arrows meant for the commander came down."
+      "lore": "Stand where the arrows go, so the commander does not have to."
     },
     {
       "id": "keen_edge",
@@ -133,7 +133,7 @@
       "prestige": 2,
       "oathSkill": "crit_plus_15",
       "oathName": "Oath of the Edge",
-      "lore": "Found the gap in the plate three times in a single fight."
+      "lore": "Armorer's complaint: three suits of plate back, each with one neat hole."
     },
     {
       "id": "deathblow",
@@ -144,7 +144,7 @@
       "prestige": 3,
       "oathSkill": "sure_shot",
       "oathName": "Oath of the Deathblow",
-      "lore": "In the drill yards, soldiers now practice against this one's cuts."
+      "lore": "Twelve killing strokes, logged by a quartermaster who stopped enjoying it."
     },
     {
       "id": "mender",
@@ -155,7 +155,7 @@
       "prestige": 2,
       "oathSkill": "renewal",
       "oathName": "Oath of the Mender",
-      "lore": "Bandages, splints and a steady hand, carried in place of a spare blade."
+      "lore": "Triage tent, second shift: all breathing at dawn. Bandages low again."
     },
     {
       "id": "lantern",
@@ -166,7 +166,7 @@
       "prestige": 4,
       "oathSkill": "renewal",
       "oathName": "Oath of the Lantern",
-      "lore": "Wherever the column made camp, the wounded walked toward this tent."
+      "lore": "Where the lantern hangs, the wounded walk. Let it hang a while longer."
     },
     {
       "id": "tempo",
@@ -175,7 +175,7 @@
       "condition": { "type": "runStat", "stat": "refreshes", "min": 12 },
       "epithet": { "form": "who", "text": "Who Danced at the End" },
       "prestige": 3,
-      "lore": "At the drum's last beat, tired soldiers found one more charge in them."
+      "lore": "'How are you still dancing?' 'How are you still standing? Go.'"
     },
     {
       "id": "greenwood",
@@ -186,7 +186,7 @@
       "prestige": 2,
       "oathSkill": "pathfinder",
       "oathName": "Oath of the Greenwood",
-      "lore": "Under the canopy, the trees seemed to fight on this soldier's side."
+      "lore": "Leaf and root and bowstring hum; the wood keeps faith with those who come."
     },
     {
       "id": "heights",
@@ -197,7 +197,7 @@
       "prestige": 2,
       "oathSkill": "skirmisher",
       "oathName": "Oath of the Heights",
-      "lore": "High ground taken, and every climber made to pay for the ledge."
+      "lore": "Take the ridge first. Argue about it after."
     },
     {
       "id": "mire",
@@ -213,7 +213,7 @@
       "prestige": 2,
       "oathSkill": "drain",
       "oathName": "Oath of the Mire",
-      "lore": "Where each step sinks, the enemy slows first."
+      "lore": "Boots lost: two pairs. Enemies lost in the bog: considerably more."
     },
     {
       "id": "weapon_family",
@@ -224,7 +224,7 @@
       "prestige": 3,
       "oathSkill": "duelist_stance",
       "oathName": "Oath of {weapon}",
-      "lore": "One weapon, carried so long the hand forgot the others."
+      "lore": "Tally marks cut into the weapon, then onto a second strip of leather."
     },
     {
       "id": "veteran",
@@ -235,7 +235,7 @@
       "prestige": 2,
       "oathSkill": "discipline",
       "oathName": "Oath of the March",
-      "lore": "The march's longest memory, from the first camp to the last."
+      "lore": "Saw the march begin and end, and still rises first to light the fire."
     },
     {
       "id": "last_of_them",
