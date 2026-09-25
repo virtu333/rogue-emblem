@@ -109,6 +109,32 @@ Decisions:
 
 ---
 
+## 2026-09-25 — Rewind to before any unit's action
+
+Player request (high priority): Vision rewind must reach the moment before any player
+unit's action, not only the turn start. Playtesting origin/main showed the capability
+existed on paper but not in practice: the timeline labelled rows by the event *after*
+which it restored (so undoing an action meant picking the row above it, and the first
+action of a turn could only be undone via "Turn begins"), and the 512 KB history evicted
+action snapshots first — in a late-game battle no rewind point survived past turn 2.
+
+Decisions:
+- **Rewind opens a picker of "Before <unit>'s <action>" points** (newest first, portrait,
+  target, outcome chips, map preview, one tap to preview, one to spend). The full battle
+  timeline stays under History.
+- **Budget:** points after a keyframe are stored as exact structural patches; review-only
+  previews are shed before any rewind point; this turn's points are shed last. All actions
+  of the current and three previous turns now fit at late-game size (~375 KB).
+- **Set-aside partial actions** (trade, re-equip) become their own point at the next
+  activation, so "before Y" never undoes X's trade.
+- **Lunatic keeps turn-start rewinds**, now as `difficulty.json` `rewindGranularity`
+  (flip to `action` to change). Legacy-v1 battles gain action points and keep their
+  reroll-on-rewind rule.
+
+Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag
