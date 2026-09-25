@@ -42,7 +42,8 @@ const SCENARIOS = [
     distance: 1,
     key: 7,
   },
-  // Traced map sprites (dev flag today): the lunge uses their windup and strike frames.
+  // Traced map sprites (the battlefield default since 2026-09-25; the flag is a no-op kept
+  // so the file names stay stable): the lunge uses their windup and strike frames.
   {
     id: 'sword_traced',
     map: 'river_crossing',

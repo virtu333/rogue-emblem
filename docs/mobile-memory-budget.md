@@ -97,6 +97,24 @@ add about 24 MB decoded — the price of every class, faction, lord and boss wit
 frames each. They load at boot so battles never wait on them; loading them on the first
 battle instead would take them off the Title/map screens but not off the battle peak.
 
+### Re-measured against main (2026-09-25)
+
+Same probe and profile, three cold runs each; "main" is `origin/main` at `ef8027d`
+(rebuilt sprites drawn from their 1254 px sources, portraits uncapped), "branch" is
+`claude/traced-sprites` after the lord / boss redraws (the atlas stays two pages,
+24.8 MB). The machine was shared with other agents (load ~45 on 4 cores), so the
+timings are only comparable with each other; the decoded bytes do not depend on load.
+
+| | main | branch |
+| --- | --- | --- |
+| Boot → Title (median) | 31.8 s | 11.9 s |
+| Transferred by Title | 62.5 MB | 5.2 MB |
+| Decoded textures at Title | 229.0 MB (rebuilt sources 216.0, portraits 8.2, other 4.0, rebuilt canvases 0.8) | 37.0 MB (traced pages 24.8, portraits 8.2, other 4.0) |
+| Decoded textures in the first battle | 241.3 MB (rebuilt sources 216.0, portraits 13.6, other 10.9) | 45.7 MB (traced pages 24.8, portraits 10.8, other 10.0) |
+| Transferred by the first battle | 68.0 MB | 17.9 MB |
+| Travel → units on the map (median) | 2.1 s | 2.3 s |
+| JS heap at Title / battle | 24.6 / 30.5 MB | 26.8 / 27.7 MB |
+
 ## Rules for new or regenerated art
 
 - **Ship art at the size it is drawn, not the size it was generated.** Budget

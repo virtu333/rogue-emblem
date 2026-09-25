@@ -86,8 +86,10 @@ from the reviewed sheets and candidates and are unchanged.
 | [`roster_lords_bosses.webp`](roster_lords_bosses.webp) | Enemy-only creatures (and corrupted), the lords base and promoted, the bosses, the Entity |
 | [`roster_a.webp`](roster_a.webp), [`roster_b.webp`](roster_b.webp) | Every generic class: six recruits, enemy, corrupted, NPC (unchanged this pass) |
 | [`motion_1.webp`](motion_1.webp) … `motion_3` | The six frames of every class line, lord and boss |
-| [`anim/`](anim) | Idle loop then the attack, 4×, for a spread of classes, lords and bosses |
+| [`anim/`](anim) | Idle loop then the attack, 4×, for a class, three lords and two bosses |
 | [`grades_dusk.webp`](grades_dusk.webp), [`grades_night.webp`](grades_night.webp) | The whole roster in the running game at 844×390 DPR 3, under Act I Ember Dusk and the Act IV night (Ashfall on the caldera), every unit kind adjacent to others |
+| [`choreography.webp`](choreography.webp) | The Combat v2 choreography on traced frames, frame-exact (`tools/art/combat-fx/capture.mjs`, 844×390 DPR 3): Edric's windup → strike → hit-stop → recover; a lethal strike → hit flash → ember dissolve |
+| [`desktop_1280x800_dusk.webp`](desktop_1280x800_dusk.webp) | The mixed v3 cast on the desktop battlefield (1280×800) under dusk |
 | [`silhouette_test.webp`](silhouette_test.webp) | Unlabeled class silhouettes (key in `silhouette_test_key.txt`) |
 
 ## Display-size review (dusk and night)

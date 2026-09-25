@@ -197,11 +197,9 @@ if (want('motion')) {
   mkdirSync(`${OUT}/anim`, { recursive: true });
   const gifKeys = flag('gifs', null)?.split(',') || [
     'myrmidon-0',
-    'archer-0',
     'lord_edric',
     'lord_cael',
     'lord_astrid_promoted',
-    'enemy_berserker',
     'boss_berserker_king',
     'boss_the_emperor',
   ];
