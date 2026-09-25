@@ -32,4 +32,6 @@ let all = 0;
 for (const tag of ['before', 'after'])
   for (const f of fs.existsSync(path.join(OUT, tag)) ? fs.readdirSync(path.join(OUT, tag)) : [])
     all += fs.statSync(path.join(OUT, tag, f)).size;
-console.log(`written ${(total / 1024).toFixed(0)} KB; production folder ${(all / 1048576).toFixed(2)} MB`);
+console.log(
+  `written ${(total / 1024).toFixed(0)} KB; production folder ${(all / 1048576).toFixed(2)} MB`,
+);
