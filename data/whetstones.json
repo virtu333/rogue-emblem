@@ -4,28 +4,28 @@
     "type": "Whetstone",
     "forgeStat": "choice",
     "price": 800,
-    "lore": "Sealed in silver, this old-kingdom grit lets the edge choose its own end."
+    "lore": "Smith's advice: tell the stone what you want. Silver grit listens, once."
   },
   {
     "name": "Might Whetstone",
     "type": "Whetstone",
     "forgeStat": "might",
     "price": 500,
-    "lore": "Grind on this coarse border-quarry stone and the edge comes off hungry."
+    "lore": "Quarry grit, coarse as a curse. Takes the polish off and leaves the bite."
   },
   {
     "name": "Crit Whetstone",
     "type": "Whetstone",
     "forgeStat": "crit",
     "price": 400,
-    "lore": "The fine, patient stone that teaches a blade to find the seam."
+    "lore": "'How fine a grit?' 'Fine enough to find the gap between two rivets.'"
   },
   {
     "name": "Hit Whetstone",
     "type": "Whetstone",
     "forgeStat": "hit",
     "price": 350,
-    "lore": "Trues a crooked edge back to a straight, honest line."
+    "lore": "Old Brannoc says a crooked blade is just a club with opinions. Use this."
   },
   {
     "name": "Weight Whetstone",
