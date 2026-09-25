@@ -3,6 +3,7 @@
 // Max ~15 lines per page to fit within 640x480 viewport
 
 import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
+import { GAME_TITLE } from '../utils/gameIdentity.js';
 
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
@@ -563,7 +564,7 @@ export const HOW_TO_PLAY_PAGES = [
   {
     title: 'The Run',
     lines: [
-      { text: 'Rogue Emblem is a tactical RPG with', color: GOLD },
+      { text: `${GAME_TITLE} is a tactical RPG with`, color: GOLD },
       { text: 'roguelike structure. Each run is unique.' },
       { text: '' },
       { text: 'You lead a party through 3 acts plus', color: CYAN },

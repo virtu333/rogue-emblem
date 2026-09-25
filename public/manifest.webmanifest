@@ -1,7 +1,7 @@
 {
-  "name": "Rogue Emblem",
-  "short_name": "Rogue Emblem",
-  "description": "Tactical roguelike — Fire Emblem grid combat meets roguelike runs.",
+  "name": "Rogue Dawn",
+  "short_name": "Rogue Dawn",
+  "description": "Tactical roguelike — grid combat meets roguelike runs.",
   "id": "/",
   "start_url": ".",
   "scope": ".",

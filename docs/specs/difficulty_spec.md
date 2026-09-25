@@ -1,4 +1,4 @@
-# Emblem Rogue — Difficulty Modes & Extended Content Spec
+# Rogue Dawn — Difficulty Modes & Extended Content Spec
 
 **Version:** 1.1 — February 2026
 **Scope:** Hard/Lunatic difficulty modes, Act 4, Secret Act, extended leveling, new enemies, terrain hazards, narrative scaffold

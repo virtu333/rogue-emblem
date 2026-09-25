@@ -1,4 +1,4 @@
-# Emblem Rogue — GDD Overview
+# Rogue Dawn — GDD Overview
 
 > **Ported from:** `References/GDDExpansion/` (Feb 13, 2026)
 > **Implementation status:** Index document. Individual doc statuses below. All detail docs now live in `docs/gdd/`.
@@ -10,7 +10,7 @@
 
 ## Purpose
 
-This document is the master index for Emblem Rogue's Game Design Document. The full GDD is split across focused design documents, each covering a specific system or feature area. This overview provides context, links to detail files, and tracks design status.
+This document is the master index for Rogue Dawn's Game Design Document. The full GDD is split across focused design documents, each covering a specific system or feature area. This overview provides context, links to detail files, and tracks design status.
 
 For implementation details, architecture, and data file references, see **CLAUDE.md**.
 For roadmap priorities and sequencing, see **ROADMAP.md**.
@@ -19,7 +19,7 @@ For roadmap priorities and sequencing, see **ROADMAP.md**.
 
 ## Game Summary
 
-Emblem Rogue is a browser-based tactical RPG combining Fire Emblem's grid-based combat with Slay the Spire's roguelike progression structure. Players lead a party through procedurally generated battles across a branching node map, managing resources, recruiting units, and building toward a final confrontation.
+Rogue Dawn (formerly Emblem Rogue) is a browser-based tactical RPG combining Fire Emblem's grid-based combat with Slay the Spire's roguelike progression structure. Players lead a party through procedurally generated battles across a branching node map, managing resources, recruiting units, and building toward a final confrontation.
 
 **Core pillars:**
 - **Tactical combat depth** — Weapon triangle, terrain, positioning, skills, class promotion

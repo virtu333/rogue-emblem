@@ -17,7 +17,7 @@
 
 ## 1. Design Philosophy
 
-Difficulty modes in Emblem Rogue serve two purposes: challenge scaling and **narrative gating**. Each difficulty reveals more of the story, giving players a reason to push beyond their comfort zone. Normal tells the surface story. Hard reveals the true enemy. Lunatic confronts something beyond human understanding.
+Difficulty modes in Rogue Dawn serve two purposes: challenge scaling and **narrative gating**. Each difficulty reveals more of the story, giving players a reason to push beyond their comfort zone. Normal tells the surface story. Hard reveals the true enemy. Lunatic confronts something beyond human understanding.
 
 **Core principles:**
 

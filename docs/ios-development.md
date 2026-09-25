@@ -4,7 +4,7 @@
 
 - Capacitor 8.5.2 with Swift Package Manager; Xcode 26 or newer and Node 22 or newer.
 - Native project: `ios/App/App.xcodeproj`.
-- App name: Emblem Rogue. Initial bundle ID: `com.davechen.emblemrogue`.
+- App name: Rogue Dawn (was Emblem Rogue; `appName` in `capacitor.config.json`, `CFBundleDisplayName` in `Info.plist`). Bundle ID: `com.davechen.emblemrogue` — unchanged by the rename, and must stay so the App Store Connect record, TestFlight builds and on-device saves carry over.
 - Version 0.1.0, build 1; landscape on iPhone and iPad, full screen.
 - The app packages `dist` locally. No live website URL is configured.
 - David Chen selected as the signing team using Xcode.

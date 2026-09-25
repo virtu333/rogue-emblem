@@ -2,7 +2,7 @@ import { showUpdateToast } from './ui/UpdateToast.js';
 import { ownRecoveryInput, installDOMDragRelease } from './utils/domInputBoundary.js';
 import { UI_PALETTE } from './utils/uiStyles.js';
 import { installAudioRecovery } from './utils/audioRecovery.js';
-// Emblem Rogue - Entry Point
+// Rogue Dawn - Entry Point
 
 import Phaser from 'phaser';
 import { installSeedSafeCanvasTextures } from './utils/seedSafeCanvasTextures.js';
@@ -36,6 +36,7 @@ import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVarian
 import { throttledRead } from './utils/throttledRead.js';
 import { installSaveLifecycle } from './utils/saveLifecycle.js';
 import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
+import { GAME_TITLE } from './utils/gameIdentity.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -54,7 +55,7 @@ if (!startupFlags.isMobile) {
 }
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('mobilePreview') === '1') {
   document.documentElement.classList.add('mobile-preview');
-  document.title = 'Emblem Rogue · Mobile preview';
+  document.title = `${GAME_TITLE} · Mobile preview`;
 }
 
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
