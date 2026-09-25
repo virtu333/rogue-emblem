@@ -4,10 +4,15 @@
 //
 //   node tools/art/sprite-trace/dev/capture-game.mjs OUT_DIR [--maps a,b] [--viewports 844x390,667x375]
 //        [--dprs 1,3] [--variants rebuilt,traced,traced-device] [--cells 9x5] [--select]
-//        [--cast v2|v3] [--desktop]
+//        [--cast v2|v3|all] [--chunk i/n] [--atmosphere act1|act4|rime|deep|...] [--desktop]
+//
+// --cast all stages every unit kind the battlefield can show (each generic class as a
+// player recruit and an enemy, the creatures, the seven lords base and promoted, every
+// named boss), split into n chunks by --chunk. --atmosphere turns the act mood on
+// (dev grade override) so sprites are judged under dusk / night grading, not flat light.
 //
 // Needs the dev server on 127.0.0.1:3302. Writes lossless WebP crops of the map area.
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import sharp from 'sharp';
 
@@ -87,7 +92,54 @@ const CAST_V2 = [
   { name: 'Thief', className: 'Thief', faction: 'enemy', hp: 1 },
 ];
 
-const CAST = flag('cast', 'v2') === 'v3' ? CAST_V3 : CAST_V2;
+// every unit kind (data-driven): recruits and enemies of each class, lords, bosses
+const DATA = (f) => JSON.parse(readFileSync(new URL(`../../../../data/${f}`, import.meta.url)));
+const NAMES = ['Aldo', 'Brin', 'Cato', 'Dara', 'Esk', 'Fen', 'Gil', 'Hana', 'Ivo', 'Jun'];
+function castAll() {
+  const lords = DATA('lords.json');
+  const lordClasses = new Set(lords.flatMap((l) => [l.class, l.promotedClass]));
+  const classes = DATA('classes.json').filter((c) => !lordClasses.has(c.name) && c.tier !== 'boss');
+  const out = [];
+  for (const l of lords) {
+    out.push({ name: l.name, className: l.class, faction: 'player', isLord: true, hp: 1 });
+    out.push({
+      name: l.name,
+      className: l.promotedClass,
+      faction: 'player',
+      isLord: true,
+      tier: 'promoted',
+      hp: 1,
+    });
+  }
+  const creatures = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+  classes.forEach((c, i) => {
+    const tier = c.tier === 'promoted' ? 'promoted' : 'base';
+    if (!creatures.has(c.name))
+      out.push({
+        name: NAMES[i % NAMES.length],
+        className: c.name,
+        faction: 'player',
+        tier,
+        hp: 1,
+      });
+    out.push({ name: c.name, className: c.name, faction: 'enemy', tier, hp: 1 });
+  });
+  const bosses = Object.values(DATA('enemies.json').bosses).flat();
+  const seen = new Set();
+  for (const b of bosses)
+    if (!seen.has(b.name) && seen.add(b.name))
+      out.push({ name: b.name, className: b.className, faction: 'enemy', isBoss: true, hp: 1 });
+  return out;
+}
+const castName = flag('cast', 'v2');
+let CAST = castName === 'v3' ? CAST_V3 : castName === 'all' ? castAll() : CAST_V2;
+const chunk = flag('chunk', null);
+if (chunk) {
+  const [i, n] = chunk.split('/').map(Number);
+  const size = Math.ceil(CAST.length / n);
+  CAST = CAST.slice(i * size, (i + 1) * size);
+}
+const atmosphere = flag('atmosphere', null);
 
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',
@@ -103,15 +155,24 @@ async function capture(map, [vw, vh], dpr, variant) {
   });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      'emblem_rogue_settings',
-      JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: false, atmosphere: 'off' }),
-    ),
+  const grade = atmosphere;
+  await page.addInitScript(
+    (grade) =>
+      localStorage.setItem(
+        'emblem_rogue_settings',
+        JSON.stringify({
+          musicVolume: 0,
+          sfxVolume: 0,
+          hints: false,
+          atmosphere: grade ? 'full' : 'off',
+        }),
+      ),
+    grade,
   );
+  const mood = grade ? `&atmosphere=${grade}` : '';
   const url = desktop
-    ? `${base}/?devScene=battle&preset=battle_smoke&seed=42${VARIANTS[variant]}`
-    : `${base}/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1&labMap=${map}${VARIANTS[variant]}`;
+    ? `${base}/?devScene=battle&preset=battle_smoke&seed=42${VARIANTS[variant]}${mood}`
+    : `${base}/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1&battleLab=1&labMap=${map}${VARIANTS[variant]}${mood}`;
   await page.goto(url);
   await page.waitForFunction(() => window.__sceneState?.activeScene === 'Battle', null, {
     timeout: 40000,
@@ -248,7 +309,8 @@ async function capture(map, [vw, vh], dpr, variant) {
     height: Math.min(box.h, vh - box.y),
   };
   const png = await page.screenshot({ clip });
-  const name = `${desktop ? 'desktop' : map}_${vw}x${vh}_dpr${dpr}_${variant}${select ? '_select' : ''}.webp`;
+  const tag = `${grade ? `_${grade}` : ''}${chunk ? `_c${chunk.split('/')[0]}` : ''}`;
+  const name = `${desktop ? 'desktop' : map}_${vw}x${vh}_dpr${dpr}_${variant}${tag}${select ? '_select' : ''}.webp`;
   await sharp(png).webp({ lossless: true, effort: 6 }).toFile(`${out}/${name}`);
   await context.close();
   return name;

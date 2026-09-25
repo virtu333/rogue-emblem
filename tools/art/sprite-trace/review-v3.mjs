@@ -6,7 +6,7 @@
 //   roster   every generic class: six seeded people, enemy, corrupted, NPC (on grass)
 //   extra    enemy-only creatures, lords (base / promoted), named bosses, the Entity
 //   sources  lord candidates: class sheet vs rebuilt, with the choice marked
-//   outliers the sprites listed in the README as "regenerate later" (source | traced)
+//   outliers the map-size redraws (gen-refs.mjs): redraw grid | before | after
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { writeWebp, writeGif, textRaster } from './lib/io.mjs';
 import { Raster, hstack, vstack } from './lib/raster.mjs';
@@ -14,7 +14,7 @@ import { bakeFrames, allEntries, identities, traceId, loadNative } from './lib/p
 import { swatch } from './lib/terrain.mjs';
 import { render } from './lib/render.mjs';
 import { paletteFor } from './lib/treat.mjs';
-import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES } from './roster.mjs';
+import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES, ROSTER } from './roster.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n, d) => {
@@ -124,35 +124,45 @@ if (want('extra')) {
 }
 
 if (want('sources')) {
-  // lord candidates: the class-sheet figure against the rebuilt art, both traced
+  // lord candidates: class-sheet figure, rebuilt art and the map-size redraw, all traced
   const pairs = [
-    ['Edric+', 'edric_promoted_s', 'edric_promoted'],
-    ['Sera+', 'sera_promoted_s', 'sera_promoted'],
-    ['Kira', 'kira_s', 'kira'],
-    ['Kira+', 'kira_promoted_s', 'kira_promoted'],
-    ['Rowan', 'rowan_s', 'rowan'],
-    ['Rowan+', 'rowan_promoted_s', 'rowan_promoted'],
-    ['Astrid', 'astrid_s', 'astrid'],
-    ['Astrid+', 'astrid_promoted_s', 'astrid_promoted'],
+    ['Edric+', 'edric_promoted_s', 'edric_promoted', null],
+    ['Sera+', 'sera_promoted_s', 'sera_promoted', 'sera_promoted_g'],
+    ['Kira', 'kira_s', 'kira', 'kira_g'],
+    ['Kira+', 'kira_promoted_s', 'kira_promoted', 'kira_promoted_g'],
+    ['Voss', null, 'voss', 'voss_g'],
+    ['Voss+', null, 'voss_promoted', 'voss_promoted_g'],
+    ['Rowan', 'rowan_s', 'rowan', null],
+    ['Rowan+', 'rowan_promoted_s', 'rowan_promoted', null],
+    ['Astrid', 'astrid_s', 'astrid', 'astrid_g'],
+    ['Astrid+', 'astrid_promoted_s', 'astrid_promoted', 'astrid_promoted_g'],
+    ['Cael', null, 'cael', 'cael_g'],
+    ['Cael+', null, 'cael_promoted', 'cael_promoted_g'],
   ];
   const chosen = new Set(LORDS.flatMap(([, b, p]) => [b, p]));
+  const W = 96 * 3;
   const rows = [
     hstack(
-      await Promise.all(['', 'class sheet', 'rebuilt'].map((h, i) => label(h, i ? 288 : 90))),
+      await Promise.all(
+        ['', 'class sheet', 'rebuilt', 'map-size redraw'].map((h, i) => label(h, i ? W : 90)),
+      ),
       4,
       INK,
     ),
   ];
-  for (const [name, a, b] of pairs) {
+  for (const [name, ...ids] of pairs) {
     const cells = [await label(name, 90)];
-    for (const id of [a, b]) {
+    for (const id of ids) {
+      if (!id) {
+        cells.push(new Raster(W, 64 * 3 + 20).fillRect(0, 0, W, 64 * 3 + 20, INK));
+        continue;
+      }
       const t = await traceId(id);
       const img = cellCrop(
         ground(render(t.sprite, paletteFor(t, { faction: 'player', keepMain: true }))),
       );
-      cells.push(
-        vstack([img.scale(3), await label(`${id}${chosen.has(id) ? '  (chosen)' : ''}`, 288, 10)]),
-      );
+      const tag = `${id} ${t.sprite.meta.scale.toFixed(2)}${chosen.has(id) ? ' (chosen)' : ''}`;
+      cells.push(vstack([img.scale(3), await label(tag, W, 10)]));
     }
     rows.push(hstack(cells, 4, INK));
   }
@@ -191,14 +201,14 @@ if (want('motion')) {
     'fighter-0',
     'archer-0',
     'mage-1',
-    'cleric-0',
     'cavalier-0',
     'pegasus_knight-1',
     'wyvern_lord-0',
     'lord_edric',
     'lord_astrid_promoted',
+    'lord_cael',
     'enemy_berserker',
-    'enemy_dragon',
+    'boss_berserker_king',
     'boss_the_emperor',
   ];
   for (const k of gifKeys) {
@@ -236,30 +246,52 @@ if (want('silhouettes')) {
   console.log('silhouettes');
 }
 
-/** Sprites still short of the bar (README table): source figure | traced at 3x. */
-export const OUTLIERS = flag('outliers', '').split(',').filter(Boolean);
-if (want('outliers') && OUTLIERS.length) {
-  const rows = [];
-  for (const id of OUTLIERS) {
-    const n = await loadNative(id);
-    const t = await traceId(id);
-    const src = n.native;
-    const scale = Math.max(1, Math.floor(192 / Math.max(src.w, src.h)));
-    const img = cellCrop(
-      ground(render(t.sprite, paletteFor(t, { faction: 'player', keepMain: true }))),
-    );
-    rows.push(
-      hstack(
-        [
-          await label(`${id}\nscale ${t.sprite.meta.scale.toFixed(2)}`, 150),
-          ground(src.scale(scale)),
-          img.scale(3),
-        ],
-        4,
-        INK,
+/**
+ * The strongly reduced sprites and their map-size redraws: the redraw's recovered grid,
+ * then the unit as it was traced (rebuilt art, strong reduction) and as it is now, at 3x,
+ * in the unit's own faction treatment. --outliers id,id (runtime keys) overrides the list.
+ */
+if (want('outliers')) {
+  const keys = flag('outliers', null)?.split(',') || [
+    ...LORDS.flatMap(([n, b, p]) => [
+      ...(b.endsWith('_g') ? [`lord_${n}`] : []),
+      ...(p.endsWith('_g') ? [`lord_${n}_promoted`] : []),
+    ]),
+    ...Object.keys(BOSSES).filter((k) => BOSSES[k].endsWith('_g')),
+  ];
+  const W = 96 * 3;
+  const rows = [
+    hstack(
+      await Promise.all(
+        ['', 'redraw (grid)', 'before', 'after'].map((h, i) => label(h, i ? W : 170)),
       ),
-    );
+      4,
+      INK,
+    ),
+  ];
+  for (const key of keys) {
+    const e = entry(key);
+    const before = e.source.replace(/_g$/, '');
+    const was = { ...e, source: ROSTER.sources[before] ? before : `${before}_s` };
+    const n = await loadNative(e.source);
+    const src = n.native;
+    const scale = Math.max(1, Math.floor(Math.min(W / src.w, (64 * 3) / src.h)));
+    const box = new Raster(W, 64 * 3).fillRect(0, 0, W, 64 * 3, [60, 70, 60, 255]);
+    box.draw(src.scale(scale), Math.floor((W - src.w * scale) / 2), 0);
+    const cells = [await label(key.replace(/^(lord|boss)_/, ''), 170)];
+    cells.push(box);
+    for (const x of [was, e]) {
+      const f = await bakeFrames(x);
+      const t = await traceId(x.source);
+      cells.push(
+        vstack([
+          cellCrop(ground(f.still)).scale(3),
+          await label(`${x.source} ${t.sprite.meta.scale.toFixed(2)}`, W, 10),
+        ]),
+      );
+    }
+    rows.push(hstack(cells, 4, INK));
   }
-  await writeWebp(vstack(rows, 4, INK), `${OUT}/outliers.webp`);
+  await writeWebp(vstack(rows, 4, INK), `${OUT}/redraws.webp`);
   console.log('outliers');
 }

@@ -61,6 +61,7 @@ export async function bakeFrames(entry, { density = 1.5 } = {}) {
   const palette = paletteFor(t, {
     faction: entry.faction,
     keepMain: entry.keepMain,
+    keep: ROSTER.sources[entry.source]?.keep || null,
     identity: entry.identity,
     grade,
   });

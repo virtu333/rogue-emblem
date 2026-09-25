@@ -55,7 +55,24 @@ const SCALE = [
   '12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or',
   'their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite.',
 ].join(' ');
-const PROMPTS = { v1: BASE, v2: `${BASE} ${SCALE}` };
+const PROMPTS = { v1: BASE, v2: `${BASE} ${SCALE}`, v3: `${BASE} ${SCALE}` };
+
+const CHOSEN = (id) => `docs/art/sprite-candidates-2026-09-25/sources/${id}.png`;
+const PROMOTED_NOTE =
+  'Image 2 IS this same person before promotion, already approved at map size: keep exactly its pixel scale, face, hair, build and proportions, and change only the costume and weapon as described (the identity images show the promoted outfit).';
+const MOUNTED_NOTE =
+  'Image 2 is an approved MOUNTED map sprite: match its pixel scale exactly — horse and rider together only about 60 pixels tall and 70 wide, the rider about 30 pixels tall.';
+/** Pass-three exemplars (image 2) by subject. */
+const EXEMPLARS = {
+  kira_promoted: { file: CHOSEN('kira'), note: PROMOTED_NOTE },
+  voss_promoted: { file: CHOSEN('voss'), note: PROMOTED_NOTE },
+  cael_promoted: { file: CHOSEN('cael'), note: PROMOTED_NOTE },
+  sera_promoted: { file: 'docs/art/sprite-candidates-2026-09-22/sources/sera.png', note: PROMOTED_NOTE },
+  astrid_promoted: { file: CHOSEN('astrid'), note: PROMOTED_NOTE },
+  boss_iron_captain: { roster: 'cavalier_e', note: MOUNTED_NOTE },
+  boss_knight_commander: { roster: 'cavalier_e', note: MOUNTED_NOTE },
+  boss_dark_rider: { roster: 'cavalier_e', note: MOUNTED_NOTE },
+};
 
 /** id -> { refs (identity), subject } */
 export const SUBJECTS = {
@@ -166,15 +183,46 @@ mkdirSync(RAW, { recursive: true });
 mkdirSync(TAKES, { recursive: true });
 mkdirSync(`${OUT}/sources`, { recursive: true });
 
+// v3 (third pass) swaps image 2 for a closer exemplar (EXEMPLARS below): a promoted lord
+// is redrawn from the chosen base map sprite of the same person (identity and pixel scale
+// both carry over), a mounted boss from a reviewed mounted class figure at map scale.
+const passThree = flag('prompt') === 'v3';
+async function exemplarFor(id) {
+  const ex = passThree && EXEMPLARS[id];
+  if (!ex) return EXEMPLAR;
+  if (ex.file) return ex.file;
+  // a roster figure's recovered grid, 6x (the reviewed class sheets hold 2-3 figures)
+  const file = `${REFS}/exemplar-${ex.roster}.png`;
+  if (!existsSync(file)) {
+    const { loadNative } = await import('./lib/pipeline.mjs');
+    const { writePng } = await import('./lib/io.mjs');
+    await writePng((await loadNative(ex.roster)).native.scale(6), file);
+  }
+  return file;
+}
+
 const jobs = [];
 for (const id of ids) {
   const s = SUBJECTS[id];
+  const exemplar = await exemplarFor(id);
+  const lead = passThree && EXEMPLARS[id] ? ` ${EXEMPLARS[id].note}` : '';
   for (let n = from; n < from + takes; n++)
     jobs.push({
       id,
       n,
-      prompt: `${prompt} Subject: ${s.subject}${n % 2 ? ` (Variation ${n + 1}.)` : ''}`,
-      refs: [STYLE, EXEMPLAR, ...s.refs.filter((r) => r !== EXEMPLAR && existsSync(r))],
+      prompt: `${prompt}${lead} Subject: ${s.subject}${n % 2 ? ` (Variation ${n + 1}.)` : ''}`,
+      // --text-identity: leave the large identity sprite out (the model otherwise copies
+      // its resolution); the costume comes from the subject text and the portrait
+      refs: [
+        STYLE,
+        exemplar,
+        ...s.refs.filter(
+          (r) =>
+            r !== exemplar &&
+            existsSync(r) &&
+            !(args.includes('--text-identity') && r.includes('rebuilt-sprite-sources')),
+        ),
+      ],
       model,
       aspectRatio: '1:1',
       imageSize: '2K',
@@ -262,9 +310,16 @@ export async function keyMagenta(file, out) {
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   if (args.includes('--rekey')) {
-    // re-key every raw generation (after a keyer change)
+    // re-key raw generations (after a keyer change; --only a,b or --takes-of id-n,id-n)
     const { readdirSync } = await import('node:fs');
-    for (const f of readdirSync(RAW).filter((x) => /\.(png|jpg)$/.test(x) && !/-\d+-\d+\./.test(x)))
+    const pick = flag('takes-of')?.split(',');
+    const files = readdirSync(RAW).filter((x) => {
+      const m = x.match(/^(.*)-(\d+)\.(png|jpg)$/);
+      if (!m) return false;
+      if (pick) return pick.includes(`${m[1]}-${m[2]}`);
+      return !only || only.includes(m[1]);
+    });
+    for (const f of files)
       await keyMagenta(`${RAW}/${f}`, `${TAKES}/${f.replace(/\.(png|jpg)$/, '.png')}`);
     console.log('re-keyed');
   } else if (args.includes('--choose')) {

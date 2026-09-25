@@ -22,6 +22,11 @@ const P3 = (name) => `${CS}/player-set-3/sheets/${name}.png`;
 const RV = (name) => `${CS}/revision/sheets/${name}.png`;
 const S = (name) => `${CS}/sheets/${name}.png`;
 const R = (name) => `docs/art/rebuilt-sprite-sources/${name}.png`;
+//   G   docs/art/sprite-candidates-2026-09-25/sources — map-size redraws of the lords and
+//       bosses that R could only give through a strong reduction (tools/art/sprite-trace/
+//       gen-refs.mjs: style board + the unit's rebuilt sprite and portrait as identity),
+//       stored as their recovered pixel grid at 6x
+const G = (name) => `docs/art/sprite-candidates-2026-09-25/sources/${name}.png`;
 
 // Mount overrides (normalised boxes): the horse / pegasus body is its own material so
 // faction and corruption treatments leave a white pegasus white and a bay horse bay.
@@ -580,6 +585,44 @@ Object.assign(ROSTER.sources, {
   },
 });
 
+// --- map-size redraws (2026-09-25): `<id>_g` = the same unit from G at trace scale
+// 0.55-0.9 instead of 0.1-0.45 (faces, straps and weapons survive as drawn). The recipe
+// is the R/sheet recipe of the same unit; composition-specific boxes are re-fitted.
+const GENERATED = {
+  kira: {},
+  kira_promoted: {},
+  voss: {},
+  // the auto head box lands on the bow tip: box the head
+  voss_promoted: { head: [0.36, 0.05, 0.66, 0.28] },
+  cael: {},
+  cael_promoted: {},
+  sera_promoted: {},
+  astrid: { rects: PEGASUS },
+  astrid_promoted: { rects: PEGASUS },
+  boss_iron_captain: { rects: HORSE },
+  // grey dapple horse, silver hair and the gold of his rank
+  boss_knight_commander: { rects: WHITE_HORSE, hair: 'silver', keep: ['trim'] },
+  boss_dark_rider: { rects: HORSE },
+  boss_iron_wall: {},
+  // a pale, bloodless face reads as plate to the colour rules
+  boss_blade_lord: {
+    head: [0.3, 0.02, 0.7, 0.3],
+    rects: [{ slot: 'skin', box: [0.4, 0.12, 0.6, 0.29], from: ['armor', 'linen', 'metal', 'sub'] }],
+  },
+  // the Emperor's gold plate and crown are his; the empire's iron swap would grey them
+  boss_the_emperor: { keep: ['trim', 'armor'] },
+  boss_the_lieutenant: {},
+  boss_archmage: {},
+  boss_warchief: {},
+  boss_berserker_king: {},
+};
+for (const [id, fit] of Object.entries(GENERATED)) {
+  // lords whose rebuilt entry is named after the lord (kira) or the class sheet (_s)
+  const base = ROSTER.sources[id] || ROSTER.sources[`${id}_s`];
+  const { figure: _f, figures: _n, head: _h, rects: _r, ...recipe } = base;
+  ROSTER.sources[`${id}_g`] = { ...recipe, ...fit, src: G(id) };
+}
+
 /** Named lords: [name, base source, promoted source, why]. */
 export const LORDS = [
   [
@@ -588,31 +631,26 @@ export const LORDS = [
     'edric_promoted_s',
     '09-22 candidate; Great Lord sheet (rebuilt+ is not a grid)',
   ],
-  [
-    'sera',
-    'sera',
-    'sera_promoted_s',
-    '09-22 candidate; Light Priestess sheet keeps her cream robe',
-  ],
-  ['kira', 'kira', 'kira_promoted', 'rebuilt: only it keeps the portrait plum coat'],
-  ['voss', 'voss', 'voss_promoted', 'rebuilt: the sheet Ranger is a young beardless archer'],
+  ['sera', 'sera', 'sera_promoted_g', '09-22 candidate; map-size redraw of the Light Priestess'],
+  ['kira', 'kira_g', 'kira_promoted_g', 'map-size redraws of the rebuilt plum-coated tactician'],
+  ['voss', 'voss_g', 'voss_promoted_g', 'map-size redraws of the bearded hooded ranger'],
   ['rowan', 'rowan_s', 'rowan_promoted_s', 'class sheets: same ginger cavalier, faces survive'],
-  ['astrid', 'astrid_s', 'astrid_promoted_s', 'class sheets: same pale-haired pegasus rider'],
-  ['cael', 'cael', 'cael_promoted', 'rebuilt: the sheet Sentinel is a bare-headed youth'],
+  ['astrid', 'astrid_g', 'astrid_promoted_g', 'map-size redraws: pale-haired rider, lance level'],
+  ['cael', 'cael_g', 'cael_promoted_g', 'map-size redraws of the helmeted veteran'],
 ];
 
 /** Named bosses (enemies.json bosses): runtime key boss_<name> -> source. */
 export const BOSSES = {
-  boss_iron_captain: 'boss_iron_captain',
-  boss_warchief: 'boss_warchief',
-  boss_knight_commander: 'boss_knight_commander',
-  boss_archmage: 'boss_archmage',
-  boss_dark_rider: 'boss_dark_rider',
-  boss_blade_lord: 'boss_blade_lord',
-  boss_iron_wall: 'boss_iron_wall',
-  boss_berserker_king: 'boss_berserker_king',
-  boss_the_emperor: 'boss_the_emperor',
-  boss_the_lieutenant: 'boss_the_lieutenant',
+  boss_iron_captain: 'boss_iron_captain_g',
+  boss_warchief: 'boss_warchief_g',
+  boss_knight_commander: 'boss_knight_commander_g',
+  boss_archmage: 'boss_archmage_g',
+  boss_dark_rider: 'boss_dark_rider_g',
+  boss_blade_lord: 'boss_blade_lord_g',
+  boss_iron_wall: 'boss_iron_wall_g',
+  boss_berserker_king: 'boss_berserker_king_g',
+  boss_the_emperor: 'boss_the_emperor_g',
+  boss_the_lieutenant: 'boss_the_lieutenant_g',
   boss_the_entity: 'entity',
 };
 
@@ -787,6 +825,8 @@ export function poseFor(sourceId) {
   const e = ROSTER.sources[sourceId];
   if (e?.pose) return e.pose;
   if (POSE_BY_SOURCE[sourceId]) return POSE_BY_SOURCE[sourceId];
+  // a map-size redraw holds the same weapon as the unit it redraws
+  if (sourceId.endsWith('_g')) return poseFor(sourceId.slice(0, -2));
   const cls = sourceId.replace(/_(a|b|e|v1a?|rebuilt)$/, '');
   return POSE_BY_CLASS[cls] || 'none';
 }
