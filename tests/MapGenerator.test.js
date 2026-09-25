@@ -911,7 +911,7 @@ describe('MapGenerator', () => {
   });
 
   describe('recruit battle enemy bump', () => {
-    it('adds +1 enemy for recruit battles when under density cap', () => {
+    it('adds the elite recruit bump (+2 on Hard) when under density cap', () => {
       for (let seed = 1; seed <= 30; seed++) {
         const baseline = withSeed(seed, () =>
           generateBattle(
@@ -932,7 +932,7 @@ describe('MapGenerator', () => {
             data,
           ),
         );
-        expect(recruit.enemySpawns.length).toBe(baseline.enemySpawns.length + 1);
+        expect(recruit.enemySpawns.length).toBe(baseline.enemySpawns.length + 2);
       }
     });
 
@@ -961,7 +961,7 @@ describe('MapGenerator', () => {
         const tiles = baseline.cols * baseline.rows;
         const cap = capForTiles(tiles, data.enemies.enemyCountByTiles);
         expect(recruit.enemySpawns.length).toBeLessThanOrEqual(cap);
-        expect(recruit.enemySpawns.length).toBe(Math.min(baseline.enemySpawns.length + 1, cap));
+        expect(recruit.enemySpawns.length).toBe(Math.min(baseline.enemySpawns.length + 2, cap));
       }
     });
   });

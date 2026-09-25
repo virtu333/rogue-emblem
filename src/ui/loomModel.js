@@ -307,6 +307,56 @@ function flavorPool(node, dialogue, actId) {
   return null;
 }
 
+const RECRUIT_STATS = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES'];
+const STAT_LABEL = {
+  HP: 'HP',
+  STR: 'Str',
+  MAG: 'Mag',
+  SKL: 'Skl',
+  SPD: 'Spd',
+  DEF: 'Def',
+  RES: 'Res',
+  LCK: 'Lck',
+};
+
+/**
+ * The recruit a node would give you, as card data (strategy-layer spec): who, what
+ * level, the stats that matter for the class, where they will grow, and their traits.
+ * `built` is RunManager.getRecruitNodeUnit(node); `traitLines` is traitContent's.
+ * Pure; returns null without a unit.
+ */
+export function describeRecruitPreview(built, { traitLines = null } = {}) {
+  const unit = built?.unit;
+  if (!unit) return null;
+  const magical = (unit.stats?.MAG || 0) > (unit.stats?.STR || 0);
+  const shown = RECRUIT_STATS.filter((k) => !(magical ? k === 'STR' : k === 'MAG'));
+  const growths = Object.entries(unit.growths || {})
+    .filter(([k]) => k !== 'HP' && k !== 'LCK' && k !== (magical ? 'STR' : 'MAG'))
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 2)
+    .map(([k, v]) => ({ stat: STAT_LABEL[k] || k, value: Math.round(v) }));
+  const traits = typeof traitLines === 'function' ? traitLines(unit) : [];
+  return {
+    name: unit.name,
+    className: unit.className,
+    level: unit.level,
+    promoted: unit.tier === 'promoted',
+    isLord: !!built.isLord,
+    seasoned: !built.isLord,
+    stats: shown.map((k) => ({ stat: STAT_LABEL[k], value: unit.stats?.[k] ?? 0 })),
+    growths,
+    traits: traits.map((t) => ({ name: t.name, text: t.text, legendary: !!t.legendary })),
+    kicker: [
+      built.isLord ? 'LORD' : null,
+      unit.className.toUpperCase(),
+      `LV ${unit.level}`,
+      built.isLord ? null : 'SEASONED',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
 /**
  * The inspect card for one node: kind, place, tags, copy and the thread line.
  * All inputs are existing data; nothing is rolled or revealed beyond what the battle
@@ -327,10 +377,14 @@ export function describeLoomNode(
     shopOpen = false,
     activeLabel = null,
     eclipse = null,
+    recruit = null,
+    recruitMods = null,
   } = {},
 ) {
   if (!node) return null;
   const eclipsed = !!node.eclipse;
+  // Who waits at a recruit node (describeRecruitPreview), shown until it is walked.
+  const recruitView = node.type === 'recruit' && !eclipsed && state !== 'done' ? recruit : null;
   // Only real encounters reveal battle details. A service node may carry hidden
   // battleParams (a village that turns out to be an ambush) and must stay a village.
   const params = BATTLE_TYPES.has(node.type) ? node.battleParams || null : null;
@@ -343,7 +397,9 @@ export function describeLoomNode(
   const place = eclipsed
     ? node.eclipse.label || 'Eclipsed'
     : node.type === 'recruit'
-      ? 'A potential ally'
+      ? recruitView
+        ? `${recruitView.name}, ${recruitView.isLord ? 'a lord' : 'a potential ally'}`
+        : 'A potential ally'
       : template?.name || null;
 
   const tags = [];
@@ -358,11 +414,20 @@ export function describeLoomNode(
   if (params?.hasCaravan) tags.push({ text: 'Caravan', tone: 'good' });
   if (elite && eliteLoot?.choices && eliteLoot?.picks)
     tags.push({ text: `Loot: pick ${eliteLoot.picks} of ${eliteLoot.choices}`, tone: 'bad' });
+  if (node.type === 'recruit' && !eclipsed) {
+    const hunters = Math.max(0, Math.trunc(Number(recruitMods?.enemyCountBonus) || 0));
+    const captains = Math.max(0, Math.trunc(Number(recruitMods?.affixCount) || 0));
+    if (hunters) tags.push({ text: `Hunters +${hunters}`, tone: 'bad' });
+    if (captains)
+      tags.push({ text: captains > 1 ? `${captains} captains` : 'Captain', tone: 'bad' });
+  }
   if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
 
   const text = eclipsed
     ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
-    : SERVICE[node.type] || objective?.[1] || '';
+    : recruitView
+      ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
+      : SERVICE[node.type] || objective?.[1] || '';
   const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
@@ -396,6 +461,7 @@ export function describeLoomNode(
     warning,
     templateName: eclipsed ? template?.name || null : null,
     objective: objective && node.type !== 'recruit' ? objective[0] : null,
+    recruit: recruitView,
     place,
     lore: template?.lore || null,
     tags,
