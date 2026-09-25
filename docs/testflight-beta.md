@@ -1,5 +1,19 @@
 # Mobile beta release
 
+## Rename to Rogue Dawn — next build (September 25)
+
+The game is now **Rogue Dawn** (was "Rogue Emblem" on the title / "Emblem Rogue" on the home
+screen). The next archive carries the new name everywhere a player sees it: home-screen label
+(`CFBundleDisplayName`, Capacitor `appName`), title and auth lockups, How to Play, PWA manifest
+and `<title>`. Unchanged on purpose: bundle ID `com.davechen.emblemrogue`, team, provisioning,
+version scheme, and every storage key, so testers keep their saves and the build lands on the
+same App Store Connect record. `CFBundleName` stays `$(PRODUCT_NAME)` (the target name, `App`);
+iOS shows the display name. Build-archive paths below (`EmblemRogue-Beta-N`) are history.
+
+Outside the repo (App Store Connect, owner only): App Information → Name "Rogue Dawn"
+(and subtitle), TestFlight → Test Information (beta app description / What to Test copy),
+and the store listing's keywords/description/screenshots before any public release.
+
 ## Compact sidebar and playtest fixes — build 20 (September 22)
 
 Source commits: `2f1c0fe`, `e7048cf`. Version **0.1.0 (20)** archived at `/tmp/EmblemRogue-Beta-20.xcarchive`; all 819 web assets match the production build. Bundle identity/build, no development server, and explicit local-only cloud setting verified. Includes compact persistent terrain/objective/counters, selection-sensitive commands, Danger hold guidance, reward/equipment flows, outcome-first history labels and the targeted balance follow-ups.
