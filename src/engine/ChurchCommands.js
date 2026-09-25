@@ -6,6 +6,7 @@ import {
   getSkillDisplayNames,
 } from './UnitManager.js';
 import { getReviveCost } from './RunManager.js';
+import { applyPromotionOath } from './DeedSystem.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 export function churchPromotionBlock(run, unit, nodeId, gameData) {
   if (!run.roster.includes(unit) || !canPromote(unit)) return 'Unit is not eligible for promotion.';
@@ -28,11 +29,17 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   if (!canonical || !bonuses) return { ok: false, reason: 'Promotion unavailable.' };
   if (!run.spendGold(CHURCH_PROMOTE_COST)) return { ok: false, reason: 'Not enough gold.' };
   const result = promoteUnit(unit, canonical, bonuses, gameData.skills);
+  // A deed's Oath is sworn at the altar too.
+  const oath = applyPromotionOath(unit, gameData);
   run.setChurchPromotionCount(nodeId, run.getChurchPromotionCount(nodeId) + 1);
-  const dropped = getSkillDisplayNames(result?.droppedSkills, gameData.skills);
+  const dropped = getSkillDisplayNames(
+    [...(result?.droppedSkills || []), ...(oath?.dropped ? [oath.skillId] : [])],
+    gameData.skills,
+  );
   return {
     ok: true,
-    message: `${unit.name} promoted to ${canonical.name}.${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
+    oath,
+    message: `${unit.name} promoted to ${canonical.name}.${oath?.learned ? ` ${oath.name}: learned ${oath.skillName}.` : ''}${dropped.length ? ` Skill limit: could not learn ${dropped.join(', ')}.` : ''}`,
   };
 }
 export function churchReviveBlock(run, unit) {

@@ -16,6 +16,8 @@
 @import './ceremony.css';
 /* Growth ceremonies: promotion rite, level-up card, recruits, class crests. */
 @import './growth.css';
+/* Deeds & Epithets: the deed title card, epithets, Oaths, Deeds of the March. */
+@import './deeds.css';
 
 /* Route map (the Loom) and title key art. */
 @import './loom.css';

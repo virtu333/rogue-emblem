@@ -71,6 +71,8 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { epithetText } from '../engine/DeedTitles.js';
+import { fitCanvasText } from './deedDisplay.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1046,7 +1048,16 @@ export class RosterOverlay {
 
     y += 18;
     if (unit.xp !== undefined) {
-      this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
+      const xpText = this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
+      // Canvas fallback: the epithet shares the XP line, clear of the nav arrows.
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const ex = xpText.x + xpText.width + 10;
+        fitCanvasText(
+          this._text(ex, y, epithet, UI_PALETTE.accent, '10px'),
+          DETAIL_X + DETAIL_WIDTH - 100 - ex,
+        );
+      }
       y += 14;
     }
 
