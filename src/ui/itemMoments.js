@@ -140,6 +140,22 @@ export function applyServiceVignette(
   return band;
 }
 
+/**
+ * A blessing card's painting (192x256, dithered): a lazily loaded CSS background the
+ * card lays out behind its medallion and name. Returns null for a blessing without one
+ * (the card keeps its Hollow Sun medallion alone).
+ */
+export function blessingCardArt(blessingId) {
+  const url = blessingCardUrl(blessingId);
+  if (!url) return null;
+  const art = document.createElement('span');
+  art.className = 'ia-card-art';
+  art.dataset.blessing = blessingId;
+  art.setAttribute('aria-hidden', 'true');
+  art.style.setProperty('--ia-card', `url("${url}")`);
+  return art;
+}
+
 /** Motes for a phone pane behind which a vignette sits (null for a still place). */
 export function vignetteMotes(service) {
   const motion = vignetteMotion(service);
