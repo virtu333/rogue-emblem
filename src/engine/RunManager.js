@@ -51,6 +51,7 @@ import {
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
 import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
+import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import {
   buildBlessingIndex,
@@ -4511,14 +4512,6 @@ function resolveSlotNumberForClear(slotNumber) {
   };
 }
 
-function isQuotaExceededError(err) {
-  if (err?.name === 'QuotaExceededError') return true;
-  if (typeof DOMException !== 'undefined' && err instanceof DOMException && err.code === 22)
-    return true;
-  if (typeof err?.message === 'string' && /quota/i.test(err.message)) return true;
-  return false;
-}
-
 export function saveRun(runManager, onSave, slotNumber) {
   const key = resolveRunKey(slotNumber);
   if (!key) return { ok: false, reason: 'missing_slot' };
@@ -4528,7 +4521,8 @@ export function saveRun(runManager, onSave, slotNumber) {
   };
   let localOk = false;
   try {
-    localStorage.setItem(key, JSON.stringify(json));
+    // On a full store, other slots' optional battle history makes room first.
+    setItemFreeingSpace(key, JSON.stringify(json), slotNumber);
     localOk = true;
   } catch (err) {
     const isQuota = isQuotaExceededError(err);
@@ -4610,7 +4604,7 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     }
     parsed.battleInProgress = null;
     parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
-    localStorage.setItem(key, JSON.stringify(parsed));
+    setItemFreeingSpace(key, JSON.stringify(parsed), slotNumber);
     if (onSave) {
       try {
         onSave(parsed);
