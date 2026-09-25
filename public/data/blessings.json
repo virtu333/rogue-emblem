@@ -3,7 +3,7 @@
   "blessings": [
     {
       "id": "steady_hands",
-      "lore": "Pilgrims kneel to steady the wrist long before the road ever tests it.",
+      "lore": "Still my hand as you still the water, and let the arrow go where I meant.",
       "name": "Steady Hands",
       "tier": 1,
       "description": "+3 Hit for all units in every act.",
@@ -20,7 +20,7 @@
     },
     {
       "id": "coin_of_fate",
-      "lore": "Toss a coin on the altar; walk out heavier than you knelt.",
+      "lore": "Altar rule: whoever needs the coins more may take them. Today, that's you.",
       "name": "Coin of Fate",
       "tier": 1,
       "description": "Immediately gain 750 gold.",
@@ -37,7 +37,7 @@
     },
     {
       "id": "blessed_vigor",
-      "lore": "The going-away rite for levies, meant to bring them home whole.",
+      "lore": "The levy's send-off prayer: out on two feet, home on two feet.",
       "name": "Blessed Vigor",
       "tier": 1,
       "description": "Your starting lords gain +2 maximum HP for this run.",
@@ -55,7 +55,7 @@
     },
     {
       "id": "swift_instinct",
-      "lore": "Couriers and deserters pray the same prayer for quick feet.",
+      "lore": "Couriers and deserters pray the same prayer. The shrine doesn't ask which.",
       "name": "Swift Instinct",
       "tier": 2,
       "description": "Your starting lords gain +1 Speed for this run. Does not affect later recruits.",
@@ -73,7 +73,7 @@
     },
     {
       "id": "field_medic",
-      "lore": "Every hand leaves the shrine with a salve tucked away.",
+      "lore": "No one leaves the shrine without a salve. Yes, even you. Especially you.",
       "name": "Field Medic",
       "tier": 1,
       "description": "All units, including later recruits, receive a Vulnerary.",
@@ -90,7 +90,7 @@
     },
     {
       "id": "iron_oath",
-      "lore": "Swear it with a palm on cold iron and the iron holds you together.",
+      "lore": "I will stand where I am set. Sworn palm-down on the anvil stone.",
       "name": "Iron Oath",
       "tier": 2,
       "description": "Your starting lords gain +2 Defense for this run.",
@@ -108,7 +108,7 @@
     },
     {
       "id": "scout_blessing",
-      "lore": "Blessing of the border-wardens: one more marches out at your side.",
+      "lore": "Pray for one more pair of hands, the wardens say, and one steps out of the trees.",
       "name": "Scout Blessing",
       "tier": 2,
       "description": "Deploy +1 unit.",
@@ -128,7 +128,7 @@
     },
     {
       "id": "scholar_vow",
-      "lore": "The seer order's students vow to learn fast, since the term runs short.",
+      "lore": "I will learn as though the term ends tomorrow. For most novices, it did.",
       "name": "Scholar's Vow",
       "tier": 2,
       "description": "All growth rates increase by 5 percentage points for this run.",
@@ -145,7 +145,7 @@
     },
     {
       "id": "rally_cry",
-      "lore": "Shouted, not whispered — a war-blessing for the first hard act.",
+      "lore": "Shouted three times at the shrine door, then again at the first ditch you hold.",
       "name": "Rally Cry",
       "tier": 2,
       "description": "+2 STR to all units in Act 1.",
@@ -164,7 +164,7 @@
     },
     {
       "id": "war_veteran",
-      "lore": "Some altars answer only scarred hands, and pay them in hard wisdom.",
+      "lore": "The old sexton blesses only scarred hands. Show him yours and listen closely.",
       "name": "War Veteran",
       "tier": 2,
       "description": "+15% XP gain from combat.",
@@ -181,7 +181,7 @@
     },
     {
       "id": "frugal_smith",
-      "lore": "A smith-saint's mercy, honored at any forge that keeps the old mark.",
+      "lore": "Honored at any forge that still stamps Varen's mark. Ask for the pilgrim rate.",
       "name": "Frugal Smith",
       "tier": 2,
       "description": "Forge costs reduced by 30%, +1 forge per shop.",
@@ -207,7 +207,7 @@
     },
     {
       "id": "arsenal_pact",
-      "lore": "Old kings armed their pilgrims in silver for the worst roads.",
+      "lore": "The shrine lends silver to pilgrims bound for the worst roads. It never asks twice.",
       "name": "Arsenal Pact",
       "tier": 4,
       "description": "Start with a silver weapon.",
@@ -225,7 +225,7 @@
     },
     {
       "id": "pilgrim_coin",
-      "lore": "Walk the pilgrim roads and the merchants along them cut you a price.",
+      "lore": "Show the shell token at any roadside stall. Merchants grumble, then discount.",
       "name": "Pilgrim Coin",
       "tier": 3,
       "description": "Shops stock +1 item at 15% discount.",
@@ -248,7 +248,7 @@
     },
     {
       "id": "merchant_bane",
-      "lore": "A curse wearing a boon's face, from a faith that was never wholly kind.",
+      "lore": "A merchant's curse, still on sale. The priest who sells it won't meet your eye.",
       "name": "Merchant Bane",
       "tier": 3,
       "description": "+15% battle gold.",
@@ -268,7 +268,7 @@
     },
     {
       "id": "nomad_pact",
-      "lore": "Sworn to the open road; those who answer it come already hardened.",
+      "lore": "Sworn to the open road. Whoever answers your banner has already walked a while.",
       "name": "Nomad's Pact",
       "tier": 3,
       "description": "Recruited units join +1 level higher.",
@@ -288,7 +288,7 @@
     },
     {
       "id": "terrain_mastery",
-      "lore": "Tend a shrine's grounds and the woods and walls tend you back.",
+      "lore": "Keep the grove and mend the wall, and both will keep you. Groundskeeper's creed.",
       "name": "Terrain Mastery",
       "tier": 3,
       "description": "+5 avoid and +1 DEF on Forest/Fort tiles.",
@@ -310,7 +310,7 @@
     },
     {
       "id": "quartermaster_cache",
-      "lore": "A tithe-barn's rite, repaid in full mending though the barns burned.",
+      "lore": "Tithe-barn stores: one elixir per banner. The barn burned; the ledger didn't.",
       "name": "Quartermaster Cache",
       "tier": 2,
       "description": "Each starting lord receives 1 Elixir.",
@@ -328,7 +328,7 @@
     },
     {
       "id": "forbidden_tome",
-      "lore": "Locked in the crypt shelves for good reason, and taken down anyway.",
+      "lore": "Crypt shelf, top row, chained. Read it fast, the priest says, and never twice.",
       "name": "Forbidden Tome",
       "tier": 4,
       "description": "All growth rates increase by 15 percentage points for this run.",
@@ -345,7 +345,7 @@
     },
     {
       "id": "blood_forge",
-      "lore": "The forge-rite the smith-saints refused to teach. It works all the same.",
+      "lore": "Quench the edge in your own blood. The smith-saints cursed the rite. It works.",
       "name": "Blood Forge",
       "tier": 4,
       "description": "Starting lords’ current combat weapons gain up to 2 Might forges, subject to forge limits.",
@@ -362,7 +362,7 @@
     },
     {
       "id": "war_tutelage",
-      "lore": "The war colleges tithed their sharpest lessons, and the shrines kept them.",
+      "lore": "The war colleges were shut, but not before tithing their best lessons here.",
       "name": "War Tutelage",
       "tier": 4,
       "description": "Each starting lord learns one random combat skill for this run.",
@@ -380,7 +380,7 @@
     },
     {
       "id": "armory_stash",
-      "lore": "Shrine cellars once armed a kingdom in extremis, whetstones and all.",
+      "lore": "Shrine cellar, under the relics: whetstones packed in straw for an evil day.",
       "name": "Armory Stash",
       "tier": 4,
       "description": "Immediately gain 2 random whetstones.",
@@ -397,7 +397,7 @@
     },
     {
       "id": "scroll_archive",
-      "lore": "The seer order copies each art twice and hides one from the empire.",
+      "lore": "The seer order copied each art twice and hid the spare where the empire won't dig.",
       "name": "Scroll Archive",
       "tier": 4,
       "description": "Immediately gain 2 random weapon-art scrolls.",
@@ -414,7 +414,7 @@
     },
     {
       "id": "focused_curriculum",
-      "lore": "One lesson, drilled all the way down until the hands own it.",
+      "lore": "One lesson a day, the same one, until your hands can do it asleep. Again.",
       "name": "Focused Curriculum",
       "tier": 2,
       "description": "Starting lords gain +12 percentage points to Speed and Skill growths for this run.",
