@@ -191,7 +191,7 @@ html.mobile-preview .re-title--phone {
   margin: 0;
   padding: 0 14px;
   gap: 8px;
-  font: 9px/1.25 var(--re-pixel);
+  font: var(--rt-pf-9, var(--re-pf-9, 9px))/1.25 var(--re-pixel);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--re-text);
@@ -208,7 +208,7 @@ html.mobile-preview .re-title--phone {
   justify-content: center;
   text-align: center;
   padding: 0 8px;
-  font-size: 8px;
+  font-size: var(--rt-pf-8, var(--re-pf-8, 8px));
 }
 .re-title .re-title-btn:is(:hover, :focus-visible, .is-focused):not(.is-primary),
 .re-title .re-title-corner-btn:is(:hover, :focus-visible) {
@@ -248,7 +248,7 @@ html.mobile-preview .re-title--phone {
   min-height: 50px;
 }
 .re-title-subtext {
-  font: 7px/1 var(--re-pixel);
+  font: var(--rt-pf-7, var(--re-pf-7, 7px))/1 var(--re-pixel);
   letter-spacing: 0.1em;
   opacity: 0.85;
 }
@@ -258,7 +258,7 @@ html.mobile-preview .re-title--phone {
 .re-title-badge {
   margin-left: auto;
   padding: 3px 5px 2px;
-  font: 7px/1 var(--re-pixel);
+  font: var(--rt-pf-7, var(--re-pf-7, 7px))/1 var(--re-pixel);
   letter-spacing: 0.06em;
   color: var(--re-accent-text);
   background: var(--re-shade-deep);
@@ -289,7 +289,7 @@ html.mobile-preview .re-title--phone {
 }
 .re-title .re-title-corner-btn {
   padding: 0 12px;
-  font-size: 8px;
+  font-size: var(--rt-pf-8, var(--re-pf-8, 8px));
 }
 .re-title-user {
   max-width: 140px;
@@ -302,7 +302,7 @@ html.mobile-preview .re-title--phone {
 .re-title-sound {
   margin: 0 4px 0 0;
   padding: 6px 8px 5px;
-  font: 8px/1 var(--re-pixel);
+  font: var(--rt-pf-8, var(--re-pf-8, 8px))/1 var(--re-pixel);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--re-accent-text);
@@ -355,12 +355,12 @@ html.mobile-preview .re-title--phone {
   text-shadow: 0 1px 0 var(--re-void);
 }
 .re-title-version {
-  font: 7px/1 var(--re-pixel);
+  font: var(--rt-pf-7, var(--re-pf-7, 7px))/1 var(--re-pixel);
   color: var(--re-muted-dim);
 }
 .re-title-alpha {
   padding: 3px 5px 2px;
-  font: 7px/1 var(--re-pixel);
+  font: var(--rt-pf-7, var(--re-pf-7, 7px))/1 var(--re-pixel);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--re-bad);

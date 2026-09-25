@@ -47,7 +47,7 @@
 }
 .re-loom-sub {
   margin: 5px 0 0;
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   letter-spacing: 0.02em;
   color: var(--re-muted-dim);
   white-space: nowrap;
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 10px/1 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1 var(--re-pixel);
   color: var(--re-accent-text);
   white-space: nowrap;
 }
@@ -84,7 +84,7 @@
   box-shadow: 0 0 0 1px var(--re-ember-deep);
 }
 .re-loom-diff {
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   color: var(--re-muted-dim);
   text-transform: uppercase;
   white-space: nowrap;
@@ -227,7 +227,7 @@
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   color: var(--re-accent-text);
   text-shadow:
     0 1px 0 var(--re-void),
@@ -433,7 +433,7 @@
 .re-loom-screen .re-node-actions .re-btn {
   min-height: var(--re-tap);
   padding-inline: 6px;
-  font: 8px/1 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1 var(--re-pixel);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   background: linear-gradient(var(--re-raised), var(--re-panel));
@@ -511,7 +511,7 @@
 }
 .re-loom-screen .re-loom-kind {
   margin: 0;
-  font: 8px/1.2 var(--re-pixel);
+  font: var(--re-pf-8, 8px)/1.2 var(--re-pixel);
   letter-spacing: 0.03em;
   color: var(--re-accent-text);
 }
@@ -601,7 +601,7 @@
   flex: none;
   min-height: 46px;
   gap: 10px;
-  font: 10px/1 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1 var(--re-pixel);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--re-void);

@@ -185,7 +185,7 @@
 .re-badge {
   font: var(--re-t-micro);
   font-family: var(--re-pixel);
-  font-size: 10px;
+  font-size: var(--re-pf-10, 10px);
   letter-spacing: 0.5px;
   padding: 3px 5px;
   color: var(--re-bg);
@@ -545,8 +545,8 @@
 
 @media (max-width: 700px) {
   :root {
-    --re-t-display: 13px/1.5 var(--re-pixel);
-    --re-t-title: 11px/1.6 var(--re-pixel);
+    --re-t-display: var(--re-pf-13, 13px)/1.5 var(--re-pixel);
+    --re-t-title: var(--re-pf-11, 11px)/1.6 var(--re-pixel);
     --re-t-lede: 16px/1.3 var(--re-body);
   }
 }

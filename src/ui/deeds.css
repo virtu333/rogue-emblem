@@ -250,7 +250,7 @@
 }
 .gr-deed-count {
   flex: none;
-  font: calc(8px * var(--ce-scale)) / 1.4 var(--re-pixel);
+  font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   letter-spacing: 1px;
   color: var(--re-muted);
 }
@@ -311,7 +311,7 @@
   left: 0;
   right: 0;
   text-align: center;
-  font: calc(6px * var(--ce-scale)) / 1 var(--re-pixel);
+  font: var(--ce-pf-6, calc(6px * var(--ce-scale))) / 1 var(--re-pixel);
   letter-spacing: 1px;
   color: var(--ce-gold-6);
 }
@@ -443,7 +443,7 @@
 .mr-card.mr-deed h4 small {
   display: inline;
   margin: 0;
-  font: 8px / 1.4 var(--re-pixel);
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
   letter-spacing: 1px;
   color: var(--re-accent);
   text-transform: uppercase;
@@ -471,7 +471,7 @@
   margin: 10px 0;
 }
 .re-deeds-march h3 {
-  font: 10px / 1.5 var(--re-pixel);
+  font: var(--re-pf-10, 10px) / 1.5 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--re-accent-text);

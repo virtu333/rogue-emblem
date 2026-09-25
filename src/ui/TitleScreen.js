@@ -1,4 +1,5 @@
 import { element } from './MenuSurface.js';
+import { applyPixelFontVariables } from '../utils/pixelFontGrid.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
@@ -204,7 +205,14 @@ export class TitleScreen {
       width: `${w}px`,
       height: `${h}px`,
     });
-    this.root.style.setProperty('--re-title-k', String(w / DESIGN_W));
+    const k = w / DESIGN_W;
+    this.root.style.setProperty('--re-title-k', String(k));
+    // The stage is transform-scaled: pick pixel-font sizes that land on whole
+    // device pixels after the scale (Retina / browser zoom), not before it.
+    applyPixelFontVariables(this.root, globalThis.devicePixelRatio || 1, {
+      scale: k,
+      prefix: '--rt-pf-',
+    });
   }
 
   _syncCovered() {
