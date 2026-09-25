@@ -65,6 +65,27 @@ async function tapAlly(page, index) {
   await page.touchscreen.tap(p.x, p.y);
 }
 
+// Rewind opens the rewind picker; its History button opens this full timeline.
+async function openHistory(page) {
+  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await page
+    .getByRole('dialog', { name: 'Rewind', exact: true })
+    .getByRole('button', { name: 'History', exact: true })
+    .tap();
+  return page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+}
+// Back from the timeline returns to the picker; Back there returns to battle.
+async function closeHistory(page) {
+  await page
+    .getByRole('dialog', { name: 'Battle timeline', exact: true })
+    .getByRole('button', { name: 'Back to rewind', exact: true })
+    .tap();
+  await page
+    .getByRole('dialog', { name: 'Rewind', exact: true })
+    .getByRole('button', { name: 'Back', exact: true })
+    .tap();
+}
+
 test('timeline preview is free; cancellation preserves action; confirmed rewind persists across reload', async ({
   page,
 }) => {
@@ -74,8 +95,7 @@ test('timeline preview is free; cancellation preserves action; confirmed rewind 
     .getByRole('complementary', { name: 'Battle commands' })
     .getByRole('button', { name: 'Wait', exact: true })
     .tap();
-  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  const view = await openHistory(page);
   await expect(view).toBeVisible();
   const before = await digest(page);
   if (!(await view.locator('.bt-entry').first().isVisible()))
@@ -156,8 +176,7 @@ test('zero charges still allows review, rotation and return to landscape, and ke
     s.runManager.visionChargesRemaining = 0;
     s._captureSuspendCheckpoint();
   });
-  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  const view = await openHistory(page);
   const before = await digest(page);
   if (!(await view.locator('.bt-entry').first().isVisible()))
     await view.getByRole('button', { name: 'History', exact: true }).tap();
@@ -175,6 +194,10 @@ test('zero charges still allows review, rotation and return to landscape, and ke
   await expect(view.locator('.bt-rewind')).toBeInViewport();
   await page.keyboard.press('Escape');
   await expect(view).toHaveCount(0);
+  // Escape from the timeline returns to the rewind picker; again closes it.
+  await expect(page.getByRole('dialog', { name: 'Rewind', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Rewind', exact: true })).toHaveCount(0);
   expect(await digest(page)).toEqual(before);
   expect(errors).toEqual([]);
 });
@@ -201,8 +224,8 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
   const decision = page.getByRole('button', { name: 'Rewind · 3 left', exact: true });
   await expect(decision).toBeVisible();
   await decision.tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
-  await view.getByRole('button', { name: 'Back to decision', exact: true }).tap();
+  const picker = page.getByRole('dialog', { name: 'Rewind', exact: true });
+  await picker.getByRole('button', { name: 'Back to decision', exact: true }).tap();
   await expect(decision).toBeVisible();
   await reloadSavedBattle(page);
   await expect(decision).toBeVisible();
@@ -223,6 +246,7 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
   if (await farewell.isVisible()) await farewell.tap();
   await page.getByRole('button', { name: 'Battle report', exact: true }).tap();
+  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
   await expect(view).toBeVisible();
   await expect(view.locator('.bt-rewind')).toBeDisabled();
   await expect(view.locator('.bt-summary')).toContainText('Defeat. The run has ended.');
@@ -294,8 +318,7 @@ test('main-map scrubbing settles exactly, owns a separate camera, and releases i
     const c = window.__emblemRogueGame.scene.getScene('Battle').cameras.main;
     return [c.scrollX, c.scrollY, c.zoom];
   });
-  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  const view = await openHistory(page);
   await expect(view.locator('.bt-map-viewport')).toBeVisible();
   await page.waitForFunction(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -332,7 +355,7 @@ test('main-map scrubbing settles exactly, owns a separate camera, and releases i
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Escape');
   await expect(view).toBeVisible();
-  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  await closeHistory(page);
   await expect(view).toHaveCount(0);
   expect(await digest(page)).toEqual(before);
   expect(
@@ -386,8 +409,7 @@ test('recorded combat identifies the observed attacker and victim and reverses a
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
   );
   const before = await digest(page);
-  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
-  const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
+  const view = await openHistory(page);
   await page.waitForFunction(() => {
     const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
     return v?.session?.scene?.renderer?.frame && !v.busy;
@@ -415,13 +437,15 @@ test('recorded combat identifies the observed attacker and victim and reverses a
     return !v.busy && v.session.scene.renderer.frame.units.some((u) => u.id === dead && u.hp === 1);
   }, recorded.dead);
   expect(await digest(page)).toEqual(before);
-  await view.getByRole('button', { name: 'Back', exact: true }).tap();
+  await closeHistory(page);
   expect(errors).toEqual([]);
 });
 
 test('fifty history sessions release textures, shutdown listeners and input ownership', async ({
   page,
 }) => {
+  // Each cycle now opens the rewind picker, then History, then backs out of both.
+  test.setTimeout(240000);
   const errors = await boot(page);
   const before = await digest(page);
   const counters = () =>
@@ -438,15 +462,12 @@ test('fifty history sessions release textures, shutdown listeners and input owne
     });
   let baseline;
   for (let i = 0; i < 50; i++) {
-    await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+    await openHistory(page);
     await page.waitForFunction(() => {
       const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
       return v?.session?.scene?.renderer?.frame && !v.busy;
     });
-    await page
-      .getByRole('dialog', { name: 'Battle timeline', exact: true })
-      .getByRole('button', { name: 'Back', exact: true })
-      .tap();
+    await closeHistory(page);
     if (i === 0) baseline = await counters();
   }
   const { textures, ...finalState } = await counters();
@@ -470,7 +491,7 @@ test('history status labels and animated HP cues never consume battle randomness
     s._captureSuspendCheckpoint();
   });
   const before = await digest(page);
-  await page.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await openHistory(page);
   await page.waitForFunction(() => {
     const v = window.__emblemRogueGame.scene.getScene('Battle').visionDialog?.surface;
     return v?.session?.scene?.renderer?.frame && !v.busy;
@@ -495,10 +516,7 @@ test('history status labels and animated HP cues never consume battle randomness
     );
   });
   expect(await digest(page)).toEqual(before);
-  await page
-    .getByRole('dialog', { name: 'Battle timeline', exact: true })
-    .getByRole('button', { name: 'Back', exact: true })
-    .tap();
+  await closeHistory(page);
   expect(await digest(page)).toEqual(before);
   expect(errors).toEqual([]);
 });

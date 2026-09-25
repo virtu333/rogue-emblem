@@ -257,44 +257,17 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
   // The mandatory pre-boss RUINS is structurally exempt because this pass only considers SHOP.
   if (villageAmbushChance > 0) {
-    const scaling = ACT_LEVEL_SCALING[actId];
     for (const node of nodes) {
       if (node.type !== NODE_TYPES.SHOP) continue;
       if (Math.random() >= villageAmbushChance) continue;
 
       node.isAmbush = true;
       node.ambushCleared = false;
-      node.battleParams = {
-        act: actId,
-        objective: 'rout',
-        row: node.row,
-        battleSeed: rollBattleSeed(),
-        isAmbush: true,
-      };
-
-      if (scaling && node.row !== undefined) {
-        node.battleParams.levelRange = scaling[node.row] || scaling.default;
-      }
-
-      const ambushBiome = rollBiome(actId);
-      const template = pickTemplateForNode('rout', mapTemplates, actId, false, ambushBiome);
-      if (template) {
-        node.templateId = template.id;
-        node.battleParams.templateId = template.id;
-      }
-
-      const fogChance =
-        template && template.fogChance !== undefined
-          ? template.fogChance
-          : FOG_CHANCE_BY_ACT[actId] || 0;
-      let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
-      if (halfFogChance) {
-        adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
-      }
-      delete node.fogEnabled;
-      if (Math.random() < adjustedFogChance) {
-        node.fogEnabled = true;
-      }
+      convertNodeToRoutBattle(node, actId, mapTemplates, {
+        fogChanceBonus,
+        halfFogChance,
+        extraParams: { isAmbush: true },
+      });
     }
   }
 
@@ -302,6 +275,58 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const bossNodeId = rowNodes[rows - 1][0].id;
 
   return { actId, nodes, startNodeId, bossNodeId };
+}
+
+/**
+ * Give a node fresh rout-battle params in place: battle seed, per-row level range,
+ * a biome-rolled rout template and a fog roll. Shared by the village-ambush pass
+ * above and the Eclipse (EclipseSystem), which calls it under its own seeded
+ * Math.random stream. Draw order (seed, biome, template, fog) is part of the
+ * generator's determinism contract — keep it.
+ * @param {object} node - mutated: battleParams, templateId, fogEnabled
+ * @param {string} actId
+ * @param {Object} [mapTemplates]
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, extraParams?: object }} [options]
+ * @returns {object} the node
+ */
+export function convertNodeToRoutBattle(node, actId, mapTemplates, options = {}) {
+  const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
+  const halfFogChance = options.halfFogChance === true;
+  const extraParams =
+    options.extraParams && typeof options.extraParams === 'object' ? options.extraParams : {};
+  node.battleParams = {
+    act: actId,
+    objective: 'rout',
+    row: node.row,
+    battleSeed: rollBattleSeed(),
+    ...extraParams,
+  };
+
+  const scaling = ACT_LEVEL_SCALING[actId];
+  if (scaling && node.row !== undefined) {
+    node.battleParams.levelRange = scaling[node.row] || scaling.default;
+  }
+
+  const biome = rollBiome(actId);
+  const template = pickTemplateForNode('rout', mapTemplates, actId, false, biome);
+  if (template) {
+    node.templateId = template.id;
+    node.battleParams.templateId = template.id;
+  }
+
+  const fogChance =
+    template && template.fogChance !== undefined
+      ? template.fogChance
+      : FOG_CHANCE_BY_ACT[actId] || 0;
+  let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
+  if (halfFogChance) {
+    adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
+  }
+  delete node.fogEnabled;
+  if (Math.random() < adjustedFogChance) {
+    node.fogEnabled = true;
+  }
+  return node;
 }
 
 /**

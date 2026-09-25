@@ -106,9 +106,28 @@ describe('bounded battle timeline', () => {
     );
     expect(canRewindToEntry(history, 1, { difficulty: 'lunatic' })).toBe(true);
     expect(canRewindToEntry(history, 1, { difficulty: 'unknown' })).toBe(false);
-    const legacy = append(createBattleTimeline({ policy: 'legacy-v1' }), 1, 'turn_start');
+    // Data can override the difficulty default in either direction.
+    expect(
+      canRewindToEntry(history, 2, {
+        difficulty: 'lunatic',
+        granularity: 'action',
+        allowPlayerActions: true,
+      }),
+    ).toBe(true);
+    expect(
+      canRewindToEntry(history, 2, {
+        difficulty: 'normal',
+        granularity: 'turn',
+        allowPlayerActions: true,
+      }),
+    ).toBe(false);
+    expect(canRewindToEntry(history, 1, { granularity: 'turn' })).toBe(true);
+    // Legacy battles record action points too; they keep their reroll rule.
+    let legacy = append(createBattleTimeline({ policy: 'legacy-v1' }), 1, 'turn_start');
     expect(canRewindToEntry(legacy, 1)).toBe(true);
-    expect(() => append(legacy)).toThrow('Legacy');
+    legacy = append(legacy, 1, 'player_action');
+    expect(canRewindToEntry(legacy, 2, { allowPlayerActions: true })).toBe(true);
+    expect(hydrateBattleTimeline(json(legacy))).toEqual(legacy);
     expect(() => append(legacy, 1, 'turn_start', { snapshot: state() })).toThrow(
       'Invalid timeline snapshot',
     );

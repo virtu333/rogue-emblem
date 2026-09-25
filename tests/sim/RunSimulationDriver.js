@@ -67,6 +67,12 @@ export class RunSimulationDriver {
       promotions: 0,
       invalidShopEntries: 0,
       forcedBattleWins: 0,
+      // The Eclipse: shadow when each act's boss fell (after relief), knots taken,
+      // eclipsed battles fought and the run's final shadow.
+      eclipseShadowByAct: {},
+      eclipseFalls: 0,
+      eclipsedBattles: 0,
+      eclipseShadowFinal: 0,
     };
   }
 
@@ -127,6 +133,8 @@ export class RunSimulationDriver {
       }
 
       if (this.runManager.isActComplete()) {
+        this.metrics.eclipseShadowByAct[this.runManager.currentAct] =
+          this.runManager.eclipse?.shadow ?? 0;
         if (this.runManager.isRunComplete()) {
           return this._buildResult('victory');
         }
@@ -140,6 +148,7 @@ export class RunSimulationDriver {
   }
 
   _buildResult(result) {
+    this.metrics.eclipseShadowFinal = this.runManager.eclipse?.shadow ?? 0;
     return {
       result,
       status: this.runManager.status,
@@ -156,6 +165,7 @@ export class RunSimulationDriver {
 
   async _runBattleNode(node) {
     this.metrics.battles++;
+    if (node?.eclipse) this.metrics.eclipsedBattles++;
 
     const battleParams = this.runManager.getBattleParams(node) || {};
     // Mirror runtime recruit/lord inputs consumed by HeadlessBattle.
@@ -217,7 +227,7 @@ export class RunSimulationDriver {
       );
       const bench = fullRoster.filter((unit) => !deployedKeys.has(keyForUnit(unit)));
       const merged = [...survivors, ...bench];
-      this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0);
+      this._completeBattle(driver, merged, node);
       this.metrics.forcedBattleWins++;
       return {
         result: 'victory_timeout_forced',
@@ -246,7 +256,7 @@ export class RunSimulationDriver {
     const merged = [...survivors, ...bench];
 
     const beforeNames = new Set(this.runManager.roster.map(keyForUnit));
-    this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0);
+    this._completeBattle(driver, merged, node);
     const afterNames = new Set(this.runManager.roster.map(keyForUnit));
 
     const recruitsGained = [...afterNames].filter((id) => !beforeNames.has(id)).length;
@@ -261,6 +271,17 @@ export class RunSimulationDriver {
       recruitsGained,
       unitsLost,
     };
+  }
+
+  // Victory commit with the battle's turn count and par, as PostCombatController does,
+  // so full-run sims exercise the Eclipse (shadow gain, boss relief, node falls).
+  _completeBattle(driver, merged, node) {
+    const applied = this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0, {
+      turnCount: driver.battle.turnManager?.turnNumber || 0,
+      turnPar: Number.isFinite(driver.battle.turnPar) ? driver.battle.turnPar : null,
+    });
+    this.metrics.eclipseFalls += this.runManager.lastEclipseCommit?.fell?.length || 0;
+    return applied;
   }
 
   async _runShopNode(node) {

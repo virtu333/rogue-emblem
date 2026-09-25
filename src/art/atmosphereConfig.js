@@ -201,6 +201,29 @@ function normBiome(biome) {
   return b || 'grassland';
 }
 
+// The Eclipse darkens the world by run phase (Pale 0 … Hollow 4): small, cumulative
+// nudges on top of the act's grade — never a new mood. Index = phase index.
+export const ECLIPSE_PHASE_NUDGE = Object.freeze([
+  Object.freeze({ exposure: 0, vignette: 0, sat: 1, darkness: 0 }),
+  Object.freeze({ exposure: -0.015, vignette: 0.03, sat: 0.98, darkness: 0.02 }),
+  Object.freeze({ exposure: -0.035, vignette: 0.07, sat: 0.95, darkness: 0.04 }),
+  Object.freeze({ exposure: -0.055, vignette: 0.11, sat: 0.92, darkness: 0.06 }),
+  Object.freeze({ exposure: -0.08, vignette: 0.15, sat: 0.88, darkness: 0.08 }),
+]);
+
+/** Darken a grade for an Eclipse phase index (pure; 0 returns a copy). */
+export function eclipseGrade(grade, phaseIndex = 0) {
+  const i = Math.max(0, Math.min(ECLIPSE_PHASE_NUDGE.length - 1, Math.trunc(phaseIndex) || 0));
+  const n = ECLIPSE_PHASE_NUDGE[i];
+  if (!i) return { ...grade };
+  return {
+    ...grade,
+    exposure: grade.exposure + n.exposure,
+    vignette: Math.min(1, grade.vignette + n.vignette),
+    sat: grade.sat * n.sat,
+  };
+}
+
 /** Apply a relative biome tune to a grade (pure). */
 export function tuneGrade(grade, tune) {
   if (!tune) return { ...grade };
@@ -216,7 +239,8 @@ export function tuneGrade(grade, tune) {
 
 /**
  * Pick the battle's mood.
- * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isTutorial, hasEntity, override }
+ * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isTutorial, hasEntity, override,
+ *   eclipsePhase (0 Pale .. 4 Hollow) }
  * @returns {{ gradeKey, label, grade, night:boolean, lightOptions:object|null, biome }}
  */
 export function resolveAtmosphere(ctx = {}) {
@@ -249,17 +273,26 @@ export function resolveAtmosphere(ctx = {}) {
     else if (biome === 'swamp') tune = BIOME_TUNES.swamp;
   }
   const base = ATMOSPHERE_GRADES[gradeKey];
-  const grade = tuneGrade(base, tune);
+  // The Eclipse phase darkens every mood a little more (never the tutorial or a dev
+  // override, which exist to show the plain grade).
+  const eclipse = override || ctx.isTutorial ? 0 : Math.max(0, Math.trunc(ctx.eclipsePhase) || 0);
+  const grade = eclipseGrade(tuneGrade(base, tune), eclipse);
   const presetKey = NIGHT_PRESET_BY_GRADE[gradeKey] || null;
   const night = Boolean(presetKey);
+  const lightOptions = night ? { ...LIGHT_PRESETS[presetKey] } : null;
+  if (lightOptions && eclipse) {
+    const nudge = ECLIPSE_PHASE_NUDGE[Math.min(ECLIPSE_PHASE_NUDGE.length - 1, eclipse)];
+    lightOptions.darkness = Math.min(0.7, lightOptions.darkness + nudge.darkness);
+  }
   return {
     gradeKey,
     label: base.label,
     grade,
     night,
     lightPreset: presetKey,
-    lightOptions: night ? { ...LIGHT_PRESETS[presetKey] } : null,
+    lightOptions,
     biome,
+    eclipsePhase: eclipse,
   };
 }
 

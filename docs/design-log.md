@@ -80,6 +80,61 @@ Spec: `specs/traits-v2.md`. Captures: `art-direction/gameplay/traits-v2/`.
 
 ---
 
+## 2026-09-25 — The Eclipse: the run clock made visible
+
+**Graduated to spec and built:** `specs/eclipse.md` (captures:
+`art-direction/gameplay/eclipse/`).
+
+The rule from 2026-07-04 — *punish the clock, not the unit* — was enforced by a hidden
+mechanism: two turns over par, XP and gold decayed silently. The Eclipse replaces it with
+a clock the player can see and plan around. Every turn a battle runs past par−3 darkens
+the Hollow Sun (shadow, 0–100, committed only at victory so rewind/suspend stay exact);
+shadow takes the land ahead — outer lanes first — turning villages, chapels, recruits and
+arenas into eclipsed elite battles. Darkness is also opportunity: eclipsed fights pay
+elite spoils. Act bosses (−3) and church Kindle (−8 for gold, a real sink) lift it; the
+run's phase (Pale → Waning → Umbral → Totality → Hollow) raises enemy levels and affixes.
+
+Decisions:
+- **Visible beats silent.** With the Eclipse on, late-pressure XP/gold decay is off;
+  par, rating and rating gold stay; boss enrage stays (it is visible in the boss bar).
+- **Transform, never delete.** A fallen node keeps its edges, so routing and boss
+  reachability can never break; thresholds are computed from `runSeed` + node id, never
+  stored, so saves need no migration and the node-map generator is byte-identical.
+- **Tuned by sim, not by guess.** The spec's 10/10 (max gain, boss relief) left an A-rank
+  player Pale all run; 6/3 hits the targets (A: Pale → Waning → ~Umbral; S keeps maps
+  whole; C reaches Totality by Act III). `node sim/eclipse.js` reports shadow by act and
+  what was lost "ahead" of the party.
+- **Deferred:** eclipsed-node variety beyond rout (seize/escape conversions), an Eclipse
+  meta upgrade (e.g. a slower sun), and dialogue that reacts to the phase.
+
+---
+
+## 2026-09-25 — Rewind to before any unit's action
+
+Player request (high priority): Vision rewind must reach the moment before any player
+unit's action, not only the turn start. Playtesting origin/main showed the capability
+existed on paper but not in practice: the timeline labelled rows by the event *after*
+which it restored (so undoing an action meant picking the row above it, and the first
+action of a turn could only be undone via "Turn begins"), and the 512 KB history evicted
+action snapshots first — in a late-game battle no rewind point survived past turn 2.
+
+Decisions:
+- **Rewind opens a picker of "Before <unit>'s <action>" points** (newest first, portrait,
+  target, outcome chips, map preview, one tap to preview, one to spend). The full battle
+  timeline stays under History.
+- **Budget:** points after a keyframe are stored as exact structural patches; review-only
+  previews are shed before any rewind point; this turn's points are shed last. All actions
+  of the current and three previous turns now fit at late-game size (~375 KB).
+- **Set-aside partial actions** (trade, re-equip) become their own point at the next
+  activation, so "before Y" never undoes X's trade.
+- **Lunatic keeps turn-start rewinds**, now as `difficulty.json` `rewindGranularity`
+  (flip to `action` to change). Legacy-v1 battles gain action points and keep their
+  reroll-on-rewind rule.
+
+Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/`.
+
+---
+
 ## 2026-07-04 (later) — Next-phase content batch (accessories II, abilities II, staves, imbues II)
 
 Idea dump for the wave after the current five PRs land. Not yet specced. Notes flag

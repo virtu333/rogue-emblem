@@ -49,30 +49,44 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (!node) return;
   const { model, actId, gameData, runManager: rm } = ctx;
   const state = model.nodeState(node.id);
+  const eclipse = ctx.eclipse?.nodes?.get?.(node.id) || null;
   const info = describeLoomNode(node, {
     state,
     steps: model.steps.get(node.id) ?? null,
     actId,
     mapTemplates: gameData?.mapTemplates,
     dialogue: gameData?.dialogue,
-    enemyLevelBonus: rm?.getDifficultyModifier?.('enemyLevelBonus', 0) ?? 0,
+    // Difficulty offset plus the Eclipse's phase / eclipsed-node levels (what
+    // RunManager.getBattleParams will actually pass to the battle).
+    enemyLevelBonus:
+      (rm?.getDifficultyModifier?.('enemyLevelBonus', 0) ?? 0) +
+      (rm?.getEclipseLevelBonus?.(node) ?? 0),
     // Fog never applies to a run's first battle (RunManager.getBattleParams).
     firstBattle: rm?.completedBattles === 0 && !!ctx.isFirstBattle?.(node),
     eliteLoot: { choices: ELITE_LOOT_CHOICES, picks: ELITE_MAX_PICKS },
     shopOpen: !!ctx.shopOpen,
     activeLabel: ctx.activeLabel || null,
+    eclipse,
   });
-  card.dataset.tone = info.elite && state === 'live' ? 'elite' : state;
+  card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 
   const head = element('div', null, 're-loom-card-head');
   const medal = element('span', null, 're-loom-card-medal');
   medal.append(createNodeArt(nodeFrame(node, actId), 22));
+  if (info.eclipsed) medal.classList.add('is-eclipsed');
   const titles = element('div', null, 're-loom-card-titles');
   const kind = element('h3', null, 're-loom-kind');
-  kind.append(element('span', info.kind, info.elite ? 're-loom-kind-elite' : ''));
+  kind.append(
+    element(
+      'span',
+      info.kind,
+      info.eclipsed ? 're-loom-kind-eclipsed' : info.elite ? 're-loom-kind-elite' : '',
+    ),
+  );
   if (info.objective) kind.append(element('span', ` · ${info.objective}`, 're-loom-kind-muted'));
   titles.append(kind);
   if (info.place) titles.append(element('p', info.place, 're-loom-place'));
+  if (info.templateName) titles.append(element('p', info.templateName, 're-loom-was'));
   head.append(medal, titles);
   card.append(head);
 
@@ -83,6 +97,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     card.append(tags);
   }
   if (info.text) card.append(element('p', info.text, 're-loom-text'));
+  if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(
     element('p', info.stateLine.text, `re-node-state re-loom-state is-${info.stateLine.tone}`),

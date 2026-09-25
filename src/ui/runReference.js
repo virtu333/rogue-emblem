@@ -58,6 +58,13 @@ export function runReferenceEntries() {
       'The reward screen separates battle earnings already added from the reward you choose.',
     ],
     [
+      'The Eclipse',
+      'Route',
+      'Battle time darkens the Hollow Sun: every turn past three under par adds shadow when you win.',
+      'Shadow takes the land ahead. Outer lanes fall first; a fallen place becomes a harder battle with elite spoils.',
+      'Act bosses and church Kindle lift shadow. Deeper phases raise enemy levels and affixes. Tap the Eclipse on the route for details.',
+    ],
+    [
       'Reward choices',
       'Rewards',
       'Preview an item before choosing its recipient or upgrade target.',

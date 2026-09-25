@@ -26,8 +26,12 @@ const LABELS = {
   colosseum: 'Colosseum',
 };
 const isEliteBattle = (node) => node?.type === 'battle' && !!node?.battleParams?.isElite;
+const isEclipsed = (node) => !!node?.eclipse;
 
 export function nodeFrame(node, act) {
+  // A place the dark took keeps its silhouette (a burned village is still a village).
+  const was = node?.eclipse?.fromType;
+  if (was && was !== 'battle' && FRAMES[was] != null) return FRAMES[was];
   return node.type === 'boss' && act === 'finalBoss'
     ? 8
     : isEliteBattle(node)
@@ -35,6 +39,7 @@ export function nodeFrame(node, act) {
       : (FRAMES[node.type] ?? 0);
 }
 export function nodeLabel(node) {
+  if (isEclipsed(node)) return node.eclipse.label || 'Eclipsed battle';
   return isEliteBattle(node) ? 'Elite battle' : LABELS[node.type] || node.type;
 }
 
@@ -49,6 +54,31 @@ const FX_FRAME_MS = 1000 / 30;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // A hairline fracture entering the rim (the Lieutenant's mark), not a bolt.
 const CRACK_PATH = 'M36.2 4.4 L34.6 9.1 L30.9 10.3 L30.6 13.2 M34.6 9.1 L38.1 10';
+
+// Ember cracks across an eclipsed medal: light leaking through the ink.
+// Two fracture systems entering from the rim (viewBox 46: medal centre 23,23).
+const EMBER_PATHS = [
+  'M38.6 9.6 L32.4 14.1 L29.2 13.2 L25.1 18.4',
+  'M32.4 14.1 L33.1 19.6',
+  'M7.9 32.2 L13.6 28.9 L14.2 25.1 L18.4 23.3',
+  'M13.6 28.9 L17.2 32.6',
+];
+
+function emberSvg() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 're-eclipse-cracks');
+  svg.setAttribute('viewBox', '0 0 46 46');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const cls of ['re-eclipse-crack-glow', 're-eclipse-crack-line']) {
+    for (const d of EMBER_PATHS) {
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('class', cls);
+      svg.append(path);
+    }
+  }
+  return svg;
+}
 
 function crackSvg() {
   const svg = document.createElementNS(SVG_NS, 'svg');
@@ -90,6 +120,9 @@ function fontsReady() {
  * @param {string} [opts.actId]
  * @param {(id: string) => void} opts.onSelect
  * @param {() => boolean} [opts.reducedMotion]
+ * @param {object|null} [opts.eclipse]  RunManager.getEclipseView() (null: no Eclipse)
+ * @param {Set<string>} [opts.pendingFalls] eclipsed nodes whose fall has not played yet;
+ *   drawn as they were until playFalls() bleeds them to ink
  */
 export function createRouteGraph({
   nodes,
@@ -101,8 +134,13 @@ export function createRouteGraph({
   actId,
   onSelect,
   reducedMotion = () => false,
+  eclipse = null,
+  pendingFalls = new Set(),
 }) {
   const model = buildLoomModel({ nodes, startNodeId, availableIds: available, currentId });
+  const pending = new Set([...pendingFalls].filter((id) => nodes.some((n) => n.id === id)));
+  // Ember bursts for the fall ceremony: { id, start } (fx-layer time, ms).
+  let falls = [];
   const graph = document.createElement('div');
   graph.className = 're-node-graph re-loom';
   const weave = document.createElement('canvas');
@@ -125,15 +163,33 @@ export function createRouteGraph({
     b.classList.toggle('is-available', isAvailable);
     b.classList.toggle('is-elite', isEliteBattle(n));
     b.classList.toggle('is-boss', n.type === 'boss');
+    const fallen = isEclipsed(n);
+    const eclipseInfo = eclipse?.nodes?.get?.(n.id) || null;
+    b.classList.toggle('is-eclipsed', fallen);
+    b.classList.toggle('is-eclipse-pending', fallen && pending.has(n.id));
+    const waning = !fallen && !!eclipseInfo?.near && state !== 'done' && state !== 'current';
+    b.classList.toggle('is-waning', waning);
     const stateText = state === 'current' ? currentLabel : STATE_TEXT[state];
+    const warn = waning ? ` · falls in ${eclipseInfo.remaining} shadow` : '';
     b.setAttribute(
       'aria-label',
-      `${nodeLabel(n)} · ${stateText} · row ${n.row + 1} lane ${n.col + 1}`,
+      `${nodeLabel(n)} · ${stateText}${warn} · row ${n.row + 1} lane ${n.col + 1}`,
     );
     const medal = span('re-loom-medal');
-    medal.append(createNodeArt(nodeFrame(n, actId), n.type === 'boss' ? 34 : 29));
+    // A fall still waiting for its ceremony shows the place as it was.
+    const frame = pending.has(n.id) ? (FRAMES[n.eclipse.fromType] ?? 0) : nodeFrame(n, actId);
+    medal.append(createNodeArt(frame, n.type === 'boss' ? 34 : 29));
+    if (fallen) medal.append(span('re-eclipse-ink'), emberSvg());
     b.append(medal);
-    if (isEliteBattle(n)) b.append(crackSvg());
+    if (waning) {
+      // A crescent bite on the frame, clipped to the medal and its rim: deeper the
+      // closer the fall (1..warn shadow).
+      const bite = span('re-eclipse-bite');
+      bite.style.setProperty('--bite', String(Math.max(1, Math.min(3, eclipseInfo.remaining))));
+      bite.append(span('re-eclipse-bite-disc'));
+      b.append(bite);
+    }
+    if (isEliteBattle(n) && !fallen) b.append(crackSvg());
     if (state === 'current') b.append(span('re-loom-here'));
     if (state === 'live') b.append(span('re-loom-label', loomShortLabel(n)));
     const opacity = model.nodeOpacity(n.id);
@@ -156,6 +212,7 @@ export function createRouteGraph({
   let lastScroll = 0;
   let resizeObserver = null;
   let fontWait = null;
+  let cancelFalls = null;
 
   function applySelection() {
     for (const [id, b] of buttons) {
@@ -184,6 +241,16 @@ export function createRouteGraph({
       dpr,
       seed: nodes.length * 31 + (model.rows || 0),
       fontReady: ready,
+      eclipse: eclipse
+        ? {
+            laneDarkness: eclipse.laneDarkness,
+            // Pending falls are painted as they were until the ceremony plays.
+            eclipsedIds: new Set(
+              nodes.filter((n) => isEclipsed(n) && !pending.has(n.id)).map((n) => n.id),
+            ),
+            phaseIndex: eclipse.phase?.index || 0,
+          }
+        : null,
     });
     if (!ready && !fontWait && document.fonts?.load) {
       fontWait = document.fonts
@@ -206,6 +273,7 @@ export function createRouteGraph({
       dpr,
       timeMs,
       reduced: reducedMotion(),
+      falls,
     });
   }
 
@@ -216,7 +284,7 @@ export function createRouteGraph({
       !!layout &&
       !reducedMotion() &&
       !(typeof document !== 'undefined' && document.hidden) &&
-      loomFxAnimates(model, selected)
+      (falls.length > 0 || loomFxAnimates(model, selected))
     );
   }
 
@@ -348,8 +416,91 @@ export function createRouteGraph({
     refreshMotion() {
       syncAnimation();
     },
+    /** Nodes still waiting for their fall ceremony. */
+    get pendingFalls() {
+      return [...pending];
+    },
+    /**
+     * The fall ceremony: each pending node bleeds to ink in turn, with ember sparks on
+     * the fx layer. Reduced motion (or a hidden loom): an instant swap. Resolves with
+     * the ids that fell, once every node shows its eclipsed face.
+     */
+    playFalls({ staggerMs = 620, durationMs = 1100 } = {}) {
+      const ids = nodes.filter((n) => pending.has(n.id)).map((n) => n.id);
+      const settle = (id) => {
+        if (!pending.delete(id)) return;
+        const b = buttons.get(id);
+        b?.classList.remove('is-eclipse-pending', 'is-falling');
+        // The place now wears its eclipsed face (an eclipsed battle reads elite).
+        const n = nodes.find((x) => x.id === id);
+        const art = b?.querySelector('.re-loom-medal .re-node-art');
+        const frame = n ? nodeFrame(n, actId) : null;
+        if (art && n && frame !== (FRAMES[n.eclipse?.fromType] ?? 0))
+          art.replaceWith(createNodeArt(frame, n.type === 'boss' ? 34 : 29));
+      };
+      const repaint = () => {
+        if (!layout || destroyed) return;
+        paintWeave();
+        paintFx(lastFx > 0 ? lastFx : 0);
+      };
+      if (!ids.length) return Promise.resolve([]);
+      if (reducedMotion() || !active || destroyed || !layout) {
+        ids.forEach(settle);
+        repaint();
+        return Promise.resolve(ids);
+      }
+      return new Promise((resolve) => {
+        const timers = [];
+        ids.forEach((id, i) => {
+          timers.push(
+            setTimeout(() => {
+              if (destroyed) return;
+              buttons.get(id)?.classList.add('is-falling');
+              falls = [...falls, { id, start: performance.now() }];
+              syncAnimation();
+            }, i * staggerMs),
+          );
+          timers.push(
+            setTimeout(
+              () => {
+                if (destroyed) return;
+                settle(id);
+                repaint();
+              },
+              i * staggerMs + durationMs,
+            ),
+          );
+        });
+        const total = (ids.length - 1) * staggerMs + durationMs + 720;
+        timers.push(
+          setTimeout(() => {
+            falls = [];
+            cancelFalls = null;
+            if (!destroyed) {
+              ids.forEach(settle);
+              repaint();
+              syncAnimation();
+            }
+            resolve(ids);
+          }, total),
+        );
+        cancelFalls = () => {
+          timers.forEach(clearTimeout);
+          falls = [];
+          ids.forEach(settle);
+          resolve(ids);
+        };
+      });
+    },
+    /** Finish any running ceremony at once (the loom was covered or torn down). */
+    finishFalls() {
+      cancelFalls?.();
+      cancelFalls = null;
+    },
     destroy() {
       if (destroyed) return;
+      cancelFalls?.();
+      cancelFalls = null;
       destroyed = true;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;

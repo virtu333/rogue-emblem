@@ -30,6 +30,7 @@ export class DataLoader {
     this.traits = null;
     this.imbues = null;
     this.deeds = null;
+    this.eclipse = null;
   }
 
   async loadAll() {
@@ -58,6 +59,7 @@ export class DataLoader {
       traits,
       imbues,
       deeds,
+      eclipse,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -83,6 +85,7 @@ export class DataLoader {
       this.loadOptionalJSON('data/traits.json'),
       this.loadOptionalJSON('data/imbues.json'),
       this.loadOptionalJSON('data/deeds.json'),
+      this.loadJSON('data/eclipse.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -108,6 +111,7 @@ export class DataLoader {
     this.traits = traits;
     this.imbues = imbues;
     this.deeds = deeds;
+    this.eclipse = eclipse;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -147,6 +151,7 @@ export class DataLoader {
       traits,
       imbues,
       deeds,
+      eclipse,
     };
   }
 

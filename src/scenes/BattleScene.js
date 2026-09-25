@@ -33,6 +33,7 @@ import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
+import { EclipseHudController, isEclipseClock } from '../ui/EclipseHudController.js';
 import { createFactionRing, setFactionRingActed, RING_OFFSET_Y } from '../ui/FactionRings.js';
 import { createBattlefieldLabFixture } from '../utils/battlefieldLabFixture.js';
 import { inputHint } from '../utils/inputHint.js';
@@ -681,6 +682,8 @@ export class BattleScene extends Phaser.Scene {
     this._atmosphere = null;
     this._desktopHud?.destroy();
     this._desktopHud = null;
+    this._eclipseHud?.destroy();
+    this._eclipseHud = null;
     this._battlefieldTerrain?.destroy();
     this._battlefieldTerrain = null;
     this._teardownBattleCameraSystem();
@@ -1873,7 +1876,9 @@ export class BattleScene extends Phaser.Scene {
       this.turnCounterText.on('pointerover', () => {
         if (this.turnPar == null || !this.turnBonusConfig) return;
         const turn = this.getCurrentTurnNumber();
-        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig, {
+          eclipseActive: isEclipseClock(this),
+        });
         if (!text) return;
         this.parTooltipText.setText(text);
         const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
@@ -2132,7 +2137,10 @@ export class BattleScene extends Phaser.Scene {
       this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
 
-      // Presentation: reliquary desktop HUD plates, then the act mood (grade + night).
+      // Presentation: the Eclipse projection, reliquary desktop HUD plates, then the
+      // act mood (grade + night).
+      this._eclipseHud?.destroy();
+      this._eclipseHud = new EclipseHudController(this).create();
       this._desktopHud?.destroy();
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
@@ -3081,7 +3089,10 @@ export class BattleScene extends Phaser.Scene {
 
   getTurnPressureState(turnOverride = null) {
     const turn = this.getCurrentTurnNumber(turnOverride);
-    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
+    // The Eclipse replaces the hidden clock: no silent XP/gold decay while it runs.
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig, {
+      eclipseActive: isEclipseClock(this),
+    });
   }
 
   formatPressureMultiplier(value) {
@@ -4322,6 +4333,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (!this.canForceEndTurn()) return;
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     const cantoUnit = this.battleState === 'CANTO_MOVING' ? this.selectedUnit : null;
     restoreWeaponPreview(this);
     this.commitVisionSnapshotIfPending();
@@ -4578,6 +4590,8 @@ export class BattleScene extends Phaser.Scene {
 
   selectUnit(unit) {
     if (this.battleState === 'TURN_START_RESOLVING') return;
+    // A set-aside partial action (e.g. trade) becomes its own rewind point.
+    if (this.battleState === 'PLAYER_IDLE') this._visionController?.settleParkedActivation?.();
     if (this._isTutorialStrictGateActive() && this.tutorialStep === 2) {
       const edric = this._getTutorialEdricUnit();
       if (unit !== edric) {
@@ -8114,7 +8128,7 @@ export class BattleScene extends Phaser.Scene {
         ...combatTimelineFacts(this, attacker, defender, result),
       ];
 
-    observeHistoryAction(this, 'attacked', attacker, defender);
+    observeHistoryAction(this, 'attacked', attacker, defender, selectedArt?.name || '');
     for (const event of result.events || []) {
       if (event.type !== 'strike') continue;
       const striker = event.attackerSide === 'defender' ? defender : attacker;
@@ -9901,7 +9915,7 @@ export class BattleScene extends Phaser.Scene {
                   showContextualHint(
                     this,
                     'battle_vision_scope_v2',
-                    'Open Rewind to review the battle timeline for free. Select an event to preview, then confirm to spend 1 charge. Normal and Hard allow completed player actions; Lunatic allows turn starts. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
+                    'Rewind lists every moment you can return to: before each unit acted this turn, and earlier turns. Tap one to preview it for free; Rewind here spends 1 charge. Lunatic returns to turn starts only. Repeating the same actions keeps the same outcomes. Charges last the run, with +1 after each act boss.',
                   );
               },
               { phase: 'player', turn },
