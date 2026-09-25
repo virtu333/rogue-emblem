@@ -39,6 +39,7 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemyLevelBonus: 0,
   enemyCountBase: 0,
   recruitEnemyCountBonus: 0,
+  recruitAffixCount: 0,
   act1EnemyCountDeployCap: 3,
   enemyEquipTierShift: 0,
   enemySkillChance: 0,

@@ -174,7 +174,7 @@ export function generateBattle(params, deps) {
     isAmbush,
   });
   const recruitBonus = isRecruitBattle
-    ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 0 : 1)))
+    ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 1 : 2)))
     : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
@@ -234,6 +234,7 @@ export function generateBattle(params, deps) {
         deps.weapons,
         usedRecruitNames,
         biome,
+        params.recruitPreview || null,
       );
     }
   }
@@ -400,7 +401,9 @@ export function generateBattle(params, deps) {
     rows,
     objective,
     biome: template.biome || null,
-    playerSpawns,
+    playerSpawns: npcSpawn
+      ? orderSpawnsTowardTarget(mapLayout, cols, rows, terrain, playerSpawns, npcSpawn)
+      : playerSpawns,
     enemySpawns,
     npcSpawn,
     caravanSpawn: caravanSpawn || undefined,
@@ -2652,17 +2655,30 @@ function generateNPCSpawn(
   weaponsData,
   usedRecruitNames = {},
   biome,
+  preview = null,
 ) {
   const { classPool, namePool, levelRange } = recruitPool;
+  // The node's preview (RecruitNodeSystem) fixes who waits here: the Loom already
+  // showed this class and name, so no draw may change them.
+  const hasPreview =
+    typeof preview?.className === 'string' &&
+    preview.className.trim() &&
+    typeof preview?.name === 'string' &&
+    preview.name.trim();
   // If we have classPool (new structure), pick from it. Else fall back to pool (old structure).
-  const className = classPool
-    ? classPool[Math.floor(Math.random() * classPool.length)]
-    : recruitPool.pool[Math.floor(Math.random() * recruitPool.pool.length)].className;
+  const className = hasPreview
+    ? preview.className
+    : classPool
+      ? classPool[Math.floor(Math.random() * classPool.length)]
+      : recruitPool.pool[Math.floor(Math.random() * recruitPool.pool.length)].className;
 
   // Pick name from pool, avoiding duplicates in current run
   const usedGlobalNames = getUsedRecruitNameSet(usedRecruitNames);
   let name = makeUniqueRecruitName(className, usedGlobalNames); // Fallback
-  if (namePool && namePool[className]) {
+  if (hasPreview) {
+    name = preview.name;
+    trackRecruitNameUsage(usedRecruitNames, className, name);
+  } else if (namePool && namePool[className]) {
     const classNames = namePool[className];
     const usedByClass = Array.isArray(usedRecruitNames[className])
       ? usedRecruitNames[className]
@@ -2690,7 +2706,9 @@ function generateNPCSpawn(
   }
 
   const [minLvl, maxLvl] = levelRange;
-  const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
+  // The battle rescales the level from the roster (RecruitNodeSystem); a previewed
+  // recruit spends no draw on it.
+  const level = hasPreview ? minLvl : minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
   // The NPC must be able to stand on its tile: a Cavalry/Flying recruit placed on
   // Infantry-only terrain (e.g. Mountain) would sit on an impassable square. Require
@@ -2698,6 +2716,24 @@ function generateNPCSpawn(
   const npcMoveType = classesData?.find((c) => c.name === className)?.moveType || 'Infantry';
   const npcTilePassable = (idx) =>
     isPassable(terrainData, idx, 'Infantry') && isPassable(terrainData, idx, npcMoveType);
+
+  // Reachable-and-safe placement (strategy-layer spec): a lord on the nearest spawn
+  // reaches the recruit's side within two turns, no foe can strike the recruit in
+  // the first enemy phase, and cover is preferred.
+  const safe = pickRecruitSpawnTile({
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    playerSpawns,
+    enemySpawns,
+    classesData,
+    weaponsData,
+    tilePassable: npcTilePassable,
+  });
+  if (safe) {
+    return { className, name, level, col: safe.col, row: safe.row };
+  }
 
   // Occupied positions
   const occupied = new Set();
@@ -2820,6 +2856,228 @@ function generateNPCSpawn(
     col: pos.col,
     row: pos.row,
   };
+}
+
+// --- Recruit placement (strategy-layer spec) ---------------------------------------
+
+/** Path cost a lord pays to stand beside the recruit: two turns at MOV 4. */
+export const RECRUIT_REACH_BAND = Object.freeze({ min: 2, max: 8 });
+const RECRUIT_TILE_EXCLUDED = new Set([
+  'Lava Crack',
+  'Acidic Swamp',
+  'Acidic Bog',
+  'Ice',
+  'Throne',
+  'Ballista',
+]);
+
+function moveCostOf(terrainData, idx, moveType) {
+  const t = terrainData[idx];
+  if (!t) return Infinity;
+  const raw = t.moveCost?.[moveType];
+  if (raw === '--' || raw === undefined) return Infinity;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : Infinity;
+}
+
+/**
+ * Multi-source shortest path (Dial's bucket queue; step costs are small integers):
+ * cost for `moveType` to enter each tile from any source. Returns a Float64Array
+ * indexed row * cols + col (Infinity = unreachable within `limit`).
+ */
+function costField(mapLayout, cols, rows, terrainData, sources, moveType, limit = Infinity) {
+  const n = cols * rows;
+  const dist = new Float64Array(n).fill(Infinity);
+  const stepCost = new Float64Array(n);
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      stepCost[r * cols + c] = moveCostOf(terrainData, mapLayout[r][c], moveType);
+  const buckets = [[]];
+  for (const s of sources) {
+    if (s.col < 0 || s.row < 0 || s.col >= cols || s.row >= rows) continue;
+    const i = s.row * cols + s.col;
+    if (dist[i] === 0) continue;
+    dist[i] = 0;
+    buckets[0].push(i);
+  }
+  for (let d = 0; d < buckets.length; d++) {
+    const bucket = buckets[d];
+    if (!bucket) continue;
+    for (let k = 0; k < bucket.length; k++) {
+      const i = bucket[k];
+      if (dist[i] !== d) continue;
+      const c = i % cols;
+      const r = (i - c) / cols;
+      for (let dir = 0; dir < 4; dir++) {
+        const nc = dir === 0 ? c : dir === 1 ? c : dir === 2 ? c - 1 : c + 1;
+        const nr = dir === 0 ? r - 1 : dir === 1 ? r + 1 : r;
+        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+        const j = nr * cols + nc;
+        const step = stepCost[j];
+        if (!Number.isFinite(step)) continue;
+        const nd = d + step;
+        if (nd > limit || nd >= dist[j]) continue;
+        dist[j] = nd;
+        (buckets[nd] ||= []).push(j);
+      }
+    }
+  }
+  return dist;
+}
+
+/**
+ * For every tile, how many enemies could strike it by the end of their first and of
+ * their second move (real terrain costs, units ignored, a class's estimated reach).
+ */
+function enemyStrikeCounts(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  enemySpawns,
+  classesData,
+  weaponsData,
+) {
+  const n = cols * rows;
+  const turn1 = new Uint8Array(n);
+  const turn2 = new Uint8Array(n);
+  const mark1 = new Uint8Array(n);
+  const mark2 = new Uint8Array(n);
+  for (const e of enemySpawns) {
+    const cd = classesData?.find((c) => c.name === e.className);
+    const mov = cd?.baseStats?.MOV || 4;
+    const moveType = cd?.moveType || 'Infantry';
+    const range = estimateMaxWeaponRange(e.className, classesData, weaponsData);
+    const reach = costField(mapLayout, cols, rows, terrainData, [e], moveType, mov * 2);
+    mark1.fill(0);
+    mark2.fill(0);
+    for (let i = 0; i < n; i++) {
+      const d = reach[i];
+      if (!Number.isFinite(d)) continue;
+      const c0 = i % cols;
+      const r0 = (i - c0) / cols;
+      const first = d <= mov;
+      for (let dc = -range; dc <= range; dc++)
+        for (let dr = -range; dr <= range; dr++) {
+          const m = Math.abs(dc) + Math.abs(dr);
+          if (m < 1 || m > range) continue;
+          const c = c0 + dc;
+          const r = r0 + dr;
+          if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+          const j = r * cols + c;
+          mark2[j] = 1;
+          if (first) mark1[j] = 1;
+        }
+    }
+    for (let j = 0; j < n; j++) {
+      turn1[j] += mark1[j];
+      turn2[j] += mark2[j];
+    }
+  }
+  return { turn1, turn2 };
+}
+
+/**
+ * Pick the recruit's tile: the cost for a lord on the nearest player spawn to stand
+ * beside it lies in RECRUIT_REACH_BAND (reachable by the second player phase), no foe
+ * can strike it in the first enemy phase, cover is preferred and so are tiles the foes
+ * cannot reach by the second enemy phase either. Returns null when the map allows no
+ * such tile (the caller falls back to the legacy placement).
+ */
+export function pickRecruitSpawnTile({
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  playerSpawns = [],
+  enemySpawns = [],
+  classesData = null,
+  weaponsData = null,
+  tilePassable,
+  band = RECRUIT_REACH_BAND,
+}) {
+  if (!playerSpawns.length) return null;
+  const occupied = new Set([...playerSpawns, ...enemySpawns].map((s) => `${s.col},${s.row}`));
+  const lordField = costField(mapLayout, cols, rows, terrainData, playerSpawns, 'Infantry');
+  const strikes = enemyStrikeCounts(
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    enemySpawns,
+    classesData,
+    weaponsData,
+  );
+  const candidates = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const key = `${c},${r}`;
+      if (occupied.has(key)) continue;
+      const idx = mapLayout[r][c];
+      if (!tilePassable(idx)) continue;
+      const terrain = terrainData[idx];
+      if (RECRUIT_TILE_EXCLUDED.has(terrain?.name)) continue;
+      let reach = Infinity;
+      if (r > 0) reach = Math.min(reach, lordField[(r - 1) * cols + c]);
+      if (r < rows - 1) reach = Math.min(reach, lordField[(r + 1) * cols + c]);
+      if (c > 0) reach = Math.min(reach, lordField[r * cols + c - 1]);
+      if (c < cols - 1) reach = Math.min(reach, lordField[r * cols + c + 1]);
+      if (!Number.isFinite(reach)) continue;
+      candidates.push({
+        col: c,
+        row: r,
+        reach,
+        threats1: strikes.turn1[r * cols + c],
+        threats2: strikes.turn2[r * cols + c],
+        cover:
+          (Number(terrain?.defBonus) || 0) >= 2
+            ? 3
+            : (Number(terrain?.avoidBonus) || 0) >= 10 || (Number(terrain?.defBonus) || 0) >= 1
+              ? 2
+              : 0,
+      });
+    }
+  }
+  const tiers = [
+    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 === 0,
+    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 <= 1,
+    (t) => t.reach >= 1 && t.reach <= band.max + 4 && t.threats1 === 0,
+  ];
+  for (const accept of tiers) {
+    const pool = candidates.filter(accept);
+    if (!pool.length) continue;
+    const score = (t) =>
+      t.cover + (t.reach >= 3 && t.reach <= 6 ? 2 : 0) - Math.min(3, t.threats2) - t.threats1 * 2;
+    const best = Math.max(...pool.map(score));
+    const top = pool.filter((t) => score(t) === best);
+    const pick = top[Math.floor(Math.random() * top.length)];
+    return { col: pick.col, row: pick.row, reach: pick.reach };
+  }
+  return null;
+}
+
+/**
+ * Order player spawn tiles nearest-first to a target (the recruit), by Infantry path
+ * cost to a tile beside it. BattleScene gives lords the first tiles of a recruit
+ * battle, so a lord always starts on the spawn closest to the recruit.
+ */
+export function orderSpawnsTowardTarget(mapLayout, cols, rows, terrainData, playerSpawns, target) {
+  if (!target || !Array.isArray(playerSpawns) || playerSpawns.length < 2) return playerSpawns;
+  // Same measure as the placement: a lord's path cost from the spawn to a tile beside
+  // the target (one small shortest-path run per spawn; deployments are ≤ 6 units).
+  const cost = (s) => {
+    const field = costField(mapLayout, cols, rows, terrainData, [s], 'Infantry');
+    let best = Infinity;
+    if (target.row > 0) best = Math.min(best, field[(target.row - 1) * cols + target.col]);
+    if (target.row < rows - 1) best = Math.min(best, field[(target.row + 1) * cols + target.col]);
+    if (target.col > 0) best = Math.min(best, field[target.row * cols + target.col - 1]);
+    if (target.col < cols - 1) best = Math.min(best, field[target.row * cols + target.col + 1]);
+    return best;
+  };
+  return playerSpawns
+    .map((s, i) => ({ s, i, c: cost(s) }))
+    .sort((a, b) => a.c - b.c || a.i - b.i)
+    .map((x) => x.s);
 }
 
 // Estimate max weapon range from a class's primary weapon proficiency
