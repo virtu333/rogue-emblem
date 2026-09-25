@@ -1,4 +1,4 @@
-# Rogue Emblem — Art Bible: "The Last Light Is a Thread"
+# Rogue Dawn — Art Bible: "The Last Light Is a Thread"
 
 Approved direction (2026-09-24). The direction board lives in `docs/art-direction/board/`
 (studies + captures) and was reviewed by the owner. This file is the source of truth for
