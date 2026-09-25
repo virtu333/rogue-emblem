@@ -34,6 +34,8 @@ export function validLoopFor(buffer, loop) {
 }
 
 const LOOP_POINT_TOLERANCE_S = 0.001;
+// Sources are scheduled this far ahead so every layer starts sample-aligned.
+const START_LEAD_S = 0.03;
 
 function clampGain(value) {
   const v = Number(value);
@@ -82,6 +84,8 @@ export class LoopedMusic {
    * @param {string} [opts.layer]        initially audible layer
    * @param {Object<string, number>} [opts.layerGains]  additive layers -> starting gain
    * @param {number} [opts.volume]
+   * @param {Object<string, string>} [opts.keys] layer name -> cache key of every
+   *   layer the track asked for (including ones without a buffer yet)
    */
   constructor({
     context,
@@ -92,6 +96,7 @@ export class LoopedMusic {
     layer = 'full',
     layerGains = {},
     volume = 1,
+    keys = null,
   }) {
     this.context = context;
     this.destination = destination;
@@ -116,6 +121,10 @@ export class LoopedMusic {
 
     const given = Object.keys(layers).filter((n) => layers[n]);
     const primaryName = given.includes('full') ? 'full' : given[0];
+    this._primaryName = primaryName;
+    /** Layer name -> cache key the track wants (a missing layer can join later). */
+    this.layerKeys = { ...(keys || {}) };
+    if (primaryName && !this.layerKeys[primaryName]) this.layerKeys[primaryName] = key;
     const primaryLoop = validLoopFor(layers[primaryName], loops[primaryName]);
     // Every layer loops with the primary's region; a layer that can't share it
     // (e.g. a stale cached file) is dropped and the primary plays alone.
@@ -141,7 +150,13 @@ export class LoopedMusic {
           ? 1
           : 0;
       gain.connect(this._out);
-      this._layers.set(name, { buffer: layers[name], loop: primaryLoop, gain, source: null });
+      this._layers.set(name, {
+        buffer: layers[name],
+        loop: primaryLoop,
+        gain,
+        source: null,
+        key: this.layerKeys[name] || null,
+      });
     }
   }
 
@@ -158,6 +173,42 @@ export class LoopedMusic {
     return this._layers.has(name);
   }
 
+  /** Cache keys of the buffers this voice holds (the manager must not evict them). */
+  get bufferKeys() {
+    return Array.from(this._layers.values(), (entry) => entry.key).filter(Boolean);
+  }
+
+  _startSource(entry, when, offset) {
+    const source = this.context.createBufferSource();
+    source.buffer = entry.buffer;
+    source.loop = true;
+    if (entry.loop) {
+      source.loopStart = entry.loop.loopStart;
+      source.loopEnd = entry.loop.loopEnd;
+    }
+    source.connect(entry.gain);
+    source.start(when, offset);
+    entry.source = source;
+  }
+
+  /**
+   * Where in the buffer the playhead is at context time `when`: straight
+   * through the intro, then wrapping inside the loop region the way a looping
+   * AudioBufferSourceNode does.
+   */
+  _positionAt(when) {
+    const elapsed = Math.max(0, when - this._startTime);
+    const primary = this._layers.get(this._primaryName);
+    const loop = primary?.loop;
+    if (loop) {
+      if (elapsed < loop.loopEnd) return elapsed;
+      const span = loop.loopEnd - loop.loopStart;
+      return loop.loopStart + ((elapsed - loop.loopStart) % span);
+    }
+    const duration = Number(primary?.buffer?.duration);
+    return duration > 0 ? elapsed % duration : 0;
+  }
+
   /**
    * Start every layer. `at` (a context time) schedules the start, e.g. on the
    * downbeat a hinge cue hands over to; a time already past starts now.
@@ -166,22 +217,44 @@ export class LoopedMusic {
     if (this._destroyed || this.isPlaying) return false;
     // All layers share one start time; a small lead keeps them sample-aligned
     // even if creating the sources takes a moment.
-    const soonest = this.context.currentTime + 0.03;
+    const soonest = this.context.currentTime + START_LEAD_S;
     const when = Number.isFinite(at) && at > soonest ? at : soonest;
-    for (const entry of this._layers.values()) {
-      const source = this.context.createBufferSource();
-      source.buffer = entry.buffer;
-      source.loop = true;
-      if (entry.loop) {
-        source.loopStart = entry.loop.loopStart;
-        source.loopEnd = entry.loop.loopEnd;
-      }
-      source.connect(entry.gain);
-      source.start(when, 0);
-      entry.source = source;
-    }
+    for (const entry of this._layers.values()) this._startSource(entry, when, 0);
     this._startTime = when;
     this.isPlaying = true;
+    return true;
+  }
+
+  /**
+   * Join a layer whose buffer arrived after the track started (it failed to
+   * load, or was missing, when the voice was built). It starts silent at the
+   * primary's current playhead, so a later setLayer crossfades to it exactly
+   * like a layer present from the start. Refused when it can't share the
+   * primary's timeline.
+   */
+  addLayer(name, buffer, loop = null, key = null) {
+    if (this._destroyed || !name || !buffer || this._layers.has(name)) return false;
+    const primary = this._layers.get(this._primaryName);
+    if (!primary) return false;
+    if (!sharesTimeline(buffer, validLoopFor(buffer, loop), primary.buffer, primary.loop)) {
+      return false;
+    }
+    const gain = this.context.createGain();
+    gain.gain.value = 0;
+    gain.connect(this._out);
+    const entry = {
+      buffer,
+      loop: primary.loop,
+      gain,
+      source: null,
+      key: key || this.layerKeys[name] || null,
+    };
+    if (entry.key) this.layerKeys[name] = entry.key;
+    this._layers.set(name, entry);
+    if (this.isPlaying && this._startTime !== null) {
+      const when = Math.max(this._startTime, this.context.currentTime + START_LEAD_S);
+      this._startSource(entry, when, this._positionAt(when));
+    }
     return true;
   }
 

@@ -5,6 +5,55 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Layered music under the cache budget (outside report)
+
+**The bug.** On the mobile budget (3 tracks / 120 MB) a layered track could go
+silent while it loaded. Each file that finished decoding ran the cache budget but
+protected only itself, the playing track and in-flight loads. The new track's primary
+had already finished loading, so it counted as none of those. Loading its calm or
+enrage layer could evict it, and `playMusic` then stopped the old music and returned
+at `!cache.has(key)`. Example: a battle theme (full + calm) playing, then a boss theme
+(+ enrage) requested. The enrage load pushed the cache to 4 tracks and evicted the boss
+primary, leaving no music at all. In the byte-budget version, the new track's
+already-cached calm layer was evicted first, then refetched, and its refetch evicted
+the primary. The pass just before the new voice was built had the same gap: it
+protected only the primary, not the layers.
+
+**Fix** (`AudioManager`, `LoopedMusic`). The newest request's primary and all its layers
+are pinned (`_pendingMusicKeys`) from the start of loading until the voice is built. Any
+buffer a sounding voice holds is also pinned: LoopedMusic reports `bufferKeys`, so a
+fading-out track is covered too. A budget pass runs again once a fade ends. If the
+primary is somehow missing after loading, the old music keeps playing instead of
+stopping. When a layer the track wants is missing (it failed to load), `setMusicIntensity`
+keeps the current layer. It then reloads the missing one once per voice and, via
+`LoopedMusic.addLayer`, starts it silent at the primary's playhead so it can crossfade
+in. A track started while audio was locked keeps its enrage layer after unlock. Under
+budget nothing changes. While both tracks are needed the cache can briefly go over
+budget. That costs no extra memory: evicting a playing buffer never freed it, because
+the running source still holds it. Stingers have their own cache and never touch
+music keys. Test: `tests/MusicLayerCache.test.js`.
+
+---
+
+## 2026-09-25 — App icon: Hollow Dawn
+
+The winged-sword icon was generic and too close to the series' heraldry. Ahead of the
+Rogue Dawn rename, I drew six procedural candidates from the key art's own palette and
+dither: Hollow Dawn, Hollow Helm, Hollow Crest, The Gap, Diamond Ring and The Last
+Warden. I checked each at 1024, 180, 60 and 29 px on dark and light grounds and in a
+home-screen row. **Hollow Dawn** ships. The Hollow Sun rises over a hedge of imperial
+pikes and dawn burns around the black disc. It's the only candidate that shows both dawn
+and the eclipse, and at 29 px it's a black disc in a burning band. The Hollow Helm is the
+runner-up. Any candidate can be swapped in with one command:
+`npm run gen:icons -- --from docs/art-direction/app-icon/<id>.png`, which also writes the
+iOS 1024 icon. The maskable PWA icon is now full-bleed, and Capacitor's placeholder launch
+image is replaced by the Hollow Dawn mark on the void (the storyboard background is the
+void too). Spec:
+[`specs/app-icon.md`](specs/app-icon.md); sheets and ranking:
+[`art-direction/app-icon/`](art-direction/app-icon/README.md).
+
+---
+
 ## 2026-09-25 — Playtest fixes: fallen recruits, forecast bar, iOS saves, timeline preview (built)
 
 Four playtest reports (iPhone app and desktop). Spec, root causes and tests:

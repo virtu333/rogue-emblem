@@ -20,7 +20,7 @@ A standalone **PWA** (Add to Home Screen) runs in a chrome-less WKWebView — id
 ### What shipped
 - `public/manifest.webmanifest` — `display: standalone`, `display_override: [fullscreen,…]`, `orientation: landscape`, dark theme.
 - Apple `<head>` meta tags in `index.html` (both `apple-mobile-web-app-capable` and standardized `mobile-web-app-capable`, `black` status bar, title, `apple-touch-icon`).
-- App icons generated from `tools/icon-src/app-icon*.svg` via `npm run gen:icons` (sharp) → `public/icons/` (180 apple-touch, 192, 512, 512-maskable).
+- App icons generated from `tools/icon-src/app-icon-pixel.png` via `npm run gen:icons` (sharp) → `public/icons/` (180 apple-touch, 192, 512, 512-maskable, all full-bleed) and the iOS 1024 `AppIcon`. Candidates and the one-command swap: [`art-direction/app-icon/`](art-direction/app-icon/README.md).
 - `public/_headers` — forces `application/manifest+json` MIME on Netlify; 1-day revalidating cache for icons (stable filenames, so not `immutable`).
 - Removed the "Best played on desktop | Not optimized for mobile" banner on mobile (canvas gate in `TitleScene.js` via `getStartupFlags().isMobile`; CSS `@media (pointer: coarse)` for the auth-overlay `.desktop-note`).
 

@@ -277,3 +277,87 @@ describe('LoopedMusic', () => {
     expect(m.play()).toBe(false);
   });
 });
+
+describe('LoopedMusic — a layer joining a running track', () => {
+  const loop = { loopStart: 9.3, loopEnd: 79.8, duration: 80.4 };
+  const make = (ctx) =>
+    new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'music_boss_act1',
+      layers: { full: buf(80.4) },
+      loops: { full: loop },
+      keys: { full: 'music_boss_act1', enrage: 'music_boss_act1_enrage_x' },
+    });
+
+  it('reports the cache keys of the buffers it holds, and the ones it wants', () => {
+    const { ctx } = makeContext();
+    const m = make(ctx);
+    expect(m.bufferKeys).toEqual(['music_boss_act1']);
+    expect(m.layerKeys.enrage).toBe('music_boss_act1_enrage_x');
+    expect(m.hasLayer('enrage')).toBe(false);
+  });
+
+  it('starts a late layer silent at the primary playhead during the intro', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play(); // sources start at 10.03
+    ctx.currentTime = 30; // the late layer starts at 30.03: 20 s in, before loopEnd
+    expect(m.addLayer('enrage', buf(80.4), loop)).toBe(true);
+    const late = sources[1];
+    const [when, offset] = late.start.mock.calls[0];
+    expect(when).toBeCloseTo(30.03, 9);
+    expect(offset).toBeCloseTo(20, 9);
+    expect(late.loop).toBe(true);
+    expect(late.loopStart).toBe(9.3);
+    expect(late.loopEnd).toBe(79.8);
+    expect(m.bufferKeys).toEqual(['music_boss_act1', 'music_boss_act1_enrage_x']);
+    expect(m.layer).toBe('full');
+    // silent until asked for, then a normal crossfade
+    const entry = m._layers.get('enrage');
+    expect(entry.gain.gain.value).toBe(0);
+    expect(m.setLayer('enrage', 2000)).toBe(true);
+    expect(entry.gain.gain.value).toBe(1);
+    expect(m._layers.get('full').gain.gain.value).toBe(0);
+  });
+
+  it('wraps the join point inside the loop region after the first pass', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play(); // sources start at 10.03
+    // 79.8 s to the first loopEnd, five more loops (70.5 s each), then 12.7 s:
+    // the playhead is 12.7 s past loopStart.
+    ctx.currentTime = 10 + 79.8 + 5 * 70.5 + 12.7;
+    m.addLayer('enrage', buf(80.4), loop);
+    expect(sources[1].start.mock.calls[0][1]).toBeCloseTo(9.3 + 12.7, 6);
+  });
+
+  it('refuses a layer off the primary timeline, and a layer name it already has', () => {
+    const { ctx } = makeContext();
+    const m = make(ctx);
+    m.play();
+    expect(m.addLayer('enrage', buf(62), { loopStart: 1, loopEnd: 60, duration: 62 })).toBe(false);
+    expect(m.addLayer('full', buf(80.4), loop)).toBe(false);
+    expect(m.hasLayer('enrage')).toBe(false);
+    m.destroy();
+    expect(m.addLayer('enrage', buf(80.4), loop)).toBe(false);
+  });
+
+  it('a layer joining before a scheduled start begins on that downbeat, at the top', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play(13.5); // the hinge's handoff, still ahead of the clock
+    expect(m.addLayer('enrage', buf(80.4), loop)).toBe(true);
+    expect(sources[1].start).toHaveBeenCalledWith(13.5, 0);
+  });
+
+  it('a layer added before play() starts with the others', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    expect(m.addLayer('enrage', buf(80.4), loop)).toBe(true);
+    expect(sources).toHaveLength(0);
+    m.play();
+    expect(sources).toHaveLength(2);
+    expect(sources.map((s) => s.start.mock.calls[0][1])).toEqual([0, 0]);
+  });
+});
