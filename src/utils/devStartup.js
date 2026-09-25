@@ -254,6 +254,7 @@ function createRunPreset(gameData, meta, config) {
       if (name === 'Patient') unit.currentHP = Math.max(1, unit.stats.HP - 12);
       runManager.roster.push(unit);
     }
+    runManager.ensurePortraitVariants();
   }
 
   return runManager;

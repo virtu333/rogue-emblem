@@ -8,7 +8,7 @@ import {
   UI_COLORS,
   getHPBarColor,
 } from '../utils/uiStyles.js';
-import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { unitPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
@@ -2873,35 +2873,8 @@ export class RosterOverlay {
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this.scene, unit);
-    if (rebuilt) return rebuilt;
-    // Lords have named portraits
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.scene.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData.classes.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.scene.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-
-    // Try current class
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.scene.textures.exists(classKey)) return classKey;
-
-    // Promoted fallback: use base class portrait
-    const classData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.scene.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this.scene, unit, this.gameData);
   }
 
   _bindSceneCleanup() {

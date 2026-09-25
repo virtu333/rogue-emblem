@@ -38,6 +38,7 @@ export function projectUnit(unit) {
     xp: unit.xp,
     faction: unit.faction,
     isLord: unit.isLord,
+    portraitVariant: unit.portraitVariant, // same face before and after a rite
     moveType: unit.moveType,
     _baseMoveType: unit._baseMoveType,
     mov: unit.mov,

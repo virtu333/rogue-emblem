@@ -22,6 +22,11 @@ export function mergeRunRecords(...sources) {
           className: String(u.className || '').slice(0, 80),
           level: Math.max(1, Math.trunc(u.level) || 1),
           isLord: u.isLord === true,
+          // Optional (records from before portrait variety have neither).
+          ...(u.tier === 'promoted' ? { tier: 'promoted' } : {}),
+          ...(typeof u.portraitVariant === 'string' && /^[a-z0-9_]{1,64}$/.test(u.portraitVariant)
+            ? { portraitVariant: u.portraitVariant }
+            : {}),
         })),
     };
     if (!byId.has(clean.id) || clean.endedAt > byId.get(clean.id).endedAt)

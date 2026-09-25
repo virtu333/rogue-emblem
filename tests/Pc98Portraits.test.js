@@ -315,7 +315,9 @@ describe('PC-98 portrait runtime', () => {
     for (const id of ids) {
       for (const size of PC98_SIZES)
         expect(existsSync(`public/assets/portraits/pc98/${size}/${id}.png`)).toBe(true);
-      expect(existsSync(`public/assets/portraits/pc98/baked/${id}.png`)).toBe(true);
+      // Variant faces load lazily as figures: no baked 192 texture.
+      const variant = Boolean(PC98_MANIFEST.portraits[id].variant);
+      expect(existsSync(`public/assets/portraits/pc98/baked/${id}.png`), id).toBe(!variant);
       expect(framing[id]).toBeTruthy();
     }
   });
@@ -365,23 +367,18 @@ describe('PC-98 portrait runtime', () => {
     expect(portraitIdForUnit({ ...edric, tier: 'base' }, gameData)).toBe('lord_edric');
     const boss = { name: 'Iron Captain', isBoss: true, className: 'Knight', faction: 'enemy' };
     expect(portraitIdForUnit(boss, gameData)).toBe('boss_iron_captain');
+    // Generic units wear their own face (portrait variety) ahead of the
+    // class chain, which stays as the fallback.
     const mage = { name: 'Grunt', className: 'Mage', faction: 'enemy' };
-    expect(portraitIdForUnit(mage, gameData)).toBe('enemy_mage');
+    expect(portraitCandidates(mage, gameData).slice(-2)).toEqual(['enemy_mage', 'generic_mage']);
+    expect(portraitIdForUnit(mage, gameData)).toMatch(/^enemy_mage(__[bcd])?$/);
     const fighter = { name: 'Recruit', className: 'Fighter', faction: 'player' };
-    expect(portraitIdForUnit(fighter, gameData)).toBe('generic_fighter');
-    // A promoted class without its own portrait falls back to its base class.
-    const promoted = gameData.classes.find(
-      (c) =>
-        c.promotesFrom &&
-        !PC98_MANIFEST.portraits[`generic_${c.name.toLowerCase().replace(/ /g, '_')}`],
-    );
-    if (promoted) {
-      const id = portraitIdForUnit(
-        { name: 'X', className: promoted.name, faction: 'player' },
-        gameData,
-      );
-      expect(id).toBe(`generic_${promoted.promotesFrom.toLowerCase().replace(/ /g, '_')}`);
-    }
+    expect(portraitCandidates(fighter, gameData)).toContain('generic_fighter');
+    expect(portraitIdForUnit(fighter, gameData)).toMatch(/^generic_(fighter|warrior|berserker)/);
+    // A promoted class without its own default portrait falls back to its base class.
+    const bard = portraitCandidates({ name: 'X', className: 'Bard', faction: 'player' }, gameData);
+    expect(bard.at(-1)).toBe('generic_dancer');
+    expect(bard[0]).toMatch(/^generic_bard__dancer_[a-e]$/);
     expect(
       portraitIdForUnit({ name: 'X', className: 'Nope', faction: 'player' }, gameData),
     ).toBeNull();
@@ -417,7 +414,10 @@ describe('PC-98 portrait runtime', () => {
 
   it('atlas data addresses every portrait inside the sheet', () => {
     const data = pc98AtlasData(48);
-    const ids = Object.keys(PC98_MANIFEST.portraits);
+    // Class defaults only; variants are lazy canvas textures.
+    const ids = Object.keys(PC98_MANIFEST.portraits).filter(
+      (id) => !PC98_MANIFEST.portraits[id].variant,
+    );
     expect(Object.keys(data.frames)).toHaveLength(ids.length);
     for (const f of Object.values(data.frames)) {
       expect(f.frame.x + 48).toBeLessThanOrEqual(data.meta.size.w);

@@ -1,6 +1,7 @@
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getMetaKey } from '../engine/SlotManager.js';
 import { mergeRunRecords } from '../engine/RunRecords.js';
+import { withUnitFace } from './unitPortrait.js';
 
 export function showRunRecords(scene) {
   if (scene.nativeMenu) return scene.nativeMenu;
@@ -56,9 +57,14 @@ export function showRunRecords(scene) {
     );
     for (const unit of record.roster)
       menu.body.append(
-        element(
-          'p',
-          `${unit.name} · ${unit.className} · Lv ${unit.level}${unit.isLord ? ' · Lord' : ''}`,
+        withUnitFace(
+          element(
+            'p',
+            `${unit.name} · ${unit.className} · Lv ${unit.level}${unit.isLord ? ' · Lord' : ''}`,
+          ),
+          scene,
+          scene.gameData || {},
+          unit,
         ),
       );
     menu.focusContent();
