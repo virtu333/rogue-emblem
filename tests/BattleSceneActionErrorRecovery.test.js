@@ -68,6 +68,28 @@ function makeUnit(overrides = {}) {
   };
 }
 
+describe('executeTalk fallen-ally record', () => {
+  it('records the recruit as it joined the army (world-state fallen record)', async () => {
+    const scene = makeScene();
+    const lord = makeUnit({ name: 'Edric', isLord: true });
+    const npc = makeUnit({ name: 'Daska', faction: 'npc', className: 'Archer' });
+    scene.npcUnits = [npc];
+    scene.playerUnits = [lord];
+    scene._battleRecruits = [];
+    scene.findTalkTarget = vi.fn(() => npc);
+    scene._getPortraitKey = vi.fn(() => null);
+    scene.updateObjectiveText = vi.fn();
+    scene.dialogueOverlay = { show: vi.fn(async () => {}) };
+
+    await scene.executeTalk(lord);
+
+    expect(scene.playerUnits).toContain(npc);
+    expect(scene._battleRecruits.map((entry) => entry.name)).toEqual(['Daska']);
+    expect(scene._battleRecruits[0].unit.faction).toBe('player');
+    expect(scene._battleRecruits[0].unit).not.toBe(npc);
+  });
+});
+
 describe('executeTalk error recovery', () => {
   it('consumes the action instead of softlocking when the dialogue overlay throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

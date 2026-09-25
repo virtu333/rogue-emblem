@@ -2985,8 +2985,12 @@ function enemyStrikeCounts(
  * Pick the recruit's tile: the cost for a lord on the nearest player spawn to stand
  * beside it lies in RECRUIT_REACH_BAND (reachable by the second player phase), no foe
  * can strike it in the first enemy phase, cover is preferred and so are tiles the foes
- * cannot reach by the second enemy phase either. Returns null when the map allows no
- * such tile (the caller falls back to the legacy placement).
+ * cannot reach by the second enemy phase either. Among equally safe tiles, one on the
+ * player's side of the foes (the lords' path to it is shorter than the nearest foe's)
+ * comes first, so a narrow map does not seat the recruit behind the enemy line when it
+ * need not; first-phase safety still outranks the side. A tile beside a foe's starting
+ * tile is never taken. Returns null when the map
+ * allows no such tile (the caller falls back to the legacy placement).
  */
 export function pickRecruitSpawnTile({
   mapLayout,
@@ -3002,7 +3006,15 @@ export function pickRecruitSpawnTile({
 }) {
   if (!playerSpawns.length) return null;
   const occupied = new Set([...playerSpawns, ...enemySpawns].map((s) => `${s.col},${s.row}`));
+  // Never seat the recruit beside a foe's starting tile.
+  for (const e of enemySpawns) {
+    occupied.add(`${e.col - 1},${e.row}`);
+    occupied.add(`${e.col + 1},${e.row}`);
+    occupied.add(`${e.col},${e.row - 1}`);
+    occupied.add(`${e.col},${e.row + 1}`);
+  }
   const lordField = costField(mapLayout, cols, rows, terrainData, playerSpawns, 'Infantry');
+  const foeField = costField(mapLayout, cols, rows, terrainData, enemySpawns, 'Infantry');
   const strikes = enemyStrikeCounts(
     mapLayout,
     cols,
@@ -3031,6 +3043,7 @@ export function pickRecruitSpawnTile({
         col: c,
         row: r,
         reach,
+        playerSide: reach < foeField[r * cols + c],
         threats1: strikes.turn1[r * cols + c],
         threats2: strikes.turn2[r * cols + c],
         cover:
@@ -3042,9 +3055,12 @@ export function pickRecruitSpawnTile({
       });
     }
   }
+  const inBand = (t) => t.reach >= band.min && t.reach <= band.max;
   const tiers = [
-    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 === 0,
-    (t) => t.reach >= band.min && t.reach <= band.max && t.threats1 <= 1,
+    (t) => inBand(t) && t.playerSide && t.threats1 === 0,
+    (t) => inBand(t) && t.threats1 === 0,
+    (t) => inBand(t) && t.playerSide && t.threats1 <= 1,
+    (t) => inBand(t) && t.threats1 <= 1,
     (t) => t.reach >= 1 && t.reach <= band.max + 4 && t.threats1 === 0,
   ];
   for (const accept of tiers) {

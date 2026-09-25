@@ -147,7 +147,10 @@ export class ChurchMenu {
     );
     const reason = churchKindleBlock(run, nodeId);
     const after = Math.max(0, shadow - amount);
-    const b = button(`Kindle · −${Math.min(amount, shadow)} shadow · ${price} G`, () =>
+    const lift = Math.min(amount, shadow);
+    // A clear sun has nothing to lift: no "−0 shadow" on the (disabled) button.
+    const label = lift > 0 ? `Kindle · −${lift} shadow · ${price} G` : `Kindle · ${price} G`;
+    const b = button(label, () =>
       this.choose({
         title: 'Kindle the sun?',
         choices: [nodeId],

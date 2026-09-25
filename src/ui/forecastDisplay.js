@@ -5,16 +5,24 @@ export function forecastProjection(forecast) {
     d = forecast.defender;
   let attackerHP = a.hp,
     defenderHP = d.hp;
-  const strike = (side) => {
-    if (attackerHP <= 0 || defenderHP <= 0) return;
-    if (side === 'a' && a.attackCount > 0 && a.hit > 0)
-      defenderHP = Math.max(0, defenderHP - a.damage);
-    if (side === 'd' && d.canCounter && d.hit > 0) attackerHP = Math.max(0, attackerHP - d.damage);
+  // Strikes per round: a brave weapon or multi-hit art strikes more than once
+  // each time it acts (attackCount already includes doubling).
+  const perRound = (info) =>
+    Math.max(1, Math.round((info.attackCount || 1) / (info.doubles ? 2 : 1)));
+  const round = (side) => {
+    const info = side === 'a' ? a : d;
+    for (let i = 0; i < perRound(info); i++) {
+      if (attackerHP <= 0 || defenderHP <= 0) return;
+      if (side === 'a' && a.attackCount > 0 && a.hit > 0)
+        defenderHP = Math.max(0, defenderHP - a.damage);
+      if (side === 'd' && d.canCounter && d.hit > 0)
+        attackerHP = Math.max(0, attackerHP - d.damage);
+    }
   };
-  strike('a');
-  strike('d');
-  if (a.doubles) strike('a');
-  if (d.doubles) strike('d');
+  round('a');
+  round('d');
+  if (a.doubles) round('a');
+  if (d.doubles) round('d');
   return { attackerHP, defenderHP };
 }
 export function triangleText(forecast) {
