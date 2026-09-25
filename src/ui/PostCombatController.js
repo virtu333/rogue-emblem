@@ -12,6 +12,7 @@ import {
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
+import { deedsFor } from './DeedController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -32,6 +33,7 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
+import { projectedRelief, projectedShadow } from './EclipseHudController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
 import { UI_PALETTE } from '../utils/uiStyles.js';
 
@@ -104,13 +106,27 @@ export class PostCombatController {
     if (scene.battleParams.tutorialMode) {
       afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
-        await showImportantHint(
+        const tutorial = (scene._tutorialController ||= new TutorialController(scene));
+        // A fresh player goes straight into their first run; anyone else returns to title.
+        const startRun = Boolean(tutorial.pauseOptions?.()?.onStartRun);
+        const choice = await showImportantHint(
           scene,
-          "Victory! You've completed the tutorial.\nChoose Start first run on the title screen to begin your campaign.",
+          startRun
+            ? "Victory! You've completed the tutorial.\nYour first run starts on the route map — pick a path, fight, and keep your commander alive."
+            : "Victory! You've completed the tutorial.\nYour saves are waiting on the title screen.",
+          {
+            actions: startRun
+              ? [
+                  { label: 'Start first run', value: 'run', primary: true },
+                  { label: 'Back to title', value: 'title' },
+                ]
+              : [{ label: 'Back to title', value: 'title', primary: true }],
+          },
         );
         if (!scene.scene?.isActive?.()) return;
-        (scene._tutorialController ||= new TutorialController(scene)).recordCompletion();
-        scene._transitionTutorialToTitle();
+        tutorial.recordCompletion();
+        if (choice === 'run') scene._transitionTutorialToTitle({ autoAction: 'newGame' });
+        else scene._transitionTutorialToTitle();
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
@@ -122,6 +138,9 @@ export class PostCombatController {
       const classesData = scene.gameData?.classes || null;
       const traitsData = scene.gameData?.traits || null;
       const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      // Deeds commit with the win, before the units are serialized and the
+      // run is saved; their rite plays after the save (presentVictory).
+      deedsFor(scene).commitVictory(liveSurvivors);
       const newlyMastered = [];
       for (const u of liveSurvivors) {
         const wasMastered = classesData ? isMastered(u, classesData, traitsData) : false;
@@ -156,6 +175,7 @@ export class PostCombatController {
         scene.goldEarned,
         {
           turnCount: scene.turnManager?.turnNumber,
+          turnPar: scene.turnPar,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
         },
@@ -244,6 +264,8 @@ export class PostCombatController {
           console.warn('[BattleScene] boss defeat dialogue failed:', err);
         }
 
+        // Deeds earned this battle: committed and saved above; the rite only shows them.
+        if (scene._newDeeds?.length) await deedsFor(scene).presentVictory();
         if (!scene.scene?.isActive?.()) return;
         if (scene.runManager.isRunComplete()) {
           // Final boss: award turn-bonus gold silently, skip loot screen
@@ -577,6 +599,10 @@ export class PostCombatController {
       turn,
       par: Number.isFinite(s.turnPar) ? s.turnPar : null,
       rating,
+      // The Eclipse: the shadow this victory commits (null when the clock is off),
+      // and the flare an act boss's fall lifts.
+      shadowGain: projectedShadow(s),
+      shadowRelief: projectedRelief(s),
     };
   }
 
@@ -776,7 +802,8 @@ export class PostCombatController {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
-          'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.',
+          'Your commander fell — the battle is lost. In a real run, this would end the run.\nThe tutorial is always there to try again from the title.',
+          { actions: [{ label: 'Back to title', value: true, primary: true }] },
         );
         if (!scene.scene?.isActive?.()) return;
         scene._transitionTutorialToTitle();

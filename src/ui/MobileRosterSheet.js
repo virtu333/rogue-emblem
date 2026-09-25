@@ -13,6 +13,7 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
 import { ContextHelp } from './ContextHelp.js';
+import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
 import { getEffectiveStaffRange } from '../engine/Combat.js';
@@ -22,7 +23,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
@@ -33,7 +34,8 @@ import {
   giveRosterItemBlock,
   giveRosterItem,
 } from '../engine/RosterTransfers.js';
-import { canEquip, isLastCombatWeapon } from '../engine/UnitManager.js';
+import { canEquip, isLastCombatWeapon, inventoryDisplayOrder } from '../engine/UnitManager.js';
+import { equippedBadgeElement } from './equippedBadge.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
 import {
   getWeaponArtIds,
@@ -53,6 +55,15 @@ import { crestElement } from './crestArt.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import {
+  deedsForDisplay,
+  deedTallyText,
+  epithetText,
+  promotionOath,
+  unitDisplayName,
+} from '../engine/DeedSystem.js';
+import { actLabel } from './ceremonyContent.js';
+import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
 import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -236,8 +247,24 @@ export class MobileRosterSheet {
       // width for longer class names, and another token would wrap it more often.
       const nameRow = el('span', null, 'mr-unit-name');
       nameRow.append(el('strong', unit.name), el('em', `Lv ${getDisplayLevel(unit)}`));
-      info.append(nameRow, el('span', `${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`));
-      info.append(createHealthBar(unit));
+      info.append(nameRow);
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const line = el('span', epithet, 're-epithet mr-unit-epithet');
+        line.title = unitDisplayName(unit, { epithet: true });
+        info.append(line);
+      }
+      // Class on its own line (ellipsized, full name in the label); HP numbers ride
+      // the health bar so neither wraps in the narrow list column.
+      const classLine = el('span', unit.className, 'mr-unit-class');
+      classLine.title = unit.className;
+      const hpRow = el('span', null, 'mr-unit-hp');
+      hpRow.append(createHealthBar(unit), el('small', `${unit.currentHP}/${unit.stats.HP}`));
+      info.append(classLine, hpRow);
+      b.setAttribute(
+        'aria-label',
+        `${unit.name}, Level ${getDisplayLevel(unit)} ${unit.className}, HP ${unit.currentHP} of ${unit.stats.HP}`,
+      );
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
       nav.append(b);
@@ -271,8 +298,15 @@ export class MobileRosterSheet {
       const name = el('h3', unit.name);
       const crest = crestElement(unit.className, { className: 'mr-crest', label: true });
       if (crest) name.prepend(crest);
+      summary.append(name);
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const line = el('p', epithet, 're-epithet mr-epithet');
+        line.setAttribute('aria-label', `Known as ${unitDisplayName(unit, { epithet: true })}`);
+        summary.append(line);
+        queueMicrotask(() => fitText(line, { min: 11 }));
+      }
       summary.append(
-        name,
         el(
           'p',
           `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
@@ -345,6 +379,13 @@ export class MobileRosterSheet {
       );
     }
     this.body.append(grid);
+    this.explain(
+      grid,
+      'attributes',
+      'Attributes',
+      Object.entries(STAT_DESCRIPTIONS).map(([stat, description]) => `${stat}: ${description}`),
+      'What each attribute does in combat and on the map.',
+    );
     this.card(
       'Proficiencies',
       (unit.proficiencies || []).map(proficiencyLabel).join(' · ') || 'None',
@@ -354,14 +395,16 @@ export class MobileRosterSheet {
       'Combat baseline',
       `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${terrain ? calculateAvoid(unit, terrain) : unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
     );
-    combatCard.append(
-      this.button('About combat numbers', () =>
-        this.showHelp('Combat baseline', [
-          `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
-          'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
-          'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit rating and follow-up attacks.',
-        ]),
-      ),
+    this.explain(
+      combatCard,
+      'combat numbers',
+      'Combat baseline',
+      [
+        `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
+        'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
+        'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit rating and follow-up attacks.',
+      ],
+      'Baseline Attack, speed and ratings before a specific enemy, terrain or skills are applied.',
     );
     if (terrain)
       this.card(
@@ -380,39 +423,35 @@ export class MobileRosterSheet {
         mastered ? 'Class mastered ★' : 'Class mastery',
         `${progress} / ${threshold} battles · ${mastered ? 'Active' : 'Unlock'}: ${reward}`,
       );
-      mastery.append(
-        this.button('About class mastery', () =>
-          this.showHelp('Class mastery', [
-            `${unit.name}: ${progress} / ${threshold} battles. ${mastered ? 'Active perk' : 'Unlock'}: ${reward}.`,
-            ...MASTERY_HELP,
-            'Weapon proficiency is separate: Proficient and Master are class-driven weapon ranks, not a weapon-use experience bar.',
-          ]),
-        ),
+      this.explain(
+        mastery,
+        'class mastery',
+        'Class mastery',
+        [
+          `${unit.name}: ${progress} / ${threshold} battles. ${mastered ? 'Active perk' : 'Unlock'}: ${reward}.`,
+          ...MASTERY_HELP,
+          'Weapon proficiency is separate: Proficient and Master are class-driven weapon ranks, not a weapon-use experience bar.',
+        ],
+        MASTERY_HELP[0],
       );
-      const traits = getUnitTraits(unit, this.gameData.traits);
-      if (traits.length) this.body.append(el('h3', 'Traits'));
+      const traits = traitLines(unit, this.gameData);
+      if (traits.length) this.body.append(el('h3', 'Traits', 'mr-section'));
       for (const trait of traits)
-        this.card(
-          `${trait.rarity === 'legendary' ? 'Legendary · ' : ''}${trait.name}`,
-          trait.description,
-        );
+        this.card(`${trait.legendary ? 'Legendary · ' : ''}${trait.name}`, trait.text);
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)
         this.card(
           `Temperament · ${temperament}`,
           'Colors what they say when they grow, promote or fall. No effect in battle.',
-        );
+        ).classList.add('mr-flavor');
+      // Who they are (traits, temperament), then what they have done.
+      if (unit.faction === 'player') this.deeds(unit);
     }
     for (const id of unit.affixes || []) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
       this.card(affix?.name || id, affix?.description || '');
     }
-    const explanations = el('details', null, 'mr-card');
-    explanations.append(el('summary', 'Attribute explanations'));
-    for (const [stat, description] of Object.entries(STAT_DESCRIPTIONS))
-      explanations.append(el('p', `${stat}: ${description}`));
-    this.body.append(explanations);
     if (unit.growths && unit.faction !== 'enemy') {
       const details = el('details', null, 'mr-card');
       details.append(
@@ -431,6 +470,41 @@ export class MobileRosterSheet {
       this.body.append(details);
     }
   }
+  // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
+  // run's tallies and its Oath (sworn, or the one a promotion would swear).
+  deeds(unit) {
+    const list = deedsForDisplay(unit, this.gameData.deeds);
+    this.body.append(el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds'));
+    const tally = deedTallyText(unit);
+    if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
+    const skillText = (id) => {
+      const skill = this.gameData.skills?.find((s) => s.id === id);
+      return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
+    };
+    const sworn = unit.deeds?.oath;
+    if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
+    else if (unit.tier !== 'promoted') {
+      const next = promotionOath(unit, this.gameData.deeds, this.gameData.skills);
+      if (next) this.card(`${next.name} · sworn at promotion`, skillText(next.skillId));
+    }
+    if (!list.length) {
+      this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
+      return;
+    }
+    for (const deed of list) {
+      const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
+      const head = el('h4', deed.name);
+      if (deed.isTitle) head.append(el('small', 'Title'));
+      card.append(head, el('p', deed.epithet, 're-epithet'));
+      if (deed.lore) card.append(el('p', deed.lore, 'mr-deed-lore'));
+      const at = deed.awardedAt || {};
+      const meta = [actLabel(at.act), Number.isFinite(at.battle) ? `Battle ${at.battle}` : '']
+        .filter(Boolean)
+        .join(' · ');
+      if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+      this.body.append(card);
+    }
+  }
   skills(unit) {
     this.body.append(el('h3', `Skills · ${unit.skills?.length || 0}/${MAX_SKILLS}`));
     for (const id of unit.skills || []) {
@@ -441,9 +515,10 @@ export class MobileRosterSheet {
       );
     }
     if (!(unit.skills || []).length) this.card('Skills', 'No skills learned yet.');
-    this.body.append(el('h3', 'Weapon arts'));
+    const artsHeading = el('h3', 'Weapon arts', 'mr-section');
+    this.body.append(artsHeading);
     let count = 0;
-    for (const weapon of unit.inventory || []) {
+    for (const weapon of inventoryDisplayOrder(unit)) {
       for (const id of getWeaponArtIds(weapon)) {
         const art = this.gameData.weaponArts?.arts?.find((a) => a.id === id);
         this.card(
@@ -484,15 +559,11 @@ export class MobileRosterSheet {
       }
     }
     if (count)
-      this.body.append(
-        this.button('About weapon arts', () =>
-          this.showHelp('Weapon arts', [
-            'Weapon arts modify the selected attack. Choosing an art does not spend HP or uses; committing its attack does. You must have more HP than the effective cost.',
-            'Map uses reset on a new battle. Turn uses reset on a new turn. Availability can also depend on proficiency, rank, silence and the particular weapon. The art’s displayed HP cost includes your equipped accessory and run modifiers.',
-            'Battle limits shown here are remaining uses. Outside battle, the sheet shows eligibility and effective cost without carrying over a previous battle’s usage.',
-          ]),
-        ),
-      );
+      this.explain(artsHeading, 'weapon arts', 'Weapon arts', [
+        'Weapon arts modify the selected attack. Choosing an art does not spend HP or uses; committing its attack does. You must have more HP than the effective cost.',
+        'Map uses reset on a new battle. Turn uses reset on a new turn. Availability can also depend on proficiency, rank, silence and the particular weapon. The art’s displayed HP cost includes your equipped accessory and run modifiers.',
+        'Battle limits shown here are remaining uses. Outside battle, the sheet shows eligibility and effective cost without carrying over a previous battle’s usage.',
+      ]);
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
       this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
@@ -515,7 +586,7 @@ export class MobileRosterSheet {
     if (this.picker || this.destroyed) return;
     const arts = this.gameData.weaponArts?.arts || [];
     const choices = this.units.flatMap((unit) =>
-      (unit.inventory || [])
+      inventoryDisplayOrder(unit)
         .map((weapon) => ({ unit, weapon }))
         .filter(({ weapon }) => {
           const reason = rosterArtBlock(this.run, unit, weapon, scroll, arts);
@@ -816,6 +887,7 @@ export class MobileRosterSheet {
       ? `${forge.baseName.replace(/\s\+\d+$/, '')} +${forgeLevel}`
       : item.name;
     const c = this.card(displayName, this.itemDescription(item, unit));
+    if (unit && item === unit.weapon) c.querySelector('h4')?.append(equippedBadgeElement());
     if (Object.values(forge.bonuses).some(Boolean))
       c.append(
         el(
@@ -887,7 +959,7 @@ export class MobileRosterSheet {
   }
   gear(unit) {
     this.body.append(el('h3', `Equipment · ${unit.inventory?.length || 0}/5`));
-    for (const item of unit.inventory || []) {
+    for (const item of inventoryDisplayOrder(unit)) {
       const c = this.itemCard(item, unit);
       if (
         unit.weapon &&
@@ -1000,6 +1072,28 @@ export class MobileRosterSheet {
     }
     if (!items.weapons.length && !items.consumables.length)
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
+  }
+  // Compact explanation: ⓘ in the heading plus press-and-hold on the card.
+  explain(target, topic, title, paragraphs, preview = paragraphs[0]) {
+    const card = target.matches('h2, h3, h4') ? null : target;
+    const open = () => this.showHelp(title, paragraphs);
+    attachInfo(card || target, {
+      title: topic,
+      heading: card ? undefined : target,
+      preview,
+      open,
+      enabled: () => !this.destroyed && !this.help && !this.picker && hasInputFocus(this),
+      decorate: (info) =>
+        bindCancelablePress(info, open, {
+          enabled: () => !this.destroyed && hasInputFocus(this),
+          context: () => `${this.index}:${this.tab}`,
+          threshold: (event) => (event.pointerType === 'mouse' ? 10 : DRAG_SLOP_TOUCH),
+        }),
+    });
+    // The one-time hold tip stays for this sheet's lifetime (renders rebuild the body).
+    if (this.holdTipEl === undefined) this.holdTipEl = holdTip();
+    if (this.holdTipEl && !this.holdTipEl.isConnected)
+      this.body.querySelector('.mr-summary')?.after(this.holdTipEl);
   }
   showHelp(title, paragraphs) {
     if (this.help || this.picker || this.destroyed) return;

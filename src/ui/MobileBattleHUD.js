@@ -1,4 +1,5 @@
 import { ContextHelp } from './ContextHelp.js';
+import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
 import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
 import { bindHoldBattleSpeed, canHoldBattleSpeed } from './HoldBattleSpeed.js';
@@ -28,6 +29,11 @@ import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocu
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
+import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
+
+// A horizontal swipe this long (and clearly more horizontal than vertical)
+// across the forecast switches weapons; shorter drags stay taps/scrolls.
+const FORECAST_SWIPE_MIN_PX = 44;
 
 const PLAY_STATES = new Set([
   'PLAYER_IDLE',
@@ -81,6 +87,19 @@ export class MobileBattleHUD {
     this.speedHold.hidden = true;
     this.speedHold.setAttribute('aria-pressed', 'false');
     this.disposeSpeedHold = bindHoldBattleSpeed(this.speedHold, scene);
+    // Fixed dock under the scrolling command stack: Danger never needs a scroll.
+    this.dock = el('div', 'mb-dock');
+    this.moreCue = el('div', 'mb-scroll-cue');
+    this.moreCue.setAttribute('aria-hidden', 'true');
+    this.moreCue.hidden = true;
+    // Edge fades are overlays, not a mask: a mask would also hide the Battle
+    // details popover, which escapes the scroll box.
+    this.fadeTop = el('div', 'mb-scroll-fade is-top');
+    this.fadeBottom = el('div', 'mb-scroll-fade is-bottom');
+    for (const fade of [this.fadeTop, this.fadeBottom]) {
+      fade.setAttribute('aria-hidden', 'true');
+      fade.hidden = true;
+    }
     this.root.append(
       this.phase,
       this.objective,
@@ -88,7 +107,12 @@ export class MobileBattleHUD {
       this.summary,
       this.speedHold,
       this.body,
+      this.fadeTop,
+      this.fadeBottom,
+      this.moreCue,
+      this.dock,
     );
+    this.body.addEventListener('scroll', () => this.syncScrollCues(), { passive: true });
     this.wrapper.append(this.root);
     for (const type of DOM_INPUT_EVENTS)
       this.root.addEventListener(type, (event) => event.stopPropagation());
@@ -247,22 +271,20 @@ export class MobileBattleHUD {
     sides.append(explanation);
     panel.append(sides);
     const footer = el('div', 'mb-forecast-footer');
-    footer.append(this.button('Cancel', () => this.scene.requestCancel({ allowPause: false })));
-    if (config.validWeapons.length > 1) {
-      footer.append(this.button('‹ Weapon', () => this.scene._cycleForecastWeapon(-1)));
-      footer.append(this.button('Weapon ›', () => this.scene._cycleForecastWeapon(1)));
-    }
-    footer.append(
-      this.button(
-        'Confirm attack',
-        () => {
-          if (this.forecast !== config || this.scene.battleState !== 'SHOWING_FORECAST') return;
-          this.scene.confirmForecastCombat();
-        },
-        'mb-primary',
-      ),
+    const cancel = this.button('Cancel', () => this.scene.requestCancel({ allowPause: false }));
+    cancel.dataset.forecastRole = 'cancel';
+    const confirm = this.button(
+      'Confirm attack',
+      () => {
+        if (this.forecast !== config || this.scene.battleState !== 'SHOWING_FORECAST') return;
+        this.scene.confirmForecastCombat();
+      },
+      'mb-primary',
     );
+    confirm.dataset.forecastRole = 'confirm';
+    footer.append(cancel, confirm);
     panel.append(footer);
+    this.bindForecastSwipe(sides, config);
     // The backdrop intercepts taps; only the explicit confirm action commits.
     for (const type of DOM_INPUT_EVENTS)
       modal.addEventListener(type, (event) => event.stopPropagation());
@@ -278,6 +300,13 @@ export class MobileBattleHUD {
       if (event.key === 'Escape') {
         event.preventDefault();
         if (this.available()) this.scene.requestCancel({ allowPause: false });
+      } else if (
+        (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
+        config.validWeapons.length > 1 &&
+        !event.shiftKey
+      ) {
+        event.preventDefault();
+        if (this.available()) this.scene._cycleForecastWeapon(event.key === 'ArrowLeft' ? -1 : 1);
       } else if (event.key === 'Tab' || event.key.startsWith('Arrow')) {
         event.preventDefault();
         moveFocus(event.shiftKey || ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1);
@@ -372,9 +401,29 @@ export class MobileBattleHUD {
       }
     }
     side.append(el('h3', '', unit.name));
-    side.append(el('div', 'mb-weapon', unit.weapon?.name || 'Unarmed'));
-    side.append(el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`));
+    if (!attacking && config.targetCount >= 2 && config.targetIndex >= 0)
+      side.append(this.forecastStepper('target', config));
+    if (attacking && !config.weaponArt && config.validWeapons.length > 1)
+      side.append(this.forecastStepper('weapon', config));
+    else {
+      const weapon = el('div', 'mb-weapon', unit.weapon?.name || 'Unarmed');
+      if (attacking && unit.weapon && unit.weapon === config.equippedWeapon)
+        weapon.append(equippedBadgeElement());
+      side.append(weapon);
+    }
     const projection = forecastProjection(config.forecast);
+    const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
+    const hp = el('div', 'mb-hp', `HP ${unit.currentHP} / ${unit.stats.HP}`);
+    // Lead with the outcome: the projected HP (or KO) right beside current HP.
+    if (Number.isFinite(hpAfter) && hpAfter !== unit.currentHP)
+      hp.append(
+        el(
+          'span',
+          `mb-hp-after${hpAfter === 0 ? ' mb-hp-ko' : ''}`,
+          hpAfter === 0 ? ' → KO' : ` → ${hpAfter}`,
+        ),
+      );
+    side.append(hp);
     side.append(
       createHealthBar(
         unit,
@@ -435,6 +484,94 @@ export class MobileBattleHUD {
     if (attacking && config.gamblerLine) side.append(el('p', 'mb-notice', config.gamblerLine));
     for (const warning of info.warnings || []) side.append(el('p', 'mb-notice', warning));
     return side;
+  }
+
+  /**
+   * ◀ value ▶ stepper for the forecast: 'weapon' (attacker side — the weapons
+   * that can hit this target, equipped first, [E] on the equipped one) or
+   * 'target' (enemy side — the attackable targets).
+   */
+  forecastStepper(kind, config) {
+    const weaponKind = kind === 'weapon';
+    const group = el('div', `mb-stepper mb-${kind}-switch`);
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', weaponKind ? 'Weapon' : 'Target');
+    const cycle = (direction) =>
+      weaponKind
+        ? this.scene._cycleForecastWeapon(direction)
+        : this.scene._cycleForecastTarget?.(direction);
+    const step = (direction) => {
+      const label = `${direction < 0 ? 'Previous' : 'Next'} ${weaponKind ? 'weapon' : 'target'}`;
+      const button = this.button(direction < 0 ? '◀' : '▶', () => {
+        if (this.forecast !== config || this.scene.battleState !== 'SHOWING_FORECAST') return;
+        cycle(direction);
+      });
+      button.classList.add('mb-step');
+      button.setAttribute('aria-label', label);
+      button.dataset.forecastRole = `${kind}-${direction < 0 ? 'prev' : 'next'}`;
+      return button;
+    };
+    const current = el('div', 'mb-step-value');
+    current.setAttribute('aria-live', 'polite');
+    if (weaponKind) {
+      const weapon = config.attacker.weapon;
+      const list = config.validWeapons;
+      current.append(el('span', 'mb-step-name', weapon?.name || 'Unarmed'));
+      if (weapon && weapon === config.equippedWeapon) current.append(equippedBadgeElement());
+      current.append(
+        el('span', 'mb-step-count', `${Math.max(1, list.indexOf(weapon) + 1)}/${list.length}`),
+      );
+    } else {
+      current.append(
+        el('span', 'mb-step-name', `Target ${config.targetIndex + 1} of ${config.targetCount}`),
+      );
+    }
+    group.append(step(-1), current, step(1));
+    return group;
+  }
+
+  bindForecastSwipe(surface, config) {
+    if (config.validWeapons.length < 2 || config.weaponArt) return;
+    let start = null;
+    surface.addEventListener('pointerdown', (event) => {
+      start = event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId } : null;
+    });
+    surface.addEventListener('pointercancel', () => {
+      start = null;
+    });
+    surface.addEventListener('pointerup', (event) => {
+      const from = start;
+      start = null;
+      if (!from || from.id !== event.pointerId) return;
+      const dx = event.clientX - from.x;
+      const dy = event.clientY - from.y;
+      if (Math.abs(dx) < FORECAST_SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (this.forecast !== config || this.scene.battleState !== 'SHOWING_FORECAST') return;
+      if (!this.available()) return;
+      // Swipe left = next weapon, like paging a carousel.
+      this.scene._cycleForecastWeapon(dx < 0 ? 1 : -1);
+    });
+  }
+
+  /** Remember the focused control + scroll so a rebuilt forecast reads the same. */
+  captureForecastView() {
+    if (!this.modal) return null;
+    const active = this.modal.contains(document.activeElement) ? document.activeElement : null;
+    return {
+      role: active?.dataset?.forecastRole || null,
+      scrollTop: this.modal.querySelector('.mb-forecast-sides')?.scrollTop || 0,
+    };
+  }
+
+  restoreForecastView(view) {
+    if (!view || !this.modal) return;
+    const sides = this.modal.querySelector('.mb-forecast-sides');
+    if (sides) sides.scrollTop = view.scrollTop;
+    if (!view.role || this.modal.hidden) return;
+    const control =
+      this.modal.querySelector(`[data-forecast-role="${view.role}"]`) ||
+      this.modal.querySelector('[data-forecast-role="cancel"]');
+    control?.focus({ preventScroll: true });
   }
 
   hideForecast() {
@@ -519,10 +656,12 @@ export class MobileBattleHUD {
       unit?.weapon?.name,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
-      s.getBossPressureWarning?.(),
+      [s.getBossPressureWarning?.(), s._bossPresence?.summaryLine?.()].join('|'),
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
-      s.dangerZone?.visible,
+      // Danger's state line counts allies in reach: re-render when either side moves.
+      s.dangerZone?.visible &&
+        `${(s.dangerZone.tiles || []).reduce((a, t) => (a * 33 + t.col * 97 + t.row * 13 + t.tier) % 1e9, 7)}:${(s.playerUnits || []).map((u) => `${u.col},${u.row},${u.currentHP > 0}`).join(';')}`,
       Boolean(s.keepDangerVisible),
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
@@ -535,6 +674,8 @@ export class MobileBattleHUD {
       s.objectiveText?.text,
       s.turnCounterText?.text,
       s.visionHudText?.text,
+      s._eclipseHud?.label?.(),
+      state === 'SELECTING_TARGET' ? this.targetListKey() : null,
     ]);
     if (key === this.lastSnapshot) return;
     if (
@@ -544,13 +685,16 @@ export class MobileBattleHUD {
       this.endTurnPending = null;
     this.lastSnapshot = key;
     this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
-    this.phase.append(
-      el(
-        'div',
-        'mb-counters',
-        sidebarCounters(s.turnCounterText?.text, s.getVisionChargesRemaining?.()),
-      ),
+    const counters = el(
+      'div',
+      'mb-counters',
+      sidebarCounters(s.turnCounterText?.text, s.getVisionChargesRemaining?.()),
     );
+    // The Eclipse projection rides its own element (the counters text above is parsed
+    // from the turn label and must keep its format).
+    const shadow = s._eclipseHud?.label?.();
+    if (shadow) counters.append(el('span', `mb-shadow is-${s._eclipseHud.tone()}`, shadow));
+    this.phase.append(counters);
     this.objective.replaceChildren();
     const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
     const objective = this.button(
@@ -560,7 +704,7 @@ export class MobileBattleHUD {
           s,
           this.root,
           'Battle objective',
-          objectiveText.split('\n'),
+          [...objectiveText.split('\n'), s._bossPresence?.summaryLine?.()].filter(Boolean),
           () => {
             this.help = null;
             this.lastSnapshot = '';
@@ -635,6 +779,27 @@ export class MobileBattleHUD {
     }
     const expanded = this.body.querySelector('.mb-battle-info')?.open || false;
     const restoreMenuFocus = this.body.contains(document.activeElement);
+    // A new menu or state starts at the top (its primary action first); a
+    // re-render of the same menu keeps the player's scroll position.
+    const scrollKey = [
+      state,
+      this.menu?.items?.map((item) => item.label).join(',') || '',
+      Boolean(this.endTurnPending),
+      Boolean(s.inEquipMenu),
+    ].join('|');
+    const keepScroll = scrollKey === this._scrollKey ? this.body.scrollTop : 0;
+    this._scrollKey = scrollKey;
+    this.root.classList.toggle('has-unit', Boolean(unit));
+    this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
+    this.syncDock(state);
+    queueMicrotask(() => {
+      if (!this.body.isConnected) return;
+      this.body.scrollTop = keepScroll;
+      // Keyboard/gamepad focus always stays in view.
+      if (this.body.contains(document.activeElement))
+        document.activeElement.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      this.syncScrollCues();
+    });
     this.body.replaceChildren();
 
     const warning = s.getBossPressureWarning?.();
@@ -658,6 +823,9 @@ export class MobileBattleHUD {
       .filter(Boolean)
       .join('\n');
     const detailContent = el('div', 'mb-more-content');
+    // The boss's full reading lives here; the map carries only its compact bar.
+    const bossLine = s._bossPresence?.summaryLine?.();
+    if (bossLine) detailContent.append(el('p', 'mb-boss-line', bossLine));
     if (s.dangerZone?.visible)
       detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
     if (s.pinnedThreatEnemies?.size >= 5)
@@ -698,29 +866,32 @@ export class MobileBattleHUD {
           this.endTurnPending = null;
         }),
       );
-      for (const ready of (s.playerUnits || []).filter(
-        (u) => u.currentHP > 0 && !u.hasActed && !u._removing,
-      )) {
-        this.body.append(
-          this.button(`Show ${ready.name}`, () => {
-            if (
-              this.endTurnPending !== token ||
-              s.battleState !== token.state ||
-              s.turnManager?.turnNumber !== token.turn ||
-              ready.hasActed ||
-              ready.currentHP <= 0 ||
-              ready._removing
-            )
-              return;
-            this.endTurnPending = null;
-            const point = s.grid.gridToPixel(ready.col, ready.row);
-            s._battleCamera?.clearTouches();
-            s.cameras.main.centerOn(point.x, point.y);
-            s._battleCamera?.clampToBounds();
-            s._mobileTerrainFocus = { col: ready.col, row: ready.row };
-            s._syncMobileResetViewButton?.();
-          }),
-        );
+      // One locator that walks the ready units in reading order: it names who
+      // it will show, brings them into view, selects them and marks the tile.
+      const readyList = readyUnits(s);
+      const ready = nextReadyUnit(s, this._lastLocated) || readyList[0];
+      if (ready) {
+        const position = readyList.indexOf(ready) + 1;
+        const label =
+          readyList.length > 1
+            ? `Show ${ready.name} · ${position} of ${readyList.length}`
+            : `Show ${ready.name}`;
+        const show = this.button(label, () => {
+          if (
+            this.endTurnPending !== token ||
+            s.battleState !== token.state ||
+            s.turnManager?.turnNumber !== token.turn ||
+            ready.hasActed ||
+            ready.currentHP <= 0 ||
+            ready._removing
+          )
+            return;
+          this.endTurnPending = null;
+          this._lastLocated = ready;
+          locateUnit(s, ready);
+        });
+        show.classList.add('mb-locate');
+        this.body.append(show);
       }
       this.body.append(
         this.button(
@@ -754,6 +925,7 @@ export class MobileBattleHUD {
                   : 'Choose an action on the battlefield.'),
         ),
       );
+    if (state === 'SELECTING_TARGET') this.appendTargetList();
     if (state === 'UNIT_ACTION_MENU' && this.menu) {
       const menu = this.menu;
       if (s._inputController?._planningInspection && unit) {
@@ -767,8 +939,13 @@ export class MobileBattleHUD {
       }
       const list = el('div', s.inEquipMenu ? 'mb-actions mb-submenu' : 'mb-actions');
       for (const item of menu.items) {
+        // Canvas rows prefix the equipped weapon with "E "; show the badge instead.
+        const equippedRow =
+          Boolean(item.item) &&
+          item.item === menu.unit?.weapon &&
+          item.label.startsWith(EQUIPPED_MARKER);
         const button = this.button(
-          item.label,
+          equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
           () => {
             if (
               this.menu !== menu ||
@@ -782,6 +959,7 @@ export class MobileBattleHUD {
           },
           item.label === 'Attack' ? 'mb-primary' : '',
         );
+        if (equippedRow) button.append(equippedBadgeElement());
         const description = item.description || battleItemSummary(item.item, menu.unit);
         if (description) button.append(el('small', 'mb-item-summary', description));
         button.disabled = item.disabled;
@@ -800,17 +978,9 @@ export class MobileBattleHUD {
         this.body.append(
           this.button('Show exits', () => s._escapeController.showExits(), 'mb-secondary'),
         );
-      const danger = this.button(
-        s.keepDangerVisible ? 'Danger · pinned' : 'Danger',
-        () => s._onDangerClick(),
-        'mb-secondary',
-        () => s.togglePersistentDanger(),
-      );
-      danger.setAttribute('aria-label', s.keepDangerVisible ? 'Danger · pinned' : 'Danger');
-      danger.append(
-        el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
-      );
-      this.body.append(danger, details);
+      // Danger joins the action grid (it fills the odd cell) so the rail never
+      // overflows into the bottom tools with an open unit menu.
+      this.body.append(details);
       if (restoreMenuFocus) this.focusMenuItem(s._menuFocus?.items[s._menuFocus.index]?.button);
       return;
     }
@@ -824,40 +994,28 @@ export class MobileBattleHUD {
         commands.append(view);
         this.appendThreatPinControl(unit, commands);
       }
+      const trio = el('div', 'mb-command-row');
       for (const [label, action, active] of [
-        [s.keepDangerVisible ? 'Danger · pinned' : 'Danger', 'danger', s.dangerZone?.visible],
         ['Inspect', 'inspect', s.inspectMode],
         ['Roster', 'roster', null],
         ['Rewind', 'objective', null],
       ]) {
         if (inspecting && action === 'inspect') continue;
-        const button = this.button(
-          label,
-          () => {
-            if (action === 'inspect' && s.selectedUnit) {
-              const unit = s.selectedUnit;
-              const living = s.playerUnits.filter((u) => u.currentHP > 0);
-              s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
-                rosterUnits: living,
-                rosterIndex: Math.max(0, living.indexOf(unit)),
-              });
-              s.refreshEndTurnControl();
-            } else s.game.events.emit(`mobile:${action}`);
-          },
-          '',
-          action === 'danger' ? () => s.togglePersistentDanger() : null,
-        );
-        if (action === 'danger') {
-          button.setAttribute('aria-label', label);
-          button.append(
-            el('small', 'mb-hold-cue', s.keepDangerVisible ? 'Hold to unpin' : 'Hold to pin'),
-          );
-        }
+        const button = this.button(label, () => {
+          if (action === 'inspect' && s.selectedUnit) {
+            const unit = s.selectedUnit;
+            const living = s.playerUnits.filter((u) => u.currentHP > 0);
+            s.unitDetailOverlay.show(unit, s.grid.getTerrainAt(unit.col, unit.row), s.gameData, {
+              rosterUnits: living,
+              rosterIndex: Math.max(0, living.indexOf(unit)),
+            });
+            s.refreshEndTurnControl();
+          } else s.game.events.emit(`mobile:${action}`);
+        });
         if (active != null) button.setAttribute('aria-pressed', String(Boolean(active)));
-        (inspecting && ['roster', 'objective'].includes(action) ? secondary : commands).append(
-          button,
-        );
+        (inspecting && ['roster', 'objective'].includes(action) ? secondary : trio).append(button);
       }
+      if (trio.childElementCount) commands.append(trio);
       const endTurn = this.button('End turn…', () => this.requestEndTurn(), 'mb-end-turn');
       if (inspecting) commands.append(endTurn);
       this.body.append(commands);
@@ -869,6 +1027,122 @@ export class MobileBattleHUD {
         );
     }
     if (!this.menu && !this.endTurnPending) this.body.append(details);
+  }
+
+  targetListKey() {
+    const s = this.scene;
+    return [
+      (s.attackTargets || []).map((t) => `${t.battleEntityId || t.name}:${t.currentHP}`).join(),
+      s._attackFlowController?.focusedTarget?.battleEntityId ||
+        s._attackFlowController?.focusedTarget?.name ||
+        '',
+    ].join('|');
+  }
+
+  /** Target selection: each attackable enemy as a button (tap = forecast). */
+  appendTargetList() {
+    const s = this.scene;
+    const unit = s.selectedUnit;
+    const targets = s.attackTargets || [];
+    if (!unit || !targets.length) return;
+    this.body.append(el('p', 'mb-detail', 'Choose a target — tap it here or on the map.'));
+    const list = el('div', 'mb-actions mb-targets');
+    list.setAttribute('role', 'group');
+    list.setAttribute('aria-label', 'Attack targets');
+    const focused = s._attackFlowController?.focusedTarget;
+    for (const target of targets) {
+      const button = this.button(
+        target.name,
+        () => {
+          if (s.battleState !== 'SELECTING_TARGET' || !s.attackTargets?.includes(target)) return;
+          s._attackFlow().openForecast(unit, target);
+        },
+        target === focused ? 'mb-target-focused' : '',
+      );
+      const cls =
+        target.className && target.className !== target.name ? `${target.className} · ` : '';
+      button.append(
+        el('small', 'mb-item-summary', `${cls}HP ${target.currentHP}/${target.stats?.HP ?? '?'}`),
+      );
+      list.append(button);
+    }
+    this.body.append(list);
+  }
+
+  /**
+   * The Danger toggle: a crimson-hatched swatch, the command, and a state line that
+   * says what the overlay shows (allies in reach) or how to pin it. Tap toggles,
+   * hold pins/unpins — unchanged gestures; the name stays 'Danger' / 'Danger · pinned'.
+   */
+  /** Top/bottom fades and a "more" cue when the command stack scrolls. */
+  syncScrollCues() {
+    const body = this.body;
+    if (!body?.isConnected) return;
+    const above = body.scrollTop > 2;
+    const below = body.scrollTop + body.clientHeight < body.scrollHeight - 2;
+    body.classList.toggle('has-more-above', above);
+    body.classList.toggle('has-more-below', below);
+    // One cue, pointing where the rest is: below first, else back up.
+    const cue = this.moreCue;
+    cue.hidden = !(below || above) || this.root.hidden;
+    if (!cue.hidden) {
+      cue.textContent = below ? 'more ▾' : 'more ▴';
+      cue.classList.toggle('is-up', !below);
+      cue.style.top = `${Math.round(below ? body.offsetTop + body.clientHeight - 16 : body.offsetTop + 2)}px`;
+    }
+    const place = (fade, show, top) => {
+      fade.hidden = !show || this.root.hidden;
+      if (fade.hidden) return;
+      fade.style.top = `${Math.round(top)}px`;
+      fade.style.left = `${body.offsetLeft}px`;
+      fade.style.width = `${body.clientWidth}px`;
+    };
+    place(this.fadeTop, above, body.offsetTop);
+    place(this.fadeBottom, below, body.offsetTop + body.clientHeight - 22);
+  }
+
+  /** The fixed dock: Danger whenever a turn is being planned. */
+  syncDock(state) {
+    const s = this.scene;
+    const planning =
+      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state) &&
+      s.turnManager?.currentPhase !== 'enemy';
+    this.dock.replaceChildren();
+    this.dock.hidden = !planning;
+    if (planning) this.dock.append(this.dangerToggle({ viaEvent: state !== 'UNIT_ACTION_MENU' }));
+  }
+
+  dangerToggle({ compact = false, viaEvent = false } = {}) {
+    const s = this.scene;
+    const pinned = Boolean(s.keepDangerVisible);
+    const shown = Boolean(s.dangerZone?.visible);
+    const label = pinned ? 'Danger · pinned' : 'Danger';
+    const button = this.button(
+      '',
+      () => (viaEvent ? s.game.events.emit('mobile:danger') : s._onDangerClick()),
+      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${pinned ? ' is-pinned' : ''}`,
+      () => s.togglePersistentDanger(),
+    );
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(shown));
+    const swatch = el('span', 'mb-danger-swatch');
+    swatch.setAttribute('aria-hidden', 'true');
+    const text = el('span', 'mb-danger-text');
+    text.append(el('strong', '', compact ? 'Danger' : label));
+    let state;
+    if (shown) {
+      const tiles = new Set(
+        (s.dangerZone?.tiles || []).filter((t) => t.tier > 0).map((t) => `${t.col},${t.row}`),
+      );
+      const exposed = (s.playerUnits || []).filter(
+        (u) => u.currentHP > 0 && tiles.has(`${u.col},${u.row}`),
+      ).length;
+      state = `${exposed ? `${exposed} in reach` : 'None in reach'} · ${pinned ? 'hold to unpin' : 'hold to pin'}`;
+    } else state = 'Enemy reach · hold to pin';
+    if (compact) state = pinned ? 'Pinned' : shown ? 'Shown' : 'Hold to pin';
+    text.append(el('small', 'mb-hold-cue', state));
+    button.append(swatch, text);
+    return button;
   }
 
   appendThreatPinControl(unit, container = this.summary) {

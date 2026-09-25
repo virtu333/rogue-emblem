@@ -1,4 +1,4 @@
-import { createUnit } from '../engine/UnitManager.js';
+import { createUnit, normalizeEquippedFirst } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
@@ -25,6 +25,7 @@ const DEV_PRESETS = new Set([
   'battle_smoke',
   'combat_actions',
   'soulreaver_mast',
+  'eclipse',
 ]);
 const DEV_QA_SEQUENCE = [
   {
@@ -148,7 +149,12 @@ function applyMetaPreset(meta, preset) {
   meta.totalSupply = 20000;
   meta.milestones = new Set(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame']);
 
-  if (preset === 'weapon_arts' || preset === 'battle_smoke' || preset === 'soulreaver_mast') {
+  if (
+    preset === 'weapon_arts' ||
+    preset === 'battle_smoke' ||
+    preset === 'soulreaver_mast' ||
+    preset === 'eclipse'
+  ) {
     meta.purchasedUpgrades.iron_arms = 1;
     meta.purchasedUpgrades.steel_arms = 1;
     meta.purchasedUpgrades.art_adept = 1;
@@ -176,15 +182,32 @@ function createRunPreset(gameData, meta, config) {
     addTeamWeaponArtScrolls(runManager, gameData, 4);
   }
 
-  if (config.preset === 'late_act' || config.preset === 'battle_smoke') {
+  if (
+    config.preset === 'late_act' ||
+    config.preset === 'battle_smoke' ||
+    config.preset === 'eclipse'
+  ) {
     if (runManager.actIndex < runManager.actSequence.length - 1) runManager.advanceAct();
     runManager.addGold(12000);
     addTeamWeaponArtScrolls(runManager, gameData, 2);
   }
 
-  if (config.preset === 'battle_smoke') {
+  if (config.preset === 'battle_smoke' || config.preset === 'eclipse') {
     const firstNode = runManager.getAvailableNodes()[0];
     if (firstNode) runManager.markNodeComplete(firstNode.id);
+  }
+
+  // Eclipse review route: a darkened run (`&shadow=`, `&actShadow=`) whose fallen
+  // knots have not played their fall yet (the Loom ceremony runs on arrival).
+  if (config.preset === 'eclipse' && runManager.isEclipseActive()) {
+    const shadow = Number.isFinite(config.shadow) ? config.shadow : 58;
+    const act = Number.isFinite(config.actShadow) ? config.actShadow : 14;
+    runManager.eclipse = {
+      ...runManager.eclipse,
+      shadow,
+      actStartShadow: Math.max(0, shadow - act),
+    };
+    runManager.applyEclipseNow();
   }
 
   if (config.preset === 'soulreaver_mast') {
@@ -213,7 +236,10 @@ function createRunPreset(gameData, meta, config) {
       const equippedSoulreaver = Array.isArray(commander.inventory)
         ? commander.inventory.find((weapon) => weapon?.name === 'Soulreaver')
         : null;
-      if (equippedSoulreaver) commander.weapon = equippedSoulreaver;
+      if (equippedSoulreaver) {
+        commander.weapon = equippedSoulreaver;
+        normalizeEquippedFirst(commander);
+      }
       if (Number.isFinite(commander?.stats?.HP)) {
         commander.currentHP = Math.min(
           commander.stats.HP,
@@ -254,6 +280,7 @@ function createRunPreset(gameData, meta, config) {
       if (name === 'Patient') unit.currentHP = Math.max(1, unit.stats.HP - 12);
       runManager.roster.push(unit);
     }
+    runManager.ensurePortraitVariants();
   }
 
   return runManager;
@@ -310,6 +337,11 @@ export function parseDevStartupConfig(search, options = {}) {
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
     nodeType: params.get('devNode') === 'boss' ? NODE_TYPES.BOSS : null,
+    // Eclipse review route overrides (only present when given).
+    ...(parseSeed(params.get('shadow')) != null ? { shadow: parseSeed(params.get('shadow')) } : {}),
+    ...(parseSeed(params.get('actShadow')) != null
+      ? { actShadow: parseSeed(params.get('actShadow')) }
+      : {}),
   };
 }
 

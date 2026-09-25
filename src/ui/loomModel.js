@@ -6,6 +6,8 @@
 // changes which nodes are available (RunManager.getAvailableNodes stays the authority).
 // No DOM, no Phaser: unit-tested in tests/LoomModel.test.js.
 
+import { fallCountdownText } from './eclipseContent.js';
+
 export const LOOM_LANES = 5;
 
 // Horizontal metrics (CSS px). Row spacing follows the medal size so threads between
@@ -261,6 +263,14 @@ const OBJECTIVE = {
   escape: ['ESCAPE', 'Get every lord to an escape square. Pursuers never stop.'],
 };
 const BATTLE_TYPES = new Set(['battle', 'boss', 'recruit']);
+// What the dark did to each kind of place (the inspect card's body line).
+const ECLIPSED_TEXT = {
+  battle: 'The dark fell on this field. Its foes rise stronger; its spoils are elite.',
+  shop: 'The village burned in the dark. Raiders hold the ashes; spoils are elite.',
+  church: 'The chapel was desecrated. Its defilers wait; spoils are elite.',
+  recruit: 'The ally you might have met was lost to the dark. Only foes remain.',
+  colosseum: 'The arena fell silent. Something else fights there now; spoils are elite.',
+};
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
@@ -271,6 +281,7 @@ const SERVICE = {
 
 /** Short pixel label shown under a reachable medal. */
 export function loomShortLabel(node) {
+  if (node?.eclipse) return 'ECLIPSED';
   const elite = BATTLE_TYPES.has(node?.type) && node?.battleParams?.isElite;
   return elite ? 'ELITE' : KIND[node?.type] || String(node?.type || '').toUpperCase();
 }
@@ -315,9 +326,11 @@ export function describeLoomNode(
     eliteLoot = null,
     shopOpen = false,
     activeLabel = null,
+    eclipse = null,
   } = {},
 ) {
   if (!node) return null;
+  const eclipsed = !!node.eclipse;
   // Only real encounters reveal battle details. A service node may carry hidden
   // battleParams (a village that turns out to be an ambush) and must stay a village.
   const params = BATTLE_TYPES.has(node.type) ? node.battleParams || null : null;
@@ -327,9 +340,14 @@ export function describeLoomNode(
   const template = params
     ? templateLookup(mapTemplates, node.templateId || params.templateId)
     : null;
-  const place = node.type === 'recruit' ? 'A potential ally' : template?.name || null;
+  const place = eclipsed
+    ? node.eclipse.label || 'Eclipsed'
+    : node.type === 'recruit'
+      ? 'A potential ally'
+      : template?.name || null;
 
   const tags = [];
+  if (eclipsed) tags.push({ text: 'Eclipsed', tone: 'bad' });
   if (Array.isArray(params?.levelRange) && params.levelRange.length === 2) {
     const bonus = Number.isFinite(enemyLevelBonus) ? enemyLevelBonus : 0;
     const [lo, hi] = params.levelRange.map((v) => Math.max(1, v + bonus));
@@ -342,8 +360,10 @@ export function describeLoomNode(
     tags.push({ text: `Loot: pick ${eliteLoot.picks} of ${eliteLoot.choices}`, tone: 'bad' });
   if (params && node.encounterLocked) tags.push({ text: 'Encounter locked', tone: 'plain' });
 
-  const text = SERVICE[node.type] || objective?.[1] || '';
-  const pool = state === 'cut' ? null : flavorPool(node, dialogue, actId);
+  const text = eclipsed
+    ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
+    : SERVICE[node.type] || objective?.[1] || '';
+  const pool = state === 'cut' || eclipsed ? null : flavorPool(node, dialogue, actId);
   const flavor =
     Array.isArray(pool) && pool.length ? pool[stableIndex(node.id, pool.length)] : null;
 
@@ -360,9 +380,21 @@ export function describeLoomNode(
     };
   else stateLine = { tone: 'cut', text: 'A frayed thread · out of reach' };
 
+  const warning =
+    !eclipsed && eclipse?.near && Number.isFinite(eclipse.remaining) && state !== 'cut'
+      ? fallCountdownText(eclipse.remaining)
+      : null;
+
   return {
-    kind: elite ? 'ELITE' : KIND[node.type] || String(node.type || '').toUpperCase(),
+    kind: eclipsed
+      ? 'ECLIPSED'
+      : elite
+        ? 'ELITE'
+        : KIND[node.type] || String(node.type || '').toUpperCase(),
     elite,
+    eclipsed,
+    warning,
+    templateName: eclipsed ? template?.name || null : null,
     objective: objective && node.type !== 'recruit' ? objective[0] : null,
     place,
     lore: template?.lore || null,

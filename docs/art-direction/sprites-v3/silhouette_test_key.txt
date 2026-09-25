@@ -1,0 +1,37 @@
+ 1  dragon_lord
+ 2  myrmidon
+ 3  pegasus_knight
+ 4  cavalier
+ 5  warlock
+ 6  hunter
+ 7  duelist
+ 8  great_knight
+ 9  sniper
+10  paladin
+11  archer
+12  wyvern_rider
+13  thief
+14  trickster
+15  dancer
+16  hero
+17  cleric
+18  zombie
+19  warrior
+20  bard
+21  bow_knight
+22  berserker
+23  revenant
+24  dragon
+25  battle_monk
+26  wyvern_lord
+27  assassin
+28  bishop
+29  mage
+30  fighter
+31  dark_knight
+32  sage
+33  general
+34  knight
+35  mercenary
+36  swordmaster
+37  falcon_knight

@@ -2,6 +2,7 @@ import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { canFight, getAvailableTiers } from '../engine/ColosseumEngine.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
+import { withUnitFace } from './unitPortrait.js';
 import { candidateCards } from './choiceContent.js';
 import {
   choiceReducedMotion,
@@ -46,10 +47,11 @@ export class ArenaMenu {
   text(text) {
     this.surface.body.append(el('p', text));
   }
-  action(label, action, reason = '') {
+  action(label, action, reason = '', unit = null) {
     const b = button(label, () => {
       if (!this.surface.destroyed) action();
     });
+    if (unit) withUnitFace(b, this.c.scene, this.c.gameData, unit);
     b.disabled = !!reason;
     this.surface.body.append(b);
     if (reason) this.text(reason);
@@ -67,7 +69,7 @@ export class ArenaMenu {
     this.surface.destroy();
   }
   unit(unit) {
-    this.surface.body.append(describeUnit(this.c.gameData, unit));
+    this.surface.body.append(describeUnit(this.c.gameData, unit, this.c.scene));
   }
   static menu(c) {
     const m = new ArenaMenu(c, 'Colosseum', () => c.leave());
@@ -93,6 +95,7 @@ export class ArenaMenu {
         canFight(u, used, c._maxFights)
           ? ''
           : `${u.name} cannot fight: check HP, weapon and visit limit.`,
+        u,
       );
     }
     if (!c.runManager.roster.length) m.text('No fighters available.');

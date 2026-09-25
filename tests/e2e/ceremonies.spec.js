@@ -82,41 +82,96 @@ test.describe('boss encounter, bar and resume', () => {
       }),
     );
     expect(overflowing).toEqual([]);
+    // The bust breaks out above its band instead of being sliced, and stays in frame;
+    // the band spans the battlefield (not the letterbox beside it).
+    const framing = await card.evaluate((root) => {
+      const layer = root.getBoundingClientRect();
+      const band = root.querySelector('.ce-boss-band').getBoundingClientRect();
+      const bust = root.querySelector('.ce-boss-portrait')?.getBoundingClientRect();
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const b = s._getBattleMapBounds();
+      const canvas = s.game.canvas.getBoundingClientRect();
+      const a = s._worldToScreen(b.left, b.top);
+      const z = s._worldToScreen(b.left + b.width, b.top + b.height);
+      const mapLeft = canvas.left + (a.x * canvas.width) / s.scale.width;
+      const mapRight = canvas.left + (z.x * canvas.width) / s.scale.width;
+      const clip = getComputedStyle(root.querySelector('.ce-boss-band')).clipPath;
+      return {
+        bustAbove: bust ? bust.top < band.top : null,
+        bustInside: bust ? bust.top >= layer.top - 1 : null,
+        clipsVertically: /inset\(0(px)? /.test(clip),
+        bandLeft: band.left,
+        bandRight: band.right,
+        mapLeft: Math.max(layer.left, mapLeft),
+        mapRight: Math.min(layer.right, mapRight),
+        layerWidth: layer.width,
+      };
+    });
+    expect(framing.clipsVertically).toBe(false);
+    if (framing.bustAbove !== null) expect(framing.bustInside).toBe(true);
+    const spanWidth = framing.mapRight - framing.mapLeft;
+    if (spanWidth >= Math.min(520, framing.layerWidth)) {
+      expect(Math.abs(framing.bandLeft - framing.mapLeft)).toBeLessThan(2);
+      expect(Math.abs(framing.bandRight - framing.mapRight)).toBeLessThan(2);
+    }
+    // Par is on the rail from the first frame, even while the card is up.
+    await expect(rail.locator('.mb-counters')).toContainText('Par');
     await page.waitForTimeout(400);
     await page.keyboard.press('Enter');
     await expect(card).toHaveCount(0, { timeout: 10000 });
     await setTimeScale(1);
     await passStory(page);
 
-    const bar = page.locator('.ce-bossbar');
-    await expect(bar).toBeVisible();
-    await expect(bar.locator('.ce-bossbar-name')).toHaveText(bossName);
-    const barBox = await bar.boundingBox();
-    expect(barBox.x + barBox.width).toBeLessThanOrEqual(railBox.x);
-    expect(barBox.y + barBox.height).toBeLessThanOrEqual(375);
+    // The boss's bar rides the boss on the map; its full reading is in Battle details.
+    const presence = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const p = s._bossPresence;
+        const boss = s.enemyUnits.find((u) => u.isBoss);
+        return {
+          ...p.view(),
+          line: p.summaryLine(),
+          shown: p.bar?.visible,
+          onBoss:
+            Math.abs(p.bar.x - boss.hpBar.bg.x) < 0.5 &&
+            Math.abs(p.bar.y - boss.hpBar.bg.y - 1) < 0.5,
+          ordinaryHidden: boss.hpBar.bg.alpha === 0,
+        };
+      });
+    await expect.poll(async () => (await presence()).shown).toBe(true);
+    let view = await presence();
+    expect(view.line).toContain(bossName);
+    expect(view.onBoss).toBe(true);
+    expect(view.ordinaryHidden).toBe(true);
+    // Nothing covers the map any more.
+    await expect(page.locator('.ce-bossbar')).toHaveCount(0);
+    await page.locator('.mb-battle-info summary').tap();
+    await expect(page.locator('.mb-more-content .mb-boss-line')).toContainText(bossName);
+    await page.locator('.mb-battle-info summary').tap();
 
-    const widths = () =>
-      bar.evaluate((el) => [
-        el.querySelector('.ce-bossbar-fill').getBoundingClientRect().width,
-        el.querySelector('.ce-bossbar-lost').getBoundingClientRect().width,
-      ]);
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const boss = s.enemyUnits.find((u) => u.isBoss);
       boss.currentHP = Math.max(1, Math.round(boss.stats.HP / 2));
       s.updateHPBar(boss);
     });
-    const [fill, lost] = await widths();
-    expect(lost).toBeGreaterThan(fill + 20); // the gold "just lost" chunk
-    await expect.poll(async () => (await widths())[1] - (await widths())[0]).toBeLessThan(2);
+    view = await presence();
+    expect(view.lostPct).toBeGreaterThan(view.fillPct + 20); // the gold "just lost" chunk
+    await expect
+      .poll(async () => {
+        const v = await presence();
+        return v.lostPct - v.fillPct;
+      })
+      .toBeLessThan(1);
 
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       s.turnManager.turnNumber = 30;
       s.updateAntiTurtlePressure(30);
+      s._bossPresence.sync();
     });
-    await expect(bar).toHaveClass(/is-ember/);
-    await expect(bar.locator('.ce-bossbar-status')).toContainText(/Enraged/i);
+    await expect.poll(async () => (await presence()).tone).toBe('ember');
+    expect((await presence()).line).toMatch(/Enraged/i);
 
     // Save to a slot, reload, resume: no card, bar restored as it stood.
     const hp = await page.evaluate(async () => {
@@ -149,12 +204,11 @@ test.describe('boss encounter, bar and resume', () => {
     await page.waitForFunction(
       () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
     );
-    await expect(bar).toBeVisible();
-    await expect(bar.locator('.ce-bossbar-hp')).toContainText(`${hp} /`);
-    await expect(bar).toHaveClass(/is-ember/);
-    await expect(bar).not.toHaveClass(/is-entering/);
-    const [f2, l2] = await widths();
-    expect(Math.abs(l2 - f2)).toBeLessThan(2);
+    await expect.poll(async () => (await presence()).shown).toBe(true);
+    const restored = await presence();
+    expect(restored.hpText).toContain(`${hp} /`);
+    expect(restored.tone).toBe('ember');
+    expect(Math.abs(restored.lostPct - restored.fillPct)).toBeLessThan(1);
     expect(await page.evaluate(() => window.__sawBossCard)).toBe(false);
     expect(errors).toEqual([]);
   });
@@ -201,7 +255,8 @@ test.describe('victory band and act title', () => {
     const card = page.locator('.ce-act-layer');
     await expect(card.locator('.ce-act-title')).toHaveText('Border Marches');
     await expect(card.locator('.ce-act-grade')).toHaveText('Ember Dusk');
-    await expect(card.locator('.ce-act-kicker')).toHaveText('Act I');
+    // The Eclipse's phase rides the kicker; every run opens Pale.
+    await expect(card.locator('.ce-act-kicker')).toHaveText('Act I · Pale');
     const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
     await expect(skip).toBeVisible();
     await skip.tap();

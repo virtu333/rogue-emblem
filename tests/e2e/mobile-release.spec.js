@@ -1,9 +1,25 @@
 import { test, expect } from '@playwright/test';
-test('production mobile bundle boots offline and uses rebuilt battle art without lab flags', async ({
+test('production mobile bundle boots offline and uses traced battle art without lab flags', async ({
   page,
 }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  const consoleLines = [];
+  page.on('console', (msg) => {
+    const text = msg.text();
+    if (
+      msg.type() === 'error' ||
+      msg.type() === 'warning' ||
+      /\[(AudioDiag|SceneLoader|TitleScene|BootScene)\]/.test(text)
+    )
+      consoleLines.push(`${msg.type()}: ${text.slice(0, 200)}`);
+  });
+  // A reload after the New Game tap looks exactly like a dropped tap (Title again,
+  // idle menu), so count main-frame navigations for the failure report.
+  const navigations = [];
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) navigations.push(frame.url());
+  });
   const external = [];
   await page.route('**/*', (route) => {
     const u = new URL(route.request().url());
@@ -24,7 +40,41 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
   const newGame = page.getByRole('button', { name: 'New Game', exact: true });
   await expect(newGame).toBeVisible();
   await newGame.tap();
-  await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'));
+  try {
+    await page.waitForFunction(() => window.__emblemRogueGame.scene.isActive('NodeMap'), null, {
+      timeout: 40000,
+    });
+  } catch (err) {
+    // Say why the first run never started (CI-only intermittent; see PR #72).
+    const state = await page.evaluate(() => {
+      const game = window.__emblemRogueGame;
+      const title = game?.scene?.getScene?.('Title');
+      return {
+        active: game?.scene?.getScenes?.(true).map((s) => s.sys.settings.key),
+        titleTransitioning: title?.isTransitioning,
+        soundLocked: title?.sound?.locked,
+        titleMenuInert: document.querySelector('.re-title')?.inert ?? null,
+        dialogs: [...document.querySelectorAll('[role="dialog"]')].map((d) =>
+          (d.getAttribute('aria-label') || d.textContent || '').slice(0, 80),
+        ),
+        sceneState: globalThis.__sceneState?._pendingTransitionMeta || null,
+        navigationType: performance.getEntriesByType('navigation')[0]?.type || null,
+        chunkReloadFlag: sessionStorage.getItem('__er_chunk_reload'),
+        markers: (globalThis.__emblemRogueStartupTelemetry?.markers || [])
+          .slice(-30)
+          .map(
+            (m) =>
+              `${Math.round(m.at)} ${m.name}${m.data?.phase ? ` ${m.data.phase}` : ''}${
+                m.data?.targetScene ? ` -> ${m.data.targetScene}` : ''
+              }${m.data?.message ? ` ${String(m.data.message).slice(0, 120)}` : ''}`,
+          ),
+      };
+    });
+    throw new Error(
+      `NodeMap never started after New Game: ${JSON.stringify({ state, navigations, errors, consoleLines }, null, 1)}\n${err.message}`,
+      { cause: err },
+    );
+  }
   // The first-run fast path intentionally starts here; advance the visible narrative.
   for (let i = 0; i < 24; i++) {
     await page.waitForTimeout(200);
@@ -72,7 +122,7 @@ test('production mobile bundle boots offline and uses rebuilt battle art without
     .poll(() =>
       page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
-        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('contrast-rebuilt-'));
+        return s.playerUnits?.some((u) => u.graphic?.texture?.key?.startsWith('traced-'));
       }),
     )
     .toBe(true);

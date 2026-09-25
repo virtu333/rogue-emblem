@@ -2,7 +2,7 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { element, button } from './MenuSurface.js';
-import { hasOpenOverlay } from '../utils/overlayStack.js';
+import { hasOpenOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { createHealthBar } from './healthBar.js';
@@ -12,6 +12,25 @@ import { textureImageSource } from './textureImageSource.js';
 import { createRouteGraph } from './RouteGraph.js';
 import { createLoomHeading, renderLoomCard } from './LoomPanels.js';
 import { throttledRead } from '../utils/throttledRead.js';
+import { createEclipseMedallion, openEclipseCard } from './EclipsePanels.js';
+import { fallToastText, kindlePrice } from '../engine/EclipseSystem.js';
+import { showMinorHint } from './HintDisplay.js';
+
+const ECLIPSE_TOAST_MS = 4200;
+
+/** Every node the party can still reach from the available choices (inclusive). */
+function reachableFrom(nodes, available) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const seen = new Set();
+  const stack = [...available];
+  while (stack.length) {
+    const id = stack.pop();
+    if (seen.has(id) || !byId.has(id)) continue;
+    seen.add(id);
+    for (const e of byId.get(id).edges || []) stack.push(e);
+  }
+  return seen;
+}
 
 // Node choice/encounters still go through NodeMapScene.onNodeClick and RunManager.
 // The route is drawn as the Loom (RouteGraph); selection is local presentation state
@@ -44,7 +63,8 @@ export class NodeMapMenu {
         s.rosterOverlay?.visible ||
         s.pauseOverlay?.visible ||
         s.settingsOverlay?.visible ||
-        hasOpenOverlay(s) ||
+        // The Eclipse card is read over the loom it explains.
+        (hasOpenOverlay(s) && !isTopOverlay(s, this._eclipseCard?.surface?.token)) ||
         s.isTransitioning ||
         s.battleLaunchInFlight
       );
@@ -75,6 +95,7 @@ export class NodeMapMenu {
         this._lastReduced = reduced;
         this.routeGraph?.refreshMotion();
       }
+      this._syncEclipseFalls(hidden);
     };
     scene.events.on('postupdate', this.sync);
     this.shutdown = () => this.destroy();
@@ -101,6 +122,13 @@ export class NodeMapMenu {
       rm = s.runManager,
       nodes = rm.nodeMap.nodes;
     const available = this._available();
+    // The Eclipse: the act's fall state, and the falls whose ceremony has not played.
+    this._playedFalls ||= new Set();
+    const eclipse = rm.getEclipseView?.({ reachableIds: reachableFrom(nodes, available) }) || null;
+    this.eclipseView = eclipse;
+    const pendingFalls = new Set(
+      (eclipse?.unseen || []).map((n) => n.id).filter((id) => !this._playedFalls.has(id)),
+    );
     if (!nodes.some((n) => n.id === this.selected))
       this.selected = nodes.find((n) => available.has(n.id))?.id || nodes[0]?.id;
     const focus = this.root.contains(document.activeElement)
@@ -124,11 +152,14 @@ export class NodeMapMenu {
       actId: rm.nodeMap.actId,
       reducedMotion: () => this._reducedMotion(),
       onSelect: (id) => this._select(id),
+      eclipse,
+      pendingFalls,
     });
     const model = this.routeGraph.model;
 
     const header = element('header', null, 're-header re-loom-header');
     const meta = element('div', null, 're-loom-meta');
+    if (eclipse) meta.append(createEclipseMedallion(eclipse, () => this._openEclipse()));
     meta.append(
       element('span', `${Number(rm.gold || 0).toLocaleString('en-US')} G`, 're-loom-gold'),
     );
@@ -139,6 +170,7 @@ export class NodeMapMenu {
         're-loom-diff',
       ),
     );
+    header.classList.toggle('has-eclipse', !!eclipse);
     header.append(
       createLoomHeading({
         actId: rm.currentAct,
@@ -217,6 +249,8 @@ export class NodeMapMenu {
     side.append(actions, this.detail, this.travel, party);
     layout.append(wrap, side);
     this.root.append(header, layout);
+    if (this._toast?.isConnected === false && this._toastUntil > Date.now())
+      this.root.append(this._toast);
 
     this._renderSelection();
     this.routeGraph.mount(this.scroll, { scrollLeft: scroll ?? null });
@@ -249,6 +283,7 @@ export class NodeMapMenu {
       runManager: rm,
       shopOpen,
       isFirstBattle: (node) => available.has(node.id),
+      eclipse: this.eclipseView,
     });
     if (rm.pendingBattleReward)
       this.detail.append(
@@ -273,9 +308,89 @@ export class NodeMapMenu {
     this.travel.disabled = !enabled;
   }
 
+  // ── The Eclipse ──────────────────────────────────────────────────────
+
+  _openEclipse() {
+    const s = this.scene,
+      rm = s.runManager;
+    if (!this.eclipseView || this._eclipseCard) return;
+    const config = rm.getEclipseConfig?.();
+    this._eclipseCard = openEclipseCard(s, {
+      view: this.eclipseView,
+      config,
+      kindlePrice: kindlePrice(rm.currentAct, config),
+      onClose: () => {
+        this._eclipseCard = null;
+        this.root.querySelector('.re-eclipse-medal')?.focus({ preventScroll: true });
+      },
+    });
+  }
+
+  /**
+   * The fall ceremony: once the loom is visible, newly fallen knots bleed to ink one
+   * after another, then a single line names the loss. The fall is marked seen (and
+   * saved) once it has played, so it never replays; covering the loom finishes it.
+   */
+  _syncEclipseFalls(hidden) {
+    const graph = this.routeGraph;
+    if (!graph) return;
+    if (hidden) {
+      if (this._falling) graph.finishFalls();
+      return;
+    }
+    if (this._falling || !graph.pendingFalls.length) return;
+    const ids = graph.pendingFalls;
+    for (const id of ids) this._playedFalls.add(id);
+    this._falling = true;
+    void graph.playFalls().then(() => {
+      this._falling = false;
+      this._finishFalls(ids);
+    });
+  }
+
+  _finishFalls(ids) {
+    const s = this.scene,
+      rm = s?.runManager;
+    if (!rm || this.destroyed) return;
+    const fell = rm.nodeMap?.nodes?.filter((n) => ids.includes(n.id)) || [];
+    if (rm.markEclipseSeen?.(ids)) s.persistRunSave?.();
+    this._showToast(fallToastText(fell, rm.getEclipseConfig?.()));
+    // First fall of the save: teach it once, after the line above has been read.
+    const hints = s.registry?.get?.('hints');
+    if (hints?.shouldShow?.('eclipse_first_fall')) {
+      const teach = () => {
+        if (this.destroyed || s.scene?.isActive?.() === false) return;
+        void showMinorHint(
+          s,
+          'Time spent in battle darkens the Hollow Sun. When the dark takes a place, it becomes a harder battle with elite spoils. Tap the Eclipse to see what falls next.',
+        );
+      };
+      if (s.time?.delayedCall) s.time.delayedCall(ECLIPSE_TOAST_MS * 0.6, teach);
+      else teach();
+    }
+  }
+
+  _showToast(text) {
+    if (!text) return;
+    this._toast?.remove();
+    const toast = element('p', text, 're-eclipse-toast');
+    toast.setAttribute('role', 'status');
+    this._toast = toast;
+    this._toastUntil = Date.now() + ECLIPSE_TOAST_MS;
+    this.root.append(toast);
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      toast.remove();
+      if (this._toast === toast) this._toast = null;
+    }, ECLIPSE_TOAST_MS);
+  }
+
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    clearTimeout(this._toastTimer);
+    this._eclipseCard?.destroy();
+    this._eclipseCard = null;
     popInputScope(this);
     this.routeGraph?.destroy();
     this.routeGraph = null;

@@ -8,7 +8,7 @@ import {
   UI_COLORS,
   getHPBarColor,
 } from '../utils/uiStyles.js';
-import { rebuiltPortraitKey } from './RebuiltPortraits.js';
+import { unitPortraitKey } from './RebuiltPortraits.js';
 import { MobileRosterSheet, canShowMobileRoster } from './MobileRosterSheet.js';
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
@@ -37,7 +37,10 @@ import {
   canReclass,
   getReclassTargets,
   getDisplayLevel,
+  equipIfUnarmed,
+  inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
+import { equippedMarker } from './equippedBadge.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { isMastered } from '../engine/MasterySystem.js';
 import {
@@ -71,6 +74,8 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { portraitCanvasFrame } from './portraitArt.js';
+import { epithetText } from '../engine/DeedTitles.js';
+import { fitCanvasText } from './deedDisplay.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -1046,7 +1051,16 @@ export class RosterOverlay {
 
     y += 18;
     if (unit.xp !== undefined) {
-      this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
+      const xpText = this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, UI_PALETTE.info, '10px');
+      // Canvas fallback: the epithet shares the XP line, clear of the nav arrows.
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const ex = xpText.x + xpText.width + 10;
+        fitCanvasText(
+          this._text(ex, y, epithet, UI_PALETTE.accent, '10px'),
+          DETAIL_X + DETAIL_WIDTH - 100 - ex,
+        );
+      }
       y += 14;
     }
 
@@ -1263,9 +1277,9 @@ export class RosterOverlay {
       this._text(x + 8, y, '(empty)', UI_PALETTE.muted, '10px');
       y += 14;
     } else {
-      for (const item of unit.inventory) {
+      for (const item of inventoryDisplayOrder(unit)) {
         const isEquipped = item === unit.weapon;
-        const marker = isEquipped ? '\u25b6 ' : '  ';
+        const marker = equippedMarker(unit, item);
         let tooltipAnchor = null;
         let tooltipLine = null;
         const usableNow = canEquip(unit, item);
@@ -1688,8 +1702,10 @@ export class RosterOverlay {
           const withdrawBtn = this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
             const pulled = this.runManager.takeFromConvoy(type, idx);
             if (!pulled) return;
-            if (type === 'weapon') addToInventory(targetUnit, pulled);
-            else addToConsumables(targetUnit, pulled);
+            if (type === 'weapon') {
+              if (addToInventory(targetUnit, pulled))
+                equipIfUnarmed(targetUnit, targetUnit.inventory.at(-1));
+            } else addToConsumables(targetUnit, pulled);
             this.drawUnitDetails();
           });
           withdrawBtn._convoyRowKey = `${type}:${idx}`;
@@ -2873,35 +2889,8 @@ export class RosterOverlay {
   }
 
   _getPortraitKey(unit) {
-    const rebuilt = rebuiltPortraitKey(this.scene, unit);
-    if (rebuilt) return rebuilt;
-    // Lords have named portraits
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-
-    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
-    // Enemy-faction units: try enemy-specific portrait first
-    if (unit.faction === 'enemy') {
-      const enemyKey = `portrait_enemy_${classNorm}`;
-      if (this.scene.textures.exists(enemyKey)) return enemyKey;
-      const classData = this.gameData.classes.find((c) => c.name === unit.className);
-      if (classData?.promotesFrom) {
-        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-        if (this.scene.textures.exists(baseEnemyKey)) return baseEnemyKey;
-      }
-    }
-
-    // Try current class
-    const classKey = `portrait_generic_${classNorm}`;
-    if (this.scene.textures.exists(classKey)) return classKey;
-
-    // Promoted fallback: use base class portrait
-    const classData = this.gameData.classes.find((c) => c.name === unit.className);
-    if (classData?.promotesFrom) {
-      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
-      if (this.scene.textures.exists(baseKey)) return baseKey;
-    }
-    return null;
+    // One resolver for every portrait surface (variant faces included).
+    return unitPortraitKey(this.scene, unit, this.gameData);
   }
 
   _bindSceneCleanup() {

@@ -17,6 +17,7 @@ export class ChoicePicker {
     initialChoice = null,
     closeLabel = 'Close',
     preview = null,
+    face = null,
   }) {
     Object.assign(this, {
       choices,
@@ -27,6 +28,7 @@ export class ChoicePicker {
       onClose,
       confirmation,
       preview,
+      face,
     });
     this.choices = Array.isArray(choices) ? choices : [];
     this.selected = this.choices.includes(initialChoice) ? initialChoice : this.choices[0];
@@ -77,6 +79,12 @@ export class ChoicePicker {
         element('strong', this.label(choice)),
         element('small', reason || this.describe(choice)),
       );
+      // Unit choices show the unit's face (the deployment row layout).
+      const face = this.face?.(choice);
+      if (face) {
+        row.prepend(face);
+        row.classList.add('re-party-row');
+      }
       row.setAttribute('aria-pressed', String(this.selected === choice));
       list.append(row);
     }

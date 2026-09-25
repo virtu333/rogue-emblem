@@ -8,6 +8,7 @@
 import { XP_STAT_NAMES } from '../utils/constants.js';
 import { promoteUnit, getClassInnateSkills } from '../engine/UnitManager.js';
 import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
+import { applyPromotionOath, promotionOath } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
 import { levelBeatLine, levelUpLine, promotionLine } from '../engine/UnitVoice.js';
 
@@ -38,6 +39,7 @@ export function projectUnit(unit) {
     xp: unit.xp,
     faction: unit.faction,
     isLord: unit.isLord,
+    portraitVariant: unit.portraitVariant, // same face before and after a rite
     moveType: unit.moveType,
     _baseMoveType: unit._baseMoveType,
     mov: unit.mov,
@@ -50,6 +52,8 @@ export function projectUnit(unit) {
     inventory: [...(unit.inventory || [])],
     weapon: unit.weapon || null,
     accessory: unit.accessory || null,
+    // Read-only here: applyPromotionOath replaces (never mutates) `deeds`.
+    deeds: unit.deeds,
   };
 }
 
@@ -96,6 +100,8 @@ export function promotionPathContent(unit, cls, gameData = {}) {
   if (!bonuses) return null;
   const projected = projectUnit(unit);
   const result = promoteUnit(projected, cls, bonuses, gameData.skills || []);
+  // The Oath a deed swears on this promotion (same rule the command applies).
+  const sworn = applyPromotionOath(projected, gameData);
   const stats = [];
   for (const stat of GROWTH_STATS) {
     const before = Number(unit.stats?.[stat]) || 0;
@@ -120,6 +126,17 @@ export function promotionPathContent(unit, cls, gameData = {}) {
     description: skillName(id)?.description || '',
   }));
   const dropped = (result?.droppedSkills || []).map((id) => skillName(id)?.name || id);
+  const oath = sworn
+    ? {
+        name: sworn.name,
+        deedName: sworn.deedName,
+        skillId: sworn.skillId,
+        skillName: sworn.skillName,
+        description: sworn.skillDescription,
+        learned: sworn.learned,
+      }
+    : null;
+  if (sworn?.dropped) dropped.push(`${sworn.skillName} (${sworn.name})`);
   let grants;
   try {
     const oldTypes = new Set((unit.proficiencies || []).map((p) => p.type));
@@ -149,6 +166,7 @@ export function promotionPathContent(unit, cls, gameData = {}) {
     skills,
     dropped,
     grants,
+    oath,
     role: cls.role || cls.roleChange || cls.description || '',
   };
 }
@@ -185,6 +203,14 @@ export function sealedBeats(content) {
   }
   for (const skill of content?.skills || [])
     beats.push({ kind: 'skill', title: skill.name, detail: 'New skill', skillId: skill.id });
+  // A deed's Oath is sealed last, in ember: the one skill the class never taught.
+  if (content?.oath?.learned)
+    beats.push({
+      kind: 'oath',
+      title: content.oath.skillName,
+      detail: content.oath.name,
+      skillId: content.oath.skillId,
+    });
   return beats;
 }
 
@@ -312,6 +338,9 @@ export const GROWTH_TIMING = Object.freeze({
   level: { enter: 150, pip: 65, beat: 260, seal: 200 },
   join: { enter: 650, hold: 3000, exit: 300 },
   sealed: { enter: 220, hold: 1500, exit: 300 },
+  // The deed card (a title card per deed): the band cuts in, the name, the
+  // epithet slams, the brush draws under it, the seal stamps, the lore.
+  deed: { slash: 380, name: 180, epithet: 420, brush: 380, seal: 300, lore: 260, exit: 260 },
 });
 
 export function growthTiming(kind, { reducedMotion = false, speed = 'normal' } = {}) {
@@ -349,4 +378,55 @@ export function levelSchedule(content, timing) {
   const sealsAt = beatAt + (content?.beat ? t.beat : 0);
   const done = sealsAt + (content?.skills?.length || 0) * t.seal;
   return { pipsAt, beatAt, sealsAt, done: t.animate ? done : 0 };
+}
+
+// ── Deeds ──────────────────────────────────────────────────────────────
+
+const DEED_ORDINAL = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V']);
+
+/**
+ * One card of the deed rite, from a commitBattleDeeds announcement.
+ * `oath` previews what a base-tier unit will swear when it promotes.
+ */
+export function deedCardContent(entry, { skills = [], deeds = null, index = 0, total = 1 } = {}) {
+  if (!entry) return null;
+  const name = String(entry.unitName || entry.unit?.name || '');
+  const epithet = String(entry.epithet || '');
+  const prestige = Math.max(1, Math.min(5, Math.trunc(Number(entry.prestige) || 1)));
+  const unit = entry.unit || null;
+  // Only the deed that would swear at promotion teases its Oath (same rule
+  // as the promotion itself; a greater deed swears first).
+  const oath = unit && unit.tier !== 'promoted' ? promotionOath(unit, deeds, skills) : null;
+  const skill = oath?.deedId === entry.deedId ? { name: oath.skillName } : null;
+  const canSwear = Boolean(skill);
+  return {
+    deedId: String(entry.deedId || ''),
+    kicker: `Deed · ${entry.name || ''}`,
+    name,
+    epithet,
+    appositive: ['who', 'bane', 'title'].includes(entry.form),
+    titled: entry.titled || name,
+    lore: String(entry.lore || ''),
+    prestige,
+    ordinal: DEED_ORDINAL[prestige],
+    // The seal carries the deed's initial, like a signet.
+    seal: (String(entry.name || epithet).match(/[A-Za-z]/)?.[0] || '·').toUpperCase(),
+    // Not the unit's shown title (a higher one outranks it): say so, once.
+    note: entry.isTitle === false ? 'Earned, and held beneath a greater title.' : '',
+    oath: canSwear ? `Oath at promotion · ${skill.name}` : '',
+    count: total > 1 ? `${index + 1} / ${total}` : '',
+    label: `Deed. ${entry.titled || name}. ${entry.name || ''}`,
+  };
+}
+
+/** Milestones of one deed card (ms from its entrance; all 0 when static). */
+export function deedSchedule(timing) {
+  const t = timing;
+  const nameAt = t.slash;
+  const epithetAt = nameAt + t.name;
+  const brushAt = epithetAt + t.epithet;
+  const sealAt = brushAt + Math.round(t.brush * 0.6);
+  const loreAt = sealAt + t.seal;
+  const done = loreAt + t.lore;
+  return { nameAt, epithetAt, brushAt, sealAt, loreAt, done: t.animate ? done : 0 };
 }

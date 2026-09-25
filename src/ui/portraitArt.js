@@ -9,8 +9,15 @@
 // DOM portraits are a transparent figure over a faction plate (CSS
 // background), so one figure serves player, ally and enemy contexts.
 // Dev-only escape hatch: ?portraitArt=classic restores the old files.
+//
+// Portrait variety (src/engine/PortraitVariants.js): generic units wear one of
+// several faces for their class, chosen once and stored on the unit;
+// `portraitIdForUnit` is the one resolver every surface uses. Variant figures
+// are not in the boot atlases: the canvas loads them lazily
+// (src/ui/portraitTextures.js).
 import manifest from './Pc98PortraitManifest.json';
 import rebuiltManifest from './RebuiltPortraitManifest.json';
+import { variantPortraitId } from '../engine/PortraitVariants.js';
 
 export const PC98_MANIFEST = manifest;
 export const PC98_SIZES = Object.freeze([...manifest.sizes].sort((a, b) => b - a));
@@ -61,6 +68,17 @@ export function hasPc98(id) {
   return Boolean(id && manifest.portraits[id]);
 }
 
+/** A lazily loaded variant face (not in the atlases, no baked texture). */
+export function isVariantPortrait(id) {
+  return Boolean(id && manifest.portraits[id]?.variant);
+}
+
+/** The class default a variant stands in for (`generic_fighter__fighter_d` -> `generic_fighter`). */
+export function variantDefaultId(id) {
+  const base = String(id || '').split('__')[0];
+  return base !== id && hasPc98(base) && !isVariantPortrait(base) ? base : null;
+}
+
 /** Portrait id from a texture key (`portrait_<id>` / `rebuilt-portrait-<id>`). */
 export function portraitIdFromKey(key) {
   if (!key) return null;
@@ -86,8 +104,14 @@ export function portraitCandidates(unit, gameData = {}) {
     if (unit.tier === 'promoted') rebuilt(`lord_${name}_promoted`);
     rebuilt(`lord_${name}`);
   }
+  const named = gameData.lords?.some((lord) => lord.name === unit.name);
+  // Portrait variety: a generic unit's own face comes first.
+  if (!named && !unit.isLord && !rebuiltManifest[`lord_${name}`]) {
+    const variant = variantPortraitId(unit);
+    if (variant && hasPc98(variant)) out.push(variant);
+  }
   if (unit.faction !== 'enemy') rebuilt(`generic_${normalize(unit.className)}`);
-  if (gameData.lords?.some((lord) => lord.name === unit.name)) {
+  if (named) {
     out.push(`lord_${String(unit.name).toLowerCase()}`);
     return out;
   }
@@ -165,10 +189,23 @@ export function pc98AtlasUrl(size) {
 
 export const pc98AtlasKey = (size) => `pc98-portraits-${size}`;
 
+/** Canvas texture key of a lazily loaded variant face at an atlas size. */
+export const variantTextureKey = (id, size) => `pc98v-${size}-${id}`;
+
+// Set by portraitTextures.js (kept out of this module so the resolver stays
+// free of loading code and import cycles).
+let variantTextureLoader = null;
+export function setVariantTextureLoader(loader) {
+  variantTextureLoader = typeof loader === 'function' ? loader : null;
+}
+
 /** Phaser atlas data (JSON hash) for a canvas atlas: frames named by id. */
 export function pc98AtlasData(size) {
   const cols = manifest.atlas.columns;
-  const ids = Object.keys(manifest.portraits);
+  // Variants are not in the atlases (they have no frame).
+  const ids = Object.keys(manifest.portraits).filter((id) =>
+    Number.isInteger(manifest.portraits[id].frame),
+  );
   const rows = Math.ceil(ids.length / cols);
   const frames = {};
   for (const id of ids) {
@@ -214,8 +251,15 @@ export function legacyKeyAliasesRebuilt(name, mode = portraitArtMode()) {
 export function portraitCanvasFrame(scene, key, displayPx) {
   if (!key) return null;
   if (usePc98()) {
-    const id = portraitIdFromKey(key);
+    let id = portraitIdFromKey(key);
     const size = pickPortraitSize(displayPx, PC98_ATLAS_SIZES);
+    if (isVariantPortrait(id)) {
+      // Lazy variant texture; until it lands, the class default stands in.
+      const own = variantTextureKey(id, size);
+      if (scene?.textures?.exists?.(own)) return { key: own };
+      variantTextureLoader?.(scene, id, size);
+      id = variantDefaultId(id);
+    }
     const atlas = pc98AtlasKey(size);
     if (id && scene?.textures?.exists?.(atlas) && scene.textures.get(atlas).has?.(id))
       return { key: atlas, frame: id };

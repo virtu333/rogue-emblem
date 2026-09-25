@@ -1,0 +1,102 @@
+{
+  "enemy_berserker": {
+    "take": 2,
+    "note": "Ignore the old image's rendering: draw an ordinary, grim human soldier at the quality of the first reference, natural skin, no blood, no wounds, no gore, no glow or smoke, no spikes."
+  },
+  "enemy_bishop": {
+    "take": 2,
+    "note": "Draw exactly one portrait of one person filling the whole image: not a grid, not several panels, no duplicates."
+  },
+  "enemy_bishop__d": {
+    "take": 3,
+    "note": "Draw exactly one portrait of one person. Clean face: no blood, no cuts."
+  },
+  "enemy_bow_knight__b": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_bow_knight__d": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_dark_knight": {
+    "take": 2,
+    "note": "Ignore the old image's rendering: draw an ordinary, grim human soldier at the quality of the first reference, natural skin, no blood, no wounds, no gore, no glow or smoke, no spikes."
+  },
+  "enemy_duelist__b": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_duelist__c": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_fighter": {
+    "take": 2,
+    "note": "Ignore the old image's rendering: draw an ordinary, grim human soldier at the quality of the first reference, natural skin, no blood, no wounds, no gore, no glow or smoke, no spikes."
+  },
+  "enemy_great_knight": {
+    "take": 3,
+    "note": "Draw exactly one portrait of one person filling the whole image. No helmet: the face and hair must be clearly visible. No horns, no spikes."
+  },
+  "enemy_great_knight__c": {
+    "take": 2,
+    "note": "Draw exactly one portrait of one person filling the whole image: not a grid, not several panels, no duplicates."
+  },
+  "enemy_great_knight__d": {
+    "take": 3,
+    "note": "Draw exactly one portrait. The armour is dark iron with crimson lacquer and blood-red cloth; no blue anywhere."
+  },
+  "enemy_knight__b": {
+    "take": 2,
+    "note": "Natural warm light-brown skin with healthy colour; no green or yellow tint on the face."
+  },
+  "enemy_mage": {
+    "take": 2,
+    "note": "Ignore the old image's rendering: draw an ordinary, grim human soldier at the quality of the first reference, natural skin, no blood, no wounds, no gore, no glow or smoke, no spikes."
+  },
+  "enemy_paladin__b": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_paladin__c": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_paladin__d": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_pegasus_knight__c": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_pegasus_knight__d": {
+    "take": 2,
+    "note": "The outfit must read as the Empire's: crimson lacquer and dark iron with blood-red cloth; no blue, no pale sky-blue, no white or silver-blue armour."
+  },
+  "enemy_swordmaster__b": {
+    "take": 3,
+    "note": "The long coat is crimson and black, not indigo or navy; dark iron fittings; no blue anywhere."
+  },
+  "enemy_swordmaster__c": {
+    "take": 4,
+    "note": "Important: ignore the word indigo above. Her long coat is deep crimson red with black lining, like the outfit in the last reference image; the scarf is dark grey. Nothing blue."
+  },
+  "enemy_wyvern_lord": {
+    "take": 2,
+    "note": "Draw exactly one portrait of one person filling the whole image: not a grid, not several panels, no duplicates."
+  },
+  "enemy_wyvern_lord__b": {
+    "take": 2,
+    "note": "Draw exactly one portrait of one person filling the whole image: not a grid, not several panels, no duplicates."
+  },
+  "enemy_wyvern_lord__c": {
+    "take": 2,
+    "note": "Draw exactly one portrait of one person filling the whole image: not a grid, not several panels, no duplicates."
+  },
+  "generic_general": {
+    "take": 2,
+    "note": "The legacy image is a small floating bust: ignore its framing. Draw the bust large, filling the frame like the first reference image, with the shoulders spanning the full bottom edge. Clean armour with no red marks or scratches."
+  }
+}

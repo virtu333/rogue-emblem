@@ -8,7 +8,8 @@
 // cue computed from the roster, a reward's "for whom", a blessing's boon and
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
+import { epithetText } from '../engine/DeedTitles.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
@@ -103,12 +104,13 @@ export function weaponMarks(unit) {
  */
 export function unitLines(unit, gameData = {}) {
   const lines = [];
-  for (const trait of getUnitTraits(unit, gameData.traits)) {
+  // Traits v2: the effect spelled out for this unit ("+1 Mag (the stat it heals with)").
+  for (const trait of traitLines(unit, gameData)) {
     lines.push({
-      kind: trait.rarity === 'legendary' ? 'legend' : 'trait',
+      kind: trait.legendary ? 'legend' : 'trait',
       id: trait.id,
       name: trait.name || trait.id,
-      text: trait.description || '',
+      text: trait.text || '',
     });
   }
   const seen = new Set();
@@ -126,15 +128,9 @@ export function unitLines(unit, gameData = {}) {
   return lines;
 }
 
-/**
- * Deeds hook: the unit's earned epithet, once the Deeds display helper
- * lands. Until then a unit may carry `epithet` (string or { name }).
- */
+/** The unit's earned epithet (Deeds & Epithets), or '' when it has none. */
 export function choiceEpithet(unit) {
-  const e = unit?.epithet;
-  if (typeof e === 'string') return e.trim();
-  if (e && typeof e.name === 'string') return e.name.trim();
-  return '';
+  return epithetText(unit);
 }
 
 // ── Roster needs ─────────────────────────────────────────────────────────

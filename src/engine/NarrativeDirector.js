@@ -12,8 +12,14 @@
 // ended the previous run. It is substituted here, before adaptDialogueEntries
 // (DialogueCast), which only handles {commander} and passes other text through.
 
+import { unitDisplayName, unitEpithet } from './DeedTitles.js';
+
 const LAST_FOE_TOKEN = '{lastFoe}';
 const LAST_FOE_FALLBACK = 'the enemy';
+// {epithet}: the commander named with the title the march gave them ("Edric,
+// Who Held the Bridge"); plain {commander} name when they have none. Gate
+// such lines on `commanderHasEpithet` so they only play once there is one.
+const EPITHET_TOKEN = '{epithet}';
 
 /** Condition keys understood by evaluateWhen. Contract tests validate
  *  dialogue.json against this set so a typo in data fails CI, not gameplay. */
@@ -28,6 +34,7 @@ export const KNOWN_WHEN_KEYS = new Set([
   'bossSlainBefore',
   'bossKilledYouBefore',
   'firstClear',
+  'commanderHasEpithet',
 ]);
 
 /**
@@ -48,11 +55,20 @@ export function buildNarrativeContext({ meta = null, runManager = null, bossName
   } catch (_) {
     /* keep null commander */
   }
+  let commanderTitled = null;
+  try {
+    const roster = Array.isArray(runManager?.roster) ? runManager.roster : [];
+    const lead = roster.find((u) => u?.isCommander) || roster.find((u) => u?.name === commander);
+    if (lead && unitEpithet(lead)) commanderTitled = unitDisplayName(lead, { epithet: true });
+  } catch (_) {
+    /* no title */
+  }
   const flags = typeof meta?.getStoryFlags === 'function' ? meta.getStoryFlags() : null;
   const lastRun = flags?.lastRun && typeof flags.lastRun === 'object' ? flags.lastRun : null;
   const resolvedBossName = typeof bossName === 'string' && bossName.trim() ? bossName.trim() : null;
   return {
     commander,
+    commanderTitled,
     partner,
     difficulty: runManager?.difficultyId || 'normal',
     runsCompleted:
@@ -112,6 +128,9 @@ export function evaluateWhen(when, ctx) {
         case 'firstClear':
           if (ctx.firstClear !== value) return false;
           break;
+        case 'commanderHasEpithet':
+          if (Boolean(ctx.commanderTitled) !== value) return false;
+          break;
         default:
           return false; // unknown condition key: variant never matches
       }
@@ -122,14 +141,17 @@ export function evaluateWhen(when, ctx) {
   }
 }
 
-/** Substitute {lastFoe} in entry lines. Returns a new array; untouched
- *  entries pass through by reference (mirrors adaptDialogueEntries). */
+/** Substitute {lastFoe} and {epithet} in entry lines. Returns a new array;
+ *  untouched entries pass through by reference (mirrors adaptDialogueEntries). */
 function applyNarrativeTokens(entries, ctx) {
   const foe = ctx?.lastRunDefeatedBy || LAST_FOE_FALLBACK;
+  // No title: fall back to the {commander} token (DialogueCast resolves it).
+  const titled = ctx?.commanderTitled || ctx?.commander || '{commander}';
   return entries.map((entry) => {
     if (!entry || typeof entry !== 'object' || typeof entry.line !== 'string') return entry;
-    if (!entry.line.includes(LAST_FOE_TOKEN)) return entry;
-    return { ...entry, line: entry.line.split(LAST_FOE_TOKEN).join(foe) };
+    if (!entry.line.includes(LAST_FOE_TOKEN) && !entry.line.includes(EPITHET_TOKEN)) return entry;
+    const line = entry.line.split(LAST_FOE_TOKEN).join(foe).split(EPITHET_TOKEN).join(titled);
+    return { ...entry, line };
   });
 }
 

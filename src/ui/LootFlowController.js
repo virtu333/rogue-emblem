@@ -15,7 +15,8 @@ import {
   getImbueList,
   IMBUE_CHOICE_ID,
 } from '../engine/ImbueSystem.js';
-import { getDisplayLevel } from '../engine/UnitManager.js';
+import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
+import { EQUIPPED_MARKER } from './equippedBadge.js';
 import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/constants.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -218,7 +219,7 @@ export class LootFlowController {
       .setDepth(711);
     pickerGroup.push(title);
 
-    const forgeableWeapons = unit.inventory.filter((w) =>
+    const forgeableWeapons = inventoryDisplayOrder(unit).filter((w) =>
       stoneIsImbue
         ? canImbue(w)
         : whetstone.forgeStat !== 'choice'
@@ -248,11 +249,16 @@ export class LootFlowController {
       focusButtons.push(btn);
 
       const label = applyTextResolution(
-        scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
-          fontFamily: 'Arial',
-          fontSize: '12px',
-          color: wpnColor,
-        }),
+        scene.add.text(
+          cam.centerX,
+          by - Math.floor(btnH * 0.22),
+          `${wpn === unit.weapon ? EQUIPPED_MARKER : ''}${wpn.name}`,
+          {
+            fontFamily: 'Arial',
+            fontSize: '12px',
+            color: wpnColor,
+          },
+        ),
       )
         .setOrigin(0.5)
         .setDepth(712);

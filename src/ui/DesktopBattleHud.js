@@ -7,6 +7,7 @@
 //
 //   ┌ TURN / PAR (rating color) ┐                       ┌ objective (1–3 lines) ┐
 //   │ Eye charges               │                       └───────────────────────┘
+//   │ ◐ Shadow +N (Eclipse)     │
 //   └───────────────────────────┘ ┌ par tooltip ┐        [ fog chip ]
 //   ┌ terrain / unit hover ┐
 //   ...
@@ -24,8 +25,10 @@ const PAD_X = 8;
 const PAD_Y = 6;
 const CUT = 4; // chamfer
 const GAP = 4;
+const ECLIPSE_GLYPH = 10; // px reserved left of the Eclipse projection
 
-export const DESKTOP_HINT_TEXT = '[R] Vision · [V]/right-click: details · Esc/off-map: cancel';
+export const DESKTOP_HINT_TEXT =
+  '[N] next ready · [R] Vision · [V]/right-click: details · Esc/off-map: cancel';
 
 const pixel = (size, color) => ({
   fontFamily: UI_FONT_FAMILIES.pixel,
@@ -78,6 +81,15 @@ export class DesktopBattleHud {
       this.plates = s.add.graphics().setDepth(UI_DEPTHS.SCREEN_UI);
     });
     s._pinToScreen?.(this.plates);
+    // Boss reading (name · HP · enrage) under the objective: the map shows only its bar.
+    if (s.add?.text) {
+      withPresentationRandom(() => {
+        this.bossText = applyTextResolution(
+          s.add.text(0, 0, '', body(11, UI_PALETTE.bad, 'bold')).setOrigin(1, 0),
+        ).setVisible(false);
+      });
+      s._pinToScreen?.(this.bossText);
+    }
     const muted = UI_PALETTE.muted;
     restyle(s.turnCounterText, pixel(8, UI_PALETTE.text), { lineSpacing: 4 });
     restyle(s.visionHudText, body(11, UI_PALETTE.info));
@@ -115,10 +127,12 @@ export class DesktopBattleHud {
     return [
       s.turnCounterText,
       s.visionHudText,
+      s.eclipseHudText,
       s.objectiveText,
       s.infoText,
       s.parTooltipText,
       s.fogOfWarLabel,
+      this.bossText,
       s.dangerButton,
       s.rosterButton,
       s.endTurnButton,
@@ -130,7 +144,7 @@ export class DesktopBattleHud {
   _sig() {
     const s = this.scene;
     const cam = s.cameras?.main;
-    let sig = `${cam?.width}x${cam?.height}`;
+    let sig = `${cam?.width}x${cam?.height}|${s._bossPresence?.summaryLine?.() || ''}`;
     for (const t of this._texts()) {
       sig += `|${t.visible ? 1 : 0}:${t.text}:${t.scaleX}`;
     }
@@ -161,6 +175,15 @@ export class DesktopBattleHud {
       statusBottom = eye.y + eye.displayHeight;
       statusRight = Math.max(statusRight, eye.x + eye.displayWidth);
     }
+    // The Eclipse projection: a small eclipsed-sun glyph, then "Shadow +N".
+    const shadow = s.eclipseHudText;
+    let glyph = null;
+    if (shadow?.visible && shadow.text) {
+      shadow.setOrigin(0, 0).setPosition(MARGIN + PAD_X + ECLIPSE_GLYPH + 3, statusBottom + 5);
+      glyph = { x: MARGIN + PAD_X + ECLIPSE_GLYPH / 2, y: shadow.y + shadow.displayHeight / 2 };
+      statusBottom = shadow.y + shadow.displayHeight;
+      statusRight = Math.max(statusRight, shadow.x + shadow.displayWidth);
+    }
     const status = {
       x: MARGIN,
       y: MARGIN,
@@ -168,6 +191,7 @@ export class DesktopBattleHud {
       h: statusBottom - MARGIN + PAD_Y,
     };
     if (turn.visible) this._plate(status, { gilt: true });
+    if (glyph && turn.visible) this._eclipseGlyph(glyph, s._eclipseHud?.tone?.());
 
     // Par tooltip (hover): to the right of the status plate.
     const tip = s.parTooltipText;
@@ -191,6 +215,18 @@ export class DesktopBattleHud {
       const b = this._pad(bounds(obj));
       this._plate(b, { gilt: true });
       rightBottom = b.y + b.h;
+    }
+    const boss = this.bossText;
+    if (boss) {
+      const line = s._bossPresence?.summaryLine?.() || '';
+      if (boss.text !== line) boss.setText(line);
+      boss.setVisible(Boolean(line) && obj?.visible !== false);
+      if (boss.visible) {
+        boss.setPosition(W - MARGIN - PAD_X, rightBottom + GAP + PAD_Y);
+        const b = this._pad(bounds(boss));
+        this._plate(b, { tone: 'danger' });
+        rightBottom = b.y + b.h;
+      }
     }
     const fog = s.fogOfWarLabel;
     if (fog?.visible) {
@@ -226,6 +262,20 @@ export class DesktopBattleHud {
     return { x: b.x - padX, y: b.y - padY, w: b.w + padX * 2, h: b.h + padY * 2 };
   }
 
+  // The Hollow Sun in miniature: a gold disc bitten by ink. The bite deepens with the
+  // projection's tone (held → rising → dark).
+  _eclipseGlyph({ x, y }, tone) {
+    const g = this.plates;
+    const r = ECLIPSE_GLYPH / 2 - 1;
+    const bite = tone === 'dark' ? 0.25 : tone === 'rising' ? 0.9 : 1.7;
+    g.fillStyle(UI_HEX.accent, 0.35);
+    g.fillCircle(x, y, r + 1);
+    g.fillStyle(UI_HEX.accentText, 1);
+    g.fillCircle(x, y, r);
+    g.fillStyle(UI_HEX.void, 1);
+    g.fillCircle(x + bite * r * 0.62, y - bite * 0.4, r);
+  }
+
   // Chamfered ink plate with a line border; gilt hairline on primary plates.
   _plate({ x, y, w, h }, { gilt = false, faint = false, tone = null } = {}) {
     const g = this.plates;
@@ -246,7 +296,11 @@ export class DesktopBattleHud {
     ];
     g.fillStyle(UI_HEX.panel, faint ? 0.72 : 0.9);
     g.fillPoints(pts, true);
-    g.lineStyle(1, tone === 'warn' ? UI_HEX.warn : UI_HEX.line, faint ? 0.6 : 0.95);
+    g.lineStyle(
+      1,
+      tone === 'warn' ? UI_HEX.warn : tone === 'danger' ? UI_HEX.dangerLine : UI_HEX.line,
+      faint ? 0.6 : 0.95,
+    );
     g.strokePoints(pts, true);
     if (gilt) {
       g.lineStyle(1, UI_HEX.accent, 0.55);
@@ -259,6 +313,8 @@ export class DesktopBattleHud {
     this._onPostUpdate = null;
     this.plates?.destroy();
     this.plates = null;
+    this.bossText?.destroy?.();
+    this.bossText = null;
     if (this._background) this.scene?.cameras?.main?.setBackgroundColor?.(this._background);
     this._background = null;
     this.active = false;

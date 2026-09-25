@@ -126,6 +126,7 @@ describe('buildNarrativeContext', () => {
     const ctx = buildNarrativeContext();
     expect(ctx).toEqual({
       commander: null,
+      commanderTitled: null,
       partner: null,
       difficulty: 'normal',
       runsCompleted: 0,
@@ -165,6 +166,7 @@ describe('buildNarrativeContext', () => {
     const ctx = buildNarrativeContext({ meta, runManager, bossName: 'Warchief' });
     expect(ctx).toEqual({
       commander: 'Astrid',
+      commanderTitled: null,
       partner: 'Cael',
       difficulty: 'lunatic',
       runsCompleted: 7,
@@ -196,6 +198,7 @@ describe('KNOWN_WHEN_KEYS', () => {
       'bossKilledYouBefore',
       'bossSlainBefore',
       'commander',
+      'commanderHasEpithet',
       'currentDefeatWasBoss',
       'difficulty',
       'firstClear',

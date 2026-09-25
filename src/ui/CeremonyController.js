@@ -35,6 +35,7 @@ import {
   hairline,
   skipHint,
 } from './ceremonyDom.js';
+import { actPhaseName } from './eclipseContent.js';
 
 export class CeremonyController {
   constructor(scene) {
@@ -220,9 +221,12 @@ export class CeremonyController {
    * par and rank. `onSkip` lets a tap move the victory flow on early; the
    * band stays until the flow `release()`s it.
    */
-  showVictory({ objective, turn, par, rating }, { onSkip = null } = {}) {
+  showVictory(
+    { objective, turn, par, rating, shadowGain = null, shadowRelief = 0 },
+    { onSkip = null } = {},
+  ) {
     if (!canRenderCeremony() || this.destroyed) return null;
-    const content = victoryContent({ objective, turn, par, rating });
+    const content = victoryContent({ objective, turn, par, rating, shadowGain, shadowRelief });
     const built = this._band({
       kind: 'victory',
       tone: 'gold',
@@ -432,7 +436,8 @@ export class CeremonyController {
   /** ACT n · region · grade · hairline — then the existing story lines. */
   showActCard({ actId, withLines = false }) {
     if (!canRenderCeremony() || this.destroyed) return null;
-    const content = actCardContent(actId);
+    // The run's Eclipse phase rides the kicker ("Act III · Umbral").
+    const content = actCardContent(actId, { phase: actPhaseName(this.scene?.runManager) });
     if (!content.title && !content.kicker) return null;
     return this._storyCard({
       kind: 'act',
