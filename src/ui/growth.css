@@ -438,6 +438,18 @@
   color: var(--re-muted);
   animation: ce-fade 400ms var(--gr-seals-at, 0ms) both;
 }
+.gr-rite-quote {
+  margin: calc(6px * var(--ce-scale)) 0 0;
+  /* Clear the corner Continue button on short (phone) frames. */
+  padding-right: calc(88px * var(--ce-scale));
+  font: italic calc(13px * var(--ce-scale)) / 1.35 var(--re-body);
+  color: var(--ce-bone);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  animation: ce-fade 500ms var(--gr-seals-at, 0ms) both;
+}
 .gr-rite > .gr-continue {
   position: absolute;
   right: calc(6px + env(safe-area-inset-right, 0px));
@@ -721,6 +733,18 @@
 }
 .gr-level-layer--blank .gr-level-portrait {
   filter: saturate(0.55) brightness(0.9);
+}
+.gr-level-quote {
+  margin: 0;
+  padding: 0 8px;
+  font: italic calc(12.5px * var(--ce-scale)) / 1.35 var(--re-body);
+  color: var(--ce-bone);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* The unit reacts once the gains are in. */
+  animation: ce-fade 420ms var(--gr-seals-at, 0ms) both;
 }
 .gr-seals--level {
   grid-template-columns: 1fr;

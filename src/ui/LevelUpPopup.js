@@ -3,6 +3,8 @@ import { hasDOMHost } from '../utils/domUI.js';
 import { progressionResult } from './ProgressionMenus.js';
 import { inputHint } from '../utils/inputHint.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import { levelUpContent } from './growthContent.js';
+import { voiceContext } from '../engine/UnitVoice.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
 
@@ -121,13 +123,31 @@ export class LevelUpPopup {
         }
       }
 
+      // The unit's reaction (canvas fallback: wrapped under the stats).
+      let quoteText = null;
+      if (!this.isPromotion) {
+        try {
+          const voice = voiceContext({
+            gameData: this.scene.gameData,
+            runManager: this.scene.runManager,
+            units: this.scene.playerUnits,
+          });
+          const quote = levelUpContent(this.unit, this.levelUpResult, this.learnedSkills, voice).quote; // prettier-ignore
+          if (quote) quoteText = `“${quote}”`;
+        } catch {
+          quoteText = null;
+        }
+      }
+
       // Panel dimensions
       const lineHeight = 18;
       const panelWidth = 260;
+      const quoteLineCount = quoteText ? 3 : 0;
       const skillLineCount = this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0;
       const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
       const panelHeight =
-        (statLines.length + 4 + skillLineCount + growthLineCount) * lineHeight + 16;
+        (statLines.length + 4 + skillLineCount + growthLineCount + quoteLineCount) * lineHeight +
+        16;
 
       // Dim background
       const dimBg = this.scene.add
@@ -214,6 +234,22 @@ export class LevelUpPopup {
           this.objects.push(skillText);
           y += lineHeight;
         }
+      }
+
+      if (quoteText) {
+        y += 4;
+        const quote = presentationText(this.scene, cx, y, quoteText, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          fontStyle: 'italic',
+          color: UI_PALETTE.text,
+          align: 'center',
+          wordWrap: { width: panelWidth - 24 },
+        })
+          .setOrigin(0.5, 0)
+          .setDepth(902);
+        this.objects.push(quote);
+        y += quoteLineCount * lineHeight - 4;
       }
 
       // Dismiss hint
