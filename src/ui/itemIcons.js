@@ -185,6 +185,8 @@ export function itemHero(subject, options = {}) {
     img.width = size;
     img.height = size;
     img.decoding = 'async';
+    // Inside a closed disclosure the painting is never fetched until it is opened.
+    img.loading = 'lazy';
     img.draggable = false;
     frame.dataset.art = 'painted';
     frame.append(img);
