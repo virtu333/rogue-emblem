@@ -219,6 +219,14 @@ describe('blessings and difficulty', () => {
     expect(blessingCardContent({ name: 'X', tier: 1 }).cost).toBe('');
     expect(blessingCardContent(null)).toBeNull();
   });
+  it("names a pact blessing's fixed price as a pact on the card", () => {
+    const tome = data.blessings.blessings.find((x) => x.pact);
+    expect(tome).toBeTruthy();
+    const card = blessingCardContent({ ...tome, rolledCost: { label: tome.pact.label } });
+    expect(card).toMatchObject({ pact: true, costLabel: 'Pact', cost: tome.pact.label });
+    const plain = data.blessings.blessings.find((x) => !x.pact && x.tier >= 2);
+    expect(blessingCardContent({ ...plain, rolledCost: { label: 'x' } }).costLabel).toBe('Cost');
+  });
   it('splits a mode into what grows harder and what pays back', () => {
     const mode = data.difficulty.modes.lunatic;
     const summary = generateModifierSummary(mode);

@@ -71,6 +71,11 @@ import {
 import { ensureItemUid } from '../utils/itemUid.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
 import {
+  RECRUIT_PREVIEW_VERSION,
+  buildRecruitNodeUnit,
+  ensureRecruitPreviews,
+} from './RecruitNodeSystem.js';
+import {
   applyEclipse,
   buildEclipseView,
   computeShadowGain,
@@ -147,6 +152,7 @@ function createBlessingRuntimeModifiers() {
     terrainCombatBonuses: [],
     healingEffectivenessMultiplier: 1,
     weaponArtHpCostDelta: 0,
+    enemyLevelDeltas: [],
   };
 }
 
@@ -535,6 +541,7 @@ export class RunManager {
     this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
+    this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -581,6 +588,7 @@ export class RunManager {
       count: blessingOptionCount,
       forceTier1: true,
       allowTier4: true,
+      isCostApplicable: (entry) => this.isBlessingCostApplicable(entry),
     });
 
     const offeredBlessings = selected.map((blessing) => structuredClone(blessing));
@@ -786,12 +794,54 @@ export class RunManager {
     return createSeededRng(seed);
   }
 
-  _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start') {
+  /**
+   * Whether a shrine price would actually cost this run something. Deforging the
+   * lords' weapons is void when none of them carries a forge (a starting weapon is
+   * unforged unless Honed Blades forged it), so that price is never offered then.
+   */
+  isBlessingCostApplicable(entry) {
+    const effects = Array.isArray(entry?.effects) ? entry.effects : [];
+    for (const effect of effects) {
+      if (
+        effect?.type === 'starting_weapon_forge_delta' &&
+        Number(effect.params?.value) < 0 &&
+        this._countForgedLordWeapons() === 0
+      )
+        return false;
+    }
+    return true;
+  }
+
+  /** Forged combat weapons carried by lords (the targets of a deforge price). */
+  _countForgedLordWeapons() {
+    let count = 0;
+    for (const unit of this.roster || []) {
+      if (!unit?.isLord) continue;
+      const seen = new Set();
+      for (const weapon of [...(unit.inventory || []), unit.weapon]) {
+        if (!weapon || seen.has(weapon)) continue;
+        seen.add(weapon);
+        if (['Staff', 'Consumable', 'Scroll'].includes(weapon.type)) continue;
+        if ((weapon._forgeLevel || 0) > 0) count++;
+      }
+    }
+    return count;
+  }
+
+  _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start', options = {}) {
     if (!blessing || blessing.tier < 2) return null;
+    // A pact is the price of a blessing taken now. A legacy save that never stored a
+    // price (see _normalizeActiveBlessingsForLoad) keeps the old rolled-pool rules.
+    if (isPlainObject(blessing.pact) && !options.ignorePact)
+      return normalizeBlessingCostEntry(blessing.pact);
     const pool = this.gameData?.blessings?.costPools?.[String(blessing.tier)];
     if (!Array.isArray(pool) || pool.length <= 0) return null;
     const rand = this._createBlessingRng(blessingId, `cost_roll:${contextKey}`);
-    return rollCostForBlessing(pool, blessing, rand);
+    const rollAs =
+      options.ignorePact && blessing.pact ? { ...blessing, pact: undefined } : blessing;
+    return rollCostForBlessing(pool, rollAs, rand, {
+      isApplicable: (entry) => this.isBlessingCostApplicable(entry),
+    });
   }
 
   _resolveBlessingOfferForSelection(blessing, offerIndex = 0, contextKey = 'selection') {
@@ -847,7 +897,9 @@ export class RunManager {
         Array.isArray(blessing.costs) &&
         blessing.costs.length === 0;
       if (needsV2Cost) {
-        rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`);
+        rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`, {
+          ignorePact: true,
+        });
       }
       normalized.push(createActiveBlessingEntry(id, rolledCost));
     });
@@ -1579,8 +1631,18 @@ export class RunManager {
         return;
       }
       const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
-      const validScrolls = allScrolls.filter((scroll) =>
-        this._isScrollValidForCurrentLords(scroll, artById),
+      // `maxUnlockAct` keeps late-act arts out of a day-one grant (Scroll Archive draws
+      // only arts that unlock by Act II).
+      const actOrder = ['act1', 'act2', 'act3', 'act4'];
+      const maxUnlock = actOrder.indexOf(String(effect.params.maxUnlockAct || ''));
+      const unlocksInTime = (scroll) => {
+        if (maxUnlock < 0) return true;
+        const art = artById.get(scroll?.teachesWeaponArtId);
+        const idx = actOrder.indexOf(String(art?.unlockAct || 'act1'));
+        return idx >= 0 && idx <= maxUnlock;
+      };
+      const validScrolls = allScrolls.filter(
+        (scroll) => unlocksInTime(scroll) && this._isScrollValidForCurrentLords(scroll, artById),
       );
       if (validScrolls.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
@@ -1673,7 +1735,35 @@ export class RunManager {
         requestedDelta,
         forgeStat: resolvedForgeStat,
         changedWeapons,
+        // A deforge never goes below an unforged weapon; with nothing forged it is void
+        // (the shrine does not offer it then — see isBlessingCostApplicable).
+        void: changedWeapons.length === 0,
       });
+      return;
+    }
+
+    if (effect.type === 'eclipse_shadow_delta') {
+      // The run's sun starts darker (a pact price). The act's own clock is unmoved:
+      // act shadow counts from here, so no node falls because of it; only the
+      // Eclipse's phase (enemy levels, affixes) arrives sooner.
+      const delta = Math.trunc(value);
+      if (!this.eclipse || delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: !this.eclipse ? 'no_eclipse' : 'zero_eclipse_shadow_delta',
+        });
+        return;
+      }
+      const cap = Math.max(0, Math.trunc(Number(this.getEclipseConfig()?.cap) || 100));
+      const before = Math.max(0, Math.trunc(Number(this.eclipse.shadow) || 0));
+      const after = Math.max(0, Math.min(cap, before + delta));
+      const shift = after - before;
+      this.eclipse = {
+        ...this.eclipse,
+        shadow: after,
+        actStartShadow: Math.max(0, Math.trunc(Number(this.eclipse.actStartShadow) || 0) + shift),
+      };
+      this._recordBlessingEvent('run_start', blessingId, effect, { before, after });
       return;
     }
 
@@ -1769,6 +1859,25 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'enemy_level_delta') {
+      // A pact price on the world, not on a unit: every foe (optionally only in one
+      // act) is this many levels higher. Read by getBattleParams.
+      const delta = Math.trunc(value);
+      const act = typeof effect.params.act === 'string' ? effect.params.act.trim() : null;
+      if (delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_enemy_level_delta',
+        });
+        return;
+      }
+      if (!Array.isArray(this.blessingRuntimeModifiers.enemyLevelDeltas))
+        this.blessingRuntimeModifiers.enemyLevelDeltas = [];
+      this.blessingRuntimeModifiers.enemyLevelDeltas.push({ value: delta, act: act || null });
+      this._recordBlessingEvent('run_start', blessingId, effect, { appliedValue: delta, act });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
       reason: 'unhandled_effect_type',
@@ -1812,6 +1921,17 @@ export class RunManager {
 
   getRecruitLevelBonus() {
     return Math.trunc(this.blessingRuntimeModifiers?.recruitLevelBonus || 0);
+  }
+
+  /** Extra enemy levels from blessing pacts for an act (enemy_level_delta). */
+  getBlessingEnemyLevelDelta(actId = this.currentAct) {
+    const list = this.blessingRuntimeModifiers?.enemyLevelDeltas;
+    if (!Array.isArray(list)) return 0;
+    return list.reduce(
+      (sum, entry) =>
+        !entry?.act || entry.act === actId ? sum + Math.trunc(Number(entry?.value) || 0) : sum,
+      0,
+    );
   }
 
   getTerrainCombatBonuses() {
@@ -2643,6 +2763,89 @@ export class RunManager {
     return node;
   }
 
+  /**
+   * Recruit nodes carry a fixed preview (class + name) so the Loom can show who waits
+   * there. Fills any recruit node that has none (idempotent, own seeded stream). A
+   * node whose encounter is already locked shows the recruit that battle spawns.
+   */
+  ensureRecruitPreviews() {
+    if (!Array.isArray(this.nodeMap?.nodes)) return 0;
+    for (const node of this.nodeMap.nodes) {
+      if (node?.type !== 'recruit') continue;
+      const locked = this.battleConfigsByNodeId?.[node.id]?.npcSpawn;
+      if (
+        typeof locked?.className === 'string' &&
+        typeof locked?.name === 'string' &&
+        (node.recruitPreview?.className !== locked.className ||
+          node.recruitPreview?.name !== locked.name)
+      ) {
+        node.recruitPreview = {
+          v: RECRUIT_PREVIEW_VERSION,
+          className: locked.className,
+          name: locked.name,
+        };
+      }
+    }
+    return ensureRecruitPreviews(this.nodeMap, {
+      runSeed: this.runSeed,
+      recruits: this.gameData?.recruits,
+      usedRecruitNames: this.usedRecruitNames,
+      roster: this.roster,
+      fallenUnits: this.fallenUnits,
+    });
+  }
+
+  /**
+   * What a recruit node's elite-like fight adds (difficulty data): extra hunters
+   * (`recruitEnemyCountBonus`, applied by MapGenerator) and how many of them carry an
+   * affix (`recruitAffixCount`, the hunting party's captain).
+   */
+  getRecruitNodeBattleMods(node) {
+    if (node?.type !== 'recruit') return { enemyCountBonus: 0, affixCount: 0 };
+    const int = (key) => Math.max(0, Math.trunc(Number(this.getDifficultyModifier(key, 0)) || 0));
+    return {
+      enemyCountBonus: int('recruitEnemyCountBonus'),
+      affixCount: int('recruitAffixCount'),
+    };
+  }
+
+  /**
+   * The recruit a recruit node would spawn right now (deterministic for the run's
+   * current state; the Loom preview and the battle both come from here).
+   * @param {object} node
+   * @param {{ roster?: Array }} [options]
+   * @returns {{ unit: object, isLord: boolean, level: number } | null}
+   */
+  getRecruitNodeUnit(node, options = {}) {
+    const preview = options.preview || node?.recruitPreview;
+    if (node?.type !== 'recruit' || !preview) return null;
+    return buildRecruitNodeUnit({
+      preview,
+      gameData: this.gameData,
+      ...this.getRecruitBattleContext(node),
+      roster: Array.isArray(options.roster) ? options.roster : this.roster,
+    });
+  }
+
+  /**
+   * Everything besides the preview that decides a recruit node's unit. Headless
+   * drivers copy it into battleParams (recruitRoster, recruitRunSeed, …) so the harness
+   * spawns the same recruit the Loom shows.
+   */
+  getRecruitBattleContext(node) {
+    return {
+      nodeId: node?.id,
+      runSeed: this.runSeed,
+      act: node?.battleParams?.act || this.currentAct,
+      roster: this.roster,
+      fallenUnits: this.fallenUnits,
+      metaEffects: this.getEffectiveMetaEffects(),
+      startingLordNames: this.getStartingLordNames(),
+      recruitLevelBonus: this.getRecruitLevelBonus(),
+      deployBonus: this.getDeployBonus(),
+    };
+  }
+
   /** Get battleParams for a battle node. */
   getBattleParams(node) {
     if (!node?.battleParams) return null;
@@ -2654,7 +2857,9 @@ export class RunManager {
     battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
     battleParams.classStatBonuses = this.getDifficultyModifier('classStatBonuses', {});
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
-    battleParams.enemyLevelBonus = this.getDifficultyModifier('enemyLevelBonus', 0);
+    battleParams.enemyLevelBonus =
+      this.getDifficultyModifier('enemyLevelBonus', 0) +
+      this.getBlessingEnemyLevelDelta(battleParams.act || this.currentAct);
     battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
     battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
     battleParams.act1EnemyCountDeployCap = this.getDifficultyModifier('act1EnemyCountDeployCap', 3);
@@ -2679,6 +2884,29 @@ export class RunManager {
     if (eclipseMods.enemyLevelBonus) battleParams.enemyLevelBonus += eclipseMods.enemyLevelBonus;
     if (eclipseMods.phaseIndex > 0) battleParams.eclipsePhaseIndex = eclipseMods.phaseIndex;
     if (eclipseMods.affix) battleParams.eclipseAffix = eclipseMods.affix;
+    // Recruit nodes are elite-like fights for a known recruit (strategy-layer spec).
+    if (node.type === 'recruit' && battleParams.isRecruitBattle) {
+      const recruitMods = this.getRecruitNodeBattleMods(node);
+      if (recruitMods.affixCount > 0) {
+        const affix = battleParams.eclipseAffix || {
+          gatingDifficultyId: null,
+          extraMaxAffixes: 0,
+          guaranteedCount: 0,
+          guaranteedTier: 1,
+        };
+        battleParams.eclipseAffix = {
+          ...affix,
+          guaranteedCount: Math.max(Number(affix.guaranteedCount) || 0, recruitMods.affixCount),
+          guaranteedTier: Math.max(1, Number(affix.guaranteedTier) || 1),
+        };
+      }
+      if (node.recruitPreview?.className && node.recruitPreview?.name) {
+        battleParams.recruitPreview = {
+          className: node.recruitPreview.className,
+          name: node.recruitPreview.name,
+        };
+      }
+    }
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
@@ -3336,6 +3564,7 @@ export class RunManager {
       }),
     );
     this.shopStateByNodeId = {};
+    this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act shadow counts from here.
     this.eclipse = { ...this.eclipse, actStartShadow: this.eclipse.shadow };
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
@@ -4165,6 +4394,17 @@ export class RunManager {
     rm.blessingRuntimeModifiers.weaponArtHpCostDelta = Math.trunc(
       Number(rm.blessingRuntimeModifiers.weaponArtHpCostDelta) || 0,
     );
+    // Pact enemy levels (strategy-layer): legacy saves have none.
+    rm.blessingRuntimeModifiers.enemyLevelDeltas = (
+      Array.isArray(rm.blessingRuntimeModifiers.enemyLevelDeltas)
+        ? rm.blessingRuntimeModifiers.enemyLevelDeltas
+        : []
+    )
+      .map((entry) => ({
+        value: Math.trunc(Number(entry?.value) || 0),
+        act: typeof entry?.act === 'string' && entry.act ? entry.act : null,
+      }))
+      .filter((entry) => entry.value !== 0);
     // Legacy saves predate runSeed and store it as null/undefined. Falling back to
     // 0 here (via the general Number.isFinite guard elsewhere) would make every
     // legacy player's node-map generation seed from the same base — fall back to
@@ -4369,6 +4609,10 @@ export class RunManager {
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();
+
+    // Recruit previews: legacy maps get theirs now (their own seeded stream; locked
+    // encounters keep the recruit their battle already rolled).
+    rm.ensureRecruitPreviews();
 
     // The Eclipse: legacy saves start their clock now (enabled, shadow 0). Falls are
     // re-applied idempotently; a consistent save changes nothing. The battle being

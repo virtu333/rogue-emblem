@@ -1,7 +1,9 @@
 import { element } from './MenuSurface.js';
 import { createNodeArt } from './NodeArt.js';
 import { nodeFrame } from './RouteGraph.js';
-import { describeLoomNode, loomHeader } from './loomModel.js';
+import { describeLoomNode, describeRecruitPreview, loomHeader } from './loomModel.js';
+import { traitLines } from './traitContent.js';
+import { crestElement } from './crestArt.js';
 import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
 
@@ -37,6 +39,51 @@ export function createLoomHeading({
 }
 
 /**
+ * The recruit panel on a recruit node's card: crest, name, a pixel kicker
+ * (class · level · seasoned), the class's key stats, where it grows, its traits.
+ */
+function recruitBlock(view) {
+  const block = element('section', null, 're-loom-recruit');
+  block.setAttribute('aria-label', `Recruit: ${view.name}, ${view.className}, level ${view.level}`);
+  block.dataset.recruit = view.name;
+  const head = element('div', null, 're-loom-recruit-head');
+  const crest = crestElement(view.className, { className: 're-loom-recruit-crest' });
+  if (crest) head.append(crest);
+  const titles = element('div', null, 're-loom-recruit-titles');
+  titles.append(
+    element('strong', view.name, 're-loom-recruit-name'),
+    element('span', view.kicker, 're-loom-recruit-kicker'),
+  );
+  head.append(titles);
+  block.append(head);
+  const stats = element('dl', null, 're-loom-recruit-stats');
+  for (const { stat, value } of view.stats) {
+    const cell = element('div');
+    cell.append(element('dt', stat), element('dd', String(value)));
+    stats.append(cell);
+  }
+  block.append(stats);
+  if (view.growths.length)
+    block.append(
+      element(
+        'p',
+        `Grows ${view.growths.map((g) => `${g.stat} ${g.value}%`).join(' · ')}`,
+        're-loom-recruit-growth',
+      ),
+    );
+  if (view.traits.length) {
+    const list = element('ul', null, 're-loom-recruit-traits');
+    for (const trait of view.traits) {
+      const item = element('li', null, trait.legendary ? 'is-legendary' : '');
+      item.append(element('strong', trait.name), document.createTextNode(` ${trait.text}`));
+      list.append(item);
+    }
+    block.append(list);
+  }
+  return block;
+}
+
+/**
  * Fill `card` with the inspect view of `node`.
  * @param {HTMLElement} card
  * @param {object} node
@@ -50,6 +97,17 @@ export function renderLoomCard(card, node, ctx = {}) {
   const { model, actId, gameData, runManager: rm } = ctx;
   const state = model.nodeState(node.id);
   const eclipse = ctx.eclipse?.nodes?.get?.(node.id) || null;
+  // Recruit nodes show who waits there (RunManager builds the exact battle unit).
+  let recruit = null;
+  if (node.type === 'recruit' && !node.eclipse && state !== 'done') {
+    try {
+      recruit = describeRecruitPreview(rm?.getRecruitNodeUnit?.(node) || null, {
+        traitLines: (unit) => traitLines(unit, gameData),
+      });
+    } catch (err) {
+      console.warn('[Loom] recruit preview failed:', err);
+    }
+  }
   const info = describeLoomNode(node, {
     state,
     steps: model.steps.get(node.id) ?? null,
@@ -60,13 +118,16 @@ export function renderLoomCard(card, node, ctx = {}) {
     // RunManager.getBattleParams will actually pass to the battle).
     enemyLevelBonus:
       (rm?.getDifficultyModifier?.('enemyLevelBonus', 0) ?? 0) +
-      (rm?.getEclipseLevelBonus?.(node) ?? 0),
+      (rm?.getEclipseLevelBonus?.(node) ?? 0) +
+      (rm?.getBlessingEnemyLevelDelta?.(actId) ?? 0),
     // Fog never applies to a run's first battle (RunManager.getBattleParams).
     firstBattle: rm?.completedBattles === 0 && !!ctx.isFirstBattle?.(node),
     eliteLoot: { choices: ELITE_LOOT_CHOICES, picks: ELITE_MAX_PICKS },
     shopOpen: !!ctx.shopOpen,
     activeLabel: ctx.activeLabel || null,
     eclipse,
+    recruit,
+    recruitMods: rm?.getRecruitNodeBattleMods?.(node) || null,
   });
   card.dataset.tone = info.eclipsed ? 'eclipsed' : info.elite && state === 'live' ? 'elite' : state;
 
@@ -96,6 +157,7 @@ export function renderLoomCard(card, node, ctx = {}) {
     for (const tag of info.tags) tags.append(element('li', tag.text, `re-loom-tag is-${tag.tone}`));
     card.append(tags);
   }
+  if (info.recruit) card.append(recruitBlock(info.recruit));
   if (info.text) card.append(element('p', info.text, 're-loom-text'));
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
