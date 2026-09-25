@@ -39,7 +39,7 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
   position: static;
   padding: 0 0 8px;
   border-bottom: 1px solid var(--re-line-soft);
-  font: 10px/1.5 var(--re-pixel);
+  font: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
   color: var(--re-text);
   letter-spacing: 0;
 }
@@ -278,7 +278,7 @@ html.touch-ui .battlefield-lab .mobile-battle-hud {
 .battlefield-lab .mb-phase {
   padding-bottom: 0;
   border: 0;
-  font-size: 9px;
+  font-size: var(--re-pf-9, 9px);
   line-height: 1.35;
 }
 .mb-counters {
