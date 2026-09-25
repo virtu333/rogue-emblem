@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>The Hollow Sun — Key Art</title>
+    <style>
+      @font-face {
+        font-family: 'Cinzel';
+        font-style: normal;
+        font-weight: 400 900;
+        font-display: block;
+        src: url('./fonts/Cinzel-latin-var.woff2') format('woff2');
+      }
+      :root {
+        --ink0: #07060b;
+        --ink1: #0e0c14;
+        --ink3: #211d2b;
+        --ink6: #58505e;
+        --ink7: #766b77;
+        --ink8: #978b94;
+        --bone: #ddd0bd;
+        --bone-hi: #f4ecdb;
+        --gold: #dca044;
+        --gold-hi: #f3cb6c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--ink0);
+        color: var(--ink8);
+        font-family: 'Cinzel', serif;
+      }
+      body.board {
+        padding: 28px 16px 48px;
+      }
+      .board header {
+        max-width: 900px;
+        margin: 0 auto 20px;
+      }
+      .board h2 {
+        font-weight: 400;
+        letter-spacing: 0.25em;
+        font-size: 13px;
+        color: var(--ink8);
+        margin: 0 0 6px;
+        text-transform: uppercase;
+      }
+      .board p.note {
+        font-family: Georgia, serif;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--ink7);
+        margin: 0;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 12px;
+        font-family: Georgia, serif;
+        font-size: 12px;
+        color: var(--ink7);
+      }
+      .controls select,
+      .controls input[type='number'] {
+        background: var(--ink1);
+        color: var(--bone);
+        border: 1px solid var(--ink3);
+        padding: 2px 6px;
+        font: inherit;
+      }
+      .frames {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+      }
+      figure {
+        margin: 0;
+        max-width: 100%;
+      }
+      figcaption {
+        font-family: Georgia, serif;
+        font-size: 11px;
+        color: var(--ink6);
+        margin-top: 6px;
+        letter-spacing: 0.04em;
+      }
+
+      /* ---------------- stage + lockup ---------------- */
+      .stage {
+        position: relative;
+        overflow: hidden;
+        background: var(--ink0);
+        max-width: 100%;
+      }
+      .stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+      }
+      .lockup {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+      }
+      .lockup h1 {
+        margin: 0;
+        font-weight: 700;
+        color: var(--bone);
+        letter-spacing: 0.13em;
+        line-height: 1;
+        white-space: nowrap;
+        /* engraved: a hair of shadow below, soft dark bloom for separation */
+        background: linear-gradient(180deg, var(--bone-hi) 0%, var(--bone) 55%, #bdb0aa 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 1px 0 rgba(7, 6, 11, 0.95));
+      }
+      .lockup .rule {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        width: 100%;
+      }
+      .lockup .rule span {
+        flex: 1;
+        height: 1px;
+      }
+      .lockup .rule span:first-child {
+        background: linear-gradient(90deg, rgba(220, 160, 68, 0), var(--gold));
+      }
+      .lockup .rule span:last-child {
+        background: linear-gradient(90deg, var(--gold), rgba(220, 160, 68, 0));
+      }
+      .lockup .rule i {
+        width: 5px;
+        height: 5px;
+        background: var(--gold-hi);
+        transform: rotate(45deg);
+        box-shadow: 0 0 6px rgba(243, 203, 108, 0.45);
+      }
+      .lockup .sub {
+        margin: 0;
+        font-weight: 400;
+        color: var(--ink8);
+        letter-spacing: 0.34em;
+        white-space: nowrap;
+        text-shadow: 0 1px 0 rgba(7, 6, 11, 0.9);
+      }
+
+      /* phone landscape: lockup in the calm upper-left sky */
+      .stage.phone {
+        width: 844px;
+        height: 390px;
+      }
+      .stage.phone .lockup {
+        left: 54px;
+        top: 46px;
+      }
+      .stage.phone .lockup h1 {
+        font-size: 38px;
+      }
+      .stage.phone .lockup .rule {
+        margin: 10px 0 9px;
+      }
+      .stage.phone .lockup .sub {
+        font-size: 13px;
+      }
+
+      /* desktop 4:3: same left-column lockup, slightly smaller */
+      .stage.desktop {
+        width: 640px;
+        height: 480px;
+      }
+      .stage.desktop .lockup {
+        left: 34px;
+        top: 40px;
+      }
+      .stage.desktop .lockup h1 {
+        font-size: 34px;
+      }
+      .stage.desktop .lockup .rule {
+        margin: 11px 0 10px;
+      }
+      .stage.desktop .lockup .sub {
+        font-size: 13px;
+      }
+
+      .stage.plate {
+        width: 848px;
+        height: 480px;
+      }
+
+      /* single-view (screenshot) mode */
+      body.solo {
+        overflow: hidden;
+      }
+      body.solo .stage {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import {
+        createHollowSunScene,
+        HOLLOW_SUN_VARIANTS,
+        PLATE_W,
+        PLATE_H,
+      } from '../../../../src/art/keyart/hollowSun.js';
+
+      const q = new URLSearchParams(location.search);
+      const view = q.get('view'); // phone | desktop | plate | null (board)
+      const seed = Number(q.get('seed') ?? 7);
+      const variant = q.get('variant') ?? 'dusk';
+      const fixedT = q.has('t') ? Number(q.get('t')) : null;
+      const showLockup = q.get('lockup') !== '0';
+      const subtitle = q.get('sub') ?? 'The Hollow Sun';
+      const reduced =
+        q.get('reduced') === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      let scene = createHollowSunScene({ seed, variant, reducedMotion: reduced });
+
+      function lockupEl() {
+        const d = document.createElement('div');
+        d.className = 'lockup';
+        d.innerHTML = `<h1>ROGUE EMBLEM</h1><div class="rule"><span></span><i></i><span></span></div><p class="sub"></p>`;
+        d.querySelector('.sub').textContent = subtitle;
+        return d;
+      }
+
+      function makeStage(kind) {
+        const st = document.createElement('div');
+        st.className = `stage ${kind}`;
+        const cv = document.createElement('canvas');
+        st.append(cv);
+        if (showLockup && kind !== 'plate') st.append(lockupEl());
+        return { st, cv, kind };
+      }
+
+      const stages = [];
+      if (view) {
+        document.body.classList.add('solo');
+        const s = makeStage(view);
+        document.body.append(s.st);
+        stages.push(s);
+      } else {
+        document.body.classList.add('board');
+        document.body.insertAdjacentHTML(
+          'beforeend',
+          `<header>
+            <h2>The Hollow Sun &middot; title key art</h2>
+            <p class="note">Procedural pixel plate (${PLATE_W}&times;${PLATE_H}), nearest-neighbour upscaled and cover-cropped per framing. Gold is reserved for the corona and Sera's threads. Variants: <b>dusk</b> (default), <b>ashfall</b> (colder night, heavy ash), <b>rising</b> (alternate composition: a vast sun rising behind the quarry). Query params: <code>?view=phone|desktop|plate&amp;variant=&amp;seed=&amp;t=&lt;ms&gt;&amp;reduced=1&amp;lockup=0</code>.</p>
+            <div class="controls">
+              <label>variant <select id="variant">${HOLLOW_SUN_VARIANTS.map((v) => `<option value="${v}">${v}</option>`).join('')}</select></label>
+              <label>seed <input id="seed" type="number" value="${seed}" style="width:5em"></label>
+              <label><input id="rm" type="checkbox" ${reduced ? 'checked' : ''}> reduced motion</label>
+              <label><input id="lk" type="checkbox" ${showLockup ? 'checked' : ''}> lockup</label>
+            </div>
+          </header>
+          <div class="frames"></div>`,
+        );
+        const frames = document.querySelector('.frames');
+        for (const [kind, cap] of [
+          ['phone', 'Phone landscape · 844×390 (plate crop 422×195 @2x)'],
+          ['desktop', 'Desktop canvas · 640×480 (plate crop 320×240 @2x)'],
+          ['plate', 'Full plate · 424×240 @2x (safe-area reference)'],
+        ]) {
+          const fig = document.createElement('figure');
+          const s = makeStage(kind);
+          fig.append(s.st);
+          fig.insertAdjacentHTML('beforeend', `<figcaption>${cap}</figcaption>`);
+          frames.append(fig);
+          stages.push(s);
+        }
+        const rebuild = () => {
+          scene = createHollowSunScene({
+            seed: Number(document.getElementById('seed').value) || 0,
+            variant: document.getElementById('variant').value,
+            reducedMotion: document.getElementById('rm').checked,
+          });
+        };
+        document.getElementById('variant').value = variant;
+        document.getElementById('variant').onchange = rebuild;
+        document.getElementById('seed').onchange = rebuild;
+        document.getElementById('rm').onchange = (e) => scene.setReducedMotion(e.target.checked);
+        document.getElementById('lk').onchange = (e) =>
+          document
+            .querySelectorAll('.lockup')
+            .forEach((l) => (l.style.display = e.target.checked ? '' : 'none'));
+      }
+
+      function sizeStage(s) {
+        const r = s.st.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.round(r.width * dpr);
+        const h = Math.round(r.height * dpr);
+        if (s.cv.width !== w || s.cv.height !== h) {
+          s.cv.width = w;
+          s.cv.height = h;
+        }
+        return { w, h };
+      }
+
+      function drawAll(t) {
+        for (const s of stages) {
+          const { w, h } = sizeStage(s);
+          const ctx = s.cv.getContext('2d');
+          ctx.fillStyle = '#07060b';
+          ctx.fillRect(0, 0, w, h);
+          if (s.kind === 'plate') {
+            const plate = document.createElement('canvas');
+            plate.width = PLATE_W;
+            plate.height = PLATE_H;
+            scene.render(plate.getContext('2d'), t);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(plate, 0, 0, w, h);
+            // safe-area guides: desktop crop (dashed) and phone crop (dotted)
+            const sx = w / PLATE_W;
+            const sy = h / PLATE_H;
+            const fD = scene.frame(640, 480);
+            const fP = scene.frame(844, 390);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(220,160,68,.55)';
+            ctx.setLineDash([6, 4]);
+            ctx.strokeRect(fD.sx * sx + 0.5, fD.sy * sy + 0.5, fD.sw * sx - 1, fD.sh * sy - 1);
+            ctx.strokeStyle = 'rgba(119,165,198,.7)';
+            ctx.setLineDash([2, 3]);
+            ctx.strokeRect(fP.sx * sx + 0.5, fP.sy * sy + 0.5, fP.sw * sx - 1, fP.sh * sy - 1);
+            ctx.setLineDash([]);
+          } else {
+            scene.draw(ctx, t, w, h);
+          }
+        }
+      }
+
+      await document.fonts.load('700 40px Cinzel');
+      await document.fonts.load('400 13px Cinzel');
+
+      if (fixedT !== null) {
+        drawAll(fixedT);
+        window.__keyartReady = true;
+      } else {
+        const t0 = performance.now();
+        const loop = (now) => {
+          drawAll(Math.max(0, now - t0));
+          window.__keyartReady = true;
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      }
+    </script>
+  </body>
+</html>

@@ -125,8 +125,8 @@
   min-height: 0;
 }
 .re-dialogue img {
-  width: 88px;
-  height: 104px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   image-rendering: pixelated;
   flex: none;
@@ -154,162 +154,6 @@
 @media (min-width: 1000px) {
   .re-live-menu {
     padding-inline: max(24px, calc((100vw - 1100px) / 2));
-  }
-}
-.re-node-map {
-  z-index: var(--re-z);
-}
-.re-node-map[hidden] {
-  display: none;
-}
-.re-node-map .re-header {
-  min-height: 32px;
-}
-.re-node-map .re-header h2 {
-  font-size: 10px;
-}
-.re-node-map .re-header > span {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--re-muted);
-}
-.re-node-layout {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 12px;
-}
-.re-node-scroll {
-  overflow: auto;
-  min-height: 0;
-  border: 1px solid var(--re-line-soft);
-  background: var(--re-sunken);
-  overscroll-behavior: contain;
-}
-.re-node-graph {
-  position: relative;
-  min-width: 360px;
-}
-.re-node-graph svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.re-node-graph line {
-  stroke: var(--re-line-strong);
-  stroke-width: 2;
-  opacity: 0.7;
-}
-.re-node-graph .route-next {
-  stroke: var(--re-accent);
-  opacity: 1;
-}
-.re-node {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 52px;
-  height: 52px;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: var(--re-panel);
-  padding: 2px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-.re-node-art {
-  display: block;
-  width: 46px;
-  height: 46px;
-  image-rendering: pixelated;
-  background-image: url('/assets/sprites/nodes/weathered-nodes.png');
-  background-repeat: no-repeat;
-  margin: auto;
-}
-.re-node.is-completed {
-  opacity: 0.65;
-}
-.re-node.is-completed::after {
-  content: '✓';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background: var(--re-panel);
-  color: var(--re-text);
-}
-.re-node.is-available {
-  border-color: var(--re-line-strong);
-}
-.re-node[aria-pressed='true'],
-.re-node:focus-visible {
-  outline: 2px solid var(--re-focus);
-  outline-offset: 2px;
-}
-.re-node-side {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.re-node-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.re-node-actions .re-btn {
-  padding-inline: 6px;
-}
-.re-node-detail {
-  flex: 1;
-}
-.re-node-detail h3 {
-  font: 11px/1.5 var(--re-pixel);
-  margin: 0 0 8px;
-}
-.re-node-detail p {
-  font-size: 12px;
-  margin: 0 0 8px;
-}
-.re-node-state {
-  color: var(--re-muted);
-}
-.re-node-party {
-  max-height: 108px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.re-node-unit {
-  display: flex;
-  text-align: left;
-  padding: 4px;
-  gap: 8px;
-  width: 100%;
-}
-.re-node-unit img {
-  width: 32px;
-  height: 38px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-.re-node-unit > span {
-  flex: 1;
-}
-.re-node-unit strong,
-.re-node-unit small {
-  display: block;
-  font-size: 11px;
-}
-.re-node-unit .re-health {
-  margin: 3px 0 0;
-}
-@media (max-width: 700px) {
-  .re-node-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    gap: 8px;
   }
 }
 :root {
@@ -367,45 +211,6 @@ html.mobile-preview .re-screen {
 .mh-onboarding button {
   min-width: 64px;
   min-height: 44px;
-}
-
-/* Compact route artwork retains a full 44px button. */
-.re-node-graph--horizontal .re-node {
-  width: var(--re-tap);
-  height: var(--re-tap);
-  border-radius: 50%;
-  padding: 4px;
-}
-.re-node-scroll {
-  touch-action: pan-x pan-y;
-}
-@media (max-width: 700px) {
-  .re-node-map .re-node-side {
-    display: grid;
-    grid-template-columns: 132px minmax(0, 1fr) 88px;
-    align-items: center;
-  }
-  .re-node-map .re-node-party {
-    display: none;
-  }
-  .re-node-map .re-node-detail {
-    max-height: 62px;
-  }
-  .re-node-map .re-node-detail h3 {
-    margin: 0;
-  }
-  .re-node-map .re-node-detail p {
-    margin: 2px 0;
-    font: var(--re-t-small);
-  }
-  .re-node-map .re-node-side > .re-btn {
-    padding-inline: 6px;
-  }
-}
-
-/* Future destinations remain inspectable, but the reachable frontier leads. */
-.re-node.is-future:not([aria-pressed='true']):not(:focus-visible) {
-  opacity: 0.45;
 }
 
 .re-choice-picker .re-menu-body {

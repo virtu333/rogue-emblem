@@ -1,7 +1,12 @@
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { clearSavedRun, settleAndPersistEndRun } from '../engine/RunManager.js';
+import {
+  clearSavedRun,
+  endRunPayoutPending,
+  settleAndPersistEndRun,
+} from '../engine/RunManager.js';
 import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class TransitionRecoveryController {
   constructor(scene) {
@@ -21,9 +26,9 @@ export class TransitionRecoveryController {
     group.push(blocker);
 
     const panel = scene.add
-      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+      .rectangle(cam.centerX, cam.centerY, 420, 170, UI_HEX.panel, 0.97)
       .setDepth(911)
-      .setStrokeStyle(2, 0x777777)
+      .setStrokeStyle(2, UI_HEX.lineStrong)
       .setInteractive();
     group.push(panel);
 
@@ -31,7 +36,7 @@ export class TransitionRecoveryController {
       .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
         fontFamily: 'monospace',
         fontSize: '16px',
-        color: '#ff8888',
+        color: UI_PALETTE.bad,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -46,7 +51,7 @@ export class TransitionRecoveryController {
         {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#dddddd',
+          color: UI_PALETTE.text,
           align: 'center',
         },
       )
@@ -58,15 +63,15 @@ export class TransitionRecoveryController {
       .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
         fontFamily: 'monospace',
         fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
+        color: UI_PALETTE.info,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
       .setDepth(912)
       .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
-    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
+    retryBtn.on('pointerover', () => retryBtn.setColor(UI_PALETTE.accentText));
+    retryBtn.on('pointerout', () => retryBtn.setColor(UI_PALETTE.info));
     retryBtn.on('pointerdown', async (pointer) => {
       if (pointer?.button !== 0) return;
       retryBtn.disableInteractive();
@@ -91,15 +96,15 @@ export class TransitionRecoveryController {
       .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
         fontFamily: 'monospace',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
       .setDepth(912)
       .setInteractive({ useHandCursor: true });
-    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
-    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
+    titleBtn.on('pointerover', () => titleBtn.setColor(UI_PALETTE.accentText));
+    titleBtn.on('pointerout', () => titleBtn.setColor(UI_PALETTE.text));
     titleBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       titleBtn.disableInteractive();
@@ -112,10 +117,12 @@ export class TransitionRecoveryController {
           onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
           slot,
         });
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
+      // A payout that did not reach disk keeps the save so it can retry.
+      if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
+        clearSavedRun(
+          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          slot,
+        );
       const audio = scene.registry.get('audio');
       if (audio) audio.stopMusic(scene, 0);
       resetTransitionLocks(scene);
@@ -161,9 +168,9 @@ export class TransitionRecoveryController {
     group.push(blocker);
 
     const panel = scene.add
-      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+      .rectangle(cam.centerX, cam.centerY, 420, 170, UI_HEX.panel, 0.97)
       .setDepth(911)
-      .setStrokeStyle(2, 0x777777)
+      .setStrokeStyle(2, UI_HEX.lineStrong)
       .setInteractive();
     group.push(panel);
 
@@ -171,7 +178,7 @@ export class TransitionRecoveryController {
       .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
         fontFamily: 'monospace',
         fontSize: '16px',
-        color: '#ff8888',
+        color: UI_PALETTE.bad,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -186,7 +193,7 @@ export class TransitionRecoveryController {
         {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#dddddd',
+          color: UI_PALETTE.text,
           align: 'center',
         },
       )
@@ -198,15 +205,15 @@ export class TransitionRecoveryController {
       .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
         fontFamily: 'monospace',
         fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
+        color: UI_PALETTE.info,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
       .setDepth(912)
       .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
-    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
+    retryBtn.on('pointerover', () => retryBtn.setColor(UI_PALETTE.accentText));
+    retryBtn.on('pointerout', () => retryBtn.setColor(UI_PALETTE.info));
     retryBtn.on('pointerdown', async (pointer) => {
       if (pointer?.button !== 0) return;
       retryBtn.disableInteractive();
@@ -230,15 +237,15 @@ export class TransitionRecoveryController {
       .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
         fontFamily: 'monospace',
         fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
+        color: UI_PALETTE.text,
+        backgroundColor: UI_PALETTE.raised,
         padding: { x: 10, y: 5 },
       })
       .setOrigin(0.5)
       .setDepth(912)
       .setInteractive({ useHandCursor: true });
-    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
-    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
+    titleBtn.on('pointerover', () => titleBtn.setColor(UI_PALETTE.accentText));
+    titleBtn.on('pointerout', () => titleBtn.setColor(UI_PALETTE.text));
     titleBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       titleBtn.disableInteractive();
@@ -251,10 +258,12 @@ export class TransitionRecoveryController {
           onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
           slot,
         });
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
+      // A payout that did not reach disk keeps the save so it can retry.
+      if (!endRunPayoutPending(scene.runManager, scene.registry.get('meta')))
+        clearSavedRun(
+          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          slot,
+        );
       const audio = scene.registry.get('audio');
       if (audio) audio.stopMusic(scene, 0);
       resetTransitionLocks(scene);

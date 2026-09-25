@@ -18,8 +18,16 @@ test.describe('Accessory UI smoke', () => {
     await page.goto('/?devScene=nodemap&preset=weapon_arts');
     await waitForGame(page);
     await waitForScene(page, 'NodeMap');
+    // The run-start lines open after the act card; wait for them or for a
+    // ready map instead of sampling once, then wait until nodes take clicks.
     const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+    const mapReady = () =>
+      page.waitForFunction(
+        () => window.__emblemRogueGame.scene.getScene('NodeMap')?.isSceneReady === true,
+      );
+    await Promise.race([skip.waitFor({ state: 'visible' }), mapReady()]);
     if (await skip.isVisible().catch(() => false)) await skip.click();
+    await mapReady();
 
     const before = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('NodeMap');

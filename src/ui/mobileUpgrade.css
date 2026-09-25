@@ -268,8 +268,8 @@ html.mobile-preview .mu-screen {
   min-height: 74px;
 }
 .mh-portrait {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   image-rendering: pixelated;
   background: var(--re-sunken);
@@ -289,8 +289,8 @@ html.mobile-preview .mu-screen {
 }
 .mh-identity .mh-portrait {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
 }
 .mh-skill {
   display: flex;

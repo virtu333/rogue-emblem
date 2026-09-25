@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ceremony mockups</title>
+    <link rel="stylesheet" href="./ceremony.css" />
+  </head>
+  <body>
+    <div class="stage" id="stage"></div>
+    <script type="module">
+      const P = '/assets/portraits/rebuilt/';
+      const state = new URLSearchParams(location.search).get('state') || 'boss';
+      const stage = document.getElementById('stage');
+      const bg = (file) => `<img class="bg" src="./bg/${file}" alt="" />`;
+      const skip = '<div class="skip">TAP TO CONTINUE</div>';
+      const views = {
+        boss: () => `${bg('castle_act2.png')}
+          <div class="map-area"><div class="dim"></div>
+            <div class="boss-band">
+              <img class="boss-portrait" src="${P}boss_dark_rider.png" alt="" />
+              <div class="boss-text">
+                <div class="boss-kicker">ACT II · COMMANDER</div>
+                <div class="boss-name">THE DARK RIDER</div>
+                <div class="boss-epithet">Bearer of the Sealed Orders</div>
+                <div class="hairline crimson"></div>
+              </div>
+            </div>${skip}
+          </div>`,
+        bossbar: () => `${bg('castle_act2.png')}
+          <div class="map-area">
+            <div class="boss-bar">
+              <div class="label"><span class="name">The Dark Rider</span><span class="hp">31 / 52</span></div>
+              <div class="track"><div class="lost" style="width:68%"></div><div class="fill" style="width:60%"></div></div>
+            </div>
+          </div>`,
+        enraged: () => `${bg('magma_act4_night.png')}
+          <div class="map-area">
+            <div class="boss-bar enraged">
+              <div class="label"><span class="name">The Emperor</span><span class="hp">44 / 70</span></div>
+              <div class="track"><div class="fill" style="width:63%"></div></div>
+              <div class="status">ENRAGED · TURN 12</div>
+            </div>
+          </div>`,
+        fallen: () => `${bg('river_act1.png')}
+          <div class="map-area"><div class="dim"></div>
+            <div class="fate-band fallen">
+              <div class="fate-word">FALLEN</div>
+              <div class="fate-sub">Kira · Tactician</div>
+              <div class="hairline crimson"></div>
+            </div>
+            <div class="offer">
+              <img src="${P}lord_sera.png" alt="" />
+              <div class="line"><b>SERA</b>Not this thread. I can pull it back — once more.</div>
+              <div class="actions"><div class="btn primary">Rewind · 1 left</div><div class="btn">Accept fate</div></div>
+            </div>
+          </div>`,
+        cut: () => `${bg('river_act1.png')}
+          <div class="cut">
+            <div class="fate-word">THE THREAD IS CUT</div>
+            <div class="thread-cut"><span></span><span></span></div>
+            <div class="fate-sub">Edric fell at the Border Quarries · Act I · Turn 9</div>
+          </div>`,
+        victory: () => `${bg('river_act1.png')}
+          <div class="map-area"><div class="dim" style="background:rgba(7,6,11,.35)"></div>
+            <div class="fate-band victory">
+              <div class="fate-word">ROUTED</div>
+              <div class="fate-sub">Turn 7 · Par 8 · Rank S</div>
+              <div class="hairline"></div>
+            </div>${skip}
+          </div>`,
+        crit: () => `${bg('magma_act4_night.png')}
+          <div class="map-area">
+            <div class="flash"></div>
+            <div class="cutin">
+              <div class="eyes" style="background-image:url(${P}lord_edric.png)"></div>
+              <div class="word"><div class="big">CRITICAL</div><div class="small">EDRIC · RAPIER</div></div>
+            </div>
+          </div>`,
+        act: () => `${bg('castle_act2.png')}
+          <div class="act">
+            <div class="num">ACT II</div>
+            <div class="title">OCCUPIED TERRITORY</div>
+            <div class="grade">Iron Rain</div>
+            <div class="hairline"></div>
+            <div class="line"><b>SERA</b>The frontier is behind us. The emperor's forces know we're coming — I can feel the lieutenant watching.</div>
+          </div>`,
+      };
+      stage.innerHTML = (views[state] || views.boss)();
+    </script>
+  </body>
+</html>

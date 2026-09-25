@@ -1,3 +1,4 @@
+import { UI_HEX } from '../utils/uiStyles.js';
 // Gamepad/keyboard cursor for the branching node map.
 //
 // The player can only ever pick an *available* (unlocked) node, so the cursor
@@ -8,7 +9,7 @@
 // is needed.
 
 const RING_RADIUS = 17; // NODE_SIZE (24) / 2 + a compact focus margin
-const RING_COLOR = 0xffdd44;
+const RING_COLOR = UI_HEX.accent;
 const RING_DEPTH = 5; // above nodes (NODE_DEPTH 1) and aura, below tooltips
 
 export class NodeMapCursorController {

@@ -12,6 +12,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 
 export class InputController {
   constructor(scene) {
@@ -751,7 +752,7 @@ export class InputController {
     }
     if (scene.battleState === 'PLAYER_IDLE') {
       const isPlayer = unit.faction === 'player';
-      const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
+      const moveColor = isPlayer ? 0x3366cc : UI_HEX.dangerLine;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
       const positions = scene.buildUnitPositionMap(unit.faction);
       // Player units already ticked recovery this phase (isRooted is current);
@@ -858,6 +859,11 @@ export class InputController {
 
   updateTopLeftHudLayout() {
     const scene = this.scene;
+    // The restyled desktop HUD owns its plate layout (turn/Eye fixed, hover info below).
+    if (scene._desktopHud?.active) {
+      scene._desktopHud.layout();
+      return;
+    }
     if (!scene.infoText || !scene.turnCounterText) return;
     const hasInfo = Boolean(scene.infoText.text);
     const baseY = 28;

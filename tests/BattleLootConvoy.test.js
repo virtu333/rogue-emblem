@@ -103,7 +103,7 @@ describe('battle loot convoy guard', () => {
     expect(context.finalizeLootPick).not.toHaveBeenCalled();
     expect(context.showLootStatus).toHaveBeenCalledWith(
       'Convoy is full. Choose another reward.',
-      '#ff8888',
+      '#ec7a5c',
     );
     expect(convoyBtn.destroyed).toBe(false);
   });
@@ -123,7 +123,7 @@ describe('battle loot convoy guard', () => {
     expect(context.finalizeLootPick).not.toHaveBeenCalled();
     expect(context.showLootStatus).toHaveBeenCalledWith(
       'Convoy is full. Choose another reward.',
-      '#ff8888',
+      '#ec7a5c',
     );
     expect(convoyBtn.destroyed).toBe(false);
   });

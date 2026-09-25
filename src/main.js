@@ -7,6 +7,9 @@ import { installAudioRecovery } from './utils/audioRecovery.js';
 import Phaser from 'phaser';
 import { installSeedSafeCanvasTextures } from './utils/seedSafeCanvasTextures.js';
 import '@fontsource/press-start-2p/latin-400.css';
+import '@fontsource/cinzel/latin-500.css';
+import '@fontsource/cinzel/latin-700.css';
+import '@fontsource/cinzel/latin-900.css';
 import './ui/styles.css';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
@@ -27,6 +30,8 @@ import { createViewportReconciler } from './utils/viewportReconciler.js';
 import { requireAuthUser } from './auth/requireAuthUser.js';
 import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 import { registerSW } from 'virtual:pwa-register';
+import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
+import { throttledRead } from './utils/throttledRead.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -425,6 +430,8 @@ function bootGame(user) {
 
   // Stop auth screen animation + music before Phaser takes over
   startupViewportGuard.beforeBootGame();
+  authBackdrop?.destroy();
+  authBackdrop = null;
   if (window.stopAuthScreen) window.stopAuthScreen();
 
   // Remove auth listeners to prevent stale handlers from re-triggering
@@ -510,6 +517,40 @@ const authSkip = document.getElementById('auth-skip');
 
 let isRegisterMode = false;
 
+// The auth gate shows The Hollow Sun through the same backdrop helper as the title.
+// It is decoration: loaded lazily, never awaited, and skipped once the game boots.
+let authBackdrop = null;
+// The backdrop's frame loop asks every frame; the saved setting is parsed at most twice a second.
+const authReducedMotion = throttledRead(readAuthReducedMotion);
+function readAuthReducedMotion() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('emblem_rogue_settings') || '{}');
+    if (typeof saved.reduceMotion === 'boolean') return saved.reduceMotion;
+  } catch (_) {}
+  return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+function mountAuthBackdrop() {
+  const host = document.getElementById('auth-wrapper');
+  const canvas = document.getElementById('auth-bg');
+  if (!host || !canvas) return;
+  import('./art/keyart/keyArtBackdrop.js')
+    .then(({ mountKeyArtBackdrop }) => {
+      if (hasGameBootStarted() || !canvas.isConnected || authBackdrop) return;
+      const coarse = !!window.matchMedia?.('(pointer: coarse)').matches;
+      authBackdrop = mountKeyArtBackdrop(host, {
+        canvas,
+        variant: selectTitleVariant(readSlotMilestones()),
+        reducedMotion: authReducedMotion,
+        maxCrop: coarse ? 1.3 : 1.12,
+        // Portrait crops to a narrow strip: keep the Hollow Sun in it.
+        anchor: ({ width, height }) => (height > width ? { anchorX: 0.72 } : {}),
+      });
+    })
+    .catch(() => {
+      markStartup('auth_backdrop_unavailable');
+    });
+}
+
 if (!supabase) {
   // Local-only by default; no session restoration or cloud pulls.
   authOverlay.style.display = 'none';
@@ -517,6 +558,7 @@ if (!supabase) {
   bootGame(null);
 } else {
   authOverlay.style.display = 'flex';
+  mountAuthBackdrop();
   // Cloud-enabled builds only: check existing session
   getSession()
     .then(async (session) => {

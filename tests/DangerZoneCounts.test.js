@@ -148,7 +148,7 @@ describe('danger rendering', () => {
     const { overlay, rectangles } = overlayFixture();
     overlay.show([1, 2, 3, 5].map((count, col) => ({ col, row: 0, count, damageThreat: true })));
     expect(rectangles.map((r) => r.args[5])).toEqual([0.18, 0.3, 0.42, 0.42]);
-    expect(rectangles.every((r) => r.args[4] === 0xff8800)).toBe(true);
+    expect(rectangles.every((r) => r.args[4] === 0xe8a44a)).toBe(true);
     for (const r of rectangles) expect(r.setDepth).toHaveBeenCalledWith(4);
   });
 

@@ -32,7 +32,7 @@ export const DIFFICULTY_REQUIRED_KEYS = [
 
 export const DIFFICULTY_DEFAULTS = Object.freeze({
   label: 'Normal',
-  color: '#44cc44',
+  color: '#95c487',
   enemyStatBonus: 0,
   classStatBonuses: Object.freeze({}),
   enemyCountBonus: 0,

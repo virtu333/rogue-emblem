@@ -1,3 +1,4 @@
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 /**
  * ProcVisualTheme -- pure classification + theming for combat proc visuals.
  *
@@ -20,7 +21,7 @@ export const PROC_CATEGORY = {
 };
 
 export const PROC_THEME = {
-  art: { color: '#ffb347', accent: 0xffb347 },
+  art: { color: UI_PALETTE.warn, accent: UI_HEX.warn },
   offense: { color: '#ff6b6b', accent: 0xff6b6b },
   defense: { color: '#77bbff', accent: 0x77bbff },
   neutral: { color: '#88ffee', accent: 0x88ffee },

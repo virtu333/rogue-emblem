@@ -1,12 +1,12 @@
 import { hasDOMHost } from '../utils/domUI.js';
-import { runResultMenu } from '../ui/RunFlowMenus.js';
+import { PAYOUT_PENDING_NOTE, runResultMenu } from '../ui/RunFlowMenus.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 // RunCompleteScene — End-of-run screen (victory or defeat)
 
 import Phaser from 'phaser';
-import { clearSavedRun } from '../engine/RunManager.js';
+import { clearSavedRun, endRunPayoutPending, saveRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
-import { deleteRunSave } from '../cloud/CloudSync.js';
+import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
@@ -15,6 +15,7 @@ import { buildNarrativeContext, selectDialogueEntries } from '../engine/Narrativ
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { InputAction } from '../utils/InputActions.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
+import { CeremonyController } from '../ui/CeremonyController.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -52,7 +53,16 @@ export class RunCompleteScene extends Phaser.Scene {
 
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
-    clearSavedRun(cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null, slot);
+    if (endRunPayoutPending(rm, meta)) {
+      // The payout did not reach disk: keep the settled run so the next
+      // Continue from this slot comes back here and retries it.
+      saveRun(rm, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+    } else {
+      clearSavedRun(
+        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+        slot,
+      );
+    }
 
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
@@ -68,6 +78,8 @@ export class RunCompleteScene extends Phaser.Scene {
       this._runResultLifetime = null;
       this.runResultMenu?.destroy();
       this.runResultMenu = null;
+      this._ceremonies?.destroy();
+      this._ceremonies = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
       popInputScope(this);
@@ -84,14 +96,21 @@ export class RunCompleteScene extends Phaser.Scene {
         this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
           fontFamily: 'Arial',
           fontSize: '32px',
-          color: isVictory ? UI_PALETTE.accent : '#cc3333',
+          color: isVictory ? UI_PALETTE.accent : UI_PALETTE.bad,
           fontStyle: 'bold',
         }),
       ).setOrigin(0.5);
 
     let overlay;
+    let card = null;
     try {
       const dialogueEntries = this._getRunCompleteDialogue();
+      // THE THREAD IS CUT (or its gold counterpart) frames the farewell lines.
+      card = hasDOMHost()
+        ? (this._ceremonies = new CeremonyController(this)).showRunEnd(this._runEndContext(), {
+            withLines: Boolean(dialogueEntries),
+          })
+        : null;
       if (dialogueEntries) {
         overlay = new DialogueOverlay(this);
         await overlay.showSequence(dialogueEntries);
@@ -100,6 +119,14 @@ export class RunCompleteScene extends Phaser.Scene {
       console.warn('[RunCompleteScene] Dialogue failed, continuing:', err);
     } finally {
       if (overlay) overlay.destroy();
+    }
+    if (card && this._runResultLifetime === lifetime) {
+      try {
+        if (overlay) void card.close();
+        else await card.finish();
+      } catch (err) {
+        console.warn('[RunCompleteScene] Result card failed, continuing:', err);
+      }
     }
 
     if (this._runResultLifetime !== lifetime) return;
@@ -147,7 +174,7 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx, curY, `Valor Earned: +${valor}`, {
         fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#ffcc44',
+        color: UI_PALETTE.accentText,
         align: 'center',
       }),
     ).setOrigin(0.5);
@@ -156,10 +183,24 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx, curY, `Supply Earned: +${supply}`, {
         fontFamily: 'Arial',
         fontSize: '13px',
-        color: '#44ccbb',
+        color: UI_PALETTE.info,
         align: 'center',
       }),
     ).setOrigin(0.5);
+
+    if (endRunPayoutPending(rm, meta)) {
+      curY += 18;
+      applyTextResolution(
+        this.add.text(cx, curY, PAYOUT_PENDING_NOTE, {
+          fontFamily: 'Arial',
+          fontSize: '11px',
+          color: UI_PALETTE.warn,
+          align: 'center',
+          wordWrap: { width: 420 },
+        }),
+      ).setOrigin(0.5, 0);
+      curY += 16;
+    }
 
     if (meta) {
       curY += 20;
@@ -183,7 +224,7 @@ export class RunCompleteScene extends Phaser.Scene {
       this.add.text(cx - 110, cy + 80, '[ Home Base ]', {
         fontFamily: 'Arial',
         fontSize: '18px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
         backgroundColor: '#000000aa',
         padding: { x: 16, y: 8 },
       }),
@@ -192,7 +233,7 @@ export class RunCompleteScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     homeBtn.on('pointerover', () => homeBtn.setColor(UI_PALETTE.accent));
-    homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
+    homeBtn.on('pointerout', () => homeBtn.setColor(UI_PALETTE.info));
     homeBtn.on('pointerdown', () => {
       void this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME);
     });
@@ -223,7 +264,7 @@ export class RunCompleteScene extends Phaser.Scene {
     this._menuFocus.setItems([
       {
         button: homeBtn,
-        color: '#88ccff',
+        color: UI_PALETTE.info,
         onActivate: () => this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME),
       },
       {
@@ -295,6 +336,33 @@ export class RunCompleteScene extends Phaser.Scene {
       }
       return false;
     }
+  }
+
+  /** Where and when the run ended, for the result card (presentation only). */
+  _runEndContext() {
+    const rm = this.runManager;
+    let commander;
+    try {
+      commander = rm?.getStartingLordNames?.()?.[0] || null;
+    } catch {
+      commander = null;
+    }
+    const report = rm?.lastBattleReport;
+    const lastEntry = Array.isArray(report?.entries) ? report.entries.at(-1) : null;
+    const turn = Number.isFinite(lastEntry?.turnNumber)
+      ? lastEntry.turnNumber
+      : Number.isFinite(report?.currentTurn)
+        ? report.currentTurn
+        : null;
+    return {
+      result: this.result,
+      commander,
+      actId: rm?.currentAct,
+      // The report's last turn is where the run died; an abandoned run has none.
+      turn: this.result !== 'victory' && rm?.defeatContext ? turn : null,
+      defeatContext: rm?.defeatContext || null,
+      battlesWon: rm?.completedBattles,
+    };
   }
 
   _getRunCompleteDialogue() {

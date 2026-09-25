@@ -4,6 +4,7 @@ import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { showMinorHint } from './HintDisplay.js';
 import { trackSceneTimer, clearTrackedSceneTimer } from '../utils/sceneTimers.js';
 import { saveServiceRun } from './serviceSave.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 export class ChurchController {
   constructor(scene) {
@@ -79,7 +80,7 @@ export class ChurchController {
         scene._churchFlavorTimer = null;
         if (scene.scene?.isActive && !scene.scene.isActive()) return;
         if (!Array.isArray(scene.churchOverlay)) return;
-        scene.showChurchMessage(line, '#aabbcc');
+        scene.showChurchMessage(line, UI_PALETTE.muted);
       }),
     );
   }

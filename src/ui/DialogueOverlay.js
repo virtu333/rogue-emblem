@@ -1,10 +1,17 @@
 import { seenDialogueKey } from '../utils/seenDialogue.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { UI_PALETTE, applyTextResolution, UI_HEX } from '../utils/uiStyles.js';
 import { dialoguePortraitKey } from './RebuiltPortraits.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { textureImageSource } from './textureImageSource.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import {
+  pc98PortraitElement,
+  portraitCanvasFrame,
+  portraitFaction,
+  portraitIdFromKey,
+  usePc98,
+} from './portraitArt.js';
 // DialogueOverlay.js - Lightweight dialogue box with portrait support.
 // Recruit dialogue auto-dismisses; story sequences are manual-advance.
 
@@ -48,12 +55,16 @@ export class DialogueOverlay {
    * @returns {Promise<void>}
    */
   async showSequence(entries, options = {}) {
+    this.lastSequenceSkippedAsSeen = false;
     if (!Array.isArray(entries) || entries.length <= 0 || this._destroyed) return;
     const seenKey = seenDialogueKey(options.category, options.key, entries);
     const meta = this.scene?.registry?.get?.('meta');
     const settings = this.scene?.registry?.get?.('settings');
-    if (seenKey && settings?.getSkipSeenDialogue?.() && meta?.hasSeenDialogue?.(seenKey))
+    if (seenKey && settings?.getSkipSeenDialogue?.() && meta?.hasSeenDialogue?.(seenKey)) {
+      // Ceremonies that frame a sequence (act titles) hold on their own instead.
+      this.lastSequenceSkippedAsSeen = true;
       return true;
+    }
     this._sequenceSkipRequested = false;
     let completed = true;
     for (let i = 0; i < entries.length; i++) {
@@ -110,7 +121,7 @@ export class DialogueOverlay {
     const boxY = cy + 100;
     const bg = scene.add
       .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.9)
-      .setStrokeStyle(2, 0x4466aa)
+      .setStrokeStyle(2, UI_HEX.line)
       .setDepth(DEPTH + 1);
     this.objects.push(bg);
 
@@ -118,11 +129,12 @@ export class DialogueOverlay {
     const textLeft = cx - boxW / 2 + 14;
 
     if (hasPortrait) {
+      const face = portraitCanvasFrame(scene, portraitKey, 64) || { key: portraitKey };
       const portrait = scene.add
-        .image(cx - boxW / 2 + 40, boxY, portraitKey)
+        .image(cx - boxW / 2 + 40, boxY, face.key, face.frame)
         .setDisplaySize(64, 64)
         .setDepth(DEPTH + 2);
-      const source = scene.textures.get?.(portraitKey)?.getSourceImage?.();
+      const source = face.frame ? null : scene.textures.get?.(portraitKey)?.getSourceImage?.();
       if (source?.width && source?.height) {
         const scale = Math.min(64 / source.width, 80 / source.height);
         portrait.setDisplaySize(source.width * scale, source.height * scale);
@@ -246,7 +258,17 @@ export class DialogueOverlay {
       this.surface.root.replaceChildren();
       const panel = element('div', null, 're-panel');
       const copy = element('div', null, 're-dialogue-copy');
-      if (portraitKey && this.scene.textures.exists(portraitKey)) {
+      const pc98Id = usePc98() ? portraitIdFromKey(portraitKey) : null;
+      if (pc98Id) {
+        copy.append(
+          pc98PortraitElement({
+            id: pc98Id,
+            size: 96,
+            faction: portraitFaction(this._speakerUnit(name), pc98Id),
+            alt: name || '',
+          }),
+        );
+      } else if (portraitKey && this.scene.textures.exists(portraitKey)) {
         const image = element('img');
         image.src = textureImageSource(this.scene.textures.get(portraitKey));
         image.alt = name || '';
@@ -275,6 +297,20 @@ export class DialogueOverlay {
       next.focus();
       if (autoAdvance) this._timer = this.scene.time.delayedCall(3000, () => this.hide());
     });
+  }
+
+  /** The unit speaking (for its plate faction), if it is on the field or roster. */
+  _speakerUnit(name) {
+    const scene = this.scene;
+    const key = String(name || '').toLowerCase();
+    if (!key) return null;
+    const units = [
+      ...(scene.runManager?.roster || []),
+      ...(scene.playerUnits || []),
+      ...(scene.npcUnits || []),
+      ...(scene.enemyUnits || []),
+    ];
+    return units.find((unit) => String(unit?.name || '').toLowerCase() === key) || null;
   }
 
   _resolvePending(acknowledged = false) {

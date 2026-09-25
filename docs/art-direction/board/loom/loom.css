@@ -1,0 +1,758 @@
+/* The Loom — node-map redesign mockup. Palette tokens are the art-direction ramps. */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('fonts/PressStart2P.woff2') format('woff2');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Cinzel';
+  src: url('fonts/Cinzel-latin-var.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: block;
+}
+
+:root {
+  /* ink */
+  --ink-0: #07060b;
+  --ink-1: #0e0c14;
+  --ink-2: #16131e;
+  --ink-3: #211d2b;
+  --ink-4: #2e293a;
+  --ink-5: #403949;
+  --ink-6: #58505e;
+  --ink-7: #766b77;
+  --ink-8: #978b94;
+  --ink-9: #bdb0aa;
+  --ink-10: #ddd0bd;
+  --ink-11: #f4ecdb;
+  /* ember / gold — reserved for the player's path and agency */
+  --gold-0: #2a170e;
+  --gold-1: #4f2c16;
+  --gold-2: #80461f;
+  --gold-3: #b3702c;
+  --gold-4: #dca044;
+  --gold-5: #f3cb6c;
+  --gold-6: #fff0bd;
+  /* blood — the Lieutenant's fractures */
+  --blood-0: #22090f;
+  --blood-1: #44111c;
+  --blood-2: #6e1a28;
+  --blood-3: #9e2632;
+  --blood-4: #cc4038;
+  --blood-5: #ec7a5c;
+  /* verdigris — life */
+  --verd-1: #1b4239;
+  --verd-2: #2d6450;
+  --verd-3: #4d8b66;
+  --verd-4: #86b27b;
+
+  --pixel: 'Press Start 2P', monospace;
+  --title: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --body: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --pane-w: 204px;
+  --gutter: 16px;
+  --tap: 44px;
+  --medal: 40px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ink-0);
+  color: var(--ink-10);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ───────────── Screen frame ───────────── */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  padding: max(8px, env(safe-area-inset-top))
+    max(var(--gutter), env(safe-area-inset-right), var(--sim-safe-x, 0px))
+    max(10px, env(safe-area-inset-bottom), var(--sim-safe-b, 0px))
+    max(var(--gutter), env(safe-area-inset-left), var(--sim-safe-x, 0px));
+  background: radial-gradient(120% 90% at 30% 55%, var(--ink-1) 0%, var(--ink-0) 70%), var(--ink-0);
+}
+
+/* ───────────── Header ───────────── */
+.hdr {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  min-height: 36px;
+}
+.hdr-title {
+  min-width: 0;
+}
+.hdr-title h1 {
+  margin: 0;
+  font: 700 17px/1.1 var(--title);
+  letter-spacing: 0.04em;
+  color: var(--ink-11);
+  white-space: nowrap;
+  text-shadow: 0 1px 0 var(--ink-0);
+}
+.hdr-title h1 .act {
+  color: var(--gold-5);
+}
+.hdr-title h1 .dot {
+  color: var(--gold-3);
+  margin: 0 0.18em;
+}
+.hdr-sub {
+  margin-top: 5px;
+  font: 8px/1 var(--pixel);
+  color: var(--ink-7);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.hdr-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 1px;
+}
+.hdr-gold {
+  font: 10px/1 var(--pixel);
+  color: var(--gold-5);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hdr-gold::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--gold-6),
+    var(--gold-4) 45%,
+    var(--gold-2) 100%
+  );
+  box-shadow: 0 0 0 1px var(--gold-1);
+}
+.hdr-diff {
+  font: 8px/1 var(--pixel);
+  color: var(--ink-7);
+}
+
+/* ───────────── Body: loom + pane ───────────── */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--pane-w);
+  gap: 10px;
+  min-height: 0;
+}
+
+.loom-wrap {
+  container: loom / inline-size;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+.loom-wrap::before,
+.loom-wrap::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 22px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.loom-wrap::before {
+  left: 1px;
+  background: linear-gradient(90deg, var(--ink-0), transparent);
+}
+.loom-wrap::after {
+  right: 1px;
+  background: linear-gradient(-90deg, var(--ink-0), transparent);
+}
+.loom-wrap.more-left::before,
+.loom-wrap.more-right::after {
+  opacity: 0.85;
+}
+.loom {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  border-radius: 4px;
+  background: var(--ink-1);
+  box-shadow:
+    inset 0 0 0 1px var(--ink-3),
+    inset 0 0 24px rgba(7, 6, 11, 0.9);
+}
+.loom::-webkit-scrollbar {
+  display: none;
+}
+.loom-inner {
+  position: relative;
+  height: 100%;
+}
+.loom canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  pointer-events: none;
+}
+/* Frame edges read as the loom's beams; content scrolls beneath them. */
+.loom-frame {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px var(--ink-3),
+    inset 2px 0 0 0 rgba(128, 70, 31, 0.28),
+    inset -2px 0 0 0 rgba(33, 29, 43, 0.9);
+}
+
+/* ───────────── Nodes ───────────── */
+.node {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  outline: none;
+}
+.medal {
+  position: relative;
+  width: var(--medal);
+  height: var(--medal);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at 50% 30%,
+    var(--ink-4) 0%,
+    var(--ink-2) 62%,
+    var(--ink-1) 100%
+  );
+  box-shadow:
+    0 0 0 2px var(--rim, var(--ink-5)),
+    0 0 0 3px var(--ink-0),
+    0 2px 0 3px rgba(7, 6, 11, 0.6);
+  transition:
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.icon {
+  display: block;
+  background-image: url('img/weathered-nodes-third.png');
+  background-repeat: no-repeat;
+  image-rendering: auto;
+  filter: var(--icon-filter, none);
+  transition: filter 0.2s;
+}
+.node .label {
+  position: absolute;
+  top: calc(50% + var(--medal) / 2 + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 8px/1 var(--pixel);
+  letter-spacing: 0;
+  color: var(--gold-5);
+  text-shadow:
+    0 1px 0 var(--ink-0),
+    0 0 4px var(--ink-0),
+    0 0 2px var(--ink-0);
+  pointer-events: none;
+}
+.node.is-elite .label {
+  color: var(--blood-5);
+}
+.node .crack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--medal) + 6px);
+  height: calc(var(--medal) + 6px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* completed: woven, knotted */
+.node.is-done {
+  --rim: var(--gold-2);
+  --icon-filter: saturate(0.5) brightness(0.72) sepia(0.25);
+}
+.node.is-done .medal::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--gold-6), var(--gold-4) 50%, var(--gold-2));
+  box-shadow: 0 0 0 2px var(--ink-0);
+}
+/* current: where the party stands */
+.node.is-current {
+  --rim: var(--gold-4);
+  --icon-filter: saturate(0.8) brightness(0.9);
+}
+.node.is-current .medal {
+  box-shadow:
+    0 0 0 2px var(--gold-4),
+    0 0 0 4px var(--ink-0),
+    0 0 0 5px var(--gold-2),
+    0 2px 0 5px rgba(7, 6, 11, 0.6);
+}
+.node .here {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top: 5px solid var(--gold-5);
+  filter: drop-shadow(0 1px 0 var(--ink-0));
+}
+/* available: the glowing gold thread ends here */
+.node.is-live {
+  --rim: var(--gold-5);
+}
+.node.is-live .medal {
+  background: radial-gradient(
+    circle at 50% 30%,
+    var(--ink-5) 0%,
+    var(--ink-3) 60%,
+    var(--ink-2) 100%
+  );
+  box-shadow:
+    0 0 0 2px var(--gold-5),
+    0 0 0 3px var(--ink-0),
+    0 0 12px 2px rgba(220, 160, 68, 0.38);
+}
+/* possible futures: inspectable, quieter */
+.node.is-future {
+  --rim: var(--ink-6);
+  --icon-filter: grayscale(0.55) brightness(0.72) contrast(0.95);
+}
+/* frayed: no longer reachable */
+.node.is-cut {
+  --rim: var(--ink-4);
+  --icon-filter: grayscale(1) brightness(0.45) contrast(0.9);
+}
+.node.is-cut .medal {
+  background: var(--ink-1);
+}
+/* boss: the Hollow Sun */
+.node.is-boss {
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+}
+.node.is-boss .medal {
+  width: calc(var(--medal) + 8px);
+  height: calc(var(--medal) + 8px);
+  background: radial-gradient(circle at 50% 50%, #000 0%, var(--ink-0) 70%, var(--ink-1) 100%);
+  box-shadow:
+    0 0 0 1px var(--gold-3),
+    0 0 0 3px var(--ink-0),
+    0 0 0 4px rgba(128, 70, 31, 0.6);
+}
+.node.is-boss.is-future,
+.node.is-boss.is-cut {
+  --icon-filter: grayscale(0.35) brightness(0.8);
+}
+
+/* selection — inspect ring */
+.node.is-selected .medal {
+  transform: scale(1.06);
+}
+.node.is-selected .medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--ink-0),
+    0 0 0 6px var(--sel, var(--gold-6)),
+    0 0 14px 4px rgba(243, 203, 108, 0.28);
+}
+.node.is-selected.is-future,
+.node.is-selected.is-cut,
+.node.is-selected.is-done {
+  --sel: var(--ink-9);
+}
+.node.is-selected.is-future .medal,
+.node.is-selected.is-cut .medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--ink-0),
+    0 0 0 6px var(--sel),
+    0 0 0 7px var(--ink-0);
+}
+.node.is-selected.is-future {
+  --icon-filter: grayscale(0.25) brightness(0.92);
+}
+.node.is-selected.is-cut {
+  --icon-filter: grayscale(0.9) brightness(0.7);
+}
+.node.is-selected .label {
+  color: var(--gold-6);
+}
+.node.is-selected.is-elite .label {
+  color: #ffa98a;
+}
+.node:focus-visible .medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--ink-0),
+    0 0 0 6px var(--steel, #77a5c6);
+}
+
+/* ───────────── Pane ───────────── */
+.pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pane-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.btn {
+  min-height: var(--tap);
+  border: 0;
+  border-radius: 3px;
+  background: linear-gradient(var(--ink-3), var(--ink-2));
+  box-shadow:
+    inset 0 0 0 1px var(--ink-5),
+    inset 0 1px 0 1px rgba(118, 107, 119, 0.18),
+    0 1px 0 var(--ink-0);
+  font: 8px/1 var(--pixel);
+  letter-spacing: 0.04em;
+  color: var(--ink-10);
+  cursor: pointer;
+}
+.btn:active {
+  background: var(--ink-2);
+}
+
+.inspect {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  padding: 9px 10px 8px;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(33, 29, 43, 0.55), rgba(14, 12, 20, 0.2) 70%), var(--ink-1);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+}
+.inspect::before {
+  /* the thread that ties the card to the selection */
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--card-thread, var(--gold-3));
+  opacity: 0.8;
+}
+.insp-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.insp-medal {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ink-2);
+  box-shadow:
+    0 0 0 1px var(--card-thread, var(--gold-3)),
+    0 0 0 2px var(--ink-0);
+}
+.insp-kind {
+  font: 8px/1.2 var(--pixel);
+  letter-spacing: 0.03em;
+  color: var(--gold-5);
+}
+.insp-kind .elite {
+  color: var(--blood-5);
+}
+.insp-kind .muted {
+  color: var(--ink-8);
+}
+.insp-place {
+  margin-top: 4px;
+  font: 600 13px/1.15 var(--body);
+  color: var(--ink-11);
+}
+.insp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+.tag {
+  font: 600 10px/1 var(--body);
+  padding: 3px 5px 3px;
+  border-radius: 2px;
+  color: var(--ink-9);
+  background: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--ink-4);
+}
+.tag.warn {
+  color: #b8d8e6;
+  box-shadow: inset 0 0 0 1px #2c4c77;
+}
+.tag.good {
+  color: var(--verd-4);
+  box-shadow: inset 0 0 0 1px var(--verd-2);
+}
+.tag.bad {
+  color: var(--blood-5);
+  box-shadow: inset 0 0 0 1px var(--blood-2);
+}
+.insp-text {
+  margin: 7px 0 0;
+  font: 12px/1.35 var(--body);
+  color: var(--ink-10);
+}
+.insp-flavor {
+  margin: 6px 0 0;
+  font: italic 11.5px/1.35 var(--body);
+  color: var(--ink-8);
+}
+.insp-state {
+  margin: 7px 0 0;
+  font: 600 11px/1.3 var(--body);
+  color: var(--gold-5);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.insp-state::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 2px;
+  transform: translateY(-3px);
+  background: currentColor;
+  border-radius: 1px;
+}
+.insp-state.future {
+  color: var(--ink-9);
+}
+.insp-state.cut {
+  color: var(--blood-5);
+}
+.insp-state.done {
+  color: var(--gold-3);
+}
+
+.travel {
+  position: relative;
+  min-height: 46px;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font: 10px/1 var(--pixel);
+  letter-spacing: 0.08em;
+  color: var(--ink-0);
+  background: linear-gradient(180deg, var(--gold-5) 0%, var(--gold-4) 55%, var(--gold-3) 100%);
+  box-shadow:
+    inset 0 1px 0 var(--gold-6),
+    inset 0 -2px 0 rgba(79, 44, 22, 0.55),
+    0 0 0 1px var(--gold-1),
+    0 0 16px rgba(220, 160, 68, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.travel .arrow {
+  width: 16px;
+  height: 8px;
+  background:
+    linear-gradient(var(--ink-1), var(--ink-1)) 0 3px / 11px 2px no-repeat,
+    conic-gradient(from -135deg at 100% 50%, var(--ink-1) 90deg, transparent 0) 100% 0 / 6px 8px
+      no-repeat;
+}
+.travel .sub {
+  font: 600 10px/1 var(--body);
+  letter-spacing: 0;
+  color: var(--gold-1);
+}
+.travel:disabled {
+  cursor: default;
+  color: var(--ink-6);
+  background: var(--ink-1);
+  box-shadow: inset 0 0 0 1px var(--ink-4);
+}
+.travel:disabled .arrow {
+  display: none;
+}
+.travel:disabled .sub {
+  color: var(--ink-6);
+}
+
+.party {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.chip {
+  min-width: 0;
+  overflow: hidden;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 4px;
+  border: 0;
+  border-radius: 3px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--ink-1);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+}
+.chip img {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 2px;
+  object-fit: cover;
+  object-position: 50% 10%;
+  background: var(--ink-3);
+  box-shadow: 0 0 0 1px var(--ink-4);
+}
+.chip-info {
+  flex: 1;
+  min-width: 0;
+}
+.chip-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font: 700 11px/1.1 var(--body);
+  color: var(--ink-11);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.chip-class {
+  display: none;
+  font: 400 10px/1.1 var(--body);
+  color: var(--ink-7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip-info .hp {
+  display: block;
+  margin-top: 2px;
+  font: 600 10px/1.1 var(--body);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-8);
+}
+.bar {
+  display: block;
+  margin-top: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ink-3);
+  box-shadow: 0 0 0 1px var(--ink-0);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(var(--verd-4), var(--verd-3));
+}
+.bar.mid > i {
+  background: linear-gradient(var(--gold-5), var(--gold-3));
+}
+
+/* ───────────── Size tiers ───────────── */
+/* iPhone SE / 8-class landscape (667×375) */
+@media (max-width: 700px) {
+  :root {
+    --pane-w: 184px;
+  }
+  .hdr-title h1 {
+    font-size: 15px;
+  }
+  .chip img {
+    width: 30px;
+    height: 30px;
+  }
+  .chip {
+    gap: 5px;
+    padding-right: 5px;
+  }
+}
+
+/* Desktop 640×480 framing (the canvas design target) */
+.screen.is-desktop {
+  --pane-w: 184px;
+  --gutter: 14px;
+  padding: 12px 14px 12px;
+  gap: 10px;
+}
+.screen.is-desktop .party {
+  grid-template-columns: minmax(0, 1fr);
+}
+.screen.is-desktop .chip-class {
+  display: inline;
+}
+.screen.is-desktop .inspect {
+  padding: 11px 11px 10px 12px;
+}
+
+/* Narrow looms (667px phones, notch insets, the 640 desktop) use smaller medals. */
+@container loom (max-width: 560px) {
+  .loom {
+    --medal: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .medal,
+  .icon {
+    transition: none;
+  }
+}

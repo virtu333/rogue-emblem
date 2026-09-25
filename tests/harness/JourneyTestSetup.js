@@ -10,6 +10,9 @@ vi.mock('../../src/ui/MenuSurface.js', async () => {
 vi.mock('../../src/ui/ChoicePicker.js', async () => ({
   ChoicePicker: (await import('./JourneyPresentation.js')).ChoicePicker,
 }));
+vi.mock('../../src/ui/PromotionPathChooser.js', async () => ({
+  PromotionPathChooser: (await import('./JourneyPresentation.js')).PromotionPathChooser,
+}));
 vi.mock('../../src/ui/PauseOverlay.js', async () => ({
   PauseOverlay: (await import('./JourneyPresentation.js')).PauseOverlay,
 }));

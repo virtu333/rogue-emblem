@@ -49,8 +49,12 @@ import {
   getSkillDisplayNames,
 } from '../engine/UnitManager.js';
 import { unitPortrait } from './unitPortrait.js';
+import { crestElement } from './crestArt.js';
+import { PromotionPathChooser } from './PromotionPathChooser.js';
+import { promotionPathContent, projectUnit } from './growthContent.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
 import { createHealthBar } from './healthBar.js';
-import { STAT_COLORS } from '../utils/uiStyles.js';
+import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   rosterItemAction,
@@ -89,8 +93,10 @@ export class MobileRosterSheet {
     onClose,
     portraitKey = null,
     terrainForUnit = null,
+    persist = null,
   }) {
     Object.assign(this, {
+      persist,
       scene,
       units,
       index,
@@ -261,8 +267,11 @@ export class MobileRosterSheet {
       const summary = el('div', null, 'mr-summary');
       const portrait = this.portrait(unit, 'mr-portrait');
       if (portrait) summary.append(portrait);
+      const name = el('h3', unit.name);
+      const crest = crestElement(unit.className, { className: 'mr-crest', label: true });
+      if (crest) name.prepend(crest);
       summary.append(
-        el('h3', unit.name),
+        name,
         el(
           'p',
           `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
@@ -315,7 +324,7 @@ export class MobileRosterSheet {
     const grid = el('dl', null, 'mr-stats');
     for (const [key, value] of Object.entries(unit.stats || {})) {
       const valueText = el('dd', String(value));
-      valueText.style.color = STAT_COLORS[key] || '#e0e0e0';
+      valueText.style.color = STAT_COLORS[key] || UI_PALETTE.text;
       grid.append(
         el(
           'dt',
@@ -669,17 +678,89 @@ export class MobileRosterSheet {
       (unit) => teachScrollBlock(this.run, unit, scroll, this.gameData.skills),
       (unit) => {
         const result = teachRosterScroll(this.run, unit, scroll, this.gameData.skills);
-        if (result.ok)
-          this.render(
-            `${unit.name} learned ${this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId}.`,
-          );
+        if (result.ok) {
+          const skillName =
+            this.gameData.skills.find((s) => s.id === scroll.skillId)?.name || scroll.skillId;
+          this.render(`${unit.name} learned ${skillName}.`);
+          growthCeremonies(this.scene)?.showSealed({
+            title: `${unit.name} learned ${skillName}`,
+            detail: 'New skill',
+            skillId: scroll.skillId,
+          });
+        }
         return result;
       },
       (unit) => `${unit.className} · ${unit.skills.length}/${MAX_SKILLS} skills`,
     );
   }
+  /**
+   * Save a class change before its ceremony: the menu's context decides how
+   * (rewards pass their own persist); the route map saves the run directly.
+   * Returns a notice ('' when saved or when the context saves on close).
+   */
+  persistNow() {
+    try {
+      if (typeof this.persist === 'function')
+        return this.persist() === false ? ' Save failed.' : '';
+      if (this.run && this.scene?.sys?.settings?.key === 'NodeMap')
+        return saveServiceRun(this.scene);
+    } catch (error) {
+      console.warn('[MobileRosterSheet] save before promotion failed:', error);
+      return ' Save failed.';
+    }
+    return '';
+  }
+  promoteWithSeal(unit, item) {
+    if (this.picker || this.destroyed) return;
+    const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
+    let rite = null;
+    let message = '';
+    this.picker = new PromotionPathChooser({
+      scene: this.scene,
+      unit,
+      targets,
+      gameData: this.gameData,
+      title: `Promote ${unit.name}`,
+      closeLabel: 'Close',
+      note: `Uses 1 ${item.name || 'Master Seal'}`,
+      blocked: () => rosterClassChangeBlock(this.run, unit, item, this.gameData),
+      apply: (choice) => {
+        const content = promotionPathContent(unit, choice, this.gameData);
+        const before = projectUnit(unit);
+        const result = applyRosterClassChange(this.run, unit, item, choice, this.gameData);
+        if (!result.ok) return result;
+        const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
+        message = `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`;
+        rite = { content, before };
+        return result;
+      },
+      onClose: (choice) => {
+        this.picker = null;
+        const done = () => {
+          if (this.destroyed) return;
+          if (choice) this.render(message);
+          this.root.querySelector('button')?.focus();
+        };
+        const growth = choice && rite?.content ? growthCeremonies(this.scene) : null;
+        if (!growth) {
+          if (choice) this.scene.registry.get('audio')?.playSFX('sfx_levelup');
+          done();
+          return;
+        }
+        // Rendered underneath first, so the sheet is current when the rite ends.
+        done();
+        void growth.showPromotionRite({
+          unit,
+          content: rite.content,
+          beforeUnit: rite.before,
+          frame: 'screen',
+        });
+      },
+    });
+  }
   changeClass(unit, item) {
     if (this.picker || this.destroyed) return;
+    if (item.effect === 'promote') return this.promoteWithSeal(unit, item);
     const choices =
       item.effect === 'promote'
         ? resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords)

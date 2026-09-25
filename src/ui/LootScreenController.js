@@ -1,5 +1,5 @@
 import { weaponArtScrollText } from './weaponArtDisplay.js';
-import { UI_PALETTE } from '../utils/uiStyles.js';
+import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobileRewards } from './MobileRewards.js';
 import { mobileTarget, deferTouchActivation } from './mobileTouchSizing.js';
@@ -33,7 +33,6 @@ import {
   FORGE_STAT_CAP,
   GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
-import { applyTextResolution } from '../utils/uiStyles.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
@@ -161,7 +160,7 @@ export class LootScreenController {
       scene.add.text(cam.centerX, 58, goldLines.join('  |  '), {
         fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#aaffaa',
+        color: UI_PALETTE.good,
         wordWrap: { width: 620 },
         align: 'center',
       }),
@@ -232,12 +231,12 @@ export class LootScreenController {
       forge: 'F',
     };
     const typeColors = {
-      weapon: '#88bbff',
-      consumable: '#88ff88',
-      rare: '#ffaa55',
+      weapon: UI_PALETTE.info,
+      consumable: UI_PALETTE.good,
+      rare: UI_PALETTE.warn,
       gold: UI_PALETTE.accent,
-      accessory: '#cc88ff',
-      forge: '#ff8844',
+      accessory: UI_PALETTE.rarityEpic,
+      forge: UI_PALETTE.warn,
     };
     const lootTypeDisplayMap = {
       healing: 'consumable',
@@ -257,8 +256,8 @@ export class LootScreenController {
       const cardIdx = i;
 
       // Card background
-      const cardColor = choice.type === 'forge' ? 0x443322 : 0x333355;
-      const strokeColor = choice.type === 'forge' ? 0xff8844 : 0x8888cc;
+      const cardColor = choice.type === 'forge' ? UI_HEX.selected : UI_HEX.line;
+      const strokeColor = choice.type === 'forge' ? UI_HEX.warn : UI_HEX.line;
       const card = scene.add
         .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
         .setStrokeStyle(2, strokeColor)
@@ -306,7 +305,7 @@ export class LootScreenController {
             scene.add.text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
               fontFamily: 'Arial',
               fontSize: '10px',
-              color: '#88ff88',
+              color: UI_PALETTE.good,
             }),
           )
             .setOrigin(0.5)
@@ -354,7 +353,7 @@ export class LootScreenController {
           scene.add.text(cx, cardY + 5, nameLines, {
             fontFamily: 'Arial',
             fontSize: '11px',
-            color: '#ff8844',
+            color: UI_PALETTE.warn,
             align: 'center',
           }),
         )
@@ -462,7 +461,7 @@ export class LootScreenController {
           } else if (choice.type === 'accessory') {
             if (!runManager.accessories) runManager.accessories = [];
             runManager.accessories.push({ ...item });
-            scene.showLootStatus(`Added ${item.name} to Accessory Pool.`, '#88ff88');
+            scene.showLootStatus(`Added ${item.name} to Accessory Pool.`, UI_PALETTE.good);
             scene.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
             scene.showStatBoostUnitPicker(item, lootGroup, cardIdx);
@@ -493,7 +492,7 @@ export class LootScreenController {
     // Skip card
     const skipX = startX + choices.length * (cardW + gap);
     const skipCard = scene.add
-      .rectangle(skipX, cardY, cardW, cardH, 0x554433, 1)
+      .rectangle(skipX, cardY, cardW, cardH, UI_HEX.selected, 1)
       .setStrokeStyle(2, 0xccaa44)
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
@@ -724,8 +723,8 @@ export class LootScreenController {
       const cannotEquip = !canEquip(unit, item);
       const by = listTop + i * rowHeight + rowHeight / 2;
 
-      const btnColor = full ? 0x444444 : cannotEquip ? 0x554433 : 0x335566;
-      const borderColor = full ? 0x666666 : cannotEquip ? 0xcc8844 : 0x66aacc;
+      const btnColor = full ? UI_HEX.line : cannotEquip ? UI_HEX.selected : UI_HEX.line;
+      const borderColor = full ? UI_HEX.line : cannotEquip ? UI_HEX.warn : UI_HEX.line;
       const btn = scene.add
         .rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
         .setStrokeStyle(2, borderColor)
@@ -733,7 +732,7 @@ export class LootScreenController {
       if (!full && !cannotEquip) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const nameColor = full ? UI_PALETTE.muted : cannotEquip ? '#cc8844' : UI_PALETTE.text;
+      const nameColor = full ? UI_PALETTE.muted : cannotEquip ? UI_PALETTE.warn : UI_PALETTE.text;
       const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
       const label = applyTextResolution(
         scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
@@ -751,7 +750,7 @@ export class LootScreenController {
         scene.add.text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
           fontFamily: 'Arial',
           fontSize: '9px',
-          color: full ? '#aa4444' : UI_PALETTE.muted,
+          color: full ? UI_PALETTE.bad : UI_PALETTE.muted,
         }),
       )
         .setOrigin(0.5)
@@ -788,8 +787,8 @@ export class LootScreenController {
         {
           fontFamily: 'Arial',
           fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : UI_PALETTE.muted,
-          backgroundColor: '#223344',
+          color: convoyCanStore ? UI_PALETTE.info : UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 12, y: 6 },
         },
       ),
@@ -802,7 +801,7 @@ export class LootScreenController {
       convoyBtn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         if (!scene.runManager.addToConvoy(item)) {
-          scene.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
+          scene.showLootStatus('Convoy is full. Choose another reward.', UI_PALETTE.bad);
           return;
         }
         const audio = scene.registry.get('audio');
@@ -912,8 +911,8 @@ export class LootScreenController {
       const by = listTop + i * rowHeight + rowHeight / 2;
 
       const btn = scene.add
-        .rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
-        .setStrokeStyle(2, full ? 0x666666 : 0x66aacc)
+        .rectangle(cam.centerX, by, btnW, btnH, full ? UI_HEX.line : UI_HEX.line, 1)
+        .setStrokeStyle(2, full ? UI_HEX.line : UI_HEX.line)
         .setDepth(711);
       if (!full) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
@@ -937,7 +936,7 @@ export class LootScreenController {
           {
             fontFamily: 'Arial',
             fontSize: '9px',
-            color: full ? '#aa4444' : UI_PALETTE.muted,
+            color: full ? UI_PALETTE.bad : UI_PALETTE.muted,
           },
         ),
       )
@@ -976,8 +975,8 @@ export class LootScreenController {
         {
           fontFamily: 'Arial',
           fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : UI_PALETTE.muted,
-          backgroundColor: '#223344',
+          color: convoyCanStore ? UI_PALETTE.info : UI_PALETTE.muted,
+          backgroundColor: UI_PALETTE.raised,
           padding: { x: 12, y: 6 },
         },
       ),
@@ -990,7 +989,7 @@ export class LootScreenController {
       convoyBtn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
         if (!scene.runManager.addToConvoy(item)) {
-          scene.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
+          scene.showLootStatus('Convoy is full. Choose another reward.', UI_PALETTE.bad);
           return;
         }
         const audio = scene.registry.get('audio');
@@ -1064,7 +1063,7 @@ export class LootScreenController {
       scene.add.text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#88ff88',
+        color: UI_PALETTE.good,
       }),
     )
       .setOrigin(0.5)
@@ -1099,8 +1098,8 @@ export class LootScreenController {
       const by = listTop + i * rowHeight + rowHeight / 2;
 
       const btn = scene.add
-        .rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
-        .setStrokeStyle(2, 0x66aacc)
+        .rectangle(cam.centerX, by, btnW, btnH, UI_HEX.line, 1)
+        .setStrokeStyle(2, UI_HEX.line)
         .setDepth(711)
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
@@ -1124,7 +1123,7 @@ export class LootScreenController {
           {
             fontFamily: 'Arial',
             fontSize: '9px',
-            color: '#88ff88',
+            color: UI_PALETTE.good,
           },
         ),
       )
@@ -1217,7 +1216,7 @@ export class LootScreenController {
       scene.add.text(cam.centerX, 60, `Apply ${whetstone.name}`, {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff8844',
+        color: UI_PALETTE.warn,
       }),
     )
       .setOrigin(0.5)
@@ -1297,8 +1296,8 @@ export class LootScreenController {
 
       validCount++;
       const btn = scene.add
-        .rectangle(cam.centerX, by, btnW, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844)
+        .rectangle(cam.centerX, by, btnW, btnH, UI_HEX.selected, 1)
+        .setStrokeStyle(1, UI_HEX.warn)
         .setDepth(711)
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
@@ -1352,7 +1351,7 @@ export class LootScreenController {
           {
             fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#ff8888',
+            color: UI_PALETTE.bad,
           },
         ),
       )
@@ -1413,7 +1412,7 @@ export class LootScreenController {
   // ── Static pure functions ────────────────────────────────────
 
   static getCardDetailLines(scene, choice, item, cardWidth = 110) {
-    if (!item) return { lines: [], color: '#bbbbbb' };
+    if (!item) return { lines: [], color: UI_PALETTE.muted };
 
     const asNum = (value, fallback = 0) => {
       const num = Number(value);
@@ -1441,14 +1440,14 @@ export class LootScreenController {
       lines.push(`${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`);
       lines.push(`${asNum(item.weight)}Wt Rng${range}`);
       lines.push(...scene._formatSpecialLinesForUi(item.special, detailWrapChars, 1));
-      return { lines, color: '#aaccff' };
+      return { lines, color: UI_PALETTE.info };
     }
 
     if (item.type === 'Accessory' || type === 'accessory') {
       const detail = scene.getAccessoryDetailText(item);
       return {
         lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2),
-        color: '#ddaaff',
+        color: UI_PALETTE.rarityEpic,
       };
     }
 
@@ -1460,7 +1459,7 @@ export class LootScreenController {
       if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
         return {
           lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2),
-          color: '#ffbb77',
+          color: UI_PALETTE.warn,
         };
       }
       const special =
@@ -1471,7 +1470,7 @@ export class LootScreenController {
       const descLine = skillDef?.description || '';
       return {
         lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3),
-        color: '#ffbb77',
+        color: UI_PALETTE.warn,
       };
     }
 
@@ -1482,7 +1481,7 @@ export class LootScreenController {
           : `Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`;
       return {
         lines: wrapDetailLines([statText], 2),
-        color: '#aaffaa',
+        color: UI_PALETTE.good,
       };
     }
 
@@ -1496,7 +1495,7 @@ export class LootScreenController {
     if (item.effect === 'promote' || (type === 'promotion' && item.effect !== 'reclass')) {
       return {
         lines: wrapDetailLines([consumableDescription || 'Promote a Lv 10+ unit'], 2),
-        color: '#ffbb77',
+        color: UI_PALETTE.warn,
       };
     }
 
@@ -1514,12 +1513,12 @@ export class LootScreenController {
           : `Restore ${amount > 0 ? amount : ''} HP`.trim();
       return {
         lines: [consumableDescription || fallbackText, ...(usesLine ? [usesLine] : [])],
-        color: '#aaffaa',
+        color: UI_PALETTE.good,
       };
     }
 
-    if (usesLine) return { lines: [usesLine], color: '#bbbbbb' };
-    return { lines: [], color: '#bbbbbb' };
+    if (usesLine) return { lines: [usesLine], color: UI_PALETTE.muted };
+    return { lines: [], color: UI_PALETTE.muted };
   }
 
   static getTooltipText(scene, choice, item) {

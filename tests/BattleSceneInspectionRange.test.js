@@ -61,7 +61,7 @@ describe('BattleScene inspection range overlays', () => {
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
   });
 
-  it('shows red range (0xcc3333, 0.35) for enemy units in PLAYER_IDLE', () => {
+  it('shows red range (0x9e2632, 0.35) for enemy units in PLAYER_IDLE', () => {
     const enemy = makeUnit('enemy');
     const scene = createInspectionScene('PLAYER_IDLE', [enemy]);
 
@@ -71,7 +71,7 @@ describe('BattleScene inspection range overlays', () => {
       expect.any(Map),
       2,
       3,
-      0xcc3333,
+      0x9e2632,
       0.35,
     );
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);

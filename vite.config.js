@@ -56,12 +56,13 @@ export default defineConfig({
             options: {
               cacheName: 'er-image-assets',
               expiration: {
-                // ~630 image files today under assets/{sprites,sprites-v1,portraits};
+                // ~630 image files under assets/{sprites,sprites-v1,portraits}, plus
+                // ~700 PC-98 portrait renders (6 sizes per portrait, plates, atlases);
                 // the set grew ~95/month during recent sprite upgrades. 1200 leaves
                 // headroom through the roster/FX roadmap so LRU eviction never
                 // silently drops sprites from the offline cache. purgeOnQuotaError
                 // below is the real safety valve if disk quota is actually hit.
-                maxEntries: 1200,
+                maxEntries: 2400,
                 maxAgeSeconds: 60 * 24 * 60 * 60,
                 purgeOnQuotaError: true,
               },
@@ -120,5 +121,8 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    // Agent worktrees and local tooling live under .claude/; watching them
+    // exhausts the OS file-watcher limit and crashes the dev server.
+    watch: { ignored: ['**/.claude/**', '**/References/**'] },
   },
 });

@@ -18,7 +18,9 @@ async function boot(page, query = '') {
         ?.emit('pointerdown');
   });
   await expect(page.locator('.battlefield-lab')).toBeVisible();
-  await expect(page.locator('.battlefield-lab')).toHaveAttribute('data-terrain-art', 'weathered');
+  // Procedural terrain is the default renderer; ?terrainArt=weathered keeps the atlases.
+  const renderer = new URLSearchParams(query).get('terrainArt') || 'procedural';
+  await expect(page.locator('.battlefield-lab')).toHaveAttribute('data-terrain-art', renderer);
 }
 test('lab viewport remains stable through move and modal states', async ({ page }) => {
   await boot(page);
@@ -153,7 +155,7 @@ for (const template of [
   'caldera',
   'magma_flow',
 ]) {
-  test(`weathered generated ${template} preserves terrain and accepts touch selection`, async ({
+  test(`painted generated ${template} preserves terrain and accepts touch selection`, async ({
     page,
   }) => {
     await boot(page, `&labMap=${template}`);
@@ -163,7 +165,7 @@ for (const template of [
         layout: JSON.stringify(b.grid.mapLayout),
         names: b.grid.mapLayout.flat().map((i) => b.grid.terrainData[i].name),
         unit: { col: b.playerUnits[0].col, row: b.playerUnits[0].row },
-        allPainted: b.grid.tiles.flat().every((t) => t.texture.key.startsWith('battle-lab-')),
+        allPainted: b.grid.tiles.flat().every((t) => t.texture.key === b._battlefieldTerrain?.key),
       };
     });
     expect(before.allPainted).toBe(true);
@@ -202,9 +204,19 @@ for (const template of [
         JSON.stringify(window.__emblemRogueGame.scene.getScene('Battle').grid.mapLayout),
       ),
     ).toBe(before.layout);
-    await page.screenshot({ path: `test-results/weathered-${template}.png` });
+    await page.screenshot({ path: `test-results/painted-${template}.png` });
   });
 }
+
+test('the weathered atlases remain available as a renderer', async ({ page }) => {
+  await boot(page, '&labMap=river_crossing&terrainArt=weathered');
+  expect(
+    await page.evaluate(() => {
+      const b = window.__emblemRogueGame.scene.getScene('Battle');
+      return b.grid.tiles.flat().every((t) => t.texture.key === b._battlefieldTerrain?.key);
+    }),
+  ).toBe(true);
+});
 
 test('More stays anchored and closes from the same sidebar control', async ({ page }) => {
   await boot(page);

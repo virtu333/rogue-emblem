@@ -1,7 +1,7 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { showDeploymentMenu } from './PartyMenus.js';
-import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { UI_PALETTE, applyTextResolution, UI_HEX } from '../utils/uiStyles.js';
 import { inputHint } from '../utils/inputHint.js';
 /**
  * DeployScreenOverlay — extracted from BattleScene.
@@ -116,7 +116,7 @@ export class DeployScreenOverlay {
       scene.add.text(cam.centerX, 52, '', {
         fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
       }),
     )
       .setOrigin(0.5)
@@ -126,7 +126,7 @@ export class DeployScreenOverlay {
     const updateCounter = () => {
       counterText.setText(`${selected.size} / ${limits.max}`);
       const canConfirm = selected.size >= limits.min && selected.size <= limits.max;
-      confirmText.setColor(canConfirm ? '#44ff44' : UI_PALETTE.muted);
+      confirmText.setColor(canConfirm ? UI_PALETTE.good : UI_PALETTE.muted);
     };
 
     // Objective banner -- escape maps reward fast movers, so the player needs
@@ -137,11 +137,11 @@ export class DeployScreenOverlay {
         rout: { text: 'ROUT: Defeat all enemies', color: UI_PALETTE.muted },
         seize: {
           text: 'SEIZE: Defeat the boss, then capture the throne with a Lord',
-          color: '#ffaa66',
+          color: UI_PALETTE.warn,
         },
         escape: {
           text: 'ESCAPE: Only Lords must exit — others retreat safely when they do',
-          color: '#a6ffb0',
+          color: UI_PALETTE.good,
         },
       };
       const banner = OBJECTIVE_BANNERS[objective];
@@ -181,7 +181,7 @@ export class DeployScreenOverlay {
 
       // Row background
       const rowBg = scene.add
-        .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
+        .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, UI_HEX.panel, 0.8)
         .setDepth(701)
         .setInteractive({ useHandCursor: !isCommander });
       deployGroup.push(rowBg);
@@ -222,7 +222,7 @@ export class DeployScreenOverlay {
           scene.add.text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
             fontFamily: 'Arial',
             fontSize: '9px',
-            color: '#ffaa44',
+            color: UI_PALETTE.warn,
           }),
         )
           .setOrigin(1, 0.5)
@@ -233,7 +233,7 @@ export class DeployScreenOverlay {
       const updateRow = () => {
         const isSel = selected.has(i);
         checkText.setText(isSel ? '[X]' : '[ ]');
-        rowBg.setFillStyle(isSel ? 0x334466 : 0x222244, 0.8);
+        rowBg.setFillStyle(isSel ? 0x334466 : UI_HEX.panel, 0.8);
         infoText.setColor(isSel ? UI_PALETTE.text : UI_PALETTE.muted);
       };
 
@@ -309,7 +309,7 @@ export class DeployScreenOverlay {
       scene.add.text(scrollX, startY, '^', {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
       }),
     )
       .setOrigin(0.5)
@@ -318,7 +318,7 @@ export class DeployScreenOverlay {
       scene.add.text(scrollX, listBottomY, 'v', {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
       }),
     )
       .setOrigin(0.5)
@@ -331,8 +331,8 @@ export class DeployScreenOverlay {
       const downEnabled = canScrollRows && scrollOffset < maxScrollOffset;
       setVisibleSafe(scrollUp, canScrollRows);
       setVisibleSafe(scrollDown, canScrollRows);
-      scrollUp.setColor(upEnabled ? '#88ccff' : '#555577');
-      scrollDown.setColor(downEnabled ? '#88ccff' : '#555577');
+      scrollUp.setColor(upEnabled ? UI_PALETTE.info : '#555577');
+      scrollDown.setColor(downEnabled ? UI_PALETTE.info : '#555577');
     };
 
     const setScrollOffset = (nextOffset) => {
@@ -448,14 +448,14 @@ export class DeployScreenOverlay {
       scene.add.text(cam.centerX, confirmY + 38, 'ROSTER', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#88ccff',
+        color: UI_PALETTE.info,
       }),
     )
       .setOrigin(0.5)
       .setDepth(702)
       .setInteractive({ useHandCursor: true });
     rosterText.on('pointerover', () => rosterText.setColor(UI_PALETTE.accent));
-    rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
+    rosterText.on('pointerout', () => rosterText.setColor(UI_PALETTE.info));
     rosterText.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       if (!this.runManager || !this.gameData) return;

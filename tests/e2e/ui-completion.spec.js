@@ -97,7 +97,8 @@ test('rewards expose tier icons and return from roster/settings without losing c
   await expect(rewards.locator('.reward-legend svg')).toHaveCount(1);
   await expect(rewards.locator('.reward-legend')).toContainText('Legend · Weapon');
   await rewards.getByRole('button', { name: 'Roster', exact: true }).tap();
-  await expect(page.getByRole('dialog', { name: 'Inspect roster', exact: true })).toBeVisible();
+  // Rewards open the run's roster for management (equip between battles).
+  await expect(page.getByRole('dialog', { name: 'Manage roster', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(rewards.locator('.reward-legend')).toHaveAttribute('aria-pressed', 'true');
   await rewards.getByRole('button', { name: 'Menu', exact: true }).tap();

@@ -1,0 +1,88 @@
+/* Reliquary detail layer — Ink & Ember (docs/art-direction/ART_BIBLE.md §7).
+   Visual-only: never changes metrics, tap targets or layout. Loaded last so it
+   decorates every surface built from the kit without per-screen overrides.
+   - plates and buttons get chamfered corners (the cut, not a radius)
+   - headers carry a gilt hairline that fades out
+   - primary actions are an ember fill; selection is a gold thread on the left
+   Focus rings stay inset (outline-offset < 0), so the chamfer never clips them. */
+
+.re-btn,
+.re-card,
+.mb-button,
+.mp-actions button,
+.bl-tools button,
+.mu-screen button:not(.re-node),
+.mr-sheet button,
+.mobile-btn {
+  clip-path: polygon(
+    var(--re-chamfer) 0,
+    calc(100% - var(--re-chamfer)) 0,
+    100% var(--re-chamfer),
+    100% calc(100% - var(--re-chamfer)),
+    calc(100% - var(--re-chamfer)) 100%,
+    var(--re-chamfer) 100%,
+    0 calc(100% - var(--re-chamfer)),
+    0 var(--re-chamfer)
+  );
+  border-radius: 0;
+}
+
+.re-panel,
+.re-card {
+  background-image: linear-gradient(180deg, rgba(255, 230, 190, 0.035), transparent 45%);
+}
+
+/* Primary action: ember fill with ink text (fixes gold-on-gold contrast). */
+.re-btn--primary,
+.mobile-battle-hud .mb-primary,
+.mb-forecast .mb-primary,
+.mp-actions .mp-primary,
+.mu-screen .mh-begin,
+.battlefield-lab .mb-primary {
+  background: var(--re-ember-fill);
+  /* Solid fallback under the gradient: contrast audits read background-color. */
+  background-color: var(--re-accent);
+  border-color: var(--re-accent-text);
+  color: var(--re-action-ink);
+  text-shadow: 0 1px 0 rgba(255, 240, 189, 0.3);
+}
+.re-btn--primary:not(:disabled):active,
+.mobile-battle-hud .mb-primary:not(:disabled):active,
+.mb-forecast .mb-primary:not(:disabled):active,
+.mp-actions .mp-primary:active,
+.mu-screen .mh-begin:not(:disabled):active {
+  background: var(--re-ember-fill-hi);
+  background-color: var(--re-accent-text);
+  color: var(--re-action-ink);
+}
+@media (hover: hover) {
+  .re-btn--primary:not(:disabled):hover,
+  .mobile-battle-hud .mb-primary:not(:disabled):hover,
+  .mb-forecast .mb-primary:not(:disabled):hover,
+  .mp-actions .mp-primary:hover,
+  .mu-screen .mh-begin:not(:disabled):hover {
+    background: var(--re-ember-fill-hi);
+    background-color: var(--re-accent-text);
+    color: var(--re-action-ink);
+  }
+}
+
+/* Headers: a gilt hairline instead of a flat rule. */
+.re-header,
+.mu-header {
+  border-bottom: 1px solid transparent;
+  border-image: var(--re-gilt-rule) 1;
+}
+.re-header h1,
+.re-header h2 {
+  text-shadow: 0 1px 0 var(--re-sunken);
+}
+
+/* Selection reads as the gold thread: a left inset line on the chosen item. */
+.re-btn[aria-pressed='true'],
+.re-btn.is-active,
+.mu-screen button[aria-pressed='true']:not(.re-node),
+.mr-sheet button[aria-pressed='true'],
+.mr-sheet button[aria-selected='true'] {
+  box-shadow: inset 2px 0 0 var(--re-accent);
+}

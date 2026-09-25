@@ -1,8 +1,28 @@
-import { battleContrastEnabled, softenGrassTexture } from './BattleContrast.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
-import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { deploymentFrame } from '../utils/deploymentCamera.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
+
+/**
+ * Dev-only canvas backing scale for the phone battlefield (?renderScale=device|<n>).
+ * The phone canvas is 480 px tall whatever the screen, so a 32 px tile at the tactical
+ * zoom is ~45 canvas px that the browser then stretches ~2.4x to device pixels. With
+ * 'device' the backing store matches the panel (CSS height x DPR, capped at 3x) so
+ * map art is sampled once, straight to device pixels. See
+ * docs/art-direction/sprites-v2/PIXEL_BUDGET.md. Pure.
+ */
+export function battleRenderScale(
+  cssHeight,
+  dpr = 1,
+  search = globalThis.location?.search || '',
+  dev = Boolean(import.meta.env?.DEV),
+) {
+  if (!dev) return 1;
+  const value = new URLSearchParams(search || '').get('renderScale');
+  if (!value) return 1;
+  const k = value === 'device' ? (cssHeight * Math.min(3, Math.max(1, dpr))) / 480 : Number(value);
+  return Number.isFinite(k) && k > 1 ? Math.min(4, k) : 1;
+}
 
 export function battlefieldLabEnabled() {
   return (
@@ -12,7 +32,10 @@ export function battlefieldLabEnabled() {
   );
 }
 
-// Experimental presentation only. The same Grid, units, ranges, and Combat rules run underneath.
+// Phone battlefield layout: full-height map, side command pane, camera tools. The
+// terrain art itself is painted by BattleScene through the shared BattlefieldArt seam
+// (desktop uses the same art without this layout). The same Grid, units, ranges and
+// Combat rules run underneath.
 export class BattlefieldLab {
   constructor(hud) {
     this.hud = hud;
@@ -21,7 +44,7 @@ export class BattlefieldLab {
     hud.wrapper.classList.add('battlefield-lab');
     this.originalSize = { width: this.scene.scale.width, height: this.scene.scale.height };
     this.originalBackground = this.scene.cameras.main.backgroundColor.rgba;
-    this.scene.cameras.main.setBackgroundColor('#263e40');
+    this.scene.cameras.main.setBackgroundColor(UI_PALETTE.sunken);
     this.tools = document.createElement('nav');
     this.tools.className = 'bl-tools';
     this.tools.setAttribute('aria-label', 'Battle utilities');
@@ -32,15 +55,10 @@ export class BattlefieldLab {
       hud.button('Menu', () => this.scene.game.events.emit('mobile:menu')),
     );
     hud.root.append(this.tools);
-    this.originalTiles = [];
-    this.textureKeys = [];
-    this.artReady = loadWeatheredArt(`${import.meta.env.BASE_URL}assets/terrain/weathered`)
-      .then((art) => {
-        if (!this.destroyed) this.paintTerrain(art);
-      })
-      .catch((error) => {
-        if (!this.destroyed) console.warn(error.message);
-      });
+    const painting = this.scene._battlefieldTerrain;
+    this.artReady = Promise.resolve(painting?.ready).then((painted) => {
+      if (!this.destroyed && painted) hud.wrapper.dataset.terrainArt = painting.rendererId;
+    });
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(this.container);
     this.resize();
@@ -49,8 +67,10 @@ export class BattlefieldLab {
   resize() {
     const rect = this.container.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
-    const width = Math.round((480 * rect.width) / rect.height);
-    const viewportKey = `${width}:${Math.round(rect.height)}`;
+    const k = battleRenderScale(rect.height, globalThis.devicePixelRatio || 1);
+    const width = Math.round((480 * k * rect.width) / rect.height);
+    const height = Math.round(480 * k);
+    const viewportKey = `${width}:${Math.round(rect.height)}:${k}`;
     if (viewportKey === this.lastViewportKey) return;
     this.lastViewportKey = viewportKey;
     const s = this.scene;
@@ -64,14 +84,17 @@ export class BattlefieldLab {
         }
       : null;
     this.viewHeight = rect.height;
-    s.scale.setGameSize(width, 480);
-    s.cameras.main.setSize(width, 480);
-    s._uiCamera?.setSize(width, 480);
+    this.renderScale = k;
+    s.scale.setGameSize(width, height);
+    s.cameras.main.setSize(width, height);
+    s._uiCamera?.setSize(width, height);
+    // Pinned Phaser UI keeps its 480-px layout: the UI camera magnifies it by k.
+    if (s._uiCamera) s._uiCamera.setOrigin(0, 0).setZoom(k);
     const bounds = s._getBattleMapBounds();
     if (s._battleCamera && bounds) {
-      const fit = Math.min((width - 32) / bounds.width, 448 / bounds.height);
-      s._battleCamera.minZoom = Math.max(0.5, fit);
-      s._battleCamera.maxZoom = Math.max(3, fit * 2.5);
+      const fit = Math.min((width - 32 * k) / bounds.width, (448 * k) / bounds.height);
+      s._battleCamera.minZoom = Math.max(0.5 * k, fit);
+      s._battleCamera.maxZoom = Math.max(3 * k, fit * 2.5);
       if (!previous) this.recenter();
       else if (previous.overview) s._battleCamera.resetView();
       else {
@@ -110,38 +133,11 @@ export class BattlefieldLab {
     s._syncMobileResetViewButton();
   }
 
-  paintTerrain(art) {
-    const { grid, textures } = this.scene;
-    const at = (col, row) => grid.terrainData[grid.mapLayout[row]?.[col]]?.name;
-    for (let row = 0; row < grid.rows; row++) {
-      for (let col = 0; col < grid.cols; col++) {
-        const tile = grid.tiles[row][col];
-        if (!tile?.setTexture) continue;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = WEATHERED_TILE_SIZE;
-        if (!drawWeatheredTile(canvas.getContext('2d'), art, at, col, row, { biome: grid.biome }))
-          continue;
-        if (battleContrastEnabled() && at(col, row) === 'Plain')
-          softenGrassTexture(canvas.getContext('2d'), WEATHERED_TILE_SIZE);
-        const key = `battle-lab-${col}-${row}`;
-        textures.addCanvas(key, canvas);
-        this.textureKeys.push(key);
-        this.originalTiles.push({ tile, key: tile.texture.key, frame: tile.frame.name });
-        tile.setTexture(key).setDisplaySize(TILE_SIZE, TILE_SIZE);
-      }
-    }
-    this.hud.wrapper.dataset.terrainArt = 'weathered';
-  }
-
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
     this.observer.disconnect();
     this.tools.remove();
-    for (const { tile, key, frame } of this.originalTiles) {
-      if (tile.scene) tile.setTexture(key, frame).setDisplaySize(TILE_SIZE, TILE_SIZE);
-    }
-    for (const key of this.textureKeys) this.scene.textures.remove(key);
     this.hud.wrapper.classList.remove('battlefield-lab');
     delete this.hud.wrapper.dataset.terrainArt;
     this.scene.cameras?.main?.setBackgroundColor(this.originalBackground);

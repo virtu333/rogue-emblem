@@ -27,6 +27,7 @@ import { textureImageSource } from './textureImageSource.js';
 import { hasInputFocus, pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { getEffectivenessMultiplier } from '../engine/Combat.js';
+import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 
 const PLAY_STATES = new Set([
   'PLAYER_IDLE',
@@ -351,7 +352,17 @@ export class MobileBattleHUD {
     const side = el('article', `mb-forecast-side ${attacking ? 'mb-ally' : 'mb-enemy'}`);
     side.append(el('div', 'mb-eyebrow', attacking ? 'Your attack' : 'Enemy response'));
     const portraitKey = this.scene._getPortraitKey(unit);
-    if (portraitKey && this.scene.textures.exists(portraitKey)) {
+    const pc98Id = usePc98() ? portraitIdForUnit(unit, this.scene.gameData || {}) : null;
+    if (pc98Id) {
+      side.append(
+        pc98PortraitElement({
+          id: pc98Id,
+          size: 48,
+          faction: portraitFaction(unit, pc98Id),
+          className: 'mb-portrait',
+        }),
+      );
+    } else if (portraitKey && this.scene.textures.exists(portraitKey)) {
       const source = textureImageSource(this.scene.textures.get(portraitKey));
       if (source) {
         const portrait = el('img', 'mb-portrait');
@@ -450,8 +461,11 @@ export class MobileBattleHUD {
     const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
     const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_');
     const turnStarting = state === 'TURN_START_RESOLVING';
-    const show = tutorialHint || (supported && this.available({ allowTurnStart: true }));
-    this.root.inert = !show || tutorialHint || turnStarting || Boolean(this.modal);
+    // A blocking ceremony covers the map only: the rail stays in view, inert.
+    const ceremony = Boolean(s._ceremonies?.isBlocking?.());
+    const show =
+      tutorialHint || (supported && (ceremony || this.available({ allowTurnStart: true })));
+    this.root.inert = !show || tutorialHint || turnStarting || ceremony || Boolean(this.modal);
     this.root.setAttribute('aria-hidden', String(!show));
     // The lab reserves its viewport for the entire battle, including modal/animation states.
     if (this.lab) {

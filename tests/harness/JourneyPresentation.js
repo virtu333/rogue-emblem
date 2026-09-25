@@ -89,6 +89,31 @@ export class ChoicePicker {
     this.options.onClose?.();
   }
 }
+// The promotion path chooser exposes the same picker contract to the driver:
+// choices (its targets), blocked, apply; close() reports the applied class
+// to the menu (which then plays — or, headless, skips — the rite).
+export class PromotionPathChooser {
+  constructor(options) {
+    this.applied = null;
+    const apply = options.apply;
+    this.options = {
+      ...options,
+      choices: options.targets || [],
+      apply: (choice) => {
+        const result = apply ? apply(choice) : { ok: true };
+        if (result?.ok !== false) this.applied = choice;
+        return result;
+      },
+    };
+  }
+  destroy() {
+    this.destroyed = true;
+  }
+  close() {
+    this.destroy();
+    this.options.onClose?.(this.applied);
+  }
+}
 export class PauseOverlay {
   constructor(scene, options) {
     this.options = options;

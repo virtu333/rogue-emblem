@@ -138,7 +138,7 @@ export class EscapeObjectiveController {
         .text(pos.x, pos.y - 16, message, {
           fontFamily: 'monospace',
           fontSize: '12px',
-          color: '#a6ffb0',
+          color: UI_PALETTE.good,
           fontStyle: 'bold',
           backgroundColor: '#00000088',
           padding: { x: 4, y: 2 },

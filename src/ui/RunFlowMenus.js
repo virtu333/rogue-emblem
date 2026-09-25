@@ -4,6 +4,10 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { MAX_SLOTS, getSlotSummary } from '../engine/SlotManager.js';
 import { TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
+/** Shown when a finished run's rewards could not be written (they retry on Continue). */
+export const PAYOUT_PENDING_NOTE =
+  "Rewards couldn't be saved yet. They'll be added the next time you open this slot.";
+
 export function runResultMenu(scene, rewards, meta) {
   const leave = (home) =>
     scene._attemptSceneTransition(
@@ -29,6 +33,8 @@ export function runResultMenu(scene, rewards, meta) {
   ])
     stats.append(element('dt', label), element('dd', String(value)));
   menu.body.append(stats);
+  if (meta && rewards.appliedToMeta === false)
+    menu.body.append(element('p', PAYOUT_PENDING_NOTE, 're-run-note'));
   if (meta)
     menu.body.append(
       element('p', `Total: ${meta.getTotalValor()} Valor · ${meta.getTotalSupply()} Supply`),

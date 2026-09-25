@@ -68,7 +68,9 @@ test('phone settings persist independently and cut-ins remain readable across qu
           delay.call(s, opts?.label === 'proc_cutin_hold' ? 1200 : ms, opts);
         window.cutinFinished = false;
         c.showCutIn({
+          unit: s.playerUnits[0],
           unitName: 'Edric',
+          weaponName: s.playerUnits[0].weapon?.name,
           portraitKey: s._getPortraitKey(s.playerUnits[0]),
           label: 'CRITICAL HIT',
           category: 'offense',
@@ -81,14 +83,21 @@ test('phone settings persist independently and cut-ins remain readable across qu
       },
       { motion, quality },
     );
+    // The DOM cut-in: readable word, fully in, and static when motion is reduced.
+    const cutIn = page.locator('.ce-cutin-layer');
+    await expect(cutIn.locator('.ce-cutin-big')).toHaveText('CRITICAL');
     await page.waitForFunction(() => {
-      const s = window.__emblemRogueGame.scene.getScene('Battle');
-      return s.children.list.some(
-        (o) => o.list?.some((x) => x.text === 'CRITICAL HIT') && o.alpha > 0.9,
-      );
+      const layer = document.querySelector('.ce-cutin-layer');
+      return Number(layer?.style.getPropertyValue('--ce-in')) === 1;
     });
+    expect(await cutIn.evaluate((el) => el.classList.contains('is-static'))).toBe(
+      motion || quality === 'low',
+    );
+    const box = await cutIn.locator('.ce-cutin-big').boundingBox();
+    expect(box.width).toBeGreaterThan(80);
     await page.screenshot({ path: info.outputPath(`cutin-${motion}-${quality}.png`) });
     await page.waitForFunction(() => window.cutinFinished);
+    await expect(cutIn).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });

@@ -105,12 +105,7 @@ test('records show persisted roster detail without navigating away from the titl
   });
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1300);
-  await page.evaluate(() =>
-    window.__emblemRogueGame.scene
-      .getScene('Title')
-      ._menuButtons.find((b) => b.list.some((t) => t.text === 'RECORDS'))
-      ._hitZone.emit('pointerdown'),
-  );
+  await page.getByRole('button', { name: 'Records', exact: true }).tap();
   const dialog = page.getByRole('dialog', { name: 'Victory records' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /Slot 1/ }).tap();
@@ -198,8 +193,8 @@ test('battlefield place text and merchant sprite are readable on a small phone',
   await expect(
     page.locator('.mb-more-content').getByText(/Old Kingdom Roads — Dark Champion Keep/),
   ).toBeVisible();
-  await page.waitForFunction(
-    () => window.__emblemRogueGame.scene.getScene('Battle')._phaseBanner?.alpha === 1,
+  await expect(page.locator('.ce-phase-layer .ce-phase-sub')).toHaveText(
+    /Old Kingdom Roads — Dark Champion Keep/,
   );
   await page.screenshot({ path: info.outputPath('place-and-merchant.png') });
   expect(errors).toEqual([]);

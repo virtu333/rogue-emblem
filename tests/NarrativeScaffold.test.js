@@ -740,7 +740,7 @@ describe('Node flavor (Surface 1)', () => {
       },
     });
     scene._showNodeFlavor({ type: 'battle' });
-    expect(scene.showShopBanner).toHaveBeenCalledWith('frontier line', '#aabbcc');
+    expect(scene.showShopBanner).toHaveBeenCalledWith('frontier line', '#a89d9f');
   });
 
   it('falls back to act3 when act key missing', () => {
@@ -748,7 +748,7 @@ describe('Node flavor (Surface 1)', () => {
       nodeFlavor: { battle: { act3: ['fallback line'] } },
     });
     scene._showNodeFlavor({ type: 'battle' });
-    expect(scene.showShopBanner).toHaveBeenCalledWith('fallback line', '#aabbcc');
+    expect(scene.showShopBanner).toHaveBeenCalledWith('fallback line', '#a89d9f');
   });
 
   it('uses elite pool for elite nodes', () => {
@@ -759,7 +759,7 @@ describe('Node flavor (Surface 1)', () => {
       },
     });
     scene._showNodeFlavor({ type: 'battle', isElite: true });
-    expect(scene.showShopBanner).toHaveBeenCalledWith('elite line', '#aabbcc');
+    expect(scene.showShopBanner).toHaveBeenCalledWith('elite line', '#a89d9f');
   });
 
   it('swallows errors gracefully', () => {
@@ -901,7 +901,7 @@ describe('Church revival flavor (Surface 3)', () => {
       scene,
       { id: 'church-1' },
       'Kira revived!',
-      '#44ff44',
+      '#95c487',
       'revival',
     );
 
@@ -921,7 +921,7 @@ describe('Church revival flavor (Surface 3)', () => {
       scene,
       { id: 'church-1' },
       'Kira revived!',
-      '#44ff44',
+      '#95c487',
       'revival',
     );
     scene.churchOverlay = null;
@@ -964,7 +964,7 @@ describe('Church promotion flavor (Surface 4)', () => {
       scene,
       { id: 'church-1' },
       'Sera promoted to Saint!',
-      '#ffdd44',
+      '#f3cb6c',
       'promotion',
     );
 
@@ -982,7 +982,7 @@ describe('Church promotion flavor (Surface 4)', () => {
       time: { delayedCall: vi.fn() },
     };
     expect(() =>
-      NodeMapScene.prototype.showChurchMessage.call(baseScene, 'Should not render', '#aabbcc'),
+      NodeMapScene.prototype.showChurchMessage.call(baseScene, 'Should not render', '#a89d9f'),
     ).not.toThrow();
     expect(addText).not.toHaveBeenCalled();
 
@@ -993,7 +993,7 @@ describe('Church promotion flavor (Surface 4)', () => {
       time: { delayedCall: vi.fn() },
     };
     expect(() =>
-      NodeMapScene.prototype.showChurchMessage.call(inactiveScene, 'Should not render', '#aabbcc'),
+      NodeMapScene.prototype.showChurchMessage.call(inactiveScene, 'Should not render', '#a89d9f'),
     ).not.toThrow();
     expect(addText).not.toHaveBeenCalled();
   });

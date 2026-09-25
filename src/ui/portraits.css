@@ -1,0 +1,37 @@
+/* PC-98 portraits (src/ui/portraitArt.js, tools/art/pc98/).
+   Each <img> is a transparent figure rendered for its CSS box size, drawn
+   over its faction plate (same size, same pixel grid) as a background. Both
+   stay pixelated so the dither reads as authored on retina screens. */
+.pc98-portrait {
+  image-rendering: pixelated;
+}
+.pc98-portrait.has-plate {
+  background-image: var(--pc98-plate);
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Mirrors object-fit: contain/cover on square boxes: plate and figure scale together. */
+  background-size: contain;
+}
+/* <picture> wrappers vanish from layout so floats and grids see the <img>. */
+.pc98-picture {
+  display: contents;
+}
+/* Must match ROSTER_DESKTOP_QUERY (src/ui/unitPortrait.js). */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .pc98-portrait.has-plate.has-media {
+    background-image: var(--pc98-plate-1, var(--pc98-plate));
+  }
+}
+
+/* Ceremonies draw the 192px figure at integer scales (ceremonyDom.js sets
+   --ce-px / --ce-bust-px from the frame). */
+.ce-boss.is-pc98 {
+  --ce-bust: min(calc(192px * var(--ce-bust-px, 1)), calc(var(--ce-w) * 0.36));
+}
+.ce-cutin-eyes.is-pc98 {
+  --ce-pw: calc(384px * var(--ce-px, 1));
+}
+.ce-offer-face.pc98-portrait {
+  width: calc(48px * var(--ce-px, 1));
+  height: calc(48px * var(--ce-px, 1));
+}

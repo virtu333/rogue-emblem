@@ -1,11 +1,11 @@
 import { buildPromotionColumn } from './promotionComparison.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { promotionMenu } from './ProgressionMenus.js';
+import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { inputHint } from '../utils/inputHint.js';
 // PromotionChoicePanel — Side-by-side promotion choice overlay
 // Used by BattleScene, NodeMapScene (church), and RosterOverlay
 
-import { UI_COLORS } from '../utils/uiStyles.js';
+import { UI_COLORS, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
 import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
@@ -52,8 +52,18 @@ export class PromotionChoicePanel {
       this._registerScenePromotionChoiceGuard();
       this._onShutdown = () => this.destroy();
       this.scene.events?.once?.('shutdown', this._onShutdown);
-      if (hasDOMHost()) this.surface = promotionMenu(this);
-      else this._build();
+      if (hasDOMHost()) {
+        // The rite's threshold: crests, portraits, sprites, ranks and bonuses.
+        this.surface = new PromotionPathChooser({
+          scene: this.scene,
+          unit: this.unit,
+          targets: this.targets,
+          gameData: this.scene.gameData || { skills: this.skillsData },
+          title: 'Choose promotion',
+          closeLabel: 'Cancel',
+          onClose: (cls) => this._finish(cls || null),
+        });
+      } else this._build();
     });
   }
 
@@ -83,9 +93,9 @@ export class PromotionChoicePanel {
 
     // Panel bg
     const bg = this.scene.add
-      .rectangle(cx, cy, panelW, panelH, 0x111122, 0.95)
+      .rectangle(cx, cy, panelW, panelH, UI_HEX.panel, 0.95)
       .setDepth(DEPTH_PANEL)
-      .setStrokeStyle(2, 0x4466aa);
+      .setStrokeStyle(2, UI_HEX.line);
     this.objects.push(bg);
 
     // --- Header ---
@@ -96,7 +106,7 @@ export class PromotionChoicePanel {
       'CHOOSE PROMOTION',
       {
         fontSize: '14px',
-        color: '#88ffff',
+        color: UI_PALETTE.info,
         fontStyle: 'bold',
       },
       0.5,
@@ -108,7 +118,7 @@ export class PromotionChoicePanel {
       `${unit.name} — ${unit.className}`,
       {
         fontSize: '11px',
-        color: '#cccccc',
+        color: UI_PALETTE.text,
       },
       0.5,
     );
@@ -123,7 +133,7 @@ export class PromotionChoicePanel {
     const divTop = y - 2;
     const divBot = y + bodyH + 2;
     const divLine = this.scene.add
-      .rectangle(divX, (divTop + divBot) / 2, 1, divBot - divTop, 0x4466aa)
+      .rectangle(divX, (divTop + divBot) / 2, 1, divBot - divTop, UI_HEX.line)
       .setDepth(DEPTH_PANEL);
     this.objects.push(divLine);
 
@@ -140,7 +150,7 @@ export class PromotionChoicePanel {
           line.text,
           {
             fontSize: line.fontSize || '11px',
-            color: line.color || '#e0e0e0',
+            color: line.color || UI_PALETTE.text,
             fontStyle: line.bold ? 'bold' : '',
           },
           0,
@@ -157,7 +167,7 @@ export class PromotionChoicePanel {
       const cls = this.targets[ci];
 
       const btnBg = this.scene.add
-        .rectangle(btnCx, btnY, COL_W - 16, 22, 0x224488, 1)
+        .rectangle(btnCx, btnY, COL_W - 16, 22, UI_HEX.line, 1)
         .setDepth(DEPTH_TEXT)
         .setStrokeStyle(1, 0x6688cc)
         .setInteractive({ useHandCursor: true });
@@ -170,14 +180,14 @@ export class PromotionChoicePanel {
         `Select ${cls.name}`,
         {
           fontSize: '11px',
-          color: '#ffffff',
+          color: UI_PALETTE.text,
           fontStyle: 'bold',
         },
         0.5,
       );
 
       btnBg.on('pointerover', () => btnBg.setFillStyle(0x3366aa));
-      btnBg.on('pointerout', () => btnBg.setFillStyle(0x224488));
+      btnBg.on('pointerout', () => btnBg.setFillStyle(UI_HEX.line));
       btnBg.once('pointerdown', () => {
         this._finish(cls);
       });
@@ -191,7 +201,7 @@ export class PromotionChoicePanel {
       inputHint(this.scene, '(ESC to cancel)', '(Tap outside to cancel)'),
       {
         fontSize: '10px',
-        color: '#888888',
+        color: UI_PALETTE.muted,
       },
       0.5,
     );

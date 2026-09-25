@@ -1,9 +1,10 @@
 // DangerZoneOverlay.js — Shows all tiles threatened by enemy units
 
 import { TILE_SIZE } from '../utils/constants.js';
+import { UI_HEX } from '../utils/uiStyles.js';
 
 export class DangerZoneOverlay {
-  constructor(scene, grid, { color = 0xff8800, depth = 4 } = {}) {
+  constructor(scene, grid, { color = UI_HEX.warn, depth = 4 } = {}) {
     this.scene = scene;
     this.grid = grid;
     this.color = color;

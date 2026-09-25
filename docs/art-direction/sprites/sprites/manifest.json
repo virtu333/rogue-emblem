@@ -1,0 +1,840 @@
+{
+  "generated": "tools/art/sprite-lab/generate.mjs",
+  "sprites": [
+    {
+      "key": "lord_edric_player",
+      "cls": "lord_edric",
+      "faction": "player",
+      "seed": 1,
+      "id": {},
+      "bounds": {
+        "x0": 21,
+        "y0": 11,
+        "x1": 50,
+        "y1": 44,
+        "width": 30,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "lord_sera_player",
+      "cls": "lord_sera",
+      "faction": "player",
+      "seed": 1,
+      "id": {},
+      "bounds": {
+        "x0": 22,
+        "y0": 13,
+        "x1": 42,
+        "y1": 44,
+        "width": 21,
+        "height": 32
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "myrmidon_player",
+      "cls": "myrmidon",
+      "faction": "player",
+      "seed": 11,
+      "id": {
+        "skin": "skinOlive",
+        "hairRamp": "hairChestnut",
+        "hair": "crop",
+        "face": "youth",
+        "headgear": "headbandMain",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 12,
+        "x1": 43,
+        "y1": 44,
+        "width": 21,
+        "height": 33
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "myrmidon_enemy",
+      "cls": "myrmidon",
+      "faction": "enemy",
+      "seed": 11,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "headbandMain",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinWarm",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 11,
+        "x1": 43,
+        "y1": 44,
+        "width": 21,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "myrmidon_corrupted",
+      "cls": "myrmidon",
+      "faction": "corrupted",
+      "seed": 11,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "headbandMain",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinWarm",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 11,
+        "x1": 43,
+        "y1": 44,
+        "width": 22,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "mercenary_player",
+      "cls": "mercenary",
+      "faction": "player",
+      "seed": 7,
+      "id": {
+        "skin": "skinFair",
+        "hairRamp": "hairSlate",
+        "hair": "shaved",
+        "face": "mature",
+        "headgear": "none",
+        "sub": "olive",
+        "beard": "stubble",
+        "scarf": "sub"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 12,
+        "x1": 41,
+        "y1": 44,
+        "width": 21,
+        "height": 33
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "mercenary_enemy",
+      "cls": "mercenary",
+      "faction": "enemy",
+      "seed": 7,
+      "id": {
+        "hair": "crop",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinDeep",
+        "hairRamp": "hairBrown",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 12,
+        "x1": 41,
+        "y1": 44,
+        "width": 21,
+        "height": 33
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "mercenary_corrupted",
+      "cls": "mercenary",
+      "faction": "corrupted",
+      "seed": 7,
+      "id": {
+        "hair": "crop",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinDeep",
+        "hairRamp": "hairBrown",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 20,
+        "y0": 12,
+        "x1": 42,
+        "y1": 44,
+        "width": 23,
+        "height": 33
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "thief_player",
+      "cls": "thief",
+      "faction": "player",
+      "seed": 5,
+      "id": {
+        "skin": "skinTan",
+        "hairRamp": "hairBlack",
+        "hair": "swept",
+        "face": "youth",
+        "headgear": "hood",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 17,
+        "x1": 42,
+        "y1": 44,
+        "width": 22,
+        "height": 28
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "thief_enemy",
+      "cls": "thief",
+      "faction": "enemy",
+      "seed": 5,
+      "id": {
+        "hair": "crop",
+        "headgear": "hood",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairAsh",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 17,
+        "x1": 42,
+        "y1": 44,
+        "width": 22,
+        "height": 28
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "thief_corrupted",
+      "cls": "thief",
+      "faction": "corrupted",
+      "seed": 5,
+      "id": {
+        "hair": "crop",
+        "headgear": "hood",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairAsh",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 20,
+        "y0": 17,
+        "x1": 42,
+        "y1": 44,
+        "width": 23,
+        "height": 28
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "fighter_player",
+      "cls": "fighter",
+      "faction": "player",
+      "seed": 21,
+      "id": {
+        "skin": "skinWarm",
+        "hairRamp": "hairBrown",
+        "hair": "shaved",
+        "face": "mature",
+        "headgear": "none",
+        "sub": "umber",
+        "beard": "none",
+        "scarf": "sub"
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 11,
+        "x1": 46,
+        "y1": 44,
+        "width": 24,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "fighter_enemy",
+      "cls": "fighter",
+      "faction": "enemy",
+      "seed": 21,
+      "id": {
+        "hair": "shaved",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 11,
+        "x1": 46,
+        "y1": 44,
+        "width": 24,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "fighter_corrupted",
+      "cls": "fighter",
+      "faction": "corrupted",
+      "seed": 21,
+      "id": {
+        "hair": "shaved",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 11,
+        "x1": 46,
+        "y1": 44,
+        "width": 25,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "knight_player",
+      "cls": "knight",
+      "faction": "player",
+      "seed": 4,
+      "id": {
+        "skin": "skinWarm",
+        "hairRamp": "hairBlack",
+        "hair": "crop",
+        "face": "soft",
+        "headgear": "openHelm",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 0,
+        "x1": 40,
+        "y1": 44,
+        "width": 20,
+        "height": 45
+      },
+      "kind": "heavy"
+    },
+    {
+      "key": "knight_enemy",
+      "cls": "knight",
+      "faction": "enemy",
+      "seed": 4,
+      "id": {
+        "hair": "crop",
+        "headgear": "greatHelm",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 0,
+        "x1": 40,
+        "y1": 44,
+        "width": 20,
+        "height": 45
+      },
+      "kind": "heavy"
+    },
+    {
+      "key": "knight_corrupted",
+      "cls": "knight",
+      "faction": "corrupted",
+      "seed": 4,
+      "id": {
+        "hair": "crop",
+        "headgear": "greatHelm",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 20,
+        "y0": 0,
+        "x1": 41,
+        "y1": 44,
+        "width": 22,
+        "height": 45
+      },
+      "kind": "heavy"
+    },
+    {
+      "key": "archer_player",
+      "cls": "archer",
+      "faction": "player",
+      "seed": 9,
+      "id": {
+        "skin": "skinDeep",
+        "hairRamp": "hairBlack",
+        "hair": "bob",
+        "face": "youth",
+        "headgear": "none",
+        "sub": "rust",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 24,
+        "y0": 11,
+        "x1": 43,
+        "y1": 44,
+        "width": 20,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "archer_enemy",
+      "cls": "archer",
+      "faction": "enemy",
+      "seed": 9,
+      "id": {
+        "hair": "crop",
+        "headgear": "hood",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 24,
+        "y0": 11,
+        "x1": 43,
+        "y1": 44,
+        "width": 20,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "archer_corrupted",
+      "cls": "archer",
+      "faction": "corrupted",
+      "seed": 9,
+      "id": {
+        "hair": "crop",
+        "headgear": "hood",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 11,
+        "x1": 44,
+        "y1": 44,
+        "width": 22,
+        "height": 34
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "mage_player",
+      "cls": "mage",
+      "faction": "player",
+      "seed": 3,
+      "id": {
+        "skin": "skinFair",
+        "hairRamp": "hairBrown",
+        "hair": "bob",
+        "face": "youth",
+        "headgear": "none",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 13,
+        "x1": 42,
+        "y1": 44,
+        "width": 21,
+        "height": 32
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "mage_enemy",
+      "cls": "mage",
+      "faction": "enemy",
+      "seed": 3,
+      "id": {
+        "hair": "crop",
+        "headgear": "none",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinDeep",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 14,
+        "x1": 42,
+        "y1": 44,
+        "width": 21,
+        "height": 31
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "mage_corrupted",
+      "cls": "mage",
+      "faction": "corrupted",
+      "seed": 3,
+      "id": {
+        "hair": "crop",
+        "headgear": "none",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinDeep",
+        "hairRamp": "hairBlack",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 14,
+        "x1": 42,
+        "y1": 44,
+        "width": 22,
+        "height": 31
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "cleric_player",
+      "cls": "cleric",
+      "faction": "player",
+      "seed": 2,
+      "id": {
+        "skin": "skinWarm",
+        "hairRamp": "hairBrown",
+        "hair": "bun",
+        "face": "soft",
+        "headgear": "veil",
+        "sub": "rust",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 8,
+        "x1": 41,
+        "y1": 44,
+        "width": 20,
+        "height": 37
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "cleric_enemy",
+      "cls": "cleric",
+      "faction": "enemy",
+      "seed": 2,
+      "id": {
+        "hair": "bob",
+        "headgear": "veil",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 8,
+        "x1": 41,
+        "y1": 44,
+        "width": 20,
+        "height": 37
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "cleric_corrupted",
+      "cls": "cleric",
+      "faction": "corrupted",
+      "seed": 2,
+      "id": {
+        "hair": "bob",
+        "headgear": "veil",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 21,
+        "y0": 8,
+        "x1": 41,
+        "y1": 44,
+        "width": 21,
+        "height": 37
+      },
+      "kind": "mage"
+    },
+    {
+      "key": "cavalier_player",
+      "cls": "cavalier",
+      "faction": "player",
+      "seed": 14,
+      "id": {
+        "skin": "skinWarm",
+        "hairRamp": "hairChestnut",
+        "hair": "swept",
+        "face": "mature",
+        "headgear": "none",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": "linen"
+      },
+      "bounds": {
+        "x0": 9,
+        "y0": 0,
+        "x1": 50,
+        "y1": 44,
+        "width": 42,
+        "height": 45
+      },
+      "kind": "mounted"
+    },
+    {
+      "key": "cavalier_enemy",
+      "cls": "cavalier",
+      "faction": "enemy",
+      "seed": 14,
+      "id": {
+        "hair": "crop",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 9,
+        "y0": 0,
+        "x1": 50,
+        "y1": 44,
+        "width": 42,
+        "height": 45
+      },
+      "kind": "mounted"
+    },
+    {
+      "key": "cavalier_corrupted",
+      "cls": "cavalier",
+      "faction": "corrupted",
+      "seed": 14,
+      "id": {
+        "hair": "crop",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinFair",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 8,
+        "y0": 0,
+        "x1": 50,
+        "y1": 44,
+        "width": 43,
+        "height": 45
+      },
+      "kind": "mounted"
+    },
+    {
+      "key": "pegasus_knight_player",
+      "cls": "pegasus_knight",
+      "faction": "player",
+      "seed": 8,
+      "id": {
+        "skin": "skinOlive",
+        "hairRamp": "hairBrown",
+        "hair": "long",
+        "face": "youth",
+        "headgear": "none",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 10,
+        "y0": 8,
+        "x1": 48,
+        "y1": 44,
+        "width": 39,
+        "height": 37
+      },
+      "kind": "flyer"
+    },
+    {
+      "key": "pegasus_knight_enemy",
+      "cls": "pegasus_knight",
+      "faction": "enemy",
+      "seed": 8,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairBrown",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 10,
+        "y0": 8,
+        "x1": 48,
+        "y1": 44,
+        "width": 39,
+        "height": 37
+      },
+      "kind": "flyer"
+    },
+    {
+      "key": "pegasus_knight_corrupted",
+      "cls": "pegasus_knight",
+      "faction": "corrupted",
+      "seed": 8,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "kettle",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinOlive",
+        "hairRamp": "hairBrown",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 9,
+        "y0": 8,
+        "x1": 48,
+        "y1": 44,
+        "width": 40,
+        "height": 37
+      },
+      "kind": "flyer"
+    },
+    {
+      "key": "swordmaster_player",
+      "cls": "swordmaster",
+      "faction": "player",
+      "seed": 11,
+      "id": {
+        "skin": "skinOlive",
+        "hairRamp": "hairChestnut",
+        "hair": "crop",
+        "face": "youth",
+        "headgear": "headbandMain",
+        "sub": "olive",
+        "beard": "none",
+        "scarf": null
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 10,
+        "x1": 46,
+        "y1": 44,
+        "width": 24,
+        "height": 35
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "swordmaster_enemy",
+      "cls": "swordmaster",
+      "faction": "enemy",
+      "seed": 11,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "headbandMain",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinWarm",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 23,
+        "y0": 10,
+        "x1": 46,
+        "y1": 44,
+        "width": 24,
+        "height": 35
+      },
+      "kind": "infantry"
+    },
+    {
+      "key": "swordmaster_corrupted",
+      "cls": "swordmaster",
+      "faction": "corrupted",
+      "seed": 11,
+      "id": {
+        "hair": "ponytail",
+        "headgear": "headbandMain",
+        "face": "mature",
+        "sub": "charcoal",
+        "skin": "skinWarm",
+        "hairRamp": "hairChestnut",
+        "beard": "none"
+      },
+      "bounds": {
+        "x0": 22,
+        "y0": 10,
+        "x1": 46,
+        "y1": 44,
+        "width": 25,
+        "height": 35
+      },
+      "kind": "infantry"
+    }
+  ]
+}

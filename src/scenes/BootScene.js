@@ -1,7 +1,16 @@
 import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
 import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
+import {
+  PC98_ATLAS_SIZES,
+  legacyKeyAliasesRebuilt,
+  legacyPortraitUrl,
+  pc98AtlasData,
+  pc98AtlasKey,
+  portraitArtMode,
+} from '../ui/portraitArt.js';
 import { preloadRebuiltSprites, prepareRebuiltSprites } from '../ui/RebuiltSprites.js';
+import { preloadTracedSprites, prepareTracedSprites } from '../ui/TracedSprites.js';
 import { loadGameFont } from '../utils/loadGameFont.js';
 // BootScene - loads game data, then launches TitleScene
 
@@ -56,6 +65,7 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     preloadRebuiltSprites(this);
+    preloadTracedSprites(this);
     preloadRebuiltPortraits(this);
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
@@ -363,19 +373,34 @@ export class BootScene extends Phaser.Scene {
       'enemy_wyvern_rider',
       'enemy_zombie',
     ];
-    if (this._startupFlags.reducedPreload) {
-      this._deferredAssetGroups.push('portraits');
-      for (const name of portraits) {
-        this._deferredAssets.push({
-          type: 'image',
-          key: `portrait_${name}`,
-          src: `assets/portraits/${name}.png`,
+    // PC-98 portrait pass (src/ui/portraitArt.js): same keys, PC-98 files;
+    // names that also have rebuilt art alias the rebuilt texture; canvas
+    // draws small portraits from per-size atlases.
+    const portraitMode = portraitArtMode();
+    const portraitAssets = portraits
+      .filter((name) => !legacyKeyAliasesRebuilt(name, portraitMode))
+      .map((name) => ({
+        type: 'image',
+        key: `portrait_${name}`,
+        src: legacyPortraitUrl(name, portraitMode),
+        group: 'portraits',
+      }));
+    if (portraitMode === 'pc98')
+      for (const size of PC98_ATLAS_SIZES)
+        portraitAssets.push({
+          type: 'atlas',
+          key: pc98AtlasKey(size),
+          src: `assets/portraits/pc98/atlas/${size}.png`,
+          data: pc98AtlasData(size),
           group: 'portraits',
         });
-      }
+    if (this._startupFlags.reducedPreload) {
+      this._deferredAssetGroups.push('portraits');
+      this._deferredAssets.push(...portraitAssets);
     } else {
-      for (const name of portraits) {
-        this.load.image(`portrait_${name}`, `assets/portraits/${name}.png`);
+      for (const asset of portraitAssets) {
+        if (asset.type === 'atlas') this.load.atlas(asset.key, asset.src, asset.data);
+        else this.load.image(asset.key, asset.src);
       }
     }
 
@@ -558,7 +583,7 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 306, 'No download progress for 30 seconds. You can keep waiting.', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#ffcc88',
+        color: UI_PALETTE.warn,
         align: 'center',
       }),
     )
@@ -584,8 +609,8 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 356, '[ Reload Safe Mode ]', {
         fontFamily: 'Arial',
         fontSize: '11px',
-        color: '#ffd580',
-        backgroundColor: '#443322',
+        color: UI_PALETTE.accentText,
+        backgroundColor: UI_PALETTE.selected,
         padding: { x: 10, y: 4 },
       }),
     )
@@ -613,7 +638,7 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 206, 'Failed to load game data.', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff4444',
+        color: UI_PALETTE.bad,
         align: 'center',
       }),
     ).setOrigin(0.5);
@@ -655,8 +680,8 @@ export class BootScene extends Phaser.Scene {
       this.add.text(320, 336, '[ Reload Safe Mode ]', {
         fontFamily: 'Arial',
         fontSize: '12px',
-        color: '#ffd580',
-        backgroundColor: '#443322',
+        color: UI_PALETTE.accentText,
+        backgroundColor: UI_PALETTE.selected,
         padding: { x: 12, y: 6 },
       }),
     )
@@ -671,6 +696,7 @@ export class BootScene extends Phaser.Scene {
 
   async create() {
     prepareRebuiltSprites(this);
+    prepareTracedSprites(this);
     markStartup('boot_create_start');
     this._clearPreloadStallWatch();
     this._destroyStallUi();
@@ -689,7 +715,7 @@ export class BootScene extends Phaser.Scene {
           {
             fontFamily: 'Arial',
             fontSize: '10px',
-            color: '#ffb347',
+            color: UI_PALETTE.warn,
             align: 'center',
           },
         ),

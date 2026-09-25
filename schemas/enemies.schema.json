@@ -42,6 +42,7 @@
                 "items": { "type": "string", "enum": ["normal", "hard", "lunatic"] }
               },
               "isEntity": { "type": "boolean" },
+              "epithet": { "type": "string", "minLength": 1, "maxLength": 36 },
               "lore": { "type": "string", "minLength": 1 }
             },
             "required": ["className", "level", "name"],

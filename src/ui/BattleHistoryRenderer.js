@@ -4,6 +4,7 @@ import { drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture, contrastSpriteKey } from './BattleContrast.js';
 import { TILE_SIZE, FACTION_COLORS } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 const point = (unit) => ({
   x: (unit.col + unit.size / 2) * TILE_SIZE,
@@ -81,7 +82,7 @@ export class BattleHistoryRenderer {
               : tile.details.some((d) => d.startsWith('Village'))
                 ? 'V'
                 : '◇',
-            { fontSize: '10px', color: '#ffdd88', backgroundColor: '#152032' },
+            { fontSize: '10px', color: UI_PALETTE.accentText, backgroundColor: '#152032' },
           ).setOrigin(0.5),
         );
       if (tile.fog !== 'visible')
@@ -108,14 +109,14 @@ export class BattleHistoryRenderer {
       const ratio = Math.max(0, Math.min(1, unit.hp / unit.maxHP));
       const bg = s.add.rectangle(0, y, width, 3, 0x101010);
       const hp = s.add
-        .rectangle(-width / 2, y, width * ratio, 3, ratio > 0.5 ? 0x77dd88 : 0xffbb55)
+        .rectangle(-width / 2, y, width * ratio, 3, ratio > 0.5 ? 0x77dd88 : UI_HEX.warn)
         .setOrigin(0, 0.5);
       group.add([ring, graphic, bg, hp]);
       if (!unit.spriteKey || !s.textures.exists(unit.spriteKey))
         group.add(
           presentationText(s, 0, 0, unit.name.slice(0, 1), {
             fontSize: '14px',
-            color: '#ffffff',
+            color: UI_PALETTE.text,
           }).setOrigin(0.5),
         );
       if (unit.affixes?.length)
@@ -124,7 +125,10 @@ export class BattleHistoryRenderer {
         );
       if (unit.buffs?.length)
         group.add(
-          presentationText(s, -12, -14, '↑', { fontSize: '12px', color: '#88ddff' }).setOrigin(0.5),
+          presentationText(s, -12, -14, '↑', {
+            fontSize: '12px',
+            color: UI_PALETTE.info,
+          }).setOrigin(0.5),
         );
       if (unit.conditions.length)
         group.add(
@@ -182,7 +186,7 @@ export class BattleHistoryRenderer {
         this.add(
           this.scene.add
             .rectangle(p.x, p.y, 30 * unit.size, 30 * unit.size)
-            .setStrokeStyle(2, 0xffdd77)
+            .setStrokeStyle(2, UI_HEX.accent)
             .setDepth(UI_DEPTHS.DAMAGE_NUMBERS),
         );
       }
@@ -262,8 +266,8 @@ export class BattleHistoryRenderer {
       const p = point(unit);
       const ring = this.add(
         this.scene.add
-          .rectangle(p.x, p.y, 30 * unit.size, 30 * unit.size, 0xffdd77, 0.1)
-          .setStrokeStyle(2, 0xffdd77)
+          .rectangle(p.x, p.y, 30 * unit.size, 30 * unit.size, UI_HEX.accent, 0.1)
+          .setStrokeStyle(2, UI_HEX.accent)
           .setDepth(UI_DEPTHS.DAMAGE_NUMBERS),
       );
       this.scene.tweens.add({ targets: ring, alpha: 0, duration: 500 });
@@ -273,7 +277,7 @@ export class BattleHistoryRenderer {
         this.add(
           presentationText(this.scene, p.x, p.y - 28, `${before.hp} → ${after.hp}`, {
             fontSize: '14px',
-            color: '#ffffff',
+            color: UI_PALETTE.text,
             backgroundColor: '#172032',
           })
             .setOrigin(0.5)

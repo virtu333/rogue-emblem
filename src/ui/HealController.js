@@ -26,6 +26,7 @@ import {
 } from '../engine/StaffRelocation.js';
 import { showContextualHint } from './HintDisplay.js';
 import { CombatFxController } from './CombatFxController.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class HealController {
   constructor(scene) {
@@ -168,7 +169,7 @@ export class HealController {
         0.85,
       )
       .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
+      .setStrokeStyle(1, UI_HEX.line);
     scene.actionMenu.push(bg);
 
     usableStaves.forEach((staff, i) => {
@@ -179,7 +180,7 @@ export class HealController {
       const max = getStaffMaxUses(staff, unit);
       const rng = getEffectiveStaffRange(staff, unit);
       const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
-      const defaultColor = staff === unit.weapon ? '#ffdd44' : '#e0e0e0';
+      const defaultColor = staff === unit.weapon ? UI_PALETTE.accentText : UI_PALETTE.text;
 
       const text = scene._makeMenuTextButton(
         itemX,
@@ -203,7 +204,7 @@ export class HealController {
             const message = isRelocateStaff(staff)
               ? 'No valid allies in range for that staff.'
               : 'No heal targets in range for that staff.';
-            await scene.showBriefBanner(message, '#ff8888');
+            await scene.showBriefBanner(message, UI_PALETTE.bad);
             scene.showStaffPicker(unit, usableStaves);
             return;
           }
@@ -248,7 +249,7 @@ export class HealController {
     if (tiles.length === 0) return; // phase-1 filter should prevent this
     scene.staffRelocateAlly = ally;
     scene.staffRelocateTiles = tiles;
-    scene.grid.showAttackRange(tiles, 0x66ccff, 0.4);
+    scene.grid.showAttackRange(tiles, UI_HEX.lineStrong, 0.4);
     scene.battleState = 'SELECTING_STAFF_TILE';
   }
 
@@ -462,7 +463,7 @@ export class HealController {
       .text(pos.x, pos.y - 16, 'Cured!', {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#88ffcc',
+        color: UI_PALETTE.good,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -487,7 +488,7 @@ export class HealController {
     const audio = scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
     // Flash target green
-    if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
+    if (target.graphic.setTint) target.graphic.setTint(UI_HEX.hpHigh);
 
     const pos = scene.grid.gridToPixel(target.col, target.row);
     (scene._combatFx ||= new CombatFxController(scene)).playHeal(pos.x, pos.y);
@@ -495,7 +496,7 @@ export class HealController {
       .text(pos.x, pos.y - 16, `+${healAmount}`, {
         fontFamily: 'monospace',
         fontSize: '13px',
-        color: '#44ff44',
+        color: UI_PALETTE.good,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)

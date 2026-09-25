@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terrain Preview</title>
+    <style>
+      :root {
+        --bg: #0e0c14;
+        --panel: #16131e;
+        --line: #2e293a;
+        --text: #ddd0bd;
+        --muted: #978b94;
+        --gold: #dca044;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.4 'DejaVu Sans Mono',
+          ui-monospace,
+          monospace;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        align-items: center;
+        padding: 10px 16px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      header h1 {
+        margin: 0 8px 0 0;
+        font-size: 14px;
+        color: var(--gold);
+      }
+      label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--muted);
+      }
+      select,
+      input,
+      button {
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 3px 6px;
+      }
+      button {
+        cursor: pointer;
+      }
+      input[type='number'] {
+        width: 5.5em;
+      }
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 16px;
+      }
+      figure {
+        margin: 0;
+        max-width: 100%;
+      }
+      figcaption {
+        margin-bottom: 6px;
+        color: var(--muted);
+      }
+      .scroll {
+        max-width: calc(100vw - 32px);
+        overflow: auto;
+      }
+      canvas {
+        display: block;
+        image-rendering: pixelated;
+      }
+      #stats {
+        padding: 0 16px 12px;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      #bench {
+        padding: 0 16px 24px;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      td,
+      th {
+        padding: 3px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Procedural terrain preview</h1>
+      <label
+        >Template
+        <select id="template"></select
+      ></label>
+      <label>Seed <input id="seed" type="number" value="3" /></label>
+      <label>px / cell <input id="cell" type="number" value="34" min="16" max="96" /></label>
+      <label><input id="units" type="checkbox" checked /> units</label>
+      <label><input id="danger" type="checkbox" checked /> danger</label>
+      <label><input id="move" type="checkbox" /> movement</label>
+      <label><input id="grid" type="checkbox" /> grid</label>
+      <label><input id="shimmer" type="checkbox" checked /> shimmer</label>
+      <label><input id="smooth" type="checkbox" /> smooth scaling</label>
+      <label
+        >Paint
+        <select id="mode">
+          <option value="auto">worker, else sliced</option>
+          <option value="sliced">time-sliced (main thread)</option>
+          <option value="worker">worker only</option>
+        </select></label
+      >
+      <label
+        >Click cell sets
+        <select id="brush"></select
+      ></label>
+      <button id="bench-btn" type="button">Run benchmark</button>
+    </header>
+    <div id="stats">loading…</div>
+    <main>
+      <figure>
+        <figcaption>Procedural (src/art/terrain) — click a cell to change its terrain</figcaption>
+        <div class="scroll"><canvas id="proc"></canvas></div>
+      </figure>
+      <figure>
+        <figcaption>Current weathered atlases (drawWeatheredTile)</figcaption>
+        <div class="scroll"><canvas id="weathered"></canvas></div>
+      </figure>
+    </main>
+    <div id="bench"></div>
+    <script type="module" src="./preview.js"></script>
+  </body>
+</html>

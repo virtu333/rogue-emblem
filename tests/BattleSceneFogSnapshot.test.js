@@ -826,7 +826,7 @@ describe('BattleScene trade weapon gating', () => {
       (obj) => typeof obj.text === 'string' && obj.text.startsWith('Iron Sword'),
     );
     expect(swordRow).toBeTruthy();
-    expect(swordRow.style?.color).toBe('#666666');
+    expect(swordRow.style?.color).toBe('#8a7f86');
     expect(swordRow.handlers.pointerdown).toBeUndefined();
 
     swordRow.trigger('pointerdown', { button: 0 });
@@ -874,7 +874,7 @@ describe('BattleScene trade weapon gating', () => {
 
     const consumableRow = texts.find((obj) => obj.text === 'Vulnerary (consumables full)');
     expect(consumableRow).toBeTruthy();
-    expect(consumableRow.style?.color).toBe('#666666');
+    expect(consumableRow.style?.color).toBe('#8a7f86');
     expect(consumableRow.handlers.pointerdown).toBeUndefined();
   });
 });

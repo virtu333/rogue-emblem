@@ -126,7 +126,7 @@ export class LootFlowController {
     if (ty < 5) ty = cardY + cardH / 2 + 6; // flip below if no room above
 
     const bg = scene.add
-      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, UI_HEX.panel, 0.95)
       .setDepth(760)
       .setStrokeStyle(1, 0x336666);
     detailText.setPosition(tx + padX, ty + padY);
@@ -210,7 +210,7 @@ export class LootFlowController {
         {
           fontFamily: 'Arial',
           fontSize: '14px',
-          color: '#ff8844',
+          color: UI_PALETTE.warn,
         },
       ),
     )
@@ -237,11 +237,11 @@ export class LootFlowController {
       const wpn = forgeableWeapons[i];
       const level = wpn._forgeLevel || 0;
       const by = topY + i * rowGap;
-      const wpnColor = isForged(wpn) ? '#44ff88' : UI_PALETTE.text;
+      const wpnColor = isForged(wpn) ? UI_PALETTE.good : UI_PALETTE.text;
 
       const btn = scene.add
-        .rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844)
+        .rectangle(cam.centerX, by, 280, btnH, UI_HEX.selected, 1)
+        .setStrokeStyle(1, UI_HEX.warn)
         .setDepth(711)
         .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
@@ -297,13 +297,13 @@ export class LootFlowController {
                   cardIdx,
                 },
               );
-              scene.showLootStatus('Imbue failed. Choose another weapon.', '#ff8888');
+              scene.showLootStatus('Imbue failed. Choose another weapon.', UI_PALETTE.bad);
               scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
               return;
             }
             const audio = scene.registry.get('audio');
             if (audio) audio.playSFX('sfx_gold');
-            scene.showLootStatus(`${wpn.name} shimmers with new power!`, '#cc88ff');
+            scene.showLootStatus(`${wpn.name} shimmers with new power!`, UI_PALETTE.rarityEpic);
             this.finalizeLootPick(lootGroup, cardIdx);
           } else if (whetstone.forgeStat === 'choice') {
             // Silver Whetstone: pick stat
@@ -322,7 +322,7 @@ export class LootFlowController {
                   cardIdx,
                 },
               );
-              scene.showLootStatus('Forge failed. Choose another weapon.', '#ff8888');
+              scene.showLootStatus('Forge failed. Choose another weapon.', UI_PALETTE.bad);
               scene.showForgeLootPicker(whetstone, lootGroup, cardIdx);
               return;
             }
@@ -338,7 +338,10 @@ export class LootFlowController {
             imbueId: whetstone?.imbueId,
             cardIdx,
           });
-          scene.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
+          scene.showLootStatus(
+            'An error occurred while forging. Returning to rewards.',
+            UI_PALETTE.bad,
+          );
           for (const obj of lootGroup) obj.setVisible(true);
           scene._lootController?.mobileRewards?.open();
         }
@@ -387,7 +390,7 @@ export class LootFlowController {
       scene.add.text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#ff8844',
+        color: UI_PALETTE.warn,
       }),
     )
       .setOrigin(0.5)
@@ -413,8 +416,8 @@ export class LootFlowController {
       const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
 
       const btn = scene.add
-        .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
-        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844)
+        .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : UI_HEX.selected, 1)
+        .setStrokeStyle(1, atStatCap ? UI_HEX.line : UI_HEX.warn)
         .setDepth(711);
       pickerGroup.push(btn);
 
@@ -488,7 +491,7 @@ export class LootFlowController {
       scene.add.text(cam.centerX, 70, `Imbue ${weapon.name}: Choose blessing`, {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: '#cc88ff',
+        color: UI_PALETTE.rarityEpic,
       }),
     )
       .setOrigin(0.5)
@@ -543,7 +546,7 @@ export class LootFlowController {
               new Error('applyImbue returned success=false'),
               { weapon: weapon?.name, imbueId: imbue?.id, cardIdx },
             );
-            scene.showLootStatus('Imbue failed. Choose another reward.', '#ff8888');
+            scene.showLootStatus('Imbue failed. Choose another reward.', UI_PALETTE.bad);
             teardownFocus();
             for (const obj of pickerGroup) obj.destroy();
             for (const obj of lootGroup) obj.setVisible(true);
@@ -554,7 +557,7 @@ export class LootFlowController {
           if (audio) audio.playSFX('sfx_gold');
           teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
-          scene.showLootStatus(`${weapon.name} shimmers with new power!`, '#cc88ff');
+          scene.showLootStatus(`${weapon.name} shimmers with new power!`, UI_PALETTE.rarityEpic);
           this.finalizeLootPick(lootGroup, cardIdx);
         } catch (err) {
           scene.reportLootError('showImbuePickerLoot:pointerdown', err, {
@@ -562,7 +565,10 @@ export class LootFlowController {
             imbueId: imbue?.id,
             cardIdx,
           });
-          scene.showLootStatus('An error occurred while imbuing. Returning to rewards.', '#ff8888');
+          scene.showLootStatus(
+            'An error occurred while imbuing. Returning to rewards.',
+            UI_PALETTE.bad,
+          );
           teardownFocus();
           for (const obj of pickerGroup) obj.destroy();
           for (const obj of lootGroup) obj.setVisible(true);
@@ -612,8 +618,8 @@ export class LootFlowController {
     const py = cam.centerY;
 
     const bg = scene.add
-      .rectangle(px, py, panelW, panelH, 0x111122, 0.95)
-      .setStrokeStyle(2, 0x8888cc)
+      .rectangle(px, py, panelW, panelH, UI_HEX.panel, 0.95)
+      .setStrokeStyle(2, UI_HEX.line)
       .setDepth(750)
       .setInteractive();
     scene.lootRosterGroup.push(bg);
@@ -698,7 +704,7 @@ export class LootFlowController {
     const cardRef = scene._lootCards?.[cardIndex];
     if (cardRef?.bg) {
       cardRef.bg.setFillStyle(UI_HEX.panel);
-      cardRef.bg.setStrokeStyle(2, 0x444444);
+      cardRef.bg.setStrokeStyle(2, UI_HEX.line);
       cardRef.bg.removeAllListeners('pointerdown');
       cardRef.bg.disableInteractive();
     }

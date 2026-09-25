@@ -273,7 +273,7 @@ describe('forceTransitionAfterBattle recovery', () => {
     await scene.forceTransitionAfterBattle();
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
-      '#ff8888',
+      '#ec7a5c',
     );
   });
 
@@ -300,7 +300,7 @@ describe('forceTransitionAfterBattle recovery', () => {
     await scene.forceTransitionAfterBattle();
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
-      '#ff8888',
+      '#ec7a5c',
     );
   });
 });
@@ -402,7 +402,7 @@ describe('completeBattle no-op double-failure', () => {
     expect(transitionToScene).toHaveBeenCalledTimes(1);
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
-      '#ff8888',
+      '#ec7a5c',
     );
   });
 
@@ -452,7 +452,7 @@ describe('completeBattle no-op double-failure', () => {
     expect(transitionToSceneWithBlockedRetry).toHaveBeenCalledTimes(1);
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
-      '#ff8888',
+      '#ec7a5c',
     );
   });
 });

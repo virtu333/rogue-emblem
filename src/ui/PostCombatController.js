@@ -12,6 +12,7 @@ import {
   settleAndPersistEndRun,
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
+import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
@@ -32,6 +33,7 @@ import { pushRunSave } from '../cloud/CloudSync.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 import { presentQueuedLevelUps } from './BattlePresentationCheckpoint.js';
+import { UI_PALETTE } from '../utils/uiStyles.js';
 
 // Watchdog: a single RunComplete transition attempt that hangs past this is
 // treated as failed so the retry loop (and ultimately the recovery UI) still runs.
@@ -60,21 +62,47 @@ export class PostCombatController {
     scene.battleState = 'BATTLE_END';
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, scene, 0);
-    const victoryBanner = scene.add
-      .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'VICTORY!', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: '#ffdd44',
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    scene._victoryBanner = victoryBanner;
-    scene._pinToScreen(victoryBanner);
+    scene._bossPresence?.hide?.();
+    // The objective's word (ROUTED / SEIZED / ...) as a gold band; a tap moves
+    // the flow on early. The canvas text remains the no-DOM fallback.
+    let continueVictory = null;
+    const band = hasDOMHost()
+      ? scene._getCeremonies?.()?.showVictory(this.victoryBandContext(), {
+          onSkip: () => continueVictory?.(),
+        })
+      : null;
+    if (band) scene._victoryBanner = band;
+    else {
+      const victoryBanner = scene.add
+        .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'VICTORY!', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: UI_PALETTE.accentText,
+          backgroundColor: '#000000dd',
+          padding: { x: 24, y: 12 },
+        })
+        .setOrigin(0.5)
+        .setDepth(600);
+      scene._victoryBanner = victoryBanner;
+      scene._pinToScreen(victoryBanner);
+    }
+    // One continuation, fired by the timer or by skipping the band.
+    const afterVictoryBand = (continuation) => {
+      let started = false;
+      let timer = null;
+      const run = () => {
+        if (started) return undefined;
+        started = true;
+        timer?.remove?.(false);
+        band?.release();
+        return continuation();
+      };
+      continueVictory = run;
+      timer = scene.time.delayedCall(1500, run);
+    };
 
     if (scene.battleParams.tutorialMode) {
-      scene.time.delayedCall(1500, async () => {
+      afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
         await showImportantHint(
           scene,
@@ -120,7 +148,7 @@ export class PostCombatController {
       const hadCaravan = scene._caravanController?.hadCaravan() === true;
       const caravanSurvived = hadCaravan ? scene._caravanController.caravanSurvived() : false;
       if (hadCaravan && !caravanSurvived) {
-        scene.showBriefBanner?.('Caravan destroyed.', '#ff8888')?.catch?.(() => {});
+        scene.showBriefBanner?.('Caravan destroyed.', UI_PALETTE.bad)?.catch?.(() => {});
       }
       const completionApplied = scene.runManager.completeBattle(
         allUnits,
@@ -141,7 +169,7 @@ export class PostCombatController {
         prepareBattleRewards(scene.runManager, scene.gameData, this.rewardContext());
       }
       scene._persistBattleRunState?.();
-      scene.time.delayedCall(1500, async () => {
+      afterVictoryBand(async () => {
         if (!scene.scene?.isActive?.()) return;
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
@@ -174,7 +202,10 @@ export class PostCombatController {
                   scene._victoryBanner.destroy();
                   scene._victoryBanner = null;
                 }
-                scene.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+                scene.showLootStatus?.(
+                  'Transition failed. Refresh and continue run.',
+                  UI_PALETTE.bad,
+                );
               }
             }
           } catch (err) {
@@ -183,7 +214,7 @@ export class PostCombatController {
               scene._victoryBanner.destroy();
               scene._victoryBanner = null;
             }
-            scene.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+            scene.showLootStatus?.('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
           }
           return;
         }
@@ -298,10 +329,31 @@ export class PostCombatController {
               runManager: scene.runManager,
             }),
           );
+          // ACT n · region · grade, once per act (it shares the dialogue's
+          // once-gate), with the story lines playing over it.
+          const actCard =
+            hasDOMHost() && !scene.runManager.hasShownDialogue?.(transKey)
+              ? scene._getCeremonies?.()?.showActCard({
+                  actId: toAct,
+                  withLines: Array.isArray(entries) && entries.length > 0,
+                })
+              : null;
           try {
             await scene._showStoryDialogueOnce(transKey, entries, { category: 'actTransition' });
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
+          }
+          if (actCard) {
+            try {
+              const linesRead =
+                Array.isArray(entries) &&
+                entries.length > 0 &&
+                !scene.dialogueOverlay?.lastSequenceSkippedAsSeen;
+              if (linesRead) void actCard.close();
+              else await actCard.finish();
+            } catch (err) {
+              console.warn('[BattleScene] act card failed:', err);
+            }
           }
           const ok2 = await transitionToScene(
             scene,
@@ -377,7 +429,7 @@ export class PostCombatController {
         if (isRunComplete) {
           scene.showVictoryTransitionRecovery();
         } else {
-          scene.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+          scene.showLootStatus('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
         }
       }
     } catch (err) {
@@ -385,7 +437,7 @@ export class PostCombatController {
       if (scene.runManager?.isRunComplete?.()) {
         scene.showVictoryTransitionRecovery();
       } else {
-        scene.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+        scene.showLootStatus('Transition failed. Refresh and continue run.', UI_PALETTE.bad);
       }
     }
   }
@@ -455,11 +507,15 @@ export class PostCombatController {
       }
       scene.lootGroup = null;
       scene._bossRecruitOverlay = null;
-      if (scene.runManager.shouldTriggerThirdLord()) {
-        scene._showThirdLordArrival();
-      } else {
-        scene.showLootScreen();
-      }
+      const next = () => {
+        if (scene.runManager.shouldTriggerThirdLord()) {
+          scene._showThirdLordArrival();
+        } else {
+          scene.showLootScreen();
+        }
+      };
+      if (selectedUnit && this._canPresentJoin()) this._presentJoin(selectedUnit, 'boss', next);
+      else next();
     });
   }
 
@@ -472,8 +528,56 @@ export class PostCombatController {
       scene.runManager.resolveThirdLord(selectedUnit);
       scene.lootGroup = null;
       scene._lordArrivalOverlay = null;
-      scene.showLootScreen();
+      const joined = selectedUnit && scene.runManager.roster?.includes?.(selectedUnit);
+      const next = () => scene.showLootScreen();
+      if (joined && this._canPresentJoin()) this._presentJoin(selectedUnit, 'lord', next);
+      else next();
     });
+  }
+
+  _canPresentJoin() {
+    return hasDOMHost() && GrowthCeremonyController.available();
+  }
+
+  /**
+   * "Joins your army" for a unit already added to the roster: the join is
+   * saved first (the won battle and its pending rewards are already saved),
+   * so a refresh during the card can neither lose nor repeat the recruit.
+   */
+  _presentJoin(unit, kind, next) {
+    const scene = this.scene;
+    let card = null;
+    try {
+      scene._persistBattleRunState?.();
+      card = growthCeremonies(scene)?.showRecruit({ unit, kind });
+    } catch (err) {
+      console.warn('[PostCombatController] join card failed:', err);
+    }
+    void Promise.resolve(card)
+      .catch((err) => console.warn('[PostCombatController] join card failed:', err))
+      .then(() => {
+        if (scene.scene?.isActive?.() === false || scene.sys?.isActive?.() === false) return;
+        next();
+      });
+  }
+
+  /** Turn · par · rank for the victory band (presentation only). */
+  victoryBandContext() {
+    const s = this.scene;
+    const turn = s.turnManager?.turnNumber;
+    let rating = null;
+    try {
+      if (Number.isFinite(s.turnPar) && s.turnBonusConfig && Number.isFinite(turn))
+        rating = getRating(turn, s.turnPar, s.turnBonusConfig)?.rating || null;
+    } catch {
+      rating = null;
+    }
+    return {
+      objective: s.battleConfig?.objective,
+      turn,
+      par: Number.isFinite(s.turnPar) ? s.turnPar : null,
+      rating,
+    };
   }
 
   rewardContext() {
@@ -540,6 +644,19 @@ export class PostCombatController {
     if (rewards?.visible) {
       rewards.masteryNotices = mastered;
       rewards.render();
+      // A class mastered is growth: a sealed beat stamps it over the rewards.
+      const first = mastered[0];
+      growthCeremonies(scene)?.showSealed({
+        title:
+          mastered.length === 1
+            ? `${first.name} mastered ${first.className}`
+            : `${mastered.length} classes mastered`,
+        detail: mastered
+          .map((m) => m.perk?.name)
+          .filter(Boolean)
+          .join(' · '),
+        skillId: 'mastery',
+      });
       return;
     }
     const cam = scene.cameras.main;
@@ -550,7 +667,7 @@ export class PostCombatController {
       .text(cam.centerX, 40, lines.join('\n'), {
         fontFamily: 'monospace',
         fontSize: '11px',
-        color: '#ffdd66',
+        color: UI_PALETTE.accentText,
         align: 'center',
         backgroundColor: '#000000cc',
         padding: { x: 10, y: 6 },
@@ -569,7 +686,7 @@ export class PostCombatController {
     });
   }
 
-  showLootStatus(message, color = '#ff8888') {
+  showLootStatus(message, color = UI_PALETTE.bad) {
     const scene = this.scene;
     const cam = scene.cameras.main;
     const status = scene.add
@@ -591,7 +708,7 @@ export class PostCombatController {
   reportLootError(context, err, extra = {}) {
     const scene = this.scene;
     console.error('[BattleScene][LootFlow]', context, extra, err);
-    scene.showLootStatus('Loot error. Check console log.', '#ff8888');
+    scene.showLootStatus('Loot error. Check console log.', UI_PALETTE.bad);
   }
 
   onDefeat() {
@@ -634,17 +751,25 @@ export class PostCombatController {
     scene.hideActionMenu();
     const audio = scene.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, scene, 0);
-    const defeatBanner = scene.add
-      .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'DEFEAT', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: '#cc3333',
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    scene._pinToScreen(defeatBanner);
+    scene._bossPresence?.hide?.();
+    const band = hasDOMHost()
+      ? scene._getCeremonies?.()?.showDefeat({
+          commanderName: scene._fallenCommander?.name || null,
+        })
+      : null;
+    if (!band) {
+      const defeatBanner = scene.add
+        .text(scene.cameras.main.centerX, scene.cameras.main.centerY, 'DEFEAT', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: UI_PALETTE.bad,
+          backgroundColor: '#000000dd',
+          padding: { x: 24, y: 12 },
+        })
+        .setOrigin(0.5)
+        .setDepth(600);
+      scene._pinToScreen(defeatBanner);
+    }
 
     if (scene.battleParams.tutorialMode) {
       scene.time.delayedCall(1500, async () => {

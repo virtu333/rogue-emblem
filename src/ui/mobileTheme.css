@@ -12,6 +12,8 @@
   --re-action-ink: var(--re-bg);
   --re-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --re-pixel: 'Press Start 2P', monospace;
+  /* Ceremony only: boss names, act titles, fate cards, the logo. Never body copy. */
+  --re-display: 'Cinzel', 'Times New Roman', serif;
   --re-mono: ui-monospace, monospace;
   --re-t-display: 16px/1.5 var(--re-pixel);
   --re-t-title: 12px/1.6 var(--re-pixel);
@@ -31,8 +33,37 @@
   --re-hairline: 1px solid var(--re-line);
   --re-rule: 1px solid var(--re-line-soft);
   --re-bevel: inset 0 1px 0 #ffffff0f, inset 0 0 0 1px #0000002e;
-  --re-scrim: rgba(6, 15, 20, 0.8);
-  --re-scrim-heavy: rgba(6, 15, 20, 0.94);
+  --re-scrim: rgba(7, 6, 11, 0.8);
+  --re-scrim-heavy: rgba(7, 6, 11, 0.94);
+  /* Reliquary detail: chamfered plates, gilt hairlines, ember primary fill. */
+  --re-chamfer: 4px;
+  --re-gilt-lo: #80461f;
+  --re-gilt: #b3702c;
+  --re-ember-fill: linear-gradient(180deg, #f0c060 0%, var(--re-accent) 55%, #c0832e 100%);
+  --re-ember-fill-hi: linear-gradient(180deg, #ffe09a 0%, #f3cb6c 55%, #dca044 100%);
+  --re-gilt-rule: linear-gradient(
+    90deg,
+    var(--re-gilt-lo),
+    var(--re-accent) 30%,
+    var(--re-gilt-lo) 70%,
+    transparent
+  );
+  /* Loom + key art: alpha variants of palette colors (no color-mix on iOS 15). */
+  --re-ember-glow: rgba(220, 160, 68, 0.38);
+  --re-ember-glow-soft: rgba(243, 203, 108, 0.28);
+  --re-ember-haze: rgba(220, 160, 68, 0.18);
+  --re-ember-pale-haze: rgba(255, 240, 189, 0.3);
+  --re-gilt-haze: rgba(128, 70, 31, 0.28);
+  --re-raised-haze: rgba(33, 29, 43, 0.55);
+  --re-shade: rgba(7, 6, 11, 0.6);
+  --re-shade-deep: rgba(7, 6, 11, 0.9);
+  --re-shade-edge: rgba(7, 6, 11, 0.72);
+  --re-ember-fill-deep: linear-gradient(
+    180deg,
+    var(--re-accent-text) 0%,
+    var(--re-accent) 55%,
+    var(--re-gilt) 100%
+  );
 }
 .re-health {
   display: block;

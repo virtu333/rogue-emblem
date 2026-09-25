@@ -1,13 +1,13 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { loadGameFont } from '../src/utils/loadGameFont.js';
+import { loadGameFont, DISPLAY_FONT_PROBE } from '../src/utils/loadGameFont.js';
 afterEach(() => vi.useRealTimers());
 it('waits for the decoded face before declaring it ready', async () => {
-  let ready;
+  const pending = {};
   const fonts = {
     load: vi.fn(
-      () =>
+      (probe) =>
         new Promise((resolve) => {
-          ready = resolve;
+          pending[probe] = resolve;
         }),
     ),
   };
@@ -18,9 +18,19 @@ it('waits for the decoded face before declaring it ready', async () => {
   });
   await Promise.resolve();
   expect(settled).toBe(false);
-  ready([]);
+  pending['12px "Press Start 2P"']([]);
   expect(await result).toBe(true);
   expect(fonts.load).toHaveBeenCalledWith('12px "Press Start 2P"');
+  // The ceremony display face is warmed in parallel but never awaited.
+  expect(fonts.load).toHaveBeenCalledWith(DISPLAY_FONT_PROBE);
+});
+it('does not wait on the display face', async () => {
+  const fonts = {
+    load: vi.fn((probe) =>
+      probe === DISPLAY_FONT_PROBE ? new Promise(() => {}) : Promise.resolve([]),
+    ),
+  };
+  expect(await loadGameFont(fonts)).toBe(true);
 });
 it('does not block startup indefinitely on a missing font', async () => {
   vi.useFakeTimers();

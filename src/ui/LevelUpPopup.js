@@ -2,11 +2,12 @@ import { presentationText } from '../utils/presentationText.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { progressionResult } from './ProgressionMenus.js';
 import { inputHint } from '../utils/inputHint.js';
+import { growthCeremonies } from './GrowthCeremonyController.js';
 // LevelUpPopup.js — FE-style level-up stat gain popup
 // Shows which stats gained +1 in green. Click to dismiss.
 
 import { XP_STAT_NAMES } from '../utils/constants.js';
-import { STAT_COLORS } from '../utils/uiStyles.js';
+import { STAT_COLORS, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class LevelUpPopup {
   /**
@@ -46,6 +47,24 @@ export class LevelUpPopup {
       if (hasDOMHost()) {
         this._onSceneShutdown = () => this.destroy();
         this.scene.events?.once?.('shutdown', this._onSceneShutdown);
+        // Level-ups are a ceremony card: portrait, crest, ember pips, and a
+        // beat of their own for perfect or lean levels. Promotions have the rite.
+        const growth = this.isPromotion ? null : growthCeremonies(this.scene);
+        if (growth) {
+          this._growthHandle = {};
+          void growth
+            .showLevelUp({
+              unit: this.unit,
+              result: this.levelUpResult,
+              learnedNames: this.learnedSkills,
+              handle: this._growthHandle,
+            })
+            .then(
+              () => this.destroy(),
+              () => this.destroy(),
+            );
+          return;
+        }
         this.surface = progressionResult(
           this.scene,
           this.unit,
@@ -119,9 +138,9 @@ export class LevelUpPopup {
 
       // Panel background
       const bg = this.scene.add
-        .rectangle(cx, cy, panelWidth, panelHeight, 0x111122, 0.95)
+        .rectangle(cx, cy, panelWidth, panelHeight, UI_HEX.panel, 0.95)
         .setDepth(901)
-        .setStrokeStyle(2, 0x4466aa);
+        .setStrokeStyle(2, UI_HEX.line);
       this.objects.push(bg);
 
       // Title
@@ -129,7 +148,7 @@ export class LevelUpPopup {
       const titleStr = this.isPromotion
         ? `PROMOTION!  ${this.unit.className}`
         : `LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`;
-      const titleColor = this.isPromotion ? '#88ffff' : '#ffdd44';
+      const titleColor = this.isPromotion ? UI_PALETTE.info : UI_PALETTE.accentText;
       const title = presentationText(this.scene, cx, y, titleStr, {
         fontFamily: 'monospace',
         fontSize: '13px',
@@ -146,7 +165,7 @@ export class LevelUpPopup {
       for (let si = 0; si < statLines.length; si++) {
         const sl = statLines[si];
         const stat = statNames[si];
-        const color = sl.gained ? '#44ff44' : STAT_COLORS[stat] || '#cccccc';
+        const color = sl.gained ? UI_PALETTE.good : STAT_COLORS[stat] || UI_PALETTE.text;
         const text = presentationText(this.scene, cx - panelWidth / 2 + 12, y, sl.text, {
           fontFamily: 'monospace',
           fontSize: '12px',
@@ -165,7 +184,7 @@ export class LevelUpPopup {
           const growthText = presentationText(this.scene, cx - panelWidth / 2 + 12, y, gl, {
             fontFamily: 'monospace',
             fontSize: '12px',
-            color: '#88ffff',
+            color: UI_PALETTE.info,
           })
             .setOrigin(0, 0)
             .setDepth(902);
@@ -186,7 +205,7 @@ export class LevelUpPopup {
             {
               fontFamily: 'monospace',
               fontSize: '12px',
-              color: '#88ffff',
+              color: UI_PALETTE.info,
               fontStyle: 'bold',
             },
           )
@@ -207,7 +226,7 @@ export class LevelUpPopup {
         {
           fontFamily: 'monospace',
           fontSize: '10px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         },
       )
         .setOrigin(0.5, 0)
@@ -229,6 +248,9 @@ export class LevelUpPopup {
   destroy() {
     this.surface?.destroy();
     this.surface = null;
+    const growthHandle = this._growthHandle;
+    this._growthHandle = null;
+    growthHandle?.cancel?.();
     if (this._onSceneShutdown) {
       this.scene?.events?.off?.('shutdown', this._onSceneShutdown);
       this._onSceneShutdown = null;

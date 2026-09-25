@@ -22,6 +22,7 @@ import {
 import { TERRAIN, TILE_SIZE } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { showMinorHint } from './HintDisplay.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class VillageController {
   constructor(scene) {
@@ -114,7 +115,7 @@ export class VillageController {
       ? `Village saved! +${gold}g, ${grantedItemName} sent to convoy`
       : `Village saved! +${gold}g`;
     observeHistoryAction(scene, 'visited the village', unit, null, message);
-    scene.showBriefBanner?.(message, '#a6ffb0')?.catch?.(() => {});
+    scene.showBriefBanner?.(message, UI_PALETTE.good)?.catch?.(() => {});
 
     clearSeekTileBandits(scene.enemyUnits);
     scene.updateObjectiveText?.();
@@ -139,7 +140,7 @@ export class VillageController {
     this._resolveTile(state);
     clearSeekTileBandits(scene.enemyUnits);
     observeHistoryAction(scene, 'razed the village', enemy);
-    scene.showBriefBanner?.('Village razed!', '#ff8888')?.catch?.(() => {});
+    scene.showBriefBanner?.('Village razed!', UI_PALETTE.bad)?.catch?.(() => {});
     scene.updateObjectiveText?.();
     return true;
   }
@@ -165,7 +166,9 @@ export class VillageController {
   showBanditArrivalBanner() {
     const scene = this.scene;
     if (scene?._villageState?.status !== VILLAGE_STATUS.INTACT) return;
-    scene.showBriefBanner?.('Bandits! They head for the village!', '#ff8888')?.catch?.(() => {});
+    scene
+      .showBriefBanner?.('Bandits! They head for the village!', UI_PALETTE.bad)
+      ?.catch?.(() => {});
   }
 
   /**
@@ -220,7 +223,7 @@ export class VillageController {
     try {
       const pos = scene.grid.gridToPixel(state.col, state.row);
       const highlight = scene.add
-        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0xffd966, 0.28)
+        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, UI_HEX.accent, 0.28)
         .setDepth(5);
       const label = scene.add
         .text(pos.x, pos.y - 10, 'VILLAGE', {

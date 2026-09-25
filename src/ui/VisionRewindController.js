@@ -15,6 +15,7 @@ import { captureBattleState } from './BattleCheckpointAdapter.js';
 import { prepareBattleRewind, persistBattleRewind } from '../engine/BattleRewindTransaction.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { stageFateDecision } from './FateDecisionStage.js';
 // VisionRewindController — extracted from BattleScene (Chunk 4)
 // Manages vision rewind snapshots, dialog UI, charge tracking, and HUD display.
 // State properties (visionSnapshot, pendingVisionSnapshot, visionDialog, visionBaseSeed,
@@ -29,6 +30,7 @@ import {
   BATTLE_UNIT_GROUPS,
 } from '../engine/BattleEntityIdentity.js';
 import { getRating } from '../engine/TurnBonusCalculator.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 /**
  * FNV-1a hash — deterministic seed derivation for rewind RNG re-seeding.
@@ -342,24 +344,30 @@ export class VisionRewindController {
     scene.updateObjectiveText();
     if (scene.turnCounterText && scene.turnPar !== null) {
       const rating = getRating(scene.turnManager.turnNumber, scene.turnPar, scene.turnBonusConfig);
-      const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
+      const colors = {
+        S: UI_PALETTE.good,
+        A: UI_PALETTE.info,
+        B: UI_PALETTE.warn,
+        C: UI_PALETTE.bad,
+      };
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(
         `Turn: ${scene.turnManager.turnNumber} / Par: ${scene.turnPar} (${rating.rating})${pressureSuffix}`,
       );
-      scene.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
+      scene.turnCounterText.setColor(colors[rating.rating] || UI_PALETTE.text);
     } else if (scene.turnCounterText) {
       const pressureSuffix = scene.getTurnPressureSummary(scene.turnManager.turnNumber);
       scene.turnCounterText.setText(`Turn: ${scene.turnManager.turnNumber}${pressureSuffix}`);
-      scene.turnCounterText.setColor('#e0e0e0');
+      scene.turnCounterText.setColor(UI_PALETTE.text);
     }
     this.updateHud();
     scene.refreshEndTurnControl();
+    scene._bossPresence?.sync?.({ silent: true });
     this.playRewindEffect();
     if (scene.cameras?.main)
       void scene.showBriefBanner?.(
         `Returned to player turn ${scene.turnManager.turnNumber}`,
-        '#9ed8ff',
+        UI_PALETTE.info,
       );
     // Re-assert current music to trigger orphan scanner (no-op when clean)
     const audio = scene.registry.get('audio');
@@ -521,6 +529,24 @@ export class VisionRewindController {
     this._historySelection = null;
   }
 
+  /** The commander this decision is about (presentation only). */
+  _fallenCommander() {
+    const scene = this.scene;
+    if (scene._fallenCommander?.name) return scene._fallenCommander;
+    // After a reload the fatal checkpoint restores the commander's name.
+    const commanderName =
+      scene._battleCommanderName || this.runManager?.getStartingLordNames?.()?.[0];
+    const pool = [
+      ...(scene.playerUnits || []),
+      ...(scene.escapedUnits || []),
+      ...(this.runManager?.roster || []),
+    ];
+    const unit =
+      pool.find((u) => u?.isCommander) ||
+      (commanderName ? pool.find((u) => u?.name === commanderName) : null);
+    return unit ? { name: unit.name, className: unit.className } : null;
+  }
+
   returnToFatalDecision() {
     if (!this.showLordDeathPrompt()) this.scene.onDefeat();
   }
@@ -568,6 +594,15 @@ export class VisionRewindController {
     const fallen = this.scene._battleCommanderName || 'Your commander';
     const charges = `${remaining} rewind${remaining === 1 ? '' : 's'} left this run`;
     this.showDialog({
+      fate: {
+        fallen: this._fallenCommander(),
+        sera:
+          (this.scene.playerUnits || []).find((u) => u?.name === 'Sera') ||
+          visionPool.find((u) => u?.name === 'Sera') ||
+          null,
+        seraPresent,
+        remaining,
+      },
       title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `${fallen} has fallen. Accepting fate ends this run.\nRewind to reveal another path? (${charges})`,
       confirmLabel:
@@ -584,7 +619,7 @@ export class VisionRewindController {
       // Ending the run must be a deliberate choice: ESC, pad B/Start and the
       // header close slot never stand in for Accept Fate.
       dismissible: false,
-      accent: 0xcc6666,
+      accent: UI_HEX.dangerLine,
     });
     return true;
   }
@@ -603,7 +638,8 @@ export class VisionRewindController {
     onConfirm,
     onCancel,
     dismissible = true,
-    accent = 0x66aacc,
+    accent = UI_HEX.line,
+    fate = null,
   }) {
     const scene = this.scene;
     if (scene.visionDialog) this.closeDialog();
@@ -615,12 +651,27 @@ export class VisionRewindController {
       scene.visionDialog.surface = surface;
       const headerButton = surface.header.querySelector('button');
       const confirm = button(confirmLabel, () => this.confirmDialog(), 're-btn re-btn--primary');
+      confirm.dataset.visionAction = 'confirm';
       surface.body.append(element('p', body), confirm);
       if (dismissible) {
         headerButton.textContent = cancelLabel;
+        headerButton.dataset.visionAction = 'cancel';
       } else {
         headerButton.remove();
-        surface.body.append(button(cancelLabel, () => this.cancelDialog(), 're-btn'));
+        const cancel = button(cancelLabel, () => this.cancelDialog(), 're-btn');
+        cancel.dataset.visionAction = 'cancel';
+        surface.body.append(cancel);
+      }
+      // Lord death: the same decision, staged as the FALLEN ceremony.
+      if (fate) {
+        try {
+          stageFateDecision(scene, surface, {
+            ...fate,
+            reducedMotion: Boolean(scene._reduceMotion?.()),
+          });
+        } catch (error) {
+          console.warn('[Vision] fate staging unavailable:', error);
+        }
       }
       surface.focusContent();
       return;
@@ -635,14 +686,14 @@ export class VisionRewindController {
       .setInteractive();
     group.push(blocker);
     const panel = scene.add
-      .rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
+      .rectangle(cx, cy, 340, 170, UI_HEX.panel, 0.96)
       .setDepth(901)
       .setStrokeStyle(2, accent, 1);
     group.push(panel);
     const titleText = presentationText(scene, cx, cy - 54, title, {
       fontFamily: 'monospace',
       fontSize: '16px',
-      color: '#ffdd88',
+      color: UI_PALETTE.accentText,
       fontStyle: 'bold',
     })
       .setOrigin(0.5)
@@ -651,7 +702,7 @@ export class VisionRewindController {
     const bodyText = presentationText(scene, cx, cy - 14, body, {
       fontFamily: 'monospace',
       fontSize: '12px',
-      color: '#d0d7e8',
+      color: UI_PALETTE.text,
       align: 'center',
     })
       .setOrigin(0.5)
@@ -668,7 +719,7 @@ export class VisionRewindController {
         .setOrigin(0.5)
         .setDepth(902)
         .setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerover', () => btn.setColor(UI_PALETTE.accentText));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
@@ -677,10 +728,10 @@ export class VisionRewindController {
       });
       group.push(btn);
     };
-    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, '#a6ffb0', () => {
+    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, UI_PALETTE.good, () => {
       this.confirmDialog();
     });
-    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, '#e0e0e0', () => {
+    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, UI_PALETTE.text, () => {
       this.cancelDialog();
     });
     scene._pinToScreen(group);
@@ -891,7 +942,7 @@ export class VisionRewindController {
     if (!this.scene.visionHudText) return;
     const charges = this.getChargesRemaining();
     this.scene.visionHudText.setText(`Eye: ${charges} left this run`);
-    this.scene.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
+    this.scene.visionHudText.setColor(charges > 0 ? UI_PALETTE.info : UI_PALETTE.lineStrong);
     this.scene.updateTopLeftHudLayout();
   }
 }

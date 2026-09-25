@@ -36,49 +36,43 @@ async function fixture(page, conflict = false) {
   }, conflict);
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1300);
+  // DOM title: Save Slots sits directly under New Game in the run column and no two
+  // title controls overlap.
   const layout = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const buttons = s._menuButtons;
-    const label = (b) => b.list.find((c) => typeof c.text === 'string')?.text;
-    const newGame = buttons.find((b) => label(b) === 'NEW GAME');
-    const slots = buttons.find((b) => label(b) === 'SAVE SLOTS');
+    const buttons = [...document.querySelectorAll('.re-title button')].filter(
+      (b) => b.offsetParent,
+    );
+    const rect = (name) =>
+      buttons
+        .find((b) => b.querySelector('.re-title-label')?.textContent === name)
+        .getBoundingClientRect();
+    const newGame = rect('New Game');
+    const slots = rect('Save Slots');
+    const boxes = buttons.map((b) => b.getBoundingClientRect());
     return {
-      gap: slots.y - newGame.y,
-      overlap: buttons.some((a, i) =>
-        buttons
+      sameColumn: Math.abs(slots.left - newGame.left) < 1,
+      gap: Math.round(slots.top - newGame.bottom),
+      overlap: boxes.some((a, i) =>
+        boxes
           .slice(i + 1)
           .some(
-            (b) =>
-              Math.abs(a.x - b.x) < (a._hitZone.width + b._hitZone.width) / 2 &&
-              Math.abs(a.y - b.y) < (a._hitZone.height + b._hitZone.height) / 2,
+            (b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom,
           ),
       ),
     };
   });
-  expect(layout).toEqual({ gap: 48, overlap: false });
+  expect(layout).toEqual({ sameColumn: true, gap: 6, overlap: false });
   return errors;
 }
 async function tapTitle(page, label) {
-  const p = await page.evaluate((label) => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const o = walk(s.children.list).find((o) => o.text === label && o.visible);
-    const b = o.getBounds(),
-      r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  }, label);
-  await page.touchscreen.tap(p.x, p.y);
+  await page.getByRole('button', { name: label, exact: true }).tap();
 }
 test('New Game explains the free slot and preserves the existing run when cancelled', async ({
   page,
 }, info) => {
   const errors = await fixture(page);
   const before = await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'));
-  await tapTitle(page, 'NEW GAME');
+  await tapTitle(page, 'New Game');
   const dialog = page.getByRole('dialog', { name: 'Start another run?', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('Slot 2');
@@ -90,7 +84,7 @@ test('New Game explains the free slot and preserves the existing run when cancel
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_1_run'))).toBe(before);
   expect(await page.evaluate(() => localStorage.getItem('emblem_rogue_slot_2_meta'))).toBeNull();
-  await tapTitle(page, 'SAVE SLOTS');
+  await tapTitle(page, 'Save Slots');
   await waitForScene(page, 'SlotPicker');
   const menu = page.getByRole('dialog', { name: 'Select save', exact: true });
   await expect(menu).toContainText('Edric');
@@ -101,7 +95,7 @@ test('cloud conflict keeps both versions until an explicit choice, then resumes 
   page,
 }, info) => {
   const errors = await fixture(page, true);
-  await tapTitle(page, 'SAVE SLOTS');
+  await tapTitle(page, 'Save Slots');
   await waitForScene(page, 'SlotPicker');
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
@@ -132,13 +126,8 @@ test('single-run Resume preserves the cloud conflict choice instead of bypassing
   page,
 }) => {
   const errors = await fixture(page, true);
-  const label = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    return s.children.list
-      .flatMap((o) => o.list || [])
-      .find((o) => o.text?.startsWith('RESUME · ACT'))?.text;
-  });
-  expect(label).toMatch(/^RESUME · ACT /);
+  const label = await page.locator('.re-title-run button .re-title-label').first().textContent();
+  expect(label).toMatch(/^Resume · Act /);
   await page.screenshot({ path: 'test-results/title-resume.png' });
   await tapTitle(page, label);
   await expect(

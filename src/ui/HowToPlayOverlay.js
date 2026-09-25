@@ -173,7 +173,7 @@ export class HowToPlayOverlay {
 
     // Divider
     const divider = this.scene.add.graphics().setDepth(DEPTH_UI);
-    divider.lineStyle(1, 0x555555);
+    divider.lineStyle(1, UI_HEX.line);
     divider.beginPath();
     divider.moveTo(left + 15, top + 40);
     divider.lineTo(left + panelW - 15, top + 40);

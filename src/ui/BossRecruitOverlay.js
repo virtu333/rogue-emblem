@@ -9,7 +9,7 @@ import { inputHint } from '../utils/inputHint.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { getTraitNames } from '../engine/TraitSystem.js';
-import { applyTextResolution } from '../utils/uiStyles.js';
+import { applyTextResolution, UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -90,7 +90,7 @@ export class BossRecruitOverlay {
         .text(cam.centerX, 28, 'BOSS RECRUIT', {
           fontFamily: 'monospace',
           fontSize: '20px',
-          color: '#ffdd44',
+          color: UI_PALETTE.accentText,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -103,7 +103,7 @@ export class BossRecruitOverlay {
         .text(cam.centerX, 54, 'Choose a warrior to join your cause', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#aaaaaa',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(701),
@@ -125,8 +125,8 @@ export class BossRecruitOverlay {
       const cx = startX + i * (cardW + gap);
       const u = c.unit;
 
-      const cardColor = c.isLord ? 0x443322 : 0x2a2a44;
-      const strokeColor = c.isLord ? 0xffdd44 : 0x66aacc;
+      const cardColor = c.isLord ? UI_HEX.selected : 0x2a2a44;
+      const strokeColor = c.isLord ? UI_HEX.accent : UI_HEX.line;
       const card = scene.add
         .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
         .setStrokeStyle(2, strokeColor)
@@ -144,7 +144,7 @@ export class BossRecruitOverlay {
             .text(cx, yOff, '[LORD]', {
               fontFamily: 'monospace',
               fontSize: '9px',
-              color: '#ffdd44',
+              color: UI_PALETTE.accentText,
               fontStyle: 'bold',
             })
             .setOrigin(0.5)
@@ -160,7 +160,7 @@ export class BossRecruitOverlay {
           .text(cx, yOff, c.displayName, {
             fontFamily: 'monospace',
             fontSize: '12px',
-            color: '#ffffff',
+            color: UI_PALETTE.text,
             fontStyle: 'bold',
           })
           .setOrigin(0.5)
@@ -175,7 +175,7 @@ export class BossRecruitOverlay {
           .text(cx, yOff, u.className, {
             fontFamily: 'monospace',
             fontSize: '11px',
-            color: '#aaaaaa',
+            color: UI_PALETTE.muted,
           })
           .setOrigin(0.5)
           .setDepth(702),
@@ -206,7 +206,7 @@ export class BossRecruitOverlay {
           .text(cx, yOff, '-----------------', {
             fontFamily: 'monospace',
             fontSize: '8px',
-            color: '#555555',
+            color: UI_PALETTE.lineStrong,
           })
           .setOrigin(0.5)
           .setDepth(702),
@@ -236,7 +236,7 @@ export class BossRecruitOverlay {
           .text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
             fontFamily: 'monospace',
             fontSize: '10px',
-            color: '#cccccc',
+            color: UI_PALETTE.text,
           })
           .setOrigin(0.5)
           .setDepth(702),
@@ -249,7 +249,7 @@ export class BossRecruitOverlay {
           .text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
             fontFamily: 'monospace',
             fontSize: '10px',
-            color: '#88bbff',
+            color: UI_PALETTE.info,
           })
           .setOrigin(0.5)
           .setDepth(702),
@@ -277,7 +277,7 @@ export class BossRecruitOverlay {
             .text(cx, yOff, `Wpn: ${profPreview}`, {
               fontFamily: 'monospace',
               fontSize: '9px',
-              color: '#aaaaaa',
+              color: UI_PALETTE.muted,
               wordWrap: { width: cardW - 10 },
               align: 'center',
             })
@@ -296,7 +296,7 @@ export class BossRecruitOverlay {
             .text(cx, yOff, `Traits: ${traitNames}`, {
               fontFamily: 'monospace',
               fontSize: '9px',
-              color: '#cc99ff',
+              color: UI_PALETTE.rarityEpic,
               wordWrap: { width: cardW - 10 },
               align: 'center',
             })
@@ -317,7 +317,7 @@ export class BossRecruitOverlay {
             .text(cx, yOff, `Skill: ${notableSkill}`, {
               fontFamily: 'monospace',
               fontSize: '9px',
-              color: c.isLord ? '#ffdd44' : '#aaccff',
+              color: c.isLord ? UI_PALETTE.accentText : UI_PALETTE.info,
               wordWrap: { width: cardW - 10 },
               align: 'center',
             })
@@ -341,8 +341,8 @@ export class BossRecruitOverlay {
     // Skip card
     const skipX = startX + candidates.length * (cardW + gap);
     const skipCard = scene.add
-      .rectangle(skipX, cardY, cardW, cardH, 0x333333, 1)
-      .setStrokeStyle(2, 0x666666)
+      .rectangle(skipX, cardY, cardW, cardH, UI_HEX.raised, 1)
+      .setStrokeStyle(2, UI_HEX.line)
       .setDepth(701)
       .setInteractive({ useHandCursor: true });
     recruitGroup.push(skipCard);
@@ -353,7 +353,7 @@ export class BossRecruitOverlay {
         .text(skipX, cardY - 30, '>', {
           fontFamily: 'monospace',
           fontSize: '28px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -366,7 +366,7 @@ export class BossRecruitOverlay {
         .text(skipX, cardY + 10, 'SKIP', {
           fontFamily: 'monospace',
           fontSize: '14px',
-          color: '#aaaaaa',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(702),
@@ -378,7 +378,7 @@ export class BossRecruitOverlay {
         .text(skipX, cardY + 35, 'Continue\nto Loot', {
           fontFamily: 'monospace',
           fontSize: '9px',
-          color: '#777777',
+          color: UI_PALETTE.lineStrong,
           align: 'center',
         })
         .setOrigin(0.5)
@@ -392,7 +392,7 @@ export class BossRecruitOverlay {
       resolve(null);
     });
     skipCard.on('pointerover', () => skipCard.setStrokeStyle(3, 0xffffff));
-    skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, 0x666666));
+    skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, UI_HEX.line));
 
     // Footer hints
     const inst = applyTextResolution(
@@ -400,7 +400,7 @@ export class BossRecruitOverlay {
         .text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#888888',
+          color: UI_PALETTE.muted,
         })
         .setOrigin(0.5)
         .setDepth(701),
@@ -416,7 +416,7 @@ export class BossRecruitOverlay {
           {
             fontFamily: 'monospace',
             fontSize: '9px',
-            color: '#666666',
+            color: UI_PALETTE.lineStrong,
           },
         )
         .setOrigin(0.5)
@@ -477,14 +477,14 @@ export class BossRecruitOverlay {
       .text(0, 0, body, {
         fontFamily: 'monospace',
         fontSize: '9px',
-        color: '#e0e0e0',
+        color: UI_PALETTE.text,
         wordWrap: { width: maxWidth - padding * 2 },
       })
       .setDepth(tooltipDepth);
     const bg = scene.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, UI_HEX.panel, 0.95)
       .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
+      .setStrokeStyle(1, UI_HEX.line)
       .setDepth(tooltipDepth);
     const box = scene.add.container(0, 0, [bg, txt]).setDepth(tooltipDepth);
     txt.setPosition(padding, padding);

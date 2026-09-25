@@ -1,0 +1,556 @@
+/* Ceremony overlays — DOM components (crisp type on retina, phone-first).
+   Every ceremony is tap-to-skip, honors reduced motion, and never covers the rail. */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('../fonts/Cinzel-latin-var.woff2') format('woff2');
+  font-weight: 400 900;
+}
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../fonts/PressStart2P.woff2') format('woff2');
+}
+
+:root {
+  --ink-0: #07060b;
+  --ink-1: #0e0c14;
+  --ink-2: #16131e;
+  --ink-3: #211d2b;
+  --bone: #ddd0bd;
+  --ivory: #f4ecdb;
+  --muted: #a89d9f;
+  --gold-3: #b3702c;
+  --gold-4: #dca044;
+  --gold-5: #f3cb6c;
+  --gold-6: #fff0bd;
+  --blood-2: #6e1a28;
+  --blood-3: #9e2632;
+  --blood-4: #cc4038;
+  --blood-5: #ec7a5c;
+  --unlight-4: #a863cc;
+  --display: 'Cinzel', 'Times New Roman', serif;
+  --pixel: 'Press Start 2P', monospace;
+  --body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--ink-0);
+  overflow: hidden;
+}
+.stage {
+  position: relative;
+  width: 844px;
+  height: 390px;
+  overflow: hidden;
+  font-family: var(--body);
+  color: var(--bone);
+}
+.stage > img.bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+/* The ceremonies own the map viewport only; the command rail (222px) stays live. */
+.map-area {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 222px;
+  overflow: hidden;
+}
+.dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 6, 11, 0.55);
+  backdrop-filter: saturate(0.5);
+}
+
+/* Shared: gilt hairline with a centre knot */
+.hairline {
+  position: relative;
+  height: 1px;
+  margin: 8px auto;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gold-3) 18%,
+    var(--gold-4) 50%,
+    var(--gold-3) 82%,
+    transparent
+  );
+}
+.hairline::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--gold-5);
+  box-shadow:
+    0 0 0 1px var(--ink-0),
+    0 0 8px rgba(243, 203, 108, 0.6);
+}
+.hairline.crimson {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--blood-2) 18%,
+    var(--blood-4) 50%,
+    var(--blood-2) 82%,
+    transparent
+  );
+}
+.hairline.crimson::after {
+  background: var(--blood-5);
+  box-shadow:
+    0 0 0 1px var(--ink-0),
+    0 0 8px rgba(204, 64, 56, 0.7);
+}
+.skip {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font: 8px var(--pixel);
+  color: var(--muted);
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+/* ------------------------------------------------------------------ Boss intro */
+.boss-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 118px;
+  height: 128px;
+  background: linear-gradient(
+    90deg,
+    rgba(7, 6, 11, 0.98) 0%,
+    rgba(14, 12, 20, 0.95) 55%,
+    rgba(34, 9, 15, 0.92) 100%
+  );
+  border-top: 1px solid var(--blood-3);
+  border-bottom: 1px solid var(--blood-3);
+  box-shadow:
+    0 0 0 1px var(--ink-0),
+    0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.boss-portrait {
+  position: absolute;
+  left: 6px;
+  bottom: 0;
+  width: 190px;
+  height: 190px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(0deg, transparent 0%, #000 22%, #000 100%);
+  filter: drop-shadow(-3px 0 0 rgba(204, 64, 56, 0.55)) saturate(0.9);
+}
+.boss-text {
+  position: absolute;
+  left: 206px;
+  right: 18px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.boss-kicker {
+  font: 8px var(--pixel);
+  color: var(--blood-5);
+  letter-spacing: 2px;
+}
+.boss-name {
+  font: 700 34px/1.05 var(--display);
+  letter-spacing: 3px;
+  color: var(--ivory);
+  text-shadow:
+    0 2px 0 var(--ink-0),
+    0 0 18px rgba(204, 64, 56, 0.35);
+  margin: 6px 0 2px;
+}
+.boss-epithet {
+  font: 500 13px var(--display);
+  letter-spacing: 2px;
+  color: var(--gold-5);
+  font-variant: small-caps;
+}
+.boss-text .hairline {
+  width: 260px;
+  margin: 10px 0 0;
+}
+.boss-text .hairline::after {
+  left: 0;
+}
+
+/* ------------------------------------------------------------------ Boss bar */
+.boss-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: min(460px, 86%);
+}
+.boss-bar .label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+  text-shadow:
+    0 1px 0 var(--ink-0),
+    0 0 6px var(--ink-0);
+}
+.boss-bar .name {
+  font: 700 13px var(--display);
+  letter-spacing: 1.5px;
+  color: var(--ivory);
+}
+.boss-bar .hp {
+  font: 8px var(--pixel);
+  color: var(--bone);
+}
+.boss-bar .track {
+  position: relative;
+  height: 7px;
+  background: var(--ink-1);
+  border: 1px solid var(--ink-0);
+  box-shadow:
+    0 0 0 1px var(--gold-3),
+    0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.boss-bar .track::before,
+.boss-bar .track::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: var(--gold-5);
+  transform: translateY(-50%) rotate(45deg);
+  box-shadow: 0 0 0 1px var(--ink-0);
+}
+.boss-bar .track::before {
+  left: -5px;
+}
+.boss-bar .track::after {
+  right: -5px;
+}
+.boss-bar .lost {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--gold-5);
+  opacity: 0.55;
+}
+.boss-bar .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(
+    180deg,
+    var(--blood-5) 0 1px,
+    var(--blood-4) 1px 3px,
+    var(--blood-3) 3px
+  );
+}
+.boss-bar.enraged .fill {
+  background: linear-gradient(180deg, #ffd08a 0 1px, #e8782e 1px 3px, #b3452a 3px);
+  box-shadow: 0 0 10px rgba(232, 120, 46, 0.8);
+}
+.boss-bar .status {
+  font: 7px var(--pixel);
+  color: #ffb070;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-align: right;
+  text-shadow: 0 1px 0 var(--ink-0);
+}
+
+/* ------------------------------------------------------------------ Fate bands */
+.fate-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 104px;
+  height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(7, 6, 11, 0.94) 14%,
+    rgba(7, 6, 11, 0.94) 86%,
+    transparent
+  );
+}
+.fate-word {
+  font: 700 46px/1 var(--display);
+  letter-spacing: 12px;
+  margin-right: -12px;
+}
+.fate-sub {
+  font: 500 14px var(--display);
+  letter-spacing: 3px;
+  color: var(--bone);
+  margin-top: 8px;
+}
+.fate-band .hairline {
+  width: 300px;
+  margin-top: 12px;
+}
+.fallen .fate-word {
+  color: var(--blood-4);
+  text-shadow:
+    0 0 22px rgba(204, 64, 56, 0.55),
+    0 2px 0 var(--ink-0);
+}
+.victory .fate-word {
+  color: var(--gold-5);
+  text-shadow:
+    0 0 22px rgba(243, 203, 108, 0.45),
+    0 2px 0 var(--ink-0);
+}
+.offer {
+  position: absolute;
+  left: 50%;
+  top: 222px;
+  transform: translateX(-50%);
+  width: 420px;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(14, 12, 20, 0.96);
+  border: 1px solid #4a4250;
+  clip-path: polygon(
+    5px 0,
+    calc(100% - 5px) 0,
+    100% 5px,
+    100% calc(100% - 5px),
+    calc(100% - 5px) 100%,
+    5px 100%,
+    0 calc(100% - 5px),
+    0 5px
+  );
+}
+.offer img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  grid-row: span 2;
+  background: radial-gradient(circle at 70% 30%, #6a4a2a, #16131e 70%);
+}
+.offer .line {
+  font: italic 13px var(--body);
+  color: var(--bone);
+}
+.offer .line b {
+  font: 8px var(--pixel);
+  font-style: normal;
+  color: var(--gold-5);
+  margin-right: 6px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  flex: 1;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  font: 600 13px var(--body);
+  border: 1px solid #4a4250;
+  background: #201c29;
+  color: var(--bone);
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    0 calc(100% - 4px),
+    0 4px
+  );
+}
+.btn.primary {
+  background: linear-gradient(180deg, #f0c060, #d09034);
+  color: var(--ink-1);
+  border-color: var(--gold-6);
+}
+
+/* Run end — the thread is cut */
+.cut {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(20, 16, 28, 0.86), rgba(7, 6, 11, 0.98) 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.cut .fate-word {
+  font-size: 30px;
+  letter-spacing: 9px;
+  color: var(--bone);
+}
+.thread-cut {
+  position: relative;
+  width: 360px;
+  height: 14px;
+  margin: 18px 0 10px;
+}
+.thread-cut span {
+  position: absolute;
+  top: 6px;
+  height: 2px;
+  width: 170px;
+  background: linear-gradient(90deg, transparent, var(--gold-4));
+  box-shadow: 0 0 8px rgba(220, 160, 68, 0.6);
+}
+.thread-cut span:last-child {
+  right: 0;
+  top: 8px;
+  transform: rotate(4deg);
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--gold-3), transparent);
+  opacity: 0.55;
+}
+.cut .fate-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ Crit cut-in */
+.cutin {
+  position: absolute;
+  left: -40px;
+  right: -40px;
+  top: 118px;
+  height: 116px;
+  transform: skewY(-7deg);
+  background: linear-gradient(
+    90deg,
+    rgba(7, 6, 11, 0.97) 0%,
+    rgba(22, 19, 30, 0.97) 60%,
+    rgba(110, 26, 40, 0.95) 100%
+  );
+  border-top: 2px solid var(--gold-5);
+  border-bottom: 2px solid var(--blood-4);
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+}
+.cutin::before {
+  /* speed lines */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 9px,
+    rgba(255, 240, 189, 0.07) 9px 10px,
+    transparent 10px 17px,
+    rgba(255, 240, 189, 0.12) 17px 18px
+  );
+  -webkit-mask-image: linear-gradient(90deg, transparent 20%, #000 60%);
+  mask-image: linear-gradient(90deg, transparent 20%, #000 60%);
+}
+.cutin .eyes {
+  position: absolute;
+  left: 40px;
+  top: -30px;
+  width: 420px;
+  height: 176px;
+  transform: skewY(7deg);
+  background-size: 420px 420px;
+  background-position: 0 -92px;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 60%, transparent 100%);
+}
+.cutin .word {
+  position: absolute;
+  right: 70px;
+  top: 30px;
+  transform: skewY(7deg);
+  text-align: right;
+}
+.cutin .word .big {
+  font: 900 40px/1 var(--display);
+  letter-spacing: 6px;
+  color: var(--gold-5);
+  text-shadow:
+    0 0 16px rgba(243, 203, 108, 0.5),
+    3px 3px 0 var(--blood-3);
+}
+.cutin .word .small {
+  font: 8px var(--pixel);
+  color: var(--bone);
+  letter-spacing: 2px;
+  margin-top: 8px;
+}
+.flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 62% 50%, rgba(255, 240, 189, 0.18), transparent 60%);
+}
+
+/* ------------------------------------------------------------------ Act title */
+.act {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 50%, rgba(14, 12, 20, 0.7), rgba(7, 6, 11, 0.95) 75%);
+}
+.act .num {
+  font: 8px var(--pixel);
+  letter-spacing: 3px;
+  color: var(--gold-4);
+}
+.act .title {
+  font: 700 28px var(--display);
+  letter-spacing: 5px;
+  color: var(--ivory);
+  margin: 10px 0 2px;
+  text-shadow: 0 2px 0 var(--ink-0);
+}
+.act .grade {
+  font: 500 13px var(--display);
+  letter-spacing: 3px;
+  color: var(--muted);
+  font-variant: small-caps;
+}
+.act .hairline {
+  width: 280px;
+  margin-top: 12px;
+}
+.act .line {
+  margin-top: 16px;
+  max-width: 440px;
+  text-align: center;
+  font: italic 13px/1.5 var(--body);
+  color: var(--bone);
+}
+.act .line b {
+  font: 8px var(--pixel);
+  font-style: normal;
+  color: var(--gold-5);
+  margin-right: 6px;
+}

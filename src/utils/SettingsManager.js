@@ -2,6 +2,7 @@
 // No Phaser deps.
 
 import { BATTLE_SPEEDS } from './combatTiming.js';
+import { ATMOSPHERE_PREFERENCES } from '../art/atmosphereConfig.js';
 
 const STORAGE_KEY = 'emblem_rogue_settings';
 
@@ -33,12 +34,18 @@ export function normalizeSettings(saved = {}) {
       : legacyReduced
         ? 'low'
         : 'high',
+    // 'auto' follows the device (Reduced on phones, Full on desktop) until the player
+    // picks a mode. Stored as 'auto' so a desktop default synced through the cloud
+    // never forces Full onto a phone.
+    atmosphere: ATMOSPHERE_PREFERENCES.includes(saved.atmosphere) ? saved.atmosphere : 'auto',
   };
 }
 
 export class SettingsManager {
   constructor() {
     this.onSave = null;
+    this._listeners = new Set();
+    this._notifying = false;
     this.data = normalizeSettings();
     this.migrationResult = null;
     try {
@@ -65,6 +72,7 @@ export class SettingsManager {
       if (saved && Number(saved.savedAt) > Number(this.data.savedAt || 0)) {
         this.data = normalizeSettings(saved);
         this.onHydrate?.(this.data);
+        this._notify();
       }
     } catch {
       /* Keep the last valid in-memory preferences. */
@@ -79,7 +87,32 @@ export class SettingsManager {
   set(key, value) {
     this.adoptPersisted();
     this.data[key] = value;
-    return this._save();
+    const result = this._save();
+    this._notify();
+    return result;
+  }
+
+  /** Subscribe to any settings change (live presentation). Returns an unsubscribe. */
+  onChange(listener) {
+    if (typeof listener !== 'function') return () => {};
+    this._listeners.add(listener);
+    return () => this._listeners.delete(listener);
+  }
+
+  _notify() {
+    if (this._notifying || !this._listeners?.size) return;
+    this._notifying = true;
+    try {
+      for (const listener of [...this._listeners]) {
+        try {
+          listener(this.data);
+        } catch (err) {
+          console.warn('[Settings] change listener error:', err?.message || err);
+        }
+      }
+    } finally {
+      this._notifying = false;
+    }
   }
 
   getMusicVolume() {
@@ -136,6 +169,16 @@ export class SettingsManager {
   setEffectsQuality(value) {
     if (!['high', 'low'].includes(value)) return { ok: false, reason: 'invalid_quality' };
     return this.set('effectsQuality', value);
+  }
+
+  /** 'auto' | 'full' | 'reduced' | 'off' (see resolveAtmosphereMode for the effect). */
+  getAtmosphere() {
+    this.adoptPersisted();
+    return this.data.atmosphere;
+  }
+  setAtmosphere(value) {
+    if (!ATMOSPHERE_PREFERENCES.includes(value)) return { ok: false, reason: 'invalid_atmosphere' };
+    return this.set('atmosphere', value);
   }
 
   _save() {

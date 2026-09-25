@@ -66,7 +66,7 @@
     "fuzz:journey": "node tests/agents/journey-runner.js",
     "test:journey": "vitest run tests/harness/JourneyPersistence.test.js tests/harness/JourneyFuzz.test.js tests/harness/JourneyCombat.test.js",
     "fuzz:journey:soak": "node tests/agents/journey-runner.js --soak-seconds 300",
-    "test:e2e:presentation": "playwright test tests/e2e/battle-speed.spec.js tests/e2e/effects-settings.spec.js tests/e2e/forecast-parity.spec.js tests/e2e/progression-reveal.spec.js tests/e2e/selection-planning.spec.js tests/e2e/tutorial-lessons.spec.js tests/e2e/hint-reading.spec.js tests/e2e/reward-menu.spec.js tests/e2e/shop-reentry.spec.js tests/e2e/compendium-stats.spec.js tests/e2e/escape-exits.spec.js tests/e2e/item-explanations-revival.spec.js tests/e2e/playtest-followups.spec.js tests/e2e/seen-dialogue.spec.js tests/e2e/enemy-healing.spec.js tests/e2e/enemy-planning.spec.js tests/e2e/threat-pins.spec.js",
+    "test:e2e:presentation": "playwright test tests/e2e/battle-speed.spec.js tests/e2e/effects-settings.spec.js tests/e2e/forecast-parity.spec.js tests/e2e/progression-reveal.spec.js tests/e2e/selection-planning.spec.js tests/e2e/tutorial-lessons.spec.js tests/e2e/hint-reading.spec.js tests/e2e/reward-menu.spec.js tests/e2e/shop-reentry.spec.js tests/e2e/compendium-stats.spec.js tests/e2e/escape-exits.spec.js tests/e2e/item-explanations-revival.spec.js tests/e2e/playtest-followups.spec.js tests/e2e/seen-dialogue.spec.js tests/e2e/enemy-healing.spec.js tests/e2e/enemy-planning.spec.js tests/e2e/threat-pins.spec.js tests/e2e/ceremonies.spec.js",
     "test:timeline": "vitest run tests/BattleHistorySession.test.js tests/BattleHistoryPresentation.test.js tests/BattleStateSnapshot.test.js tests/BattleRng.test.js tests/BattleRewindTransaction.test.js tests/BattleTimeline.test.js tests/BattleTimelineIntegration.test.js tests/BattleTimelineView.test.js tests/VisionRewindController.test.js tests/harness/JourneyCombat.test.js"
   },
   "lint-staged": {
@@ -81,6 +81,7 @@
   "dependencies": {
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
+    "@fontsource/cinzel": "^5.3.0",
     "@fontsource/press-start-2p": "^5.3.0",
     "@supabase/supabase-js": "^2.95.3",
     "phaser": "^3.80.0"

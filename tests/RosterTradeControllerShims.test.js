@@ -49,8 +49,8 @@ describe('RosterOverlay trade shims', () => {
     ['_showTradePicker', [{ name: 'A' }]],
     ['showUnitPicker', [vi.fn()]],
     ['_showTradeScreen', [{ name: 'A' }, { name: 'B' }]],
-    ['_tradeText', [10, 20, 'hello', '#ffdd44', '12px']],
-    ['_tradeTextSegments', [10, 20, [{ text: 'seg', color: '#e0e0e0' }], '10px']],
+    ['_tradeText', [10, 20, 'hello', '#f3cb6c', '12px']],
+    ['_tradeTextSegments', [10, 20, [{ text: 'seg', color: '#ece3d0' }], '10px']],
   ])('%s delegates to RosterTradeController with same args', (method, args) => {
     const overlay = makeOverlay();
     const expected = { tag: method };

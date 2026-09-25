@@ -16,6 +16,7 @@ import {
   TUTORIAL_HINT_IDS,
 } from './tutorialLessons.js';
 import { VisionRewindController } from './VisionRewindController.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 export class TutorialController {
   constructor(scene) {
@@ -241,7 +242,7 @@ export class TutorialController {
       },
       onCancel: finishWithoutRewind,
       dismissible: false,
-      accent: 0xcc6666,
+      accent: UI_HEX.dangerLine,
     });
   }
 
@@ -275,7 +276,7 @@ export class TutorialController {
     if (mode === 'fort') {
       const fort = scene._getTutorialFortTile();
       if (!fort) return;
-      scene._tutorialFortGuide = draw(fort.col, fort.row, 0xffdd44);
+      scene._tutorialFortGuide = draw(fort.col, fort.row, UI_HEX.accent);
     }
   }
 
@@ -318,15 +319,15 @@ export class TutorialController {
       .text(cam.width - 8, cam.height - 12, 'SKIP', {
         fontFamily: 'monospace',
         fontSize: '10px',
-        color: '#888888',
+        color: UI_PALETTE.muted,
         backgroundColor: '#00000088',
         padding: { x: 6, y: 3 },
       })
       .setOrigin(1, 1)
       .setDepth(101)
       .setInteractive({ useHandCursor: true });
-    skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
-    skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
+    skipBtn.on('pointerover', () => skipBtn.setColor(UI_PALETTE.text));
+    skipBtn.on('pointerout', () => skipBtn.setColor(UI_PALETTE.muted));
     skipBtn.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
       scene._handleTutorialSkipRequested();

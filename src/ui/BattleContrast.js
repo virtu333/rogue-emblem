@@ -1,17 +1,18 @@
 import { liftPlayerPalette, usesPlayerPaletteLift } from './SpriteReadability.js';
-import { detectMobileRuntime } from '../utils/runtimeFlags.js';
+import { battlefieldContrastEnabled } from './battlefieldArtFlags.js';
 
-// Development-only A/B switch; production always uses the readability pass.
+// Production always uses the readability pass on every device (it belongs to the
+// shared battlefield art). Dev A/B: ?battleContrast=original or ?spriteArt=classic.
 export function battleContrastEnabled() {
-  const query = new URLSearchParams(globalThis.location?.search || '');
-  if (import.meta.env.DEV && query.get('battleContrast') === 'original') return false;
-  return detectMobileRuntime() || (import.meta.env.DEV && query.get('battleLab') === '1');
+  return battlefieldContrastEnabled();
 }
 
 // Cache a one-source-pixel contour and a targeted player palette lift. Texture dimensions,
 // anchors, and display sizing are preserved; no blur or extra render objects.
 export function contrastSpriteKey(scene, sourceKey) {
   if (!battleContrastEnabled()) return sourceKey;
+  // Traced sprites carry their own selective outline and light; no halo or lift.
+  if (sourceKey.startsWith('traced-')) return sourceKey;
   const key = `contrast-${sourceKey}`;
   if (scene.textures.exists(key)) return key;
   let source = scene.textures.get(sourceKey)?.getSourceImage();

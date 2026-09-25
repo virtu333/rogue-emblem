@@ -2,8 +2,7 @@ import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { CampaignMapOverlay } from '../ui/CampaignMapOverlay.js';
 import { NodeMapMenu } from '../ui/NodeMapMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { getHPBarColor } from '../utils/uiStyles.js';
-import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
+import { getHPBarColor, UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { routeMobileAction } from '../utils/overlayStack.js';
 import { inputHint } from '../utils/inputHint.js';
 // NodeMapScene — Visual node map with navigation + roster display
@@ -14,6 +13,7 @@ import {
   saveRun,
   clearSavedRun,
   settleAndPersistEndRun,
+  endRunPayoutPending,
 } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -53,6 +53,7 @@ import {
   clearAllSceneTimers,
 } from '../utils/sceneTimers.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
+import { CeremonyController } from '../ui/CeremonyController.js';
 
 // Maps runManager.currentAct → the meta milestone recorded on node-map entry,
 // which the Compendium Foes tab reads to gate each act's boss.
@@ -73,15 +74,15 @@ const ROSTER_Y = SAFE_BOTTOM_Y;
 const NODE_SIZE = 24;
 
 // Colors
-const COLOR_BATTLE = 0xcc6633;
-const COLOR_BOSS = 0xcc3333;
-const COLOR_SHOP = 0xddaa33;
-const COLOR_RUINS = 0x9c8b6b;
-const COLOR_RECRUIT = 0x44ccaa;
-const COLOR_CHURCH = 0xcccccc; // Light gray
+const COLOR_BATTLE = UI_HEX.dangerLine;
+const COLOR_BOSS = UI_HEX.dangerLine;
+const COLOR_SHOP = UI_HEX.accent;
+const COLOR_RUINS = UI_HEX.lineStrong;
+const COLOR_RECRUIT = UI_HEX.hpHigh;
+const COLOR_CHURCH = UI_HEX.lineStrong; // Light gray
 const COLOR_COLOSSEUM = 0x9966cc; // Purple
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
-const COLOR_COMPLETED = 0x555555;
+const COLOR_COMPLETED = UI_HEX.line;
 const COLOR_AVAILABLE = UI_HEX.accent;
 const COLOR_EDGE = UI_HEX.lineStrong;
 const COLOR_EDGE_ACTIVE = UI_HEX.accent;
@@ -344,6 +345,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._pendingNodeMapHints = null;
     this._storyDialogueActive = false;
     this._promotionChoicePanelOpen = 0;
+    this._ceremonies?.destroy();
+    this._ceremonies = null;
 
     this._churchMessageTimer = null;
     this._churchFlavorTimer = null;
@@ -445,11 +448,28 @@ export class NodeMapScene extends Phaser.Scene {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
             this.persistRunSave();
+            // The run opens on its act title (once: after the run-start mark).
+            const actCard = hasDOMHost()
+              ? (this._ceremonies ||= new CeremonyController(this)).showActCard({
+                  actId: this.runManager.currentAct,
+                  withLines: true,
+                })
+              : null;
             try {
               await this.dialogueOverlay.showSequence(
                 adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
                 { category: 'runStart', key: 'runStart' },
               );
+              // Lines read over the title already gave it its time (it fades
+              // out on its own); a sequence skipped as seen leaves the title to
+              // hold, skippable, on its own.
+              if (actCard && isSceneLifecycleActive(this, lifecycleGeneration)) {
+                if (this.dialogueOverlay?.lastSequenceSkippedAsSeen) await actCard.finish();
+                else void actCard.close();
+              } else actCard?.destroy();
+            } catch (err) {
+              actCard?.destroy();
+              throw err;
             } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
                 this._storyDialogueActive = false;
@@ -497,8 +517,8 @@ export class NodeMapScene extends Phaser.Scene {
       void showMinorHint(
         this,
         pending.showFirstRun
-          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Advance commits.'
-          : 'Tap any node to preview it. Advance enters a connected available node. Inspect service nodes to see what this route offers.',
+          ? 'Your first run begins here. Home Base upgrades, difficulty and blessings unlock after it ends. Tap a node to preview; Travel commits.'
+          : 'Tap any node to preview it. Travel enters a connected available node. Inspect service nodes to see what this route offers.',
       );
     } else if (
       pending.showHpPersist &&
@@ -611,7 +631,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.add.text(cx, cy, 'The village is under attack!', {
         fontFamily: 'Arial',
         fontSize: '16px',
-        color: '#ff6666',
+        color: UI_PALETTE.bad,
         backgroundColor: '#00000000',
       }),
     )
@@ -970,10 +990,12 @@ export class NodeMapScene extends Phaser.Scene {
             onSave: cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
             slot,
           });
-          clearSavedRun(
-            cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-            slot,
-          );
+          // A payout that did not reach disk keeps the save so it can retry.
+          if (!endRunPayoutPending(this.runManager, this.registry.get('meta')))
+            clearSavedRun(
+              cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+              slot,
+            );
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
@@ -1102,7 +1124,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.add.text(infoX, infoY, 'NO META', {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#ff8800',
+          color: UI_PALETTE.warn,
         }),
       ).setOrigin(1, 0);
       infoY += 11;
@@ -1114,7 +1136,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.add.text(infoX, infoY, `Streak: ${rm.winStreak}`, {
           fontFamily: 'Arial',
           fontSize: '10px',
-          color: '#88ccff',
+          color: UI_PALETTE.info,
         }),
       ).setOrigin(1, 0);
     }
@@ -1254,7 +1276,7 @@ export class NodeMapScene extends Phaser.Scene {
           )
           .setDisplaySize(NODE_SIZE + 18, NODE_SIZE + 18)
           .setDepth(NODE_DEPTH);
-        if (isCompleted) nodeObj.setTint(0x555555);
+        if (isCompleted) nodeObj.setTint(UI_HEX.line);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.85);
       } else {
         nodeObj = this.add
@@ -1745,7 +1767,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (this.input) this.input.enabled = true;
       if (audio)
         void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.showTransientMessage('Failed to enter battle. Please try again.', '#ff6666');
+      this.showTransientMessage('Failed to enter battle. Please try again.', UI_PALETTE.bad);
     }
   }
 
@@ -1785,7 +1807,7 @@ export class NodeMapScene extends Phaser.Scene {
         if (catchAudio) {
           void catchAudio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
         }
-        this.showTransientMessage?.('Failed to open Colosseum. Please try again.', '#ff6666');
+        this.showTransientMessage?.('Failed to open Colosseum. Please try again.', UI_PALETTE.bad);
       });
   }
 
@@ -1838,7 +1860,7 @@ export class NodeMapScene extends Phaser.Scene {
     (this._churchController ||= new ChurchController(this)).showChurchMessage(text, color);
   }
 
-  showTransientMessage(text, color = '#ff6666') {
+  showTransientMessage(text, color = UI_PALETTE.bad) {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
@@ -1942,7 +1964,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (!Array.isArray(lines) || lines.length === 0) return;
       const line =
         this.runManager?.pickNarrativeLine?.(lines, `node:${act}:${typeKey}`) || lines[0];
-      this.showShopBanner(line, '#aabbcc');
+      this.showShopBanner(line, UI_PALETTE.muted);
     } catch (_) {
       /* best-effort flavor */
     }

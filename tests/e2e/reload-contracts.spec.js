@@ -32,31 +32,10 @@ async function resumeSavedRun(page, battle = false) {
   await waitForScene(page, 'Title');
   // Let the boot-to-title router cooldown finish before the next scene transition.
   await page.waitForTimeout(1300);
-  // Title remains canvas-based: locate the rendered label, then tap its bounds.
-  await page.waitForFunction(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    return (
-      s.input.enabled &&
-      walk(s.children.list).some((o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible)
-    );
-  });
-  const point = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const o = walk(s.children.list).find(
-      (o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible,
-    );
-    const b = o.getBounds(),
-      r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(point.x, point.y);
+  // The DOM title offers Save Slots once a slot exists.
+  const slots = page.getByRole('button', { name: 'Save Slots', exact: true });
+  await expect(slots).toBeEnabled();
+  await slots.tap();
   await waitForScene(page, 'SlotPicker');
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
@@ -147,7 +126,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await notes.getByRole('button', { name: 'Continue', exact: true }).last().tap();
   await expect(notes).toHaveCount(0);
   await page.locator(`[data-node="${nodeId}"]`).tap();
-  await page.getByRole('button', { name: 'Advance', exact: true }).tap();
+  await page.getByRole('button', { name: 'Travel', exact: true }).tap();
   await waitForScene(page, 'Battle');
   await battleIdle(page); // This small roster follows the normal automatic deployment path.
   // A resumed slot with no seen hints shows the first-battle camera Field notes

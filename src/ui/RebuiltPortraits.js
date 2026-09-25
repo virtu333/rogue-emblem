@@ -1,16 +1,32 @@
 import manifest from './RebuiltPortraitManifest.json';
+import { legacyKeyAliasesRebuilt, portraitArtMode, rebuiltPortraitUrl } from './portraitArt.js';
 
 const normalize = (value) =>
   String(value || '')
     .toLowerCase()
     .replace(/ /g, '_');
 
+// PC-98 mode loads the 192px PC-98 render under the same keys (canvas and
+// texture-backed DOM paths keep working); classic loads the 1254px sources.
 export function preloadRebuiltPortraits(scene) {
-  for (const [id, entry] of Object.entries(manifest)) {
+  const mode = portraitArtMode();
+  for (const id of Object.keys(manifest)) {
     const key = `rebuilt-portrait-${id}`;
-    if (!scene.textures.exists(key))
-      scene.load.image(key, `${import.meta.env.BASE_URL}assets/portraits/rebuilt/${entry.file}`);
+    if (scene.textures.exists(key)) continue;
+    scene.load.image(key, rebuiltPortraitUrl(id, mode));
+    // The legacy key for the same character shows the same render.
+    if (legacyKeyAliasesRebuilt(id, mode))
+      scene.load.once(`filecomplete-image-${key}`, () => aliasLegacyPortrait(scene, id));
   }
+}
+
+/** Register `portrait_<id>` as an alias of the loaded `rebuilt-portrait-<id>`. */
+export function aliasLegacyPortrait(scene, id) {
+  const legacy = `portrait_${id}`;
+  const key = `rebuilt-portrait-${id}`;
+  if (scene.textures.exists(legacy) || !scene.textures.exists(key)) return;
+  const source = scene.textures.get(key).getSourceImage?.();
+  if (source) scene.textures.addImage(legacy, source);
 }
 
 export function rebuiltPortraitKey(scene, unit) {

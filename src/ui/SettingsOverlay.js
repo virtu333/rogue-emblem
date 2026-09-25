@@ -1,4 +1,6 @@
 import { BATTLE_SPEEDS } from '../utils/combatTiming.js';
+import { resolveAtmosphereMode } from '../art/atmosphereConfig.js';
+import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { SettingsMenu } from './SettingsMenu.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
@@ -71,7 +73,7 @@ export class SettingsOverlay {
 
     // Music volume row
     this._rows.push(
-      this._addVolumeRow(cx, cy - 106, 'Music', settings.getMusicVolume(), (val) => {
+      this._addVolumeRow(cx, cy - 118, 'Music', settings.getMusicVolume(), (val) => {
         settings.setMusicVolume(val);
         if (audio) audio.setMusicVolume(val);
       }),
@@ -79,7 +81,7 @@ export class SettingsOverlay {
 
     // SFX volume row
     this._rows.push(
-      this._addVolumeRow(cx, cy - 56, 'SFX', settings.getSFXVolume(), (val) => {
+      this._addVolumeRow(cx, cy - 74, 'SFX', settings.getSFXVolume(), (val) => {
         settings.setSFXVolume(val);
         if (audio) {
           audio.setSFXVolume(val);
@@ -91,7 +93,7 @@ export class SettingsOverlay {
     this._rows.push(
       this._addToggleRow(
         cx,
-        cy - 6,
+        cy - 30,
         'Reduce Motion',
         settings.getReduceMotion?.() ?? false,
         (enabled) => {
@@ -103,7 +105,7 @@ export class SettingsOverlay {
     this._rows.push(
       this._addToggleRow(
         cx,
-        cy + 44,
+        cy + 14,
         'Effects Quality',
         settings.getEffectsQuality?.() !== 'low',
         (high) => settings.setEffectsQuality?.(high ? 'high' : 'low'),
@@ -114,11 +116,26 @@ export class SettingsOverlay {
     this._rows.push(
       this._addToggleRow(
         cx,
-        cy + 94,
+        cy + 58,
         'Battle Speed',
         Math.max(0, BATTLE_SPEEDS.indexOf(settings.getBattleSpeed?.())),
         (index) => settings.setBattleSpeed?.(BATTLE_SPEEDS[index]),
         ['NORMAL', 'FAST', 'INSTANT'],
+      ),
+    );
+
+    const atmosphereModes = ['full', 'reduced', 'off'];
+    const atmosphereNow = resolveAtmosphereMode(settings.getAtmosphere?.() || 'auto', {
+      mobile: detectMobileRuntime(),
+    }).mode;
+    this._rows.push(
+      this._addToggleRow(
+        cx,
+        cy + 102,
+        'Atmosphere',
+        Math.max(0, atmosphereModes.indexOf(atmosphereNow)),
+        (index) => settings.setAtmosphere?.(atmosphereModes[index]),
+        ['FULL', 'REDUCED', 'OFF'],
       ),
     );
 
@@ -300,7 +317,7 @@ export class SettingsOverlay {
       this.scene.add.text(cx + 72, y, values[Number(value)], {
         fontFamily: 'Arial',
         fontSize: '14px',
-        color: value ? '#88ff88' : '#ff8888',
+        color: value ? UI_PALETTE.good : UI_PALETTE.bad,
       }),
     )
       .setOrigin(0.5, 0.5)
@@ -315,7 +332,7 @@ export class SettingsOverlay {
             ? !value
             : delta > 0;
       valueText.setText(values[Number(value)]);
-      valueText.setColor(value ? '#88ff88' : '#ff8888');
+      valueText.setColor(value ? UI_PALETTE.good : UI_PALETTE.bad);
       onChange(value);
     };
 

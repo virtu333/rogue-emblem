@@ -130,19 +130,7 @@ async function reloadSavedBattle(page) {
   await page.reload();
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1400);
-  const point = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const object = walk(s.children.list).find((o) => o.text === 'SAVE SLOTS' && o.visible);
-    const b = object.getBounds(),
-      r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(point.x, point.y);
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).tap();
   await waitForScene(page, 'SlotPicker');
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
@@ -208,7 +196,9 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
     await s.removeUnit(commander, { killer: s.enemyUnits[0] });
     s.checkBattleEnd();
   });
-  const decision = page.getByRole('button', { name: 'Review timeline', exact: true });
+  // The fatal decision is staged as FALLEN with Sera's offer beneath it.
+  await expect(page.locator('.ce-fate .ce-band-word')).toHaveText('FALLEN');
+  const decision = page.getByRole('button', { name: 'Rewind · 3 left', exact: true });
   await expect(decision).toBeVisible();
   await decision.tap();
   const view = page.getByRole('dialog', { name: 'Battle timeline', exact: true });
@@ -228,7 +218,7 @@ test('fatal decision survives reload and Back; accepting fate exposes read-only 
   expect(
     await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState),
   ).not.toBe('BATTLE_END');
-  await page.getByRole('button', { name: 'Accept Fate', exact: true }).tap();
+  await page.getByRole('button', { name: 'Accept fate', exact: true }).tap();
   await waitForScene(page, 'RunComplete');
   const farewell = page.getByRole('button', { name: 'Skip conversation', exact: true });
   if (await farewell.isVisible()) await farewell.tap();

@@ -391,13 +391,13 @@ describe('BattleScene shim delegation contracts', () => {
     it('getLootCardDetailLines delegates to LootScreenController.getCardDetailLines', () => {
       const spy = vi
         .spyOn(LootScreenController, 'getCardDetailLines')
-        .mockReturnValue({ lines: ['test'], color: '#ffffff' });
+        .mockReturnValue({ lines: ['test'], color: '#ece3d0' });
       const scene = makeScene();
       const choice = { type: 'weapon' };
       const item = { name: 'Iron Sword', might: 5 };
       const result = BattleScene.prototype.getLootCardDetailLines.call(scene, choice, item, 120);
       expect(spy).toHaveBeenCalledWith(scene, choice, item, 120);
-      expect(result).toEqual({ lines: ['test'], color: '#ffffff' });
+      expect(result).toEqual({ lines: ['test'], color: '#ece3d0' });
       spy.mockRestore();
     });
 

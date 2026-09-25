@@ -1,0 +1,753 @@
+/* The Loom — route map for node travel and the read-only Campaign Map.
+   Approved study: docs/art-direction/board/loom (README "Integration notes").
+   Canvas (src/art/loom/loomThreads.js) paints the weave; DOM buttons carry the nodes.
+   Tokens only: --re-* from uiPalette.json / mobileTheme.css. */
+
+.re-loom-screen {
+  background:
+    radial-gradient(120% 90% at 30% 55%, var(--re-bg) 0%, var(--re-void) 70%), var(--re-void);
+}
+.re-node-map {
+  z-index: var(--re-z);
+  gap: 6px;
+}
+.re-node-map[hidden] {
+  display: none;
+}
+
+/* ───────── Header: Cinzel act title + pixel subline ───────── */
+.re-loom-screen .re-loom-header {
+  align-items: flex-end;
+  gap: 12px;
+  min-height: 36px;
+  padding-bottom: 0;
+  border-bottom: 0;
+  border-image: none;
+}
+.re-loom-heading {
+  min-width: 0;
+}
+.re-loom-screen .re-loom-header .re-loom-title {
+  margin: 0;
+  font: 700 17px/1.1 var(--re-display);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--re-parchment);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 var(--re-void);
+}
+.re-loom-act {
+  color: var(--re-accent-text);
+}
+.re-loom-dot {
+  margin: 0 0.18em;
+  color: var(--re-gilt);
+}
+.re-loom-sub {
+  margin: 5px 0 0;
+  font: 8px/1 var(--re-pixel);
+  letter-spacing: 0.02em;
+  color: var(--re-muted-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.re-loom-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 1px;
+  flex-shrink: 0;
+}
+.re-loom-gold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 10px/1 var(--re-pixel);
+  color: var(--re-accent-text);
+  white-space: nowrap;
+}
+.re-loom-gold::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--re-ember-pale),
+    var(--re-accent) 45%,
+    var(--re-gilt-lo) 100%
+  );
+  box-shadow: 0 0 0 1px var(--re-ember-deep);
+}
+.re-loom-diff {
+  font: 8px/1 var(--re-pixel);
+  color: var(--re-muted-dim);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ───────── Body: loom + side pane (the pane stays a column at every width) ───────── */
+.re-loom-screen .re-node-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--re-loom-pane, 204px);
+  gap: 10px;
+}
+.re-loom-wrap {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+.re-loom-screen .re-node-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  border: 0;
+  border-radius: 4px;
+  background: var(--re-bg);
+}
+.re-loom-screen .re-node-scroll::-webkit-scrollbar {
+  display: none;
+}
+/* The frame reads as the loom's beams; content scrolls beneath it. */
+.re-loom-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px var(--re-raised),
+    inset 2px 0 0 0 var(--re-gilt-haze),
+    inset -2px 0 0 0 var(--re-shade-deep),
+    inset 0 0 24px var(--re-shade-deep);
+}
+.re-loom-frame::before,
+.re-loom-frame::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 22px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.re-loom-frame::before {
+  left: 1px;
+  background: linear-gradient(90deg, var(--re-void), transparent);
+}
+.re-loom-frame::after {
+  right: 1px;
+  background: linear-gradient(-90deg, var(--re-void), transparent);
+}
+.re-loom-wrap.more-left .re-loom-frame::before,
+.re-loom-wrap.more-right .re-loom-frame::after {
+  opacity: 0.85;
+}
+.re-loom.re-node-graph {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+}
+.re-loom canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+/* ───────── Nodes: medals on the weave ───────── */
+.re-node-art {
+  display: block;
+  margin: auto;
+  background-image: url('/assets/sprites/nodes/weathered-nodes.png');
+  background-repeat: no-repeat;
+  image-rendering: auto;
+}
+.re-loom .re-node {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  opacity: var(--re-loom-fade, 1);
+  color: inherit;
+}
+.re-loom-medal {
+  position: relative;
+  width: var(--medal, 40px);
+  height: var(--medal, 40px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at 50% 30%,
+    var(--re-line-soft) 0%,
+    var(--re-panel) 62%,
+    var(--re-bg) 100%
+  );
+  box-shadow:
+    0 0 0 2px var(--rim, var(--re-line)),
+    0 0 0 3px var(--re-void),
+    0 2px 0 3px var(--re-shade);
+  transition:
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.re-loom-medal .re-node-art {
+  filter: var(--icon-filter, none);
+  transition: filter 0.2s;
+}
+.re-loom--narrow .re-loom-medal .re-node-art {
+  transform: scale(0.9);
+}
+.re-loom--roomy .re-loom-medal .re-node-art {
+  transform: scale(1.1);
+}
+.re-loom-label {
+  position: absolute;
+  top: calc(50% + var(--medal, 40px) / 2 + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 8px/1 var(--re-pixel);
+  color: var(--re-accent-text);
+  text-shadow:
+    0 1px 0 var(--re-void),
+    0 0 4px var(--re-void),
+    0 0 2px var(--re-void);
+  pointer-events: none;
+}
+.re-loom--tight .re-loom-label {
+  display: none;
+}
+.re-node.is-elite .re-loom-label {
+  color: var(--re-bad);
+}
+.re-loom-crack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--medal, 40px) + 6px);
+  height: calc(var(--medal, 40px) + 6px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  overflow: visible;
+}
+.re-loom-crack path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.re-loom-crack-shadow {
+  stroke: var(--re-void);
+  stroke-width: 2.6;
+}
+.re-loom-crack-line {
+  stroke: var(--re-hp-low);
+  stroke-width: 1.1;
+}
+
+/* completed: woven, knotted */
+.re-node.is-done {
+  --rim: var(--re-gilt-lo);
+  --icon-filter: saturate(0.5) brightness(0.72) sepia(0.25);
+}
+.re-node.is-done .re-loom-medal::after,
+.re-node.is-current.is-completed .re-loom-medal::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--re-ember-pale),
+    var(--re-accent) 50%,
+    var(--re-gilt-lo)
+  );
+  box-shadow: 0 0 0 2px var(--re-void);
+}
+/* current: where the party stands */
+.re-node.is-current {
+  --rim: var(--re-accent);
+  --icon-filter: saturate(0.8) brightness(0.9);
+}
+.re-node.is-current .re-loom-medal {
+  box-shadow:
+    0 0 0 2px var(--re-accent),
+    0 0 0 4px var(--re-void),
+    0 0 0 5px var(--re-gilt-lo),
+    0 2px 0 5px var(--re-shade);
+}
+.re-loom-here {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top: 5px solid var(--re-accent-text);
+  filter: drop-shadow(0 1px 0 var(--re-void));
+  pointer-events: none;
+}
+/* available: the glowing gold thread ends here */
+.re-node.is-live {
+  --rim: var(--re-accent-text);
+}
+.re-node.is-live .re-loom-medal {
+  background: radial-gradient(
+    circle at 50% 30%,
+    var(--re-line) 0%,
+    var(--re-raised) 60%,
+    var(--re-panel) 100%
+  );
+  box-shadow:
+    0 0 0 2px var(--re-accent-text),
+    0 0 0 3px var(--re-void),
+    0 0 12px 2px var(--re-ember-glow);
+}
+/* possible futures: inspectable, quieter */
+.re-node.is-future {
+  --rim: var(--re-line-dim);
+  --icon-filter: grayscale(0.5) brightness(0.86) contrast(0.95);
+}
+/* frayed: no longer reachable */
+.re-node.is-cut {
+  --rim: var(--re-line-soft);
+  --icon-filter: grayscale(1) brightness(0.5) contrast(0.9);
+}
+.re-node.is-cut .re-loom-medal {
+  background: var(--re-bg);
+}
+/* boss: the Hollow Sun (corona is painted on the weave) */
+.re-loom .re-node.is-boss {
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+}
+.re-node.is-boss .re-loom-medal {
+  width: calc(var(--medal, 40px) + 8px);
+  height: calc(var(--medal, 40px) + 8px);
+  background: radial-gradient(
+    circle at 50% 50%,
+    var(--re-void) 0%,
+    var(--re-void) 70%,
+    var(--re-bg) 100%
+  );
+  box-shadow:
+    0 0 0 1px var(--re-gilt),
+    0 0 0 3px var(--re-void),
+    0 0 0 4px var(--re-gilt-haze);
+}
+.re-node.is-boss.is-future,
+.re-node.is-boss.is-cut {
+  --icon-filter: grayscale(0.35) brightness(0.8);
+}
+
+/* selection — the inspect ring */
+.re-node.is-selected {
+  opacity: 1;
+}
+.re-node.is-selected .re-loom-medal {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--re-void),
+    0 0 0 6px var(--sel, var(--re-ember-pale)),
+    0 0 14px 4px var(--re-ember-glow-soft);
+}
+.re-node.is-selected:is(.is-future, .is-cut, .is-done) {
+  --sel: var(--re-parchment-dim);
+}
+.re-node.is-selected:is(.is-future, .is-cut) .re-loom-medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--re-void),
+    0 0 0 6px var(--sel),
+    0 0 0 7px var(--re-void);
+}
+.re-node.is-selected.is-future {
+  --icon-filter: grayscale(0.25) brightness(0.92);
+}
+.re-node.is-selected.is-cut {
+  --icon-filter: grayscale(0.9) brightness(0.7);
+}
+.re-node.is-selected .re-loom-label {
+  color: var(--re-ember-pale);
+}
+.re-node.is-selected.is-elite .re-loom-label {
+  color: var(--re-bad);
+}
+.re-loom .re-node:focus-visible {
+  opacity: 1;
+}
+.re-loom .re-node:focus-visible:not(.is-selected) .re-loom-medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--re-void),
+    0 0 0 6px var(--re-info);
+}
+/* Focus on the selected knot: keep the selection ring, add a hairline focus halo. */
+.re-loom .re-node.is-selected:focus-visible .re-loom-medal {
+  box-shadow:
+    0 0 0 2px var(--rim),
+    0 0 0 4px var(--re-void),
+    0 0 0 6px var(--sel, var(--re-ember-pale)),
+    0 0 0 7px var(--re-void),
+    0 0 0 8px var(--re-info);
+}
+
+/* ───────── Pane: Menu/Roster, inspect card, Travel, lord chips ───────── */
+.re-loom-screen .re-node-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.re-loom-screen .re-node-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.re-loom-screen .re-node-actions .re-btn {
+  min-height: var(--re-tap);
+  padding-inline: 6px;
+  font: 8px/1 var(--re-pixel);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(var(--re-raised), var(--re-panel));
+}
+
+.re-loom-card {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  padding: 9px 10px 8px 12px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--re-raised-haze), transparent 70%), var(--re-bg);
+  box-shadow: inset 0 0 0 1px var(--re-raised);
+  --card-thread: var(--re-gilt);
+}
+.re-loom-card::-webkit-scrollbar {
+  display: none;
+}
+.re-loom-card::before {
+  /* the thread that ties the card to the selection */
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--card-thread);
+  opacity: 0.8;
+}
+.re-loom-card[data-tone='live'] {
+  --card-thread: var(--re-accent);
+}
+.re-loom-card[data-tone='current'] {
+  --card-thread: var(--re-gilt);
+}
+.re-loom-card[data-tone='done'] {
+  --card-thread: var(--re-gilt-lo);
+}
+.re-loom-card[data-tone='future'] {
+  --card-thread: var(--re-line-dim);
+}
+.re-loom-card[data-tone='cut'] {
+  --card-thread: var(--re-blood-deep);
+}
+.re-loom-card[data-tone='elite'] {
+  --card-thread: var(--re-hp-low);
+}
+.re-loom-card-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.re-loom-card-medal {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--re-panel);
+  box-shadow:
+    0 0 0 1px var(--card-thread),
+    0 0 0 2px var(--re-void);
+}
+.re-loom-card[data-tone='cut'] .re-node-art {
+  filter: grayscale(1) brightness(0.6);
+}
+.re-loom-card[data-tone='future'] .re-node-art {
+  filter: grayscale(0.4) brightness(0.85);
+}
+.re-loom-card-titles {
+  min-width: 0;
+}
+.re-loom-screen .re-loom-kind {
+  margin: 0;
+  font: 8px/1.2 var(--re-pixel);
+  letter-spacing: 0.03em;
+  color: var(--re-accent-text);
+}
+.re-loom-kind-elite {
+  color: var(--re-bad);
+}
+.re-loom-kind-muted {
+  color: var(--re-muted);
+}
+.re-loom-screen .re-loom-place {
+  margin: 4px 0 0;
+  font: 600 13px/1.15 var(--re-body);
+  color: var(--re-parchment);
+}
+.re-loom-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.re-loom-tag {
+  font: 600 10px/1 var(--re-body);
+  padding: 3px 5px;
+  border-radius: 2px;
+  color: var(--re-parchment-dim);
+  background: var(--re-panel);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+}
+.re-loom-tag.is-info {
+  color: var(--re-info);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}
+.re-loom-tag.is-good {
+  color: var(--re-good);
+  box-shadow: inset 0 0 0 1px var(--re-verdigris-deep);
+}
+.re-loom-tag.is-bad {
+  color: var(--re-bad);
+  box-shadow: inset 0 0 0 1px var(--re-blood-deep);
+}
+.re-loom-screen .re-loom-text {
+  margin: 7px 0 0;
+  font: 12px/1.35 var(--re-body);
+  color: var(--re-text);
+}
+.re-loom-screen .re-loom-flavor {
+  margin: 6px 0 0;
+  font: italic 11.5px/1.35 var(--re-body);
+  color: var(--re-muted);
+}
+.re-loom-screen .re-loom-state {
+  margin: 7px 0 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font: 600 11px/1.3 var(--re-body);
+  color: var(--re-accent-text);
+}
+.re-loom-state::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 2px;
+  transform: translateY(-3px);
+  background: currentColor;
+  border-radius: 1px;
+}
+.re-loom-state.is-future {
+  color: var(--re-parchment-dim);
+}
+.re-loom-state.is-cut {
+  color: var(--re-bad);
+}
+.re-loom-state.is-done {
+  color: var(--re-gilt);
+}
+.re-loom-screen .re-loom-note {
+  margin: 7px 0 0;
+  font: 11px/1.35 var(--re-body);
+  color: var(--re-muted);
+}
+
+.re-loom-screen .re-loom-travel {
+  position: relative;
+  flex: none;
+  min-height: 46px;
+  gap: 10px;
+  font: 10px/1 var(--re-pixel);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--re-void);
+  background: var(--re-ember-fill-deep);
+  border-color: var(--re-ember-deep);
+  box-shadow:
+    inset 0 1px 0 var(--re-ember-pale),
+    inset 0 -2px 0 var(--re-shade),
+    0 0 16px var(--re-ember-haze);
+}
+.re-loom-screen .re-loom-travel:disabled {
+  opacity: 1;
+  color: var(--re-line-dim);
+  background: var(--re-bg);
+  border-color: var(--re-line-soft);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+  text-shadow: none;
+}
+.re-loom-arrow {
+  width: 16px;
+  height: 8px;
+  background:
+    linear-gradient(var(--re-bg), var(--re-bg)) 0 3px / 11px 2px no-repeat,
+    conic-gradient(from -135deg at 100% 50%, var(--re-bg) 90deg, transparent 0) 100% 0 / 6px 8px
+      no-repeat;
+}
+
+.re-loom-party {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.re-loom-screen .re-node-unit {
+  min-width: 0;
+  min-height: var(--re-tap);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 4px 5px 4px 4px;
+  text-align: left;
+  overflow: hidden;
+  background: var(--re-bg);
+  border-color: var(--re-raised);
+  box-shadow: none;
+}
+.re-loom-screen .re-node-unit img {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  object-fit: cover;
+  object-position: 50% 10%;
+  image-rendering: pixelated;
+  background: var(--re-raised);
+  box-shadow: 0 0 0 1px var(--re-line-soft);
+}
+.re-loom-screen .re-node-unit > span {
+  flex: 1;
+  min-width: 0;
+}
+.re-loom-screen .re-node-unit strong {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font: 700 11px/1.1 var(--re-body);
+  color: var(--re-parchment);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.re-loom-class {
+  display: none;
+  font: 400 10px/1.1 var(--re-body);
+  color: var(--re-muted-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.re-loom-screen .re-node-unit > span > small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  font: 600 10px/1.1 var(--re-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--re-muted);
+}
+.re-loom-hp-unit {
+  font-size: 9px;
+  color: var(--re-muted-dim);
+}
+.re-loom-screen .re-node-unit .re-health {
+  height: 4px;
+  margin: 4px 0 0;
+  border: 0;
+  background: var(--re-raised);
+  box-shadow: 0 0 0 1px var(--re-void);
+}
+
+/* ───────── Campaign Map (in-battle, read-only) ───────── */
+.re-campaign-map .re-header .re-loom-heading {
+  margin-right: auto;
+}
+.re-campaign-map .re-menu-body {
+  gap: 6px;
+}
+.re-campaign-side .re-loom-card {
+  flex: 1;
+}
+
+/* ───────── Size tiers ───────── */
+/* iPhone SE / 8-class landscape: a narrower pane, never a bottom bar. */
+@media (max-width: 700px) {
+  .re-loom-screen {
+    --re-loom-pane: 184px;
+  }
+  .re-loom-screen .re-loom-header .re-loom-title {
+    font-size: 15px;
+  }
+  .re-loom-screen .re-node-unit img {
+    width: 32px;
+    height: 32px;
+  }
+  .re-loom-screen .re-node-unit {
+    gap: 5px;
+    padding-right: 5px;
+  }
+}
+/* Desktop pointer: one chip per row with the class name. */
+html:not(.touch-ui):not(.mobile-preview) .re-loom-party {
+  grid-template-columns: minmax(0, 1fr);
+}
+html:not(.touch-ui):not(.mobile-preview) .re-loom-class {
+  display: inline;
+}
+html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
+  padding: 11px 11px 10px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .re-loom-medal,
+  .re-loom-medal .re-node-art,
+  .re-loom-frame::before,
+  .re-loom-frame::after {
+    transition: none;
+  }
+}

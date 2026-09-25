@@ -6,6 +6,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { transitionToScene } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { markStartup } from '../utils/startupTelemetry.js';
+import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 
 /**
  * Show a recovery prompt with Retry + Reload buttons.
@@ -88,9 +89,9 @@ export function showTransitionRecoveryPrompt(
   group.push(blocker);
 
   const panel = scene.add
-    .rectangle(cam.centerX, cam.centerY, 380, 150, 0x111122, 0.97)
+    .rectangle(cam.centerX, cam.centerY, 380, 150, UI_HEX.panel, 0.97)
     .setDepth(911)
-    .setStrokeStyle(2, 0x777777)
+    .setStrokeStyle(2, UI_HEX.lineStrong)
     .setInteractive();
   group.push(panel);
 
@@ -98,7 +99,7 @@ export function showTransitionRecoveryPrompt(
     .text(cam.centerX, cam.centerY - 28, 'Transition to title failed.', {
       fontFamily: 'monospace',
       fontSize: '13px',
-      color: '#ff8888',
+      color: UI_PALETTE.bad,
     })
     .setOrigin(0.5)
     .setDepth(912);
@@ -109,15 +110,15 @@ export function showTransitionRecoveryPrompt(
     .text(cam.centerX, cam.centerY + 12, '[ Retry ]', {
       fontFamily: 'monospace',
       fontSize: '14px',
-      color: '#aaddff',
-      backgroundColor: '#223344',
+      color: UI_PALETTE.info,
+      backgroundColor: UI_PALETTE.raised,
       padding: { x: 12, y: 5 },
     })
     .setOrigin(0.5)
     .setDepth(912)
     .setInteractive({ useHandCursor: true });
-  retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
-  retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
+  retryBtn.on('pointerover', () => retryBtn.setColor(UI_PALETTE.accentText));
+  retryBtn.on('pointerout', () => retryBtn.setColor(UI_PALETTE.info));
   retryBtn.on('pointerdown', () => {
     retryBtn.disableInteractive();
     retryBtn.setText('[ Retrying... ]');
@@ -148,14 +149,14 @@ export function showTransitionRecoveryPrompt(
     .text(cam.centerX, cam.centerY + 48, '[ Reload Page ]', {
       fontFamily: 'monospace',
       fontSize: '11px',
-      color: '#777777',
+      color: UI_PALETTE.lineStrong,
       padding: { x: 8, y: 3 },
     })
     .setOrigin(0.5)
     .setDepth(912)
     .setInteractive({ useHandCursor: true });
-  reloadBtn.on('pointerover', () => reloadBtn.setColor('#aaaaaa'));
-  reloadBtn.on('pointerout', () => reloadBtn.setColor('#777777'));
+  reloadBtn.on('pointerover', () => reloadBtn.setColor(UI_PALETTE.muted));
+  reloadBtn.on('pointerout', () => reloadBtn.setColor(UI_PALETTE.lineStrong));
   reloadBtn.on('pointerdown', () => {
     markStartup('pause_transition_reload', { scene: sceneName, reason: String(reason) });
     globalThis.location?.reload?.();

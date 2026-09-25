@@ -13,6 +13,10 @@ export const UI_DEPTHS = {
   DAMAGE_NUMBERS: 80,
   FOG_OVERLAY: 90,
   FOG_LABEL: 100,
+  // Screen UI floor for the battle scene: objects at or above this depth are HUD,
+  // menus, banners and overlays; below it is the world (terrain, fog, light, ranges,
+  // rings, units). The desktop atmosphere grade applies to the world only.
+  SCREEN_UI: 100,
   UNIT_INSPECTION: 150,
   FORECAST_PANEL: 200,
 
@@ -49,11 +53,15 @@ export const UI_DEPTHS = {
 // DOM surfaces have their own stacking context above the Phaser canvas.
 export const DOM_UI_DEPTHS = {
   LAB: 30,
+  BOSSBAR: 40, // Boss bar docked on the map; under every menu and ceremony.
+  TITLE: 390, // Title key art, lockup and menu (below every menu and dialogue)
   ROUTE: 400,
   LAUNCH: 920,
   UPGRADE: 950,
+  CEREMONY: 980, // Bands, cards and cut-ins; dialogue, forecasts and menus sit above.
   FORECAST: 1000,
   PAUSE: 1100,
   DIALOGUE: 1200,
   MENU: 1250,
+  RITE: 1300, // Promotion rite: plays over the church / roster menu that confirmed it.
 };

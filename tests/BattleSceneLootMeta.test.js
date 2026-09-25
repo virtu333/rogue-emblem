@@ -184,7 +184,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(iconTexts).toContain('H');
     expect(iconTexts).not.toContain('?');
     const healingIcon = iconCalls.find((call) => call[2] === 'H');
-    expect(healingIcon[3].color).toBe('#88ff88');
+    expect(healingIcon[3].color).toBe('#95c487');
   });
 
   it('shows accessory pool feedback when accessory loot is selected', () => {
@@ -217,7 +217,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(scene.runManager.accessories[0].name).toBe('Goddess Icon');
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Added Goddess Icon to Accessory Pool.',
-      '#88ff88',
+      '#95c487',
     );
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
   });
@@ -487,7 +487,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(textCalls.some((call) => call[2] === `+${expectedSkipGold}G`)).toBe(true);
 
     const skipCard = rectangles.find(
-      (obj) => obj.args?.[4] === 0x554433 && typeof obj.handlers.pointerdown === 'function',
+      (obj) => obj.args?.[4] === 0x3a2c24 && typeof obj.handlers.pointerdown === 'function',
     );
     expect(skipCard).toBeTruthy();
     skipCard.handlers.pointerdown({ button: 0 });

@@ -259,7 +259,12 @@ function createRunPreset(gameData, meta, config) {
   return runManager;
 }
 
-function pickBattleNode(runManager) {
+function pickBattleNode(runManager, nodeType = null) {
+  // Review routes: devNode=boss enters the current act's boss battle directly.
+  if (nodeType === NODE_TYPES.BOSS) {
+    const boss = (runManager.nodeMap?.nodes || []).find((node) => node?.type === NODE_TYPES.BOSS);
+    if (boss) return boss;
+  }
   const available = runManager.getAvailableNodes();
   const preferred = available.find(
     (node) =>
@@ -304,6 +309,7 @@ export function parseDevStartupConfig(search, options = {}) {
     devTools: parseBool(params.get('devTools')),
     qaStep: qaConfig?.step || null,
     qaDescription: qaConfig?.description || null,
+    nodeType: params.get('devNode') === 'boss' ? NODE_TYPES.BOSS : null,
   };
 }
 
@@ -342,7 +348,7 @@ export function buildDevStartupRoute(gameData, registry, config) {
     };
   }
 
-  const battleNode = pickBattleNode(runManager);
+  const battleNode = pickBattleNode(runManager, config.nodeType);
   const battleParams = battleNode
     ? runManager.getBattleParams(battleNode)
     : {
