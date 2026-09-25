@@ -162,9 +162,11 @@ export function startTracedIdle(scene) {
       for (const u of units) {
         const g = u?.graphic;
         if (!g?.texture?.key?.startsWith(TRACED_PREFIX) || !g.setFrame) continue;
-        // a unit mid-attack (windup / strike, or data 'tracedPose' set by the combat
-        // choreography) is left alone
-        if (ATTACK_FRAMES.includes(g.frame?.name) || g.data?.get?.('tracedPose')) continue;
+        // a unit mid-attack is left alone: an attack frame is showing, or the combat
+        // choreography holds a pose on it (CombatFxController.setPose sets `_fxPose` for
+        // the whole strike, including the beat before it paints the pose frame)
+        if (g._fxPose || ATTACK_FRAMES.includes(g.frame?.name) || g.data?.get?.('tracedPose'))
+          continue;
         const frame = still ? IDLE_FRAMES[0] : idleFrameAt(scene.time.now, (u.col || 0) % 4);
         if (g.frame?.name !== frame) g.setFrame(frame, false, false);
       }

@@ -6,6 +6,7 @@ import {
   hashName,
   TRACED_MANIFEST,
   tracedSpritesEnabled,
+  startTracedIdle,
 } from '../src/ui/TracedSprites.js';
 import { battleRenderScale } from '../src/ui/BattlefieldLab.js';
 import { loadGameData } from './testData.js';
@@ -207,6 +208,45 @@ describe('traced atlas pages and manifest', () => {
     expect(idleFrameAt(260)).toBe('idle1');
     expect(idleFrameAt(260 * 4)).toBe('idle0');
     expect(idleFrameAt(0, 2)).toBe('idle2');
+  });
+});
+
+describe('map idle loop vs the combat choreography', () => {
+  // a fake battle scene: one ticking timer, units whose graphic records setFrame calls
+  const stage = (graphics) => {
+    let tick = null;
+    const scene = {
+      time: { now: 260, addEvent: (e) => ((tick = e.callback), { remove() {} }) },
+      events: { once() {} },
+      playerUnits: graphics.map((g, i) => ({ col: i, graphic: g })),
+    };
+    startTracedIdle(scene);
+    return () => tick();
+  };
+  const unit = (frame, extra = {}) => ({
+    texture: { key: 'traced-myrmidon-0' },
+    frame: { name: frame },
+    setFrame(name) {
+      this.frame = { name };
+    },
+    ...extra,
+  });
+
+  it('advances idle frames on resting units', () => {
+    const g = unit('idle0');
+    stage([g])();
+    expect(g.frame.name).toBe('idle1');
+  });
+
+  it('never repaints a unit whose strike holds a pose (CombatFxController _fxPose)', () => {
+    // the pose is claimed before the lunge paints it: the idle frame must survive too
+    const posed = unit('idle2', { _fxPose: 'windup' });
+    const striking = unit('strike');
+    const tagged = unit('idle3', { data: { get: (k) => k === 'tracedPose' } });
+    stage([posed, striking, tagged])();
+    expect(posed.frame.name).toBe('idle2');
+    expect(striking.frame.name).toBe('strike');
+    expect(tagged.frame.name).toBe('idle3');
   });
 });
 
