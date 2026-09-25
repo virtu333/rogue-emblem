@@ -12,6 +12,8 @@ import {
   remapSlot,
   tidyEyes,
   stampEyes,
+  restoreFace,
+  faceTreatment,
   removeSpecks,
   removeOrphans,
   fillPinholes,
@@ -151,12 +153,15 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null, a
   const sp = quantize(red, rampLabs);
   // trace thin trims, thread and weapon lines as continuous one-pixel lines
   if (recipe.lines !== false && useMode === 'area') {
-    const LINE_SLOTS = [SLOT.linen, SLOT.trim, SLOT.metal, SLOT.wood, SLOT.glow];
+    const LINE_SLOTS = [SLOT.linen, SLOT.trim, SLOT.metal, SLOT.wood, SLOT.glow, SLOT.leather];
     const weaponish = new Set([SLOT.metal, SLOT.wood, SLOT.glow]);
     for (const t of thinLines(w, h, abst.fill, abst.lab, sxy, red.mapPoint, LINE_SLOTS)) {
       const cur = sp.at(t.x, t.y);
       if (!sp.inside(t.x, t.y) || cur === SLOT.eye) continue;
-      if (!cur && !weaponish.has(t.slot)) continue; // trims never grow the silhouette
+      if (!cur && !weaponish.has(t.slot) && t.slot !== SLOT.leather) continue; // trims never grow the silhouette
+      // a thin leather run (a spear shaft or reins painted brown) only fills what the area
+      // vote dropped outside the figure; straps across the body stay as the vote drew them
+      if (cur && t.slot === SLOT.leather) continue;
       const ramp = rampLabs[t.slot];
       sp.set(t.x, t.y, t.slot, ramp ? nearestStep(ramp, t.lab) : 3);
     }
@@ -208,6 +213,20 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null, a
   removeSpecks(sp, recipe.speck ?? (heavy ? 2 : 1));
   calmShades(sp, recipe.calm ?? (heavy ? 2 : 0));
   pixelPerfect(sp, SLOT.ink);
+  // strong reductions: give the face back the pixels its native skin covers
+  if ((recipe.faceRestore ?? heavy) && recipe.eyes !== false && seg.face) {
+    const [fx0, fy0, fx1, fy1] = seg.face;
+    const hits = [];
+    for (let y = fy0; y < fy1; y++)
+      for (let x = fx0; x < fx1; x++) {
+        if (seg.slot[y * w + x] !== SLOT.skin) continue;
+        const [X, Y] = red.mapPoint(x + 0.5, y + 0.5);
+        hits.push([Math.floor(X), Math.floor(Y)]);
+      }
+    const kx = typeof sxy === 'number' ? sxy : sxy.x,
+      ky = typeof sxy === 'number' ? sxy : sxy.y;
+    restoreFace(sp, hits, 1 / (kx * ky), { min: recipe.faceMin ?? 0.34 });
+  }
   if (recipe.eyes !== false) {
     ensureEyes(sp, eyePts);
     tidyEyes(sp);
@@ -215,7 +234,9 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null, a
       const [a, b] = red.mapPoint(seg.head[0], seg.head[1]);
       const [c, d] = red.mapPoint(seg.head[2], seg.head[3]);
       if (recipe.clearFace !== false) clearFace(sp, [a, b, c, d]);
-      stampEyes(sp, [a, b, c, d]);
+      // collapsed faces are redrawn deliberately; near 1:1 the artist's face is kept
+      const drawn = (recipe.faceTreatment ?? heavy) && faceTreatment(sp, [a, b, c, d]);
+      if (!drawn) stampEyes(sp, [a, b, c, d]);
     }
   }
   // art-direction notes on a design (owner review): bring a sword in, mute gold trim
@@ -226,7 +247,7 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null, a
   // place into the texture
   const fb = sp.bounds();
   const bb = sp.bounds((sl) => !BODY_EXCLUDE.has(sl)) || fb;
-  const { size, dx, dy } = placement(fb, bb, density);
+  const { size, dx, dy } = placement(fb, bb, density, kind);
   const placed = sp.placed(size, size, dx, dy);
   placed.meta = {
     kind,

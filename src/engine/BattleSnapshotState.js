@@ -1,4 +1,4 @@
-import { migrateCleverTrait } from './TraitSystem.js';
+import { migrateUnitTraits } from './TraitSystem.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -22,7 +22,7 @@ export function captureBattleWorldState(scene) {
 
 export function restoreBattleWorldState(scene, snapshot) {
   for (const group of [...UNIT_GROUPS, 'escapedUnits', 'nonDeployedUnits']) {
-    for (const unit of scene[group] || []) migrateCleverTrait(unit);
+    for (const unit of scene[group] || []) migrateUnitTraits(unit);
   }
   const grid = scene.grid;
   // Older saves have no terrain snapshot. Preserve their existing fallback

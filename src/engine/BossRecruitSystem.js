@@ -565,7 +565,7 @@ function createRecruitFromPool(
       growthBonuses,
       null,
       classes,
-      { traitsData, skillsData: skills, rng: Math.random },
+      { traitsData, skillsData: skills, rng: Math.random, traitClassData: promotedClassData },
     );
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);

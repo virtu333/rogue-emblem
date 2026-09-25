@@ -653,6 +653,7 @@ export class MobileBattleHUD {
       s.objectiveText?.text,
       s.turnCounterText?.text,
       s.visionHudText?.text,
+      s._eclipseHud?.label?.(),
       state === 'SELECTING_TARGET' ? this.targetListKey() : null,
     ]);
     if (key === this.lastSnapshot) return;
@@ -663,13 +664,16 @@ export class MobileBattleHUD {
       this.endTurnPending = null;
     this.lastSnapshot = key;
     this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
-    this.phase.append(
-      el(
-        'div',
-        'mb-counters',
-        sidebarCounters(s.turnCounterText?.text, s.getVisionChargesRemaining?.()),
-      ),
+    const counters = el(
+      'div',
+      'mb-counters',
+      sidebarCounters(s.turnCounterText?.text, s.getVisionChargesRemaining?.()),
     );
+    // The Eclipse projection rides its own element (the counters text above is parsed
+    // from the turn label and must keep its format).
+    const shadow = s._eclipseHud?.label?.();
+    if (shadow) counters.append(el('span', `mb-shadow is-${s._eclipseHud.tone()}`, shadow));
+    this.phase.append(counters);
     this.objective.replaceChildren();
     const objectiveText = s.objectiveText?.text || s.battleConfig?.objective || 'Battle';
     const objective = this.button(

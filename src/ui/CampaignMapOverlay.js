@@ -259,6 +259,11 @@ export class CampaignMapOverlay {
       const circle = this.scene.add
         .circle(pos.x, pos.y, NODE_RADIUS, color, alpha)
         .setDepth(DEPTH_UI);
+      // The Eclipse: a place the dark took is an ink disc with a thin gold rim.
+      if (node.eclipse && state !== 'completed') {
+        circle.setFillStyle(UI_HEX.void, Math.max(alpha, 0.85));
+        circle.setStrokeStyle(1, UI_HEX.accent, 0.9);
+      }
       this.objects.push(circle);
 
       // Icon text

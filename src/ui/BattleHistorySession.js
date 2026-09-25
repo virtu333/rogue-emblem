@@ -171,6 +171,15 @@ export class BattleHistorySession {
       this.bounds();
     }
   }
+  /** Zoom so the whole recorded map fits the viewport (clamped), then refocus. */
+  fit(beats = [], maxZoom = 2) {
+    const c = this.scene?.cameras.main;
+    if (!c || !this.frame) return;
+    const zoom = Math.min(c.width / (this.frame.cols * 32), c.height / (this.frame.rows * 32));
+    c.setZoom(Math.max(0.65, Math.min(maxZoom, zoom)));
+    this.bounds();
+    this.scene.renderer.focus(this.frame, beats);
+  }
   focus(beats) {
     if (this.frame) this.scene?.renderer.focus(this.frame, beats);
   }

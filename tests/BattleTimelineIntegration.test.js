@@ -483,7 +483,9 @@ describe('production timeline boundaries and recovery', () => {
     expect(rows.at(-1).id).toBe(fragmentId);
     expect(rows.at(-1).kind).toBe('player_action');
     expect(
-      rows.flatMap((row) => row.facts).filter((fact) => fact.includes('hit Enemy')),
+      rows
+        .flatMap((row) => row.facts)
+        .filter((fact) => typeof fact === 'string' && fact.includes('hit Enemy')),
     ).toHaveLength(1);
     expect(restored._battleRecoveryInvalid).toBe(false);
   });

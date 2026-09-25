@@ -486,6 +486,9 @@ export class ColosseumOverlay {
         }
       }
 
+      // Each mercenary shows (and keeps, once hired) a face the army lacks.
+      this.runManager?.assignPortraitVariants?.(this._mercCandidates.map((c) => c.unit));
+
       // Apply Master of Arms to generated merc candidates
       if (this.runManager?.metaEffects?.masterOfArms && this._mercCandidates.length > 0) {
         for (const entry of this._mercCandidates) {

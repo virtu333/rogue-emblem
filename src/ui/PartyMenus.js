@@ -1,7 +1,7 @@
 import { resolveDeploymentSelection } from '../engine/DeploymentSelection.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
-import { unitPortrait } from './unitPortrait.js';
+import { unitPortrait, withUnitFace } from './unitPortrait.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { findCommander } from '../engine/Commander.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
@@ -22,10 +22,10 @@ function unitRow(scene, gameData, unit, action, selected) {
   );
   return row;
 }
-export function describeUnit(gameData, unit) {
+export function describeUnit(gameData, unit, scene = null) {
   const box = element('div');
   box.append(
-    element('h3', unit.name),
+    withUnitFace(element('h3', unit.name), scene, gameData, unit),
     element(
       'p',
       gameData.classes?.find((c) => c.name === unit.className)?.description || unit.className,
@@ -41,8 +41,8 @@ export function describeUnit(gameData, unit) {
   );
   if (unit.proficiencies?.length)
     box.append(element('p', unit.proficiencies.map((p) => `${p.type} ${p.rank}`).join(' · ')));
-  const traits = getUnitTraits(unit, gameData.traits);
-  for (const trait of traits) box.append(element('p', `${trait.name}: ${trait.description || ''}`));
+  for (const trait of traitLines(unit, gameData))
+    box.append(element('p', `${trait.name}: ${trait.text}`));
   for (const id of unit.skills || []) {
     const skill = gameData.skills?.find((s) => s.id === id);
     box.append(element('p', `${skill?.name || id}: ${skill?.description || ''}`));
@@ -115,7 +115,7 @@ export function showArrivalMenu(
       );
     const detail = element('section', null, 'mu-detail');
     const copy = element('div', null, 'mu-copy');
-    copy.append(describeUnit(owner.gameData, selected.unit));
+    copy.append(describeUnit(owner.gameData, selected.unit, owner.scene));
     const confirm = button(
       title === 'Lord arrival' ? 'Welcome' : 'Recruit',
       () => finish(selected.unit),

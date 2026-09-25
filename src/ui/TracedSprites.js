@@ -1,17 +1,28 @@
-// TracedSprites — dev-only review of the traced map sprites (?spriteArt=traced).
+// TracedSprites — the battlefield's unit sprites (default art; dev ?spriteArt=rebuilt
+// shows the previous rebuilt set, ?spriteArt=classic the classic one).
 //
-// The atlas and manifest are baked by tools/art/sprite-trace (cli.mjs bake): each
-// sprite is a strip of six square frames (idle 0..3, attack windup, strike) at
-// `density` art px per world px, drawn so the feet sit on the same baseline as the
-// rebuilt 64 px textures. Textures register as `traced-<key>` with named frames and
-// are displayed at 64x64 world px, so every tile-centre, HP-bar, ring, acted-tint and
-// rewind path is unchanged. Units without a traced sprite fall back to rebuilt art.
+// Baked by tools/art/sprite-trace (`node tools/art/sprite-trace/cli.mjs bake`, see
+// docs/art-direction/sprites-v3): every class the battlefield can show (seeded player
+// identities, enemy, corrupted enemy, NPC), the seven lords (base and promoted) and the
+// named bosses, each as six frames — idle0..idle3 (the map idle loop) and the attack key
+// poses windup / strike (per weapon type) — at `density` art px per world px. The frames
+// are trimmed and packed into a few atlas pages; each sprite registers as its own
+// texture `traced-<key>` whose frames (idle0..idle3) point into the shared page, so the
+// whole roster costs one decoded page (no per-sprite canvas) while every tile-centre,
+// HP-bar, ring, acted-tint, history and rewind path keeps using a plain texture key.
+// Frames carry their trim, so a sprite is still a square texture (96 px at D = 1.5,
+// the Entity 192) shown at 64x64 (128x128) world px with the feet on the rebuilt
+// baseline. A unit with no traced sprite falls back to the next-best traced key, then to
+// the classic class sprite (BattleUnitVisuals).
 import manifest from './TracedSpriteManifest.json';
 import { battlefieldTracedSpritesEnabled } from './battlefieldArtFlags.js';
 
 export const TRACED_PREFIX = 'traced-';
-const ATLAS_KEY = 'traced-source-atlas';
+const PAGE_PREFIX = 'traced-page-';
 const IDLE_MS = 260;
+/** Idle loop frames; `windup` and `strike` are the attack key poses (combat choreography). */
+export const IDLE_FRAMES = manifest.frames.filter((f) => f.startsWith('idle'));
+export const ATTACK_FRAMES = ['windup', 'strike'];
 
 export function tracedSpritesEnabled(search) {
   return battlefieldTracedSpritesEnabled(search);
@@ -24,16 +35,32 @@ export function hashName(s) {
   return h >>> 0;
 }
 
-const classKey = (name) =>
+export const classKey = (name) =>
   String(name || '')
     .toLowerCase()
     .replace(/ /g, '_');
 
+/** Number of seeded identities baked for a generic class (`<class>-<i>` keys). */
+function identityCount(cls, has) {
+  let count = 0;
+  while (has(`${cls}-${count}`)) count++;
+  return count;
+}
+
+/** A generic player unit's sprite: one of the class's seeded people, picked by name. */
+function playerClassKey(cls, name, has) {
+  const count = identityCount(cls, has);
+  if (count) return `${cls}-${hashName(String(name || '')) % count}`;
+  return has(cls) ? cls : null;
+}
+
 /**
- * Pure: which baked sprite a unit uses, or null. Enemies with affixes read as
- * corrupted; NPCs take the verdigris treatment; generic player units pick one of
- * the seeded identities of their class by name (stable across promotion, since the
- * name persists and each class line bakes the same identities).
+ * Pure: which baked sprite a unit uses, or null. Named bosses use their own art; enemies
+ * with affixes read as corrupted; NPCs take the verdigris treatment; lords use their own
+ * sprite per tier; generic player units pick one of the six seeded identities of their
+ * class by name (every class bakes the same six people, so a unit keeps its look through
+ * either promotion branch or a reclass). Every step falls back to the closest traced
+ * sprite the manifest has before giving up.
  */
 export function tracedKeyFor(unit, sprites = manifest.sprites) {
   if (!unit) return null;
@@ -44,46 +71,64 @@ export function tracedKeyFor(unit, sprites = manifest.sprites) {
       const boss = `boss_${classKey(unit.name)}`;
       if (has(boss)) return boss;
     }
-    if (unit.affixes?.length && has(`enemy_${cls}~corrupt`)) return `enemy_${cls}~corrupt`;
+    if (unit.affixes?.length && has(`enemy_${cls}-corrupt`)) return `enemy_${cls}-corrupt`;
     return has(`enemy_${cls}`) ? `enemy_${cls}` : null;
   }
-  if (unit.faction === 'npc') return has(`npc_${cls}`) ? `npc_${cls}` : null;
-  if (unit.isLord) {
-    const lord = `lord_${classKey(unit.name)}${unit.tier === 'promoted' ? '_promoted' : ''}`;
-    return has(lord) ? lord : null;
+  if (unit.faction === 'npc') {
+    if (has(`npc_${cls}`)) return `npc_${cls}`;
+    return playerClassKey(cls, unit.name, has);
   }
-  let count = 0;
-  while (has(`${cls}#${count}`)) count++;
-  if (count) return `${cls}#${hashName(String(unit.name || '')) % count}`;
-  return has(cls) ? cls : null;
+  if (unit.isLord) {
+    const base = `lord_${classKey(unit.name)}`;
+    if (unit.tier === 'promoted' && has(`${base}_promoted`)) return `${base}_promoted`;
+    if (has(base)) return base;
+  }
+  return playerClassKey(cls, unit.name, has);
 }
 
 export function preloadTracedSprites(scene) {
   if (!tracedSpritesEnabled()) return;
-  if (!scene.textures.exists(ATLAS_KEY))
-    scene.load.image(
-      ATLAS_KEY,
-      `${import.meta.env.BASE_URL}assets/sprites/traced/traced-atlas.png`,
-    );
+  manifest.pages.forEach((file, i) => {
+    if (!scene.textures.exists(PAGE_PREFIX + i))
+      scene.load.image(PAGE_PREFIX + i, `${import.meta.env.BASE_URL}assets/sprites/traced/${file}`);
+  });
 }
 
-/** Cut the atlas into one texture per sprite with named frames (first frame = idle0). */
+/**
+ * Destroy a sprite texture without destroying the page it borrows (Texture#destroy
+ * would destroy every source, i.e. the shared page's GL texture).
+ */
+function releaseSharedSource() {
+  this.source = [];
+  Object.getPrototypeOf(this).destroy.call(this);
+}
+
+/**
+ * Register `traced-<key>` textures with named, trimmed frames on the loaded pages. No
+ * pixels are copied: each texture's only source is its page's TextureSource.
+ */
 export function prepareTracedSprites(scene) {
-  if (!tracedSpritesEnabled() || !scene.textures.exists(ATLAS_KEY)) return;
-  const source = scene.textures.get(ATLAS_KEY).getSourceImage();
-  const { cell, frames } = manifest;
-  for (const [key, entry] of Object.entries(manifest.sprites)) {
+  if (!tracedSpritesEnabled()) return 0;
+  let made = 0;
+  for (const [key, e] of Object.entries(manifest.sprites)) {
     const target = TRACED_PREFIX + key;
-    if (scene.textures.exists(target)) continue;
-    const canvas = document.createElement('canvas');
-    canvas.width = cell * frames.length;
-    canvas.height = cell;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(source, entry.x, entry.y, canvas.width, cell, 0, 0, canvas.width, cell);
-    const texture = scene.textures.addCanvas(target, canvas);
-    frames.forEach((name, i) => texture.add(name, 0, i * cell, 0, cell, cell));
+    const pageKey = PAGE_PREFIX + e.page;
+    if (scene.textures.exists(target) || !scene.textures.exists(pageKey)) continue;
+    const source = scene.textures.get(pageKey).source[0];
+    const texture = scene.textures.create(target, [], e.size, e.size);
+    if (!texture) continue;
+    texture.source.push(source);
+    texture.destroy = releaseSharedSource;
+    // `__BASE` (what getSourceImage() and frame-less lookups resolve) is the rest pose;
+    // the first named frame then becomes the texture's default frame, as for any atlas
+    ['__BASE', ...manifest.frames].forEach((name, i) => {
+      const col = Math.max(0, i - 1);
+      const frame = texture.add(name, 0, e.x + col * e.step, e.y, e.w, e.h);
+      frame?.setTrim(e.size, e.size, e.ox, e.oy, e.w, e.h);
+    });
+    made++;
   }
+  return made;
 }
 
 export function tracedSpriteKey(scene, unit) {
@@ -95,7 +140,7 @@ export function tracedSpriteKey(scene, unit) {
 
 /** Idle frame for a time (ms); pure so the cadence is testable. Units are phase-offset by column. */
 export function idleFrameAt(time, phase = 0) {
-  return manifest.frames[Math.floor(time / IDLE_MS + phase) % 4];
+  return IDLE_FRAMES[Math.floor(time / IDLE_MS + phase) % IDLE_FRAMES.length];
 }
 
 /**
@@ -117,7 +162,12 @@ export function startTracedIdle(scene) {
       for (const u of units) {
         const g = u?.graphic;
         if (!g?.texture?.key?.startsWith(TRACED_PREFIX) || !g.setFrame) continue;
-        const frame = still ? manifest.frames[0] : idleFrameAt(scene.time.now, (u.col || 0) % 4);
+        // a unit mid-attack is left alone: an attack frame is showing, or the combat
+        // choreography holds a pose on it (CombatFxController.setPose sets `_fxPose` for
+        // the whole strike, including the beat before it paints the pose frame)
+        if (g._fxPose || ATTACK_FRAMES.includes(g.frame?.name) || g.data?.get?.('tracedPose'))
+          continue;
+        const frame = still ? IDLE_FRAMES[0] : idleFrameAt(scene.time.now, (u.col || 0) % 4);
         if (g.frame?.name !== frame) g.setFrame(frame, false, false);
       }
     },

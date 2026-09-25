@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "tuning": {
+    "heldPhaseMinAttacks": 2,
+    "shieldPhaseMinAttacks": 1
+  },
+  "places": {
+    "Bridge": "the Bridge",
+    "Fort": "the Fort",
+    "Throne": "the Gate",
+    "Wall": "the Gate",
+    "Village": "the Village",
+    "Forest": "the Wood",
+    "Mountain": "the Pass",
+    "Floor": "the Hall",
+    "Pillar": "the Hall",
+    "default": "the Line"
+  },
+  "weapons": {
+    "Sword": "the Blade",
+    "Lance": "the Spear",
+    "Axe": "the Woodsplitter",
+    "Bow": "Far-Sight",
+    "Tome": "the Burning",
+    "Light": "the Dawn",
+    "Dark": "the Unlit"
+  },
+  "bosses": {
+    "The Entity": "the Sleeper",
+    "Dark Champion": "the Lieutenant"
+  },
+  "deeds": [
+    {
+      "id": "held_the_line",
+      "name": "Held the Line",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "heldPhases", "min": 3 },
+      "epithet": { "form": "who", "text": "Who Held {place}" },
+      "prestige": 4,
+      "oathSkill": "pavise",
+      "oathName": "Oath of {place}",
+      "lore": "Three nights the line bent and held."
+    },
+    {
+      "id": "untouched",
+      "name": "Untouched",
+      "scope": "battle",
+      "condition": {
+        "type": "all",
+        "of": [
+          { "type": "battleStat", "stat": "strikesFaced", "min": 5 },
+          { "type": "battleStat", "stat": "woundsTaken", "max": 0 }
+        ]
+      },
+      "epithet": { "form": "the", "text": "the Untouched" },
+      "prestige": 3,
+      "oathSkill": "vigilance",
+      "oathName": "Oath of the Untouched",
+      "lore": "'Did they miss?' 'Every one. I counted.'"
+    },
+    {
+      "id": "would_not_fall",
+      "name": "Would Not Fall",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "brink", "min": 1 },
+      "epithet": { "form": "who", "text": "Who Would Not Fall" },
+      "prestige": 3,
+      "oathSkill": "unyielding",
+      "oathName": "Oath of the Unfallen",
+      "lore": "Surgeon's note: should be dead. Is not. Returned to duty."
+    },
+    {
+      "id": "red_harvest",
+      "name": "Red Harvest",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "kills", "min": 5 },
+      "epithet": { "form": "of", "text": "of the Red Harvest" },
+      "prestige": 3,
+      "oathSkill": "colossus",
+      "oathName": "Oath of the Harvest",
+      "lore": "Sung round the fires after: five to one blade, and the blade still sharp."
+    },
+    {
+      "id": "giantslayer",
+      "name": "Giantslayer",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "maxKillLevelGap", "min": 6 },
+      "epithet": { "form": "the", "text": "the Giantslayer" },
+      "prestige": 4,
+      "oathSkill": "lethality",
+      "oathName": "Oath of the Giantslayer",
+      "lore": "The bigger they come, the fewer people believe how they fell."
+    },
+    {
+      "id": "bossbane",
+      "name": "Bossbane",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "bossKills", "min": 1 },
+      "epithet": { "form": "bane", "text": "Bane of {boss}" },
+      "prestige": 5,
+      "oathSkill": "fiendish_blow",
+      "oathName": "Oath of the Bane",
+      "lore": "Struck from the empire's roll of officers: one name, one blow."
+    },
+    {
+      "id": "avenger",
+      "name": "Avenger",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "avenged", "min": 1 },
+      "epithet": { "form": "the", "text": "the Avenger" },
+      "prestige": 4,
+      "oathSkill": "fury",
+      "oathName": "Oath of Vengeance",
+      "lore": "Tell her family it was answered before sundown."
+    },
+    {
+      "id": "lordshield",
+      "name": "Lord's Shield",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "shieldPhases", "min": 3 },
+      "epithet": { "form": "the", "text": "the Lord's Shield" },
+      "prestige": 3,
+      "oathSkill": "aegis",
+      "oathName": "Oath of the Shield",
+      "lore": "Stand where the arrows go, so the commander does not have to."
+    },
+    {
+      "id": "keen_edge",
+      "name": "Keen Edge",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "crits", "min": 3 },
+      "epithet": { "form": "the", "text": "the Keen Edge" },
+      "prestige": 2,
+      "oathSkill": "crit_plus_15",
+      "oathName": "Oath of the Edge",
+      "lore": "Armorer's complaint: three suits of plate back, each with one neat hole."
+    },
+    {
+      "id": "deathblow",
+      "name": "Deathblow",
+      "scope": "run",
+      "condition": { "type": "runStat", "stat": "crits", "min": 12 },
+      "epithet": { "form": "name", "text": "Deathblow" },
+      "prestige": 3,
+      "oathSkill": "sure_shot",
+      "oathName": "Oath of the Deathblow",
+      "lore": "Twelve killing strokes, logged by a quartermaster who stopped enjoying it."
+    },
+    {
+      "id": "mender",
+      "name": "Mender",
+      "scope": "run",
+      "condition": { "type": "runStat", "stat": "healed", "min": 150 },
+      "epithet": { "form": "the", "text": "the Mender" },
+      "prestige": 2,
+      "oathSkill": "renewal",
+      "oathName": "Oath of the Mender",
+      "lore": "Triage tent, second shift: all breathing at dawn. Bandages low again."
+    },
+    {
+      "id": "lantern",
+      "name": "Lantern of the March",
+      "scope": "run",
+      "condition": { "type": "runStat", "stat": "healed", "min": 400 },
+      "epithet": { "form": "title", "text": "Lantern of the March" },
+      "prestige": 4,
+      "oathSkill": "renewal",
+      "oathName": "Oath of the Lantern",
+      "lore": "Where the lantern hangs, the wounded walk. Let it hang a while longer."
+    },
+    {
+      "id": "tempo",
+      "name": "The Last Dance",
+      "scope": "run",
+      "condition": { "type": "runStat", "stat": "refreshes", "min": 12 },
+      "epithet": { "form": "who", "text": "Who Danced at the End" },
+      "prestige": 3,
+      "lore": "'How are you still dancing?' 'How are you still standing? Go.'"
+    },
+    {
+      "id": "greenwood",
+      "name": "Greenwood",
+      "scope": "run",
+      "condition": { "type": "runStatMap", "stat": "killsByTerrain", "keys": ["Forest"], "min": 6 },
+      "epithet": { "form": "of", "text": "of the Greenwood" },
+      "prestige": 2,
+      "oathSkill": "pathfinder",
+      "oathName": "Oath of the Greenwood",
+      "lore": "Leaf and root and bowstring hum; the wood keeps faith with those who come."
+    },
+    {
+      "id": "heights",
+      "name": "Heights",
+      "scope": "run",
+      "condition": { "type": "runStatMap", "stat": "killsByTerrain", "keys": ["Mountain"], "min": 6 },
+      "epithet": { "form": "of", "text": "of the Heights" },
+      "prestige": 2,
+      "oathSkill": "skirmisher",
+      "oathName": "Oath of the Heights",
+      "lore": "Take the ridge first. Argue about it after."
+    },
+    {
+      "id": "mire",
+      "name": "Mire",
+      "scope": "run",
+      "condition": {
+        "type": "runStatMap",
+        "stat": "killsByTerrain",
+        "keys": ["Swamp", "Bog", "Acidic Swamp", "Acidic Bog"],
+        "min": 6
+      },
+      "epithet": { "form": "of", "text": "of the Mire" },
+      "prestige": 2,
+      "oathSkill": "drain",
+      "oathName": "Oath of the Mire",
+      "lore": "Boots lost: two pairs. Enemies lost in the bog: considerably more."
+    },
+    {
+      "id": "weapon_family",
+      "name": "Weapon Sworn",
+      "scope": "run",
+      "condition": { "type": "runStatBest", "stat": "killsByWeapon", "tokens": "weapons", "min": 25 },
+      "epithet": { "form": "name", "text": "{weapon}" },
+      "prestige": 3,
+      "oathSkill": "duelist_stance",
+      "oathName": "Oath of {weapon}",
+      "lore": "Tally marks cut into the weapon, then onto a second strip of leather."
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran",
+      "scope": "run",
+      "condition": { "type": "runStat", "stat": "battles", "min": 15 },
+      "epithet": { "form": "title", "text": "Veteran of the March" },
+      "prestige": 2,
+      "oathSkill": "discipline",
+      "oathName": "Oath of the March",
+      "lore": "Saw the march begin and end, and still rises first to light the fire."
+    },
+    {
+      "id": "last_of_them",
+      "name": "The Last",
+      "scope": "battle",
+      "condition": { "type": "battleStat", "stat": "lastStanding", "min": 4 },
+      "epithet": { "form": "the", "text": "the Last" },
+      "prestige": 4,
+      "lore": "Came back alone, carrying the names of the rest."
+    }
+  ]
+}

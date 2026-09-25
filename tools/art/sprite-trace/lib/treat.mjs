@@ -25,17 +25,19 @@ export const FACTIONS = {
 /**
  * Build a render palette for a state.
  * base: { ramps: {slot: ramp}, eye } from traceNative.
- * opts: { faction, keepMain, identity: { hair, skin, accent } (ramp names), grade }
+ * opts: { faction, keepMain, keep: [slot names the faction swap leaves alone (a named
+ * boss's gold trim or plate)], identity: { hair, skin, accent } (ramp names), grade }
  */
 export function paletteFor(
   base,
-  { faction = null, keepMain = false, identity = null, grade = null } = {},
+  { faction = null, keepMain = false, keep = null, identity = null, grade = null } = {},
 ) {
   const ramps = { ...base.ramps };
   const f = faction && FACTIONS[faction];
   if (f)
     for (const [slot, name] of Object.entries(f)) {
       if (slot === 'main' && keepMain) continue;
+      if (keep?.includes(slot) && ramps[SLOT[slot]]) continue;
       if (slot === 'glow' || ramps[SLOT[slot]] || slot === 'main')
         ramps[SLOT[slot]] = BIBLE_RAMPS[name];
     }

@@ -51,13 +51,15 @@ export default defineConfig({
             // offline), but revalidate in the background so a replaced asset refreshes on
             // the next online load instead of being pinned until the 60-day expiry. maxAge
             // now bounds cache GC, not staleness.
-            urlPattern: /\/assets\/(sprites|sprites-v1|portraits)\/.*\.(png|jpe?g|webp|gif)$/i,
+            urlPattern: /\/assets\/(sprites|portraits)\/.*\.(png|jpe?g|webp|gif)$/i,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'er-image-assets',
               expiration: {
-                // ~630 image files under assets/{sprites,sprites-v1,portraits}, plus
-                // ~700 PC-98 portrait renders (6 sizes per portrait, plates, atlases);
+                // ~1030 image files under assets/{sprites,portraits}: ~340 sprites and
+                // portraits (the traced map sprites are two atlas pages; raw generations
+                // and the old sprites-v1 set live in docs/art/, not shipped) and ~690
+                // PC-98 portrait renders (6 sizes per portrait, plates, atlases);
                 // the set grew ~95/month during recent sprite upgrades. 1200 leaves
                 // headroom through the roster/FX roadmap so LRU eviction never
                 // silently drops sprites from the offline cache. purgeOnQuotaError

@@ -1,7 +1,7 @@
 import { historyDisplayEntries, groupHistoryEntries } from '../engine/BattleHistoryPresentation.js';
 import { BattleHistorySession } from './BattleHistorySession.js';
 import { InputAction } from '../utils/InputActions.js';
-import { canRewindToEntry } from '../engine/BattleTimeline.js';
+import { canRewindToEntry, resolveRewindGranularity } from '../engine/BattleTimeline.js';
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { MenuSurface, element } from './MenuSurface.js';
 import './battleTimeline.css';
@@ -52,7 +52,9 @@ export class BattleTimelineView {
       history,
       charges = 0,
       difficulty = 'normal',
+      granularity = undefined,
       allowPlayerActions = false,
+      backLabel = null,
       onClose,
       onRewind,
       currentEntryId = null,
@@ -65,6 +67,7 @@ export class BattleTimelineView {
       history,
       charges,
       difficulty,
+      granularity,
       allowPlayerActions,
       onClose,
       onRewind,
@@ -95,7 +98,8 @@ export class BattleTimelineView {
       if (this.ownsSession) this.session?.destroy();
       destroySurface();
     };
-    this.surface.header.querySelector('button').textContent = fatal ? 'Back to decision' : 'Back';
+    this.surface.header.querySelector('button').textContent =
+      backLabel || (fatal ? 'Back to decision' : 'Back');
     this.surface.header.append(
       element('span', `${charges} ${charges === 1 ? 'charge' : 'charges'}`, 'bt-charges'),
     );
@@ -120,7 +124,7 @@ export class BattleTimelineView {
         'p',
         history.policy === 'fixed-v1'
           ? 'Select an event to preview it. Reviewing history is free; repeating the same actions keeps the same outcomes.'
-          : 'This older battle uses turn-start rewinds. Select an event to preview it for free.',
+          : 'This older battle rerolls outcomes after a rewind. Select an event to preview it for free.',
         'bt-help',
       ),
       this.layout,
@@ -268,12 +272,12 @@ export class BattleTimelineView {
     if (!Number.isFinite(this.charges) || this.charges < 1)
       return 'No rewind charges remaining. You can still review every retained event.';
     if (canRewindToEntry(this.history, entry.id, this)) return '';
-    if (entry.kind === 'player_action' && String(this.difficulty).toLowerCase() === 'lunatic')
-      return 'Lunatic allows rewinding to turn starts only.';
     if (
       entry.kind === 'player_action' &&
-      (this.history.policy === 'legacy-v1' || !this.allowPlayerActions)
+      resolveRewindGranularity(this.difficulty, this.granularity) === 'turn'
     )
+      return 'This difficulty rewinds to turn starts only.';
+    if (entry.kind === 'player_action' && !this.allowPlayerActions)
       return 'This battle allows rewinding to turn starts only.';
     if (entry.reviewOnly && entry.kind === 'player_action')
       return 'Review only. Rewind state is no longer retained.';

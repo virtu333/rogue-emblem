@@ -10,8 +10,12 @@ resolves every portrait site to those renders.
   changes no file), review sheets `node tools/art/pc98/sheet.mjs`, in-game captures
   `node tools/art/pc98/capture.mjs` (dev server).
 - **Outputs:** `assets/portraits/pc98/` (synced to `public/assets/portraits/pc98/`), runtime
-  index `src/ui/Pc98PortraitManifest.json`, provenance `assets/portraits/pc98/manifest.json`
-  (source file + hash, native grid, framing, faction, per-size palette).
+  index `src/ui/Pc98PortraitManifest.json`, provenance `tools/art/pc98/provenance.json`
+  (source file + hash, native grid, framing, faction, per-size palette; moved out of
+  `assets/` on 2026-09-25 so it no longer ships).
+- **Portrait variety (2026-09-25):** generated variant faces and the remastered generic/enemy
+  defaults render through the same pass from `docs/art/portrait-variant-sources/`; see
+  [`../../portraits-variety/`](../../portraits-variety/README.md).
 - **Runtime:** `src/ui/portraitArt.js` (ids, sizes, URLs, plates, canvas atlas frames),
   `src/ui/portraits.css`.
 - **Escape hatch (dev builds only):** `?portraitArt=classic` loads the original files and the
@@ -94,6 +98,11 @@ zoom).
 | home base | ![](home-844x390m@3x-classic.webp) | ![](home-844x390m@3x-pc98.webp) |
 
 ## Legacy design outliers (need new references)
+
+> Resolved by portrait variety (2026-09-25): every generic portrait and every human enemy
+> portrait below was redrawn at the rebuilt quality (`../../portraits-variety/`);
+> `enemy_entity` stays (the boss uses `boss_the_entity`). The table is kept as the record of
+> why.
 
 The pass unifies rendering, not design. These still read as a different set and should be
 redrawn/regenerated before they can match (before | after, 96px):

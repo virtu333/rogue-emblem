@@ -18,7 +18,8 @@ decoration, lit actors over a restrained world, faction color as an area).
 | Tone | Dusk-lit maps; darkness lives at the edges (vignette, fog, night acts) and in ceremonies. True night only in Act IV and the Deep. |
 | UI palette | **Ink & Ember** (`src/ui/uiPalette.json`): ink surfaces, ember gold reserved for the player's agency, blood crimson for the empire, verdigris for allies, unlight violet for corruption. |
 | Type | Press Start 2P for short labels/headings; readable body face for anything read; **Cinzel** (`--re-display`) for ceremony only (boss names, act titles, fate cards, logo), ≥14px, capitals. |
-| Desktop | Adopts the phone's battlefield presentation (weathered/procedural terrain, rebuilt sprites). One game, not two. |
+| Desktop | Adopts the phone's battlefield presentation (procedural terrain, traced map sprites). One game, not two. |
+| Map sprites | **Traced** (2026-09-24, owner: "they look great, make them the default"): every unit on the battlefield is a traced map sprite (`tools/art/sprite-trace`, see Map sprites). The rebuilt 64 px set is the dev comparison (`?spriteArt=rebuilt`). |
 | Art production | Procedural in code first (UI plates, light, particles, terrain, key art). Existing assets may be used and hand-edited. |
 | Region names | Act I region is **Border Marches** (`regions.json`), not "Border Quarries". |
 | Title | **The Hollow Sun** key art and subtitle. |
@@ -83,10 +84,43 @@ DOM components (crisp on retina), cover the map area only (the command rail stay
 
 Lanes are warp threads; walked route is a plied gold rope with knots; reachable choices glow; futures fade into dither but stay tappable; abandoned roads fray; elites carry a crimson crack; the boss is the Hollow Sun. Select-then-Travel flow and 44px targets unchanged.
 
+## Map sprites
+
+Traced from the reviewed references by `tools/art/sprite-trace` (grid recovery, material
+slots, pixel-art-aware reduction, cleanup) at D = 1.5: a 96 px texture shown at 64 world
+px, one sprite pixel per terrain texel, feet on the rebuilt baseline (row 66). Records:
+`docs/art-direction/sprites-v2/` (pipeline, pixel budget) and `sprites-v3/` (full roster,
+motion, memory).
+
+- **Coverage**: every class a unit can hold, as six seeded people (player), enemy,
+  corrupted enemy and NPC; the seven lords base and promoted; every named boss; the
+  Entity. `tests/TracedSprites.test.js` fails if the data can spawn something without one.
+- **Faction is an area**: the same drawing in steel blue (you), crimson lacquer (the
+  empire), verdigris (allies), unlight (corrupted). Rings, HP bars and the acted tint are
+  unchanged.
+- **People, not palettes**: six designed recruits (design A/B, hair, skin, band) shared
+  by every class, picked by name — a unit keeps its face through either promotion and a
+  reclass. Promotion adds one signature accent: a gold circlet.
+- **Faces**: where a reduction collapses a face, it is redrawn deliberately (lit plane,
+  brow shadow under the hair, near eye one pixel in from the front edge, far eye behind).
+- **Motion** (six frames, names fixed for the combat choreography): `idle0..3` — torso
+  settles before the head, hair and hems trail, wings beat, feet never move; `windup` —
+  the drawn weapon swung about the hand into its anticipation (blade cocked behind the
+  shoulder, lance drawn back level, axe overhead, bowstring drawn, tome/staff raised);
+  `strike` — the follow-through (sweep, thrust, chop, loose, thrust with a flare).
+- **Budget**: one or two 2048 px atlas pages (~25 MB decoded for the whole roster); each
+  sprite is a texture whose frames borrow the page — no per-sprite canvases.
+- **References at map size**: a sprite is only as good as its reference at trace scale
+  ~0.55 or more. Where the reviewed art is a large drawing (the rebuilt lords and bosses),
+  it is redrawn at map size first (`tools/art/sprite-trace/gen-refs.mjs`: style board, an
+  approved map sprite for scale, the unit's sprite and portrait for identity) and the
+  redraw is traced. Identity beats scale when choosing a take. A named boss keeps its own
+  gold and plate through the empire's faction swap.
+
 ## Terrain
 
 Procedural (`tools/art/procedural-terrain` → runtime). No cell grid: shores, canopies, ridges, lava flow across cells; one light direction; biomes change material, not tint. Units must pop: quiet, lighter ground; objects mostly fit their cell (trees and peaks may spill a few pixels, columns and structures never) and vary naturally: dense wood interiors, sparse edges, lone copses, ranges joined by ridges.
 
 ## Motion
 
-Map tempo is slow (idle breathing, drifting ash). Punctuation is sharp: hit-stop, cut-ins, bands. Reduced motion shows end states. Nothing animates while hidden.
+Map tempo is slow (idle breathing, drifting ash). Punctuation is sharp: hit-stop, cut-ins, bands. Reduced motion shows end states (map sprites hold `idle0`). Nothing animates while hidden.

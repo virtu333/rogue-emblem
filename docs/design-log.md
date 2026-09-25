@@ -5,6 +5,177 @@ Each entry links to specs in `docs/specs/` when an idea graduates to implementat
 
 ---
 
+## 2026-09-25 — Deeds & Epithets (built)
+
+Units earn titles from what they do — "Elara, Who Held the Bridge" — instead of from
+support conversations (rejected earlier). Spec and deviations:
+[`specs/deeds-epithets.md`](specs/deeds-epithets.md); presentation:
+[`art-direction/gameplay/deeds/`](art-direction/gameplay/deeds/README.md).
+
+**Decisions**
+- 19 deeds (9 battle, 10 run). Recorded from engine outcomes on the unit (`_battleDeeds`),
+  so Vision rewind and suspend carry them; committed only at victory, before the save.
+- Titles never touch `unit.name`; one set of display helpers composes them.
+- Held the Line counts enemy phases held **in a row** (the looser "three in a battle"
+  landed for almost every frontliner in the sim).
+- Oaths: the greatest deed teaches, on a player promotion, a skill no scroll or
+  curriculum offers (Pavise, Aegis, Lethality, Fury, Sure Shot, Renewal, Vigilance,
+  Unyielding, Colossus, Critical +15, Pathfinder, Skirmisher, Drain, Duelist Stance,
+  Discipline, Fiendish Blow). Skyward and Intimidate stay lord signatures.
+- No compendium list of conditions: the help page explains the idea, the deeds are found.
+
+**Sim (`npm run sim:deeds`, scripted agent)**
+- Normal, 60 seeds: the scripted army loses within ~1.4 battles, so only early deeds
+  show (Avenger 57% of runs — an ally falls and the killer is cut down — Held 2%,
+  Would Not Fall 3%). Not representative of a player.
+- Invincible, 40 seeds (a 2–3 unit army carries every kill and tanks every phase, so
+  counts are inflated): 14.2 deeds / run, every unit titled; Held the Line, Bossbane,
+  Weapon Sworn, Veteran ~100% of runs; Lord's Shield 88%; Red Harvest 98%; Greenwood 60%;
+  Would Not Fall 55%; Keen Edge 30%; Deathblow 23%; Untouched, Giantslayer, the Last
+  3–5%; Lantern, Tempo, Heights, Mire 0 (no healer/dancer/terrain play in the script).
+  Median first award ≈ battle 10–15 of ~21.
+- Reading: with a real 6–10 unit army sharing kills, the run-scope deeds land on carries
+  and specialists; battle-scope deeds are the common first title. Revisit thresholds with
+  playtest data (`tuning` and `min` values are data).
+
+**Deferred**: hidden promoted classes unlocked by deeds (needs traced sprites v3); a
+Deeds page in the victory records detail beyond the titled roster rows.
+
+---
+
+## 2026-09-25 — Traits v2: class-aware, additive, and spelled out per unit
+
+**Trigger:** the user saw a boss-recruit Cavalier offered with Reckless ("+2 ATK /
+-1 DEF *instead of the class perk*") and asked for a balance and design audit.
+Playtest #30 had flagged Brawny as downside-only on a tome mage.
+
+**Findings** (sim: `npm run sim:traits`; full table in `specs/traits-v2.md`):
+- Reckless lost against the perk it replaced for 11 of 12 recruit classes
+  (−3.1 duel win, −10.2 survival on average), and it was strictly worse than Frenzy and Focus.
+- Keen, Clever, Lucky and Cornered were near-blank (+1 to +2). Brawny lowered survival
+  everywhere. Lazy's +1 STR was dead on casters.
+- Woodsman did nothing on the 43% of act-2/3 maps with no forest or mountain.
+  Lone Wolf punished healers for healing.
+- Reclass silently wiped every trait growth bonus, and promoted recruits were
+  judged by their base class.
+
+**Decisions:**
+- **No trait replaces a class perk.** Mastery traits shift the threshold or
+  multiply the perk (the new Slow Oath doubles it for 2 more battles). The UI names the
+  perk and both numbers: "Wayfarer becomes +2 Atk, +2 Spd (from +1 Atk, +1 Spd)".
+- **Tradeoffs must be playable.** Reckless becomes +3 Atk when it initiates and
+  −2 Def when an enemy does, a positioning decision. Stalwart is its mirror;
+  Lone Wolf and Shieldmate pull opposite ways on formation.
+- **Rolling is class-aware.** Roles gate or weight every trait, and stat traits
+  target the stat the class fights with (`ATTACK`). Result: no downside-only rolls,
+  and healers draw Hungry and Shieldmate far more often.
+- Lords never roll Reckless, Lone Wolf or Slow Oath: no lone-lord juggernaut, and
+  legendaries stay special.
+- Saves migrate once and only ever gain stats. Brawny and Clever become Kindled in the
+  right stat (Brawny also refunds its speed growth), Lazy becomes Slow Oath at the
+  same threshold, and Steady, Keen and Lucky are grandfathered.
+- RNG cost is unchanged: one draw for the count plus one per pick.
+
+Spec: `specs/traits-v2.md`. Captures: `art-direction/gameplay/traits-v2/`.
+
+---
+
+## 2026-09-25 — The Eclipse: the run clock made visible
+
+**Graduated to spec and built:** `specs/eclipse.md` (captures:
+`art-direction/gameplay/eclipse/`).
+
+The rule from 2026-07-04 — *punish the clock, not the unit* — was enforced by a hidden
+mechanism: two turns over par, XP and gold decayed silently. The Eclipse replaces it with
+a clock the player can see and plan around. Every turn a battle runs past par−3 darkens
+the Hollow Sun (shadow, 0–100, committed only at victory so rewind/suspend stay exact);
+shadow takes the land ahead — outer lanes first — turning villages, chapels, recruits and
+arenas into eclipsed elite battles. Darkness is also opportunity: eclipsed fights pay
+elite spoils. Act bosses (−3) and church Kindle (−8 for gold, a real sink) lift it; the
+run's phase (Pale → Waning → Umbral → Totality → Hollow) raises enemy levels and affixes.
+
+Decisions:
+- **Visible beats silent.** With the Eclipse on, late-pressure XP/gold decay is off;
+  par, rating and rating gold stay; boss enrage stays (it is visible in the boss bar).
+- **Transform, never delete.** A fallen node keeps its edges, so routing and boss
+  reachability can never break; thresholds are computed from `runSeed` + node id, never
+  stored, so saves need no migration and the node-map generator is byte-identical.
+- **Tuned by sim, not by guess.** The spec's 10/10 (max gain, boss relief) left an A-rank
+  player Pale all run; 6/3 hits the targets (A: Pale → Waning → ~Umbral; S keeps maps
+  whole; C reaches Totality by Act III). `node sim/eclipse.js` reports shadow by act and
+  what was lost "ahead" of the party.
+- **Deferred:** eclipsed-node variety beyond rout (seize/escape conversions), an Eclipse
+  meta upgrade (e.g. a slower sun), and dialogue that reacts to the phase.
+
+---
+
+## 2026-09-25 — Rewind to before any unit's action
+
+Player request (high priority): Vision rewind must reach the moment before any player
+unit's action, not only the turn start. Playtesting origin/main showed the capability
+existed on paper but not in practice: the timeline labelled rows by the event *after*
+which it restored (so undoing an action meant picking the row above it, and the first
+action of a turn could only be undone via "Turn begins"), and the 512 KB history evicted
+action snapshots first — in a late-game battle no rewind point survived past turn 2.
+
+Decisions:
+- **Rewind opens a picker of "Before <unit>'s <action>" points** (newest first, portrait,
+  target, outcome chips, map preview, one tap to preview, one to spend). The full battle
+  timeline stays under History.
+- **Budget:** points after a keyframe are stored as exact structural patches; review-only
+  previews are shed before any rewind point; this turn's points are shed last. All actions
+  of the current and three previous turns now fit at late-game size (~375 KB).
+- **Set-aside partial actions** (trade, re-equip) become their own point at the next
+  activation, so "before Y" never undoes X's trade.
+- **Lunatic keeps turn-start rewinds**, now as `difficulty.json` `rewindGranularity`
+  (flip to `action` to change). Legacy-v1 battles gain action points and keep their
+  reroll-on-rewind rule.
+
+Spec: `specs/rewind-any-action.md`. Screenshots: `art-direction/gameplay/rewind/`.
+
+---
+
+## 2026-09-25 — Traced map sprites are the battlefield art; lords and bosses redrawn at map size
+
+Traced sprites (owner: "they look great, make them the default") are now what every unit
+wears on the battlefield — 335 sprites, six frames each, two atlas pages (24.8 MB
+decoded); the rebuilt set is a dev comparison (`?spriteArt=rebuilt`). The weak spot of the
+v2 study was the lords and bosses traced from ~128 px rebuilt art (scale 0.11–0.45, faces
+collapsed). Decision: redraw those 19 at map size with the shared image client (style
+board + an approved map sprite for scale + the unit's rebuilt sprite and portrait for
+identity) and trace the redraws at 0.55–0.8. Kept: identity first — a take that matched
+the portrait beat a take with a higher scale. The empire's iron swap no longer greys a
+boss's own gold (Emperor, Knight Commander). Combat v2 fix found on the way: a rewind
+mid-lunge left the striker off its tile (`CombatFxController.reset` now stops the lunge).
+Spec: `specs/traced-sprites.md`; records: `art-direction/sprites-v3/`.
+
+---
+
+## 2026-09-25 — Portrait variety: every recruit their own face
+
+iPhone playtest: two Fighters (Bram, Roderick) wore the identical bald, bearded portrait. Every
+generic class had one face. Decisions:
+
+- **Five people per class line, drawn in every class of the line** (175 player-side drawings,
+  60 people; Falcon Knight and Wyvern Lord have ten via the cross promotions). Promotion keeps
+  the person and changes the gear; we chose matched promoted drawings over mapping promoted
+  units to their base face so the promotion rite shows *this* unit in the new class's armour.
+- **Enemies get four faces per human class** (128) in the Empire's iron and crimson; monsters,
+  lords and bosses keep theirs. All legacy generic/enemy defaults were remastered to the rebuilt
+  quality so old and new sit in one set.
+- **Stable, never random:** `unit.portraitVariant` is chosen once from a hash of run seed, name
+  and class, skipping faces the army already has; genders follow the recruit name pools (a
+  "Bram" is never drawn as a woman, a "Hedda" never as a man). Enemies hash their spawn identity.
+  Legacy saves backfill on load. Nothing reads `Math.random` (the battle RNG).
+- **No new texture memory at boot:** the atlases and baked textures still hold only the 94
+  defaults; variants are display-sized figures the DOM decodes on demand and the canvas loads
+  lazily (capped, released after battle).
+- Text lists that named units (church, colosseum, shop choosers, records) now show the same face.
+
+Spec: `specs/portrait-variety.md`. Art and pipeline: `art-direction/portraits-variety/`.
+
+---
+
 ## 2026-09-25 — Attack flow: target first, weapon second; equipped weapon always first
 
 From iPhone playtesting: picking a weapon before a target made every attack a two-menu

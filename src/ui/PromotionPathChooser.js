@@ -16,7 +16,12 @@ import { skillGlyph } from './growthGlyphs.js';
 
 function portraitImg(scene, unit, className) {
   const shown = className
-    ? { ...projectedSpriteUnit(unit, className), name: unit.name, isLord: unit.isLord }
+    ? {
+        ...projectedSpriteUnit(unit, className),
+        name: unit.name,
+        isLord: unit.isLord,
+        portraitVariant: unit.portraitVariant, // the same person in the new class
+      }
     : unit;
   const portrait = ceremonyPortrait(scene, shown);
   if (!portrait?.src) return null;
@@ -89,6 +94,16 @@ export function buildPathCard({ scene, unit, cls, content, selected, onSelect })
     const line = element('span', null, 'gr-path-skill');
     line.append(skillGlyph(skill.id, 'gr-glyph'), element('b', skill.name));
     if (skill.description) line.append(element('span', ` — ${skill.description}`));
+    card.append(line);
+  }
+  // A deed's Oath rides every path (it belongs to the unit, not the class).
+  if (content.oath?.learned) {
+    const line = element('span', null, 'gr-path-skill gr-path-oath');
+    line.append(
+      skillGlyph(content.oath.skillId, 'gr-glyph'),
+      element('b', `${content.oath.name} · ${content.oath.skillName}`),
+    );
+    if (content.oath.description) line.append(element('span', ` — ${content.oath.description}`));
     card.append(line);
   }
   const notes = [];

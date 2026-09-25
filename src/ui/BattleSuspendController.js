@@ -1,6 +1,6 @@
 import { persistWithTimelineFallback } from '../engine/BattleTimelinePersistence.js';
 import { resumeFatalDecision } from './BattleFatalDecision.js';
-import { recordBattleTimeline } from './BattleTimelineRecorder.js';
+import { recordBattleTimeline, rewindFingerprint } from './BattleTimelineRecorder.js';
 // BattleSuspendController — mid-battle suspend/resume (anti-refresh).
 //
 // The battle continuously persists a "suspend checkpoint" into the run save
@@ -269,6 +269,12 @@ export class BattleSuspendController {
     }
     scene.updateVisionHud();
     scene.refreshEndTurnControl();
+    // Resuming exactly on a rewind point: free changes from here are detectable.
+    const current = scene._battleTimeline?.entries?.find(
+      (entry) => entry.id === scene._timelineCurrentEntryId,
+    );
+    if (current?.destination && checkpoint.phase === 'player')
+      scene._rewindFingerprint = rewindFingerprint(scene);
     if (checkpoint.recoveryKind === 'fatal_pending') {
       resumeFatalDecision(scene, checkpoint);
       return;

@@ -22,7 +22,7 @@ import {
   isMastered,
   getMasteryPerk,
 } from '../engine/MasterySystem.js';
-import { getUnitTraits } from '../engine/TraitSystem.js';
+import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
@@ -54,6 +54,15 @@ import { crestElement } from './crestArt.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
+import {
+  deedsForDisplay,
+  deedTallyText,
+  epithetText,
+  promotionOath,
+  unitDisplayName,
+} from '../engine/DeedSystem.js';
+import { actLabel } from './ceremonyContent.js';
+import { fitText } from './ceremonyDom.js';
 import { createHealthBar } from './healthBar.js';
 import { STAT_COLORS, UI_PALETTE } from '../utils/uiStyles.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
@@ -237,7 +246,14 @@ export class MobileRosterSheet {
       // width for longer class names, and another token would wrap it more often.
       const nameRow = el('span', null, 'mr-unit-name');
       nameRow.append(el('strong', unit.name), el('em', `Lv ${getDisplayLevel(unit)}`));
-      info.append(nameRow, el('span', `${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`));
+      info.append(nameRow);
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const line = el('span', epithet, 're-epithet mr-unit-epithet');
+        line.title = unitDisplayName(unit, { epithet: true });
+        info.append(line);
+      }
+      info.append(el('span', `${unit.className} · HP ${unit.currentHP}/${unit.stats.HP}`));
       info.append(createHealthBar(unit));
       b.append(info);
       b.setAttribute('aria-pressed', String(index === this.index));
@@ -272,8 +288,15 @@ export class MobileRosterSheet {
       const name = el('h3', unit.name);
       const crest = crestElement(unit.className, { className: 'mr-crest', label: true });
       if (crest) name.prepend(crest);
+      summary.append(name);
+      const epithet = epithetText(unit);
+      if (epithet) {
+        const line = el('p', epithet, 're-epithet mr-epithet');
+        line.setAttribute('aria-label', `Known as ${unitDisplayName(unit, { epithet: true })}`);
+        summary.append(line);
+        queueMicrotask(() => fitText(line, { min: 11 }));
+      }
       summary.append(
-        name,
         el(
           'p',
           `Lv ${getDisplayLevel(unit)} ${unit.className} · ${unit.tier === 'promoted' ? 'Promoted' : 'Base'} · XP ${unit.xp || 0}/${XP_PER_LEVEL} · HP ${unit.currentHP}/${unit.stats.HP}`,
@@ -390,13 +413,10 @@ export class MobileRosterSheet {
           ]),
         ),
       );
-      const traits = getUnitTraits(unit, this.gameData.traits);
+      const traits = traitLines(unit, this.gameData);
       if (traits.length) this.body.append(el('h3', 'Traits'));
       for (const trait of traits)
-        this.card(
-          `${trait.rarity === 'legendary' ? 'Legendary · ' : ''}${trait.name}`,
-          trait.description,
-        );
+        this.card(`${trait.legendary ? 'Legendary · ' : ''}${trait.name}`, trait.text);
       // Flavor only: how this recruit talks (level-ups, promotion, last words).
       const temperament = unit.isLord ? null : unitTemperament(this.scene, unit);
       if (temperament)
@@ -404,6 +424,8 @@ export class MobileRosterSheet {
           `Temperament · ${temperament}`,
           'Colors what they say when they grow, promote or fall. No effect in battle.',
         );
+      // Who they are (traits, temperament), then what they have done.
+      if (unit.faction === 'player') this.deeds(unit);
     }
     for (const id of unit.affixes || []) {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
@@ -430,6 +452,41 @@ export class MobileRosterSheet {
         ),
       );
       this.body.append(details);
+    }
+  }
+  // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
+  // run's tallies and its Oath (sworn, or the one a promotion would swear).
+  deeds(unit) {
+    const list = deedsForDisplay(unit, this.gameData.deeds);
+    this.body.append(el('h3', list.length ? `Deeds · ${list.length}` : 'Deeds'));
+    const tally = deedTallyText(unit);
+    if (tally) this.body.append(el('p', `This march: ${tally}`, 'mr-deed-tally'));
+    const skillText = (id) => {
+      const skill = this.gameData.skills?.find((s) => s.id === id);
+      return `${skill?.name || id}${skill?.description ? ` — ${skill.description}` : ''}`;
+    };
+    const sworn = unit.deeds?.oath;
+    if (sworn?.skillId) this.card(`${sworn.name || 'Oath'} · sworn`, skillText(sworn.skillId));
+    else if (unit.tier !== 'promoted') {
+      const next = promotionOath(unit, this.gameData.deeds, this.gameData.skills);
+      if (next) this.card(`${next.name} · sworn at promotion`, skillText(next.skillId));
+    }
+    if (!list.length) {
+      this.card('No deeds yet', 'Titles come from what a unit does in battle, not from a list.');
+      return;
+    }
+    for (const deed of list) {
+      const card = el('article', null, `mr-card mr-deed${deed.isTitle ? ' is-title' : ''}`);
+      const head = el('h4', deed.name);
+      if (deed.isTitle) head.append(el('small', 'Title'));
+      card.append(head, el('p', deed.epithet, 're-epithet'));
+      if (deed.lore) card.append(el('p', deed.lore, 'mr-deed-lore'));
+      const at = deed.awardedAt || {};
+      const meta = [actLabel(at.act), Number.isFinite(at.battle) ? `Battle ${at.battle}` : '']
+        .filter(Boolean)
+        .join(' · ');
+      if (meta) card.append(el('p', meta, 'mr-deed-meta'));
+      this.body.append(card);
     }
   }
   skills(unit) {
