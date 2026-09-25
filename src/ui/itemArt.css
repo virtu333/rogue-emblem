@@ -1,0 +1,206 @@
+/* Item art — sockets, heroes and the moments (docs/art-direction/items/README.md).
+   Icons are pixel art from one atlas per native size, drawn at integer scales with
+   image-rendering: pixelated. The socket behind an icon is a reliquary plaque: its
+   shape is the item's category, its rim the tier or rarity. Visual only: sockets never
+   change a row's metrics beyond the box the caller sizes. */
+
+:root {
+  /* Art-bible ramps (ART_BIBLE palette) used by item art only. */
+  --ia-ink-0: #07060b;
+  --ia-ink-2: #16131e;
+  --ia-ink-3: #211d2b;
+  --ia-ink-5: #403949;
+  --ia-ink-6: #58505e;
+  --ia-stone-4: #7a7a80;
+  --ia-steel-4: #77a5c6;
+  --ia-silver: #ddd0bd;
+  --ia-bone: #bdb0aa;
+  --ia-unlight-4: #a863cc;
+  --ia-bronze: #b3702c;
+  --ia-gilt: #dca044;
+  --ia-gilt-hi: #f3cb6c;
+  --ia-ember: #e8782e;
+  --ia-blood-4: #cc4038;
+  --ia-verdigris-4: #86b27b;
+  --ia-earth-4: #938c55;
+  --ia-lilac: #dcaaf0;
+  --ia-glow-gilt: rgba(243, 203, 108, 0.42);
+  --ia-glow-unlight: rgba(168, 99, 204, 0.4);
+  --ia-glow-ember: rgba(232, 120, 46, 0.45);
+}
+
+/* ── Socketed icon ────────────────────────────────────────────────────── */
+.ia-icon {
+  --ia-box: calc(var(--ia-size, 32px) + var(--ia-size, 32px) / 4);
+  --ia-rim: var(--ia-ink-6);
+  --ia-shape: circle(50% at 50% 50%);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--ia-box);
+  height: var(--ia-box);
+  vertical-align: middle;
+  line-height: 0;
+}
+.ia-icon.is-bare {
+  --ia-box: var(--ia-size, 32px);
+}
+.ia-socket {
+  position: absolute;
+  inset: 0;
+  background: var(--ia-rim);
+  clip-path: var(--ia-shape);
+  pointer-events: none;
+}
+.ia-socket::before {
+  content: '';
+  position: absolute;
+  inset: max(1px, calc(var(--ia-box) / 30));
+  background: radial-gradient(circle at 38% 32%, var(--ia-ink-3), var(--ia-ink-0) 78%);
+  clip-path: var(--ia-shape);
+}
+.ia-glyph {
+  position: relative;
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* Shapes: the category. */
+[data-socket='weapon'] {
+  --ia-shape: polygon(0 0, 100% 0, 100% 56%, 93% 74%, 78% 89%, 50% 100%, 22% 89%, 7% 74%, 0 56%);
+}
+[data-socket='scroll'] {
+  --ia-shape: polygon(14% 4%, 86% 4%, 100% 50%, 86% 96%, 14% 96%, 0 50%);
+}
+[data-socket='supply'] {
+  --ia-shape: circle(50% at 50% 50%);
+}
+[data-socket='accessory'] {
+  --ia-shape: polygon(50% 0, 97% 44%, 97% 56%, 50% 100%, 3% 56%, 3% 44%);
+}
+[data-socket='forge'] {
+  --ia-shape: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%);
+}
+[data-socket='blessing'] {
+  --ia-shape: circle(50% at 50% 50%);
+}
+[data-socket='upgrade'] {
+  --ia-shape: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+}
+
+/* Rims: the tier (weapons) or rarity. */
+[data-rim='Iron'] {
+  --ia-rim: var(--ia-stone-4);
+}
+[data-rim='Steel'] {
+  --ia-rim: var(--ia-steel-4);
+}
+[data-rim='Silver'] {
+  --ia-rim: var(--ia-silver);
+}
+[data-rim='Rare'] {
+  --ia-rim: var(--ia-unlight-4);
+}
+[data-rim='Legend'] {
+  --ia-rim: var(--ia-gilt-hi);
+}
+[data-rim='plain'] {
+  --ia-rim: var(--ia-ink-6);
+}
+[data-rim='fine'] {
+  --ia-rim: var(--ia-bronze);
+}
+[data-rim='I'] {
+  --ia-rim: var(--ia-bone);
+}
+[data-rim='II'] {
+  --ia-rim: var(--ia-bronze);
+}
+[data-rim='III'] {
+  --ia-rim: var(--ia-gilt);
+}
+[data-rim='IV'] {
+  --ia-rim: var(--ia-ember);
+}
+.ia-icon[data-rim='Legend'] .ia-socket,
+.ia-hero[data-rim='Legend'] .ia-socket {
+  filter: drop-shadow(0 0 3px var(--ia-glow-gilt));
+}
+.ia-icon[data-rim='Rare'] .ia-socket,
+.ia-hero[data-rim='Rare'] .ia-socket {
+  filter: drop-shadow(0 0 2px var(--ia-glow-unlight));
+}
+
+/* Run state on the icon: forge level and the imbue's stone. */
+.ia-forge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 1px 2px;
+  font: 7px/1 var(--re-pixel);
+  color: var(--re-accent-text);
+  background: var(--ia-ink-0);
+  box-shadow: inset 0 0 0 1px var(--ia-ink-5);
+}
+.ia-imbue {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: var(--ia-imbue, var(--ia-lilac));
+  box-shadow: 0 0 0 1px var(--ia-ink-0);
+}
+.ia-imbue[data-imbue='vampiric'] {
+  --ia-imbue: var(--ia-blood-4);
+}
+.ia-imbue[data-imbue='armorbane'] {
+  --ia-imbue: var(--ia-steel-4);
+}
+.ia-imbue[data-imbue='keen'] {
+  --ia-imbue: var(--ia-gilt);
+}
+.ia-imbue[data-imbue='venom'] {
+  --ia-imbue: var(--ia-verdigris-4);
+}
+.ia-imbue[data-imbue='binding'] {
+  --ia-imbue: var(--ia-earth-4);
+}
+.ia-imbue[data-imbue='warded'] {
+  --ia-imbue: var(--ia-lilac);
+}
+
+/* ── Hero (detail panels) ─────────────────────────────────────────────── */
+.ia-hero {
+  --ia-box: calc(var(--ia-size, 96px) + 16px);
+  --ia-rim: var(--ia-ink-6);
+  --ia-shape: polygon(8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%, 0 8%);
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--ia-box);
+  height: var(--ia-box);
+  line-height: 0;
+}
+/* The hero plate is always a chamfered reliquary window; the category shows in the rim. */
+.ia-hero[data-socket] {
+  --ia-shape: polygon(8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%, 0 8%);
+}
+.ia-hero .ia-socket::before {
+  background:
+    radial-gradient(circle at 36% 30%, var(--ia-glow-gilt), transparent 55%),
+    radial-gradient(circle at 50% 50%, var(--ia-ink-3), var(--ia-ink-0) 80%);
+  opacity: 1;
+}
+.ia-hero-art {
+  position: relative;
+  display: block;
+  width: var(--ia-size, 96px);
+  height: var(--ia-size, 96px);
+  image-rendering: pixelated;
+}

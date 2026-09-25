@@ -26,3 +26,6 @@
 
 /* PC-98 portraits: pixel-true figures over faction plates. */
 @import './portraits.css';
+
+/* Item art: socketed pixel icons, painted heroes, blessing cards and service vignettes. */
+@import './itemArt.css';
