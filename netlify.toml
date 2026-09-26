@@ -4,3 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Deploy previews accept the dev routes (?devScene=battle&preset=…) so a PR can be
+# tried directly from its preview link. Production never sets this.
+[context.deploy-preview.environment]
+  VITE_DEV_ROUTES = "true"

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { loadGameData } from './testData.js';
-import { parseDevStartupConfig, buildDevStartupRoute } from '../src/utils/devStartup.js';
+import {
+  parseDevStartupConfig,
+  buildDevStartupRoute,
+  devRoutesEnabled,
+} from '../src/utils/devStartup.js';
 
 function createRegistry() {
   const store = new Map();
@@ -14,6 +18,16 @@ function createRegistry() {
     },
   };
 }
+
+describe('where dev routes run', () => {
+  it('the dev server and deploy previews (VITE_DEV_ROUTES), never production', () => {
+    expect(devRoutesEnabled({ DEV: true })).toBe(true);
+    expect(devRoutesEnabled({ DEV: false, VITE_DEV_ROUTES: 'true' })).toBe(true);
+    expect(devRoutesEnabled({ DEV: false })).toBe(false);
+    expect(devRoutesEnabled({ DEV: false, VITE_DEV_ROUTES: 'false' })).toBe(false);
+    expect(devRoutesEnabled({ DEV: false, VITE_DEV_ROUTES: '1' })).toBe(false);
+  });
+});
 
 describe('dev startup helpers', () => {
   it('parses dev scene config from query string in dev mode', () => {
