@@ -353,7 +353,8 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
         mode = 'line' if is_line(events) else 'plain'
     amap = lab.get('art_map', {})
     if mode == 'line':
-        played = perform.perform_line(score, events, seed, arts=tuple(lab.get('line_arts', ())))
+        played = perform.perform_line(score, events, seed, arts=tuple(lab.get('line_arts', ())),
+                                      shaping=0.5 if lane is not None else 1.0)
         for p in played:
             if p.stream not in streams:
                 p.stream = amap.get(p.stream, 'chord' if 'chord' in streams else next(iter(streams)))

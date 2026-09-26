@@ -88,11 +88,16 @@ def _note_info(score, evs):
     return out
 
 
-def perform_line(score, evs, seed, arts=()) -> list[Played]:
+def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
     """The articulation state machine for a solo (mostly monophonic) string line.
 
     `arts`: extra articulations the instrument plays as streams of their own
-    (e.g. 'mute'); notes asking for them are played detached through them."""
+    (e.g. 'mute'); notes asking for them are played detached through them.
+    `shaping`: depth of the performer's own dynamics (phrase arch, messa di
+    voce, phrase-end taper, downbeat lift). Halved by the renderer when the
+    score already draws an expression lane for the part, so the composer's
+    shape and the player's do not pile up (in the title mix the doubled taper
+    let the soloist sink under the orchestra at phrase ends)."""
     if not evs:
         return []
     evs = sorted(evs, key=lambda e: (getattr(e, 'beat_start', e.t), e.key))
@@ -159,8 +164,8 @@ def perform_line(score, evs, seed, arts=()) -> list[Played]:
             if single:
                 return 0.0
             if x <= tp:
-                return -1.5 + 3.5 * (x / tp if tp > 0 else 1.0)
-            return 2.0 - 4.5 * ((x - tp) / (1 - tp) if tp < 1 else 0.0)
+                return shaping * (-1.5 + 3.5 * (x / tp if tp > 0 else 1.0))
+            return shaping * (2.0 - 4.5 * ((x - tp) / (1 - tp) if tp < 1 else 0.0))
 
         slur_t = 0.0
         for k, i in enumerate(ph):
@@ -199,22 +204,22 @@ def perform_line(score, evs, seed, arts=()) -> list[Played]:
             a_off = arch(n['w1'])
             downbeat = score is not None and getattr(e, 'beat_start', None) is not None and \
                 score.on_barline(n['b0'])
-            lift = 0.6 if downbeat else 0.0
+            lift = 0.6 * shaping if downbeat else 0.0
             v0 = base + a_on + lift
             v1 = base + a_off
             d = n['dur']
             shape = [(0.0, v0)]
             if d >= 0.8:
                 # messa di voce: bloom, then let the bow lighten
-                shape.append((0.35 * d, v0 + 1.5))
-                shape.append((d, v1 - (3.0 if is_last else 1.0)))
+                shape.append((0.35 * d, v0 + 1.5 * shaping))
+                shape.append((d, v1 - shaping * (3.0 if is_last else 1.0)))
             else:
-                shape.append((d, v1 - (1.5 if is_last and d > 0.3 else 0.0)))
+                shape.append((d, v1 - shaping * (1.5 if is_last and d > 0.3 else 0.0)))
             # ------------------------------------------------ bow changes in long slurs
             if stream == 'leg':
                 slur_t += prev['dur'] if prev else 0.0
                 if slur_t > BOW_S and prev is not None and prev['dur'] >= 0.45:
-                    why += ' (bow change)'
+                    why += ' (bow change / breath)'
                     slur_t = 0.0
                     shape.insert(0, (-0.05, v0 - 1.5))
                     shape[1] = (0.07, v0)
