@@ -121,7 +121,7 @@ describe('SlotPickerScene selectSlot transition safety', () => {
       scene,
       'HomeBase',
       { gameData: scene.gameData, corruptRunDetected: false },
-      { reason: TRANSITION_REASONS.CONTINUE },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
     );
     expect(mocked.setActiveSlotMock).not.toHaveBeenCalled();
     expect(store.get('meta')).toBe(previousMeta);
@@ -151,7 +151,7 @@ describe('SlotPickerScene selectSlot transition safety', () => {
       scene,
       'HomeBase',
       { gameData: scene.gameData, corruptRunDetected: true },
-      { reason: TRANSITION_REASONS.CONTINUE },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
     );
   });
 

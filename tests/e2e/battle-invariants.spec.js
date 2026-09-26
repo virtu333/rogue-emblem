@@ -112,6 +112,13 @@ test.describe('Battle invariants', () => {
     await page.goto('/?devScene=battle&preset=battle_smoke');
     await waitForGame(page);
     await waitForScene(page, 'Battle');
+    // The first player phase passes through TURN_START_RESOLVING (input locked while
+    // the banner and awaited turn-start effects run, #64) before it settles.
+    await page.waitForFunction(
+      (allowed) => allowed.includes(window.__sceneState?.battle?.state),
+      PAUSE_OPENABLE,
+      { timeout: 15_000 },
+    );
 
     const state = await getSceneState(page);
     expect(state.activeScene).toBe('Battle');

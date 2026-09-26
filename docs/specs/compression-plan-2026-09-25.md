@@ -1,6 +1,6 @@
 # Compression plan and verification audit (2026-09-25)
 
-**Status:** plan. Nothing here is implemented yet except where marked.
+**Status:** plan. Step 0 is done; nothing else is implemented yet except where marked.
 **Source:** an external architecture review, three read-only investigations and a fault-injection pilot, run against `main` at 74cc967 / dfb551f.
 **Line references** are as of those commits. Re-verify them before starting. Since then, #93 routed the attack forecast through `BattleScene._computePlayerForecast`.
 
@@ -10,7 +10,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 
 | # | Change | What disappears | Precondition |
 |---|---|---|---|
-| 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (not started) | Specs that rot because nothing runs them | none |
+| 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (**done**, 2026-09-26; see below) | Specs that rot because nothing runs them | none |
 | 1 | One definition of the resolved-action continuation (done 2026-09-26) | Duplicate validation of the same shape | none |
 | 2 | Read-only attack forecast (equipment) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
 | 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
@@ -18,6 +18,56 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 | 5 | The headless harness calls production operations as they become isolated | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
 
 **Serialize changes to the battle lifecycle.** Use one implementation owner at a time for `BattleScene`, checkpoints, RNG and persistence. Other agents can investigate, write independent fixtures, or review. Hold new mechanics that add persistent battle state until steps 2–4 settle.
+
+## 0. Test hygiene (done, 2026-09-26)
+
+**Every browser spec runs in CI.** `tests/e2e/lanes.json` is the only list of lanes; `tools/e2eLanes.js` reads it for everything else:
+- the Playwright configs select their files from it (`specSelection`), so `playwright.release.config.js` and `playwright.compact.config.js` no longer keep their own lists;
+- `npm run test:e2e:lane -- <lane> [playwright args]` runs one lane (`test:e2e:smoke`, `test:ux-contracts` and `test:e2e:presentation` are now lanes);
+- CI's `e2e-lanes` job runs `npm run check:e2e-lanes` and turns the lanes into the `e2e` job matrix, one job per lane shard;
+- `check:e2e-lanes` fails when a spec is in no lane and not in `excluded` with a reason, when a lane or exclusion names a spec that does not exist, when a spec is listed twice, or when `package.json` or a workflow names specs itself. `tests/E2eLanes.test.js` covers each rule and the real manifest.
+
+105 specs in 11 lanes, none excluded (before: 39 specs in 5 CI steps, 66 in none). Local times are one Playwright worker on a shared 4-core container at load 5–26; CI uses two workers on a 4-vCPU runner. The existing lanes ran 1.6–2.7× faster in CI than here, so the CI column divides by 2.2.
+
+| Lane | Specs | Tests | Shards | Local | CI (measured or estimated) |
+|---|---|---|---|---|---|
+| smoke | 3 | 10 | 1 | 1.4 min | 0.9 min (measured) |
+| contracts (`--workers=2`) | 10 | 46 | 1 | 16.1 min | 5.9 min (measured) |
+| presentation | 18 | 37 | 1 | 11.4 min | 5.0 min (measured) |
+| mobile-ui | 6 | 30 | 1 | 4.9 min | 2.9 min (measured) |
+| release (needs `npm run build`) | 2 | 4 | 1 | 1.3 min | 0.6 min (measured) |
+| battle-input | 14 | 84 | 3 | 18.4 min | ~2.8 min per shard |
+| battle-history | 5 | 16 | 1 | 8.1 min (2 workers) | ~4 min |
+| art | 14 | 80 | 2 | 19.0 min | ~4.3 min per shard |
+| run-flow | 21 | 87 | 3 | 23.3 min | ~3.5 min per shard |
+| menus | 11 | 59 | 2 | 14.1 min | ~3.2 min per shard |
+| compact (`playwright.compact.config.js`, 2 device profiles) | 1 | 10 | 1 | 2.1 min | ~1 min |
+
+In total about 2 h of browser time locally and about 55 min in CI, spread over 17 jobs. Each job also spends about 50 s on checkout, `npm ci` and the browser install. The longest job is `contracts` (about 7 min), so the e2e wall clock drops from about 16 min (one serial job) to about 7 min.
+
+**Unit-level suites.** The `harness` job now runs `npm run test:sim` (all 8 files, 35 tests, about 11–18 s) and `npm run test:harness` (all 10 files, 165 tests, about 23–36 s) instead of the `test:sim:triage` and `test:journey` subsets. Both are fast enough to stay in that job. `RunSimulationDriver.test.js` failed on main because its fixture cloned a living unit's `unitUid` into the fallen list; since #98, battle entry gives the later holder of a shared uid a fresh one. The fixture now gives the casualty its own uid; the driver was right.
+
+**What had rotted.** 21 of the 66 unrun specs (38 tests) failed. Each was traced to the change that caused it:
+- Stale:
+  - #64: terrain card text; Danger on the command rail; rotate prompt on portrait phones.
+  - #67: focus colour; promotion chooser labels; the DOM Title; the run-end card before the result menu.
+  - #77: target-first attacks; the equipped badge in item headings; equip-row geometry.
+  - #78: "Level n" unit rows; the move reminder hidden on short screens.
+  - #79: draft cards for mercenaries and boss recruits; reward drafts saved across a reload.
+  - #44: the first-run fast path. `journey-run-loop` was rewritten for the DOM menus.
+  - Elite reward picks on the persisted record.
+- Racy:
+  - Gamepad taps. The shared `padTap()` now holds a button for exactly one reader poll.
+  - The first turn's `TURN_START_RESOLVING`.
+  - A ceremony's own reveal clock.
+  - A guidance note's self-dismiss.
+  - Real download progress overwriting emulated progress.
+  - The unlock-started music.
+  - A floater wait bounded in wall time instead of game time.
+
+**One real bug, fixed.** A save slot tapped within 350 ms of the picker appearing was silently dropped: `SlotPickerScene.selectSlot` did not retry the router's cooldown BLOCKED. The regression test in `slot-picker.spec.js` fails without the fix.
+
+**Also:** `E2E_PORT` gives a checkout its own dev server, since `reuseExistingServer` on a shared port 3000 silently tests another worktree's code. The portrait-variety specs no longer overwrite committed doc screenshots unless `PORTRAIT_SHOTS` is set, like the other art specs.
 
 ## 1. Resolved-action continuation (small) — done 2026-09-26
 
@@ -121,14 +171,14 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
 
 **CI lanes** (`ci.yml` is the only workflow that runs tests, on push/PR to `main`; `testflight.yml` only builds the iOS app):
 - 60 of 99 `tests/e2e` specs were in no lane (66 of 105 on 2026-09-26).
-- 7 of 10 `tests/harness/*.test.js` files and 6 of 8 `tests/sim/*.test.js` files never ran. `npm run test:e2e`, `test:harness` and `test:sim` exist but CI does not call them.
+- 7 of 10 `tests/harness/*.test.js` files and 6 of 8 `tests/sim/*.test.js` files never ran. `npm run test:e2e`, `test:harness` and `test:sim` existed but CI did not call them. (Since step 0, every spec and every harness/sim file runs in CI.)
 - The 8 browser failures seen locally were all stale or racy tests in unrun specs:
   - #78 changed the command rail;
   - #64 changed the terrain card;
   - #77 made attacks target-first;
   - #67 moved the Title to the DOM;
   - a gamepad `tap()` races the 250 ms auto-repeat under load.
-- Step 0 fixes these and adds a `check:e2e-lanes` script (not written yet).
+- Step 0 fixed these and added `npm run check:e2e-lanes` (see "0. Test hygiene").
 
 **What the headless harness proves:** `HeadlessBattle` calls real engine modules (combat, AI, skills, loot and so on) but mirrors `BattleScene`'s state machine, with `CANTO_DISABLED = true`. It has no async presentation and no checkpoint/resume. A green harness run proves engine resolution for the scenarios it exercises. It does not prove the production action lifecycle; the Journey tests and e2e cover that.
 
@@ -195,4 +245,4 @@ So a blanket "delete low-signal tests" pass is not safe.
 - Derive expected values independently (hand-computed fixtures), never by re-running the code under test.
 - Before a refactor, pin today's behaviour with characterisation tests that must pass before and after. A bug fix gets a test that fails before the fix.
 - Prove a new test can fail: plant the bug once and watch it fail.
-- Every e2e spec belongs to a CI lane or is listed with a reason (step 0 adds `npm run check:e2e-lanes` to enforce it).
+- Every e2e spec belongs to a CI lane or is listed with a reason: add it to `tests/e2e/lanes.json`. `npm run check:e2e-lanes` (in CI) fails otherwise.

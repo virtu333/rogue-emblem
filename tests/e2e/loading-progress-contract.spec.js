@@ -17,6 +17,13 @@ test('ongoing file progress keeps a slow real preload out of recovery and report
     await page.waitForFunction(
       () => window.__emblemRogueGame?.scene?.getScene('Boot')?._preloadComplete === false,
     );
+    // Wait until the held image is the only transfer left. Until then, real progress
+    // events from other files overwrite the status line after the emulated ones below.
+    await page.waitForFunction(() => {
+      const load = window.__emblemRogueGame.scene.getScene('Boot').load;
+      const inflight = load.inflight.entries.map((file) => file.key);
+      return load.list.size === 0 && inflight.length === 1 && inflight[0] === 'lordedric';
+    });
     for (let i = 0; i < 8; i++) {
       await page.evaluate((i) => {
         const boot = window.__emblemRogueGame.scene.getScene('Boot');

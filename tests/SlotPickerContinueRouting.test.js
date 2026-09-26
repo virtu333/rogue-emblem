@@ -117,7 +117,7 @@ describe('SlotPickerScene continue routing', () => {
       scene,
       'RunComplete',
       expect.objectContaining({ runManager: rm, result: 'defeat' }),
-      { reason: TRANSITION_REASONS.CONTINUE },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
     );
   });
 
@@ -132,7 +132,7 @@ describe('SlotPickerScene continue routing', () => {
       scene,
       'NodeMap',
       expect.objectContaining({ runManager: rm }),
-      { reason: TRANSITION_REASONS.CONTINUE },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
     );
   });
 
@@ -146,7 +146,7 @@ describe('SlotPickerScene continue routing', () => {
       scene,
       'HomeBase',
       expect.objectContaining({ corruptRunDetected: true }),
-      { reason: TRANSITION_REASONS.CONTINUE },
+      { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
     );
   });
 

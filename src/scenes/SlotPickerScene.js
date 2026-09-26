@@ -493,6 +493,8 @@ export class SlotPickerScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
 
       let transitioned = false;
+      // Every route retries a BLOCKED start: a tap inside the router's post-start
+      // cooldown (the picker is barely 350 ms old) was silently dropped otherwise.
       // An empty slot (summary null) begins a new chronicle via the first-run path.
       if (summary?.hasActiveRun) {
         // Resume active run directly
@@ -504,7 +506,7 @@ export class SlotPickerScene extends Phaser.Scene {
             this,
             'RunComplete',
             { gameData: this.gameData, runManager: rm, result: rm.endRunRewards.result },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         } else if (rm && rm.status !== 'defeat' && rm.battleInProgress?.checkpoint) {
           // Suspended mid-battle — let the player choose how to continue
@@ -521,14 +523,14 @@ export class SlotPickerScene extends Phaser.Scene {
             this,
             'RunComplete',
             { gameData: this.gameData, runManager: rm, result: 'defeat' },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         } else if (rm) {
           transitioned = await transitionToScene(
             this,
             'NodeMap',
             { gameData: this.gameData, runManager: rm },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         } else {
           // Run data corrupt - go to HomeBase
@@ -536,7 +538,7 @@ export class SlotPickerScene extends Phaser.Scene {
             this,
             'HomeBase',
             { gameData: this.gameData, corruptRunDetected: true },
-            { reason: TRANSITION_REASONS.CONTINUE },
+            { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
           );
         }
       } else if (isFirstRunSlot(summary)) {
@@ -549,7 +551,7 @@ export class SlotPickerScene extends Phaser.Scene {
           this,
           'HomeBase',
           { gameData: this.gameData, corruptRunDetected: summary?.runCorrupt || false },
-          { reason: TRANSITION_REASONS.CONTINUE },
+          { reason: TRANSITION_REASONS.CONTINUE, retryBlocked: true },
         );
       }
       if (transitioned === false) {

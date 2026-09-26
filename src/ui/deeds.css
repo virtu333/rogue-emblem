@@ -9,9 +9,8 @@
 .re-epithet {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* An epithet is the unit's title: it wraps in a narrow column (the roster
+     list, a phone level card) rather than ending in an ellipsis. */
   font: italic 500 12px / 1.3 var(--re-body);
   letter-spacing: 0.01em;
   color: var(--re-accent);
@@ -418,9 +417,8 @@
   margin-top: calc(4px * var(--ce-scale));
   font: italic 600 calc(12px * var(--ce-scale)) / 1.2 var(--re-body);
   color: var(--ce-gold-4);
+  /* fitText shrinks it a little, then lets it wrap (never an ellipsis). */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────────────────────── Roster */
@@ -497,9 +495,8 @@
 }
 .re-deeds-march li b {
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* A long name and title wrap rather than end in an ellipsis (and the italic
+     title's last letter is no longer shaved off by the clipping box). */
   font-weight: 600;
 }
 .re-deeds-march li b i {

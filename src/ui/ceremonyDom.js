@@ -313,6 +313,51 @@ export function fitText(node, { max = null, min = 12 } = {}) {
 }
 
 /**
+ * How far (px) a flex column's in-flow children, with its own vertical
+ * padding, overrun its height. Unlike scrollHeight on a non-scrolling box,
+ * this counts the end padding (a reserved button row) and ignores the
+ * centring margins. Layout only: offsets ignore transforms.
+ */
+export function flowOverflow(box) {
+  if (!box?.children) return 0;
+  const view = globalThis.getComputedStyle;
+  const kids = [...box.children].filter(
+    (n) => n.offsetHeight > 0 && !/absolute|fixed/.test(view?.(n)?.position || ''),
+  );
+  if (!kids.length) return 0;
+  const style = view?.(box);
+  const pad = (parseFloat(style?.paddingTop) || 0) + (parseFloat(style?.paddingBottom) || 0);
+  const first = kids[0];
+  const last = kids[kids.length - 1];
+  const span = last.offsetTop + last.offsetHeight - first.offsetTop;
+  return span + pad - box.clientHeight;
+}
+
+/**
+ * Make a card's content fit its frame by compacting it one step at a time:
+ * each step is a class added to `root` (tighter spacing first, then more),
+ * until `overflow()` (px the content needs beyond its box) reports it fits.
+ * The steps are cleared first, so a larger frame (rotation, a desktop
+ * window) takes them back off. Layout only: never shrinks the text below
+ * what the step classes set, never hides words. Returns what it did.
+ * @param {{ classList: DOMTokenList }} root
+ * @param {string[]} steps  class names, gentlest first
+ * @param {() => number} overflow
+ * @returns {{ applied: number, fits: boolean } | null}
+ */
+export function fitSteps(root, steps, overflow) {
+  if (!root?.classList || !Array.isArray(steps) || typeof overflow !== 'function') return null;
+  for (const step of steps) root.classList.remove(step);
+  let applied = 0;
+  let over = Number(overflow()) || 0;
+  while (over > 0.5 && applied < steps.length) {
+    root.classList.add(steps[applied++]);
+    over = Number(overflow()) || 0;
+  }
+  return { applied, fits: !(over > 0.5) };
+}
+
+/**
  * Tap / Enter / Space / Esc / gamepad confirm or back skips a blocking
  * ceremony. The ceremony owns the overlay and input-focus stacks while it
  * shows, so the rail's Back and the pad's B route here and nothing reaches

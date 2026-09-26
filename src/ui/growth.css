@@ -134,6 +134,8 @@
   inset: 0;
   display: grid;
   grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+  /* The row is the frame: a tall column compacts (fitRite), never spills out. */
+  grid-template-rows: minmax(0, 1fr);
   align-items: center;
   padding: max(10px, var(--ce-safe-t)) max(14px, var(--ce-safe-r)) max(10px, var(--ce-safe-b))
     max(10px, var(--ce-safe-l));
@@ -245,14 +247,34 @@
 }
 .gr-rite-text {
   position: relative;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: calc(4px * var(--ce-scale));
   padding-left: calc(6px * var(--ce-scale));
   /* Reserve the corner Continue button's row so the quote never runs under it. */
   padding-bottom: calc(var(--re-tap) + 4px);
+  box-sizing: border-box;
+}
+/* Last resort on a frame too short even for the compact rite: the words
+   scroll (the corner button stays put). */
+.gr-rite.is-overflowing .gr-rite-text {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Centred while it fits, top-aligned (never cut off above) when it does not. */
+.gr-rite-text > :first-child {
+  margin-top: auto;
+}
+.gr-rite-text > :last-child {
+  margin-bottom: auto;
+}
+/* Never squash a line to fit: fitRite compacts the rite instead. */
+.gr-rite-text > * {
+  flex-shrink: 0;
 }
 .gr-rite-text > .gr-kicker {
   animation: ce-rise 420ms 200ms both;
@@ -423,27 +445,21 @@
 .gr-seal-words b {
   font: 600 calc(13px * var(--ce-scale)) / 1.2 var(--re-body);
   color: var(--ce-ivory);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
+/* A seal's words wrap in a narrow column; a skill or Oath name never loses its end. */
 .gr-seal-words small {
   font: calc(11px * var(--ce-scale)) / 1.2 var(--re-body);
   color: var(--ce-gold-5);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 /* Short landscape frames: each sealed beat reads on one line (title · detail) so the
-   rite's spoken line keeps its room above the corner button. */
+   rite's spoken line keeps its room above the corner button; the detail wraps under
+   the title when the column is too narrow for both. */
 @media (max-height: 420px) {
   .gr-rite .gr-seal-words {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: calc(6px * var(--ce-scale));
-  }
-  .gr-rite .gr-seal-words b {
-    flex: none;
+    gap: 0 calc(6px * var(--ce-scale));
   }
   .gr-rite .gr-seal-glyph {
     width: calc(20px * var(--ce-scale, 1));
@@ -467,6 +483,72 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   animation: ce-fade 500ms var(--gr-seals-at, 0ms) both;
+}
+/* fitRite, step 1: a smaller crest and class name, tighter stats and seals. */
+.gr-rite.is-tight .gr-rite-text {
+  gap: calc(2px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-crest-stack {
+  width: calc(44px * var(--ce-scale));
+  height: calc(44px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-name {
+  font-size: calc(24px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-rite-text > .ce-hairline {
+  margin: calc(1px * var(--ce-scale)) 0 calc(2px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-rite-stats {
+  grid-template-columns: repeat(auto-fill, minmax(calc(66px * var(--ce-scale)), 1fr));
+  gap: calc(3px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-stat {
+  gap: 3px;
+  padding: calc(2px * var(--ce-scale)) calc(6px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-stat dd {
+  gap: 3px;
+  font-size: calc(13px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-seals {
+  gap: calc(2px * var(--ce-scale)) calc(6px * var(--ce-scale));
+  margin-top: calc(2px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-seal {
+  gap: calc(5px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-seal-glyph {
+  width: calc(18px * var(--ce-scale));
+  height: calc(18px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-seal-words b {
+  font-size: calc(12px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-seal-words small {
+  font-size: calc(10.5px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-rite-note {
+  margin: 0;
+  font-size: calc(10.5px * var(--ce-scale));
+}
+.gr-rite.is-tight .gr-rite-quote {
+  margin-top: calc(2px * var(--ce-scale));
+  font-size: calc(12px * var(--ce-scale));
+}
+/* Step 2: the figure's column narrows (the figure scales down with it) and
+   the words take the width, wrapping less. */
+.gr-rite.is-tighter {
+  grid-template-columns: minmax(0, 27%) minmax(0, 1fr);
+}
+.gr-rite.is-tighter .gr-rite-bust,
+.gr-rite.is-tighter .gr-sun {
+  width: min(var(--gr-fig), 100%);
+  height: auto;
+  aspect-ratio: 1;
+}
+.gr-rite.is-tighter .gr-rite-plinth {
+  transform: scale(0.75);
+  transform-origin: 100% 100%;
 }
 .gr-rite > .gr-continue {
   position: absolute;
@@ -509,6 +591,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* A screen-framed card (colosseum, roster) keeps clear of the notch and the
+     home bar; a map frame already sits inside them (--ce-safe-* are 0 there). */
+  padding: var(--ce-safe-t) var(--ce-safe-r) var(--ce-safe-b) var(--ce-safe-l);
+  box-sizing: border-box;
 }
 .gr-level {
   position: relative;
@@ -564,6 +650,11 @@
   flex-direction: column;
   gap: calc(6px * var(--ce-scale));
   overflow-y: auto;
+}
+/* Never squash a line to fit: fitLevelCard compacts the card instead (and the
+   column scrolls, the Continue row pinned, if even that is not enough). */
+.gr-level-main > * {
+  flex-shrink: 0;
 }
 .gr-level-head {
   display: flex;
@@ -707,8 +798,9 @@
 }
 .gr-level-beat {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 0 10px;
   padding: 3px 8px;
   animation: gr-beat 520ms var(--gr-beat-at, 0ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -721,9 +813,7 @@
   font: italic calc(12px * var(--ce-scale)) / 1.3 var(--re-body);
   color: var(--re-muted);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* The caption wraps under the word on a narrow card rather than losing its end. */
 }
 .gr-level-beat--perfect {
   background: linear-gradient(90deg, rgba(220, 160, 68, 0.22), transparent);
@@ -758,8 +848,9 @@
   font: italic calc(12.5px * var(--ce-scale)) / 1.35 var(--re-body);
   color: var(--ce-bone);
   display: -webkit-box;
-  /* Two lines on most frames; the narrowest phone frame takes a third, never an ellipsis. */
-  -webkit-line-clamp: 3;
+  /* Two lines on most frames, three on the narrowest; a sanity bound only
+     (fitLevelCard makes room for the whole line). */
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   /* The unit reacts once the gains are in. */
@@ -774,6 +865,45 @@
   justify-content: space-between;
   gap: 10px;
   margin-top: 2px;
+}
+/* Last resort on a frame too short even for the compact card: the words
+   scroll under a pinned Continue row. */
+.gr-level.is-overflowing .gr-level-foot {
+  position: sticky;
+  bottom: 0;
+  background: rgba(14, 12, 20, 0.97);
+}
+/* fitLevelCard, step 1: tighter rows, one-line seals. */
+.gr-level.is-tight {
+  gap: calc(10px * var(--ce-scale));
+  padding-block: calc(8px * var(--ce-scale));
+}
+.gr-level.is-tight .gr-level-main {
+  gap: calc(4px * var(--ce-scale));
+}
+.gr-level.is-tight .gr-level-row {
+  min-height: calc(19px * var(--ce-scale));
+}
+.gr-level.is-tight .gr-level-beat {
+  padding-block: 2px;
+}
+.gr-level.is-tight .gr-seals--level {
+  gap: 2px;
+  margin-top: 0;
+}
+.gr-level.is-tight .gr-seals--level .gr-seal-words {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: calc(6px * var(--ce-scale));
+}
+.gr-level.is-tight .gr-seals--level .gr-seal-glyph {
+  width: calc(20px * var(--ce-scale));
+  height: calc(20px * var(--ce-scale));
+}
+/* Step 2: the portrait's column goes to the words. */
+.gr-level.is-tighter > .gr-level-portrait {
+  display: none;
 }
 .gr-level-status {
   margin: 0;
@@ -845,8 +975,17 @@
   bottom: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   min-width: 0;
+}
+/* Centred in the band; never squashed (fitJoinBand grows the band instead). */
+.gr-join-text > * {
+  flex-shrink: 0;
+}
+.gr-join-text > :first-child {
+  margin-top: auto;
+}
+.gr-join-text > :last-child {
+  margin-bottom: auto;
 }
 .gr-join-text > * {
   animation: ce-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -888,13 +1027,15 @@
   font: italic calc(13px * var(--ce-scale)) / 1.35 var(--re-body);
   color: var(--ce-bone);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* A sanity bound only: a ~90-character line takes three lines on the
+     narrowest phone band, and fitJoinBand makes room for all of it. */
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .gr-join-legend {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-top: calc(6px * var(--ce-scale));
   min-width: 0;
@@ -902,18 +1043,28 @@
   color: var(--re-muted);
 }
 .gr-join-legend .gr-seal-glyph {
+  flex: none;
   width: calc(20px * var(--ce-scale));
   height: calc(20px * var(--ce-scale));
 }
+.gr-join-legend-words {
+  min-width: 0;
+  align-self: center;
+}
 .gr-join-legend b {
-  flex: none;
   color: var(--ce-gold-5);
 }
-.gr-join-legend span {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+/* fitJoinBand, once the band fills the frame: tighter type. */
+.gr-join.is-tight .gr-join-name {
+  font-size: calc(26px * var(--ce-scale));
+}
+.gr-join.is-tight .gr-join-line {
+  margin-top: calc(3px * var(--ce-scale));
+  font-size: calc(12px * var(--ce-scale));
+}
+.gr-join.is-tight .gr-join-legend {
+  margin-top: calc(3px * var(--ce-scale));
+  font-size: calc(11px * var(--ce-scale));
 }
 .gr-join-text .ce-hairline {
   width: min(calc(240px * var(--ce-scale)), 100%);
@@ -983,6 +1134,7 @@
   min-height: 0;
 }
 .gr-chooser-lead {
+  flex: none;
   margin: 0;
   color: var(--re-muted);
   white-space: nowrap;
@@ -997,6 +1149,10 @@
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  /* A card taller than the scroll area keeps its height (and scrolls): an auto
+     row in this fixed-height grid was capped at the area, squashing the card
+     with its class name pushed above the top, out of scroll reach. */
+  grid-auto-rows: max-content;
   gap: 10px;
   overflow-y: auto;
   align-content: start;
@@ -1025,8 +1181,9 @@
 }
 .gr-path-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   min-width: 0;
 }
 .gr-path-crest {
@@ -1036,29 +1193,26 @@
 .gr-path-title {
   display: flex;
   flex-direction: column;
+  /* At least as wide as the class name (its min-content): on a narrow card the
+     portrait and sprites wrap below rather than squeezing the name to "Gen…". */
   flex: 1 1 auto;
-  min-width: 0;
 }
 .gr-path-title strong {
   font-size: 17px;
   line-height: 1.2;
   color: var(--re-accent-text);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .gr-path-title small {
   font-size: 12px;
   color: var(--re-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .gr-path-figures {
   flex: none;
   display: flex;
   align-items: flex-end;
   gap: 4px;
+  margin-left: auto;
 }
 .gr-path-portrait {
   width: 48px;
@@ -1126,16 +1280,12 @@
   border-color: var(--re-verdigris-deep);
 }
 .gr-path-skill {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  /* The skill (or the Oath, which also names its deed) reads in full: the
+     paths scroll, so a third line on a narrow card is fine; a clamp cut it. */
+  display: block;
   font-size: 13px;
   line-height: 1.35;
   color: var(--re-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 .gr-path-skill .gr-glyph {
   width: 16px;

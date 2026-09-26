@@ -200,3 +200,50 @@ export function collectErrors(page) {
 
   return errors;
 }
+
+/**
+ * Install one connected, standard-mapped fake gamepad. The global GamepadReader
+ * reads it only when the page URL carries `?gamepadSim`.
+ */
+export async function installSimPad(page) {
+  await page.evaluate(() => {
+    window.__gamepadSim = {
+      pads: [
+        {
+          connected: true,
+          mapping: 'standard',
+          buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })),
+          axes: [0, 0, 0, 0],
+        },
+      ],
+    };
+  });
+}
+
+/**
+ * One discrete press of sim-pad button `index`, held for exactly one GamepadReader
+ * poll. The reader polls on the game's 'step' event, so the press is set between
+ * frames, released on that frame's 'poststep', and the call resolves after the next
+ * frame's poll has seen the release. A press can therefore never be missed (both
+ * edges between two polls) nor read as a held direction (auto-repeat after 250 ms),
+ * however slowly the page runs. Timed holds (press, sleep, release) raced both.
+ */
+export async function padTap(page, index) {
+  await page.evaluate(
+    (i) =>
+      new Promise((resolve, reject) => {
+        const game = window.__emblemRogueGame;
+        const pad = window.__gamepadSim?.pads?.[0];
+        if (!game?.events || !pad) {
+          reject(new Error('padTap: no game or sim pad (installSimPad, ?gamepadSim)'));
+          return;
+        }
+        pad.buttons[i] = { pressed: true, value: 1 };
+        game.events.once('poststep', () => {
+          pad.buttons[i] = { pressed: false, value: 0 };
+          game.events.once('poststep', () => resolve());
+        });
+      }),
+    index,
+  );
+}

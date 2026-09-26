@@ -5,7 +5,10 @@
 .bt-battlefield.re-screen {
   background: transparent;
   gap: 4px;
-  padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
+  /* Tight 6px top and bottom, but never under the home bar: the Rewind row sits
+     on the bottom edge (a notched phone reserves ~21px there in landscape). */
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
 }
 .bt-battlefield .re-header,
 .bt-battlefield .bt-help,

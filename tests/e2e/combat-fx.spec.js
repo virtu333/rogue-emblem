@@ -373,10 +373,17 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
         // the traced default the reset lands mid-lunge, before the first contact, so that
         // number can still be fading here; let the self-destroying floaters finish before
         // counting what was left behind.
-        const t1 = performance.now();
+        // Bound the wait in game time (the frame deltas the tweens advance by), not wall
+        // time: on a slow machine a floater's tween still runs well past 3 s of wall time.
         const floating = () => s.children.list.some((o) => o.type === 'Text' && o.depth === 300);
-        while (floating() && performance.now() - t1 < 3000)
-          await new Promise((r) => setTimeout(r, 50));
+        let gameMs = 0;
+        const onStep = (_time, delta) => (gameMs += delta);
+        s.game.events.on('step', onStep);
+        try {
+          while (floating() && gameMs < 3000) await new Promise((r) => setTimeout(r, 50));
+        } finally {
+          s.game.events.off('step', onStep);
+        }
         return { mid, created, after: s.children.list.length, home, ...h.aftermath([a, b]) };
       },
       { weapon, distance, waitMs },

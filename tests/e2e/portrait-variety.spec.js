@@ -13,7 +13,7 @@ test.use({ viewport: { width: 1280, height: 800 } });
 test('two Fighters in the roster wear different faces', async ({ page }) => {
   const { faces } = await openRosterWithTwoFighters(page);
   await expectDistinctFighters(page, faces);
-  await page.screenshot({ path: `${SHOTS}/roster-1280x800.png` });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/roster-1280x800.png` });
 });
 
 test('every unit on a battle map has its face; canvas faces load lazily', async ({ page }) => {
