@@ -35,7 +35,7 @@ emblem-rogue/
 │   ├── accessories.json   # 33 accessories: 10 stat-based + 23 with combatEffects (incl. legendaries: Mentor's Band EXP Share, Mercury Sandals)
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules
 │   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers
-│   ├── classes.json       # 52 entries: 21 base + 30 promoted + 1 boss-tier class
+│   ├── classes.json       # 53 entries: 22 base + 30 promoted + 1 boss-tier class
 │   ├── colosseum.json     # Mercenary arena config: merc pools, ladder, promotion scaling
 │   ├── consumables.json   # 15 consumable items: 3 core + 8 stat boosters + 2 reclass seals + 2 misc
 │   ├── dialogue.json      # Recruit lines, story sequences, map/shop flavor, unitVoice (level-up / promotion / last words: class × trait × temperament, 7 lord voices)

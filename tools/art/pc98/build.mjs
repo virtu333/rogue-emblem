@@ -140,12 +140,21 @@ async function loadSource(id) {
   };
 }
 
-const atlasTiles = Object.fromEntries(ATLAS_SIZES.map((s) => [s, []]));
+// Atlas tiles by portrait id (defaults only), per atlas size.
+const atlasTiles = Object.fromEntries(ATLAS_SIZES.map((s) => [s, new Map()]));
 const provenance = { generator: 'tools/art/pc98/build.mjs', portraits: {} };
 const runtime = { portraits: {} };
 const previous = existsSync(RUNTIME_MANIFEST)
   ? JSON.parse(readFileSync(RUNTIME_MANIFEST, 'utf8'))
   : null;
+// Atlas frames as the atlases on disk hold them (snapshot: runtime entries below share
+// objects with the previous manifest and get re-indexed in place).
+const previousFrames = Object.fromEntries(
+  Object.entries(previous?.portraits || {})
+    .filter(([, entry]) => Number.isInteger(entry.frame))
+    .map(([id, entry]) => [id, entry.frame]),
+);
+const previousColumns = previous?.atlas?.columns;
 const previousProvenance = existsSync(PROVENANCE)
   ? JSON.parse(readFileSync(PROVENANCE, 'utf8'))
   : null;
@@ -202,7 +211,7 @@ for (const id of todo) {
     // Defaults only: variants load lazily as figures (no baked 192, no atlas).
     if (!isVariant(id)) {
       if (size === MASTER_SIZE) await writePng(join(OUT, 'baked', `${id}.png`), baked);
-      if (ATLAS_SIZES.includes(size)) atlasTiles[size].push(toRgba(baked));
+      if (ATLAS_SIZES.includes(size)) atlasTiles[size].set(id, toRgba(baked));
     }
     sizes[size] = { colours: fig.colours, palette: fig.palette.slice(1).map(hex) };
   }
@@ -247,28 +256,54 @@ for (const faction of FACTIONS) {
     });
 }
 
-// Canvas atlases (full builds only: frames are indexed by sorted id).
-if (!ONLY)
-  for (const size of ATLAS_SIZES) {
-    const rows = Math.ceil(atlasTiles[size].length / ATLAS_COLUMNS);
-    const composites = atlasTiles[size].map((rgba, i) => ({
-      input: Buffer.from(rgba),
-      raw: { width: size, height: size, channels: 4 },
-      left: (i % ATLAS_COLUMNS) * size,
-      top: Math.floor(i / ATLAS_COLUMNS) * size,
-    }));
-    await sharp({
-      create: {
-        width: ATLAS_COLUMNS * size,
-        height: rows * size,
-        channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
-      },
-    })
-      .composite(composites)
-      .png({ compressionLevel: 9, adaptiveFiltering: true })
-      .toFile(join(OUT, 'atlas', `${size}.png`));
-  }
+// Canvas atlases: frames index the defaults in sorted order. A partial build (--only)
+// can add or remove a default, which moves every later frame, so the atlases are always
+// recomposed: tiles rendered this run, the rest cut from the previous atlases at their
+// previous frames (the previous manifest describes the atlases on disk).
+const defaultOrder = order.filter((id) => !runtime.portraits[id].variant);
+for (const size of ATLAS_SIZES) {
+  const file = join(OUT, 'atlas', `${size}.png`);
+  let old = null;
+  const tileFor = async (id) => {
+    if (atlasTiles[size].has(id)) return atlasTiles[size].get(id);
+    const frame = previousFrames[id];
+    if (!Number.isInteger(frame) || !existsSync(file))
+      throw new Error(`atlas ${size}: no tile for ${id} (run a full build)`);
+    old ||= await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const cols = previousColumns || ATLAS_COLUMNS;
+    const tile = Buffer.alloc(size * size * 4);
+    const x0 = (frame % cols) * size;
+    const y0 = Math.floor(frame / cols) * size;
+    for (let y = 0; y < size; y++)
+      old.data.copy(
+        tile,
+        y * size * 4,
+        ((y0 + y) * old.info.width + x0) * 4,
+        ((y0 + y) * old.info.width + x0 + size) * 4,
+      );
+    return new Uint8Array(tile);
+  };
+  const tiles = [];
+  for (const id of defaultOrder) tiles.push(await tileFor(id));
+  const rows = Math.ceil(tiles.length / ATLAS_COLUMNS);
+  const composites = tiles.map((rgba, i) => ({
+    input: Buffer.from(rgba),
+    raw: { width: size, height: size, channels: 4 },
+    left: (i % ATLAS_COLUMNS) * size,
+    top: Math.floor(i / ATLAS_COLUMNS) * size,
+  }));
+  await sharp({
+    create: {
+      width: ATLAS_COLUMNS * size,
+      height: rows * size,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite(composites)
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toFile(file);
+}
 
 const runtimeManifest = {
   version: 1,

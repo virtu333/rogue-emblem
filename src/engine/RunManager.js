@@ -102,6 +102,7 @@ import {
   resolveStartingLordDefs,
   DEFAULT_STARTING_LORD_NAMES,
 } from './Commander.js';
+import { unitBaseClassName } from './ClassLineage.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -974,7 +975,6 @@ export class RunManager {
 
     // Build protection sets for displacement logic
     const personalSkillIds = this._getPersonalSkillIdSet();
-    const classByName = new Map((this.gameData?.classes || []).map((c) => [c.name, c]));
 
     for (const unit of this.roster) {
       const blocked = Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : [];
@@ -987,12 +987,10 @@ export class RunManager {
       for (const sid of getClassInnateSkills(unit.className, this.gameData?.skills || [])) {
         unitInnateIds.add(sid);
       }
-      const unitClass = classByName.get(unit.className);
-      if (unitClass?.promotesFrom) {
-        for (const sid of getClassInnateSkills(
-          unitClass.promotesFrom,
-          this.gameData?.skills || [],
-        )) {
+      const lineBase =
+        unit.tier === 'promoted' ? unitBaseClassName(unit, this.gameData?.classes) : null;
+      if (lineBase) {
+        for (const sid of getClassInnateSkills(lineBase, this.gameData?.skills || [])) {
           unitInnateIds.add(sid);
         }
       }
@@ -4214,7 +4212,6 @@ export class RunManager {
     const classes = runManager.gameData?.classes || [];
     const skillsData = runManager.gameData?.skills || [];
     if (!classes.length || !skillsData.length) return;
-    const classByName = new Map(classes.map((c) => [c.name, c]));
     const applyInnates = (unit) => {
       if (!unit) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
@@ -4224,8 +4221,8 @@ export class RunManager {
         }
       };
       if (unit.className) addInnatesFor(unit.className);
-      const promotedClass = classByName.get(unit.className);
-      if (promotedClass?.promotesFrom) addInnatesFor(promotedClass.promotesFrom);
+      const lineBase = unit.tier === 'promoted' ? unitBaseClassName(unit, classes) : null;
+      if (lineBase) addInnatesFor(lineBase);
     };
     runManager.roster.forEach(applyInnates);
     runManager.fallenUnits.forEach(applyInnates);
@@ -4262,8 +4259,9 @@ export class RunManager {
         }
       }
 
-      if (unit.tier === 'promoted' && unit.level >= 10 && currentClass.promotesFrom) {
-        const baseClass = classByName.get(currentClass.promotesFrom);
+      const lineBase = unit.tier === 'promoted' ? unitBaseClassName(unit, classes) : null;
+      if (unit.tier === 'promoted' && unit.level >= 10 && lineBase) {
+        const baseClass = classByName.get(lineBase);
         for (const entry of baseClass?.learnableSkills || []) {
           tryLearn(entry.skillId);
         }
