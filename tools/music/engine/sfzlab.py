@@ -7,7 +7,8 @@ tweak (a faster legato transition, an accent layer that fires only on a
 phrase's first note, a second round robin). Rather than edit the libraries,
 a program is parsed into blocks, transformed, and written as a flat file with
 absolute sample paths into the lab directory (`MUSIC_LAB_DIR`, default
-`References/music-lab`). Nothing here runs unless a lab palette is selected.
+`References/music-lab`). The default palette uses it only to hold the sfizz
+programs' samples in memory (engine/sfzrender.py), in a throwaway folder.
 
   prog = load(path)                      # flattened blocks
   prog = with_opcodes(prog, 'group', {'off_time': '0.12'}, where={'trigger': 'legato'})
@@ -402,11 +403,12 @@ def ram_based(prog):
     return [('control', [('hint_ram_based', '1')])] + prog
 
 
-def write(prog, name: str) -> str:
-    """Write a program into the lab dir; the file name carries a content hash."""
+def write(prog, name: str, directory: str | None = None) -> str:
+    """Write a program into the lab dir (or `directory`); the file name carries
+    a content hash."""
     body = text(ram_based(prog))
     h = hashlib.sha1(body.encode()).hexdigest()[:10]
-    d = os.path.join(LAB_DIR, 'sfz')
+    d = directory or os.path.join(LAB_DIR, 'sfz')
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, f'{name}-{h}.sfz')
     if not os.path.exists(path):

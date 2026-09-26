@@ -29,7 +29,13 @@ def _t(sec):
 _LOADED = {}
 
 
-def _in_ram(sfz: str, events) -> str:
+def ram_mode() -> bool:
+    """In-memory sample loading is the default; MUSIC_SFIZZ_RAM=0 streams
+    samples the way plain sfizz_render does."""
+    return os.environ.get('MUSIC_SFIZZ_RAM', '1') != '0'
+
+
+def _in_ram(sfz: str, events, directory: str) -> str:
     """The same program flattened with its samples held in memory (engine/sfzlab.py).
 
     sfizz preloads 8192 frames of each sample and streams the rest from a
@@ -37,8 +43,9 @@ def _in_ram(sfz: str, events) -> str:
     busy machine a note longer than ~0.19 s can fall silent part-way (seen
     on the Growlybass, Virtuosity kit and Splendid Grand programs). In RAM the
     render is the clean render, bit for bit. Only the regions this render
-    can trigger (its keys and velocities) are kept, so a 1.4 GB drum kit does
-    not have to fit in memory. Opt-in: MUSIC_SFIZZ_RAM=1."""
+    can trigger (its keys) are kept, so a 1.4 GB drum kit does not have to
+    fit in memory. The program is written into `directory` (the render's
+    scratch folder), so renders leave no files behind."""
     from . import sfzlab
     if sfz not in _LOADED:
         _LOADED[sfz] = sfzlab.load(sfz)
@@ -53,19 +60,24 @@ def _in_ram(sfz: str, events) -> str:
             lo, hi, _ = sfzlab.region_keys(list(r.items()))
         except ValueError:
             return True
-        lv, hv = int(float(r.get('lovel', 0))), int(float(r.get('hivel', 127)))
         return any(lo <= k <= hi for k in vels)
 
     prog = sfzlab.keep_regions(_LOADED[sfz], used)
-    return sfzlab.write(prog, 'ram-' + os.path.splitext(os.path.basename(sfz))[0].replace(' ', '_'))
+    return sfzlab.write(prog, 'ram-' + os.path.splitext(os.path.basename(sfz))[0].replace(' ', '_'),
+                        directory=directory)
 
 
 def render_sfz(sfz: str, events, n_frames: int, cc: dict | None = None,
                cc_events=None, polyphony: int = 256) -> np.ndarray:
     """events: (t, dur, key, vel01). cc: initial {cc: value}. cc_events: (t, cc, value)."""
-    if os.environ.get('MUSIC_SFIZZ_RAM') == '1' and '/music-lab/' not in sfz:
-        events = list(events)
-        sfz = _in_ram(sfz, events)
+    events = list(events)
+    with tempfile.TemporaryDirectory() as td:
+        if ram_mode() and '/music-lab/' not in sfz:
+            sfz = _in_ram(sfz, events, td)
+        return _render(sfz, events, n_frames, cc, cc_events, polyphony, td)
+
+
+def _render(sfz, events, n_frames, cc, cc_events, polyphony, td) -> np.ndarray:
     mid = mido.MidiFile(ticks_per_beat=PPQ)
     tr = mido.MidiTrack()
     mid.tracks.append(tr)
@@ -88,14 +100,13 @@ def render_sfz(sfz: str, events, n_frames: int, cc: dict | None = None,
         prev = tick
         tr.append(msg)
     tr.append(mido.MetaMessage('end_of_track', time=0))
-    with tempfile.TemporaryDirectory() as td:
-        mpath = os.path.join(td, 'p.mid')
-        wpath = os.path.join(td, 'p.wav')
-        mid.save(mpath)
-        subprocess.run(['sfizz_render', '--sfz', sfz, '--midi', mpath, '--wav', wpath,
-                        '-s', str(SR), '-q', '3', '-b', '64', '-p', str(polyphony), '--use-eot'],
-                       check=True, capture_output=True)
-        x, sr = sf.read(wpath, dtype='float32', always_2d=True)
+    mpath = os.path.join(td, 'p.mid')
+    wpath = os.path.join(td, 'p.wav')
+    mid.save(mpath)
+    subprocess.run(['sfizz_render', '--sfz', sfz, '--midi', mpath, '--wav', wpath,
+                    '-s', str(SR), '-q', '3', '-b', '64', '-p', str(polyphony), '--use-eot'],
+                   check=True, capture_output=True)
+    x, sr = sf.read(wpath, dtype='float32', always_2d=True)
     assert sr == SR
     out = np.zeros((n_frames, 2), np.float32)
     n = min(n_frames, len(x))
