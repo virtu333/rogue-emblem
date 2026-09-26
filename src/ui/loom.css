@@ -816,6 +816,16 @@
     gap: 5px;
     padding-right: 5px;
   }
+  /* A ~41 px text column: "99/99 HP" did not fit and read "99/9…". The numbers
+     stay whole above their health bar; "HP" is kept for screen readers only. */
+  .re-loom-screen .re-node-unit .re-loom-hp-unit {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 /* Desktop pointer: one chip per row with the class name. */
 html:not(.touch-ui):not(.mobile-preview) .re-loom-party {

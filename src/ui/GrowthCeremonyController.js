@@ -21,7 +21,9 @@ import {
   canRenderCeremony,
   ceremonyPortrait,
   el,
+  fitSteps,
   fitText,
+  flowOverflow,
   hairline,
 } from './ceremonyDom.js';
 import {
@@ -270,6 +272,10 @@ export class GrowthCeremonyController {
       const h = parseFloat(root.style.height) || 0;
       root.style.setProperty('--gr-fig', `${figureSize(w, h)}px`);
     });
+    // Every line (seals, notes, the spoken line) inside the frame and clear of
+    // the corner button: the rite compacts on a short phone frame. The class
+    // names fit their width after it (a compact step changes their size).
+    layer.addFitter(() => fitRite(view.card, [view.nameTo, view.nameFrom]));
     layer.addFitter(() => fitText(view.nameTo, { min: 16 }));
     layer.addFitter(() => fitText(view.nameFrom, { min: 14 }));
     const releaseInput = this._holdSceneInput();
@@ -370,6 +376,8 @@ export class GrowthCeremonyController {
     root.style.setProperty('--gr-seal', ms(timing.seal));
     const view = buildLevelCard(this.scene, unit, content, layer);
     root.append(el('div', 'gr-veil gr-veil--soft'), view.card);
+    // Every line reads in full on a short phone frame: the card compacts.
+    layer.addFitter(() => fitLevelCard(view.card));
     const releaseInput = this._holdSceneInput();
     if (cue)
       void this._cue(levelUpCue(content.kind), {
@@ -455,6 +463,9 @@ export class GrowthCeremonyController {
     const view = buildJoinCard(this.scene, unit, content);
     layer.root.append(el('div', 'ce-dim ce-dim--soft'), view.card);
     layer.addFitter(() => fitText(view.name, { min: 16 }));
+    // A two-line recruit line and a legendary trait outgrow the band's design
+    // height on a phone: the band grows (then the type tightens) to hold them.
+    layer.addFitter(() => fitJoinBand(view.card));
     const releaseInput = this._holdSceneInput();
     void this._cue('recruit', { fallbackSfx: 'sfx_confirm', waitMs: 300 });
     try {
@@ -921,6 +932,75 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   return { card, button, status };
 }
 
+/** Compaction steps for the join card once its band has grown to the frame. */
+export const JOIN_FIT_STEPS = Object.freeze(['is-tight']);
+
+/**
+ * Fit a join card's words to its band: the band (centred) grows past its
+ * design height to hold every line, keeping clear of the "Tap to continue"
+ * hint; only a frame too short for that tightens the type. Layout only.
+ */
+export function fitJoinBand(card) {
+  const text = card?.querySelector?.('.gr-join-text');
+  const band = card?.querySelector?.('.gr-join-band');
+  if (!text?.isConnected || !band) return null;
+  card.style.removeProperty('--ce-band-h');
+  const designed = band.clientHeight;
+  const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
+  const hint = card.querySelector('.ce-skip');
+  const reserve = (hint?.offsetHeight || 12) + 16;
+  const most = Math.max(designed, frame - 2 * reserve);
+  const grow = () => {
+    card.style.removeProperty('--ce-band-h');
+    const over = flowOverflow(text);
+    if (!(over > 0.5)) return 0;
+    const want = Math.ceil(band.clientHeight + over + 8); // breathing room
+    card.style.setProperty('--ce-band-h', `${Math.min(most, want)}px`);
+    return flowOverflow(text);
+  };
+  return fitSteps(card, JOIN_FIT_STEPS, grow);
+}
+
+/** Compaction steps for the promotion rite, gentlest first (growth.css). */
+export const RITE_FIT_STEPS = Object.freeze(['is-tight', 'is-tighter']);
+
+/**
+ * Fit the promotion rite's words to its frame: stat bonuses, sealed beats
+ * (ranks, skills, the Oath), the growth/skill-limit note and the spoken line
+ * outgrow a short phone frame. The rite first tightens its type and spacing,
+ * then narrows the figure's column; beyond that the words scroll. `names`
+ * (the class names) lose any width fit first so each step reads its own size.
+ */
+export function fitRite(card, names = []) {
+  const text = card?.querySelector?.('.gr-rite-text');
+  if (!text?.isConnected) return null;
+  for (const name of names) if (name?.style) name.style.fontSize = '';
+  card.classList.remove('is-overflowing');
+  const fit = fitSteps(card, RITE_FIT_STEPS, () => flowOverflow(text));
+  if (fit && !fit.fits) card.classList.add('is-overflowing');
+  return fit;
+}
+
+/** Compaction steps for the level-up card, gentlest first (growth.css). */
+export const LEVEL_FIT_STEPS = Object.freeze(['is-tight', 'is-tighter']);
+
+/**
+ * Fit a level-up card to its frame: a long spoken line, a caption and new
+ * skills on a short phone frame used to squash the line to a sliver. The
+ * card first tightens its rows and seals, then gives the portrait's column
+ * to the words. Layout only (scroll sizes ignore the entrance transforms).
+ */
+export function fitLevelCard(card) {
+  const main = card?.querySelector?.('.gr-level-main');
+  if (!main?.isConnected) return null;
+  card.classList.remove('is-overflowing');
+  const fit = fitSteps(card, LEVEL_FIT_STEPS, () => main.scrollHeight - main.clientHeight);
+  // Still too tall (a frame shorter than any phone): the column scrolls and
+  // the Continue row stays pinned in view.
+  if (fit && !fit.fits) card.classList.add('is-overflowing');
+  return fit;
+}
+
 /**
  * One deed title card (exported for review tooling and tests). The unit's
  * portrait stands in a slashed ink band; kicker, NAME, the epithet over a
@@ -1045,11 +1125,15 @@ export function buildJoinCard(scene, unit, content) {
   if (content.line) text.append(el('p', 'gr-join-line', `“${content.line}”`));
   if (content.legendary) {
     const seal = el('div', 'gr-join-legend');
-    seal.append(
-      skillGlyph(content.legendary.id, 'gr-seal-glyph'),
+    // Name and effect flow as one wrapping line beside the glyph: the effect
+    // is the news, so it is never cut short.
+    const words = el('span', 'gr-join-legend-words');
+    words.append(
       el('b', '', `Legendary · ${content.legendary.name}`),
+      document.createTextNode(' '),
       el('span', '', content.legendary.description),
     );
+    seal.append(skillGlyph(content.legendary.id, 'gr-seal-glyph'), words);
     text.append(seal);
   }
   text.append(hairline('gold'));

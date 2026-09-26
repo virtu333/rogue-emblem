@@ -224,6 +224,10 @@ describe('lord falls: FALLEN band + Sera offer over the unchanged decision', () 
     expect(dom.doc.activeElement.textContent).toBe('Rewind · 1 left');
     expect(hudHost.inert).toBe(true);
     expect(scene.battleState).toBe('PAUSED');
+    // Framed on the map (622 px beside the rail in an 844 px viewport): the
+    // frame's distance from each screen edge feeds the band's safe insets.
+    expect(fate.style.getPropertyValue('--ce-frame-l')).toBe('0px');
+    expect(fate.style.getPropertyValue('--ce-frame-r')).toBe('222px');
   });
 
   it('Accept fate settles defeat exactly once and releases everything', () => {
