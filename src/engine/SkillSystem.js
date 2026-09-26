@@ -7,6 +7,7 @@ import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
 import { getTraitCombatMods } from './TraitSystem.js';
+import { ambientRandom } from './BattleRng.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -74,7 +75,7 @@ function isLivingOnMap(unit) {
   return Number.isFinite(Number(unit.col)) && Number.isFinite(Number(unit.row));
 }
 
-export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random) {
+export function resolveGamblerDelta(unit, rollSession = null, rng = ambientRandom) {
   const combatEffects = unit?.accessory?.combatEffects;
   const gambler = combatEffects?.gambler || (combatEffects?.gamblerCoin ? {} : null);
   if (!gambler) return 0;
@@ -94,7 +95,7 @@ export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random)
       ? -Math.abs(rawLossPenalty)
       : Math.trunc(rawLossPenalty)
     : -3;
-  const roller = typeof rng === 'function' ? rng : Math.random;
+  const roller = typeof rng === 'function' ? rng : ambientRandom;
   const delta = roller() < winChance ? winAtkBonus : lossAtkPenalty;
 
   if (rollSession?.gamblerAtkDeltaByUnit instanceof Map) {
@@ -425,7 +426,14 @@ export function getSkillCombatMods(
  * Roll per-strike skill effects after a hit lands.
  * Returns: { modifiedDamage, heal, lethal, astra, activated: [{id, name}] }
  */
-export function rollStrikeSkills(attacker, normalDamage, target, skillsData, combatState = null) {
+export function rollStrikeSkills(
+  attacker,
+  normalDamage,
+  target,
+  skillsData,
+  combatState = null,
+  rng = ambientRandom,
+) {
   const result = {
     modifiedDamage: normalDamage,
     heal: 0,
@@ -457,7 +465,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     if (!skill || skill.trigger !== 'on-attack') continue;
 
     const chance = getActivationChance(attacker, skill.activation);
-    const roll = Math.random() * 100;
+    const roll = rng() * 100;
     if (roll >= chance) continue;
 
     const procPriority = offensiveProcPriority[skill.id];
@@ -549,7 +557,14 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
  * locals), so Miracle's lethality check must use the live value when provided.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
-export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData, liveHP = null) {
+export function rollDefenseSkills(
+  defender,
+  damage,
+  isPhysicalAttack,
+  skillsData,
+  liveHP = null,
+  rng = ambientRandom,
+) {
   const result = {
     modifiedDamage: damage,
     miracleTriggered: false,
@@ -571,7 +586,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     const chance = getActivationChance(defender, skill.activation);
     // Pavise gets a minimum 5% proc floor so it stays relevant on low-SKL units
     const effectiveChance = skill.id === 'pavise' ? Math.max(chance, 5) : chance;
-    const roll = Math.random() * 100;
+    const roll = rng() * 100;
     if (roll >= effectiveChance) continue;
 
     if (skill.id === 'cancel') {
@@ -620,7 +635,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
  * If triggered, the normal strike count is replaced with 5 at half damage.
  * Returns: { triggered, strikeCount, damageMult, name }
  */
-export function checkAstra(attacker, skillsData) {
+export function checkAstra(attacker, skillsData, rng = ambientRandom) {
   if (!skillsData || isSilenced(attacker)) return { triggered: false };
 
   const hasAstra = attacker.skills?.includes('astra') || attacker.weapon?._grantedSkill === 'astra';
@@ -630,7 +645,7 @@ export function checkAstra(attacker, skillsData) {
   if (!skill) return { triggered: false };
 
   const chance = getActivationChance(attacker, skill.activation);
-  if (Math.random() * 100 >= chance) return { triggered: false };
+  if (rng() * 100 >= chance) return { triggered: false };
 
   return { triggered: true, strikeCount: 5, damageMult: 0.5, name: 'Astra' };
 }

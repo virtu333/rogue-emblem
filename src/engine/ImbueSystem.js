@@ -21,6 +21,8 @@
 // player's-choice "Prismatic Stone") resolved from imbues.json through the
 // existing `forge` loot category. Stones never enter inventory.
 
+import { ambientRandom } from './BattleRng.js';
+
 // Item types that cannot be imbued (matches forge exclusions).
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
 
@@ -170,9 +172,9 @@ export function getImbueDisplayInfo(weapon, imbuesData) {
 /**
  * Pick a random imbue definition, weighted by each entry's `weight`.
  * @param {object} imbuesData
- * @param {function} [rng=Math.random]
+ * @param {function} [rng=ambientRandom]
  */
-export function pickRandomImbue(imbuesData, rng = Math.random) {
+export function pickRandomImbue(imbuesData, rng = ambientRandom) {
   const imbues = getImbueList(imbuesData).filter((imbue) => imbue?.id);
   if (imbues.length <= 0) return null;
   const weights = imbues.map((imbue) => {

@@ -12,6 +12,7 @@ import {
   ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
 import { rollHit } from './HitRoll.js';
+import { ambientRandom } from './BattleRng.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
 import { isEntity } from './EntitySystem.js';
@@ -1124,6 +1125,8 @@ export function getCombatForecast(
  * Roll a single strike. Returns an event object for the animation system.
  * strikeSkills (optional): { striker, target, rollStrikeSkills, skillsData }
  *   — for per-hit effects like Sol, Luna, Lethality.
+ * rng: the combat's generator. Draw order per strike: 2RN hit, crit (on a hit),
+ *   on-attack skills, on-defend skills.
  */
 function rollStrike(
   strikerName,
@@ -1138,10 +1141,11 @@ function rollStrike(
   drainPercent = 0,
   perHitHeal = 0,
   critMultiplier = CRIT_MULTIPLIER,
+  rng = ambientRandom,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
-  if (!rollHit(hit)) {
+  if (!rollHit(hit, rng)) {
     return {
       type: 'strike',
       attacker: strikerName,
@@ -1157,7 +1161,7 @@ function rollStrike(
     };
   }
 
-  const isCrit = Math.random() * 100 < critRate;
+  const isCrit = rng() * 100 < critRate;
   let finalDmg = isCrit ? Math.floor(damage * critMultiplier) : damage;
   let heal = 0;
   let extraStrike = false;
@@ -1182,6 +1186,7 @@ function rollStrike(
       strikeSkills.target,
       strikeSkills.skillsData,
       strikeSkills.combatState,
+      rng,
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -1218,6 +1223,7 @@ function rollStrike(
       isPhysicalAtk,
       strikeSkills.skillsData,
       targetHP,
+      rng,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -1304,6 +1310,10 @@ function rollStrike(
  *   checkAstra — function(striker, skillsData)
  *   skillsData — full skills array
  * }
+ * rng: the generator every roll of this combat draws from, nested skill,
+ *   affix and imbue rolls included. A player attack passes the battle RNG
+ *   (BattleScene._playerAttackRng); callers without one draw ambient
+ *   Math.random, which a battle still installs as its RNG.
  */
 export function resolveCombat(
   attacker,
@@ -1314,6 +1324,7 @@ export function resolveCombat(
   atkTerrain,
   defTerrain,
   skillCtx = null,
+  rng = ambientRandom,
 ) {
   const combatSkillState = { adeptUsed: new Set() };
   const events = [];
@@ -1617,6 +1628,7 @@ export function resolveCombat(
         drainPct,
         strikePerHitHeal,
         strikeCritMult,
+        rng,
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
@@ -1682,6 +1694,7 @@ export function resolveCombat(
           drainPct,
           strikePerHitHeal,
           strikeCritMult,
+          rng,
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
@@ -1745,7 +1758,7 @@ export function resolveCombat(
       phaseMultiplier = artMultiHit.damageMultiplier;
       phaseDmg = Math.max(1, Math.floor(dmg * artMultiHit.damageMultiplier));
     } else if (skillCtx?.checkAstra) {
-      const astra = skillCtx.checkAstra(unit, skillCtx.skillsData);
+      const astra = skillCtx.checkAstra(unit, skillCtx.skillsData, rng);
       if (astra.triggered) {
         count = astra.strikeCount;
         phaseMultiplier = astra.damageMult;
@@ -2034,7 +2047,7 @@ export function resolveCombat(
       (event) => event.type === 'strike' && !event.miss && event.attackerSide === sourceSide,
     );
     if (!landedHit) return;
-    if (statusFx.chance < 100 && Math.random() * 100 >= statusFx.chance) return;
+    if (statusFx.chance < 100 && rng() * 100 >= statusFx.chance) return;
     imbueStatusEffects.push({
       target: targetSide,
       sourceSide,

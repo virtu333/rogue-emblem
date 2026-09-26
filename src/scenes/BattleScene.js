@@ -7,7 +7,12 @@ import {
 } from '../ui/BattleHistoryRecorder.js';
 import { hydrateBattleTimeline } from '../engine/BattleTimeline.js';
 import { combatTimelineFacts } from '../engine/BattleTimelineFacts.js';
-import { createBattleRng, keyedBattleRandom } from '../engine/BattleRng.js';
+import {
+  ambientRandom,
+  createBattleRng,
+  keyedBattleRandom,
+  playerAttackRandom,
+} from '../engine/BattleRng.js';
 import { AttackFlowController } from '../ui/AttackFlowController.js';
 import {
   getAttackRange,
@@ -7176,7 +7181,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _gamblerRandom(unit, session) {
-    if (this._battleRewindPolicy !== 'fixed-v1') return Math.random;
+    // legacy-v1 compatibility: the Coin rolls from the live battle stream.
+    if (this._battleRewindPolicy !== 'fixed-v1') return ambientRandom;
     return keyedBattleRandom(
       this.visionBaseSeed,
       `gambler:${session?.key || ''}:${unit?.battleEntityId || unit?.name || ''}`,
@@ -7704,7 +7710,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async _runCombatResolutionAtSpeed(attacker, defender, ctx) {
-    const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
+    // `rng`: the attack's generator (executeCombat); the enemy phase has none
+    // yet and draws ambient Math.random, the installed battle RNG.
+    const { dist, atkTerrain, defTerrain, selectedArt, rng = ambientRandom } = ctx;
 
     // Apply weapon art cost if selected
     if (selectedArt) {
@@ -7729,6 +7737,7 @@ export class BattleScene extends Phaser.Scene {
       atkTerrain,
       defTerrain,
       skillCtx,
+      rng,
     );
 
     if (this.runManager?.battleInProgress)
@@ -7768,6 +7777,7 @@ export class BattleScene extends Phaser.Scene {
           followUp,
           strikeIndex: strikeIndex++,
         });
+        if (event.warpRange > 0) await this._warpAfterStrike(event, attacker, defender, rng);
         if (!event.miss && attacker.faction === 'player' && defender.faction === 'enemy') {
           defender._hitByPlayerThisPhase = true;
         }
@@ -7911,9 +7921,20 @@ export class BattleScene extends Phaser.Scene {
     return true;
   }
 
+  /**
+   * The generator this player attack draws from, handed down explicitly from
+   * executeCombat to resolveCombat and every nested roll; rendering never
+   * receives it. fixed-v1: the battle RNG. legacy-v1 compatibility: ambient
+   * Math.random, as when the battle was saved (see playerAttackRandom).
+   */
+  _playerAttackRng() {
+    return playerAttackRandom(this._battleRewindPolicy, this._battleRng);
+  }
+
   async executeCombat(attacker, defender) {
     this.battleState = 'COMBAT_RESOLVING';
     this.grid.clearAttackHighlights();
+    const rng = this._playerAttackRng();
     this._commitCombatIntent(attacker, defender);
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
@@ -7924,7 +7945,7 @@ export class BattleScene extends Phaser.Scene {
         isPlayerInitiator: true,
         equipArtWeapon: true,
       });
-      const { result } = await this._runCombatResolution(attacker, defender, ctx);
+      const { result } = await this._runCombatResolution(attacker, defender, { ...ctx, rng });
       // The outcome is applied to live state now; every checkpoint from here
       // on reflects it, so none may carry the pre-roll intent.
       this._pendingCommittedAction = null;
@@ -8606,14 +8627,20 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async animateStrike(event, attacker, defender, opts = {}) {
-    const reduced = this._reduceMotion();
+  /** Who struck whom in a strike event of the attacker/defender exchange. */
+  _strikeSides(event, attacker, defender) {
     const strikerIsAttacker =
       event.attackerSide === 'attacker' || event.attackerSide === 'defender'
         ? event.attackerSide === 'attacker'
         : event.attacker === attacker.name;
-    const striker = strikerIsAttacker ? attacker : defender;
-    const target = strikerIsAttacker ? defender : attacker;
+    return strikerIsAttacker
+      ? { striker: attacker, target: defender }
+      : { striker: defender, target: attacker };
+  }
+
+  async animateStrike(event, attacker, defender, opts = {}) {
+    const reduced = this._reduceMotion();
+    const { striker, target } = this._strikeSides(event, attacker, defender);
 
     // Category-annotated procs: striker-side (arts/offense) vs target-side (defense)
     const split = splitStrikeActivations(event.skillActivations, this.gameData.skills || []);
@@ -8669,10 +8696,17 @@ export class BattleScene extends Phaser.Scene {
         this._showStrikeResult(event, striker, target, reduced);
       },
     });
+  }
 
-    if (event.warpRange > 0 && target.currentHP > 0) {
-      await this.executeWarp(target, event.warpRange, striker);
-    }
+  /**
+   * Teleporter: a unit the strike hit and did not fell warps to a random
+   * farthest tile, drawn from the combat's generator right after the strike
+   * is shown (the same point in the stream as when the strike animation made
+   * the draw itself).
+   */
+  async _warpAfterStrike(event, attacker, defender, rng) {
+    const { striker, target } = this._strikeSides(event, attacker, defender);
+    if (target.currentHP > 0) await this.executeWarp(target, event.warpRange, striker, rng);
   }
 
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
@@ -8776,12 +8810,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Execute warp for Teleporter affix. Target is the unit warping. */
-  async executeWarp(unit, range, attacker) {
+  async executeWarp(unit, range, attacker, rng = ambientRandom) {
     const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) =>
       this.getUnitAt(c, r),
     );
     if (bestPicks.length === 0) return;
-    const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
+    const pick = bestPicks[Math.floor(rng() * bestPicks.length)];
     const targets = [
       unit.graphic,
       unit.label,

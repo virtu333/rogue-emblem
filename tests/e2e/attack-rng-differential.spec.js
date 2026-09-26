@@ -10,8 +10,6 @@ import { waitForScene } from './helpers.js';
 
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 
-const battle = () => window.__emblemRogueGame.scene.getScene('Battle');
-
 async function battleIdle(page) {
   // Level-ups from an attack's XP (and the enemy phase) pause on their popup.
   for (let i = 0; i < 240; i++) {

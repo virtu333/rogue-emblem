@@ -1,7 +1,9 @@
+import { ambientRandom } from './BattleRng.js';
+
 // Symmetric continuous 2RN: use the same combat RNG stream for both draws.
 // The forecast shows the real chance (forecastDisplay.hitChancePercent); stat
 // panels keep the rating. Crit and skill activations remain 1RN.
-export function rollHit(hit, rng = Math.random) {
+export function rollHit(hit, rng = ambientRandom) {
   return ((rng() + rng()) / 2) * 100 < hit;
 }
 

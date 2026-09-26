@@ -118,9 +118,14 @@ for (const vp of VIEWPORTS)
 
       // Confirm with every roll a hit and no crit (crit is 0 against 30 LCK):
       // the Cavalier ends at exactly the forecast HP.
+      // A player attack draws from the battle RNG it is handed, never from
+      // Math.random (compression plan step 3): script that generator.
       await page.evaluate(() => {
-        Math.random = () => 0;
-        window.__emblemRogueGame.scene.getScene('Battle').confirmForecastCombat();
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        const allZero = Object.assign(() => 0, { getState: s._battleRng.getState });
+        s._battleRng = allZero;
+        Math.random = allZero;
+        s.confirmForecastCombat();
       });
       await expect
         .poll(
