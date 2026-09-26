@@ -21,7 +21,9 @@ import json
 import math
 import os
 import pickle
+import re
 import subprocess
+import time
 import zlib
 from dataclasses import asdict
 
@@ -47,6 +49,33 @@ def cache_dir() -> str:
     if os.environ.get('MUSIC_CACHE'):
         return os.environ['MUSIC_CACHE']
     return palette.cache_dir() if palette.active() else CACHE
+_STEM_KEY = re.compile(r'[0-9a-f]{16}\.npy')
+
+
+def prune_cache(max_age_days: float, directory: str | None = None) -> tuple[int, int]:
+    """Delete stems not used for `max_age_days` (a cache hit refreshes a stem's
+    time), across every score. Only run when asked: a build never deletes
+    another score's stems. Returns (files removed, bytes freed)."""
+    d = directory or cache_dir()
+    if not os.path.isdir(d):
+        return 0, 0
+    cutoff = time.time() - max_age_days * 86400
+    n = freed = 0
+    for f in os.listdir(d):
+        p = os.path.join(d, f)
+        if not f.endswith('.npy') or '__' not in f:
+            continue
+        try:
+            st = os.stat(p)
+            if st.st_mtime < cutoff:
+                os.remove(p)
+                n += 1
+                freed += st.st_size
+        except FileNotFoundError:
+            pass
+    return n, freed
+
+
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
 ENGINE_VERSION = 9  # bump to invalidate stem caches
 
@@ -212,10 +241,9 @@ class Renderer:
         self.n_f = self.file_f + int(TAIL * SR)
         self.cache = cache_dir()
         os.makedirs(self.cache, exist_ok=True)
-        # bound the disk: stems of other scores are dropped
-        for f in os.listdir(self.cache):
-            if not f.startswith(f'{score.name}__'):
-                os.remove(os.path.join(self.cache, f))
+        # the cache is shared by every score (and by builds running side by side):
+        # a render only ever replaces its own parts' stems (render_part); stale
+        # stems of other scores go only when asked (prune_cache, build.py --prune-cache)
 
     def log(self, *a):
         if self.verbose:
@@ -338,6 +366,10 @@ class Renderer:
                    [(e.accent, e.staccato) for e in intro + loop])))
         path = os.path.join(self.cache, f'{s.name}__{part.name}__{key}.npy')
         if os.path.exists(path):
+            try:
+                os.utime(path)   # last use, for prune_cache
+            except OSError:
+                pass
             return np.load(path).astype(np.float32)
         self.log(f'  render {part.name:14s} ({part.inst}, {len(intro)}+{len(loop)} notes)')
         pedal = part.opts.get('pedal', False)
@@ -369,12 +401,22 @@ class Renderer:
                 if sh < self.n_f:
                     m = min(len(buf), self.n_f - sh)
                     out[sh:sh + m] += buf[:m]
-        # keep one cached version per part (the cache is only an iteration aid)
+        # keep one cached version per part of this score (the cache is only an
+        # iteration aid). Names are <score>__<part>__<key>.npy: the prefix match
+        # never reaches another score's or another part's stems
         prefix = f'{s.name}__{part.name}__'
         for f in os.listdir(self.cache):
-            if f.startswith(prefix) and f != os.path.basename(path):
-                os.remove(os.path.join(self.cache, f))
-        np.save(path, out.astype(np.float16))
+            if f.startswith(prefix) and f != os.path.basename(path) \
+                    and _STEM_KEY.fullmatch(f[len(prefix):]):
+                try:
+                    os.remove(os.path.join(self.cache, f))
+                except FileNotFoundError:
+                    pass   # a concurrent render of the same part got there first
+        # written whole, then renamed: a render running beside this one never
+        # loads half a stem
+        tmp = f'{path}.{os.getpid()}.tmp.npy'
+        np.save(tmp, out.astype(np.float16))
+        os.replace(tmp, path)
         return out
 
     def _process_part(self, part, dry):

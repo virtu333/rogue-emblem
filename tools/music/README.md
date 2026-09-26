@@ -38,6 +38,11 @@ Before rendering, a form check refuses any score with a bar in which nothing sou
 to copy the files to `public/`. `--preview` also writes files to `References/music-preview/`
 that play through the loop jump, so you can listen to the seam.
 
+Rendered stems are cached in `References/music-cache/` (or `MUSIC_CACHE`), shared by
+every score and by builds running side by side. A render keeps the newest stem of each of
+its own parts and never deletes another score's. Nothing else is evicted unless you ask:
+`build.py --prune-cache DAYS` deletes stems (of any score) unused for that many days.
+
 ## Tools
 
 | Script | Purpose |
