@@ -100,6 +100,12 @@ MUSIC_PALETTE=lab:choir python3 tools/music/build.py battle_act3   # writes to R
   saves CPU on a shared machine. Lab renders keep their own stem cache
   (`References/music-lab/cache`, or `MUSIC_CACHE`).
 - A build with a lab palette never writes game assets or the loop tables.
+- `MUSIC_SFIZZ_RAM=1` (off by default) renders the sfizz instruments (kit, bass guitar,
+  grand piano) from a copy of their program with the needed samples held in memory. By
+  default, `sfizz_render` streams sample data from a thread it does not reliably wait for.
+  On a busy machine, notes longer than about 0.19 s can then fall silent part-way. The
+  in-memory render is bit-identical to a clean streamed render. The lab's own programs
+  always load their samples into memory.
 - Licences differ from the default palette's CC0 set. Read the licence notes before
   shipping anything rendered with a lab candidate. VPO3's brass, viola and cello sections
   carry CC BY-SA sources, and SSO4 is CC Sampling Plus (attribution, no advertising).
