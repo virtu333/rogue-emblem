@@ -135,6 +135,7 @@
         "loom-portrait.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
+        "portrait-cards.spec.js",
         "reward-reload.spec.js",
         "rewards-desktop.spec.js",
         "run-recovery.spec.js",

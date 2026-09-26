@@ -12,7 +12,9 @@ import {
   choiceReducedMotion,
   draftFooter,
   draftRow,
+  draftScrollTop,
   fitDraft,
+  keepDraftScroll,
   sealChoice,
   statLegend,
   unitCardLabel,
@@ -127,6 +129,7 @@ export function showArrivalMenu(
     temperamentOf: (unit) => unitTemperament(owner.scene, unit),
   });
   const render = () => {
+    const scrollTop = draftScrollTop(surface.body);
     const row = draftRow(candidates.length, 'ch-candidates');
     candidates.forEach((candidate, i) => {
       const card = unitChoiceCard({
@@ -184,6 +187,7 @@ export function showArrivalMenu(
     const { footer, lead } = draftFooter(inspect, confirm);
     lead.append(statLegend(), feedback);
     surface.body.replaceChildren(row, footer);
+    keepDraftScroll(row, scrollTop);
     stopFit?.();
     stopFit = fitDraft(row);
   };

@@ -100,6 +100,35 @@ and why. The chosen mode's full terms read beneath.
 Desktop cards stand tall: the 192 px portrait with the sprite beside it, 128 px item art, a
 96 px Hollow Sun.
 
+## Upright phones
+
+With `html.portrait-ui` (set by the portrait shell while an upright phone plays upright) the
+same cards become one scrolling column of full-width rows; without the class nothing above
+changes. Rows, not a 2×2 grid: a draft holds one to five cards (rewards add the gold card), so a
+grid leaves a ragged last row, and a row gives every name the full width (Quartermaster Cache,
+Hunter's Volley Scroll) instead of shrinking it to a 90 px column.
+
+- **Candidates:** the face beside the name, class, HP and weapons; the seven stats in two rows
+  of four, the draft's best in gold. The chosen card opens its traits and skills; the others
+  fold them away (stats and the roster cue stay, so the draft is still compared at a glance).
+- **Spoils:** the item's art on the left, rarity, name, the first line of what it does and for
+  whom on the right; the chosen spoil reads in full.
+- **Blessings:** the shrine painting as a strip on the left with the tier numeral; name, boon
+  and cost on the right, the cost always in view.
+- **Difficulty:** each banner a pennant pointing on (name and threads, then tagline, reward,
+  lock); the terms read beneath.
+- **Footer:** the lead on its own line, the controls wrapping onto at most two rows, the
+  primary action (Confirm, Recruit, Welcome, Choose reward) last, on the bottom row under the
+  thumb. The list scrolls; the header and footer never do.
+- **Rewards header:** title, the earnings note (it shrinks, whole words only) and the gold,
+  then Roster, Menu and View map as one row of equal buttons.
+- A rebuilt list keeps its scroll and brings the chosen card whole into view
+  (`keepDraftScroll`).
+
+Tests: `tests/e2e/portrait-cards.spec.js` (390×844 and 375×667 with the longest names: rows,
+titles whole, no overlap, no sideways scroll, controls ≥44 px and uncovered, a real tap and
+confirm on every screen; landscape card boxes pinned to main at 844×390 and 640×480).
+
 ## Implementation map
 
 | Piece | File |

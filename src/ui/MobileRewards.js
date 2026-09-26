@@ -8,7 +8,13 @@ import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { rewardPresentation, rewardIcon } from './rewardDisplay.js';
 import { rewardForWhom } from './choiceContent.js';
-import { choiceReducedMotion, fadeScroll, itemArtSlot } from './choiceCards.js';
+import {
+  choiceReducedMotion,
+  draftScrollTop,
+  fadeScroll,
+  itemArtSlot,
+  keepDraftScroll,
+} from './choiceCards.js';
 import { unitPortrait } from './unitPortrait.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
@@ -176,6 +182,7 @@ export class MobileRewards {
     const focus = this.root.contains(document.activeElement)
       ? document.activeElement.dataset.focus
       : null;
+    const scrollTop = draftScrollTop(this.root);
     this.root.replaceChildren();
     this.root.classList.add('ch-reward-screen');
     this.root.classList.toggle('is-still', choiceReducedMotion(this.overlayScene));
@@ -320,6 +327,7 @@ export class MobileRewards {
     this.root.append(header, row);
     if (notes.childElementCount) this.root.append(notes);
     this.root.append(actions);
+    keepDraftScroll(row, scrollTop);
     if (focus) this.root.querySelector(`[data-focus="${focus}"]:not(:disabled)`)?.focus();
     if (this.revealPending) this.startReveal(row, all);
   }
