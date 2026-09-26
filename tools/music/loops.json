@@ -263,6 +263,28 @@
     "title": "Ashfall",
     "tonic": "Db"
   },
+  "music_battle_caravan": {
+    "duration": 83.504,
+    "loopEnd": 82.904127,
+    "loopStart": 10.575351,
+    "lufs": -14.0,
+    "peakDb": -1.74,
+    "score": "battle_caravan",
+    "seamDb": -68.1,
+    "title": "Coin and Canvas",
+    "tonic": "E"
+  },
+  "music_battle_caravan_calm": {
+    "duration": 83.504,
+    "loopEnd": 82.904127,
+    "loopStart": 10.575351,
+    "lufs": -17.0,
+    "peakDb": -5.38,
+    "score": "battle_caravan",
+    "seamDb": -128.9,
+    "title": "Coin and Canvas",
+    "tonic": "E"
+  },
   "music_battle_castle": {
     "duration": 95.509,
     "loopEnd": 94.909093,
