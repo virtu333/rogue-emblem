@@ -249,11 +249,11 @@ def build():
     cl.at(5).play('@mp' + TUNE)
     # alone, it is quiet; it grows only as the city gathers under it
     cl.expr((5, 0.62), (12.9, 0.68), (16, 0.8), (20.9, 1.0))
-    pno = b.part('t_pno', 'grand', role='lead', calm_db=-3, gain=2)
+    pno = b.part('t_pno', 'grand', role='lead', calm_db=0, gain=2)
     pno.at(38).play('@f' + TUNE, transpose=3)
     pno.at(38).play('@f' + TUNE, transpose=3 + 12)       # and an octave up, where it rings
     # (the horns sing low, B3-D#5, right where the ostinato sits: less body, more edge)
-    hn = b.part('t_hn', 'horns', role='lead', calm_db=-2,
+    hn = b.part('t_hn', 'horns', role='lead', calm_db=0,
                 eq=[('peak', 280, 1.0, -3.5), ('peak', 1800, 1.0, 3.0)])
     hn.at(55).play('@f' + TUNE, transpose=5 - 12)
 
@@ -268,10 +268,10 @@ def build():
         timp.at(bar).play('@mp B2q rh |' if bar % 2 else '@p B2q rh |')
 
     # ================================================================ the ostinato
-    # marcato, on and off the beat: trombones and horns on the chord's root and
-    # fifth, celli and basses on the root, the bass guitar on the beat only
+    # marcato, on and off the beat: trombones on the chord's root and fifth,
+    # celli and basses on the root, the bass guitar on the beat only (no horns:
+    # staccato horns under the chant added body and nothing a listener could hear)
     o_tbn = b.part('ost_tbn', 'trombones', layer='full', role='section', art='stac', pan=0.3)
-    o_hn = b.part('ost_hn', 'horns', layer='full', role='section', art='stac', pan=-0.25)
     o_vc = b.part('ost_vc', 'celli', layer='full', role='ostinato', art='spic')
     o_cb = b.part('ost_cb', 'basses', layer='full', role='low', art='spic')
     eb = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick',
@@ -288,8 +288,6 @@ def build():
     # T3: the brass ostinato on the root alone, under the horns' tune, and it
     # leaves before the tune's climb (bars 67-70)
     ostinato3(o_tbn, 55, CH_T3[:12], lo=45, vel=0.6, art='stac')
-    # the horns join the chant's ostinato only (they sing the tune in T3)
-    ostinato3(o_hn, 21, ch3(CH_CHANT), lo=53, vel=0.6, art='stac', fifth=True)
     # T1, second phrase: the ostinato gathers (celli and basses only, rising)
     for part in (o_vc, o_cb, eb):
         part.expr((12.9, 0.4), (13, 0.4), (20.9, 1.0), (21, 1.0))
@@ -337,7 +335,8 @@ def build():
         part.expr((21, 0.8), (24.95, 1.0), (25, 0.8), (28.95, 1.0), (29, 0.8), (32.95, 1.0),
                   (33, 0.85), (36.95, 1.0))
     # the city's strings under the crowd: the chant, legato, in the violas
-    ch_va = b.part('chant_va', 'violas', layer='full', role='counter', art='sus', gain=-2)
+    ch_va = b.part('chant_va', 'violas', layer='full', role='counter', art='sus', gain=-2,
+                   eq=[('peak', 280, 1.0, -2.5)])
     ch_va.at(21).play('@f' + CHANT)
     ch_va.expr((21, 0.8), (24.95, 1.0), (25, 0.8), (28.95, 1.0), (29, 0.8), (32.95, 1.0),
                (33, 0.85), (36.95, 1.0))
@@ -526,17 +525,19 @@ def build():
     for bar, ch in spans:
         ostinato3(c_vc, bar, ch, lo=38, vel=0.62, art='pizz', on_only=True)
         ostinato3(c_cb, bar, ch, lo=28, vel=0.62, art='pizz', on_only=True)
-        offbeats(c_hp, bar, ch, lo=55, hi=71, vel=0.52)
+        # (above the pizzicato, D4-G5: lower, its chords were most of the calm mix's mud)
+        offbeats(c_hp, bar, ch, lo=62, hi=79, vel=0.52)
     for sec in ('A1', 'A2', 'A3'):
         anthem_bass(c_cb, b.bar(sec), vel=0.6, art='pizz', lo='B1')
     for part in (c_vc, c_cb, c_hp):
         part.expr((12.9, 0.5), (13, 0.5), (20.9, 1.0), (21, 1.0), *fall)
-    c_pad = b.part('c_pad', 'violas', layer='calm', role='pad', art='soft')
-    for bar, ch in ((21, ch3(CH_CHANT)), (38, CH_T2), (55, CH_T3), (71, CH_ANTHEM),
+    # (under the tune, not level with it; and not in the horns' register in T3)
+    c_pad = b.part('c_pad', 'violas', layer='calm', role='pad', art='soft', gain=-3)
+    for bar, ch in ((21, ch3(CH_CHANT)), (38, CH_T2), (71, CH_ANTHEM),
                     (79, CH_ANTHEM), (87, CH_ANTHEM)):
         pad(c_pad, bar, ch, n=2, lo=52, hi=65, vel=0.44, art='soft')
     # the chant and the anthem, hummed far off
-    c_oohs = b.part('c_oohs', 'oohs', layer='calm', role='choir', gain=3, humanize_ms=18)
+    c_oohs = b.part('c_oohs', 'oohs', layer='calm', role='choir', gain=1, humanize_ms=18)
     c_oohs.at(21).play('@mp' + CHANT)
     c_oohs.at(71).play('@mp' + ANTHEM, transpose=-12)
     c_oohs.at(79).play('@mf' + ANTHEM)
