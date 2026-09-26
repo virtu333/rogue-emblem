@@ -87,3 +87,59 @@ test('earned mastery remains visible above rewards after selection changes', asy
     rewards.getByRole('button', { name: 'About class mastery', exact: true }),
   ).toBeFocused();
 });
+
+test('help leads with the answer, shows numbers as tiles and sizes to its text', async ({
+  page,
+}) => {
+  await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
+  await waitForScene(page, 'NodeMap');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('NodeMap').dialogueOverlay?.visible,
+  );
+  await page.getByRole('button', { name: 'Skip conversation', exact: true }).click();
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
+  const roster = page.locator('.mr-sheet');
+  const trigger = roster.getByRole('button', { name: 'About combat numbers', exact: true });
+  await trigger.scrollIntoViewIfNeeded();
+  // The card's one-line numbers are the tiles' numbers.
+  const card = await trigger
+    .locator('xpath=ancestor::*[contains(@class,"mr-card")][1]')
+    .innerText();
+  const atk = card.match(/Atk (\d+)/)[1];
+  const hit = card.match(/Hit (\d+)/)[1];
+  await trigger.click();
+  const help = page.getByRole('dialog', { name: 'Combat baseline', exact: true });
+  await expect(help.locator('.ch-lead')).toContainText(/^Edric with the /);
+  await expect(help.locator('.ch-stat')).toHaveCount(6);
+  const tile = (label) =>
+    help.locator('.ch-stat', { has: page.locator('.ch-stat-label', { hasText: label }) });
+  await expect(tile(/^Attack$/).locator('.ch-stat-value')).toHaveText(atk);
+  await expect(tile(/^Hit$/).locator('.ch-stat-value')).toHaveText(hit);
+  await expect(help.locator('.ch-points li')).toHaveCount(5);
+  // Nothing spills sideways, and the dialog fits the screen.
+  const fit = await help.evaluate((e) => {
+    const r = e.getBoundingClientRect();
+    const overflowing = [...e.querySelectorAll('.ch-stat, li, p')].filter(
+      (n) => n.scrollWidth > n.clientWidth + 1,
+    ).length;
+    return { top: r.top, bottom: r.bottom, vh: innerHeight, overflowing };
+  });
+  expect(fit.overflowing).toBe(0);
+  expect(fit.top).toBeGreaterThanOrEqual(0);
+  expect(fit.bottom).toBeLessThanOrEqual(fit.vh);
+  await page.keyboard.press('Escape');
+  await expect(help).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+
+  // A short answer gets a short dialog with no scroll buttons.
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await page.getByRole('button', { name: /^Objective details:/ }).click();
+  const objective = page.getByRole('dialog', { name: 'Battle objective', exact: true });
+  await expect(objective.locator('.ch-lead')).toContainText('Rout');
+  await expect(objective).toContainText('Defeat every enemy on the map.');
+  await expect(objective.getByRole('button', { name: 'Read below' })).toBeHidden();
+  const height = await objective.evaluate((e) => e.getBoundingClientRect().height / innerHeight);
+  expect(height).toBeLessThan(0.8);
+});
