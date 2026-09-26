@@ -53,7 +53,7 @@ describe('battleItemBrief (one line per menu row; the rest on a long press)', ()
     special: 'Throwable, lower stats',
   };
   it('keeps the numbers that decide a pick and marks an effect with ✦', () => {
-    expect(battleItemBrief(handAxe)).toBe('Mt 5 · Hit 65 · Rng 1-2 ✦');
+    expect(battleItemBrief(handAxe)).toBe('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');
     // weight and the effect text live in the full detail
     expect(battleItemSummary(handAxe)).toContain('Weight 8');
     expect(battleItemSummary(handAxe)).toContain('Throwable, lower stats');

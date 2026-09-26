@@ -25,7 +25,7 @@ export function battleItemBrief(item, unit) {
   const parts = [`Mt ${item.might ?? 0}`, `Hit ${item.hit ?? 0}`];
   if (Number(item.crit) > 0) parts.push(`Crt ${item.crit}`);
   parts.push(`Rng ${item.range ?? 1}`);
-  return `${parts.join(' · ')}${item.special ? ' ✦' : ''}`;
+  return `${parts.join(' · ')}${item.special ? '\u00a0✦' : ''}`;
 }
 
 /** The full detail of an item: every stat and its effect (long press, screen readers). */

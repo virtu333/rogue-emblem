@@ -105,7 +105,7 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   await expect(row).toBeVisible();
   const summary = row.locator('.mb-item-summary');
   // One short line: the numbers that decide a pick, ✦ for the effect.
-  await expect(summary).toHaveText('Mt 5 · Hit 65 · Rng 1-2 ✦');
+  await expect(summary).toHaveText('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');
   expect(await summary.evaluate((n) => n.getClientRects().length)).toBe(1);
   await expect(row).toHaveAttribute('aria-description', /Weight 8[\s\S]*Throwable/);
   await expect(hud.locator('.mb-hold-hint')).toHaveText('Hold a row for its full details.');
