@@ -352,3 +352,82 @@ it.each([
   expect(scene.tweens.add.mock.calls[1][0].y - 18).toBeGreaterThanOrEqual(8);
   expect(scene._pinToScreen).toHaveBeenCalledWith(text);
 });
+
+// ---------------------------------------------------------------- the Entity's finale rally
+
+describe("entityRally — the army answers the Entity's finale", () => {
+  const RALLY = {
+    lords: {
+      Edric: { open: ['Everyone, with me.'], lines: ['Hold together.'], reply: {} },
+      Kira: { lines: ['Every piece moves.'], reply: { Edric: 'Your banner, my board, Edric.' } },
+      Sera: { lines: ['A thread.'], close: ['It all led here.'], reply: {} },
+    },
+    recruits: {},
+  };
+  const unit = (name, extra = {}) => ({
+    isLord: true,
+    faction: 'player',
+    name,
+    currentHP: 20,
+    stats: { HP: 20 },
+    col: 2,
+    row: 3,
+    ...extra,
+  });
+
+  function rallyScene(playerUnits) {
+    return makeScene({
+      playerUnits,
+      enemyUnits: [{ isEntity: true, isBoss: true, currentHP: 70, stats: { HP: 80 } }],
+      gameData: { dialogue: { ...DIALOGUE, finaleRally: RALLY } },
+      runManager: { getStartingLordNames: () => ['Edric', 'Sera'], runSeed: 7, fallenUnits: [] },
+    }).scene;
+  }
+
+  it('speaks each line over its unit, on the downbeat and every two bars', () => {
+    vi.useFakeTimers();
+    try {
+      const scene = rallyScene([unit('Sera'), unit('Kira'), unit('Edric')]);
+      const beats = new BattleBeatsController(scene, () => 0);
+      const rally = beats.entityRally({ leadMs: 3000, barMs: 1765 });
+      expect(rally.map((r) => r.speaker)).toEqual(['Edric', 'Kira', 'Sera']);
+      expect(scene.add.text).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(3000);
+      // each line: the line, then its speaker's name tab
+      const said = () => scene.add.text.mock.calls.map((c) => c[2]);
+      expect(said()).toEqual(['Everyone, with me.', 'Edric']);
+      vi.advanceTimersByTime(3530);
+      expect(said()).toHaveLength(4);
+      expect(said()[3]).toBe('Kira');
+      // Sera falls before her line: it goes unsaid
+      scene.playerUnits[0].currentHP = 0;
+      vi.advanceTimersByTime(3530);
+      expect(said()).toHaveLength(4);
+      // once per battle
+      expect(beats.entityRally({ leadMs: 0 })).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('destroy() cancels lines still to come', () => {
+    vi.useFakeTimers();
+    try {
+      const scene = rallyScene([unit('Edric'), unit('Kira')]);
+      const beats = new BattleBeatsController(scene, () => 0);
+      beats.entityRally({ leadMs: 0, barMs: 1000 });
+      vi.advanceTimersByTime(0);
+      expect(scene.add.text).toHaveBeenCalledTimes(2);
+      beats.destroy();
+      vi.advanceTimersByTime(10000);
+      expect(scene.add.text).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stays silent without rally lines', () => {
+    const { scene } = makeScene({ playerUnits: [unit('Edric')] });
+    expect(new BattleBeatsController(scene, () => 0).entityRally()).toEqual([]);
+  });
+});

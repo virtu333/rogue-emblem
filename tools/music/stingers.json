@@ -539,6 +539,22 @@
     "title": "The Eclipse",
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
+  "entity_answer": {
+    "duration": 5.031,
+    "files": {
+      "stinger_entity_answer": {
+        "duration": 5.031,
+        "lufs": -18.0,
+        "notesEnd": 3.529,
+        "peakDb": -5.78
+      }
+    },
+    "handoff": 3.529412,
+    "keyed": false,
+    "notesEnd": 3.529,
+    "title": "The Answer",
+    "tonics": []
+  },
   "levelup": {
     "duration": 4.489,
     "files": {

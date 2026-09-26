@@ -1,9 +1,9 @@
-"""The Lieutenant — two futures at once, and she knows your line.
+"""The Lieutenant — two futures at once, and he knows your line.
 
-Her motif (A-D-C-A, the Thread's rhythm falling) on celesta with its shadow
+His motif (A-D-C-A, the Thread's rhythm falling) on celesta with its shadow
 a beat later and a tritone away on harp; then the player's Thread begins in
-the violins (A-D-E...) and is cut off before its answer: she saw it coming.
-In the key of her theme.
+the violins (A-D-E...) and is cut off before its answer: he saw it coming.
+In the key of his theme.
 """
 
 from stingers._common import cue

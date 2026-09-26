@@ -15,10 +15,49 @@ the story.
 | **The Empire** | Phrygian half-step drill: D-Eb-D-C, falling to B-flat | the Empire's iron drills | Act I battle C strain, Act II battles and route map, the Act IV riff, the Act I boss march, the Emperor's chorale and anthem |
 | **The Lieutenant** | the Thread's rhythm falling instead of rising (A-D-C-A; a free answer, not a strict inversion), shadowed one beat later a tritone away | a seer who fractures time: two futures at once | First heard in the Act III boss theme; the Normal final boss |
 | **The Old Kingdom** | an open-fourths horn call | Edric's oath | Title B strain, home base, victory fanfare, loot, Border Marches |
-| **Unlight** | no melody at all: a hum on D and its semitone shadow, and the Thread with its notes taken away (the answer, then the downbeat, then all but one inner note) | the Entity, which has no words | The secret boss, the Deep route map, the Entity's card (silence) |
+| **Unlight** | no melody at all: a hum on D and its semitone shadow, and the Thread with its notes taken away (the answer, then the downbeat, then all but one inner note) | the Entity, which has no words | The secret boss, the Deep route map, the Entity's card (silence); under its finale, the hum is the Entity's own stem |
 
 The last cue closes the story: in **The Last Light** (run victory) the phrase the title
 leaves hanging finally resolves, and the bells toll D, the root no other cue plays.
+
+## The Entity's finale
+
+The Entity's theme is composed by removal (the answer, then the downbeat, then all but
+one note). The first time anyone wounds the Entity, everything it took comes back:
+
+1. **The hinge.** The theme stops dead: the hum that never stopped is cut (90 ms). Two
+   seconds of silence. Then `stinger_entity_answer`: one violin plays the Thread at the
+   finale's tempo and holds its last A. The cue's `handoff` (3.53 s) is the finale's
+   first downbeat, and the game starts the finale there, sample-aligned.
+2. **All of Us Across** (`music_boss_entity_finale`, 12/8, dotted quarter = 136, D minor).
+   The whole army answers on beat one. A: Ember Dusk, the run's first battle theme, at
+   double length over a motor whose eighths group in fours against the bar's two halves
+   (3:2, after *Twilight of the Gods*): a broad line over moving ground (*The Apex of the
+   World*). B: a descending-fifths chain (i iv bVII bIII bVI ii° V, after *Id (Purpose)*);
+   horns, trumpets, then violins and the choir join one at a time, and the complete
+   Thread arrives only when they all sing it. A2: the choir Act I never had sings Ember
+   Dusk, and the phrase climbs to the leading tone (C#) and stops there. The cadence it
+   withholds is The Last Light's, which the killing blow starts.
+3. **The Entity pushes back.** `music_boss_entity_finale_hum` is the Entity's own stem
+   on the finale's timeline (the D hum with its E-flat shadow, the cluster, the col legno
+   pulse without its downbeat). It plays as an additive layer whose level is the
+   Entity's remaining HP: the dissonance drains out of the harmony as it is wounded.
+
+4. **The army answers.** On the finale's first downbeat the army speaks, one line every
+   two bars over each speaker's unit, timed from the audio clock (`BattleMusicController`
+   `onFinale` → `BattleBeatsController.entityRally`, composed by `engine/FinaleRally.js`
+   from `dialogue.json` `finaleRally`). The commander opens; the lords answer each other
+   by name; the two strongest recruits join in their temperament's voice; Sera, whose
+   sight the Thread is, closes. Lines remember the run: a unit lost along the way, a
+   save that has met the Entity before, a speaker below half HP. Never more than seven
+   lines, so the rally ends inside the first strain, and it never blocks input: the
+   music keeps time, the words ride on it. A unit that falls before its line leaves it
+   unsaid.
+
+If turn pressure enrages the Entity before anyone wounds it, the same hinge starts the
+finale. A resumed battle whose Entity is already wounded opens on the finale (no rally:
+it was heard when the wound was dealt).
+
 
 ## Cue list
 
@@ -52,8 +91,9 @@ leaves hanging finally resolves, and the bells toll D, the root no other cue pla
 | `music_boss_act2` | Doctrine of Lances | F minor, everything 3+3+2; the black rider's chromatic crawl |
 | `music_boss_act3` | The Perfect Duel | E minor duel; the Lieutenant's sign appears |
 | `music_boss_emperor` | Human, Powerful, and Wrong | Organ chorale, imperial anthem, the Thread over the drill |
-| `music_boss_lieutenant` | Every Future You Could Reach | Canon a tritone apart; the player's battle theme returns against her motif |
-| `music_boss_entity` | · · · | A hole in the music: hum, a heartbeat losing beats, the Thread with notes missing; one clear Thread from the player's violin. No choir, no brass, under battle loudness (−19 LUFS) |
+| `music_boss_lieutenant` | Every Future You Could Reach | Canon a tritone apart; the player's battle theme returns against his motif |
+| `music_boss_entity` | · · · | A hole in the music: hum, a heartbeat losing beats, the Thread with notes missing; one clear Thread from the player's violin. No choir, no brass, under battle loudness (−19 LUFS). Plays until the Entity's first wound |
+| `music_boss_entity_finale` | All of Us Across | The Entity's finale (above): 12/8, Ember Dusk augmented, the choir, the Thread completed by everyone; ends on the leading tone. `_hum` is the Entity's stem under it, its level set by the Entity's HP |
 
 Every boss theme also ships one **enrage layer per boss** (`<theme>_enrage_<boss>`),
 rendered on the same timeline. When turn pressure enrages the boss the game
@@ -71,8 +111,8 @@ crossfades to it: one boss-specific behaviour, not a generic louder-and-faster
 | Iron Wall | augmented low brass; the lower neighbour cannot move the tonic | the bass finally moves: a walking line |
 | Berserker King | the clan cell compressed into blows | blows on every beat: taiko, bass drum, marcato brass |
 | The Emperor | the anthem's leading-tone cadence, then the flat-second collapse | every chord rots: the low brass land a semitone above its root and fall onto it |
-| The Lieutenant | her motif and its shadow; the player's Thread cut off | she is a beat ahead: the shadow comes first; the player's own melody sounds a beat early |
-| The Entity | no card music: the theme drains to near-silence | it takes away the pulse, the glass and the player's line, and the mix drops to −22 LUFS |
+| The Lieutenant | his motif and its shadow; the player's Thread cut off | he is a beat ahead: the shadow comes first; the player's own melody sounds a beat early |
+| The Entity | no card music: the theme drains to near-silence | no enrage layer: turn pressure starts its finale (if no wound has yet) |
 
 ## Ceremony cues (stingers)
 
@@ -95,6 +135,7 @@ the Act II battle sounds in C and one in the shop sounds in G.
 | `eclipse` | a node falls to the Eclipse | a bell calls; the answer never comes |
 | `act_card_<act>` | the act title card | Edric's oath voiced per act, in that act's map key (fixed) |
 | `boss_<name>` / `boss_card` | the boss encounter card | each boss's own motif (table above) in its theme's key |
+| `entity_answer` | the Entity's first wound (the hinge) | one violin's Thread; its `handoff` is the finale's first downbeat |
 
 ## Device budget
 
@@ -102,7 +143,8 @@ What each cue may spend, so escalation stays earned (after the Reference Track
 Analysis dossier):
 
 - **Choir** is not used in Act I (battles, boss, route). Voices arrive with the rite
-  in Act III, the Emperor and the Lieutenant. The Entity never sings.
+  in Act III, the Emperor and the Lieutenant. The Entity never sings; its finale is
+  where the choir finally sings Ember Dusk.
 - **Massed doubling** (piccolo over the tune, trumpets doubling horns) is kept out of
   the most frequent theme (Act I battle).
 - **Displaced accents on a straight grid** (three-sixteenth groups) belong to the Act I
@@ -135,4 +177,4 @@ Each file is an intro followed by a loop body. The engine renders the loop twice
 loop start where the intro's tails have died, so the jump is inaudible. Any constant
 MP3 decoder delay shorter than M only shifts both points by the same content offset.
 The build checks every file's seam numerically (`seamDb`, which must be under −45 dB).
-The shipped files measure between −55 and −130 dB.
+The shipped files measure between −53 and −130 dB.

@@ -7680,5 +7680,303 @@
         ]
       }
     }
+  },
+  "finaleRally": {
+    "lords": {
+      "Edric": {
+        "open": [
+          "Everyone, listen. It bled. Whatever it is, it can bleed. With me!",
+          "I've counted every one of you on the way here. Now we all walk out. Forward!",
+          "That's our song now. Banner up, all of you. We finish this together."
+        ],
+        "lines": [
+          "Hold together. It has never faced all of us at once.",
+          "Stay close. I didn't come this far to lose count of you now.",
+          "It took every answer but ours. Let's give it that one.",
+          "I'm no hero out of a song. I'm just not going anywhere.",
+          "The banner's heavy today. Good. So is my arm."
+        ],
+        "reply": {
+          "Kira": "Tell me where to stand, Kira. I'll stand there until it falls.",
+          "Voss": "Still standing, Voss. We keep that ledger short tonight.",
+          "Sera": "I see it too, Sera. Not the thread. Them. All of them.",
+          "Rowan": "Ride hard, Rowan. I'll be right behind you, slower and louder.",
+          "Astrid": "Keep the sky, Astrid. We'll keep the ground.",
+          "Cael": "Then I stand beside the wall, Cael. Not behind it."
+        },
+        "memory": [
+          "I've stood here before. I don't remember how it ended. Let's change that.",
+          "Something in my bones says we lost here once. My bones can be wrong."
+        ],
+        "wounded": [
+          "Bleeding? Fine. So is it. Keep going!",
+          "I'm still up. Don't slow down for me. Not now."
+        ],
+        "fallen": [
+          "{fallen} should be here for this. Then we fight for two.",
+          "I promised {fallen} I'd see this through. I keep my promises."
+        ]
+      },
+      "Kira": {
+        "open": [
+          "Listen up. It finally made a mistake: it let all of us reach it. Forward!",
+          "Endgame. Every one of you is a piece I'd never trade. Move!",
+          "I've played this a hundred ways in my head. This is the good one. Go!"
+        ],
+        "lines": [
+          "There's the opening. Every piece moves at once. Now.",
+          "It saw every move but this one. Checkmate takes all of us.",
+          "Endgame. I hate endgames. Let's make this one worth it.",
+          "No more feints. Straight at it, all of us.",
+          "I had a plan for this moment. The plan was you."
+        ],
+        "reply": {
+          "Edric": "Your banner, my board, Edric. Try not to trip over either.",
+          "Voss": "Still standing is a strategy, Voss. Honestly, it's my favorite.",
+          "Sera": "If you saw this move coming, Sera, you could've said so sooner.",
+          "Rowan": "That wasn't luck, Rowan. I set that up. Fine, a little luck.",
+          "Astrid": "Mark it from up there, Astrid. I'll take the rest.",
+          "Cael": "Hold that line, Cael. I'm about to need every square of it."
+        },
+        "memory": [
+          "I know this position. We lost it once. Never the same way twice.",
+          "I've seen this board before. Last time I blinked. Not tonight."
+        ],
+        "wounded": [
+          "A sacrifice? No. Just a scratch. Keep moving.",
+          "Down a few points. Still winning. Go!"
+        ],
+        "fallen": [
+          "{fallen} would have loved this position. I'll play it for them.",
+          "We're missing a piece. {fallen}. We win this one for them."
+        ]
+      },
+      "Voss": {
+        "open": [
+          "All of you. Still standing. Let's make it the last thing it ever sees.",
+          "I keep a ledger of the dead. Tonight the page stays blank. Move!",
+          "No speeches. You heard that sound. Go."
+        ],
+        "lines": [
+          "Still standing. All of us. Let's show it what that means.",
+          "It took plenty. Not us. Not today.",
+          "No new names in the ledger tonight. Go.",
+          "Felt worse. Can't remember when. Forward.",
+          "The border held for less than this. This will hold."
+        ],
+        "reply": {
+          "Edric": "Heard you, Edric. Counting's your job. Standing's mine.",
+          "Kira": "Your plan, Kira. My arrows. Its problem.",
+          "Sera": "Don't need the thread to see it, Sera. It's bleeding.",
+          "Rowan": "Loud, Rowan. Still right, though.",
+          "Astrid": "Wind's with you, Astrid. The rest of us walk. Same place.",
+          "Cael": "Two walls, Cael. Let it try."
+        },
+        "memory": [
+          "Been here. Didn't walk out. This time I do.",
+          "My ledger has this place in it. Crossing it out tonight."
+        ],
+        "wounded": [
+          "Hit. Still standing. Obviously.",
+          "Leaking a bit. Doesn't matter. Keep up."
+        ],
+        "fallen": [
+          "{fallen}'s page is still open. Let's make it mean something.",
+          "{fallen} held for us. We hold now."
+        ]
+      },
+      "Sera": {
+        "open": [
+          "Everyone... I see it. For the first time, I see it end. Take my thread!",
+          "It unmade every future but one. This one. Ours. With me!",
+          "Listen. That's the answer it took from the world. Give it back!"
+        ],
+        "lines": [
+          "I see it now. A thread, and every one of you holding it.",
+          "It unmade every answer but this one. Answer it!",
+          "For once the future is quiet. We write this part ourselves.",
+          "The visions are silent. For once, I don't need them.",
+          "Every thread I ever wove led to this place. And to you."
+        ],
+        "close": [
+          "Every loop, every ending, every one of you. It all led here. Now, together!",
+          "I've woven this thread so many times. This is the first time it holds.",
+          "The goddess spent her name. We'll spend everything else. Now!",
+          "Hold on to the thread. Whatever comes after, we walk into it together."
+        ],
+        "reply": {
+          "Edric": "You never needed a vision, Edric. You only needed them.",
+          "Kira": "I saw your plan, Kira. It's a good one. It ends.",
+          "Voss": "Still standing, Voss. In every future I saw, you were.",
+          "Rowan": "It was never luck, Rowan. It was always you. Mostly.",
+          "Astrid": "From that high, Astrid, can you see it? The end of the thread?",
+          "Cael": "No wall in any vision held like yours, Cael."
+        },
+        "memory": [
+          "We've died here before. I remember every time. Not this time.",
+          "I've woven this moment again and again. Tonight I won't have to."
+        ],
+        "wounded": [
+          "The light is dimming... no. Not yet. Keep going!",
+          "I'm fine. The thread is stronger than I am. Hold it!"
+        ],
+        "fallen": [
+          "{fallen} is in the thread too. I can feel them. Fight on!",
+          "I couldn't save {fallen} in this weave. Let's make it count."
+        ]
+      },
+      "Rowan": {
+        "open": [
+          "Everyone! That's the best song I've ever heard. Charge!",
+          "Blessed lance, blessed army, blessed everybody. Follow me!",
+          "Listen to that. We're winning. I can tell. Go, go!"
+        ],
+        "lines": [
+          "Now THAT'S a battle cry! Ride with me!",
+          "Luck had nothing to do with this. Well. Mostly nothing.",
+          "Hear that? That's the whole army. My mount's never been this fast.",
+          "The aim's all me. The courage is all of you. Charge!",
+          "When the bards sing this, I'm insisting on a solo."
+        ],
+        "reply": {
+          "Edric": "Lead on, Edric! I'll be the loud one behind the banner.",
+          "Kira": "Your plan has a spot for a dashing rider, right, Kira? Right?",
+          "Voss": "Cheer up, Voss! We're about to be legends. Grumpy legends.",
+          "Sera": "If you saw us winning, Sera, don't spoil it. Let me enjoy it.",
+          "Astrid": "Race you to it, Astrid! You take the sky, I take the glory.",
+          "Cael": "Hold it still for me, Cael. I'm aiming for the soft part."
+        },
+        "memory": [
+          "Funny, I feel like I've lost this one before. My luck's due to turn.",
+          "We've been here. I remember losing. I don't remember losing twice."
+        ],
+        "wounded": [
+          "Hit! Just a flesh wound. On me. My mount's fine. We're fine!",
+          "Ow. Right. Still charging!"
+        ],
+        "fallen": [
+          "{fallen} would have loved this charge. Ride for them!",
+          "This one's for {fallen}. Luck has nothing to do with it."
+        ]
+      },
+      "Astrid": {
+        "open": [
+          "Everyone, eyes up. I'll see it coming. You make it fall.",
+          "The wind's changed. It's at our backs now. All of you, forward!",
+          "I always flew alone. Not today. Rise with me!"
+        ],
+        "lines": [
+          "The wind's back. Fly with me, all of you.",
+          "I always flew alone. Not today.",
+          "From up here it looks small. Let's make it smaller.",
+          "Clear skies. First time in weeks. Strike.",
+          "Every one of you looks small from up here. And very loud."
+        ],
+        "reply": {
+          "Edric": "Your banner's easy to spot from up here, Edric. Keep it high.",
+          "Kira": "I can see your whole board from here, Kira. It's a good board.",
+          "Voss": "Still standing, Voss? I'll keep you standing from above.",
+          "Sera": "No thread up here, Sera. Just wind. It's enough.",
+          "Rowan": "You'll lose that race, Rowan. You always lose that race.",
+          "Cael": "I'll strike over the wall, Cael. Don't move."
+        },
+        "memory": [
+          "I've fallen from this sky before. I know the way down. Not today.",
+          "Same wind as last time. Different ending."
+        ],
+        "wounded": [
+          "Clipped a wing. Still flying.",
+          "Hit. I'll bleed on the way down. Later."
+        ],
+        "fallen": [
+          "{fallen} should see this from up here. I'll look for them.",
+          "One less voice on the wind. {fallen}. We fly for them."
+        ]
+      },
+      "Cael": {
+        "open": [
+          "Everyone, behind me. Then past me. That's the whole plan.",
+          "The wall holds. Tonight it also advances. Forward!",
+          "Listen. It can't break what stands together. Push!"
+        ],
+        "lines": [
+          "The wall holds. Everyone behind it. Then everyone past it.",
+          "It can't break what stands together. Push!",
+          "Back rank, you too. Yes, you. Forward!",
+          "It hit me. Now it knows what a wall feels like.",
+          "Nothing gets past me. Especially not the ending."
+        ],
+        "reply": {
+          "Edric": "Keep the banner behind me, Edric. It stays clean that way.",
+          "Kira": "Put me anywhere, Kira. I'll still be there after.",
+          "Voss": "Two walls, Voss. One of us has to smile. Not me.",
+          "Sera": "Show me where it ends, Sera. I'll stand exactly there.",
+          "Rowan": "Charge, Rowan. I'll pick you up after.",
+          "Astrid": "Watch the sky, Astrid. I'm watching the ground. And you."
+        },
+        "memory": [
+          "I've held here before and broken. Stone learns.",
+          "This wall fell here once. Rebuilt. Thicker."
+        ],
+        "wounded": [
+          "Cracked. Walls crack. Walls hold.",
+          "Chipped. Still a wall."
+        ],
+        "fallen": [
+          "{fallen} stood with me. I'll stand for both of us.",
+          "I couldn't cover {fallen}. I'll cover everyone else."
+        ]
+      }
+    },
+    "recruits": {
+      "earnest": [
+        "For {leader}, for all of us. Forward!",
+        "I joined for a moment like this. I'm not wasting it.",
+        "I'm scared and I'm here. That's what counts, right?",
+        "Whatever happens, it was an honor, {leader}."
+      ],
+      "wry": [
+        "So this is what the fuss was about. Big. Ugly. Bleeding.",
+        "Tell the bards I was here. And taller.",
+        "I'd complain, but everyone's being so inspiring.",
+        "Right. The end of the world. Let's get it over with."
+      ],
+      "grim": [
+        "It bleeds. Then it dies.",
+        "No one else goes in the ground tonight.",
+        "Seen worse. Somewhere. Probably.",
+        "Keep moving. Mourn later."
+      ],
+      "proud": [
+        "Watch closely. You'll want to tell people you saw this.",
+        "My name goes in the song. Right after {leader}'s.",
+        "It picked the wrong army.",
+        "I was born for exactly this moment."
+      ],
+      "nervous": [
+        "Everyone else is charging. Okay. Okay! Charging!",
+        "My hands won't stop shaking. Good. They'll swing faster.",
+        "I'm not running away. I'm running at it. That counts.",
+        "If I scream, it's a battle cry. Remember that."
+      ],
+      "devout": [
+        "Lift us now, and let none of us be late.",
+        "The name was spent for this. Let it be worth it.",
+        "Light, stay with us a little longer.",
+        "I prayed for a miracle. I think it's us."
+      ],
+      "mercenary": [
+        "No pay is worth this. Doing it anyway. Don't tell anyone.",
+        "This one's on the house, {leader}.",
+        "Double wages if we live. So I'm living.",
+        "Finally, a job worth the price."
+      ],
+      "dreamer": [
+        "I dreamed of this. We won in the dream. Let's check.",
+        "Someday someone will sing about this. I want to be in the verse.",
+        "Look at us. Look at all of us. We're a story now.",
+        "Hold on to this moment, everyone. We're writing the ending."
+      ]
+    }
   }
 }

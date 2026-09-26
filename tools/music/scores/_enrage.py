@@ -159,8 +159,8 @@ def _copy_shifted(src, dst, start_beat, end_beat, shift, transpose=0, vel_scale=
 
 
 def lieutenant(b, lieut_sections, player_sections, lead='lead_violins'):
-    """She is a beat ahead: her tritone shadow now comes before her motif, and in
-    the player's own theme her glass plays the player's melody a beat early."""
+    """He is a beat ahead: his tritone shadow now comes before his motif, and in
+    the player's own theme his glass plays the player's melody a beat early."""
     v = 'enrage_lieutenant'
     s = b.s
     src = s.parts[lead]

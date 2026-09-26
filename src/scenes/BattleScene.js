@@ -73,6 +73,7 @@ import {
   rollSplashTiles,
   rollSplashDamage,
   getEntityCenter,
+  entityHealth,
 } from '../engine/EntitySystem.js';
 import {
   createLordUnit,
@@ -1849,6 +1850,9 @@ export class BattleScene extends Phaser.Scene {
       this._musicCtrl = new BattleMusicController(this, {
         playersInDanger: () => this._anyPlayerInDanger(),
         bossEnraged: () => Boolean(this.antiTurtleState?.turnEnrageActive),
+        entityHealth: () => entityHealth(this.enemyUnits),
+        onFinale: (beat) =>
+          (this._battleBeats ||= new BattleBeatsController(this)).entityRally(beat),
       });
       this._musicCtrl.create({
         act: this.battleParams?.act || 'act1',
@@ -7656,6 +7660,7 @@ export class BattleScene extends Phaser.Scene {
     try {
       return await this._runCombatResolutionAtSpeed(attacker, defender, ctx);
     } finally {
+      this._musicCtrl?.onCombatResolved?.();
       this._combatFx?.finishStrike?.(attacker, defender);
       this._combatSpeedSnapshot = previous;
     }

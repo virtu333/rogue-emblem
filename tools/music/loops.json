@@ -329,15 +329,26 @@
     "title": "\u00b7 \u00b7 \u00b7",
     "tonic": "D"
   },
-  "music_boss_entity_enrage_entity": {
-    "duration": 108.632,
-    "loopEnd": 108.032154,
-    "loopStart": 16.603583,
-    "lufs": -22.0,
-    "peakDb": -8.49,
-    "score": "boss_entity",
-    "seamDb": -58.7,
-    "title": "\u00b7 \u00b7 \u00b7",
+  "music_boss_entity_finale": {
+    "duration": 82.247,
+    "loopEnd": 81.647052,
+    "loopStart": 11.058821,
+    "lufs": -13.51,
+    "peakDb": -1.2,
+    "score": "boss_entity_finale",
+    "seamDb": -53.0,
+    "title": "All of Us Across",
+    "tonic": "D"
+  },
+  "music_boss_entity_finale_hum": {
+    "duration": 82.247,
+    "loopEnd": 81.647052,
+    "loopStart": 11.058821,
+    "lufs": -20.0,
+    "peakDb": -6.73,
+    "score": "boss_entity_finale",
+    "seamDb": -58.8,
+    "title": "All of Us Across",
     "tonic": "D"
   },
   "music_boss_lieutenant": {

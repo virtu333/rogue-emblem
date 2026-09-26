@@ -85,6 +85,20 @@ export const BOSS_CARD_CUES = {
   'The Entity': null,
 };
 
+// The Entity's finale. The first time the Entity is wounded (or turn pressure
+// enrages it first) its theme stops dead, `silenceMs` pass, the `hinge` cue
+// plays one violin's Thread, and `track` starts on the downbeat the cue hands
+// over to (its `handoff`). `hum` is the Entity's own stem under the finale;
+// its level follows the Entity's remaining HP.
+export const ENTITY_FINALE = Object.freeze({
+  theme: 'music_boss_entity',
+  track: 'music_boss_entity_finale',
+  hum: 'music_boss_entity_finale_hum',
+  hinge: 'entity_answer',
+  silenceMs: 2000,
+  cutMs: 90,
+});
+
 // Stingers decoded ahead whenever a track starts (in that track's key): the
 // cues that can fire at any moment of a battle. Rarer ones load on demand.
 export const STINGER_PRELOAD = ['levelup', 'levelup_perfect', 'levelup_blank', 'sealed', 'deed'];

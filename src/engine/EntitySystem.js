@@ -97,6 +97,18 @@ export function rollSplashDamage(rng) {
   return min + Math.floor(random() * (max - min + 1));
 }
 
+/**
+ * The Entity's health among `units`: { current, max, ratio } for the first
+ * Entity found (null when there is none or its max HP is unknown).
+ */
+export function entityHealth(units) {
+  const entity = (units || []).find((u) => isEntity(u));
+  const max = Number(entity?.stats?.HP);
+  if (!entity || !(max > 0)) return null;
+  const current = Math.max(0, Math.min(max, Number(entity.currentHP) || 0));
+  return { current, max, ratio: current / max };
+}
+
 /** Returns center tile of Entity (for camera targeting) */
 export function getEntityCenter(unit) {
   if (!isEntity(unit)) return { col: unit.col, row: unit.row };
