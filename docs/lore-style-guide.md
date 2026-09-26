@@ -84,11 +84,45 @@ character-driven humor (not winking, not modern slang, no memes, no fourth-wall
   Ordinary soldiers may feel déjà vu. Keep it faint and rare.
 - **One faith; the goddess's name "was spent"** — Goddess Icon's line keeps it.
   The seer order and its liturgy are that faith's remnant.
-- **Geography**: act1 border & quarries, act2 imperial provinces & roads,
-  act3 the fens and sacred ground (corruption), act4 the capital, then below.
+- **Geography**: act1 border & quarries (the Marches), act2 imperial provinces & roads,
+  act3 the fens and sacred ground (the "Imperial Heartland"), act4 the Hearth and
+  the capital on it, then below.
 - **The mounted seal** covers horses AND fliers — say "mount", not "horse".
 - **The berserk school**, **the dueling halls**, **the war colleges**, **the sky
   legions**, **the mountain clans** (wyverns), **border wardens** (rangers).
+
+### The world bible
+
+The full history now lives in [`docs/lore/`](lore/README.md). This guide
+decides how things are *written*; the bible decides what is *true*. Before
+writing lore, check the bible's facts; before inventing a fact, check it isn't
+already there. The ledger's additions, briefly:
+
+- **Names are the world's substance.** Every name is a splinter of the
+  goddess's spent name (never state this; it is hidden canon). Names are kept
+  by shrines, ledgers, iron, songs and soldiers' nicknames; spent by their
+  holders; **fed** to the Sleeper by the empire. The world's scarcity of proper
+  nouns is deliberate and diegetic: keep it.
+- **The name gradient.** Proper names are common on the border (Act I), rare on
+  the Roads (II: provinces are numbered), faded in the fens (III), absent at
+  the Seat (IV). Write to it.
+- **Imperial officers have no names.** They surrender them to the Roll on
+  commission and answer to rank; every boss is a title for this reason. Don't
+  give a boss a name in game text except through the name-return moment.
+- **Two dating systems**: years *of the Oath* (O, border and faith) and *of the
+  Seat* (S, imperial). The March is S 34 / O 646. The empire is 34 years old;
+  the border fell 6 years ago.
+- **The Sleeper** (the Entity) is the Stillness beneath the land: not evil, not a
+  god, no voice. It hums. It breathes at the Glass in the fens and its heart
+  beats under the Hearth, the mountain the Seat is built on.
+- **The Eclipse** is the court circle feeding names from the Roll, seen as ink
+  across the Hollow Sun. It is human work; keep it apart from the Sleeper.
+- **The Lieutenant is "he."** In-world speakers who have never met him may stay
+  neutral.
+- **"Rogue dawn"** is the empire's broadsheet phrase for the warband: lights
+  lit against the curfew. The warband adopted it.
+- **Hagen** is the one character allowed to be openly loop-aware in common
+  speech. He never explains why.
 
 ## Unit voices (level-up, promotion, last words)
 
