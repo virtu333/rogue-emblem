@@ -1,0 +1,43 @@
+{
+  "collision": {
+    "runSeed": 2,
+    "mercRngSeed": 10,
+    "promised": "Linnet",
+    "oldCandidates": [
+      "Oriel",
+      "Linnet",
+      "Ilka"
+    ],
+    "newCandidates": [
+      "Oriel",
+      "Colm",
+      "Ilka"
+    ],
+    "oldMercUid": "ru3",
+    "npcUid": "ru4",
+    "recordedFallen": [
+      {
+        "name": "Linnet",
+        "uid": "ru4"
+      }
+    ]
+  },
+  "terrain": {
+    "original": {
+      "seed": 54,
+      "act": "act1",
+      "node": "act1_3_4",
+      "actualName": "Rowan",
+      "actualClass": "Chevalier",
+      "moveType": "Cavalry",
+      "terrain": "Forest",
+      "cost": "3",
+      "tile": {
+        "col": 1,
+        "row": 7
+      }
+    },
+    "generated": 1504,
+    "invalid": []
+  }
+}

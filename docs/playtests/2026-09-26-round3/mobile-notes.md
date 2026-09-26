@@ -1,0 +1,56 @@
+# Mobile round 3 — 2026-09-26
+Snapshot 336cd41d98611a755485a8641fcc95cd83b36428 (PR113). Isolated dev localhost3092, mobilePreview=1, viewport844x390. Sound/music set0 via UI. No hidden state reads/injection. Started tutorial.
+
+- Initial viewport override required reload to settle browser geometry; do not attribute this tool resize artifact to game.
+- Title and settings readable. Tutorial Select/Move/Fort note/Wait/target/forecast all fit.
+- Tutorial moved Edric to Fort then Sera two tiles from Archer. Forecast9 damage x1 vs7 counter,100/96%. Confirmed.
+- Tutorial threat overlays visible/readable. Wait anchored above utilities now stays visible.
+- Tutorial Sera died after exposing her to both enemies; rescue rewind worked and restored initial player turn. Intended tactical consequence; no bug. Casualty modal takes almost full height with ~half empty; wording “gone for good — only a Church can revive” is self-contradictory and does not distinguish tutorial exception that Sera is not the required commander here.
+- Replanned Edric on fort/Sera left flank. Turn2 killed Fighter and attacked Archer adjacent (no counter). Triangle and counter-range descriptions useful. Tutorial advice says “move next to a red enemy” generically even with ranged magic: small copy opportunity to say “into weapon range.”
+- First run normal Forest Ambush,200G, Edric20/Sera18,2fighters. Turn1 advanced cautiously. Turn2 Edric moved from forest to plain and Iron attacked8x2, counter9@61%; Sera ranged finish9 vs6HP.
+- Mobile forecast important usability: at844x390 Edric's 2-weapon carousel shifts Hit/Crit values below initial fold; opponent Hit remains visible. Must press Read below to verify own accuracy. Single-weapon Sera fits these numbers. Suggest compact carousel/header or pinned essential 2x2 combat metrics. This is readable via scroll, not inaccessible.
+- Healing UI: Heal3/3 leads to only 'Tap a highlighted target. Cancel to go back.' (actual utility says Back), no target list or predicted heal amount unlike attack selector. Tapping Edric immediately used charge (+6), no preview. Consider showing target name/current→healedHP before commit or explicit button target rows. Completed heal normally; Sera retained safe state and next actor selectable.
+- Forecast passive line simply says Shieldmate, without effect/explanation inline. New-player likely needs expandable modifier detail (especially because result depends on adjacency).
+- First battle victory turn3 fullHP,772G. Staff refilled3/3 and Lightning re-equipped after healing. Reloaded unclaimed rewards via title/slot, route Return to rewards. Same4 choices and772G; no duplicate earnings. Applied Weight Whetstone to equipped Steel Sword. New art clear; final forge screen only lists current stats (no before→after preview); minor opportunity.
+- Second battle Open Field. Enemy-phase Edric level-up and player-phase heal Sera level-up both readable and dismissible at844x390. Enemy phase continued after popup; next action selectable after heal. Wounded-lord hint useful, fragile warning appeared while already choosing Heal (queued after move), still cancellable.
+- User now requests attempt to beat Normal. Desktop parallel continuing full run, root mobile continuing organic route.
+
+## User steering
+- Aim to beat Normal mode organically; desktop and mobile ongoing.
+- Audit messy/unpolished UI and missing new-player explanations in addition to bugs.
+- Desktop legacy battle HUD vs mobile shared panel: assess consolidating UI and adding visible keyboard shortcuts (rewind notably absent from footer). Investigate actual bindings before stating missing feature.
+- PR99 portrait mode is a future test track, separate from main. User supplied preview https://deploy-preview-99--emblem-rogue.netlify.app/?portrait=1; small375x667 Cancel/Endturn below more cue. Physical phone acceptance user-owned. Test-only planted bug coverage and forecast preview purity (#114 collision) are planning followups, not current patch scope.
+- Route Sera mini-roster chip opens Edric instead of Sera. Code confirmed NodeMapMenu.js224–225 discards unit; _openRoster has no selection argument, RosterOverlay defaults0. Low-impact reproducible UI defect.
+- At second-battle end Edric18/20,Sera9/19,1355G. Reward Armorslayer to Edric; Sera Vulnerary use restored19/19 and reduceduses3→2. Third battle fog Forest Ambush3 enemies. Fog qualifier correctly says no foe can reach 'fog may hide more'.
+- Third battle T3Edric13/20 Sera20/20; two enemies killed, remaining Archer19HP targeted adjacent with Iron9x2@94%, leaves1HP. All decisions visible.
+- Third battle finished turn4 rankS; healed Edric before finishing Archer. Both fullHP21/20,2005G. ShieldRing reward equippedEdric. Village: +1Might Iron and Lightning400G each, twoforgelimit respected,1205Gremaining. Forge options show weight Attack/AS before→after but no equivalent Might impact line. No duplicatecharges.
+- Recruitbattle VossRangerLv3 promised and delivered. Talkturn1, immediatelycontrollable. StartsIronSwordonly (portraitbow could imply rangedclass; need inspect proficiency before classifying). FourfoesafterT2; coordinatedVoss/Sera attacks, Edriccatchup. T3Sera leanlevel4+1RES only, quote says 'No change' despite visible+1; minor flavor mismatch.
+- PersistentDangerFieldNotesmodal waitsforContinue and clearly distinguishes tapvs hold. Phoneenemy silhouettes are difficult toclassify (mistook purpleMyrmidonformage), resolvedbytargetnames; subjective artreadabilitynote.
+- Recruitbattle T4 suspended via Save&ReturnTitle, fullpage reload, ResumeBattle restored3allies2foes/samepositions/turn4/1rewind. Terrain initially legacytilefallback, correctpainterlyart returned afterload; transient notpersistentregression. NoBattlefieldArtwarnings,onlyAInopathdiagnostic. Historyfreepreview andPreviousaction/turn worked; enemyphaseviewonly vs playerrewindtarget differentiated; exitpreservedcharge/state.
+- StaffusesFieldNotes appearedafterfirsthealpostreload andwaitsContinue. Goodreadability. Need assesshintlate/repeat separately beforecallingbug (firststaffhint maynotpreviouslyseen).
+- Recruitbattle wonT4enemyphase,all3alive2051G. HunterCloakrewardtoVoss. ChoseEliteEscape RiverFlight overvillage/church for2rewards. Normalelitecavalry/archers,riverchokepointmeaningfulpressure; Sera11HP/Voss10HPbuthealing/formationworking. Nochargesused. Escapehintclear persistent,Lords0/3matchesnewVoss. Showexitsbelowstandardcommands,Waitanchored.
+- MobileItemmenu explicitlyshowsRestore10HP/Usesdonotrefill, contrastingdesktopbareVulnerary(3) reviewedearlier. SharedviewcontentwouldpreventUXdrift.
+- Multiplecancel/Back/undo-moveiterations inelitebattle,noinputdeadlock. FirstVossescapeT7updates1/3andremovesunitcleanly. EndturnPar changed11→12 afterreinforcements; noexplanationnoticed, perhaps intentionaldynamicpar.
+
+## Act 1 boss cleared / Act 2 entry
+- Castle Assault won turn 6, Par 11, Rank S; all three alive, no rewind spent. Boss drawn off throne by ranged pressure, then Sera Shine + Voss Shortbow finished it. Edric used a Vulnerary instead of taking an unsafe counter. Pin cleared automatically on boss death; objective changed to Capture throne; Seize worked.
+- Boss draft chose Leona (Lv6 Cavalier,23HP,8STR,7SPD,9DEF; Stalwart/Shieldmate) over Thief/Mage to fill cavalry/frontline role. Draft comparison and role labels useful, though second trait can fall below card fold.
+- Reward Killer Bow to Voss confirmed via recipient step. Hunter's Volley expandable details were excellent: two90% strikes,+10Hit,8HP,3uses,battle reset,noSPDfollowup. Gold3057.
+- Voss earned Bossbane deed; title animation and skip worked.
+- Act2 entered normally, six actual battles won. Edric17/22,Sera18/20,Voss26/26,Leona23/23. First node Corridor Siege,Rout,FoesLv3–5,Village.
+- Future plan: PR99 portrait at375x667 and taller phone; verify Cancel/Endturn discovery below More cue and physical-phone comfort separately. Planted-bug regression tests and forecast purity sequencing afterPR114 remain follow-ups, not changes in this read-only audit.
+
+## Act 2 first two battles, services, and actual rewind
+- Corridor Siege won turn5/S, seven enemies after reinforcements, all four alive. Leona's lone Steel Lance leaves AS0; mage doubled her to6HP. Retreat/heal recovered. Barrier Ring reward equipped Leona (+2RES). Gold4784.
+- Confirmed narrative/award-condition defect: Leona earned The Last ('Came back alone...') with Edric/Sera/Voss/Leona all alive. Reviewer probe confirms spec and code count sole nonlord vs totaldeployment4. Existing tests encode condition; not a new implementation regression. See code-review.md.
+- Edric +1HP level7 quote 'Not a thing gained' repeats lean/blank dialogue issue.
+- River Crossing won turn4, all four alive. Eight actual battles complete; Edric/Sera class mastery announced on reward screen.
+- One legitimate rewind used: Edric overextended turn2 and fell to2HP during enemy phase. Restored Before Edric's move turn2 from turn3 after two actions; charge2→1, enemycount/actions restored. Revised formation kept him at10HP; borrowed Voss's Vulnerary via Trade and used it same turn, healed10. This trade+use option deserves a teaching note. No duplicate inventory observed.
+- Hexblade Scroll reward consumed once through Roster→Skills→Bind→Steel Sword+1. Clear cost/usage/details, though two consecutive Confirm steps and desktop-only PageUp/Down/controller hint appear on mobile binding screen.
+- Church free Heal all restored every unit; promotion requirementLv10 and3500G clear. Leaving church showed currentnode with disabledTravel, no reentry action (same issue seen Ruins; village differs).
+- Village: one restock150G. Bought Sunflare2645→Sera, Vulnerary345→Leona. Forged LeonaSteelLance weight8→7(250G)→6(500G), AS0→2; Sunflareweight3→2(250G),AS4→5. Threeforgecap enforced. Gold2007. EquippedSunflare viaout-of-battleRoster successfully.
+- Stock did not offer basic lighter lance; initialonlySteelLance recruit loadout creates weakness that higher-tier shopstock may not fix. Weightforgepreviewuseful. SolScrollshopheader incorrectly/ambiguouslyshowsRequiresProf, descriptionSKL/2%healsdamage; boughtguaranteedweaponupgradeinstead.
+- All four currently fullHP afterchurch. EdricLv7HP23,SeraLv8HP20,VossLv7HP27,LeonaLv7HP24. Act2row4village current. Rewind1. No actualrun deaths. Not yet Normal victory.
+- Mire Crossing turn3: Sera fell to8HP after enemy phase but coordinated kills removed pressure. Hunter's Volley displayed16x2@100%,HP27→19, killed19HP Thief; normalattack18wouldleave1. Correct cost and outcome. Art forecast omits normalattack projected remainingHP/KO line; explanatory consistency opportunity, not arithmetic defect. Sera used lastVulnerary8→18.
+- Bog/swamp art boundaries subtle atphone scale; movementpenalty requires tappingterrain. Oneattemptunreachablemovement simplydeselected withoutreason. No inputlock.
+- Mire Crossing wonT5,S; nine actualwins. Finalunit was Cleric, visibly advanced with army. Took814G fallback,3547→4361G, savedforpromotion. NextPimThiefLv8 recruit,Act2row6. Allfouralive; Edric24/24,Sera18/21. SaveTitle/reload/slot1 restoredsamegold/routeHP; thenSaveTitleagain. Settingsmusic0/SFX0confirmedafterreload. Viewportoverride reset; mobiletab markedhandoff. Normalnotyetbeaten.

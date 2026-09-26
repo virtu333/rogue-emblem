@@ -1,0 +1,19 @@
+PASS: stale save100 removed by tombstone100
+PASS: newer save200 retained against tombstone100
+After second run write+delete, native tombstone: {
+  key: 'emblem_rogue_slot_1_run',
+  seq: 2,
+  removed: true,
+  value: null,
+  savedAt: null,
+  deletedSavedAt: 100
+}
+After relaunch with lost local deletion: {"savedAt":200}
+Native after reconciliation: {
+  key: 'emblem_rogue_slot_1_run',
+  seq: 3,
+  removed: false,
+  value: '{"savedAt":200}',
+  savedAt: 200,
+  deletedSavedAt: null
+}

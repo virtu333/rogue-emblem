@@ -1,0 +1,35 @@
+{
+  "deployedCount": 4,
+  "survivingCount": 4,
+  "deaths": 0,
+  "survivors": [
+    {
+      "name": "Edric",
+      "isLord": true,
+      "currentHP": 20
+    },
+    {
+      "name": "Sera",
+      "isLord": true,
+      "currentHP": 20
+    },
+    {
+      "name": "Voss",
+      "isLord": true,
+      "currentHP": 20
+    },
+    {
+      "name": "Leona",
+      "isLord": false,
+      "currentHP": 20
+    }
+  ],
+  "announcements": [
+    {
+      "unit": "Leona",
+      "deed": "last_of_them",
+      "name": "The Last",
+      "lore": "Came back alone, carrying the names of the rest."
+    }
+  ]
+}

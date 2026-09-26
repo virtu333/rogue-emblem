@@ -1,0 +1,87 @@
+{
+  "recordEntity": "u9",
+  "survivorEntity": "u9",
+  "deadMercBefore": {
+    "name": "Linnet",
+    "level": 4,
+    "stats": {
+      "HP": 19,
+      "STR": 8,
+      "MAG": 1,
+      "SKL": 9,
+      "SPD": 7,
+      "DEF": 4,
+      "RES": 3,
+      "LCK": 5,
+      "MOV": 4
+    }
+  },
+  "livingRecruitBefore": {
+    "name": "Linnet",
+    "level": 2,
+    "stats": {
+      "HP": 19,
+      "STR": 5,
+      "MAG": 0,
+      "SKL": 8,
+      "SPD": 5,
+      "DEF": 3,
+      "RES": 2,
+      "LCK": 4,
+      "MOV": 4
+    }
+  },
+  "wronglyReportedFallen": [
+    {
+      "name": "Linnet",
+      "level": 2,
+      "stats": {
+        "HP": 19,
+        "STR": 5,
+        "MAG": 0,
+        "SKL": 8,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 2,
+        "LCK": 4,
+        "MOV": 4
+      }
+    }
+  ],
+  "actualFallen": [
+    {
+      "name": "Linnet",
+      "level": 2,
+      "uid": "ru4",
+      "stats": {
+        "HP": 19,
+        "STR": 5,
+        "MAG": 0,
+        "SKL": 8,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 2,
+        "LCK": 4,
+        "MOV": 4
+      }
+    }
+  ],
+  "actualLiving": [
+    {
+      "name": "Linnet",
+      "level": 2,
+      "uid": "ru3",
+      "stats": {
+        "HP": 19,
+        "STR": 5,
+        "MAG": 0,
+        "SKL": 8,
+        "SPD": 5,
+        "DEF": 3,
+        "RES": 2,
+        "LCK": 4,
+        "MOV": 4
+      }
+    }
+  ]
+}
