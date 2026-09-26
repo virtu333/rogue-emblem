@@ -5,10 +5,11 @@ merged in at ecb93ec. There are 53 commits. Apart from rendered audio, the diff 
 files, +7,908 / −240. Most of it is under `tools/music/`; 17 files are outside it,
 listed below.
 
-**Status when this was written:** the code is final for this pass. A full re-render of
-the soundtrack (49 scores, 30 cues in every key) is running. When it finishes, the new
-MP3s and the regenerated loop and cue tables are committed, synced to `public/`, and
-checked (see "Verification" below). Until then the branch carries this pass's scores
+**Status when this was written:** the code is final for this pass, and PRs are frozen.
+A full re-render of the soundtrack (49 scores, 30 cues in every key) is running. When it
+finishes, the new MP3s and the regenerated loop and cue tables will be **committed to
+this branch, with no new PR** (it rides on #134). They will be synced to `public/` and
+checked first (see "Verification" below). Nothing else is added during the freeze. Until then the branch carries this pass's scores
 and engine alongside the previous pass's audio. The MusicLibrary tests pass in that
 state, because the file names, keys and loop structure are unchanged.
 
@@ -155,7 +156,7 @@ Done:
 - The credits page was screenshotted at 640×480 and in phone landscape.
 - The ceremony cues were probed in a real browser session.
 
-Pending, after the render:
+Pending, after the render (committed to this branch, no new PR):
 - Commit the audio and the regenerated tables, then `npm run sync-assets`.
 - Check each file's decoded length against its loop-table duration. Two render processes
   crashed on a full disk and were restarted: their MP3s are rewritten, but their loop
