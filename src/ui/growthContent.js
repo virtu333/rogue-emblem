@@ -11,6 +11,7 @@ import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
 import { applyPromotionOath, promotionOath } from '../engine/DeedSystem.js';
 import { crestSpecForClass } from './classCrests.js';
 import { levelBeatLine, levelUpLine, promotionLine } from '../engine/UnitVoice.js';
+import { promotedFromName } from '../engine/ClassLineage.js';
 
 export const GROWTH_STATS = Object.freeze([...XP_STAT_NAMES, 'MOV']);
 
@@ -295,7 +296,7 @@ export function recruitLine(unit, dialogue, classesData = [], line = null) {
   const own = dialogue?.lordRecruitLines?.[unit?.name];
   let pool = Array.isArray(own) && own.length ? own : dialogue?.recruitLines?.[unit?.className];
   if (!Array.isArray(pool) || !pool.length) {
-    const base = classesData?.find?.((c) => c.name === unit?.className)?.promotesFrom;
+    const base = promotedFromName(unit, classesData);
     pool = typeof base === 'string' ? dialogue?.recruitLines?.[base] : null;
   }
   if (!Array.isArray(pool) || !pool.length) return '';

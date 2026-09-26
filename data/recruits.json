@@ -9,6 +9,7 @@
     "Thief":          ["Nyx", "Wicker", "Sparrow", "Rook", "Pim", "Fen", "Lark", "Mags", "Dobbin", "Tess"],
     "Mercenary":      ["Gareth", "Kestrel", "Brandt", "Sigrid", "Valen", "Ottar", "Rennick", "Jessa", "Hollis", "Morrow"],
     "Pegasus Knight": ["Elysia", "Aerin", "Iris", "Ilka", "Neve", "Sabine", "Tarin", "Coralie", "Evin", "Maelis"],
+    "Soldier":        ["Rufus", "Wynn", "Garrow", "Lise", "Merritt", "Odila", "Brisa", "Harl", "Jory", "Elsbet"],
     "Knight":         ["Osric", "Gunther", "Ingrid", "Baldric", "Helga", "Aldo", "Wendel", "Brunna", "Hamond", "Petra"],
     "Dancer":         ["Sylvie", "Aria", "Liesl", "Nico", "Zora", "Mira", "Anouk", "Esme", "Jaro", "Pia"],
     "Wyvern Rider":   ["Draven", "Ragna", "Torvi", "Hakon", "Ysolt", "Brenna", "Ulf", "Kari", "Stig", "Asta"],
@@ -24,11 +25,11 @@
   },
   "act1": {
     "levelRange": [1, 3],
-    "classPool": ["Fighter", "Archer", "Mage", "Cavalier", "Cleric", "Myrmidon"]
+    "classPool": ["Fighter", "Archer", "Mage", "Cavalier", "Cleric", "Myrmidon", "Soldier"]
   },
   "act2": {
     "levelRange": [5, 8],
-    "classPool": ["Thief", "Mercenary", "Pegasus Knight", "Wyvern Rider", "Mage", "Knight", "Cavalier", "Dancer"]
+    "classPool": ["Thief", "Mercenary", "Pegasus Knight", "Wyvern Rider", "Mage", "Knight", "Cavalier", "Dancer", "Soldier"]
   },
   "act3": {
     "levelRange": [5, 8],

@@ -99,8 +99,7 @@ function runBootPreload({ reducedPreload }) {
   globalThis.__emblemRogueStartupFlags = { reducedPreload, mobileSafeBoot: reducedPreload };
   const scene = Object.create(BootScene.prototype);
   scene.load = recordingLoader();
-  const text = { setOrigin: () => text, setText: () => text, destroy() {} };
-  scene.add = { text: () => text };
+  scene.events = { once() {} }; // the DOM loader (BootLoader) leaves with the scene
   scene.textures = { exists: () => false };
   scene._installPreloadStallWatch = () => {};
   scene.preload();

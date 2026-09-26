@@ -15,6 +15,7 @@
 // getSkillCombatMods, exactly like skill/affix mods.
 
 import { MASTERY_BATTLES, MASTERY_MIN_BATTLES } from '../utils/constants.js';
+import { isLineOf } from './ClassLineage.js';
 
 const PERK_MOD_KEYS = [
   'critBonus',
@@ -58,6 +59,9 @@ function getPromotedToBaseMap(classesData) {
 export function getBaseClassName(unit, classesData) {
   const current = unit?.className;
   if (!current) return null;
+  // A unit remembers the line it promoted from (a promoted class can have several).
+  if (typeof unit.baseClass === 'string' && isLineOf(unit.baseClass, current, classesData))
+    return unit.baseClass;
   const revMap = getPromotedToBaseMap(classesData);
   if (revMap.has(current)) return revMap.get(current);
   // Fall back to the class entry's own promotesFrom, if present.

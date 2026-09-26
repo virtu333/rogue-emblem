@@ -425,6 +425,43 @@ describe('PC-98 portrait runtime', () => {
     }
   });
 
+  // Frames index the defaults in sorted order, so adding a default (a new class's
+  // portrait) moves every later frame. A build that re-indexed without recomposing the
+  // atlases would draw the wrong face on the canvas; bounds checks cannot see that.
+  it('every atlas frame holds its own portrait (the figure over its plate)', async () => {
+    const ids = Object.keys(PC98_MANIFEST.portraits).filter(
+      (id) => !PC98_MANIFEST.portraits[id].variant,
+    );
+    const { columns, sizes } = PC98_MANIFEST.atlas;
+    for (const size of sizes) {
+      const atlas = await sharp(`assets/portraits/pc98/atlas/${size}.png`)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      for (const id of ids) {
+        const frame = PC98_MANIFEST.portraits[id].frame;
+        const fig = await sharp(`assets/portraits/pc98/${size}/${id}.png`)
+          .ensureAlpha()
+          .raw()
+          .toBuffer();
+        const x0 = (frame % columns) * size;
+        const y0 = Math.floor(frame / columns) * size;
+        let opaque = 0;
+        let same = 0;
+        for (let y = 0; y < size; y++)
+          for (let x = 0; x < size; x++) {
+            const f = (y * size + x) * 4;
+            if (fig[f + 3] !== 255) continue;
+            opaque += 1;
+            const a = ((y0 + y) * atlas.info.width + x0 + x) * 4;
+            if ([0, 1, 2].every((c) => atlas.data[a + c] === fig[f + c])) same += 1;
+          }
+        // The right frame matches every opaque figure pixel; a neighbour ~6%.
+        expect(same / opaque, `${id} @${size}`).toBeGreaterThan(0.99);
+      }
+    }
+  });
+
   it('builds a pixelated DOM figure over its faction plate', () => {
     const make = (tag) => {
       const node = {

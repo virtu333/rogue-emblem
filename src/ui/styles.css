@@ -1,6 +1,7 @@
 /* Single entry: consistent cascade in Vite dev and production chunks. */
 @import './mobileTheme.css';
 @import './reKit.css';
+@import './bootLoader.css';
 @import './mobileBattle.css';
 @import './mobileRoster.css';
 @import './mobileUpgrade.css';
@@ -45,3 +46,5 @@
 
 /* Save select: the candle shrine (SlotPickerView.js). */
 @import './slotPicker.css';
+/* Portrait battles (beta): upright phone layout, map above a thumb-reach rail. Last. */
+@import './portraitBattle.css';

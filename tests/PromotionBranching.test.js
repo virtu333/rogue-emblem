@@ -11,9 +11,10 @@ import {
 
 const data = loadGameData();
 
-// All 11 recruitable base classes that should have 2-element promotesTo
+// All 12 recruitable base classes that should have 2-element promotesTo
 const BRANCHING_BASES = [
   'Myrmidon',
+  'Soldier',
   'Knight',
   'Fighter',
   'Cavalier',
@@ -29,6 +30,7 @@ const BRANCHING_BASES = [
 // Expected promotion paths per spec
 const EXPECTED_PATHS = {
   Myrmidon: ['Swordmaster', 'Duelist'],
+  Soldier: ['Duelist', 'Paladin'],
   Knight: ['General', 'Great Knight'],
   Fighter: ['Warrior', 'Berserker'],
   Cavalier: ['Paladin', 'Dark Knight'],

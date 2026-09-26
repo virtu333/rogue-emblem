@@ -102,8 +102,8 @@ export class BattleLightLayer {
     const grid = scene?.grid;
     if (!grid || !scene.add?.renderTexture || !scene.textures?.addDynamicTexture) return this;
     ensureGlowTexture(scene);
-    const w = grid.cols * TILE_SIZE;
-    const h = grid.rows * TILE_SIZE;
+    const w = grid.mapPixelWidth ?? grid.cols * TILE_SIZE;
+    const h = grid.mapPixelHeight ?? grid.rows * TILE_SIZE;
     this.w = w;
     this.h = h;
     const rw = Math.max(1, Math.ceil(w * RES));
@@ -180,9 +180,12 @@ export class BattleLightLayer {
     tex.clear();
     tex.fill(this.color, this.darkness);
     this.glowStatic.clear();
+    const grid = this.scene.grid;
     for (const e of this._emitters) {
-      const x = (e.col + 0.5) * TILE_SIZE;
-      const y = (e.row + 0.5) * TILE_SIZE;
+      // Emitter cells are game coordinates; the light texture is laid out as drawn.
+      const cell = grid?.displayCellOf?.(e.col, e.row) || e;
+      const x = (cell.col + 0.5) * TILE_SIZE;
+      const y = (cell.row + 0.5) * TILE_SIZE;
       this._stampBrush(tex, x, y, e.radius, e.strength, null, true);
       this._stampBrush(
         this.glowStatic,

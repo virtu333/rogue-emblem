@@ -235,6 +235,7 @@ async function expectNoDialog(page) {
 test('a recruit battle opens with a non-blocking recruit note, once per slot (Full)', async ({
   page,
 }) => {
+  test.slow(); // two battle boots
   const npc = await openRecruitBattle(page, { hints: true, guidance: 'full' });
   expect(npc.hints).toBe(true);
   const recruitNote = page.locator('.re-guide[data-guide="guide_recruit_on_map"]');
