@@ -46,6 +46,9 @@ export const CLASS_CREST_SPECS = Object.freeze({
   Sentinel: c('sentinel', 'base', 'axe', { mark: 'star' }),
   Champion: c('sentinel', 'promoted', 'axe', { secondary: ['lance'], mark: 'star' }),
   // Lance lines
+  // Soldier: the levy's spear, on foot. Its promotions belong to other lines' crests
+  // (Duelist, Paladin), so its own crest is the plain lance.
+  Soldier: c('soldier', 'base', 'lance'),
   Knight: c('knight', 'base', 'lance', { mount: 'tower' }),
   General: c('knight', 'promoted', 'lance', { secondary: ['axe'], mount: 'tower' }),
   'Great Knight': c('knight', 'promoted', 'lance', { secondary: ['axe', 'sword'], mount: 'horse' }),
@@ -80,13 +83,16 @@ export const CLASS_CREST_SPECS = Object.freeze({
   Vanguard: c('ranger', 'promoted', 'bow', { secondary: ['sword', 'axe'], mark: 'star' }),
   // Tome and staff lines
   Mage: c('mage', 'base', 'tome', { mark: 'flame' }),
-  Sage: c('mage', 'promoted', 'tome', { secondary: ['staff'], mark: 'flame' }),
+  Sage: c('mage', 'promoted', 'tome', { secondary: ['staff', 'light'], mark: 'flame' }),
   Warlock: c('mage', 'promoted', 'tome', { twin: true, mark: 'eye' }),
   Tactician: c('tactician', 'base', 'tome', { mark: 'star' }),
   Grandmaster: c('tactician', 'promoted', 'tome', { secondary: ['sword'], mark: 'star' }),
   Cleric: c('cleric', 'base', 'staff', { mark: 'chalice' }),
   Bishop: c('cleric', 'promoted', 'staff', { secondary: ['light'], mark: 'chalice' }),
-  'Battle Monk': c('cleric', 'promoted', 'staff', { secondary: ['axe'], mark: 'chalice' }),
+  'Battle Monk': c('cleric', 'promoted', 'staff', {
+    secondary: ['axe', 'light'],
+    mark: 'chalice',
+  }),
   'Light Sage': c('lightsage', 'base', 'light', { mark: 'star' }),
   'Light Priestess': c('lightsage', 'promoted', 'light', { secondary: ['staff'], mark: 'star' }),
   // Enemy-only lines (the roster never shows them, the compendium may)

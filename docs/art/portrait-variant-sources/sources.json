@@ -2699,6 +2699,114 @@
     "background": 0.334,
     "pockets": 1
   },
+  "enemy_soldier": {
+    "raw": "References/portrait-variants/raw/enemy_soldier.jpg",
+    "rawSha256": "e083d0e33ba1b67d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Soldier",
+    "person": "soldier_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.269,
+      "cx": 0.432,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.042,
+      "dy": 0.011
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.425,
+    "pockets": 0
+  },
+  "enemy_soldier__b": {
+    "raw": "References/portrait-variants/raw/enemy_soldier__b.jpg",
+    "rawSha256": "2934e0e7fa78c910",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Soldier",
+    "person": "soldier_b",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.5,
+      "faceH": 0.25,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.13,
+      "dy": -0.017
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.391,
+    "pockets": 1
+  },
+  "enemy_soldier__c": {
+    "raw": "References/portrait-variants/raw/enemy_soldier__c.jpg",
+    "rawSha256": "eecac1686716f8e6",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Soldier",
+    "person": "soldier_c",
+    "mode": "new",
+    "native": 110,
+    "detected": {
+      "eye": 0.283,
+      "cx": 0.479,
+      "faceH": 0.327,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.162,
+      "dx": -0.037,
+      "dy": 0.031
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.387,
+    "pockets": 0
+  },
+  "enemy_soldier__d": {
+    "raw": "References/portrait-variants/raw/enemy_soldier__d.jpg",
+    "rawSha256": "0ee2fc6c6b80308d",
+    "options": "{}",
+    "side": "enemy",
+    "className": "Soldier",
+    "person": "soldier_d",
+    "mode": "new",
+    "native": 154,
+    "detected": {
+      "eye": 0.319,
+      "cx": 0.552,
+      "faceH": 0.265,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.198,
+      "dy": -0.054
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.448,
+    "pockets": 0
+  },
   "enemy_swordmaster": {
     "raw": "References/portrait-variants/raw/enemy_swordmaster.jpg",
     "rawSha256": "15278d533411992d",
@@ -5048,6 +5156,141 @@
     "background": 0.558,
     "pockets": 1
   },
+  "generic_duelist__soldier_a": {
+    "raw": "References/portrait-variants/raw/generic_duelist__soldier_a.jpg",
+    "rawSha256": "0b45d8df68d6b32d",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "soldier_a",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.28,
+      "cx": 0.53,
+      "faceH": 0.268,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.169,
+      "dy": -0.003
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.536,
+    "pockets": 1
+  },
+  "generic_duelist__soldier_b": {
+    "raw": "References/portrait-variants/raw/generic_duelist__soldier_b.jpg",
+    "rawSha256": "9146efbed2b3d548",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "soldier_b",
+    "mode": "new",
+    "native": 49,
+    "detected": {
+      "eye": 0.27,
+      "cx": 0.518,
+      "faceH": 0.255,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.153,
+      "dy": 0.009
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.558,
+    "pockets": 1
+  },
+  "generic_duelist__soldier_c": {
+    "raw": "References/portrait-variants/raw/generic_duelist__soldier_c.jpg",
+    "rawSha256": "56e560558c232f58",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "soldier_c",
+    "mode": "new",
+    "native": 111,
+    "detected": {
+      "eye": 0.262,
+      "cx": 0.504,
+      "faceH": 0.33,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.152,
+      "dx": -0.06,
+      "dy": 0.059
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.517,
+    "pockets": 1
+  },
+  "generic_duelist__soldier_d": {
+    "raw": "References/portrait-variants/raw/generic_duelist__soldier_d.jpg",
+    "rawSha256": "4e1bb6d93e8dbe1c",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "soldier_d",
+    "mode": "new",
+    "native": 95,
+    "detected": {
+      "eye": 0.29,
+      "cx": 0.512,
+      "faceH": 0.295,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.288,
+      "dx": -0.14,
+      "dy": -0.014
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.56,
+    "pockets": 1
+  },
+  "generic_duelist__soldier_e": {
+    "raw": "References/portrait-variants/raw/generic_duelist__soldier_e.jpg",
+    "rawSha256": "9a3988c99a858566",
+    "options": "{}",
+    "side": "player",
+    "className": "Duelist",
+    "person": "soldier_e",
+    "mode": "new",
+    "native": 118,
+    "detected": {
+      "eye": 0.268,
+      "cx": 0.553,
+      "faceH": 0.298,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.275,
+      "dx": -0.185,
+      "dy": 0.019
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.543,
+    "pockets": 2
+  },
   "generic_falcon_knight": {
     "raw": "References/portrait-variants/raw/generic_falcon_knight.jpg",
     "rawSha256": "8097ca6432a34d06",
@@ -6641,6 +6884,141 @@
     "background": 0.431,
     "pockets": 0
   },
+  "generic_paladin__soldier_a": {
+    "raw": "References/portrait-variants/raw/generic_paladin__soldier_a.jpg",
+    "rawSha256": "08dbda79bbf3f795",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "soldier_a",
+    "mode": "new",
+    "native": 96,
+    "detected": {
+      "eye": 0.35,
+      "cx": 0.525,
+      "faceH": 0.24,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.163,
+      "dy": -0.096
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.498,
+    "pockets": 0
+  },
+  "generic_paladin__soldier_b": {
+    "raw": "References/portrait-variants/raw/generic_paladin__soldier_b.jpg",
+    "rawSha256": "3eb017ad28ee7376",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "soldier_b",
+    "mode": "new",
+    "native": 110,
+    "detected": {
+      "eye": 0.33,
+      "cx": 0.542,
+      "faceH": 0.335,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.134,
+      "dx": -0.095,
+      "dy": -0.014
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.477,
+    "pockets": 0
+  },
+  "generic_paladin__soldier_c": {
+    "raw": "References/portrait-variants/raw/generic_paladin__soldier_c.jpg",
+    "rawSha256": "010e8e8849f8c0dd",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "soldier_c",
+    "mode": "new",
+    "native": 127,
+    "detected": {
+      "eye": 0.353,
+      "cx": 0.526,
+      "faceH": 0.385,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.987,
+      "dx": 0,
+      "dy": 0.013
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.505,
+    "pockets": 0
+  },
+  "generic_paladin__soldier_d": {
+    "raw": "References/portrait-variants/raw/generic_paladin__soldier_d.jpg",
+    "rawSha256": "2304d243af50ba2c",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "soldier_d",
+    "mode": "new",
+    "native": 101,
+    "detected": {
+      "eye": 0.353,
+      "cx": 0.534,
+      "faceH": 0.308,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.234,
+      "dx": -0.139,
+      "dy": -0.076
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.506,
+    "pockets": 0
+  },
+  "generic_paladin__soldier_e": {
+    "raw": "References/portrait-variants/raw/generic_paladin__soldier_e.jpg",
+    "rawSha256": "06654cccb8521f6d",
+    "options": "{}",
+    "side": "player",
+    "className": "Paladin",
+    "person": "soldier_e",
+    "mode": "new",
+    "native": 104,
+    "detected": {
+      "eye": 0.352,
+      "cx": 0.523,
+      "faceH": 0.32,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.187,
+      "dx": -0.101,
+      "dy": -0.059
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.508,
+    "pockets": 0
+  },
   "generic_pegasus_knight": {
     "raw": "References/portrait-variants/raw/generic_pegasus_knight.jpg",
     "rawSha256": "9eb7a6e239c8ebe3",
@@ -7018,6 +7396,141 @@
     },
     "background": 0.306,
     "pockets": 1
+  },
+  "generic_soldier": {
+    "raw": "References/portrait-variants/raw/generic_soldier.jpg",
+    "rawSha256": "1caaeb31b20ab72f",
+    "options": "{}",
+    "side": "player",
+    "className": "Soldier",
+    "person": "soldier_a",
+    "mode": "remaster",
+    "native": 98,
+    "detected": {
+      "eye": 0.349,
+      "cx": 0.529,
+      "faceH": 0.242,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.168,
+      "dy": -0.094
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.515,
+    "pockets": 0
+  },
+  "generic_soldier__soldier_b": {
+    "raw": "References/portrait-variants/raw/generic_soldier__soldier_b.jpg",
+    "rawSha256": "067097b8f67e792f",
+    "options": "{}",
+    "side": "player",
+    "className": "Soldier",
+    "person": "soldier_b",
+    "mode": "new",
+    "native": 99,
+    "detected": {
+      "eye": 0.329,
+      "cx": 0.552,
+      "faceH": 0.295,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.288,
+      "dx": -0.192,
+      "dy": -0.063
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.468,
+    "pockets": 1
+  },
+  "generic_soldier__soldier_c": {
+    "raw": "References/portrait-variants/raw/generic_soldier__soldier_c.jpg",
+    "rawSha256": "15530b2b734afd16",
+    "options": "{}",
+    "side": "player",
+    "className": "Soldier",
+    "person": "soldier_c",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.354,
+      "cx": 0.53,
+      "faceH": 0.285,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.169,
+      "dy": -0.1
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.471,
+    "pockets": 0
+  },
+  "generic_soldier__soldier_d": {
+    "raw": "References/portrait-variants/raw/generic_soldier__soldier_d.jpg",
+    "rawSha256": "d86a8f27de566603",
+    "options": "{}",
+    "side": "player",
+    "className": "Soldier",
+    "person": "soldier_d",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.353,
+      "cx": 0.533,
+      "faceH": 0.237,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.173,
+      "dy": -0.099
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.512,
+    "pockets": 0
+  },
+  "generic_soldier__soldier_e": {
+    "raw": "References/portrait-variants/raw/generic_soldier__soldier_e.jpg",
+    "rawSha256": "ff80d2be82463699",
+    "options": "{}",
+    "side": "player",
+    "className": "Soldier",
+    "person": "soldier_e",
+    "mode": "new",
+    "native": 98,
+    "detected": {
+      "eye": 0.354,
+      "cx": 0.528,
+      "faceH": 0.24,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.166,
+      "dy": -0.1
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.517,
+    "pockets": 0
   },
   "generic_swordmaster": {
     "raw": "References/portrait-variants/raw/generic_swordmaster.jpg",

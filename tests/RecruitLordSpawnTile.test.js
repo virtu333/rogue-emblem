@@ -128,11 +128,12 @@ describe('the class a recruit node spawns is known before the map is made', () =
   });
 });
 
-describe('regression: a Dancer preview that spawns Rowan (Cavalry) on a Swamp', () => {
+describe('regression: an Infantry preview that spawns Rowan (Cavalry) on a Swamp', () => {
   // Found by search over generated runs: run seed 22, act 2, node act2_6_3 previews
-  // the Dancer Esme; the lord roll makes it Rowan, a Chevalier. On the mire_crossing
-  // map rolled with battle seed 31 the old code seated the recruit on a Swamp tile
-  // (Infantry 3, Cavalry "--"): checked for the Dancer's Infantry, not for Rowan.
+  // an Infantry recruit (the Dancer Esme until the Soldier joined the act 2 pool on
+  // 2026-09-26; now the Soldier Harl); the lord roll makes it Rowan, a Chevalier. On the
+  // mire_crossing map rolled with battle seed 31 the old code seated the recruit on a
+  // Swamp tile (Infantry 3, Cavalry "--"): checked for the preview's Infantry, not Rowan.
   const SEED = 22;
   const NODE_ID = 'act2_6_3';
   const BATTLE_SEED = 31;
@@ -145,14 +146,14 @@ describe('regression: a Dancer preview that spawns Rowan (Cavalry) on a Swamp', 
 
   it('battle params carry the class that will spawn', () => {
     const { rm, node, params } = setup();
-    expect(node.recruitPreview).toMatchObject({ className: 'Dancer', name: 'Esme' });
+    expect(node.recruitPreview).toMatchObject({ className: 'Soldier', name: 'Harl' });
     const built = rm.getRecruitNodeUnit(node);
     expect(built.isLord).toBe(true);
     expect(built.unit.name).toBe('Rowan');
     expect(built.unit.moveType).toBe('Cavalry');
     expect(params.recruitPreview).toEqual({
-      className: 'Dancer',
-      name: 'Esme',
+      className: 'Soldier',
+      name: 'Harl',
       spawnClassName: built.unit.className,
     });
   });
@@ -170,7 +171,7 @@ describe('regression: a Dancer preview that spawns Rowan (Cavalry) on a Swamp', 
   it('now the recruit stands where Rowan can, under the same safety rules', () => {
     const { params } = setup();
     const bc = generateAt(BATTLE_SEED, params);
-    expect(bc.npcSpawn).toMatchObject({ className: 'Dancer', name: 'Esme' });
+    expect(bc.npcSpawn).toMatchObject({ className: 'Soldier', name: 'Harl' });
     expect(bc.npcSpawn.spawnClassName).toBe(params.recruitPreview.spawnClassName);
     expect(canStand(bc, bc.npcSpawn, 'Cavalry')).toBe(true);
     const reach = reachCost(bc, bc.npcSpawn);
@@ -194,7 +195,7 @@ describe('regression: a Dancer preview that spawns Rowan (Cavalry) on a Swamp', 
     const saved = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
     const locked = saved.getLockedBattleConfig(node.id);
     expect(canStand(locked, locked.npcSpawn, 'Cavalry')).toBe(true);
-    expect(locked.npcSpawn).toMatchObject({ className: 'Dancer', name: 'Esme' });
+    expect(locked.npcSpawn).toMatchObject({ className: 'Soldier', name: 'Harl' });
     // Lords still start nearest the recruit, and the fix is stable.
     const nearest = reachCost(
       { ...locked, playerSpawns: [locked.playerSpawns[0]] },

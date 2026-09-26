@@ -51,6 +51,7 @@ const RETIRED = traits.filter((t) => t.retired);
 // promoted classes recruits arrive as (rolled against the promoted class).
 const RECRUIT_BASES = [
   'Myrmidon',
+  'Soldier',
   'Mercenary',
   'Fighter',
   'Knight',
