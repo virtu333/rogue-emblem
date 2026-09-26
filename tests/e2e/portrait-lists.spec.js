@@ -1,7 +1,8 @@
 // Portrait mode: the list-and-detail screens on an upright phone.
 //
-// The portrait shell (another change) sets `portrait-ui` on <html> while an opted-in
-// phone is held upright; these tests set it themselves and hide the rotate prompt.
+// The portrait shell sets `portrait-ui` on <html> while an opted-in phone is held
+// upright; these tests opt in, and also set the class themselves and hide the rotate
+// prompt for a build without the shell.
 // Ways this can fail, one test (or assertion group) each:
 //   - a screen still lays out as two ~170px columns, or scrolls the page sideways;
 //   - the attribute grid packs three label/value pairs into a narrow pane, so a label
@@ -26,6 +27,7 @@ const PORTRAIT_VIEWPORTS = [
 /** Upright phone: the shell's class, and no rotate prompt over the menus. */
 async function portraitMode(page) {
   await page.addInitScript(() => {
+    localStorage.setItem('emblem_rogue_portrait_battles', 'on');
     document.addEventListener('DOMContentLoaded', () => {
       document.documentElement.classList.add('portrait-ui');
       const style = document.createElement('style');
