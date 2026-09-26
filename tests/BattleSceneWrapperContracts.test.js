@@ -944,6 +944,7 @@ describe('BattleScene shim delegation contracts', () => {
       scene._forecastOverlay = { destroy: vi.fn(), displayObjects: [] };
       scene.forecastObjects = [];
       scene.forecastTarget = { name: 'Enemy' };
+      scene._forecastWeapon = { name: 'Steel Sword' };
       scene._forecastValidWeapons = [{}];
       scene._forecastWeaponArt = { name: 'Art' };
       scene._forecastGamblerLine = 'GAMBLER: ATK +2 (locked)';
@@ -952,6 +953,7 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(scene.forecastObjects).toBeNull();
       expect(scene.forecastTarget).toBeNull();
+      expect(scene._forecastWeapon).toBeNull();
       expect(scene._forecastValidWeapons).toBeNull();
       expect(scene._forecastWeaponArt).toBeNull();
       expect(scene._forecastGamblerLine).toBeNull();
@@ -963,6 +965,7 @@ describe('BattleScene shim delegation contracts', () => {
       scene._forecastOverlay = mockOverlay;
       scene.forecastObjects = mockOverlay.displayObjects;
       scene.forecastTarget = { name: 'Enemy' };
+      scene._forecastWeapon = { name: 'Steel Sword' };
       scene._forecastValidWeapons = [{}];
       scene._forecastWeaponArt = {};
       scene._forecastGamblerLine = 'test';
@@ -972,6 +975,7 @@ describe('BattleScene shim delegation contracts', () => {
       expect(mockOverlay.destroy).toHaveBeenCalledTimes(1);
       expect(scene._forecastOverlay).toBeNull();
       expect(scene.forecastTarget).toBeNull();
+      expect(scene._forecastWeapon).toBeNull();
       expect(scene._forecastValidWeapons).toBeNull();
       expect(scene._forecastWeaponArt).toBeNull();
       expect(scene._forecastGamblerLine).toBeNull();

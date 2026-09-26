@@ -2,7 +2,8 @@
 // Attack → every enemy reachable with ANY usable weapon → pick a target → the
 // forecast opens on the equipped weapon (or the first that can hit) → switch
 // weapons/targets in the forecast with live numbers → Cancel/Back paths →
-// confirming with another weapon equips it and moves it to the top.
+// confirming with another weapon equips it and moves it to the top. Until then
+// the forecast only plans the weapon (scene._forecastWeapon): nothing is equipped.
 import { test, expect, devices } from '@playwright/test';
 import { waitForGame, waitForScene } from './helpers.js';
 
@@ -75,6 +76,8 @@ async function bootBattle(page, { mobile }) {
 
 const state = (page) => page.evaluate(() => window.__sceneState.battle.state);
 const weaponName = (page) => page.evaluate(() => window.__af.unit.weapon.name);
+const plannedName = (page) =>
+  page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle')._forecastWeapon?.name);
 const bagOrder = (page) => page.evaluate(() => window.__af.unit.inventory.map((w) => w.name));
 const rngCursor = (page) =>
   page.evaluate(
@@ -117,7 +120,8 @@ test.describe('desktop attack flow', () => {
     await page.keyboard.press('Enter');
     await expect.poll(() => state(page)).toBe('SHOWING_FORECAST');
     // The equipped sword cannot reach: default is the first weapon that can.
-    expect(await weaponName(page)).toBe('Iron Bow');
+    expect(await plannedName(page)).toBe('Iron Bow');
+    expect(await weaponName(page)).toBe('Iron Sword');
 
     await page.keyboard.press('ArrowUp');
     await expect
@@ -129,7 +133,7 @@ test.describe('desktop attack flow', () => {
       )
       .toBe(true);
     // A new target starts from the equipped weapon.
-    expect(await weaponName(page)).toBe('Iron Sword');
+    expect(await plannedName(page)).toBe('Iron Sword');
     const texts = () =>
       page.evaluate(() =>
         window.__emblemRogueGame.scene
@@ -141,12 +145,13 @@ test.describe('desktop attack flow', () => {
     expect(before).toContain('E');
     expect(before).toContain('1/2');
     await page.keyboard.press('ArrowRight');
-    expect(await weaponName(page)).toBe('Steel Sword');
+    expect(await plannedName(page)).toBe('Steel Sword');
+    expect(await weaponName(page)).toBe('Iron Sword');
     const after = await texts();
     expect(after).toContain('2/2');
     expect(after.join('|')).not.toBe(before.join('|'));
     expect(after).not.toContain('E');
-    // Preview only: the bag does not move while cycling.
+    // Planning only: the bag does not move while cycling.
     expect(await bagOrder(page)).toEqual(['Iron Sword', 'Steel Sword', 'Iron Bow']);
     await page.screenshot({ path: info.outputPath('forecast-steel.png') });
 
@@ -185,7 +190,8 @@ test.describe('desktop attack flow', () => {
     });
     await expect.poll(() => state(page)).toBe('SHOWING_FORECAST');
     await page.keyboard.press('ArrowRight');
-    expect(await weaponName(page)).toBe('Steel Sword');
+    expect(await plannedName(page)).toBe('Steel Sword');
+    expect(await weaponName(page)).toBe('Iron Sword');
     await page.keyboard.press('Enter');
     await expect
       .poll(() => state(page), { timeout: 20_000 })
@@ -264,7 +270,8 @@ test.describe('phone attack flow (844×390)', () => {
       .getByRole('button', { name: 'Next target' })
       .tap();
     await expect(dialog.getByRole('group', { name: 'Target' })).toContainText('Target 2 of 2');
-    expect(await weaponName(page)).toBe('Iron Bow');
+    expect(await plannedName(page)).toBe('Iron Bow');
+    expect(await weaponName(page)).toBe('Iron Sword');
     await expect(dialog.locator('.mb-ally .mb-weapon')).toContainText('Iron Bow');
     await page.screenshot({ path: info.outputPath('phone-forecast-bow.png') });
 

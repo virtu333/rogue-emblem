@@ -924,19 +924,25 @@ export function levelUp(unit, rng = Math.random) {
   }
 
   // Guarantee at least 1 stat gain
-  if (totalGains === 0) {
-    let bestStat = 'HP';
-    let bestGrowth = 0;
-    for (const stat of XP_STAT_NAMES) {
-      if ((unit.growths[stat] || 0) > bestGrowth) {
-        bestGrowth = unit.growths[stat];
-        bestStat = stat;
-      }
-    }
-    gains[bestStat] = 1;
-  }
+  if (totalGains === 0) gains[levelUpFallbackStat(unit.growths)] = 1;
 
   return { gains, newLevel: unit.level + 1 };
+}
+
+/**
+ * The stat a level-up grants when every growth roll fails: the highest growth, the
+ * earlier stat (HP, STR, … order) on a tie, HP when nothing is positive.
+ */
+export function levelUpFallbackStat(growths = {}) {
+  let bestStat = 'HP';
+  let bestGrowth = 0;
+  for (const stat of XP_STAT_NAMES) {
+    if ((growths[stat] || 0) > bestGrowth) {
+      bestGrowth = growths[stat];
+      bestStat = stat;
+    }
+  }
+  return bestStat;
 }
 
 /**
@@ -1472,9 +1478,9 @@ export function getWeaponByTier(proficiencies, allWeapons, targetTier) {
  *
  * Like Fire Emblem, the equipped weapon is always the first inventory item:
  * equipping moves it to the top (the rest keep their relative order). Pass
- * `{ reorder: false }` only for a provisional equip that is rolled back or
- * committed later (forecast weapon preview, staff use); the caller then owns
- * restoring the order or calling normalizeEquippedFirst on commit.
+ * `{ reorder: false }` only for a provisional equip that is rolled back later
+ * (staff use); the caller then owns restoring the prior weapon. The attack
+ * forecast never equips: it plans a weapon and confirming equips it.
  */
 export function equipWeapon(unit, weapon, { reorder = true } = {}) {
   if (!unit.inventory.includes(weapon)) return;

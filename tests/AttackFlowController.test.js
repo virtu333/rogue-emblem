@@ -31,7 +31,6 @@ vi.mock('../src/ui/ForecastOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { InputController } from '../src/ui/InputController.js';
-import { restoreWeaponPreview } from '../src/ui/WeaponPreviewSession.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { loadGameData } from './testData.js';
 
@@ -110,7 +109,7 @@ function makeScene() {
     _pinToScreen: vi.fn(),
     hideActionMenu: vi.fn(),
     showActionMenu: vi.fn(function (unit) {
-      restoreWeaponPreview(this);
+      this._selectedWeaponArt = null;
       this.battleState = 'UNIT_ACTION_MENU';
       this.selectedUnit = unit;
     }),
@@ -177,26 +176,30 @@ describe('forecast', () => {
     scene._attackFlow().begin(hero);
     await scene._attackFlow().openForecast(hero, adjacent);
     expect(scene.battleState).toBe('SHOWING_FORECAST');
+    expect(scene._forecastWeapon).toBe(iron);
     expect(hero.weapon).toBe(iron);
     const config = renders.at(-1);
     expect(config.validWeapons).toEqual([iron, steel]);
+    expect(config.weapon).toBe(iron);
     expect(config.equippedWeapon).toBe(iron);
     expect(config.targetIndex).toBe(0);
     expect(config.targetCount).toBe(2);
   });
 
-  it('otherwise the first weapon in inventory order that can hit it (no reorder)', async () => {
+  it('otherwise the first weapon in inventory order that can hit it (nothing equipped)', async () => {
     const { scene, hero, iron, bow, ranged } = makeScene();
     const order = [...hero.inventory];
     scene._attackFlow().begin(hero);
     await scene._attackFlow().openForecast(hero, ranged);
-    expect(hero.weapon).toBe(bow);
+    expect(scene._forecastWeapon).toBe(bow);
+    expect(renders.at(-1).weapon).toBe(bow);
     expect(renders.at(-1).validWeapons).toEqual([bow]);
     expect(renders.at(-1).equippedWeapon).toBe(iron);
+    expect(hero.weapon).toBe(iron);
     expect(hero.inventory).toEqual(order);
   });
 
-  it('switching weapons updates the forecast numbers and never reorders the bag', async () => {
+  it('switching weapons updates the forecast numbers and never equips or reorders', async () => {
     const { scene, hero, iron, steel, adjacent } = makeScene();
     const order = [...hero.inventory];
     scene._attackFlow().begin(hero);
@@ -204,14 +207,16 @@ describe('forecast', () => {
     const before = renders.at(-1).forecast.attacker;
     expect(scene._cycleForecastWeapon(1)).toBe(true);
     await Promise.resolve();
-    expect(hero.weapon).toBe(steel);
+    expect(scene._forecastWeapon).toBe(steel);
+    expect(renders.at(-1).weapon).toBe(steel);
     const after = renders.at(-1).forecast.attacker;
     expect(after.damage).not.toBe(before.damage);
     expect(renders.at(-1).equippedWeapon).toBe(iron);
     scene._cycleForecastWeapon(1);
-    expect(hero.weapon).toBe(iron);
+    expect(scene._forecastWeapon).toBe(iron);
     scene._cycleForecastWeapon(-1);
-    expect(hero.weapon).toBe(steel);
+    expect(scene._forecastWeapon).toBe(steel);
+    expect(hero.weapon).toBe(iron);
     expect(hero.inventory).toEqual(order);
   });
 
@@ -220,13 +225,14 @@ describe('forecast', () => {
     scene._attackFlow().begin(hero);
     await scene._attackFlow().openForecast(hero, adjacent);
     scene._cycleForecastWeapon(1);
-    expect(hero.weapon).toBe(steel);
+    expect(scene._forecastWeapon).toBe(steel);
     expect(scene._cycleForecastTarget(1)).toBe(true);
     expect(scene.forecastTarget).toBe(ranged);
-    expect(hero.weapon).toBe(bow);
+    expect(scene._forecastWeapon).toBe(bow);
     scene._cycleForecastTarget(1);
     expect(scene.forecastTarget).toBe(adjacent);
-    // Back on the first target: the equipped weapon again, not the preview.
+    // Back on the first target: the equipped weapon again, not the one shown before.
+    expect(scene._forecastWeapon.uid).toBe('iron');
     expect(hero.weapon.uid).toBe('iron');
   });
 
@@ -240,13 +246,15 @@ describe('forecast', () => {
     expect(scene.forecastTarget).toBeNull();
     expect(scene._attackFlowController.focusedTarget).toBe(ranged);
     expect(scene._gridCursor.snapTo).toHaveBeenLastCalledWith(5, 7);
+    expect(scene._forecastWeapon).toBeNull();
     expect(hero.weapon).toBe(iron);
     expect(hero.inventory).toEqual(order);
     // Back from target selection returns to the action menu.
     scene.handleCancel();
     expect(scene.showActionMenu).toHaveBeenCalledWith(hero);
     expect(scene.attackTargets).toEqual([]);
-    expect(scene._weaponPreviewSession).toBeNull();
+    expect(hero.weapon).toBe(iron);
+    expect(hero.inventory).toEqual(order);
     // Re-entering Attack remembers the last target for this unit.
     scene._attackFlow().begin(hero);
     expect(scene._attackFlowController.focusedTarget).toBe(ranged);
@@ -257,11 +265,12 @@ describe('forecast', () => {
     scene._attackFlow().begin(hero);
     await scene._attackFlow().openForecast(hero, adjacent);
     scene._cycleForecastWeapon(1);
+    expect(hero.weapon).toBe(iron);
     scene.confirmForecastCombat();
     expect(scene.executeCombat).toHaveBeenCalledWith(hero, adjacent);
     expect(hero.weapon).toBe(steel);
     expect(hero.inventory).toEqual([steel, iron, bow]);
-    expect(scene._weaponPreviewSession).toBeNull();
+    expect(scene._forecastWeapon).toBeNull();
   });
 
   it('Enter confirms the canvas forecast; Up/Down switch its target', async () => {
@@ -282,8 +291,7 @@ describe('forecast', () => {
     scene._resolveSelectedWeaponArtEntry = () => ({ art, weapon: steel });
     scene.battleState = 'SHOWING_FORECAST';
     scene.forecastTarget = scene.enemyUnits[0];
-    scene._weaponPreviewSession = { unit: hero, weapon: hero.weapon, order: [...hero.inventory] };
-    hero.weapon = steel;
+    scene._forecastWeapon = steel;
     scene.confirmForecastCombat();
     expect(hero.inventory[0]).toBe(steel);
     expect(scene._selectedWeaponArt).toEqual({

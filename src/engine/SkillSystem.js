@@ -180,6 +180,8 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
  * Gather all stat modifiers for a unit entering combat.
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
+ * `context`: { classesData, traitsData, weapon } — `weapon` overrides the
+ * equipped weapon for its conditional bonus and granted skill.
  */
 export function getSkillCombatMods(
   unit,
@@ -210,10 +212,14 @@ export function getSkillCombatMods(
     immuneToDisplacement: false,
   };
 
+  // The weapon this unit fights with: `context.weapon` when the caller plans
+  // with a weapon that is not equipped (the attack forecast), else the equipped one.
+  const weapon = context && context.weapon !== undefined ? context.weapon : unit.weapon;
+
   // Conditional weapon bonuses — independent of skillsData
   const allies = Array.isArray(allAllies) ? allAllies : [];
   const enemies = Array.isArray(allEnemies) ? allEnemies : [];
-  const wpnCond = getConditionalWeaponBonuses(unit.weapon, unit, allies);
+  const wpnCond = getConditionalWeaponBonuses(weapon, unit, allies);
   mods.atkBonus += wpnCond.atkBonus;
   mods.spdBonus += wpnCond.spdBonus;
 
@@ -261,7 +267,7 @@ export function getSkillCombatMods(
 
   // Combine unit skills + weapon granted skill (deduped)
   const unitSkills = [...(unit.skills || [])];
-  const grantedSkill = unit.weapon?._grantedSkill;
+  const grantedSkill = weapon?._grantedSkill;
   if (grantedSkill && !unitSkills.includes(grantedSkill)) unitSkills.push(grantedSkill);
   // Silenced units contribute no skill effects (but accessory/aura from others still apply)
   const unitSilenced = isSilenced(unit);

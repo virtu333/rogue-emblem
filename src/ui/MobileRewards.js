@@ -2,7 +2,7 @@ import { equipmentComparison } from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
-import { ContextHelp } from './ContextHelp.js';
+import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attachInfo, bindHold } from './infoAffordance.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
@@ -290,7 +290,7 @@ export class MobileRewards {
         attachInfo(notice, {
           title: 'class mastery',
           heading: notice,
-          preview: MASTERY_HELP[0],
+          preview: helpPreview(MASTERY_HELP),
           open: openMasteryHelp,
           enabled: () => !this.child && !this.busy,
         });

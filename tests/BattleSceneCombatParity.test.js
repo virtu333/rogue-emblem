@@ -351,7 +351,11 @@ describe('executeCombat and executeEnemyCombat shared path', () => {
 
     await scene.executeCombat(attacker, defender);
 
-    expect(prepareSpy).toHaveBeenCalledWith(attacker, defender, { isPlayerInitiator: true });
+    // executeCombat (unlike the forecast) equips a selected art's weapon.
+    expect(prepareSpy).toHaveBeenCalledWith(attacker, defender, {
+      isPlayerInitiator: true,
+      equipArtWeapon: true,
+    });
     expect(resolveSpy).toHaveBeenCalledWith(
       attacker,
       defender,

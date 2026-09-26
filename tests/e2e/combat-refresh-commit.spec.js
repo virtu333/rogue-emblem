@@ -84,15 +84,30 @@ async function tapUnit(page, name, group = 'playerUnits') {
   await page.touchscreen.tap(p.x, p.y);
 }
 
-async function setup(page) {
+async function setup(page, { secondWeapon = false } = {}) {
   await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
   await waitForScene(page, 'Battle');
   await battleIdle(page);
   await attachSlot(page);
-  return page.evaluate(() => {
+  return page.evaluate((secondWeapon) => {
     const s = window.__emblemRogueGame.scene.getScene('Battle'),
       u = s.playerUnits[0];
     u.skills = [];
+    // A second weapon of the same kind, carried behind the equipped one: the
+    // forecast can switch to it (a non-default weapon).
+    let spare = null;
+    if (secondWeapon) {
+      const base = s.gameData.weapons.find(
+        (w) =>
+          w.type === u.weapon.type &&
+          w.name !== u.weapon.name &&
+          w.tier === 'Steel' &&
+          w.rankRequired === 'Prof' &&
+          !w.special,
+      );
+      spare = { ...structuredClone(base), uid: 'refresh-spare' };
+      u.inventory.push(spare);
+    }
     const enemy = s.enemyUnits[0];
     const tile = [
       [u.col + 1, u.row],
@@ -111,17 +126,28 @@ async function setup(page) {
     s.updateUnitPosition(enemy);
     s.updateHPBar(enemy);
     s._captureSuspendCheckpoint();
-    return { name: u.name, attackerHP: u.currentHP, enemyHP: enemy.currentHP };
-  });
+    return {
+      name: u.name,
+      attackerHP: u.currentHP,
+      enemyHP: enemy.currentHP,
+      equipped: u.weapon.name,
+      spare: spare?.name ?? null,
+    };
+  }, secondWeapon);
 }
 
-async function attack(page, name) {
+async function attack(page, name, { switchTo = null } = {}) {
   await tapUnit(page, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   // Target first (#77): Attack goes straight to target selection with the equipped
   // weapon; the forecast is where a weapon could be switched.
   await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
   await tapUnit(page, 'Reload Target', 'enemyUnits');
+  if (switchTo) {
+    const dialog = page.getByRole('dialog', { name: 'Combat forecast' });
+    await dialog.getByRole('button', { name: 'Next weapon', exact: true }).tap();
+    await expect(dialog.getByRole('group', { name: 'Weapon' })).toContainText(switchTo);
+  }
   await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
 }
 
@@ -183,5 +209,56 @@ test('a refresh during the strike animation replays the same attack and outcome'
   for (const fact of mid.revealed) expect(after.facts).toContain(fact);
   // It settled like any action: nothing is left to replay on a second refresh.
   expect(after.storedIntent).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('an attack confirmed with a switched weapon saves and replays with that weapon', async ({
+  page,
+}) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const init = await setup(page, { secondWeapon: true });
+  expect(init.spare).toBeTruthy();
+  await attack(page, init.name, { switchTo: init.spare });
+  const mid = await page.evaluate(async (name) => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    while (s.battleState !== 'COMBAT_RESOLVING') await new Promise((r) => setTimeout(r, 10));
+    while (!(s._timelineFacts || []).some((f) => f.includes('Reload Target')))
+      await new Promise((r) => setTimeout(r, 10));
+    const cp = JSON.parse(localStorage.getItem('emblem_rogue_slot_1_run')).battleInProgress
+      .checkpoint;
+    const stored = cp.playerUnits.find((x) => x.name === name);
+    const out = {
+      revealed: s._timelineFacts.filter((f) => f.includes('Reload Target')),
+      storedIntent: cp.pendingCommittedAction,
+      storedEquippedIndex: stored?.equippedInventoryIndex,
+      storedBag: stored?.inventory.map((w) => w.name),
+    };
+    history.replaceState(null, '', '/');
+    location.reload();
+    return out;
+  }, init.name);
+  // The pre-roll checkpoint holds the confirmed weapon, equipped and first.
+  expect(mid.storedIntent).toMatchObject({ kind: 'attack', unitName: init.name, weaponArt: null });
+  expect(mid.storedEquippedIndex).toBe(0);
+  expect(mid.storedBag[0]).toBe(init.spare);
+  expect(mid.storedBag).toContain(init.equipped);
+
+  await page.waitForLoadState('load');
+  await resumeSavedRun(page, true, true);
+  await battleIdle(page);
+  const after = await outcome(page, init.name);
+  expect(after.acted).toBe(true);
+  expect(after.enemyHP).toBeLessThan(init.enemyHP);
+  // The replay is the same attack: the same strikes, with the switched weapon.
+  for (const fact of mid.revealed) expect(after.facts).toContain(fact);
+  expect(after.storedIntent).toBeNull();
+  const weapon = await page.evaluate((name) => {
+    const u = window.__emblemRogueGame.scene
+      .getScene('Battle')
+      .playerUnits.find((x) => x.name === name);
+    return { equipped: u.weapon?.name, first: u.inventory[0] === u.weapon };
+  }, init.name);
+  expect(weapon).toEqual({ equipped: init.spare, first: true });
   expect(errors).toEqual([]);
 });

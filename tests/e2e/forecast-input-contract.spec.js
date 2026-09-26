@@ -133,18 +133,23 @@ test('controller owns forecast reading, weapon rebuild, overlay recovery and one
   await expect
     .poll(() => dialog.locator('.mb-forecast-sides').evaluate((e) => e.scrollTop))
     .toBeGreaterThan(0);
-  const before = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Battle');
-    return { hp: s.selectedUnit.currentHP, weapon: s.selectedUnit.weapon.name };
-  });
+  // Cycling changes the planned weapon only; nothing is equipped before confirm.
+  const reading = () =>
+    page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        hp: s.selectedUnit.currentHP,
+        weapon: s._forecastWeapon.name,
+        equipped: s.selectedUnit.weapon.name,
+      };
+    });
+  const before = await reading();
   await pad(page, 'NEXT_UNIT');
   await expect(dialog).toBeVisible();
   expect(await owner(page)).toBe('forecast');
-  const after = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Battle');
-    return { hp: s.selectedUnit.currentHP, weapon: s.selectedUnit.weapon.name };
-  });
+  const after = await reading();
   expect(after.weapon).not.toBe(before.weapon);
+  expect(after.equipped).toBe(before.equipped);
   expect(after.hp).toBe(before.hp);
   await page.evaluate(async () => {
     const { MenuSurface } = await import('/src/ui/MenuSurface.js');

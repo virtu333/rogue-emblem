@@ -492,7 +492,9 @@ detour, and the forecast arrows (#8) were the part players actually used. Decisi
   the equipped weapon (FE convention). Cancel → same target; Back → action menu. After
   moving, tapping an enemy in reach opens its forecast directly.
 - **Forecast weapon changes are previews**; only confirming equips. The bag never moves
-  while cycling (stable list), Cancel restores weapon and exact order.
+  while cycling (stable list), Cancel restores weapon and exact order. (2026-09-26: the
+  forecast became read-only for equipment — it plans the weapon instead of equipping it,
+  so there is nothing to restore; compression plan step 2.)
 - **Weapon arts stay their own action** (bound to one weapon); **staves stay
   staff-then-target** when several are usable (ranges/targets/effects differ per staff)
   and staff use no longer counts as an equipment change.
