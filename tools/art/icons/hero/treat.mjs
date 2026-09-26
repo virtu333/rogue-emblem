@@ -4,7 +4,7 @@
 // assets/ui/items/hero/ (and public/). Curate at display size with the contact sheets
 // this writes to References/items-art/hero/.
 //   node tools/art/icons/hero/treat.mjs [--only id,id]   treat raws -> candidates + sheet
-//   node tools/art/icons/hero/treat.mjs --publish        approved picks -> assets
+//   node tools/art/icons/hero/treat.mjs --publish [--only id,id]   approved picks -> assets
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -197,12 +197,17 @@ async function treatAll(only) {
   console.log(`${entries.length} candidates -> ${CAND} (+ sheets)`);
 }
 
-function publish() {
+function publish(only = null) {
   const sel = JSON.parse(fs.readFileSync(SELECTIONS, 'utf8'));
   let n = 0;
   const approved = new Set();
   for (const [id, pick] of Object.entries(sel.items)) {
     if (!pick.approved) continue;
+    // --only republishes just those picks (a reroll), keeping every other hero as shipped.
+    if (only && !only.includes(id)) {
+      approved.add(`${id}.png`);
+      continue;
+    }
     const src = path.join(CAND, `${pick.source}.png`);
     if (!fs.existsSync(src)) throw new Error(`${id}: missing candidate ${src}`);
     for (const dir of OUT_DIRS) {
@@ -220,8 +225,6 @@ function publish() {
 }
 
 const argv = process.argv.slice(2);
-if (argv.includes('--publish')) publish();
-else {
-  const only = argv.includes('--only') ? argv[argv.indexOf('--only') + 1].split(',') : null;
-  await treatAll(only);
-}
+const only = argv.includes('--only') ? argv[argv.indexOf('--only') + 1].split(',') : null;
+if (argv.includes('--publish')) publish(only);
+else await treatAll(only);
