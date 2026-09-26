@@ -8,9 +8,11 @@ Confidence in the tune, tension in the bass. This is the division of labour
 the verified reading finds in *Conquest*: a tune that states its key plainly
 over a bass that never gives it the root. Nothing else is taken from it (not
 its tune, not its loop, not its tresillo). The tune's first bar rises 5-1-3,
-B, E, G-sharp, and its second leaps the octave to the high E and leans on
-the D-sharp above the IV chord, its bright raised fourth. Every bar starts
-on a long note, and one run of eighths closes each four bars. Under it the
+B, E, G-sharp, and its second leaps a sixth from the G-sharp to the high E,
+the octave above the first bar's, and leans on the D-sharp above the IV
+chord, its bright raised fourth. Three bars in four hold a long note, a
+half in the middle of the bar (quarter, half, quarter) or a dotted half on
+the downbeat (bars 2 and 6), and a run of eighths closes each four. Under it the
 bass sits on IV and on inversions (A, A, B/D#, E/G#; A, F#7/A#, E/B,
 F#m7/C#, the second half climbing A, A-sharp, B, C-sharp) and never plays
 an E: the tonic belongs to the tune, and the loop never closes.
@@ -24,23 +26,26 @@ wagon. No 3+3+2 anywhere.
 Form (bars): intro 1-4 (the road alone; the same four bars as the link) |
 A 5-12 | A2 13-20 (turns into the minor in its last bar) | B 21-28 (the
 wagons can burn: the same tune in C-sharp minor over a G-sharp pedal, its
-octave leap landing on a suspension over G-sharp seven; the guitar strums
-every eighth and the harness stops) | C 29-36 (the way back: a long line
-coming down while the bass climbs A, B, C-sharp, D-sharp, the drums at
-half time for four bars; then the line's D-sharp steps onto E over E/G-sharp, the
-horns join and the snare builds) | A3 37-44 (everyone) | link
-45-48. Loop 5-48, 72.3 s.
+leap landing on a suspension over G-sharp seven; the guitar strums every
+eighth, the harness stops and the timpani strike the pedal in every bar,
+on A where the chord is A) | C 29-36 (the way back: a long line coming down
+while the bass climbs A, B, C-sharp, D-sharp, the drums at half time for
+four bars; then the line's D-sharp steps onto E over E/G-sharp, the horns
+join and the snare builds) | A3 37-44 (everyone) | link 45-48. Loop 5-48,
+72.3 s.
 
 calm: the traders' own band. The flute and the clarinet in duet, the
 clarinet a tenth below (in A2 it takes the tune an octave down and the flute
-sings the second voice above; in A3 the violins pluck the tune with the
-flute), over the guitar, the celli's short-bowed wheel, pizzicato basses,
-the tambourine, the harness and a guards' field drum on two and four.
+sings the second voice above, its two closing runs an octave higher still;
+in A3 the violins pluck the tune with the flute), over the guitar, the
+celli's short-bowed wheel, pizzicato basses, the tambourine, the harness, a
+guards' field drum on two and four and, further off, the timpani.
 full: the tune on violins (in octaves in A), then on trumpets and horns an
 octave down with the violins plucking it at pitch (A2), violins and horns
 (B), everyone with the trumpets on the second voice (A3); the trumpets,
-trombones and timpani punch the downbeats of the strong bars and stab the
-off-beats in B; a backbeat kit, four on the floor in B and A3.
+trombones and timpani punch the downbeats of the strong bars; in B the
+trumpets stab the off-beats and the timpani drive the pedal; a backbeat
+kit, four on the floor in B and A3.
 
 Left out on purpose: Open Ground's groove handed from the kick to the brass,
 its lift-hold-cut-hit and its minor-third key travel; the Oath's rising horn
@@ -61,9 +66,10 @@ END = 49
 
 # ------------------------------------------------------------------ the tune
 # E major. Bar 1 rises 5-1-3 (B, E, G-sharp) and says the key out loud; bar 2
-# leaps the octave to the high tonic and leans on the D-sharp above the IV
-# chord (its bright raised fourth); every bar starts on a long note; one run
-# of eighths closes each four bars.
+# leaps a sixth to the high tonic, an octave above bar 1's, and leans on the
+# D-sharp above the IV chord (its bright raised fourth); three bars in four
+# hold a long note (a half on beat 2, or a dotted half on the downbeat), and
+# a run of eighths closes each four.
 TUNE = """
 B4q E5h G#5q | E6h. D#6q | C#6q B5h A5q | G#5q F#5e G#5e A5e G#5e F#5e E5e |
 B4q E5h G#5q | F#6h. E6q | D#6q E6h B5q | A5q G#5e F#5e E5e D#5e C#5e D#5e |
@@ -78,12 +84,13 @@ TUNE2 = TUNE.replace('A5q G#5e F#5e E5e D#5e C#5e D#5e |', 'A5q G#5e F#5e E5e D#
 DUET2 = DUET.replace('F#5q E5e D#5e C#5e B4e A4e B4e |', 'C#5q B#4e A4e G#4e F#4e D#4e F#4e |')
 # the horns (an octave down) can't reach the F-sharp: in bar 6 they take the
 # clarinet's third below; the trumpets on the second voice in A3 go under
-# the high notes of bars 2 and 6 by a fifth instead of a third
+# the high notes of bars 2 and 6 by a fifth (A under E) and a minor sixth
+# (A-sharp under F-sharp) instead of a third
 HORN = TUNE.replace('F#6h. E6q |', 'C#6h. A#5q |')
 HORN2 = TUNE2.replace('F#6h. E6q |', 'C#6h. A#5q |')
 DUET_TPT = DUET.replace('C#6h. A#5q |', 'A#5h. F#5q |').replace('C#6h. B5q |', 'A5h. B5q |')
 # B: the same tune in C-sharp minor (the wagons can burn), over a G-sharp
-# pedal; its octave leap lands on a suspension (C-sharp over G-sharp seven)
+# pedal; its leap lands on a suspension (C-sharp over G-sharp seven)
 TUNE_B = """
 G#4q C#5h E5q | C#6h. B#5q | A5q G#5h F#5q | E5q D#5e E5e F#5e E5e D#5e C#5e |
 G#4q C#5h E5q | D#6h. C#6q | B#5q C#6h G#5q | F#5q E5e D#5e C#5e B#4e A4e B#4e |
@@ -226,8 +233,13 @@ def tunes(b, s):
     # voice above it
     b.part('duet_cl2', 'clarinet', role='lead', layer='calm', gain=1).at(A2).play(
         '@mf' + TUNE2, transpose=-12)
+    # (its runs in bars 16 and 20 an octave up: at pitch they lay at D#4-C#5,
+    # the flute's weakest octave, crowding the clarinet's run a third below)
+    duet2 = [x.strip() + ' |' for x in DUET2.strip().rstrip('|').split('|')]
+    for k in (3, 7):
+        duet2[k] = '<12 ' + duet2[k] + ' <0'
     b.part('duet_fl2', 'flute', role='lead2', layer='calm', gain=2).at(A2).play(
-        '@mp' + DUET2)
+        '@mp ' + ' '.join(duet2))
     fl.at(B).play('@mf' + TUNE_B)
     cl.at(B).play('@mf' + DUET_B, transpose=-12)
     fl.at(C).play('@mf' + TUNE_C)
@@ -377,7 +389,10 @@ def full(b, s):
             c = Chord(chord_of(bar0 + k))
             b.part('timp', 'timpani', role='timp', calm_db=-8).note(
                 s.bar(bar0 + k), at_or_above(c.bass, 40), 1.0, vel=0.78 if k in (0, 4) else 0.66)
-    b.timp('B', '%default @f G#2q G#2q G#2q G#2e G#2e |' * 2)
+    # B: the pedal struck through the whole threat strain (on A with the bass
+    # in bar 23, where the chord is A)
+    b.timp('B', ''.join(f'%default @f {p}q {p}q {p}q {p}e {p}e |' for p in
+                        ('G#2', 'G#2', 'A2', 'G#2', 'G#2', 'G#2', 'G#2', 'G#2')))
     b.timp('C', 'rw | rw | rw | rw | rw | rw | rw | %roll @mp G#2h @f G#2h |')
     b.timp('link', 'rw | rw | rw | %roll @mp G#2h @f B2h |')
     for bar in (A, A2, B, C, A3):
