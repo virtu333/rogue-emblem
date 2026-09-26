@@ -1,0 +1,26 @@
+/* Portrait mode (beta): the shared menu kit on an upright phone. Every rule keys off
+   html.portrait-ui (utils/portraitBattle.js installPortraitUi), so landscape and
+   desktop are unchanged. Screen-specific portrait layouts live with their screens. */
+
+/* A header button reads as one word ("Back", "Close"), never "Bac / k": the title
+   gives way instead. */
+html.portrait-ui .re-header > button,
+html.portrait-ui .re-header > .re-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+html.portrait-ui .re-header h1,
+html.portrait-ui .re-header h2 {
+  min-width: 0;
+}
+
+/* Compact menus were capped for a 390px-tall landscape phone; upright there is room. */
+html.portrait-ui .re-compact-menu {
+  max-height: calc(100dvh - 2 * var(--re-s3, 12px));
+}
+
+/* Tab strips wrap to a second row instead of hiding tabs off the right edge. */
+html.portrait-ui .re-tabs {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}

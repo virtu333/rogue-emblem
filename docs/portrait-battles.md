@@ -1,14 +1,13 @@
-# Portrait battles (beta prototype)
+# Portrait mode (beta)
 
-**Status:** Prototype, opt-in, phones only. Battles only; the route map and every other screen stay landscape.
-**Date:** 2026-09-25
+**Status:** opt-in by link (`?portrait=1`), phone browser tabs only. Battles play upright; the rest of the run is being adapted screen by screen (see *Portrait mode: the whole run* below).
+**Date:** 2026-09-25 (battles), 2026-09-26 (whole-run plan)
 
 ## Try it on a phone
 
-1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. Once opted in, a phone browser tab also shows **Menu → Settings → Portrait battles (beta)** to switch it off; the toggle is not offered to anyone who has not opted in by link, since only battles turn upright so far (the rest of the run still asks for landscape).
-2. Play normally in landscape. Once a battle begins, turn the phone upright.
-3. The board re-opens upright at the next moment you are free to act (your turn, nothing selected). Turn it back to landscape the same way.
-4. Deployment, rewards and the route map still ask for landscape.
+1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. Once opted in, a phone browser tab also shows **Menu → Settings → Portrait mode (beta)** to switch it off; the toggle is not offered to anyone who has not opted in by link until the whole run works upright.
+2. Hold the phone upright: the rotate prompt no longer appears in portrait mode, and every screen follows the phone. Screens not yet adapted still show their landscape layout, squeezed.
+3. In a battle, turning the phone re-opens the board in the other orientation at the next moment you are free to act (your turn, nothing selected).
 
 ## What changes
 
@@ -33,6 +32,24 @@ Rules are untouched: the rotation is Grid presentation only. Movement, combat, A
 | `src/ui/portraitBattle.css` | Upright rail, forecast sheet and small portrait fixes, applied only inside `@media (orientation: portrait)` while `portrait-battle-capable` is set |
 
 Other presentation sites made rotation-aware: danger-zone outline, light layer, grid cursor arrows, and the side canvas menus open towards.
+
+## Portrait mode: the whole run
+
+The phone playtest (2026-09-26) showed that turning the phone between the route map and battles is not a way to play: a portrait player needs the whole run upright.
+
+**The contract.** `installPortraitUi()` (utils/portraitBattle.js, called once in main.js) keeps the class `portrait-ui` on `<html>` while portrait mode is active: opted in, a phone browser tab (not a landscape-locked shell), held upright. It re-checks on resize, orientation change and preference change, and dispatches `emblem-rogue:portrait-ui` on `window` when it flips. Every portrait layout keys off that class (CSS `html.portrait-ui …`), so without it the page is the landscape game, unchanged. While it is set the rotate prompt never shows. Shared menu-kit rules live in `src/ui/portraitMode.css`; screen-specific portrait rules live with their screen.
+
+**What the survey found** (every screen at 390x844 / 375x667, 2026-09-26): outside battles every screen is a DOM surface over the (hidden) 640x480 canvas, so the work is responsive CSS in a few shared systems plus one real layout project, the route map. Boot/loading is the only canvas screen a player sees outside battle.
+
+| Step | Screens | Where | Status |
+|---|---|---|---|
+| Shell | `portrait-ui`, no rotate prompt, Settings "Portrait mode (beta)", kit: header buttons, compact-menu height, wrapping tabs | portraitBattle.js, portraitMode.css | this PR |
+| Boot loader to DOM | loading / stall / failure UI (canvas text renders at ~8px upright) | BootScene.js | next |
+| Card screens | difficulty (Confirm off-screen), blessings, rewards (cards overlap), mercenaries, boss recruit, lord arrival | choice.css `.ch-draft`, MobileRewards.js | in progress |
+| Vertical Loom | route map + in-battle campaign map; side pane → bottom sheet | loomModel.js, RouteGraph.js, loomThreads.js, loom.css | in progress |
+| List / detail | Home base + upgrades (tab strip), Compendium/Help/How to Play, roster sheet (stat grid overlaps, tabs break mid-word) | MobileHomeBase, ReferenceMenu, MobileRosterSheet | later |
+| Battle edges | set the battle's orientation before deployment; keep portrait through rewards; turn the history/timeline board | PortraitBattleController, BattleHistoryRenderer | later |
+| Release | unlock `manifest.webmanifest` / iOS `Info.plist`, `isLandscapeLockedShell`, the "Use landscape" button, tutorial copy that names directions, offer the setting to everyone | | last |
 
 ## Limits of the prototype
 

@@ -47,3 +47,4 @@
 @import './slotPicker.css';
 /* Portrait battles (beta): upright phone layout, map above a thumb-reach rail. Last. */
 @import './portraitBattle.css';
+@import './portraitMode.css';

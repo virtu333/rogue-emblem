@@ -4,6 +4,9 @@
    layout follows the phone at once; the upright board itself (class portrait-battle)
    follows at the player's next safe moment. */
 
+/* Portrait mode (utils/portraitBattle.js installPortraitUi): the whole page follows an
+   upright phone, so the rotate prompt never shows. */
+html.portrait-ui #rotate-prompt,
 html.portrait-battle-capable #rotate-prompt {
   display: none !important;
 }

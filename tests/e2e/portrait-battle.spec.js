@@ -338,6 +338,33 @@ test('a turn mid-action waits for the next safe moment', async ({ page }) => {
   await expect.poll(async () => (await battleSnapshot(page)).rotation).toBe('none');
 });
 
+test('portrait mode: the title and save slots show upright and follow the phone', async ({
+  page,
+}) => {
+  await page.goto('/?portrait=1');
+  await waitForScene(page, 'Title');
+  const prompt = page.locator('#rotate-prompt');
+  const slots = page
+    .getByRole('button', { name: /^Save Slots|^New Game|^Start First Run/ })
+    .first();
+  await expect(page.locator('html')).toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeHidden();
+  await expect(slots).toBeInViewport();
+  // Turned to landscape the page is the landscape game; upright again, portrait mode.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator('html')).not.toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('html')).toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeHidden();
+  // Opting out brings the rotate prompt back at once.
+  await page.evaluate(async () => {
+    const { setPortraitBattlePreference } = await import('/src/utils/portraitBattle.js');
+    setPortraitBattlePreference(false);
+  });
+  await expect(page.locator('html')).not.toHaveClass(/(^|\s)portrait-ui(\s|$)/);
+  await expect(prompt).toBeVisible();
+});
+
 test('without the opt-in an upright phone still asks for landscape', async ({ page }) => {
   // A landscape board under the rotate prompt resolves turn start slowly (~6s alone).
   test.setTimeout(90_000);
@@ -352,7 +379,8 @@ test('without the opt-in an upright phone still asks for landscape', async ({ pa
 // The iOS app (Info.plist) and the installed web app (manifest) hold the screen in
 // landscape, so the beta is not offered there: no Settings toggle, and a stored opt-in
 // (the installed web app shares storage with the browser tab that set it) changes
-// nothing: the board is not turned and the rotate prompt keeps its plain copy.
+// nothing: the board is not turned, the page is not in portrait mode and the rotate
+// prompt shows.
 const SHELLS = {
   'browser tab': () => {},
   'installed web app': () => {
@@ -389,16 +417,14 @@ for (const [shell, install] of Object.entries(SHELLS)) {
     const info = await page.evaluate(() => ({
       rotation: window.__emblemRogueGame.scene.getScene('Battle').grid.board.rotation,
       prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
-      copy: document.querySelector('#rotate-prompt p').textContent,
+      portraitUi: document.documentElement.classList.contains('portrait-ui'),
       capable: document.documentElement.classList.contains('portrait-battle-capable'),
       stored: localStorage.getItem('emblem_rogue_portrait_battles'),
     }));
     expect(info).toEqual({
       rotation: offered ? 'ccw' : 'none',
       prompt: offered ? 'none' : 'flex',
-      copy: offered
-        ? '↻ Rotate to landscape for the map and menus. Battles can be played upright.'
-        : '↻ Rotate your device to landscape',
+      portraitUi: offered,
       capable: offered,
       // The shell never clears the browser tab's choice.
       stored: 'on',
@@ -410,7 +436,7 @@ for (const [shell, install] of Object.entries(SHELLS)) {
     });
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(settings.getByRole('button', { name: /^Reduce motion/ })).toHaveCount(1);
-    await expect(settings.getByRole('button', { name: /^Portrait battles \(beta\)/ })).toHaveCount(
+    await expect(settings.getByRole('button', { name: /^Portrait mode \(beta\)/ })).toHaveCount(
       offered ? 1 : 0,
     );
   });
