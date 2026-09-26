@@ -339,6 +339,8 @@ test('a turn mid-action waits for the next safe moment', async ({ page }) => {
 });
 
 test('without the opt-in an upright phone still asks for landscape', async ({ page }) => {
+  // A landscape board under the rotate prompt resolves turn start slowly (~6s alone).
+  test.setTimeout(90_000);
   await bootBattle(page, '&portrait=0');
   const info = await page.evaluate(() => ({
     rotation: window.__emblemRogueGame.scene.getScene('Battle').grid.board.rotation,
@@ -346,6 +348,73 @@ test('without the opt-in an upright phone still asks for landscape', async ({ pa
   }));
   expect(info).toEqual({ rotation: 'none', prompt: 'flex' });
 });
+
+// The iOS app (Info.plist) and the installed web app (manifest) hold the screen in
+// landscape, so the beta is not offered there: no Settings toggle, and a stored opt-in
+// (the installed web app shares storage with the browser tab that set it) changes
+// nothing: the board is not turned and the rotate prompt keeps its plain copy.
+const SHELLS = {
+  'browser tab': () => {},
+  'installed web app': () => {
+    const matchMedia = window.matchMedia.bind(window);
+    window.matchMedia = (query) =>
+      /display-mode/.test(query)
+        ? {
+            matches: query === '(display-mode: standalone)',
+            media: query,
+            onchange: null,
+            addEventListener() {},
+            removeEventListener() {},
+            addListener() {},
+            removeListener() {},
+          }
+        : matchMedia(query);
+  },
+  'iOS app': () => {
+    window.Capacitor = {
+      nativePromise: () => Promise.reject(new Error('no native bridge in this test')),
+      isNativePlatform: () => true,
+      getPlatform: () => 'ios',
+      PluginHeaders: [],
+    };
+  },
+};
+for (const [shell, install] of Object.entries(SHELLS)) {
+  test(`portrait battles in the ${shell}: toggle and stored opt-in`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.addInitScript(install);
+    await page.addInitScript(() => localStorage.setItem('emblem_rogue_portrait_battles', 'on'));
+    await bootBattle(page, '');
+    const offered = shell === 'browser tab';
+    const info = await page.evaluate(() => ({
+      rotation: window.__emblemRogueGame.scene.getScene('Battle').grid.board.rotation,
+      prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
+      copy: document.querySelector('#rotate-prompt p').textContent,
+      capable: document.documentElement.classList.contains('portrait-battle-capable'),
+      stored: localStorage.getItem('emblem_rogue_portrait_battles'),
+    }));
+    expect(info).toEqual({
+      rotation: offered ? 'ccw' : 'none',
+      prompt: offered ? 'none' : 'flex',
+      copy: offered
+        ? '↻ Rotate to landscape for the map and menus. Battles can be played upright.'
+        : '↻ Rotate your device to landscape',
+      capable: offered,
+      // The shell never clears the browser tab's choice.
+      stored: 'on',
+    });
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const { SettingsMenu } = await import('/src/ui/SettingsMenu.js');
+      window.shellSettings = new SettingsMenu(s, () => window.shellSettings.destroy());
+    });
+    const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+    await expect(settings.getByRole('button', { name: /^Reduce motion/ })).toHaveCount(1);
+    await expect(settings.getByRole('button', { name: /^Portrait battles \(beta\)/ })).toHaveCount(
+      offered ? 1 : 0,
+    );
+  });
+}
 
 // Full domain state of the battle (units with equipment and conditions, fog knowledge,
 // RNG, convoy, gold, Vision charges) through the production checkpoint adapter.

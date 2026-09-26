@@ -6,6 +6,7 @@ import { GUIDANCE_LABELS, isVeteranMeta, resolveGuidance } from '../engine/Guida
 import {
   getPortraitBattlePreference,
   setPortraitBattlePreference,
+  showPortraitBattleSetting,
   syncRotatePromptCopy,
 } from '../utils/portraitBattle.js';
 export class SettingsMenu {
@@ -178,8 +179,9 @@ export class SettingsMenu {
         're-muted',
       ),
     );
-    // Phones only: device-local, never synced (see utils/portraitBattle.js).
-    if (detectMobileRuntime()) {
+    // Phones only: device-local, never synced (see utils/portraitBattle.js). Not in the
+    // iOS app or the installed web app, which hold the screen in landscape.
+    if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
       toggle(
         'Portrait battles (beta)',
         () => getPortraitBattlePreference(),

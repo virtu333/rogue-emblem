@@ -5,6 +5,8 @@
 // not sync through cloud settings: a desktop never needs it, and a phone that
 // disables it keeps every save playable in landscape.
 
+import { nativeCapacitor } from './nativeSaveMirror.js';
+
 export const PORTRAIT_BATTLE_STORAGE_KEY = 'emblem_rogue_portrait_battles';
 export const PORTRAIT_BATTLE_CLASS = 'portrait-battle';
 
@@ -32,6 +34,51 @@ export function getPortraitBattlePreference(env = globalThis) {
   } catch {
     return false;
   }
+}
+
+// Display modes of an installed web app (a browser tab is `browser`). A tab in
+// fullscreen may also report `fullscreen`; this page only goes fullscreen through the
+// rotate prompt's button, which locks the screen to landscape, so that counts too.
+const INSTALLED_DISPLAY_MODES = ['standalone', 'fullscreen', 'minimal-ui'];
+
+/**
+ * A shell that holds the page in landscape, where an upright battle can never be
+ * shown: the iOS app (Capacitor; ios/App/App/Info.plist allows landscape only) and
+ * the installed web app (public/manifest.webmanifest asks for landscape). iOS
+ * home-screen apps ignore the manifest's orientation, but they are treated the same:
+ * the beta is for a browser tab, and one rule for every installed shell keeps it
+ * predictable.
+ */
+export function isLandscapeLockedShell(env = globalThis) {
+  if (nativeCapacitor(env)) return true;
+  try {
+    if (env?.navigator?.standalone === true) return true;
+    return INSTALLED_DISPLAY_MODES.some(
+      (mode) => env?.matchMedia?.(`(display-mode: ${mode})`)?.matches === true,
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Whether this page can offer portrait battles at all (phone checks come on top). */
+export function portraitBattlesAvailable(env = globalThis) {
+  return !isLandscapeLockedShell(env);
+}
+
+/**
+ * The preference as it applies on this page. A landscape-locked shell ignores a stored
+ * "on" (the installed web app shares its storage with the browser tab that set it, and
+ * the tab must keep it), so the shell never suppresses the rotate prompt, rewrites its
+ * copy or waits for an upright board that cannot come.
+ */
+export function portraitBattlesEnabled(env = globalThis) {
+  return portraitBattlesAvailable(env) && getPortraitBattlePreference(env);
+}
+
+/** Settings shows the toggle on phones, and only where it can take effect. */
+export function showPortraitBattleSetting({ mobile, env = globalThis } = {}) {
+  return Boolean(mobile) && portraitBattlesAvailable(env);
 }
 
 export const PORTRAIT_BATTLE_CHANGE_EVENT = 'emblem-rogue:portrait-battles';
@@ -109,5 +156,5 @@ const PROMPT_PORTRAIT_ON =
 export function syncRotatePromptCopy(env = globalThis) {
   const text = env?.document?.querySelector?.('#rotate-prompt p');
   if (!text) return;
-  text.textContent = getPortraitBattlePreference(env) ? PROMPT_PORTRAIT_ON : PROMPT_DEFAULT;
+  text.textContent = portraitBattlesEnabled(env) ? PROMPT_PORTRAIT_ON : PROMPT_DEFAULT;
 }

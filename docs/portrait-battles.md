@@ -5,7 +5,7 @@
 
 ## Try it on a phone
 
-1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. On a phone it is also in **Menu → Settings → Portrait battles (beta)**.
+1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. On a phone browser tab it is also in **Menu → Settings → Portrait battles (beta)**.
 2. Play normally in landscape. Once a battle begins, turn the phone upright.
 3. The board re-opens upright at the next moment you are free to act (your turn, nothing selected). Turn it back to landscape the same way.
 4. Deployment, rewards and the route map still ask for landscape.
@@ -36,7 +36,7 @@ Other presentation sites made rotation-aware: danger-zone outline, light layer, 
 
 ## Limits of the prototype
 
-- **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. Unlocking them is a release step.
+- **Installed app / TestFlight:** the PWA manifest and the iOS `Info.plist` still lock landscape, so test in a browser tab. There (`isLandscapeLockedShell`: native Capacitor, or an installed display mode — `standalone`, `fullscreen`, `minimal-ui`) the Settings toggle is hidden and a stored opt-in is ignored without being cleared (the installed web app shares storage with the browser tab that set it): the board never turns and the rotate prompt keeps its plain copy. Unlocking them is a release step.
 - **Tutorial battles** and slotless dev routes have no run save to re-open from: the board keeps the orientation it started in (the layout still follows the phone).
 - **Battle history / timeline replays** draw the board unrotated.
 - **Tutorial copy** that names screen directions was written for landscape.
@@ -46,10 +46,11 @@ Other presentation sites made rotation-aware: danger-zone outline, light layer, 
 ## Tests
 
 - `tests/BoardOrientation.test.js`: transform round trips, adjacency, arrow mapping, tap hit-testing on every tile of a rotated grid, and movement ranges unchanged.
-- `tests/PortraitBattle.test.js`: preference and link, canvas sizing, UI band, and the switch gate (safe point, overlays, tutorial lock, failed capture, preference off, battle end).
+- `tests/PortraitBattle.test.js`: preference and link, canvas sizing, UI band, the switch gate (safe point, overlays, tutorial lock, failed capture, preference off, battle end), and landscape-locked shells (iOS app, installed web app: no toggle, a stored opt-in ignored but kept).
 - `tests/e2e/portrait-battle.spec.js` (runs in CI via `npm run test:ux-contracts`):
   - real touch select and move on the turned board, commands in view;
   - rotation round trip with identical units and RNG, and the switch's save written to the slot;
   - a deferred switch, and the rotate prompt without the opt-in;
+  - a stored opt-in in a browser tab, the installed web app and the iOS app (stubbed display mode / Capacitor bridge): only the tab turns the board and offers the Settings toggle;
   - the bottom edge at 375×667, 390×844 and 430×932: Wait, Danger and the four tools on one row, each on screen, uncovered, at least 44 px, with no label broken mid-word (idle, a six-command menu, Danger shown and pinned, and after a real tap on Wait);
   - **presentation invariance:** one saved battle is resumed twice through Title → Save Slots → Resume Battle; one run turns the phone upright and back, both then play the same enemy phases (with real attacks). The full domain state (`captureBattleState`: units, equipment, conditions, fog, RNG, convoy, gold) and Vision charges must match after every phase. A switch that consumes one gameplay random draw fails this test and the round trip.

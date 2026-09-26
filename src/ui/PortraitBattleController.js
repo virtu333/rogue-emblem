@@ -24,8 +24,8 @@ import {
   PORTRAIT_BATTLE_CHANGE_EVENT,
   PORTRAIT_BATTLE_CLASS,
   canSwitchBattlePresentation,
-  getPortraitBattlePreference,
   isPortraitViewport,
+  portraitBattlesEnabled,
   wantsPortraitBattle,
 } from '../utils/portraitBattle.js';
 
@@ -70,7 +70,8 @@ export class PortraitBattleController {
   }
 
   _refreshEnabled() {
-    this.enabled = Boolean(getPortraitBattlePreference() && this.phoneLayout());
+    // Never in a landscape-locked shell (iOS app, installed web app), whatever is stored.
+    this.enabled = Boolean(portraitBattlesEnabled() && this.phoneLayout());
     // An upright board keeps the upright layout until it turns back.
     this.capable = this.enabled || this.rotated;
   }

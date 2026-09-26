@@ -4,9 +4,14 @@ import {
   applyPortraitQuery,
   canSwitchBattlePresentation,
   getPortraitBattlePreference,
+  isLandscapeLockedShell,
   isPortraitSize,
+  portraitBattlesAvailable,
+  portraitBattlesEnabled,
   portraitQueryOverride,
   setPortraitBattlePreference,
+  showPortraitBattleSetting,
+  syncRotatePromptCopy,
   wantsPortraitBattle,
 } from '../src/utils/portraitBattle.js';
 import { battleCanvasSize, uiBand } from '../src/ui/BattlefieldLab.js';
@@ -92,6 +97,73 @@ describe('portrait battle preference', () => {
       expect(canSwitchBattlePresentation({ ...safe, [key]: value })).toBe(false);
     }
     expect(canSwitchBattlePresentation(null)).toBe(false);
+  });
+});
+
+// The iOS app (Info.plist: landscape only) and the installed web app (manifest:
+// landscape) can never show an upright battle.
+const nativeApp = () => ({
+  nativePromise: () => Promise.resolve(),
+  isNativePlatform: () => true,
+});
+const displayMode = (mode) => (query) => ({ matches: query === `(display-mode: ${mode})` });
+
+describe('landscape-locked shells', () => {
+  it('recognises the iOS app, installed web apps and a fullscreen-locked tab', () => {
+    expect(isLandscapeLockedShell({ Capacitor: nativeApp() })).toBe(true);
+    expect(isLandscapeLockedShell({ navigator: { standalone: true } })).toBe(true);
+    for (const mode of ['standalone', 'fullscreen', 'minimal-ui'])
+      expect(isLandscapeLockedShell({ matchMedia: displayMode(mode) }), mode).toBe(true);
+  });
+
+  it('leaves a browser tab free, including the web build that bundles Capacitor', () => {
+    expect(isLandscapeLockedShell({ matchMedia: displayMode('browser') })).toBe(false);
+    expect(isLandscapeLockedShell({ navigator: { standalone: false } })).toBe(false);
+    expect(isLandscapeLockedShell({})).toBe(false);
+    const web = { nativePromise: () => Promise.resolve(), isNativePlatform: () => false };
+    expect(isLandscapeLockedShell({ Capacitor: web })).toBe(false);
+    const broken = () => {
+      throw new Error('no media queries');
+    };
+    expect(isLandscapeLockedShell({ matchMedia: broken })).toBe(false);
+  });
+
+  it('shows the Settings toggle only on a phone browser tab', () => {
+    const tab = { matchMedia: displayMode('browser') };
+    expect(showPortraitBattleSetting({ mobile: true, env: tab })).toBe(true);
+    expect(showPortraitBattleSetting({ mobile: false, env: tab })).toBe(false);
+    expect(showPortraitBattleSetting({ mobile: true, env: { Capacitor: nativeApp() } })).toBe(
+      false,
+    );
+    expect(
+      showPortraitBattleSetting({ mobile: true, env: { matchMedia: displayMode('standalone') } }),
+    ).toBe(false);
+  });
+
+  it('ignores a stored opt-in in a locked shell and keeps it for the browser tab', () => {
+    const localStorage = memoryStorage();
+    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
+    const tab = { localStorage, matchMedia: displayMode('browser') };
+    const installed = { localStorage, matchMedia: displayMode('standalone') };
+    const app = { localStorage, Capacitor: nativeApp() };
+    expect(portraitBattlesEnabled(tab)).toBe(true);
+    expect(portraitBattlesAvailable(installed)).toBe(false);
+    expect(portraitBattlesEnabled(installed)).toBe(false);
+    expect(portraitBattlesEnabled(app)).toBe(false);
+    // The shared storage still holds the tab's choice.
+    expect(getPortraitBattlePreference(installed)).toBe(true);
+    expect(localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('on');
+  });
+
+  it('keeps the plain rotate prompt in a locked shell', () => {
+    const text = { textContent: '' };
+    const localStorage = memoryStorage();
+    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
+    const document = { querySelector: () => text };
+    syncRotatePromptCopy({ localStorage, document, matchMedia: displayMode('browser') });
+    expect(text.textContent).toMatch(/Battles can be played upright/);
+    syncRotatePromptCopy({ localStorage, document, Capacitor: nativeApp() });
+    expect(text.textContent).toBe('\u21bb Rotate your device to landscape');
   });
 });
 
@@ -194,6 +266,36 @@ describe('PortraitBattleController', () => {
     expect(c.presentation).toBeNull();
     expect(c.capable).toBe(false);
   });
+
+  for (const [shell, install, remove] of [
+    ['the iOS app', () => (globalThis.Capacitor = nativeApp()), () => delete globalThis.Capacitor],
+    [
+      'the installed web app',
+      () => (globalThis.matchMedia = displayMode('standalone')),
+      () => delete globalThis.matchMedia,
+    ],
+  ]) {
+    it(`never turns the board or hides the rotate prompt in ${shell}, even opted in`, () => {
+      install();
+      try {
+        viewport(390, 844);
+        const scene = fakeScene();
+        const c = controller(scene);
+        expect(c.presentation).toBeNull();
+        expect(c.enabled).toBe(false);
+        // Not capable: the page class that hides the rotate prompt is never set.
+        expect(c.capable).toBe(false);
+        expect(c.mismatch()).toBe(false);
+        expect(c.check()).toBe(false);
+        expect(c.pending).toBe(false);
+        expect(c.locked).toBe(false);
+        expect(scene._battleSuspendController.captureCheckpoint).not.toHaveBeenCalled();
+        expect(scene.scene.restart).not.toHaveBeenCalled();
+      } finally {
+        remove();
+      }
+    });
+  }
 
   it('re-opens the saved battle in the new orientation at a safe moment', () => {
     viewport(390, 844);
