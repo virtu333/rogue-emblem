@@ -44,10 +44,12 @@ B-flat, C, D to the leading tone), and it stops on E, which the harmony
 turns into the fifth of A minor. So the reprise begins at home: the choir
 takes the hymn back, ff over sustained brass, in A minor with the Phrygian
 B-flat; its climb reaches G-sharp over B-flat seven and stops, and the
-bar where A should be is all but silent: the band, the choir and the drums
-are gone, and only the B-flat pedal, the horns' B-flat seven and a soft
-timpani swell remain, the intro's second bar again. The loop's first stab
-is that A, from the B-flat above it (bII7 to i, never V to i).
+bar where A should be is a rest, as the Dawn office's hymn rests where her
+name would be sung: the band, the brass, the choir and the drums are gone,
+and only the B-flat pedal and a soft timpani swell remain (the calm intro's
+second bar; the full intro holds the horns' B-flat seven there too). The
+loop's first stab is that A, from the B-flat under the silence (bII7 to i,
+never V to i).
 
 Leitmotif: the Hollow Sun (SCORE.md), twice: the hymn's climb to E in F,
 the choir's climb to G-sharp in A, each followed by silence where its
@@ -389,18 +391,18 @@ def build():
     b.part('p_cb', 'basses').at(INTRO).play('%sus @mf Bb1w~ | Bb1w |')
     tmp.at(INTRO).play('%roll @p Bb2w~ | Bb2w |')
     tmp.expr((1, 0.3), (2.95, 1.0), (3, 1.0))
-    # the loop's last bar is the intro's second: where A should be, only the
-    # B-flat pedal, the horns' B-flat seven and the timpani swelling (the
-    # lane from intro bar 2), everything else gone, so the G-sharp falls into
-    # silence and the first stab is the A
+    # the loop's last bar, where A should be, is a rest: only the B-flat pedal
+    # (at the intro's mf) and the timpani swelling on the intro's lane, as in
+    # the calm intro's second bar; everything else is gone, the horns' chord
+    # too, so the G-sharp falls into silence and the first stab is the A
     silent = (s.bar(R + 7), s.bar(R + 8))
-    for name in ('p_vn', 'p_va', 'ebass', 'r_tbn', 'sub', 'hymn_tuba', 'c_r_pad', 'c_lo'):
+    for name in ('p_vn', 'p_va', 'ebass', 'r_tbn', 'r_hn', 'sub', 'hymn_tuba', 'c_r_pad',
+                 'c_lo'):
         s.parts[name].notes[:] = [n for n in s.parts[name].notes
                                   if not silent[0] - 1e-6 <= n.start < silent[1] - 1e-6]
-    for name, vel in (('p_cb', 0.62), ('r_hn', 0.5)):
-        for n in s.parts[name].notes:
-            if silent[0] - 1e-6 <= n.start < silent[1] - 1e-6:
-                n.vel = vel
+    for n in s.parts['p_cb'].notes:
+        if silent[0] - 1e-6 <= n.start < silent[1] - 1e-6:
+            n.vel = 0.62
     tmp.expr((R + 6.97, 1.0), (R + 7, 0.3 + 0.7 * 4 / 7.8), (R + 7.95, 1.0))
 
     # ================================================================ drums
