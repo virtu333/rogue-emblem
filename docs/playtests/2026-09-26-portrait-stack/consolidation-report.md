@@ -68,24 +68,57 @@ Before these fixes, 13 browser tests failed on the combined build even though ev
 - **P3, stale teaching hint: not addressed.** This is not portrait-specific. The hint queue should drop a contextual hint once its unit or action state changes.
 - **Polish, Compendium controls take about half the view at 375×667: not addressed.** This belongs to #128, for example a compact category selector.
 
-## Main CI is red since the Formation merge (not caused by the portrait PRs)
+## CI failure notes (as of 2026-09-26 22:35 UTC)
 
-Main's own CI run for `e92add8f` (#121 Formation) failed. [Run 36272800885](https://github.com/virtu333/rogue-emblem/actions/runs/36272800885):
-- `e2e (contracts)`: four tests failed, all with 30s timeouts:
-  - `battle-contracts.spec.js:91`, phone and desktop;
-  - `battle-contracts.spec.js:215`;
-  - `mobile-shell-contracts.spec.js:220`.
-  
-  `management-contracts.spec.js:184` was also flaky.
-- `e2e (run-flow-1of3)`: `guidance-notes.spec.js:284` times out waiting for `PLAYER_IDLE`.
+Two browser-test groups ("lanes") on main have failed since the Formation merge (#121, `e92add8f`). The same failures then appeared on the portrait PRs. **None of them is in a portrait spec or in code the portrait PRs change.** They are timeouts that fail on some CI runs and pass on others, and they don't reproduce locally.
 
-The same tests fail the same way on #125 and #128, whose latest pushes changed only their own spec files. I've commented on both PRs.
+### The two failures
 
-They can't be reproduced locally on main:
-- the failing tests pass when run on their own;
-- the whole `contracts` lane passes, 53/53 with 2 workers.
+- **A: `e2e (run-flow-1of3)`**
+  - Failing test: `guidance-notes.spec.js:284`, "Light still names the recruit; Off and legacy helpers-off show nothing".
+  - It times out at `openRecruitBattle`, waiting for `PLAYER_IDLE` (`?devScene=battle&preset=battle_smoke&seed=42&devNode=recruit`), with the retry failing too.
+- **B: `e2e (contracts)`**
+  - All four tests time out at 30s:
+    - `battle-contracts.spec.js:91`, "committed trade survives submenu Back, reselection and another Back". Phone and desktop both fail, and the phone run times out inside `page.screenshot`.
+    - `battle-contracts.spec.js:215`, "Vision preserves resolved turn-start healing and does not heal twice".
+    - `mobile-shell-contracts.spec.js:220`, "late phone resize reconciles the map; decorative auth canvas is gone". It times out polling `#game-container` after `setViewportSize`.
+  - `management-contracts.spec.js:184` ("zero-weight reward is blocked…") is flaky: the rewards dialog doesn't appear within 5s after `onVictory()`, but it passes on retry.
 
-So the failures look CI-environment dependent: a slower runner, or `formation.spec.js` newly sharing the contracts lane. I couldn't re-run the jobs (403). Someone who can should re-run them once. If they fail again, check the uploaded failure screenshots and traces (artifacts `e2e-failures-contracts` and `e2e-failures-run-flow-1of3`) before merging anything else.
+### Where each one shows up
+
+| Where | Head | run-flow-1of3 (A) | contracts (B) | Run |
+|---|---|---|---|---|
+| main after #121 | `e92add8f` | ❌ | ❌ | [36272800885](https://github.com/virtu333/rogue-emblem/actions/runs/36272800885) |
+| main after #126 | `33537d86` | queued when this was written | queued | [36275321145](https://github.com/virtu333/rogue-emblem/actions/runs/36275321145) |
+| #124 (route map) | `4035faf7` | ❌ | ✅ | [36274235542](https://github.com/virtu333/rogue-emblem/actions/runs/36274235542) |
+| #125 (card screens) | `6fd50ee2` | ❌ | ✅ | [36274236551](https://github.com/virtu333/rogue-emblem/actions/runs/36274236551) |
+| #128 (list screens) | `5792d638` | ✅ | ❌ | [36274238020](https://github.com/virtu333/rogue-emblem/actions/runs/36274238020) |
+
+- Every other job on #124, #125 and #128 passed: lint, test, harness, e2e-lanes, and the other e2e lanes. A few were still running at the time: `presentation` on #124 and `battle-input-2of3` on #128.
+- #99, #122 and #129 are stacked, so none has had a CI run on the current main.
+- #131 (the preview) was queued.
+- On each of #124, #125 and #128, the latest push changed only that PR's own portrait spec file.
+
+### Why these don't look like portrait bugs
+
+- **Not deterministic:** B fails on main and #128 but passes on #124 and #125. A fails on main, #124 and #125 but passes on #128.
+- **Not reproducible locally**, run on `origin/main` with the repo's dev-server config:
+  - the five failing tests on their own: 5/5 pass;
+  - the whole `contracts` lane with 2 workers and `CI=1`: 53/53 pass.
+- **Every failure is a timeout**, never a wrong value. One is a timeout inside `page.screenshot` itself, which suggests a busy page or a starved runner.
+- **They started with #121.** Formation added `formation.spec.js` to the `contracts` lane, which makes that 2-worker lane heavier. It also added its placement step to battle start, bypassed on dev routes by `formationDevBypass`. Neither explains lane A by itself, so the root cause is still open.
+
+### Actions taken and still needed
+
+- I commented once on #124, #125 and #128 with the details. I couldn't re-run the jobs myself (403, "Resource not accessible by integration").
+- **Needed:**
+  - Re-run the failed jobs once.
+  - If they fail again, open the uploaded traces (artifacts `e2e-failures-contracts` and `e2e-failures-run-flow-1of3` on the runs above). In particular, check what the page shows when `openRecruitBattle` stalls and when the phone trade test's screenshot hangs.
+  - Check that main's own run for `33537d86` passes before merging on top of it.
+- If it turns out to be runner load, likely fixes are:
+  - give `formation.spec.js` its own lane, or shard `contracts`;
+  - set generous per-test timeouts on the slow battle-contracts cases;
+  - waits should follow the repo's wait-on-state rule rather than longer sleeps.
 
 ## Open items (not blocking the merge)
 
