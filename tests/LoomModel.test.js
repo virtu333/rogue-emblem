@@ -6,7 +6,9 @@ import {
   loomAnchorScroll,
   loomHeader,
   loomMedalSize,
+  loomScrollToRow,
   loomShortLabel,
+  loomViewRow,
   stableIndex,
   toRoman,
   LOOM_MEDAL,
@@ -217,6 +219,194 @@ describe('Loom node states', () => {
       for (const n of map.nodes) expect(['live', 'future']).toContain(m.nodeState(n.id));
       expect(m.bossId).toBe(map.bossNodeId);
     }
+  });
+});
+
+describe('Loom geometry: the horizontal loom is pinned (landscape and desktop never move)', () => {
+  // Values worked out by hand from the README metrics (pad 40/50/42/30, dx = medal + 26
+  // up to 96, lanes up to 2.2 medals apart), not by re-running layoutLoom.
+  const pick = (l, rows) => ({
+    innerW: l.innerW,
+    dx: l.dx,
+    dy: l.dy,
+    padL: l.padL,
+    padT: l.padT,
+    numeralY: l.numeralY,
+    tickY: l.tickY,
+    xs: Array.from({ length: rows }, (_, r) => l.x(r)),
+    ys: Array.from({ length: 5 }, (_, c) => l.y(c)),
+  });
+
+  it('a narrow phone loom scrolls: 62px rows from x 40, lanes 57px apart from y 42', () => {
+    const l = layoutLoom({ rows: 9, width: 420, height: 300, medal: 36 });
+    expect(pick(l, 9)).toEqual({
+      innerW: 586,
+      dx: 62,
+      dy: 57,
+      padL: 40,
+      padT: 42,
+      numeralY: 15,
+      tickY: 20,
+      xs: [40, 102, 164, 226, 288, 350, 412, 474, 536],
+      ys: [42, 99, 156, 213, 270],
+    });
+    // The default axis is horizontal, and naming it changes nothing.
+    expect(
+      pick(layoutLoom({ rows: 9, width: 420, height: 300, medal: 36, axis: 'horizontal' }), 9),
+    ).toEqual(pick(l, 9));
+  });
+
+  it('a wide desktop loom centres 96px rows and fills the height with lanes', () => {
+    const l = layoutLoom({ rows: 8, width: 1200, height: 320, medal: 40 });
+    expect(pick(l, 8)).toEqual({
+      innerW: 1200,
+      dx: 96,
+      dy: 62,
+      padL: 259,
+      padT: 42,
+      numeralY: 15,
+      tickY: 20,
+      xs: [259, 355, 451, 547, 643, 739, 835, 931],
+      ys: [42, 104, 166, 228, 290],
+    });
+  });
+
+  it('a tall loom caps lane spacing at 2.2 medals and centres the lanes', () => {
+    const l = layoutLoom({ rows: 8, width: 700, height: 700, medal: 44 });
+    expect(l.innerW).toBe(700);
+    expect(l.dx).toBeCloseTo(610 / 7, 9);
+    expect(l.dy).toBeCloseTo(96.8, 9);
+    expect(l.padT).toBe(162);
+    expect(l.numeralY).toBe(135);
+    expect(l.tickY).toBe(140);
+    expect(l.y(4)).toBeCloseTo(162 + 4 * 96.8, 9);
+  });
+
+  it('anchor scroll sits 1.4 rows before the choices, clamped to the scroll range', () => {
+    const m = midModel(); // choices on row 4
+    // x(4) = 40 + 4 * 62 = 288; 288 - 86.8 = 201.2
+    expect(loomAnchorScroll(layoutLoom({ rows: 8, width: 300, height: 320, medal: 36 }), m)).toBe(
+      201,
+    );
+    // innerW 524 in a 520px viewport: only 4px of scroll exist
+    expect(loomAnchorScroll(layoutLoom({ rows: 8, width: 520, height: 320, medal: 36 }), m)).toBe(
+      4,
+    );
+  });
+});
+
+describe('Loom geometry: the vertical loom (upright phones)', () => {
+  // 390x844 with the bottom sheet: a ~366 x 540 loom. 375x667: ~351 x 364.
+  it('a whole 9-row act fits a 366x540 loom: row I at the bottom, the boss row on top', () => {
+    const l = layoutLoom({ rows: 9, width: 366, height: 540, medal: 36, axis: 'vertical' });
+    expect(l.axis).toBe('vertical');
+    // (540 - 38 - 44) / 8 = 57.25 between rows; (366 - 66 - 34) / 4 = 66.5 between lanes.
+    expect(l.rowStep).toBeCloseTo(57.25, 9);
+    expect(l.laneStep).toBeCloseTo(66.5, 9);
+    expect(l.innerW).toBe(366);
+    expect(l.innerH).toBe(540);
+    expect(l.scrollSpan).toBe(0);
+    expect(l.row(8)).toBe(38);
+    expect(l.row(0)).toBe(38 + 8 * 57.25);
+    expect(l.pos(0, 0)).toEqual({ x: 66, y: 496 });
+    expect(l.pos(8, 4)).toEqual({ x: 332, y: 38 });
+    for (let r = 1; r < 9; r++) expect(l.row(r)).toBeLessThan(l.row(r - 1));
+    for (let c = 1; c < 5; c++) expect(l.lane(c)).toBeGreaterThan(l.lane(c - 1));
+    // The ruler stands left of lane I's medals.
+    expect(l.numeralX).toBeLessThan(l.lane(0) - 18);
+    expect(l.tickX + 4).toBeLessThanOrEqual(l.lane(0) - 18);
+  });
+
+  it('a short loom (375x667) keeps 56px rows and scrolls instead of crushing them', () => {
+    const l = layoutLoom({ rows: 9, width: 351, height: 364, medal: 36, axis: 'vertical' });
+    expect(l.rowStep).toBe(56);
+    expect(l.innerH).toBe(38 + 44 + 8 * 56);
+    expect(l.scrollSpan).toBe(530 - 364);
+    expect(l.innerW).toBe(351); // never scrolls sideways
+  });
+
+  it('wide upright looms centre the lanes and cap them at 2.2 medals', () => {
+    const l = layoutLoom({ rows: 8, width: 700, height: 900, medal: 44, axis: 'vertical' });
+    expect(l.laneStep).toBeCloseTo(96.8, 9);
+    const block = 66 + 34 + 4 * 96.8;
+    expect(l.lane(0)).toBe(66 + Math.floor((700 - block) / 2));
+    expect(l.rowStep).toBe(96);
+    // 38 + 44 + 7 * 96 = 754 < 900: the act is centred vertically.
+    expect(l.row(7)).toBe(38 + (900 - 754) / 2);
+  });
+
+  it('knots of real generated acts never overlap and stay inside the weave', () => {
+    const data = loadGameData();
+    for (const actId of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
+      const map = generateNodeMap(actId, ACT_CONFIG[actId], data.mapTemplates, {});
+      const rows = Math.max(...map.nodes.map((n) => n.row)) + 1;
+      for (const [width, height] of [
+        [366, 540],
+        [351, 364],
+      ]) {
+        const l = layoutLoom({ rows, width, height, medal: 36, axis: 'vertical' });
+        const pts = map.nodes.map((n) => ({ ...l.pos(n.row, n.col), boss: n.type === 'boss' }));
+        for (const p of pts) {
+          const half = p.boss ? 28 : 24; // hit areas: 48px, the boss 56px
+          expect(p.x - half).toBeGreaterThanOrEqual(0);
+          expect(p.x + half).toBeLessThanOrEqual(l.innerW);
+          expect(p.y - half).toBeGreaterThanOrEqual(0);
+          expect(p.y + half).toBeLessThanOrEqual(l.innerH);
+        }
+        for (let i = 0; i < pts.length; i++)
+          for (let j = i + 1; j < pts.length; j++) {
+            const gap = Math.max(Math.abs(pts[i].x - pts[j].x), Math.abs(pts[i].y - pts[j].y));
+            expect(gap).toBeGreaterThanOrEqual(48);
+          }
+        // The start knot (row 0) is the lowest; the boss the highest.
+        const start = map.nodes.find((n) => n.id === map.startNodeId);
+        const boss = map.nodes.find((n) => n.id === map.bossNodeId);
+        for (const n of map.nodes) {
+          expect(l.pos(n.row, n.col).y).toBeLessThanOrEqual(l.pos(start.row, start.col).y);
+          expect(l.pos(n.row, n.col).y).toBeGreaterThanOrEqual(l.pos(boss.row, boss.col).y);
+        }
+      }
+    }
+  });
+
+  it("anchor scroll shows the choices with the party's knot whole below them, clamped", () => {
+    // 8 rows in a 351x364 loom: 56px rows, innerH 474, 110px of scroll; row r at
+    // 38 + (7 - r) * 56. Lead-in: one row + half a medal + 14 = 88px.
+    const l = layoutLoom({ rows: 8, width: 351, height: 364, medal: 36, axis: 'vertical' });
+    expect(l.scrollSpan).toBe(110);
+    const at = (ids) =>
+      buildLoomModel({ nodes: boardNodes(), startNodeId: 'act1_0_2', availableIds: ids });
+    // Act start (row 0 at y 430): 430 + 88 - 364 = 154, clamped to 110.
+    expect(loomAnchorScroll(l, at(['act1_0_2']))).toBe(110);
+    // Choices on row 2 (y 318): 318 + 88 - 364 = 42.
+    const s2 = loomAnchorScroll(l, at(['act1_2_1', 'act1_2_2']));
+    expect(s2).toBe(42);
+    expect(318 - 18).toBeGreaterThan(s2);
+    // The row below (the party's, y 374) is whole: its medal and ring end above the edge.
+    expect(374 + 18 + 5).toBeLessThanOrEqual(s2 + 364);
+    // Choices on row 4 (y 206) are already in view from the top.
+    expect(loomAnchorScroll(l, midModel())).toBe(0);
+    // A loom that fits never scrolls.
+    const fit = layoutLoom({ rows: 8, width: 366, height: 540, medal: 36, axis: 'vertical' });
+    expect(loomAnchorScroll(fit, at(['act1_0_2']))).toBe(0);
+  });
+
+  it('the view row survives a switch between axes (rotation keeps the browsing place)', () => {
+    const h = layoutLoom({ rows: 9, width: 300, height: 320, medal: 36 });
+    // scrollLeft 201: centre at 351 -> row (351 - 40) / 62
+    expect(loomViewRow(h, 201)).toBeCloseTo(311 / 62, 9);
+    expect(loomScrollToRow(h, 311 / 62)).toBe(201);
+    const v = layoutLoom({ rows: 9, width: 351, height: 364, medal: 36, axis: 'vertical' });
+    // centre row 5 -> y 38 + 3 * 56 = 206 -> scrollTop 206 - 182 = 24
+    expect(loomScrollToRow(v, 5)).toBe(24);
+    expect(loomViewRow(v, 24)).toBeCloseTo(5, 9);
+    // Row 0 wants to be centred below the weave's end: clamped to the full scroll.
+    expect(loomScrollToRow(v, 0)).toBe(v.scrollSpan);
+    expect(loomScrollToRow(v, 8)).toBe(0);
+    // Round trip horizontal -> vertical -> horizontal lands on the same place.
+    const row = loomViewRow(h, 150);
+    const back = loomScrollToRow(h, loomViewRow(v, loomScrollToRow(v, row)));
+    expect(Math.abs(back - 150)).toBeLessThanOrEqual(1);
   });
 });
 
