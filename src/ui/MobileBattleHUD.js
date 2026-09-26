@@ -28,7 +28,7 @@ import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { formatWeaponArtEffects, weaponArtUsesText } from './weaponArtDisplay.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_INPUT_EVENTS } from '../utils/domUI.js';
-import { battleItemSummary } from './battleItemSummary.js';
+import { battleItemBrief, battleItemSummary } from './battleItemSummary.js';
 import { BattlefieldLab, battlefieldLabEnabled } from './BattlefieldLab.js';
 import { createHealthBar } from './healthBar.js';
 import { textureImageSource } from './textureImageSource.js';
@@ -67,6 +67,24 @@ const HINTS = {
   TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
 };
+
+// Item rows teach their long press once: the hint line shows until the player
+// has opened a row's details (per device; storage blocked = never nag).
+const ITEM_HOLD_KEY = 'emblem_rogue_tip_hold_item';
+function itemHoldLearned() {
+  try {
+    return localStorage.getItem(ITEM_HOLD_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+function markItemHoldLearned() {
+  try {
+    localStorage.setItem(ITEM_HOLD_KEY, '1');
+  } catch {
+    /* optional */
+  }
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -213,6 +231,7 @@ export class MobileBattleHUD {
 
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
+    this.expandedItem = null; // a new menu opens with every row brief
     if (this.scene.battleParams?.tutorialMode && this.scene._tutorialStrictGateReleased)
       void (this.scene._tutorialController ||= new TutorialController(
         this.scene,
@@ -984,6 +1003,12 @@ export class MobileBattleHUD {
         this.body.append(el('p', 'mb-detail', 'Tap a blue tile to move.'));
       }
       const list = el('div', s.inEquipMenu ? 'mb-actions mb-submenu' : 'mb-actions');
+      if (
+        s.inEquipMenu &&
+        !itemHoldLearned() &&
+        menu.items.some((entry) => entry.item && !entry.description)
+      )
+        this.body.append(el('p', 'mb-detail mb-hold-hint', 'Hold a row for its full details.'));
       // The pinned command (Wait) was built into the dock by syncDock.
       for (const item of menu.items) if (item !== pinned) list.append(this.menuButton(menu, item));
       this.body.append(list);
@@ -1154,6 +1179,10 @@ export class MobileBattleHUD {
       Boolean(item.item) &&
       item.item === menu.unit?.weapon &&
       item.label.startsWith(EQUIPPED_MARKER);
+    // Weapon and item rows show a one-line brief; a long press opens the row's
+    // full stats and effect in place (and closes it again).
+    const detail = item.description ? '' : battleItemSummary(item.item, menu.unit);
+    const expanded = Boolean(detail) && this.expandedItem === item.item;
     const button = this.button(
       equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
       () => {
@@ -1167,13 +1196,29 @@ export class MobileBattleHUD {
           return;
         item.onActivate();
       },
-      [item.label === 'Attack' && !item.disabled ? 'mb-primary' : '', className]
+      [
+        item.label === 'Attack' && !item.disabled ? 'mb-primary' : '',
+        expanded ? 'is-expanded' : '',
+        className,
+      ]
         .filter(Boolean)
         .join(' '),
+      detail
+        ? () => {
+            if (this.menu !== menu) return;
+            this.expandedItem = this.expandedItem === item.item ? null : item.item;
+            markItemHoldLearned();
+          }
+        : null,
     );
     if (equippedRow) button.append(equippedBadgeElement());
-    const description = item.description || battleItemSummary(item.item, menu.unit);
-    if (description) button.append(el('small', 'mb-item-summary', description));
+    if (item.description) button.append(el('small', 'mb-item-summary', item.description));
+    else if (detail) {
+      const brief = battleItemBrief(item.item, menu.unit);
+      button.append(el('small', 'mb-item-summary', expanded ? detail : brief));
+      // Screen readers always hear every stat and the effect.
+      button.setAttribute('aria-description', detail);
+    }
     button.disabled = item.disabled;
     item.domButton = button;
     button.addEventListener('focus', () => {

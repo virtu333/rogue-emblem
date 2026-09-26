@@ -327,6 +327,18 @@
   margin-top: 4px;
 }
 
+/* A submenu row shows a one-line brief (the numbers that decide a pick); a
+   long press opens the full stats and effect in place. */
+.mb-submenu .mb-item-summary {
+  font-variant-numeric: tabular-nums;
+}
+.mb-submenu .mb-button.is-expanded {
+  border-color: var(--re-accent-text);
+}
+.mb-hold-hint {
+  margin: 0 0 6px;
+}
+
 .mb-objective {
   white-space: pre-line;
 }
