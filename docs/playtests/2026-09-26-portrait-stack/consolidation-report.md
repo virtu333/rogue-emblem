@@ -68,6 +68,25 @@ Before these fixes, 13 browser tests failed on the combined build even though ev
 - **P3, stale teaching hint: not addressed.** This is not portrait-specific. The hint queue should drop a contextual hint once its unit or action state changes.
 - **Polish, Compendium controls take about half the view at 375×667: not addressed.** This belongs to #128, for example a compact category selector.
 
+## Main CI is red since the Formation merge (not caused by the portrait PRs)
+
+Main's own CI run for `e92add8f` (#121 Formation) failed. [Run 36272800885](https://github.com/virtu333/rogue-emblem/actions/runs/36272800885):
+- `e2e (contracts)`: four tests failed, all with 30s timeouts:
+  - `battle-contracts.spec.js:91`, phone and desktop;
+  - `battle-contracts.spec.js:215`;
+  - `mobile-shell-contracts.spec.js:220`.
+  
+  `management-contracts.spec.js:184` was also flaky.
+- `e2e (run-flow-1of3)`: `guidance-notes.spec.js:284` times out waiting for `PLAYER_IDLE`.
+
+The same tests fail the same way on #125 and #128, whose latest pushes changed only their own spec files. I've commented on both PRs.
+
+They can't be reproduced locally on main:
+- the failing tests pass when run on their own;
+- the whole `contracts` lane passes, 53/53 with 2 workers.
+
+So the failures look CI-environment dependent: a slower runner, or `formation.spec.js` newly sharing the contracts lane. I couldn't re-run the jobs (403). Someone who can should re-run them once. If they fail again, check the uploaded failure screenshots and traces (artifacts `e2e-failures-contracts` and `e2e-failures-run-flow-1of3`) before merging anything else.
+
 ## Open items (not blocking the merge)
 
 1. A committed browser test for Formation on an upright board, covering tile tap placement and a phone turn mid-Formation. It needs #121's `finishFormation` helper, so it belongs after #99 and #122 have taken main.
