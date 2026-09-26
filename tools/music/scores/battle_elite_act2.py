@@ -188,7 +188,9 @@ def even(part, tol_db=1.5, cap_db=11.0, boost_db=4.0):
     if spec['kind'] != 'sfz' or not part.notes:
         return part
     notes = sorted(part.notes, key=lambda n: n.start)
-    lv = [_zone_level(part.inst, n.art, n.pitch + part.score.transpose, n.vel) for n in notes]
+    own = part.opts.get('art', 'default')
+    lv = [_zone_level(part.inst, own if n.art == 'default' else n.art,
+                      n.pitch + part.score.transpose, n.vel) for n in notes]
     med = float(np.median(lv))
     old = list(part.expr_points)
     pts = []

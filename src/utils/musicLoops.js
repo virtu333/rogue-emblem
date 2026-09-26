@@ -101,6 +101,8 @@ export const MUSIC_LOOPS = {
     duration: 92.168,
     tonic: 'F',
   },
+  music_battle_elite_act3: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
+  music_battle_elite_act3_calm: { loopStart: 7.0, loopEnd: 80.5, duration: 81.1, tonic: 'A' },
   music_battle_elite_calm: {
     loopStart: 9.714286,
     loopEnd: 72.571429,

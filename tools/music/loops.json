@@ -340,6 +340,28 @@
     "title": "The Iron Line",
     "tonic": "F"
   },
+  "music_battle_elite_act3": {
+    "duration": 81.1,
+    "loopEnd": 80.5,
+    "loopStart": 7.0,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_elite_act3",
+    "seamDb": -64.5,
+    "title": "The Consecrated",
+    "tonic": "A"
+  },
+  "music_battle_elite_act3_calm": {
+    "duration": 81.1,
+    "loopEnd": 80.5,
+    "loopStart": 7.0,
+    "lufs": -17.0,
+    "peakDb": -1.09,
+    "score": "battle_elite_act3",
+    "seamDb": -113.4,
+    "title": "The Consecrated",
+    "tonic": "A"
+  },
   "music_battle_elite_calm": {
     "duration": 73.171,
     "loopEnd": 72.571429,
