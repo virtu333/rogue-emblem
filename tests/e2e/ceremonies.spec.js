@@ -331,6 +331,36 @@ test.describe('deed card on a small phone', () => {
   });
 });
 
+test.describe('battle notices on a small phone', () => {
+  test.use(phone);
+
+  test('wrapped notices stack under each other; none covers another', async ({ page }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // Real notice shapes, long enough to wrap on the 445 px map frame.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      s.time.timeScale = 0.01; // hold them while measured
+      const c = s._getCeremonies();
+      c.showNotice({ message: 'Knight Commander used Sleep Staff! Edric fell asleep! (100%)' });
+      c.showNotice({ message: "Village saved! +300g, Vampire's Bloodshard sent to convoy" });
+      c.showNotice({ message: 'Edric couldn’t learn Commander’s Gambit (skill limit reached)' });
+    });
+    const bands = page.locator('.ce-notice');
+    await expect(bands).toHaveCount(3);
+    const boxes = await bands.evaluateAll((all) =>
+      all.map((n) => ({ top: n.offsetTop, bottom: n.offsetTop + n.offsetHeight })),
+    );
+    expect(boxes.some((b) => b.bottom - b.top > 40)).toBe(true); // at least one wraps
+    for (let i = 1; i < boxes.length; i++)
+      expect(boxes[i].top, `notice ${i}`).toBeGreaterThanOrEqual(boxes[i - 1].bottom);
+  });
+});
+
 test.describe('desktop', () => {
   test.use({ viewport: { width: 960, height: 720 } });
 
