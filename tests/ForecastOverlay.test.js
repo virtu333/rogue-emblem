@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
+import { UI_PALETTE } from '../src/utils/uiStyles.js';
 
 // ── Mock helpers ────────────────────────────────────────────
 
@@ -289,6 +290,44 @@ describe('ForecastOverlay', () => {
 
       rightArrow.handlers['pointerdown']({ button: 0 });
       expect(scene._cycleForecastWeapon).toHaveBeenCalledWith(1);
+    });
+
+    it('the attacker side reads the planned weapon, not the equipped one', () => {
+      // The forecast plans Steel while Iron stays equipped (nothing is equipped
+      // before confirm). A regression reading attacker.weapon would show Iron,
+      // 1/2, the E badge, a "next: Steel" hint and an AS colour for Iron.
+      const iron = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5 };
+      const steel = { name: 'Steel Sword', type: 'Sword', might: 8, hit: 80, crit: 0, weight: 10 };
+      const styles = new Map();
+      const text = scene.add.text;
+      scene.add.text = (x, y, content, style) => {
+        const object = text(x, y, content, style);
+        styles.set(object, style);
+        return object;
+      };
+      const attacker = makeUnit({ weapon: iron });
+      // STR 8 offsets 1 weight: Steel's AS is 7 - 9 = -2 (Iron's would be 3).
+      const forecast = makeForecast({ as: -2 });
+      const overlay = new ForecastOverlay(scene);
+      overlay.render({
+        attacker,
+        defender: makeUnit({ name: 'Enemy', weapon: { name: 'Iron Axe', type: 'Axe' } }),
+        forecast,
+        weaponArt: null,
+        gamblerLine: null,
+        validWeapons: [iron, steel],
+        weapon: steel,
+        equippedWeapon: iron,
+      });
+      const texts = overlay.displayObjects.map((o) => o.text);
+      expect(texts).toContain('Steel Sword');
+      expect(texts).not.toContain('Iron Sword');
+      expect(texts).toContain('2/2');
+      expect(texts).toContain('► Iron Sword');
+      expect(overlay.displayObjects.some((o) => o._equippedBadge)).toBe(false);
+      // AS -2 is Steel's own speed: shown neutral, not as a penalty.
+      const asValue = overlay.displayObjects.find((o) => o.text === '-2');
+      expect(styles.get(asValue).color).toBe(UI_PALETTE.text);
     });
 
     it('confirm button calls scene.confirmForecastCombat()', () => {

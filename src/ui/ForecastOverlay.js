@@ -63,7 +63,8 @@ export class ForecastOverlay {
    * @param {object|null} config.weaponArt
    * @param {string|null} config.gamblerLine
    * @param {object[]} config.validWeapons — weapons that can hit this target, equipped first
-   * @param {object|null} [config.equippedWeapon] — the equipped (pre-preview) weapon
+   * @param {object|null} [config.weapon] — the attacker's planned weapon (not necessarily equipped)
+   * @param {object|null} [config.equippedWeapon] — the attacker's equipped weapon
    * @param {number} [config.targetIndex] — this target's index among attackable targets
    * @param {number} [config.targetCount] — number of attackable targets (0 = unknown)
    */
@@ -74,6 +75,7 @@ export class ForecastOverlay {
     weaponArt,
     gamblerLine,
     validWeapons = [],
+    weapon = attacker?.weapon || null,
     equippedWeapon = attacker?.weapon || null,
     targetIndex = -1,
     targetCount = 0,
@@ -88,6 +90,7 @@ export class ForecastOverlay {
         weaponArt,
         gamblerLine,
         validWeapons,
+        weapon,
         equippedWeapon,
         targetIndex,
         targetCount,
@@ -148,6 +151,7 @@ export class ForecastOverlay {
       weaponArt,
       gamblerLine,
       validWeapons,
+      weapon,
       equippedWeapon,
       notes: notes[0],
       predictedHP: projection?.attackerHP,
@@ -201,10 +205,12 @@ export class ForecastOverlay {
    * @param {object} opponent
    * @param {boolean} isAttacker
    * @param {number} depth
-   * @param {object} opts — { weaponArt, gamblerLine, validWeapons }
+   * @param {object} opts — { weaponArt, gamblerLine, validWeapons, weapon }; `weapon`
+   *   is the weapon this side fights with (the attacker's planned one), default equipped
    */
   _drawSide(x, panelY, unit, info, opponent, isAttacker, depth, opts = {}) {
     const scene = this.scene;
+    const weapon = opts.weapon !== undefined ? opts.weapon : unit.weapon;
     const sideW = 186;
     const textDepth = depth + 1;
     let y = panelY + 6;
@@ -234,8 +240,8 @@ export class ForecastOverlay {
 
     // EFFECTIVE! banner -- below name, beside portrait
     if (
-      unit.weapon &&
-      getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
+      weapon &&
+      getEffectivenessMultiplier(weapon, opponent) > 1 &&
       (isAttacker || info.canCounter)
     ) {
       const eff = applyTextResolution(
@@ -342,7 +348,7 @@ export class ForecastOverlay {
       this.displayObjects.push(noCounter);
 
       y += 20;
-      const wpnName = unit.weapon?.name || 'Unarmed';
+      const wpnName = weapon?.name || 'Unarmed';
       const wpn = applyTextResolution(
         scene.add.text(x + 2, y, wpnName, {
           fontFamily: 'Arial',
@@ -410,7 +416,7 @@ export class ForecastOverlay {
     this.displayObjects.push(crtVal);
 
     // AS display
-    const baseAs = calculateEffectiveSpeed(unit, unit.weapon);
+    const baseAs = calculateEffectiveSpeed(unit, weapon);
     let asColor = UI_PALETTE.text;
     if (info.as < baseAs) asColor = UI_PALETTE.bad;
     else if (info.as > baseAs) asColor = UI_PALETTE.good;
@@ -445,11 +451,11 @@ export class ForecastOverlay {
     // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons).
     // [E] marks the weapon that is equipped now; confirming with another weapon
     // equips it and moves it to the top of the inventory.
-    const wpnName = unit.weapon?.name || 'Unarmed';
-    const wpnColor = unit.weapon && isForged(unit.weapon) ? UI_PALETTE.good : UI_PALETTE.info;
+    const wpnName = weapon?.name || 'Unarmed';
+    const wpnColor = weapon && isForged(weapon) ? UI_PALETTE.good : UI_PALETTE.info;
     const validWpns = opts.validWeapons;
     const canCycle = isAttacker && validWpns?.length >= 2;
-    const showBadge = isAttacker && unit.weapon && unit.weapon === opts.equippedWeapon;
+    const showBadge = isAttacker && weapon && weapon === opts.equippedWeapon;
     const badgeW = showBadge ? 13 : 0;
     if (showBadge) {
       const badge = applyTextResolution(
@@ -499,7 +505,7 @@ export class ForecastOverlay {
         scene.add.text(
           x + sideW - 18,
           y,
-          `${Math.max(1, validWpns.indexOf(unit.weapon) + 1)}/${validWpns.length}`,
+          `${Math.max(1, validWpns.indexOf(weapon) + 1)}/${validWpns.length}`,
           {
             fontFamily: 'Arial',
             fontSize: '8px',
@@ -531,7 +537,7 @@ export class ForecastOverlay {
       this.displayObjects.push(rightArrow);
 
       // Next weapon preview (right arrow direction)
-      const curIdx = validWpns.indexOf(unit.weapon);
+      const curIdx = validWpns.indexOf(weapon);
       const nextIdx = (curIdx + 1) % validWpns.length;
       const nextWpn = validWpns[nextIdx];
       if (nextWpn) {

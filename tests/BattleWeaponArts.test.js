@@ -440,7 +440,10 @@ describe('BattleScene weapon art helpers', () => {
     const selected = scene._getSelectedWeaponArtForUnit(unit);
 
     expect(selected?.id).toBe('shared_art');
-    expect(unit.weapon).toBe(secondWeapon);
+    expect(scene._resolveSelectedWeaponArtEntry(unit).weapon).toBe(secondWeapon);
+    // Asking which art is selected is pure: the art's weapon is equipped on confirm.
+    expect(unit.weapon).toBe(firstWeapon);
+    expect(unit.inventory).toEqual([firstWeapon, secondWeapon]);
   });
 
   it('clears selected weapon art when weapon becomes incompatible', () => {

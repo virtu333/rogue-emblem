@@ -34,11 +34,20 @@ Action menu ─Attack─▶ SELECTING_TARGET ─pick─▶ SHOWING_FORECAST ─c
     up/down on a pad, or tapping/clicking another highlighted enemy (desktop). FE
     convention: **every target starts from the equipped weapon**, not from the weapon
     previewed on the previous target.
+- **The forecast is read-only for equipment.** The weapon it shows is only *planned*
+  (`scene._forecastWeapon`, set when the forecast is shown, cleared when it hides, never
+  saved); `unit.weapon` and the bag's items and order do not change while planning,
+  cycling, switching targets, cancelling, going Back, forcing End Turn or deselecting.
+  The skill context takes the planned weapon (`buildSkillCtx(..., { weapon })` →
+  `getSkillCombatMods` `context.weapon`), so a Doublebow's conditional bonus or a
+  weapon's granted skill shows for the planned weapon, not the equipped one.
 - **Cancel** in the forecast returns to target selection with the cursor on the same
-  target and the equipped weapon restored. **Back** from target selection returns to the
-  action menu (weapon and bag order exactly as before Attack).
-- **Confirm** commits: the chosen weapon becomes the equipped weapon and moves to the top
-  of the inventory, then combat resolves as before.
+  target. **Back** from target selection returns to the action menu (and drops any chosen
+  weapon art).
+- **Confirm** commits: the silence guard runs on the planned weapon; if it is no longer
+  carried or can no longer be equipped the attack is abandoned to the action menu; else it
+  becomes the equipped weapon and moves to the top of the inventory, then combat resolves
+  as before.
 
 ### Crisp input
 
@@ -68,7 +77,9 @@ Action menu ─Attack─▶ SELECTING_TARGET ─pick─▶ SHOWING_FORECAST ─c
 
 - **Weapon arts stay their own action.** An art is bound to its weapon, so its forecast
   has no weapon switching; its targets are the ones that art's weapon reaches.
-  "Normal Attack" in the art picker enters the new target-first flow.
+  "Normal Attack" in the art picker enters the new target-first flow. Opening the picker
+  or picking an art equips nothing (not even over an equipped staff); the art's weapon is
+  equipped on confirm, and `executeCombat` re-equips it for a resumed committed attack.
 - **Staves stay pick-staff-then-target when several can be used.** Staff ranges, targets
   (allies, cure, relocation) and effects differ per staff, so choosing the staff first
   keeps the target highlights truthful; with one usable staff it goes straight to
@@ -83,7 +94,7 @@ Like FE, the equipped weapon is inventory slot 1 and moves there whenever the eq
 weapon changes:
 
 - `equipWeapon(unit, w)` moves `w` to the top; everything else keeps its relative order.
-  `{ reorder: false }` exists only for provisional holds (forecast preview, staff use).
+  `{ reorder: false }` exists only for the provisional staff hold.
 - Every path that changes the equipped weapon normalizes: roster/unit-details/battle
   Equip, confirming an attack with another weapon, trade/give (the giver's next weapon;
   an **unarmed** receiver now equips a received usable weapon), store/sell/remove of the

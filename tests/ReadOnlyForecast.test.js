@@ -459,3 +459,246 @@ describe('characterisation: legacy-v1 Gambler draws', () => {
     expect(strike.damage).toBe(16);
   });
 });
+
+describe('characterisation: confirm and resume', () => {
+  it('confirming a weapon from deeper in the bag moves only it to the top', async () => {
+    // Bag [Iron, Bow, Steel]: the Fighter's weapons are Iron and Steel; the
+    // Bow keeps its place behind Iron (a swap-to-front would put it last).
+    const iron = item('Iron Sword', 'iron');
+    const bow = item('Iron Bow', 'bow');
+    const steel = item('Steel Sword', 'steel');
+    const { scene, hero, fighter, settled } = makeScene({ inventory: [iron, bow, steel] });
+    scene._attackFlow().begin(hero);
+    await scene._attackFlow().openForecast(hero, fighter);
+    expect(renders.at(-1).validWeapons).toEqual([iron, steel]);
+    scene._cycleForecastWeapon(1);
+    scene.confirmForecastCombat();
+    await settled();
+    expect(hero.weapon).toBe(steel);
+    expect(hero.inventory).toEqual([steel, iron, bow]);
+  });
+
+  it('a new target starts on the equipped weapon, not the one shown for the last target', async () => {
+    const { scene, hero, fighter, archer } = makeScene();
+    // A second adjacent Fighter: both targets are in reach of both swords.
+    const second = makeUnit('Brigand', 'enemy', 4, 5, [item('Iron Axe', 'axe2')], {
+      battleEntityId: 'u4',
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+    });
+    scene.enemyUnits = [fighter, second, archer];
+    const flow = scene._attackFlow();
+    flow.begin(hero);
+    await flow.openForecast(hero, fighter);
+    scene._cycleForecastWeapon(1);
+    expect(renders.at(-1).forecast.attacker.damage).toBe(11); // Steel
+    flow.switchForecastTarget(second);
+    expect(scene.forecastTarget).toBe(second);
+    // Iron: 7 + 5 + 1 - 5 = 8.
+    expect(renders.at(-1).forecast.attacker.damage).toBe(8);
+  });
+
+  it('the silence guard checks the planned weapon', async () => {
+    const fire = item('Fire', 'fire');
+    const { scene, hero, fighter } = makeScene({
+      inventory: [item('Iron Sword', 'iron'), fire],
+      heroExtra: {
+        proficiencies: [
+          { type: 'Sword', rank: 'Prof' },
+          { type: 'Tome', rank: 'Prof' },
+        ],
+      },
+    });
+    const iron = hero.inventory[0];
+    scene._attackFlow().begin(hero);
+    await scene._attackFlow().openForecast(hero, fighter);
+    scene._cycleForecastWeapon(1); // Fire
+    hero._conditions = [{ id: 'silence', turnsRemaining: 1 }];
+    scene.confirmForecastCombat();
+    expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+    expect(resolutions).toHaveLength(0);
+    expect(hero.weapon).toBe(iron);
+    expect(hero.inventory).toEqual([iron, fire]);
+  });
+
+  it('resuming a committed art attack equips the art weapon, then resolves with it', async () => {
+    const art = data.weaponArts.arts.find((a) => a.id === 'sword_wrath_strike');
+    const iron = item('Iron Sword', 'iron');
+    const steel = item('Steel Sword', 'steel', {
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    });
+    const { scene, hero, settled } = makeScene({ inventory: [iron, steel] });
+    scene.selectedUnit = null;
+    scene.battleState = 'PLAYER_IDLE';
+    scene._scheduleSafeDelayedAsync = (delay, label, run) => run();
+    expect(
+      scene.resumeCommittedAttack({
+        kind: 'attack',
+        unitId: 'u1',
+        unitName: 'Edric',
+        targetId: 'u2',
+        weaponArt: { artId: art.id, weaponIndex: 1, weaponUid: 'steel' },
+      }),
+    ).toBe(true);
+    await settled();
+    expect(hero.weapon).toBe(steel);
+    expect(hero.inventory).toEqual([steel, iron]);
+    expect(resolutions[0].weapon).toBe(steel);
+    // Steel 11 + 5 (Wrath Strike) = 16.
+    const strike = resolutions[0].result.events.find(
+      (e) => e.type === 'strike' && (e.attackerSide ?? 'attacker') === 'attacker',
+    );
+    expect(strike.damage).toBe(16);
+  });
+});
+
+describe('contract: planning an attack never changes equipment', () => {
+  /** Identity and order of every carried item, and every item's uid. */
+  const snapshot = (unit) => ({
+    weapon: unit.weapon,
+    inventory: [...unit.inventory],
+    uids: unit.inventory.map((w) => w.uid),
+  });
+  const expectUntouched = (unit, before, step) => {
+    expect(unit.weapon, step).toBe(before.weapon);
+    expect(unit.inventory, step).toEqual(before.inventory);
+    unit.inventory.forEach((w, i) => expect(w, step).toBe(before.inventory[i]));
+    expect(
+      unit.inventory.map((w) => w.uid),
+      step,
+    ).toEqual(before.uids);
+  };
+
+  it('Attack, the forecast, cycling, targets, Cancel, Back, deselect and force End Turn', async () => {
+    // One uid-less item: the forecast must never stamp one (generateItemUid draws RNG).
+    const bag = [item('Iron Sword', 'iron'), item('Steel Sword', 'steel'), item('Iron Bow')];
+    const { scene, hero, fighter, archer, checkpoints } = makeScene({ inventory: bag });
+    const before = snapshot(hero);
+    const planned = () => scene._forecastWeapon?.name ?? null;
+    const flow = scene._attackFlow();
+    const step = async (label, fn) => {
+      await fn();
+      expectUntouched(hero, before, label);
+    };
+
+    await step('action menu', () => scene.showActionMenu(hero));
+    await step('Attack', () => menuRow(scene, 'Attack')._action());
+    expect(scene.battleState).toBe('SELECTING_TARGET');
+    await step('focus next target', () => flow.cycleTarget(1));
+    await step('open forecast', () => flow.openForecast(hero, fighter));
+    expect(planned()).toBe('Iron Sword');
+    await step('next weapon', () => scene._cycleForecastWeapon(1));
+    expect(planned()).toBe('Steel Sword');
+    expect(renders.at(-1).forecast.attacker.damage).toBe(11);
+    await step('next weapon again', () => scene._cycleForecastWeapon(1));
+    expect(planned()).toBe('Iron Sword');
+    await step('previous weapon', () => scene._cycleForecastWeapon(-1));
+    expect(planned()).toBe('Steel Sword');
+    await step('next target', () => scene._cycleForecastTarget(1));
+    expect(scene.forecastTarget).toBe(archer);
+    expect(planned()).toBe('Iron Bow');
+    await step('tap the first target', () => flow.switchForecastTarget(fighter));
+    expect(planned()).toBe('Iron Sword');
+    await step('next weapon', () => scene._cycleForecastWeapon(1));
+    await step('a checkpoint while planning', () => scene._captureSuspendCheckpoint());
+    expect(checkpoints.at(-1).hero.equippedInventoryIndex).toBe(0);
+    expect(checkpoints.at(-1).hero.weapon.uid).toBe('iron');
+    await step('Cancel', () => scene.handleCancel());
+    expect(scene.battleState).toBe('SELECTING_TARGET');
+    expect(scene._forecastWeapon ?? null).toBeNull();
+    await step('Back', () => scene.handleCancel());
+    expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+
+    await step('Attack again', () => menuRow(scene, 'Attack')._action());
+    await step('open again', () => flow.openForecast(hero, fighter));
+    await step('next weapon', () => scene._cycleForecastWeapon(1));
+    await step('deselect', () => scene.deselectUnit());
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+
+    scene.selectedUnit = hero;
+    await step('menu again', () => scene.showActionMenu(hero));
+    await step('Attack a third time', () => menuRow(scene, 'Attack')._action());
+    await step('open a third time', () => flow.openForecast(hero, fighter));
+    await step('next weapon', () => scene._cycleForecastWeapon(1));
+    await step('force End Turn', () => scene.forceEndTurn());
+    expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledOnce();
+    expect(scene._forecastWeapon ?? null).toBeNull();
+    // The End Turn checkpoint holds the equipped weapon, never the plan.
+    expect(checkpoints.at(-1).hero.equippedInventoryIndex).toBe(0);
+
+    // fixed-v1: planning draws no randomness at all.
+    expect(random).not.toHaveBeenCalled();
+    expect(resolutions).toHaveLength(0);
+  });
+
+  it('the Weapon Art menu with a staff equipped, its picker, Back and an art forecast', async () => {
+    const art = data.weaponArts.arts.find((a) => a.id === 'sword_wrath_strike');
+    const staff = item('Heal', 'heal');
+    const sword = item('Iron Sword', 'iron', {
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    });
+    const { scene, hero, fighter } = makeScene({ inventory: [staff, sword] });
+    const before = snapshot(hero);
+    const flow = scene._attackFlow();
+    const step = async (label, fn) => {
+      await fn();
+      expectUntouched(hero, before, label);
+    };
+
+    await step('action menu', () => scene.showActionMenu(hero));
+    await step('Weapon Art', () => menuRow(scene, 'Weapon Art')._action());
+    expect(scene.inEquipMenu).toBe(true);
+    await step('Back from the picker', () => scene.handleCancel());
+    expect(scene.inEquipMenu).toBe(false);
+    await step('Weapon Art again', () => menuRow(scene, 'Weapon Art')._action());
+    const artRow = scene.actionMenu.find((o) => String(o.text).includes(art.name));
+    await step('pick the art', () => artRow._action());
+    expect(scene.battleState).toBe('SELECTING_TARGET');
+    expect(scene._selectedWeaponArt?.artId).toBe(art.id);
+    await step('open the art forecast', () => flow.openForecast(hero, fighter));
+    expect(scene._forecastWeapon).toBe(sword);
+    expect(renders.at(-1).weaponArt?.id).toBe(art.id);
+    // Iron 7 + 5 + 5 (Wrath Strike) + 1 - 5 = 13, planned with the staff still equipped.
+    expect(renders.at(-1).forecast.attacker.damage).toBe(13);
+    await step('Cancel', () => scene.handleCancel());
+    await step('Back to the menu', () => scene.handleCancel());
+    // Returning to the action menu drops the chosen art.
+    expect(scene._selectedWeaponArt).toBeNull();
+    expect(random).not.toHaveBeenCalled();
+  });
+
+  it('confirm aborts to the action menu when the planned weapon is gone or unusable', async () => {
+    for (const change of ['dropped', 'unequippable']) {
+      resolutions.length = 0;
+      const { scene, hero, iron, steel, bow, fighter } = makeScene();
+      scene._attackFlow().begin(hero);
+      await scene._attackFlow().openForecast(hero, fighter);
+      scene._cycleForecastWeapon(1); // Steel
+      if (change === 'dropped') hero.inventory.splice(hero.inventory.indexOf(steel), 1);
+      else steel.rankRequired = 'Mast';
+      scene.confirmForecastCombat();
+      expect(scene.battleState, change).toBe('UNIT_ACTION_MENU');
+      expect(resolutions, change).toHaveLength(0);
+      expect(hero.weapon, change).toBe(iron);
+      expect(hero.inventory, change).toEqual(
+        change === 'dropped' ? [iron, bow] : [iron, steel, bow],
+      );
+    }
+  });
+
+  it('confirm equips the planned weapon; the forecast never serialises the plan', async () => {
+    const { scene, hero, steel, fighter, settled } = makeScene();
+    scene._attackFlow().begin(hero);
+    await scene._attackFlow().openForecast(hero, fighter);
+    scene._cycleForecastWeapon(1);
+    expect(scene._forecastWeapon).toBe(steel);
+    expect(hero.weapon).not.toBe(steel);
+    scene.confirmForecastCombat();
+    expect(scene._forecastWeapon ?? null).toBeNull();
+    await settled();
+    expect(hero.weapon).toBe(steel);
+    // No unit field carries the plan.
+    expect(Object.keys(hero).filter((k) => /forecast/i.test(k))).toEqual([]);
+  });
+});

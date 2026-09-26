@@ -11,10 +11,10 @@
 // weapon — the equipped one when it can hit that target, else the first in
 // inventory order that can — and the player can switch weapons (◀ ▶, swipe,
 // Left/Right, L1/R1) or targets (▲ ▼, tapping another target) without leaving
-// the forecast. Every weapon change before confirm is a provisional preview
-// (WeaponPreviewSession): the bag order never shifts while cycling, Cancel puts
-// the equipped weapon back, and confirming commits the chosen weapon, which then
-// moves to the top of the inventory.
+// the forecast. The forecast is read-only for equipment: the weapon it shows is
+// only planned (scene._forecastWeapon), so the equipped weapon and the bag never
+// change while planning, cycling, switching targets or backing out. Confirming
+// equips the planned weapon, which then moves to the top of the inventory.
 //
 // The controller owns no Phaser objects of its own: ForecastOverlay renders the
 // canvas panel and MobileBattleHUD the phone panel. It never draws RNG — the
@@ -33,12 +33,6 @@ import { TILE_SIZE } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
-import {
-  beginWeaponPreview,
-  baselineWeapon,
-  equipForAttackPlanning,
-  resetWeaponPreview,
-} from './WeaponPreviewSession.js';
 
 const ATTACK_STATES = new Set(['SELECTING_TARGET', 'SHOWING_FORECAST']);
 
@@ -63,7 +57,7 @@ export class AttackFlowController {
   /** Weapons that can attack `defender` from where `attacker` stands, equipped first. */
   weaponsForTarget(attacker, defender) {
     const scene = this.scene;
-    const weapons = getAttackWeapons(attacker, { equipped: baselineWeapon(scene, attacker) });
+    const weapons = getAttackWeapons(attacker);
     return weaponsForDistance(attacker, weapons, this.distance(attacker, defender), {
       skillsData: scene.gameData?.skills || null,
     });
@@ -77,7 +71,6 @@ export class AttackFlowController {
     if (!unit) return false;
     // Attack always acts for the menu's unit (the flow reads selectedUnit).
     if (scene.selectedUnit !== unit) scene.selectedUnit = unit;
-    beginWeaponPreview(scene, unit);
     scene._clearSelectedWeaponArtIfInvalid?.(unit);
     return this.beginTargetSelection(unit, { target });
   }
@@ -248,8 +241,7 @@ export class AttackFlowController {
   openForecast(unit, target) {
     const scene = this.scene;
     if (!unit || !target) return undefined;
-    // FE convention: every target starts from the equipped weapon.
-    resetWeaponPreview(scene);
+    // FE convention: every target starts from the equipped weapon (showForecast's default).
     this.focusTarget(target);
     scene.registry?.get?.('audio')?.playSFX?.('sfx_confirm');
     return scene.showForecast(unit, target);
@@ -260,7 +252,6 @@ export class AttackFlowController {
     const scene = this.scene;
     const unit = scene.selectedUnit;
     if (!unit || !target || !(scene.attackTargets || []).includes(target)) return undefined;
-    resetWeaponPreview(scene);
     this.focusTarget(target);
     return this.showForecast(unit, target, { rerender: true });
   }
@@ -271,13 +262,12 @@ export class AttackFlowController {
     const target = scene.forecastTarget;
     scene.hideForecast();
     scene._clearCombatRollSession();
-    resetWeaponPreview(scene);
     scene.battleState = 'SELECTING_TARGET';
     if (scene.attackTargets?.length) this.showTargetHighlights();
     if (target) this.focusTarget(target);
   }
 
-  /** Target-selection Back: return to the action menu (restores the weapon). */
+  /** Target-selection Back: return to the action menu. */
   cancelTargetSelection() {
     const scene = this.scene;
     scene.grid.clearAttackHighlights();
@@ -291,11 +281,11 @@ export class AttackFlowController {
 
   /**
    * Build and render the forecast. `weapon` selects a specific valid weapon
-   * (weapon cycling); otherwise the default for this target is used.
+   * (weapon cycling); otherwise the default for this target is used. The
+   * chosen weapon is only planned (scene._forecastWeapon): nothing is equipped.
    */
   async showForecast(attacker, defender, { weapon = null, rerender = false } = {}) {
     const scene = this.scene;
-    if (attacker?.faction === 'player') beginWeaponPreview(scene, attacker);
     scene.forecastTarget = defender;
     scene.battleState = 'SHOWING_FORECAST';
     scene._clearSelectedWeaponArtIfInvalid(attacker);
@@ -319,7 +309,7 @@ export class AttackFlowController {
       selectedEntry?.weapon ||
       (weapon && validWeapons.includes(weapon) ? weapon : validWeapons[0]) ||
       null;
-    if (chosen && attacker.weapon !== chosen) equipForAttackPlanning(scene, attacker, chosen);
+    scene._forecastWeapon = chosen;
 
     scene._forecastWeaponArt = weaponArt;
     if (
@@ -335,7 +325,7 @@ export class AttackFlowController {
     // Computed in the state resolution uses (after a weapon art's HP cost,
     // Recoil Guard buff and Phoenix Brooch heal); see BattleScene._computePlayerForecast.
     const forecast = scene._computePlayerForecast(attacker, defender, weaponArt, {
-      weapon: attacker.weapon,
+      weapon: chosen,
       dist,
       atkTerrain,
       defTerrain,
@@ -361,7 +351,8 @@ export class AttackFlowController {
       weaponArt: scene._forecastWeaponArt,
       gamblerLine: scene._forecastGamblerLine,
       validWeapons,
-      equippedWeapon: baselineWeapon(scene, attacker),
+      weapon: chosen || attacker.weapon || null,
+      equippedWeapon: attacker.weapon || null,
       targetIndex,
       targetCount: targetIndex >= 0 ? targets.length : 0,
     });
@@ -385,7 +376,7 @@ export class AttackFlowController {
     if (scene.battleState !== 'SHOWING_FORECAST' || !scene.selectedUnit) return false;
     const validWeapons = scene._forecastValidWeapons;
     if (!validWeapons || validWeapons.length < 2) return false;
-    const currentIdx = validWeapons.indexOf(scene.selectedUnit.weapon);
+    const currentIdx = validWeapons.indexOf(scene._forecastWeapon);
     if (currentIdx < 0) return false;
     const step = direction < 0 ? -1 : 1;
     const next = validWeapons[(currentIdx + step + validWeapons.length) % validWeapons.length];

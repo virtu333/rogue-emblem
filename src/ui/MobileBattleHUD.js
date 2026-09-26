@@ -93,6 +93,11 @@ function el(tag, className, text) {
   return node;
 }
 
+/** The forecast attacker's planned weapon (confirm equips it); else the equipped one. */
+function forecastWeapon(config) {
+  return config?.weapon !== undefined ? config.weapon : config?.attacker?.weapon || null;
+}
+
 /**
  * The action-menu command pinned in the fixed dock beside Danger, so it never needs a
  * scroll: Wait, the most common command (playtest 4: a six-command menu pushed it below
@@ -439,6 +444,8 @@ export class MobileBattleHUD {
   }
 
   forecastSide(unit, opponent, info, attacking, config) {
+    // The attacker fights with the planned weapon, which is not equipped until confirm.
+    const weapon = attacking ? forecastWeapon(config) : unit.weapon;
     const side = el('article', `mb-forecast-side ${attacking ? 'mb-ally' : 'mb-enemy'}`);
     side.append(el('div', 'mb-eyebrow', attacking ? 'Your attack' : 'Enemy response'));
     const portraitKey = this.scene._getPortraitKey(unit);
@@ -467,10 +474,10 @@ export class MobileBattleHUD {
     if (attacking && !config.weaponArt && config.validWeapons.length > 1)
       side.append(this.forecastStepper('weapon', config));
     else {
-      const weapon = el('div', 'mb-weapon', unit.weapon?.name || 'Unarmed');
-      if (attacking && unit.weapon && unit.weapon === config.equippedWeapon)
-        weapon.append(equippedBadgeElement());
-      side.append(weapon);
+      const label = el('div', 'mb-weapon', weapon?.name || 'Unarmed');
+      if (attacking && weapon && weapon === config.equippedWeapon)
+        label.append(equippedBadgeElement());
+      side.append(label);
     }
     const projection = forecastProjection(config.forecast);
     const hpAfter = projection ? (attacking ? projection.attackerHP : projection.defenderHP) : null;
@@ -514,9 +521,9 @@ export class MobileBattleHUD {
     for (const note of forecastNotes(config.forecast, attacking, afterCost))
       side.append(el('p', 'mb-notice', note));
     if (
-      unit.weapon &&
+      weapon &&
       (attacking || info.canCounter) &&
-      getEffectivenessMultiplier(unit.weapon, opponent) > 1
+      getEffectivenessMultiplier(weapon, opponent) > 1
     )
       side.append(el('p', 'mb-notice', 'Effective damage'));
     const skills = (info.skills || []).map((skill) => skill.name);
@@ -577,7 +584,7 @@ export class MobileBattleHUD {
     const current = el('div', 'mb-step-value');
     current.setAttribute('aria-live', 'polite');
     if (weaponKind) {
-      const weapon = config.attacker.weapon;
+      const weapon = forecastWeapon(config);
       const list = config.validWeapons;
       current.append(el('span', 'mb-step-name', weapon?.name || 'Unarmed'));
       if (weapon && weapon === config.equippedWeapon) current.append(equippedBadgeElement());
