@@ -230,7 +230,9 @@ def build():
     s = Score('battle_act4_3', tonic='B', bpm=176, meter=(3, 4), intro_bars=4, loop_bars=90,
               title='The Name Is Not Spoken', seed=733)
     s.meter_change(71, (4, 4))
-    s.reverb = dict(rt60=2.6, predelay_ms=26, wet_db=-0.5, damp=0.55)
+    # a drier hall than the slower tracks: at 176 the ostinato's off-beats
+    # smeared into one another under a 2.6 s tail (a listener heard it as mud)
+    s.reverb = dict(rt60=2.1, predelay_ms=28, wet_db=-1.5, damp=0.6)
     s.master = dict(lufs=-14.0, glue_ratio=1.6)
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
     CH_T1 = ch3(CH_TUNE)
@@ -250,7 +252,9 @@ def build():
     pno = b.part('t_pno', 'grand', role='lead', calm_db=-3, gain=2)
     pno.at(38).play('@f' + TUNE, transpose=3)
     pno.at(38).play('@f' + TUNE, transpose=3 + 12)       # and an octave up, where it rings
-    hn = b.part('t_hn', 'horns', role='lead', calm_db=-2)
+    # (the horns sing low, B3-D#5, right where the ostinato sits: less body, more edge)
+    hn = b.part('t_hn', 'horns', role='lead', calm_db=-2,
+                eq=[('peak', 280, 1.0, -3.5), ('peak', 1800, 1.0, 3.0)])
     hn.at(55).play('@f' + TUNE, transpose=5 - 12)
 
     # ================================================================ the drone and heartbeat
@@ -270,17 +274,20 @@ def build():
     o_hn = b.part('ost_hn', 'horns', layer='full', role='section', art='stac', pan=-0.25)
     o_vc = b.part('ost_vc', 'celli', layer='full', role='ostinato', art='spic')
     o_cb = b.part('ost_cb', 'basses', layer='full', role='low', art='spic')
-    eb = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick')
+    eb = b.part('ebass', 'rbass', layer='full', role='bass', duck='kit_kick',
+                eq=[('peak', 260, 0.8, -4.0)])
     spans = [(13, CH_T1[8:]), (21, ch3(CH_CHANT)), (37, ch3('Dm')), (38, CH_T2), (54, ch3('Em')),
              (55, CH_T3)]
     for bar, ch in spans:
-        ostinato3(o_vc, bar, ch, lo=38, vel=0.66, art='spic', octave=True)
+        # (the celli on the root alone: their octave doubled every other part's middle)
+        ostinato3(o_vc, bar, ch, lo=38, vel=0.66, art='spic')
         ostinato3(o_cb, bar, ch, lo=28, vel=0.66, art='spic')
         ostinato3(eb, bar, ch, lo=28, vel=0.72, on_only=True)
     for bar, ch in spans[1:-1]:
         ostinato3(o_tbn, bar, ch, lo=45, vel=0.66, art='stac', fifth=True)
-    # T3: the brass ostinato leaves before the tune's climb (bars 67-70)
-    ostinato3(o_tbn, 55, CH_T3[:12], lo=45, vel=0.66, art='stac', fifth=True)
+    # T3: the brass ostinato on the root alone, under the horns' tune, and it
+    # leaves before the tune's climb (bars 67-70)
+    ostinato3(o_tbn, 55, CH_T3[:12], lo=45, vel=0.6, art='stac')
     # the horns join the chant's ostinato only (they sing the tune in T3)
     ostinato3(o_hn, 21, ch3(CH_CHANT), lo=53, vel=0.6, art='stac', fifth=True)
     # T1, second phrase: the ostinato gathers (celli and basses only, rising)
@@ -296,7 +303,8 @@ def build():
 
     # sustained harmony under the tune (T2, T3) and the chant
     pv = b.part('pad_va', 'violas', layer='full', role='pad', art='sus')
-    for bar, ch in ((21, ch3(CH_CHANT)), (38, CH_T2), (55, CH_T3)):
+    # (not under T3: the horns' tune lies in the violas' register)
+    for bar, ch in ((21, ch3(CH_CHANT)), (38, CH_T2)):
         pad(pv, bar, ch, n=2, lo=52, hi=65, vel=0.5)
     # T3: the violins above the horns, in long notes
     vn_hi = b.part('t3_vn', 'violins', layer='full', role='counter', art='sus')
@@ -312,7 +320,7 @@ def build():
     ch_w = b.part('choir_w', 'choir', layer='full', role='lead', pan=-0.1, humanize_ms=18,
                   eq=vox_eq, key_cents=CHOIR_FIX)
     ch_m = b.part('choir_m', 'choir', layer='full', role='lead2', pan=0.1, humanize_ms=18,
-                  eq=vox_eq, key_cents=CHOIR_FIX)
+                  eq=vox_eq, key_cents=CHOIR_FIX, hpf=110)
     ch_x = b.part('choir_x', 'oohs', layer='full', role='choir', gain=-4, humanize_ms=26)
     # one syllable a quarter, every note re-struck; the men and the women
     # answer each other line by line (men, women, men, then everyone)
@@ -355,23 +363,23 @@ def build():
         hit_b.note(s.bar(71), P(p_), 1.0, vel=0.92, art='stac', rearticulate=True)
     tuba = b.part('tuba', 'tuba', layer='full', role='low')
     low_tbn = b.part('an_tbn', 'trombones', layer='full', role='pad')
-    bsn = b.part('an_bsn', 'bassoon', layer='full', role='counter')
     # (written out: the tuba's lowest samples, E1 and G1, are out of tune, so
     # its E and G sit an octave up; the walk-up stays low)
     for sec in ('A1', 'A2', 'A3'):
         tuba.at(b.bar(sec)).play('@mf B1h C#2q D2q | G2w | A1h F#2q E2q | B1w | E2h F#2q G#2q |'
                                  ' E2w | G#1h A1q A#1q | B1w |')
-        pad(low_tbn, b.bar(sec), CH_ANTHEM, n=3, lo=45, hi=60, vel=0.6)
-    bsn.at(71).play('@f' + ANTHEM, transpose=-24)
+        pad(low_tbn, b.bar(sec), CH_ANTHEM, n=2, lo=47, hi=60, vel=0.55)
     # the men's tune has a brass edge: a tenor trombone with them (block one)
-    euph = b.part('an_tbn_mel', 'trombones', layer='full', role='lead', pan=0.2)
+    euph = b.part('an_tbn_mel', 'trombones', layer='full', role='lead', pan=0.2,
+                  eq=[('peak', 300, 1.0, -3.0), ('peak', 1500, 1.0, 2.0)])
     euph.at(71).play('@f' + ANTHEM, transpose=-12)
     for n in tuba.notes + low_tbn.notes:
         if n.start >= s.bar(94) - 1e-6:
             n.vel *= 0.8
     # block one's fast layer: the piano's sixteenths
     pno_run = b.part('an_pno', 'grand', layer='full', role='keys')
-    arp(pno_run, 71, CH_ANTHEM, '0 1 2 3 2 1 2 3', step=0.25, lo=55, hi=79, vel=0.5)
+    # (above the men and the trombone, not among them)
+    arp(pno_run, 71, CH_ANTHEM, '0 1 2 3 2 1 2 3', step=0.25, lo=62, hi=84, vel=0.5)
     # block two (79): everything else, and the women
     ch_w.at(79).play('@ff' + ANTHEM)
     vn = b.part('an_vn', 'violins', layer='full', role='lead2', art='sus', gain=2)
@@ -402,7 +410,7 @@ def build():
     vn.at(87).play('@ff ' + anthem_upto(6), transpose=12)
     ch_w.at(87).play('@ff ' + anthem_upto(7))
     fall = [(5, 1.0), (86.95, 1.0), (90.9, 1.0), (94.9, 0.6)]
-    for p in (pv, tuba, bsn, o_vc, o_cb):
+    for p in (pv, tuba, o_vc, o_cb):
         p.expr(*fall)
     # the men step back a little once the women carry the tune
     ch_m.expr((5, 1.0), (78.95, 1.0), (79, 0.85), (90.9, 0.85), (94.9, 0.6))
@@ -414,7 +422,8 @@ def build():
     # corrections (same sound, same lane, two parts)
     for short, long_name in ((ch_w, 'choir_w_long'), (ch_m, 'choir_m_long')):
         lp = b.part(long_name, 'choir', layer='full', role=short.opts['role'],
-                    pan=short.opts['pan'], humanize_ms=18, eq=vox_eq, key_cents=CHOIR_FIX_LONG)
+                    pan=short.opts['pan'], humanize_ms=18, eq=vox_eq, key_cents=CHOIR_FIX_LONG,
+                    **({'hpf': short.opts['hpf']} if 'hpf' in short.opts else {}))
         keep = []
         for n in short.notes:
             held = s.seconds(n.start + n.dur) - s.seconds(n.start) >= 0.6
@@ -424,6 +433,9 @@ def build():
 
     # ================================================================ drums
     b.kit = Kit(s, 'kit', gains={'kick': 0.5, 'snare': 1.0})
+    # the snare speaks three times a bar at 176: its crack, not its body
+    s.parts['kit_snare'].opts['eq'] = [('peak', 220, 1.0, -3.0), ('peak', 900, 1.0, -2.0),
+                                       ('peak', 5000, 0.8, 3.0)]
     b.full_only.update(b.kit.names())
     for bar in range(17, 21):
         b.kit.play(bar, GATHER, vel=0.55 + 0.05 * (bar - 17))
