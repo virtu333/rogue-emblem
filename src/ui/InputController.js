@@ -16,6 +16,14 @@ import { UI_HEX } from '../utils/uiStyles.js';
 import { combatDistance, getFootprintKeys } from '../engine/EntitySystem.js';
 import { chooseAttackTile } from '../engine/AttackOptions.js';
 
+/** Battle states where a long press on a unit opens its detail sheet (planning only). */
+const HOLD_DETAIL_STATES = new Set([
+  'PLAYER_IDLE',
+  'UNIT_SELECTED',
+  'UNIT_ACTION_MENU',
+  'SELECTING_TARGET',
+]);
+
 // A tap on any tile of a (possibly multi-tile) unit.
 const occupies = (unit, gp) =>
   Boolean(unit) && getFootprintKeys(unit).includes(`${gp.col},${gp.row}`);
@@ -746,8 +754,22 @@ export class InputController {
       const world = this._screenToWorld(start.x, start.y);
       if (world && this._showInspectionAtPixel(world.x, world.y)) {
         scene._touchHoldTriggered = true;
+        // A long press on a unit (yours or an enemy's) opens its full details while
+        // you plan; a tap keeps its meaning (select an ally, glance at a foe).
+        if (HOLD_DETAIL_STATES.has(scene.battleState)) this.openHeldUnitDetails(world);
       }
     });
+  }
+
+  /** The unit under a long press: its detail sheet (roster paging within its side). */
+  openHeldUnitDetails(world) {
+    const scene = this.scene;
+    const gp = scene.grid.pixelToGrid(world.x, world.y);
+    const unit = gp ? scene.getUnitAt(gp.col, gp.row) : null;
+    if (!unit || scene.inspectionPanel?._unit !== unit || !scene.unitDetailOverlay) return false;
+    this.openUnitDetailOverlay();
+    scene._mobileBattleHud?.sync?.();
+    return Boolean(scene.unitDetailOverlay.visible);
   }
 
   updateTouchInspectHold(pointer) {
