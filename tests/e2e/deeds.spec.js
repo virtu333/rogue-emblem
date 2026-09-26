@@ -297,6 +297,15 @@ test.describe('titled surfaces (phone 844×390)', () => {
     await expect(page.locator('.ce-fate .ce-band-sub')).toHaveText(
       'Edric, Who Held the Bridge, has fallen',
     );
+    // The band keeps its padding (its frame-relative safe insets are defined).
+    expect(
+      await page
+        .locator('.ce-fate .ce-band')
+        .evaluate((band) => [
+          getComputedStyle(band).paddingLeft,
+          getComputedStyle(band).paddingRight,
+        ]),
+    ).toEqual(['16px', '16px']);
     await page.waitForTimeout(900);
     await shot('titled-fallen-phone');
 
