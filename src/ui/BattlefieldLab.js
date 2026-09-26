@@ -24,6 +24,33 @@ export function battleRenderScale(
   return Number.isFinite(k) && k > 1 ? Math.min(4, k) : 1;
 }
 
+/**
+ * Logical canvas for the phone battle panel (CSS width x height). Landscape keeps a
+ * 480 px tall canvas; a portrait panel keeps 640 px of width (the pinned Phaser UI's
+ * design width) and grows tall. Uniform scale either way, so tiles stay square. Pure.
+ */
+export function battleCanvasSize(cssWidth, cssHeight, k = 1) {
+  const portrait = cssHeight > cssWidth;
+  if (portrait) {
+    return {
+      portrait,
+      width: Math.round(640 * k),
+      height: Math.max(Math.round(480 * k), Math.round((640 * k * cssHeight) / cssWidth)),
+    };
+  }
+  return {
+    portrait,
+    width: Math.round((480 * k * cssWidth) / cssHeight),
+    height: Math.round(480 * k),
+  };
+}
+
+/** Vertical band (canvas px) holding the 640x480 pinned layout on a tall canvas. Pure. */
+export function uiBand(width, height, k = 1) {
+  const bandHeight = Math.min(height, Math.round(480 * k));
+  return { y: Math.max(0, Math.round((height - bandHeight) / 2)), height: bandHeight };
+}
+
 export function battlefieldLabEnabled() {
   return (
     detectMobileRuntime() ||
@@ -73,9 +100,8 @@ export class BattlefieldLab {
     const rect = this.container.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
     const k = battleRenderScale(rect.height, globalThis.devicePixelRatio || 1);
-    const width = Math.round((480 * k * rect.width) / rect.height);
-    const height = Math.round(480 * k);
-    const viewportKey = `${width}:${Math.round(rect.height)}:${k}`;
+    const { width, height, portrait } = battleCanvasSize(rect.width, rect.height, k);
+    const viewportKey = `${width}:${height}:${Math.round(rect.height)}:${k}`;
     if (viewportKey === this.lastViewportKey) return;
     this.lastViewportKey = viewportKey;
     const s = this.scene;
@@ -90,14 +116,14 @@ export class BattlefieldLab {
       : null;
     this.viewHeight = rect.height;
     this.renderScale = k;
+    this.portrait = portrait;
     s.scale.setGameSize(width, height);
     s.cameras.main.setSize(width, height);
-    s._uiCamera?.setSize(width, height);
-    // Pinned Phaser UI keeps its 480-px layout: the UI camera magnifies it by k.
-    if (s._uiCamera) s._uiCamera.setOrigin(0, 0).setZoom(k);
+    this.syncUiCamera();
     const bounds = s._getBattleMapBounds();
     if (s._battleCamera && bounds) {
-      const fit = Math.min((width - 32 * k) / bounds.width, (448 * k) / bounds.height);
+      // Overview fits the whole board with a half-tile margin on each side.
+      const fit = Math.min((width - 32 * k) / bounds.width, (height - 32 * k) / bounds.height);
       s._battleCamera.minZoom = Math.max(0.5 * k, fit);
       s._battleCamera.maxZoom = Math.max(3 * k, fit * 2.5);
       if (!previous) this.recenter();
@@ -112,6 +138,23 @@ export class BattlefieldLab {
     }
     s.scale.getParentBounds();
     s.scale.refresh();
+  }
+
+  /**
+   * Pinned Phaser UI keeps its 640x480 layout: the UI camera magnifies it by the
+   * render scale. A portrait canvas is 640 wide and taller, so that layout rides a
+   * band centered on the map (the DOM command rail stays below the canvas).
+   */
+  syncUiCamera() {
+    const s = this.scene,
+      cam = s._uiCamera;
+    if (!cam) return;
+    const width = s.scale.width,
+      height = s.scale.height;
+    const k = this.renderScale || 1;
+    const band = this.portrait ? uiBand(width, height, k) : { y: 0, height };
+    cam.setOrigin(0, 0).setZoom(k);
+    cam.setViewport(0, band.y, width, band.height);
   }
 
   recenter() {
