@@ -549,6 +549,29 @@
     ]
   },
   {
+    "name": "Soldier",
+    "lore": "LEVY BY ORDER. AGAIN. A spear, a coat and a number. The ones who walk out of the column keep the spear and leave the number.",
+    "tier": "base",
+    "baseStats": { "HP": 21, "STR": 6, "MAG": 0, "SKL": 5, "SPD": 5, "DEF": 6, "RES": 1, "LCK": 3, "MOV": 4 },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Lances (P)",
+    "role": "Steady lance infantry",
+    "description": "A spear that learned to stand in a line: sturdier than a sellsword, quicker than a knight, and hard to push back.",
+    "masteryPerk": { "name": "Shield Wall", "mods": { "defBonus": 1, "hitBonus": 5 } },
+    "growthRanges": {
+      "HP": "70-85",
+      "STR": "45-60",
+      "MAG": "0-10",
+      "SKL": "35-50",
+      "SPD": "30-45",
+      "DEF": "30-40",
+      "RES": "10-20",
+      "LCK": "20-30"
+    },
+    "promotesTo": ["Duelist", "Paladin"],
+    "learnableSkills": [{ "skillId": "quick_riposte", "level": 10 }]
+  },
+  {
     "name": "Swordmaster",
     "lore": "Tavern claim: nobody has ever seen a swordmaster's second stroke. Tavern answer, from the corner table: nobody has ever needed one.",
     "tier": "promoted",
@@ -1289,8 +1312,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
-    "roleChange": "Gains Lances, Duelist Stance innate",
-    "description": "Counters better than most units attack; gains lances and thrives on being struck at."
+    "roleChange": "Sword and lance, Duelist Stance innate",
+    "description": "Counters better than most units attack; fights with sword and lance and thrives on being struck at."
   },
   {
     "name": "Great Knight",

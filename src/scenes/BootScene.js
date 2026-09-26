@@ -146,7 +146,7 @@ export class BootScene extends Phaser.Scene {
 
     this.load.image('merchant_caravan', 'assets/sprites/characters/merchant_caravan.png');
 
-    // Character sprites (57) - keyed by filename
+    // Character sprites (58) - keyed by filename
     const characterSprites = [
       'lordedric',
       'greatlordedric',
@@ -176,6 +176,7 @@ export class BootScene extends Phaser.Scene {
       'ranger',
       'sage',
       'sniper',
+      'soldier',
       'swordmaster',
       'tactician',
       'thief',
@@ -210,7 +211,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
     }
 
-    // Enemy sprites (39) - keyed as enemy_{name}
+    // Enemy sprites (40) - keyed as enemy_{name}
     const enemySprites = [
       'archer',
       'assassin',
@@ -230,6 +231,7 @@ export class BootScene extends Phaser.Scene {
       'pegasus_knight',
       'sage',
       'sniper',
+      'soldier',
       'swordmaster',
       'thief',
       'warrior',
@@ -285,7 +287,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('terrain_wall_castle', 'assets/sprites/tilesets/wall_castle.png');
     this.load.image('terrain_forest_swamp', 'assets/sprites/tilesets/forest_swamp.png');
 
-    // Portraits (86) - keyed as portrait_{name}
+    // Portraits (88) - keyed as portrait_{name}
     const portraits = [
       'lord_edric',
       'lord_kira',
@@ -309,6 +311,7 @@ export class BootScene extends Phaser.Scene {
       'generic_pegasus_knight',
       'generic_sage',
       'generic_sniper',
+      'generic_soldier',
       'generic_swordmaster',
       'generic_thief',
       'generic_warrior',
@@ -336,7 +339,7 @@ export class BootScene extends Phaser.Scene {
       'generic_battle_monk',
       'generic_trickster',
       'generic_hunter',
-      // Enemy-faction portraits (37)
+      // Enemy-faction portraits (38)
       'enemy_archer',
       'enemy_assassin',
       'enemy_battle_monk',
@@ -366,6 +369,7 @@ export class BootScene extends Phaser.Scene {
       'enemy_revenant',
       'enemy_sage',
       'enemy_sniper',
+      'enemy_soldier',
       'enemy_swordmaster',
       'enemy_thief',
       'enemy_trickster',

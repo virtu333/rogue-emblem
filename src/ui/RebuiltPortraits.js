@@ -8,6 +8,7 @@ import {
 } from './portraitArt.js';
 // Registers the lazy variant texture loader used by portraitCanvasFrame.
 import './portraitTextures.js';
+import { promotedFromName } from '../engine/ClassLineage.js';
 
 const normalize = (value) =>
   String(value || '')
@@ -77,7 +78,7 @@ export function unitPortraitKey(scene, unit, gameData = scene?.gameData || {}) {
     return `portrait_lord_${String(unit.name).toLowerCase()}`;
   const exists = (key) => Boolean(scene?.textures?.exists?.(key));
   const classNorm = normalize(unit.className);
-  const base = gameData.classes?.find((c) => c.name === unit.className)?.promotesFrom;
+  const base = promotedFromName(unit, gameData.classes);
   const baseNorm = typeof base === 'string' ? normalize(base) : null;
   const keys = [];
   if (unit.faction === 'enemy')
