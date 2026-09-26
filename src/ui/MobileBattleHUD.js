@@ -1,4 +1,5 @@
 import { ContextHelp } from './ContextHelp.js';
+import { renderFormationPanel, startButton } from './FormationPanel.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
 import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
@@ -659,7 +660,9 @@ export class MobileBattleHUD {
     const s = this.scene;
     const state = s.battleState || '';
     const tutorialHint = s.battleParams?.tutorialMode && state === 'TUTORIAL_HINT';
-    const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_');
+    // Placement before turn 1 (FormationController) runs its controls in the rail.
+    const formation = state === 'DEPLOY_POSITIONING' && Boolean(s._formation?.ready);
+    const supported = PLAY_STATES.has(state) || state.startsWith('SELECTING_') || formation;
     const turnStarting = state === 'TURN_START_RESOLVING';
     // A blocking ceremony covers the map only: the rail stays in view, inert.
     const ceremony = Boolean(s._ceremonies?.isBlocking?.());
@@ -741,6 +744,8 @@ export class MobileBattleHUD {
       s.visionHudText?.text,
       s._eclipseHud?.label?.(),
       state === 'SELECTING_TARGET' ? this.targetListKey() : null,
+      formation ? s._formation.version : null,
+      formation ? Boolean(s.dangerZone?.visible) : null,
     ]);
     if (key === this.lastSnapshot) return;
     if (
@@ -749,7 +754,9 @@ export class MobileBattleHUD {
     )
       this.endTurnPending = null;
     this.lastSnapshot = key;
-    this.phase.textContent = `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
+    this.phase.textContent = formation
+      ? 'FORMATION'
+      : `TURN ${turn}  /  ${s.turnManager?.currentPhase === 'enemy' ? 'ENEMY' : 'PLAYER'}`;
     const counters = el(
       'div',
       'mb-counters',
@@ -882,6 +889,18 @@ export class MobileBattleHUD {
       this.syncScrollCues();
     });
     this.body.replaceChildren();
+
+    if (formation) {
+      this.summary.replaceChildren();
+      renderFormationPanel(
+        this.body,
+        s._formation,
+        (label, action, cls) => this.button(label, action, cls),
+        { withStart: false },
+      );
+      if (restoreMenuFocus) this.body.querySelector('button')?.focus({ preventScroll: true });
+      return;
+    }
 
     const warning = s.getBossPressureWarning?.();
     if (warning) this.body.append(el('p', 'mb-hint', warning));
@@ -1259,10 +1278,22 @@ export class MobileBattleHUD {
    */
   syncDock(state, pinned = null) {
     const s = this.scene;
+    this.dock.replaceChildren();
+    if (state === 'DEPLOY_POSITIONING' && s._formation?.ready) {
+      // Placement: Start stays in view under the waiting units, beside Danger.
+      this.dock.hidden = false;
+      this.dock.classList.toggle('has-pinned', false);
+      this.dock.append(
+        startButton(s._formation, (label, action, cls) => this.button(label, action, cls)),
+        this.dangerToggle({ compact: true, viaEvent: true }),
+      );
+      this.dock.classList.toggle('is-formation', true);
+      return;
+    }
+    this.dock.classList.toggle('is-formation', false);
     const planning =
       ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state) &&
       s.turnManager?.currentPhase !== 'enemy';
-    this.dock.replaceChildren();
     this.dock.hidden = !planning;
     const pin = planning && pinned && this.menu ? pinned : null;
     this.dock.classList.toggle('has-pinned', Boolean(pin));

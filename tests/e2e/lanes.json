@@ -19,6 +19,7 @@
         "management-contracts.spec.js",
         "forecast-input-contract.spec.js",
         "contextual-help.spec.js",
+        "formation.spec.js",
         "journey-contracts.spec.js",
         "battle-timeline.spec.js"
       ]

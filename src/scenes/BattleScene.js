@@ -291,6 +291,7 @@ import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { AbilityController } from '../ui/AbilityController.js';
 import { GridCursorController } from '../ui/GridCursorController.js';
+import { FormationController, FORMATION_STATE } from '../ui/FormationController.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
@@ -517,6 +518,8 @@ export class BattleScene extends Phaser.Scene {
     if (audio) audio.releaseMusic(this, 0);
     this._musicCtrl?.destroy();
     this._musicCtrl = null;
+    this._formation?.destroy();
+    this._formation = null;
 
     this._stopLevelUpSfx();
     this.battleTradeMenu?.destroy();
@@ -1942,6 +1945,15 @@ export class BattleScene extends Phaser.Scene {
         this._bindDevToggleKey();
       }
 
+      // Formation (3+ units): the army leaves the field and waits for the player to
+      // place it; the boss card and pre-battle lines play over the empty tiles.
+      this._formation?.destroy();
+      this._formation = null;
+      if (FormationController.shouldRun(this)) {
+        this._formation = new FormationController(this);
+        this._formation.lift();
+      }
+
       await this._presentBossEncounter();
 
       if (this.isBoss && this._bossName && this.runManager) {
@@ -1973,6 +1985,10 @@ export class BattleScene extends Phaser.Scene {
         this._resumeCheckpoint = null;
         this._bossPresence?.sync({ silent: true });
       } else {
+        if (this._formation?.active) {
+          await this._formation.run();
+          if (!this._isSceneActiveForAsync()) return;
+        }
         this._bossPresence?.sync();
         this.turnManager.startBattle();
       }
@@ -3669,6 +3685,7 @@ export class BattleScene extends Phaser.Scene {
       return true;
     const allowedStates = new Set([
       'PLAYER_IDLE',
+      FORMATION_STATE,
       'UNIT_SELECTED',
       'SELECTING_TARGET',
       'SHOWING_FORECAST',
@@ -3763,6 +3780,7 @@ export class BattleScene extends Phaser.Scene {
 
   canRequestCancel({ allowPause = true } = {}) {
     if (this.isStoryInputLocked()) return false;
+    if (this.battleState === FORMATION_STATE && this._formation?.ready) return true;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
     if (this.unitDetailOverlay?.visible) return true;
@@ -3790,6 +3808,15 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     if (!this.canRequestCancel({ allowPause })) return false;
+    if (this.battleState === FORMATION_STATE && this._formation?.ready) {
+      // Placement: close the detail view or inspection first, then the tile choice;
+      // with nothing to back out of, Back opens the formation menu.
+      if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
+      else if (this.inspectionPanel?.visible) this.clearInspectionVisuals();
+      else if (!this._formation.cancel() && allowPause) this._formation.openMenu();
+      this.refreshEndTurnControl();
+      return true;
+    }
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
       this.refreshEndTurnControl();
@@ -4065,13 +4092,18 @@ export class BattleScene extends Phaser.Scene {
 
   _onDangerClick() {
     if (this.isStoryInputLocked()) return;
-    if (['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)) {
+    if (
+      ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
+        this.battleState,
+      )
+    ) {
       if (this.dangerZoneStale || !this.dangerZoneCache) {
         this.dangerZoneCache = this.calculateDangerZone();
         this.dangerZoneStale = false;
       }
       this.dangerZone.toggle(this.dangerZoneCache);
       if (!this.dangerZone.visible) this.keepDangerVisible = false;
+      this._formation?.touch?.();
     }
   }
 
@@ -4079,7 +4111,9 @@ export class BattleScene extends Phaser.Scene {
     if (
       this.isStoryInputLocked() ||
       this._isTutorialStrictGateActive?.() ||
-      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(this.battleState)
+      !['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', FORMATION_STATE].includes(
+        this.battleState,
+      )
     )
       return;
     this.keepDangerVisible = !this.keepDangerVisible;
