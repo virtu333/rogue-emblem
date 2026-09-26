@@ -4,8 +4,9 @@ import { waitForScene, collectErrors } from './helpers.js';
 // The upright Loom (html.portrait-ui on an upright phone): the act climbs from the
 // party's first knot at the bottom to the Hollow Sun at the top, scrolls vertically,
 // and the side pane becomes a bottom sheet (card, Travel, Menu/Roster, lord chips).
-// The portrait shell sets the class; here the spec sets it itself, and hides the
-// legacy rotate prompt the shell retires.
+// The portrait shell sets the class for a real opt-in (the stored preference, a touch
+// screen, upright), so the spec opts in; it also sets the class itself and hides the
+// legacy rotate prompt for a build without the shell.
 test.use({ ...devices['iPhone 13'] });
 
 const PORTRAIT_UI_EVENT = 'emblem-rogue:portrait-ui';
@@ -13,6 +14,7 @@ const PORTRAIT_UI_EVENT = 'emblem-rogue:portrait-ui';
 async function openRoute(page, viewport, { portraitUi = true } = {}) {
   await page.setViewportSize(viewport);
   await page.addInitScript((on) => {
+    if (on) localStorage.setItem('emblem_rogue_portrait_battles', 'on');
     document.addEventListener('DOMContentLoaded', () => {
       if (on) document.documentElement.classList.add('portrait-ui');
       const style = document.createElement('style');
@@ -92,9 +94,13 @@ function expectVertical(g) {
     }
 }
 
-for (const viewport of [
-  { width: 390, height: 844 },
-  { width: 375, height: 667 },
+// Whether a whole act fits above the sheet depends on the header's height (the act
+// title may take a line of its own): a tall phone fits it, a short one scrolls, and in
+// between either is right as long as the loom says which it is doing.
+for (const { fit, ...viewport } of [
+  { width: 430, height: 932, fit: 'fits' },
+  { width: 390, height: 844, fit: 'either' },
+  { width: 375, height: 667, fit: 'scrolls' },
 ]) {
   test(`${viewport.width}x${viewport.height}: the upright loom and its bottom sheet`, async ({
     page,
@@ -120,7 +126,10 @@ for (const viewport of [
     expect(live.length).toBeGreaterThan(0);
     for (const n of live) expect(inside(n.box, g.view), n.id).toBe(true);
 
-    if (viewport.height >= 844) {
+    const fits = g.scrollH <= g.clientH + 1;
+    if (fit !== 'either')
+      expect(fits, `${fit} at ${viewport.width}x${viewport.height}`).toBe(fit === 'fits');
+    if (fits) {
       // A whole act fits above the sheet: nothing to scroll, every knot on screen.
       expect(g.scrollH).toBeLessThanOrEqual(g.clientH + 1);
       for (const n of g.nodes) expect(inside(n.box, g.view), n.id).toBe(true);
