@@ -12,7 +12,8 @@ import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
 import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
-import { ContextHelp } from './ContextHelp.js';
+import { ContextHelp, helpPreview } from './ContextHelp.js';
+import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
@@ -25,7 +26,6 @@ import {
 } from '../engine/MasterySystem.js';
 import { traitLines } from './traitContent.js';
 import { calculateAvoid } from '../engine/Combat.js';
-import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import { rosterArtBlock, bindRosterArt } from '../engine/RosterArtCommands.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS, XP_PER_LEVEL } from '../utils/constants.js';
 import {
@@ -51,6 +51,7 @@ import {
   getSkillDisplayNames,
 } from '../engine/UnitManager.js';
 import { unitPortrait } from './unitPortrait.js';
+import { growthsCard } from './growthsCard.js';
 import { crestElement } from './crestArt.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -391,7 +392,7 @@ export class MobileRosterSheet {
       grid,
       'attributes',
       'Attributes',
-      Object.entries(STAT_DESCRIPTIONS).map(([stat, description]) => `${stat}: ${description}`),
+      attributesHelp(),
       'What each attribute does in combat and on the map.',
     );
     this.card(
@@ -399,19 +400,16 @@ export class MobileRosterSheet {
       (unit.proficiencies || []).map(proficiencyLabel).join(' · ') || 'None',
     );
     const combat = getStaticCombatStats(unit, unit.weapon);
+    const avoid = terrain ? calculateAvoid(unit, terrain) : unit.stats.SPD * 2 + unit.stats.LCK;
     const combatCard = this.card(
       'Combat baseline',
-      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${terrain ? calculateAvoid(unit, terrain) : unit.stats.SPD * 2 + unit.stats.LCK} · Crit ${combat.crit} · Wt ${combat.weight}`,
+      `Atk ${combat.atk} · AS ${combat.as} · Hit ${combat.hit} · Avo ${avoid} · Crit ${combat.crit} · Wt ${combat.weight}`,
     );
     this.explain(
       combatCard,
       'combat numbers',
       'Combat baseline',
-      [
-        `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
-        'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
-        'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit chance and follow-up attacks.',
-      ],
+      combatBaselineHelp(unit, { avoid, onTile: Boolean(terrain) }),
       'Baseline Attack, speed and ratings before a specific enemy, terrain or skills are applied.',
     );
     if (terrain)
@@ -436,11 +434,23 @@ export class MobileRosterSheet {
         'class mastery',
         'Class mastery',
         [
-          `${unit.name}: ${progress} / ${threshold} battles. ${mastered ? 'Active perk' : 'Unlock'}: ${reward}.`,
-          ...MASTERY_HELP,
-          'Weapon proficiency is separate: Proficient and Master are class-driven weapon ranks, not a weapon-use experience bar.',
+          {
+            stats: [
+              { label: 'Battles', value: `${progress}/${threshold}` },
+              {
+                label: mastered ? 'Perk active' : 'Unlocks',
+                value: perk?.name || 'None',
+                note: perk ? formatPerkMods(perk.mods) : '',
+                text: true,
+              },
+            ],
+          },
+          ...MASTERY_HELP.slice(1),
+          {
+            tip: 'Weapon ranks (Proficient, Master) come from the class, not from weapon use.',
+          },
         ],
-        MASTERY_HELP[0],
+        helpPreview(MASTERY_HELP),
       );
       const traits = traitLines(unit, this.gameData);
       if (traits.length) this.body.append(el('h3', 'Traits', 'mr-section'));
@@ -460,23 +470,7 @@ export class MobileRosterSheet {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
       this.card(affix?.name || id, affix?.description || '');
     }
-    if (unit.growths && unit.faction !== 'enemy') {
-      const details = el('details', null, 'mr-card');
-      details.append(
-        el('summary', 'Growths'),
-        el(
-          'p',
-          'Each percentage is the chance of gaining +1 in that stat on a level-up. At least one stat increases: if every roll fails, the highest-growth stat gains +1.',
-        ),
-        el(
-          'p',
-          Object.entries(unit.growths)
-            .map(([stat, value]) => `${stat} ${value}%`)
-            .join(' · '),
-        ),
-      );
-      this.body.append(details);
-    }
+    if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
   // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
   // run's tallies and its Oath (sworn, or the one a promotion would swear).
@@ -566,12 +560,7 @@ export class MobileRosterSheet {
         count++;
       }
     }
-    if (count)
-      this.explain(artsHeading, 'weapon arts', 'Weapon arts', [
-        'Weapon arts modify the selected attack. Choosing an art does not spend HP or uses; committing its attack does. You must have more HP than the effective cost.',
-        'Map uses reset on a new battle. Turn uses reset on a new turn. Availability can also depend on proficiency, rank, silence and the particular weapon. The art’s displayed HP cost includes your equipped accessory and run modifiers.',
-        'Battle limits shown here are remaining uses. Outside battle, the sheet shows eligibility and effective cost without carrying over a previous battle’s usage.',
-      ]);
+    if (count) this.explain(artsHeading, 'weapon arts', 'Weapon arts', WEAPON_ARTS_HELP);
     if (!count) this.card('No weapon arts', 'No arts bound to carried weapons.');
     if (this.run) {
       this.body.append(el('h3', `Team scrolls · ${this.run.scrolls?.length || 0}`));
@@ -1086,12 +1075,12 @@ export class MobileRosterSheet {
         'mr-convoy-explain',
       ),
     );
-    this.explain(shared, 'the convoy', 'Convoy', [
-      'The convoy is storage shared by your whole army. You manage it between battles, from Roster › Convoy.',
-      `Units fight only with what they carry: up to ${INVENTORY_MAX} weapons or staves and ${CONSUMABLE_MAX} consumables each.`,
-      'Store moves a carried item into the convoy. Withdraw gives a stored item to the unit shown below (tap it to choose another unit).',
-      'Rewards, shop purchases and a fallen ally’s gear go to the convoy when nobody has room.',
-    ]);
+    this.explain(
+      shared,
+      'the convoy',
+      'Convoy',
+      convoyHelp({ weapons: INVENTORY_MAX, consumables: CONSUMABLE_MAX }),
+    );
     if (!unit) {
       this.card('No recipient', 'A roster unit is needed to withdraw items.');
       return;
@@ -1117,7 +1106,7 @@ export class MobileRosterSheet {
       this.card('Convoy is empty', 'Store carried items here to share them with your roster.');
   }
   // Compact explanation: ⓘ in the heading plus press-and-hold on the card.
-  explain(target, topic, title, paragraphs, preview = paragraphs[0]) {
+  explain(target, topic, title, paragraphs, preview = helpPreview(paragraphs)) {
     const card = target.matches('h2, h3, h4') ? null : target;
     const open = () => this.showHelp(title, paragraphs);
     attachInfo(card || target, {
