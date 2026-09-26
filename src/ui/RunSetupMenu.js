@@ -7,8 +7,10 @@ import {
   choiceButton,
   choiceReducedMotion,
   draftRow,
+  draftScrollTop,
   fadeScroll,
   fitDraft,
+  keepDraftScroll,
 } from './choiceCards.js';
 
 export class RunSetupMenu {
@@ -56,6 +58,7 @@ export class RunSetupMenu {
       : null;
     this.surface.root.classList.add('ch-setup');
     this.surface.root.classList.toggle('is-still', choiceReducedMotion(s));
+    const scrollTop = draftScrollTop(this.surface.body);
     const footer = element('footer', null, 're-footer ch-footer');
     const lead = element('p', null, 'ch-footer-lead');
     const parts = blessing ? this.blessings(lead) : this.difficulties(footer);
@@ -82,6 +85,7 @@ export class RunSetupMenu {
     confirm.disabled = !!chosen?.locked || s.isTransitioning;
     footer.append(confirm);
     this.surface.body.replaceChildren(...parts, footer);
+    keepDraftScroll(parts[0], scrollTop);
     this.fitStop?.();
     this.fitStop = fitDraft(this.surface.body, '.ch-banner-name, .ch-tarot-name', { min: 10 });
     if (!this.initialFocusSet) {

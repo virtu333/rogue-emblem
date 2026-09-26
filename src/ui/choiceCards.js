@@ -409,6 +409,30 @@ export function priceSeal({ amount, after = null, short = false }) {
   return seal;
 }
 
+/** How far a scrolling draft under `root` is scrolled (0 when there is none). */
+export function draftScrollTop(root) {
+  return root?.querySelector?.('.ch-draft')?.scrollTop || 0;
+}
+
+/**
+ * A draft that scrolls (the upright phone's list, choice.css) is rebuilt on
+ * every selection: keep it where the reader left it and bring the chosen card
+ * fully into view (a chosen card opens, the one set aside folds). A row that
+ * does not scroll (landscape, desktop) is left untouched.
+ */
+export function keepDraftScroll(row, scrollTop = 0) {
+  if (!hasDocument() || !row?.isConnected) return;
+  if (row.scrollHeight <= row.clientHeight + 1) return;
+  row.scrollTop = scrollTop;
+  const chosen = row.querySelector('.ch-card:is([aria-pressed="true"], .is-chosen)');
+  if (!chosen) return;
+  const view = row.getBoundingClientRect();
+  const card = chosen.getBoundingClientRect();
+  if (card.top < view.top) row.scrollTop -= view.top - card.top + 8;
+  else if (card.bottom > view.bottom)
+    row.scrollTop += Math.min(card.bottom - view.bottom + 10, card.top - view.top - 8);
+}
+
 /** The row cards sit in (`count` sizes the columns). */
 export function draftRow(count, className = '') {
   const row = element('div', null, `ch-draft ${className}`.trim());
