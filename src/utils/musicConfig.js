@@ -20,10 +20,15 @@ export const MUSIC = {
   },
 
   battle: {
-    act1: ['music_battle_act1', 'music_battle_act1_2'],
-    act2: ['music_battle_act2', 'music_battle_act2_2'],
-    act3: ['music_battle_act3', 'music_battle_act3_2'],
-    act4: ['music_battle_act4', 'music_battle_act2'],
+    act1: [
+      'music_battle_act1',
+      'music_battle_act1_2',
+      'music_battle_act1_3',
+      'music_battle_act1_4',
+    ],
+    act2: ['music_battle_act2', 'music_battle_act2_2', 'music_battle_act2_3'],
+    act3: ['music_battle_act3', 'music_battle_act3_2', 'music_battle_act3_3'],
+    act4: ['music_battle_act4', 'music_battle_act4_2'],
     finalBoss: ['music_battle_act4'],
   },
 
@@ -44,6 +49,23 @@ export const MUSIC = {
 
   // Escape maps (get out before the dark closes) have their own pursuit theme.
   escape: 'music_battle_escape',
+
+  // A map's place has its own battle theme (mapTemplates.json `biome`).
+  battleBiome: {
+    castle: 'music_battle_castle',
+    swamp: 'music_battle_swamp',
+    tundra: 'music_battle_tundra',
+    volcano: 'music_battle_volcano',
+  },
+
+  // Battles with a story of their own (engine/BattleMusicSelection.js):
+  // eclipsed nodes, a village under attack, a recruit to rescue, an elite company.
+  battleSituation: {
+    eclipsed: 'music_battle_eclipsed',
+    village: 'music_battle_village',
+    rescue: 'music_battle_rescue',
+    elite: 'music_battle_elite',
+  },
   colosseum: 'music_colosseum',
   // Choosing blessings at the start of a run.
   shrine: 'music_shrine',
@@ -60,11 +82,24 @@ export const MUSIC = {
 export const MUSIC_LAYERS = {
   music_battle_act1: { calm: 'music_battle_act1_calm' },
   music_battle_act1_2: { calm: 'music_battle_act1_2_calm' },
+  music_battle_act1_3: { calm: 'music_battle_act1_3_calm' },
+  music_battle_act1_4: { calm: 'music_battle_act1_4_calm' },
   music_battle_act2: { calm: 'music_battle_act2_calm' },
   music_battle_act2_2: { calm: 'music_battle_act2_2_calm' },
+  music_battle_act2_3: { calm: 'music_battle_act2_3_calm' },
   music_battle_act3: { calm: 'music_battle_act3_calm' },
   music_battle_act3_2: { calm: 'music_battle_act3_2_calm' },
+  music_battle_act3_3: { calm: 'music_battle_act3_3_calm' },
   music_battle_act4: { calm: 'music_battle_act4_calm' },
+  music_battle_act4_2: { calm: 'music_battle_act4_2_calm' },
+  music_battle_tundra: { calm: 'music_battle_tundra_calm' },
+  music_battle_volcano: { calm: 'music_battle_volcano_calm' },
+  music_battle_elite: { calm: 'music_battle_elite_calm' },
+  music_battle_eclipsed: { calm: 'music_battle_eclipsed_calm' },
+  music_battle_castle: { calm: 'music_battle_castle_calm' },
+  music_battle_swamp: { calm: 'music_battle_swamp_calm' },
+  music_battle_village: { calm: 'music_battle_village_calm' },
+  music_battle_rescue: { calm: 'music_battle_rescue_calm' },
   music_battle_escape: { calm: 'music_battle_escape_calm' },
 };
 

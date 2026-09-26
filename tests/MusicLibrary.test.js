@@ -125,6 +125,38 @@ describe('music library', () => {
     expect(ENTITY_FINALE.silenceMs).toBeGreaterThanOrEqual(1000);
   });
 
+  it('every field battle theme is adaptive: act pools, places and situations', () => {
+    const battleThemes = new Set([
+      ...Object.values(MUSIC.battle).flat(),
+      MUSIC.escape,
+      ...Object.values(MUSIC.battleBiome),
+      ...Object.values(MUSIC.battleSituation),
+    ]);
+    for (const key of battleThemes) {
+      expect(MUSIC_LAYERS[key]?.calm, `${key} has a calm mix`).toBeTruthy();
+    }
+    // no act pool plays another act's theme twice over, and none repeats within itself
+    for (const [act, pool] of Object.entries(MUSIC.battle)) {
+      expect(new Set(pool).size, act).toBe(pool.length);
+    }
+  });
+
+  it("place themes name biomes the map templates use; situations are the selector's", () => {
+    const templates = JSON.parse(readFileSync(join(ROOT, 'data', 'mapTemplates.json'), 'utf8'));
+    const biomes = new Set(
+      Object.values(templates)
+        .flat()
+        .filter((t) => t && typeof t === 'object')
+        .map((t) => t.biome || 'grassland'),
+    );
+    for (const biome of Object.keys(MUSIC.battleBiome)) {
+      expect(biomes.has(biome), `${biome} is a template biome`).toBe(true);
+    }
+    for (const situation of Object.keys(MUSIC.battleSituation)) {
+      expect(['eclipsed', 'village', 'rescue', 'elite']).toContain(situation);
+    }
+  });
+
   it('the story antagonists get their own themes, wherever they are fought', () => {
     const bossNames = new Set(
       Object.values(enemies.bosses)

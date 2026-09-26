@@ -5,6 +5,11 @@ The sacred ground, overfed by the ritual: pale, holy, faintly wrong. A slow
 F major beside it, so the light never settles. The solo violin sings the
 Thread in E (B-E-F#-B), then bends it back down through F natural, the
 Phrygian neighbour; the celesta repeats it like something remembered wrong.
+
+Under the triple metre a plucked pedal on E keeps its own time in twos
+(one pluck every two beats, so its accents cross the bar line every other
+bar): the 3:2 the score keeps for sacred ground, gentle, a pulse the ground
+has rather than the music.
 """
 
 from engine.patterns import arp, bass, chart, pad
@@ -42,6 +47,15 @@ def build():
     ped = s.part('pedal', 'basses', role='low', art='soft')
     for bar, ch in ((A, CH_A), (B, CH_B)):
         bass(ped, bar, ch, 'h.', 'b', floor=28, vel=0.45, art='soft')
+    # the 3:2: a pizzicato E every two beats against the 3/4, from the first
+    # loop bar to the last (72 beats, so it comes round exactly at the seam).
+    # It stays on E under the F bars too (lint flags it): the piece's E-against-F
+    # colour, now in the ground
+    pulse = s.part('pulse', 'celli', role='low', art='pizz', gain=-3)
+    t = s.bar(A)
+    while t < s.bar(B + 12) - 1e-9:
+        pulse.note(t, 'E2', 2.0, vel=0.42, art='pizz')
+        t += 2.0
 
     solo = s.part('solo', 'solo_violin', role='lead')
     solo.at(A).play('@mp' + MEL_A)

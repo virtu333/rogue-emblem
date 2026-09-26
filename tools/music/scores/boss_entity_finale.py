@@ -14,14 +14,18 @@ piece's first downbeat.
          fours against the bar's two halves (3 against 2, the device of
          "Twilight of the Gods"), so the ground keeps moving under a line
          that has all the time in the world ("The Apex of the World").
-  B      the coalition ("Id (Purpose)"): D minor walks a descending-fifths
-         chain (i iv bVII bIII bVI ii° V); horns, then trumpets, then violins
-         and the choir join one at a time, and the complete Thread arrives
-         only when they all sing it, over the dominant.
+  B      the coalition: D minor walks Id (Purpose)'s descending-fifths
+         chain (i iv bVII bIII bVI ii° V, checked against the score), with
+         its walking bass: every dotted quarter moves and the dominant
+         arrives in first inversion. Horns, then trumpets, then violins and
+         the choir join one at a time (Id enters in whole blocks; this is
+         ours), and the complete Thread arrives only when they all sing it,
+         over the dominant.
   A2     the choir Act I never had sings Ember Dusk. The phrase climbs to the
-         leading tone (C#) and stops there: the Hollow Sun's gesture. The
-         cadence it withholds is completed by The Last Light, which starts
-         with the killing blow.
+         leading tone (C#) and stops there: the Hollow Sun's gesture. On the
+         last dotted quarter the harmony turns to bVII, so the C# falls to C
+         and the loop returns to D minor without the V-i cadence: that one
+         is completed by The Last Light, which starts with the killing blow.
 
 The Entity pushes back from underneath: its hum (D against E-flat, the
 cluster and the col legno pulse) is a separate stem on the same timeline
@@ -70,8 +74,18 @@ THREAD_ALL = 'A4:1.5 D5:1.5 E5:3 | A5:6 |'
 
 CH_INTRO = chart('Dm:6 Dm:6 Gm:6 Asus4:3 A:3')
 CH_A = chart('Dm:12 Bbmaj7:12 C:12 A:12 Dm:12 F:12 Gm:6 A7:6 Dm:12')
-CH_B = chart('Dm:6 Gm:6 C:6 F:6 Bb:6 Edim:6 Asus4:3 A:3 A7:6')
-CH_A2 = chart('Dm:12 Bbmaj7:12 C:12 A:12 Dm:12 F:12 Bb:6 A:18')
+CH_B = chart('Dm:6 Gm:6 C:6 F:6 Bb:6 Edim:6 Asus4:3 A/C#:3 A7:6')
+# the phrase stops on the leading tone; on the bar's last dotted quarter the harmony
+# turns to bVII, so the held C# falls to C natural and the loop's return to D minor
+# is a modal bVII-i, not the V-i cadence the run's last victory owns
+CH_A2 = chart('Dm:12 Bbmaj7:12 C:12 A:12 Dm:12 F:12 Bb:6 A:16.5 C:1.5')
+# B's bass walks as Id's does: every dotted quarter moves, passing tones lead each
+# chord into the next, and the dominant arrives in first inversion
+B_BASS = '''
+D2:1.5 D2:1.5 E2:1.5 F2:1.5 | G2:1.5 F2:1.5 E2:1.5 Bb1:1.5 | C2:1.5 D2:1.5 E2:1.5 G2:1.5 |
+F2:1.5 E2:1.5 F2:1.5 C2:1.5 | Bb1:1.5 Bb1:1.5 D2:1.5 F2:1.5 | E2:1.5 F2:1.5 G2:1.5 E2:1.5 |
+A1:3 C#2:3 | A1:1.5 B1:1.5 C#2:1.5 E2:1.5 |
+'''
 
 # the motor: twelve eighths, grouped in fours (accents on eighths 0, 4, 8)
 # against the bar's two halves in the low end (0 and 6)
@@ -125,11 +139,10 @@ def build():
 
     cb = s.part('cb', 'basses', role='low')
     cb.at(1).play('%sus @ff D2:4.5 r:1.5 |')
-    for sec in ('A', 'B', 'A2'):
+    for sec in ('A', 'A2'):
         bar, ch = sections[sec]
-        # (B walks through a diminished chord: octaves there, not a perfect fifth)
-        bass(cb, bar, ch, 'q. q. q. q.', 'r r 8 r' if sec == 'B' else 'r r 5 r', floor=26,
-             vel=0.66, art='spic')
+        bass(cb, bar, ch, 'q. q. q. q.', 'r r 5 r', floor=26, vel=0.66, art='spic')
+    cb.at(B).play('%spic @f' + B_BASS)
     bass(cb, 2, CH_INTRO[1:], 'h. h.', 'r r', floor=26, vel=0.6, art='sus')
 
     # ================================================================ the tune
@@ -174,7 +187,7 @@ def build():
     va_pad = s.part('va_pad', 'violas', role='pad', art='trem')
     pad(va_pad, B, CH_B, n=2, lo=53, hi=67, vel=0.5, art='trem')
     vn_hi = s.part('vn_hi', 'violins2', role='pad', art='trem')
-    pad(vn_hi, A2 + 12, CH_A2[-2:], n=2, lo=69, hi=81, vel=0.55, art='trem')
+    pad(vn_hi, A2 + 12, CH_A2[-3:], n=2, lo=69, hi=81, vel=0.55, art='trem')
 
     # ================================================================ drums
     timp = s.part('timp', 'timpani', role='timp')
@@ -183,7 +196,7 @@ def build():
     timp.at(B).play('@f D2:1.5 r:4.5 | G2:1.5 r:4.5 | C3:1.5 r:4.5 | F2:1.5 r:4.5 |'
                     ' Bb2:1.5 r:4.5 | E2:1.5 r:4.5 | %roll A2:6 | A2:6 |')
     timp.at(A2).play('%default @ff D2:1.5 r:4.5 |')
-    timp.at(A2 + 13).play('%roll @f A2:6 | A2:6 | A2:6 |')
+    timp.at(A2 + 13).play('%roll @f A2:6 | A2:6 | A2:4.5 r:1.5 |')
     timp.expr((A2 + 13, 0.5), (44.9, 1.0))
 
     taiko = s.part('taiko', 'taiko', role='drums')

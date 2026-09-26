@@ -15,12 +15,14 @@ MEL_A = """
 A4q D5q E5e A5q.~ | A5h B5q G5q | A5q. G5e F5q E5q | D5w |
 A4q D5q E5e A5q.~ | A5q C6q B5q G5q | A5q. G5e E5q F#5q | G5w |
 """
+# the second strain ends on E over A7sus4, unresolved: the Act I route map
+# does not get the Thread's cadence (that is promotion's and the run win's)
 MEL_B = """
 C6h. B5q | A5q G5q E5h | F5h. G5q | A5w |
-C6h. D6q | B5q G5q E5q G5q | A5q. B5e C#6q E6q | D6w |
+C6h. D6q | B5q G5q E5q G5q | A5q. B5e C#6q E6q | E6w |
 """
 CH_A = chart('Dm C/E F G Dm Am Dm:2 D/F#:2 G')
-CH_B = chart('Am Em F Dm Am G A7sus4:2 A7:2 D')
+CH_B = chart('Am Em F Dm Am G A7sus4:2 A7:2 A7sus4')
 CH_TURN = chart('Bb C')
 
 
@@ -58,7 +60,7 @@ def build():
     for bar, ch in ((A2, CH_A), (B, CH_B), (A3, CH_A)):
         pad(va, bar, ch, n=2, lo=53, hi=67, vel=0.42, art='soft')
     vc = s.part('vc', 'celli', role='counter', art='sus')
-    vc.at(B).play('@mp A3h. G3q | E3w | F3h. G3q | A3w | A3h. B3q | G3w | A3h G3h | F#3w |')
+    vc.at(B).play('@mp A3h. G3q | E3w | F3h. G3q | A3w | A3h. B3q | G3w | A3h G3h | E3w |')
     hn = s.part('hn', 'horns', role='pad')
     pad(hn, B, CH_B, n=3, lo=50, hi=65, vel=0.48)
     hn.at(A3).play('@mp D4q. A4e A4q G4e A4e | D5h A4h | rw | rw |')
