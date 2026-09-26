@@ -1,6 +1,6 @@
 # Playtest round 3 — fix plan (2026-09-26)
 
-Status: **planned, not built.** An implementation spec for an agent to pick up.
+Status: **planned, not built; owner decisions settled.** An implementation spec for an agent to pick up.
 
 **Source.** The round-3 playtest and code review on branch `docs/playtest-round3-2026-09-26`,
 under `docs/playtests/2026-09-26-round3/`: `review.md` (consolidated), `code-review.md`,
@@ -208,8 +208,8 @@ recruits who joined and then fell.
 - Idempotence per `battleKey` still holds.
 - `validate:data` passes on the new condition shape.
 
-**Decision for the owner.** The 2-death threshold is a proposal. An alternative is "all other
-deployed non-lords fell, and at least 2 of them", which is stricter.
+**Decided (owner, 2026-09-26):** at least 2 allies fallen, as above. The stricter "all other
+deployed non-lords fell" was rejected because it could almost never trigger with a lord-heavy party.
 
 ---
 
@@ -271,23 +271,30 @@ deployed non-lords fell, and at least 2 of them", which is stricter.
 
 **Fix.**
 
-1. The Vision HUD plate reads `[R] Rewind · N left` (desktop) instead of `Eye: N left this run`.
-   - Update mobile's rewrite regex (`MobileBattleHUD.js:915`, which currently turns "Eye:" into
-     "Rewinds:") so mobile still shows its own label with no key badge.
+1. The HUD plate reads `Vision · N left · [R] Rewind` on desktop instead of `Eye: N left this run`.
+   Mobile shows `Vision · N left` with no key badge; its button stays "Rewind".
+   - Update or remove mobile's rewrite regex (`MobileBattleHUD.js:915`, which turns "Eye:" into
+     "Rewinds:"). Build the label from a shared helper instead of rewriting strings.
 2. Footer hint degrades by segment instead of all-or-nothing.
    - Add a pure `fitHintSegments(segments, maxWidth, measure)` that keeps the longest prefix that
      fits, in priority order: `[R] Rewind`, `[N] next ready`, `[V]/right-click details`,
      `Esc cancel`.
    - Compute `right` from `cancel.visible ? cancel.x : W − MARGIN`.
-3. One player-facing word. Recommendation: **Rewind** for the action, **charges** for the resource.
-   This matches the picker (`VisionRewindPicker.js:47,99`), the confirm dialog
-   (`VisionRewindController.js:466`) and the mobile button (`MobileBattleHUD.js:1078`). Align:
-   - the footer (`DesktopBattleHud.js:31`);
-   - help (`src/data/helpContent.js:541`);
-   - the tutorial (`TutorialController.js:372`);
-   - the meta upgrade copy (`data/metaUpgrades.json:1100`, "+1 Vision charge").
-   The internal names (`VisionRewindController` and similar) stay as they are.
-   **Owner decision:** keep "Vision" as the lore name instead, if preferred. Either way, use one word.
+3. **Naming, decided (owner, 2026-09-26): a hybrid.** **Vision** is the resource and **Rewind**
+   is the action. "Eye" is retired everywhere a player can see it.
+   - Resource wording: "Vision", "N Visions left", "+1 Vision charge". The meta upgrade
+     (`data/metaUpgrades.json:1100`) already fits.
+   - Action wording: "Rewind", "[R] Rewind", "Rewind to…". The picker (`VisionRewindPicker.js:47,99`),
+     the confirm dialog (`VisionRewindController.js:466`) and the mobile button
+     (`MobileBattleHUD.js:1078`) already fit. Where they count charges ("rewinds left"), change the
+     count to Visions: "Spend 1 Vision to rewind?".
+   - Footer hint (`DesktopBattleHud.js:31`): change `[R] Vision` to `[R] Rewind`.
+   - **Teach the link once** in help (`src/data/helpContent.js:541`) and the tutorial
+     (`TutorialController.js:372`, see 8e): "A Vision lets you Rewind the battle to an earlier
+     action. You have a few per run."
+   - Content guard: a unit test that no player-facing string in `src/ui` or `src/data` contains
+     `Eye:` for this resource.
+   - The internal names (`VisionRewindController` and similar) stay as they are.
 
 **Tests.**
 
@@ -535,7 +542,7 @@ not on the forecast's `this.wrapper`, so reusing it here would misfire.
   to non-empty text.
 - e2e: a forecast with Shieldmate active expands to show "+10 Avo".
 
-### 7e. No way back into a Church or Ruins after leaving (P3 — owner confirms the contract)
+### 7e. No way back into a Church or Ruins after leaving (P3 — contract decided)
 
 **Cause.**
 
@@ -554,8 +561,8 @@ not on the forecast's `this.wrapper`, so reusing it here would misfire.
 - Revive is limited by gold and the roster cap.
 - Ruins stock, forges and rerolls are saved (`ShopController._saveShopState`, 273-286).
 
-**Recommended contract.** While you stand on a completed service node, you can step back in, and
-nothing refreshes.
+**Contract, decided (owner, 2026-09-26).** While you stand on a completed service node, you can
+step back in, and nothing refreshes.
 
 **Fix.**
 
@@ -666,7 +673,8 @@ assertions:
 - **The fallen dialog** (`TutorialController.js:366-372`, and the first-hit hint at 344) says "gone
   for good -- only a Church can revive them … one Vision". It contradicts itself.
   - Replace it with: "In a real run, a fallen unit stays down until a Church revives them for gold.
-    Here, fate grants one Rewind to your last turn." Use the WS5a word.
+    Here, fate grants you a Vision: use it to Rewind to your last turn." This follows the WS5a
+    naming: Vision is the resource, Rewind is the action.
   - The dialog is a full-height `MenuSurface` (`VisionRewindController.js:813-828`). Size it to its
     content, like #117's `ContextHelp`.
 - **The coach** (`tutorialCoachModel.js:141, 149`) says "move next to a red enemy" for every unit.
@@ -692,13 +700,12 @@ stats.
 
 ---
 
-## Decisions for the owner before implementation
+## Owner decisions (settled 2026-09-26)
 
-1. **WS3:** the threshold for The Last. The recommendation is at least 2 allies fallen.
-2. **WS5a / 8e:** one player-facing word for the rewind resource. The recommendation is "Rewind",
-   with "charges".
-3. **WS7e:** make Church and Ruins re-enterable while standing on them. The recommendation is yes,
-   with nothing refreshing.
+1. **WS3:** The Last needs at least 2 allies fallen that battle, in addition to the current rule.
+2. **WS5a / 8e:** a hybrid name. Vision is the resource and Rewind is the action. Help text and the
+   tutorial teach the link. "Eye" is retired.
+3. **WS7e:** Church and Ruins can be re-entered while you stand on the node. Nothing refreshes.
 
 ## Suggested order
 
