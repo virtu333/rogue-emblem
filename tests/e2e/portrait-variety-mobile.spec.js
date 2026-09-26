@@ -27,7 +27,7 @@ test('two Fighters in the roster wear different faces', async ({ page }) => {
     .getAttribute('data-portrait-id');
   const rows = await listFaces(page);
   expect(summary).toBe(rows.find((r) => r.name.includes('Roderick')).id);
-  await page.screenshot({ path: `${SHOTS}/roster-844x390.png` });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/roster-844x390.png` });
 });
 
 test('service lists show the same faces (colosseum)', async ({ page }) => {

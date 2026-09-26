@@ -4,7 +4,9 @@ import { waitForGame, waitForScene } from './helpers.js';
 // Portrait variety (src/engine/PortraitVariants.js): two recruits of the same
 // class wear different faces in the roster, on a phone and on desktop; every
 // unit on a battle map has its face before anything shows it.
-export const SHOTS = 'docs/art-direction/portraits-variety';
+// Set PORTRAIT_SHOTS=docs/art-direction/portraits-variety to refresh the doc screenshots
+// (like the other art specs, a plain run leaves the committed captures alone).
+export const SHOTS = process.env.PORTRAIT_SHOTS || '';
 
 export async function openRosterWithTwoFighters(page) {
   await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
@@ -102,7 +104,7 @@ export async function servicesShowFaces(page, suffix) {
   await page.waitForFunction(() =>
     [...document.querySelectorAll('img[data-portrait-id]')].every((i) => i.complete),
   );
-  await page.screenshot({ path: `${SHOTS}/merc-board-${suffix}.png` });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/merc-board-${suffix}.png` });
   await merc.getByRole('button', { name: 'Back', exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Colosseum', exact: true })
@@ -110,5 +112,5 @@ export async function servicesShowFaces(page, suffix) {
     .click();
   const fighters = page.getByRole('dialog', { name: 'Arena · Choose fighter', exact: true });
   await expect(fighters.locator('button.has-face', { hasText: 'Roderick' })).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/arena-fighters-${suffix}.png` });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/arena-fighters-${suffix}.png` });
 }
