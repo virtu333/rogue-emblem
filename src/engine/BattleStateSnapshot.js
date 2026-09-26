@@ -1,5 +1,6 @@
 import { isBattleRngState } from './BattleRng.js';
-import { BATTLE_UNIT_GROUPS } from './BattleEntityIdentity.js';
+import { BATTLE_UNIT_GROUPS, isBattleEntityId } from './BattleEntityIdentity.js';
+import { readActionContinuation } from './ActionContinuation.js';
 
 export const BATTLE_STATE_VERSION = 2;
 export const MAX_BATTLE_STATE_BYTES = 2 * 1024 * 1024;
@@ -14,7 +15,7 @@ const items = (v) =>
 const nonnegative = (v) => Number.isFinite(v) && v >= 0;
 const integer = (v, minimum = 0) => Number.isSafeInteger(v) && v >= minimum;
 const text = (v) => typeof v === 'string' && v.length <= 8192;
-const entityId = (v) => typeof v === 'string' && /^u[1-9]\d*$/.test(v);
+const entityId = isBattleEntityId;
 const list = (v, check, limit = 512) => Array.isArray(v) && v.length <= limit && v.every(check);
 const stats = (v) =>
   record(v) &&
@@ -114,19 +115,11 @@ function validRestoreFields(state, width, height) {
       if (!optional(pressure, key, (v) => v === null || v === Infinity || nonnegative(v)))
         return false;
   }
-  if (state.pendingActionCompletion != null) {
-    const pending = state.pendingActionCompletion;
-    if (
-      !record(pending) ||
-      !['combat', 'finish'].includes(pending.kind) ||
-      !text(pending.unitName) ||
-      !pending.unitName.trim() ||
-      !optional(pending, 'unitId', entityId) ||
-      !optional(pending, 'skipCanto', (v) => typeof v === 'boolean') ||
-      !optional(pending, 'gambitTriggered', (v) => typeof v === 'boolean')
-    )
-      return false;
-  }
+  if (
+    state.pendingActionCompletion != null &&
+    readActionContinuation(state.pendingActionCompletion) === null
+  )
+    return false;
   if (
     state.villageState != null &&
     (!tile(state.villageState) ||
@@ -192,12 +185,7 @@ export function validateBattleState(state) {
     for (const group of BATTLE_UNIT_GROUPS) {
       if (!Array.isArray(state[group]) || state[group].length > 512) return false;
       for (const unit of state[group]) {
-        if (
-          !unit ||
-          typeof unit.battleEntityId !== 'string' ||
-          !/^u[1-9]\d*$/.test(unit.battleEntityId)
-        )
-          return false;
+        if (!unit || !isBattleEntityId(unit.battleEntityId)) return false;
         if (ids.has(unit.battleEntityId)) return false;
         ids.add(unit.battleEntityId);
         if (
