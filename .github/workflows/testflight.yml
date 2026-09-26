@@ -1,0 +1,220 @@
+name: TestFlight
+
+# Builds the iOS app from the selected ref and uploads it to App Store Connect, where it
+# appears in TestFlight once Apple finishes processing (usually 5-30 minutes).
+# Run it from the Actions tab: TestFlight -> Run workflow (pick the branch, usually main).
+#
+# Secrets (Settings -> Secrets and variables -> Actions):
+#   APP_STORE_CONNECT_KEY_ID       Key ID of an App Store Connect API key (Admin role:
+#   APP_STORE_CONNECT_ISSUER_ID    cloud-managed signing creates certificates/profiles)
+#   APP_STORE_CONNECT_PRIVATE_KEY  contents of the AuthKey_<id>.p8 file (PEM or base64)
+# Optional, only for a cloud-enabled build (the app is offline by default):
+#   variables VITE_CLOUD_ENABLED=true and VITE_SUPABASE_URL, secret VITE_SUPABASE_ANON_KEY
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Build number (leave blank: one above the latest in App Store Connect)'
+        required: false
+        default: ''
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 75
+    env:
+      BUNDLE_ID: com.davechen.emblemrogue
+      TEAM_ID: Y463W47P77
+      PROJECT: ios/App/App.xcodeproj
+      SCHEME: App
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          node --version
+
+      - name: Check secrets
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -n "$ASC_PRIVATE_KEY" ] || missing="$missing APP_STORE_CONNECT_PRIVATE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - name: Install the API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          if printf '%s' "$ASC_PRIVATE_KEY" | grep -q 'BEGIN PRIVATE KEY'; then
+            # Pasted PEM; %b also turns literal "\n" sequences into newlines.
+            printf '%b\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
+          else
+            printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
+          fi
+          chmod 600 "$KEY_PATH"
+          if ! openssl pkey -in "$KEY_PATH" -noout 2>/dev/null; then
+            echo "::error::APP_STORE_CONNECT_PRIVATE_KEY is not a readable .p8 private key (paste the whole file, including the BEGIN/END lines)."
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build number
+        env:
+          REQUESTED_BUILD: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          PROJECT_BUILD="$(grep -m1 -o 'CURRENT_PROJECT_VERSION = [0-9]*' "$PROJECT/project.pbxproj" | grep -o '[0-9]*$')"
+          if [ -n "$REQUESTED_BUILD" ]; then
+            BUILD_NUMBER="$REQUESTED_BUILD"
+          else
+            BUILD_NUMBER="$(node tools/ios/nextBuildNumber.mjs --bundle-id "$BUNDLE_ID" --min "$((PROJECT_BUILD + 1))")"
+          fi
+          case "$BUILD_NUMBER" in ''|*[!0-9]*) echo "::error::Bad build number '$BUILD_NUMBER'"; exit 1;; esac
+          MARKETING_VERSION="$(grep -m1 -o 'MARKETING_VERSION = [0-9.]*' "$PROJECT/project.pbxproj" | grep -o '[0-9.]*$')"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
+          echo "Building $MARKETING_VERSION ($BUILD_NUMBER)"
+
+      - run: npm ci
+
+      - name: Build the web game and sync iOS
+        env:
+          VITE_CLOUD_ENABLED: ${{ vars.VITE_CLOUD_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          npm run ios:sync
+          if ! git diff --quiet -- ios/App/CapApp-SPM/Package.swift; then
+            echo "::warning::cap sync changed ios/App/CapApp-SPM/Package.swift; commit the regenerated file."
+            git diff -- ios/App/CapApp-SPM/Package.swift
+          fi
+          test -f ios/App/App/public/index.html
+
+      - name: Signing keychain
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$KEYCHAIN"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Archive
+        run: |
+          set -euo pipefail
+          xcodebuild -list -project "$PROJECT"
+          xcodebuild archive \
+            -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            2>&1 | tee "$RUNNER_TEMP/archive.log"
+
+      - name: Check the archive
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          PLIST="$APP/Info.plist"
+          test -d "$APP"
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::PrivacyInfo.xcprivacy is missing from App.app"; exit 1; }
+          test -f "$APP/public/index.html" || { echo "::error::the web game is missing from App.app"; exit 1; }
+          BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$PLIST")
+          SHORT=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")
+          echo "$NAME $BUNDLE $SHORT ($BUILD)"
+          [ "$BUNDLE" = "$BUNDLE_ID" ] || { echo "::error::bundle ID $BUNDLE"; exit 1; }
+          [ "$BUILD" = "$BUILD_NUMBER" ] || { echo "::error::CFBundleVersion $BUILD, expected $BUILD_NUMBER"; exit 1; }
+
+      - name: Export and upload to App Store Connect
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee "$RUNNER_TEMP/export.log"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Uploaded Rogue Dawn $MARKETING_VERSION ($BUILD_NUMBER)"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`"
+            echo "- Cloud: ${{ vars.VITE_CLOUD_ENABLED == 'true' && 'enabled' || 'off (offline build)' }}"
+            echo "- It appears in App Store Connect -> TestFlight once Apple finishes processing."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-logs
+          path: |
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/export.log
+            ${{ runner.temp }}/export/*.plist
+            ${{ runner.temp }}/export/*.log
+          if-no-files-found: ignore
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
+          if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
