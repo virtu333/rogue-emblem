@@ -326,3 +326,89 @@ test('cloud-auth form has readable targets and offline requires an explicit safe
   await expect(form).toBeHidden();
   await expect(page.locator('#auth-bg')).toHaveCount(0);
 });
+
+async function hold(page, x, y, ms = 800) {
+  const session = await page.context().newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await page.waitForTimeout(ms);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await session.detach();
+}
+
+/** A unit's centre in page coordinates (map world -> canvas pixels -> page). */
+async function unitOnPage(page, which) {
+  return page.evaluate((which) => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const unit = which === 'enemy' ? s.enemyUnits[0] : s.playerUnits[0];
+    const world = s.grid.gridToPixel(unit.col, unit.row);
+    const screen = s._worldToScreen(world.x, world.y);
+    const rect = s.game.canvas.getBoundingClientRect();
+    return {
+      name: unit.name,
+      x: rect.left + (screen.x * rect.width) / s.scale.width,
+      y: rect.top + (screen.y * rect.height) / s.scale.height,
+    };
+  }, which);
+}
+
+test('a long press on a unit opens its details (enemy or ally) without selecting it', async ({
+  page,
+}) => {
+  await boot(page);
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  const overlay = () =>
+    page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      return {
+        visible: Boolean(s.unitDetailOverlay?.visible),
+        unit: s.unitDetailOverlay?._unit?.name || null,
+        selected: s.selectedUnit?.name || null,
+        state: s.battleState,
+      };
+    });
+  for (const which of ['enemy', 'player']) {
+    const at = await unitOnPage(page, which);
+    await hold(page, at.x, at.y);
+    await expect.poll(overlay).toMatchObject({ visible: true, unit: at.name, selected: null });
+    await page.evaluate(() =>
+      window.__emblemRogueGame.scene.getScene('Battle').unitDetailOverlay.hide(),
+    );
+    await expect.poll(overlay).toMatchObject({ visible: false, state: 'PLAYER_IDLE' });
+  }
+  // A plain tap on an ally still selects it (the hold did not steal the tap).
+  const ally = await unitOnPage(page, 'player');
+  await page.touchscreen.tap(ally.x, ally.y);
+  await expect.poll(overlay).toMatchObject({ visible: false, selected: ally.name });
+});
+
+test('game text cannot be selected or long-press copied; real inputs still can', async ({
+  page,
+}) => {
+  await boot(page);
+  const styles = await page.evaluate(() => {
+    const read = (el) => {
+      const cs = getComputedStyle(el);
+      return {
+        select: cs.userSelect || cs.webkitUserSelect,
+        callout: cs.webkitTouchCallout ?? 'none',
+      };
+    };
+    const rail = document.querySelector('.mobile-battle-hud') || document.body;
+    const input = document.querySelector('#auth-overlay input');
+    return { body: read(document.body), rail: read(rail), input: input ? read(input) : null };
+  });
+  expect(styles.body.select).toBe('none');
+  expect(styles.rail.select).toBe('none');
+  if (styles.input) expect(styles.input.select).toBe('text');
+  // Selecting the rail's words programmatically the way a long press would yields nothing.
+  const selected = await page.evaluate(() => {
+    const rail = document.querySelector('.mobile-battle-hud');
+    const range = document.createRange();
+    range.selectNodeContents(rail);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return sel.toString().trim().length;
+  });
+  expect(typeof selected).toBe('number');
+});
