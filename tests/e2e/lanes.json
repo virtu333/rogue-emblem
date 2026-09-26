@@ -127,6 +127,7 @@
         "legendary-lord-traits.spec.js",
         "loading-progress-contract.spec.js",
         "local-play.spec.js",
+        "loom-portrait.spec.js",
         "loom-route.spec.js",
         "native-rewards.spec.js",
         "reward-reload.spec.js",

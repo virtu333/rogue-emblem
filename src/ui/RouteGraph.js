@@ -5,7 +5,9 @@ import {
   layoutLoom,
   loomAnchorScroll,
   loomMedalSize,
+  loomScrollToRow,
   loomShortLabel,
+  loomViewRow,
   LOOM_MEDAL,
 } from './loomModel.js';
 import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThreads.js';
@@ -14,6 +16,13 @@ import { drawLoomFx, drawLoomWeave, loomFxAnimates } from '../art/loom/loomThrea
 // Campaign Map: "the Loom" (docs/art-direction/board/loom). DOM buttons keep focus,
 // aria-pressed and 44px+ hit areas; two canvases underneath carry the weave and the
 // animated fx. Selection and encounter rules stay with the callers.
+//
+// Axis: the loom runs sideways (landscape, desktop) unless its CSS says otherwise.
+// Upright phones (html.portrait-ui, see loom.css) set `--re-loom-axis: vertical` on the
+// screen, and the loom climbs from the bottom to the boss at the top. The route re-reads
+// the axis whenever its viewport resizes, the portrait-ui class toggles
+// ('emblem-rogue:portrait-ui') or the device rotates, and keeps the browsing place
+// (the row at the centre of the view) and the selection across the switch.
 
 const FRAMES = { battle: 0, church: 1, boss: 2, shop: 3, ruins: 4, recruit: 5, colosseum: 6 };
 const LABELS = {
@@ -51,6 +60,23 @@ const STATE_TEXT = {
   cut: 'Out of reach',
 };
 const FX_FRAME_MS = 1000 / 30;
+export const PORTRAIT_UI_EVENT = 'emblem-rogue:portrait-ui';
+const VIEWPORT_EVENTS = [PORTRAIT_UI_EVENT, 'resize', 'orientationchange'];
+// Edge cues on the loom's frame: [before, after] classes per axis.
+const CUES = {
+  horizontal: ['more-left', 'more-right'],
+  vertical: ['more-up', 'more-down'],
+};
+
+/** The axis the loom's CSS asks for (`--re-loom-axis` on an ancestor). */
+function cssAxis(el) {
+  try {
+    const v = getComputedStyle(el).getPropertyValue('--re-loom-axis').trim();
+    return v === 'vertical' ? 'vertical' : 'horizontal';
+  } catch {
+    return 'horizontal';
+  }
+}
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // A hairline fracture entering the rim (the Lieutenant's mark), not a bolt.
 const CRACK_PATH = 'M36.2 4.4 L34.6 9.1 L30.9 10.3 L30.6 13.2 M34.6 9.1 L38.1 10';
@@ -207,9 +233,13 @@ export function createRouteGraph({
   let raf = 0;
   let lastFx = -Infinity;
   let pendingScroll = null;
-  // Browsing position, tracked in JS: a scroller hidden with display:none (while a
-  // service, roster or pause covers the route) loses its offset in the browser.
+  // Browsing position along the row axis (scrollLeft sideways, scrollTop upright),
+  // tracked in JS: a scroller hidden with display:none (while a service, roster or
+  // pause covers the route) loses its offset in the browser.
   let lastScroll = 0;
+  let cuesEl = null;
+  let horizontalCues = true;
+  let viewportRaf = 0;
   let resizeObserver = null;
   let fontWait = null;
   let cancelFalls = null;
@@ -314,31 +344,36 @@ export function createRouteGraph({
     const width = scrollEl.clientWidth;
     const height = scrollEl.clientHeight;
     if (!width || !height) return false;
+    const axis = cssAxis(scrollEl);
     const medal = loomMedalSize(width, height);
     if (
       layout &&
+      layout.axis === axis &&
       layout.width === width &&
       layout.height === height &&
       layout.medal === medal &&
       dpr === Math.min(3, window.devicePixelRatio || 1)
     ) {
       restoreScroll();
+      if (axis === 'vertical') updateCues();
       return true;
     }
+    const previous = layout;
     dpr = Math.min(3, window.devicePixelRatio || 1);
-    layout = layoutLoom({ rows: model.rows, width, height, medal });
-    layout.positions = new Map(
-      nodes.map((n) => [n.id, { x: layout.x(n.row), y: layout.y(n.col) }]),
-    );
+    layout = layoutLoom({ rows: model.rows, width, height, medal, axis });
+    layout.positions = new Map(nodes.map((n) => [n.id, layout.pos(n.row, n.col)]));
     graph.style.setProperty('--medal', `${medal}px`);
     graph.classList.toggle('re-loom--narrow', medal < LOOM_MEDAL);
     graph.classList.toggle('re-loom--roomy', medal > LOOM_MEDAL);
-    // Choice labels hang under their medal; hide them when lanes are too tight to fit.
-    graph.classList.toggle('re-loom--tight', layout.dy < medal + 20);
+    graph.classList.toggle('re-loom--vertical', axis === 'vertical');
+    // Choice labels hang under their medal; hide them when the space below it (the
+    // lane gap sideways, the row gap upright) is too tight to fit.
+    const labelRoom = axis === 'vertical' ? layout.rowStep : layout.dy;
+    graph.classList.toggle('re-loom--tight', labelRoom < medal + 20);
     graph.style.width = `${layout.innerW}px`;
-    graph.style.height = `${height}px`;
-    sizeCanvas(weave, layout.innerW, height);
-    sizeCanvas(fx, layout.innerW, height);
+    graph.style.height = `${layout.innerH}px`;
+    sizeCanvas(weave, layout.innerW, layout.innerH);
+    sizeCanvas(fx, layout.innerW, layout.innerH);
     for (const n of nodes) {
       const p = layout.positions.get(n.id);
       const b = buttons.get(n.id);
@@ -348,24 +383,89 @@ export function createRouteGraph({
     paintWeave();
     paintFx(lastFx > 0 ? lastFx : 0);
     if (pendingScroll !== null) {
-      lastScroll = pendingScroll === 'anchor' ? loomAnchorScroll(layout, model) : pendingScroll;
+      lastScroll = resolveScroll(pendingScroll);
       pendingScroll = null;
+    } else if (previous && previous.axis !== axis) {
+      // Rotated: keep the row the player was looking at in the middle of the view,
+      // then make sure the inspected knot is still on screen.
+      lastScroll = loomScrollToRow(layout, loomViewRow(previous, lastScroll));
+      revealSelected();
     }
     restoreScroll();
+    // The sideways loom keeps its original cue timing (mount and scroll events); the
+    // upright one also refreshes after each layout, and a turn clears the old axis's.
+    if (axis === 'vertical' || (previous && previous.axis !== axis)) updateCues();
     syncAnimation();
     return true;
   }
 
+  /** A mount position: 'anchor', a {axis, offset, row} browse point, or a number. */
+  function resolveScroll(want) {
+    if (want === 'anchor') return loomAnchorScroll(layout, model);
+    if (want && typeof want === 'object')
+      return want.axis === layout.axis ? want.offset : loomScrollToRow(layout, want.row);
+    return Number(want) || 0;
+  }
+
+  function revealSelected() {
+    const p = selected != null ? layout.positions.get(selected) : null;
+    if (!p) return;
+    const at = layout.axis === 'vertical' ? p.y : p.x;
+    const margin = layout.medal / 2 + 12;
+    const view = layout.viewSpan;
+    if (at - margin < lastScroll) lastScroll = at - margin;
+    else if (at + margin > lastScroll + view) lastScroll = at + margin - view;
+    lastScroll = Math.max(0, Math.min(layout.scrollSpan, Math.round(lastScroll)));
+  }
+
+  const scrollProp = () => (layout?.axis === 'vertical' ? 'scrollTop' : 'scrollLeft');
+
   function restoreScroll() {
     if (!scrollEl || !layout) return;
-    const max = Math.max(0, layout.innerW - scrollEl.clientWidth);
+    const vertical = layout.axis === 'vertical';
+    const max = vertical
+      ? Math.max(0, layout.innerH - scrollEl.clientHeight)
+      : Math.max(0, layout.innerW - scrollEl.clientWidth);
     lastScroll = Math.max(0, Math.min(max, lastScroll));
-    if (Math.abs(scrollEl.scrollLeft - lastScroll) >= 1) scrollEl.scrollLeft = lastScroll;
+    const prop = scrollProp();
+    if (Math.abs(scrollEl[prop] - lastScroll) >= 1) scrollEl[prop] = lastScroll;
+    // The cross axis never scrolls (a leftover offset from before a rotation).
+    const cross = vertical ? 'scrollLeft' : 'scrollTop';
+    if (scrollEl[cross]) scrollEl[cross] = 0;
+  }
+
+  // Edge cues: the frame darkens at an edge with more loom beyond it.
+  function updateCues() {
+    if (!cuesEl || !scrollEl || !layout) return;
+    const vertical = layout.axis === 'vertical';
+    const el = scrollEl;
+    const [lo, hi] = CUES[layout.axis];
+    for (const cls of CUES[vertical ? 'horizontal' : 'vertical']) cuesEl.classList.remove(cls);
+    if (!vertical && !horizontalCues) return;
+    const pos = vertical ? el.scrollTop : el.scrollLeft;
+    const view = vertical ? el.clientHeight : el.clientWidth;
+    const full = vertical ? el.scrollHeight : el.scrollWidth;
+    cuesEl.classList.toggle(lo, pos > 2);
+    cuesEl.classList.toggle(hi, pos + view < full - 2);
   }
 
   const onScroll = () => {
     // Ignore the reset a hidden (zero-size) scroller reports.
-    if (scrollEl?.clientWidth && layout && pendingScroll === null) lastScroll = scrollEl.scrollLeft;
+    if (scrollEl?.clientWidth && scrollEl.clientHeight && layout && pendingScroll === null)
+      lastScroll = scrollEl[scrollProp()];
+    updateCues();
+  };
+
+  // The portrait-ui class toggled or the viewport turned: the CSS may have moved the
+  // pane and changed the axis. Lay out now and once more after the browser settles.
+  const onViewport = () => {
+    if (destroyed) return;
+    relayout();
+    if (viewportRaf) cancelAnimationFrame(viewportRaf);
+    viewportRaf = requestAnimationFrame(() => {
+      viewportRaf = 0;
+      relayout();
+    });
   };
 
   const onVisibility = () => syncAnimation();
@@ -380,24 +480,39 @@ export function createRouteGraph({
     get animating() {
       return raf !== 0;
     },
-    /** The browsing position to carry into a redraw of the same act. */
-    get scrollLeft() {
-      return lastScroll;
+    /** The loom's current axis ('horizontal' until laid out). */
+    get axis() {
+      return layout?.axis || 'horizontal';
     },
     /**
-     * Attach to the scroll viewport (already in the document). `scrollLeft` restores
-     * a browsing position; omitted, a fresh loom anchors on the choices.
+     * The browsing position to carry into a redraw of the same act: the offset along
+     * the row axis, and the row at the centre of the view (used if the axis changed).
      */
-    mount(el, { scrollLeft = null } = {}) {
+    get scrollPosition() {
+      if (!layout) return null;
+      return { axis: layout.axis, offset: lastScroll, row: loomViewRow(layout, lastScroll) };
+    },
+    /**
+     * Attach to the scroll viewport (already in the document). `position` restores a
+     * browsing position (a scrollPosition from an earlier graph of the same act);
+     * omitted, a fresh loom anchors on the choices. `cues` receives the edge-cue
+     * classes (more-left/right sideways, more-up/down upright); `horizontalCues: false`
+     * keeps them to the upright loom.
+     */
+    mount(el, { position = null, cues = null, horizontalCues: hCues = true } = {}) {
       scrollEl = el;
-      pendingScroll = scrollLeft ?? 'anchor';
+      cuesEl = cues;
+      horizontalCues = hCues;
+      pendingScroll = position ?? 'anchor';
       el.addEventListener('scroll', onScroll, { passive: true });
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => relayout());
         resizeObserver.observe(el);
       }
       document.addEventListener('visibilitychange', onVisibility);
+      for (const type of VIEWPORT_EVENTS) window.addEventListener(type, onViewport);
       relayout();
+      updateCues();
     },
     relayout,
     setSelected(id) {
@@ -505,6 +620,9 @@ export function createRouteGraph({
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       resizeObserver?.disconnect();
+      if (viewportRaf) cancelAnimationFrame(viewportRaf);
+      viewportRaf = 0;
+      for (const type of VIEWPORT_EVENTS) window.removeEventListener(type, onViewport);
       scrollEl?.removeEventListener('scroll', onScroll);
       document.removeEventListener('visibilitychange', onVisibility);
       // Release canvas backing stores promptly (iOS canvas memory is tight).
