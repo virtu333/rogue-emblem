@@ -341,6 +341,11 @@ def keep_regions(prog, pred):
     """Drop the regions whose effective opcodes fail `pred` (headers stay)."""
     out, ctx = [], {'global': [], 'master': [], 'group': []}
     for h, ops in copy.deepcopy(prog):
+        # a header resets the levels below it (a <master> starts with no <group>)
+        if h == 'global':
+            ctx.update(master=[], group=[])
+        elif h == 'master':
+            ctx['group'] = []
         if h in ('global', 'master', 'group'):
             ctx[h] = ops
         if h == 'region':

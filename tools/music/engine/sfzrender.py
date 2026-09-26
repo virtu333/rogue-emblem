@@ -26,24 +26,46 @@ def _t(sec):
     return int(round(max(0.0, sec) * TPS))
 
 
-def _in_ram(sfz: str) -> str:
-    """The same program flattened with every sample held in memory (engine/sfzlab.py).
+_LOADED = {}
+
+
+def _in_ram(sfz: str, events) -> str:
+    """The same program flattened with its samples held in memory (engine/sfzlab.py).
 
     sfizz preloads 8192 frames of each sample and streams the rest from a
     background thread that sfizz_render does not reliably wait for: on a
     busy machine a note longer than ~0.19 s can fall silent part-way (seen
     on the Growlybass, Virtuosity kit and Splendid Grand programs). In RAM the
-    render is the clean render, bit for bit. Opt-in: MUSIC_SFIZZ_RAM=1."""
+    render is the clean render, bit for bit. Only the regions this render
+    can trigger (its keys and velocities) are kept, so a 1.4 GB drum kit does
+    not have to fit in memory. Opt-in: MUSIC_SFIZZ_RAM=1."""
     from . import sfzlab
-    return sfzlab.write(sfzlab.load(sfz), 'ram-' + os.path.splitext(os.path.basename(sfz))[0]
-                        .replace(' ', '_'))
+    if sfz not in _LOADED:
+        _LOADED[sfz] = sfzlab.load(sfz)
+    vels = {}
+    for t, dur, key, vel in events:
+        vels.setdefault(int(key), set()).add(int(np.clip(round(vel * 126) + 1, 1, 127)))
+
+    def used(r):
+        if not r.get('sample') or r['sample'].startswith('*'):
+            return True
+        try:
+            lo, hi, _ = sfzlab.region_keys(list(r.items()))
+        except ValueError:
+            return True
+        lv, hv = int(float(r.get('lovel', 0))), int(float(r.get('hivel', 127)))
+        return any(lo <= k <= hi for k in vels)
+
+    prog = sfzlab.keep_regions(_LOADED[sfz], used)
+    return sfzlab.write(prog, 'ram-' + os.path.splitext(os.path.basename(sfz))[0].replace(' ', '_'))
 
 
 def render_sfz(sfz: str, events, n_frames: int, cc: dict | None = None,
                cc_events=None, polyphony: int = 256) -> np.ndarray:
     """events: (t, dur, key, vel01). cc: initial {cc: value}. cc_events: (t, cc, value)."""
     if os.environ.get('MUSIC_SFIZZ_RAM') == '1' and '/music-lab/' not in sfz:
-        sfz = _in_ram(sfz)
+        events = list(events)
+        sfz = _in_ram(sfz, events)
     mid = mido.MidiFile(ticks_per_beat=PPQ)
     tr = mido.MidiTrack()
     mid.tracks.append(tr)
