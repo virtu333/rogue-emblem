@@ -152,13 +152,51 @@ export function canSwitchBattlePresentation(state) {
   );
 }
 
-const PROMPT_DEFAULT = '\u21bb Rotate your device to landscape';
-const PROMPT_PORTRAIT_ON =
-  '\u21bb Rotate to landscape for the map and menus. Battles can be played upright.';
+export const PORTRAIT_UI_CLASS = 'portrait-ui';
+export const PORTRAIT_UI_CHANGE_EVENT = 'emblem-rogue:portrait-ui';
 
-/** Keep the rotate prompt's wording in step with the preference. */
-export function syncRotatePromptCopy(env = globalThis) {
-  const text = env?.document?.querySelector?.('#rotate-prompt p');
-  if (!text) return;
-  text.textContent = portraitBattlesEnabled(env) ? PROMPT_PORTRAIT_ON : PROMPT_DEFAULT;
+function coarsePointer(env) {
+  try {
+    return env?.matchMedia?.('(pointer: coarse)')?.matches === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Portrait mode is on for this page right now: opted in, a phone browser tab (not a
+ * landscape-locked shell) and held upright. Every portrait layout keys off the
+ * `portrait-ui` class this sets on <html>; without it the page is the landscape game.
+ */
+export function portraitUiActive(env = globalThis) {
+  return portraitBattlesEnabled(env) && coarsePointer(env) && isPortraitViewport(env);
+}
+
+/** Set or clear the class; announces a change with PORTRAIT_UI_CHANGE_EVENT. */
+export function syncPortraitUi(env = globalThis) {
+  const root = env?.document?.documentElement;
+  if (!root?.classList) return false;
+  const active = portraitUiActive(env);
+  if (root.classList.contains(PORTRAIT_UI_CLASS) !== active) {
+    root.classList.toggle(PORTRAIT_UI_CLASS, active);
+    const Event = env.CustomEvent || globalThis.CustomEvent;
+    if (Event) env.dispatchEvent?.(new Event(PORTRAIT_UI_CHANGE_EVENT, { detail: { active } }));
+  }
+  return active;
+}
+
+/** Keep the class in step with the phone, the preference and the viewport. */
+export function installPortraitUi(env = globalThis) {
+  const sync = () => syncPortraitUi(env);
+  const sources = [
+    [env, 'resize'],
+    [env, 'orientationchange'],
+    [env, PORTRAIT_BATTLE_CHANGE_EVENT],
+    [env?.visualViewport, 'resize'],
+  ].filter(([target]) => typeof target?.addEventListener === 'function');
+  for (const [target, type] of sources) target.addEventListener(type, sync);
+  sync();
+  return () => {
+    for (const [target, type] of sources) target.removeEventListener(type, sync);
+  };
 }

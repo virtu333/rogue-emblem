@@ -11,7 +11,9 @@ import {
   portraitQueryOverride,
   setPortraitBattlePreference,
   showPortraitBattleSetting,
-  syncRotatePromptCopy,
+  PORTRAIT_UI_CHANGE_EVENT,
+  installPortraitUi,
+  portraitUiActive,
   wantsPortraitBattle,
 } from '../src/utils/portraitBattle.js';
 import { battleCanvasSize, uiBand } from '../src/ui/BattlefieldLab.js';
@@ -162,16 +164,68 @@ describe('landscape-locked shells', () => {
     expect(getPortraitBattlePreference(installed)).toBe(true);
     expect(localStorage.getItem(PORTRAIT_BATTLE_STORAGE_KEY)).toBe('on');
   });
+});
 
-  it('keeps the plain rotate prompt in a locked shell', () => {
-    const text = { textContent: '' };
-    const localStorage = memoryStorage();
-    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
-    const document = { querySelector: () => text };
-    syncRotatePromptCopy({ localStorage, document, matchMedia: displayMode('browser') });
-    expect(text.textContent).toMatch(/Battles can be played upright/);
-    syncRotatePromptCopy({ localStorage, document, Capacitor: nativeApp() });
-    expect(text.textContent).toBe('\u21bb Rotate your device to landscape');
+// A page environment for portrait mode: storage, media queries, viewport and events.
+function portraitPage({
+  optedIn = true,
+  coarse = true,
+  width = 390,
+  height = 844,
+  mode = 'browser',
+  app = false,
+} = {}) {
+  const env = new EventTarget();
+  const localStorage = memoryStorage();
+  if (optedIn) localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
+  const classes = new Set();
+  Object.assign(env, {
+    localStorage,
+    innerWidth: width,
+    innerHeight: height,
+    matchMedia: (query) => ({
+      matches: query === '(pointer: coarse)' ? coarse : query === `(display-mode: ${mode})`,
+    }),
+    document: {
+      documentElement: {
+        classList: {
+          contains: (c) => classes.has(c),
+          toggle: (c, on) => (on ? classes.add(c) : classes.delete(c), on),
+        },
+      },
+    },
+    classes,
+  });
+  if (app) env.Capacitor = nativeApp();
+  return env;
+}
+
+describe('portrait mode page class', () => {
+  it('is on only for an opted-in phone browser tab held upright', () => {
+    expect(portraitUiActive(portraitPage())).toBe(true);
+    expect(portraitUiActive(portraitPage({ optedIn: false }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ coarse: false }))).toBe(false); // desktop
+    expect(portraitUiActive(portraitPage({ width: 844, height: 390 }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ mode: 'standalone' }))).toBe(false);
+    expect(portraitUiActive(portraitPage({ app: true }))).toBe(false);
+  });
+
+  it('follows the phone as it turns and the preference as it changes, and stops on uninstall', () => {
+    const env = portraitPage({ width: 844, height: 390 });
+    const changes = [];
+    env.addEventListener(PORTRAIT_UI_CHANGE_EVENT, (e) => changes.push(e.detail.active));
+    const uninstall = installPortraitUi(env);
+    expect(env.classes.has('portrait-ui')).toBe(false);
+    Object.assign(env, { innerWidth: 390, innerHeight: 844 });
+    env.dispatchEvent(new Event('resize'));
+    expect(env.classes.has('portrait-ui')).toBe(true);
+    env.dispatchEvent(new Event('orientationchange')); // no change: no second event
+    setPortraitBattlePreference(false, env); // dispatches the preference event
+    expect(env.classes.has('portrait-ui')).toBe(false);
+    expect(changes).toEqual([true, false]);
+    uninstall();
+    setPortraitBattlePreference(true, env);
+    expect(env.classes.has('portrait-ui')).toBe(false);
   });
 });
 
