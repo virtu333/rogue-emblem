@@ -521,7 +521,10 @@ def build():
     # the ostinato plucked: celli and basses on the beat, the harp off it
     c_vc = b.part('c_ost_vc', 'celli', layer='calm', role='bass', art='pizz', gain=-4)
     c_cb = b.part('c_ost_cb', 'basses', layer='calm', role='low', art='pizz', gain=-3)
-    c_hp = b.part('c_harp', 'harp', layer='calm', role='keys')
+    # (the harp was the calm mix's loudest part and most of its low-mid: its
+    # pluck, not its body, is the off-beat)
+    c_hp = b.part('c_harp', 'harp', layer='calm', role='keys', gain=-3,
+                  eq=[('peak', 320, 1.0, -3.0)])
     for bar, ch in spans:
         ostinato3(c_vc, bar, ch, lo=38, vel=0.62, art='pizz', on_only=True)
         ostinato3(c_cb, bar, ch, lo=28, vel=0.62, art='pizz', on_only=True)
