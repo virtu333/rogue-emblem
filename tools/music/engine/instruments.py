@@ -239,11 +239,9 @@ DRUM_KEYS = {
     'tom_hi': 50, 'tom_floor': 41, 'crash': 49, 'crash2': 57, 'ride': 51, 'ride_bell': 53,
     'china': 52, 'splash': 55, 'tamb': 54,
 }
-# The sound lab: an alternative palette chosen at render time (engine/palette.py).
-# Nothing changes unless MUSIC_PALETTE (or --palette) asks for it.
-if os.environ.get('MUSIC_PALETTE'):
-    from .palette import apply as _apply_palette
-    _apply_palette(os.environ['MUSIC_PALETTE'], INSTRUMENTS)
+# This registry is the legacy palette. What a render actually plays is chosen per
+# score by engine/palette.py (the house palette, a score's own changes, an audition):
+# the Renderer applies it.
 
 ORCH_KEYS = {
     'bd': 36, 'sn': 38, 'sn_taps': 37, 'sn_roll': 39, 'sn_off': 40, 'crash': 49, 'sus': 51,

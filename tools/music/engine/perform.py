@@ -28,6 +28,14 @@ phrase), deterministically, and hands the renderer a performance:
 
 The score format is unchanged: everything is derived from what the note
 strings already carry (plus the accent marks the parser records).
+
+Two styles. 'full' is everything above. 'clean' (the house palette's violin)
+keeps the same articulation choices, slurs and round robins but makes every
+note change plain, as a player who prizes clean changes would: no marcato
+bite unless the score writes '^', an even new bow instead of soft bow-ins,
+no swell inside a note, no dip at a bow change, no lift on downbeats, and a
+gentler phrase arch. (In the sound lab a violinist heard the full style's
+bow changes as too obvious and preferred the unshaped samples.)
 """
 
 from __future__ import annotations
@@ -88,7 +96,7 @@ def _note_info(score, evs):
     return out
 
 
-def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
+def perform_line(score, evs, seed, arts=(), shaping=1.0, style='full') -> list[Played]:
     """The articulation state machine for a solo (mostly monophonic) string line.
 
     `arts`: extra articulations the instrument plays as streams of their own
@@ -97,7 +105,11 @@ def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
     voce, phrase-end taper, downbeat lift). Halved by the renderer when the
     score already draws an expression lane for the part, so the composer's
     shape and the player's do not pile up (in the title mix the doubled taper
-    let the soloist sink under the orchestra at phrase ends)."""
+    let the soloist sink under the orchestra at phrase ends).
+    `style`: 'full' or 'clean' (see the module note)."""
+    clean = style == 'clean'
+    if clean:
+        shaping *= 0.6
     if not evs:
         return []
     evs = sorted(evs, key=lambda e: (getattr(e, 'beat_start', e.t), e.key))
@@ -186,8 +198,12 @@ def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
                 stream, why = 'spic', 'score asks spiccato'
             elif n['art'] == 'stac':
                 stream, why = 'stac', 'score asks staccato'
-            elif n['stacc']:
+            elif n['stacc'] and n['dur'] <= STAC_MAX_S:
                 stream, why = short[0], short[1] + ', marked'
+            elif n['stacc']:
+                # detached but held (a gate, an accent's lift): a new bow for its whole
+                # length; a staccato sample would cut it short
+                stream, why = 'first', 'detached, held: new bow'
             elif not link and n['dur'] <= STAC_MAX_S and gap_after[i] >= 0.04:
                 stream, why = short
             elif link and repeated:
@@ -204,19 +220,25 @@ def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
             a_off = arch(n['w1'])
             downbeat = score is not None and getattr(e, 'beat_start', None) is not None and \
                 score.on_barline(n['b0'])
-            lift = 0.6 * shaping if downbeat else 0.0
+            lift = 0.6 * shaping if downbeat and not clean else 0.0
             v0 = base + a_on + lift
             v1 = base + a_off
             d = n['dur']
             shape = [(0.0, v0)]
-            if d >= 0.8:
+            if clean:
+                # the level follows the phrase; the note itself is not shaped
+                if n['accent'] == 1 and stream != 'leg' and d > 0.3:
+                    # a written '>' is weight on the bow, not a bite
+                    shape = [(0.0, v0 + 1.2), (0.25, v0)]
+                shape.append((d, v1 - shaping * (1.0 if is_last and d > 0.3 else 0.0)))
+            elif d >= 0.8:
                 # messa di voce: bloom, then let the bow lighten
                 shape.append((0.35 * d, v0 + 1.5 * shaping))
                 shape.append((d, v1 - shaping * (3.0 if is_last else 1.0)))
             else:
                 shape.append((d, v1 - shaping * (1.5 if is_last and d > 0.3 else 0.0)))
             # ------------------------------------------------ bow changes in long slurs
-            if stream == 'leg':
+            if stream == 'leg' and not clean:
                 slur_t += prev['dur'] if prev else 0.0
                 if slur_t > BOW_S and prev is not None and prev['dur'] >= 0.45:
                     why += ' (bow change / breath)'
@@ -231,10 +253,18 @@ def perform_line(score, evs, seed, arts=(), shaping=1.0) -> list[Played]:
                 leap = abs(e.key - prev['ev'].key) if prev else 0
                 if pd < FAST_S or d < FAST_S:
                     vel = 112
-                elif pd >= 0.8 and d >= 0.6 and leap >= 5:
+                elif pd >= 0.8 and d >= 0.6 and leap >= 5 and not clean:
                     vel = 28
                 else:
                     vel = 72
+            elif stream == 'first' and clean:
+                # an even new bow: the accent layer (from 70) only where the score writes '^'
+                if n['accent'] >= 2:
+                    vel = 96
+                elif repeated:
+                    vel = 60
+                else:
+                    vel = 64 if e.vel >= 0.45 else 56
             elif stream == 'first':
                 if n['accent'] >= 2:
                     vel = 124

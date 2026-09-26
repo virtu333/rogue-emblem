@@ -260,6 +260,8 @@ class Score:
         # semitones applied to every pitched note at render time
         self.transpose = transpose
         self.silent_ok: set = set()
+        # this score's own palette changes, {instrument: candidate} (engine/palette.py)
+        self.palette: dict = {}
         self.title = title or name
         self.meter = meter
         self.bar_beats = meter[0] * 4 / meter[1]

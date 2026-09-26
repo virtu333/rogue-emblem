@@ -70,8 +70,8 @@ def main():
     if not args.score or not args.parts or not args.out:
         ap.error('score, parts and --out are required')
     if args.palette is not None:
-        palette.apply(args.palette, INSTRUMENTS)
-    lab = bool(palette.active())
+        palette.request(args.palette)
+    lab = True
     s = importlib.import_module(f'scores.{args.score}').build()
     if args.bars:
         from engine.excerpt import excerpt
@@ -96,7 +96,8 @@ def main():
             intro, loop = r._events(s.parts[n], inst)
             mode = inst['lab'].get('perform')
             if mode == 'line' or (mode == 'auto' and labrender.is_line(intro + loop)):
-                for p in perform.perform_line(s, intro + loop, 0):
+                for p in perform.perform_line(s, intro + loop, 0,
+                                              style=inst['lab'].get('style', 'full')):
                     print(f'  {n:10s} t={p.t_on:7.3f} key={p.key:3d} {p.stream:5s} vel={p.vel:3d} '
                           f'{p.why}')
     # only the chosen parts are rendered (each stem is independent of the others)

@@ -16,6 +16,7 @@ pass is a sample-exact copy of the first. The exported file covers
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -42,11 +43,11 @@ CACHE = os.path.join(ROOT, 'References', 'music-cache')
 
 
 def cache_dir() -> str:
-    """Stem cache: MUSIC_CACHE if set; a lab palette keeps its own, so lab
-    renders never evict the default palette's stems."""
+    """Stem cache: MUSIC_CACHE if set; an audition keeps its own, so auditions
+    never evict the stems of what the game ships."""
     if os.environ.get('MUSIC_CACHE'):
         return os.environ['MUSIC_CACHE']
-    return palette.cache_dir() if palette.active() else CACHE
+    return palette.cache_dir() if palette.is_audition(palette.requested()) else CACHE
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
 ENGINE_VERSION = 9  # bump to invalidate stem caches
 
@@ -81,7 +82,7 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     inst = INSTRUMENTS[inst_name]
     if inst['kind'] == 'lab':
         return 0.0   # lab streams are levelled by their own calibration (labrender)
-    key = f'{inst_name}:{art}'
+    key = f'{palette.legacy_name(inst_name)}:{art}'
     if key in _CALIB:
         return _CALIB[key]
     n = int(3.0 * SR)
@@ -103,7 +104,7 @@ def onset_pre(inst_name: str, art_name: str) -> float:
     global _CALIB
     if _CALIB is None:
         _CALIB = _load_calib()
-    key = f'pre|{inst_name}:{art_name}'
+    key = f'pre|{palette.legacy_name(inst_name)}:{art_name}'
     if key in _CALIB:
         return _CALIB[key]
     inst = INSTRUMENTS[inst_name]
@@ -188,6 +189,8 @@ class Renderer:
     def __init__(self, score: Score, verbose=True):
         self.s = score
         self.verbose = verbose
+        # the palette this score plays: the requested one plus the score's own changes
+        palette.apply(palette.for_score(palette.requested(), score.palette), INSTRUMENTS)
         s = score
         self.I_b = s.intro_beats
         self.P_b = s.loop_beats
@@ -323,6 +326,15 @@ class Renderer:
     def render_part(self, part):
         s = self.s
         inst = INSTRUMENTS[part.inst]
+        if inst.get('keep_arts'):
+            kept, rest = self._split_kept(part, inst)
+            if kept is not None:
+                out = self.render_part(rest) if rest.notes else np.zeros((self.n_f, 2), np.float32)
+                k = self.render_part(kept)
+                if part.expr_points:
+                    # the lab instrument plays the lane itself (expr_cc); the kept notes need it here
+                    k = k * (self._lane(part.expr_points, len(k)) ** 1.3)[:, None]
+                return out + k
         intro, loop = self._events(part, inst)
         seed = _seed(s.seed, s.name, part.name, 'render')
         key = _h((ENGINE_VERSION, part.inst, inst.get('arts', {}), inst.get('program'),
@@ -376,6 +388,22 @@ class Renderer:
                 os.remove(os.path.join(self.cache, f))
         np.save(path, out.astype(np.float16))
         return out
+
+    def _split_kept(self, part, inst):
+        """A lab instrument without some articulation (VPO3 has no muted brass):
+        (the notes asking for it, on the registry's own instrument; the rest)."""
+        art = part.opts.get('art', 'default')
+
+        def kept(n):
+            return (n.art if n.art != 'default' else art) in inst['keep_arts']
+
+        if not any(kept(n) for n in part.notes):
+            return None, None
+        k, rest = copy.copy(part), copy.copy(part)
+        k.name, k.inst = part.name + palette.ORIG_SUFFIX, inst['orig_name']
+        k.notes = [n for n in part.notes if kept(n)]
+        rest.notes = [n for n in part.notes if not kept(n)]
+        return k, rest
 
     def _process_part(self, part, dry):
         """Expression lane, dynamic tone, EQ, role leveling, pan/width -> (dry, send)."""

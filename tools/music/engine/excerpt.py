@@ -43,6 +43,7 @@ def excerpt(s: Score, a: float, b: float, name: str | None = None) -> Score:
     x.meter = s.meter
     x.bar_beats = meters[0][1]
     x.silent_ok = set()
+    x.palette = dict(s.palette)
     x.variants = copy.deepcopy(s.variants)
     x.variant_keys = {}
     x.whole_loop = set()

@@ -1,12 +1,21 @@
-"""The sound lab's alternative palette: other libraries, chosen at render time.
+"""The palette: which library plays each instrument, chosen at render time.
 
-Off by default. Selecting it swaps entries of the instrument registry for
-lab instruments (kind 'lab', rendered by labrender through sfizz) and
-leaves every other part exactly as it is.
+The instrument registry (instruments.py) is the legacy palette: VSCO 2 CE,
+GeneralUser GS and the sfizz kits. A palette swaps some of its entries for
+lab instruments (kind 'lab', rendered by labrender through sfizz) and leaves
+every other part exactly as it is.
 
+The game ships the HOUSE palette, the sound lab's verdicts (September 2026).
+A score may change an instrument for itself (`Score.palette`, e.g. the
+colosseum's frame drum as its taiko). Anything else is an audition: it
+renders to References/music-lab/out and never touches the game's assets.
+
+  (nothing) / house                          the house palette (what the game ships)
+  legacy                                     the registry as written, no lab instruments
+  MUSIC_PALETTE=lab:choir=vpo_mixed          the house palette with one change
+  MUSIC_PALETTE=lab:violins=legacy           the house palette, violins back to VSCO
+  MUSIC_PALETTE=lab:choir,solo_violin        those two on their first candidate
   MUSIC_PALETTE=lab                          every instrument's first candidate
-  MUSIC_PALETTE=lab:choir,solo_violin        just those, first candidate each
-  MUSIC_PALETTE=lab:choir=vpo_mixed          a named candidate
   MUSIC_PALETTE=lab:@strings                 a named group (see GROUPS)
   build.py / solo.py  --palette <same syntax>
 
@@ -28,6 +37,21 @@ LAB_VERSION = 1   # bump when the performer or the lab renderer changes what a s
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 _ORIG: dict | None = None
 _ACTIVE: dict = {}
+_REQUESTED: str | None = None
+
+
+def request(spec: str | None):
+    """The palette this process renders with (--palette); each Renderer applies it
+    to its score (see for_score)."""
+    global _REQUESTED
+    _REQUESTED = spec
+
+
+def requested() -> str:
+    """--palette if given, else MUSIC_PALETTE, else the house palette."""
+    if _REQUESTED is not None:
+        return _REQUESTED
+    return os.environ.get('MUSIC_PALETTE') or 'house'
 
 
 def lab_dir() -> str:
@@ -52,11 +76,12 @@ SHORT = dict(short=True, dyn_cc=0, cal_vel=91)
 
 
 # ------------------------------------------------------------------ candidates
-def _solo_violin_sso(transition='tuned'):
+def _solo_violin_sso(transition='tuned', style='full'):
     SP = 'Strings - Performance'
-    return dict(perform='line', streams={
+    return dict(perform='line', style=style, streams={
         'legato': _strm(('violin2_legato', transition), mono=True, cal_vel=64,
-                        legato_cc=transition != 'library', slide=transition != 'library'),
+                        legato_cc=transition != 'library',
+                        slide=transition != 'library' and style == 'full'),
         'leg': dict(program_of='legato'),
         'first': dict(program_of='legato'),
         'spic': _strm(('rr', _p('sso', SP, 'Violin Solo 2 Spiccato.sfz')), **SHORT),
@@ -168,10 +193,12 @@ def _sso_brass(inst):
 
 
 def _vpo_brass(inst):
+    """VPO3 brass section: sustain and staccato. VPO3 has no mutes, so muted
+    notes keep the registry's own muted samples (`keep_arts`)."""
     n = VPO_BRASS[inst]
     main = _strm(('plain', _p('vpo', 'Brass', f'{n}-SEC-PERF.sfz')))
-    return dict(perform='plain', art_map={'default': 'main', 'vib': 'main', 'stac': 'stac',
-                                          'mute': 'main'},
+    return dict(perform='plain', art_map={'default': 'main', 'vib': 'main', 'stac': 'stac'},
+                keep_arts=('mute',),
                 streams={
                     'main': main,
                     'stac': _strm(('plain', _p('vpo', 'Brass', f'{n}-SEC-PERF-staccato.sfz')),
@@ -217,6 +244,12 @@ CANDIDATES = {
                  'layer on new bows), spiccato with an alternate round robin, staccato, '
                  'articulation state machine, phrase dynamics on CC1, humanised entrances',
             lab=_solo_violin_sso()),
+        'sso_clean': dict(
+            label='Sonatina 4 solo violin, clean changes',
+            what='SSO4 Solo Violin 2 through the performer in its clean style: the same slurs, '
+                 'spiccato and round robins, but no finger slides, no marcato bite unless the '
+                 "score writes '^', even new bows, no swell inside a note, a gentle phrase arch",
+            lab=_solo_violin_sso(style='clean')),
         'sso_rebow': dict(
             label='Sonatina 4 solo violin, performed, every note re-bowed',
             what='The performer (phrase dynamics, humanised timing, spiccato/staccato '
@@ -355,9 +388,37 @@ CANDIDATES['accordion'] = {
                       lab=_plain_one(_p('vcsl', *_ZITH, 'Dan Tranh - Vibrato.sfz'), **SHORT)),
 }
 
+# ------------------------------------------------------------------ the house palette
+# What the game ships: the sound lab's verdicts (a blind A/B, September 2026).
+#   solo violin  Sonatina 4 over VSCO in every test; the player's note changes kept
+#                clean (the listener, a violinist, heard the full performer's bow
+#                changes as too obvious). VPO3's solo violin is not a candidate to ship:
+#                its samples' licence may be non-commercial.
+#   oohs         Sonatina 4 Mixed Chorus, darkened: the Act III map with it was the pick
+#   strings      VPO3 sections: crisper eighth notes than VSCO or Sonatina
+#   brass        VPO3 horns, trumpets, trombones (VSCO sounded synthetic, Sonatina
+#                muddy); the tuba stays VSCO (VPO3 has no section tuba)
+#   oboe, celesta  Sonatina 4
+#   kept         choir (GeneralUser GS sounded the more real sung line exposed), taiko
+#                (GeneralUser GS on the volcano; the colosseum takes the VCSL frame
+#                drum, see its score), the rest of the woodwinds (not auditioned)
+# Licences: Sonatina 4 is CC Sampling Plus 1.0 and VPO3's strings and brass carry
+# CC BY-SA sources; both need the credit in docs/music-credits.md.
+HOUSE = {
+    'solo_violin': 'sso_clean',
+    'oohs': 'sso_mixed_dark',
+    'violins': 'vpo', 'violins2': 'vpo', 'violas': 'vpo', 'celli': 'vpo', 'basses': 'vpo',
+    'horns': 'vpo', 'trumpets': 'vpo', 'trombones': 'vpo',
+    'oboe': 'sso',
+    'celesta': 'sso',
+}
+LEGACY = 'legacy'        # as a candidate name: the registry's own instrument
+ORIG_SUFFIX = '@legacy'  # the registry's instrument, kept beside a lab one (keep_arts)
+
 # instrument-level overrides a candidate may carry (on top of the original's seat)
 OVERRIDES = {
     ('solo_violin', 'sso'): dict(humanize_ms=0, vel_jitter=0.02),
+    ('solo_violin', 'sso_clean'): dict(humanize_ms=0, vel_jitter=0.02),
     ('solo_violin', 'sso_rebow'): dict(humanize_ms=0, vel_jitter=0.02),
     ('solo_violin', 'sso_plain'): dict(humanize_ms=6),
     ('solo_violin', 'vpo'): dict(humanize_ms=6),
@@ -371,29 +432,70 @@ def candidates():
 
 
 # ------------------------------------------------------------------ selection
-def parse(spec: str | None) -> dict:
-    """'lab:choir=vpo_mixed,solo_violin' -> {'choir': 'vpo_mixed', 'solo_violin': 'sso'}."""
-    spec = (spec or '').strip()
-    if not spec or spec in ('default', 'off', 'none'):
-        return {}
-    if spec == 'lab':
-        return {inst: next(iter(c)) for inst, c in CANDIDATES.items()}
-    if spec.startswith('lab:'):
-        spec = spec[4:]
+def _tokens(spec: str) -> dict:
+    """'choir=vpo_mixed,solo_violin,@g' -> {inst: candidate or LEGACY}."""
     out = {}
     for tok in [t.strip() for t in spec.split(',') if t.strip()]:
         if tok.startswith('@'):
-            out.update(parse(GROUPS[tok[1:]]))
+            out.update(_tokens(GROUPS[tok[1:]]))
             continue
         inst, _, cand = tok.partition('=')
         if inst not in CANDIDATES:
             raise SystemExit(f'palette: no lab candidates for {inst!r} (have {sorted(CANDIDATES)})')
         cand = cand or next(iter(CANDIDATES[inst]))
-        if cand not in CANDIDATES[inst]:
+        if cand != LEGACY and cand not in CANDIDATES[inst]:
             raise SystemExit(f'palette: {inst} has no candidate {cand!r} '
-                             f'(have {sorted(CANDIDATES[inst])})')
+                             f'(have {sorted(CANDIDATES[inst])} or {LEGACY!r})')
         out[inst] = cand
     return out
+
+
+def _merge(base: dict, changes: dict) -> dict:
+    out = dict(base)
+    for inst, cand in changes.items():
+        if cand == LEGACY:
+            out.pop(inst, None)
+        else:
+            out[inst] = cand
+    return out
+
+
+def parse(spec: str | None) -> dict:
+    """A palette spec -> {inst: candidate}. 'lab:choir=vpo_mixed,solo_violin' is the
+    house palette with the choir on vpo_mixed and the solo violin on its first candidate."""
+    spec = (spec or '').strip()
+    if not spec or spec in ('house', 'default'):
+        return dict(HOUSE)
+    if spec in (LEGACY, 'off', 'none'):
+        return {}
+    if spec == 'lab':
+        return {inst: next(iter(c)) for inst, c in CANDIDATES.items()}
+    if spec.startswith('lab:'):
+        return _merge(HOUSE, _tokens(spec[4:]))
+    raise SystemExit(f'palette: cannot read {spec!r} (house, legacy, lab, lab:<changes>)')
+
+
+def explicit(spec: str | None) -> set:
+    """Instruments a spec settles itself (they win over a score's own choice)."""
+    spec = (spec or '').strip()
+    if spec in (LEGACY, 'off', 'none', 'lab'):
+        return set(CANDIDATES)
+    return set(_tokens(spec[4:])) if spec.startswith('lab:') else set()
+
+
+def for_score(spec: str | None, score_palette: dict | None) -> dict:
+    """The selection a score renders with: the spec, then the score's own changes
+    (`Score.palette`) for any instrument the spec does not settle."""
+    for inst, cand in (score_palette or {}).items():
+        if inst not in CANDIDATES or (cand != LEGACY and cand not in CANDIDATES[inst]):
+            raise SystemExit(f'palette: a score asks {inst}={cand}, which is no candidate')
+    mine = {k: v for k, v in (score_palette or {}).items() if k not in explicit(spec)}
+    return _merge(parse(spec), mine)
+
+
+def is_audition(spec: str | None) -> bool:
+    """True unless the spec is the house palette: an audition never writes game assets."""
+    return parse(spec) != HOUSE
 
 
 def build(inst_name: str, cand: str, orig: dict) -> dict:
@@ -403,6 +505,10 @@ def build(inst_name: str, cand: str, orig: dict) -> dict:
     inst = {k: copy.deepcopy(orig[k]) for k in keep if k in orig}
     inst.update(kind='lab', lab=copy.deepcopy(c['lab']), expr_cc=True,
                 lab_id=f'{inst_name}={cand}', label=c['label'])
+    if c['lab'].get('keep_arts'):
+        # these articulations still play the registry's own instrument
+        inst['keep_arts'] = tuple(c['lab']['keep_arts'])
+        inst['orig_name'] = inst_name + ORIG_SUFFIX
     if c['lab'].get('perform') in ('line', 'auto'):
         # the performer shapes dynamics itself; random velocity would only blur its choices
         inst['vel_jitter'] = 0.02
@@ -424,8 +530,15 @@ def apply(spec, instruments: dict) -> dict:
     chosen = parse(spec) if isinstance(spec, str) or spec is None else dict(spec)
     for inst_name, cand in chosen.items():
         instruments[inst_name] = build(inst_name, cand, _ORIG[inst_name])
+        if 'orig_name' in instruments[inst_name]:
+            instruments[instruments[inst_name]['orig_name']] = copy.deepcopy(_ORIG[inst_name])
     _ACTIVE = chosen
     return chosen
+
+
+def legacy_name(inst_name: str) -> str:
+    """'horns@legacy' -> 'horns' (calibration and onset tables are the registry's)."""
+    return inst_name[:-len(ORIG_SUFFIX)] if inst_name.endswith(ORIG_SUFFIX) else inst_name
 
 
 def active() -> dict:
@@ -434,8 +547,12 @@ def active() -> dict:
 
 def describe() -> str:
     if not _ACTIVE:
-        return 'palette: default'
-    return 'palette: lab ' + ', '.join(f'{k}={v}' for k, v in sorted(_ACTIVE.items()))
+        return 'palette: legacy'
+    if _ACTIVE == HOUSE:
+        return 'palette: house'
+    diff = {k: v for k, v in _ACTIVE.items() if HOUSE.get(k) != v}
+    diff.update({k: LEGACY for k in HOUSE if k not in _ACTIVE})
+    return 'palette: house + ' + ', '.join(f'{k}={v}' for k, v in sorted(diff.items()))
 
 
 _CODE_HASH = None

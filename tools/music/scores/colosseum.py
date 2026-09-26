@@ -37,6 +37,8 @@ def build():
     s.reverb = dict(rt60=1.6, predelay_ms=16, wet_db=-3.0)
     s.master = dict(lufs=-15.5, glue_ratio=1.5)
     s.variant('full', {}, lufs=-15.5)
+    # the pit's drum is a large frame drum, struck by hand (the sound lab's pick)
+    s.palette = {'taiko': 'vcsl_frame'}
     A, B, C = 3, 11, 19
 
     # ------------------------------------------------------------ ground
@@ -45,8 +47,9 @@ def build():
     for bar in range(1, 27):
         vc.at(bar).play('@mp [A2 E3]w')
         cb.at(bar).play('@mp A1w')
-    perc = s.part('perc', 'orch_perc', role='drums')
-    tk = s.part('taiko', 'taiko', role='drums')
+    # the drums lead this place: a listener asked for more of them
+    perc = s.part('perc', 'orch_perc', role='drums', gain=1.5)
+    tk = s.part('taiko', 'taiko', role='drums', gain=2.5)
     for bar in range(1, 27):
         drums(perc, bar, BEAT, step=0.5, vel=0.62)
         tk.at(bar).play('@mf A2e> re re A2e re re A2e A2e')

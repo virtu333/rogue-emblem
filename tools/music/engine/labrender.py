@@ -364,7 +364,8 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
     amap = lab.get('art_map', {})
     if mode == 'line':
         played = perform.perform_line(score, events, seed, arts=tuple(lab.get('line_arts', ())),
-                                      shaping=0.5 if lane is not None else 1.0)
+                                      shaping=0.5 if lane is not None else 1.0,
+                                      style=lab.get('style', 'full'))
         if lab.get('rebow'):
             # the performer's phrasing and short-note choices, but every long note
             # on its own bow from the sustain program (no crossfaded slurs)
