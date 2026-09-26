@@ -2,7 +2,7 @@ import { presentationText } from '../utils/presentationText.js';
 import { createBattleTerrain } from './BattleMapVisuals.js';
 import { drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture, contrastSpriteKey } from './BattleContrast.js';
-import { ensureTracedTexture } from './TracedSprites.js';
+import { resolveSavedSpriteKey } from './TracedSprites.js';
 import { TILE_SIZE, FACTION_COLORS } from '../utils/constants.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
@@ -98,14 +98,14 @@ export class BattleHistoryRenderer {
       const ring = s.add
         .ellipse(0, unit.size > 1 ? unit.size * 16 - 10 : 6, unit.size * 24, 12)
         .setStrokeStyle(2, color, 0.9);
-      // an NPC person's verdigris texture is made at runtime: remake it after a reload
-      ensureTracedTexture(s, unit.spriteKey);
-      const graphic =
-        unit.spriteKey && s.textures.exists(unit.spriteKey)
-          ? s.add
-              .image(0, 0, contrastSpriteKey(s, unit.spriteKey))
-              .setDisplaySize(Math.min(128, unit.width || 30), Math.min(128, unit.height || 30))
-          : s.add.rectangle(0, 0, unit.size * 26, unit.size * 26, color);
+      // an NPC person's verdigris texture is made at runtime (remade after a reload);
+      // a key saved before sprites followed the portrait maps to its class
+      const spriteKey = resolveSavedSpriteKey(s, unit.spriteKey);
+      const graphic = spriteKey
+        ? s.add
+            .image(0, 0, contrastSpriteKey(s, spriteKey))
+            .setDisplaySize(Math.min(128, unit.width || 30), Math.min(128, unit.height || 30))
+        : s.add.rectangle(0, 0, unit.size * 26, unit.size * 26, color);
       if (unit.acted) graphic.setAlpha(0.55);
       const width = unit.size * TILE_SIZE - 6,
         y = (unit.size * TILE_SIZE) / 2 - 4;
@@ -115,7 +115,7 @@ export class BattleHistoryRenderer {
         .rectangle(-width / 2, y, width * ratio, 3, ratio > 0.5 ? 0x77dd88 : UI_HEX.warn)
         .setOrigin(0, 0.5);
       group.add([ring, graphic, bg, hp]);
-      if (!unit.spriteKey || !s.textures.exists(unit.spriteKey))
+      if (!spriteKey)
         group.add(
           presentationText(s, 0, 0, unit.name.slice(0, 1), {
             fontSize: '14px',

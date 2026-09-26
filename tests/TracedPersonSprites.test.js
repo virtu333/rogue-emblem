@@ -19,6 +19,7 @@ import {
   ensureTracedTexture,
   swapPixels,
   npcSwapMap,
+  resolveSavedSpriteKey,
   TRACED_MANIFEST,
 } from '../src/ui/TracedSprites.js';
 import {
@@ -353,5 +354,24 @@ describe('the NPC colour swap', () => {
     expect(swapPixels(px, map)).toBe(1);
     expect([...px.slice(0, 4)]).toEqual([0x4d, 0x8b, 0x66, 255]);
     expect([...px.slice(4, 8)]).toEqual([0xe6, 0xb0, 0x88, 255]);
+  });
+});
+
+describe('sprite keys saved in rewind history before this change', () => {
+  const scene = (keys) => ({ textures: { exists: (k) => keys.has(k) } });
+  it('an old seeded-identity key draws a person of the same class, not a placeholder', () => {
+    const baked = new Set(Object.keys(TRACED_MANIFEST.sprites).map((k) => `traced-${k}`));
+    const key = resolveSavedSpriteKey(scene(baked), 'traced-fighter-2');
+    expect(key).toMatch(/^traced-fighter-fighter_[a-e]$/);
+    expect(baked.has(key)).toBe(true);
+  });
+  it('a current key is kept as is; an unknown one gives the caller its placeholder', () => {
+    const baked = new Set(['traced-fighter-fighter_d']);
+    expect(resolveSavedSpriteKey(scene(baked), 'traced-fighter-fighter_d')).toBe(
+      'traced-fighter-fighter_d',
+    );
+    expect(resolveSavedSpriteKey(scene(baked), 'traced-nope-3')).toBeNull();
+    expect(resolveSavedSpriteKey(scene(baked), 'classic_key')).toBeNull();
+    expect(resolveSavedSpriteKey(scene(baked), '')).toBeNull();
   });
 });

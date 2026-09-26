@@ -174,6 +174,23 @@ export function ensureTracedTexture(scene, textureKey) {
   return Boolean(key && tracedSpritesEnabled() && isDerivedNpcKey(key) && npcTexture(scene, key));
 }
 
+/**
+ * The texture a saved sprite key should draw with now. Rewind history saved
+ * before sprites followed the portrait person names the old seeded
+ * identities (`traced-fighter-2`), which no longer exist: those draw as a
+ * person of the same class instead of a blank placeholder. Returns null when
+ * nothing fits (the caller draws its placeholder).
+ */
+export function resolveSavedSpriteKey(scene, textureKey, sprites = manifest.sprites) {
+  if (!textureKey || !scene?.textures) return null;
+  if (ensureTracedTexture(scene, textureKey)) return textureKey;
+  const legacy = /^traced-([a-z_]+)-\d+$/.exec(textureKey);
+  if (!legacy) return null;
+  const person = Object.keys(sprites).find((k) => k.startsWith(`${legacy[1]}-`));
+  const key = person && TRACED_PREFIX + person;
+  return key && scene.textures.exists(key) ? key : null;
+}
+
 const hex6 = (rgb) => (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
 
 /** The manifest's player -> NPC colour swap as a Map of packed RGB. */
