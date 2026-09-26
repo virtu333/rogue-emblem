@@ -92,7 +92,8 @@ export class CampaignMapMenu {
     layout.append(wrap, side);
     this.surface.body.replaceChildren(layout);
     this._renderCard();
-    this.routeGraph.mount(this.scroll);
+    // Edge cues only on the upright loom: the sideways Campaign Map never had them.
+    this.routeGraph.mount(this.scroll, { cues: wrap, horizontalCues: false });
   }
 
   _renderCard() {
