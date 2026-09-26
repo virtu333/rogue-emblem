@@ -1,0 +1,1778 @@
+{
+  "plain": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 5,
+      "cursor": 567894474
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460293
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460328
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399461520
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399560277
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 1840421549
+    }
+  },
+  "brave_double": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 14,
+      "cursor": 4167084903
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703683426
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703683461
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703684653
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703783410
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 14, 46, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 18, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1144644682
+    }
+  },
+  "offense_procs": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 11, 59, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        [
+          "attacker",
+          "hit",
+          59,
+          0,
+          11,
+          "lethality+adept+divine_charge+seraph_strike+sol",
+          1,
+          0,
+          0,
+          0
+        ]
+      ],
+      "attackerHP": 33,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 70,
+          "side": "attacker"
+        }
+      ],
+      "draws": 22,
+      "cursor": 1639742223
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 11, 59, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 15, 44, 0, "adept+divine_charge+luna", 1, 0, 0, 0],
+        ["attacker", "hit", 11, 33, 0, "", 0, 1, 0, 0]
+      ],
+      "attackerHP": 22,
+      "defenderHP": 33,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 37,
+          "side": "attacker"
+        }
+      ],
+      "draws": 25,
+      "cursor": 2839472372
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 15, 55, 0, "adept+luna", 1, 0, 0, 0],
+        ["attacker", "hit", 11, 44, 0, "", 0, 1, 0, 0],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 17, 27, 11, "divine_charge+seraph_strike+sol", 0, 0, 0, 0]
+      ],
+      "attackerHP": 33,
+      "defenderHP": 27,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 43,
+          "side": "attacker"
+        }
+      ],
+      "draws": 25,
+      "cursor": 2839472407
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 15, 55, 0, "adept+divine_charge+seraph_strike+luna", 1, 0, 0, 0],
+        ["attacker", "hit", 11, 44, 0, "", 0, 1, 0, 0],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 33, 11, 0, "divine_charge", 0, 0, 0, 0]
+      ],
+      "attackerHP": 22,
+      "defenderHP": 11,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 59,
+          "side": "attacker"
+        }
+      ],
+      "draws": 25,
+      "cursor": 2839473599
+    },
+    "99991": {
+      "events": [
+        [
+          "attacker",
+          "hit",
+          15,
+          55,
+          0,
+          "commanders_gambit+divine_charge+seraph_strike+luna",
+          0,
+          0,
+          0,
+          0
+        ],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 11, 44, 0, "divine_charge", 0, 0, 0, 0]
+      ],
+      "attackerHP": 22,
+      "defenderHP": 44,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 26,
+          "side": "attacker"
+        }
+      ],
+      "draws": 22,
+      "cursor": 1639842213
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 17, 53, 0, "adept+divine_charge+seraph_strike", 1, 0, 0, 0],
+        ["attacker", "hit", 11, 42, 0, "", 0, 1, 0, 0],
+        ["defender", "miss", 0, 22, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 11, 31, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 22,
+      "defenderHP": 31,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [
+        {
+          "percent": 50,
+          "range": 3,
+          "damageDealt": 39,
+          "side": "attacker"
+        }
+      ],
+      "draws": 25,
+      "cursor": 2280433628
+    }
+  },
+  "aether_flare": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 16, 34, 16, "flare", 0, 0, 0, 0]
+      ],
+      "attackerHP": 21,
+      "defenderHP": 34,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 2335519090
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 40, 10, "aether", 1, 0, 0, 0],
+        ["attacker", "hit", 15, 25, 0, "", 0, 1, 0, 0]
+      ],
+      "attackerHP": 15,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 16,
+      "cursor": 3535249239
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 16, 44, 16, "flare", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 34, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 34,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 2335519131
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 16, 44, 16, "flare", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 34, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 34,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 2335520323
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 16, 44, 16, "flare", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 34, 10, "aether", 1, 0, 0, 0],
+        ["attacker", "hit", 15, 19, 0, "", 0, 1, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 19,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703783410
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 40, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 40,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 1776480352
+    }
+  },
+  "astra": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 40, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 40,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 2335519090
+    },
+    "7": {
+      "events": [
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 55, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 15, 40, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 15, 25, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 15, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 10, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 5, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 37,
+      "cursor": 3343425648
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 40, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 40,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 13,
+      "cursor": 2335519131
+    },
+    "1234": {
+      "events": [
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 55, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 50, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 45, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 40, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 25, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 15, 5, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 44,
+      "cursor": 3279485678
+    },
+    "99991": {
+      "events": [
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 55, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 15, 40, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 35, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 25, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 15, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 15,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 29,
+      "cursor": 1575901016
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["skill", "Astra", "Vale"],
+        ["attacker", "hit", 5, 45, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 40, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 35, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 5, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 15, 15, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 15,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 29,
+      "cursor": 1016762288
+    }
+  },
+  "defense_procs": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 22, 4, 0, "intimidate+dragon_scale", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 0, 4, 0, "pavise+miracle+intimidate+dragon_scale", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [
+        {
+          "target": "attacker",
+          "debuffs": {
+            "STR": -1,
+            "MAG": -2,
+            "SPD": -1
+          }
+        }
+      ],
+      "divine": [],
+      "draws": 21,
+      "cursor": 4103143706
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 22, 4, 0, "intimidate+dragon_scale", 0, 0, 0, 0],
+        ["defender", "crit", 30, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 0,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953283
+    },
+    "42": {
+      "events": [
+        ["attacker", "miss", 0, 26, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "miss", 0, 26, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 26,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 7,
+      "cursor": 4231026141
+    },
+    "1234": {
+      "events": [
+        ["attacker", "miss", 0, 26, 0, "", 0, 0, 0, 0],
+        ["defender", "crit", 30, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 0,
+      "defenderHP": 26,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 5,
+      "cursor": 567895707
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 22, 4, 0, "intimidate+dragon_scale", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "miss", 0, 4, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 4,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [
+        {
+          "target": "attacker",
+          "debuffs": {
+            "STR": -1,
+            "MAG": -2,
+            "SPD": -1
+          }
+        }
+      ],
+      "divine": [],
+      "draws": 14,
+      "cursor": 4167184893
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "miss", 0, 26, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "miss", 0, 26, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 26,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 7,
+      "cursor": 3671987362
+    }
+  },
+  "vantage_desperation": {
+    "1": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190430
+    },
+    "7": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190436
+    },
+    "42": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190471
+    },
+    "1234": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599191663
+    },
+    "99991": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599290420
+    },
+    "3735928559": {
+      "events": [
+        ["skill", "Vantage", "Enemy"],
+        ["defender", "miss", 0, 12, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 8, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 12,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1208585879
+    }
+  },
+  "desperation": {
+    "1": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 12, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 12,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1767624617
+    },
+    "7": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190436
+    },
+    "42": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190471
+    },
+    "1234": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599191663
+    },
+    "99991": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599290420
+    },
+    "3735928559": {
+      "events": [
+        ["skill", "Desperation", "Edric"],
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 2, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 2,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3040151692
+    }
+  },
+  "cancel": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 25, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 10,
+      "cursor": 1135788947
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 25, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 10,
+      "cursor": 1135788953
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 25, 0, "cancel", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 11,
+      "cursor": 2967354801
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 25, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 11,
+      "cursor": 2967355993
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 25, 0, "cancel", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 11,
+      "cursor": 2967454750
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 35, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "crit", 30, 5, 0, "cancel", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 5,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 10,
+      "cursor": 576750209
+    }
+  },
+  "quick_riposte": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 11,
+      "cursor": 2967354760
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 10, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 10,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953283
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 10, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 10,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953318
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 10, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 10,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503954510
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 10, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 10,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 504053267
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 30, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 10, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 10,
+      "defenderHP": 20,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 4239881835
+    }
+  },
+  "affixes_shield_thorns": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 14,
+      "cursor": 4167084903
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703683426
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703683461
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703684653
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1703783410
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 0, 50, 0, "shielded", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 36, 0, "thorns", 0, 0, 0, 3],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 14, 22, 0, "thorns", 0, 0, 0, 3],
+        ["attacker", "hit", 14, 8, 0, "thorns", 0, 0, 0, 3]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 8,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 15,
+      "cursor": 1144644682
+    }
+  },
+  "affix_teleporter": {
+    "1": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730144
+    },
+    "7": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730150
+    },
+    "42": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730185
+    },
+    "1234": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199731377
+    },
+    "99991": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199830134
+    },
+    "3735928559": {
+      "events": [["attacker", "hit", 13, 37, 0, "teleporter", 0, 0, 3, 0]],
+      "attackerHP": 30,
+      "defenderHP": 37,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 640691406
+    }
+  },
+  "art_multihit": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953277
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953283
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503953318
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 503954510
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 504053267
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 6, 44, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 38, 0, "", 0, 0, 0, 0],
+        ["attacker", "hit", 6, 32, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 32,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 12,
+      "cursor": 4239881835
+    }
+  },
+  "art_drain_crit": {
+    "1": {
+      "events": [["attacker", "crit", 75, 0, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 10,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730144
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 25, 25, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 9, 1, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 1,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460293
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 25, 25, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 9, 1, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 1,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460328
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 25, 25, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 9, 1, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 1,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399461520
+    },
+    "99991": {
+      "events": [["attacker", "crit", 75, 0, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 10,
+      "defenderHP": 0,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199830134
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 25, 25, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 9, 1, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 1,
+      "defenderHP": 25,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 1840421549
+    }
+  },
+  "imbue_binding_keen": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 30, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 30,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "defender",
+          "sourceSide": "attacker",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460287
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "attacker",
+          "sourceSide": "defender",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1767624623
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "defender",
+          "sourceSide": "attacker",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1767624658
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "defender",
+          "sourceSide": "attacker",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1767625850
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "attacker",
+          "sourceSide": "defender",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1767724607
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 10, 50, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 20, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 20,
+      "defenderHP": 50,
+      "poison": [],
+      "imbueStatus": [
+        {
+          "target": "defender",
+          "sourceSide": "attacker",
+          "status": "root",
+          "durationPhases": 1
+        }
+      ],
+      "debuffs": [],
+      "divine": [],
+      "draws": 8,
+      "cursor": 1208585879
+    }
+  },
+  "imbue_vampiric_forest": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "miss", 0, 15, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 15,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 5,
+      "cursor": 567894474
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460293
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399460328
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399461520
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 2399560277
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 12, 48, 1, "", 0, 0, 0, 0],
+        ["defender", "hit", 10, 5, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 5,
+      "defenderHP": 48,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 6,
+      "cursor": 1840421549
+    }
+  },
+  "ranged_no_counter": {
+    "1": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730144
+    },
+    "7": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730150
+    },
+    "42": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199730185
+    },
+    "1234": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199731377
+    },
+    "99991": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 1199830134
+    },
+    "3735928559": {
+      "events": [["attacker", "hit", 12, 18, 0, "", 0, 0, 0, 0]],
+      "attackerHP": 30,
+      "defenderHP": 18,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 3,
+      "cursor": 640691406
+    }
+  },
+  "magic_counter": {
+    "1": {
+      "events": [
+        ["attacker", "hit", 15, 15, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 11, 19, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 19,
+      "defenderHP": 15,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190430
+    },
+    "7": {
+      "events": [
+        ["attacker", "hit", 15, 15, 0, "", 0, 0, 0, 0],
+        ["defender", "hit", 11, 19, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 19,
+      "defenderHP": 15,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190436
+    },
+    "42": {
+      "events": [
+        ["attacker", "hit", 7, 23, 0, "aegis", 0, 0, 0, 0],
+        ["defender", "hit", 11, 19, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 19,
+      "defenderHP": 23,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599190471
+    },
+    "1234": {
+      "events": [
+        ["attacker", "hit", 7, 23, 0, "aegis", 0, 0, 0, 0],
+        ["defender", "hit", 11, 19, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 19,
+      "defenderHP": 23,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599191663
+    },
+    "99991": {
+      "events": [
+        ["attacker", "hit", 7, 23, 0, "aegis", 0, 0, 0, 0],
+        ["defender", "hit", 11, 19, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 19,
+      "defenderHP": 23,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3599290420
+    },
+    "3735928559": {
+      "events": [
+        ["attacker", "hit", 15, 15, 0, "", 0, 0, 0, 0],
+        ["defender", "crit", 33, 0, 0, "", 0, 0, 0, 0]
+      ],
+      "attackerHP": 0,
+      "defenderHP": 15,
+      "poison": [],
+      "imbueStatus": [],
+      "debuffs": [],
+      "divine": [],
+      "draws": 9,
+      "cursor": 3040151692
+    }
+  }
+}

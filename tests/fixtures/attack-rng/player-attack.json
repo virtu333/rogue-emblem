@@ -1,0 +1,1519 @@
+{
+  "procs/fixed-v1/42": {
+    "attacker": {
+      "hp": 5,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 0,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 4103143747,
+    "facts": [
+      "Luna activated during this strike.",
+      "Sera hit Brigand for 21 damage.",
+      "Brigand hit Sera for 15 damage.",
+      "Lethality activated during this strike.",
+      "Sera hit Brigand for 27 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 42
+  },
+  "procs/fixed-v1/7": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 30,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 1639742229,
+    "facts": [
+      "Pavise activated during this strike.",
+      "Sera hit Brigand for 5 damage.",
+      "Brigand hit Sera for 7 damage.",
+      "Luna activated during this strike.",
+      "Sera hit Brigand for 13 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 7
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 7
+  },
+  "procs/fixed-v1/1234": {
+    "attacker": {
+      "hp": 5,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 1,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": true,
+      "arts": null
+    },
+    "cursor": 2207637929,
+    "facts": [
+      "Adept activated during this strike.",
+      "Luna activated during this strike.",
+      "Sera hit Brigand for 21 damage.",
+      "Sera hit Brigand for 18 damage.",
+      "Brigand hit Sera for 15 damage.",
+      "Miracle activated during this strike.",
+      "Sera hit Brigand for 8 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 1234
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 1234
+  },
+  "procs/fixed-v1/2024": {
+    "attacker": {
+      "hp": 5,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 0,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 4103145729,
+    "facts": [
+      "Pavise activated during this strike.",
+      "Sera hit Brigand for 9 damage.",
+      "Brigand hit Sera for 15 damage.",
+      "Lethality activated during this strike.",
+      "Sera hit Brigand for 39 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 2024
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 2024
+  },
+  "procs/legacy-v1/42": {
+    "attacker": {
+      "hp": 5,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 29,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [
+        {
+          "id": "root",
+          "turnsRemaining": 2,
+          "recoveryChance": 0
+        }
+      ],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 1007906594,
+    "facts": [
+      "Luna activated during this strike.",
+      "Sera hit Brigand for 13 damage.",
+      "Brigand hit Sera for 15 damage.",
+      "Luna activated during this strike.",
+      "Pavise activated during this strike.",
+      "Sera hit Brigand for 6 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 3663131668
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 3663131668
+  },
+  "procs/legacy-v1/7": {
+    "attacker": {
+      "hp": 5,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 9,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [
+        {
+          "id": "root",
+          "turnsRemaining": 2,
+          "recoveryChance": 0
+        }
+      ],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 1007906559,
+    "facts": [
+      "Sera hit Brigand for 18 damage.",
+      "Brigand hit Sera for 15 damage.",
+      "Luna activated during this strike.",
+      "Sera hit Brigand for 21 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 3663131633
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 3663131633
+  },
+  "procs/legacy-v1/1234": {
+    "attacker": {
+      "hp": 31,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 20,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [
+        {
+          "id": "root",
+          "turnsRemaining": 2,
+          "recoveryChance": 0
+        }
+      ],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 1007907786,
+    "facts": [
+      "Luna activated during this strike.",
+      "Pavise activated during this strike.",
+      "Sera hit Brigand for 10 damage.",
+      "Brigand hit Sera for 7 damage.",
+      "Sol activated during this strike.",
+      "Sera hit Brigand for 18 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 3663132860
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 3663132860
+  },
+  "procs/legacy-v1/2024": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 34,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 16,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 20,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 18,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 48,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 30,
+        "SPD": 8,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 25,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 1575803049,
+    "facts": [
+      "Adept activated during this strike.",
+      "Sera hit Brigand for 10 damage.",
+      "Sera hit Brigand for 10 damage.",
+      "Brigand hit Sera for 7 damage.",
+      "Sera hit Brigand for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 3663133650
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 3663133650
+  },
+  "teleporter/fixed-v1/42": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031295998,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 42
+  },
+  "teleporter/fixed-v1/7": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031295963,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 7
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 7
+  },
+  "teleporter/fixed-v1/1234": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [5, 7],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031297190,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 1234
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 1234
+  },
+  "teleporter/fixed-v1/2024": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031297980,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 2024
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 2024
+  },
+  "teleporter/legacy-v1/42": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031295998,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 42
+  },
+  "teleporter/legacy-v1/7": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031295963,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 7
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 7
+  },
+  "teleporter/legacy-v1/1234": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [5, 7],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031297190,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 1234
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 1234
+  },
+  "teleporter/legacy-v1/2024": {
+    "attacker": {
+      "hp": 30,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 18,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "defender": {
+      "hp": 47,
+      "at": [7, 5],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 60,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 12,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 3031297980,
+    "facts": ["Teleporter activated during this strike.", "Edric hit Warper for 13 damage."],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 2024
+        }
+      }
+    ],
+    "hits": ["contact"],
+    "xpAwards": 1,
+    "afterForecast": 2024
+  },
+  "art/fixed-v1/42": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503953318,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 42
+  },
+  "art/fixed-v1/7": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503953283,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 7
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 7
+  },
+  "art/fixed-v1/1234": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503954510,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 1234
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 1234
+  },
+  "art/fixed-v1/2024": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503955300,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 2024
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 2024
+  },
+  "art/legacy-v1/42": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503953318,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 42
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 42
+  },
+  "art/legacy-v1/7": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503953283,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 7
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 7
+  },
+  "art/legacy-v1/1234": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503954510,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 1234
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 1234
+  },
+  "art/legacy-v1/2024": {
+    "attacker": {
+      "hp": 13,
+      "at": [4, 4],
+      "weapon": "itm_a1",
+      "stats": {
+        "HP": 30,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 18,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": {
+        "sword_astra_strike": 1
+      }
+    },
+    "defender": {
+      "hp": 32,
+      "at": [5, 4],
+      "weapon": "itm_e1",
+      "stats": {
+        "HP": 50,
+        "STR": 10,
+        "MAG": 2,
+        "SKL": 20,
+        "SPD": 10,
+        "DEF": 6,
+        "RES": 3,
+        "LCK": 6,
+        "MOV": 5
+      },
+      "conditions": [],
+      "deltas": null,
+      "miracle": false,
+      "arts": null
+    },
+    "cursor": 503955300,
+    "facts": [
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Edric hit Brigand for 6 damage.",
+      "Brigand hit Edric for 10 damage."
+    ],
+    "commits": [
+      {
+        "opts": {
+          "commitIntent": true
+        },
+        "rngState": {
+          "algorithm": "mulberry32-v1",
+          "cursor": 2024
+        }
+      }
+    ],
+    "hits": ["contact", "contact", "contact", "contact"],
+    "xpAwards": 1,
+    "afterForecast": 2024
+  }
+}
