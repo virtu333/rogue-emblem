@@ -1369,12 +1369,8 @@ export class HeadlessBattle {
       weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       ...context,
     });
-    if (!valid.ok) return null;
-
-    if (unit.weapon !== weapon) {
-      equipWeapon(unit, weapon);
-    }
-    return art;
+    // Pure, like the scene's: executeCombat equips the art's weapon.
+    return valid.ok ? art : null;
   }
 
   _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
@@ -2142,6 +2138,9 @@ export class HeadlessBattle {
       attacker.faction === 'player'
         ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
         : null;
+    // Mirrors BattleScene._prepareCombatContext's equipArtWeapon in executeCombat.
+    const artWeapon = selectedArt ? this._resolveSelectedWeaponArtEntry(attacker)?.weapon : null;
+    if (artWeapon && attacker.weapon !== artWeapon) equipWeapon(attacker, artWeapon);
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,

@@ -1478,9 +1478,9 @@ export function getWeaponByTier(proficiencies, allWeapons, targetTier) {
  *
  * Like Fire Emblem, the equipped weapon is always the first inventory item:
  * equipping moves it to the top (the rest keep their relative order). Pass
- * `{ reorder: false }` only for a provisional equip that is rolled back or
- * committed later (forecast weapon preview, staff use); the caller then owns
- * restoring the order or calling normalizeEquippedFirst on commit.
+ * `{ reorder: false }` only for a provisional equip that is rolled back later
+ * (staff use); the caller then owns restoring the prior weapon. The attack
+ * forecast never equips: it plans a weapon and confirming equips it.
  */
 export function equipWeapon(unit, weapon, { reorder = true } = {}) {
   if (!unit.inventory.includes(weapon)) return;

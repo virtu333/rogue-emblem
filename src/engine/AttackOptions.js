@@ -38,8 +38,7 @@ export function canAttackWithWeapon(unit, weapon) {
 
 /**
  * Weapons the unit can attack with, equipped first then inventory order.
- * `equipped` overrides which weapon counts as equipped (the attack flow passes
- * the weapon that was equipped before any forecast preview).
+ * `equipped` overrides which weapon counts as equipped.
  */
 export function getAttackWeapons(unit, { equipped = unit?.weapon } = {}) {
   const ordered = inventoryDisplayOrder({ ...unit, weapon: equipped }, unit?.inventory);

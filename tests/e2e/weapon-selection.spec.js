@@ -375,14 +375,15 @@ test.describe('Weapon selection smoke', () => {
     expect(result.targets).toBeGreaterThan(0);
   });
 
-  test('forecast weapon arrow - pointerdown switches the previewed weapon', async ({ page }) => {
+  test('forecast weapon arrow - pointerdown switches the planned weapon', async ({ page }) => {
     await setupBattle(page);
     await openForecastForFirstUnit(page);
 
     const result = await page.evaluate(() => {
       const battle = window.__emblemRogueGame.scene.getScene('Battle');
       const unit = battle.selectedUnit;
-      const before = unit.weapon;
+      const equipped = unit.weapon;
+      const before = battle._forecastWeapon;
       const order = unit.inventory.map((w) => w.name);
       const arrow = battle._forecastOverlay.displayObjects.find(
         (o) => o.text === '\u25BA' && o.input?.enabled,
@@ -390,13 +391,16 @@ test.describe('Weapon selection smoke', () => {
       arrow.emit('pointerdown', { button: 0 });
       return {
         battleState: battle.battleState,
-        changed: unit.weapon !== before,
+        changed: battle._forecastWeapon !== before,
+        // The forecast is read-only for equipment: only confirming equips.
+        equippedKept: unit.weapon === equipped,
         orderKept: unit.inventory.map((w) => w.name).join() === order.join(),
       };
     });
 
     expect(result.battleState).toBe('SHOWING_FORECAST');
     expect(result.changed).toBe(true);
+    expect(result.equippedKept).toBe(true);
     expect(result.orderKept).toBe(true);
   });
 
@@ -443,12 +447,16 @@ test.describe('Weapon selection smoke', () => {
     const result = await page.evaluate(() => {
       const battle = window.__emblemRogueGame.scene.getScene('Battle');
       const unit = battle.selectedUnit;
-      const before = unit.weapon;
+      const before = battle._forecastWeapon;
+      const equipped = unit.weapon;
       const arrow = battle._forecastOverlay.displayObjects.find(
         (o) => o.text === '\u25BA' && o.input?.enabled,
       );
       arrow.emit('pointerup', { button: 0 });
-      return { battleState: battle.battleState, unchanged: unit.weapon === before };
+      return {
+        battleState: battle.battleState,
+        unchanged: battle._forecastWeapon === before && unit.weapon === equipped,
+      };
     });
 
     expect(result.battleState).toBe('SHOWING_FORECAST');
