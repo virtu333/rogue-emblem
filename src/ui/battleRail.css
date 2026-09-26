@@ -316,3 +316,30 @@
   color: var(--re-text);
   overflow-wrap: anywhere;
 }
+/* Formation: Start beside a compact Danger. */
+.mobile-battle-hud .mb-dock.is-formation {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+/* Waiting units: two small chips per row in the narrow rail. */
+.mobile-battle-hud .fm-bench {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.mobile-battle-hud .fm-chip {
+  gap: 4px;
+  padding: 3px 4px;
+}
+.mobile-battle-hud .fm-chip .mr-unit-face {
+  width: 28px;
+  height: 28px;
+}
+.mobile-battle-hud .fm-chip-text small {
+  display: none;
+}
+.mobile-battle-hud .fm-lead {
+  font-size: 13px;
+}
+.mobile-battle-hud .mb-dock.is-formation .fm-start {
+  margin-top: 0;
+}
