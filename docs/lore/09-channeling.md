@@ -234,7 +234,7 @@ is still there is the part nobody knows.
 - If the crown is in the convoy at the **Entity**, the finale adds one Edric
   line in the rally: *"Somebody should wear it who'll give it back. Not today."*
 - An unlockable **Chronicle** page: *The Crown in the Wend*, with its last verse
-  changed: *"...and somebody looked, and somebody tried."*
+  changed: *"...and somebody found it, where plenty had tried."*
 
 **Build.** A hash-selected tile on a hash-selected map, a run-state flag, one
 card, a few variants. **Size M.**

@@ -52,16 +52,16 @@ each thread's shape is canon. The difficulty taglines already say so.
   shakes; the warband goes **down the stair** under the palace to the
   Sanctum, and past it into the Deep.
 
-**Edits.**
+**Edits** (1 and 2 are done).
 1. Replace the stronghold line in `actTransitions.act4_to_finalBoss` with the
    unused `finalBoss_to_secretAct` text ("Wait - the ground is shaking. The
    ritual fed it too much. It's waking up. We have to go down there. Now.").
    Only Lunatic ever plays this transition (Hard ends at Act IV; Normal has no
    Act IV), so editing `base` and its commander variants is enough; no
    difficulty variant is needed.
-2. Optionally add a Normal-only variant to `act3_to_finalBoss_normal` that
-   mentions the Glass, e.g. Sera: *"The Glass. He's on the other side of it. He
-   always has been."*
+2. Name the Glass in `act3_to_finalBoss_normal`, which only Normal plays. Sera
+   now opens it with *"The lieutenant waits past the Glass. I can feel their
+   visions pressing against mine. This ends now."
 3. Retire `finalBoss_to_secretAct` and `secretAct_start` from the GDD's
    sequence, or keep them as the text source for (1).
 
@@ -201,12 +201,12 @@ sides for the last six. See [02](02-chronicle.md#master-timeline).
 
 | # | Edit | Where | Size | Priority |
 |---|---|---|---|---|
-| 1 | Lunatic variant of `act4_to_finalBoss` using the descent line | `data/dialogue.json` | S | High: it currently plays a stronghold line after the Emperor is dead |
-| 2 | Replace Rowan's flier farewell | `data/dialogue.json` `lordFarewell.Rowan` | S | High: out of character |
+| 1 | `act4_to_finalBoss` uses the descent line (it only plays on Lunatic) | `data/dialogue.json` | S | **Done** |
+| 2 | Replace Rowan's flier farewell with *"Her name's Bess. Say it to her. Somebody should."* | `data/dialogue.json` `lordFarewell.Rowan` | S | **Done** |
 | 3 | Canon ledger additions and name rules | `docs/lore-style-guide.md` | S | High (done in this change) |
-| 4 | Normal variant of `act3_to_finalBoss_normal` naming the Glass | `data/dialogue.json` | S | Medium |
+| 4 | `act3_to_finalBoss_normal` names the Glass: *"The lieutenant waits past the Glass..."* (the transition only plays on Normal, so every entry changed) | `data/dialogue.json` | S | **Done** |
 | 5 | `lastRunDifficulty` when-key, and a post-Lunatic runStart variant | `NarrativeDirector.js`, tests, `dialogue.json` | M | Medium |
 | 6 | GDD §2.2 and §2.5 notes (Lieutenant "he"; Kira's college) | `docs/gdd/gdd_difficulty_narrative_v2.md` | S | Low |
 | 7 | One speaker for the act2→act3 sacred-ground line | `data/dialogue.json` | S | Low |
 | 8 | "Night on the Hearth" in the Ashfall note | `tools/music/SCORE.md` | S | Low |
-| 9 | Swap the Act IV curfew line so the newer notice is the earlier curfew: *"Posted on the gate: CURFEW AT NOON. Beneath it, older and faded: CURFEW AT DUSK."* | `data/dialogue.json` `nodeFlavor.battle.act4` | S | Medium: as shipped the curfew moves later, against the canon that it creeps earlier |
+| 9 | Swap the Act IV curfew line so the newer notice is the earlier curfew: *"Posted on the gate: CURFEW AT NOON. Beneath it, older and faded: CURFEW AT DUSK."* | `data/dialogue.json` `nodeFlavor.battle.act4` | S | **Done** |

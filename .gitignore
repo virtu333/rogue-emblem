@@ -17,3 +17,6 @@ tests/artifacts/fullrun/
 .eslintcache
 
 test-results-release/
+
+# Built Historia page (docs/lore/historia/build.py)
+docs/lore/historia/rogue-dawn-historia.html

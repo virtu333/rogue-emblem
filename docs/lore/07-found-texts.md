@@ -132,8 +132,7 @@ cut away. The sentence was not lost. It is finished in the finale.)*
 >
 > *(Pasted over an older notice, whose last line still shows: AFTER DUSK.)*
 
-*(The shipped Act IV line has the two notices the other way round. See
-[08 § Recommended edits](08-reconciliation.md#recommended-edits).)*
+*(The Act IV node flavor line matches: CURFEW AT NOON over an older DUSK.)*
 
 ### Broadsheet, nailed up at Oathford, S 34
 
@@ -240,8 +239,8 @@ it.)*
 > and the Wend ran slow, and the Wend ran wide.
 >
 > The crown went down where the gravel's golden,
-> and nobody's looked, and nobody's tried,
-> for the March has closed it by order in iron,
+> and nobody's found it, though plenty have tried,
+> for the river keeps what the river's holding,
 > and the Wend runs slow, and the Wend runs wide.
 
 ### The imperial drill chant

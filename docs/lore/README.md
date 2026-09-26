@@ -115,3 +115,10 @@ marked sealed or earned, so the team can see them in one place.
 6. **Keep the existing voice rules.** [lore-style-guide.md](../lore-style-guide.md)
    still governs how any of this is *written* in game. This folder decides
    *what is true*.
+
+## The Historia
+
+An illustrated reader's edition of this bible, with the game's portraits,
+lives at [`historia/historia.src.html`](historia/historia.src.html). Build the
+self-contained page with `python3 docs/lore/historia/build.py`. It is
+published as a private Artifact, "Rogue Dawn Historia".
