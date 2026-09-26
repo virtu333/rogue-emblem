@@ -51,6 +51,27 @@ function special(w) {
   };
 }
 
+/** Swords whose painting has its own shape: the icon draws the same silhouette. */
+const SWORD_BY_NAME = {
+  'Killing Edge': { variant: 'katana', temper: 'blood', tassel: 'blood', grip: 'cord' },
+  'Wo Dao': { variant: 'curved' },
+  'Tempest Blade': { variant: 'gust', wind: 'sky', gem: 'sky' },
+  'Levin Sword': { variant: 'bolt', gem: 'sky' },
+  Armorslayer: { variant: 'falchion' },
+  Ragnarok: { variant: 'viking' },
+  Gemini: { variant: 'twin' },
+};
+
+const LANCE_BY_NAME = {
+  'Short Spear': { variant: 'throwing' },
+  Doomblade: { variant: 'glaive', head: 'blackened', tassel: null },
+  'Gae Bolg': { variant: 'barbs', head: 'blood', tassel: null },
+};
+
+const AXE_BY_NAME = {
+  Axereaver: { variant: 'hook' },
+};
+
 function accentFor(sp, tier) {
   if (sp.drain) return 'unlight';
   if (sp.poison) return 'verdigris';
@@ -127,18 +148,13 @@ export function weaponSpec(w, ctx = grammarContext()) {
   const acc = accentFor(sp, tier);
   switch (w.type) {
     case 'Sword': {
-      const variant = sp.brave
-        ? 'twin'
-        : /rapier/i.test(w.name)
-          ? 'rapier'
-          : sp.throw
-            ? 'short'
-            : sp.reaver
-              ? 'serrated'
-              : /wo dao|killing/i.test(w.name)
-                ? 'curved'
-                : 'broad';
-      const blade = sp.drain && tier !== 'Legend' ? 'blackened' : t.metal;
+      // Storied blades keep their painted silhouette (hero/prompts.mjs).
+      const named = SWORD_BY_NAME[w.name] || {};
+      const variant =
+        named.variant ||
+        (/rapier/i.test(w.name) ? 'rapier' : sp.throw ? 'short' : sp.reaver ? 'serrated' : 'broad');
+      // Drain blades are black steel, legend or not (Soulreaver, the Eldritch Grasp).
+      const blade = sp.drain ? 'blackened' : t.metal;
       return D.sword({
         blade,
         fit: t.fit,
@@ -155,6 +171,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
           sp.magic || sp.poison || sp.drain || sp.sunder || tier === 'Legend'
             ? acc || 'ember'
             : null,
+        ...named,
         variant,
       });
     }
@@ -171,6 +188,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
             : sp.brave || sp.effective || tier === 'Legend'
               ? 'broad'
               : 'leaf',
+        ...LANCE_BY_NAME[w.name],
       });
     case 'Axe':
       return D.axe({
@@ -187,6 +205,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
               : tier === 'Legend'
                 ? 'great'
                 : 'bearded',
+        ...AXE_BY_NAME[w.name],
       });
     case 'Bow':
       return D.bow({
@@ -246,7 +265,7 @@ const BOOSTER = {
   SPD: () => D.feather({ mat: 'sky' }),
   DEF: () => D.shield({ face: 'steel', rim: 'silverFit', emblem: 'diamond', emblemMat: 'sky' }),
   RES: () => D.pendant({ chain: 'silverFit', body: 'silver', gem: 'lilac', form: 'leaf' }),
-  HP: () => D.robe({ cloth: 'verdigris', trim: 'gilt' }),
+  HP: () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'pearl' }),
   MOV: () => D.boot({ leather: 'wood', trim: 'leaf', wing: true }),
 };
 
@@ -298,8 +317,8 @@ export function accessorySpec(a) {
     return D.ringItem({ band: 'silver', gem: 'pearl' });
   }
   const table = {
-    'Goddess Icon': () => D.pendant({ form: 'wing', gem: 'rose' }),
-    'Seraph Robe': () => D.robe({ cloth: 'pearl', trim: 'verdigris' }),
+    'Goddess Icon': () => D.pendant({ form: 'wing', gem: 'blood' }),
+    'Seraph Robe': () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'gilt', hood: true }),
     Boots: () => D.boot({ leather: 'wood', trim: 'leaf' }),
     'Delphi Shield': () =>
       D.shield({ face: 'lilac', rim: 'gilt', emblem: 'diamond', emblemMat: 'pearl' }),
@@ -313,15 +332,14 @@ export function accessorySpec(a) {
       }),
     'Wrath Band': () => D.band({ metal: 'blackened', inlay: 'blood' }),
     'Counter Seal': () =>
-      D.medal({ ribbon: 'slate', disc: 'silver', glyph: 'cross', glyphMat: 'steel' }),
-    'Forest Charm': () =>
-      D.pendant({ form: 'leaf', body: 'leaf', chain: 'wood', gem: 'verdigris' }),
-    'Blood Gem': () => D.gemItem({ mat: 'blood', cut: 'gem', fit: 'gilt' }),
+      D.medal({ ribbon: 'slate', disc: 'silver', glyph: 'blades', glyphMat: 'steel' }),
+    'Forest Charm': () => D.leafCharm({ leaf: 'leaf', cord: 'cloth' }),
+    'Blood Gem': () => D.gemItem({ mat: 'blood', cut: 'oval', fit: 'gilt' }),
     "Vampire's Bloodshard": () => D.gemItem({ mat: 'blood', cut: 'shard' }),
     'Soothing Stone': () => D.gemItem({ mat: 'verdigris', cut: 'drop' }),
-    'Phoenix Brooch': () => D.pendant({ form: 'wing', body: 'ember', gem: 'blood', chain: 'gilt' }),
+    'Phoenix Brooch': () => D.pendant({ form: 'phoenix', body: 'ember', gem: 'blood' }),
     'Recoil Guard': () =>
-      D.shield({ face: 'blood', rim: 'silverFit', emblem: 'cross', emblemMat: 'silver' }),
+      D.shield({ face: 'blood', rim: 'silverFit', emblem: 'boss', emblemMat: 'silver' }),
     "Bounty Hunter's Mark": () =>
       D.medal({
         ribbon: 'blood',
