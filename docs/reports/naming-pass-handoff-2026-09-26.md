@@ -34,11 +34,32 @@ A grep of the merged tree for old weapon names in `src`, `data`, `tests` and `si
 - Browser specs are listed in each PR body.
 - CI: #118, #120 and #127 are green. #130 and #132 were re-running after the fix below.
 
-**The one CI failure:**
-- **What failed:** `e2e (run-flow-1of3)` on #130, in `guidance-notes.spec.js` › "Light still names the recruit".
-- **Cause:** it is also flaky on main (2 of 3 local runs fail). The test boots three battles within Playwright's default 30 s test timeout.
-- **Fix:** `bc5cb4b` sets `test.setTimeout(120_000)`; 18/18 local runs pass.
-- **Where it is:** in #130 and #132 only. main still has the flaky test until #130 lands.
+**CI failures:** see the CI failure log below.
+
+## CI failure log (as of 2026-09-26 22:35 UTC)
+
+The failures below are all browser (e2e) lanes. None reproduced locally on the PRs' current heads. Lint, unit tests, the harness and the static checks have not failed on any of these PRs.
+
+**Where CI stands**
+- #118, #120 and #127: green.
+- #130 (`bc5cb4b`): lint, test, harness and e2e-lanes are green. The e2e smoke lane passed; the other e2e lanes were queued or running.
+- #132 (`69c276f`): the whole run was still queued behind the runner backlog. Every failure below on #132 was on the superseded head `814054d`.
+
+**Failures seen**
+
+| # | Lane / test | Where | Diagnosis | Status |
+|---|---|---|---|---|
+| 1 | `e2e (run-flow-1of3)`: `guidance-notes.spec.js:284` "Light still names the recruit; Off and legacy helpers-off show nothing" | #130 `d0660b6`; #132 `814054d` | **Pre-existing on main**: 2 of 3 local runs on `origin/main` fail. The test boots a battle in three browser contexts (each wait allows 30 s) inside Playwright's default 30 s *test* timeout, so it times out under load. | Fixed in `bc5cb4b`: `test.setTimeout(120_000)` on that test; 18/18 local runs pass. The fix is in #130 and #132 (merged). main keeps the flake until #130 lands. |
+| 2 | `e2e (contracts)`: `battle-contracts.spec.js:91` "phone action contracts › committed trade survives submenu Back, reselection and another Back" | #132 `814054d` | **Not reproduced**: `battle-contracts`, `mobile-shell-contracts` and `contextual-help` pass 18/18 locally with retries off on #132's head `69c276f`. The desktop variant of the same test was flaky (failed, then passed on retry) in the same run. That run was a 13-minute lane under a runner backlog. | Watch. This test drives the battle trade menu, whose rows #118/#130 changed: an icon (#118) and tag text in the detail line (#130). #130's own contracts lane had not reported yet. **If it fails again on a current head, check it first.** |
+| 3 | `e2e (contracts)`: `mobile-shell-contracts.spec.js:220` "late phone resize reconciles the map; decorative auth canvas is gone" | #132 `814054d` | **Not reproduced** locally (same run as row 2). None of these PRs touch the resize or auth-canvas paths. | Treat as load-related unless it repeats. |
+| 4 | `e2e (contracts)`: `contextual-help.spec.js:69` "earned mastery remains visible above rewards after selection changes" | #132 `814054d` (flaky: passed on retry) | Its first wait (reward dialog visible, 5 s) timed out once. It touches the reward screen, where #118 added lore notes and #130 the tag row. Passes locally. | Watch, as for row 2. |
+
+**Suggested order for the build agent**
+1. Wait for the current-head runs on #130 (`bc5cb4b`) and #132 (`69c276f`).
+2. If `contracts` goes red again on either, run rows 2 and 4 with `--repeat-each=5 --retries=0` on that head and on `origin/main`:
+   - If they fail only on the PR, the likely cause is the trade detail line or the reward-card layout (the tag row sits under the reward name). Check those first.
+   - If main fails too, it is a load flake: give the tests a larger budget as in row 1. Never skip them.
+3. Row 1 needs no further action once #130 merges.
 
 ## Cross-cutting things to check
 
