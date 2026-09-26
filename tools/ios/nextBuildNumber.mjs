@@ -49,7 +49,8 @@ export function nextBuildNumber(existingVersions, min = 1) {
   return Math.max(highestBuildNumber(existingVersions) + 1, Number(min) || 1);
 }
 
-async function api(path, token) {
+/** GET an App Store Connect API path (or a full `links.next` URL) as JSON. */
+export async function api(path, token) {
   const url = path.startsWith('http') ? path : `${API}${path}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {
@@ -61,23 +62,19 @@ async function api(path, token) {
   return res.json();
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  const arg = (name) => {
-    const i = args.indexOf(name);
-    return i >= 0 ? args[i + 1] : undefined;
-  };
-  const bundleId = arg('--bundle-id');
-  const min = Number(arg('--min') || 1);
-  const { ASC_KEY_ID: keyId, ASC_ISSUER_ID: issuerId, ASC_KEY_PATH: keyPath } = process.env;
-  if (!bundleId || !keyId || !issuerId || !keyPath)
-    throw new Error('need --bundle-id and ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH');
+// Rejected and failed builds still use up their build number, so every state counts.
+export const ALL_PROCESSING_STATES = 'filter[processingState]=PROCESSING,FAILED,INVALID,VALID';
 
-  const token = appStoreConnectToken({
-    keyId,
-    issuerId,
-    privateKeyPem: readFileSync(keyPath, 'utf8'),
-  });
+/** A token for the key in ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH. */
+export function tokenFromEnv(env = process.env) {
+  const { ASC_KEY_ID: keyId, ASC_ISSUER_ID: issuerId, ASC_KEY_PATH: keyPath } = env;
+  if (!keyId || !issuerId || !keyPath)
+    throw new Error('need ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH');
+  return appStoreConnectToken({ keyId, issuerId, privateKeyPem: readFileSync(keyPath, 'utf8') });
+}
+
+/** The App Store Connect app record for `bundleId`. */
+export async function findApp(bundleId, token) {
   const apps = await api(
     `/apps?filter[bundleId]=${encodeURIComponent(bundleId)}&fields[apps]=bundleId,name`,
     token,
@@ -89,9 +86,24 @@ async function main() {
         '(create the app record, or give the key access to it).',
     );
   console.error(`App Store Connect app: ${app.attributes?.name} (${app.id})`);
+  return app;
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const arg = (name) => {
+    const i = args.indexOf(name);
+    return i >= 0 ? args[i + 1] : undefined;
+  };
+  const bundleId = arg('--bundle-id');
+  const min = Number(arg('--min') || 1);
+  if (!bundleId) throw new Error('need --bundle-id');
+
+  const token = tokenFromEnv();
+  const app = await findApp(bundleId, token);
 
   const versions = [];
-  let next = `/builds?filter[app]=${app.id}&fields[builds]=version&limit=200`;
+  let next = `/builds?filter[app]=${app.id}&${ALL_PROCESSING_STATES}&fields[builds]=version&limit=200`;
   for (let page = 0; next && page < 20; page++) {
     const res = await api(next, token);
     for (const b of res.data || []) versions.push(b.attributes?.version);

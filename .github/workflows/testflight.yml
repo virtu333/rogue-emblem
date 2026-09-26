@@ -6,8 +6,11 @@ name: TestFlight
 #                     TestFlight once Apple finishes processing (usually 5-30 minutes)
 #   validate          the same signed build, checked by App Store Connect but not
 #                     uploaded (for trying out changes to this workflow)
-# Either mode first requires the CI workflow to have passed on the exact commit (it waits
-# while that run is still going). A pull request that changes the iOS project or this
+#   status            no build: what App Store Connect did with the recent builds (Apple's
+#                     processing result and TestFlight state), in the run's summary
+# Upload and validate first require the CI workflow to have passed on the exact commit (it
+# waits while that run is still going). An upload then waits for Apple to process the
+# build and fails if Apple rejects it. A pull request that changes the iOS project or this
 # pipeline runs it in validate mode.
 #
 # Signing: the archive is built unsigned and the export signs it for App Store
@@ -26,9 +29,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'upload: send it to TestFlight; validate: build and sign only'
+        description: 'upload: send it to TestFlight; validate: build and sign only; status: report on recent builds'
         type: choice
-        options: [upload, validate]
+        options: [upload, validate, status]
         default: upload
       build_number:
         description: 'Build number (leave blank: one above the latest in App Store Connect)'
@@ -43,8 +46,9 @@ on:
       - capacitor.config.*
 
 concurrency:
-  # Uploads queue one at a time; a pull request's newer push replaces its older check.
-  group: testflight-${{ github.event_name == 'pull_request' && github.ref || 'upload' }}
+  # Uploads queue one at a time (a status check never waits behind them); a pull
+  # request's newer push replaces its older check.
+  group: testflight-${{ github.event_name == 'pull_request' && github.ref || (inputs.mode == 'status' && format('status-{0}', github.run_id)) || 'upload' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -54,7 +58,9 @@ jobs:
   ci-passed:
     name: CI passed on this commit
     # Pull requests from forks get no secrets, so only this repository's own branches.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      (github.event_name != 'pull_request' && inputs.mode != 'status') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
@@ -147,25 +153,7 @@ jobs:
       - name: Install the API key
         env:
           ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          KEY_DIR="$RUNNER_TEMP/private_keys"
-          mkdir -p "$KEY_DIR"
-          chmod 700 "$KEY_DIR"
-          KEY_PATH="$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
-          if printf '%s' "$ASC_PRIVATE_KEY" | grep -q 'BEGIN PRIVATE KEY'; then
-            # Pasted PEM; %b also turns literal "\n" sequences into newlines.
-            printf '%b\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
-          else
-            printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
-          fi
-          chmod 600 "$KEY_PATH"
-          if ! openssl pkey -in "$KEY_PATH" -noout 2>/dev/null; then
-            echo "::error::APP_STORE_CONNECT_PRIVATE_KEY is not a readable .p8 private key (paste the whole file, including the BEGIN/END lines)."
-            exit 1
-          fi
-          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          echo "API_PRIVATE_KEYS_DIR=$KEY_DIR" >> "$GITHUB_ENV"
+        run: tools/ios/installApiKey.sh
 
       - name: Build number
         env:
@@ -326,11 +314,32 @@ jobs:
             echo "- Commit: \`${COMMIT::7}\` on \`${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}\`"
             echo "- Cloud: ${{ vars.VITE_CLOUD_ENABLED == 'true' && 'enabled' || 'off (offline build)' }}"
             if [ "$MODE" = upload ]; then
-              echo "- It appears in App Store Connect -> TestFlight once Apple finishes processing."
+              echo "- Apple's processing result follows; the build appears in App Store Connect -> TestFlight once it is processed."
             else
               echo "- The signed App Store build passed. Run again with mode **upload** to send it to TestFlight."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: App Store Connect status
+        run: |
+          # Not -e: the report's exit code decides the outcome below.
+          set +e -uo pipefail
+          # An upload waits for Apple to process the build and fails if Apple rejects it
+          # (still processing after 30 minutes is only a warning). Validate just reports.
+          if [ "$MODE" = upload ]; then
+            node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" \
+              --wait-for "$BUILD_NUMBER" --timeout-minutes 30 > "$RUNNER_TEMP/status.md"
+          else
+            node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" > "$RUNNER_TEMP/status.md"
+          fi
+          code=$?
+          cat "$RUNNER_TEMP/status.md"
+          { echo ""; cat "$RUNNER_TEMP/status.md"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = 2 ] && [ "$MODE" = upload ]; then
+            echo "::warning::Could not read the build's status from App Store Connect (the upload itself succeeded); run the workflow in status mode later."
+            exit 0
+          fi
+          exit $code
 
       - name: Keep the logs
         if: always()
@@ -351,3 +360,34 @@ jobs:
           if [ -n "${API_PRIVATE_KEYS_DIR:-}" ]; then rm -rf "$API_PRIVATE_KEYS_DIR"; fi
           if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
           if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
+
+  status:
+    name: App Store Connect status
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'status'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BUNDLE_ID: com.davechen.emblemrogue
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: tools/ios/installApiKey.sh
+
+      - name: Recent builds
+        run: |
+          set -euo pipefail
+          node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" --limit 15 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [ -n "${API_PRIVATE_KEYS_DIR:-}" ]; then rm -rf "$API_PRIVATE_KEYS_DIR"; fi
