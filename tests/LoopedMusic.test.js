@@ -118,6 +118,52 @@ describe('LoopedMusic', () => {
     expect(m.setLayer('nonexistent')).toBe(false);
   });
 
+  it('keeps an additive layer out of the crossfade, at a level of its own', () => {
+    const { ctx } = makeContext();
+    const m = new LoopedMusic({
+      context: ctx,
+      destination: ctx.destination,
+      key: 'k',
+      layers: { full: buf(80.4), hum: buf(80.4) },
+      loops,
+      layerGains: { hum: 0.6 },
+    });
+    const full = m._layers.get('full').gain.gain;
+    const hum = m._layers.get('hum').gain.gain;
+    expect(m.layer).toBe('full');
+    expect(full.value).toBe(1);
+    expect(hum.value).toBeCloseTo(0.6);
+    // not a crossfade target, and untouched by crossfades
+    expect(m.setLayer('hum')).toBe(false);
+    expect(m.setLayerGain('hum', 0.25, 900)).toBe(true);
+    expect(hum.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.25, ctx.currentTime + 0.9);
+    expect(m.setLayerGain('hum', 7, 0)).toBe(true);
+    expect(hum.value).toBe(1);
+    expect(m.setLayerGain('full', 0.5)).toBe(false);
+    expect(m.setLayerGain('nonexistent', 0.5)).toBe(false);
+  });
+
+  it('starts at a scheduled context time (a hinge downbeat), or now if that has passed', () => {
+    const { ctx, sources } = makeContext();
+    const make = () =>
+      new LoopedMusic({
+        context: ctx,
+        destination: ctx.destination,
+        key: 'k',
+        layers: { full: buf(80.4), hum: buf(80.4) },
+        loops,
+        layerGains: { hum: 1 },
+      });
+    const later = make();
+    expect(later.startTime).toBeNull();
+    later.play(13.5);
+    expect(later.startTime).toBe(13.5);
+    for (const s of sources) expect(s.start).toHaveBeenCalledWith(13.5, 0);
+    const late = make();
+    late.play(2);
+    expect(late.startTime).toBeCloseTo(ctx.currentTime + 0.03);
+  });
+
   it('plays a whole-file loop when no valid loop points exist', () => {
     const { ctx, sources } = makeContext();
     const m = new LoopedMusic({
@@ -295,6 +341,14 @@ describe('LoopedMusic — a layer joining a running track', () => {
     expect(m.hasLayer('enrage')).toBe(false);
     m.destroy();
     expect(m.addLayer('enrage', buf(80.4), loop)).toBe(false);
+  });
+
+  it('a layer joining before a scheduled start begins on that downbeat, at the top', () => {
+    const { ctx, sources } = makeContext();
+    const m = make(ctx);
+    m.play(13.5); // the hinge's handoff, still ahead of the clock
+    expect(m.addLayer('enrage', buf(80.4), loop)).toBe(true);
+    expect(sources[1].start).toHaveBeenCalledWith(13.5, 0);
   });
 
   it('a layer added before play() starts with the others', () => {

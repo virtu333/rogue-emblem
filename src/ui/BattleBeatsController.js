@@ -16,15 +16,25 @@ import { createSeededRng } from '../engine/BlessingEngine.js';
  *  - getBossPreBattleEntries: composes the boss's preBattle entries with
  *    the commander's reply (preBattleReply, variant-gated per commander;
  *    only the loop-aware bosses have one).
+ *  - entityRally: when the Entity's finale answers (see BattleMusicController),
+ *    the army says its lines over its own units, one every two bars from the
+ *    finale's first downbeat (engine/FinaleRally.js, dialogue.json
+ *    finaleRally): the commander opens, the lords answer each other, the
+ *    strongest recruits join in, Sera closes. Never blocks input: the music
+ *    keeps time, the words ride on it.
  */
 
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
+import { composeFinaleRally } from '../engine/FinaleRally.js';
+import { isEntity } from '../engine/EntitySystem.js';
 
 const QUIP_DEPTH = 501; // Screen-pinned above battlefield effects.
 const QUIP_OFFSET_Y = -58; // clear of proc chips (-26/-44) and damage numbers (-16 -> -32)
 const QUIP_COOLDOWN_MS = 10000; // shared across ALL quips so exchanges never chain
 const QUIP_CHANCE = 0.2;
+const RALLY_HOLD_MS = 2600;
+const RALLY_FADE_MS = 600;
 
 export class BattleBeatsController {
   constructor(scene, random = createSeededRng(Date.now() >>> 0)) {
@@ -32,6 +42,8 @@ export class BattleBeatsController {
     this.scene = scene;
     this._lastQuipAt = -Infinity;
     this._live = new Set(); // quip texts still on screen (for destroy())
+    this._rallyTimers = [];
+    this._rallied = false;
   }
 
   destroy() {
@@ -39,6 +51,8 @@ export class BattleBeatsController {
       if (obj?.scene) obj.destroy();
     }
     this._live.clear();
+    for (const t of this._rallyTimers) clearTimeout(t);
+    this._rallyTimers = [];
   }
 
   _ctx(bossName = null) {
@@ -101,6 +115,116 @@ export class BattleBeatsController {
       } catch (_) {
         /* a failed overlay must not break combat flow */
       }
+    }
+  }
+
+  /**
+   * The Entity's finale answers: the army speaks, the first line on the
+   * finale's downbeat (`leadMs` from now), then one every `barMs * 2`. Once
+   * per battle. Returns the composed rally ([{ unit, speaker, line }]).
+   */
+  entityRally({ leadMs = 0, barMs = 1765 } = {}) {
+    const scene = this.scene;
+    if (this._rallied) return [];
+    this._rallied = true;
+    const rm = scene.runManager || null;
+    let rally = [];
+    try {
+      const ctx = this._ctx('The Entity');
+      const entity = (scene.enemyUnits || []).find((u) => isEntity(u));
+      const maxHP = Number(entity?.stats?.HP) || 0;
+      const fallen = (Array.isArray(rm?.fallenUnits) ? rm.fallenUnits : [])
+        .filter((u) => typeof u?.name === 'string')
+        .sort((a, b) => Number(Boolean(b.isLord)) - Number(Boolean(a.isLord)))
+        .map((u) => u.name);
+      rally = composeFinaleRally({
+        units: scene.playerUnits,
+        pool: scene.gameData?.dialogue?.finaleRally,
+        voice: scene.gameData?.dialogue?.unitVoice || null,
+        commander: ctx.commander,
+        seed: Number(rm?.runSeed) >>> 0,
+        memory: ctx.bossSlainCount + ctx.bossKilledYouCount > 0,
+        fallen,
+        hurt: !entity || maxHP <= 0 || entity.currentHP < maxHP,
+      });
+    } catch (_) {
+      rally = [];
+    }
+    const step = Math.max(1000, 2 * (Number(barMs) || 1765));
+    rally.forEach(({ unit, line }, i) => {
+      const timer = setTimeout(
+        () => {
+          this._rallyTimers = this._rallyTimers.filter((t) => t !== timer);
+          // a unit that falls before its line leaves it unsaid
+          if (!(unit.currentHP > 0)) return;
+          this._showRallyText(unit, line);
+        },
+        Math.max(0, Number(leadMs) || 0) + i * step,
+      );
+      this._rallyTimers.push(timer);
+    });
+    return rally;
+  }
+
+  _showRallyText(unit, line) {
+    const scene = this.scene;
+    try {
+      const pos = scene.grid?.gridToPixel?.(unit.col, unit.row);
+      if (!pos) return;
+      const screen = scene._worldToScreen?.(pos.x, pos.y) || pos;
+      const cam = scene.cameras?.main;
+      const width = cam?.width || 640;
+      const height = cam?.height || 480;
+      const text = presentationText(scene, screen.x, screen.y + QUIP_OFFSET_Y, line, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        align: 'center',
+        wordWrap: { width: Math.max(96, Math.min(250, width - 24)) },
+        color: '#fff4d6',
+        fontStyle: 'bold',
+        backgroundColor: '#140f08e6',
+        padding: { x: 8, y: 5 },
+      })
+        .setOrigin(0.5)
+        .setDepth(QUIP_DEPTH + 1)
+        .setAlpha(0);
+      // the speaker, on a gold tab over the line
+      const name = presentationText(scene, 0, 0, unit.name, {
+        fontFamily: "'Press Start 2P', monospace",
+        fontSize: '8px',
+        color: '#1a1206',
+        backgroundColor: '#e8b64c',
+        padding: { x: 5, y: 3 },
+      })
+        .setOrigin(0.5, 1)
+        .setDepth(QUIP_DEPTH + 2)
+        .setAlpha(0);
+      const halfW = (text.width || 0) / 2;
+      const halfH = (text.height || 0) / 2;
+      const tab = name.height || 14;
+      text.x = Math.max(8 + halfW, Math.min(width - 8 - halfW, screen.x));
+      text.y = Math.max(8 + tab + halfH, Math.min(height - 8 - halfH, screen.y + QUIP_OFFSET_Y));
+      name.x = text.x;
+      name.y = text.y - halfH;
+      for (const obj of [text, name]) {
+        scene._pinToScreen?.(obj);
+        this._live.add(obj);
+      }
+      scene.tweens.add({ targets: [text, name], alpha: 1, duration: 150 });
+      scene.tweens.add({
+        targets: [text, name],
+        alpha: 0,
+        delay: RALLY_HOLD_MS,
+        duration: RALLY_FADE_MS,
+        onComplete: () => {
+          for (const obj of [text, name]) {
+            this._live.delete(obj);
+            if (obj?.scene) obj.destroy();
+          }
+        },
+      });
+    } catch (_) {
+      /* a line of dialogue must never break combat */
     }
   }
 

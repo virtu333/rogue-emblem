@@ -7,7 +7,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioManager } from '../src/utils/AudioManager.js';
 import { LoopedMusic } from '../src/utils/LoopedMusic.js';
-import { getBossEnrageLayer, getMusicLayers, getMusicLoop } from '../src/utils/musicConfig.js';
+import {
+  ENTITY_FINALE,
+  getBossEnrageLayer,
+  getMusicLayers,
+  getMusicLoop,
+} from '../src/utils/musicConfig.js';
 
 const SAMPLE_RATE = 44100;
 
@@ -163,19 +168,22 @@ const BATTLE = 'music_battle_act1';
 const BATTLE_CALM = getMusicLayers(BATTLE).calm;
 const BOSS = 'music_boss_act1';
 const BOSS_ENRAGE = getBossEnrageLayer(BOSS, 'Iron Captain');
-const ENTITY = 'music_boss_entity';
-const ENTITY_ENRAGE = getBossEnrageLayer(ENTITY, 'The Entity');
+const ENTITY = ENTITY_FINALE.theme;
+const FINALE = ENTITY_FINALE.track;
+const FINALE_HUM = ENTITY_FINALE.hum;
 
 describe('layered music under the mobile cache budget', () => {
   it('fixture sanity: the layer keys exist and the byte sizes are what the scenarios assume', () => {
     expect(BATTLE_CALM).toBe('music_battle_act1_calm');
     expect(BOSS_ENRAGE).toBe('music_boss_act1_enrage_iron_captain');
-    expect(ENTITY_ENRAGE).toBe('music_boss_entity_enrage_entity');
+    expect(getMusicLoop(FINALE_HUM).duration).toBe(getMusicLoop(FINALE).duration);
     // battle pair + boss pair fit 120 MB; the track cap (3) is what binds
     expect(2 * mb(BATTLE) + 2 * mb(BOSS)).toBeLessThan(120);
-    // Entity pair + the cached calm layer fit, adding the battle primary does not
-    expect(2 * mb(ENTITY) + mb(BATTLE_CALM)).toBeLessThan(120);
-    expect(2 * mb(ENTITY) + mb(BATTLE_CALM) + mb(BATTLE)).toBeGreaterThan(120);
+    // finale pair + the cached calm layer fit 100 MB, adding the battle primary does not
+    expect(mb(FINALE) + mb(FINALE_HUM) + mb(BATTLE_CALM)).toBeLessThan(100);
+    expect(mb(FINALE) + mb(FINALE_HUM) + mb(BATTLE_CALM) + mb(BATTLE)).toBeGreaterThan(100);
+    // the Entity's theme, finale and hum fit the mobile budget together
+    expect(mb(ENTITY) + mb(FINALE) + mb(FINALE_HUM)).toBeLessThan(120);
   });
 
   it('track cap: battle (calm+full) -> boss (full+enrage) keeps music playing on every layer', async () => {
@@ -229,13 +237,13 @@ describe('layered music under the mobile cache budget', () => {
 
   it('byte budget: an already-cached layer of the pending track is neither evicted nor refetched', async () => {
     const sound = makeSound();
-    const audio = mobileAudio(sound, { maxCachedMusicTracks: 10 });
+    const audio = mobileAudio(sound, { maxCachedMusicTracks: 10, maxCachedMusicMegabytes: 100 });
     // The calm mix is still cached from an earlier battle; its primary is not.
     sound.game.cache.audio.add(BATTLE_CALM, decodedBuffer(BATTLE_CALM));
     audio._markMusicCached(BATTLE_CALM);
-    // A boss fight (Entity theme + enrage layer) then plays: ~73 MB + ~27 MB cached.
-    await audio.playMusic(ENTITY, null, 0, { layers: { enrage: ENTITY_ENRAGE } });
-    expectPlaying(audio, ENTITY);
+    // A boss fight (the Entity's finale + its hum) then plays: ~55 MB + ~27 MB cached.
+    await audio.playMusic(FINALE, null, 0, { layers: { hum: FINALE_HUM }, layerGains: { hum: 1 } });
+    expectPlaying(audio, FINALE);
     expect(sound.game.cache.audio.has(BATTLE_CALM)).toBe(true);
 
     sound.removed.length = 0;
@@ -251,6 +259,41 @@ describe('layered music under the mobile cache budget', () => {
     audio.setMusicIntensity('full', 1200);
     expect(audio.currentMusic.layer).toBe('full');
     // The old boss pair made room once the battle theme took over.
+    expect(audio._cachedMusicBytes()).toBeLessThanOrEqual(100 * 1024 * 1024);
+  });
+
+  it("the Entity's finale: preloaded under its theme, it starts on the downbeat with its hum", async () => {
+    const sound = makeSound();
+    const audio = mobileAudio(sound);
+    await audio.playMusic('music_explore_deep', null, 0);
+    audio.stopMusic(null, 0, true);
+    await audio.playMusic(ENTITY, null, 0);
+    // BattleMusicController decodes the finale and its hum while the theme plays.
+    audio.preloadMusic([FINALE, FINALE_HUM]);
+    await vi.waitFor(() => expect(sound.game.cache.audio.has(FINALE_HUM)).toBe(true));
+    expect(sound.game.cache.audio.has(FINALE)).toBe(true);
+    expectPlaying(audio, ENTITY);
+    // The first wound cuts the theme; the finale starts on the hinge's handoff.
+    audio.stopMusic(null, 0, true);
+    sound.removed.length = 0;
+    fetchLog.length = 0;
+    await audio.playMusic(FINALE, null, 0, {
+      layers: { hum: FINALE_HUM },
+      layerGains: { hum: 0.9 },
+      startAt: 5,
+    });
+    expectPlaying(audio, FINALE);
+    expect(fetchLog).toEqual([]);
+    expect(sound.removed).not.toContain(FINALE);
+    expect(sound.removed).not.toContain(FINALE_HUM);
+    const music = audio.currentMusic;
+    expect(music.startTime).toBe(5);
+    expect(music.layerNames).toEqual(['full', 'hum']);
+    expect(music.layer).toBe('full');
+    expect(audio.currentMusicLayerKeys).toEqual([FINALE_HUM]);
+    expect(audio._evictCachedMusic(FINALE_HUM)).toBe(false);
+    expect(audio.setMusicLayerGain('hum', 0.3, 0)).toBe(true);
+    expect(audio._musicCacheLru.length).toBeLessThanOrEqual(3);
     expect(audio._cachedMusicBytes()).toBeLessThanOrEqual(120 * 1024 * 1024);
   });
 

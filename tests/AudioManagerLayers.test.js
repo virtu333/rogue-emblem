@@ -173,6 +173,79 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
     expect(audio.currentMusic.layer).toBe('enrage');
   });
 
+  it("plays the Entity's finale with its hum as an additive layer, on a scheduled downbeat", async () => {
+    const finale = 'music_boss_entity_finale';
+    const hum = 'music_boss_entity_finale_hum';
+    const sound = makeSound([finale, hum]);
+    const audio = new AudioManager(sound);
+    audio.setMusicIntensity('enrage', 0);
+    await audio.playMusic(finale, null, 0, {
+      layers: { hum },
+      layerGains: { hum: 0.4 },
+      startAt: 5,
+    });
+    const music = audio.currentMusic;
+    expect(music).toBeInstanceOf(LoopedMusic);
+    expect(music.layerNames).toEqual(['full', 'hum']);
+    expect(music.layer).toBe('full');
+    expect(music.startTime).toBe(5);
+    expect(music._layers.get('hum').gain.gain.value).toBeCloseTo(0.4);
+    // the voice holds the hum's buffer, so the cache budget keeps it
+    expect(audio.currentMusicLayerKeys).toEqual([hum]);
+    expect(audio._evictCachedMusic(hum)).toBe(false);
+    expect(audio.setMusicLayerGain('hum', 0.1, 0)).toBe(true);
+    expect(music._layers.get('hum').gain.gain.value).toBeCloseTo(0.1);
+    // intensity changes never touch the hum
+    audio.setMusicIntensity('calm', 0);
+    expect(music._layers.get('hum').gain.gain.value).toBeCloseTo(0.1);
+    audio.stopMusic(null, 0, true);
+    expect(audio.setMusicLayerGain('hum', 1)).toBe(false);
+  });
+
+  it('keeps the additive layer levels of a track deferred until audio unlocks', async () => {
+    const finale = 'music_boss_entity_finale';
+    const hum = 'music_boss_entity_finale_hum';
+    const sound = makeSound([finale, hum]);
+    const handlers = {};
+    sound.locked = true;
+    sound.once = vi.fn((event, fn) => {
+      handlers[event] = fn;
+    });
+    const audio = new AudioManager(sound);
+    await audio.playMusic(finale, null, 0, {
+      layers: { hum },
+      layerGains: { hum: 0.3 },
+      startAt: 5,
+    });
+    expect(audio.currentMusic).toBeNull();
+    const play = vi.spyOn(audio, 'playMusic');
+    sound.locked = false;
+    handlers.unlocked();
+    // a scheduled downbeat is stale by the time audio unlocks: it starts now
+    expect(play).toHaveBeenCalledWith(finale, null, 0, {
+      layers: { hum },
+      layerGains: { hum: 0.3 },
+    });
+    await play.mock.results[0].value;
+    expect(audio.currentMusic._layers.get('hum').gain.gain.value).toBeCloseTo(0.3);
+  });
+
+  it('preloads tracks ahead of a trigger without playing them', async () => {
+    const sound = makeSound([]);
+    const audio = new AudioManager(sound);
+    const load = vi.spyOn(audio, '_ensureMusicLoaded').mockImplementation(async (key) => {
+      sound.game.cache.audio.add(key, decoded(key));
+    });
+    audio.preloadMusic(['music_boss_entity_finale', 'music_boss_entity_finale_hum', null]);
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(sound.game.cache.audio.has('music_boss_entity_finale_hum')).toBe(true);
+    expect(audio.currentMusic).toBeNull();
+    load.mockClear();
+    audio.preloadMusic(['music_boss_entity_finale']);
+    expect(load).not.toHaveBeenCalled(); // already decoded
+  });
+
   it('treats unknown intensity names as full', () => {
     const audio = new AudioManager(makeSound([]));
     expect(audio.setMusicIntensity('thunder')).toBe('full');
