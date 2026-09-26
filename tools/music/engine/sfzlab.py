@@ -49,7 +49,10 @@ def _expand(path: str, root_dir: str, defines: dict, depth=0) -> str:
         if m:
             defines[m.group(1)] = m.group(2).strip()
             continue
-        m = re.match(r'#include\s+"([^"]+)"', s)
+        # longest names first so $VIB_PITCH is not eaten by $VIB
+        for name in sorted(defines, key=len, reverse=True):
+            line = line.replace(name, defines[name])
+        m = re.match(r'#include\s+"([^"]+)"', line.strip())
         if m:
             inc = m.group(1).replace('\\', '/')
             cand = os.path.join(root_dir, inc)
@@ -57,9 +60,6 @@ def _expand(path: str, root_dir: str, defines: dict, depth=0) -> str:
                 cand = os.path.join(os.path.dirname(path), inc)
             out.append(_expand(cand, root_dir, defines, depth + 1))
             continue
-        # longest names first so $VIB_PITCH is not eaten by $VIB
-        for name in sorted(defines, key=len, reverse=True):
-            line = line.replace(name, defines[name])
         out.append(line)
     return '\n'.join(out)
 

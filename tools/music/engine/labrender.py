@@ -174,6 +174,9 @@ def _chorus(path, darken_hz=None, mono=False, voice=None, release=0.6):
     prog = sfzlab.load(path)
     if voice:
         prog = sfzlab.keep_regions(prog, lambda r: f'-{voice}-' in os.path.basename(r.get('sample', '')))
+    if voice or mono:
+        # a line keeps its section: notes past the section's samples are pitched, never
+        # moved by an octave
         prog = sfzlab.extend_range(prog)
     if darken_hz:
         # there is no 'ooh' in these libraries: the 'ah' with its brightness taken off
