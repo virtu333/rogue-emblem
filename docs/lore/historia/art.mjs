@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Chapter plates for the Historia (docs/lore/historia).
-//   node docs/lore/historia/art.mjs generate [--only id,id] [--takes 2]
+//   node docs/lore/historia/art.mjs generate [--only id,id] [--takes 2] [--from 1]
 //   node docs/lore/historia/art.mjs treat
 // generate: raw paintings from the Gemini image model, via the shared client
 //   (tools/art/gen), into References/historia/ (gitignored).
@@ -35,9 +35,9 @@ export const SUBJECTS = {
   hearth:
     'night: a broad smoking volcanic mountain with a crimson-bannered fortress city spilling down its shoulder, ash falling like snow, red lamps in the streets, glowing lava seams on the flanks, frozen passes behind',
   unsworn:
-    'an underground hall of warm stone that glows faintly from within: an ancient worn throne cut into the rock, twelve robed mages standing in a circle around it reading from long red scrolls, one armoured man kneeling alone before the throne, listening',
+    'deep underground, a vast enclosed cavern hall with no sky, no sun and no windows: the rock walls and floor glow faintly warm orange from within like embers under ash; an ancient worn throne cut into the living rock; twelve robed mages standing in a circle around it reading from long red scrolls; one armoured man kneeling alone before the throne, head bowed, listening; a long stone stair descending into the hall from the dark above. The Hollow Sun does not appear in this picture',
   night_before:
-    'dusk on a grassy hill above a river ford: a small warband sitting around a campfire, a furled teal banner planted beside it, a burned hall on a bluff in the distance, the river running slow and gold with firelight',
+    'dusk on a grassy hill above a wide shallow river ford: a small warband of seven sitting around a campfire, a furled teal banner planted beside it; far upriver on a high bluff, the long-cold roofless stone ruin of a lord’s hall, blackened walls and an intact gate, no fire; the river running slow and gold with the firelight',
 };
 
 const argv = process.argv.slice(2);
@@ -46,8 +46,9 @@ const arg = (k, d) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1
 async function generate() {
   const only = arg('only', null)?.split(',');
   const takes = Number(arg('takes', 2));
+  const from = Number(arg('from', 1));
   const jobs = [];
-  for (let take = 1; take <= takes; take += 1) {
+  for (let take = from; take <= takes; take += 1) {
     for (const [id, subject] of Object.entries(SUBJECTS)) {
       if (only && !only.includes(id)) continue;
       const variant = take > 1 ? ` Alternative composition ${take}.` : '';
