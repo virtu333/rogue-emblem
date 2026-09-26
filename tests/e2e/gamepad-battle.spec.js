@@ -6,7 +6,13 @@
 // target selection, forecast, and combat resolution.
 
 import { test, expect } from '@playwright/test';
-import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  attachSceneCrashArtifacts,
+  installSimPad,
+  padTap as tap,
+} from './helpers.js';
 
 const BTN = {
   CONFIRM: 0,
@@ -20,41 +26,6 @@ const BTN = {
   LEFT: 14,
   RIGHT: 15,
 };
-
-// Install a single connected, standard-mapped fake pad. The reader only reads it
-// because the URL carries ?gamepadSim.
-async function installSimPad(page) {
-  await page.evaluate(() => {
-    window.__gamepadSim = {
-      pads: [
-        {
-          connected: true,
-          mapping: 'standard',
-          buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })),
-          axes: [0, 0, 0, 0],
-        },
-      ],
-    };
-  });
-}
-
-async function setButton(page, index, pressed) {
-  await page.evaluate(
-    ({ i, p }) => {
-      const pad = window.__gamepadSim?.pads?.[0];
-      if (pad) pad.buttons[i] = { pressed: p, value: p ? 1 : 0 };
-    },
-    { i: index, p: pressed },
-  );
-}
-
-// One discrete press: hold long enough for the reader to edge-detect, then release.
-async function tap(page, index) {
-  await setButton(page, index, true);
-  await page.waitForTimeout(60);
-  await setButton(page, index, false);
-  await page.waitForTimeout(60);
-}
 
 const getBattleState = (page) => page.evaluate(() => window.__sceneState?.battle?.state);
 

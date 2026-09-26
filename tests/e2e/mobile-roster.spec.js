@@ -89,10 +89,15 @@ test('store and withdraw preserve the item through touch actions', async ({ page
     overlay._mobileSheet.render();
   });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
+  // The equipped item's heading carries the "E" badge (#77), whose accessible name
+  // is "Equipped", so the card's heading reads "<name> Equipped" once it is equipped.
   let card = sheet.getByRole('article').filter({
-    has: page.getByRole('heading', { name: 'Mobile transfer test blade', exact: true }),
+    has: page.getByRole('heading', { name: /^Mobile transfer test blade( Equipped)?$/ }),
   });
   await card.getByRole('button', { name: 'Equip', exact: true }).tap();
+  await expect(
+    card.getByRole('heading', { name: 'Mobile transfer test blade Equipped', exact: true }),
+  ).toBeVisible();
   await expect(card.getByText('Equipped', { exact: true })).toBeVisible();
   await card.getByRole('button', { name: 'Store', exact: true }).tap();
   await expect(card).toHaveCount(0);

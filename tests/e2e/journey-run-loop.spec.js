@@ -1,25 +1,21 @@
-// E2E: Full journey from Title to Battle and back to Title via Pause -> Save & Return.
-// This test intentionally starts from "/" (no devScene shortcuts).
+// E2E: a whole journey through the real menus, starting from "/" with no dev shortcuts.
+//
+//   Title -New Game-> NodeMap (first-run fast path) -> Battle -Abandon-> Title
+//   -Save Slots-> SlotPicker -Slot 1-> HomeBase -Begin Run-> DifficultySelect
+//   -> BlessingSelect -> NodeMap -> Battle -Save & Return-> Title
+//
+// A brand-new save skips Home Base, Difficulty and Blessing (#44, firstRunFastPath);
+// the same slot's second run, after the first was abandoned, goes through all three.
 
 import { test, expect } from '@playwright/test';
 import {
   waitForGame,
   waitForScene,
-  waitForNodeMapState,
   getSceneState,
   assertNoInvariantErrors,
   collectErrors,
   attachSceneCrashArtifacts,
 } from './helpers.js';
-
-const REQUIRED_SCENE_ORDER = [
-  'HomeBase',
-  'DifficultySelect',
-  'BlessingSelect',
-  'NodeMap',
-  'Battle',
-  'Title',
-];
 
 function installSaveStateReset(page) {
   return page.addInitScript(() => {
@@ -27,286 +23,150 @@ function installSaveStateReset(page) {
       'emblem_rogue_active_slot',
       'emblem_rogue_meta_save',
       'emblem_rogue_run_save',
+      'emblem_rogue_tutorial_completed',
     ]);
     const prefixes = ['emblem_rogue_slot_', 'emblem_rogue_hints_slot_'];
-
-    const keys = Object.keys(localStorage);
-    for (const key of keys) {
+    for (const key of Object.keys(localStorage)) {
       if (directKeys.has(key) || prefixes.some((prefix) => key.startsWith(prefix))) {
         localStorage.removeItem(key);
       }
     }
+    // Helpers off: this journey is about the scene flow. First-run field notes open
+    // on their own delay (a modal one in battle) and would race the key presses.
+    localStorage.setItem(
+      'emblem_rogue_settings',
+      JSON.stringify({ musicVolume: 0, sfxVolume: 0, hints: false, guidance: 'off' }),
+    );
   });
 }
 
-async function worldToPagePoint(page, worldPoint) {
-  const pagePoint = await page.evaluate(({ x, y }) => {
-    const game = window.__emblemRogueGame;
-    const canvas = game?.canvas || document.querySelector('canvas');
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect) return null;
-    const rectWidth =
-      rect.width > 0 ? rect.width : Number(canvas.clientWidth || canvas.width || 640);
-    const rectHeight =
-      rect.height > 0 ? rect.height : Number(canvas.clientHeight || canvas.height || 480);
-    const width = Number(game?.scale?.gameSize?.width || game?.scale?.width || 640);
-    const height = Number(game?.scale?.gameSize?.height || game?.scale?.height || 480);
-    const gameWidth = Number.isFinite(width) && width > 0 ? width : 640;
-    const gameHeight = Number.isFinite(height) && height > 0 ? height : 480;
-    return {
-      x: rect.left + (x / gameWidth) * rectWidth,
-      y: rect.top + (y / gameHeight) * rectHeight,
-    };
-  }, worldPoint);
-  expect(pagePoint).not.toBeNull();
-  return pagePoint;
-}
+const sceneHistory = async (page) => (await getSceneState(page)).history.map((entry) => entry.to);
 
-function assertFinitePoint(point) {
-  expect(point).not.toBeNull();
-  expect(Number.isFinite(point.x)).toBe(true);
-  expect(Number.isFinite(point.y)).toBe(true);
-}
-
-function assertOrderedSceneHistory(history, expectedPath) {
+function expectInOrder(history, expected) {
   let cursor = 0;
-  for (const scene of expectedPath) {
+  for (const scene of expected) {
     const foundAt = history.indexOf(scene, cursor);
-    expect(foundAt).toBeGreaterThanOrEqual(0);
+    expect(foundAt, `${scene} after position ${cursor} in ${history.join(' > ')}`).toBeGreaterThan(
+      -1,
+    );
     cursor = foundAt + 1;
   }
 }
 
-async function findSceneLabelPoint(page, sceneKey, label, timeoutMs = 10_000) {
-  await page.waitForFunction(
-    ({ key, text }) => {
-      const collectTextNodes = (nodes, out = []) => {
-        for (const node of nodes || []) {
-          if (!node) continue;
-          if (node.type === 'Text') out.push(node);
-          if (Array.isArray(node.list)) collectTextNodes(node.list, out);
-        }
-        return out;
-      };
-      const resolvePoint = (scene) => {
-        const textNodes = collectTextNodes(scene?.children?.list || []);
-        for (const textNode of textNodes) {
-          if (textNode?.text !== text) continue;
-          const candidates = [textNode];
-          const parent = textNode.parentContainer;
-          if (Array.isArray(parent?.list)) {
-            for (const child of parent.list) candidates.push(child);
-          }
-          for (const candidate of candidates) {
-            if (!candidate?.input?.enabled) continue;
-            if ((candidate.listenerCount?.('pointerdown') || 0) < 1) continue;
-            const bounds = candidate.getBounds?.();
-            const worldX = Number.isFinite(bounds?.centerX)
-              ? bounds.centerX
-              : Number.isFinite(candidate.x)
-                ? candidate.x
-                : textNode.x;
-            const worldY = Number.isFinite(bounds?.centerY)
-              ? bounds.centerY
-              : Number.isFinite(candidate.y)
-                ? candidate.y
-                : textNode.y;
-            if (Number.isFinite(worldX) && Number.isFinite(worldY)) return { x: worldX, y: worldY };
-          }
-        }
-        return null;
-      };
-      const scene = window.__emblemRogueGame?.scene?.getScene?.(key);
-      return Boolean(resolvePoint(scene));
-    },
-    { key: sceneKey, text: label },
-    { timeout: timeoutMs },
-  );
-
-  const worldPoint = await page.evaluate(
-    ({ key, text }) => {
-      const collectTextNodes = (nodes, out = []) => {
-        for (const node of nodes || []) {
-          if (!node) continue;
-          if (node.type === 'Text') out.push(node);
-          if (Array.isArray(node.list)) collectTextNodes(node.list, out);
-        }
-        return out;
-      };
-      const resolvePoint = (scene) => {
-        const textNodes = collectTextNodes(scene?.children?.list || []);
-        for (const textNode of textNodes) {
-          if (textNode?.text !== text) continue;
-          const candidates = [textNode];
-          const parent = textNode.parentContainer;
-          if (Array.isArray(parent?.list)) {
-            for (const child of parent.list) candidates.push(child);
-          }
-          for (const candidate of candidates) {
-            if (!candidate?.input?.enabled) continue;
-            if ((candidate.listenerCount?.('pointerdown') || 0) < 1) continue;
-            const bounds = candidate.getBounds?.();
-            const worldX = Number.isFinite(bounds?.centerX)
-              ? bounds.centerX
-              : Number.isFinite(candidate.x)
-                ? candidate.x
-                : textNode.x;
-            const worldY = Number.isFinite(bounds?.centerY)
-              ? bounds.centerY
-              : Number.isFinite(candidate.y)
-                ? candidate.y
-                : textNode.y;
-            if (Number.isFinite(worldX) && Number.isFinite(worldY)) return { x: worldX, y: worldY };
-          }
-        }
-        return null;
-      };
-      const scene = window.__emblemRogueGame?.scene?.getScene?.(key);
-      return resolvePoint(scene);
-    },
-    { key: sceneKey, text: label },
-  );
-
-  assertFinitePoint(worldPoint);
-  return worldToPagePoint(page, worldPoint);
-}
-
-async function clickSceneLabel(page, sceneKey, label, timeoutMs = 10_000) {
-  const point = await findSceneLabelPoint(page, sceneKey, label, timeoutMs);
-  await page.mouse.click(point.x, point.y);
-}
-
-async function pressEscape(page) {
-  await page.keyboard.press('Escape');
-}
-
-async function dismissNodeMapBlockers(page) {
-  await pressEscape(page);
-}
-
-async function findFirstAvailableBattleNodePoint(page) {
-  await page.waitForFunction(
-    () => {
-      const nodeMap = window.__emblemRogueGame?.scene?.getScene?.('NodeMap');
-      const available = nodeMap?.runManager?.getAvailableNodes?.();
-      return Array.isArray(available) && available.some((node) => node?.type === 'battle');
-    },
-    null,
-    { timeout: 12_000 },
-  );
-
-  const point = await page.evaluate(() => {
-    const nodeMap = window.__emblemRogueGame?.scene?.getScene?.('NodeMap');
-    const runManager = nodeMap?.runManager;
-    const available = runManager?.getAvailableNodes?.();
-    if (!Array.isArray(available)) return null;
-    const battleNode = available.find((node) => node?.type === 'battle');
-    if (!battleNode) return null;
-
-    const map = runManager?.nodeMap;
-    const allNodes = Array.isArray(map?.nodes) ? map.nodes : [];
-    if (!allNodes.length) return null;
-
-    const totalRows = Math.max(...allNodes.map((node) => Number(node?.row) || 0)) + 1;
-    const mapTop = 60;
-    const mapBottom = 400;
-    const mapLeft = 80;
-    const mapRight = 560;
-    const numColumns = 5;
-
-    const yFrac = 1 - battleNode.row / Math.max(totalRows - 1, 1);
-    const worldY = mapTop + yFrac * (mapBottom - mapTop);
-    const xFrac = battleNode.col / (numColumns - 1);
-    const worldX = mapLeft + xFrac * (mapRight - mapLeft);
-
-    return { x: worldX, y: worldY };
-  });
-
-  assertFinitePoint(point);
-  return worldToPagePoint(page, point);
-}
-
-async function enterFirstAvailableBattleNode(page) {
-  const point = await findFirstAvailableBattleNodePoint(page);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await page.mouse.click(point.x, point.y);
-    const entered = await page.evaluate(() => window.__sceneState?.activeScene === 'Battle');
-    if (entered) return;
-    await page.waitForTimeout(450);
+/** Get past the route map's story conversation and field notes (if any). */
+async function readyRoute(page) {
+  const route = page.locator('.re-node-map');
+  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+  const notes = page.getByRole('dialog', { name: 'Field notes', exact: true });
+  for (let i = 0; i < 8 && !(await route.isVisible()); i++) {
+    await expect(route.or(skip).or(notes).filter({ visible: true }).first()).toBeVisible();
+    if (await skip.isVisible()) await skip.click();
+    else if (await notes.isVisible())
+      await notes.getByRole('button', { name: 'Continue', exact: true }).click();
   }
+  await expect(route).toBeVisible();
+  await page.waitForFunction(() => window.__sceneState?.nodeMap?.state === 'IDLE');
+}
+
+/** Choose the first reachable battle node on the route and travel to it. */
+async function travelToBattle(page) {
+  const nodeId = await page.evaluate(() => {
+    const nodeMap = window.__emblemRogueGame.scene.getScene('NodeMap');
+    return nodeMap.runManager.getAvailableNodes().find((node) => node.type === 'battle')?.id;
+  });
+  expect(nodeId).toBeTruthy();
+  const node = page.locator(`.re-node-map [data-node="${nodeId}"]`);
+  await node.click();
+  await expect(node).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Travel', exact: true }).click();
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => ['DEPLOY_SELECTION', 'PLAYER_IDLE'].includes(window.__sceneState?.battle?.state),
+    null,
+    { timeout: 30_000 },
+  );
+  const deploy = page.getByRole('dialog', { name: 'Deploy units', exact: true });
+  if (await deploy.isVisible())
+    await deploy.getByRole('button', { name: 'Deploy', exact: true }).click();
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE', null, {
+    timeout: 30_000,
+  });
+}
+
+async function openPause(page) {
+  await page.keyboard.press('Escape');
+  const pause = page.getByRole('dialog', { name: 'Paused', exact: true });
+  await expect(pause).toBeVisible();
+  return pause;
 }
 
 test.afterEach(async ({ page }, testInfo) => {
   await attachSceneCrashArtifacts(page, testInfo);
 });
 
-test.describe('Journey: full run loop', () => {
-  test('Title -> HomeBase -> Difficulty -> Blessing -> NodeMap -> Battle -> Title', async ({
-    page,
-  }) => {
-    const errors = collectErrors(page);
-    await installSaveStateReset(page);
+test('journey: first run from Title, abandon, then a full second run and Save & Return', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const errors = collectErrors(page);
+  await installSaveStateReset(page);
 
-    await page.goto('/');
-    await waitForGame(page);
-    await waitForScene(page, 'Title');
-    // SceneRouter has a short transition cooldown after boot.
-    await page.waitForTimeout(1_000);
+  await page.goto('/');
+  await waitForGame(page);
+  await waitForScene(page, 'Title');
 
-    // The title menu is DOM (TitleScreen); click its real button.
-    await page.getByRole('button', { name: 'New Game', exact: true }).click();
-    await waitForScene(page, 'HomeBase');
-    await page.waitForTimeout(700);
+  // First run: a brand-new save goes straight to the route map.
+  await page.getByRole('button', { name: 'New Game', exact: true }).click();
+  await waitForScene(page, 'NodeMap');
+  const firstRun = await sceneHistory(page);
+  const titleAt = firstRun.lastIndexOf('Title');
+  expect(firstRun.slice(titleAt)).toEqual(['Title', 'NodeMap']);
+  await readyRoute(page);
+  await travelToBattle(page);
 
-    await clickSceneLabel(page, 'HomeBase', '[ Begin Run ]');
-    await waitForScene(page, 'DifficultySelect');
-    await page.waitForTimeout(500);
+  // Abandon it: the run ends and the game returns to the title.
+  let pause = await openPause(page);
+  await pause.getByRole('button', { name: 'Abandon Run', exact: true }).click();
+  await pause.getByRole('button', { name: 'Abandon run', exact: true }).click();
+  await waitForScene(page, 'Title');
 
-    // Normal is selected by default.
-    await clickSceneLabel(page, 'DifficultySelect', '[ Confirm ]');
-    await waitForScene(page, 'BlessingSelect');
-    await page.waitForTimeout(300);
+  // Second run in the same slot: Home Base, Difficulty and Blessing come first.
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).click();
+  await waitForScene(page, 'SlotPicker');
+  await page.getByRole('button', { name: 'Select Slot 1', exact: true }).click();
+  await waitForScene(page, 'HomeBase');
+  await page.getByRole('button', { name: 'Begin Run', exact: true }).click();
+  await waitForScene(page, 'DifficultySelect');
+  const difficulty = page.getByRole('dialog', { name: 'Choose difficulty' });
+  await difficulty.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await waitForScene(page, 'BlessingSelect');
+  const blessing = page.getByRole('dialog', { name: 'Choose a blessing' });
+  await blessing.getByRole('button', { name: 'No blessing', exact: true }).click();
+  await blessing.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await waitForScene(page, 'NodeMap');
+  await readyRoute(page);
+  await travelToBattle(page);
 
-    await clickSceneLabel(page, 'BlessingSelect', '[Skip Blessing]');
-    await clickSceneLabel(page, 'BlessingSelect', '[ Confirm ]');
-    await waitForScene(page, 'NodeMap');
+  pause = await openPause(page);
+  await pause.getByRole('button', { name: 'Save & Return to Title', exact: true }).click();
+  await pause.getByRole('button', { name: 'Save & return', exact: true }).click();
+  await waitForScene(page, 'Title');
 
-    // Story/dialogue or transient overlays can gate node selection.
-    for (let i = 0; i < 4; i++) {
-      const nodeMapState = await page.evaluate(() => window.__sceneState?.nodeMap?.state || null);
-      if (nodeMapState === 'IDLE') break;
-      await dismissNodeMapBlockers(page);
-      await page.waitForTimeout(150);
-    }
-    await waitForNodeMapState(page, 'IDLE', 12_000);
-    await page.waitForTimeout(900);
-
-    await enterFirstAvailableBattleNode(page);
-    await waitForScene(page, 'Battle');
-    await page.waitForFunction(
-      () => ['DEPLOY_SELECTION', 'PLAYER_IDLE'].includes(window.__sceneState?.battle?.state),
-      null,
-      { timeout: 15_000 },
-    );
-
-    await pressEscape(page);
-    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PAUSED', null, {
-      timeout: 8_000,
-    });
-
-    await clickSceneLabel(page, 'Battle', 'Save & Return to Title');
-    await clickSceneLabel(page, 'Battle', 'Yes');
-    await waitForScene(page, 'Title');
-
-    const sceneState = await getSceneState(page);
-    expect(sceneState.activeScene).toBe('Title');
-    assertOrderedSceneHistory(
-      sceneState.history.map((entry) => entry.to),
-      REQUIRED_SCENE_ORDER,
-    );
-
-    await assertNoInvariantErrors(page);
-    expect(errors).toEqual([]);
-  });
+  expectInOrder(await sceneHistory(page), [
+    'Title',
+    'NodeMap',
+    'Battle',
+    'Title',
+    'SlotPicker',
+    'HomeBase',
+    'DifficultySelect',
+    'BlessingSelect',
+    'NodeMap',
+    'Battle',
+    'Title',
+  ]);
+  // The suspended second run is what Title now offers to resume.
+  await expect(page.getByRole('button', { name: /^Resume · Act 1/ })).toBeVisible();
+  await assertNoInvariantErrors(page);
+  expect(errors).toEqual([]);
 });

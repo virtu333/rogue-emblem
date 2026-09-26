@@ -87,13 +87,19 @@ async function tapUnit(page, name, group = 'playerUnits') {
   await page.touchscreen.tap(p.x, p.y);
 }
 
-// Two presses: the first completes the reveal, the second continues.
+// A press while the reveal runs completes it (Skip → Continue); a press on Continue
+// closes the rite. The rite's own clock also finishes the reveal, so whether the
+// first press is Skip or Continue depends on how long the test took to get here:
+// press, then press Continue only if the rite is still open.
 async function dismissRite(page, rite) {
-  await page.waitForTimeout(250);
-  await rite.getByRole('button', { name: /^(Skip|Continue)$/ }).tap();
-  const cont = rite.getByRole('button', { name: 'Continue', exact: true });
-  await expect(cont).toBeVisible();
-  await cont.tap();
+  await page.waitForTimeout(250); // bindCeremonySkip ignores presses for 180 ms after opening
+  const button = rite.getByRole('button', { name: /^(Skip|Continue)$/ });
+  await button.tap();
+  if (await rite.count()) {
+    const cont = rite.getByRole('button', { name: 'Continue', exact: true });
+    await expect(cont).toBeVisible();
+    await cont.tap();
+  }
   await expect(page.getByRole('dialog', { name: 'Promotion', exact: true })).toHaveCount(0);
 }
 

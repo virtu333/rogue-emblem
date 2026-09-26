@@ -324,8 +324,14 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
     );
     expect(dangerBefore).toBe(false);
 
-    // Tap the danger button
-    const dangerBtn = page.locator('button[data-action="danger"]');
+    // Tap Danger on the battle command rail (MobileBattleHUD, #64; the old bottom-bar
+    // `.mobile-btn[data-action="danger"]` stays hidden in battle).
+    const dangerBtn = page
+      .getByRole('complementary', { name: 'Battle commands' })
+      .getByRole('button', { name: /^Danger\b/ });
+    await expect(dangerBtn).toBeVisible();
+    const dangerBox = await dangerBtn.boundingBox();
+    expect(dangerBox.y + dangerBox.height).toBeLessThanOrEqual(page.viewportSize().height);
     await dangerBtn.tap();
 
     // Danger zone should toggle on

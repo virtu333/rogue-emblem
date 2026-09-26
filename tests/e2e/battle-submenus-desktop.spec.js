@@ -27,12 +27,19 @@ test('canvas item submenu supports keyboard selection and consumes one charge', 
     ),
   ).toBe(false);
   await page.keyboard.press('ArrowDown');
-  expect(
-    await page.evaluate(
-      () =>
-        window.__emblemRogueGame.scene.getScene('Battle')._menuFocus.items[1].button.style.color,
-    ),
-  ).toBe('#ffdd44');
+  // Focus paints the palette's accent text (Ink & Ember, #67), the same colour as
+  // pointer hover; the item that lost focus returns to its own colour.
+  const focus = await page.evaluate(async () => {
+    const { UI_PALETTE } = await import('/src/utils/uiStyles.js');
+    const { items } = window.__emblemRogueGame.scene.getScene('Battle')._menuFocus;
+    return {
+      accent: UI_PALETTE.accentText,
+      focused: items[1].button.style.color,
+      blurred: items[0].button.style.color,
+    };
+  });
+  expect(focus.focused).toBe(focus.accent);
+  expect(focus.blurred).not.toBe(focus.accent);
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await expect.poll(() => page.evaluate(() => window.testUnit.hasActed)).toBe(true);

@@ -12,8 +12,9 @@ test.use({ ...devices['iPhone 13'], viewport: { width: 844, height: 390 } });
 test('two Fighters in the roster wear different faces', async ({ page }) => {
   const { sheet, faces } = await openRosterWithTwoFighters(page);
   await expectDistinctFighters(page, faces);
-  await sheet.getByRole('button', { name: /Roderick Lv/ }).click();
-  await expect(sheet.getByRole('button', { name: /Roderick Lv/ })).toHaveAttribute(
+  // Unit rows are named "<name>, Level <n> <class>, HP …" (#78).
+  await sheet.getByRole('button', { name: /^Roderick, Level/ }).click();
+  await expect(sheet.getByRole('button', { name: /^Roderick, Level/ })).toHaveAttribute(
     'aria-pressed',
     'true',
   );

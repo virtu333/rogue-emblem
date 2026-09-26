@@ -37,35 +37,10 @@ async function resumeSavedRun(page, battle = false, alreadyReloaded = false) {
     await page.reload();
   }
   await waitForScene(page, 'Title');
-  // Let the boot-to-title router cooldown finish before the next scene transition.
-  await page.waitForTimeout(1300);
-  // Title remains canvas-based: locate the rendered label, then tap its bounds.
-  await page.waitForFunction(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    return (
-      s.input.enabled &&
-      walk(s.children.list).some((o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible)
-    );
-  });
-  const point = await page.evaluate(() => {
-    const s = window.__emblemRogueGame.scene.getScene('Title');
-    const walk = (nodes) =>
-      nodes.flatMap((o) => [o, ...(Array.isArray(o.list) ? walk(o.list) : [])]);
-    const o = walk(s.children.list).find(
-      (o) => ['CONTINUE', 'SAVE SLOTS'].includes(o.text) && o.visible,
-    );
-    const b = o.getBounds(),
-      r = s.game.canvas.getBoundingClientRect();
-    return {
-      x: r.x + (b.centerX * r.width) / s.scale.width,
-      y: r.y + (b.centerY * r.height) / s.scale.height,
-    };
-  });
-  await page.touchscreen.tap(point.x, point.y);
+  // The title menu is DOM (#67). Its transitions retry past the router's post-boot
+  // cooldown, so the tap needs no settling delay.
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).tap();
   await waitForScene(page, 'SlotPicker');
-  await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Select Slot 1', exact: true }).tap();
   if (battle) await page.getByRole('button', { name: 'Resume Battle', exact: true }).tap();
   await waitForScene(page, battle ? 'Battle' : 'NodeMap');
@@ -143,11 +118,9 @@ async function setup(page) {
 async function attack(page, name) {
   await tapUnit(page, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  // Target first (#77): Attack goes straight to target selection with the equipped
+  // weapon; the forecast is where a weapon could be switched.
   await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
-  await hud
-    .getByRole('button', { name: /Iron Sword|Iron|Sword|Lance|Axe/ })
-    .first()
-    .tap();
   await tapUnit(page, 'Reload Target', 'enemyUnits');
   await page.getByRole('button', { name: 'Confirm attack', exact: true }).tap();
 }

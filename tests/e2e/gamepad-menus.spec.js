@@ -4,7 +4,13 @@
 // scene transitions through the LIFO input-focus stack.
 
 import { test, expect } from '@playwright/test';
-import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  attachSceneCrashArtifacts,
+  installSimPad,
+  padTap as tap,
+} from './helpers.js';
 
 const BTN = {
   CONFIRM: 0,
@@ -17,40 +23,6 @@ const BTN = {
   LEFT: 14,
   RIGHT: 15,
 };
-
-async function installSimPad(page) {
-  await page.evaluate(() => {
-    window.__gamepadSim = {
-      pads: [
-        {
-          connected: true,
-          mapping: 'standard',
-          buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })),
-          axes: [0, 0, 0, 0],
-        },
-      ],
-    };
-  });
-}
-
-async function setButton(page, index, pressed) {
-  await page.evaluate(
-    ({ i, p }) => {
-      const pad = window.__gamepadSim?.pads?.[0];
-      if (pad) pad.buttons[i] = { pressed: p, value: p ? 1 : 0 };
-    },
-    { i: index, p: pressed },
-  );
-}
-
-// Hold long enough for the global reader (which polls on the game step) to
-// edge-detect the press even when a heavy menu redraw is sharing the frame budget.
-async function tap(page, index) {
-  await setButton(page, index, true);
-  await page.waitForTimeout(100);
-  await setButton(page, index, false);
-  await page.waitForTimeout(80);
-}
 
 async function focusWithPad(page, control) {
   for (let i = 0; i < 90; i++) {
@@ -108,9 +80,8 @@ test.describe('Gamepad menu navigation', () => {
     await page.goto('/?devScene=title&gamepadSim=1');
     await waitForGame(page);
     await waitForScene(page, 'Title');
-    // The key art plate builds once, just after the title's first paint. The sim pad's
-    // release is a page task queued behind that build, so a tap during it reads as a
-    // held direction (DAS repeat); a real pad is read live on the next step.
+    // Let the key art plate (built once, just after the title's first paint) settle
+    // before counting focus moves.
     await expect(page.locator('.re-title-art.re-keyart-ready')).toHaveCount(1);
     await installSimPad(page);
 
