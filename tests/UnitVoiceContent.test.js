@@ -43,7 +43,7 @@ describe('unit voice content contract', () => {
   it('lean-level lines never claim zero growth', () => {
     for (const [path, line] of allLines(voice).filter(([p]) => p.includes('.blank'))) {
       expect(line, path).not.toMatch(
-        /nothing(?:[.!?]| (?:gained|grew|new))|no (?:change|gain|progress|improvement|new insight)|unchanged|not a thing|learned nothing|same as (?:before|yesterday)|unrewarded/i,
+        /nothing(?:[.!?]| (?:gained|grew|new|today))|no (?:change|gain|progress|improvement|new insight)|unchanged|not a thing|learned nothing|same as (?:before|yesterday)|\bsame\b[^.]*\bsame\b|unrewarded/i,
       );
     }
   });
