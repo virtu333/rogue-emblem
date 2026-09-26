@@ -1,8 +1,13 @@
 name: TestFlight
 
-# Builds the iOS app from the selected ref and uploads it to App Store Connect, where it
-# appears in TestFlight once Apple finishes processing (usually 5-30 minutes).
-# Run it from the Actions tab: TestFlight -> Run workflow (pick the branch, usually main).
+# Builds and signs the iOS app from the selected ref. Run it from the Actions tab:
+# TestFlight -> Run workflow (pick the branch, usually main) and a mode:
+#   upload (default)  archive, sign and upload to App Store Connect; it appears in
+#                     TestFlight once Apple finishes processing (usually 5-30 minutes)
+#   validate          the same signed build, checked by App Store Connect but not
+#                     uploaded (for trying out changes to this workflow)
+# Either mode first requires the CI workflow to have passed on the exact commit (it waits
+# while that run is still going).
 #
 # Secrets (Settings -> Secrets and variables -> Actions):
 #   APP_STORE_CONNECT_KEY_ID       Key ID of an App Store Connect API key (Admin role:
@@ -14,6 +19,11 @@ name: TestFlight
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'upload: send it to TestFlight; validate: build and sign only'
+        type: choice
+        options: [upload, validate]
+        default: upload
       build_number:
         description: 'Build number (leave blank: one above the latest in App Store Connect)'
         required: false
@@ -27,7 +37,54 @@ permissions:
   contents: read
 
 jobs:
-  upload:
+  ci-passed:
+    name: CI passed on this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Wait for CI on ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # The newest CI run for this exact commit (a re-run updates the same run) must
+          # finish successfully. A commit just merged to main has its push run still going,
+          # so wait for it; give GitHub a few minutes to create one before giving up.
+          started=$SECONDS
+          while :; do
+            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=50" \
+              --jq '.workflow_runs | sort_by(.created_at) | last // empty | [.status, (.conclusion // ""), .html_url] | @tsv')"
+            elapsed=$((SECONDS - started))
+            if [ -z "$run" ]; then
+              if [ "$elapsed" -ge 300 ]; then
+                echo "::error::No CI run exists for $GITHUB_SHA. Build a commit CI has run on (main, or a branch with an open pull request)."
+                exit 1
+              fi
+              echo "No CI run for $GITHUB_SHA yet; waiting."
+            else
+              IFS=$'\t' read -r status conclusion url <<< "$run"
+              if [ "$status" = completed ]; then
+                if [ "$conclusion" = success ]; then
+                  echo "CI passed on $GITHUB_SHA: $url"
+                  exit 0
+                fi
+                echo "::error::CI on $GITHUB_SHA finished '$conclusion': $url"
+                exit 1
+              fi
+              echo "CI on $GITHUB_SHA is $status: $url"
+            fi
+            if [ "$elapsed" -ge 2700 ]; then
+              echo "::error::CI on $GITHUB_SHA did not finish within 45 minutes."
+              exit 1
+            fi
+            sleep 30
+          done
+
+  build:
+    name: Build (${{ inputs.mode }})
+    needs: ci-passed
     runs-on: macos-26
     timeout-minutes: 75
     env:
@@ -37,6 +94,7 @@ jobs:
       SCHEME: App
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      MODE: ${{ inputs.mode }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +131,10 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          KEY_DIR="$RUNNER_TEMP/private_keys"
+          mkdir -p "$KEY_DIR"
+          chmod 700 "$KEY_DIR"
+          KEY_PATH="$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
           if printf '%s' "$ASC_PRIVATE_KEY" | grep -q 'BEGIN PRIVATE KEY'; then
             # Pasted PEM; %b also turns literal "\n" sequences into newlines.
             printf '%b\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
@@ -86,6 +147,7 @@ jobs:
             exit 1
           fi
           echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "API_PRIVATE_KEYS_DIR=$KEY_DIR" >> "$GITHUB_ENV"
 
       - name: Build number
         env:
@@ -164,16 +226,21 @@ jobs:
           [ "$BUNDLE" = "$BUNDLE_ID" ] || { echo "::error::bundle ID $BUNDLE"; exit 1; }
           [ "$BUILD" = "$BUILD_NUMBER" ] || { echo "::error::CFBundleVersion $BUILD, expected $BUILD_NUMBER"; exit 1; }
 
-      - name: Export and upload to App Store Connect
+      - name: Export (${{ inputs.mode }})
         run: |
           set -euo pipefail
+          case "$MODE" in
+            upload) DESTINATION=upload ;;
+            validate) DESTINATION=export ;;
+            *) echo "::error::Unknown mode '$MODE'"; exit 1 ;;
+          esac
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>${DESTINATION}</string>
             <key>signingStyle</key><string>automatic</string>
             <key>teamID</key><string>${TEAM_ID}</string>
             <key>uploadSymbols</key><true/>
@@ -191,14 +258,61 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/export.log"
 
+      - name: Check the signed app
+        if: inputs.mode == 'validate'
+        run: |
+          set -euo pipefail
+          IPA="$(ls "$RUNNER_TEMP"/export/*.ipa)"
+          echo "IPA=$IPA" >> "$GITHUB_ENV"
+          ls -lh "$IPA"
+          rm -rf "$RUNNER_TEMP/ipa" && mkdir "$RUNNER_TEMP/ipa"
+          unzip -q "$IPA" -d "$RUNNER_TEMP/ipa"
+          APP="$RUNNER_TEMP/ipa/Payload/App.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          AUTHORITY="$(codesign -dvv "$APP" 2>&1 | grep -m1 '^Authority=' || true)"
+          echo "$AUTHORITY"
+          case "$AUTHORITY" in
+            *"Apple Distribution"*|*"iPhone Distribution"*) ;;
+            *) echo "::error::App.app is not signed for distribution ($AUTHORITY)"; exit 1 ;;
+          esac
+          security cms -D -i "$APP/embedded.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          /usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist"
+          if /usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$RUNNER_TEMP/profile.plist" >/dev/null 2>&1; then
+            echo "::error::the embedded profile lists devices, so it is not an App Store profile"
+            exit 1
+          fi
+
+      - name: Validate with App Store Connect
+        if: inputs.mode == 'validate'
+        run: |
+          set -euo pipefail
+          # Apple's server-side checks, without uploading; run from RUNNER_TEMP so altool
+          # also finds the key in ./private_keys.
+          if ! xcrun --find altool >/dev/null 2>&1; then
+            echo "::warning::altool is not in this Xcode, so App Store Connect validation was skipped; the signed IPA was still built and checked."
+            exit 0
+          fi
+          cd "$RUNNER_TEMP"
+          xcrun altool --validate-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" \
+            2>&1 | tee "$RUNNER_TEMP/validate.log"
+
       - name: Summary
         run: |
           {
-            echo "### Uploaded Rogue Dawn $MARKETING_VERSION ($BUILD_NUMBER)"
+            if [ "$MODE" = upload ]; then
+              echo "### Uploaded Rogue Dawn $MARKETING_VERSION ($BUILD_NUMBER)"
+            else
+              echo "### Validated Rogue Dawn $MARKETING_VERSION ($BUILD_NUMBER), not uploaded"
+            fi
             echo ""
             echo "- Commit: \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`"
             echo "- Cloud: ${{ vars.VITE_CLOUD_ENABLED == 'true' && 'enabled' || 'off (offline build)' }}"
-            echo "- It appears in App Store Connect -> TestFlight once Apple finishes processing."
+            if [ "$MODE" = upload ]; then
+              echo "- It appears in App Store Connect -> TestFlight once Apple finishes processing."
+            else
+              echo "- The signed App Store build passed. Run again with mode **upload** to send it to TestFlight."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the logs
@@ -209,6 +323,7 @@ jobs:
           path: |
             ${{ runner.temp }}/archive.log
             ${{ runner.temp }}/export.log
+            ${{ runner.temp }}/validate.log
             ${{ runner.temp }}/export/*.plist
             ${{ runner.temp }}/export/*.log
           if-no-files-found: ignore
@@ -216,5 +331,6 @@ jobs:
       - name: Clean up
         if: always()
         run: |
+          if [ -n "${API_PRIVATE_KEYS_DIR:-}" ]; then rm -rf "$API_PRIVATE_KEYS_DIR"; fi
           if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
           if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi

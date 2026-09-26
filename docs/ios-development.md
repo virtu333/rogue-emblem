@@ -31,10 +31,12 @@ Commit the native sources, Capacitor config, and dependency lockfile. The genera
 
 `.github/workflows/testflight.yml` builds and uploads a TestFlight build on demand: Actions → **TestFlight** → **Run workflow** (pick the branch, usually `main`). It runs on a macOS runner with the latest stable Xcode: `npm ci`, `npm run ios:sync`, then `xcodebuild archive` and `-exportArchive` with `destination=upload`, signed through Xcode's cloud-managed signing with the App Store Connect API key (no certificate or profile is stored in the repo or in secrets). The archive is checked before upload (bundle ID, build number, `PrivacyInfo.xcprivacy` and the web game inside `App.app`); the build shows up in App Store Connect → TestFlight once Apple finishes processing.
 
+- **Mode:** `upload` (default) sends the build to App Store Connect. `validate` builds, signs and exports the same App Store IPA, checks its distribution signature and profile, and runs App Store Connect's validation (`altool --validate-app`) without uploading — for trying out changes to the workflow.
+- **CI gate:** a first job waits for the newest CI run on the exact commit and stops the build unless it passed (a commit just merged to `main` has its push run still going; the job waits up to 45 minutes). A commit CI never ran on (a branch without a pull request) cannot be built.
 - **Secrets:** `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID` and `APP_STORE_CONNECT_PRIVATE_KEY` (the whole `AuthKey_<id>.p8`, PEM or base64). Cloud-managed signing creates certificates and profiles, so the key needs the **Admin** role.
 - **Build number:** one above the highest build App Store Connect already has for the app (`tools/ios/nextBuildNumber.mjs`), never below the project's `CURRENT_PROJECT_VERSION`; the run's input can override it. The version (`MARKETING_VERSION`) comes from the project.
 - **Cloud:** the build is offline like every default build. A cloud-enabled build needs repository variables `VITE_CLOUD_ENABLED=true` and `VITE_SUPABASE_URL` and the secret `VITE_SUPABASE_ANON_KEY`. An offline build collects no data, so its App Store privacy answer is "Data Not Collected".
-- **Logs:** `testflight-logs` (archive and export logs) is attached to every run.
+- **Logs:** `testflight-logs` (archive, export and validation logs) is attached to every run.
 
 ## Saves on iOS (closing the app, storage eviction)
 
