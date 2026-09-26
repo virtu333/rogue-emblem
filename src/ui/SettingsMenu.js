@@ -3,6 +3,12 @@ import { resolveAtmosphereMode } from '../art/atmosphereConfig.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { GUIDANCE_LABELS, isVeteranMeta, resolveGuidance } from '../engine/Guidance.js';
+import {
+  getPortraitBattlePreference,
+  setPortraitBattlePreference,
+  showPortraitBattleSetting,
+  syncRotatePromptCopy,
+} from '../utils/portraitBattle.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
@@ -173,6 +179,19 @@ export class SettingsMenu {
         're-muted',
       ),
     );
+    // Phones only: device-local, never synced (see utils/portraitBattle.js). Not in the
+    // iOS app or the installed web app, which hold the screen in landscape.
+    if (showPortraitBattleSetting({ mobile: detectMobileRuntime() })) {
+      toggle(
+        'Portrait battles (beta)',
+        () => getPortraitBattlePreference(),
+        (value) => {
+          setPortraitBattlePreference(value);
+          syncRotatePromptCopy();
+        },
+        'Play battles with the phone upright: the map turns so your army starts at the bottom. The route map and other menus stay landscape. Takes effect on your next turn.',
+      );
+    }
     this.surface.body.append(list);
     this.surface.focusContent();
   }
