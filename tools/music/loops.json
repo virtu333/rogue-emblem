@@ -252,6 +252,28 @@
     "title": "Ember Dusk, in Ash",
     "tonic": "Db"
   },
+  "music_battle_act4_3": {
+    "duration": 108.918,
+    "loopEnd": 108.318186,
+    "loopStart": 8.090907,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_act4_3",
+    "seamDb": -63.4,
+    "title": "The Name Is Not Spoken",
+    "tonic": "B"
+  },
+  "music_battle_act4_3_calm": {
+    "duration": 108.918,
+    "loopEnd": 108.318186,
+    "loopStart": 8.090907,
+    "lufs": -17.0,
+    "peakDb": -3.94,
+    "score": "battle_act4_3",
+    "seamDb": -113.1,
+    "title": "The Name Is Not Spoken",
+    "tonic": "B"
+  },
   "music_battle_act4_calm": {
     "duration": 77.327,
     "loopEnd": 76.727256,

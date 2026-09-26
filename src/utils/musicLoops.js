@@ -63,6 +63,13 @@ export const MUSIC_LOOPS = {
   music_battle_act4: { loopStart: 11.272721, loopEnd: 76.727256, duration: 77.327, tonic: 'Db' },
   music_battle_act4_2: { loopStart: 10.666667, loopEnd: 84.0, duration: 84.6, tonic: 'Db' },
   music_battle_act4_2_calm: { loopStart: 10.666667, loopEnd: 84.0, duration: 84.6, tonic: 'Db' },
+  music_battle_act4_3: { loopStart: 8.090907, loopEnd: 108.318186, duration: 108.918, tonic: 'B' },
+  music_battle_act4_3_calm: {
+    loopStart: 8.090907,
+    loopEnd: 108.318186,
+    duration: 108.918,
+    tonic: 'B',
+  },
   music_battle_act4_calm: {
     loopStart: 11.272721,
     loopEnd: 76.727256,
