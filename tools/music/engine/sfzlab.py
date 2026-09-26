@@ -359,6 +359,27 @@ def keep_regions(prog, pred):
     return out
 
 
+def retune(prog, cents_by_sample: dict):
+    """Add a tuning correction (cents) to every region playing one of the samples,
+    on top of the `tune` it inherits (engine/tuning.py measures them)."""
+    out, ctx = [], {'global': [], 'master': [], 'group': []}
+    for h, ops in copy.deepcopy(prog):
+        if h == 'global':
+            ctx.update(master=[], group=[])
+        elif h == 'master':
+            ctx['group'] = []
+        if h in ('global', 'master', 'group'):
+            ctx[h] = ops
+        if h == 'region' and get(ops, 'sample') in cents_by_sample:
+            eff = {}
+            for layer in (ctx['global'], ctx['master'], ctx['group'], ops):
+                eff.update(dict(layer))
+            tune = float(eff.get('tune', 0)) + cents_by_sample[get(ops, 'sample')]
+            set_op(ops, 'tune', round(tune))
+        out.append((h, ops))
+    return out
+
+
 def extend_range(prog, lo=0, hi=127):
     """Stretch the lowest and highest regions to cover the whole keyboard."""
     prog = copy.deepcopy(prog)
@@ -403,10 +424,10 @@ def ram_based(prog):
     return [('control', [('hint_ram_based', '1')])] + prog
 
 
-def write(prog, name: str, directory: str | None = None) -> str:
+def write(prog, name: str, directory: str | None = None, ram: bool = True) -> str:
     """Write a program into the lab dir (or `directory`); the file name carries
-    a content hash."""
-    body = text(ram_based(prog))
+    a content hash. `ram`: samples held in memory (ram_based)."""
+    body = text(ram_based(prog) if ram else prog)
     h = hashlib.sha1(body.encode()).hexdigest()[:10]
     d = directory or os.path.join(LAB_DIR, 'sfz')
     os.makedirs(d, exist_ok=True)

@@ -25,15 +25,45 @@ def _ticks(sec: float) -> int:
     return int(round(max(0.0, sec) * TICKS_PER_SEC))
 
 
+def key_tuning_messages(key_tuning: dict, channel: int = 0, tuning_program: int = 0):
+    """MIDI Tuning Standard: a single-note tuning change (real time) moving each
+    listed key by its cents, then RPN 4 / RPN 3 selecting that tuning on the
+    channel. Unlike a pitch bend it is per key, so chords stay in tune note by
+    note; keys not listed keep equal temperament."""
+    data = [0x7F, 0x7F, 0x08, 0x02, tuning_program, 0]
+    n = 0
+    for key, cents in sorted(key_tuning.items()):
+        if not cents:
+            continue
+        pitch = int(key) + float(cents) / 100.0
+        semi = int(np.floor(pitch))
+        frac = int(round((pitch - semi) * 16384))
+        if frac >= 16384:
+            semi, frac = semi + 1, 0
+        if not 0 <= semi <= 127:
+            continue
+        data += [int(key), semi, (frac >> 7) & 0x7F, frac & 0x7F]
+        n += 1
+    if not n:
+        return []
+    data[5] = n
+    msgs = [mido.Message('sysex', data=data)]
+    for num, val in ((4, 0), (3, tuning_program)):   # tuning bank, tuning program
+        msgs += [mido.Message('control_change', channel=channel, control=101, value=0),
+                 mido.Message('control_change', channel=channel, control=100, value=num),
+                 mido.Message('control_change', channel=channel, control=6, value=val)]
+    msgs += [mido.Message('control_change', channel=channel, control=101, value=127),
+             mido.Message('control_change', channel=channel, control=100, value=127)]
+    return msgs
+
+
 def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
                expr_points=None, channel: int = 0, gain: float = 1.0,
                cc: dict | None = None, pitch_bend_range: int | None = None,
-               cents=None) -> np.ndarray:
+               key_tuning: dict | None = None) -> np.ndarray:
     """events: iterable of (t_sec, dur_sec, key, vel01). Returns (n, 2) float32.
 
-    cents: optional per-event tuning (same order as events), sent as a pitch bend
-    (FluidSynth's default range, 2 semitones) just before each note-on. The bend
-    is per channel, so this is for single-line parts."""
+    key_tuning: optional {key: cents} retuning (see key_tuning_messages)."""
     mid = mido.MidiFile(ticks_per_beat=PPQ)
     tr = mido.MidiTrack()
     mid.tracks.append(tr)
@@ -44,6 +74,8 @@ def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
                                         value=bank)))
     msgs.append((0, 1, mido.Message('program_change', channel=channel, program=program)))
     msgs.append((0, 2, mido.Message('control_change', channel=channel, control=7, value=110)))
+    for m in key_tuning_messages(key_tuning or {}, channel):
+        msgs.append((0, 2.5, m))
     for k, v in (cc or {}).items():
         msgs.append((0, 3, mido.Message('control_change', channel=channel, control=k, value=v)))
     if expr_points:
@@ -62,12 +94,9 @@ def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
     else:
         msgs.append((0, 3, mido.Message('control_change', channel=channel, control=11, value=127)))
     end_t = 0.0
-    for i, (t, dur, key, vel) in enumerate(events):
+    for t, dur, key, vel in events:
         v = int(np.clip(round(vel * 126) + 1, 1, 127))
         on, off = _ticks(t), _ticks(t + max(dur, 0.01))
-        if cents is not None:
-            bend = int(np.clip(round(cents[i] / 200.0 * 8191), -8192, 8191))
-            msgs.append((on, 4.5, mido.Message('pitchwheel', channel=channel, pitch=bend)))
         msgs.append((on, 5, mido.Message('note_on', channel=channel, note=int(key), velocity=v)))
         msgs.append((off, 4, mido.Message('note_off', channel=channel, note=int(key), velocity=0)))
         end_t = max(end_t, t + dur)

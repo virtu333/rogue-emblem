@@ -27,6 +27,7 @@ def _t(sec):
 
 
 _LOADED = {}
+_FIXES = {}
 
 
 def ram_mode() -> bool:
@@ -35,8 +36,21 @@ def ram_mode() -> bool:
     return os.environ.get('MUSIC_SFIZZ_RAM', '1') != '0'
 
 
-def _in_ram(sfz: str, events, directory: str) -> str:
-    """The same program flattened with its samples held in memory (engine/sfzlab.py).
+def _fixes(sfz: str) -> dict:
+    """{sample: cents} measured tuning corrections for this program's samples."""
+    from . import sfzlab, tuning
+    if sfz not in _FIXES:
+        if sfz not in _LOADED:
+            _LOADED[sfz] = sfzlab.load(sfz)
+        _FIXES[sfz] = {r['sample']: tuning.sample_cents(r['sample'])
+                       for r in sfzlab.regions(_LOADED[sfz])
+                       if r.get('sample') and tuning.sample_cents(r['sample'])}
+    return _FIXES[sfz]
+
+
+def _program(sfz: str, events, directory: str, ram: bool) -> str:
+    """The same program flattened (engine/sfzlab.py), with the measured tuning
+    corrections (engine/tuning.py) and, in RAM mode, its samples held in memory.
 
     sfizz preloads 8192 frames of each sample and streams the rest from a
     background thread that sfizz_render does not reliably wait for: on a
@@ -47,24 +61,23 @@ def _in_ram(sfz: str, events, directory: str) -> str:
     fit in memory. The program is written into `directory` (the render's
     scratch folder), so renders leave no files behind."""
     from . import sfzlab
-    if sfz not in _LOADED:
-        _LOADED[sfz] = sfzlab.load(sfz)
-    vels = {}
-    for t, dur, key, vel in events:
-        vels.setdefault(int(key), set()).add(int(np.clip(round(vel * 126) + 1, 1, 127)))
+    fixes = _fixes(sfz)   # (loads the program)
+    prog = sfzlab.retune(_LOADED[sfz], fixes)
+    if ram:
+        keys = {int(key) for t, dur, key, vel in events}
 
-    def used(r):
-        if not r.get('sample') or r['sample'].startswith('*'):
-            return True
-        try:
-            lo, hi, _ = sfzlab.region_keys(list(r.items()))
-        except ValueError:
-            return True
-        return any(lo <= k <= hi for k in vels)
+        def used(r):
+            if not r.get('sample') or r['sample'].startswith('*'):
+                return True
+            try:
+                lo, hi, _ = sfzlab.region_keys(list(r.items()))
+            except ValueError:
+                return True
+            return any(lo <= k <= hi for k in keys)
 
-    prog = sfzlab.keep_regions(_LOADED[sfz], used)
-    return sfzlab.write(prog, 'ram-' + os.path.splitext(os.path.basename(sfz))[0].replace(' ', '_'),
-                        directory=directory)
+        prog = sfzlab.keep_regions(prog, used)
+    name = ('ram-' if ram else 'fix-') + os.path.splitext(os.path.basename(sfz))[0].replace(' ', '_')
+    return sfzlab.write(prog, name, directory=directory, ram=ram)
 
 
 def render_sfz(sfz: str, events, n_frames: int, cc: dict | None = None,
@@ -72,8 +85,8 @@ def render_sfz(sfz: str, events, n_frames: int, cc: dict | None = None,
     """events: (t, dur, key, vel01). cc: initial {cc: value}. cc_events: (t, cc, value)."""
     events = list(events)
     with tempfile.TemporaryDirectory() as td:
-        if ram_mode() and '/music-lab/' not in sfz:
-            sfz = _in_ram(sfz, events, td)
+        if '/music-lab/' not in sfz and (ram_mode() or _fixes(sfz)):
+            sfz = _program(sfz, events, td, ram_mode())
         return _render(sfz, events, n_frames, cc, cc_events, polyphony, td)
 
 

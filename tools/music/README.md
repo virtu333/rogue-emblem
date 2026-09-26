@@ -50,6 +50,7 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
 | `build.py` | Render scores and export game-ready loops |
 | `lint.py <score> [--variant v]` | Symbolic check: sustained semitone clashes between parts, for catching typos and wrong octaves |
 | `pitchcheck.py <file.mp3>` | The strongest pitch classes per window of a rendered file: is the cue in the key it should be? |
+| `tunecheck.py [insts…] [--write] [--verify]` | Measure the tuning of every sample the palette can reach and write the correction table `tuning.json` (see below) |
 | `analyze.py <score> [--png]` | Per-part levels in each mix variant, tonal balance, width, spectrogram |
 | `solo.py <score> <parts…>` | Audition a subset of parts |
 | `listen.py <files…> --prompt` | Ask a Gemini audio model for a critique. It is useful for glaring problems only; its detailed perception is unreliable |
@@ -74,6 +75,18 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
   a busy machine notes longer than about 0.19 s can fall silent part-way. The in-memory
   render is bit-identical to a clean streamed render. `MUSIC_SFIZZ_RAM=0` turns it off
   (plain streaming, for comparison).
+- `tuning.py`: a pitch meter and the tuning corrections. Some library samples are
+  recorded off pitch (a VSCO tuba staccato 58 cents flat, the Growlybass low E 15-45
+  cents sharp). `tunecheck.py` measures every sample any key of an instrument's range can
+  reach (partials looked for near the expected pitch, so no octave errors; the
+  autocorrelation period as a second opinion; the energy-weighted median over the note)
+  and writes `tuning.json`: cents per sample for SFZ instruments (the sampler adds them
+  to the region's `tune`; sfizz programs get a retuned copy) and cents per key for
+  SoundFont presets (sent as a MIDI Tuning Standard key table, so chords stay in tune note
+  by note; a part with its own `key_cents` table uses that instead, never both). Errors under 12 cents are left
+  alone, and so is any reading the meter cannot trust (drums, bells and the piano are
+  not measured at all). The glockenspiel's samples sound an octave above their keys and
+  are all sharp: each one is corrected.
 - `synth.py`: sub, the thread shimmer, the Entity's drone, risers, booms.
 - `render.py`: per-part rendering with auto-calibrated levels and onset pre-roll, role
   leveling, expression lanes, loop-periodic performance drift, sends to a synthetic

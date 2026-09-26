@@ -30,7 +30,7 @@ from dataclasses import asdict
 import numpy as np
 import soundfile as sf
 
-from . import dsp, palette
+from . import dsp, palette, tuning
 from .dsp import SR
 from .instruments import INSTRUMENTS
 from .sampler import NoteEvent, SfzVoicer
@@ -77,7 +77,7 @@ def prune_cache(max_age_days: float, directory: str | None = None) -> tuple[int,
 
 
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
-ENGINE_VERSION = 10  # bump to invalidate stem caches
+ENGINE_VERSION = 11  # bump to invalidate stem caches
 
 M_MIN = 4.0
 EXTRA = 0.6
@@ -179,10 +179,21 @@ def _voicer(inst_name, art_name, art):
     return _VOICERS[k]
 
 
+def sf2_key_tuning(inst, key_cents=None) -> dict:
+    """{key: cents} a SoundFont part is retuned by: the part's own `key_cents`
+    when it has them (a score that fitted its own table, e.g. per note length,
+    keeps exactly that: the two never stack), otherwise the preset's measured
+    correction (tools/music/tuning.json, from tunecheck.py)."""
+    if key_cents:
+        return {int(k): float(v) for k, v in key_cents.items()}
+    return tuning.preset_cents(inst['font'], inst['bank'], inst['program'])
+
+
 def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibrating=False,
                 sustain_pedal=False, key_cents=None, score=None, lane=None):
     """Events -> stereo buffer, no calibration/mix processing. `key_cents` (SoundFont
-    parts only, opt-in per part) maps a key to a tuning correction in cents."""
+    parts only, per part) maps a key to a tuning correction in cents; it replaces the
+    preset's default correction (sf2_key_tuning)."""
     out = np.zeros((n_frames, 2), np.float32)
     kind = inst['kind']
     if kind == 'sfz':
@@ -201,9 +212,9 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
     elif kind == 'sf2':
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
         cc = {64: 127} if sustain_pedal else None
-        cents = [key_cents.get(ev.key, 0.0) for ev in events] if key_cents else None
         out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames,
-                         channel=inst.get('channel', 0), cc=cc, cents=cents)
+                         channel=inst.get('channel', 0), cc=cc,
+                         key_tuning=sf2_key_tuning(inst, key_cents))
     elif kind == 'sfizz':
         # `transpose`: a program mapped away from sounding pitch (the Growlybass)
         tr = inst.get('transpose', 0)
@@ -371,6 +382,7 @@ class Renderer:
                   self.I_f, seed, part.opts.get('pedal', False))
                + (((sorted(part.opts['key_cents'].items()),) if part.opts.get('key_cents')
                    else ()))
+               + ((tuning.token(inst),) if inst['kind'] in ('sfz', 'sfizz', 'sf2') else ())
                + (((inst['sfz'], inst.get('cc'), inst.get('transpose', 0)),)
                   if inst['kind'] == 'sfizz' else ())
                + (() if inst['kind'] != 'lab' else (

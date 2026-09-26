@@ -152,8 +152,8 @@ INSTRUMENTS = {
     'celesta': dict(kind='sf2', font=GU, bank=0, program=8, range=(60, 108), pan=-0.25,
                     width=0.6, depth=0.4, ref_key=84, bus='keys', humanize_ms=4),
     'glock': dict(kind='sfz', arts={
-        'default': dict(file=V('Glockenspiel.sfz'), mode='oneshot', max_len=3.0, veltrack_db=14,
-                        tune_cents=-14),
+        # each sample's tuning is corrected by tools/music/tuning.json (all run sharp)
+        'default': dict(file=V('Glockenspiel.sfz'), mode='oneshot', max_len=3.0, veltrack_db=14),
     }, range=(67, 108), pan=0.25, width=0.3, depth=0.55, ref_key=84, bus='perc', humanize_ms=4),
     'bells': dict(kind='sfz', arts={
         'default': dict(file=V('TubularBells.sfz'), mode='oneshot', max_len=6.0, veltrack_db=12),
