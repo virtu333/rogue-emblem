@@ -227,6 +227,7 @@ import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import BattleMusicController from '../ui/BattleMusicController.js';
+import { battleMusicContext } from '../engine/BattleMusicSelection.js';
 import { levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
@@ -1859,6 +1860,12 @@ export class BattleScene extends Phaser.Scene {
         isBoss: this.isBoss,
         bossName: (this.enemyUnits || []).find((unit) => unit.isBoss)?.name || null,
         objective: this.battleConfig?.objective || null,
+        context: battleMusicContext({
+          battleParams: this.battleParams,
+          battleConfig: this.battleConfig,
+          runSeed: this.runManager?.runSeed,
+          isElite: this.isElite,
+        }),
         releaseFirst: Boolean(this.battleParams?.tutorialMode),
       });
 

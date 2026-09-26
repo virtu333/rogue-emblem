@@ -9,6 +9,7 @@
 // the cue hands over to. Under the finale the Entity's hum is a stem of its
 // own whose level follows the Entity's remaining HP (see ENTITY_FINALE).
 
+import { selectBattleMusic } from '../engine/BattleMusicSelection.js';
 import {
   INTENSITY,
   createIntensityState,
@@ -102,21 +103,25 @@ export default class BattleMusicController {
 
   /**
    * Choose and start the battle's track. Returns the music key. Bosses play
-   * their theme; an escape map plays the pursuit theme; otherwise the act's
-   * battle pool.
+   * their theme; any other battle plays what its situation, place and act
+   * call for (`context`, from battleMusicContext: engine/BattleMusicSelection.js).
    */
   create({
     act = 'act1',
     isBoss = false,
     bossName = null,
     objective = null,
+    context = null,
     fadeMs = 800,
     releaseFirst = false,
   } = {}) {
     let key;
     if (isBoss) key = getBossMusicKey(bossName, act);
-    else if (objective === 'escape' && MUSIC.escape) key = MUSIC.escape;
-    else key = getMusicKey('battle', act);
+    else {
+      key =
+        selectBattleMusic({ ...(context || {}), act, objective }, MUSIC).key ||
+        getMusicKey('battle', act);
+    }
     this.key = key;
     this.adaptive = Boolean(getMusicLayers(key));
     this.enrageLayer = isBoss ? getBossEnrageLayer(key, bossName) : null;
