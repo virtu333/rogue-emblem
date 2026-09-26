@@ -12,6 +12,13 @@ const LEVEL_UP_CUES = Object.freeze({
   blank: 'levelup_blank',
 });
 
+/**
+ * How long a level-up or promotion cue may wait for its file to decode before
+ * the fallback sound effect plays instead (the new track's key may still be
+ * loading when the first level-up of a battle lands).
+ */
+export const LEVEL_UP_CUE_WAIT_MS = 400;
+
 /** Stinger for a level-up of `kind` (see growthContent.levelUpKind). */
 export function levelUpCue(kind) {
   return LEVEL_UP_CUES[kind] || LEVEL_UP_CUES.normal;

@@ -127,6 +127,24 @@ export function measureMapRect(scene) {
   }
 }
 
+/**
+ * A frame's distance (CSS px, never negative) from each viewport edge.
+ * Pure: `viewport` defaults to the window size.
+ * @returns {{ l:number, r:number, t:number, b:number }}
+ */
+export function frameEdges(rect, viewport = null) {
+  const vw = viewport?.width ?? (globalThis.innerWidth || 0);
+  const vh = viewport?.height ?? (globalThis.innerHeight || 0);
+  if (!rect) return { l: 0, r: 0, t: 0, b: 0 };
+  const gap = (v) => Math.max(0, Math.round(Number.isFinite(v) ? v : 0));
+  return {
+    l: gap(rect.left),
+    r: vw > 0 ? gap(vw - (rect.left + rect.width)) : 0,
+    t: gap(rect.top),
+    b: vh > 0 ? gap(vh - (rect.top + rect.height)) : 0,
+  };
+}
+
 /** Type grows with large desktop canvases; phones stay at design size. */
 export function frameScale(rect) {
   if (!rect) return 1;
@@ -220,6 +238,12 @@ export class CeremonyLayer {
     style.setProperty('--ce-bust-px', String(bustPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
     style.setProperty('--ce-h', `${Math.round(rect.height)}px`);
+    // Distance from each screen edge: the CSS safe-area insets (--ce-safe-*)
+    // subtract it, so a layer that already sits inside the notch is not
+    // pushed in a second time.
+    for (const [side, px] of Object.entries(frameEdges(rect))) {
+      style.setProperty(`--ce-frame-${side}`, `${px}px`);
+    }
     // Bands sit over the battlefield itself, not the letterbox beside it.
     const span =
       this.frame === 'map' ? bandSpan(rect, measureMapRect(this.scene)) : bandSpan(rect, null);

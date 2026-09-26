@@ -1,4 +1,10 @@
-import { forecastProjection, forecastNotes } from './forecastDisplay.js';
+import {
+  forecastProjection,
+  forecastNotes,
+  formatCritChance,
+  formatHitChance,
+  formatStrikes,
+} from './forecastDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution, getHPBarColor } from '../utils/uiStyles.js';
 /**
  * ForecastOverlay — extracted from BattleScene.
@@ -367,7 +373,7 @@ export class ForecastOverlay {
     this.displayObjects.push(dmgVal);
 
     const hitLabel = applyTextResolution(
-      scene.add.text(x + 94, y, 'Hit rating', {
+      scene.add.text(x + 94, y, 'Hit chance', {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.muted,
@@ -375,10 +381,10 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(hitLabel);
     const hitVal = applyTextResolution(
-      scene.add.text(x + 148, y, `${info.hit}`, {
+      scene.add.text(x + 152, y, formatHitChance(info.hit), {
         fontFamily: 'Arial',
         fontSize: '10px',
-        color: UI_PALETTE.text,
+        color: UI_PALETTE.info,
       }),
     ).setDepth(textDepth);
     this.displayObjects.push(hitVal);
@@ -395,10 +401,10 @@ export class ForecastOverlay {
     ).setDepth(textDepth);
     this.displayObjects.push(crtLabel);
     const crtVal = applyTextResolution(
-      scene.add.text(x + 32, y, `${info.crit}%`, {
+      scene.add.text(x + 32, y, formatCritChance(info.crit), {
         fontFamily: 'Arial',
         fontSize: '10px',
-        color: UI_PALETTE.text,
+        color: UI_PALETTE.info,
       }),
     ).setDepth(textDepth);
     this.displayObjects.push(crtVal);
@@ -427,7 +433,7 @@ export class ForecastOverlay {
 
     y += 14;
     const countText = applyTextResolution(
-      scene.add.text(x + 2, y, `Planned hits: ${info.attackCount || 1}x`, {
+      scene.add.text(x + 2, y, `Planned hits: ${formatStrikes(info.attackCount)}`, {
         fontFamily: 'Arial',
         fontSize: '10px',
         color: UI_PALETTE.accent,

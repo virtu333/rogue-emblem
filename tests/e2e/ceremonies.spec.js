@@ -268,6 +268,69 @@ test.describe('victory band and act title', () => {
   });
 });
 
+test.describe('deed card on a small phone', () => {
+  test.use(phone);
+
+  test('the band grows to hold every line of the longest card; nothing is squashed or cut', async ({
+    page,
+  }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // The longest real deed name, epithet and lore, a "held beneath" note, an
+    // Oath and a batch count: more lines than the band's design height holds.
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits[0];
+      u.deeds = { earned: [{ id: 'avenger', prestige: 4, seq: 1, epithet: 'the Avenger' }] };
+      const entry = {
+        unit: u,
+        unitName: 'Wendeline',
+        deedId: 'avenger',
+        name: 'Lantern of the March',
+        epithet: 'Who Danced at the End',
+        form: 'who',
+        lore: 'Leaf and root and bowstring hum; the wood keeps faith with those who come.',
+        prestige: 5,
+        isTitle: false,
+      };
+      const { growthCeremonies } = await import('/src/ui/GrowthCeremonyController.js');
+      void growthCeremonies(s).showDeeds({
+        entries: [entry, { ...entry, epithet: 'the Avenger' }],
+      });
+    });
+    const card = page.locator('.gr-deed');
+    await expect(card).toBeVisible();
+    await expect(page.locator('.gr-deed-oath')).toHaveText('Oath at promotion · Fury');
+    await page.getByRole('button', { name: 'Skip', exact: true }).tap(); // reveal fully
+    const fit = await page.evaluate(() => {
+      const text = document.querySelector('.gr-deed-text');
+      const kids = [...text.children];
+      return {
+        band: text.clientHeight,
+        top: kids[0].offsetTop,
+        bottom: Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)),
+        clipped: [text, ...text.querySelectorAll('*')]
+          .filter((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)
+          .map(
+            (n) =>
+              `${n.className} ${n.scrollHeight}/${n.clientHeight} ${n.scrollWidth}/${n.clientWidth}`,
+          ),
+        controlsTop: document.querySelector('.gr-deed-controls').getBoundingClientRect().top,
+        bandBottom: document.querySelector('.gr-deed-slash').getBoundingClientRect().bottom,
+      };
+    });
+    expect(fit.clipped).toEqual([]);
+    expect(fit.top).toBeGreaterThanOrEqual(0);
+    expect(fit.bottom).toBeLessThanOrEqual(fit.band);
+    // the grown band stays clear of the Next / Skip row (skewed edge: a few px)
+    expect(fit.bandBottom).toBeLessThanOrEqual(fit.controlsTop + 24);
+  });
+});
+
 test.describe('desktop', () => {
   test.use({ viewport: { width: 960, height: 720 } });
 

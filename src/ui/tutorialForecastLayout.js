@@ -17,7 +17,7 @@ export function syncTutorialForecastLayout(modal, scene, active) {
     lesson === 'battle_doubling'
       ? ['Attack speed', 'Planned hits']
       : lesson === 'battle_forecast'
-        ? ['Damage per hit', 'Hit']
+        ? ['Damage per hit', 'Hit chance']
         : [];
   for (const pair of modal.querySelectorAll('.mb-stats > div'))
     pair.classList.toggle(
