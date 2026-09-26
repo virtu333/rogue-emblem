@@ -1,5 +1,5 @@
 import { NODE_ART_ATLAS } from '../ui/NodeArt.js';
-import { UI_PALETTE, applyTextResolution } from '../utils/uiStyles.js';
+import { BootLoader } from '../ui/BootLoader.js';
 import { preloadRebuiltPortraits } from '../ui/RebuiltPortraits.js';
 import {
   PC98_ATLAS_SIZES,
@@ -85,26 +85,16 @@ export class BootScene extends Phaser.Scene {
     } else this.load.atlas(nodes.key, nodes.src, nodes.data);
     this._preloadComplete = false;
     this._lastPreloadProgressAt = performance.now();
-    this._stallUi = [];
+    // Status, progress and stall recovery read as DOM (BootLoader): canvas text on the
+    // 640x480 boot canvas is ~8 CSS px on an upright phone.
+    this._loader?.destroy();
+    this._loader = new BootLoader().create();
+    this.events.once('shutdown', () => {
+      this._loader?.destroy();
+      this._loader = null;
+    });
 
     const failedFiles = [];
-    const statusText = applyTextResolution(
-      this.add.text(320, 210, 'Loading assets...', {
-        fontFamily: 'Arial',
-        fontSize: '14px',
-        color: UI_PALETTE.muted,
-        align: 'center',
-      }),
-    ).setOrigin(0.5);
-    const progressText = applyTextResolution(
-      this.add.text(320, 240, 'Preparing downloads…', {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color: UI_PALETTE.muted,
-        align: 'center',
-      }),
-    ).setOrigin(0.5);
-
     markStartup('boot_preload_start', {
       reducedPreload: this._startupFlags.reducedPreload,
       mobileSafeBoot: this._startupFlags.mobileSafeBoot,
@@ -113,7 +103,7 @@ export class BootScene extends Phaser.Scene {
     const reportProgress = () => {
       this._lastPreloadProgressAt = performance.now();
       this._destroyStallUi();
-      progressText.setText(
+      this._loader?.setProgress(
         `${this.load.totalComplete || 0} / ${this.load.totalToLoad || 0} files ready`,
       );
     };
@@ -122,7 +112,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('fileprogress', (file) => {
       reportProgress();
       if (file?.key)
-        statusText.setText(
+        this._loader?.setStatus(
           `Downloading ${file.key}${Number.isFinite(file.percentComplete) ? ` (${Math.round(file.percentComplete * 100)}%)` : ''}…`,
         );
     });
@@ -135,8 +125,8 @@ export class BootScene extends Phaser.Scene {
       this._clearPreloadStallWatch();
       this._destroyStallUi();
       this._failedAssetKeys = failedFiles;
-      statusText.destroy();
-      progressText.destroy();
+      this._loader?.setStatus('Loading game data…');
+      this._loader?.setProgress('');
       markStartup('boot_preload_complete', {
         failedAssetCount: failedFiles.length,
         deferredAssetGroups: this._deferredAssetGroups,
@@ -481,7 +471,7 @@ export class BootScene extends Phaser.Scene {
       if (this._preloadComplete) return;
       const elapsed = performance.now() - this._lastPreloadProgressAt;
       if (elapsed < stallAfterMs) return;
-      if (this._stallUi.length > 0) return;
+      if (this._loader?.stallShown) return;
       markStartup('boot_preload_stalled', { stalledMs: Math.round(elapsed) });
       this._showPreloadRecoveryUi();
     }, 1000);
@@ -512,119 +502,36 @@ export class BootScene extends Phaser.Scene {
   }
 
   _showPreloadRecoveryUi() {
-    if (this._stallUi.length > 0) return;
-    const title = applyTextResolution(
-      this.add.text(320, 306, 'No download progress for 30 seconds. You can keep waiting.', {
-        fontFamily: 'Arial',
-        fontSize: '11px',
-        color: UI_PALETTE.warn,
-        align: 'center',
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(1200);
-    const retryBtn = applyTextResolution(
-      this.add.text(320, 330, '[ Reload ]', {
-        fontFamily: 'Arial',
-        fontSize: '11px',
-        color: UI_PALETTE.text,
-        backgroundColor: UI_PALETTE.raised,
-        padding: { x: 10, y: 4 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(1201)
-      .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerdown', () => {
-      markStartup('boot_preload_recovery_reload');
-      window.location.reload();
+    this._loader?.showStall({
+      onReload: () => {
+        markStartup('boot_preload_recovery_reload');
+        window.location.reload();
+      },
+      onSafeReload: () => {
+        this._setSafeModeFlags();
+        markStartup('boot_preload_recovery_safe_reload');
+        window.location.reload();
+      },
     });
-    const safeBtn = applyTextResolution(
-      this.add.text(320, 356, '[ Reload Safe Mode ]', {
-        fontFamily: 'Arial',
-        fontSize: '11px',
-        color: UI_PALETTE.accentText,
-        backgroundColor: UI_PALETTE.selected,
-        padding: { x: 10, y: 4 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setDepth(1201)
-      .setInteractive({ useHandCursor: true });
-    safeBtn.on('pointerdown', () => {
-      this._setSafeModeFlags();
-      markStartup('boot_preload_recovery_safe_reload');
-      window.location.reload();
-    });
-    this._stallUi.push(title, retryBtn, safeBtn);
   }
 
   _destroyStallUi() {
-    if (!this._stallUi || this._stallUi.length === 0) return;
-    this._stallUi.forEach((obj) => obj.destroy());
-    this._stallUi = [];
+    this._loader?.hideStall();
   }
 
   _showDataLoadRecovery(err) {
     this.children.removeAll(true);
-    const msg = err?.message || 'unknown';
-    applyTextResolution(
-      this.add.text(320, 206, 'Failed to load game data.', {
-        fontFamily: 'Arial',
-        fontSize: '16px',
-        color: UI_PALETTE.bad,
-        align: 'center',
-      }),
-    ).setOrigin(0.5);
-    applyTextResolution(
-      this.add.text(320, 232, 'You can retry now or reload in safe mode.', {
-        fontFamily: 'Arial',
-        fontSize: '11px',
-        color: UI_PALETTE.muted,
-        align: 'center',
-      }),
-    ).setOrigin(0.5);
-    applyTextResolution(
-      this.add.text(320, 258, msg, {
-        fontFamily: 'Arial',
-        fontSize: '10px',
-        color: UI_PALETTE.muted,
-        align: 'center',
-        wordWrap: { width: 560, useAdvancedWrap: true },
-      }),
-    ).setOrigin(0.5);
-
-    const retryBtn = applyTextResolution(
-      this.add.text(320, 302, '[ Retry ]', {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color: UI_PALETTE.text,
-        backgroundColor: UI_PALETTE.raised,
-        padding: { x: 12, y: 6 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerdown', () => {
-      markStartup('boot_data_retry_manual');
-      restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
-    });
-
-    const safeBtn = applyTextResolution(
-      this.add.text(320, 336, '[ Reload Safe Mode ]', {
-        fontFamily: 'Arial',
-        fontSize: '12px',
-        color: UI_PALETTE.accentText,
-        backgroundColor: UI_PALETTE.selected,
-        padding: { x: 12, y: 6 },
-      }),
-    )
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    safeBtn.on('pointerdown', () => {
-      this._setSafeModeFlags();
-      markStartup('boot_data_retry_safe_reload');
-      window.location.reload();
+    this._loader?.showFailure({
+      message: err?.message || 'unknown',
+      onRetry: () => {
+        markStartup('boot_data_retry_manual');
+        restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
+      },
+      onSafeReload: () => {
+        this._setSafeModeFlags();
+        markStartup('boot_data_retry_safe_reload');
+        window.location.reload();
+      },
     });
   }
 
@@ -641,19 +548,7 @@ export class BootScene extends Phaser.Scene {
 
     if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
       const sample = this._failedAssetKeys.slice(0, 3).join(', ');
-      applyTextResolution(
-        this.add.text(
-          320,
-          26,
-          `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`,
-          {
-            fontFamily: 'Arial',
-            fontSize: '10px',
-            color: UI_PALETTE.warn,
-            align: 'center',
-          },
-        ),
-      ).setOrigin(0.5);
+      this._loader?.warn(`Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`);
     }
 
     let data;

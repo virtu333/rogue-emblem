@@ -1,6 +1,7 @@
 /* Single entry: consistent cascade in Vite dev and production chunks. */
 @import './mobileTheme.css';
 @import './reKit.css';
+@import './bootLoader.css';
 @import './mobileBattle.css';
 @import './mobileRoster.css';
 @import './mobileUpgrade.css';
