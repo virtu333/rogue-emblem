@@ -503,3 +503,107 @@ html.mobile-preview .mu-screen {
 .re-progression-footer .re-btn {
   width: 100%;
 }
+
+/* ───────── Upright phones (portrait mode): Home base and Army upgrades ─────────
+   Keyed to html.portrait-ui (the portrait shell's class) inside a portrait
+   orientation query, so landscape phones and desktop never see these rules. The two
+   ~170px columns become the list over a full-width detail; the detail keeps its
+   action (Begin Run / Buy) pinned at its foot, so it stays in thumb reach while the
+   copy above it scrolls. Tabs sit on a grid instead of scrolling sideways out of view.
+   Scoped to .mh-screen / .mu-upgrades: reward screens reuse .mu-screen (choice.css). */
+@media (orientation: portrait) {
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-list {
+    padding-right: 0;
+    /* A cut-off card reads as "more below" rather than a clipped layout. */
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent);
+    padding-bottom: 14px;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-detail {
+    align-self: stretch;
+    max-height: 50dvh;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-copy {
+    flex: 0 1 auto;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-tabs {
+    display: grid;
+    overflow: visible;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-tabs button {
+    min-width: 0;
+    padding-inline: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html.portrait-ui :is(.mh-screen, .mu-upgrades) .mu-header button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* Home base: loadout tabs on one row, the lord pair on the next. */
+  html.portrait-ui .mh-screen .mu-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Lords: two compact cards per row, so the whole court shows above the detail. */
+  html.portrait-ui .mh-screen .mu-list:has(.mh-lord) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 6px;
+  }
+  html.portrait-ui .mh-screen .mh-lord {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 0 8px;
+    min-height: 58px;
+    margin: 0;
+    padding: 6px 8px;
+  }
+  html.portrait-ui .mh-screen .mh-lord .mh-portrait {
+    width: 40px;
+    height: 40px;
+  }
+  html.portrait-ui .mh-screen .mh-lord :is(strong, span) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  html.portrait-ui .mh-screen .mh-identity .mh-portrait {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Army upgrades: title and Home base on one row, balances under them. */
+  html.portrait-ui .mu-upgrades .mu-header {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  html.portrait-ui .mu-upgrades .mu-header h1 {
+    grid-column: 1 / 4;
+    grid-row: 1;
+    margin: 0;
+  }
+  html.portrait-ui .mu-upgrades .mu-header button {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  html.portrait-ui .mu-upgrades .mu-header .mu-currency {
+    grid-row: 2;
+  }
+  html.portrait-ui .mu-upgrades .mu-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* The upgrade list is the thing being browsed: leave it the larger share. */
+  html.portrait-ui .mu-upgrades .mu-detail {
+    max-height: 44dvh;
+  }
+}
