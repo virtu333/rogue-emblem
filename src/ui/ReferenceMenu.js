@@ -1,8 +1,14 @@
 import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { portraitListLayout, watchPortraitListLayout } from './portraitListLayout.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
+//
+// Upright phones (portrait mode, portraitListLayout()) show it as master -> detail:
+// the list fills the screen, tapping an entry opens its text full-width with a Back
+// button, and Back / Escape / cancel return to the list where it was. Elsewhere the
+// list and detail sit side by side as before; `view` is then always 'list'.
 export class ReferenceMenu {
   constructor(scene, title, tabs, provider, onClose, { searchAllTabs = false } = {}) {
     Object.assign(this, { tabs, provider, searchAllTabs });
@@ -10,7 +16,22 @@ export class ReferenceMenu {
     this.filter = 0;
     this.selected = 0;
     this.query = '';
+    this.view = 'list';
+    this.listScrollMemo = 0;
     this.surface = new MenuSurface(scene, title, onClose);
+    this.surface.root.classList.add('re-reference');
+    const unwatch = watchPortraitListLayout(() => {
+      if (this.surface.destroyed) return;
+      const detail = this.view === 'detail';
+      this.view = 'list';
+      this.render();
+      if (detail) this.focusSelectedEntry();
+    });
+    const destroySurface = this.surface.destroy.bind(this.surface);
+    this.surface.destroy = () => {
+      unwatch();
+      destroySurface();
+    };
     const search = element('label', null, 're-search');
     this.input = element('input');
     this.input.type = 'search';
@@ -23,6 +44,10 @@ export class ReferenceMenu {
     this.surface.header.insertBefore(search, this.surface.header.lastChild);
     this.surface.onKey = (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return false;
+      if (event.key === 'Escape' && this.view === 'detail') {
+        this.showList();
+        return true;
+      }
       if (event.key === '/' && event.target !== this.input) {
         this.input.focus();
         return true;
@@ -30,6 +55,10 @@ export class ReferenceMenu {
       return false;
     };
     this.surface.onAction = (action) => {
+      if ([InputAction.CANCEL, InputAction.PAUSE].includes(action) && this.view === 'detail') {
+        this.showList();
+        return true;
+      }
       if ([InputAction.PREV_UNIT, InputAction.NEXT_UNIT].includes(action)) {
         this.changeTab(action === InputAction.PREV_UNIT ? -1 : 1);
         return true;
@@ -52,6 +81,8 @@ export class ReferenceMenu {
     this.query = query;
     this.input.value = query;
     this.selected = 0;
+    // Results are a list: a search typed over an open entry shows them.
+    this.view = 'list';
     const restore = !searching && this.searchContext;
     if (restore) {
       Object.assign(this, { tab: restore.tab, filter: restore.filter, selected: restore.selected });
@@ -70,8 +101,29 @@ export class ReferenceMenu {
     this.tab = index;
     this.filter = 0;
     this.selected = 0;
+    this.view = 'list';
     this.render();
     this.surface.body.querySelector(`[data-focus="tab-${this.tab}"]`)?.focus();
+  }
+  /** Portrait: open entry `i` full-width, remembering where the list was. */
+  openEntry(i) {
+    this.listScrollMemo = this.list?.scrollTop || 0;
+    this.selected = i;
+    this.view = 'detail';
+    this.render();
+    this.surface.body.querySelector('[data-focus="detail-back"]')?.focus({ preventScroll: true });
+  }
+  /** Portrait: back from an entry to the list, at the entry that was open. */
+  showList() {
+    this.view = 'list';
+    this.render();
+    this.list.scrollTop = this.listScrollMemo;
+    this.focusSelectedEntry();
+  }
+  focusSelectedEntry() {
+    const entry = this.list?.querySelector(`[data-focus="entry-${this.selected}"]`);
+    entry?.focus({ preventScroll: true });
+    entry?.scrollIntoView?.({ block: 'nearest' });
   }
   changeTab(delta) {
     this.selectTab((this.tab + delta + this.tabs.length) % this.tabs.length);
@@ -105,6 +157,14 @@ export class ReferenceMenu {
     const previousScroll = this.list?.scrollTop || 0;
     const body = this.surface.body;
     body.replaceChildren();
+    const portrait = portraitListLayout();
+    if (!portrait) this.view = 'list';
+    if (portrait) this.surface.root.dataset.refView = this.view;
+    else delete this.surface.root.dataset.refView;
+    // Upright, the list and an open entry each get the whole screen; controls for the
+    // other view are left out rather than hidden, so focus never lands on them.
+    const showList = !portrait || this.view === 'list';
+    const showDetail = !portrait || this.view === 'detail';
     const tabs = element('nav', null, 're-tabs');
     tabs.setAttribute('aria-label', 'Categories');
     this.tabs.forEach((tab, i) => {
@@ -115,9 +175,9 @@ export class ReferenceMenu {
       b.setAttribute('aria-pressed', String(i === this.tab));
       tabs.append(b);
     });
-    body.append(tabs);
+    if (showList) body.append(tabs);
     const filters = this.tabs[this.tab].filters || [];
-    if (filters.length) {
+    if (filters.length && showList) {
       const row = element('nav', null, 're-tabs re-filter-tabs');
       row.setAttribute('aria-label', 'Filters');
       filters.forEach((label, i) => {
@@ -160,6 +220,10 @@ export class ReferenceMenu {
       const b = button(
         null,
         () => {
+          if (portraitListLayout()) {
+            this.openEntry(i);
+            return;
+          }
           this.selected = i;
           this.render();
         },
@@ -174,7 +238,10 @@ export class ReferenceMenu {
     const selected = entries[this.selected];
     if (selected) {
       detail.append(element('h3', selected.name));
-      for (const line of selected.lines) detail.append(element('p', line));
+      // Upright, the full-width detail reads as paragraphs, not the canvas-era
+      // 40-character line breaks (landscape keeps the lines as authored).
+      const lines = portrait ? reflowLines(selected.lines) : selected.lines;
+      for (const line of lines) detail.append(element('p', line));
     } else
       detail.append(
         element(
@@ -192,19 +259,50 @@ export class ReferenceMenu {
       ...detail.querySelectorAll('h3,p'),
     ])
       this.highlight(el);
-    split.append(this.list, detail);
-    const footer = element('footer', null, 're-footer');
-    appendDetailScrollControls(footer, detail);
-    body.append(split, footer);
+    if (portrait && showDetail) {
+      // Upright: the open entry leads with Back to the list.
+      const back = button('‹ Back', () => this.showList(), 're-btn re-reference-back');
+      back.dataset.focus = 'detail-back';
+      back.setAttribute('aria-label', 'Back to list');
+      split.append(back);
+    }
+    if (showList) split.append(this.list);
+    if (showDetail) split.append(detail);
+    body.append(split);
+    if (showDetail) {
+      const footer = element('footer', null, 're-footer');
+      appendDetailScrollControls(footer, detail);
+      body.append(footer);
+    }
     this.list.scrollTop = previousScroll;
-    tabs
-      .querySelector('[aria-pressed="true"]')
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (showList)
+      tabs
+        .querySelector('[aria-pressed="true"]')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (oldFocus) body.querySelector(`[data-focus="${oldFocus}"]`)?.focus({ preventScroll: true });
   }
   destroy() {
     this.surface.destroy();
   }
+}
+
+/**
+ * Rejoin text that was hard-wrapped for the old canvas panel: a line continues the one
+ * before it when that one does not end a sentence or introduce a list (. ! ? :) and
+ * this one starts mid-sentence (lowercase or an opening parenthesis) without the
+ * indent that marks a list item. Blank lines, indented rows and new sentences stay
+ * their own lines.
+ */
+export function reflowLines(lines) {
+  const out = [];
+  for (const raw of lines) {
+    const line = String(raw ?? '');
+    const prev = out.length ? out[out.length - 1] : '';
+    if (prev.trim() && /^[a-z(]/.test(line) && !/[.!?:]\s*$/.test(prev))
+      out[out.length - 1] = `${prev.replace(/\s+$/, '')} ${line}`;
+    else out.push(line);
+  }
+  return out;
 }
 
 // Reuse existing compendium formatting without building hidden Phaser text.
