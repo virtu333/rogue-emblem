@@ -335,19 +335,34 @@ async function hold(page, x, y, ms = 800) {
   await session.detach();
 }
 
-/** A unit's centre in page coordinates (map world -> canvas pixels -> page). */
+/**
+ * A unit's centre in page coordinates (map world -> canvas pixels -> page). Picks
+ * a unit that is visible (not fogged) and inside the canvas; if none is, the
+ * camera is centred on the first visible one so the hold lands on a real tile.
+ */
 async function unitOnPage(page, which) {
   return page.evaluate((which) => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
-    const unit = which === 'enemy' ? s.enemyUnits[0] : s.playerUnits[0];
-    const world = s.grid.gridToPixel(unit.col, unit.row);
-    const screen = s._worldToScreen(world.x, world.y);
     const rect = s.game.canvas.getBoundingClientRect();
-    return {
-      name: unit.name,
-      x: rect.left + (screen.x * rect.width) / s.scale.width,
-      y: rect.top + (screen.y * rect.height) / s.scale.height,
+    const pool = (which === 'enemy' ? s.enemyUnits : s.playerUnits).filter(
+      (u) => !s.grid.fogEnabled || s.grid.isVisible(u.col, u.row),
+    );
+    const place = (unit) => {
+      const world = s.grid.gridToPixel(unit.col, unit.row);
+      const screen = s._worldToScreen(world.x, world.y);
+      const x = rect.left + (screen.x * rect.width) / s.scale.width;
+      const y = rect.top + (screen.y * rect.height) / s.scale.height;
+      const inside =
+        x > rect.left + 8 && x < rect.right - 8 && y > rect.top + 8 && y < rect.bottom - 8;
+      return { name: unit.name, x, y, inside };
     };
+    let hit = pool.map(place).find((p) => p.inside);
+    if (!hit && pool[0]) {
+      const world = s.grid.gridToPixel(pool[0].col, pool[0].row);
+      s.cameras.main.centerOn(world.x, world.y);
+      hit = place(pool[0]);
+    }
+    return hit;
   }, which);
 }
 
@@ -410,5 +425,5 @@ test('game text cannot be selected or long-press copied; real inputs still can',
     sel.addRange(range);
     return sel.toString().trim().length;
   });
-  expect(typeof selected).toBe('number');
+  expect(selected).toBe(0);
 });
