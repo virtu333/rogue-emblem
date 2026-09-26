@@ -351,6 +351,28 @@
     "title": "One More Crossing",
     "tonic": "E"
   },
+  "music_battle_fog": {
+    "duration": 100.6,
+    "loopEnd": 100.0,
+    "loopStart": 13.6,
+    "lufs": -14.0,
+    "peakDb": -1.2,
+    "score": "battle_fog",
+    "seamDb": -111.3,
+    "title": "What the Fog Keeps",
+    "tonic": "G"
+  },
+  "music_battle_fog_calm": {
+    "duration": 100.6,
+    "loopEnd": 100.0,
+    "loopStart": 13.6,
+    "lufs": -17.0,
+    "peakDb": -3.29,
+    "score": "battle_fog",
+    "seamDb": -106.3,
+    "title": "What the Fog Keeps",
+    "tonic": "G"
+  },
   "music_battle_rescue": {
     "duration": 75.951,
     "loopEnd": 75.351361,
