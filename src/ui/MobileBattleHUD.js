@@ -533,9 +533,10 @@ export class MobileBattleHUD {
         label.append(equippedBadgeElement());
       side.append(label);
     }
-    for (const note of forecastNotes(config.forecast, attacking, afterCost).filter(
-      (n) => !n.startsWith('If all hits land:'),
-    ))
+    for (const note of forecastNotes(config.forecast, attacking, afterCost, {
+      planned: weapon,
+      equipped: config.equippedWeapon,
+    }).filter((n) => !n.startsWith('If all hits land:')))
       side.append(el('p', 'mb-notice', note));
     if (
       weapon &&
