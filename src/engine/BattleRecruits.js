@@ -109,3 +109,27 @@ export function fallenBattleRecruits(list, survivors = [], roster = []) {
   const fallen = new Set(unmatched);
   return units.filter((unit) => fallen.has(unit));
 }
+
+/** Repair legacy Talk identities using battle IDs before serialization drops them.
+ * Reserve every existing identity first: snapshots may be ahead of the run counter.
+ * The injected allocator is the run's bound assignUnitUid; never match by name alone.
+ */
+export function reconcileRecruitIdentities(records, battleUnits = [], allocate) {
+  if (typeof allocate !== 'function') return;
+  const entries = (Array.isArray(records) ? records : []).filter((e) => e?.unit);
+  const units = (Array.isArray(battleUnits) ? battleUnits : []).filter(Boolean);
+  for (const unit of [...units, ...entries.map((e) => e.unit)]) {
+    if (unitUidOf(unit)) allocate(unit);
+  }
+  for (const entry of entries) {
+    const unit =
+      typeof entry.entityId === 'string' && entry.entityId.length > 0
+        ? units.find((u) => u.battleEntityId === entry.entityId && u.name === entry.name)
+        : null;
+    if (unitUidOf(unit)) entry.unit.unitUid = allocate(unit);
+    else {
+      const uid = allocate(entry.unit);
+      if (unit) unit.unitUid = uid;
+    }
+  }
+}
