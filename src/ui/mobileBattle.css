@@ -214,6 +214,18 @@
 .mb-stats dd {
   color: var(--re-gold-hi);
 }
+/* Numbers of different kinds read differently at a glance: damage is the
+   headline, strikes and speed are plain, chances are lighter and carry a %. */
+.mb-stats .mb-stat-damage dd {
+  font-size: 22px;
+}
+.mb-stats .mb-stat-count dd {
+  color: var(--re-text);
+}
+.mb-stats .mb-stat-chance dd {
+  color: var(--re-info, var(--re-text));
+  font-weight: 600;
+}
 
 .mb-summary h2 {
   font: var(--re-pf-11, 11px)/1.65 var(--re-pixel);

@@ -97,7 +97,7 @@ export function statReferenceEntries(gameData = {}) {
       'Hit',
       'Derived',
       'Base Hit = weapon Hit + SKL × 2 + LCK.',
-      'Forecast Hit subtracts enemy Avoid and includes combat modifiers (0–100). Attacks average two rolls for both sides: 75 Hit succeeds about 87.5% of the time; 25 Hit about 12.5%. Crit and skill chances use one roll.',
+      'Forecast Hit subtracts enemy Avoid and includes combat modifiers (0–100). Attacks average two rolls for both sides: 75 Hit succeeds about 87.5% of the time; 25 Hit about 12.5%. The combat forecast shows that real chance (Hit chance). Crit and skill chances use one roll.',
       `Triangle: +${triangle.advantage.hit} / ${triangle.disadvantage.hit} Hit at Prof; +${triangle.masteryAdvantage.hit} / ${triangle.masteryDisadvantage.hit} at Mast.`,
     ),
     row(

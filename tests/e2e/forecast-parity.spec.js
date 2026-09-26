@@ -80,12 +80,12 @@ for (const mobile of [false, true])
         const dialog = page.getByRole('dialog', { name: 'Combat forecast', exact: true });
         await expect(dialog).toContainText('Damage per hit');
         await expect(dialog).toContainText('Planned hits');
-        await expect(dialog).toContainText('Hit rating');
+        await expect(dialog).toContainText('Hit chance');
         const hitValues = dialog
           .locator('.mb-stats div')
-          .filter({ has: page.locator('dt', { hasText: /^Hit rating$/ }) })
+          .filter({ has: page.locator('dt', { hasText: /^Hit chance$/ }) })
           .locator('dd');
-        expect(await hitValues.allTextContents()).toEqual(['100', '100']);
+        expect(await hitValues.allTextContents()).toEqual(['100%', '100%']);
         for (const note of expected.notes) await expect(dialog).toContainText(note);
         await expect(dialog.locator('.re-health-projection')).toHaveCount(2);
         expect(await dialog.locator('[role="meter"]').first().getAttribute('aria-valuenow')).toBe(
@@ -107,10 +107,9 @@ for (const mobile of [false, true])
         );
         for (const note of expected.notes) expect(contents).toContain(note);
         expect(contents).toContain('Damage/hit');
-        expect(contents).toContain('Hit rating');
-        expect(contents).toContain('100');
-        expect(contents).not.toContain('100%');
-        expect(contents).toContain('Planned hits: 2x');
+        expect(contents).toContain('Hit chance');
+        expect(contents).toContain('100%');
+        expect(contents).toContain('Planned hits: ×2');
         const bounds = await page.evaluate(() => {
           const s = window.__emblemRogueGame.scene.getScene('Battle');
           return s._forecastOverlay.displayObjects

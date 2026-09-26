@@ -105,6 +105,21 @@ describe('StingerPlayer', () => {
     expect(player.has('b')).toBe(false);
     expect(player.has('c')).toBe(true);
   });
+
+  it('never evicts pinned stingers, and a new pin set releases the old one', async () => {
+    const { player } = makePlayer(2);
+    await player.load('levelup_G');
+    player.pin(['levelup_G']);
+    for (const key of ['boss_card_G', 'arrival_G', 'deed_G', 'eclipse_G']) await player.load(key);
+    expect(player.has('levelup_G')).toBe(true);
+    expect(player.has('boss_card_G')).toBe(false);
+    // the next track's key: the old pin no longer holds its buffer
+    await player.load('levelup_E');
+    player.pin(['levelup_E']);
+    await player.load('x');
+    expect(player.has('levelup_E')).toBe(true);
+    expect(player.has('levelup_G')).toBe(false);
+  });
 });
 
 function makeSound(loaded = {}) {
@@ -174,6 +189,29 @@ describe('AudioManager stingers', () => {
     for (const name of STINGER_PRELOAD.filter((n) => MUSIC_STINGERS[n])) {
       expect(requested).toContain(`stinger_${name}_G`);
     }
+  });
+
+  it('keeps the level-up cues of the playing key resident through a burst of other cues', async () => {
+    // A level-up after several boss/arrival/deed cues used to find its cue
+    // evicted from the 10-entry cache and play the old sound effect instead.
+    const sound = makeSound({
+      music_battle_act1_2: musicBuffer('music_battle_act1_2'),
+      music_battle_act1_4: musicBuffer('music_battle_act1_4'),
+    });
+    const audio = new AudioManager(sound);
+    audio._fetchAndDecodeStinger = vi.fn(async () => stingerBuffer());
+    await audio.playMusic('music_battle_act1_2', null, 0); // G
+    await new Promise((r) => setTimeout(r, 0));
+    const others = Object.keys(MUSIC_STINGERS).filter((n) => !STINGER_PRELOAD.includes(n));
+    for (const name of others) await audio.stingers.load(audio.stingerKeyFor(name)).catch(() => {});
+    for (const name of STINGER_PRELOAD) expect(audio.stingers.has(`stinger_${name}_G`)).toBe(true);
+    expect(await audio.playStinger('levelup', { fallbackSfx: 'sfx_levelup' })).not.toBeNull();
+    expect(sound.play).not.toHaveBeenCalledWith('sfx_levelup', expect.anything());
+    // a track in another key pins its own cues and releases the old ones
+    await audio.playMusic('music_battle_act1_4', null, 0); // E
+    await new Promise((r) => setTimeout(r, 0));
+    expect(audio.stingers.isPinned('stinger_levelup_E')).toBe(true);
+    expect(audio.stingers.isPinned('stinger_levelup_G')).toBe(false);
   });
 
   it('plays a decoded stinger at music volume and ducks the track until its notes end', async () => {
@@ -277,5 +315,18 @@ describe('AudioManager music cache byte budget', () => {
     expect(sound.game.cache.audio.has('music_title')).toBe(false);
     expect(sound.game.cache.audio.has('music_shop')).toBe(true);
     expect(sound.game.cache.audio.has('music_home_base')).toBe(true);
+  });
+});
+
+describe('level-up fallback sound', () => {
+  it('is the current level-up jingle, not the original one', async () => {
+    // The fallback plays whenever the cue cannot sound (music muted, cue still
+    // decoding): it must be the same music the stinger system plays.
+    const { readFileSync } = await import('node:fs');
+    for (const root of ['assets', 'public/assets']) {
+      const sfx = readFileSync(`${root}/audio/sfx/sfx_levelup.mp3`);
+      const cue = readFileSync('public/assets/audio/stingers/stinger_levelup_D.mp3');
+      expect(sfx.equals(cue)).toBe(true);
+    }
   });
 });

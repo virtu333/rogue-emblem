@@ -23,6 +23,22 @@ export class StingerPlayer {
     this._buffers = new Map(); // key -> AudioBuffer, in LRU order (oldest first)
     this._loading = new Map(); // key -> Promise<AudioBuffer>
     this._voices = new Set();
+    this._pinned = new Set(); // keys the LRU never evicts (the current key's ceremony cues)
+  }
+
+  /**
+   * Keep these decoded stingers resident (replaces the previous pins). The
+   * common ceremony cues are pinned in the current track's key, so a burst of
+   * other cues (boss cards, arrivals...) can never evict the level-up cue and
+   * leave a level-up to its fallback sound.
+   */
+  pin(keys = []) {
+    this._pinned = new Set((keys || []).filter(Boolean));
+    this._evict();
+  }
+
+  isPinned(key) {
+    return this._pinned.has(key);
   }
 
   has(key) {
@@ -134,7 +150,7 @@ export class StingerPlayer {
     const busy = new Set(Array.from(this._voices, (v) => v.key));
     for (const key of Array.from(this._buffers.keys())) {
       if (this._buffers.size <= this.maxCached) break;
-      if (!busy.has(key)) this._buffers.delete(key);
+      if (!busy.has(key) && !this._pinned.has(key)) this._buffers.delete(key);
     }
   }
 }

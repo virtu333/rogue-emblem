@@ -945,6 +945,12 @@ export function generateLootChoices(
       if (!pool.length) continue;
     }
 
+    // Draw only among names not offered yet: a repeat used to spend one of the
+    // few attempts, so a small pool could fall back to a gold card while an
+    // unused item remained (two items left: all nine retries repeat 0.2% of
+    // the time).
+    pool = pool.filter((entry) => !usedNames.has(entry));
+    if (!pool.length) continue;
     let name = pool[Math.floor(Math.random() * pool.length)];
     if (category === 'weapon' && qualityBonusPercent > 0) {
       const baseWeapon = allWeapons.find(

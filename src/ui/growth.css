@@ -135,8 +135,8 @@
   display: grid;
   grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
   align-items: center;
-  padding: max(10px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px))
-    max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  padding: max(10px, var(--ce-safe-t)) max(14px, var(--ce-safe-r)) max(10px, var(--ce-safe-b))
+    max(10px, var(--ce-safe-l));
   box-sizing: border-box;
 }
 .gr-rite-figure {
@@ -470,8 +470,8 @@
 }
 .gr-rite > .gr-continue {
   position: absolute;
-  right: calc(6px + env(safe-area-inset-right, 0px));
-  bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+  right: calc(6px + var(--ce-safe-r));
+  bottom: calc(2px + var(--ce-safe-b));
   padding: 0 10px;
   background: transparent;
   border: 0;
@@ -817,7 +817,7 @@
 }
 .gr-join-bust {
   position: absolute;
-  left: calc(6px + env(safe-area-inset-left, 0px));
+  left: calc(6px + var(--ce-safe-l));
   bottom: 0;
   width: var(--ce-bust);
   height: var(--ce-bust);
@@ -839,8 +839,8 @@
 }
 .gr-join-text {
   position: absolute;
-  left: calc(var(--ce-bust) + 16px + env(safe-area-inset-left, 0px));
-  right: calc(18px + env(safe-area-inset-right, 0px));
+  left: calc(var(--ce-bust) + 16px + var(--ce-safe-l));
+  right: calc(18px + var(--ce-safe-r));
   top: 0;
   bottom: 0;
   display: flex;
@@ -934,7 +934,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: max(52px, calc(env(safe-area-inset-top, 0px) + 44px));
+  padding-top: max(52px, calc(var(--ce-safe-t) + 44px));
 }
 .gr-sealed {
   display: flex;

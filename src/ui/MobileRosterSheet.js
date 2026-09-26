@@ -80,7 +80,7 @@ import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
-import { playCue } from './ceremonyMusic.js';
+import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -410,7 +410,7 @@ export class MobileRosterSheet {
       [
         `Equipped: ${unit.weapon?.name || 'Unarmed'}. Weapon weight ${unit.weapon?.weight || 0}; Strength allowance ${Math.floor((unit.stats.STR || 0) / 5)}; effective weight ${combat.weight}. Attack Speed ${combat.as} includes Speed ${unit.stats.SPD}, the effective weight penalty and any weapon Speed bonus. Staves do not impose a weight penalty.`,
         'Attack is your baseline offensive power before enemy defenses. Hit and Crit are ratings, not final percentages against a specific enemy. Avoid reduces enemy hit chance. Effective weight is the penalty after Strength offsets weapon weight, so it can differ from the item’s listed weight.',
-        'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit rating and follow-up attacks.',
+        'Conditional skills, mastery, terrain and the opponent can change combat. Review the combat forecast for target-specific damage, Hit chance and follow-up attacks.',
       ],
       'Baseline Attack, speed and ratings before a specific enemy, terrain or skills are applied.',
     );
@@ -834,7 +834,11 @@ export class MobileRosterSheet {
         };
         const growth = choice && rite?.content ? growthCeremonies(this.scene) : null;
         if (!growth) {
-          if (choice) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
+          if (choice)
+            void playCue(this.scene, 'promotion_crown', {
+              fallbackSfx: 'sfx_levelup',
+              waitMs: LEVEL_UP_CUE_WAIT_MS,
+            });
           done();
           return;
         }
@@ -869,7 +873,10 @@ export class MobileRosterSheet {
         if (result.ok) {
           const dropped = getSkillDisplayNames(result.droppedSkills, this.gameData.skills);
           if (item.effect === 'promote')
-            void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
+            void playCue(this.scene, 'promotion_crown', {
+              fallbackSfx: 'sfx_levelup',
+              waitMs: LEVEL_UP_CUE_WAIT_MS,
+            });
           else this.scene.registry.get('audio')?.playSFX('sfx_confirm');
           this.render(
             `${unit.name} is now ${choice.name}. ${(result.notices || []).join(' ')}${dropped.length ? ` Skill limit: couldn't learn ${dropped.join(', ')}.` : ''}${this.persistNow()}`,

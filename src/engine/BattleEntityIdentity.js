@@ -6,12 +6,17 @@ export const BATTLE_UNIT_GROUPS = [
   'nonDeployedUnits',
 ];
 
+/** A battle entity id as saved: `u1`, `u2`, ... (never `u0`, never a number). */
+export function isBattleEntityId(value) {
+  return typeof value === 'string' && /^u[1-9]\d*$/.test(value);
+}
+
 // Registration is a spawn/restore operation, never a preview/capture side effect.
 export function registerBattleEntity(scene, unit) {
   if (!unit) return null;
   const owners = (scene._battleEntityOwners ||= new Map());
   let next = Math.max(1, Number(scene._nextBattleEntityId) || 1);
-  const valid = typeof unit.battleEntityId === 'string' && /^u[1-9]\d*$/.test(unit.battleEntityId);
+  const valid = isBattleEntityId(unit.battleEntityId);
   if (!valid || (owners.has(unit.battleEntityId) && owners.get(unit.battleEntityId) !== unit)) {
     while (owners.has(`u${next}`)) next++;
     unit.battleEntityId = `u${next++}`;
@@ -29,7 +34,7 @@ export function resetBattleIdentities(scene, next = 1, units = []) {
   // Reserve the whole restored roster before assigning any missing legacy IDs.
   for (const unit of units) {
     const id = Number(unit?.battleEntityId?.slice(1));
-    if (/^u[1-9]\d*$/.test(unit?.battleEntityId) && Number.isSafeInteger(id))
+    if (isBattleEntityId(unit?.battleEntityId) && Number.isSafeInteger(id))
       scene._nextBattleEntityId = Math.max(scene._nextBattleEntityId, id + 1);
   }
 }
