@@ -81,7 +81,7 @@ also leave a mark on promotion (an **Oath**) — the seed of hidden promotions.
 | greenwood / heights / mire | 6 run kills standing on Forest / Mountain / Swamp, Bog, Acidic Swamp, Acidic Bog | of the Greenwood / of the Heights / of the Mire | 2 | Pathfinder / Skirmisher / Drain |
 | weapon_family | 25 run kills with one weapon type | the Blade, the Spear, the Woodsplitter, Far-Sight, the Burning, the Dawn (the Unlit reserved) | 3 | Duelist Stance |
 | veteran | 15 battles survived in the run | Veteran of the March | 2 | Discipline |
-| last_of_them | the only non-lord alive at the end of a battle with ≥4 deployed | the Last | 4 | — |
+| last_of_them | the only non-lord alive at victory with ≥4 deployed and ≥2 allies fallen (lords and recruits count) | the Last | 4 | — |
 
 Places: Bridge → the Bridge, Fort → the Fort, Throne/Wall → the Gate, Village → the
 Village, Forest → the Wood, Mountain → the Pass, Floor/Pillar → the Hall, else the Line.
