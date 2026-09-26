@@ -92,6 +92,17 @@ for (const vp of VIEWPORTS) {
   }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width: vp.width, height: vp.height });
+    // A fresh save slot's lesson memory (dev battles have none), in place before the
+    // battle is built so its start-of-battle lessons are live.
+    await page.addInitScript(() => {
+      const adopt = async () => {
+        const game = window.__emblemRogueGame;
+        if (!game?.registry) return void setTimeout(adopt, 5);
+        const { HintManager } = await import('/src/engine/HintManager.js');
+        game.registry.set('hints', new HintManager(1));
+      };
+      adopt();
+    });
     await page.goto(
       `/?devScene=battle&preset=battle_smoke&seed=42&devNode=recruit${vp.mobile ? '&mobilePreview=1' : ''}`,
     );
@@ -130,12 +141,16 @@ for (const vp of VIEWPORTS) {
     expect(state.objective).toContain(`Recruit: reach ${state.npc.name} with a lord`);
     // Placed for a rescue: a lord starts within a couple of turns' walk.
     expect(state.nearest).toBeLessThanOrEqual(12);
-    // The one-time field note names the recruit, then gets out of the way.
-    const note = page.getByText(
-      `${state.npc.name} (${state.npc.className}) holds out under the gold banner`,
+    // Playtest 4: nothing blocks the start (the old intro note was a modal every recruit
+    // battle); the non-blocking Guidance field note names the recruit, once per slot.
+    await page.waitForTimeout(2000);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.re-modal-shield')).toHaveCount(0);
+    const note = page.locator('.re-guide[data-guide="guide_recruit_on_map"]');
+    await expect(note).toContainText(
+      `${state.npc.name} (${state.npc.className}) under the gold banner can join you.`,
     );
-    await expect(note).toBeVisible();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await note.getByRole('button', { name: 'Got it', exact: true }).click();
     await expect(note).toHaveCount(0);
     if (SHOTS) {
       await page.waitForTimeout(400);

@@ -69,9 +69,9 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
+├── tests/                 # Vitest unit tests + harness/ + sim/, Playwright e2e/ (which CI lanes run which: docs/specs/compression-plan-2026-09-25.md)
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 49 original music files + 141 ceremony stingers)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 76 original music files + 142 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -98,6 +98,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **eclipse.json** — The Eclipse (`docs/specs/eclipse.md`, `EclipseSystem.js`): shadow is committed only at battle victory (`completeBattle({ turnCount, turnPar })`), never mid-battle. Node falls transform nodes (never delete); thresholds are computed from `runSeed` + node id; conversions run on their own seeded stream. Late-pressure XP/gold decay past par still applies while it runs.
 - **dialogue.json `unitVoice`** — Recruits speak from merged class + temperament + trait pools (temperament is derived per run from name + run seed, never stored); lords only from `lords.<name>`. Picks are pure (`UnitVoice.js`, no RNG / narrative log). Lines ≤ 90 chars; tokens `{leader}` (recruit pools only), `{name}`, `{skill}` (skills pool only). A line naming another lord plays only when that lord is in the army. Voice rules: `docs/lore-style-guide.md`.
 - **traits.json** — Rules v2 (`docs/specs/traits-v2.md`). Rolling is class-aware: `roll` blocks gate or weight traits by role. `ATTACK` in creationMods resolves to the class's attack stat (STR/MAG), and traits never replace a mastery perk (`masteryPerkMultiplier` only amplifies it). Retired v1 ids stay defined so old saves load; `migrateUnitTraits` converts them once. Per-unit trait text comes from `src/ui/traitContent.js`.
+- **dialogue.json `finaleRally`** — The Entity finale's rally (`engine/FinaleRally.js`, pure, hashed from the run seed). `lords.<Lord>`: `open` (the commander opens), `lines`, `reply.<Other lord>` (answers whoever just spoke; must name them), `memory` (this save has met the Entity), `wounded` (speaker below half HP), `fallen` (`{fallen}` = a unit lost this run, lords first); `lords.Sera.close` (she speaks last). `recruits.<temperament>` (`{leader}`): the two strongest recruits join. At most 7 lines. Lines mentioning bleeding only play once the Entity is wounded. Same voice rules as `unitVoice`; outside `reply`, a line never names another lord.
 - **skills.json** — 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action. `activation` = proc chance type (SKL/SKL_HALF/LCK_THIRD/SPD/LCK/always).
 
 ## Core Formulas (from GDD Section 3.3)
@@ -125,13 +126,15 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Player units = blue palette, enemies = red palette, NPCs = green palette
 
 ## Music (composed in code)
-All music is original: 29 loop scores in `tools/music/scores/` and 29 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+All music is original: 43 loop scores in `tools/music/scores/` and 30 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
 - **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
 - **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.
-- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API. Escape maps play `MUSIC.escape`.
+- **Adaptive battles:** field battle themes ship as `<key>` + `<key>_calm` on one timeline (`MUSIC_LAYERS`). `BattleMusicController` + `engine/MusicIntensity.js` crossfade calm↔full on combat and threat; `audio.setMusicIntensity()` is the API.
+- **Which battle theme:** `engine/BattleMusicSelection.js` (pure) picks a non-boss battle's track from `battleMusicContext(...)`: escape → eclipsed / village under attack / recruit rescue / elite (`MUSIC.battleSituation`) → the map's biome (`MUSIC.battleBiome`; castles and bandit villages take only a share, `THEME_SHARE`) → the act pool (`MUSIC.battle`). Picks are hashed from the run seed (a resumed battle keeps its track); the act pool is walked per run by node row, so a path never repeats a theme until the pool is spent, and every run opens on Ember Dusk. A new place or situation theme is a score plus one table entry; `MusicLibrary.test.js` checks every one is adaptive and every biome key is a real template biome.
 - **Boss enrage:** each boss theme ships `<theme>_enrage_<boss>` (same timeline, `getBossEnrageLayer`); `BattleMusicController.onBossEnrage()` crossfades to it when turn pressure enrages the boss (`setMusicIntensity('enrage')`).
+- **Entity finale (`ENTITY_FINALE`):** the Entity has no enrage layer. Its first wound (`onCombatResolved`, or turn-pressure enrage first) cuts its theme, leaves 2 s of silence, plays the `entity_answer` hinge cue and starts `music_boss_entity_finale` on the cue's `handoff` downbeat (`playMusic(..., { startAt })`, sample-aligned). The `_hum` stem is an additive layer (`layerGains`) whose level follows the Entity's HP (`audio.setMusicLayerGain`). A resumed battle with a wounded Entity opens on the finale. On the finale's downbeat the army answers, one line every two bars over each speaker's unit (`onFinale` → `BattleBeatsController.entityRally`, composed by `engine/FinaleRally.js`).
 - **Stingers:** `audio.playStinger(name, { fallbackSfx, duck, waitMs })` plays a cue in the key of the current track (keyed cues exist per tonic) and ducks the music; `stopStingers()` fades them. Ceremonies call them through `src/ui/ceremonyMusic.js`; boss cards map in `BOSS_CARD_CUES` (the Entity: silence).
-- **Adding a cue:** write a score (or stinger), build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans, bad loop points, a boss without an enrage layer or a keyed stinger missing a key.
+- **Adding a cue:** write a score (or stinger), build it, add the key to `musicConfig.js`. `tests/MusicLibrary.test.js` fails on missing files, orphans, bad loop points, a boss without an enrage layer (the Entity excepted) or a keyed stinger missing a key.
 
 ## Art Pipeline (Imagen API)
 AI-generated pixel art via Google Imagen 4 API.
@@ -156,8 +159,15 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 4143 tests across 218 files (Jun 10 2026). Covers all engine systems.
-- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
+- **Coverage is measured, not counted.** A fault-injection pilot (Sep 2026) found about half of realistic injected bugs survive the whole unit suite. Gaps, rules and the delete/rewrite procedure: `docs/specs/compression-plan-2026-09-25.md`.
+- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity. `tests/harness/HeadlessBattle` mirrors the scene's state machine (Canto off, no async presentation, no resume), so a green harness run does not prove the production action lifecycle.
+- **Writing tests:**
+  - List the realistic ways a change can fail first; each test should catch one of them.
+  - Assert outcomes (player-visible or persisted state, RNG cursor), not internal call order.
+  - Derive expected values independently, never by re-running the code under test.
+  - Before a refactor, pin current behaviour with tests that pass before and after; a bug fix gets a test that fails before it.
+  - Prove a new test can fail by planting the bug once.
+  - Every `tests/e2e` spec must belong to a CI lane or have a stated exclusion.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
 ## Balance Simulations

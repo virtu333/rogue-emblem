@@ -9,7 +9,8 @@
 //   guide_healer_heals      a healer is selected while an ally is hurt
 //   guide_no_attack         a unit ended its move with nobody in weapon reach
 //   guide_commander_low_hp  the commander starts a player phase at half HP or less
-//   guide_recruit_on_map    a recruitable (green) unit is on the map
+//   guide_recruit_on_map    a recruitable (green) unit is on the map: names the recruit
+//                           and how to win them (the recruit battle's only intro note)
 //
 // Also answers BattleScene's action menu: with Guidance on Full, a unit with no
 // target in reach shows a greyed "Attack" with the reason instead of no Attack.
@@ -178,7 +179,12 @@ export class GuidanceController {
       this.allows('guide_commander_low_hp')
     )
       return { id: 'guide_commander_low_hp', context: { commander, touch }, anchor: commander };
-    const npc = (s.npcUnits || []).find((u) => u.currentHP > 0 && canInspectUnit(s.grid, u));
+    // The recruit's gold banner shows through fog (RecruitBeaconController), so the
+    // note may name a recruit the fog still hides; other green units must be seen.
+    const beaconed = s._recruitBeacon?.npc || null;
+    const npc = (s.npcUnits || []).find(
+      (u) => u.currentHP > 0 && (u === beaconed || canInspectUnit(s.grid, u)),
+    );
     if (npc && this.allows('guide_recruit_on_map'))
       return { id: 'guide_recruit_on_map', context: { npc, touch }, anchor: npc };
     if ((s.turnManager?.turnNumber ?? 1) <= 1 && coach('guide_first_turn'))

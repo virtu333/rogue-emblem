@@ -1,14 +1,17 @@
 """The Lieutenant — "Every Future You Could Reach".
 
-A seer like Sera, whose power fractures the timeline. Her motif is the
+A seer like Sera, whose power fractures the timeline. His motif is the
 Thread's rhythm falling instead of rising (A-D-C-A) and every statement is shadowed
 a beat later a tritone away: two futures at once. Octatonic sixteenths run
 under it like clockwork that has lost count.
 
-Then the one path she could not block: the main battle theme returns in the
+Then the one path he could not block: the main battle theme returns in the
 violins and trumpets, the player's own melody, with the Lieutenant's motif
 grinding against it in the low brass. The last strain rises a step to E
-minor and the choir sings the Thread over everything.
+minor, and over the player's own harmony Sera's solo violin plays the
+Lieutenant's falling answer once, in E, with no shadow: she sees his future
+too, and the fracture is gone. (The choir sings Ember Dusk only in the
+Entity's finale; here it is a pad.)
 """
 
 from engine.patterns import chart, ostinato
@@ -62,7 +65,7 @@ def build():
         # the same clock a dotted eighth late and a tritone away
         echo.at_beat(s.bar(bar) + 0.75).play('@mf Eb5e Ab4e Eb5e Ab4e Eb5e Ab4e r:0.25')
 
-    # A / A2: the Lieutenant and her shadow
+    # A / A2: the Lieutenant and his shadow
     for sec in ('A', 'A2'):
         b.lead(sec, LIEUT, inst='violins', dyn='ff', art='sus')
         b.lead(sec, LIEUT, inst='violins2', name='lead8', transpose=-12, dyn='f', role='lead2',
@@ -79,16 +82,20 @@ def build():
     b.lead('B', AUG, inst='trombones', name='aug_tbn', transpose=-12, dyn='ff', role='lead2')
     b.choir('B', 'oohs', n=3, lo=53, hi=70, vel=0.6)
 
-    # C: the one path she couldn't block (the player's battle theme)
+    # C: the one path he couldn't block (the player's battle theme)
     b.lead('C', MEL_A, inst='violins', dyn='ff')
     b.lead('C', MEL_A, inst='trumpets', transpose=-12, dyn='ff', name='c_tpt')
     b.lead('C', LIEUT_LOW, inst='trombones', name='grind', dyn='ff', role='counter')
     b.lead('C', LIEUT_LOW, inst='tuba', name='grind_tuba', transpose=-12, dyn='f', role='low')
     b.spic16('C', 'violins2', pattern='0 1 2 1', lo=62, hi=81)
 
-    # D: up a step, the choir sings the thread
+    # D: up a step; the theme's second half begins at bar 41 (B4 E5 F#5 B5, rising)
+    # and Sera's violin answers with the Lieutenant's cell in E (B5 E5 D5 B4,
+    # falling): the same rhythm, mirrored, meeting on E. No tritone shadow.
     b.lead('D', MEL_A, inst='violins', transpose=2, dyn='ff')
-    b.lead('D', MEL_A, inst='choir', name='thread_choir', transpose=-10, dyn='ff', role='lead2')
+    sera = b.part('sera', 'solo_violin', role='lead')
+    sera.at(b.bar('D') + 4).play('@ff B5q E5q D5q B4q~ | B4w |')
+    sera.expr((b.bar('D') + 4, 1.0), (b.bar('D') + 5, 1.0), (b.bar('D') + 5.9, 0.4))
     b.lead('D', MEL_A, inst='horns', name='d_hn', transpose=-22, dyn='ff', role='lead2')
     b.lead('D', MEL_A, inst='trumpets', transpose=-10, dyn='ff', name='d_tpt')
     b.spic16('D', 'violins2', pattern='0 1 2 1', lo=64, hi=83)

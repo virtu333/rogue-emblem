@@ -223,7 +223,7 @@ class Renderer:
             pitch = n.pitch if inst.get('fixed_pitch') else n.pitch + s.transpose
             if not inst.get('fixed_pitch') and not (lo <= pitch <= hi):
                 raise ValueError(f'{s.name}/{part.name}: pitch {pitch} outside {inst["range"]}'
-                                 f' at bar {n.start / s.bar_beats + 1:.2f}')
+                                 f' at bar {s.bar_at(n.start) + 1}')
             t0 = s.seconds(n.start)
             written = n.dur
             if n.staccato:

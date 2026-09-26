@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
+  ENTITY_FINALE,
   MUSIC,
   MUSIC_LAYERS,
   getBossEnrageLayer,
@@ -37,6 +38,9 @@ function collectKeys(value, out = new Set()) {
 const referenced = collectKeys(MUSIC);
 for (const layers of Object.values(MUSIC_LAYERS)) collectKeys(layers, referenced);
 for (const { layer } of bossEnrage) if (layer) referenced.add(layer);
+// the Entity's finale and its hum stem (BattleMusicController)
+referenced.add(ENTITY_FINALE.track);
+referenced.add(ENTITY_FINALE.hum);
 // the HTML login screen plays this one directly (index.html)
 referenced.add('music_login');
 
@@ -90,12 +94,66 @@ describe('music library', () => {
 
   it('every boss has its own enrage layer on the theme it is fought to', () => {
     for (const { name, act, theme, layer } of bossEnrage) {
+      // the Entity has no enrage layer: turn pressure starts its finale instead
+      if (theme === ENTITY_FINALE.theme) {
+        expect(layer, name).toBeNull();
+        continue;
+      }
       expect(layer, `${name} (${act}) has an enrage layer on ${theme}`).toBeTruthy();
       const base = getMusicLoop(theme);
       const loop = getMusicLoop(layer);
       expect(loop.loopStart).toBe(base.loopStart);
       expect(loop.loopEnd).toBe(base.loopEnd);
       expect(loop.duration).toBe(base.duration);
+    }
+  });
+
+  it("the Entity's finale: hum stem on its timeline, a hinge cue that hands over to it", () => {
+    expect(MUSIC.bossByName['The Entity']).toBe(ENTITY_FINALE.theme);
+    const finale = getMusicLoop(ENTITY_FINALE.track);
+    const hum = getMusicLoop(ENTITY_FINALE.hum);
+    expect(finale.tonic).toBe(getMusicLoop(ENTITY_FINALE.theme).tonic);
+    expect(hum.loopStart).toBe(finale.loopStart);
+    expect(hum.loopEnd).toBe(finale.loopEnd);
+    expect(hum.duration).toBe(finale.duration);
+    const hinge = MUSIC_STINGERS[ENTITY_FINALE.hinge];
+    expect(hinge?.keyed).toBe(false);
+    // the finale's downbeat falls as the violin's last note ends, before the tail
+    expect(hinge.handoff).toBeGreaterThan(1);
+    expect(Math.abs(hinge.handoff - hinge.notesEnd)).toBeLessThan(0.01);
+    expect(hinge.handoff).toBeLessThan(hinge.duration);
+    expect(ENTITY_FINALE.silenceMs).toBeGreaterThanOrEqual(1000);
+  });
+
+  it('every field battle theme is adaptive: act pools, places and situations', () => {
+    const battleThemes = new Set([
+      ...Object.values(MUSIC.battle).flat(),
+      MUSIC.escape,
+      ...Object.values(MUSIC.battleBiome),
+      ...Object.values(MUSIC.battleSituation),
+    ]);
+    for (const key of battleThemes) {
+      expect(MUSIC_LAYERS[key]?.calm, `${key} has a calm mix`).toBeTruthy();
+    }
+    // no act pool plays another act's theme twice over, and none repeats within itself
+    for (const [act, pool] of Object.entries(MUSIC.battle)) {
+      expect(new Set(pool).size, act).toBe(pool.length);
+    }
+  });
+
+  it("place themes name biomes the map templates use; situations are the selector's", () => {
+    const templates = JSON.parse(readFileSync(join(ROOT, 'data', 'mapTemplates.json'), 'utf8'));
+    const biomes = new Set(
+      Object.values(templates)
+        .flat()
+        .filter((t) => t && typeof t === 'object')
+        .map((t) => t.biome || 'grassland'),
+    );
+    for (const biome of Object.keys(MUSIC.battleBiome)) {
+      expect(biomes.has(biome), `${biome} is a template biome`).toBe(true);
+    }
+    for (const situation of Object.keys(MUSIC.battleSituation)) {
+      expect(['eclipsed', 'village', 'rescue', 'elite']).toContain(situation);
     }
   });
 

@@ -59,9 +59,17 @@ export class AudioManager {
 
   /**
    * Play looping background music with optional fade-in. `layers` adds layers
-   * beyond the track's own (a boss's enrage layer: { enrage: key }).
+   * beyond the track's own (a boss's enrage layer: { enrage: key }); those
+   * named in `layerGains` are additive, sounding at their own level alongside
+   * the mix (see setMusicLayerGain). `startAt` (a Web Audio context time)
+   * schedules the start, e.g. on the downbeat a hinge cue hands over to.
    */
-  async playMusic(key, ownerOrScene, fadeMs = 500, { layers = null } = {}) {
+  async playMusic(
+    key,
+    ownerOrScene,
+    fadeMs = 500,
+    { layers = null, layerGains = null, startAt = null } = {},
+  ) {
     let pendingKeys = null;
     try {
       if (!key) return;
@@ -90,7 +98,7 @@ export class AudioManager {
 
       // Defer if audio context is locked (browser autoplay policy)
       if (this.sound.locked) {
-        this._pendingMusic = { key, ownerOrScene, fadeMs, layers };
+        this._pendingMusic = { key, ownerOrScene, fadeMs, layers, layerGains };
         if (!this._unlockListenerAdded) {
           this._unlockListenerAdded = true;
           this.sound.once('unlocked', () => {
@@ -98,7 +106,10 @@ export class AudioManager {
             if (this._pendingMusic) {
               const p = this._pendingMusic;
               this._pendingMusic = null;
-              void this.playMusic(p.key, p.ownerOrScene, p.fadeMs, { layers: p.layers });
+              void this.playMusic(p.key, p.ownerOrScene, p.fadeMs, {
+                layers: p.layers,
+                layerGains: p.layerGains,
+              });
             }
           });
         }
@@ -156,11 +167,16 @@ export class AudioManager {
         key,
         fadeMs > 0 ? 0 : this._curve(this.musicVolume),
         layers,
+        layerGains,
       );
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
-      this.currentMusic.play();
+      if (Number.isFinite(startAt) && this.currentMusic instanceof LoopedMusic) {
+        this.currentMusic.play(startAt);
+      } else {
+        this.currentMusic.play();
+      }
       // The voice now holds its buffers (and is protected as live); a layer it
       // dropped (off the primary's timeline) no longer needs to be kept.
       if (this._pendingMusicKeys === pendingKeys) {
@@ -211,7 +227,7 @@ export class AudioManager {
    * adaptive layers) when the decoded buffer and loop points are available;
    * otherwise a plain Phaser looping sound.
    */
-  _createMusicSound(key, volume, extraLayers = null) {
+  _createMusicSound(key, volume, extraLayers = null, layerGains = null) {
     const cache = this.sound.game.cache.audio;
     const buffer = typeof cache.get === 'function' ? cache.get(key) : null;
     const loop = getMusicLoop(key);
@@ -236,6 +252,7 @@ export class AudioManager {
           loops,
           keys: { ...(layerMap || {}), full: key },
           layer: layers[this.musicIntensity] ? this.musicIntensity : 'full',
+          layerGains: layerGains || {},
           volume,
         });
         // The layers the voice actually kept (one off the primary's timeline is dropped).
@@ -301,6 +318,30 @@ export class AudioManager {
 
   getMusicIntensity() {
     return this.musicIntensity;
+  }
+
+  /** The Web Audio clock (seconds), or null without Web Audio. */
+  audioTime() {
+    const t = Number(this.sound?.context?.currentTime);
+    return this._canUseLoopedMusic() && Number.isFinite(t) ? t : null;
+  }
+
+  /** Level (0-1) of an additive layer of the current track, over fadeMs. */
+  setMusicLayerGain(name, gain, fadeMs = 800) {
+    const music = this.currentMusic;
+    if (!music || typeof music.setLayerGain !== 'function') return false;
+    return music.setLayerGain(name, gain, fadeMs);
+  }
+
+  /** Decode tracks ahead of use (fire-and-forget), e.g. a finale waiting on a trigger. */
+  preloadMusic(keys, ownerOrScene = null) {
+    const scene = this._resolveSceneContext(ownerOrScene);
+    for (const key of keys || []) {
+      if (!key || this.sound?.game?.cache?.audio?.has?.(key)) continue;
+      this._ensureMusicLoaded(key, scene)
+        .then(() => this._touchMusicCacheKey(key))
+        .catch(() => {});
+    }
   }
 
   // --- Stingers: one-shot cues in the key of the music under them ---

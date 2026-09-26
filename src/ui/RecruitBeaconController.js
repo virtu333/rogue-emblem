@@ -8,10 +8,13 @@
 // scene.npcUnits, so Talk, a death, a Vision rewind or a resume all just work.
 // Rendering only: no game state lives here. BattleScene owns one instance
 // (create / sync from update / destroy), per the controller extraction rule.
+//
+// It never opens a dialog. Who the recruit is and how to win them over is taught by
+// the Guidance field note `guide_recruit_on_map` (GuidanceController): non-blocking,
+// once per save slot, and silent with Guidance Off (playtest 4).
 
 import { TILE_SIZE } from '../utils/constants.js';
 import { UI_FONT_FAMILIES, UI_HEX, UI_PALETTE } from '../utils/uiStyles.js';
-import { showMinorHint } from './HintDisplay.js';
 
 // Above fog (3) and unit sprites (10+) and HP bars (12/13), below menus and banners.
 export const RECRUIT_BEACON_DEPTH = 14;
@@ -23,12 +26,6 @@ export function recruitObjectiveLine(npc) {
   return `Recruit: reach ${npc.name} with a lord · Talk`;
 }
 
-/** The one-time intro hint for a recruit battle. */
-export function recruitIntroHint(npc) {
-  if (!npc) return '';
-  return `${npc.name} (${npc.className}) holds out under the gold banner. Reach them with a lord and choose Talk before the hunters do.`;
-}
-
 export class RecruitBeaconController {
   constructor(scene) {
     this.scene = scene;
@@ -38,24 +35,15 @@ export class RecruitBeaconController {
     this.visible = null;
   }
 
-  /** Build the beacon for the battle's recruit and tell the player about it once. */
+  /** Build the beacon for the battle's recruit and name them in the objective line. */
   create() {
     this.sync();
-    const scene = this.scene;
-    const npc = this.npc;
+    if (!this.npc) return;
     // The objective line was drawn before the recruit existed; name them now.
-    if (npc) {
-      try {
-        scene?.updateObjectiveText?.();
-      } catch {
-        /* the HUD may not be built in headless scenes */
-      }
-    }
-    if (!npc || scene?._resumeCheckpoint || scene?.battleParams?.tutorialMode) return;
     try {
-      Promise.resolve(showMinorHint(scene, recruitIntroHint(npc))).catch(() => {});
+      this.scene?.updateObjectiveText?.();
     } catch {
-      /* hints are optional */
+      /* the HUD may not be built in headless scenes */
     }
   }
 

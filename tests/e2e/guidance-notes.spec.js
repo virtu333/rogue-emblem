@@ -190,6 +190,110 @@ test('Light skips coaching but keeps essentials; Off shows nothing', async ({ pa
   await expect(note(page)).toHaveCount(0);
 });
 
+// Recruit battles (playtest 4): the recruit is introduced by the non-blocking field note
+// only. Nothing opens a dialog at the start, whatever the setting, and the note is once
+// per save slot. A fresh slot's lesson memory is in place before the battle is built, so
+// every first-battle lesson (pinch-zoom, par, Rewind) is live too.
+async function openRecruitBattle(page, settings) {
+  await page.addInitScript((stored) => {
+    localStorage.setItem(
+      'emblem_rogue_settings',
+      JSON.stringify({ musicVolume: 0, sfxVolume: 0, ...stored }),
+    );
+    const adopt = async () => {
+      const game = window.__emblemRogueGame;
+      if (!game?.registry) return void setTimeout(adopt, 5);
+      const { HintManager } = await import('/src/engine/HintManager.js');
+      game.registry.set(
+        'hints',
+        new HintManager(1, () => game.registry.get('settings')?.getHints?.() !== false),
+      );
+    };
+    adopt();
+  }, settings);
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&devNode=recruit');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    null,
+    { timeout: 30_000 },
+  );
+  return page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const npc = s.npcUnits[0];
+    return { name: npc.name, className: npc.className, hints: Boolean(s.registry.get('hints')) };
+  });
+}
+
+// Past the turn-1 lesson delay (1.5 s): no dialog, no modal shield.
+async function expectNoDialog(page) {
+  await page.waitForTimeout(2500);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.re-modal-shield')).toHaveCount(0);
+}
+
+test('a recruit battle opens with a non-blocking recruit note, once per slot (Full)', async ({
+  page,
+}) => {
+  const npc = await openRecruitBattle(page, { hints: true, guidance: 'full' });
+  expect(npc.hints).toBe(true);
+  const recruitNote = page.locator('.re-guide[data-guide="guide_recruit_on_map"]');
+  await expect(recruitNote).toBeVisible();
+  await expect(recruitNote).toContainText(
+    `${npc.name} (${npc.className}) under the gold banner can join you.`,
+  );
+  await expect(recruitNote).toContainText('Move a Lord next to them and choose Talk');
+  await expect(recruitNote).toContainText('before enemies reach them');
+  await expectNoDialog(page);
+  await expect(recruitNote).toBeVisible();
+  // Non-blocking: a lord can be selected while the note is up.
+  const lord = await page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits.find((p) => p.isLord);
+    return { name: u.name, col: u.col, row: u.row };
+  });
+  const p = await screenOf(page, lord.col, lord.row);
+  await page.touchscreen.tap(p.x, p.y);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').selectedUnit?.name),
+    )
+    .toBe(lord.name);
+  await page.screenshot({ path: test.info().outputPath('guidance-recruit.png') });
+  await recruitNote.getByRole('button', { name: 'Got it' }).tap();
+  await expect(recruitNote).toHaveCount(0);
+  expect(await seen(page, 'guide_recruit_on_map')).toBe(true);
+  // The same slot's next recruit battle: no recruit note, still no dialog.
+  await page.reload();
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    null,
+    { timeout: 30_000 },
+  );
+  await expectNoDialog(page);
+  await expect(recruitNote).toHaveCount(0);
+});
+
+test('Light still names the recruit; Off and legacy helpers-off show nothing', async ({
+  browser,
+}) => {
+  for (const [settings, shown] of [
+    [{ hints: true, guidance: 'light' }, true],
+    [{ hints: false, guidance: 'off' }, false],
+    [{ hints: false }, false], // "Contextual helpers: off" from before Guidance
+  ]) {
+    const context = await browser.newContext({ ...iphone, viewport: { width: 844, height: 390 } });
+    const page = await context.newPage();
+    const npc = await openRecruitBattle(page, settings);
+    await expectNoDialog(page);
+    const recruitNote = page.locator('.re-guide[data-guide="guide_recruit_on_map"]');
+    if (shown) await expect(recruitNote).toContainText(`${npc.name} (${npc.className})`);
+    else await expect(page.locator('.re-guide')).toHaveCount(0);
+    await context.close();
+  }
+});
+
 test('Settings cycles Guidance Full -> Light -> Off', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem(

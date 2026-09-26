@@ -52,7 +52,7 @@ def main():
             if ov < args.min_overlap:
                 continue
             if abs(ap_ - bp) % 12 in (1, 11):
-                bar = int(max(a0, b0) // s.bar_beats) + 1
+                bar = s.bar_at(max(a0, b0)) + 1
                 clashes[bar].append(f'{an}:{name(ap_)} x {bn}:{name(bp)} ({ov:.1f}b)')
     for bar in sorted(clashes):
         items = sorted(set(clashes[bar]))

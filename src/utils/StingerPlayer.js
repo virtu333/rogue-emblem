@@ -71,7 +71,9 @@ export class StingerPlayer {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(gain);
-    const voice = { key, source, gain, stopped: false, stop: null };
+    // startTime: the context time the cue began (a hinge cue schedules the next
+    // track from it)
+    const voice = { key, source, gain, stopped: false, stop: null, startTime: null };
     const finish = () => {
       if (voice.stopped) return;
       voice.stopped = true;
@@ -103,7 +105,8 @@ export class StingerPlayer {
       }
     };
     this._voices.add(voice);
-    source.start();
+    voice.startTime = Number(context.currentTime) || 0;
+    source.start(voice.startTime);
     return voice;
   }
 

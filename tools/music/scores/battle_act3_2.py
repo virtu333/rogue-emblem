@@ -3,8 +3,13 @@
 The grandest of the field themes: the warband climbing toward the ritual
 site. Horns carry the Thread motif in B minor over perpetual-motion strings;
 an F-sharp major chord throws the music a third sideways into a soaring
-D major chorus with choir; the bridge turns to B7 and the chorus returns a
-step higher in E, before the build drops back to B minor.
+D major chorus; the bridge turns to B7 and the chorus returns a step higher
+in E, now with the choir, before the build drops back to B minor.
+
+The chorus never lands: its Thread cell holds the fifth over the tonic
+(A over D, then B over E) instead of closing on the root, so an Act III
+field battle does not spend the cadence kept for promotion and the run's
+end. The choir sings only the second chorus, and no trumpets double it.
 """
 
 from engine.patterns import chart
@@ -20,7 +25,7 @@ F#4q B4q C#5e F#5q.~ | F#5q A5q G5q F#5q | E5q. F#5e G5q E5q | F#5w |
 """
 CHORUS = """
 A5h D6q E6q | F#6w | E6q D6q C#6q B5q | A5h F#5h |
-G5h. A5q | B5q A5q G5q F#5q | E5h A5h | D6w |
+G5h. A5q | B5q A5q G5q F#5q | E5h A5h~ | A5w |
 """
 BRIDGE = """
 B4h D5q G5q | G5h. F#5q | E5h G5q C6q | C6h. B5q |
@@ -53,15 +58,13 @@ def build():
     b.lead('B', CHORUS, inst='violins', dyn='ff', art='sus')
     b.lead('B', CHORUS, inst='violins2', name='lead8', transpose=-12, dyn='f', role='lead2',
            art='sus')
-    b.lead('B', CHORUS, inst='choir', name='choir_lead', transpose=-12, dyn='f', layer='full',
-           role='lead2')
     b.lead('C', BRIDGE, inst='celli', name='bridge_vc', dyn='f', transpose=-12, role='lead',
            art='sus')
     b.lead('C', BRIDGE, inst='horns', name='bridge_hn', dyn='mf', transpose=-12, layer='full',
            role='lead2')
     b.lead('B2', CHORUS, inst='violins', transpose=2, dyn='ff')
     b.lead('B2', CHORUS, inst='violins2', name='lead8', transpose=-10, dyn='ff', role='lead2')
-    b.lead('B2', CHORUS, inst='trumpets', transpose=-10, dyn='ff', layer='full')
+    # the choir arrives only for the second chorus (no trumpets on the tune)
     b.lead('B2', CHORUS, inst='choir', name='choir_lead', transpose=-10, dyn='ff', layer='full',
            role='lead2')
     b.lead('build', 'E5q G5q C6q E6q | F#5q A5q D6q F#6q | G5q B5q E6q G6q | A#5q C#6q E6q F#6q |',

@@ -93,9 +93,15 @@ in tutorial battles. "Fewer tips" sets Guidance to Light.
 | `guide_healer_heals` | coach | a healer with staff uses is selected while an ally is hurt | Sera heals with a staff: move next to a hurt ally and choose Heal. Early on, keep Sera out of reach and heal Edric. |
 | `guide_no_attack` | coach | a unit ended its move with no target | No enemy is in reach of Sera here, so Attack is greyed out. Tap Back to try a closer tile, or Wait. |
 | `guide_commander_low_hp` | essential | commander starts a player phase at ≤ 50% HP | Edric is badly hurt. If Edric falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item. |
-| `guide_recruit_on_map` | essential | a visible green (recruitable) unit | The green unit can join you. Move a Lord next to them and choose Talk before enemies reach them. |
+| `guide_recruit_on_map` | essential | a green (recruitable) unit that is visible or marked by the recruit banner | Garrick (Cavalier) under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them. |
 
 Desktop wording swaps "Tap Back" for "Press Esc or right-click".
+
+`guide_recruit_on_map` is the recruit battle's only introduction (playtest 4). It names the
+recruit and class ("The green unit" when neither is known); it replaced the recruit
+beacon's own intro note, which rendered as a blocking dialog in every recruit battle even
+with helpers off, and the `battle_recruit` toast. A recruit battle opens with no dialog:
+the pinch-zoom, par and Rewind lessons wait for a later battle.
 
 ### Convoy and Withdraw
 

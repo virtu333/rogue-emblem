@@ -16,6 +16,11 @@ Notation (whitespace separated tokens):
              <n  transpose following notes by n semitones (<0 resets)
 
 Beats are quarter notes. Bars are 1-based.
+
+A score has one meter unless it declares changes with `meter_change(bar,
+meter)`; from that bar on, bars have the new length. `bar()`, the intro and
+loop lengths, the bar check, the form check and drum grids all follow the
+meter map, so a 6/8 phrase can return in 5/8 as real bars.
 """
 
 from __future__ import annotations
@@ -168,6 +173,13 @@ class Part:
         pending_ties: dict[int, Note] = {}
         for tok in _TOKEN_RE.findall(text):
             if tok == '|':
+                if self.score.mixed_meter:
+                    if not self.score.on_barline(self.cursor):
+                        raise ValueError(
+                            f'{self.score.name}/{self.name}: bar check failed at beat '
+                            f'{self.cursor:.3f} (bar {self.score.bar_at(self.cursor) + 1}, '
+                            f'mixed meter) near {text[:60]!r}')
+                    continue
                 bar_len = self.score.bar_beats
                 off = (self.cursor - self._bar_anchor) % bar_len
                 if min(off, bar_len - off) > 1e-6:
@@ -249,6 +261,8 @@ class Score:
         self.title = title or name
         self.meter = meter
         self.bar_beats = meter[0] * 4 / meter[1]
+        # meter map: (first bar, beats per bar), piecewise from that bar on
+        self._meters = [(1, self.bar_beats)]
         self.intro_bars = intro_bars
         self.loop_bars = loop_bars
         self.seed = seed
@@ -265,14 +279,68 @@ class Score:
 
     # ------------------------------------------------------------ time
     def bar(self, n: float) -> float:
-        return (n - 1) * self.bar_beats
+        """Start of a (1-based, may be fractional) bar, in beats."""
+        if not self.mixed_meter:
+            return (n - 1) * self.bar_beats
+        beats = 0.0
+        for i, (b0, bb) in enumerate(self._meters):
+            if n <= b0:
+                break
+            b1 = self._meters[i + 1][0] if i + 1 < len(self._meters) else float('inf')
+            beats += (min(n, b1) - b0) * bb
+        return beats
+
+    @property
+    def mixed_meter(self) -> bool:
+        return len(self._meters) > 1
+
+    def meter_change(self, bar: int, meter):
+        """From bar `bar` (1-based, a whole bar) on, bars are in `meter`, e.g.
+        `s.meter_change(37, (5, 8))`. Bars before it keep their meter, so a
+        score can mix 6/8, 5/8 and 4/8 bars; intro_bars and loop_bars still
+        count bars. A change at bar 1 replaces the opening meter."""
+        bar = int(bar)
+        if bar < 1:
+            raise ValueError(f'{self.name}: meter change before bar 1')
+        bb = meter[0] * 4 / meter[1]
+        if bar == 1:
+            self.meter, self.bar_beats = meter, bb
+        self._meters = [m for m in self._meters if m[0] != bar]
+        bisect.insort(self._meters, (bar, bb))
+        return self
+
+    def bar_len(self, n: float) -> float:
+        """Beats in the bar at bar position n."""
+        bb = self.bar_beats
+        for b0, length in self._meters:
+            if b0 <= n:
+                bb = length
+        return bb
+
+    def bar_at(self, beat: float) -> int:
+        """0-based index of the bar containing `beat`."""
+        if not self.mixed_meter:
+            return int(beat // self.bar_beats)
+        for i, (b0, bb) in enumerate(self._meters):
+            last = i + 1 == len(self._meters)
+            if last or beat < self.bar(self._meters[i + 1][0]):
+                return b0 - 1 + int((beat - self.bar(b0)) // bb)
+        raise AssertionError('unreachable')
+
+    def on_barline(self, beat: float, tol: float = 1e-6) -> bool:
+        i = self.bar_at(beat)
+        return min(abs(beat - self.bar(i + 1)), abs(beat - self.bar(i + 2))) <= tol
 
     @property
     def intro_beats(self):
+        if self.mixed_meter:
+            return self.bar(self.intro_bars + 1)
         return self.intro_bars * self.bar_beats
 
     @property
     def loop_beats(self):
+        if self.mixed_meter:
+            return self.bar(self.intro_bars + self.loop_bars + 1) - self.intro_beats
         return self.loop_bars * self.bar_beats
 
     def tempo(self, bar: float, bpm: float, ramp_to: float | None = None):

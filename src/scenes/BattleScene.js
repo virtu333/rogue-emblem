@@ -73,6 +73,7 @@ import {
   rollSplashTiles,
   rollSplashDamage,
   getEntityCenter,
+  entityHealth,
 } from '../engine/EntitySystem.js';
 import {
   createLordUnit,
@@ -227,6 +228,7 @@ import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import BattleMusicController from '../ui/BattleMusicController.js';
+import { battleMusicContext } from '../engine/BattleMusicSelection.js';
 import { levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
@@ -1862,12 +1864,21 @@ export class BattleScene extends Phaser.Scene {
       this._musicCtrl = new BattleMusicController(this, {
         playersInDanger: () => this._anyPlayerInDanger(),
         bossEnraged: () => Boolean(this.antiTurtleState?.turnEnrageActive),
+        entityHealth: () => entityHealth(this.enemyUnits),
+        onFinale: (beat) =>
+          (this._battleBeats ||= new BattleBeatsController(this)).entityRally(beat),
       });
       this._musicCtrl.create({
         act: this.battleParams?.act || 'act1',
         isBoss: this.isBoss,
         bossName: (this.enemyUnits || []).find((unit) => unit.isBoss)?.name || null,
         objective: this.battleConfig?.objective || null,
+        context: battleMusicContext({
+          battleParams: this.battleParams,
+          battleConfig: this.battleConfig,
+          runSeed: this.runManager?.runSeed,
+          isElite: this.isElite,
+        }),
         releaseFirst: Boolean(this.battleParams?.tutorialMode),
       });
 
@@ -1926,7 +1937,8 @@ export class BattleScene extends Phaser.Scene {
       this._atmosphere?.destroy();
       this._atmosphere = new AtmosphereController(this).create();
 
-      if (this.mobileCameraEnabled) {
+      // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
+      if (this.mobileCameraEnabled && !(this.npcUnits?.length > 0)) {
         const hints = this.registry.get('hints');
         if (hints && !hints.hasSeen('battle_mobile_camera')) {
           showContextualHint(
@@ -7682,6 +7694,7 @@ export class BattleScene extends Phaser.Scene {
     try {
       return await this._runCombatResolutionAtSpeed(attacker, defender, ctx);
     } finally {
+      this._musicCtrl?.onCombatResolved?.();
       this._combatFx?.finishStrike?.(attacker, defender);
       this._combatSpeedSnapshot = previous;
     }
@@ -9468,6 +9481,10 @@ export class BattleScene extends Phaser.Scene {
               async () => {
                 if (!isSceneActiveForAsync() || this.battleState !== 'PLAYER_IDLE') return;
                 const objective = this.battleParams.objective;
+                // A recruit battle opens without a lesson dialog: the Guidance field
+                // note (guide_recruit_on_map) names the recruit, never blocks, and
+                // honours Guidance Off. Other first-battle lessons wait for a later fight.
+                if (this.npcUnits.length > 0) return;
                 if (objective === 'seize')
                   showContextualHint(
                     this,
@@ -9479,12 +9496,6 @@ export class BattleScene extends Phaser.Scene {
                     this,
                     'battle_escape',
                     'Escape: bring your Lords to the green exits. The surviving army retreats when the last Lord leaves.',
-                  );
-                else if (this.npcUnits.length > 0)
-                  showContextualHint(
-                    this,
-                    'battle_recruit',
-                    'Move a Lord beside the green recruit and choose Talk.',
                   );
                 else
                   showContextualHint(

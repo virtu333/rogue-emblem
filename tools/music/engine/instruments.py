@@ -157,6 +157,9 @@ INSTRUMENTS = {
     }, range=(67, 108), pan=0.25, width=0.3, depth=0.55, ref_key=84, bus='perc', humanize_ms=4),
     'bells': dict(kind='sfz', arts={
         'default': dict(file=V('TubularBells.sfz'), mode='oneshot', max_len=6.0, veltrack_db=12),
+        # a bell caught by hand: rings for the written length, then a short fade
+        'damp': dict(file=V('TubularBells.sfz'), mode='decay', max_len=6.0, release=0.5,
+                     veltrack_db=12),
     }, range=(55, 84), pan=0.3, width=0.3, depth=0.7, ref_key=67, bus='perc', humanize_ms=4),
     'marimba': dict(kind='sfz', arts={
         'default': dict(file=V('Marimba.sfz'), mode='oneshot', max_len=2.0, veltrack_db=14),
