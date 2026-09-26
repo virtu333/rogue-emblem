@@ -5,6 +5,12 @@ import { STINGER_PRELOAD, getMusicLayers, getMusicLoop } from './musicConfig.js'
 import { MUSIC_STINGERS } from './musicStingers.js';
 import { STINGER_FADE_MS, StingerPlayer } from './StingerPlayer.js';
 
+// A cue not decoded yet may take this long to decode before its fallback plays
+// (from prefetched bytes it takes a fraction of this; see prefetchStingers).
+export const STINGER_MIN_WAIT_MS = 700;
+// Compressed stinger files kept in memory (about 90 KB each).
+const STINGER_BYTES_MAX = 48;
+
 function isDecodedAudioBuffer(buffer) {
   return Boolean(
     buffer && typeof buffer.getChannelData === 'function' && Number.isFinite(buffer.duration),
@@ -50,6 +56,9 @@ export class AudioManager {
       maxCached: this._toPositiveInt(options.maxCachedStingers, 10),
     });
     this._stingerSeq = 0;
+    // key -> ArrayBuffer (compressed, LRU order) and key -> Promise while fetching
+    this._stingerBytes = new Map();
+    this._stingerFetches = new Map();
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -183,8 +192,10 @@ export class AudioManager {
         this._pendingMusicKeys = [];
         this._enforceMusicCacheBudget();
       }
-      // The common ceremony cues, decoded ahead in this track's key.
+      // The common ceremony cues, decoded ahead in this track's key; every
+      // other cue fetched ahead, so none of them waits on the network.
       this.preloadStingers(STINGER_PRELOAD);
+      this.prefetchStingers(Object.keys(MUSIC_STINGERS));
 
       if (fadeMs > 0 && scene?.tweens) {
         this._tweenSoundVolume(scene, this.currentMusic, 0, 1, fadeMs);
@@ -369,6 +380,37 @@ export class AudioManager {
     }
   }
 
+  /** Fetch stingers' compressed files ahead of use, without decoding (fire-and-forget). */
+  prefetchStingers(names, tonic = null) {
+    if (!this._canUseLoopedMusic()) return;
+    for (const name of names || []) {
+      const key = this.stingerKeyFor(name, tonic);
+      if (key && !this.stingers.has(key)) this._stingerBytesFor(key).catch(() => {});
+    }
+  }
+
+  /** The compressed file of stinger `key`: kept, in flight, or fetched now. */
+  _stingerBytesFor(key) {
+    const kept = this._stingerBytes.get(key);
+    if (kept) {
+      this._stingerBytes.delete(key);
+      this._stingerBytes.set(key, kept);
+      return Promise.resolve(kept);
+    }
+    if (this._stingerFetches.has(key)) return this._stingerFetches.get(key);
+    const promise = this._fetchStingerBytes(key)
+      .then((bytes) => {
+        this._stingerBytes.set(key, bytes);
+        while (this._stingerBytes.size > STINGER_BYTES_MAX) {
+          this._stingerBytes.delete(this._stingerBytes.keys().next().value);
+        }
+        return bytes;
+      })
+      .finally(() => this._stingerFetches.delete(key));
+    this._stingerFetches.set(key, promise);
+    return promise;
+  }
+
   /**
    * Play stinger `name` at the music volume, ducking the current track under
    * it until its notes end. When it can't sound (no Web Audio, music muted,
@@ -390,10 +432,11 @@ export class AudioManager {
     if (!entry || !key || !(gain > 0) || !this._canUseLoopedMusic()) return fallback();
     if (!this.stingers.has(key)) {
       const loaded = this.stingers.load(key).catch(() => null);
-      if (!(waitMs > 0)) return fallback();
+      // a cue still decoding is worth a moment's wait: its fallback is a click
+      const wait = Math.max(Number(waitMs) || 0, STINGER_MIN_WAIT_MS);
       const buffer = await Promise.race([
         loaded,
-        new Promise((resolve) => setTimeout(() => resolve(null), waitMs)),
+        new Promise((resolve) => setTimeout(() => resolve(null), wait)),
       ]);
       // stopStingers() or a newer cue came first: stay silent
       if (seq !== this._stingerSeq) return null;
@@ -427,6 +470,13 @@ export class AudioManager {
   async _fetchAndDecodeStinger(key) {
     const context = this.sound?.context;
     if (!context || typeof fetch !== 'function') throw new Error('no-audio-context');
+    const bytes = await this._stingerBytesFor(key);
+    // decodeAudioData detaches its input: decode a copy, keep the file
+    return this._decodeAudioData(context, bytes.slice(0));
+  }
+
+  async _fetchStingerBytes(key) {
+    if (typeof fetch !== 'function') throw new Error('no-fetch');
     let lastErr = null;
     for (const src of this._getStingerSources(key)) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -434,7 +484,7 @@ export class AudioManager {
       try {
         const response = await fetch(src, { signal: controller?.signal });
         if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
-        return await this._decodeAudioData(context, await response.arrayBuffer());
+        return await response.arrayBuffer();
       } catch (err) {
         lastErr = err;
       } finally {

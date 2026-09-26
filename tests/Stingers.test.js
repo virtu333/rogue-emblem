@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StingerPlayer } from '../src/utils/StingerPlayer.js';
-import { AudioManager } from '../src/utils/AudioManager.js';
+import { AudioManager, STINGER_MIN_WAIT_MS } from '../src/utils/AudioManager.js';
 import { STINGER_PRELOAD, getMusicLoop } from '../src/utils/musicConfig.js';
 import { MUSIC_STINGERS } from '../src/utils/musicStingers.js';
 import { MUSIC_LOOPS } from '../src/utils/musicLoops.js';
@@ -194,7 +194,7 @@ describe('AudioManager stingers', () => {
     expect(sound.play).not.toHaveBeenCalled();
   });
 
-  it('falls back to the sound effect when the cue is not ready, and loads it for next time', async () => {
+  it('falls back to the sound effect when the cue is not ready in time, and loads it for next time', async () => {
     const sound = makeSound({
       music_battle_act1: musicBuffer('music_battle_act1'),
       sfx_levelup: {},
@@ -214,6 +214,54 @@ describe('AudioManager stingers', () => {
     release.get('stinger_levelup_D')();
     await new Promise((r) => setTimeout(r, 0));
     expect(audio.stingers.has('stinger_levelup_D')).toBe(true);
+  });
+
+  it('fetches every cue ahead when music starts, and decodes only the common ones', async () => {
+    const sound = makeSound({ music_battle_act1_2: musicBuffer('music_battle_act1_2') });
+    const audio = new AudioManager(sound);
+    audio._fetchStingerBytes = vi.fn(async () => new ArrayBuffer(16));
+    audio._decodeAudioData = vi.fn(async () => stingerBuffer());
+    await audio.playMusic('music_battle_act1_2', null, 0);
+    await new Promise((r) => setTimeout(r, 0));
+    const fetched = new Set(audio._fetchStingerBytes.mock.calls.map(([key]) => key));
+    // the recruit card's cue is among the decoded ones (it used to miss its window)
+    expect(STINGER_PRELOAD).toContain('recruit');
+    for (const [name, entry] of Object.entries(MUSIC_STINGERS)) {
+      expect(fetched).toContain(entry.keyed ? `stinger_${name}_G` : `stinger_${name}`);
+    }
+    // each file fetched once, and only the common cues decoded
+    expect(audio._fetchStingerBytes).toHaveBeenCalledTimes(fetched.size);
+    expect(audio._decodeAudioData).toHaveBeenCalledTimes(STINGER_PRELOAD.length);
+  });
+
+  it('plays a prefetched cue from its kept file, without fetching it again', async () => {
+    const sound = makeSound({ music_battle_act1: musicBuffer('music_battle_act1') });
+    const audio = new AudioManager(sound);
+    audio._fetchStingerBytes = vi.fn(async () => new ArrayBuffer(16));
+    audio._decodeAudioData = vi.fn(async () => stingerBuffer());
+    await audio.playMusic('music_battle_act1', null, 0);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(audio.stingers.has('stinger_boss_felled_D')).toBe(false);
+    const voice = await audio.playStinger('boss_felled');
+    expect(voice).not.toBeNull();
+    const calls = audio._fetchStingerBytes.mock.calls.filter(
+      ([k]) => k === 'stinger_boss_felled_D',
+    );
+    expect(calls).toHaveLength(1);
+  });
+
+  it('waits a moment for a cue to decode even when the caller asks for none', async () => {
+    const sound = makeSound({ music_title: musicBuffer('music_title') });
+    const audio = new AudioManager(sound);
+    audio._fetchAndDecodeStinger = vi.fn(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve(stingerBuffer()), STINGER_MIN_WAIT_MS / 3),
+        ),
+    );
+    await audio.playMusic('music_title', null, 0);
+    audio.stingers._buffers.clear();
+    expect(await audio.playStinger('promotion_crown')).not.toBeNull();
   });
 
   it('can wait briefly for a rare cue to decode', async () => {

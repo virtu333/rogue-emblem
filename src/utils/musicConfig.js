@@ -149,8 +149,19 @@ export const ENTITY_FINALE = Object.freeze({
 });
 
 // Stingers decoded ahead whenever a track starts (in that track's key): the
-// cues that can fire at any moment of a battle. Rarer ones load on demand.
-export const STINGER_PRELOAD = ['levelup', 'levelup_perfect', 'levelup_blank', 'sealed', 'deed'];
+// cues that can fire at any moment. Every other cue is fetched ahead as
+// compressed bytes (AudioManager.prefetchStingers), so it only has to decode
+// when it plays: fetching a cue on demand took longer than a ceremony waits,
+// and the recruit card played its fallback click instead of its music.
+export const STINGER_PRELOAD = [
+  'levelup',
+  'levelup_perfect',
+  'levelup_blank',
+  'recruit',
+  'promotion_crown',
+  'sealed',
+  'deed',
+];
 
 /** Layer name -> music key for an adaptive track (null for single-layer tracks). */
 export function getMusicLayers(key) {
