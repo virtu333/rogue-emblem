@@ -43,6 +43,25 @@
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }
+      /* A game, not a page: no text selection, no iOS/Android long-press
+         callout (Copy / Look Up / Share) and no grey tap flash anywhere. A long
+         press is a game gesture (inspect a unit, open an item's details, pin
+         Danger). Real text fields stay editable and selectable. */
+      html,
+      body {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      input,
+      textarea,
+      select,
+      [contenteditable='true'] {
+        -webkit-user-select: text;
+        user-select: text;
+        -webkit-touch-callout: default;
+      }
 
       /* Auth overlay — The Hollow Sun key art (mounted by main.js through the shared
          backdrop helper, src/art/keyart/keyArtBackdrop.js) under the lockup and form.
