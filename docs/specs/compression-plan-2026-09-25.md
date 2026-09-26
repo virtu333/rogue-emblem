@@ -1,6 +1,6 @@
 # Compression plan and verification audit (2026-09-25)
 
-**Status:** plan. Steps 0–2 are done; nothing else is implemented yet except where marked.
+**Status:** plan. Steps 0–2 are done; step 3 has migrated its first path (the player attack); nothing else is implemented yet except where marked.
 **Source:** an external architecture review, three read-only investigations and a fault-injection pilot, run against `main` at 74cc967 / dfb551f.
 **Line references** are as of those commits. Re-verify them before starting. Since then, #93 routed the attack forecast through `BattleScene._computePlayerForecast`.
 
@@ -13,7 +13,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 | 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (**done**, 2026-09-26; see below) | Specs that rot because nothing runs them | none |
 | 1 | One definition of the resolved-action continuation (done 2026-09-26) | Duplicate validation of the same shape | none |
 | 2 | Read-only attack forecast (equipment) (done 2026-09-26) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
-| 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
+| 3 | Explicit gameplay RNG, one complete path at a time (first path done 2026-09-26: the player attack) | The global `Math.random` install and presentation shielding wrappers | #2 settled |
 | 4 | Presentation fields off domain units; equipped weapon by identity | Serialization deny-lists; `relinkWeapon` repair | #2 |
 | 5 | The headless harness calls production operations as they become isolated | Mirrored orchestration in `tests/harness/HeadlessBattle.js` | alongside 2–4 |
 
@@ -157,6 +157,8 @@ Both are follow-up candidates. So this step makes the forecast read-only **for e
 **Size:** about 100 source lines deleted (the whole of `WeaponPreviewSession.js`, plus imports and call sites) and about 40 added. The value is correctness, not size.
 
 ## 3. Explicit gameplay RNG (series)
+
+**First path done (2026-09-26): the player attack, Confirm through resolution.** `executeCombat` takes the generator once (`_playerAttackRng` → `BattleRng.playerAttackRandom`) and hands it to `_runCombatResolution` → `resolveCombat` → `rollStrike` (`rollHit`, crit), `rollStrikeSkills`, `rollDefenseSkills`, `checkAstra`, the imbue status roll and the Teleporter warp (`_warpAfterStrike` → `executeWarp`, moved out of `animateStrike` at the same point in the stream). fixed-v1 passes the battle RNG itself; legacy-v1 keeps ambient `Math.random` behind `playerAttackRandom`'s compatibility branch. Callers without a generator default to `ambientRandom`. Lint (`eslint.config.js`) bans `Math.random` in the path's engine modules and in its `BattleScene` methods. Tests: `AttackRngCharacterization.test.js` (recorded on main, fixtures in `tests/fixtures/attack-rng/`), `ExplicitAttackRng.test.js`, `ExplicitRngLint.test.js`, `e2e/attack-rng-differential.spec.js`. Still on the global install: the enemy phase (combat, enemy weapon-art chance, status staves, the Entity's splash), XP and level-ups, reinforcement spawns, turn-start effects (condition recovery, Waller), ballistas, victory flavour, loot and boss recruits, and item uids. No presentation wrapper can go yet: every guarded site can run while those paths still read the global stream.
 
 Battle execution installs the battle RNG as global `Math.random`. `src/utils/presentationRandom.js` and `presentationText.js` then shield rendering from it.
 
