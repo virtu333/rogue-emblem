@@ -87,13 +87,19 @@ async function tapUnit(page, name, group = 'playerUnits') {
   await page.touchscreen.tap(p.x, p.y);
 }
 
-// Two presses: the first completes the reveal, the second continues.
+// A press while the reveal runs completes it (Skip → Continue); a press on Continue
+// closes the rite. The rite's own clock also finishes the reveal, so whether the
+// first press is Skip or Continue depends on how long the test took to get here:
+// press, then press Continue only if the rite is still open.
 async function dismissRite(page, rite) {
-  await page.waitForTimeout(250);
-  await rite.getByRole('button', { name: /^(Skip|Continue)$/ }).tap();
-  const cont = rite.getByRole('button', { name: 'Continue', exact: true });
-  await expect(cont).toBeVisible();
-  await cont.tap();
+  await page.waitForTimeout(250); // bindCeremonySkip ignores presses for 180 ms after opening
+  const button = rite.getByRole('button', { name: /^(Skip|Continue)$/ });
+  await button.tap();
+  if (await rite.count()) {
+    const cont = rite.getByRole('button', { name: 'Continue', exact: true });
+    await expect(cont).toBeVisible();
+    await cont.tap();
+  }
   await expect(page.getByRole('dialog', { name: 'Promotion', exact: true })).toHaveCount(0);
 }
 
@@ -178,6 +184,58 @@ test('battle Master Seal: path chooser, then the rite over the map; gains once',
     return { className: u.className, level: u.level, acted: u.hasActed, seals: u.consumables.length }; // prettier-ignore
   }, name);
   expect(after).toEqual({ className: 'Duelist', level: 1, acted: true, seals: 0 });
+  expect(errors).toEqual([]);
+});
+
+test('path chooser at 667×375: class names in full, a tall card scrolls instead of squashing', async ({
+  page,
+}) => {
+  const errors = collect(page);
+  await battle(page);
+  // A Knight's paths (General, Great Knight): the fullest real cards (seven
+  // bonuses, up to three ranks, two skills, a growth/move/grant note) on the
+  // narrowest frame, with a deed's Oath (Giantslayer · Lethality) on each.
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits.find((x) => x.name === 'Sera');
+    Object.assign(u, { name: 'Benedetta', isLord: false, className: 'Knight', tier: 'base' });
+    Object.assign(u, { level: 10, proficiencies: [{ type: 'Lance', rank: 'Prof' }], skills: [] });
+    const deeds = await import('/src/engine/DeedSystem.js');
+    u._battleDeeds = { v: 1, maxKillLevelGap: 6 };
+    deeds.commitBattleDeeds([u], s.gameData.deeds, { battleKey: 'chooser' });
+    const targets = s.gameData.classes.filter((c) => c.promotesFrom === 'Knight');
+    const { PromotionChoicePanel } = await import('/src/ui/PromotionChoicePanel.js');
+    s.battleState = 'COMBAT_RESOLVING';
+    window.__choice = new PromotionChoicePanel(s, u, targets, s.gameData.skills).show();
+  });
+  const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
+  await expect(chooser.locator('.gr-path')).toHaveCount(2);
+  const cards = await chooser.locator('.gr-path').evaluateAll((all) =>
+    all.map((card) => {
+      const name = card.querySelector('.gr-path-title strong');
+      const oath = card.querySelector('.gr-path-oath');
+      return {
+        path: card.dataset.path,
+        name: name.textContent,
+        nameFits: name.scrollWidth <= name.clientWidth + 1,
+        oathInFull: Boolean(oath) && oath.scrollHeight <= oath.clientHeight + 1,
+        // The whole card is laid out (a squashed card centres its content,
+        // pushing the class name above the scroll area's reach).
+        squashed: card.scrollHeight > card.clientHeight + 1,
+      };
+    }),
+  );
+  const fits = { nameFits: true, oathInFull: true, squashed: false };
+  expect(cards).toEqual([
+    { path: 'General', name: 'General', ...fits },
+    { path: 'Great Knight', name: 'Great Knight', ...fits },
+  ]);
+  // Scrolled to the end, the last card's footnote is reachable too.
+  const last = chooser.locator('.gr-path').last().locator('.gr-path-note');
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await chooser.getByRole('button', { name: 'Cancel', exact: true }).tap();
+  await expect(chooser).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

@@ -9,9 +9,8 @@
 .re-epithet {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* An epithet is the unit's title: it wraps in a narrow column (the roster
+     list, a phone level card) rather than ending in an ellipsis. */
   font: italic 500 12px / 1.3 var(--re-body);
   letter-spacing: 0.01em;
   color: var(--re-accent);
@@ -100,7 +99,7 @@
 /* The unit stands in the band, rim-lit by an ember glow, breaking out of it. */
 .gr-deed-bust {
   position: absolute;
-  left: calc(3% + env(safe-area-inset-left, 0px));
+  left: calc(3% + var(--ce-safe-l));
   top: calc(50% + var(--gr-deed-band) / 2 - var(--gr-deed-bust) + 6px);
   width: var(--gr-deed-bust);
   height: var(--gr-deed-bust);
@@ -136,8 +135,8 @@
 /* Words ride the slash. */
 .gr-deed-text {
   position: absolute;
-  left: calc(3% + var(--gr-deed-bust) + 14px + env(safe-area-inset-left, 0px));
-  right: calc(var(--gr-deed-seal-size) + 7% + env(safe-area-inset-right, 0px));
+  left: calc(3% + var(--gr-deed-bust) + 14px + var(--ce-safe-l));
+  right: calc(var(--gr-deed-seal-size) + 7% + var(--ce-safe-r));
   top: calc(50% - var(--gr-deed-band) / 2);
   height: var(--gr-deed-band);
   display: flex;
@@ -148,10 +147,12 @@
   transform: skewY(var(--gr-deed-skew));
 }
 .gr-deed.is-faceless .gr-deed-text {
-  left: calc(8% + env(safe-area-inset-left, 0px));
+  left: calc(8% + var(--ce-safe-l));
 }
 .gr-deed-text > * {
   max-width: 100%;
+  /* Never squash a line to fit: fitDeedBand grows the band instead. */
+  flex-shrink: 0;
 }
 .gr-deed-kicker {
   animation: ce-rise 380ms calc(var(--gr-deed-name-at, 0ms) - 80ms) both;
@@ -179,8 +180,9 @@
   display: block;
   max-width: 100%;
   overflow: hidden;
-  /* Room for the glow inside the box (fitText measures it). */
-  padding: 0.12em 0.1em 0.02em 0;
+  /* Room for the glow inside the box (fitText measures it), and for the
+     descenders of a second line when a long epithet wraps. */
+  padding: 0.12em 0.1em 0.12em 0;
   font: 700 calc(30px * var(--ce-scale)) / 1.06 var(--re-display);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -218,17 +220,18 @@
 }
 .gr-deed-lore {
   margin: calc(7px * var(--ce-scale)) 0 0;
-  font: italic calc(12px * var(--ce-scale)) / 1.35 var(--re-body);
+  font: italic calc(12px * var(--ce-scale) * var(--gr-deed-fit, 1)) / 1.35 var(--re-body);
   color: var(--ce-bone);
+  /* A sanity bound only: fitDeedBand sizes the band for the whole lore. */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   animation: ce-rise 420ms var(--gr-deed-lore-at, 0ms) both;
 }
 .gr-deed-note {
   margin: calc(2px * var(--ce-scale)) 0 0;
-  font: calc(11px * var(--ce-scale)) / 1.3 var(--re-body);
+  font: calc(11px * var(--ce-scale) * var(--gr-deed-fit, 1)) / 1.3 var(--re-body);
   color: var(--re-muted);
   animation: ce-fade 400ms var(--gr-deed-lore-at, 0ms) both;
 }
@@ -242,10 +245,9 @@
 }
 .gr-deed-oath {
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font: 600 calc(11px * var(--ce-scale)) / 1.3 var(--re-body);
+  /* Wraps rather than cutting the skill's name off in a narrow band. */
+  overflow-wrap: anywhere;
+  font: 600 calc(11px * var(--ce-scale) * var(--gr-deed-fit, 1)) / 1.3 var(--re-body);
   color: var(--ce-ember-text);
 }
 .gr-deed-count {
@@ -257,7 +259,7 @@
 /* The ember seal, stamped at the band's end like a signet. */
 .gr-deed-seal {
   position: absolute;
-  right: calc(4% + env(safe-area-inset-right, 0px));
+  right: calc(4% + var(--ce-safe-r));
   top: calc(50% - var(--gr-deed-band) / 2 - var(--gr-deed-seal-size) * 0.18);
   width: var(--gr-deed-seal-size);
   height: var(--gr-deed-seal-size);
@@ -331,8 +333,8 @@
 }
 .gr-deed-controls {
   position: absolute;
-  right: max(12px, env(safe-area-inset-right, 0px));
-  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  right: max(12px, var(--ce-safe-r));
+  bottom: max(10px, var(--ce-safe-b));
   display: flex;
   gap: 8px;
   align-items: center;
@@ -358,14 +360,14 @@
     transparent 64%
   ); /* prettier-ignore */
 }
-/* Short frames (landscape phones): tighter band, one line of lore. */
+/* Short frames (landscape phones): a tighter band (fitDeedBand grows it back
+   when the words need it). */
 @media (max-height: 420px) {
   .gr-deed-layer {
     --gr-deed-band: calc(158px * var(--ce-scale));
   }
   .gr-deed-lore {
-    -webkit-line-clamp: 2;
-    font-size: calc(11px * var(--ce-scale));
+    font-size: calc(11px * var(--ce-scale) * var(--gr-deed-fit, 1));
   }
 }
 /* Effects quality Low: no speed lines, streak, flash or shake. */
@@ -415,9 +417,8 @@
   margin-top: calc(4px * var(--ce-scale));
   font: italic 600 calc(12px * var(--ce-scale)) / 1.2 var(--re-body);
   color: var(--ce-gold-4);
+  /* fitText shrinks it a little, then lets it wrap (never an ellipsis). */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────────────────────── Roster */
@@ -494,9 +495,8 @@
 }
 .re-deeds-march li b {
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* A long name and title wrap rather than end in an ellipsis (and the italic
+     title's last letter is no longer shaved off by the clipping box). */
   font-weight: 600;
 }
 .re-deeds-march li b i {

@@ -127,6 +127,24 @@ export function measureMapRect(scene) {
   }
 }
 
+/**
+ * A frame's distance (CSS px, never negative) from each viewport edge.
+ * Pure: `viewport` defaults to the window size.
+ * @returns {{ l:number, r:number, t:number, b:number }}
+ */
+export function frameEdges(rect, viewport = null) {
+  const vw = viewport?.width ?? (globalThis.innerWidth || 0);
+  const vh = viewport?.height ?? (globalThis.innerHeight || 0);
+  if (!rect) return { l: 0, r: 0, t: 0, b: 0 };
+  const gap = (v) => Math.max(0, Math.round(Number.isFinite(v) ? v : 0));
+  return {
+    l: gap(rect.left),
+    r: vw > 0 ? gap(vw - (rect.left + rect.width)) : 0,
+    t: gap(rect.top),
+    b: vh > 0 ? gap(vh - (rect.top + rect.height)) : 0,
+  };
+}
+
 /** Type grows with large desktop canvases; phones stay at design size. */
 export function frameScale(rect) {
   if (!rect) return 1;
@@ -220,6 +238,12 @@ export class CeremonyLayer {
     style.setProperty('--ce-bust-px', String(bustPixelScale(rect)));
     style.setProperty('--ce-w', `${Math.round(rect.width)}px`);
     style.setProperty('--ce-h', `${Math.round(rect.height)}px`);
+    // Distance from each screen edge: the CSS safe-area insets (--ce-safe-*)
+    // subtract it, so a layer that already sits inside the notch is not
+    // pushed in a second time.
+    for (const [side, px] of Object.entries(frameEdges(rect))) {
+      style.setProperty(`--ce-frame-${side}`, `${px}px`);
+    }
     // Bands sit over the battlefield itself, not the letterbox beside it.
     const span =
       this.frame === 'map' ? bandSpan(rect, measureMapRect(this.scene)) : bandSpan(rect, null);
@@ -286,6 +310,51 @@ export function fitText(node, { max = null, min = 12 } = {}) {
     node.style.fontSize = `${size}px`;
   }
   if (node.scrollWidth > node.clientWidth + 1) node.style.whiteSpace = 'normal';
+}
+
+/**
+ * How far (px) a flex column's in-flow children, with its own vertical
+ * padding, overrun its height. Unlike scrollHeight on a non-scrolling box,
+ * this counts the end padding (a reserved button row) and ignores the
+ * centring margins. Layout only: offsets ignore transforms.
+ */
+export function flowOverflow(box) {
+  if (!box?.children) return 0;
+  const view = globalThis.getComputedStyle;
+  const kids = [...box.children].filter(
+    (n) => n.offsetHeight > 0 && !/absolute|fixed/.test(view?.(n)?.position || ''),
+  );
+  if (!kids.length) return 0;
+  const style = view?.(box);
+  const pad = (parseFloat(style?.paddingTop) || 0) + (parseFloat(style?.paddingBottom) || 0);
+  const first = kids[0];
+  const last = kids[kids.length - 1];
+  const span = last.offsetTop + last.offsetHeight - first.offsetTop;
+  return span + pad - box.clientHeight;
+}
+
+/**
+ * Make a card's content fit its frame by compacting it one step at a time:
+ * each step is a class added to `root` (tighter spacing first, then more),
+ * until `overflow()` (px the content needs beyond its box) reports it fits.
+ * The steps are cleared first, so a larger frame (rotation, a desktop
+ * window) takes them back off. Layout only: never shrinks the text below
+ * what the step classes set, never hides words. Returns what it did.
+ * @param {{ classList: DOMTokenList }} root
+ * @param {string[]} steps  class names, gentlest first
+ * @param {() => number} overflow
+ * @returns {{ applied: number, fits: boolean } | null}
+ */
+export function fitSteps(root, steps, overflow) {
+  if (!root?.classList || !Array.isArray(steps) || typeof overflow !== 'function') return null;
+  for (const step of steps) root.classList.remove(step);
+  let applied = 0;
+  let over = Number(overflow()) || 0;
+  while (over > 0.5 && applied < steps.length) {
+    root.classList.add(steps[applied++]);
+    over = Number(overflow()) || 0;
+  }
+  return { applied, fits: !(over > 0.5) };
 }
 
 /**

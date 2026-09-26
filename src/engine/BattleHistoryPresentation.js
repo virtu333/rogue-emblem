@@ -1,6 +1,7 @@
 // Plain, visibility-filtered display data. This module never restores gameplay.
 import { serializedBytes } from './BattleStateSnapshot.js';
 import { previewTiles } from './BattleTimelineFacts.js';
+import { isBattleEntityId } from './BattleEntityIdentity.js';
 
 export const HISTORY_BYTES = 128 * 1024;
 export const HISTORY_RECORDS = 4096;
@@ -30,7 +31,7 @@ const coord = (p, frame) =>
 const only = (v, fields) => object(v) && Object.keys(v).every((k) => fields.includes(k));
 const textList = (v, max = 64, length = 256) =>
   Array.isArray(v) && v.length <= max && v.every((x) => safeText(x, length));
-const unitId = (id) => typeof id === 'string' && /^u[1-9]\d*$/.test(id);
+const unitId = isBattleEntityId;
 // Texture keys are only looked up (never parsed); traced variants use `~`
 // (`traced-enemy_fighter~corrupt`), which used to invalidate the whole frame.
 export const SPRITE_KEY = /^[a-zA-Z0-9_~.-]*$/;
@@ -103,7 +104,7 @@ export function validHistoryFrame(frame) {
           'height',
         ]) &&
         coord(u, frame) &&
-        /^u[1-9]\d*$/.test(u.id) &&
+        unitId(u.id) &&
         safeText(u.name) &&
         safeText(u.className) &&
         safeText(u.spriteKey, 128) &&
@@ -402,9 +403,7 @@ export function hydrateHistoryPresentation(value, entries = []) {
         r.beats.length > 256 ||
         !object(r.parents) ||
         Object.keys(r.parents).length > 512 ||
-        Object.entries(r.parents).some(
-          ([id, p]) => !/^u[1-9]\d*$/.test(id) || !integer(p, 1) || p > r.id,
-        )
+        Object.entries(r.parents).some(([id, p]) => !unitId(id) || !integer(p, 1) || p > r.id)
       )
         return null;
       if (r.frame && r.delta) return null;
@@ -449,9 +448,7 @@ export function hydrateHistoryPresentation(value, entries = []) {
           r.delta.units.length > 1024 ||
           !Array.isArray(r.delta.tiles) ||
           r.delta.tiles.length > 16384 ||
-          r.delta.units.some(
-            (c) => !Array.isArray(c) || c.length !== 3 || !/^u[1-9]\d*$/.test(c[0]),
-          ) ||
+          r.delta.units.some((c) => !Array.isArray(c) || c.length !== 3 || !unitId(c[0])) ||
           r.delta.tiles.some(
             (c) =>
               !Array.isArray(c) ||
@@ -533,8 +530,8 @@ export function validHistoryBeat(b, frame) {
     ) &&
     safeText(b.type, 40) &&
     safeText(b.label, 1024) &&
-    (b.actorId == null || /^u[1-9]\d*$/.test(b.actorId)) &&
-    (b.targetId == null || /^u[1-9]\d*$/.test(b.targetId)) &&
+    (b.actorId == null || unitId(b.actorId)) &&
+    (b.targetId == null || unitId(b.targetId)) &&
     (b.path == null ||
       (Array.isArray(b.path) &&
         b.path.length <= 1024 &&

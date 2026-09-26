@@ -212,6 +212,14 @@ describe('stinger library', () => {
     }
   });
 
+  it("the level-up's fallback sound is its cue in D (the stinger build copies it)", () => {
+    for (const root of [join(ROOT, 'assets'), join(ROOT, 'public', 'assets')]) {
+      const sfx = readFileSync(join(root, 'audio', 'sfx', 'sfx_levelup.mp3'));
+      const cue = readFileSync(join(root, 'audio', 'stingers', 'stinger_levelup_D.mp3'));
+      expect(sfx.equals(cue), root).toBe(true);
+    }
+  });
+
   it('records when the notes of each stinger end, within its length', () => {
     for (const [name, entry] of Object.entries(MUSIC_STINGERS)) {
       expect(entry.notesEnd, name).toBeGreaterThan(0);

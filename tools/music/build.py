@@ -22,6 +22,7 @@ import argparse
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -37,6 +38,9 @@ from engine.render import Renderer  # noqa: E402
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'assets', 'audio', 'music')
 STINGER_OUT = os.path.join(ROOT, 'assets', 'audio', 'stingers')
+SFX_OUT = os.path.join(ROOT, 'assets', 'audio', 'sfx')
+# the file the level-up plays when its cue can't sound (see AudioManager.playStinger)
+LEVELUP_FALLBACK_FROM = 'stinger_levelup_D'
 PREVIEW = os.path.join(ROOT, 'References', 'music-preview')
 LOOPS_JSON = os.path.join(HERE, 'loops.json')
 LOOPS_JS = os.path.join(ROOT, 'src', 'utils', 'musicLoops.js')
@@ -196,6 +200,10 @@ def build_stingers(names, args, tonics, stingers):
                 key, variants=['full'], out_dir=None if args.no_out else STINGER_OUT,
                 preview_dir=PREVIEW if args.preview else None)
             rendered[key] = meta[key]
+            if key == LEVELUP_FALLBACK_FROM and not args.no_out and STINGER_OUT != SFX_OUT:
+                # the level-up's fallback sound is this cue, so it never sounds out of date
+                shutil.copyfile(os.path.join(STINGER_OUT, f'{key}.mp3'),
+                                os.path.join(SFX_OUT, 'sfx_levelup.mp3'))
             print(f'[stinger {name}] done in {time.time() - t:.1f}s')
         if not args.no_out:
             stingers[name] = {

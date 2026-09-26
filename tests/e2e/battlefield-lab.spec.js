@@ -273,7 +273,8 @@ test('terrain advantages update on touch without persistent tutorial copy', asyn
   await tapTile(page, 2, 1);
   const terrain = page.locator('.mb-terrain');
   await expect(terrain).toContainText('Forest');
-  await expect(terrain).toContainText('Move cost 2');
+  // The shipped card (#64) reads "Move <cost> · <move type>".
+  await expect(terrain).toContainText('Move 2 · Infantry');
   await expect(terrain).toContainText('Def +1 · Avoid +20');
   await tapTile(page, 6, 2);
   await expect(terrain).toContainText('Plain');
@@ -303,7 +304,14 @@ for (const width of [844, 667])
       b._mobileBattleHud.lastSnapshot = '';
       b._mobileBattleHud.sync();
     }, tile);
-    await expect(page.locator('.mb-terrain')).toContainText('Slide straight until off ice');
+    // The card stays compact: the tile's rule sits behind "Terrain details ⓘ" (#64).
+    const card = page.locator('.mb-terrain');
+    await expect(card).toContainText('Ice');
+    await card.getByRole('button', { name: 'Terrain details ⓘ', exact: true }).tap();
+    const help = page.getByRole('dialog', { name: 'Ice', exact: true });
+    await expect(help).toContainText('Slide: non-flying units slide in entry direction');
+    await help.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(help).toHaveCount(0);
     const more = await page.locator('.mb-battle-info summary').boundingBox();
     const tools = await page.locator('.bl-tools').boundingBox();
     expect(more.y + more.height).toBeLessThanOrEqual(tools.y);

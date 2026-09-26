@@ -67,6 +67,11 @@ describe('RunSimulationDriver', () => {
         .mockReturnValue(effectiveMetaEffects);
       const sampleFallen = structuredClone(driver.runManager.roster[0]);
       sampleFallen.name = `${sampleFallen.name} Fallen`;
+      // A real casualty has its own run identity. A clone keeps the living unit's
+      // unitUid, and battle entry (RunManager.ensureUnitUids, #98) re-stamps the later
+      // holder of a shared uid, which is not what this parity check is about.
+      delete sampleFallen.unitUid;
+      driver.runManager.assignUnitUid(sampleFallen);
       driver.runManager.fallenUnits = [sampleFallen];
       const expectedFallenUnits = structuredClone(driver.runManager.fallenUnits);
 

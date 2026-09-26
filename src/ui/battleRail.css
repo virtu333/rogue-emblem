@@ -89,6 +89,13 @@
 .battlefield-lab .mobile-battle-hud .mb-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+/* Submenus (Equip, Item, a staff pick) list items with a stat summary: one full-width
+   row each, as mobileBattle.css intends. The two-column rule above outranks that one
+   (same specificity, loaded later), which halved the rows and broke "Rng 3-7" and
+   "Weight 8 · Range 1-2" across lines. */
+.battlefield-lab .mobile-battle-hud .mb-actions.mb-submenu {
+  grid-template-columns: minmax(0, 1fr);
+}
 
 /* ── Command sizes: every rail command is a full 44px target ──────────────── */
 .battlefield-lab .mobile-battle-hud .mb-body .mb-button {

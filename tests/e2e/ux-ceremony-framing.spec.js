@@ -223,3 +223,129 @@ for (const vp of [...VIEWPORTS, { width: 1000, height: 460, phone: true }]) {
     await context.close();
   });
 }
+
+// The fullest real cards on the phone frames: a perfect level with two new
+// skills and a spoken line; the Knight → Great Knight rite (seven bonuses,
+// three ranks, two skills) with a deed's Oath, a skill-limit note and a line;
+// a lord's arrival with a legendary trait and a long recruit line. Every word
+// reads in full: nothing squashed, clamped, ellipsized or cut by the frame,
+// nothing under the corner button, the join card's words inside its band.
+const LONG_LINE =
+  "My master said I wasn't ready. My master was also late to every fight for forty years.";
+function auditFullestCards() {
+  return async ({ QUOTE, LONG_LINE }) => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const gd = s.gameData;
+    const { growthCeremonies } = await import('/src/ui/GrowthCeremonyController.js');
+    const { promotionPathContent } = await import('/src/ui/growthContent.js');
+    const { createUnit, createLordUnit } = await import('/src/engine/UnitManager.js');
+    const g = growthCeremonies(s);
+    const edric = s.playerUnits.find((u) => u.name === 'Edric');
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Every text box in a card: clipped, clamped or ellipsized content, and
+    // any box outside the frame or under the corner button.
+    const audit = (root, card) => {
+      const layer = root.getBoundingClientRect();
+      const b = root.querySelector('.gr-continue')?.getBoundingClientRect();
+      const bad = [];
+      for (const n of card.querySelectorAll('*')) {
+        if (n.closest('.gr-continue') || !n.getClientRects().length) continue;
+        if (![...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim())) continue;
+        const cs = getComputedStyle(n);
+        const name = `${n.className || n.tagName} "${n.textContent.slice(0, 30)}"`;
+        if (cs.textOverflow === 'ellipsis' && n.scrollWidth > n.clientWidth + 1)
+          bad.push(`ellipsized ${name}`);
+        if (/hidden|clip/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1)
+          bad.push(`cut ${name}`);
+        const r = n.getBoundingClientRect();
+        if (r.top < layer.top - 1 || r.bottom > layer.bottom + 1) bad.push(`off frame ${name}`);
+        if (b && r.bottom > b.top + 1 && r.top < b.bottom - 1 && r.right > b.left + 1)
+          bad.push(`under button ${name}`);
+      }
+      return bad;
+    };
+    const withQuote = (root, cls, host, before = null) => {
+      let quote = root.querySelector(`.${cls}`);
+      if (!quote) {
+        // No line rolled for this unit: place the longest one where the card puts it.
+        quote = document.createElement('p');
+        quote.className = cls;
+        host.insertBefore(quote, before);
+      }
+      quote.textContent = `“${QUOTE}”`;
+      window.dispatchEvent(new Event('resize'));
+    };
+    const out = {};
+
+    const gains = { HP: 3, STR: 2, MAG: 2, SKL: 2, SPD: 2, DEF: 2, RES: 2, LCK: 2 };
+    void g.showLevelUp({
+      unit: edric,
+      result: { newLevel: 20, gains, displayStats: edric.stats },
+      learnedNames: ["Commander's Gambit", 'Tactical Advantage'],
+    });
+    await wait(300);
+    let root = document.querySelector('.gr-level-layer');
+    const main = root.querySelector('.gr-level-main');
+    withQuote(root, 'gr-level-quote', main, main.querySelector('.gr-seals--level'));
+    await wait(150);
+    out.level = audit(root, root.querySelector('.gr-level'));
+    root.remove();
+
+    const knightClass = gd.classes.find((c) => c.name === 'Knight');
+    const knight = createUnit(knightClass, 10, gd.weapons, { name: 'Benedetta' });
+    const content = promotionPathContent(
+      knight,
+      gd.classes.find((c) => c.name === 'Great Knight'),
+      gd,
+    );
+    content.oath = {
+      name: 'Oath of the Giantslayer',
+      skillName: 'Duelist Stance',
+      skillId: 'duelist_stance',
+      learned: true,
+    };
+    content.dropped = ['Quick Riposte'];
+    void g.showPromotionRite({ unit: knight, content });
+    await wait(300);
+    root = document.querySelector('.gr-rite-layer');
+    withQuote(root, 'gr-rite-quote', root.querySelector('.gr-rite-text'));
+    await wait(150);
+    out.rite = audit(root, root.querySelector('.gr-rite-text'));
+    root.remove();
+
+    const def = gd.lords.find((l) => l.name === 'Sera');
+    const seraClass = gd.classes.find((c) => c.name === def.class);
+    const sera = createLordUnit(def, seraClass, gd.weapons);
+    sera.faction = 'player';
+    sera.traits = ['overflowing_grace'];
+    void g.showRecruit({ unit: sera, kind: 'lord', line: LONG_LINE });
+    await wait(300);
+    root = document.querySelector('.gr-join-layer');
+    out.join = audit(root, root.querySelector('.gr-join-text'));
+    const band = root.querySelector('.gr-join-band').getBoundingClientRect();
+    for (const n of root.querySelectorAll('.gr-join-text > *')) {
+      const r = n.getBoundingClientRect();
+      if (r.top < band.top - 1 || r.bottom > band.bottom + 1)
+        out.join.push(`outside band ${n.className}`);
+    }
+    root.remove();
+    return out;
+  };
+}
+for (const vp of VIEWPORTS.filter((v) => v.phone)) {
+  test(`fullest level, rite and join cards read in full at ${vp.width}x${vp.height}`, async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      viewport: { width: vp.width, height: vp.height },
+      hasTouch: true,
+      isMobile: true,
+      deviceScaleFactor: 2,
+    });
+    const page = await context.newPage();
+    await boot(page, true);
+    const results = await page.evaluate(auditFullestCards(), { QUOTE, LONG_LINE });
+    expect(results).toEqual({ level: [], rite: [], join: [] });
+    await context.close();
+  });
+}

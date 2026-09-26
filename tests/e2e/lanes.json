@@ -1,0 +1,176 @@
+{
+  "$comment": "CI lanes for tests/e2e (single source of truth; tools/e2eLanes.js). Every *.spec.js belongs to exactly one lane, or to \"excluded\" with a reason. npm run check:e2e-lanes enforces it; CI runs one job per lane shard. Run a lane locally with: npm run test:e2e:lane -- <name> [playwright args]",
+  "lanes": [
+    {
+      "name": "smoke",
+      "description": "Boot, scene transitions and one overlay: the fastest signal that the game starts",
+      "specs": ["boot.spec.js", "scene-transitions.spec.js", "accessory-ui.spec.js"]
+    },
+    {
+      "name": "contracts",
+      "description": "UX contracts: battle information, reload and save choices, mobile shell, management, forecast input, help, journeys, timeline",
+      "workers": 2,
+      "specs": [
+        "battle-contracts.spec.js",
+        "battle-information.spec.js",
+        "reload-contracts.spec.js",
+        "save-choice-contracts.spec.js",
+        "mobile-shell-contracts.spec.js",
+        "management-contracts.spec.js",
+        "forecast-input-contract.spec.js",
+        "contextual-help.spec.js",
+        "journey-contracts.spec.js",
+        "battle-timeline.spec.js"
+      ]
+    },
+    {
+      "name": "presentation",
+      "description": "Battle presentation and teaching: speed, effects, forecast parity, reveals, planning, hints, rewards, ceremonies",
+      "specs": [
+        "battle-speed.spec.js",
+        "effects-settings.spec.js",
+        "forecast-parity.spec.js",
+        "progression-reveal.spec.js",
+        "selection-planning.spec.js",
+        "tutorial-lessons.spec.js",
+        "hint-reading.spec.js",
+        "reward-menu.spec.js",
+        "shop-reentry.spec.js",
+        "compendium-stats.spec.js",
+        "escape-exits.spec.js",
+        "item-explanations-revival.spec.js",
+        "playtest-followups.spec.js",
+        "seen-dialogue.spec.js",
+        "enemy-healing.spec.js",
+        "enemy-planning.spec.js",
+        "threat-pins.spec.js",
+        "ceremonies.spec.js"
+      ]
+    },
+    {
+      "name": "mobile-ui",
+      "description": "UI cohesion and the phone battle HUD, home base and run loop",
+      "specs": [
+        "ui-cohesion.spec.js",
+        "ui-cohesion-desktop.spec.js",
+        "ui-review-regressions.spec.js",
+        "mobile-battle-hud.spec.js",
+        "mobile-home-base.spec.js",
+        "mobile-run-loop.spec.js"
+      ]
+    },
+    {
+      "name": "battle-input",
+      "description": "Battle input on every device: attack flow, menus, touch, keyboard and gamepad, input isolation, camera",
+      "shards": 3,
+      "specs": [
+        "attack-flow.spec.js",
+        "battle-invariants.spec.js",
+        "battle-sidebar.spec.js",
+        "battle-submenus.spec.js",
+        "battle-submenus-desktop.spec.js",
+        "combat-actions.spec.js",
+        "compendium-input-isolation.spec.js",
+        "deployment-camera.spec.js",
+        "forecast-triangle.spec.js",
+        "gamepad-battle.spec.js",
+        "gamepad-menus.spec.js",
+        "input-boundary-audit.spec.js",
+        "unit-first-tap.spec.js",
+        "weapon-selection.spec.js"
+      ]
+    },
+    {
+      "name": "battle-history",
+      "description": "Battle timeline, rewinds, threat sight and refresh-safe committed attacks",
+      "specs": [
+        "combat-refresh-commit.spec.js",
+        "rewind-action-types.spec.js",
+        "rewind-any-action.spec.js",
+        "threat-sight.spec.js",
+        "timeline-preview.spec.js"
+      ]
+    },
+    {
+      "name": "art",
+      "description": "Rendering and art: battlefield, sprites, portraits, item art, combat effects, fonts and layout readability",
+      "shards": 2,
+      "specs": [
+        "battlefield-lab.spec.js",
+        "battlefield-presentation.spec.js",
+        "character-art.spec.js",
+        "combat-fx.spec.js",
+        "inspection-readability.spec.js",
+        "item-art.spec.js",
+        "mac-font-grid.spec.js",
+        "portrait-variety.spec.js",
+        "portrait-variety-mobile.spec.js",
+        "rebuilt-sprites.spec.js",
+        "shop-readability.spec.js",
+        "texture-reseed.spec.js",
+        "title-layout.spec.js",
+        "traced-sprites.spec.js"
+      ]
+    },
+    {
+      "name": "run-flow",
+      "description": "The run around the battles: route, recruits, rewards, growth, guidance, saves, recovery and full journeys",
+      "shards": 3,
+      "specs": [
+        "choice-screens.spec.js",
+        "deeds.spec.js",
+        "eclipse.spec.js",
+        "fallen-recruit.spec.js",
+        "growth-ceremonies.spec.js",
+        "guidance-notes.spec.js",
+        "journey-run-loop.spec.js",
+        "legendary-lord-traits.spec.js",
+        "loading-progress-contract.spec.js",
+        "local-play.spec.js",
+        "loom-route.spec.js",
+        "native-rewards.spec.js",
+        "reward-reload.spec.js",
+        "rewards-desktop.spec.js",
+        "run-recovery.spec.js",
+        "save-lifecycle.spec.js",
+        "service-audit.spec.js",
+        "slot-picker.spec.js",
+        "strategy-layer.spec.js",
+        "traits-v2.spec.js",
+        "tutorial-exit.spec.js"
+      ]
+    },
+    {
+      "name": "menus",
+      "description": "Management menus and UX polish: party, roster, pause, upgrades, viewport, command rail, ceremonies framing",
+      "shards": 2,
+      "specs": [
+        "mobile-pause.spec.js",
+        "mobile-roster.spec.js",
+        "mobile-upgrades.spec.js",
+        "mobile-viewport.spec.js",
+        "party-menus.spec.js",
+        "playtest-polish.spec.js",
+        "playtest-wave-19.spec.js",
+        "roster-desktop.spec.js",
+        "ui-completion.spec.js",
+        "ux-ceremony-framing.spec.js",
+        "ux-rail-and-info.spec.js"
+      ]
+    },
+    {
+      "name": "compact",
+      "description": "Route and roster on two landscape phones (iPhone SE and iPhone 13 device profiles)",
+      "config": "playwright.compact.config.js",
+      "specs": ["compact-route-roster.spec.js"]
+    },
+    {
+      "name": "release",
+      "description": "The production build: phone release smoke and the offline texture-atlas service worker",
+      "config": "playwright.release.config.js",
+      "build": true,
+      "specs": ["mobile-release.spec.js", "offline-atlas.spec.js"]
+    }
+  ],
+  "excluded": []
+}

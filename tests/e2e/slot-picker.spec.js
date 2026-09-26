@@ -188,3 +188,46 @@ test('reduced motion stills the embers and the candle flames', async ({ browser 
   expect(errors).toEqual([]);
   await context.close();
 });
+
+// Regression: the router refuses scene starts for 350 ms after the previous one, and
+// continuing to Home Base did not retry, so a tap as soon as the picker appeared was
+// silently dropped (the flare played and nothing happened).
+test('a slot tapped the moment the picker appears still continues', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() =>
+    localStorage.setItem('emblem_rogue_settings', JSON.stringify({ musicVolume: 0, sfxVolume: 0 })),
+  );
+  await page.goto('/?devScene=homebase');
+  await waitForScene(page, 'HomeBase');
+  // Slot 1 is between runs (one run started): selecting it goes to Home Base.
+  await page.evaluate(async () => {
+    const g = window.__emblemRogueGame;
+    const { getMetaKey, setActiveSlot } = await import('/src/engine/SlotManager.js');
+    const meta = g.registry.get('meta');
+    meta.storageKey = getMetaKey(1);
+    meta.runsStarted = 1;
+    meta._save();
+    setActiveSlot(1);
+  });
+  await page.evaluate(() => history.replaceState(null, '', '/'));
+  await page.reload();
+  await waitForScene(page, 'Title');
+  await page.getByRole('button', { name: 'Save Slots', exact: true }).click();
+  // Click on the first frame where the picker is active and its card is on screen.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const tick = () => {
+          const button = document.querySelector('button[aria-label="Select Slot 1"]');
+          if (window.__sceneState?.activeScene === 'SlotPicker' && button) {
+            button.click();
+            resolve();
+          } else requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+  );
+  await waitForScene(page, 'HomeBase');
+  expect(errors).toEqual([]);
+});

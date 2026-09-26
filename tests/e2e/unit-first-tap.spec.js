@@ -43,7 +43,10 @@ for (const terrain of ['Forest', 'Mountain', 'Plain']) {
     await expect(hud.getByRole('button', { name: 'Item', exact: true })).toBeVisible();
     await expect(hud.locator('.mb-summary h2')).toHaveText(origin.name);
     await expect(hud.locator('.mb-terrain strong')).toHaveText(terrain);
-    await expect(hud.getByText('Tap a blue tile to move.')).toBeVisible();
+    // The selection menu carries the "tap a blue tile" reminder, but on a screen this
+    // short (375px) the reminder yields its row to the commands (#78).
+    await expect(hud.getByText('Tap a blue tile to move.')).toHaveCount(1);
+    await expect(hud.getByText('Tap a blue tile to move.')).toBeHidden();
     await page.screenshot({ path: `test-results/first-tap-actions-${terrain}.png` });
     const destination = await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');

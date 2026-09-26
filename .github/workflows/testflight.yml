@@ -6,8 +6,19 @@ name: TestFlight
 #                     TestFlight once Apple finishes processing (usually 5-30 minutes)
 #   validate          the same signed build, checked by App Store Connect but not
 #                     uploaded (for trying out changes to this workflow)
-# Either mode first requires the CI workflow to have passed on the exact commit (it waits
-# while that run is still going).
+#   status            no build: what App Store Connect did with the recent builds (Apple's
+#                     processing result and TestFlight state), in the run's summary
+# Upload and validate first require the CI workflow to have passed on the exact commit (it
+# waits while that run is still going). An upload then waits for Apple to process the
+# build and fails if Apple rejects it, then sends it to the `testers` group (default
+# Public Playtest, the public link): it sets "What to Test", adds the build to the group
+# and submits it for beta review, after which testers get it once Apple approves it. A pull request that changes the iOS project or this
+# pipeline runs it in validate mode.
+#
+# Signing: the archive is built unsigned and the export signs it for App Store
+# distribution through Xcode's cloud-managed signing, which needs no registered devices
+# (an automatically signed archive would need an iOS development profile, and those
+# require at least one registered device).
 #
 # Secrets (Settings -> Secrets and variables -> Actions):
 #   APP_STORE_CONNECT_KEY_ID       Key ID of an App Store Connect API key (Admin role:
@@ -20,18 +31,35 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'upload: send it to TestFlight; validate: build and sign only'
+        description: 'upload: send it to TestFlight; validate: build and sign only; status: report on recent builds'
         type: choice
-        options: [upload, validate]
+        options: [upload, validate, status]
         default: upload
       build_number:
         description: 'Build number (leave blank: one above the latest in App Store Connect)'
         required: false
         default: ''
+      testers:
+        description: 'TestFlight group to send the upload to (none: upload only)'
+        required: false
+        default: Public Playtest
+      whats_new:
+        description: 'What to Test, shown to testers (leave blank: the commit title)'
+        required: false
+        default: ''
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/testflight.yml
+      - ios/**
+      - tools/ios/**
+      - capacitor.config.*
 
 concurrency:
-  group: testflight
-  cancel-in-progress: false
+  # Uploads queue one at a time (a status check never waits behind them); a pull
+  # request's newer push replaces its older check.
+  group: testflight-${{ github.event_name == 'pull_request' && github.ref || (inputs.mode == 'status' && format('status-{0}', github.run_id)) || 'upload' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -39,14 +67,20 @@ permissions:
 jobs:
   ci-passed:
     name: CI passed on this commit
+    # Pull requests from forks get no secrets, so only this repository's own branches.
+    if: >-
+      (github.event_name != 'pull_request' && inputs.mode != 'status') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
       actions: read
     env:
       GH_TOKEN: ${{ github.token }}
+      # A pull request run checks out the merge commit; CI ran on the branch head.
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Wait for CI on ${{ github.sha }}
+      - name: Wait for CI on ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           # The newest CI run for this exact commit (a re-run updates the same run) must
@@ -54,29 +88,29 @@ jobs:
           # so wait for it; give GitHub a few minutes to create one before giving up.
           started=$SECONDS
           while :; do
-            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=50" \
+            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&per_page=50" \
               --jq '.workflow_runs | sort_by(.created_at) | last // empty | [.status, (.conclusion // ""), .html_url] | @tsv')"
             elapsed=$((SECONDS - started))
             if [ -z "$run" ]; then
               if [ "$elapsed" -ge 300 ]; then
-                echo "::error::No CI run exists for $GITHUB_SHA. Build a commit CI has run on (main, or a branch with an open pull request)."
+                echo "::error::No CI run exists for $COMMIT. Build a commit CI has run on (main, or a branch with an open pull request)."
                 exit 1
               fi
-              echo "No CI run for $GITHUB_SHA yet; waiting."
+              echo "No CI run for $COMMIT yet; waiting."
             else
               IFS=$'\t' read -r status conclusion url <<< "$run"
               if [ "$status" = completed ]; then
                 if [ "$conclusion" = success ]; then
-                  echo "CI passed on $GITHUB_SHA: $url"
+                  echo "CI passed on $COMMIT: $url"
                   exit 0
                 fi
-                echo "::error::CI on $GITHUB_SHA finished '$conclusion': $url"
+                echo "::error::CI on $COMMIT finished '$conclusion': $url"
                 exit 1
               fi
-              echo "CI on $GITHUB_SHA is $status: $url"
+              echo "CI on $COMMIT is $status: $url"
             fi
             if [ "$elapsed" -ge 2700 ]; then
-              echo "::error::CI on $GITHUB_SHA did not finish within 45 minutes."
+              echo "::error::CI on $COMMIT did not finish within 45 minutes."
               exit 1
             fi
             sleep 30
@@ -86,6 +120,10 @@ jobs:
   # cellular limit (tools/ios/compactMusic.mjs). The web game keeps the build's encode.
   ios-music:
     name: Music for the app
+    # only where a build follows (not for status reports or fork pull requests)
+    if: >-
+      (github.event_name != 'pull_request' && inputs.mode != 'status') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -109,7 +147,7 @@ jobs:
           retention-days: 3
 
   build:
-    name: Build (${{ inputs.mode }})
+    name: Build (${{ inputs.mode || 'validate' }})
     needs: [ci-passed, ios-music]
     runs-on: macos-26
     timeout-minutes: 75
@@ -120,7 +158,8 @@ jobs:
       SCHEME: App
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      MODE: ${{ inputs.mode }}
+      MODE: ${{ inputs.mode || 'validate' }}
+      TESTERS: ${{ inputs.testers || 'Public Playtest' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -155,25 +194,7 @@ jobs:
       - name: Install the API key
         env:
           ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          KEY_DIR="$RUNNER_TEMP/private_keys"
-          mkdir -p "$KEY_DIR"
-          chmod 700 "$KEY_DIR"
-          KEY_PATH="$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
-          if printf '%s' "$ASC_PRIVATE_KEY" | grep -q 'BEGIN PRIVATE KEY'; then
-            # Pasted PEM; %b also turns literal "\n" sequences into newlines.
-            printf '%b\n' "$ASC_PRIVATE_KEY" > "$KEY_PATH"
-          else
-            printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
-          fi
-          chmod 600 "$KEY_PATH"
-          if ! openssl pkey -in "$KEY_PATH" -noout 2>/dev/null; then
-            echo "::error::APP_STORE_CONNECT_PRIVATE_KEY is not a readable .p8 private key (paste the whole file, including the BEGIN/END lines)."
-            exit 1
-          fi
-          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          echo "API_PRIVATE_KEYS_DIR=$KEY_DIR" >> "$GITHUB_ENV"
+        run: tools/ios/installApiKey.sh
 
       - name: Build number
         env:
@@ -233,7 +254,7 @@ jobs:
           security default-keychain -s "$KEYCHAIN"
           echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
-      - name: Archive
+      - name: Archive (unsigned; the export signs it)
         run: |
           set -euo pipefail
           xcodebuild -list -project "$PROJECT"
@@ -241,11 +262,8 @@ jobs:
             -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1 | tee "$RUNNER_TEMP/archive.log"
 
@@ -271,7 +289,7 @@ jobs:
           [ "$BUNDLE" = "$BUNDLE_ID" ] || { echo "::error::bundle ID $BUNDLE"; exit 1; }
           [ "$BUILD" = "$BUILD_NUMBER" ] || { echo "::error::CFBundleVersion $BUILD, expected $BUILD_NUMBER"; exit 1; }
 
-      - name: Export (${{ inputs.mode }})
+      - name: Export and sign (${{ inputs.mode || 'validate' }})
         run: |
           set -euo pipefail
           case "$MODE" in
@@ -304,7 +322,7 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/export.log"
 
       - name: Check the signed app
-        if: inputs.mode == 'validate'
+        if: env.MODE == 'validate'
         run: |
           set -euo pipefail
           IPA="$(ls "$RUNNER_TEMP"/export/*.ipa)"
@@ -328,7 +346,7 @@ jobs:
           fi
 
       - name: Validate with App Store Connect
-        if: inputs.mode == 'validate'
+        if: env.MODE == 'validate'
         run: |
           set -euo pipefail
           # Apple's server-side checks, without uploading; run from RUNNER_TEMP so altool
@@ -343,6 +361,8 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/validate.log"
 
       - name: Summary
+        env:
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           {
             if [ "$MODE" = upload ]; then
@@ -351,14 +371,56 @@ jobs:
               echo "### Validated Rogue Dawn $MARKETING_VERSION ($BUILD_NUMBER), not uploaded"
             fi
             echo ""
-            echo "- Commit: \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${COMMIT::7}\` on \`${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}\`"
             echo "- Cloud: ${{ vars.VITE_CLOUD_ENABLED == 'true' && 'enabled' || 'off (offline build)' }}"
             if [ "$MODE" = upload ]; then
-              echo "- It appears in App Store Connect -> TestFlight once Apple finishes processing."
+              echo "- Apple's processing result follows; the build appears in App Store Connect -> TestFlight once it is processed."
             else
               echo "- The signed App Store build passed. Run again with mode **upload** to send it to TestFlight."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: App Store Connect status
+        run: |
+          # Not -e: the report's exit code decides the outcome below.
+          set +e -uo pipefail
+          # An upload waits for Apple to process the build and fails if Apple rejects it
+          # (still processing after 30 minutes is only a warning). Validate just reports.
+          if [ "$MODE" = upload ]; then
+            node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" \
+              --wait-for "$BUILD_NUMBER" --timeout-minutes 30 > "$RUNNER_TEMP/status.md"
+          else
+            node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" > "$RUNNER_TEMP/status.md"
+          fi
+          code=$?
+          cat "$RUNNER_TEMP/status.md"
+          { echo ""; cat "$RUNNER_TEMP/status.md"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = 2 ] && [ "$MODE" = upload ]; then
+            echo "::warning::Could not read the build's status from App Store Connect (the upload itself succeeded); run the workflow in status mode later."
+            exit 0
+          fi
+          exit $code
+
+      - name: Send to testers (${{ inputs.testers || 'Public Playtest' }})
+        if: env.TESTERS != 'none'
+        env:
+          WHATS_NEW: ${{ inputs.whats_new }}
+        run: |
+          # Not -e: the script's exit code decides the outcome below.
+          set +e -uo pipefail
+          # A validate run only checks that the group exists.
+          if [ "$MODE" = upload ]; then
+            node tools/ios/distributeBuild.mjs --bundle-id "$BUNDLE_ID" --build "$BUILD_NUMBER" \
+              --group "$TESTERS" --whats-new "$WHATS_NEW" \
+              --commit-subject "$(git log -1 --format=%s HEAD)" > "$RUNNER_TEMP/testers.md"
+          else
+            node tools/ios/distributeBuild.mjs --bundle-id "$BUNDLE_ID" --group "$TESTERS" \
+              --dry-run > "$RUNNER_TEMP/testers.md"
+          fi
+          code=$?
+          cat "$RUNNER_TEMP/testers.md"
+          { echo ""; cat "$RUNNER_TEMP/testers.md"; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
 
       - name: Keep the logs
         if: always()
@@ -379,3 +441,34 @@ jobs:
           if [ -n "${API_PRIVATE_KEYS_DIR:-}" ]; then rm -rf "$API_PRIVATE_KEYS_DIR"; fi
           if [ -n "${ASC_KEY_PATH:-}" ]; then rm -f "$ASC_KEY_PATH"; fi
           if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
+
+  status:
+    name: App Store Connect status
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'status'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BUNDLE_ID: com.davechen.emblemrogue
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: tools/ios/installApiKey.sh
+
+      - name: Recent builds
+        run: |
+          set -euo pipefail
+          node tools/ios/buildStatus.mjs --bundle-id "$BUNDLE_ID" --limit 15 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up
+        if: always()
+        run: |
+          if [ -n "${API_PRIVATE_KEYS_DIR:-}" ]; then rm -rf "$API_PRIVATE_KEYS_DIR"; fi

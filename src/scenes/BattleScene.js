@@ -228,7 +228,7 @@ import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import BattleMusicController from '../ui/BattleMusicController.js';
 import { battleMusicContext } from '../engine/BattleMusicSelection.js';
-import { levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
+import { LEVEL_UP_CUE_WAIT_MS, levelUpCue, playCue, stopCues } from '../ui/ceremonyMusic.js';
 import { showImportantHint, showMinorHint, showContextualHint } from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
@@ -8901,7 +8901,9 @@ export class BattleScene extends Phaser.Scene {
     if (!audio) return;
     this._levelUpSfxKey = 'sfx_levelup';
     const cue = kind === 'promotion' ? 'promotion_crown' : levelUpCue(kind);
-    void playCue(this, cue, { fallbackSfx: this._levelUpSfxKey });
+    // A cue still decoding (a new track's key) plays a beat late rather than
+    // falling back to the plain sound effect.
+    void playCue(this, cue, { fallbackSfx: this._levelUpSfxKey, waitMs: LEVEL_UP_CUE_WAIT_MS });
   }
 
   _stopLevelUpSfx() {

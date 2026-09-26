@@ -365,6 +365,7 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
         // What a vision rewind does first: drop the in-flight presentation.
         s._combatFx.reset();
         const created = s.children.list.length;
+        const before = new Set(s.children.list);
         await run;
         s.battleState = 'PLAYER_IDLE';
         await h.quiet();
@@ -373,11 +374,40 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
         // the traced default the reset lands mid-lunge, before the first contact, so that
         // number can still be fading here; let the self-destroying floaters finish before
         // counting what was left behind.
-        const t1 = performance.now();
+        // Bound the wait in game time (the frame deltas the tweens advance by), not wall
+        // time: on a slow machine a floater's tween still runs well past 3 s of wall time.
         const floating = () => s.children.list.some((o) => o.type === 'Text' && o.depth === 300);
-        while (floating() && performance.now() - t1 < 3000)
-          await new Promise((r) => setTimeout(r, 50));
-        return { mid, created, after: s.children.list.length, home, ...h.aftermath([a, b]) };
+        let gameMs = 0;
+        const onStep = (_time, delta) => (gameMs += delta);
+        s.game.events.on('step', onStep);
+        try {
+          while (floating() && gameMs < 3000) await new Promise((r) => setTimeout(r, 50));
+        } finally {
+          s.game.events.off('step', onStep);
+        }
+        // The ember pool keeps its images (hidden) for reuse and may have grown for the
+        // strikes that ran on after the reset: pool growth is not a leak (expectClean
+        // still demands every pooled image hidden and no live mote). Anything else new is
+        // named, so a failure says what leaked.
+        const pooled = new Set((s._combatFx?.motes?.records || []).map((r) => r.image));
+        const fresh = s.children.list.filter((o) => !before.has(o));
+        const leftover = fresh
+          .filter((o) => !pooled.has(o))
+          .map((o) =>
+            [o.type, o.texture?.key, o.text, `depth ${o.depth}`, `alpha ${o.alpha}`]
+              .filter((v) => v != null && v !== '')
+              .join(' '),
+          );
+        return {
+          mid,
+          created,
+          after: s.children.list.length,
+          poolGrowth: fresh.filter((o) => pooled.has(o)).length,
+          leftover,
+          gameMs,
+          home,
+          ...h.aftermath([a, b]),
+        };
       },
       { weapon, distance, waitMs },
     );
@@ -389,7 +419,10 @@ test('a strike cut short by a rewind or a shutdown stops cleanly', async ({ page
     expect(out.mid.live.strike + out.mid.live.tweens + out.mid.live.poses, where).toBeGreaterThan(
       0,
     );
-    expect(out.after, where).toBeLessThanOrEqual(out.created);
+    expect(
+      out.after - out.poolGrowth,
+      `${where}: left behind [${out.leftover.join('; ')}] after ${Math.round(out.gameMs)} game ms`,
+    ).toBeLessThanOrEqual(out.created);
     expectClean(out, where);
   }
   // Shutdown mid-lunge: the strike stops, no controller is resurrected, no errors.

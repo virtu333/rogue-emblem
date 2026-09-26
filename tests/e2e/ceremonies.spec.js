@@ -268,6 +268,138 @@ test.describe('victory band and act title', () => {
   });
 });
 
+test.describe('deed card on a small phone', () => {
+  test.use(phone);
+
+  test('the band grows to hold every line of the longest card; nothing is squashed or cut', async ({
+    page,
+  }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // The longest real deed name, epithet and lore, a "held beneath" note, an
+    // Oath and a batch count: more lines than the band's design height holds.
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const u = s.playerUnits[0];
+      u.deeds = { earned: [{ id: 'avenger', prestige: 4, seq: 1, epithet: 'the Avenger' }] };
+      const entry = {
+        unit: u,
+        unitName: 'Wendeline',
+        deedId: 'avenger',
+        name: 'Lantern of the March',
+        epithet: 'Who Danced at the End',
+        form: 'who',
+        lore: 'Leaf and root and bowstring hum; the wood keeps faith with those who come.',
+        prestige: 5,
+        isTitle: false,
+      };
+      const { growthCeremonies } = await import('/src/ui/GrowthCeremonyController.js');
+      void growthCeremonies(s).showDeeds({
+        entries: [entry, { ...entry, epithet: 'the Avenger' }],
+      });
+    });
+    const card = page.locator('.gr-deed');
+    await expect(card).toBeVisible();
+    await expect(page.locator('.gr-deed-oath')).toHaveText('Oath at promotion · Fury');
+    await page.getByRole('button', { name: 'Skip', exact: true }).tap(); // reveal fully
+    const fit = await page.evaluate(() => {
+      const text = document.querySelector('.gr-deed-text');
+      const kids = [...text.children];
+      return {
+        band: text.clientHeight,
+        top: kids[0].offsetTop,
+        bottom: Math.max(...kids.map((k) => k.offsetTop + k.offsetHeight)),
+        clipped: [text, ...text.querySelectorAll('*')]
+          .filter((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)
+          .map(
+            (n) =>
+              `${n.className} ${n.scrollHeight}/${n.clientHeight} ${n.scrollWidth}/${n.clientWidth}`,
+          ),
+        controlsTop: document.querySelector('.gr-deed-controls').getBoundingClientRect().top,
+        bandBottom: document.querySelector('.gr-deed-slash').getBoundingClientRect().bottom,
+      };
+    });
+    expect(fit.clipped).toEqual([]);
+    expect(fit.top).toBeGreaterThanOrEqual(0);
+    expect(fit.bottom).toBeLessThanOrEqual(fit.band);
+    // the grown band stays clear of the Next / Skip row (skewed edge: a few px)
+    expect(fit.bandBottom).toBeLessThanOrEqual(fit.controlsTop + 24);
+  });
+});
+
+test.describe('battle notices on a small phone', () => {
+  test.use(phone);
+
+  test('wrapped notices stack under each other; none covers another', async ({ page }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    // Real notice shapes, long enough to wrap on the 445 px map frame.
+    await page.evaluate(() => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      s.time.timeScale = 0.01; // hold them while measured
+      const c = s._getCeremonies();
+      c.showNotice({ message: 'Knight Commander used Sleep Staff! Edric fell asleep! (100%)' });
+      c.showNotice({ message: "Village saved! +300g, Vampire's Bloodshard sent to convoy" });
+      c.showNotice({ message: 'Edric couldn’t learn Commander’s Gambit (skill limit reached)' });
+    });
+    const bands = page.locator('.ce-notice');
+    await expect(bands).toHaveCount(3);
+    const boxes = await bands.evaluateAll((all) =>
+      all.map((n) => ({ top: n.offsetTop, bottom: n.offsetTop + n.offsetHeight })),
+    );
+    expect(boxes.some((b) => b.bottom - b.top > 40)).toBe(true); // at least one wraps
+    for (let i = 1; i < boxes.length; i++)
+      expect(boxes[i].top, `notice ${i}`).toBeGreaterThanOrEqual(boxes[i - 1].bottom);
+  });
+
+  test('a boss crit cut-in names the boss and the weapon in full beside the portrait', async ({
+    page,
+  }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const enemy = s.enemyUnits[0];
+      // Hold the strip in view while it is measured (same path, longer hold).
+      const delay = s._awaitSceneDelay;
+      s._awaitSceneDelay = (ms, opts) =>
+        delay.call(s, opts?.label === 'proc_cutin_hold' ? 5000 : ms, opts);
+      const { ProcBannerController } = await import('/src/ui/ProcBannerController.js');
+      void new ProcBannerController(s).showCutIn({
+        unit: enemy,
+        unitName: 'Knight Commander',
+        weaponName: 'Twisting Vortex',
+        label: 'CRITICAL HIT',
+        category: 'offense',
+        side: 'right',
+      });
+    });
+    const small = page.locator('.ce-cutin-small');
+    await expect(small).toHaveText('KNIGHT COMMANDER · TWISTING VORTEX');
+    await page.waitForFunction(
+      () => Number(document.querySelector('.ce-cutin-layer')?.style.getPropertyValue('--ce-in')) === 1, // prettier-ignore
+    );
+    const fit = await small.evaluate((n) => ({
+      fits: n.scrollWidth <= n.clientWidth + 1,
+      ellipsis: getComputedStyle(n).textOverflow === 'ellipsis',
+      clipped: getComputedStyle(n).overflowX !== 'visible',
+    }));
+    expect(fit).toEqual({ fits: true, ellipsis: false, clipped: false });
+  });
+});
+
 test.describe('desktop', () => {
   test.use({ viewport: { width: 960, height: 720 } });
 

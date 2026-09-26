@@ -1,9 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 import base from './playwright.config.js';
+import { specSelection } from './tools/e2eLanes.js';
 
+// Landscape-phone device matrix for the lanes in tests/e2e/lanes.json that name this
+// config.
 export default defineConfig({
   ...base,
-  testMatch: 'compact-route-roster.spec.js',
+  ...specSelection('playwright.compact.config.js'),
   projects: [
     {
       name: 'iphone-se-landscape',

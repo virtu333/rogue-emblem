@@ -1,8 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import { specSelection } from './tools/e2eLanes.js';
+
+// Production-build specs (need dist/): the lanes in tests/e2e/lanes.json that name
+// this config. offline-atlas.spec.js serves dist/ itself (ER_OFFLINE_ATLAS_PORT,
+// default 4180).
 export default defineConfig({
   testDir: './tests/e2e',
-  // offline-atlas.spec.js serves dist/ itself (ER_OFFLINE_ATLAS_PORT, default 4180).
-  testMatch: ['mobile-release.spec.js', 'offline-atlas.spec.js'],
+  ...specSelection('playwright.release.config.js'),
   outputDir: 'test-results-release',
   timeout: 60000,
   retries: 0,

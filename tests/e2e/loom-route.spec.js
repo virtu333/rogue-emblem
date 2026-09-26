@@ -83,6 +83,21 @@ test('narrow looms use 36px medals inside 48px targets', async ({ page }) => {
   }
 });
 
+test('narrow looms show each lord chip’s HP numbers whole', async ({ page }) => {
+  const route = await openRoute(page, 667);
+  // Two-digit HP is the norm ("20/20"): the ~41 px chip column must hold it.
+  const hp = await route.locator('.re-loom-party .re-node-unit > span > small').evaluateAll((all) =>
+    all.map((n) => ({
+      text: n.textContent,
+      fits: n.scrollWidth <= n.clientWidth + 1,
+    })),
+  );
+  expect(hp.length).toBe(2);
+  for (const chip of hp) expect(chip, chip.text).toMatchObject({ fits: true });
+  // "HP" still reaches screen readers.
+  await expect(route.locator('.re-loom-party .re-loom-hp-unit').first()).toHaveText(' HP');
+});
+
 test('fx run only while the route is visible and motion is allowed', async ({ page }) => {
   const route = await openRoute(page);
   await expect.poll(() => animating(page)).toBe(true);

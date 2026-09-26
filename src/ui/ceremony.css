@@ -37,6 +37,20 @@
   --ce-glow-unlight: rgba(168, 99, 204, 0.55);
 }
 
+/* The notch/home-bar insets that reach into a ceremony frame. A frame on the
+   map or a panel already sits inside the safe area on the sides it does not
+   share with the screen, so the raw env() insets would be counted twice there
+   (--ce-frame-* = the frame's distance from each screen edge, set by
+   CeremonyLayer.applyFrame and by the FALLEN stage). Use these, never env(),
+   in ceremony cards: every root that frames one (.ce-layer, .ce-fate)
+   defines them, so no card is left with an undefined padding. */
+.ce-layer,
+.ce-fate {
+  --ce-safe-l: max(0px, env(safe-area-inset-left, 0px) - var(--ce-frame-l, 0px));
+  --ce-safe-r: max(0px, env(safe-area-inset-right, 0px) - var(--ce-frame-r, 0px));
+  --ce-safe-t: max(0px, env(safe-area-inset-top, 0px) - var(--ce-frame-t, 0px));
+  --ce-safe-b: max(0px, env(safe-area-inset-bottom, 0px) - var(--ce-frame-b, 0px));
+}
 .ce-layer {
   --ce-scale: 1;
   --ce-exit: 300ms;
@@ -132,8 +146,8 @@
 
 .ce-skip {
   position: absolute;
-  right: calc(10px + env(safe-area-inset-right, 0px));
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  right: calc(10px + var(--ce-safe-r));
+  bottom: calc(8px + var(--ce-safe-b));
   font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1 var(--re-pixel);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -194,7 +208,7 @@
 }
 .ce-boss-bust {
   position: absolute;
-  left: calc(6px + env(safe-area-inset-left, 0px));
+  left: calc(6px + var(--ce-safe-l));
   bottom: 0;
   width: var(--ce-bust);
   height: var(--ce-bust);
@@ -213,8 +227,8 @@
 }
 .ce-boss-text {
   position: absolute;
-  left: calc(var(--ce-bust) + 16px + env(safe-area-inset-left, 0px));
-  right: calc(18px + env(safe-area-inset-right, 0px));
+  left: calc(var(--ce-bust) + 16px + var(--ce-safe-l));
+  right: calc(18px + var(--ce-safe-r));
   top: 0;
   bottom: 0;
   display: flex;
@@ -355,8 +369,8 @@
   right: var(--ce-band-r, 0px);
   top: calc(40% - 52px * var(--ce-scale));
   min-height: calc(104px * var(--ce-scale));
-  padding: calc(10px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
-    calc(10px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));
+  padding: calc(10px * var(--ce-scale)) calc(16px + var(--ce-safe-r)) calc(10px * var(--ce-scale))
+    calc(16px + var(--ce-safe-l));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -534,8 +548,8 @@
   left: var(--ce-band-l, 0px);
   right: var(--ce-band-r, 0px);
   top: calc(50% - 30px * var(--ce-scale));
-  padding: calc(6px * var(--ce-scale)) calc(16px + env(safe-area-inset-right, 0px))
-    calc(7px * var(--ce-scale)) calc(16px + env(safe-area-inset-left, 0px));
+  padding: calc(6px * var(--ce-scale)) calc(16px + var(--ce-safe-r)) calc(7px * var(--ce-scale))
+    calc(16px + var(--ce-safe-l));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -682,7 +696,7 @@
   --ce-cx: 0.52;
   --ce-pw: calc(var(--ce-cut-h) / 0.3);
   position: absolute;
-  left: calc(40px + env(safe-area-inset-left, 0px));
+  left: calc(40px + var(--ce-safe-l));
   top: -30px;
   bottom: -30px;
   width: min(calc(420px * var(--ce-scale)), 58%);
@@ -700,7 +714,7 @@
 }
 .ce-cutin-layer--enemy .ce-cutin-eyes {
   left: auto;
-  right: calc(40px + env(safe-area-inset-right, 0px));
+  right: calc(40px + var(--ce-safe-r));
   transform: skewY(-7deg);
   -webkit-mask-image: linear-gradient(270deg, #000 60%, transparent 100%);
   mask-image: linear-gradient(270deg, #000 60%, transparent 100%);
@@ -708,14 +722,14 @@
 }
 .ce-cutin-word {
   position: absolute;
-  right: calc(70px + env(safe-area-inset-right, 0px));
+  right: calc(70px + var(--ce-safe-r));
   left: 42%;
   top: calc(var(--ce-cut-h) * 0.22);
   transform: skewY(7deg);
   text-align: right;
 }
 .ce-cutin-layer--enemy .ce-cutin-word {
-  left: calc(70px + env(safe-area-inset-left, 0px));
+  left: calc(70px + var(--ce-safe-l));
   right: 42%;
   transform: skewY(-7deg);
   text-align: left;
@@ -753,9 +767,8 @@
   font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--ce-bone);
+  /* fitText shrinks it along the pixel grid, then lets it wrap. */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────────────────────── Act title and run end */
@@ -764,8 +777,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
-    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  padding: max(16px, var(--ce-safe-t)) max(16px, var(--ce-safe-r)) max(16px, var(--ce-safe-b))
+    max(16px, var(--ce-safe-l));
   box-sizing: border-box;
   background: radial-gradient(ellipse at 50% 45%, rgba(14, 12, 20, 0.88), rgba(7, 6, 11, 0.98) 75%);
   animation: ce-fade 500ms ease-out both;

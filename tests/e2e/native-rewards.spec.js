@@ -14,8 +14,10 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
     await page.evaluate((kind) => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const c = s._lootController;
+      // An elite battle's second pick: the pick count lives on the persisted reward
+      // record (PendingRewardController reads record.picksRemaining), not the scene.
       s.isElite = true;
-      s._elitePicksRemaining = 2;
+      s.runManager.pendingBattleReward.picksRemaining = 2;
       const item = ['weapon', 'convoy'].includes(kind)
         ? structuredClone(s.runManager.roster[0].inventory[0])
         : kind === 'booster'
@@ -70,7 +72,7 @@ for (const kind of ['weapon', 'forge', 'imbue', 'booster', 'consumable', 'convoy
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const inventory = s.runManager.roster[0].inventory;
       return {
-        picks: s._elitePicksRemaining,
+        picks: s.runManager.pendingBattleReward?.picksRemaining,
         claimed: s._lootController.claimed.size,
         length: inventory.length,
         before: window.rewardBefore.length,

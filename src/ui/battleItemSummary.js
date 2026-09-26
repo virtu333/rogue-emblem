@@ -10,6 +10,25 @@ function formatRange(range) {
   return range.min === range.max ? String(range.min) : `${range.min}-${range.max}`;
 }
 
+/**
+ * The one-line brief a menu row shows (phone rail submenus): the numbers that
+ * decide a pick. A ✦ marks a weapon with a special effect; the full text is
+ * battleItemSummary, shown on a long press. '' when there is nothing to add.
+ */
+export function battleItemBrief(item, unit) {
+  if (!item) return '';
+  if (item.type === 'Consumable') return getConsumableDescription(item);
+  if (item.type === 'Staff') {
+    const range = unit ? getEffectiveStaffRange(item, unit) : item.range;
+    return `Rng ${formatRange(range)} · ${getStaffRemainingUses(item, unit)}/${getStaffMaxUses(item, unit)} uses`;
+  }
+  const parts = [`Mt ${item.might ?? 0}`, `Hit ${item.hit ?? 0}`];
+  if (Number(item.crit) > 0) parts.push(`Crt ${item.crit}`);
+  parts.push(`Rng ${item.range ?? 1}`);
+  return `${parts.join(' · ')}${item.special ? '\u00a0✦' : ''}`;
+}
+
+/** The full detail of an item: every stat and its effect (long press, screen readers). */
 export function battleItemSummary(item, unit) {
   if (!item) return '';
   if (item.type === 'Consumable') return `${getConsumableDescription(item)} · Uses do not refill`;

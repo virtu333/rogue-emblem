@@ -21,7 +21,9 @@ import {
   canRenderCeremony,
   ceremonyPortrait,
   el,
+  fitSteps,
   fitText,
+  flowOverflow,
   hairline,
 } from './ceremonyDom.js';
 import {
@@ -36,7 +38,7 @@ import {
   sealedBeats,
 } from './growthContent.js';
 import { unitDisplayName, unitEpithet } from '../engine/DeedTitles.js';
-import { levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
+import { LEVEL_UP_CUE_WAIT_MS, levelUpCue, playCue, stopCues } from './ceremonyMusic.js';
 import { crestElement } from './crestArt.js';
 import { voiceContext } from '../engine/UnitVoice.js';
 import { projectedSpriteUnit, spriteElement, unitSpriteImage } from './growthSprites.js';
@@ -270,6 +272,10 @@ export class GrowthCeremonyController {
       const h = parseFloat(root.style.height) || 0;
       root.style.setProperty('--gr-fig', `${figureSize(w, h)}px`);
     });
+    // Every line (seals, notes, the spoken line) inside the frame and clear of
+    // the corner button: the rite compacts on a short phone frame. The class
+    // names fit their width after it (a compact step changes their size).
+    layer.addFitter(() => fitRite(view.card, [view.nameTo, view.nameFrom]));
     layer.addFitter(() => fitText(view.nameTo, { min: 16 }));
     layer.addFitter(() => fitText(view.nameFrom, { min: 14 }));
     const releaseInput = this._holdSceneInput();
@@ -370,8 +376,14 @@ export class GrowthCeremonyController {
     root.style.setProperty('--gr-seal', ms(timing.seal));
     const view = buildLevelCard(this.scene, unit, content, layer);
     root.append(el('div', 'gr-veil gr-veil--soft'), view.card);
+    // Every line reads in full on a short phone frame: the card compacts.
+    layer.addFitter(() => fitLevelCard(view.card));
     const releaseInput = this._holdSceneInput();
-    if (cue) void this._cue(levelUpCue(content.kind), { fallbackSfx: 'sfx_levelup' });
+    if (cue)
+      void this._cue(levelUpCue(content.kind), {
+        fallbackSfx: 'sfx_levelup',
+        waitMs: LEVEL_UP_CUE_WAIT_MS,
+      });
     let revealed = !timing.animate;
     const finishReveal = () => {
       revealed = true;
@@ -451,6 +463,9 @@ export class GrowthCeremonyController {
     const view = buildJoinCard(this.scene, unit, content);
     layer.root.append(el('div', 'ce-dim ce-dim--soft'), view.card);
     layer.addFitter(() => fitText(view.name, { min: 16 }));
+    // A two-line recruit line and a legendary trait outgrow the band's design
+    // height on a phone: the band grows (then the type tightens) to hold them.
+    layer.addFitter(() => fitJoinBand(view.card));
     const releaseInput = this._holdSceneInput();
     void this._cue('recruit', { fallbackSfx: 'sfx_confirm', waitMs: 300 });
     try {
@@ -564,6 +579,8 @@ export class GrowthCeremonyController {
     let bindSkip = null; // wires each card's "Skip all" once the batch is running
     layer.addFitter(() => view && fitText(view.epithet, { min: 15 }));
     layer.addFitter(() => view && fitText(view.name, { min: 13 }));
+    // After the width fits: the band grows to hold every line (then the body type shrinks).
+    layer.addFitter(() => view && fitDeedBand(view.card));
     const nextLabel = () => (index + 1 < list.length ? 'Next deed' : 'Continue');
     const finishReveal = () => {
       revealed = true;
@@ -915,6 +932,75 @@ export function buildLevelCard(scene, unit, content, layer = null) {
   return { card, button, status };
 }
 
+/** Compaction steps for the join card once its band has grown to the frame. */
+export const JOIN_FIT_STEPS = Object.freeze(['is-tight']);
+
+/**
+ * Fit a join card's words to its band: the band (centred) grows past its
+ * design height to hold every line, keeping clear of the "Tap to continue"
+ * hint; only a frame too short for that tightens the type. Layout only.
+ */
+export function fitJoinBand(card) {
+  const text = card?.querySelector?.('.gr-join-text');
+  const band = card?.querySelector?.('.gr-join-band');
+  if (!text?.isConnected || !band) return null;
+  card.style.removeProperty('--ce-band-h');
+  const designed = band.clientHeight;
+  const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
+  const hint = card.querySelector('.ce-skip');
+  const reserve = (hint?.offsetHeight || 12) + 16;
+  const most = Math.max(designed, frame - 2 * reserve);
+  const grow = () => {
+    card.style.removeProperty('--ce-band-h');
+    const over = flowOverflow(text);
+    if (!(over > 0.5)) return 0;
+    const want = Math.ceil(band.clientHeight + over + 8); // breathing room
+    card.style.setProperty('--ce-band-h', `${Math.min(most, want)}px`);
+    return flowOverflow(text);
+  };
+  return fitSteps(card, JOIN_FIT_STEPS, grow);
+}
+
+/** Compaction steps for the promotion rite, gentlest first (growth.css). */
+export const RITE_FIT_STEPS = Object.freeze(['is-tight', 'is-tighter']);
+
+/**
+ * Fit the promotion rite's words to its frame: stat bonuses, sealed beats
+ * (ranks, skills, the Oath), the growth/skill-limit note and the spoken line
+ * outgrow a short phone frame. The rite first tightens its type and spacing,
+ * then narrows the figure's column; beyond that the words scroll. `names`
+ * (the class names) lose any width fit first so each step reads its own size.
+ */
+export function fitRite(card, names = []) {
+  const text = card?.querySelector?.('.gr-rite-text');
+  if (!text?.isConnected) return null;
+  for (const name of names) if (name?.style) name.style.fontSize = '';
+  card.classList.remove('is-overflowing');
+  const fit = fitSteps(card, RITE_FIT_STEPS, () => flowOverflow(text));
+  if (fit && !fit.fits) card.classList.add('is-overflowing');
+  return fit;
+}
+
+/** Compaction steps for the level-up card, gentlest first (growth.css). */
+export const LEVEL_FIT_STEPS = Object.freeze(['is-tight', 'is-tighter']);
+
+/**
+ * Fit a level-up card to its frame: a long spoken line, a caption and new
+ * skills on a short phone frame used to squash the line to a sliver. The
+ * card first tightens its rows and seals, then gives the portrait's column
+ * to the words. Layout only (scroll sizes ignore the entrance transforms).
+ */
+export function fitLevelCard(card) {
+  const main = card?.querySelector?.('.gr-level-main');
+  if (!main?.isConnected) return null;
+  card.classList.remove('is-overflowing');
+  const fit = fitSteps(card, LEVEL_FIT_STEPS, () => main.scrollHeight - main.clientHeight);
+  // Still too tall (a frame shorter than any phone): the column scrolls and
+  // the Continue row stays pinned in view.
+  if (fit && !fit.fits) card.classList.add('is-overflowing');
+  return fit;
+}
+
 /**
  * One deed title card (exported for review tooling and tests). The unit's
  * portrait stands in a slashed ink band; kicker, NAME, the epithet over a
@@ -973,6 +1059,51 @@ export function buildDeedCard(scene, unit, content, { skipAll = false } = {}) {
   return { card, button, skip, name, epithet };
 }
 
+/** Smallest body-type factor fitDeedBand will use before letting text clip. */
+const DEED_MIN_FIT = 0.78;
+
+/**
+ * Make a deed card's words fit its band on any frame: a narrow phone band
+ * wraps the kicker, epithet, lore and Oath onto more lines than the band's
+ * design height holds. The band first grows (centred, keeping clear of the
+ * Continue/Skip row below it); only if the frame has no more room does the
+ * body type (lore, note, Oath) shrink, never below DEED_MIN_FIT. Layout only
+ * (offset* ignore the skew and the entrance transforms). Returns what it did.
+ */
+export function fitDeedBand(card) {
+  const text = card?.querySelector?.('.gr-deed-text');
+  if (!text?.isConnected) return null;
+  card.style.removeProperty('--gr-deed-band');
+  card.style.removeProperty('--gr-deed-fit');
+  const need = () => {
+    const kids = [...text.children].filter((n) => n.offsetHeight > 0);
+    if (!kids.length) return 0;
+    const first = kids[0];
+    const last = kids[kids.length - 1];
+    const top = first.offsetTop - (parseFloat(getComputedStyle(first).marginTop) || 0);
+    const bottom = last.offsetTop + last.offsetHeight;
+    return bottom - top + 12; // breathing room inside the band's edges
+  };
+  const band = text.clientHeight;
+  let wanted = need();
+  if (!(band > 0) || wanted <= band) return { band, fit: 1 };
+  // Room: the frame minus the controls row (and the same margin mirrored above).
+  const frame = card.clientHeight || card.parentElement?.clientHeight || 0;
+  const controls = card.querySelector('.gr-deed-controls');
+  const reserve = controls ? controls.offsetHeight + 18 : 56;
+  const maxBand = Math.max(band, frame - 2 * reserve);
+  const grown = Math.min(maxBand, Math.ceil(wanted));
+  card.style.setProperty('--gr-deed-band', `${grown}px`);
+  let fit = 1;
+  wanted = need();
+  while (wanted > grown && fit > DEED_MIN_FIT) {
+    fit = Math.max(DEED_MIN_FIT, Math.round((fit - 0.04) * 100) / 100);
+    card.style.setProperty('--gr-deed-fit', String(fit));
+    wanted = need();
+  }
+  return { band: grown, fit };
+}
+
 export function buildJoinCard(scene, unit, content) {
   const card = el('div', `gr-join gr-join--${content.kind}`);
   const band = el('div', 'gr-join-band');
@@ -994,11 +1125,15 @@ export function buildJoinCard(scene, unit, content) {
   if (content.line) text.append(el('p', 'gr-join-line', `“${content.line}”`));
   if (content.legendary) {
     const seal = el('div', 'gr-join-legend');
-    seal.append(
-      skillGlyph(content.legendary.id, 'gr-seal-glyph'),
+    // Name and effect flow as one wrapping line beside the glyph: the effect
+    // is the news, so it is never cut short.
+    const words = el('span', 'gr-join-legend-words');
+    words.append(
       el('b', '', `Legendary · ${content.legendary.name}`),
+      document.createTextNode(' '),
       el('span', '', content.legendary.description),
     );
+    seal.append(skillGlyph(content.legendary.id, 'gr-seal-glyph'), words);
     text.append(seal);
   }
   text.append(hairline('gold'));

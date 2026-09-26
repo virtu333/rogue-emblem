@@ -21,7 +21,7 @@ import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import { CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
-import { playCue } from './ceremonyMusic.js';
+import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
 export class ChurchMenu {
   constructor(c) {
     this.c = c;
@@ -225,7 +225,11 @@ export class ChurchMenu {
         };
         const growth = cls && rite ? growthCeremonies(this.scene) : null;
         if (!growth) {
-          if (cls) void playCue(this.scene, 'promotion_crown', { fallbackSfx: 'sfx_levelup' });
+          if (cls)
+            void playCue(this.scene, 'promotion_crown', {
+              fallbackSfx: 'sfx_levelup',
+              waitMs: LEVEL_UP_CUE_WAIT_MS,
+            });
           finish();
           return;
         }
