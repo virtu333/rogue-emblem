@@ -27,8 +27,13 @@ def _ticks(sec: float) -> int:
 
 def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
                expr_points=None, channel: int = 0, gain: float = 1.0,
-               cc: dict | None = None, pitch_bend_range: int | None = None) -> np.ndarray:
-    """events: iterable of (t_sec, dur_sec, key, vel01). Returns (n, 2) float32."""
+               cc: dict | None = None, pitch_bend_range: int | None = None,
+               cents=None) -> np.ndarray:
+    """events: iterable of (t_sec, dur_sec, key, vel01). Returns (n, 2) float32.
+
+    cents: optional per-event tuning (same order as events), sent as a pitch bend
+    (FluidSynth's default range, 2 semitones) just before each note-on. The bend
+    is per channel, so this is for single-line parts."""
     mid = mido.MidiFile(ticks_per_beat=PPQ)
     tr = mido.MidiTrack()
     mid.tracks.append(tr)
@@ -57,9 +62,12 @@ def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
     else:
         msgs.append((0, 3, mido.Message('control_change', channel=channel, control=11, value=127)))
     end_t = 0.0
-    for t, dur, key, vel in events:
+    for i, (t, dur, key, vel) in enumerate(events):
         v = int(np.clip(round(vel * 126) + 1, 1, 127))
         on, off = _ticks(t), _ticks(t + max(dur, 0.01))
+        if cents is not None:
+            bend = int(np.clip(round(cents[i] / 200.0 * 8191), -8192, 8191))
+            msgs.append((on, 4.5, mido.Message('pitchwheel', channel=channel, pitch=bend)))
         msgs.append((on, 5, mido.Message('note_on', channel=channel, note=int(key), velocity=v)))
         msgs.append((off, 4, mido.Message('note_off', channel=channel, note=int(key), velocity=0)))
         end_t = max(end_t, t + dur)

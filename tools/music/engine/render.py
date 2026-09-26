@@ -133,8 +133,9 @@ def _voicer(inst_name, art_name, art):
 
 
 def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibrating=False,
-                sustain_pedal=False):
-    """Events -> stereo buffer, no calibration/mix processing."""
+                sustain_pedal=False, key_cents=None):
+    """Events -> stereo buffer, no calibration/mix processing. `key_cents` (SoundFont
+    parts only, opt-in per part) maps a key to a tuning correction in cents."""
     out = np.zeros((n_frames, 2), np.float32)
     kind = inst['kind']
     if kind == 'sfz':
@@ -153,8 +154,9 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
     elif kind == 'sf2':
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
         cc = {64: 127} if sustain_pedal else None
+        cents = [key_cents.get(ev.key, 0.0) for ev in events] if key_cents else None
         out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames,
-                         channel=inst.get('channel', 0), cc=cc)
+                         channel=inst.get('channel', 0), cc=cc, cents=cents)
     elif kind == 'sfizz':
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
         out = render_sfz(inst['sfz'], evs, n_frames, cc=inst.get('cc'))
@@ -309,7 +311,9 @@ class Renderer:
                   [asdict(e) | {'r': e.rearticulate, 'p': getattr(e, 'prev_key', None)} for e in intro],
                   [asdict(e) | {'r': e.rearticulate, 'p': getattr(e, 'prev_key', None)} for e in loop],
                   self.n_f, self.P_f,
-                  self.I_f, seed, part.opts.get('pedal', False)))
+                  self.I_f, seed, part.opts.get('pedal', False))
+               + (((sorted(part.opts['key_cents'].items()),) if part.opts.get('key_cents')
+                   else ())))
         path = os.path.join(CACHE, f'{s.name}__{part.name}__{key}.npy')
         if os.path.exists(path):
             return np.load(path).astype(np.float32)
@@ -327,7 +331,8 @@ class Renderer:
         for (tag, a), evs in groups.items():
             g = dsp.undb(calibration_db(part.inst, a))
             buf = _render_raw(part.inst, inst, evs, loop_len if tag == 'loop' else self.n_f,
-                              seed=_seed(seed, tag, a), sustain_pedal=pedal) * g
+                              seed=_seed(seed, tag, a), sustain_pedal=pedal,
+                              key_cents=part.opts.get('key_cents')) * g
             if tag == 'intro':
                 out += buf
             else:
