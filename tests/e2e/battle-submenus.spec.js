@@ -87,6 +87,52 @@ test('unavailable consumables explain why; keyboard Back and gamepad focus are v
   expect(errors).toEqual([]);
 });
 
+test('equip rows show a one-line brief; a long press opens the full stats without equipping', async ({
+  page,
+}) => {
+  const { hud, errors } = await boot(page);
+  await page.evaluate(() => {
+    localStorage.removeItem('emblem_rogue_tip_hold_item');
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = window.testUnit;
+    const axe = s.gameData.weapons.find((w) => w.name === 'Hand Axe');
+    u.proficiencies = [...(u.proficiencies || []), { type: 'Axe', rank: 'Prof' }];
+    u.inventory.push({ ...axe, uid: 'brief-axe' });
+    window.before = u.weapon?.name;
+    s.showEquipMenu(u);
+  });
+  const row = hud.getByRole('button', { name: /^Hand Axe/ });
+  await expect(row).toBeVisible();
+  const summary = row.locator('.mb-item-summary');
+  // One short line: the numbers that decide a pick, ✦ for the effect.
+  await expect(summary).toHaveText('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');
+  expect(await summary.evaluate((n) => n.getClientRects().length)).toBe(1);
+  await expect(row).toHaveAttribute('aria-description', /Weight 8[\s\S]*Throwable/);
+  await expect(hud.locator('.mb-hold-hint')).toHaveText('Hold a row for its full details.');
+  // Hold: the row opens in place; the weapon is not equipped.
+  const box = await row.boundingBox();
+  const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+  const pointer = { pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, ...at };
+  await row.dispatchEvent('pointerdown', pointer);
+  await page.waitForTimeout(700);
+  await row.dispatchEvent('pointerup', pointer);
+  await row.dispatchEvent('click', { detail: 1, ...at });
+  const open = hud.getByRole('button', { name: /^Hand Axe/ });
+  await expect(open).toHaveClass(/is-expanded/);
+  await expect(open.locator('.mb-item-summary')).toContainText('Weight 8');
+  await expect(open.locator('.mb-item-summary')).toContainText('Throwable, lower stats');
+  expect(await page.evaluate(() => window.testUnit.weapon?.name)).toBe(
+    await page.evaluate(() => window.before),
+  );
+  await page.screenshot({ path: 'test-results/battle-equip-brief-se.png' });
+  // The hold was learned: the hint does not come back.
+  await expect(hud.locator('.mb-hold-hint')).toHaveCount(0);
+  // A plain tap still equips.
+  await open.tap();
+  await expect.poll(() => page.evaluate(() => window.testUnit.weapon?.name)).toBe('Hand Axe');
+  expect(errors).toEqual([]);
+});
+
 // Attack no longer opens a weapon submenu (target first; weapons switch in the
 // forecast), so the Equip submenu stands in for the weapon list.
 for (const kind of ['equip', 'staff', 'art', 'ability', 'reclass']) {
