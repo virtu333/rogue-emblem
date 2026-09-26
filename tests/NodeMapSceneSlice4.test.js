@@ -470,6 +470,7 @@ describe('NodeMapScene Slice 4', () => {
       registry: { get: () => null },
       sys: { isActive: () => true },
       drawMap: vi.fn(),
+      persistRunSave: NodeMapScene.prototype.persistRunSave,
     };
     NodeMapScene.prototype._openRoster.call(scene);
     const { onClose } = RosterOverlayMock.mock.calls[0][3];
@@ -498,6 +499,7 @@ describe('NodeMapScene Slice 4', () => {
       registry: { get: (key) => (key === 'activeSlot' ? 1 : null) },
       sys: { isActive: () => true },
       drawMap: vi.fn(),
+      persistRunSave: NodeMapScene.prototype.persistRunSave,
     };
     NodeMapScene.prototype._openRoster.call(scene);
     const { onClose } = RosterOverlayMock.mock.calls[0][3];
