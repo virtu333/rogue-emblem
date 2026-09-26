@@ -152,13 +152,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
       const named = SWORD_BY_NAME[w.name] || {};
       const variant =
         named.variant ||
-        (/rapier/i.test(w.name)
-          ? 'rapier'
-          : sp.throw
-            ? 'short'
-            : sp.reaver
-              ? 'serrated'
-              : 'broad');
+        (/rapier/i.test(w.name) ? 'rapier' : sp.throw ? 'short' : sp.reaver ? 'serrated' : 'broad');
       // Drain blades are black steel, legend or not (Soulreaver, the Eldritch Grasp).
       const blade = sp.drain ? 'blackened' : t.metal;
       return D.sword({

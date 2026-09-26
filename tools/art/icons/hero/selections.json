@@ -28,9 +28,10 @@
     },
     "killing-edge": {
       "approved": true,
-      "source": "killing-edge-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "cc0559e648d7baae"
+      "source": "killing-edge-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "e42344f1c18ddf6a",
+      "note": "Rerolled 2026-09-26: a katana made for killing strokes (owner direction)."
     },
     "wo-dao": {
       "approved": true,
@@ -46,10 +47,10 @@
     },
     "tempest-blade": {
       "approved": true,
-      "source": "tempest-blade-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "fb1a31e78c7c9aee",
-      "note": "Re-prompted: no wind ribbons."
+      "source": "tempest-blade-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "f4e689a4d4abe769",
+      "note": "Rerolled 2026-09-26: a blade swept like a gust, wind ribbons (owner direction)."
     },
     "lancereaver": {
       "approved": true,
@@ -65,9 +66,10 @@
     },
     "levin-sword": {
       "approved": true,
-      "source": "levin-sword-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "bba45f1148f9e6ce"
+      "source": "levin-sword-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "80b17c0cf5d5aa67",
+      "note": "Rerolled 2026-09-26: a lightning-bolt blade (owner direction)."
     },
     "gemini": {
       "approved": true,
@@ -77,15 +79,17 @@
     },
     "armorslayer": {
       "approved": true,
-      "source": "armorslayer-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "f2160de48464ac4c"
+      "source": "armorslayer-pro-t1",
+      "model": "gemini-3-pro-image",
+      "hash": "805ad4e78901d85d",
+      "note": "Rerolled 2026-09-26: a curved falchion with a needle point for armour seams (owner direction)."
     },
     "ragnarok": {
       "approved": true,
-      "source": "ragnarok-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "74ee16c09ae680bf"
+      "source": "ragnarok-pro-t1",
+      "model": "gemini-3-pro-image",
+      "hash": "b0867658b8bdb4c7",
+      "note": "Rerolled 2026-09-26: a Norse sword, knotwork guard, lobed pommel (owner direction)."
     },
     "soulreaver": {
       "approved": true,
@@ -173,9 +177,10 @@
     },
     "short-spear": {
       "approved": true,
-      "source": "short-spear-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "a26a7a2bf8025923"
+      "source": "short-spear-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "b7b7f32f9aa1ddd2",
+      "note": "Rerolled 2026-09-26: made to be thrown, with a throwing loop and fletching (owner direction)."
     },
     "spear": {
       "approved": true,
@@ -227,9 +232,10 @@
     },
     "axereaver": {
       "approved": true,
-      "source": "axereaver-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "bafaf3ddc24f7c95"
+      "source": "axereaver-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "056d73c8689bb8a0",
+      "note": "Rerolled 2026-09-26: an unorthodox, nimble sword-catcher with a hooked butt (owner direction)."
     },
     "brave-axe": {
       "approved": true,
@@ -532,9 +538,10 @@
     },
     "angelic-robe": {
       "approved": true,
-      "source": "angelic-robe-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "ad2099cc942938e9"
+      "source": "angelic-robe-pro-t5",
+      "model": "gemini-3-pro-image",
+      "hash": "346ff1871f7e616e",
+      "note": "Rerolled 2026-09-26: a winged white-and-gold vestment; takes 1-4 kept a keyed halo from a glow in the prompt."
     },
     "swiftsoles": {
       "approved": true,
@@ -614,9 +621,10 @@
     },
     "seraph-robe": {
       "approved": true,
-      "source": "seraph-robe-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "e7cb60b016ace89b"
+      "source": "seraph-robe-pro-t4",
+      "model": "gemini-3-pro-image",
+      "hash": "0fc622ff6ef32882",
+      "note": "Rerolled 2026-09-26: a hooded mantle with three pairs of wings (owner direction)."
     },
     "boots": {
       "approved": true,

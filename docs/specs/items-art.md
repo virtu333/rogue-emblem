@@ -133,6 +133,22 @@ All through `tools/art/gen/geminiImage.mjs` (provenance in each raw folder's
 | Blessing cards | 47 (Flash) + 1 (Pro, the quota probe; not used) | 23 |
 | Service vignettes | 14 (Flash) | 6 |
 
+### Rerolls and alignment (2026-09-26)
+
+- **Owner rerolls (Pro model, 4 takes each):** Killing Edge (a katana for killing strokes),
+  Tempest Blade (a wind-swept blade), Levin Sword (a lightning-bolt blade), Armorslayer (a
+  curved falchion with a needle point), Ragnarok (a Norse sword), Short Spear (throwing
+  loop and fletching), Axereaver (a nimble sword-catcher), Angelic Robe and Seraph Robe
+  (white and gold, winged). The robe prompt asks for no glow: a halo keys out as a peach
+  fringe. `treat.mjs --publish --only ids` republishes just the rerolled picks.
+- **Icons match their paintings.** The grammar drew one template per weapon type, so the
+  small icon and the painting disagreed for storied items. Named silhouettes now carry
+  the painting's shape (`SWORD_BY_NAME`, `LANCE_BY_NAME`, `AXE_BY_NAME` and the accessory
+  table): katana, curved sabre, gust, lightning bolt, falchion, Norse sword, twin blades,
+  black drain blades, throwing spear, sword-headed lance, barbed crimson spear,
+  hook axe, a leaf charm, an oval stone in a setting, crossed blades, a round boss, spread
+  wings, a phoenix brooch and winged robes.
+
 ## Deviations
 
 - The reward and blessing screens were redesigned on main (the choice screens) while this

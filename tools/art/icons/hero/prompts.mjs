@@ -124,7 +124,8 @@ export const HERO_SUBJECTS = {
   speedwing: 'a single pale sky-blue feather',
   dracoshield: 'a small steel-blue dragon-scale shield with a diamond emblem',
   talisman: 'a silver leaf-shaped pendant with a lilac gem on a fine chain',
-  'angelic-robe': 'a neatly folded white-and-gold vestment of luminous cloth, a pair of small white feathered wings stitched at its shoulders, gold feather embroidery and rows of tiny gold stitching along the hem, a soft golden glow of holy light around it',
+  'angelic-robe':
+    'a neatly folded white-and-gold vestment of luminous cloth, a pair of small white feathered wings stitched at its shoulders, gold feather embroidery and rows of tiny gold stitching along the hem, crisp dark outline, no glow or halo around it',
   swiftsoles: 'a pair of light leather boots with small green wings at the ankles',
   'infantry-seal': 'a steel-blue wax seal stamped with a silver boot emblem, with ribbons',
   'mounted-seal': 'an earth-brown wax seal stamped with a silver horseshoe, with ribbons',
@@ -139,7 +140,8 @@ export const HERO_SUBJECTS = {
   'barrier-ring': 'a plain polished gold ring set with a round lilac gem, a smooth plain band',
   'skill-ring': 'a plain polished gold ring set with a round pearl-white gem, a smooth plain band',
   'goddess-icon': 'a small gold winged pendant with a rose-red gem',
-  'seraph-robe': 'a flowing white hooded mantle laid open, embroidered with three pairs of pale gold feathered wings rising up its back, a pale gold clasp, radiant soft light spilling from its folds',
+  'seraph-robe':
+    'a flowing white hooded mantle laid open, embroidered with three pairs of pale gold feathered wings rising up its back, a pale gold clasp, radiant soft light spilling from its folds',
   boots: 'a pair of sturdy brown leather boots with green trim',
   'delphi-shield': 'a lilac round shield with a gilded rim and a pearl diamond emblem',
   'veterans-crest': 'a bronze shield-shaped medal with a gold star, hanging from a blue ribbon',
