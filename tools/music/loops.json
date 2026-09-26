@@ -318,6 +318,28 @@
     "title": "Against the Standard",
     "tonic": "C"
   },
+  "music_battle_elite_act4": {
+    "duration": 80.698,
+    "loopEnd": 80.097551,
+    "loopStart": 9.853651,
+    "lufs": -14.01,
+    "peakDb": -1.09,
+    "score": "battle_elite_act4",
+    "seamDb": -61.3,
+    "title": "The Emperor's Own",
+    "tonic": "Bb"
+  },
+  "music_battle_elite_act4_calm": {
+    "duration": 80.698,
+    "loopEnd": 80.097551,
+    "loopStart": 9.853651,
+    "lufs": -17.0,
+    "peakDb": -1.38,
+    "score": "battle_elite_act4",
+    "seamDb": -71.9,
+    "title": "The Emperor's Own",
+    "tonic": "Bb"
+  },
   "music_battle_elite_calm": {
     "duration": 73.171,
     "loopEnd": 72.571429,
