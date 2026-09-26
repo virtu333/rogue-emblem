@@ -15,8 +15,10 @@ enemy, so here the crossfade is the reveal. The full mix plays the tune
 whole. The calm mix plays the same notes on the same timeline, but only
 some of them: each question is hocketed note by note across distant voices
 (a harp, a pizzicato viola, then a low flute, a clarinet or a muted horn far
-back), and the answers are mostly kept by the fog, as is every cadence's
-last note. The calm hears "G, B-flat, E..." and then the harp dripping where
+back), and the answers are mostly kept by the fog, as is the note each
+strain comes down onto (the B-flat of its eighth bar); the half-way
+cadence's E is let through, far off, on a clarinet (A) or a flute (A2, A3).
+The calm hears "G, B-flat, E..." and then the harp dripping where
 the answer should be. When the full mix comes in, it fills in what was
 missing, and the fragments stay in it as colours on the whole line.
 
@@ -88,7 +90,8 @@ INTRO_CELL = 'rw | rw | rq G3e Bb3e E4h | rw |'
 
 # What each calm voice keeps of the whole: (bar of the strain, beat offset).
 # The questions are heard, hocketed note by note across distant voices; the
-# answers are mostly kept by the fog, and so is every cadence's last note.
+# answers are mostly kept by the fog, and so is each strain's last note (bar
+# 8's B-flat); bar 4's cadence note, the E, is let through far off.
 MASK_A = {
     'hp': [(1, 1.0), (3, 1.5), (5, 1.0)],
     'pz': [(1, 1.5), (3, 1.0), (5, 1.5)],
@@ -222,6 +225,7 @@ class Reveal:
     side of the field."""
 
     ECHO = 1.5
+    ECHOED = ('fl', 'cl', 'hn', 'hp', 'pz')
 
     def __init__(self, b):
         self.b = b
@@ -240,9 +244,12 @@ class Reveal:
             # a pluck is levelled like a held note, so it sits lower
             g = {'hp': -8, 'pz': -8, 'fl': -2, 'hn': -5}.get(k, -4)
             self.frag[k] = b.part(f'frag_{k}', inst, role='lead', calm_db=3, gain=g, **o)
-            self.echo[k] = b.part(f'echo_{k}', inst, role='counter', art=o.get('art'),
-                                  pan=-o['pan'], depth=1.0, reverb=0.9, calm_db=3,
-                                  gain=g - 2)
+            # (the violas' one fragment, in A3, is never a phrase's end: they
+            # have no echo)
+            if k in self.ECHOED:
+                self.echo[k] = b.part(f'echo_{k}', inst, role='counter', art=o.get('art'),
+                                      pan=-o['pan'], depth=1.0, reverb=0.9, calm_db=3,
+                                      gain=g - 2)
         self.echo_whole = b.part('echo_whole', 'violas', role='counter', art='soft', pan=0.55,
                                  depth=1.0, reverb=0.9, layer='full', gain=-6)
 
@@ -289,10 +296,17 @@ def build():
     s = Score('battle_fog', tonic='G', bpm=100, intro_bars=4, loop_bars=36,
               title='What the Fog Keeps', seed=307)
     s.reverb = dict(rt60=2.6, predelay_ms=30, wet_db=-0.5, damp=0.6, bright=0.9)
-    # the ensemble lives in the low mids (no cymbals, the tune in the tenor):
-    # the master takes some of that out and gives the attacks their edge
+    # the ensemble lives low (no cymbals, the tune in the tenor): the master
+    # takes some weight out of the ground under the tune and gives the attacks
+    # their edge. The cut sits under the tune, not on it: at 130 Hz (Q 1.4) it
+    # takes 1.8-2.1 dB, duration-weighted over their notes' fundamentals, off
+    # the ground, the stalk, the motor and the calm footsteps (G2-F#3) and
+    # 0.1-0.6 dB off the tune's whole-line parts (A's G3-G4 in violas and
+    # celli). At 330 Hz (Q 0.8) it took 2.3-2.7 dB off the tune and 0.5 off
+    # the ground; the pads and the ground already carry their own cuts at
+    # 280-320 Hz
     s.master = dict(lufs=-14.0, glue_ratio=1.4,
-                    eq=[('peak', 330, 0.8, -3.0), ('peak', 2600, 0.8, 1.5),
+                    eq=[('peak', 130, 1.4, -3.0), ('peak', 2600, 0.8, 1.5),
                         ('highshelf', 7000, 0.7, 2.0)])
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
 
@@ -317,7 +331,8 @@ def tune(b, s):
     # (A2's second violins are doubled by the violas, not the oboe: the oboe's
     # octave partial made the unison F5 sour)
     rv.state(A2, TUNE, [(vn2, 0), (va, 0)], MASK_A2, ends=(4, 8), transpose=12, dyn='mf')
-    # B's line bites: the violas' spiccato strikes each of its notes
+    # B's line bites: the celli's spiccato strikes each of its notes, an
+    # octave below the violas and second violins
     bite = b.part('b_bite', 'celli', role='lead2', art='spic', layer='full', gain=-3)
     rv.state(B, B_LINE, [(va, 0), (vn2, 0), (bite, -12)], MASK_B, ends=(2, 4, 6),
              transpose=12, dyn='mf')

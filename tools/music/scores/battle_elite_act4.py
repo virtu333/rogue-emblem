@@ -15,14 +15,16 @@ is that cadence, and it takes the dominant's place: no strain has a V-i.
 
 The strain follows Tearing Through Heaven as its verified reading has it (not
 the seven-bar loop an earlier study miscounted): a square eight bars, 3 +
-stop bar + 3 + tonic bar. In the stop bar (bar 4) the bass withdraws after
-its downbeat, the kit keeps going, the held note of the tune fades, and the
+stop bar + 3 + tonic bar. In the stop bar (bar 4) the band withdraws after
+its downbeat (the bass, the stabs, the held chords, and in B the running
+eighths), the kit keeps going, the held note of the tune fades, and the
 trumpets come back in forte with a three-note pickup on beats 3-4, in every
 strain, whoever holds the tune: the company's bugles. The downbeat is a
-stamp (timpani and a low brass hit with the bass's last eighth) and the
-snare doubles the pickup, so the stop reads as a halt, not a lost bass. The
-tonic is never on a downbeat inside a strain: it arrives only by
-anticipation, on the last eighth of bar 7, and bar 8 is the tonic bar.
+stamp (timpani and a low brass hit with the bass's last eighth; in B the
+tuba takes its low C, under the trombones' floor) and the snare doubles the
+pickup, so the stop reads as a halt, not a lost bass. The tonic is never on
+a downbeat inside a strain: it arrives only by anticipation, on the last
+eighth of bar 7, and bar 8 is the tonic bar.
 
 The groove is a hocket, not a rhythm with rests. The bass plays 1, 2.5, 4
 and 4.5, the last eighth tied over the bar line: each new bass note arrives
@@ -44,18 +46,23 @@ violins above), and it is the only place the tonic stands on a downbeat under
 the whole band: the choir enters there for the first and only time, the bass
 goes to whole notes and the snare to a roll (sixteenths while the standard is
 raised) that keeps the hocket's accents. Between its two raisings comes the
-company's cry (the held G-flat becomes the ninth of F7 and falls to F); after
+company's cry (the held G-flat becomes the flat ninth of F7, the choir under
+it on A diminished seven with no F of its own, and falls to F); after
 them, its cadence. It is approached from its dominant: the build is one
 unbroken crescendo over an F pedal, as in the verified reading of Tearing's
 (no rest before the arrival), and the trumpets' pickup, the Empire's half-step
-climbing (C, D-flat, E-flat), calls the standard in on the downbeat. It holds
-one V-i of its own (C4-C5): the Emperor's anthem keeps his leading-tone
-cadence; his guard's strains do not.
+climbing (C, D-flat, E-flat), calls the standard in on the downbeat. The
+standard is where the dominant is allowed: the build's F7 lands on its first
+raising (32-33) and the cry's F7 on its second (C4-C5), the piece's only two
+V-i. The Emperor's anthem keeps his leading-tone cadence; his guard's
+strains do not.
 
 B is the second verse, in F minor (the tonic bar of A2 is its first chord,
 B-flat minor as iv): the same rhythm and harmony, but its sequence climbs
 where A's falls (the leaps reach C, then E-flat, then the horns' high F over
-G-flat major 7) against the bass walking down; horns with trombones below;
+G-flat major 7) against the bass walking down (the contrabasses from B-flat
+1; the bass guitar, which has nothing under A1, walks it an octave up with
+the fifth below each root, never folding); horns with trombones below;
 flute and second violins run eighths through the stab rests.
 
 The build (29-32) is the piece's own material sped up: two bars of the
@@ -75,14 +82,15 @@ anthem head, turned minor, is the standard; the Empire's half-step closes
 every strain.
 
 Distinct from Against the Standard (Act I's elite theme): no seven-sixteenth
-cycle and no dead stop; here the pulse never stops, only the bass does.
+cycle and no dead stop; here the pulse never stops, only the band does.
 Distinct from Ashfall: no bells, no doom march.
 
 calm: the same hocket heard from the walls at night: pizzicato basses on the
 bass's rhythm, harp chords and a distant side drum on 2 and 3.5, a bass drum
-on one, soft violas; the tune on a muted trumpet (A1), clarinet (A2), horn
-(B), clarinet over a soft horn (the standard) and solo violin (A3); a muted
-trumpet still gives every pickup.
+on one, soft violas; the tune on an oboe (A1), clarinet (A2), horn (B),
+clarinet over a soft horn (the standard) and solo violin (A3); a muted
+trumpet gives every pickup. The stop bars stop here too: the harp's stabs
+and the violas leave with the bass.
 """
 
 from engine.patterns import Kit, arp, bass, chart, drums, pad
@@ -152,7 +160,10 @@ CH_CELL = chart('Gb/Bb Ab Gb/Bb Ab')
 # ninth of F7 falling to F (C4).
 CH_A_PAD = chart('Ebm7 Db Cbmaj7 Db/F Gb Ebm7 Cb:2.5 Cb7:1.5 Bbm')
 CH_B_PAD = chart('Bbm7 Ab Gbmaj7 Ab7/C Db Bbm7 Gb:2.5 Gb7:1.5 Fm')
-CH_C_PAD = chart('Bbm Gb Ebm F7 Bbm Gb Cb:3 Cb7:1 Bbm')
+# (C4: while the cry holds G-flat the chord is A diminished seven, the F7's
+# upper notes with the flat ninth, so no voice sits on F a semitone under the
+# horns' G-flat; F7 comes with the fall)
+CH_C_PAD = chart('Bbm Gb Ebm Adim7:2 F7:2 Bbm Gb Cb:3 Cb7:1 Bbm')
 
 # the hocket's bass, per strain bar: (the bar's bass, the note on 2.5, the
 # note on 4); every bar but the phrase starts is anticipated on the and-of-4
@@ -161,6 +172,12 @@ BASS_A = [('Eb2', 'Bb2', 'Eb2'), ('Db2', 'Ab2', 'Db2'), ('Cb2', 'Gb2', 'Cb2'), (
           ('Bb1', 'F2', 'Bb1')]
 BASS_B = [('Bb1', 'F2', 'Bb1'), ('Ab1', 'Eb2', 'Ab1'), ('Gb1', 'Db2', 'Gb1'), ('C2', None, None),
           ('Db2', 'Ab2', 'Db2'), ('Bb1', 'F2', 'Bb1'), ('Gb1', 'Db2', 'Gb1'), ('F1', 'C2', 'F1')]
+# ...and B for the bass guitar, which has nothing below A1: an octave up with
+# the fifth below each root, so the walk down (B-flat, A-flat, G-flat; then
+# D-flat, B-flat, G-flat, F) stays one line (C2-D-flat 3) instead of folding
+# up a seventh wherever a root fell under A1
+BASS_B_EB = [('Bb2', 'F2', 'Bb2'), ('Ab2', 'Eb2', 'Ab2'), ('Gb2', 'Db2', 'Gb2'), ('C3', None, None),
+             ('Db3', 'Ab2', 'Db3'), ('Bb2', 'F2', 'Bb2'), ('Gb2', 'Db2', 'Gb2'), ('F2', 'C2', 'F2')]
 
 # the 'Choir Aahs' tuning, per key, for this score's held choir notes: every
 # note rendered alone at its own length and dynamic, its pitch measured over
@@ -184,8 +201,10 @@ STAB_STR = {'Ebm9': 'Eb3 Gb3 Bb3 Db4', 'Db': 'Db3 F3 Ab3 Db4', 'Cbmaj7': 'Cb3 Gb
 B_SYMBOL = {'Bbm9': 'Ebm9', 'Ab': 'Db', 'Gbmaj7': 'Cbmaj7', 'Ab/C': 'Db/F', 'Dbmaj7': 'Gbmaj7',
             'Gb7': 'Cb7', 'Fm': 'Bbm'}
 B_SHIFT = -5
-# the stop bar's stamp: a low brass hit on the downbeat, with the bass's last eighth
-STAMP = {'Db/F': 'F2 F3 Db4', 'Ab/C': 'C2 C3 Ab3'}
+# the stop bar's stamp: a low brass hit on the downbeat, with the bass's last
+# eighth (in B the low C is the tuba's: the trombones stop at E2)
+STAMP = {'Db/F': 'F2 F3 Db4', 'Ab/C': 'C3 Ab3'}
+STAMP_TUBA = {'Ab/C': 'C2'}
 
 # drum grids (16 steps a bar). The hocket: the kick takes every eighth the
 # snare (2, 3.5) leaves; accents with the bass (1, 2.5, 4, 4.5)
@@ -345,6 +364,7 @@ def build():
     # A3: the descant, kept under the tune it floats over
     dsc = b.part('descant', 'violins', layer='full', role='lead2', art='sus', gain=-4)
     dsc.at(41).play('@mf' + DESCANT)
+    hold_dim(dsc, 44)
 
     hn = b.part('hn', 'horns', layer='full', role='lead2')
     hn.at(13).play('@f' + TUNE_HELD, transpose=-12)
@@ -363,7 +383,7 @@ def build():
     cb = b.part('cb', 'basses', layer='full', role='low', art='spic')
     for sec, rows in (('A1', BASS_A), ('A2', BASS_A), ('B', BASS_B), ('A3', BASS_A)):
         tied = sec == 'A1'
-        strain_bass(eb, b.bar(sec), rows, vel=0.78, tied_in=tied)
+        strain_bass(eb, b.bar(sec), BASS_B_EB if sec == 'B' else rows, vel=0.78, tied_in=tied)
         strain_bass(cb, b.bar(sec), rows, vel=0.72, tied_in=tied, art='spic')
     tuba = b.part('tuba', 'tuba', layer='full', role='low', art='stac')
     strain_bass(tuba, 41, BASS_A, vel=0.7, art='stac')
@@ -388,12 +408,15 @@ def build():
         stabs_at(st_str, b.bar(sec), ch, upper, vel=0.7, transpose=tr, rename=ren)
 
     # the stop bar's stamp: low brass and timpani on the downbeat, with the
-    # bass's last eighth; then only the kit, the stabs and the fading tune
+    # bass's last eighth; then only the kit, the fading tune and the bugles'
+    # pickup (the stabs leave with the bass: see the end of the build)
     stamp = b.part('stamp', 'trombones', layer='full', role='accent', art='stac', gain=3)
     timp = b.part('timp', 'timpani', role='timp', calm_db=-6)
     for bar, sym in ((8, 'Db/F'), (16, 'Db/F'), (24, 'Ab/C'), (44, 'Db/F')):
         for p in STAMP[sym].split():
             stamp.note(s.bar(bar), P(p), 0.5, vel=0.86, art='stac', rearticulate=True)
+        if sym in STAMP_TUBA:
+            tuba.note(s.bar(bar), P(STAMP_TUBA[sym]), 0.5, vel=0.86, art='stac')
         timp.note(s.bar(bar), _timp(STAMP[sym].split()[0]), 1.0, vel=0.9)
 
     # the violins' long chords under the trumpets (A1), swelling to each stop.
@@ -477,6 +500,12 @@ def build():
                      key_cents=CHOIR_FIX) for i in range(4)]
     for start in sorted(chords):
         for v, n in zip(voices, sorted(chords[start], key=lambda n: n.pitch)):
+            # (a voice that keeps its note across C4's mid-bar change holds it)
+            prev = v.notes[-1] if v.notes else None
+            if (prev and prev.pitch == n.pitch and abs(prev.end - n.start) < 1e-6
+                    and not s.on_barline(n.start)):
+                prev.dur += n.dur
+                continue
             v.notes.append(n)
     for v in voices:
         v.expr((33, 0.8), (36.9, 0.95), (37, 0.9), (40.9, 1.0))
@@ -606,15 +635,19 @@ def build():
     c_low.at(29).play('@mp F2w | F2w | F2w | F2w |')
     bass(c_low, 33, CH_C, 'w', 'b', floor=38, vel=0.5, art='soft')
 
-    # the calm voices on the tune; a muted trumpet gives every pickup
+    # the calm voices on the tune; a muted trumpet gives every pickup (VPO3
+    # has no mute, so it plays the legacy muted trumpet: kept to the bugle
+    # calls, the tune itself on the house instruments)
     lead = dict(layer='calm', role='lead', gain=-1.5)
     c_tpt = b.part('c_tpt', 'trumpets', art='mute', **lead)
-    c_tpt.at(5).play('@mf' + TUNE)
+    c_tpt.at(5).play('@mf' + PICKUP)
     c_tpt.at(13).play('@mf' + PICKUP)
     c_tpt.at(21).play('@mf' + PICKUP_B)
     c_tpt.at(32).play('@mf rh C4q> Db4e Eb4e |')
     c_tpt.at(41).play('@mf' + PICKUP)
-    hold_dim(c_tpt, 8, low=0.45)
+    c_ob = b.part('c_ob', 'oboe', **lead)
+    c_ob.at(5).play('@mf' + TUNE_HELD)
+    hold_dim(c_ob, 8, low=0.45)
     c_cl = b.part('c_cl', 'clarinet', **lead)
     c_cl.at(13).play('@mf' + TUNE_HELD)
     c_cl.at(33).play('@mf' + STANDARD_BR)
@@ -628,4 +661,18 @@ def build():
     c_sv = b.part('c_sv', 'solo_violin', art='soft', **lead)
     c_sv.at(41).play('@mf' + TUNE_HELD)
     hold_dim(c_sv, 44, low=0.45)
+
+    # ================================================================ the stop bars stop
+    # after the stamp only the kit, the fading held note and the bugles'
+    # pickup: the stabs (and B's shimmer, and the calm harp) leave with the
+    # bass, and the chords held into the bar let go on its first eighth
+    for x in (8, 16, 24, 44):
+        a, z = s.bar(x) - 1e-6, s.bar(x + 1) - 1e-6
+        for name in ('stab_hn', 'stab_tbn', 'stab_tpt', 'stab_str', 'stab_vc', 'shim_vn2',
+                     'shim_fl', 'c_harp'):
+            s.parts[name].notes[:] = [n for n in s.parts[name].notes if not a <= n.start < z]
+        for name in ('longch', 'c_pad'):
+            for n in s.parts[name].notes:
+                if a <= n.start < z:
+                    n.dur = min(n.dur, 0.5)
     return b.finish()

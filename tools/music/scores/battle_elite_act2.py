@@ -9,12 +9,14 @@ downbeat; nothing more until beat 3 two bars later, when the same chord
 comes again as a pickup and the next one lands on the following downbeat:
 five half notes and one, a cycle that crosses the bar line and marks every
 third bar (God-Shattering Star's intro, as verified: the old pitch is the
-pickup, the new pitch lands, and the chord bass rises by step). Their top
-spells the Empire's drill one pitch per stab, F, G-flat, F, E-flat, falling
-to D-flat at the next section: the motif Iron Rain hammers as a riff, here
-slow and structural. Under the four stabs of A the chord bass (tuba, the
-horns' lowest voice) climbs F, G-flat, A-flat, B-flat: i, bII, bVI, bVII
-over the tonic.
+pickup, the new pitch lands). Their top spells the Empire's drill one pitch
+per stab, F, G-flat, F, E-flat, falling to D-flat at the next section: the
+motif Iron Rain hammers as a riff, here slow and structural. In A the chord
+bass (tuba and timpani) spells it with the top, two octaves down: i, bII,
+bVI in first inversion, bVII, over the riff's F. The reference's bass rises
+by step under its stabs, and so does this one only in C (D-flat, E-flat, F,
+G): The Consecrated (Act III), stabs over a bass rising A, B-flat, C, D,
+owns that shape.
 
 The riff is the company's machinery: two low bars on F in the reversed
 gallop (16th, 16th, 8th), with one flat/natural pair inside it (G-flat in
@@ -25,20 +27,24 @@ key of its own, the whole texture moving with it), and the tag takes it
 to D-flat once more before the break brings it home. In A it keeps the
 stab cycle: two bars from each landing, then a bar's rest into which the
 pickup stab strikes (the machine stops, the line stamps, it starts
-again). That grouping is this piece's own.
+again). That grouping is this piece's own. The shudder's F-G-flat-F is the
+Empire's own sound (in the lore the drill is the root with its semitone
+shadow), so it is shared with Iron Rain's riff on purpose.
 
 The song is the identity a player takes away. Each of its four three-bar
 phrases is the stab's own gesture: after the pickup stab two eighths on
 the new pitch, then the octave above lands with the landing stab and is
 held (the riff's 16th-16th-8th at half speed), and a tail turns down and
-stops before the next pickup stab. The heads climb with the chord bass, F,
-G-flat, A-flat, B-flat, while the top of the stabs spells the drill:
+stops before the next pickup stab. The heads climb, F, G-flat, A-flat,
+B-flat (roots, then fifths), while the outer voices of the stabs spell the
+drill:
 
     F4 F4 | F5-- Eb | Db. C Db Eb | C (stab) Gb4 Gb4 | Gb5-- F | Eb. Db Eb F | Db ...
 
 Nowhere is there a V-i. The tonic arrives over its own pedal, from the
 flat side: D-flat minor into F minor (the tag), E-flat over G into F
-minor (the end of C), the bass rising by step rather than falling a fifth.
+minor (the end of C), the bass moving up a third or down a step, never
+falling a fifth.
 
 Leitmotif: the Empire's drill (SCORE.md), in the stabs of A, C and the
 tag. No Thread: this is the enemy's music. No choir.
@@ -53,10 +59,13 @@ bass rising D-flat, E-flat, F, G; the song again, re-harmonised over it
 trombones, an octave down; the strings take the riff's rhythm onto the
 chord, one section more each cycle; one long crescendo) | A2 40-51 (the
 tutti: the song on violins an octave up, trumpets and horns; trumpets on
-the stabs' top) | tag 52-54 (the drill falls to D-flat, the riff on
-D-flat, the break). Loop 4-54, 51 bars.
+the stabs' top; for the last phrase, whose top would be B-flat 6 and C7 at
+ff, the violins come down to the trumpets' octave from its pickup) | tag
+52-54 (the drill falls to D-flat, the riff on D-flat, the break). Loop 4-54,
+51 bars.
 
-calm: the riff on the celli alone, the stabs as muted horns, timpani and a
+calm: the riff on the celli alone, the stabs as soft horns far back (open:
+VPO3 has no mute), timpani and a
 harp strum, a side drum far off tapping the riff's gallop, the low strings
 holding the ground; the song on a clarinet (A1), the violins' shape on
 soft violins (B), the song on a bassoon (C), oboe and flute (A2).
@@ -69,8 +78,10 @@ intended. The G-flat stabs of A sound over the riff's F on purpose (bII
 over the tonic: the Empire's grind); the riff's notes are too short for
 lint to list.
 
-The VSCO sections are sampled unevenly (see `even` below): every line is
-levelled note by note so its zones don't jump.
+The VSCO instruments are sampled unevenly (see `even` below): a line the
+palette still plays from VSCO (in the house palette the calm mix's
+clarinet, bassoon and flute) is levelled note by note so its zones don't
+jump; the house palette's strings, brass and oboe are left as written.
 """
 import numpy as np
 
@@ -97,8 +108,9 @@ RIFF = ('F2s F2s F3e F2s Gb2s F2e F2s F2s F3e G2e Ab2e |'
 # head is the stab's own gesture: after the pickup stab two eighths on the
 # new pitch, then the octave above it lands with the landing stab and is
 # held (the riff's 16th-16th-8th at half speed). The heads climb F, G-flat,
-# A-flat, B-flat (the chord bass) while the stabs above spell the drill;
-# each tail turns down and stops before the next pickup stab.
+# A-flat, B-flat (the roots of F minor and G-flat, then the fifths of D-flat
+# and E-flat) while the stabs' outer voices spell the drill; each tail turns
+# down and stops before the next pickup stab.
 TUNE = """
 F5h. Eb5q | Db5q. C5e Db5q Eb5q | C5h rq Gb4e Gb4e |
 Gb5h. F5q | Eb5q. Db5e Eb5q F5q | Db5h rq Ab4e Ab4e |
@@ -120,15 +132,17 @@ PAD_A = ('[Ab3 C4]w | [F3 Ab3]w | [Ab3 C4]w | [Bb3 Db4]w | [Bb3 Db4]w | [Bb3 Db4
          ' [Db4 F4]w | [Db4 F4]w | [Db4 F4]w | [Bb3 Eb4]w | [Bb3 Eb4]w | [Bb3 Eb4]w |')
 
 # ------------------------------------------------------------------ stabs
-# chord voicings per instrument. In A the horns' top spells the drill (F4,
-# G-flat4, F4, E-flat4, then D-flat4) above a tuba rising F, G-flat, A-flat,
-# B-flat; in C the trumpets spell it an octave up over a real bass rising
-# D-flat, E-flat, F, G.
+# chord voicings per instrument. In A the drill is in the outer voices: the
+# horns' top spells it (F4, G-flat4, F4, E-flat4, then D-flat4) and the tuba
+# and timpani spell it with them below (F2, G-flat2, F2, E-flat2: D-flat in
+# first inversion, E-flat in root position), so the bass turns back where
+# The Consecrated's rises. In C the trumpets spell it an octave up over a
+# real bass rising D-flat, E-flat, F, G.
 VOICE = {
     'Fm':    dict(hn='Ab3 C4 F4', tbn='C3 F3', tuba='F2', timp='F2', vn='C5 F5'),
     'Gb':    dict(hn='Bb3 Db4 Gb4', tbn='Db3 Gb3', tuba='Gb2', timp='Gb2', vn='Db5 Gb5'),
-    'Db/Ab': dict(hn='Ab3 Db4 F4', tbn='Db3 Ab3', tuba='Ab2', timp='Ab2', vn='Db5 F5'),
-    'Eb/Bb': dict(hn='G3 Bb3 Eb4', tbn='Eb3 Bb3', tuba='Bb2', timp='Bb2', vn='Bb4 Eb5'),
+    'Db/F':  dict(hn='Ab3 Db4 F4', tbn='F3 Db4', tuba='F2', timp='F2', vn='Db5 F5'),
+    'Eb':    dict(hn='G3 Bb3 Eb4', tbn='Eb3 Bb3', tuba='Eb2', timp='Eb2', vn='Bb4 Eb5'),
     'Dbm':   dict(hn='E3 Ab3 Db4', tbn='Ab2 Db3', tuba='Db2', timp='Db2', vn='Ab4 Db5'),
     'Db5':   dict(tpt='Ab4 Db5', hn='Db4 Ab4', tbn='Gb3 Db4', tuba='Gb2', timp='Db2',
                   vn='Ab4 Db5'),
@@ -141,7 +155,7 @@ VOICE = {
     'Eb/G':  dict(tpt='Bb4 Eb5', hn='Eb4 G4 Bb4', tbn='G3 Bb3', tuba='G2', timp='G2', cb='G2',
                   vn='Bb5 Eb6'),
 }
-A_DRILL = ('Fm', 'Gb', 'Db/Ab', 'Eb/Bb')
+A_DRILL = ('Fm', 'Gb', 'Db/F', 'Eb')
 C_DRILL = ('Db', 'Ebm', 'FmC', 'Eb/G')
 
 INTRO, A1, B0, C0, A2, TAG = 1, 4, 16, 28, 40, 52
@@ -231,6 +245,7 @@ def build():
     s.reverb = dict(rt60=2.1, predelay_ms=24, wet_db=-1.5, damp=0.5)
     s.master = dict(lufs=-14.0, glue_ratio=1.6)
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
+    # (the section charts are the stabs' chords, bass included: A_DRILL, C_DRILL)
     b.section('intro', INTRO, chart('Fm:8 Dbm:4'))
     b.section('A1', A1, chart('Fm:12 Gb:12 Db/F:12 Eb:12'))
     b.section('B', B0, chart('Dbm:16 Bbm:16 Gbm:16'))
@@ -274,7 +289,9 @@ def build():
     svn = b.part('stab_vn', 'violins', role='accent', layer='full', art='stac', gain=3)
     scb = b.part('stab_cb', 'basses', role='low', art='stac', calm_db=-4)
     tmp = b.part('timp', 'timpani', role='timp', calm_db=0, gain=-2)
-    cst = b.part('cstab_hn', 'horns', role='section', layer='calm', art='mute', gain=3)
+    # (the calm stab's horns are open and soft, far back: muted, they fell
+    # back to the legacy VSCO horns, which VPO3 replaces everywhere else)
+    cst = b.part('cstab_hn', 'horns', role='section', layer='calm', gain=1, depth=0.85)
     perc = b.part('perc', 'orch_perc', role='accent', calm_db=-5, gain=2)
     boom = b.part('boom', 'boom', role='fx', layer='full', gain=4)
     charp = b.part('c_harp', 'harp', role='accent', layer='calm', gain=3)
@@ -290,7 +307,7 @@ def build():
         if 'cb' in v:
             scb.note(t, v['cb'], 1.0, vel=vel, art='stac')
         for p in v['hn'].split():
-            cst.note(t, p, 0.75, vel=vel - 0.22, art='mute')
+            cst.note(t, p, 0.75, vel=(0.5 if land else 0.44) + lift)
         # the calm stab: the horns' chord struck on the harp, low to high
         strum = sorted({parse_pitch(v['tuba']) + 12} | {parse_pitch(p) for p in
                        (v['hn'] + ' ' + v['vn']).split()})
@@ -363,7 +380,11 @@ def build():
     cbn.at(C0 - 1).play('@mf ' + csong, transpose=-12)
     # A2: the tutti, the song in three octaves
     vn8 = b.part('a2_vn', 'violins', role='lead', layer='full', art='sus')
-    vn8.at(A2).play('@ff ' + TUNE, transpose=12)
+    # (an octave up until the last phrase, whose B-flat 6 and C7 at ff were the
+    # harshest notes in the loop: from its pickup the violins join the trumpets)
+    tune_bars = [x.strip() + ' |' for x in TUNE.strip().rstrip('|').split('|')]
+    vn8.at(A2).play('@ff ' + ' '.join(tune_bars[:8]) + ' F5h rh |', transpose=12)
+    vn8.at(A2 + 8).play('@ff rh rq Bb4e Bb4e | ' + ' '.join(tune_bars[9:]))
     tpt.at(A2).play('@ff ' + TUNE)
     hn8 = b.part('tune_hn', 'horns', role='lead2', layer='full')
     hn8.at(A2 - 1).play('@ff ' + PICKUP + TUNE, transpose=-12)

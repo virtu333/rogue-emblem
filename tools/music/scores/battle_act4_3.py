@@ -8,8 +8,11 @@ The personal tune is only ever instrumental. It calls across an octave (F#
 to F#), answers down the scale, and in its second phrase climbs through the
 Dorian G-sharp, A and A-sharp to the leading tone, where it stops: the Hollow
 Sun, the spent name. It never arrives on B. Each time it returns it is a new
-colour in a new key, entered by one bar of the new key's bass alone: the
-clarinet in B minor, the piano in D minor, the horns in E minor.
+colour in a new key, and the band gets there first: a bar of the new key's
+ostinato, the timpani striking its tonic, before the tune comes in: the
+clarinet in B minor (over the intro's drone), the piano in D minor (bar 37),
+the horns in E minor (bar 54). The band does not stop for it: a bar where only
+the bass is left would be the stop bar The Emperor's Own owns in the same act.
 
 The choir sings only the public chant: one syllable on every quarter, a
 narrow creed that ends on its tonic as the tune cannot, over a marcato
@@ -25,17 +28,27 @@ strings and the kit drop the syncopated ostinato for plain quarters, which
 the 4/4 simply regroups, while the low brass swell on the held B major and,
 on the anthem's downbeat, the same players turn it minor (D-sharp to D).
 
-The anthem (4/4) is the creed made public, and its tune is the crowd's, not
-the person's: a march motto (dotted quarter, eighth, two quarters) that starts
-on B, climbs by step three times and ends on B, the note the personal tune
-never reaches. Under it, an eight-bar modal cycle, i - VI - VII - i - IV (E
-major, the Dorian colour) - IV - a bass that walks up by semitones under a
-held E major (G#, A, A#) - i. The walk-up is its only leading tone. Where the
-motto climbs, the bass climbs with it in tenths. It is built in three blocks,
-each entering on a downbeat: the low instruments with the men (a tenor
-trombone on their line); then everything else with the women (brass, strings,
-snare rolls, the gong); then the high winds. The loudest music is not the
-last: the third block falls away in its last bars, and the loop turns on the
+The anthem (4/4) is the Empire's march in the crowd's mouth, and its tune is
+the crowd's, not the person's: the imperial drill chant ("Left, and the
+line. / Right, and the line. / What is, remains."), which the lore has sung
+on the root and its semitone shadow (D and E-flat), here B and C. Its words
+give the rhythm, a long syllable and two short ones, then a held one: "Left"
+on B, "and the" on C and B, "line" a third up on D; "Right, and the line" a
+step higher on the same half-step (C#, D, C#, then F#); "What is, remains"
+climbing by whole steps to A and falling to B. It starts on B, climbs three
+times and ends on B, the note the personal tune never reaches. It has none
+of the Emperor's anthem (no pickup leap, no dotted head, no climb 1-2-3-4):
+his guard's standard, The Emperor's Own, raises that in the same act. Under
+it, an eight-bar modal cycle, i - VI - VII - i - IV (E major, the Dorian
+colour) - IV - a bass that walks up by semitones under a held E major (G#,
+A, A#) - i. The walk-up is its only leading tone. Under the motto's moving
+notes the bass moves a tenth below them rather than doubling them in
+octaves: down to A under the shadow's C (A minor for a beat) and back to B;
+down to D under F# and back to E under G#. It is built in three blocks, each
+entering on a downbeat: the low instruments with the men (a tenor trombone
+on their line); then everything else with the women (brass, strings, snare
+rolls, the gong); then the high winds. The loudest music is not the last:
+the third block falls away in its last bars, and the loop turns on the
 personal tune alone.
 
 After *Id (Purpose)*'s medley arrangement, as verified (refscores/id_purpose.md
@@ -45,18 +58,21 @@ the three-block build, the cycle's chromatic bass approach, and the
 decrescendo back to the tune. No melody is taken from it.
 
 Form (bars; 3/4 unless marked; 176): intro 1-4 | T1 5-20 (clarinet, B minor:
-eight bars alone over a B drone, then the ostinato gathers) | chant 21-36 |
-D bass 37 | T2 38-53 (piano, D minor, in two octaves) | E bass 54 | T3 55-70
+eight bars alone over a B drone, then the ostinato and the toms gather) |
+chant 21-36 | D bass 37 | T2 38-53 (piano, D minor, in two octaves) | E bass 54 | T3 55-70
 (horns, E minor, violins in long notes above; 67-70 the climb, the city
 falling back and then into step) | anthem 71-94 in 4/4 (block one 71-78,
 block two 79-86, block three 87-94, falling away from 91). Loop 5-94.
 
-The semitones lint reports are passing notes of the tune, the chant and the
-anthem's motto (a quarter each), and the walk-up's A and A-sharp under the
-held E major, which is the point of it.
+The semitones lint reports are passing notes of the tune and the chant (a
+quarter each); in bar 71 the downbeat boom still ringing B under the
+anthem's first C, the root and its shadow at once, which is the drill
+chant's own sound; and the walk-up's A and A-sharp under the held E major,
+which is the point of it.
 
-Leitmotif: the Hollow Sun (the personal tune). No Thread: the tune is the
-goddess's, not Sera's.
+Leitmotif: the Hollow Sun (the personal tune). The anthem's head carries the
+Empire's half-step (the root and its shadow, as the imperial drill chant is
+sung), not the whole drill. No Thread: the tune is the goddess's, not Sera's.
 
 calm: the same form heard from a side street: the ostinato plucked
 (pizzicato celli and basses on the beat, harp off it), the tune in the same
@@ -97,13 +113,20 @@ def chant_phrase(k):
     return ' '.join(CHANT_BARS[4 * k:4 * k + 4])
 
 
-# the anthem (4/4, the women's octave; the men sing it an octave down): a
-# march motto (dotted quarter, eighth, two quarters) that starts on the tonic,
-# climbs by step three times and ends on it: the crowd owns the note the
-# personal tune never reaches, and shares none of its shape
+# the anthem (4/4, the women's octave; the men sing it an octave down): the
+# imperial drill chant made public. "Left, and the line. / Right, and the
+# line. / What is, remains." is sung on the root and its semitone shadow (in
+# the lore, D and E-flat): here B and the C above it, a long syllable and two
+# short ones (B, C, B), and "line" a third up; the second line answers a step
+# higher on the same half-step (C#, D, C#, then F#); "What is, remains"
+# climbs by whole steps to A and falls to B. It starts on the tonic, climbs
+# three times and ends on it: the crowd owns the note the personal tune never
+# reaches, and shares none of its shape. (No pickup leap, no dotted head, no
+# climb 1-2-3-4: that is the Emperor's anthem, which his guard's standard
+# already turns minor in the same act.)
 ANTHEM = """
-B4q. B4e C#5q D5q | E5h D5h | C#5q. C#5e D5q E5q | F#5w |
-E5q. E5e F#5q G#5q | A5h G#5h | F#5h E5h | B4w |
+B4h C5q B4q | D5w | C#5h D5q C#5q | F#5w |
+E5h F#5q G#5q | A5h G#5h | F#5h E5h | B4w |
 """
 ANTHEM_BARS = [x.strip() + ' |' for x in ANTHEM.strip().rstrip('|').split('|')]
 
@@ -113,12 +136,14 @@ def anthem_upto(n):
     return ' '.join(ANTHEM_BARS[:n])
 
 
-# the cycle: i VI VII i IV IV, the walk-up under a held E major, i. Where the
-# motto climbs (bars 1, 3, 5) the bass climbs with it in tenths, so its
-# passing notes are harmonised, not rubbed against the chord
-CH_ANTHEM = chart('Bm:2 A/C#:1 Bm/D:1 G A:2 D/F#:1 A/E:1 Bm E:2 D/F#:1 E/G#:1 Esus4:2 E:2 '
+# the cycle: i VI VII i IV IV, the walk-up under a held E major, i. Under the
+# motto's moving notes the bass moves too, a tenth below them, instead of
+# doubling them in octaves: in bar 1 it steps down to A under the shadow's C
+# (A minor for a beat) and back; in bar 5, down to D under F-sharp and back to
+# E under G-sharp; in bar 3 it falls against the line (A, F-sharp, E)
+CH_ANTHEM = chart('Bm:2 Am:1 Bm:1 G A:2 D/F#:1 A/E:1 Bm E:2 D:1 E:1 Esus4:2 E:2 '
                   'E/G#:2 E/A:1 E/A#:1 Bm')
-ANTHEM_BASS = [('B', 'B', 'C#', 'D'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E', 'F#', 'G#'), 'E',
+ANTHEM_BASS = [('B', 'B', 'A', 'B'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E', 'D', 'E'), 'E',
                ('G#', 'G#', 'A', 'A#'), 'B']
 
 # The GeneralUser 'Choir Aahs' samples are out of tune by zone, and their pitch
@@ -129,13 +154,16 @@ ANTHEM_BASS = [('B', 'B', 'C#', 'D'), 'G', ('A', 'A', 'F#', 'E'), 'B', ('E', 'E'
 # duration, separately for the short notes and the held ones; the 'oohs'
 # program reads within 2 cents by the same method. It is applied as a pitch
 # bend on each note of the choir's single lines (render key_cents).
-CHOIR_AAH_CENTS = {47: 39, 49: 6, 50: 5, 52: -6, 54: -39, 55: -39, 57: -40, 59: 30, 61: 12,
-                   62: 12, 64: 16, 66: 17, 67: 17, 68: 2, 69: 2, 71: 1, 73: -6, 74: -6,
-                   76: 25, 78: 5, 80: 4}
+# (C4 and C5 short, C#4 and C#5 held, the anthem's half-step shadow, were
+# measured the same way when the anthem took them, as quarters and halves at
+# 176: C4 +33, C5 -6, C#4 -12, C#5 -6)
+CHOIR_AAH_CENTS = {47: 39, 49: 6, 50: 5, 52: -6, 54: -39, 55: -39, 57: -40, 59: 30, 60: 33,
+                   61: 12, 62: 12, 64: 16, 66: 17, 67: 17, 68: 2, 69: 2, 71: 1, 72: -6, 73: -6,
+                   74: -6, 76: 25, 78: 5, 80: 4}
 CHOIR_FIX = {k: -v for k, v in CHOIR_AAH_CENTS.items()}
 # ...and for the held notes (0.6 s and longer), which sit in the samples' sustain
-CHOIR_AAH_CENTS_LONG = {47: 31, 50: -25, 54: -6, 59: -2, 62: 0, 64: 13, 66: 9, 68: -3, 69: -3,
-                        71: 0, 74: -5, 76: 0, 78: 4, 80: 9, 81: 3}
+CHOIR_AAH_CENTS_LONG = {47: 31, 50: -25, 54: -6, 59: -2, 61: -12, 62: 0, 64: 13, 66: 9, 68: -3,
+                        69: -3, 71: 0, 73: -6, 74: -5, 76: 0, 78: 4, 80: 9, 81: 3}
 CHOIR_FIX_LONG = {k: -v for k, v in CHOIR_AAH_CENTS_LONG.items()}
 
 # the marcato ostinato inside a 3/4 bar: on, off, off, on, off
@@ -215,14 +243,20 @@ def stagger(part, bar, ch, lo, hi, vel=0.5, pattern='0 1 2 3 2 1'):
 
 
 def anthem_bass(part, bar, vel=0.72, art=None, lo='B1'):
-    """Staccato quarters on the cycle's bass, one per beat; bar 7 walks up."""
+    """Staccato quarters on the cycle's bass, one per beat; bar 7 walks up.
+    Each bar starts at or above `lo`; inside a bar each note is the octave
+    nearest the last (bar 1's A steps down under the motto, not up a seventh)."""
     s = part.score
     base = P(lo)
     for i, b_ in enumerate(ANTHEM_BASS):
         t = s.bar(bar + i)
         notes = b_ if isinstance(b_, tuple) else (b_,) * 4
+        prev = None
         for k, name in enumerate(notes):
             p = base + ((P(name + '1') - base) % 12)
+            if prev is not None:
+                p = prev + ((p - prev + 6) % 12) - 6
+            prev = p
             part.note(t + k, p, 0.5, vel=vel + (0.08 if k == 0 else 0.0), art=art)
 
 
@@ -356,16 +390,18 @@ def build():
         part.notes[:] = [n for n in part.notes if n.start < s.bar(94) - 1e-6]
     o_vc.at(94).play('%sus @mp [B2 F#3]w |')
     o_cb.at(94).play('%sus @mp B1w |')
-    # the anthem's downbeat is heavy: low brass, timpani, crash and drum
+    # the anthem's downbeat is heavy: low brass, timpani, crash and drum (the
+    # boom takes the low B: the trombones stop at E2)
     hit_b = b.part('an_hit', 'trombones', layer='full', role='accent', art='stac', gain=3)
-    for p_ in 'B1 B2 F#3 B3 D4'.split():
+    for p_ in 'B2 F#3 B3 D4'.split():
         hit_b.note(s.bar(71), P(p_), 1.0, vel=0.92, art='stac', rearticulate=True)
     tuba = b.part('tuba', 'tuba', layer='full', role='low')
     low_tbn = b.part('an_tbn', 'trombones', layer='full', role='pad')
     # (written out: the tuba's lowest samples, E1 and G1, are out of tune, so
-    # its E and G sit an octave up; the walk-up stays low)
+    # its E and G sit an octave up; the walk-up stays low). Under the motto's
+    # climbs it steps down and back with the bass, a tenth under the tune
     for sec in ('A1', 'A2', 'A3'):
-        tuba.at(b.bar(sec)).play('@mf B1h C#2q D2q | G2w | A1h F#2q E2q | B1w | E2h F#2q G#2q |'
+        tuba.at(b.bar(sec)).play('@mf B1h A1q B1q | G2w | A1h F#2q E2q | B1w | E2h D2q E2q |'
                                  ' E2w | G#1h A1q A#1q | B1w |')
         pad(low_tbn, b.bar(sec), CH_ANTHEM, n=2, lo=47, hi=60, vel=0.55)
     # the men's tune has a brass edge: a tenor trombone with them (block one)
@@ -436,8 +472,10 @@ def build():
     s.parts['kit_snare'].opts['eq'] = [('peak', 220, 1.0, -3.0), ('peak', 900, 1.0, -2.0),
                                        ('peak', 5000, 0.8, 3.0)]
     b.full_only.update(b.kit.names())
-    for bar in range(17, 21):
-        b.kit.play(bar, GATHER, vel=0.55 + 0.05 * (bar - 17))
+    # the toms gather with the ostinato (13-20), rising with it; T1's first
+    # phrase (5-12) stays the clarinet's alone
+    for bar in range(13, 21):
+        b.kit.play(bar, GATHER, vel=0.45 + 0.036 * (bar - 13))
     b.kit.play(20, {'snare': '......xxxXXX'}, vel=0.7, ramp=0.5)
     for start, n in ((21, 16), (37, 17), (54, 13)):
         for i in range(n):
