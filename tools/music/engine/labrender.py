@@ -66,6 +66,10 @@ LEG_ATTACK = [(1, 42, 0.18), (43, 90, 0.10), (91, 127, 0.05)]
 LEG_RELEASE = [(0, 42, 0.5), (43, 84, 0.25), (85, 127, 0.12)]
 LEG_CC = 20
 LEG_BAND_CC = {'slow': 20, 'medium': 64, 'fast': 110}
+# the incoming legato note starts its attack at 40% (not from silence): with the
+# old note's exponential fade, a crossfade from zero sank the line by 4-6 dB for
+# ~60 ms at every slur (measured on the title theme); from 40% the dip is ~1-2 dB
+LEG_START = 40
 
 
 def leg_band(vel: int) -> str:
@@ -106,7 +110,8 @@ def _legato(legato_path, accent_path=None, accent_where=None, transition='tuned'
             'ampeg_attack': first_attack, 'ampeg_vel2attack': round(-0.9 * first_attack, 3), **cc}))
         for lo, hi, att in LEG_ATTACK:
             parts.append(sfzlab.with_opcodes(leg, 'group', {'lovel': lo, 'hivel': hi,
-                                                            'ampeg_attack': att, **cc}))
+                                                            'ampeg_attack': att,
+                                                            'ampeg_start': LEG_START, **cc}))
     if accent_path:
         accent = sfzlab.regions_only(sfzlab.load(accent_path), dict(accent_where or {}))
         parts.append(sfzlab.with_opcodes(accent, 'group', {'trigger': 'first', 'lovel': 70}))
