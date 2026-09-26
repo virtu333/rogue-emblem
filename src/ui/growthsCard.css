@@ -1,0 +1,77 @@
+/* Roster Growths card: a bar per stat. High growths burn ember, middling ones are
+   gilt, low ones stay quiet. */
+.mr-growths summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mr-growths-title {
+  font: var(--re-pf-10, 10px)/1.5 var(--re-pixel);
+  color: var(--re-accent-text);
+  text-transform: uppercase;
+}
+.mr-growths-note {
+  margin: 0 0 10px;
+  font: 13px/1.4 var(--re-body);
+  color: var(--re-muted);
+}
+.mr-growths-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mr-growth {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+}
+.mr-growth-stat {
+  font: 700 12px/1 var(--re-body);
+  letter-spacing: 0.6px;
+  color: var(--re-muted);
+  white-space: nowrap;
+}
+.mr-growth-mark {
+  margin-left: 3px;
+  font-size: 9px;
+  color: var(--re-accent);
+  vertical-align: 1px;
+}
+.mr-growth-bar {
+  position: relative;
+  height: 8px;
+  background: var(--re-sunken);
+  border: 1px solid var(--re-line-soft);
+  overflow: hidden;
+}
+.mr-growth-fill {
+  display: block;
+  height: 100%;
+  background: var(--re-line-strong);
+}
+.mr-growth-value {
+  font: var(--re-pf-9, 9px)/1 var(--re-pixel);
+  text-align: right;
+  color: var(--re-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mr-growth.is-mid .mr-growth-fill {
+  background: var(--re-gilt);
+}
+.mr-growth.is-mid .mr-growth-value,
+.mr-growth.is-mid .mr-growth-stat {
+  color: var(--re-text);
+}
+.mr-growth.is-high .mr-growth-fill {
+  background: var(--re-ember-fill-deep);
+  background-color: var(--re-accent);
+  box-shadow: 0 0 6px var(--re-ember-glow-soft);
+}
+.mr-growth.is-high .mr-growth-value,
+.mr-growth.is-high .mr-growth-stat {
+  color: var(--re-accent-text);
+}

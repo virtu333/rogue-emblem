@@ -1,5 +1,6 @@
 import { ContextHelp } from './ContextHelp.js';
 import { renderFormationPanel, startButton } from './FormationPanel.js';
+import { objectiveHelp, terrainHelp } from './helpTopics.js';
 import { locateUnit, nextReadyUnit, readyUnits } from './UnitLocator.js';
 import { compactBattleObjective, sidebarCounters } from './battleSidebarDisplay.js';
 import { battlePlace } from './placeDisplay.js';
@@ -776,7 +777,7 @@ export class MobileBattleHUD {
           s,
           this.root,
           'Battle objective',
-          [...objectiveText.split('\n'), s._bossPresence?.summaryLine?.()].filter(Boolean),
+          objectiveHelp(objectiveText, s._bossPresence?.summaryLine?.(), s.battleConfig?.objective),
           () => {
             this.help = null;
             this.lastSnapshot = '';
@@ -845,11 +846,17 @@ export class MobileBattleHUD {
           const help = this.button(
             'Terrain details ⓘ',
             () => {
-              this.help = new ContextHelp(s, this.root, terrain.name, [terrain.special], () => {
-                this.help = null;
-                this.lastSnapshot = '';
-                this.sync();
-              });
+              this.help = new ContextHelp(
+                s,
+                this.root,
+                terrain.name,
+                terrainHelp(terrain, moveType),
+                () => {
+                  this.help = null;
+                  this.lastSnapshot = '';
+                  this.sync();
+                },
+              );
             },
             'mb-terrain-help',
           );
