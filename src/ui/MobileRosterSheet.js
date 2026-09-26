@@ -51,6 +51,7 @@ import {
   getSkillDisplayNames,
 } from '../engine/UnitManager.js';
 import { unitPortrait } from './unitPortrait.js';
+import { growthsCard } from './growthsCard.js';
 import { crestElement } from './crestArt.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
@@ -469,23 +470,7 @@ export class MobileRosterSheet {
       const affix = this.gameData.affixes?.affixes?.find((a) => a.id === id);
       this.card(affix?.name || id, affix?.description || '');
     }
-    if (unit.growths && unit.faction !== 'enemy') {
-      const details = el('details', null, 'mr-card');
-      details.append(
-        el('summary', 'Growths'),
-        el(
-          'p',
-          'Each percentage is the chance of gaining +1 in that stat on a level-up. At least one stat increases: if every roll fails, the highest-growth stat gains +1.',
-        ),
-        el(
-          'p',
-          Object.entries(unit.growths)
-            .map(([stat, value]) => `${stat} ${value}%`)
-            .join(' · '),
-        ),
-      );
-      this.body.append(details);
-    }
+    if (unit.growths && unit.faction !== 'enemy') this.body.append(growthsCard(unit.growths));
   }
   // Deeds & Epithets: the titles this unit earned, the title first, then newest, with the
   // run's tallies and its Oath (sworn, or the one a promotion would swear).
