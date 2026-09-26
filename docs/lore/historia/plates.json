@@ -1,0 +1,8 @@
+{
+  "spending": { "source": "spending-t1" },
+  "ford": { "source": "ford-t1" },
+  "hallow": { "source": "hallow-t1" },
+  "hearth": { "source": "hearth-t1" },
+  "unsworn": { "source": "unsworn-t3" },
+  "night_before": { "source": "night_before-t3" }
+}
