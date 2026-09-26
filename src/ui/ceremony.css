@@ -54,6 +54,15 @@
 .ce-layer {
   --ce-scale: 1;
   --ce-exit: 300ms;
+  /* The notch/home-bar insets that reach into this layer. A layer framed on
+     the map or a panel already sits inside the safe area on the sides it
+     does not share with the screen, so the raw env() insets would be counted
+     twice there (--ce-frame-* = the layer's distance from each screen edge,
+     set by CeremonyLayer.applyFrame). Use these, never env(), in layers. */
+  --ce-safe-l: max(0px, env(safe-area-inset-left, 0px) - var(--ce-frame-l, 0px));
+  --ce-safe-r: max(0px, env(safe-area-inset-right, 0px) - var(--ce-frame-r, 0px));
+  --ce-safe-t: max(0px, env(safe-area-inset-top, 0px) - var(--ce-frame-t, 0px));
+  --ce-safe-b: max(0px, env(safe-area-inset-bottom, 0px) - var(--ce-frame-b, 0px));
   position: fixed;
   overflow: hidden;
   pointer-events: none;

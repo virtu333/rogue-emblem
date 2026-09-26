@@ -6,9 +6,9 @@ import { estimateGridPitch } from './grid.mjs';
 import { render } from './render.mjs';
 import { paletteFor, unlightGrade, splitImage } from './treat.mjs';
 import { idleFrames, attackFrames } from './motion.mjs';
-import { rollIdentity, hashString, addHeadband } from './identity.mjs';
+import { hashString, addHeadband, makeBald } from './identity.mjs';
 import { SLOT } from './slots.mjs';
-import { ROSTER, RECRUITS, bakeEntries, poseFor } from '../roster.mjs';
+import { ROSTER, bakeEntries, poseFor, peopleForClass } from '../roster.mjs';
 
 const sheets = new Map();
 const natives = new Map();
@@ -69,8 +69,10 @@ export async function bakeFrames(entry, { density = 1.5 } = {}) {
   // a person's hair and skin read the same in every design: their shading is centred
   // on the identity ramp (a pale-haired design would otherwise wear only its top steps)
   if (entry.identity?.hair) sprite = centreShades(sprite, SLOT.hair, 2);
-  if (entry.identity?.skin) sprite = centreShades(sprite, SLOT.skin, 3);
+  if (entry.identity?.skin) sprite = centreShades(sprite, SLOT.skin, 3, { top: 0.3 });
   if (entry.identity?.band) sprite = addHeadband(sprite);
+  // after the band, so a circlet stays on the scalp
+  if (entry.identity?.bald) sprite = makeBald(sprite);
   const draw = (sp) => {
     const img = render(sp, palette);
     return entry.corrupt ? splitImage(img, hashString(entry.key || entry.source)) : img;
@@ -82,46 +84,34 @@ export async function bakeFrames(entry, { density = 1.5 } = {}) {
   return { idle, attack, still: idle[0], sprite, palette, trace: t, pose };
 }
 
-/** The six seeded identities shared by every generic class: [{ seed, design, colours }]. */
-export function identities(count = RECRUITS.count) {
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const seed = hashString(`${RECRUITS.seedPrefix}${i}`);
-    // the designed cast when there is one (designs alternate A / B so both reviewed
-    // designs of every class are equally common), else colours rolled from the seed
-    const id = RECRUITS.cast?.[i]
-      ? { ...RECRUITS.cast[i] }
-      : { ...rollIdentity(seed, 2), design: i % 2 };
-    out.push({
-      seed,
-      identity: id,
-      design: id.design,
-      colours: { hair: id.hair, skin: id.skin, accent: id.band, band: !!id.band },
-    });
-  }
-  return out;
-}
-
-/** Every runtime bake entry (lords, classes x identities / factions, bosses). */
+/** Every runtime bake entry (lords, classes x portrait people / factions, bosses). */
 export function allEntries() {
-  return bakeEntries(identities());
+  return bakeEntries();
 }
 
-/** A class line's seeded people: [{ seed, identity, base: entry, promoted: entry }]. */
+/** A class line's people: [{ person, base: entry, promoted: entry }]. */
 export function recruitEntries(baseKey = 'myrmidon', promotedKey = 'swordmaster') {
   const all = allEntries();
-  return identities().map((id, i) => ({
-    seed: id.seed,
-    identity: id.identity,
-    base: all.find((e) => e.key === `${baseKey}-${i}`),
-    promoted: all.find((e) => e.key === `${promotedKey}-${i}`),
+  return peopleForClass(baseKey).map((person) => ({
+    person,
+    base: all.find((e) => e.key === `${baseKey}-${person}`),
+    promoted: all.find((e) => e.key === `${promotedKey}-${person}`),
   }));
 }
 
-/** Shift a slot's shades so their median sits on `target` (0..4), keeping the spread. */
-export function centreShades(sp, slot, target) {
-  const shades = [];
-  for (let i = 0; i < sp.w * sp.h; i++) if (sp.slot[i] === slot) shades.push(sp.shade[i]);
+/**
+ * Shift a slot's shades so their median sits on `target` (0..4), keeping the spread.
+ * `top` (0..1] measures the median over the upper part of the figure only (skin: the
+ * face, so a design drawn dark-faced with pale palms still gets the person's face tone).
+ */
+export function centreShades(sp, slot, target, { top = 1 } = {}) {
+  const b = sp.bounds();
+  const maxY = b ? b.y + Math.max(1, Math.round(b.height * top)) : sp.h;
+  let shades = [];
+  for (let i = 0; i < sp.w * sp.h; i++)
+    if (sp.slot[i] === slot && Math.floor(i / sp.w) < maxY) shades.push(sp.shade[i]);
+  if (!shades.length)
+    for (let i = 0; i < sp.w * sp.h; i++) if (sp.slot[i] === slot) shades.push(sp.shade[i]);
   if (!shades.length) return sp;
   shades.sort((a, b) => a - b);
   const delta = target - shades[shades.length >> 1];

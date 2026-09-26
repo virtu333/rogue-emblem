@@ -11,7 +11,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 | # | Change | What disappears | Precondition |
 |---|---|---|---|
 | 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (not started) | Specs that rot because nothing runs them | none |
-| 1 | One definition of the resolved-action continuation | Duplicate validation of the same shape | none |
+| 1 | One definition of the resolved-action continuation (done 2026-09-26) | Duplicate validation of the same shape | none |
 | 2 | Read-only attack forecast (equipment) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
 | 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
 | 4 | Presentation fields off domain units; equipped weapon by identity | Serialization deny-lists; `relinkWeapon` repair | #2 |
@@ -19,7 +19,10 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 
 **Serialize changes to the battle lifecycle.** Use one implementation owner at a time for `BattleScene`, checkpoints, RNG and persistence. Other agents can investigate, write independent fixtures, or review. Hold new mechanics that add persistent battle state until steps 2–4 settle.
 
-## 1. Resolved-action continuation (small)
+## 1. Resolved-action continuation (small) — done 2026-09-26
+
+**Done:** `src/engine/ActionContinuation.js` holds the one `readActionContinuation` (with the 8192 cap); `BattlePresentationCheckpoint` re-exports it and `validateBattleState` rejects exactly what it returns null for. `isBattleEntityId` is exported from `BattleEntityIdentity.js` and replaces every copy of the id regex (a side effect: an id wrapped in an array no longer passes by string coercion). `tests/ActionContinuation.test.js` pins both readers to one table of cases. `pendingCommittedAction` is still unchecked by `validateBattleState` (see below).
+
 
 The same continuation shape `{kind, unitId, unitName, skipCanto?, gambitTriggered?}` is validated twice:
 
