@@ -76,9 +76,13 @@ export function portraitBattlesEnabled(env = globalThis) {
   return portraitBattlesAvailable(env) && getPortraitBattlePreference(env);
 }
 
-/** Settings shows the toggle on phones, and only where it can take effect. */
+/**
+ * Settings shows the toggle on phones, only where it can take effect, and only to a
+ * player who opted in with a `?portrait=1` link: while only battles turn upright the
+ * beta is not offered to everyone, but a tester can always switch it off again.
+ */
 export function showPortraitBattleSetting({ mobile, env = globalThis } = {}) {
-  return Boolean(mobile) && portraitBattlesAvailable(env);
+  return Boolean(mobile) && portraitBattlesAvailable(env) && getPortraitBattlePreference(env);
 }
 
 export const PORTRAIT_BATTLE_CHANGE_EVENT = 'emblem-rogue:portrait-battles';

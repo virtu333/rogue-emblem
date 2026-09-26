@@ -5,7 +5,7 @@
 
 ## Try it on a phone
 
-1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. On a phone browser tab it is also in **Menu → Settings → Portrait battles (beta)**.
+1. Open the game in the phone's browser (Safari or Chrome, not the installed app; see Limits) with `?portrait=1` added to the URL, e.g. `https://<site>/?portrait=1`. The choice is remembered on that device; `?portrait=0` turns it off. Once opted in, a phone browser tab also shows **Menu → Settings → Portrait battles (beta)** to switch it off; the toggle is not offered to anyone who has not opted in by link, since only battles turn upright so far (the rest of the run still asks for landscape).
 2. Play normally in landscape. Once a battle begins, turn the phone upright.
 3. The board re-opens upright at the next moment you are free to act (your turn, nothing selected). Turn it back to landscape the same way.
 4. Deployment, rewards and the route map still ask for landscape.

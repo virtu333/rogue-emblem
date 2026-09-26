@@ -128,16 +128,24 @@ describe('landscape-locked shells', () => {
     expect(isLandscapeLockedShell({ matchMedia: broken })).toBe(false);
   });
 
-  it('shows the Settings toggle only on a phone browser tab', () => {
-    const tab = { matchMedia: displayMode('browser') };
+  it('shows the Settings toggle only on a phone browser tab that opted in by link', () => {
+    const localStorage = memoryStorage();
+    localStorage.setItem(PORTRAIT_BATTLE_STORAGE_KEY, 'on');
+    const tab = { localStorage, matchMedia: displayMode('browser') };
     expect(showPortraitBattleSetting({ mobile: true, env: tab })).toBe(true);
     expect(showPortraitBattleSetting({ mobile: false, env: tab })).toBe(false);
-    expect(showPortraitBattleSetting({ mobile: true, env: { Capacitor: nativeApp() } })).toBe(
-      false,
-    );
     expect(
-      showPortraitBattleSetting({ mobile: true, env: { matchMedia: displayMode('standalone') } }),
+      showPortraitBattleSetting({ mobile: true, env: { localStorage, Capacitor: nativeApp() } }),
     ).toBe(false);
+    expect(
+      showPortraitBattleSetting({
+        mobile: true,
+        env: { localStorage, matchMedia: displayMode('standalone') },
+      }),
+    ).toBe(false);
+    // Not offered to a phone that never opted in.
+    const fresh = { localStorage: memoryStorage(), matchMedia: displayMode('browser') };
+    expect(showPortraitBattleSetting({ mobile: true, env: fresh })).toBe(false);
   });
 
   it('ignores a stored opt-in in a locked shell and keeps it for the browser tab', () => {
