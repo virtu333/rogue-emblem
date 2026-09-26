@@ -42,10 +42,14 @@ async function boot(page, { portrait = false, seeded = false } = {}) {
     ),
   );
   // The mercenary board rolls with Math.random: seed it so a layout comparison
-  // always sees the same number of cards.
+  // always sees the same number of cards. Other code draws from Math.random every
+  // frame, so openMercBoard restarts the stream (__reseedRandom) just before the roll.
   if (seeded)
     await page.addInitScript(() => {
       let a = 1234567;
+      window.__reseedRandom = () => {
+        a = 1234567;
+      };
       Math.random = () => {
         a = (a + 0x6d2b79f5) | 0;
         let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -209,6 +213,13 @@ async function openMercBoard(page, preview) {
     s.runManager.gold = 5000;
     const { ColosseumOverlay } = await import('/src/ui/ColosseumOverlay.js');
     window.arena = new ColosseumOverlay(s, s.runManager, s.gameData);
+    // A seeded page rolls the board from the start of its stream, however many
+    // frames ran before the tap.
+    const browse = window.arena._showMercBrowse.bind(window.arena);
+    window.arena._showMercBrowse = (...args) => {
+      window.__reseedRandom?.();
+      return browse(...args);
+    };
     window.arena.show(s.runManager.getAvailableNodes()[0], () => {});
   });
   await page.getByRole('button', { name: 'Mercenary board', exact: true }).click();
