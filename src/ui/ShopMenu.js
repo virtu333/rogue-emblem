@@ -260,7 +260,7 @@ export class ShopMenu {
     // The item, large: its painting (or pixel icon at 2x) beside the name and its kind.
     const head = el('div', null, 'shop-hero');
     const title = el('div', null, 'shop-hero-title');
-    // What it is ("Silver Lance", "Relic Sword"), then its rules as tags.
+    // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
     const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
     title.append(el('h3', item.name));

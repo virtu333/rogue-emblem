@@ -320,8 +320,17 @@ function ensureMetaRegistry(registry, gameData, preset) {
   return meta;
 }
 
+/**
+ * Dev routes (`?devScene=`, `?qaStep=`) run in the dev server and in Netlify deploy
+ * previews (netlify.toml sets VITE_DEV_ROUTES there, so a PR can be tried straight
+ * from its preview link). The production site never sets it.
+ */
+export function devRoutesEnabled(env = import.meta.env) {
+  return Boolean(env?.DEV) || env?.VITE_DEV_ROUTES === 'true';
+}
+
 export function parseDevStartupConfig(search, options = {}) {
-  const devMode = options.devMode ?? import.meta.env.DEV;
+  const devMode = options.devMode ?? devRoutesEnabled();
   if (!devMode) return null;
   const params = new URLSearchParams(search || '');
   const qaStep = parsePositiveInt(params.get('qaStep'));

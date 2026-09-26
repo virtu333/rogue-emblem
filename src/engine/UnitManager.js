@@ -16,6 +16,7 @@ import {
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { unitBaseClassName } from './ClassLineage.js';
 import { applyForge } from './ForgeSystem.js';
 import {
   rollAndApplyTraits,
@@ -160,8 +161,9 @@ export function checkLevelUpSkills(unit, classesData, droppedSkills = []) {
   }
 
   // Promoted units can still learn missed base-class class skills at promoted level 10+.
-  if (unit.tier === 'promoted' && unit.level >= 10 && cls?.promotesFrom) {
-    const baseClass = classesData.find((c) => c.name === cls.promotesFrom);
+  const lineBase = unit.tier === 'promoted' ? unitBaseClassName(unit, classesData) : null;
+  if (unit.tier === 'promoted' && unit.level >= 10 && lineBase) {
+    const baseClass = classesData.find((c) => c.name === lineBase);
     if (baseClass?.learnableSkills) {
       for (const entry of baseClass.learnableSkills) {
         tryLearn(entry.skillId);
@@ -286,7 +288,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
   };
 
   // Secondary throwable for melee classes
-  const SECONDARY_THROWABLE = { Knight: 'Javelin', Fighter: 'Hand Axe' };
+  const SECONDARY_THROWABLE = { Knight: 'Javelin', Soldier: 'Javelin', Fighter: 'Hand Axe' };
   const secondaryName = SECONDARY_THROWABLE[classData.name];
   if (secondaryName) {
     const secondary = allWeapons.find((w) => w.name === secondaryName);
@@ -1187,6 +1189,10 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
     }
   }
 
+  // Remember the line this unit promotes from: a promoted class can be reached from
+  // several bases (Duelist from Myrmidon or Soldier), and mastery, missed class
+  // skills and faces follow the unit's own line (ClassLineage.js).
+  if (unit.tier !== 'promoted' && unit.className) unit.baseClass = unit.className;
   // Update class info; sync generic enemy names (name === className) to promoted class.
   if (unit.name === unit.className) {
     unit.name = promotedClassData.name;

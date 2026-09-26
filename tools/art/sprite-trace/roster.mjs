@@ -298,6 +298,8 @@ const ENEMY = { main: 'red', hair: null, armor: true, eyes: false };
  */
 export const GENERIC_CLASSES = [
   ['myrmidon', 'myrmidon', 'infantry'],
+  // generated for the class added 2026-09-26 (tools/art/sprite-trace/gen-class-sheet.mjs)
+  ['soldier', 'soldier', 'infantry'],
   ['mercenary', 'mercenary', 'infantry'],
   ['thief', 'thief', 'crouch'],
   ['fighter', 'fighter', 'infantry'],
@@ -808,6 +810,7 @@ export function reviewEntry(key, entries) {
 // Great Knight hold swords, the Battle Monk an axe, the Hunter a sword with the bow slung)
 const POSE_BY_CLASS = {
   myrmidon: 'sword',
+  soldier: 'lance',
   mercenary: 'sword',
   // daggers and a dance read as a lunge at map size
   thief: 'none',

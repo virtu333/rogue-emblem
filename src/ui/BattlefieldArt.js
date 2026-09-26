@@ -26,6 +26,7 @@
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture } from './BattleContrast.js';
 import { TILE_SIZE } from '../utils/constants.js';
+import { displayLayout } from '../utils/boardOrientation.js';
 import { proceduralTerrainRenderer } from './proceduralTerrainRenderer.js';
 import {
   battlefieldArtEnabled,
@@ -216,13 +217,29 @@ export class BattlefieldTerrainPainting {
     return this;
   }
 
-  _input() {
+  // Renderers paint the board as drawn: on a rotated (portrait) board they receive the
+  // layout re-indexed by display cell, so shores, walls and bridges join the neighbors
+  // they are drawn beside and upright art (trees, forts) stays upright.
+  _dims() {
     const g = this.grid;
     return {
-      mapLayout: g.mapLayout,
+      cols: g.board?.displayCols ?? g.cols,
+      rows: g.board?.displayRows ?? g.rows,
+    };
+  }
+
+  _cell(col, row) {
+    return this.grid.board?.toDisplay?.(col, row) || { col, row };
+  }
+
+  _input() {
+    const g = this.grid;
+    const { cols, rows } = this._dims();
+    return {
+      mapLayout: displayLayout(g.mapLayout, g.board),
       terrainData: g.terrainData,
-      cols: g.cols,
-      rows: g.rows,
+      cols,
+      rows,
       biome: g.biome || null,
       seed: terrainPresentationSeed(g.mapLayout, g.biome),
       softenGrass: this.softenGrass,
@@ -245,16 +262,18 @@ export class BattlefieldTerrainPainting {
       zoomable: this.zoomable,
     });
     this.cell = cell;
+    const dims = this._dims();
     this.canvas =
       cell === (renderer.cellSize || WEATHERED_TILE_SIZE)
         ? this.source
-        : makeCanvas(grid.cols * cell, grid.rows * cell);
-    this._resample(0, 0, grid.cols, grid.rows);
+        : makeCanvas(dims.cols * cell, dims.rows * cell);
+    this._resample(0, 0, dims.cols, dims.rows);
     if (scene.textures.exists(this.key)) scene.textures.remove(this.key);
     this.texture = scene.textures.addCanvas(this.key, this.canvas);
     if (!this.texture) return false;
-    for (let row = 0; row < grid.rows; row++) {
-      for (let col = 0; col < grid.cols; col++) {
+    // Frames are keyed by drawn cell.
+    for (let row = 0; row < dims.rows; row++) {
+      for (let col = 0; col < dims.cols; col++) {
         this.texture.add(`${col},${row}`, 0, col * cell, row * cell, cell, cell);
       }
     }
@@ -289,13 +308,17 @@ export class BattlefieldTerrainPainting {
   }
 
   _isPainted(col, row) {
-    return this.result?.painted ? this.result.painted(col, row) : true;
+    const cell = this._cell(col, row);
+    return this.result?.painted ? this.result.painted(cell.col, cell.row) : true;
   }
 
+  // (col, row) are game coordinates: the tile object lives at grid.tiles[row][col] and
+  // shows the frame of the cell it is drawn in.
   _applyTile(col, row) {
     const tile = this.grid.tiles?.[row]?.[col];
     if (!tile || !this._isPainted(col, row)) return;
-    const frame = `${col},${row}`;
+    const drawn = this._cell(col, row);
+    const frame = `${drawn.col},${drawn.row}`;
     // Ballista cells are containers (ground + siege engine overlay); the painted cell
     // already contains the engine, so paint the ground child and hide the overlay.
     const target = tile.setTexture ? tile : tile.list?.find?.((child) => child?.setTexture);
@@ -341,15 +364,16 @@ export class BattlefieldTerrainPainting {
     const pending = this._pending;
     this._pending = null;
     if (!pending?.size || !this.painted || this.destroyed) return;
-    const { grid } = this;
     const cells = [...pending].map((k) => {
       const [col, row] = k.split(',').map(Number);
       return { col, row };
     });
     const input = this._input();
+    // Pending cells are game coordinates (a 3x3 block stays a 3x3 block when turned).
+    const drawnCells = cells.map(({ col, row }) => this._cell(col, row));
     if (typeof this.renderer.renderCells === 'function') {
-      this.renderer.renderCells(this.resources, input, this.source, cells, this.result);
-      for (const { col, row } of cells) this._resample(col, row, 1, 1);
+      this.renderer.renderCells(this.resources, input, this.source, drawnCells, this.result);
+      for (const { col, row } of drawnCells) this._resample(col, row, 1, 1);
     } else {
       const next = this.renderer.render(this.resources, input);
       if (!next?.canvas) return;
@@ -357,7 +381,8 @@ export class BattlefieldTerrainPainting {
       const ctx = this.source.getContext('2d');
       ctx.clearRect(0, 0, this.source.width, this.source.height);
       ctx.drawImage(next.canvas, 0, 0);
-      this._resample(0, 0, grid.cols, grid.rows);
+      const dims = this._dims();
+      this._resample(0, 0, dims.cols, dims.rows);
     }
     this.texture.refresh();
     for (const { col, row } of cells) this._applyTile(col, row);

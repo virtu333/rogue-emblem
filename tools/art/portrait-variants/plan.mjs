@@ -18,7 +18,12 @@ export const slug = (name) => String(name).toLowerCase().replace(/ /g, '_');
 
 // Cross promotions: a Pegasus Knight may become a Wyvern Lord and a Wyvern
 // Rider a Falcon Knight, but those classes' defaults belong to their own line.
-const CROSS = { pegasus: ['Wyvern Lord'], wyvern: ['Falcon Knight'] };
+// A Soldier promotes into the myrmidon and cavalier lines' classes (Duelist, Paladin).
+const CROSS = {
+  pegasus: ['Wyvern Lord'],
+  wyvern: ['Falcon Knight'],
+  soldier: ['Duelist', 'Paladin'],
+};
 
 function isHome(line, className) {
   return !CROSS[line]?.includes(className);

@@ -247,3 +247,28 @@ export async function padTap(page, index) {
     index,
   );
 }
+
+/**
+ * A real run that fields 3+ units opens Formation before turn 1 (dev routes skip it
+ * unless formation=1). Take the default placement and start, so a spec about
+ * something else reaches turn 1; no-op when the battle starts without it.
+ */
+export async function finishFormation(page) {
+  await page.waitForFunction(
+    () => {
+      const s = window.__emblemRogueGame?.scene?.getScene('Battle');
+      return (
+        s?.battleState === 'PLAYER_IDLE' ||
+        (s?.battleState === 'DEPLOY_POSITIONING' && s._formation?.ready === true)
+      );
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  await page.evaluate(() => {
+    const f = window.__emblemRogueGame.scene.getScene('Battle')._formation;
+    if (!f?.ready) return;
+    f.autoPlace();
+    if (!f.start()) throw new Error('Formation could not start after Auto-place');
+  });
+}

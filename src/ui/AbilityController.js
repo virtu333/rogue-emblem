@@ -7,6 +7,7 @@ import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // execution. State lives on the scene (abilityTiles/_pendingAbility) so the
 // shared ESC/cancel recovery paths in BattleScene can clean it up.
 import { TILE_SIZE } from '../utils/constants.js';
+import { hasRoomRightOf } from '../utils/boardOrientation.js';
 import {
   getActionAbilities,
   getAbilityUsageCount,
@@ -96,8 +97,9 @@ export class AbilityController {
 
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 280;
-    const menuX =
-      unit.col < scene.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
+    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     scene.actionMenu = [];
@@ -289,8 +291,9 @@ export class AbilityController {
 
     const pos = scene.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 240;
-    const menuX =
-      unit.col < scene.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
+    const menuX = hasRoomRightOf(scene.grid, unit.col, unit.row)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     scene.actionMenu = [];

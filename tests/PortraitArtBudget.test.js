@@ -19,8 +19,10 @@ const PC98 = path.join(ROOT, 'assets/portraits/pc98');
 const ids = Object.keys(manifest.portraits);
 const defaults = ids.filter((id) => !manifest.portraits[id].variant);
 const variants = ids.filter((id) => manifest.portraits[id].variant);
-// Before portrait variety: 94 defaults in 4 atlases + 94 baked 192 textures.
-const DEFAULTS_BEFORE_VARIETY = 94;
+// Class defaults: 94 before portrait variety (in 4 atlases + 94 baked 192 textures),
+// +2 for the Soldier class (generic_soldier, enemy_soldier; 2026-09-26). Variety adds
+// no defaults; a new class adds its two.
+const DEFAULTS_BEFORE_VARIETY = 96;
 
 describe('portrait variety texture budget', () => {
   it('ships many more faces than defaults', () => {
@@ -40,8 +42,9 @@ describe('portrait variety texture budget', () => {
       bootBytes += meta.width * meta.height * 4;
     }
     bootBytes += baked.length * 192 * 192 * 4;
-    // 3.6 MB of atlases + 13.9 MB of baked 192s, unchanged by variety.
-    expect(bootBytes / 1e6).toBeLessThan(17.6);
+    // 3.6 MB of atlases + 14.2 MB of baked 192s: unchanged by variety (the Soldier's
+    // two defaults added 0.3 MB).
+    expect(bootBytes / 1e6).toBeLessThan(17.8);
   });
 
   it('renders every figure at its display size (never above 3x what is shown)', async () => {

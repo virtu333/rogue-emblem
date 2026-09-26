@@ -7,6 +7,7 @@ import {
   portraitIdForUnit,
   usePc98,
 } from './portraitArt.js';
+import { promotedFromName } from '../engine/ClassLineage.js';
 
 // PC-98 variant per portrait class, matching its CSS box (mobileRoster.css):
 // roster list faces 32px; the roster summary 40px, 64px on large desktops.
@@ -52,7 +53,7 @@ export function unitPortrait(scene, gameData, unit, className, portraitKey) {
   }
   const normalize = (name) => name.toLowerCase().replace(/ /g, '_');
   const named = gameData.lords?.some((lord) => lord.name === unit.name);
-  const base = gameData.classes?.find((entry) => entry.name === unit.className)?.promotesFrom;
+  const base = promotedFromName(unit, gameData.classes);
   const prefix = unit.faction === 'enemy' ? 'portrait_enemy_' : 'portrait_generic_';
   const fallbackCandidates = named
     ? [`portrait_lord_${normalize(unit.name)}`]

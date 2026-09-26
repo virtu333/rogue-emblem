@@ -182,6 +182,14 @@
       "The empire offered a fortune for my mount. I answered from altitude.",
       "Something stirs under the fens and my wyvern won't eat. I'd like to know why.",
       "Twenty winters on the mountain. I came down because the smoke wouldn't stop rising."
+    ],
+    "Soldier": [
+      "Turned my coat inside out at the ford. Figured you'd rather have a spear than a number.",
+      "They gave me a lance and a line to stand in. I kept the lance.",
+      "Levy roll had me as forty-one. My mother had me as something else. Ask her.",
+      "I've marched to their drum for two years. Yours can't be worse.",
+      "Point me at the gap in the line. I've been the gap. I know where it goes.",
+      "No horse, no plate, no name on the roll anymore. Still got the spear, though."
     ]
   },
   "lordRecruitLines": {
@@ -7038,6 +7046,34 @@
           "Hunter. The woods have been calling me back for years.",
           "No more fighting for the highest bidder. Now I track, and I wait.",
           "A bow again. My family would say I finally came to my senses."
+        ]
+      },
+      "Soldier": {
+        "levelUp": {
+          "normal": [
+            "Grip's steadier. The drill finally stuck, just not for their side.",
+            "The spear's lighter today. Or I'm heavier. Either way, it reaches.",
+            "Hold, thrust, recover. I could do it asleep. I nearly did, on the march.",
+            "One more step I won't give back. That's a soldier's whole trade.",
+            "They taught me to stand in a line. You're teaching me why, {leader}.",
+            "Sergeant said I'd never amount to much. Sergeant was wrong about most things.",
+            "A little stronger. A little harder to shove. The line gets a little longer."
+          ],
+          "perfect": [
+            "Everything at once. If the levy had trained me this well, I'd never have left.",
+            "Faster, tougher, sharper. {leader}, find me a wall to hold.",
+            "Forty-one on the roll. First on the field. Write that down somewhere."
+          ],
+          "blank": [
+            "Nothing new. Drill's drill. Some days you just march.",
+            "Same spear, same arms. Still standing in the same place, anyway.",
+            "Nothing today. The line held. That's plenty for a soldier."
+          ]
+        },
+        "fallen": [
+          "Don't write my number. Write my name.",
+          "Held... as long as I could. Close the gap.",
+          "Tell the column I didn't break. Not this time."
         ]
       }
     },

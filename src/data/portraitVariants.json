@@ -137,6 +137,51 @@
         "Great Knight": "generic_great_knight__knight_e"
       }
     },
+    "soldier_a": {
+      "line": "soldier",
+      "gender": "m",
+      "renders": {
+        "Soldier": "generic_soldier",
+        "Duelist": "generic_duelist__soldier_a",
+        "Paladin": "generic_paladin__soldier_a"
+      }
+    },
+    "soldier_b": {
+      "line": "soldier",
+      "gender": "f",
+      "renders": {
+        "Soldier": "generic_soldier__soldier_b",
+        "Duelist": "generic_duelist__soldier_b",
+        "Paladin": "generic_paladin__soldier_b"
+      }
+    },
+    "soldier_c": {
+      "line": "soldier",
+      "gender": "m",
+      "renders": {
+        "Soldier": "generic_soldier__soldier_c",
+        "Duelist": "generic_duelist__soldier_c",
+        "Paladin": "generic_paladin__soldier_c"
+      }
+    },
+    "soldier_d": {
+      "line": "soldier",
+      "gender": "f",
+      "renders": {
+        "Soldier": "generic_soldier__soldier_d",
+        "Duelist": "generic_duelist__soldier_d",
+        "Paladin": "generic_paladin__soldier_d"
+      }
+    },
+    "soldier_e": {
+      "line": "soldier",
+      "gender": "m",
+      "renders": {
+        "Soldier": "generic_soldier__soldier_e",
+        "Duelist": "generic_duelist__soldier_e",
+        "Paladin": "generic_paladin__soldier_e"
+      }
+    },
     "cavalier_a": {
       "line": "cavalier",
       "gender": "m",
@@ -544,12 +589,35 @@
     "Berserker": ["fighter_a", "fighter_b", "fighter_c", "fighter_d", "fighter_e"],
     "Myrmidon": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
     "Swordmaster": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
-    "Duelist": ["myrmidon_a", "myrmidon_b", "myrmidon_c", "myrmidon_d", "myrmidon_e"],
+    "Duelist": [
+      "myrmidon_a",
+      "myrmidon_b",
+      "myrmidon_c",
+      "myrmidon_d",
+      "myrmidon_e",
+      "soldier_a",
+      "soldier_b",
+      "soldier_c",
+      "soldier_d",
+      "soldier_e"
+    ],
     "Knight": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
     "General": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
     "Great Knight": ["knight_a", "knight_b", "knight_c", "knight_d", "knight_e"],
+    "Soldier": ["soldier_a", "soldier_b", "soldier_c", "soldier_d", "soldier_e"],
+    "Paladin": [
+      "soldier_a",
+      "soldier_b",
+      "soldier_c",
+      "soldier_d",
+      "soldier_e",
+      "cavalier_a",
+      "cavalier_b",
+      "cavalier_c",
+      "cavalier_d",
+      "cavalier_e"
+    ],
     "Cavalier": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
-    "Paladin": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
     "Dark Knight": ["cavalier_a", "cavalier_b", "cavalier_c", "cavalier_d", "cavalier_e"],
     "Archer": ["archer_a", "archer_b", "archer_c", "archer_d", "archer_e"],
     "Sniper": ["archer_a", "archer_b", "archer_c", "archer_d", "archer_e"],
@@ -687,7 +755,8 @@
       "enemy_wyvern_rider__b",
       "enemy_wyvern_rider__c",
       "enemy_wyvern_rider__d"
-    ]
+    ],
+    "Soldier": ["enemy_soldier", "enemy_soldier__b", "enemy_soldier__c", "enemy_soldier__d"]
   },
   "names": {
     "Ada": "f",
@@ -722,6 +791,7 @@
     "Brandt": "m",
     "Branwen": "f",
     "Brenna": "f",
+    "Brisa": "f",
     "Brogan": "m",
     "Brunna": "f",
     "Brynn": "f",
@@ -748,6 +818,7 @@
     "Edda": "f",
     "Eirik": "m",
     "Elara": "f",
+    "Elsbet": "f",
     "Elysia": "f",
     "Emeric": "m",
     "Emmeline": "f",
@@ -760,6 +831,7 @@
     "Garran": "m",
     "Garret": "m",
     "Garrick": "m",
+    "Garrow": "m",
     "Genevra": "f",
     "Gerd": "f",
     "Godric": "m",
@@ -771,6 +843,7 @@
     "Halvar": "m",
     "Hamond": "m",
     "Hana": "f",
+    "Harl": "m",
     "Hector": "m",
     "Hedda": "f",
     "Helena": "f",
@@ -794,6 +867,7 @@
     "Jaro": "m",
     "Jessa": "f",
     "Jorun": "f",
+    "Jory": "m",
     "Kael": "m",
     "Kestra": "f",
     "Leona": "f",
@@ -802,6 +876,7 @@
     "Liesl": "f",
     "Linnet": "f",
     "Lira": "f",
+    "Lise": "f",
     "Lothar": "m",
     "Lowen": "m",
     "Lucan": "m",
@@ -821,6 +896,7 @@
     "Maud": "f",
     "Melodia": "f",
     "Merric": "m",
+    "Merritt": "m",
     "Mira": "f",
     "Mirel": "f",
     "Miriel": "f",
@@ -829,6 +905,7 @@
     "Neve": "f",
     "Nico": "m",
     "Nyx": "f",
+    "Odila": "f",
     "Oren": "m",
     "Oriane": "f",
     "Orla": "f",
@@ -852,6 +929,7 @@
     "Roderick": "m",
     "Roland": "m",
     "Rowena": "f",
+    "Rufus": "m",
     "Runa": "f",
     "Sabeth": "f",
     "Sabine": "f",
@@ -896,6 +974,7 @@
     "Wendel": "m",
     "Wilmot": "m",
     "Wren": "f",
+    "Wynn": "f",
     "Yara": "f",
     "Ysabel": "f",
     "Ysolt": "f",

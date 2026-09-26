@@ -86,10 +86,13 @@ describe('variant table', () => {
     .filter((c) => !['Zombie', 'Revenant', 'Dragon', 'Dragon Lord', 'Entity'].includes(c.name))
     .map((c) => c.name);
 
-  it('gives every recruitable class four to six people (ten for the cross-promotion flyers)', () => {
+  it('gives every recruitable class four to six people (ten where two lines promote into it)', () => {
+    // Cross promotions: flyers (Pegasus Knight <-> Wyvern Rider) and the Soldier, whose
+    // Duelists and Paladins keep their own faces beside the myrmidon and cavalier lines.
+    const shared = ['Falcon Knight', 'Wyvern Lord', 'Duelist', 'Paladin'];
     for (const name of playerClasses) {
       const people = portraitPeopleForClass(name);
-      const max = ['Falcon Knight', 'Wyvern Lord'].includes(name) ? 10 : 6;
+      const max = shared.includes(name) ? 10 : 6;
       expect(people.length, name).toBeGreaterThanOrEqual(4);
       expect(people.length, name).toBeLessThanOrEqual(max);
       expect(new Set(people).size, name).toBe(people.length);
