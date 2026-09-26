@@ -116,9 +116,12 @@ Captures and the as-built tour: [`art-direction/items/production/`](../art-direc
 | Shop / forge / caravan / ruins market (`ShopMenu`) | socketed 32 px icons on every row; detail leads with the hero beside kicker, name and numbers; lore as a quote (no "Item story" tap); vignette (shop, forge on the Forge tab, caravan, ruins) |
 | Church / ruins sanctuary (`ChurchMenu`) | vignette band / backdrop, candle flicker |
 | Colosseum (`ArenaMenu`) | the gate behind every arena screen, torch glow |
-| Roster equipment, consumables, accessories, convoy, team scrolls (`MobileRosterSheet`; also the unit details sheet) | item cards lead with the socketed icon; About this item shows the hero beside the story (lazy) |
+| Roster equipment, consumables, accessories, convoy, team scrolls (`MobileRosterSheet`; also the unit details sheet) | item cards lead with the socketed icon; About this item shows the hero beside the story (lazy). The equipped accessory and the shared pool are full item cards (name as title, equipped badge, picture and story; until 2026-09-26 the equipped one was a generic "Equipped accessory" card with no art or lore); team scrolls tell their story too |
 | Army upgrades (`MobileUpgradeMenu`) | icons, gem pips, the purchase moment |
 | Battle rewards (`MobileRewards`, `choiceCards.itemArtSlot`) | each reward card's art slot (`.ch-item-art[data-item-art-hook="item-icon"]`) shows the socketed icon on phones (48 px; 32 px in a five-card draft) and the painted 96 px hero on desktop, replacing the deleted `icon_*` images; the reveal; forge/imbue weapon steps carry the weapon's icon and picture |
+| Battle rewards, notes and follow-up steps | the chosen reward's lore under the cards (as the shop sets it); the equip / send / forge-recipient steps show the reward's picture beside the choice; imbue rows wear their stone's icon |
+| Battle trade (`BattleTradeMenu`) and the phone action rail's Equip / Item submenus (`MobileBattleHUD`) | trade rows lead with the 32 px socketed icon (`re-row--item`); submenu rows with a 16 px icon before the name (the row keeps its height and its one-line brief) |
+| Compendium (`ReferenceMenu` via `compendiumEntries`) | Arms, Items and Bless entries lead with their icon; the detail floats the item's picture (painted hero, else the 2x pixel icon) with the text wrapping beside it; accessories read as in the shop, not as effect codes |
 | Blessing select (`RunSetupMenu`) | tarot cards carry the shrine painting, the tier IV frame and the wax cost seal |
 | Boot | the 37 `icon_*` textures are no longer loaded; files deleted |
 
