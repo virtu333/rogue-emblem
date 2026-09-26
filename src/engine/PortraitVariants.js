@@ -166,10 +166,34 @@ export function backfillPortraitVariants(roster = [], { fallen = [], seed } = {}
 }
 
 /**
+ * The person a player-side unit shows in its current class, or null (lords,
+ * bosses, enemies, classes without people). This is the one resolver for
+ * both the portrait (variantPortraitId) and the map sprite
+ * (TracedSprites.tracedKeyFor), so the face and the figure are always the
+ * same person. Units without a stored choice (previews, units that never
+ * passed an assignment point) get a stable hash-based person that is not
+ * persisted. A unit reclassed out of its line shows a stable counterpart of
+ * the same gender in the new line.
+ */
+export function displayedPerson(unit) {
+  if (!unit || wearsOwnPortrait(unit) || unit.faction === 'enemy') return null;
+  const person = isPortraitPerson(unit.portraitVariant)
+    ? unit.portraitVariant
+    : choosePortraitPerson({ name: unit.name, className: unit.className, seed: 0 });
+  if (!person) return null;
+  if (table.identities[person].renders[unit.className]) return person;
+  // Reclassed into another line: a stable counterpart of the same gender.
+  const pool = portraitPeopleForClass(unit.className);
+  if (!pool.length) return null;
+  const same = pool.filter((p) => table.identities[p].gender === table.identities[person].gender);
+  const pick = (same.length ? same : pool)[stableHash(person) % (same.length || pool.length)];
+  return table.identities[pick].renders[unit.className] ? pick : null;
+}
+
+/**
  * The portrait id a unit shows through its variant, or null (lords, bosses,
- * classes without variants). Units without a stored choice (previews, units
- * that never passed an assignment point) get a stable hash-based face that
- * is not persisted.
+ * classes without variants). Player-side units show displayedPerson's
+ * drawing in their class; enemies one of their class's enemy faces.
  */
 export function variantPortraitId(unit) {
   if (!unit || wearsOwnPortrait(unit)) return null;
@@ -180,16 +204,6 @@ export function variantPortraitId(unit) {
       `${unit.battleEntityId || unit.name}|${unit.level ?? ''}`,
     );
   }
-  const person = isPortraitPerson(unit.portraitVariant)
-    ? unit.portraitVariant
-    : choosePortraitPerson({ name: unit.name, className: unit.className, seed: 0 });
-  if (!person) return null;
-  const own = table.identities[person].renders[unit.className];
-  if (own) return own;
-  // Reclassed into another line: a stable counterpart of the same gender.
-  const pool = portraitPeopleForClass(unit.className);
-  if (!pool.length) return null;
-  const same = pool.filter((p) => table.identities[p].gender === table.identities[person].gender);
-  const pick = (same.length ? same : pool)[stableHash(person) % (same.length || pool.length)];
-  return table.identities[pick].renders[unit.className] || null;
+  const person = displayedPerson(unit);
+  return person ? table.identities[person].renders[unit.className] : null;
 }

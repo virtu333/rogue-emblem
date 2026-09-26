@@ -59,11 +59,14 @@ Since 2026-09-24 the battlefield draws **traced map sprites** by default and the
 portraits are the **PC-98 set**, so neither rebuilt set is loaded in normal play:
 
 - **Traced sprites** (`tools/art/sprite-trace`, `docs/art-direction/sprites-v3/`): every
-  class × faction, the lords and the bosses — 335 sprites × 6 frames — are trimmed and
-  packed into two ≤ 2048 px atlas pages (`assets/sprites/traced/`, ~0.8 MB of PNG,
-  **25 MB decoded**). Each sprite registers as its own texture whose frames borrow the
-  page's `TextureSource`, so the pages are the only pixels in memory (no per-sprite
-  canvases). The tracer reads its references from `docs/` (class sheets, candidates,
+  class × faction, the lords and the bosses — 312 sprites × 6 frames since the portrait
+  people (2026-09-26: one sprite per class × portrait person instead of six seeded
+  recruits per class; 335 and 24.8 MB before) — are trimmed and packed into two ≤ 2048 px
+  atlas pages (`assets/sprites/traced/`, ~0.77 MB of PNG, **23.1 MB decoded**). Each
+  sprite registers as its own texture whose frames borrow the page's `TextureSource`, so
+  the pages are the only pixels in memory (no per-sprite canvases). The one exception is
+  an NPC person shown in a battle: its verdigris frames are recoloured from the player
+  sprite into a small canvas (`TracedSprites.npcTexture`, about 0.1 MB decoded each) rather than baked. The tracer reads its references from `docs/` (class sheets, candidates,
   `docs/art/rebuilt-sprite-sources/`), never from `assets/`.
 - **Rebuilt sprites** load only with the dev switch `?spriteArt=rebuilt` (baked 64/128 px
   files, as above).

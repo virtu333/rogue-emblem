@@ -28,6 +28,13 @@ export const FAMILIES = {
     L >= 42 && ((C >= 34 && inHue(h, 72, 102)) || (C >= 48 && inHue(h, 62, 102))),
   brownHair: ({ L, C, h }) => C >= 9 && inHue(h, 30, 80) && L >= 16 && L <= 70,
   redHair: ({ L, C, h }) => C >= 30 && inHue(h, 18, 58) && L >= 20 && L <= 72,
+  // the class sheets' red-haired player B: saturated enough that skin and leather miss it
+  vividRedHair: ({ L, C, h }) => C >= 38 && inHue(h, 12, 50) && L >= 18 && L <= 70,
+  // pale hair drawn in the cloth's hue (lavender curls under a blue hat)
+  light: ({ L }) => L >= 45,
+  // dark auburn hair next to warm skin (the skin sits at hue 45-70)
+  auburnHair: ({ L, C, h }) => C >= 15 && inHue(h, 340, 40) && L <= 72,
+  dark: ({ L }) => L < 45,
   blondHair: ({ L, C, h }) => C >= 20 && inHue(h, 65, 100) && L >= 50,
   silverHair: ({ L, C }) => C < 14 && L >= 50,
   blackHair: ({ L, C }) => L < 38 && C < 18,
@@ -486,10 +493,10 @@ export function segment(native, recipe = {}) {
     }
   }
 
-  // --- eyes: dark or iris-coloured clusters inside the face, with skin below them ---
   let face = null;
   {
-    // face = bounding box of skin inside the head box
+    // face = bounding box of skin inside the head box, as the colour rules and recipe
+    // overrides found it (a person fit that extends skin to the shoulders must not move it)
     let x0 = Infinity,
       y0 = Infinity,
       x1 = -1,
@@ -503,6 +510,79 @@ export function segment(native, recipe = {}) {
       }
     if (x1 >= 0) face = [x0, y0, x1 + 1, y1 + 1];
   }
+
+  // person fits (person-fits.mjs `rects`): relabel boxes (seeds for the colour matches)
+  for (const r of recipe.fitRects || []) {
+    const [x0, y0, x1, y1] = boxPx(r.box, bb);
+    const from = r.from ? new Set(r.from.map((s) => SLOT[s])) : null;
+    for (let y = Math.max(0, y0); y < Math.min(h, y1); y++)
+      for (let x = Math.max(0, x0); x < Math.min(w, x1); x++) {
+        const p = y * w + x;
+        if (!opaque[p] || (isBlade[p] && r.slot !== 'metal')) continue;
+        // line work only when asked for (black hair reads as ink)
+        if (slot[p] === SLOT.ink && !from?.has(SLOT.ink)) continue;
+        if (from && !from.has(slot[p])) continue;
+        if (r.where && !FAMILIES[r.where](px(p))) continue;
+        slot[p] = SLOT[r.slot];
+      }
+  }
+
+  // --- colour matches: a material wherever the figure repeats its colours ---------------
+  // (bare arms drawn in the face's skin tones, a ponytail in the crown's hair tones). The
+  // reference colours are the pixels already in `slot` (skin: inside the head box; or
+  // those inside `ref`); pixels of the `from` slots within `dE` of one of them join it,
+  // anywhere in `box` or, with `grow`, only when connected to the material.
+  for (const m of recipe.match || []) {
+    const target = SLOT[m.slot];
+    const refBox = m.ref ? boxPx(m.ref, bb) : null;
+    const inBox = (p, b) => {
+      const x = p % w,
+        y = (p / w) | 0;
+      return x >= b[0] && x < b[2] && y >= b[1] && y < b[3];
+    };
+    const refs = new Map();
+    for (let p = 0; p < n; p++) {
+      if (slot[p] !== target) continue;
+      if (refBox ? !inBox(p, refBox) : m.slot === 'skin' && !inHead(p)) continue;
+      const k = [0, 1, 2].map((i) => Math.round(lab[p * 3 + i])).join(',');
+      refs.set(k, [lab[p * 3], lab[p * 3 + 1], lab[p * 3 + 2]]);
+    }
+    const ref = [...refs.values()];
+    if (!ref.length) continue;
+    const from = new Set((m.from || ['leather', 'accent', 'sub']).map((s) => SLOT[s]));
+    const box = m.box ? boxPx(m.box, bb) : [0, 0, w, h];
+    const dE2 = (m.dE ?? 8) ** 2;
+    const near = (p) =>
+      ref.some(
+        (r) =>
+          (lab[p * 3] - r[0]) ** 2 + (lab[p * 3 + 1] - r[1]) ** 2 + (lab[p * 3 + 2] - r[2]) ** 2 <
+          dE2,
+      );
+    const joins = (p) => opaque[p] && !isBlade[p] && from.has(slot[p]) && inBox(p, box) && near(p);
+    if (!m.grow) {
+      for (let p = 0; p < n; p++) if (joins(p)) slot[p] = target;
+      continue;
+    }
+    const queue = [];
+    for (let p = 0; p < n; p++) if (slot[p] === target) queue.push(p);
+    while (queue.length) {
+      const p = queue.pop();
+      const x = p % w,
+        y = (p / w) | 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const X = x + dx,
+            Y = y + dy;
+          if ((!dx && !dy) || X < 0 || Y < 0 || X >= w || Y >= h) continue;
+          const q = Y * w + X;
+          if (!joins(q)) continue;
+          slot[q] = target;
+          queue.push(q);
+        }
+    }
+  }
+
+  // --- eyes: dark or iris-coloured clusters inside the face, with skin below them ---
   const eyes = [];
   if (recipe.eyes !== false && face) {
     const [fx0, fy0, fx1, fy1] = face;

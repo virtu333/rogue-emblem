@@ -78,3 +78,27 @@ export function addHeadband(sp) {
   }
   return out;
 }
+
+/** Top row of the face (first skin row inside the hair's vertical span), or -1. */
+export function faceTopRow(sp) {
+  const hair = sp.bounds((s) => s === SLOT.hair);
+  if (!hair) return -1;
+  for (let y = hair.y; y < hair.y + hair.height + 2; y++)
+    for (let x = hair.x; x < hair.x + hair.width; x++) if (sp.at(x, y) === SLOT.skin) return y;
+  return -1;
+}
+
+/**
+ * Bald crown: hair above the brow becomes scalp (skin, one step lighter: the crown
+ * catches the light); hair from the brow down (sides, a beard) keeps the hair ramp.
+ * A band or circlet drawn before stays on the scalp.
+ */
+export function makeBald(sp) {
+  const top = faceTopRow(sp);
+  if (top < 0) return sp;
+  const out = sp.clone();
+  for (let y = 0; y < top; y++)
+    for (let x = 0; x < sp.w; x++)
+      if (out.at(x, y) === SLOT.hair) out.set(x, y, SLOT.skin, Math.min(4, out.shadeAt(x, y) + 1));
+  return out;
+}

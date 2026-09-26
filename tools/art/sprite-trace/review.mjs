@@ -141,10 +141,10 @@ if (want('recruits')) {
       b = (await bakeFrames(r.promoted)).still;
     top.push(on(grass, a).crop(8, 4, 80, 70).scale(3));
     bot.push(on(grass, b).crop(8, 4, 80, 70).scale(3));
-    const id = r.identity;
+    const id = r.base.person;
     names.push(
       await label(
-        `${'AB'[id.design]} ${id.hair.replace('hair', '')}\n${id.skin.replace('skin', '')}${id.band ? ` ${id.band.replace('Cloth', '')} band` : ''}`,
+        `${id.id} ${id.design.toUpperCase()} ${id.hair.replace('hair', '')}\n${id.skin.replace('skin', '')}${id.bald ? ' bald' : ''}`,
         240,
         10,
       ),

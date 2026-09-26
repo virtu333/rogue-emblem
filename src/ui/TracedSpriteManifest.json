@@ -5,11 +5,21 @@
   "footRow": 66,
   "frames": ["idle0", "idle1", "idle2", "idle3", "windup", "strike"],
   "pages": ["traced-atlas-0.png", "traced-atlas-1.png"],
+  "npcSwap": [
+    ["0c0f1a", "0b1315"],
+    ["10182a", "102120"],
+    ["121b2d", "112422"],
+    ["1c2f4f", "1b4239"],
+    ["2c4c77", "2d6450"],
+    ["4574a0", "4d8b66"],
+    ["77a5c6", "86b27b"],
+    ["b8d8e6", "c3d69a"]
+  ],
   "sprites": {
     "lord_edric": {
       "page": 1,
-      "x": 709,
-      "y": 477,
+      "x": 1099,
+      "y": 264,
       "w": 46,
       "h": 50,
       "step": 48,
@@ -20,8 +30,8 @@
     },
     "lord_edric_promoted": {
       "page": 0,
-      "x": 655,
-      "y": 1656,
+      "x": 337,
+      "y": 1482,
       "w": 57,
       "h": 52,
       "step": 59,
@@ -32,8 +42,8 @@
     },
     "lord_sera": {
       "page": 1,
-      "x": 1789,
-      "y": 975,
+      "x": 1771,
+      "y": 714,
       "w": 39,
       "h": 45,
       "step": 41,
@@ -44,8 +54,8 @@
     },
     "lord_sera_promoted": {
       "page": 1,
-      "x": 997,
-      "y": 477,
+      "x": 1387,
+      "y": 264,
       "w": 43,
       "h": 50,
       "step": 45,
@@ -55,9 +65,9 @@
       "kind": "mage"
     },
     "lord_kira": {
-      "page": 1,
-      "x": 1453,
-      "y": 160,
+      "page": 0,
+      "x": 1783,
+      "y": 1804,
       "w": 40,
       "h": 51,
       "step": 42,
@@ -67,9 +77,9 @@
       "kind": "infantry"
     },
     "lord_kira_promoted": {
-      "page": 1,
-      "x": 1705,
-      "y": 160,
+      "page": 0,
+      "x": 1459,
+      "y": 1963,
       "w": 42,
       "h": 51,
       "step": 44,
@@ -80,8 +90,8 @@
     },
     "lord_voss": {
       "page": 1,
-      "x": 1267,
-      "y": 477,
+      "x": 1657,
+      "y": 264,
       "w": 56,
       "h": 50,
       "step": 58,
@@ -91,9 +101,9 @@
       "kind": "infantry"
     },
     "lord_voss_promoted": {
-      "page": 1,
-      "x": 1,
-      "y": 213,
+      "page": 0,
+      "x": 1723,
+      "y": 1963,
       "w": 40,
       "h": 51,
       "step": 42,
@@ -104,7 +114,7 @@
     },
     "lord_rowan": {
       "page": 0,
-      "x": 1633,
+      "x": 1,
       "y": 634,
       "w": 66,
       "h": 60,
@@ -116,8 +126,8 @@
     },
     "lord_rowan_promoted": {
       "page": 0,
-      "x": 1,
-      "y": 696,
+      "x": 409,
+      "y": 634,
       "w": 59,
       "h": 60,
       "step": 61,
@@ -128,8 +138,8 @@
     },
     "lord_astrid": {
       "page": 1,
-      "x": 373,
-      "y": 477,
+      "x": 763,
+      "y": 264,
       "w": 54,
       "h": 50,
       "step": 56,
@@ -140,8 +150,8 @@
     },
     "lord_astrid_promoted": {
       "page": 1,
-      "x": 571,
-      "y": 633,
+      "x": 289,
+      "y": 420,
       "w": 59,
       "h": 49,
       "step": 61,
@@ -152,8 +162,8 @@
     },
     "lord_cael": {
       "page": 0,
-      "x": 319,
-      "y": 1656,
+      "x": 1,
+      "y": 1482,
       "w": 54,
       "h": 52,
       "step": 56,
@@ -165,7 +175,7 @@
     "lord_cael_promoted": {
       "page": 1,
       "x": 1771,
-      "y": 213,
+      "y": 160,
       "w": 38,
       "h": 50,
       "step": 40,
@@ -174,82 +184,105 @@
       "size": 96,
       "kind": "infantry"
     },
-    "myrmidon-0": {
-      "page": 1,
-      "x": 1615,
-      "y": 477,
-      "w": 45,
-      "h": 50,
-      "step": 47,
-      "ox": 35,
-      "oy": 16,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "myrmidon-1": {
+    "myrmidon-myrmidon_a": {
       "page": 1,
       "x": 1,
-      "y": 529,
+      "y": 316,
       "w": 47,
       "h": 50,
       "step": 49,
       "ox": 34,
       "oy": 16,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "myrmidon-2": {
+    "myrmidon-myrmidon_b": {
       "page": 1,
       "x": 295,
-      "y": 529,
+      "y": 316,
       "w": 45,
       "h": 50,
       "step": 47,
       "ox": 35,
       "oy": 16,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlueBlack",
+        "design": "a"
+      }
     },
-    "myrmidon-3": {
+    "myrmidon-myrmidon_c": {
       "page": 1,
       "x": 577,
-      "y": 529,
-      "w": 47,
-      "h": 50,
-      "step": 49,
-      "ox": 34,
-      "oy": 16,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "myrmidon-4": {
-      "page": 1,
-      "x": 871,
-      "y": 529,
+      "y": 316,
       "w": 45,
       "h": 50,
       "step": 47,
       "ox": 35,
       "oy": 16,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_c",
+        "g": "m",
+        "skin": "skinTan",
+        "hair": "hairSandy",
+        "design": "a"
+      }
     },
-    "myrmidon-5": {
+    "myrmidon-myrmidon_d": {
       "page": 1,
-      "x": 1153,
-      "y": 529,
+      "x": 859,
+      "y": 316,
       "w": 47,
       "h": 50,
       "step": 49,
       "ox": 34,
       "oy": 16,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "myrmidon-myrmidon_e": {
+      "page": 1,
+      "x": 1153,
+      "y": 316,
+      "w": 45,
+      "h": 50,
+      "step": 47,
+      "ox": 35,
+      "oy": 16,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_e",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "a"
+      }
     },
     "enemy_myrmidon": {
-      "page": 1,
-      "x": 1285,
-      "y": 1,
+      "page": 0,
+      "x": 703,
+      "y": 1804,
       "w": 51,
       "h": 51,
       "step": 53,
@@ -259,9 +292,9 @@
       "kind": "infantry"
     },
     "enemy_myrmidon-corrupt": {
-      "page": 1,
-      "x": 1603,
-      "y": 1,
+      "page": 0,
+      "x": 1021,
+      "y": 1804,
       "w": 52,
       "h": 51,
       "step": 54,
@@ -273,7 +306,7 @@
     "npc_myrmidon": {
       "page": 1,
       "x": 1,
-      "y": 581,
+      "y": 368,
       "w": 45,
       "h": 50,
       "step": 47,
@@ -282,7 +315,7 @@
       "size": 96,
       "kind": "infantry"
     },
-    "mercenary-0": {
+    "mercenary-mercenary_a": {
       "page": 0,
       "x": 1729,
       "y": 1,
@@ -292,21 +325,16 @@
       "ox": 29,
       "oy": 2,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "a"
+      }
     },
-    "mercenary-1": {
-      "page": 0,
-      "x": 1753,
-      "y": 130,
-      "w": 42,
-      "h": 58,
-      "step": 44,
-      "ox": 29,
-      "oy": 8,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "mercenary-2": {
+    "mercenary-mercenary_b": {
       "page": 0,
       "x": 1,
       "y": 130,
@@ -316,21 +344,16 @@
       "ox": 29,
       "oy": 2,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "mercenary-3": {
-      "page": 0,
-      "x": 973,
-      "y": 880,
-      "w": 42,
-      "h": 58,
-      "step": 44,
-      "ox": 29,
-      "oy": 8,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "mercenary-4": {
+    "mercenary-mercenary_c": {
       "page": 0,
       "x": 271,
       "y": 130,
@@ -340,24 +363,58 @@
       "ox": 29,
       "oy": 2,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_c",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "mercenary-5": {
+    "mercenary-mercenary_d": {
       "page": 0,
-      "x": 1237,
-      "y": 880,
+      "x": 1753,
+      "y": 130,
       "w": 42,
-      "h": 58,
+      "h": 60,
       "step": 44,
       "ox": 29,
-      "oy": 8,
+      "oy": 6,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSandy",
+        "design": "b"
+      }
+    },
+    "mercenary-mercenary_e": {
+      "page": 0,
+      "x": 775,
+      "y": 634,
+      "w": 42,
+      "h": 60,
+      "step": 44,
+      "ox": 29,
+      "oy": 6,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_mercenary": {
       "page": 0,
-      "x": 1789,
-      "y": 1224,
+      "x": 1783,
+      "y": 634,
       "w": 40,
       "h": 52,
       "step": 42,
@@ -368,8 +425,8 @@
     },
     "enemy_mercenary-corrupt": {
       "page": 0,
-      "x": 313,
-      "y": 1548,
+      "x": 1771,
+      "y": 1049,
       "w": 41,
       "h": 52,
       "step": 43,
@@ -390,82 +447,99 @@
       "size": 96,
       "kind": "infantry"
     },
-    "thief-0": {
+    "thief-thief_a": {
       "page": 1,
       "x": 1,
-      "y": 1113,
+      "y": 899,
       "w": 42,
       "h": 41,
       "step": 44,
       "ox": 27,
       "oy": 25,
       "size": 96,
-      "kind": "crouch"
+      "kind": "crouch",
+      "person": {
+        "id": "thief_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "thief-1": {
-      "page": 1,
-      "x": 1789,
-      "y": 1068,
-      "w": 40,
-      "h": 41,
-      "step": 42,
-      "ox": 28,
-      "oy": 25,
-      "size": 96,
-      "kind": "crouch"
-    },
-    "thief-2": {
+    "thief-thief_b": {
       "page": 1,
       "x": 265,
-      "y": 1113,
+      "y": 899,
       "w": 42,
       "h": 41,
       "step": 44,
       "ox": 27,
       "oy": 25,
       "size": 96,
-      "kind": "crouch"
+      "kind": "crouch",
+      "person": {
+        "id": "thief_b",
+        "g": "m",
+        "skin": "skinOlive",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "thief-3": {
+    "thief-thief_c": {
       "page": 1,
       "x": 529,
-      "y": 1113,
+      "y": 899,
       "w": 40,
       "h": 41,
       "step": 42,
       "ox": 28,
       "oy": 25,
       "size": 96,
-      "kind": "crouch"
+      "kind": "crouch",
+      "person": {
+        "id": "thief_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "thief-4": {
+    "thief-thief_d": {
       "page": 1,
       "x": 781,
-      "y": 1113,
+      "y": 899,
+      "w": 40,
+      "h": 41,
+      "step": 42,
+      "ox": 28,
+      "oy": 25,
+      "size": 96,
+      "kind": "crouch",
+      "person": {
+        "id": "thief_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairChestnut",
+        "design": "b"
+      }
+    },
+    "thief-thief_e": {
+      "page": 1,
+      "x": 1033,
+      "y": 899,
       "w": 42,
       "h": 41,
       "step": 44,
       "ox": 27,
       "oy": 25,
       "size": 96,
-      "kind": "crouch"
-    },
-    "thief-5": {
-      "page": 1,
-      "x": 1045,
-      "y": 1113,
-      "w": 40,
-      "h": 41,
-      "step": 42,
-      "ox": 28,
-      "oy": 25,
-      "size": 96,
-      "kind": "crouch"
+      "kind": "crouch",
+      "person": { "id": "thief_e", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
     },
     "enemy_thief": {
       "page": 1,
       "x": 1681,
-      "y": 1023,
+      "y": 762,
       "w": 41,
       "h": 41,
       "step": 43,
@@ -476,8 +550,8 @@
     },
     "enemy_thief-corrupt": {
       "page": 1,
-      "x": 1261,
-      "y": 1068,
+      "x": 1681,
+      "y": 809,
       "w": 42,
       "h": 41,
       "step": 44,
@@ -488,8 +562,8 @@
     },
     "npc_thief": {
       "page": 1,
-      "x": 1525,
-      "y": 1068,
+      "x": 1681,
+      "y": 854,
       "w": 42,
       "h": 41,
       "step": 44,
@@ -498,82 +572,106 @@
       "size": 96,
       "kind": "crouch"
     },
-    "fighter-0": {
-      "page": 1,
-      "x": 1585,
-      "y": 54,
+    "fighter-fighter_a": {
+      "page": 0,
+      "x": 1147,
+      "y": 1857,
       "w": 54,
       "h": 51,
       "step": 56,
       "ox": 21,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_a",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "fighter-1": {
+    "fighter-fighter_b": {
       "page": 0,
-      "x": 1,
-      "y": 880,
-      "w": 52,
-      "h": 58,
-      "step": 54,
-      "ox": 23,
-      "oy": 8,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "fighter-2": {
-      "page": 1,
-      "x": 1,
-      "y": 107,
+      "x": 1483,
+      "y": 1857,
       "w": 54,
       "h": 51,
       "step": 56,
       "ox": 21,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "fighter-3": {
+    "fighter-fighter_c": {
       "page": 0,
-      "x": 325,
-      "y": 880,
-      "w": 52,
-      "h": 58,
-      "step": 54,
-      "ox": 23,
-      "oy": 8,
+      "x": 1,
+      "y": 1910,
+      "w": 54,
+      "h": 51,
+      "step": 56,
+      "ox": 21,
+      "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_c",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "a"
+      }
     },
-    "fighter-4": {
-      "page": 1,
+    "fighter-fighter_d": {
+      "page": 0,
       "x": 337,
-      "y": 107,
-      "w": 54,
+      "y": 1910,
+      "w": 53,
       "h": 51,
-      "step": 56,
-      "ox": 21,
+      "step": 55,
+      "ox": 23,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "fighter-5": {
+    "fighter-fighter_e": {
       "page": 0,
-      "x": 649,
-      "y": 880,
-      "w": 52,
-      "h": 58,
-      "step": 54,
+      "x": 667,
+      "y": 1910,
+      "w": 53,
+      "h": 51,
+      "step": 55,
       "ox": 23,
-      "oy": 8,
+      "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_fighter": {
       "page": 0,
-      "x": 337,
-      "y": 1494,
+      "x": 667,
+      "y": 1320,
       "w": 51,
       "h": 52,
       "step": 53,
@@ -584,8 +682,8 @@
     },
     "enemy_fighter-corrupt": {
       "page": 0,
-      "x": 655,
-      "y": 1494,
+      "x": 985,
+      "y": 1320,
       "w": 52,
       "h": 52,
       "step": 54,
@@ -596,8 +694,8 @@
     },
     "npc_fighter": {
       "page": 1,
-      "x": 799,
-      "y": 213,
+      "x": 547,
+      "y": 1,
       "w": 54,
       "h": 51,
       "step": 56,
@@ -606,82 +704,106 @@
       "size": 96,
       "kind": "infantry"
     },
-    "knight-0": {
+    "knight-knight_a": {
       "page": 0,
-      "x": 1243,
-      "y": 1057,
+      "x": 1303,
+      "y": 937,
       "w": 46,
       "h": 54,
       "step": 48,
       "ox": 28,
       "oy": 12,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairGrey",
+        "design": "a"
+      }
     },
-    "knight-1": {
+    "knight-knight_b": {
+      "page": 0,
+      "x": 1591,
+      "y": 937,
+      "w": 46,
+      "h": 54,
+      "step": 48,
+      "ox": 28,
+      "oy": 12,
+      "size": 96,
+      "kind": "heavy",
+      "person": {
+        "id": "knight_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "skinWarm",
+        "bald": true,
+        "design": "a"
+      }
+    },
+    "knight-knight_c": {
       "page": 0,
       "x": 1759,
-      "y": 1113,
+      "y": 993,
       "w": 45,
       "h": 53,
       "step": 47,
       "ox": 24,
       "oy": 13,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "knight-2": {
-      "page": 0,
-      "x": 1531,
-      "y": 1057,
-      "w": 46,
-      "h": 54,
-      "step": 48,
-      "ox": 28,
-      "oy": 12,
-      "size": 96,
-      "kind": "heavy"
-    },
-    "knight-3": {
+    "knight-knight_d": {
       "page": 0,
       "x": 295,
-      "y": 1169,
+      "y": 1049,
       "w": 45,
       "h": 53,
       "step": 47,
       "ox": 24,
       "oy": 13,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "knight-4": {
+    "knight-knight_e": {
       "page": 0,
       "x": 1,
-      "y": 1113,
+      "y": 993,
       "w": 46,
       "h": 54,
       "step": 48,
       "ox": 28,
       "oy": 12,
       "size": 96,
-      "kind": "heavy"
-    },
-    "knight-5": {
-      "page": 0,
-      "x": 577,
-      "y": 1169,
-      "w": 45,
-      "h": 53,
-      "step": 47,
-      "ox": 24,
-      "oy": 13,
-      "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_e",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_knight": {
       "page": 0,
-      "x": 1609,
-      "y": 1000,
+      "x": 1,
+      "y": 937,
       "w": 57,
       "h": 54,
       "step": 59,
@@ -692,8 +814,8 @@
     },
     "enemy_knight-corrupt": {
       "page": 0,
-      "x": 1,
-      "y": 1057,
+      "x": 355,
+      "y": 937,
       "w": 58,
       "h": 54,
       "step": 60,
@@ -705,7 +827,7 @@
     "npc_knight": {
       "page": 0,
       "x": 289,
-      "y": 1113,
+      "y": 993,
       "w": 46,
       "h": 54,
       "step": 48,
@@ -714,82 +836,93 @@
       "size": 96,
       "kind": "heavy"
     },
-    "archer-0": {
+    "archer-archer_a": {
       "page": 0,
-      "x": 1153,
-      "y": 1169,
+      "x": 871,
+      "y": 1049,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 25,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
     },
-    "archer-1": {
+    "archer-archer_b": {
       "page": 0,
-      "x": 1453,
-      "y": 1169,
+      "x": 1171,
+      "y": 1049,
+      "w": 48,
+      "h": 52,
+      "step": 50,
+      "ox": 25,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": { "id": "archer_b", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
+    },
+    "archer-archer_c": {
+      "page": 0,
+      "x": 1471,
+      "y": 1049,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_c",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "archer-2": {
+    "archer-archer_d": {
       "page": 0,
       "x": 1,
-      "y": 1224,
+      "y": 1104,
       "w": 48,
       "h": 52,
       "step": 50,
-      "ox": 25,
+      "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
-    "archer-3": {
+    "archer-archer_e": {
       "page": 0,
       "x": 301,
-      "y": 1224,
+      "y": 1104,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
-    },
-    "archer-4": {
-      "page": 0,
-      "x": 601,
-      "y": 1224,
-      "w": 48,
-      "h": 52,
-      "step": 50,
-      "ox": 25,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "archer-5": {
-      "page": 0,
-      "x": 901,
-      "y": 1224,
-      "w": 48,
-      "h": 52,
-      "step": 50,
-      "ox": 26,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": { "id": "archer_e", "g": "f", "skin": "skinTan", "hair": "hairGrey", "design": "b" }
     },
     "enemy_archer": {
       "page": 0,
       "x": 577,
-      "y": 1113,
+      "y": 993,
       "w": 47,
       "h": 53,
       "step": 49,
@@ -801,7 +934,7 @@
     "enemy_archer-corrupt": {
       "page": 0,
       "x": 871,
-      "y": 1113,
+      "y": 993,
       "w": 48,
       "h": 53,
       "step": 50,
@@ -812,8 +945,8 @@
     },
     "npc_archer": {
       "page": 0,
-      "x": 1009,
-      "y": 1656,
+      "x": 691,
+      "y": 1482,
       "w": 48,
       "h": 52,
       "step": 50,
@@ -822,82 +955,87 @@
       "size": 96,
       "kind": "infantry"
     },
-    "mage-0": {
+    "mage-mage_a": {
       "page": 1,
-      "x": 1795,
-      "y": 733,
-      "w": 39,
-      "h": 46,
-      "step": 41,
-      "ox": 29,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "mage-1": {
-      "page": 1,
-      "x": 1351,
-      "y": 782,
+      "x": 955,
+      "y": 569,
       "w": 40,
       "h": 46,
       "step": 42,
       "ox": 29,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": { "id": "mage_a", "g": "f", "skin": "skinFair", "hair": "hairPlum", "design": "b" }
     },
-    "mage-2": {
+    "mage-mage_b": {
       "page": 1,
-      "x": 1603,
-      "y": 782,
+      "x": 1207,
+      "y": 569,
       "w": 39,
       "h": 46,
       "step": 41,
       "ox": 29,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "mage_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
     },
-    "mage-3": {
+    "mage-mage_c": {
+      "page": 1,
+      "x": 1453,
+      "y": 569,
+      "w": 39,
+      "h": 46,
+      "step": 41,
+      "ox": 29,
+      "oy": 20,
+      "size": 96,
+      "kind": "mage",
+      "person": { "id": "mage_c", "g": "m", "skin": "skinDeep", "hair": "hairBlack", "design": "a" }
+    },
+    "mage-mage_d": {
+      "page": 1,
+      "x": 1699,
+      "y": 569,
+      "w": 40,
+      "h": 46,
+      "step": 42,
+      "ox": 29,
+      "oy": 20,
+      "size": 96,
+      "kind": "mage",
+      "person": { "id": "mage_d", "g": "f", "skin": "skinWarm", "hair": "hairBlack", "design": "b" }
+    },
+    "mage-mage_e": {
       "page": 1,
       "x": 1,
-      "y": 831,
+      "y": 618,
       "w": 40,
       "h": 46,
       "step": 42,
       "ox": 29,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
-    },
-    "mage-4": {
-      "page": 1,
-      "x": 253,
-      "y": 831,
-      "w": 39,
-      "h": 46,
-      "step": 41,
-      "ox": 29,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "mage-5": {
-      "page": 1,
-      "x": 499,
-      "y": 831,
-      "w": 40,
-      "h": 46,
-      "step": 42,
-      "ox": 29,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "mage_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
     },
     "enemy_mage": {
       "page": 1,
-      "x": 1027,
-      "y": 684,
+      "x": 787,
+      "y": 471,
       "w": 47,
       "h": 47,
       "step": 49,
@@ -908,8 +1046,8 @@
     },
     "enemy_mage-corrupt": {
       "page": 1,
-      "x": 1321,
-      "y": 684,
+      "x": 1081,
+      "y": 471,
       "w": 48,
       "h": 47,
       "step": 50,
@@ -920,8 +1058,8 @@
     },
     "npc_mage": {
       "page": 1,
-      "x": 751,
-      "y": 831,
+      "x": 253,
+      "y": 618,
       "w": 39,
       "h": 46,
       "step": 41,
@@ -930,82 +1068,106 @@
       "size": 96,
       "kind": "mage"
     },
-    "cleric-0": {
+    "cleric-cleric_a": {
       "page": 1,
-      "x": 1687,
-      "y": 633,
-      "w": 38,
-      "h": 47,
-      "step": 40,
-      "ox": 31,
-      "oy": 19,
-      "size": 96,
-      "kind": "mage"
-    },
-    "cleric-1": {
-      "page": 1,
-      "x": 1801,
-      "y": 319,
+      "x": 937,
+      "y": 420,
       "w": 37,
       "h": 48,
       "step": 39,
       "ox": 32,
       "oy": 18,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "b"
+      }
     },
-    "cleric-2": {
+    "cleric-cleric_b": {
+      "page": 1,
+      "x": 1171,
+      "y": 420,
+      "w": 37,
+      "h": 48,
+      "step": 39,
+      "ox": 32,
+      "oy": 18,
+      "size": 96,
+      "kind": "mage",
+      "person": {
+        "id": "cleric_b",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
+    },
+    "cleric-cleric_c": {
+      "page": 1,
+      "x": 1639,
+      "y": 420,
+      "w": 38,
+      "h": 47,
+      "step": 40,
+      "ox": 31,
+      "oy": 19,
+      "size": 96,
+      "kind": "mage",
+      "person": {
+        "id": "cleric_c",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairChestnut",
+        "design": "a"
+      }
+    },
+    "cleric-cleric_d": {
       "page": 1,
       "x": 1,
-      "y": 684,
+      "y": 471,
       "w": 38,
       "h": 47,
       "step": 40,
       "ox": 31,
       "oy": 19,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_d",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "cleric-3": {
+    "cleric-cleric_e": {
       "page": 1,
-      "x": 1219,
-      "y": 633,
+      "x": 1405,
+      "y": 420,
       "w": 37,
       "h": 48,
       "step": 39,
       "ox": 32,
       "oy": 18,
       "size": 96,
-      "kind": "mage"
-    },
-    "cleric-4": {
-      "page": 1,
-      "x": 241,
-      "y": 684,
-      "w": 38,
-      "h": 47,
-      "step": 40,
-      "ox": 31,
-      "oy": 19,
-      "size": 96,
-      "kind": "mage"
-    },
-    "cleric-5": {
-      "page": 1,
-      "x": 1453,
-      "y": 633,
-      "w": 37,
-      "h": 48,
-      "step": 39,
-      "ox": 32,
-      "oy": 18,
-      "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
     "enemy_cleric": {
       "page": 1,
-      "x": 481,
-      "y": 684,
+      "x": 241,
+      "y": 471,
       "w": 43,
       "h": 47,
       "step": 45,
@@ -1016,8 +1178,8 @@
     },
     "enemy_cleric-corrupt": {
       "page": 1,
-      "x": 751,
-      "y": 684,
+      "x": 511,
+      "y": 471,
       "w": 44,
       "h": 47,
       "step": 46,
@@ -1028,8 +1190,8 @@
     },
     "npc_cleric": {
       "page": 1,
-      "x": 385,
-      "y": 733,
+      "x": 1759,
+      "y": 471,
       "w": 38,
       "h": 47,
       "step": 40,
@@ -1038,77 +1200,100 @@
       "size": 96,
       "kind": "mage"
     },
-    "cavalier-0": {
-      "page": 0,
-      "x": 367,
-      "y": 448,
-      "w": 61,
-      "h": 60,
-      "step": 63,
-      "ox": 23,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "cavalier-1": {
-      "page": 0,
-      "x": 745,
-      "y": 448,
-      "w": 57,
-      "h": 60,
-      "step": 59,
-      "ox": 23,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "cavalier-2": {
-      "page": 0,
-      "x": 1099,
-      "y": 448,
-      "w": 61,
-      "h": 60,
-      "step": 63,
-      "ox": 23,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "cavalier-3": {
-      "page": 0,
-      "x": 1477,
-      "y": 448,
-      "w": 57,
-      "h": 60,
-      "step": 59,
-      "ox": 23,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "cavalier-4": {
+    "cavalier-cavalier_a": {
       "page": 0,
       "x": 1,
-      "y": 510,
+      "y": 448,
       "w": 61,
       "h": 60,
       "step": 63,
       "ox": 23,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "cavalier-5": {
+    "cavalier-cavalier_b": {
       "page": 0,
       "x": 379,
-      "y": 510,
+      "y": 448,
+      "w": 61,
+      "h": 60,
+      "step": 63,
+      "ox": 23,
+      "oy": 6,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBrown",
+        "design": "a"
+      }
+    },
+    "cavalier-cavalier_c": {
+      "page": 0,
+      "x": 757,
+      "y": 448,
       "w": 57,
       "h": 60,
       "step": 59,
       "ox": 23,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_c",
+        "g": "f",
+        "skin": "skinOlive",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
+    },
+    "cavalier-cavalier_d": {
+      "page": 0,
+      "x": 1111,
+      "y": 448,
+      "w": 57,
+      "h": 60,
+      "step": 59,
+      "ox": 23,
+      "oy": 6,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairGreyAuburn",
+        "design": "b"
+      }
+    },
+    "cavalier-cavalier_e": {
+      "page": 0,
+      "x": 1465,
+      "y": 448,
+      "w": 61,
+      "h": 60,
+      "step": 63,
+      "ox": 23,
+      "oy": 6,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_e",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_cavalier": {
       "page": 0,
@@ -1136,8 +1321,8 @@
     },
     "npc_cavalier": {
       "page": 0,
-      "x": 733,
-      "y": 696,
+      "x": 1405,
+      "y": 634,
       "w": 61,
       "h": 60,
       "step": 63,
@@ -1146,82 +1331,105 @@
       "size": 96,
       "kind": "mounted"
     },
-    "pegasus_knight-0": {
+    "pegasus_knight-pegasus_a": {
+      "page": 1,
+      "x": 307,
+      "y": 54,
+      "w": 64,
+      "h": 51,
+      "step": 66,
+      "ox": 20,
+      "oy": 15,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "a"
+      }
+    },
+    "pegasus_knight-pegasus_b": {
       "page": 1,
       "x": 703,
-      "y": 266,
+      "y": 54,
       "w": 64,
       "h": 51,
       "step": 66,
       "ox": 20,
       "oy": 15,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_b",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "pegasus_knight-1": {
+    "pegasus_knight-pegasus_c": {
       "page": 1,
       "x": 1099,
-      "y": 266,
+      "y": 54,
       "w": 64,
       "h": 51,
       "step": 66,
-      "ox": 24,
+      "ox": 20,
       "oy": 15,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "pegasus_knight-2": {
+    "pegasus_knight-pegasus_d": {
       "page": 1,
       "x": 1495,
-      "y": 266,
+      "y": 54,
       "w": 64,
       "h": 51,
       "step": 66,
-      "ox": 20,
+      "ox": 24,
       "oy": 15,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_d",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
-    "pegasus_knight-3": {
+    "pegasus_knight-pegasus_e": {
       "page": 1,
       "x": 1,
-      "y": 319,
-      "w": 64,
-      "h": 51,
-      "step": 66,
-      "ox": 24,
-      "oy": 15,
-      "size": 96,
-      "kind": "flyer"
-    },
-    "pegasus_knight-4": {
-      "page": 1,
-      "x": 397,
-      "y": 319,
+      "y": 107,
       "w": 64,
       "h": 51,
       "step": 66,
       "ox": 20,
       "oy": 15,
       "size": 96,
-      "kind": "flyer"
-    },
-    "pegasus_knight-5": {
-      "page": 1,
-      "x": 793,
-      "y": 319,
-      "w": 64,
-      "h": 51,
-      "step": 66,
-      "ox": 24,
-      "oy": 15,
-      "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "a"
+      }
     },
     "enemy_pegasus_knight": {
-      "page": 1,
-      "x": 1,
-      "y": 54,
+      "page": 0,
+      "x": 1345,
+      "y": 1804,
       "w": 71,
       "h": 51,
       "step": 73,
@@ -1231,9 +1439,9 @@
       "kind": "flyer"
     },
     "enemy_pegasus_knight-corrupt": {
-      "page": 1,
-      "x": 439,
-      "y": 54,
+      "page": 0,
+      "x": 1,
+      "y": 1857,
       "w": 72,
       "h": 51,
       "step": 74,
@@ -1244,8 +1452,8 @@
     },
     "npc_pegasus_knight": {
       "page": 1,
-      "x": 1,
-      "y": 266,
+      "x": 1519,
+      "y": 1,
       "w": 64,
       "h": 51,
       "step": 66,
@@ -1254,82 +1462,105 @@
       "size": 96,
       "kind": "flyer"
     },
-    "wyvern_rider-0": {
+    "wyvern_rider-wyvern_a": {
       "page": 1,
-      "x": 1399,
-      "y": 733,
+      "x": 1159,
+      "y": 520,
       "w": 64,
       "h": 47,
       "step": 66,
       "ox": 18,
       "oy": 19,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "a"
+      }
     },
-    "wyvern_rider-1": {
+    "wyvern_rider-wyvern_b": {
       "page": 1,
-      "x": 1141,
-      "y": 927,
-      "w": 65,
-      "h": 46,
-      "step": 67,
+      "x": 1555,
+      "y": 520,
+      "w": 64,
+      "h": 47,
+      "step": 66,
       "ox": 18,
-      "oy": 20,
+      "oy": 19,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
     },
-    "wyvern_rider-2": {
+    "wyvern_rider-wyvern_c": {
       "page": 1,
       "x": 1,
-      "y": 782,
-      "w": 64,
-      "h": 47,
-      "step": 66,
-      "ox": 18,
-      "oy": 19,
-      "size": 96,
-      "kind": "flyer"
-    },
-    "wyvern_rider-3": {
-      "page": 1,
-      "x": 1543,
-      "y": 927,
+      "y": 714,
       "w": 65,
       "h": 46,
       "step": 67,
       "ox": 18,
       "oy": 20,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_c",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "wyvern_rider-4": {
-      "page": 1,
-      "x": 397,
-      "y": 782,
-      "w": 64,
-      "h": 47,
-      "step": 66,
-      "ox": 18,
-      "oy": 19,
-      "size": 96,
-      "kind": "flyer"
-    },
-    "wyvern_rider-5": {
+    "wyvern_rider-wyvern_d": {
       "page": 1,
       "x": 1,
-      "y": 975,
+      "y": 569,
+      "w": 64,
+      "h": 47,
+      "step": 66,
+      "ox": 18,
+      "oy": 19,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_d",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
+    },
+    "wyvern_rider-wyvern_e": {
+      "page": 1,
+      "x": 403,
+      "y": 714,
       "w": 65,
       "h": 46,
       "step": 67,
       "ox": 18,
       "oy": 20,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
     "enemy_wyvern_rider": {
-      "page": 1,
-      "x": 883,
-      "y": 54,
+      "page": 0,
+      "x": 445,
+      "y": 1857,
       "w": 56,
       "h": 51,
       "step": 58,
@@ -1339,9 +1570,9 @@
       "kind": "flyer"
     },
     "enemy_wyvern_rider-corrupt": {
-      "page": 1,
-      "x": 1231,
-      "y": 54,
+      "page": 0,
+      "x": 793,
+      "y": 1857,
       "w": 57,
       "h": 51,
       "step": 59,
@@ -1352,8 +1583,8 @@
     },
     "npc_wyvern_rider": {
       "page": 1,
-      "x": 625,
-      "y": 733,
+      "x": 385,
+      "y": 520,
       "w": 64,
       "h": 47,
       "step": 66,
@@ -1362,82 +1593,105 @@
       "size": 96,
       "kind": "flyer"
     },
-    "dancer-0": {
+    "dancer-dancer_a": {
       "page": 0,
-      "x": 1639,
-      "y": 1926,
-      "w": 43,
-      "h": 51,
-      "step": 45,
-      "ox": 27,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "dancer-1": {
-      "page": 0,
-      "x": 1,
-      "y": 1979,
+      "x": 1777,
+      "y": 1104,
       "w": 42,
       "h": 51,
       "step": 44,
       "ox": 27,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_a",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "dancer-2": {
+    "dancer-dancer_b": {
+      "page": 0,
+      "x": 1573,
+      "y": 1698,
+      "w": 42,
+      "h": 51,
+      "step": 44,
+      "ox": 27,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_b",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "dancer-dancer_c": {
+      "page": 0,
+      "x": 1,
+      "y": 1751,
+      "w": 42,
+      "h": 51,
+      "step": 44,
+      "ox": 27,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "b"
+      }
+    },
+    "dancer-dancer_d": {
       "page": 0,
       "x": 265,
-      "y": 1979,
-      "w": 43,
-      "h": 51,
-      "step": 45,
-      "ox": 27,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "dancer-3": {
-      "page": 0,
-      "x": 535,
-      "y": 1979,
+      "y": 1751,
       "w": 42,
       "h": 51,
       "step": 44,
       "ox": 27,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_d",
+        "g": "f",
+        "skin": "skinOlive",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
-    "dancer-4": {
+    "dancer-dancer_e": {
       "page": 0,
-      "x": 799,
-      "y": 1979,
+      "x": 529,
+      "y": 1751,
       "w": 43,
       "h": 51,
       "step": 45,
       "ox": 27,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
-    },
-    "dancer-5": {
-      "page": 0,
-      "x": 1069,
-      "y": 1979,
-      "w": 42,
-      "h": 51,
-      "step": 44,
-      "ox": 27,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_e",
+        "g": "m",
+        "skin": "skinTan",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_dancer": {
-      "page": 1,
-      "x": 1,
-      "y": 1,
+      "page": 0,
+      "x": 1429,
+      "y": 1751,
       "w": 46,
       "h": 51,
       "step": 48,
@@ -1447,9 +1701,9 @@
       "kind": "infantry"
     },
     "enemy_dancer-corrupt": {
-      "page": 1,
-      "x": 289,
-      "y": 1,
+      "page": 0,
+      "x": 1717,
+      "y": 1751,
       "w": 47,
       "h": 51,
       "step": 49,
@@ -1460,8 +1714,8 @@
     },
     "npc_dancer": {
       "page": 1,
-      "x": 529,
-      "y": 213,
+      "x": 277,
+      "y": 1,
       "w": 43,
       "h": 51,
       "step": 45,
@@ -1470,82 +1724,105 @@
       "size": 96,
       "kind": "infantry"
     },
-    "swordmaster-0": {
+    "swordmaster-myrmidon_a": {
+      "page": 0,
+      "x": 391,
+      "y": 818,
+      "w": 56,
+      "h": 58,
+      "step": 58,
+      "ox": 20,
+      "oy": 8,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "swordmaster-myrmidon_b": {
       "page": 1,
-      "x": 1189,
-      "y": 319,
+      "x": 397,
+      "y": 107,
       "w": 49,
       "h": 51,
       "step": 51,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlueBlack",
+        "design": "a"
+      }
     },
-    "swordmaster-1": {
-      "page": 0,
-      "x": 1501,
-      "y": 880,
-      "w": 57,
-      "h": 58,
-      "step": 59,
-      "ox": 20,
-      "oy": 8,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "swordmaster-2": {
+    "swordmaster-myrmidon_c": {
       "page": 1,
-      "x": 1495,
-      "y": 319,
+      "x": 703,
+      "y": 107,
       "w": 49,
       "h": 51,
       "step": 51,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_c",
+        "g": "m",
+        "skin": "skinTan",
+        "hair": "hairSandy",
+        "design": "a"
+      }
     },
-    "swordmaster-3": {
+    "swordmaster-myrmidon_d": {
       "page": 0,
-      "x": 1,
-      "y": 940,
-      "w": 57,
+      "x": 739,
+      "y": 818,
+      "w": 56,
       "h": 58,
-      "step": 59,
+      "step": 58,
       "ox": 20,
       "oy": 8,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "swordmaster-4": {
+    "swordmaster-myrmidon_e": {
       "page": 1,
-      "x": 1,
-      "y": 372,
+      "x": 1009,
+      "y": 107,
       "w": 49,
       "h": 51,
       "step": 51,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
-    },
-    "swordmaster-5": {
-      "page": 0,
-      "x": 355,
-      "y": 940,
-      "w": 57,
-      "h": 58,
-      "step": 59,
-      "ox": 20,
-      "oy": 8,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_e",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "a"
+      }
     },
     "enemy_swordmaster": {
       "page": 0,
-      "x": 1189,
-      "y": 1548,
+      "x": 1237,
+      "y": 1374,
       "w": 53,
       "h": 52,
       "step": 55,
@@ -1556,8 +1833,8 @@
     },
     "enemy_swordmaster-corrupt": {
       "page": 0,
-      "x": 1519,
-      "y": 1548,
+      "x": 1567,
+      "y": 1374,
       "w": 54,
       "h": 52,
       "step": 56,
@@ -1568,8 +1845,8 @@
     },
     "npc_swordmaster": {
       "page": 1,
-      "x": 397,
-      "y": 266,
+      "x": 1,
+      "y": 54,
       "w": 49,
       "h": 51,
       "step": 51,
@@ -1578,82 +1855,106 @@
       "size": 96,
       "kind": "infantry"
     },
-    "general-0": {
+    "general-knight_a": {
       "page": 0,
       "x": 1171,
-      "y": 1113,
+      "y": 993,
       "w": 47,
       "h": 53,
       "step": 49,
       "ox": 27,
       "oy": 13,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairGrey",
+        "design": "a"
+      }
     },
-    "general-1": {
-      "page": 0,
-      "x": 361,
-      "y": 1057,
-      "w": 47,
-      "h": 54,
-      "step": 49,
-      "ox": 28,
-      "oy": 12,
-      "size": 96,
-      "kind": "heavy"
-    },
-    "general-2": {
+    "general-knight_b": {
       "page": 0,
       "x": 1465,
-      "y": 1113,
+      "y": 993,
       "w": 47,
       "h": 53,
       "step": 49,
       "ox": 27,
       "oy": 13,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "skinWarm",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "general-3": {
+    "general-knight_c": {
       "page": 0,
-      "x": 655,
-      "y": 1057,
+      "x": 715,
+      "y": 937,
       "w": 47,
       "h": 54,
       "step": 49,
       "ox": 28,
       "oy": 12,
       "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "general-4": {
+    "general-knight_d": {
+      "page": 0,
+      "x": 1009,
+      "y": 937,
+      "w": 47,
+      "h": 54,
+      "step": 49,
+      "ox": 28,
+      "oy": 12,
+      "size": 96,
+      "kind": "heavy",
+      "person": {
+        "id": "knight_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "general-knight_e": {
       "page": 0,
       "x": 1,
-      "y": 1169,
+      "y": 1049,
       "w": 47,
       "h": 53,
       "step": 49,
       "ox": 27,
       "oy": 13,
       "size": 96,
-      "kind": "heavy"
-    },
-    "general-5": {
-      "page": 0,
-      "x": 949,
-      "y": 1057,
-      "w": 47,
-      "h": 54,
-      "step": 49,
-      "ox": 28,
-      "oy": 12,
-      "size": 96,
-      "kind": "heavy"
+      "kind": "heavy",
+      "person": {
+        "id": "knight_e",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_general": {
       "page": 0,
-      "x": 991,
-      "y": 1000,
+      "x": 1303,
+      "y": 879,
       "w": 49,
       "h": 54,
       "step": 51,
@@ -1664,8 +1965,8 @@
     },
     "enemy_general-corrupt": {
       "page": 0,
-      "x": 1297,
-      "y": 1000,
+      "x": 1609,
+      "y": 879,
       "w": 50,
       "h": 54,
       "step": 52,
@@ -1676,8 +1977,8 @@
     },
     "npc_general": {
       "page": 0,
-      "x": 859,
-      "y": 1169,
+      "x": 577,
+      "y": 1049,
       "w": 47,
       "h": 53,
       "step": 49,
@@ -1686,82 +1987,106 @@
       "size": 96,
       "kind": "heavy"
     },
-    "warrior-0": {
-      "page": 0,
-      "x": 601,
-      "y": 1818,
-      "w": 55,
-      "h": 52,
-      "step": 57,
-      "ox": 20,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "warrior-1": {
-      "page": 0,
-      "x": 943,
-      "y": 1818,
-      "w": 53,
-      "h": 52,
-      "step": 55,
-      "ox": 21,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "warrior-2": {
-      "page": 0,
-      "x": 1273,
-      "y": 1818,
-      "w": 55,
-      "h": 52,
-      "step": 57,
-      "ox": 20,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "warrior-3": {
-      "page": 0,
-      "x": 1615,
-      "y": 1818,
-      "w": 53,
-      "h": 52,
-      "step": 55,
-      "ox": 21,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "warrior-4": {
+    "warrior-fighter_a": {
       "page": 0,
       "x": 1,
-      "y": 1872,
+      "y": 1644,
       "w": 55,
       "h": 52,
       "step": 57,
       "ox": 20,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_a",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "warrior-5": {
+    "warrior-fighter_b": {
       "page": 0,
       "x": 343,
-      "y": 1872,
+      "y": 1644,
+      "w": 55,
+      "h": 52,
+      "step": 57,
+      "ox": 20,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
+    },
+    "warrior-fighter_c": {
+      "page": 0,
+      "x": 685,
+      "y": 1644,
+      "w": 55,
+      "h": 52,
+      "step": 57,
+      "ox": 20,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_c",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "a"
+      }
+    },
+    "warrior-fighter_d": {
+      "page": 0,
+      "x": 1027,
+      "y": 1644,
       "w": 53,
       "h": 52,
       "step": 55,
       "ox": 21,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "warrior-fighter_e": {
+      "page": 0,
+      "x": 1357,
+      "y": 1644,
+      "w": 53,
+      "h": 52,
+      "step": 55,
+      "ox": 21,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_warrior": {
       "page": 0,
       "x": 619,
-      "y": 1602,
+      "y": 1428,
       "w": 56,
       "h": 52,
       "step": 58,
@@ -1773,7 +2098,7 @@
     "enemy_warrior-corrupt": {
       "page": 0,
       "x": 967,
-      "y": 1602,
+      "y": 1428,
       "w": 57,
       "h": 52,
       "step": 59,
@@ -1784,8 +2109,8 @@
     },
     "npc_warrior": {
       "page": 0,
-      "x": 1267,
-      "y": 1710,
+      "x": 937,
+      "y": 1536,
       "w": 55,
       "h": 52,
       "step": 57,
@@ -1794,81 +2119,104 @@
       "size": 96,
       "kind": "infantry"
     },
-    "paladin-0": {
+    "paladin-cavalier_a": {
       "page": 0,
-      "x": 1513,
-      "y": 758,
+      "x": 391,
+      "y": 757,
       "w": 63,
       "h": 59,
       "step": 65,
       "ox": 25,
       "oy": 7,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "paladin-1": {
+    "paladin-cavalier_b": {
+      "page": 0,
+      "x": 781,
+      "y": 757,
+      "w": 63,
+      "h": 59,
+      "step": 65,
+      "ox": 25,
+      "oy": 7,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBrown",
+        "design": "a"
+      }
+    },
+    "paladin-cavalier_c": {
+      "page": 0,
+      "x": 1171,
+      "y": 757,
+      "w": 58,
+      "h": 59,
+      "step": 60,
+      "ox": 25,
+      "oy": 7,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_c",
+        "g": "f",
+        "skin": "skinOlive",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
+    },
+    "paladin-cavalier_d": {
+      "page": 0,
+      "x": 1531,
+      "y": 757,
+      "w": 58,
+      "h": 59,
+      "step": 60,
+      "ox": 25,
+      "oy": 7,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairGreyAuburn",
+        "design": "b"
+      }
+    },
+    "paladin-cavalier_e": {
       "page": 0,
       "x": 1,
-      "y": 819,
-      "w": 58,
-      "h": 59,
-      "step": 60,
-      "ox": 25,
-      "oy": 7,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "paladin-2": {
-      "page": 0,
-      "x": 361,
-      "y": 819,
+      "y": 818,
       "w": 63,
       "h": 59,
       "step": 65,
       "ox": 25,
       "oy": 7,
       "size": 96,
-      "kind": "mounted"
-    },
-    "paladin-3": {
-      "page": 0,
-      "x": 751,
-      "y": 819,
-      "w": 58,
-      "h": 59,
-      "step": 60,
-      "ox": 25,
-      "oy": 7,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "paladin-4": {
-      "page": 0,
-      "x": 1111,
-      "y": 819,
-      "w": 63,
-      "h": 59,
-      "step": 65,
-      "ox": 25,
-      "oy": 7,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "paladin-5": {
-      "page": 0,
-      "x": 1501,
-      "y": 819,
-      "w": 58,
-      "h": 59,
-      "step": 60,
-      "ox": 25,
-      "oy": 7,
-      "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_e",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_paladin": {
       "page": 0,
-      "x": 1489,
+      "x": 385,
       "y": 572,
       "w": 65,
       "h": 60,
@@ -1880,8 +2228,8 @@
     },
     "enemy_paladin-corrupt": {
       "page": 0,
-      "x": 1,
-      "y": 634,
+      "x": 787,
+      "y": 572,
       "w": 66,
       "h": 60,
       "step": 68,
@@ -1892,8 +2240,8 @@
     },
     "npc_paladin": {
       "page": 0,
-      "x": 1123,
-      "y": 758,
+      "x": 1,
+      "y": 757,
       "w": 63,
       "h": 59,
       "step": 65,
@@ -1902,82 +2250,93 @@
       "size": 96,
       "kind": "mounted"
     },
-    "sniper-0": {
+    "sniper-archer_a": {
       "page": 0,
-      "x": 1609,
-      "y": 1710,
+      "x": 1279,
+      "y": 1536,
       "w": 51,
       "h": 52,
       "step": 53,
       "ox": 24,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
     },
-    "sniper-1": {
+    "sniper-archer_b": {
+      "page": 0,
+      "x": 1597,
+      "y": 1536,
+      "w": 51,
+      "h": 52,
+      "step": 53,
+      "ox": 24,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": { "id": "archer_b", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
+    },
+    "sniper-archer_c": {
       "page": 0,
       "x": 1,
-      "y": 1764,
+      "y": 1590,
       "w": 46,
       "h": 52,
       "step": 48,
       "ox": 27,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_c",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "sniper-2": {
+    "sniper-archer_d": {
       "page": 0,
       "x": 289,
-      "y": 1764,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 24,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "sniper-3": {
-      "page": 0,
-      "x": 607,
-      "y": 1764,
+      "y": 1590,
       "w": 46,
       "h": 52,
       "step": 48,
       "ox": 27,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "archer_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
-    "sniper-4": {
+    "sniper-archer_e": {
       "page": 0,
-      "x": 895,
-      "y": 1764,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 24,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "sniper-5": {
-      "page": 0,
-      "x": 1213,
-      "y": 1764,
+      "x": 577,
+      "y": 1590,
       "w": 46,
       "h": 52,
       "step": 48,
       "ox": 27,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": { "id": "archer_e", "g": "f", "skin": "skinTan", "hair": "hairGrey", "design": "b" }
     },
     "enemy_sniper": {
       "page": 0,
-      "x": 571,
-      "y": 1548,
+      "x": 619,
+      "y": 1374,
       "w": 49,
       "h": 52,
       "step": 51,
@@ -1988,8 +2347,8 @@
     },
     "enemy_sniper-corrupt": {
       "page": 0,
-      "x": 877,
-      "y": 1548,
+      "x": 925,
+      "y": 1374,
       "w": 50,
       "h": 52,
       "step": 52,
@@ -2000,8 +2359,8 @@
     },
     "npc_sniper": {
       "page": 0,
-      "x": 649,
-      "y": 1710,
+      "x": 319,
+      "y": 1536,
       "w": 51,
       "h": 52,
       "step": 53,
@@ -2010,82 +2369,87 @@
       "size": 96,
       "kind": "infantry"
     },
-    "sage-0": {
+    "sage-mage_a": {
       "page": 1,
-      "x": 1561,
-      "y": 831,
+      "x": 1063,
+      "y": 618,
+      "w": 41,
+      "h": 46,
+      "step": 43,
+      "ox": 29,
+      "oy": 20,
+      "size": 96,
+      "kind": "mage",
+      "person": { "id": "mage_a", "g": "f", "skin": "skinFair", "hair": "hairPlum", "design": "b" }
+    },
+    "sage-mage_b": {
+      "page": 1,
+      "x": 1321,
+      "y": 618,
       "w": 44,
       "h": 46,
       "step": 46,
       "ox": 28,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "mage_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
     },
-    "sage-1": {
+    "sage-mage_c": {
+      "page": 1,
+      "x": 1597,
+      "y": 618,
+      "w": 44,
+      "h": 46,
+      "step": 46,
+      "ox": 28,
+      "oy": 20,
+      "size": 96,
+      "kind": "mage",
+      "person": { "id": "mage_c", "g": "m", "skin": "skinDeep", "hair": "hairBlack", "design": "a" }
+    },
+    "sage-mage_d": {
       "page": 1,
       "x": 1,
-      "y": 879,
+      "y": 666,
       "w": 41,
       "h": 46,
       "step": 43,
       "ox": 29,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": { "id": "mage_d", "g": "f", "skin": "skinWarm", "hair": "hairBlack", "design": "b" }
     },
-    "sage-2": {
+    "sage-mage_e": {
       "page": 1,
       "x": 259,
-      "y": 879,
-      "w": 44,
-      "h": 46,
-      "step": 46,
-      "ox": 28,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "sage-3": {
-      "page": 1,
-      "x": 535,
-      "y": 879,
+      "y": 666,
       "w": 41,
       "h": 46,
       "step": 43,
       "ox": 29,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
-    },
-    "sage-4": {
-      "page": 1,
-      "x": 793,
-      "y": 879,
-      "w": 44,
-      "h": 46,
-      "step": 46,
-      "ox": 28,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "sage-5": {
-      "page": 1,
-      "x": 1069,
-      "y": 879,
-      "w": 41,
-      "h": 46,
-      "step": 43,
-      "ox": 29,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "mage_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
     },
     "enemy_sage": {
       "page": 1,
-      "x": 793,
-      "y": 782,
+      "x": 397,
+      "y": 569,
       "w": 44,
       "h": 46,
       "step": 46,
@@ -2096,8 +2460,8 @@
     },
     "enemy_sage-corrupt": {
       "page": 1,
-      "x": 1069,
-      "y": 782,
+      "x": 673,
+      "y": 569,
       "w": 45,
       "h": 46,
       "step": 47,
@@ -2108,8 +2472,8 @@
     },
     "npc_sage": {
       "page": 1,
-      "x": 997,
-      "y": 831,
+      "x": 499,
+      "y": 618,
       "w": 44,
       "h": 46,
       "step": 46,
@@ -2118,82 +2482,106 @@
       "size": 96,
       "kind": "mage"
     },
-    "bishop-0": {
+    "bishop-cleric_a": {
       "page": 1,
       "x": 283,
-      "y": 581,
+      "y": 368,
+      "w": 49,
+      "h": 49,
+      "step": 51,
+      "ox": 29,
+      "oy": 17,
+      "size": 96,
+      "kind": "mage",
+      "person": {
+        "id": "cleric_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "b"
+      }
+    },
+    "bishop-cleric_b": {
+      "page": 1,
+      "x": 589,
+      "y": 368,
+      "w": 49,
+      "h": 49,
+      "step": 51,
+      "ox": 29,
+      "oy": 17,
+      "size": 96,
+      "kind": "mage",
+      "person": {
+        "id": "cleric_b",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
+    },
+    "bishop-cleric_c": {
+      "page": 1,
+      "x": 895,
+      "y": 368,
       "w": 45,
       "h": 49,
       "step": 47,
       "ox": 30,
       "oy": 17,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_c",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairChestnut",
+        "design": "a"
+      }
     },
-    "bishop-1": {
+    "bishop-cleric_d": {
       "page": 1,
-      "x": 565,
-      "y": 581,
-      "w": 42,
-      "h": 49,
-      "step": 44,
-      "ox": 29,
-      "oy": 17,
-      "size": 96,
-      "kind": "mage"
-    },
-    "bishop-2": {
-      "page": 1,
-      "x": 829,
-      "y": 581,
+      "x": 1177,
+      "y": 368,
       "w": 45,
       "h": 49,
       "step": 47,
       "ox": 30,
       "oy": 17,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_d",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "bishop-3": {
+    "bishop-cleric_e": {
       "page": 1,
-      "x": 1111,
-      "y": 581,
-      "w": 42,
+      "x": 1459,
+      "y": 368,
+      "w": 49,
       "h": 49,
-      "step": 44,
+      "step": 51,
       "ox": 29,
       "oy": 17,
       "size": 96,
-      "kind": "mage"
-    },
-    "bishop-4": {
-      "page": 1,
-      "x": 1375,
-      "y": 581,
-      "w": 45,
-      "h": 49,
-      "step": 47,
-      "ox": 30,
-      "oy": 17,
-      "size": 96,
-      "kind": "mage"
-    },
-    "bishop-5": {
-      "page": 1,
-      "x": 1657,
-      "y": 581,
-      "w": 42,
-      "h": 49,
-      "step": 44,
-      "ox": 29,
-      "oy": 17,
-      "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "cleric_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
     "enemy_bishop": {
       "page": 1,
-      "x": 1,
-      "y": 633,
+      "x": 1765,
+      "y": 368,
       "w": 45,
       "h": 49,
       "step": 47,
@@ -2204,8 +2592,8 @@
     },
     "enemy_bishop-corrupt": {
       "page": 1,
-      "x": 283,
-      "y": 633,
+      "x": 1,
+      "y": 420,
       "w": 46,
       "h": 49,
       "step": 48,
@@ -2216,8 +2604,8 @@
     },
     "npc_bishop": {
       "page": 1,
-      "x": 937,
-      "y": 633,
+      "x": 655,
+      "y": 420,
       "w": 45,
       "h": 49,
       "step": 47,
@@ -2226,82 +2614,99 @@
       "size": 96,
       "kind": "mage"
     },
-    "assassin-0": {
+    "assassin-thief_a": {
       "page": 0,
-      "x": 1753,
-      "y": 1169,
+      "x": 601,
+      "y": 1104,
       "w": 45,
       "h": 52,
       "step": 47,
       "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "assassin-1": {
+    "assassin-thief_b": {
       "page": 0,
-      "x": 1201,
-      "y": 1224,
+      "x": 883,
+      "y": 1104,
+      "w": 45,
+      "h": 52,
+      "step": 47,
+      "ox": 26,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "thief_b",
+        "g": "m",
+        "skin": "skinOlive",
+        "hair": "hairBlack",
+        "design": "a"
+      }
+    },
+    "assassin-thief_c": {
+      "page": 0,
+      "x": 1165,
+      "y": 1104,
       "w": 49,
       "h": 52,
       "step": 51,
       "ox": 24,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "assassin-2": {
+    "assassin-thief_d": {
       "page": 0,
-      "x": 1507,
-      "y": 1224,
-      "w": 45,
+      "x": 1471,
+      "y": 1104,
+      "w": 49,
       "h": 52,
-      "step": 47,
-      "ox": 26,
+      "step": 51,
+      "ox": 24,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairChestnut",
+        "design": "b"
+      }
     },
-    "assassin-3": {
+    "assassin-thief_e": {
       "page": 0,
       "x": 1,
-      "y": 1278,
-      "w": 49,
-      "h": 52,
-      "step": 51,
-      "ox": 24,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "assassin-4": {
-      "page": 0,
-      "x": 307,
-      "y": 1278,
+      "y": 1158,
       "w": 45,
       "h": 52,
       "step": 47,
       "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
-    },
-    "assassin-5": {
-      "page": 0,
-      "x": 589,
-      "y": 1278,
-      "w": 49,
-      "h": 52,
-      "step": 51,
-      "ox": 24,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": { "id": "thief_e", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
     },
     "enemy_assassin": {
       "page": 0,
-      "x": 307,
-      "y": 1440,
+      "x": 625,
+      "y": 1266,
       "w": 61,
       "h": 52,
       "step": 63,
@@ -2312,8 +2717,8 @@
     },
     "enemy_assassin-corrupt": {
       "page": 0,
-      "x": 685,
-      "y": 1440,
+      "x": 1003,
+      "y": 1266,
       "w": 62,
       "h": 52,
       "step": 64,
@@ -2324,8 +2729,8 @@
     },
     "npc_assassin": {
       "page": 0,
-      "x": 1309,
-      "y": 1656,
+      "x": 991,
+      "y": 1482,
       "w": 45,
       "h": 52,
       "step": 47,
@@ -2334,82 +2739,105 @@
       "size": 96,
       "kind": "infantry"
     },
-    "bard-0": {
-      "page": 0,
-      "x": 895,
-      "y": 1278,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "bard-1": {
-      "page": 0,
-      "x": 1213,
-      "y": 1278,
-      "w": 45,
-      "h": 52,
-      "step": 47,
-      "ox": 26,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "bard-2": {
-      "page": 0,
-      "x": 1495,
-      "y": 1278,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "bard-3": {
-      "page": 0,
-      "x": 1,
-      "y": 1332,
-      "w": 45,
-      "h": 52,
-      "step": 47,
-      "ox": 26,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "bard-4": {
+    "bard-dancer_a": {
       "page": 0,
       "x": 283,
-      "y": 1332,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "bard-5": {
-      "page": 0,
-      "x": 601,
-      "y": 1332,
+      "y": 1158,
       "w": 45,
       "h": 52,
       "step": 47,
       "ox": 26,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_a",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "bard-dancer_b": {
+      "page": 0,
+      "x": 565,
+      "y": 1158,
+      "w": 45,
+      "h": 52,
+      "step": 47,
+      "ox": 26,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_b",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "bard-dancer_c": {
+      "page": 0,
+      "x": 847,
+      "y": 1158,
+      "w": 45,
+      "h": 52,
+      "step": 47,
+      "ox": 26,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "b"
+      }
+    },
+    "bard-dancer_d": {
+      "page": 0,
+      "x": 1129,
+      "y": 1158,
+      "w": 45,
+      "h": 52,
+      "step": 47,
+      "ox": 26,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_d",
+        "g": "f",
+        "skin": "skinOlive",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
+    },
+    "bard-dancer_e": {
+      "page": 0,
+      "x": 1411,
+      "y": 1158,
+      "w": 51,
+      "h": 52,
+      "step": 53,
+      "ox": 23,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "dancer_e",
+        "g": "m",
+        "skin": "skinTan",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_bard": {
       "page": 0,
-      "x": 1069,
-      "y": 1440,
+      "x": 1387,
+      "y": 1266,
       "w": 47,
       "h": 52,
       "step": 49,
@@ -2420,8 +2848,8 @@
     },
     "enemy_bard-corrupt": {
       "page": 0,
-      "x": 1363,
-      "y": 1440,
+      "x": 1681,
+      "y": 1266,
       "w": 48,
       "h": 52,
       "step": 50,
@@ -2432,8 +2860,8 @@
     },
     "npc_bard": {
       "page": 0,
-      "x": 1591,
-      "y": 1656,
+      "x": 1273,
+      "y": 1482,
       "w": 51,
       "h": 52,
       "step": 53,
@@ -2442,82 +2870,200 @@
       "size": 96,
       "kind": "infantry"
     },
-    "falcon_knight-0": {
+    "falcon_knight-pegasus_a": {
+      "page": 1,
+      "x": 655,
+      "y": 160,
+      "w": 60,
+      "h": 50,
+      "step": 62,
+      "ox": 23,
+      "oy": 16,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
+    },
+    "falcon_knight-pegasus_b": {
+      "page": 1,
+      "x": 1027,
+      "y": 160,
+      "w": 60,
+      "h": 50,
+      "step": 62,
+      "ox": 23,
+      "oy": 16,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_b",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
+    },
+    "falcon_knight-pegasus_c": {
+      "page": 1,
+      "x": 1399,
+      "y": 160,
+      "w": 60,
+      "h": 50,
+      "step": 62,
+      "ox": 23,
+      "oy": 16,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "falcon_knight-pegasus_d": {
       "page": 1,
       "x": 1,
-      "y": 425,
+      "y": 212,
       "w": 63,
       "h": 50,
       "step": 65,
       "ox": 23,
       "oy": 16,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_d",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "falcon_knight-1": {
+    "falcon_knight-pegasus_e": {
       "page": 1,
       "x": 391,
-      "y": 425,
+      "y": 212,
       "w": 60,
       "h": 50,
       "step": 62,
       "ox": 23,
       "oy": 16,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "b"
+      }
     },
-    "falcon_knight-2": {
+    "falcon_knight-wyvern_a": {
       "page": 1,
       "x": 763,
-      "y": 425,
+      "y": 212,
       "w": 63,
       "h": 50,
       "step": 65,
       "ox": 23,
       "oy": 16,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "a"
+      }
     },
-    "falcon_knight-3": {
+    "falcon_knight-wyvern_b": {
       "page": 1,
       "x": 1153,
-      "y": 425,
-      "w": 60,
-      "h": 50,
-      "step": 62,
-      "ox": 23,
-      "oy": 16,
-      "size": 96,
-      "kind": "flyer"
-    },
-    "falcon_knight-4": {
-      "page": 1,
-      "x": 1525,
-      "y": 425,
+      "y": 212,
       "w": 63,
       "h": 50,
       "step": 65,
       "ox": 23,
       "oy": 16,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
     },
-    "falcon_knight-5": {
+    "falcon_knight-wyvern_c": {
       "page": 1,
-      "x": 1,
-      "y": 477,
+      "x": 1543,
+      "y": 212,
       "w": 60,
       "h": 50,
       "step": 62,
       "ox": 23,
       "oy": 16,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_c",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "falcon_knight-wyvern_d": {
+      "page": 1,
+      "x": 1,
+      "y": 264,
+      "w": 63,
+      "h": 50,
+      "step": 65,
+      "ox": 23,
+      "oy": 16,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_d",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
+    },
+    "falcon_knight-wyvern_e": {
+      "page": 1,
+      "x": 391,
+      "y": 264,
+      "w": 60,
+      "h": 50,
+      "step": 62,
+      "ox": 23,
+      "oy": 16,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
     "enemy_falcon_knight": {
       "page": 1,
-      "x": 1243,
-      "y": 372,
+      "x": 1,
+      "y": 160,
       "w": 52,
       "h": 50,
       "step": 54,
@@ -2528,8 +3074,8 @@
     },
     "enemy_falcon_knight-corrupt": {
       "page": 1,
-      "x": 1567,
-      "y": 372,
+      "x": 325,
+      "y": 160,
       "w": 53,
       "h": 50,
       "step": 55,
@@ -2540,8 +3086,8 @@
     },
     "npc_falcon_knight": {
       "page": 1,
-      "x": 1447,
-      "y": 529,
+      "x": 1435,
+      "y": 316,
       "w": 63,
       "h": 50,
       "step": 65,
@@ -2550,82 +3096,200 @@
       "size": 96,
       "kind": "flyer"
     },
-    "wyvern_lord-0": {
-      "page": 1,
-      "x": 421,
-      "y": 1023,
-      "w": 68,
-      "h": 43,
-      "step": 70,
-      "ox": 21,
-      "oy": 23,
-      "size": 96,
-      "kind": "flyer"
-    },
-    "wyvern_lord-1": {
+    "wyvern_lord-pegasus_a": {
       "page": 1,
       "x": 841,
-      "y": 1023,
+      "y": 762,
       "w": 68,
       "h": 43,
       "step": 70,
       "ox": 20,
       "oy": 23,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
     },
-    "wyvern_lord-2": {
+    "wyvern_lord-pegasus_b": {
       "page": 1,
       "x": 1261,
-      "y": 1023,
+      "y": 762,
       "w": 68,
       "h": 43,
       "step": 70,
-      "ox": 21,
+      "ox": 20,
       "oy": 23,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_b",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
-    "wyvern_lord-3": {
+    "wyvern_lord-pegasus_c": {
       "page": 1,
       "x": 1,
-      "y": 1068,
+      "y": 809,
       "w": 68,
       "h": 43,
       "step": 70,
       "ox": 20,
       "oy": 23,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "wyvern_lord-4": {
+    "wyvern_lord-pegasus_d": {
       "page": 1,
       "x": 421,
-      "y": 1068,
+      "y": 809,
       "w": 68,
       "h": 43,
       "step": 70,
       "ox": 21,
       "oy": 23,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_d",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "wyvern_lord-5": {
+    "wyvern_lord-pegasus_e": {
       "page": 1,
       "x": 841,
-      "y": 1068,
+      "y": 809,
       "w": 68,
       "h": 43,
       "step": 70,
       "ox": 20,
       "oy": 23,
       "size": 96,
-      "kind": "flyer"
+      "kind": "flyer",
+      "person": {
+        "id": "pegasus_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "b"
+      }
+    },
+    "wyvern_lord-wyvern_a": {
+      "page": 1,
+      "x": 1261,
+      "y": 809,
+      "w": 68,
+      "h": 43,
+      "step": 70,
+      "ox": 21,
+      "oy": 23,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "a"
+      }
+    },
+    "wyvern_lord-wyvern_b": {
+      "page": 1,
+      "x": 1,
+      "y": 854,
+      "w": 68,
+      "h": 43,
+      "step": 70,
+      "ox": 21,
+      "oy": 23,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
+    },
+    "wyvern_lord-wyvern_c": {
+      "page": 1,
+      "x": 421,
+      "y": 854,
+      "w": 68,
+      "h": 43,
+      "step": 70,
+      "ox": 20,
+      "oy": 23,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_c",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "wyvern_lord-wyvern_d": {
+      "page": 1,
+      "x": 841,
+      "y": 854,
+      "w": 68,
+      "h": 43,
+      "step": 70,
+      "ox": 21,
+      "oy": 23,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_d",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
+    },
+    "wyvern_lord-wyvern_e": {
+      "page": 1,
+      "x": 1261,
+      "y": 854,
+      "w": 68,
+      "h": 43,
+      "step": 70,
+      "ox": 20,
+      "oy": 23,
+      "size": 96,
+      "kind": "flyer",
+      "person": {
+        "id": "wyvern_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
     "enemy_wyvern_lord": {
       "page": 1,
-      "x": 949,
-      "y": 975,
+      "x": 1351,
+      "y": 714,
       "w": 68,
       "h": 45,
       "step": 70,
@@ -2636,8 +3300,8 @@
     },
     "enemy_wyvern_lord-corrupt": {
       "page": 1,
-      "x": 1369,
-      "y": 975,
+      "x": 1,
+      "y": 762,
       "w": 68,
       "h": 45,
       "step": 70,
@@ -2648,8 +3312,8 @@
     },
     "npc_wyvern_lord": {
       "page": 1,
-      "x": 1,
-      "y": 1023,
+      "x": 421,
+      "y": 762,
       "w": 68,
       "h": 43,
       "step": 70,
@@ -2658,82 +3322,106 @@
       "size": 96,
       "kind": "flyer"
     },
-    "hero-0": {
-      "page": 1,
-      "x": 673,
-      "y": 107,
+    "hero-mercenary_a": {
+      "page": 0,
+      "x": 997,
+      "y": 1910,
       "w": 55,
       "h": 51,
       "step": 57,
       "ox": 18,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "a"
+      }
     },
-    "hero-1": {
+    "hero-mercenary_b": {
+      "page": 0,
+      "x": 1339,
+      "y": 1910,
+      "w": 55,
+      "h": 51,
+      "step": 57,
+      "ox": 18,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
+    },
+    "hero-mercenary_c": {
+      "page": 0,
+      "x": 1681,
+      "y": 1910,
+      "w": 55,
+      "h": 51,
+      "step": 57,
+      "ox": 18,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_c",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "bald": true,
+        "design": "a"
+      }
+    },
+    "hero-mercenary_d": {
       "page": 0,
       "x": 1321,
-      "y": 1602,
+      "y": 1428,
       "w": 51,
       "h": 52,
       "step": 53,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSandy",
+        "design": "b"
+      }
     },
-    "hero-2": {
-      "page": 1,
-      "x": 1015,
-      "y": 107,
-      "w": 55,
-      "h": 51,
-      "step": 57,
-      "ox": 18,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "hero-3": {
+    "hero-mercenary_e": {
       "page": 0,
       "x": 1639,
-      "y": 1602,
+      "y": 1428,
       "w": 51,
       "h": 52,
       "step": 53,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
-    },
-    "hero-4": {
-      "page": 1,
-      "x": 1357,
-      "y": 107,
-      "w": 55,
-      "h": 51,
-      "step": 57,
-      "ox": 18,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "hero-5": {
-      "page": 0,
-      "x": 1,
-      "y": 1656,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_hero": {
       "page": 0,
-      "x": 979,
-      "y": 1494,
+      "x": 1309,
+      "y": 1320,
       "w": 57,
       "h": 52,
       "step": 59,
@@ -2744,8 +3432,8 @@
     },
     "enemy_hero-corrupt": {
       "page": 0,
-      "x": 1333,
-      "y": 1494,
+      "x": 1663,
+      "y": 1320,
       "w": 58,
       "h": 52,
       "step": 60,
@@ -2756,8 +3444,8 @@
     },
     "npc_hero": {
       "page": 1,
-      "x": 1135,
-      "y": 213,
+      "x": 883,
+      "y": 1,
       "w": 55,
       "h": 51,
       "step": 57,
@@ -2766,82 +3454,105 @@
       "size": 96,
       "kind": "infantry"
     },
-    "duelist-0": {
+    "duelist-myrmidon_a": {
       "page": 0,
-      "x": 421,
-      "y": 1386,
-      "w": 51,
-      "h": 52,
-      "step": 53,
-      "ox": 18,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "duelist-1": {
-      "page": 0,
-      "x": 739,
-      "y": 1386,
+      "x": 1729,
+      "y": 1158,
       "w": 49,
       "h": 52,
       "step": 51,
       "ox": 18,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "duelist-2": {
+    "duelist-myrmidon_b": {
       "page": 0,
-      "x": 1045,
-      "y": 1386,
+      "x": 1411,
+      "y": 1212,
       "w": 51,
       "h": 52,
       "step": 53,
       "ox": 18,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlueBlack",
+        "design": "a"
+      }
     },
-    "duelist-3": {
+    "duelist-myrmidon_c": {
       "page": 0,
-      "x": 1363,
-      "y": 1386,
-      "w": 49,
-      "h": 52,
-      "step": 51,
-      "ox": 18,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "duelist-4": {
-      "page": 0,
-      "x": 1669,
-      "y": 1386,
+      "x": 1729,
+      "y": 1212,
       "w": 51,
       "h": 52,
       "step": 53,
       "ox": 18,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_c",
+        "g": "m",
+        "skin": "skinTan",
+        "hair": "hairSandy",
+        "design": "a"
+      }
     },
-    "duelist-5": {
+    "duelist-myrmidon_d": {
       "page": 0,
       "x": 1,
-      "y": 1440,
+      "y": 1266,
       "w": 49,
       "h": 52,
       "step": 51,
       "ox": 18,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "duelist-myrmidon_e": {
+      "page": 0,
+      "x": 307,
+      "y": 1266,
+      "w": 51,
+      "h": 52,
+      "step": 53,
+      "ox": 18,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "myrmidon_e",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "a"
+      }
     },
     "enemy_duelist": {
-      "page": 1,
-      "x": 583,
-      "y": 1,
+      "page": 0,
+      "x": 1,
+      "y": 1804,
       "w": 56,
       "h": 51,
       "step": 58,
@@ -2851,9 +3562,9 @@
       "kind": "infantry"
     },
     "enemy_duelist-corrupt": {
-      "page": 1,
-      "x": 931,
-      "y": 1,
+      "page": 0,
+      "x": 349,
+      "y": 1804,
       "w": 57,
       "h": 51,
       "step": 59,
@@ -2864,8 +3575,8 @@
     },
     "npc_duelist": {
       "page": 0,
-      "x": 331,
-      "y": 1710,
+      "x": 1,
+      "y": 1536,
       "w": 51,
       "h": 52,
       "step": 53,
@@ -2874,7 +3585,7 @@
       "size": 96,
       "kind": "infantry"
     },
-    "great_knight-0": {
+    "great_knight-knight_a": {
       "page": 0,
       "x": 787,
       "y": 322,
@@ -2884,21 +3595,16 @@
       "ox": 14,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "knight_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairGrey",
+        "design": "a"
+      }
     },
-    "great_knight-1": {
-      "page": 0,
-      "x": 409,
-      "y": 634,
-      "w": 66,
-      "h": 60,
-      "step": 68,
-      "ox": 14,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "great_knight-2": {
+    "great_knight-knight_b": {
       "page": 0,
       "x": 1195,
       "y": 322,
@@ -2908,21 +3614,55 @@
       "ox": 14,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "knight_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "skinWarm",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "great_knight-3": {
+    "great_knight-knight_c": {
       "page": 0,
-      "x": 817,
-      "y": 634,
+      "x": 1195,
+      "y": 572,
       "w": 66,
       "h": 60,
       "step": 68,
       "ox": 14,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "knight_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "great_knight-4": {
+    "great_knight-knight_d": {
+      "page": 0,
+      "x": 1603,
+      "y": 572,
+      "w": 66,
+      "h": 60,
+      "step": 68,
+      "ox": 14,
+      "oy": 6,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "knight_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "great_knight-knight_e": {
       "page": 0,
       "x": 1603,
       "y": 322,
@@ -2932,19 +3672,14 @@
       "ox": 14,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
-    },
-    "great_knight-5": {
-      "page": 0,
-      "x": 1225,
-      "y": 634,
-      "w": 66,
-      "h": 60,
-      "step": 68,
-      "ox": 14,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "knight_e",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_great_knight": {
       "page": 0,
@@ -2982,82 +3717,106 @@
       "size": 96,
       "kind": "mounted"
     },
-    "berserker-0": {
+    "berserker-fighter_a": {
       "page": 0,
-      "x": 883,
-      "y": 1332,
+      "x": 1,
+      "y": 1212,
       "w": 53,
       "h": 52,
       "step": 55,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_a",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
     },
-    "berserker-1": {
+    "berserker-fighter_b": {
       "page": 0,
-      "x": 559,
-      "y": 1926,
+      "x": 331,
+      "y": 1212,
+      "w": 53,
+      "h": 52,
+      "step": 55,
+      "ox": 23,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_b",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
+    },
+    "berserker-fighter_c": {
+      "page": 0,
+      "x": 661,
+      "y": 1212,
+      "w": 53,
+      "h": 52,
+      "step": 55,
+      "ox": 23,
+      "oy": 14,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_c",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "a"
+      }
+    },
+    "berserker-fighter_d": {
+      "page": 0,
+      "x": 853,
+      "y": 1698,
       "w": 58,
       "h": 51,
       "step": 60,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
-    "berserker-2": {
+    "berserker-fighter_e": {
       "page": 0,
       "x": 1213,
-      "y": 1332,
-      "w": 53,
-      "h": 52,
-      "step": 55,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "berserker-3": {
-      "page": 0,
-      "x": 919,
-      "y": 1926,
+      "y": 1698,
       "w": 58,
       "h": 51,
       "step": 60,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
-    },
-    "berserker-4": {
-      "page": 0,
-      "x": 1543,
-      "y": 1332,
-      "w": 53,
-      "h": 52,
-      "step": 55,
-      "ox": 23,
-      "oy": 14,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "berserker-5": {
-      "page": 0,
-      "x": 1279,
-      "y": 1926,
-      "w": 58,
-      "h": 51,
-      "step": 60,
-      "ox": 22,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "fighter_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_berserker": {
       "page": 0,
-      "x": 1663,
-      "y": 1440,
+      "x": 1,
+      "y": 1320,
       "w": 53,
       "h": 52,
       "step": 55,
@@ -3068,8 +3827,8 @@
     },
     "enemy_berserker-corrupt": {
       "page": 0,
-      "x": 1,
-      "y": 1494,
+      "x": 331,
+      "y": 1320,
       "w": 54,
       "h": 52,
       "step": 56,
@@ -3080,8 +3839,8 @@
     },
     "npc_berserker": {
       "page": 0,
-      "x": 1,
-      "y": 1710,
+      "x": 1591,
+      "y": 1482,
       "w": 53,
       "h": 52,
       "step": 55,
@@ -3090,7 +3849,7 @@
       "size": 96,
       "kind": "infantry"
     },
-    "dark_knight-0": {
+    "dark_knight-cavalier_a": {
       "page": 0,
       "x": 1027,
       "y": 196,
@@ -3100,21 +3859,16 @@
       "ox": 19,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "dark_knight-1": {
-      "page": 0,
-      "x": 733,
-      "y": 510,
-      "w": 61,
-      "h": 60,
-      "step": 63,
-      "ox": 18,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "dark_knight-2": {
+    "dark_knight-cavalier_b": {
       "page": 0,
       "x": 1411,
       "y": 196,
@@ -3124,11 +3878,18 @@
       "ox": 19,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairBrown",
+        "design": "a"
+      }
     },
-    "dark_knight-3": {
+    "dark_knight-cavalier_c": {
       "page": 0,
-      "x": 1111,
+      "x": 1,
       "y": 510,
       "w": 61,
       "h": 60,
@@ -3136,9 +3897,35 @@
       "ox": 18,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_c",
+        "g": "f",
+        "skin": "skinOlive",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
-    "dark_knight-4": {
+    "dark_knight-cavalier_d": {
+      "page": 0,
+      "x": 379,
+      "y": 510,
+      "w": 61,
+      "h": 60,
+      "step": 63,
+      "ox": 18,
+      "oy": 6,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairGreyAuburn",
+        "design": "b"
+      }
+    },
+    "dark_knight-cavalier_e": {
       "page": 0,
       "x": 1,
       "y": 259,
@@ -3148,24 +3935,19 @@
       "ox": 19,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
-    },
-    "dark_knight-5": {
-      "page": 0,
-      "x": 1489,
-      "y": 510,
-      "w": 61,
-      "h": 60,
-      "step": 63,
-      "ox": 18,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "cavalier_e",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
     "enemy_dark_knight": {
       "page": 0,
-      "x": 727,
-      "y": 572,
+      "x": 1483,
+      "y": 510,
       "w": 61,
       "h": 60,
       "step": 63,
@@ -3176,7 +3958,7 @@
     },
     "enemy_dark_knight-corrupt": {
       "page": 0,
-      "x": 1105,
+      "x": 1,
       "y": 572,
       "w": 62,
       "h": 60,
@@ -3198,7 +3980,7 @@
       "size": 96,
       "kind": "mounted"
     },
-    "bow_knight-0": {
+    "bow_knight-archer_a": {
       "page": 0,
       "x": 1147,
       "y": 385,
@@ -3208,21 +3990,16 @@
       "ox": 19,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "archer_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlond",
+        "design": "a"
+      }
     },
-    "bow_knight-1": {
-      "page": 0,
-      "x": 1,
-      "y": 196,
-      "w": 55,
-      "h": 61,
-      "step": 57,
-      "ox": 21,
-      "oy": 5,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "bow_knight-2": {
+    "bow_knight-archer_b": {
       "page": 0,
       "x": 1513,
       "y": 385,
@@ -3232,9 +4009,29 @@
       "ox": 19,
       "oy": 6,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": { "id": "archer_b", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
     },
-    "bow_knight-3": {
+    "bow_knight-archer_c": {
+      "page": 0,
+      "x": 1,
+      "y": 196,
+      "w": 55,
+      "h": 61,
+      "step": 57,
+      "ox": 21,
+      "oy": 5,
+      "size": 96,
+      "kind": "mounted",
+      "person": {
+        "id": "archer_c",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairBlack",
+        "design": "b"
+      }
+    },
+    "bow_knight-archer_d": {
       "page": 0,
       "x": 343,
       "y": 196,
@@ -3244,21 +4041,16 @@
       "ox": 21,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": {
+        "id": "archer_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairAuburn",
+        "design": "b"
+      }
     },
-    "bow_knight-4": {
-      "page": 0,
-      "x": 1,
-      "y": 448,
-      "w": 59,
-      "h": 60,
-      "step": 61,
-      "ox": 19,
-      "oy": 6,
-      "size": 96,
-      "kind": "mounted"
-    },
-    "bow_knight-5": {
+    "bow_knight-archer_e": {
       "page": 0,
       "x": 685,
       "y": 196,
@@ -3268,12 +4060,13 @@
       "ox": 21,
       "oy": 5,
       "size": 96,
-      "kind": "mounted"
+      "kind": "mounted",
+      "person": { "id": "archer_e", "g": "f", "skin": "skinTan", "hair": "hairGrey", "design": "b" }
     },
     "enemy_bow_knight": {
       "page": 0,
-      "x": 1,
-      "y": 572,
+      "x": 757,
+      "y": 510,
       "w": 58,
       "h": 60,
       "step": 60,
@@ -3284,8 +4077,8 @@
     },
     "enemy_bow_knight-corrupt": {
       "page": 0,
-      "x": 361,
-      "y": 572,
+      "x": 1117,
+      "y": 510,
       "w": 59,
       "h": 60,
       "step": 61,
@@ -3296,8 +4089,8 @@
     },
     "npc_bow_knight": {
       "page": 0,
-      "x": 367,
-      "y": 696,
+      "x": 1039,
+      "y": 634,
       "w": 59,
       "h": 60,
       "step": 61,
@@ -3306,82 +4099,87 @@
       "size": 96,
       "kind": "mounted"
     },
-    "warlock-0": {
+    "warlock-mage_a": {
       "page": 1,
-      "x": 1327,
-      "y": 879,
-      "w": 46,
-      "h": 46,
-      "step": 48,
-      "ox": 26,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "warlock-1": {
-      "page": 1,
-      "x": 1615,
-      "y": 879,
+      "x": 517,
+      "y": 666,
       "w": 45,
       "h": 46,
       "step": 47,
       "ox": 27,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": { "id": "mage_a", "g": "f", "skin": "skinFair", "hair": "hairPlum", "design": "b" }
     },
-    "warlock-2": {
+    "warlock-mage_b": {
       "page": 1,
-      "x": 1,
-      "y": 927,
+      "x": 799,
+      "y": 666,
       "w": 46,
       "h": 46,
       "step": 48,
       "ox": 26,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": {
+        "id": "mage_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairSaltPepper",
+        "design": "a"
+      }
     },
-    "warlock-3": {
+    "warlock-mage_c": {
       "page": 1,
-      "x": 289,
-      "y": 927,
-      "w": 45,
-      "h": 46,
-      "step": 47,
-      "ox": 27,
-      "oy": 20,
-      "size": 96,
-      "kind": "mage"
-    },
-    "warlock-4": {
-      "page": 1,
-      "x": 571,
-      "y": 927,
+      "x": 1087,
+      "y": 666,
       "w": 46,
       "h": 46,
       "step": 48,
       "ox": 26,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": { "id": "mage_c", "g": "m", "skin": "skinDeep", "hair": "hairBlack", "design": "a" }
     },
-    "warlock-5": {
+    "warlock-mage_d": {
       "page": 1,
-      "x": 859,
-      "y": 927,
+      "x": 1375,
+      "y": 666,
       "w": 45,
       "h": 46,
       "step": 47,
       "ox": 27,
       "oy": 20,
       "size": 96,
-      "kind": "mage"
+      "kind": "mage",
+      "person": { "id": "mage_d", "g": "f", "skin": "skinWarm", "hair": "hairBlack", "design": "b" }
+    },
+    "warlock-mage_e": {
+      "page": 1,
+      "x": 1657,
+      "y": 666,
+      "w": 45,
+      "h": 46,
+      "step": 47,
+      "ox": 27,
+      "oy": 20,
+      "size": 96,
+      "kind": "mage",
+      "person": {
+        "id": "mage_e",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
     },
     "enemy_warlock": {
       "page": 1,
-      "x": 403,
-      "y": 975,
+      "x": 805,
+      "y": 714,
       "w": 43,
       "h": 45,
       "step": 45,
@@ -3392,8 +4190,8 @@
     },
     "enemy_warlock-corrupt": {
       "page": 1,
-      "x": 673,
-      "y": 975,
+      "x": 1075,
+      "y": 714,
       "w": 44,
       "h": 45,
       "step": 46,
@@ -3404,8 +4202,8 @@
     },
     "npc_warlock": {
       "page": 1,
-      "x": 1273,
-      "y": 831,
+      "x": 775,
+      "y": 618,
       "w": 46,
       "h": 46,
       "step": 48,
@@ -3414,82 +4212,106 @@
       "size": 96,
       "kind": "mage"
     },
-    "battle_monk-0": {
+    "battle_monk-cleric_a": {
       "page": 0,
-      "x": 673,
-      "y": 1872,
-      "w": 44,
+      "x": 1687,
+      "y": 1644,
+      "w": 46,
       "h": 51,
-      "step": 46,
-      "ox": 27,
+      "step": 48,
+      "ox": 23,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "cleric_a",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "b"
+      }
     },
-    "battle_monk-1": {
-      "page": 0,
-      "x": 949,
-      "y": 1872,
-      "w": 45,
-      "h": 51,
-      "step": 47,
-      "ox": 24,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "battle_monk-2": {
-      "page": 0,
-      "x": 1231,
-      "y": 1872,
-      "w": 44,
-      "h": 51,
-      "step": 46,
-      "ox": 27,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "battle_monk-3": {
-      "page": 0,
-      "x": 1507,
-      "y": 1872,
-      "w": 45,
-      "h": 51,
-      "step": 47,
-      "ox": 24,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "battle_monk-4": {
+    "battle_monk-cleric_b": {
       "page": 0,
       "x": 1,
-      "y": 1926,
+      "y": 1698,
+      "w": 46,
+      "h": 51,
+      "step": 48,
+      "ox": 23,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "cleric_b",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSilver",
+        "design": "b"
+      }
+    },
+    "battle_monk-cleric_c": {
+      "page": 0,
+      "x": 1765,
+      "y": 1590,
       "w": 44,
       "h": 51,
       "step": 46,
       "ox": 27,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "cleric_c",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairChestnut",
+        "design": "a"
+      }
     },
-    "battle_monk-5": {
+    "battle_monk-cleric_d": {
       "page": 0,
-      "x": 277,
-      "y": 1926,
-      "w": 45,
+      "x": 289,
+      "y": 1698,
+      "w": 44,
       "h": 51,
-      "step": 47,
-      "ox": 24,
+      "step": 46,
+      "ox": 27,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "cleric_d",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairGrey",
+        "bald": true,
+        "design": "a"
+      }
+    },
+    "battle_monk-cleric_e": {
+      "page": 0,
+      "x": 565,
+      "y": 1698,
+      "w": 46,
+      "h": 51,
+      "step": 48,
+      "ox": 23,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "cleric_e",
+        "g": "f",
+        "skin": "skinTan",
+        "hair": "hairDarkBrown",
+        "design": "b"
+      }
     },
     "enemy_battle_monk": {
       "page": 0,
-      "x": 1333,
-      "y": 1979,
+      "x": 799,
+      "y": 1751,
       "w": 50,
       "h": 51,
       "step": 52,
@@ -3500,8 +4322,8 @@
     },
     "enemy_battle_monk-corrupt": {
       "page": 0,
-      "x": 1645,
-      "y": 1979,
+      "x": 1111,
+      "y": 1751,
       "w": 51,
       "h": 51,
       "step": 53,
@@ -3512,8 +4334,8 @@
     },
     "npc_battle_monk": {
       "page": 1,
-      "x": 253,
-      "y": 213,
+      "x": 1,
+      "y": 1,
       "w": 44,
       "h": 51,
       "step": 46,
@@ -3522,82 +4344,99 @@
       "size": 96,
       "kind": "infantry"
     },
-    "trickster-0": {
+    "trickster-thief_a": {
       "page": 0,
-      "x": 1501,
-      "y": 1764,
+      "x": 865,
+      "y": 1590,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "trickster-1": {
-      "page": 1,
-      "x": 307,
-      "y": 372,
-      "w": 50,
-      "h": 51,
-      "step": 52,
-      "ox": 22,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "trickster-2": {
+    "trickster-thief_b": {
       "page": 0,
-      "x": 1,
-      "y": 1818,
+      "x": 1165,
+      "y": 1590,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_b",
+        "g": "m",
+        "skin": "skinOlive",
+        "hair": "hairBlack",
+        "design": "a"
+      }
     },
-    "trickster-3": {
+    "trickster-thief_c": {
       "page": 1,
-      "x": 619,
-      "y": 372,
+      "x": 1315,
+      "y": 107,
       "w": 50,
       "h": 51,
       "step": 52,
       "ox": 22,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "thief_c",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairCopper",
+        "design": "b"
+      }
     },
-    "trickster-4": {
+    "trickster-thief_d": {
+      "page": 1,
+      "x": 1627,
+      "y": 107,
+      "w": 50,
+      "h": 51,
+      "step": 52,
+      "ox": 22,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "thief_d",
+        "g": "f",
+        "skin": "skinDeep",
+        "hair": "hairChestnut",
+        "design": "b"
+      }
+    },
+    "trickster-thief_e": {
       "page": 0,
-      "x": 301,
-      "y": 1818,
+      "x": 1465,
+      "y": 1590,
       "w": 48,
       "h": 52,
       "step": 50,
       "ox": 23,
       "oy": 14,
       "size": 96,
-      "kind": "infantry"
-    },
-    "trickster-5": {
-      "page": 1,
-      "x": 931,
-      "y": 372,
-      "w": 50,
-      "h": 51,
-      "step": 52,
-      "ox": 22,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": { "id": "thief_e", "g": "m", "skin": "skinTan", "hair": "hairGrey", "design": "a" }
     },
     "enemy_trickster": {
       "page": 0,
       "x": 1,
-      "y": 1602,
+      "y": 1428,
       "w": 49,
       "h": 52,
       "step": 51,
@@ -3609,7 +4448,7 @@
     "enemy_trickster-corrupt": {
       "page": 0,
       "x": 307,
-      "y": 1602,
+      "y": 1428,
       "w": 50,
       "h": 52,
       "step": 52,
@@ -3620,8 +4459,8 @@
     },
     "npc_trickster": {
       "page": 0,
-      "x": 967,
-      "y": 1710,
+      "x": 637,
+      "y": 1536,
       "w": 48,
       "h": 52,
       "step": 50,
@@ -3630,82 +4469,106 @@
       "size": 96,
       "kind": "infantry"
     },
-    "hunter-0": {
-      "page": 1,
-      "x": 1699,
-      "y": 107,
-      "w": 47,
-      "h": 51,
-      "step": 49,
-      "ox": 21,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "hunter-1": {
-      "page": 1,
+    "hunter-mercenary_a": {
+      "page": 0,
       "x": 1,
-      "y": 160,
-      "w": 46,
-      "h": 51,
-      "step": 48,
-      "ox": 26,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "hunter-2": {
-      "page": 1,
-      "x": 289,
-      "y": 160,
+      "y": 1963,
       "w": 47,
       "h": 51,
       "step": 49,
       "ox": 21,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_a",
+        "g": "m",
+        "skin": "skinFair",
+        "hair": "hairLightBrown",
+        "design": "a"
+      }
     },
-    "hunter-3": {
-      "page": 1,
-      "x": 583,
-      "y": 160,
-      "w": 46,
-      "h": 51,
-      "step": 48,
-      "ox": 26,
-      "oy": 15,
-      "size": 96,
-      "kind": "infantry"
-    },
-    "hunter-4": {
-      "page": 1,
-      "x": 871,
-      "y": 160,
+    "hunter-mercenary_b": {
+      "page": 0,
+      "x": 295,
+      "y": 1963,
       "w": 47,
       "h": 51,
       "step": 49,
       "ox": 21,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_b",
+        "g": "m",
+        "skin": "skinWarm",
+        "hair": "hairDarkBrown",
+        "design": "a"
+      }
     },
-    "hunter-5": {
-      "page": 1,
-      "x": 1165,
-      "y": 160,
+    "hunter-mercenary_c": {
+      "page": 0,
+      "x": 589,
+      "y": 1963,
+      "w": 47,
+      "h": 51,
+      "step": 49,
+      "ox": 21,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_c",
+        "g": "m",
+        "skin": "skinDeep",
+        "hair": "hairBlack",
+        "bald": true,
+        "design": "a"
+      }
+    },
+    "hunter-mercenary_d": {
+      "page": 0,
+      "x": 883,
+      "y": 1963,
       "w": 46,
       "h": 51,
       "step": 48,
       "ox": 26,
       "oy": 15,
       "size": 96,
-      "kind": "infantry"
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_d",
+        "g": "f",
+        "skin": "skinFair",
+        "hair": "hairSandy",
+        "design": "b"
+      }
+    },
+    "hunter-mercenary_e": {
+      "page": 0,
+      "x": 1171,
+      "y": 1963,
+      "w": 46,
+      "h": 51,
+      "step": 48,
+      "ox": 26,
+      "oy": 15,
+      "size": 96,
+      "kind": "infantry",
+      "person": {
+        "id": "mercenary_e",
+        "g": "f",
+        "skin": "skinWarm",
+        "hair": "hairBlack",
+        "design": "b"
+      }
     },
     "enemy_hunter": {
       "page": 0,
-      "x": 1693,
-      "y": 1494,
+      "x": 1,
+      "y": 1374,
       "w": 49,
       "h": 52,
       "step": 51,
@@ -3716,8 +4579,8 @@
     },
     "enemy_hunter-corrupt": {
       "page": 0,
-      "x": 1,
-      "y": 1548,
+      "x": 307,
+      "y": 1374,
       "w": 50,
       "h": 52,
       "step": 52,
@@ -3728,8 +4591,8 @@
     },
     "npc_hunter": {
       "page": 1,
-      "x": 1477,
-      "y": 213,
+      "x": 1225,
+      "y": 1,
       "w": 47,
       "h": 51,
       "step": 49,
@@ -3740,8 +4603,8 @@
     },
     "zombie": {
       "page": 0,
-      "x": 1645,
-      "y": 940,
+      "x": 1,
+      "y": 879,
       "w": 50,
       "h": 56,
       "step": 52,
@@ -3752,8 +4615,8 @@
     },
     "enemy_zombie": {
       "page": 0,
-      "x": 1015,
-      "y": 940,
+      "x": 1393,
+      "y": 818,
       "w": 50,
       "h": 56,
       "step": 52,
@@ -3764,8 +4627,8 @@
     },
     "enemy_zombie-corrupt": {
       "page": 0,
-      "x": 1327,
-      "y": 940,
+      "x": 1705,
+      "y": 818,
       "w": 51,
       "h": 56,
       "step": 53,
@@ -3776,8 +4639,8 @@
     },
     "revenant": {
       "page": 1,
-      "x": 1021,
-      "y": 733,
+      "x": 781,
+      "y": 520,
       "w": 61,
       "h": 47,
       "step": 63,
@@ -3788,8 +4651,8 @@
     },
     "enemy_revenant": {
       "page": 1,
-      "x": 1621,
-      "y": 684,
+      "x": 1381,
+      "y": 471,
       "w": 61,
       "h": 47,
       "step": 63,
@@ -3801,7 +4664,7 @@
     "enemy_revenant-corrupt": {
       "page": 1,
       "x": 1,
-      "y": 733,
+      "y": 520,
       "w": 62,
       "h": 47,
       "step": 64,
@@ -3848,8 +4711,8 @@
     },
     "dragon_lord": {
       "page": 0,
-      "x": 1,
-      "y": 758,
+      "x": 721,
+      "y": 696,
       "w": 60,
       "h": 59,
       "step": 62,
@@ -3860,8 +4723,8 @@
     },
     "enemy_dragon_lord": {
       "page": 0,
-      "x": 373,
-      "y": 758,
+      "x": 1093,
+      "y": 696,
       "w": 60,
       "h": 59,
       "step": 62,
@@ -3872,8 +4735,8 @@
     },
     "enemy_dragon_lord-corrupt": {
       "page": 0,
-      "x": 745,
-      "y": 758,
+      "x": 1465,
+      "y": 696,
       "w": 61,
       "h": 59,
       "step": 63,
@@ -3932,8 +4795,8 @@
     },
     "boss_archmage": {
       "page": 0,
-      "x": 709,
-      "y": 940,
+      "x": 1087,
+      "y": 818,
       "w": 49,
       "h": 56,
       "step": 51,
@@ -3944,7 +4807,7 @@
     },
     "boss_dark_rider": {
       "page": 0,
-      "x": 1111,
+      "x": 1,
       "y": 696,
       "w": 68,
       "h": 59,
@@ -3956,8 +4819,8 @@
     },
     "boss_blade_lord": {
       "page": 0,
-      "x": 367,
-      "y": 1000,
+      "x": 679,
+      "y": 879,
       "w": 53,
       "h": 55,
       "step": 55,
@@ -3968,7 +4831,7 @@
     },
     "boss_iron_wall": {
       "page": 0,
-      "x": 1531,
+      "x": 421,
       "y": 696,
       "w": 48,
       "h": 59,
@@ -3980,8 +4843,8 @@
     },
     "boss_berserker_king": {
       "page": 0,
-      "x": 1,
-      "y": 1000,
+      "x": 313,
+      "y": 879,
       "w": 59,
       "h": 55,
       "step": 61,
@@ -3992,8 +4855,8 @@
     },
     "boss_the_emperor": {
       "page": 0,
-      "x": 1,
-      "y": 1386,
+      "x": 991,
+      "y": 1212,
       "w": 68,
       "h": 52,
       "step": 70,
@@ -4004,8 +4867,8 @@
     },
     "boss_the_lieutenant": {
       "page": 0,
-      "x": 697,
-      "y": 1000,
+      "x": 1009,
+      "y": 879,
       "w": 47,
       "h": 54,
       "step": 49,

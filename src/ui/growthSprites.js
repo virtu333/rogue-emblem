@@ -16,7 +16,12 @@ function firstFrameName(texture) {
   return names.length ? names[0] : '__BASE';
 }
 
-/** A unit-shaped copy with another class (the promoted sprite preview). */
+/**
+ * A unit-shaped copy with another class (the promoted sprite preview). It keeps the
+ * unit's person (portraitVariant), so the preview is the same person the portrait and
+ * the promoted unit show (TracedSprites.tracedKeyFor resolves both through
+ * PortraitVariants.displayedPerson).
+ */
 export function projectedSpriteUnit(unit, className, tier = 'promoted') {
   return {
     name: unit?.name,
@@ -25,6 +30,7 @@ export function projectedSpriteUnit(unit, className, tier = 'promoted') {
     faction: unit?.faction === 'enemy' ? 'enemy' : unit?.faction === 'npc' ? 'npc' : 'player',
     isLord: unit?.isLord,
     isBoss: unit?.isBoss,
+    portraitVariant: unit?.portraitVariant,
     affixes: [],
   };
 }
