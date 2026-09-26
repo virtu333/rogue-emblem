@@ -183,8 +183,9 @@ export class AudioManager {
         this._pendingMusicKeys = [];
         this._enforceMusicCacheBudget();
       }
-      // The common ceremony cues, decoded ahead in this track's key.
-      this.preloadStingers(STINGER_PRELOAD);
+      // The common ceremony cues, decoded ahead in this track's key and kept
+      // resident while it plays (a level-up must never fall back to its SFX).
+      this.preloadStingers(STINGER_PRELOAD, null, { pin: true });
 
       if (fadeMs > 0 && scene?.tweens) {
         this._tweenSoundVolume(scene, this.currentMusic, 0, 1, fadeMs);
@@ -360,13 +361,20 @@ export class AudioManager {
     return pick ? `stinger_${name}_${pick}` : null;
   }
 
-  /** Decode stingers ahead of use (fire-and-forget). */
-  preloadStingers(names, tonic = null) {
+  /**
+   * Decode stingers ahead of use (fire-and-forget). `pin` keeps exactly these
+   * keys resident (the previous pins are released).
+   */
+  preloadStingers(names, tonic = null, { pin = false } = {}) {
     if (!this._canUseLoopedMusic()) return;
+    const keys = [];
     for (const name of names || []) {
       const key = this.stingerKeyFor(name, tonic);
-      if (key && !this.stingers.has(key)) this.stingers.load(key).catch(() => {});
+      if (!key) continue;
+      keys.push(key);
+      if (!this.stingers.has(key)) this.stingers.load(key).catch(() => {});
     }
+    if (pin) this.stingers.pin?.(keys);
   }
 
   /**

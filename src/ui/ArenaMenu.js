@@ -4,6 +4,7 @@ import { getDisplayLevel } from '../engine/UnitManager.js';
 import { describeUnit } from './PartyMenus.js';
 import { applyServiceVignette, prefersStill } from './itemMoments.js';
 import { withUnitFace } from './unitPortrait.js';
+import { formatCritChance, formatHitChance, formatStrikes } from './forecastDisplay.js';
 import { candidateCards } from './choiceContent.js';
 import {
   choiceReducedMotion,
@@ -141,7 +142,7 @@ export class ArenaMenu {
         el('p', u.weapon?.name || 'Unarmed'),
         el(
           'p',
-          `Damage ${f.damage}${f.doubles ? ' ×2' : ''} · Hit rating ${f.hit} · Crit ${f.crit}%`,
+          `Damage ${f.damage} · Hits ${formatStrikes(f.attackCount)} · Hit ${formatHitChance(f.hit)} · Crit ${formatCritChance(f.crit)}`,
         ),
       );
       grid.append(card);

@@ -39,7 +39,10 @@ function unionBounds(frames) {
  * baked: [{ key, kind, frames: [Raster] }] (all frames of a sprite the same square size).
  * Returns { pages: [Raster], manifest }.
  */
-export function packAtlas(baked, { density = 1.5, maxSide = 2048, frames = RUNTIME_FRAMES } = {}) {
+export function packAtlas(
+  baked,
+  { density = 1.5, maxSide = 2048, frames = RUNTIME_FRAMES, npcSwap = null } = {},
+) {
   const items = baked.map((b) => {
     const size = b.frames[0].w;
     const box = unionBounds(b.frames) || { x: 0, y: 0, width: 1, height: 1 };
@@ -48,6 +51,7 @@ export function packAtlas(baked, { density = 1.5, maxSide = 2048, frames = RUNTI
     return {
       key: b.key,
       kind: b.kind,
+      person: b.person || null,
       size,
       box,
       frames: b.frames.map((f) => f.crop(box.x, box.y, w, h)),
@@ -97,6 +101,8 @@ export function packAtlas(baked, { density = 1.5, maxSide = 2048, frames = RUNTI
         oy: it.box.y,
         size: it.size,
         kind: it.kind,
+        // the portrait person a generic player sprite shows (tests hold it to the catalog)
+        ...(it.person ? { person: it.person } : {}),
       };
     }
     rasters.push(r);
@@ -113,6 +119,8 @@ export function packAtlas(baked, { density = 1.5, maxSide = 2048, frames = RUNTI
       footRow: footRow(density),
       frames,
       pages: rasters.map((_, i) => `traced-atlas-${i}.png`),
+      // player -> NPC colour swap for the runtime-derived NPC people (lib/npcswap.mjs)
+      ...(npcSwap ? { npcSwap } : {}),
       sprites: ordered,
     },
   };

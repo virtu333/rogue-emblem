@@ -3,18 +3,18 @@
 //   node tools/art/sprite-trace/review-v3.mjs [--out docs/art-direction/sprites-v3] [--only a,b]
 //        [--classes a,b] [--zoom 2]
 // sections:
-//   roster   every generic class: six seeded people, enemy, corrupted, NPC (on grass)
+//   roster   every generic class: its portrait people, enemy, corrupted, NPC (on grass)
 //   extra    enemy-only creatures, lords (base / promoted), named bosses, the Entity
 //   sources  lord candidates: class sheet vs rebuilt, with the choice marked
 //   outliers the map-size redraws (gen-refs.mjs): redraw grid | before | after
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { writeWebp, writeGif, textRaster } from './lib/io.mjs';
 import { Raster, hstack, vstack } from './lib/raster.mjs';
-import { bakeFrames, allEntries, identities, traceId, loadNative } from './lib/pipeline.mjs';
+import { bakeFrames, allEntries, traceId, loadNative } from './lib/pipeline.mjs';
 import { swatch } from './lib/terrain.mjs';
 import { render } from './lib/render.mjs';
 import { paletteFor } from './lib/treat.mjs';
-import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES } from './roster.mjs';
+import { GENERIC_CLASSES, ENEMY_ONLY_CLASSES, LORDS, BOSSES, peopleForClass } from './roster.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n, d) => {
@@ -47,10 +47,11 @@ const still = async (k, zoom = Z) =>
   cellCrop(ground((await bakeFrames(entry(k))).still)).scale(zoom);
 
 if (want('roster')) {
-  const ids = identities();
+  // one column per portrait person (the Falcon Knight and Wyvern Lord have ten)
+  const most = Math.max(...GENERIC_CLASSES.map(([c]) => peopleForClass(c).length));
   const heads = [
     '',
-    ...ids.map((id, i) => `#${i} ${id.design ? 'B' : 'A'}`),
+    ...Array.from({ length: most }, (_, i) => `person ${i + 1}`),
     'enemy',
     'corrupted',
     'NPC',
@@ -68,14 +69,19 @@ if (want('roster')) {
     if (!list.length) continue;
     const rows = [hstack(await Promise.all(heads.map((h, i) => label(h, i ? cw : 130))), 4, INK)];
     for (const cls of list) {
+      const people = peopleForClass(cls).map((p) => `${cls}-${p}`);
       const keys = [
-        ...ids.map((_, i) => `${cls}-${i}`),
+        ...people,
+        ...Array(most - people.length).fill(null),
         `enemy_${cls}`,
         `enemy_${cls}-corrupt`,
         `npc_${cls}`,
       ];
       const cells = [await label(cls, 130)];
-      for (const k of keys) cells.push(await still(k));
+      for (const k of keys)
+        cells.push(
+          k ? await still(k) : new Raster(96 * Z, 64 * Z).fillRect(0, 0, 96 * Z, 64 * Z, INK),
+        );
       rows.push(hstack(cells, 4, INK));
     }
     await writeWebp(vstack(rows, 4, INK), `${OUT}/roster_${part}.webp`);
@@ -173,7 +179,7 @@ if (want('sources')) {
 if (want('motion')) {
   // every class line's first person (and the lords, bosses, creatures): the six frames
   const keys = flag('keys', null)?.split(',') || [
-    ...GENERIC_CLASSES.map(([c]) => `${c}-0`),
+    ...GENERIC_CLASSES.map(([c]) => `${c}-${peopleForClass(c)[0]}`),
     ...ENEMY_ONLY_CLASSES.map(([c]) => `enemy_${c}`),
     ...LORDS.flatMap(([n]) => [`lord_${n}`, `lord_${n}_promoted`]),
     ...Object.keys(BOSSES).filter((k) => BOSSES[k] !== 'entity'),
@@ -196,7 +202,7 @@ if (want('motion')) {
   // animated previews for a few, at 4x: idle loop then the attack
   mkdirSync(`${OUT}/anim`, { recursive: true });
   const gifKeys = flag('gifs', null)?.split(',') || [
-    'myrmidon-0',
+    'myrmidon-myrmidon_a',
     'lord_edric',
     'lord_cael',
     'lord_astrid_promoted',
