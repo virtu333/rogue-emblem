@@ -129,6 +129,16 @@ for (const [label, device] of [
       await expect(sheet.locator('.mr-unit-epithet').first()).toHaveText(
         'Bane of the Iron Captain',
       );
+      // The unit list's narrow column wraps the title; it never ends in an ellipsis.
+      expect(
+        await sheet
+          .locator('.mr-unit-epithet')
+          .first()
+          .evaluate((n) => ({
+            fits: n.scrollWidth <= n.clientWidth + 1,
+            ellipsis: getComputedStyle(n).textOverflow === 'ellipsis',
+          })),
+      ).toEqual({ fits: true, ellipsis: false });
       await expect(sheet.locator('.mr-summary .mr-epithet')).toHaveText('Bane of the Iron Captain');
       await expect(sheet.locator('.mr-deed')).toHaveCount(2);
       await sheet.locator('.mr-deed').first().scrollIntoViewIfNeeded();

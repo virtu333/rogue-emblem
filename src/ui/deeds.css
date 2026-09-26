@@ -9,9 +9,8 @@
 .re-epithet {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* An epithet is the unit's title: it wraps in a narrow column (the roster
+     list, a phone level card) rather than ending in an ellipsis. */
   font: italic 500 12px / 1.3 var(--re-body);
   letter-spacing: 0.01em;
   color: var(--re-accent);
