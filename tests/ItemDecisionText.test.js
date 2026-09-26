@@ -12,12 +12,14 @@ describe('decision details', () => {
     expect(
       shopRequirementLabel({ name: 'Hexblade Scroll', type: 'Scroll', rankRequired: 'Mast' }),
     ).toBe('');
+    // Same wording as every other rank line (rankRequirementText).
     expect(shopRequirementLabel({ type: 'Lance', rankRequired: 'Mast' })).toBe(
-      'Requires Lance Master rank',
+      'Needs Lance Master rank',
     );
     expect(shopRequirementLabel({ type: 'Sword', rankRequired: 'Prof' })).toBe(
-      'Requires Sword rank',
+      'Needs Sword proficiency',
     );
+    expect(shopRequirementLabel({ type: 'Sword' })).toBe('');
   });
   it('previews real forge impact without mutating inventory', () => {
     const owner = {

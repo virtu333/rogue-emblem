@@ -181,7 +181,11 @@ describe('rewardForWhom', () => {
       data.weapons.find((w) => w.type === 'Lance' && w.tier === 'Silver'),
     );
     const result = rewardForWhom({ type: 'weapon', item: lance }, run([recruit('Myrmidon')]));
-    expect(result).toMatchObject({ who: 'No one can wield it', tone: 'bad' });
+    expect(result).toMatchObject({
+      who: 'No one can wield it',
+      detail: 'Needs Lance proficiency',
+      tone: 'bad',
+    });
   });
   it('covers staves, forge stones, supplies, boosters, gold and skipping', () => {
     const cleric = recruit('Cleric', 'Mira');

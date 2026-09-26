@@ -20,7 +20,13 @@ function fixture() {
 }
 it('revalidates capacity and rank without awarding a blocked recipient', () => {
   const { weapon, unit, run } = fixture();
-  expect(applyRewardTarget(run, { ...weapon, rankRequired: 'Mast' }, unit).ok).toBe(false);
+  expect(applyRewardTarget(run, { ...weapon, rankRequired: 'Mast' }, unit)).toEqual({
+    ok: false,
+    reason: 'Needs Sword Master rank',
+  });
+  expect(applyRewardTarget(run, { ...weapon, type: 'Axe' }, unit).reason).toBe(
+    'Needs Axe proficiency',
+  );
   unit.inventory = Array(5).fill(weapon);
   expect(applyRewardTarget(run, weapon, unit).ok).toBe(false);
   expect(unit.inventory).toHaveLength(5);

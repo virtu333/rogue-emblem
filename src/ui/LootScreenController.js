@@ -1,4 +1,5 @@
 import { weaponArtScrollText } from './weaponArtDisplay.js';
+import { rankRequirementText } from './rosterDisplay.js';
 import { UI_PALETTE, UI_HEX, applyTextResolution } from '../utils/uiStyles.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { MobileRewards } from './MobileRewards.js';
@@ -734,7 +735,7 @@ export class LootScreenController {
 
       const nameColor = full ? UI_PALETTE.muted : cannotEquip ? UI_PALETTE.warn : UI_PALETTE.text;
       const lockSuffix = cannotEquip
-        ? `  (needs ${item.type} ${item.rankRequired === 'Mast' ? 'Master ' : ''}rank)`
+        ? `  (${rankRequirementText(item.type, item.rankRequired)})`
         : '';
       const label = applyTextResolution(
         scene.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
@@ -1542,7 +1543,7 @@ export class LootScreenController {
       const range = item.range == null ? '1' : String(item.range);
       lines.push(`Mt ${asNum(item.might)}  Hit ${asNum(item.hit)}  Crit ${asNum(item.crit)}`);
       lines.push(
-        `Wt ${asNum(item.weight)}  Range ${range}  Needs ${item.type} ${item.rankRequired === 'Mast' ? 'Master ' : ''}rank`,
+        `Wt ${asNum(item.weight)}  Range ${range}  ${rankRequirementText(item.type, item.rankRequired)}`,
       );
       if (item.special) lines.push('', item.special);
       return lines.join('\n');

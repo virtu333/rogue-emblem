@@ -1,3 +1,4 @@
+import { rankRequirementText } from '../ui/rosterDisplay.js';
 import { rosterAccessoryAction } from './RosterInventory.js';
 import { addToInventory, addToConsumables, canEquip, applyStatBoost } from './UnitManager.js';
 import { canForge, canForgeStat, forgeStatBlock, applyForge } from './ForgeSystem.js';
@@ -33,7 +34,7 @@ export function rewardTargetBlock(run, item, target) {
   // Loot recipients retain the existing equip eligibility rule. Roster trading
   // separately allows carrying an unusable weapon.
   return !consumable && !canEquip(target, item)
-    ? `Needs ${item.type} proficiency${item.rankRequired ? ` (${item.rankRequired})` : ''}`
+    ? rankRequirementText(item.type, item.rankRequired)
     : '';
 }
 export function applyRewardTarget(run, item, target) {

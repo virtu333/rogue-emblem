@@ -1,9 +1,14 @@
 import { applyForge } from '../engine/ForgeSystem.js';
 import { getStaticCombatStats } from '../engine/Combat.js';
+import { rankRequirementText } from './rosterDisplay.js';
 
+/**
+ * The shop header's rank line. Skill scrolls carry a `rankRequired` field but
+ * teach any unit, so they show none; the wording is `rankRequirementText`'s.
+ */
 export function shopRequirementLabel(item) {
   if (!item?.rankRequired || item.type === 'Scroll') return '';
-  return `Requires ${item.type} ${item.rankRequired === 'Mast' ? 'Master ' : ''}rank`;
+  return rankRequirementText(item.type, item.rankRequired);
 }
 
 /** Show the wielder's combat baseline after forging a detached weapon copy. */

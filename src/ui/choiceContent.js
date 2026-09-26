@@ -8,6 +8,7 @@
 // cue computed from the roster, a reward's "for whom", a blessing's boon and
 // cost. Presentation only: it never mutates a unit, a reward or the run, never
 // reads Math.random, and every engine helper it calls is a read.
+import { rankRequirementText } from './rosterDisplay.js';
 import { traitLines } from './traitContent.js';
 import { epithetText } from '../engine/DeedTitles.js';
 import { getDisplayLevel, canEquip } from '../engine/UnitManager.js';
@@ -297,7 +298,7 @@ export function rewardForWhom(choice, run) {
   if (!wielders.length)
     return {
       who: 'No one can wield it',
-      detail: `Needs ${item.type || 'a weapon'} rank${item.rankRequired === 'Mast' ? ': Master' : ''}`,
+      detail: rankRequirementText(item.type, item.rankRequired),
       tone: 'bad',
     };
   const count = `${wielders.length} can wield`;

@@ -11,7 +11,12 @@ import {
 import { bindCancelablePress } from '../utils/cancelablePress.js';
 import { ignoreRepeatedActivation } from '../utils/domInputBoundary.js';
 import { DOM_UI_DEPTHS } from '../utils/uiDepths.js';
-import { formatPerkMods, MASTERY_HELP, proficiencyLabel } from './rosterDisplay.js';
+import {
+  formatPerkMods,
+  MASTERY_HELP,
+  proficiencyLabel,
+  rankRequirementText,
+} from './rosterDisplay.js';
 import { ContextHelp, helpPreview } from './ContextHelp.js';
 import { attributesHelp, combatBaselineHelp, convoyHelp, WEAPON_ARTS_HELP } from './helpTopics.js';
 import { attachInfo, holdTip } from './infoAffordance.js';
@@ -741,7 +746,7 @@ export class MobileRosterSheet {
       (target) => {
         if (item.type === 'Consumable') return `${target.consumables?.length || 0}/3 supplies`;
         if (!canEquip(target, item))
-          return `Needs ${item.type} ${item.rankRequired || 'Prof'} · ${target.inventory.length}/5 items`;
+          return `${rankRequirementText(item.type, item.rankRequired)} · ${target.inventory.length}/5 items`;
         return `Can equip · AS ${getStaticCombatStats(target, target.weapon).as} → ${getStaticCombatStats(target, item).as} if equipped · ${target.inventory.length}/5 items`;
       },
     );

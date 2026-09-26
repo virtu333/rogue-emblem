@@ -192,6 +192,7 @@ it('shop scroll headers do not imply a weapon rank requirement', () => {
     .join(' ');
   expect(text).toContain('Sol Scroll');
   expect(text).not.toContain('Requires Prof');
+  expect(text).not.toMatch(/Needs (Scroll )?(proficiency|Master rank)/);
 });
 
 it('all forge stat choices preview the wielder’s resulting combat numbers', () => {
