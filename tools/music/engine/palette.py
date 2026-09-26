@@ -56,7 +56,7 @@ def _solo_violin_sso(transition='tuned'):
     SP = 'Strings - Performance'
     return dict(perform='line', streams={
         'legato': _strm(('violin2_legato', transition), mono=True, cal_vel=64,
-                        legato_cc=transition != 'library'),
+                        legato_cc=transition != 'library', slide=transition != 'library'),
         'leg': dict(program_of='legato'),
         'first': dict(program_of='legato'),
         'spic': _strm(('rr', _p('sso', SP, 'Violin Solo 2 Spiccato.sfz')), **SHORT),
@@ -118,7 +118,7 @@ def _sso_section(inst):
                     'legato': _strm(('legato', _p('sso', SP, f'{n} Legato.sfz'),
                                      _p('sso', SP, f'{n} Marcato.sfz'),
                                      (('group_volume', '-20'),), 'tuned', 0.16),
-                                    mono=True, cal_vel=64, legato_cc=True, cc=vib),
+                                    mono=True, cal_vel=64, legato_cc=True, slide=True, cc=vib),
                     'leg': dict(program_of='legato'),
                     'first': dict(program_of='legato'),
                     'chord': sus,

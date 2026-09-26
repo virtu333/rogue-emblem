@@ -70,6 +70,12 @@ LEG_BAND_CC = {'slow': 20, 'medium': 64, 'fast': 110}
 # old note's exponential fade, a crossfade from zero sank the line by 4-6 dB for
 # ~60 ms at every slur (measured on the title theme); from 40% the dip is ~1-2 dB
 LEG_START = 40
+# the finger's slide into a slurred note: the new voice starts a fraction of the
+# interval away and glides onto its pitch (pitch EG whose depth two CCs set per
+# note: CC22 = start above, CC23 = start below, 1200 cents at 127). Only the new
+# voice slides; the old one fades on its own pitch. (slide fraction, glide time)
+LEG_SLIDE = {'slow': (0.3, 0.3), 'medium': (0.18, 0.18), 'fast': (0.08, 0.1)}
+SLIDE_UP_CC, SLIDE_DOWN_CC = 22, 23
 
 
 def leg_band(vel: int) -> str:
@@ -109,9 +115,13 @@ def _legato(legato_path, accent_path=None, accent_where=None, transition='tuned'
         parts.append(sfzlab.with_opcodes(first, 'group', {
             'ampeg_attack': first_attack, 'ampeg_vel2attack': round(-0.9 * first_attack, 3), **cc}))
         for lo, hi, att in LEG_ATTACK:
-            parts.append(sfzlab.with_opcodes(leg, 'group', {'lovel': lo, 'hivel': hi,
-                                                            'ampeg_attack': att,
-                                                            'ampeg_start': LEG_START, **cc}))
+            glide = LEG_SLIDE[leg_band(lo)][1]
+            parts.append(sfzlab.with_opcodes(leg, 'group', {
+                'lovel': lo, 'hivel': hi, 'ampeg_attack': att, 'ampeg_start': LEG_START,
+                'pitcheg_attack': 0, 'pitcheg_hold': 0.015, 'pitcheg_sustain': 0,
+                'pitcheg_decay': glide, 'pitcheg_depth': 1,
+                f'pitcheg_depth_oncc{SLIDE_UP_CC}': 1200,
+                f'pitcheg_depth_oncc{SLIDE_DOWN_CC}': -1200, **cc}))
     if accent_path:
         accent = sfzlab.regions_only(sfzlab.load(accent_path), dict(accent_where or {}))
         parts.append(sfzlab.with_opcodes(accent, 'group', {'trigger': 'first', 'lovel': 70}))
@@ -430,6 +440,17 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
             for a, b in zip(ps, ps[1:] + [None]):
                 band = leg_band(b.vel) if b is not None and b.stream == 'leg' else 'fast'
                 a.cc[LEG_CC] = LEG_BAND_CC[band]
+        if st.get('slide'):
+            # a slurred note slides in from part of the way (see LEG_SLIDE)
+            for a, b in zip([None] + ps, ps):
+                up = down = 0
+                if a is not None and b.stream == 'leg' and b.key != a.key:
+                    frac = LEG_SLIDE[leg_band(b.vel)][0]
+                    cents = -frac * (b.key - a.key) * 100      # where the slide starts
+                    val = int(round(min(abs(cents), 1200) / 1200 * 127))
+                    up, down = (val, 0) if cents > 0 else (0, val)
+                b.cc[SLIDE_UP_CC] = up
+                b.cc[SLIDE_DOWN_CC] = down
         evs, cce = [], []
         for p in ps:
             if 'key_map' in st:
