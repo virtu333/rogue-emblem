@@ -607,7 +607,7 @@ describe('CompendiumOverlay', () => {
       expect(counterSeal).toBeTruthy();
       overlay._renderItem(counterSeal, 100, 20, 500);
       const preventDoubleLine = overlay.objects.find(
-        (o) => typeof o.text === 'string' && o.text.includes('Prevent Double'),
+        (o) => typeof o.text === 'string' && o.text.includes('Foes cannot make follow-up attacks'),
       );
       expect(preventDoubleLine).toBeTruthy();
 
@@ -616,7 +616,9 @@ describe('CompendiumOverlay', () => {
       expect(pursuitRing).toBeTruthy();
       overlay2._renderItem(pursuitRing, 100, 20, 500);
       const thresholdLine = overlay2.objects.find(
-        (o) => typeof o.text === 'string' && o.text.includes('Dbl Thres -2'),
+        (o) =>
+          typeof o.text === 'string' &&
+          o.text.includes('Make follow-up attacks with 3 more Attack Speed'),
       );
       expect(thresholdLine).toBeTruthy();
     });

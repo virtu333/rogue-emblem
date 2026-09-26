@@ -260,6 +260,8 @@ export class MobileRewards {
     // Notes ride under the cards: this battle's news and the chosen item's art.
     const notes = node('section', null, 'ch-notes');
     notes.setAttribute('aria-label', 'Notes');
+    // The chosen item's story, as the shop and roster tell it.
+    if (c?.item?.lore) notes.append(node('p', c.item.lore, 'ch-reward-lore'));
     appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || []);
     for (const notice of scene.runManager.lastBattleCasualtyNotices || []) {
       notes.append(node('p', notice, 'mu-help'));
@@ -452,9 +454,10 @@ export class MobileRewards {
         ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
         : 'Go back to choose another reward.',
     );
-    const subject = chosen ? step.icon?.(chosen) : null;
+    // The chosen weapon's picture, else the reward's own (who gets it, which stat).
+    const subject = (chosen ? step.icon?.(chosen) : null) || step.subject || null;
     if (subject) {
-      // The chosen weapon's picture beside its name.
+      // The picture beside the choice's name.
       const head = node('div', null, 'reward-hero');
       const text = node('div', null, 'reward-hero-title');
       text.append(title, line);
@@ -484,6 +487,7 @@ export class MobileRewards {
     if (choice.type === 'accessory') {
       this.pushStep({
         title: `Equip ${item.name}`,
+        subject: item,
         choices: [...run.roster, 'pool'],
         label: (unit) => (unit === 'pool' ? 'Keep in shared pool' : unit.name),
         describe: (unit) =>
@@ -496,6 +500,7 @@ export class MobileRewards {
     } else if (choice.type === 'forge') {
       this.pushStep({
         title: item.name,
+        subject: item,
         choices: run.roster,
         label: (unit) => unit.name,
         blocked: (unit) =>
@@ -507,6 +512,7 @@ export class MobileRewards {
       const booster = item.type === 'Consumable' && item.effect === 'statBoost';
       this.pushStep({
         title: item.name,
+        subject: item,
         choices: [...run.roster, ...(booster ? [] : ['convoy'])].sort(
           (a, b) =>
             Number(!!bundleTargetBlock(run, item, a, choice.quantity || 1)) -
@@ -549,6 +555,9 @@ export class MobileRewards {
         this.pushStep({
           title: weapon.name,
           choices: imbue ? getImbueList(this.scene.gameData.imbues) : REWARD_FORGE_STATS,
+          subject: weapon,
+          // Each imbue row wears its stone's icon.
+          icon: imbue ? (entry) => entry.stone || null : null,
           label: (entry) => (imbue ? entry.name : entry.label),
           describe: (entry) => (imbue ? entry.description : 'Permanent weapon upgrade.'),
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),

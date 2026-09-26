@@ -288,6 +288,23 @@ for (const view of VIEWS) {
       const overflow = await dialog.evaluate((e) => e.scrollWidth > e.clientWidth + 1);
       expect(overflow).toBe(false);
       await page.screenshot({ path: `test-results/item-art-rewards-${view.name}.png` });
+      // The chosen reward's story rides under the cards.
+      await expect(dialog.locator('.ch-notes .ch-reward-lore')).toContainText('held the gate');
+      // The accessory's next step (who equips it) shows its picture beside the choice.
+      await cards.nth(1).click();
+      await expect(dialog.locator('.ch-notes .ch-reward-lore')).toHaveText(
+        await page.evaluate(
+          () =>
+            window.__emblemRogueGame.scene
+              .getScene('Battle')
+              .gameData.accessories.find((a) => a.name === "Gambler's Coin").lore,
+        ),
+      );
+      await dialog.getByRole('button', { name: 'Choose reward', exact: true }).click();
+      await expect(dialog.locator('.reward-hero .ia-hero')).toHaveAttribute(
+        'data-icon-id',
+        'gamblers-coin',
+      );
       expect(errors).toEqual([]);
     });
 
@@ -364,6 +381,44 @@ for (const view of VIEWS) {
       await expect(about.locator('.ia-hero')).toBeHidden();
       await about.locator('summary').click();
       await expect(about.locator('.ia-hero')).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+
+    test('roster accessories are item cards: name, icon, picture and story', async ({ page }) => {
+      const errors = collectErrors(page);
+      await nodeMap(page, view.query);
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+        const find = (name) => structuredClone(s.gameData.accessories.find((a) => a.name === name));
+        s.runManager.roster[0].accessory = find('Forest Charm');
+        s.runManager.accessories = [find('Mercury Sandals')];
+      });
+      const shop = await openShop(page, ['Iron Sword']);
+      await shop.getByRole('button', { name: 'Roster', exact: true }).click();
+      const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
+      await expect(roster.getByText('Equipped accessory', { exact: true })).toHaveCount(0);
+      const charm = roster.locator('.mr-item-card', {
+        has: page.locator('h4', { hasText: 'Forest Charm' }),
+      });
+      await expect(charm.locator('.mr-card-head .ia-icon')).toHaveAttribute(
+        'data-icon-id',
+        'forest-charm',
+      );
+      await expect(charm.locator('.re-equipped-badge')).toHaveCount(1);
+      await expect(charm).toContainText('+10 Avoid');
+      const about = charm.locator('details', { hasText: 'About this item' });
+      await about.locator('summary').click();
+      await expect(about.locator('.ia-hero')).toHaveAttribute('data-art', 'painted');
+      await expect(about.locator('.mr-lore')).toContainText('birch');
+      const sandals = roster.locator('.mr-item-card', {
+        has: page.locator('h4', { hasText: 'Mercury Sandals' }),
+      });
+      await expect(sandals.locator('.ia-icon').first()).toHaveAttribute(
+        'data-icon-id',
+        'mercury-sandals',
+      );
+      await expect(sandals.getByRole('button', { name: 'Equip accessory' })).toBeVisible();
       expect(errors).toEqual([]);
     });
   });
