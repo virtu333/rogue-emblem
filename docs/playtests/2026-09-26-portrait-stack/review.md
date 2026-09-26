@@ -1,5 +1,7 @@
 # Combined portrait-stack playtest — 2026-09-26
 
+**Follow-up:** [Three more battles, recruitment, shops, church and ruins](continuation.md).
+
 ## Verdict
 Promising in this limited desktop-hosted phone-layout pass. No crash or blocked progression was observed through one complete Normal battle, rewards, roster healing, and save/reload. This is not physical iPhone acceptance or a full-run stability sign-off.
 
