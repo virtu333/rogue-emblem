@@ -196,13 +196,16 @@ A battle's music answers the most specific thing true of it (`engine/BattleMusic
 1. a boss plays its theme (the antagonists' own, else the act's);
 2. an escape map plays One More Crossing;
 3. a node the Eclipse has taken plays Totality; a village under attack, Bells Over the Village;
-   a recruit rescue, Someone Is Still Out There; an elite company, Against the Standard;
+   a recruit rescue, Someone Is Still Out There; an elite company, its act's own: Against the
+   Standard (Act I), The Iron Line (Act II), The Consecrated (Act III), The Emperor's Own (Act IV);
 4. the map's place: castles Stone That Remembers (two thirds of them), swamps The Mire,
-   tundra Rime, volcanoes Caldera; a third of the maps where bandits race for a village ring
-   the village's bells;
-5. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
+   tundra Rime, volcanoes Caldera;
+5. a share of the rest: most maps with a merchant caravan to protect play Coin and Canvas; a
+   third of the maps where bandits race for a village ring the village's bells; most maps in
+   fog of war play What the Fog Keeps;
+6. otherwise the act's pool: Act I Ember Dusk, Border Marches, Open Ground, The Oath at the
    Ford; Act II Iron Rain, Steel and Thread, Old Kingdom Roads; Act III Bleached Rite, Against
-   the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash.
+   the Rite, Petals on the Fen; Act IV Ashfall, Ember Dusk in Ash, The Name Is Not Spoken.
 
 Picks are hashed from the run seed, never rolled, so a resumed battle plays what it played.
 The act pool is walked in a per-run order indexed by the node's row, so a path hears no theme

@@ -4,9 +4,11 @@
 //   1. a boss plays its theme (the antagonists' own, else the act's)
 //   2. an escape map plays the pursuit theme
 //   3. a node the Eclipse has taken, a village under attack, a recruit to
-//      rescue, an elite company: each has its own theme
+//      rescue, an elite company (each act's own): each has its own theme
 //   4. the map's place: castle, swamp, tundra, volcano
-//   5. otherwise the act's pool
+//   5. a caravan to protect, a village the bandits race for, a map in fog:
+//      each takes a share of its battles
+//   6. otherwise the act's pool
 // Picks are hashed from the run seed, never rolled, so a resumed battle plays
 // what it played before. Within an act the pool is walked in a per-run order
 // indexed by the node's row, so the battles along one path never repeat a
@@ -24,6 +26,10 @@ export const THEME_SHARE = Object.freeze({
   castle: 0.67,
   // a village the bandits race for (the ambushed village always rings its bells)
   villageRaid: 0.34,
+  // a merchant caravan to protect
+  caravan: 0.6,
+  // fog of war (frequent on Hard and Lunatic, and in the forest ambush)
+  fog: 0.6,
 });
 
 function share(seed, tag, fraction) {
@@ -49,6 +55,22 @@ export function orderPool(pool, seed, act) {
 }
 
 /**
+ * A situation's theme: a key, a pool (walked by the node's hash), or a table of
+ * either by act (an unlisted act takes the table's first entry).
+ */
+function situationTheme(entry, act, seed) {
+  let value = entry;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    value = value[act] ?? Object.values(value)[0];
+  }
+  if (Array.isArray(value)) {
+    const list = value.filter(Boolean);
+    return list.length ? list[voiceHash(`${seed}|music|pool`) % list.length] : null;
+  }
+  return value || null;
+}
+
+/**
  * The context a battle offers music selection, from BattleScene's params.
  * @returns {object} act, objective, biome, row, seed and the situation flags
  */
@@ -68,6 +90,8 @@ export function battleMusicContext({ battleParams, battleConfig, runSeed, isElit
     isElite: Boolean(isElite || params.isElite),
     isAmbush: params.isAmbush === true,
     hasVillage: params.hasVillage === true,
+    hasCaravan: params.hasCaravan === true,
+    isFog: params.fogEnabled === true,
     isRecruitBattle: params.isRecruitBattle === true,
     isEclipsed: params.isEclipsed === true,
   };
@@ -77,6 +101,7 @@ export function battleMusicContext({ battleParams, battleConfig, runSeed, isElit
  * The music key for a non-boss battle (bosses are chosen by the caller).
  * @param {object} ctx from battleMusicContext
  * @param {{ battle: object, escape?: string, battleBiome?: object, battleSituation?: object }} table
+ *   situation entries are a key, a pool, or a table of either by act
  * @returns {{ key: string|null, reason: string }}
  */
 export function selectBattleMusic(ctx, table) {
@@ -84,18 +109,25 @@ export function selectBattleMusic(ctx, table) {
   const situation = table?.battleSituation || {};
   const biomes = table?.battleBiome || {};
   const seed = `${c.seed ?? 0}|${c.nodeKey ?? ''}`;
+  const theme = (name) => situationTheme(situation[name], c.act, seed);
 
   if (c.objective === 'escape' && table?.escape) return { key: table.escape, reason: 'escape' };
-  if (c.isEclipsed && situation.eclipsed) return { key: situation.eclipsed, reason: 'eclipsed' };
-  if (c.isAmbush && situation.village) return { key: situation.village, reason: 'village' };
-  if (c.isRecruitBattle && situation.rescue) return { key: situation.rescue, reason: 'rescue' };
-  if (c.isElite && situation.elite) return { key: situation.elite, reason: 'elite' };
+  if (c.isEclipsed && theme('eclipsed')) return { key: theme('eclipsed'), reason: 'eclipsed' };
+  if (c.isAmbush && theme('village')) return { key: theme('village'), reason: 'village' };
+  if (c.isRecruitBattle && theme('rescue')) return { key: theme('rescue'), reason: 'rescue' };
+  if (c.isElite && theme('elite')) return { key: theme('elite'), reason: 'elite' };
   const biomeKey = c.biome ? biomes[c.biome] : null;
   if (biomeKey && (!(c.biome in THEME_SHARE) || share(seed, c.biome, THEME_SHARE[c.biome]))) {
     return { key: biomeKey, reason: `biome:${c.biome}` };
   }
-  if (c.hasVillage && situation.village && share(seed, 'village', THEME_SHARE.villageRaid)) {
-    return { key: situation.village, reason: 'village' };
+  if (c.hasCaravan && theme('caravan') && share(seed, 'caravan', THEME_SHARE.caravan)) {
+    return { key: theme('caravan'), reason: 'caravan' };
+  }
+  if (c.hasVillage && theme('village') && share(seed, 'village', THEME_SHARE.villageRaid)) {
+    return { key: theme('village'), reason: 'village' };
+  }
+  if (c.isFog && theme('fog') && share(seed, 'fog', THEME_SHARE.fog)) {
+    return { key: theme('fog'), reason: 'fog' };
   }
 
   const pool = table?.battle?.[c.act] ?? table?.battle?.act1;

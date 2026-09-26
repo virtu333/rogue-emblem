@@ -14,7 +14,14 @@ const TABLE = {
   },
   escape: 'escape',
   battleBiome: { castle: 'castle', swamp: 'swamp', tundra: 'tundra', volcano: 'volcano' },
-  battleSituation: { eclipsed: 'eclipsed', village: 'village', rescue: 'rescue', elite: 'elite' },
+  battleSituation: {
+    eclipsed: 'eclipsed',
+    village: 'village',
+    rescue: 'rescue',
+    elite: { act1: 'elite', act2: 'elite2', act4: ['elite4a', 'elite4b'] },
+    caravan: 'caravan',
+    fog: 'fog',
+  },
 };
 
 const pick = (ctx) => selectBattleMusic({ seed: 7, act: 'act2', row: 0, ...ctx }, TABLE);
@@ -25,10 +32,54 @@ describe('battle music selection', () => {
     expect(pick({ isEclipsed: true, isAmbush: true, isElite: true }).key).toBe('eclipsed');
     expect(pick({ isAmbush: true, isRecruitBattle: true }).key).toBe('village');
     expect(pick({ isRecruitBattle: true, isElite: true, biome: 'swamp' }).key).toBe('rescue');
-    expect(pick({ isElite: true, biome: 'swamp' }).key).toBe('elite');
+    expect(pick({ isElite: true, biome: 'swamp' }).key).toBe('elite2');
     expect(pick({ biome: 'swamp' })).toEqual({ key: 'swamp', reason: 'biome:swamp' });
     expect(pick({ biome: 'tundra', act: 'act4' }).key).toBe('tundra');
     expect(pick({ biome: 'grassland' }).reason).toBe('act');
+  });
+
+  it('gives each act its own elite company, and an act without one the first', () => {
+    expect(pick({ isElite: true, act: 'act1' }).key).toBe('elite');
+    expect(pick({ isElite: true, act: 'act2' }).key).toBe('elite2');
+    // no act3 entry: the table's first
+    expect(pick({ isElite: true, act: 'act3' }).key).toBe('elite');
+    // a pool is walked by the node's hash, the same pick every time
+    const heard = new Set();
+    for (let seed = 0; seed < 60; seed++) {
+      const r = pick({ isElite: true, act: 'act4', seed, nodeKey: `n${seed}` });
+      expect(pick({ isElite: true, act: 'act4', seed, nodeKey: `n${seed}` })).toEqual(r);
+      expect(r.reason).toBe('elite');
+      heard.add(r.key);
+    }
+    expect([...heard].sort()).toEqual(['elite4a', 'elite4b']);
+  });
+
+  it('caravans, village raids and fog each take a share, after the place', () => {
+    const rate = (ctx, key) => {
+      let hits = 0;
+      for (let seed = 0; seed < 600; seed++) {
+        const r = pick({ ...ctx, seed, nodeKey: `n${seed}` });
+        expect(pick({ ...ctx, seed, nodeKey: `n${seed}` })).toEqual(r);
+        if (r.key === key) hits++;
+        else expect(r.reason).toBe('act');
+      }
+      return hits / 600;
+    };
+    expect(rate({ hasCaravan: true }, 'caravan')).toBeGreaterThan(THEME_SHARE.caravan - 0.08);
+    expect(rate({ hasCaravan: true }, 'caravan')).toBeLessThan(THEME_SHARE.caravan + 0.08);
+    expect(rate({ isFog: true }, 'fog')).toBeGreaterThan(THEME_SHARE.fog - 0.08);
+    expect(rate({ isFog: true }, 'fog')).toBeLessThan(THEME_SHARE.fog + 0.08);
+    // the place outranks the fog; a situation outranks both
+    expect(pick({ isFog: true, biome: 'swamp' }).key).toBe('swamp');
+    expect(pick({ isFog: true, isElite: true }).key).toBe('elite2');
+    expect(pick({ isFog: true, isRecruitBattle: true }).key).toBe('rescue');
+    // a caravan the share passes over can still be a fog map
+    let fogAfterCaravan = 0;
+    for (let seed = 0; seed < 200; seed++) {
+      const r = pick({ hasCaravan: true, isFog: true, seed, nodeKey: `n${seed}` });
+      if (r.key === 'fog') fogAfterCaravan++;
+    }
+    expect(fogAfterCaravan).toBeGreaterThan(0);
   });
 
   it('falls through when a theme is missing from the table', () => {
@@ -103,6 +154,8 @@ describe('battle music selection', () => {
         hasVillage: true,
         isRecruitBattle: false,
         isEclipsed: true,
+        hasCaravan: true,
+        fogEnabled: true,
       },
       battleConfig: { objective: 'rout', biome: 'castle' },
       runSeed: 1234,
@@ -120,7 +173,10 @@ describe('battle music selection', () => {
       hasVillage: true,
       isRecruitBattle: false,
       isEclipsed: true,
+      hasCaravan: true,
+      isFog: true,
     });
+    expect(battleMusicContext().isFog).toBe(false);
     // no run seed: the node's own battle seed still makes the pick stable
     expect(battleMusicContext({ battleParams: { battleSeed: 99 } }).seed).toBe(99);
     expect(battleMusicContext({ battleParams: { tutorialMode: true } }).firstBattle).toBe(true);

@@ -82,9 +82,35 @@ jobs:
             sleep 30
           done
 
+  # The app bundles every track; a lighter encode keeps its download under Apple's 200 MB
+  # cellular limit (tools/ios/compactMusic.mjs). The web game keeps the build's encode.
+  ios-music:
+    name: Music for the app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Re-encode the music
+        run: node tools/ios/compactMusic.mjs --in assets/audio/music --out "$RUNNER_TEMP/ios-music"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-music
+          path: ${{ runner.temp }}/ios-music
+          if-no-files-found: error
+          retention-days: 3
+
   build:
     name: Build (${{ inputs.mode }})
-    needs: ci-passed
+    needs: [ci-passed, ios-music]
     runs-on: macos-26
     timeout-minutes: 75
     env:
@@ -168,6 +194,11 @@ jobs:
 
       - run: npm ci
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-music
+          path: ${{ runner.temp }}/ios-music
+
       - name: Build the web game and sync iOS
         env:
           VITE_CLOUD_ENABLED: ${{ vars.VITE_CLOUD_ENABLED }}
@@ -175,7 +206,15 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
-          npm run ios:sync
+          npm run build
+          # the app's lighter music: the same files, re-encoded (the ios-music job)
+          MUSIC=dist/assets/audio/music
+          diff <(ls "$MUSIC") <(ls "$RUNNER_TEMP/ios-music") \
+            || { echo "::error::the app's music doesn't match the build's track list"; exit 1; }
+          echo "Music: $(du -sh "$MUSIC" | cut -f1) -> $(du -sh "$RUNNER_TEMP/ios-music" | cut -f1)"
+          cp "$RUNNER_TEMP"/ios-music/*.mp3 "$MUSIC"/
+          echo "Web game: $(du -sh dist | cut -f1)"
+          npx cap sync ios
           if ! git diff --quiet -- ios/App/CapApp-SPM/Package.swift; then
             echo "::warning::cap sync changed ios/App/CapApp-SPM/Package.swift; commit the regenerated file."
             git diff -- ios/App/CapApp-SPM/Package.swift
@@ -218,6 +257,12 @@ jobs:
           test -d "$APP"
           test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::PrivacyInfo.xcprivacy is missing from App.app"; exit 1; }
           test -f "$APP/public/index.html" || { echo "::error::the web game is missing from App.app"; exit 1; }
+          # Apple asks before a cellular download over 200 MB; the download is about the app's size
+          APP_MB=$(( $(du -sk "$APP" | cut -f1) / 1024 ))
+          echo "App.app: ${APP_MB} MB"
+          if [ "$APP_MB" -gt 190 ]; then
+            echo "::warning::App.app is ${APP_MB} MB, close to the 200 MB cellular download limit"
+          fi
           BUNDLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$PLIST")
           SHORT=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")

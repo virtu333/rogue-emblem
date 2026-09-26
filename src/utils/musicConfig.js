@@ -28,7 +28,7 @@ export const MUSIC = {
     ],
     act2: ['music_battle_act2', 'music_battle_act2_2', 'music_battle_act2_3'],
     act3: ['music_battle_act3', 'music_battle_act3_2', 'music_battle_act3_3'],
-    act4: ['music_battle_act4', 'music_battle_act4_2'],
+    act4: ['music_battle_act4', 'music_battle_act4_2', 'music_battle_act4_3'],
     finalBoss: ['music_battle_act4'],
   },
 
@@ -59,12 +59,20 @@ export const MUSIC = {
   },
 
   // Battles with a story of their own (engine/BattleMusicSelection.js):
-  // eclipsed nodes, a village under attack, a recruit to rescue, an elite company.
+  // eclipsed nodes, a village under attack, a recruit to rescue, an elite
+  // company (each act fields its own), a caravan to protect, a map in fog.
   battleSituation: {
     eclipsed: 'music_battle_eclipsed',
     village: 'music_battle_village',
     rescue: 'music_battle_rescue',
-    elite: 'music_battle_elite',
+    elite: {
+      act1: 'music_battle_elite',
+      act2: 'music_battle_elite_act2',
+      act3: 'music_battle_elite_act3',
+      act4: 'music_battle_elite_act4',
+    },
+    caravan: 'music_battle_caravan',
+    fog: 'music_battle_fog',
   },
   colosseum: 'music_colosseum',
   // Choosing blessings at the start of a run.
@@ -92,9 +100,15 @@ export const MUSIC_LAYERS = {
   music_battle_act3_3: { calm: 'music_battle_act3_3_calm' },
   music_battle_act4: { calm: 'music_battle_act4_calm' },
   music_battle_act4_2: { calm: 'music_battle_act4_2_calm' },
+  music_battle_act4_3: { calm: 'music_battle_act4_3_calm' },
   music_battle_tundra: { calm: 'music_battle_tundra_calm' },
   music_battle_volcano: { calm: 'music_battle_volcano_calm' },
   music_battle_elite: { calm: 'music_battle_elite_calm' },
+  music_battle_elite_act2: { calm: 'music_battle_elite_act2_calm' },
+  music_battle_elite_act3: { calm: 'music_battle_elite_act3_calm' },
+  music_battle_elite_act4: { calm: 'music_battle_elite_act4_calm' },
+  music_battle_caravan: { calm: 'music_battle_caravan_calm' },
+  music_battle_fog: { calm: 'music_battle_fog_calm' },
   music_battle_eclipsed: { calm: 'music_battle_eclipsed_calm' },
   music_battle_castle: { calm: 'music_battle_castle_calm' },
   music_battle_swamp: { calm: 'music_battle_swamp_calm' },
