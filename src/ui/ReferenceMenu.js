@@ -1,6 +1,8 @@
 import { appendDetailScrollControls } from './DetailScrollControls.js';
 import { InputAction } from '../utils/InputActions.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
+import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
+import { itemBaseLine, isCombatWeapon } from '../engine/ItemKeywords.js';
 
 // A shared readable list/detail browser. Providers retain filtering/unlock rules.
 export class ReferenceMenu {
@@ -174,6 +176,8 @@ export class ReferenceMenu {
     const selected = entries[this.selected];
     if (selected) {
       detail.append(element('h3', selected.name));
+      const keys = selected.item ? itemKeywordRow(selected.item) : null;
+      if (keys) detail.append(keys);
       for (const line of selected.lines) detail.append(element('p', line));
     } else
       detail.append(
@@ -235,9 +239,14 @@ export function compendiumEntries(controller, tab, filter) {
           );
       }
     }
+    // Weapons list as what they are and their rules ("Silver Sword · Crit 30").
+    const summary = isCombatWeapon(item)
+      ? [itemBaseLine(item), itemKeywordText(item)].filter(Boolean).join(' · ')
+      : [item.type, item.tier, item.className].filter(Boolean).join(' · ');
     return {
       name: item.name || 'Unknown',
-      summary: [item.type, item.tier, item.className].filter(Boolean).join(' · '),
+      item,
+      summary,
       lines: lines.filter((line) => line !== item.name),
     };
   });

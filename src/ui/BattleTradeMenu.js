@@ -9,6 +9,7 @@ import {
   inventoryDisplayOrder,
 } from '../engine/UnitManager.js';
 import { equippedBadgeElement } from './equippedBadge.js';
+import { itemKeywordText } from './itemKeywordChips.js';
 
 // Battle-only trading retains movement commitment and separate bag capacities.
 export class BattleTradeMenu {
@@ -43,7 +44,12 @@ export class BattleTradeMenu {
           const full = (recipient[key]?.length || 0) >= cap;
           const detail =
             key === 'inventory'
-              ? `${item.type} · Mt ${item.might ?? 0} · Hit ${item.hit ?? 0} · Wt ${item.weight ?? 0}`
+              ? [
+                  `${item.type} · Mt ${item.might ?? 0} · Hit ${item.hit ?? 0} · Wt ${item.weight ?? 0}`,
+                  itemKeywordText(item),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
               : `${item.uses ?? '—'} uses`;
           const row = button(
             null,

@@ -88,7 +88,11 @@ for (const view of VIEWS) {
       const hero = shop.locator('.shop-hero .ia-hero');
       await expect(hero).toBeVisible();
       await expect(hero).toHaveAttribute('data-icon-id', 'killer-lance');
-      await expect(shop.locator('.shop-kicker')).toHaveText(/Silver · Lance/i);
+      // What it is above the name, its rule as a tag below it (docs/specs/item-keywords.md).
+      await expect(shop.locator('.shop-kicker')).toHaveText('Silver Lance');
+      await expect(shop.locator('.shop-hero .re-item-tag')).toHaveText(['Crit 30']);
+      await expect(shop.locator('.shop-hero .re-item-tag')).toBeInViewport();
+      await expect(rows.nth(0)).toContainText('Lance · Crit 30');
       await expect(shop.locator('.shop-hero .shop-mechanics')).toBeInViewport();
       await expect(shop.locator('.shop-lore')).toContainText('thumb');
       const box = await hero.boundingBox();
@@ -273,6 +277,13 @@ for (const view of VIEWS) {
         await expect(compact).toBeVisible();
         await expect(hero).toBeHidden();
       }
+      // What each weapon is and its rule, under its name; the lines don't repeat them.
+      await expect(cards.nth(0).locator('.re-item-base')).toHaveText('Silver Lance');
+      await expect(cards.nth(0).locator('.re-item-tag')).toHaveText(['Crit 30']);
+      await expect(cards.nth(0).locator('.ch-lines')).not.toContainText('Critical specialist');
+      await expect(cards.nth(2).locator('.re-item-base')).toHaveText('Relic Sword');
+      await expect(cards.nth(2).locator('.re-item-tag')).toHaveText(['+5 DEF']);
+      await expect(cards.nth(1).locator('.re-item-keys')).toHaveCount(0);
       await cards.nth(2).click();
       await expect(cards.nth(2)).toHaveAttribute('aria-pressed', 'true');
       // A reopened screen (resume, back from a step) never replays the reveal.
