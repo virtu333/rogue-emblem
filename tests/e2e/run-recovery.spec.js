@@ -43,12 +43,21 @@ test('run result is readable, rotates, and exits without destroyed-text repaint'
   ).toBe(true);
   await result(page);
   const dialog = page.getByRole('dialog', { name: 'Game over', exact: true });
-  await expect(dialog).toBeVisible();
+  // The result menu follows the run-end card (THE THREAD IS CUT, #67), which by design
+  // takes 1.2 s in, 2.8 s held and 0.45 s out: more than the default 5 s expect budget
+  // once the scene start is added.
+  await expect(page.locator('.ce-runend-layer')).toHaveCount(1);
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.ce-runend-layer')).toHaveCount(0);
   await expect(dialog).toContainText('Battles won');
   expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: 'test-results/build7-results-se.png' });
   await page.setViewportSize({ width: 375, height: 667 });
   expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  // A phone held upright is asked to rotate: #rotate-prompt covers every menu (#64).
+  await expect(page.locator('#rotate-prompt')).toBeVisible();
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect(page.locator('#rotate-prompt')).toBeHidden();
   await dialog.getByRole('button', { name: 'Home Base', exact: true }).last().tap();
   await waitForScene(page, 'HomeBase');
   await expect(dialog).toHaveCount(0);
@@ -131,6 +140,12 @@ test('foreground gesture resumes Web Audio without replacing music or volume', a
   const errors = await boot(page);
   await page.locator('#game-container canvas').tap({ position: { x: 10, y: 10 } });
   await page.waitForFunction(() => window.__emblemRogueGame.sound.context.state === 'running');
+  // The unlock only starts the battle music: it loads and starts asynchronously.
+  // Compare against the playing track, not the empty slot before it arrives.
+  await page.waitForFunction(() => {
+    const audio = window.__emblemRogueGame.registry.get('audio');
+    return Boolean(audio.currentMusic) && audio._pendingMusicKeys.length === 0;
+  });
   await page.evaluate(async () => {
     const g = window.__emblemRogueGame,
       audio = g.registry.get('audio');

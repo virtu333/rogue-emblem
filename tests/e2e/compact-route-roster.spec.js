@@ -76,7 +76,12 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
   await expect(picker).toHaveCount(0);
   await roster.getByRole('button', { name: 'Promote', exact: true }).tap();
   picker = page.getByRole('dialog', { name: 'Promote Test fighter', exact: true });
-  await picker.getByRole('button', { name: /^Warrior/ }).tap();
+  // PromotionPathChooser (#67): path cards are "Select <class>", the footer confirms.
+  await picker.getByRole('button', { name: 'Select Warrior', exact: true }).tap();
+  await expect(picker.getByRole('button', { name: 'Select Warrior', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.evaluate(() => {
     const picker =
       window.__emblemRogueGame.scene.getScene('NodeMap').rosterOverlay._mobileSheet.picker;
@@ -88,7 +93,7 @@ test('DOM promotion can cancel, then apply once without the legacy roster', asyn
         window.__finishPickerApply = () => resolve(apply(choice));
       });
   });
-  await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
+  await picker.getByRole('button', { name: 'Confirm promotion', exact: true }).tap();
   await page.keyboard.press('Escape');
   await expect(picker).toBeVisible();
   await page.evaluate(() => {

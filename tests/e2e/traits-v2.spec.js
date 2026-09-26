@@ -60,24 +60,30 @@ for (const vp of VIEWPORTS) {
       });
       const dialog = page.getByRole('dialog', { name: 'Boss recruit', exact: true });
       await expect(dialog).toBeVisible();
-      await expect(dialog).toContainText(
-        /Slow Oath: Masters its class in 10 battles, not 8; .+ becomes .+ \(from .+\)\./,
+      // Candidates are draft cards side by side (#79); each trait is a card line: its
+      // name in bold, then this unit's concrete effect.
+      const cards = dialog.locator('.ch-card.ch-unit');
+      const trait = (card, name) =>
+        card.locator('.ch-line', { has: page.locator('b', { hasText: new RegExp(`^${name}$`) }) });
+      const effect = (card, name) => trait(card, name).locator('.ch-line-text');
+      await expect(effect(cards.nth(0), 'Slow Oath')).toHaveText(
+        /^\s*Masters its class in 10 battles, not 8; .+ becomes .+ \(from .+\)\.$/,
       );
-      await expect(dialog).toContainText(
-        /Kindled: \+1 (Str|Mag) and \+10% (Str|Mag) growth \(the stat it (fights|heals) with\)\./,
+      await expect(effect(cards.nth(0), 'Kindled')).toHaveText(
+        /^\s*\+1 (Str|Mag) and \+10% (Str|Mag) growth \(the stat it (fights|heals) with\)\.$/,
       );
       await expect(dialog).not.toContainText('instead of the class perk');
-      const copy = dialog.locator('.mu-copy');
-      await copy.getByText(/^Slow Oath:/).scrollIntoViewIfNeeded();
-      expect(await copy.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+      const lines = cards.nth(0).locator('.ch-lines');
+      await trait(cards.nth(0), 'Slow Oath').scrollIntoViewIfNeeded();
+      expect(await lines.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/boss-recruit-${vp.label}.png` });
-      const rows = dialog.locator('.re-party-row');
-      if ((await rows.count()) > 1) {
-        await rows.nth(1).click();
-        await expect(dialog).toContainText(
-          'Reckless: +3 Atk when it initiates; -2 Def when an enemy initiates.',
+      if ((await cards.count()) > 1) {
+        await expect(effect(cards.nth(1), 'Reckless')).toHaveText(
+          '+3 Atk when it initiates; -2 Def when an enemy initiates.',
         );
-        await expect(dialog).toContainText('Stalwart: +2 Def when an enemy initiates.');
+        await expect(effect(cards.nth(1), 'Stalwart')).toHaveText(
+          '+2 Def when an enemy initiates.',
+        );
       }
       expect(errors).toEqual([]);
     });

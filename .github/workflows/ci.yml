@@ -48,9 +48,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:threshold-pr-notes
-      - run: npm run test:sim:triage
+      # Every vitest file under tests/sim and tests/harness (test:unit excludes both).
+      - run: npm run test:sim
       - run: npm run test:harness:pr
-      - run: npm run test:journey
+      - run: npm run test:harness
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -59,8 +60,30 @@ jobs:
           if-no-files-found: ignore
       - run: npm run sim:fullrun:pr
 
-  e2e-smoke:
+  # Browser specs run in lanes defined by tests/e2e/lanes.json (the only place that
+  # lists them). This job checks every spec is in a lane (or excluded with a reason)
+  # and turns the lanes into the e2e job matrix. It needs node only: no npm ci.
+  e2e-lanes:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.lanes.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check:e2e-lanes
+      - id: lanes
+        run: echo "matrix=$(node tools/e2eLanes.js matrix)" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: e2e (${{ matrix.id }})
+    needs: e2e-lanes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.e2e-lanes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,17 +92,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e:smoke
-      - run: npm run test:ux-contracts
-      - run: npm run test:e2e:presentation
-      - run: npx playwright test tests/e2e/ui-cohesion.spec.js tests/e2e/ui-cohesion-desktop.spec.js tests/e2e/ui-review-regressions.spec.js tests/e2e/mobile-battle-hud.spec.js tests/e2e/mobile-home-base.spec.js tests/e2e/mobile-run-loop.spec.js
-      - run: npm run check:ui-theme
-      - run: npm run build
-      - run: npx playwright test --config playwright.release.config.js
+      - if: matrix.build
+        run: npm run build
+      - run: node tools/e2eLanes.js run "${{ matrix.lane }}" ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-failures
+          name: e2e-failures-${{ matrix.id }}
           path: |
             test-results/
             test-results-release/

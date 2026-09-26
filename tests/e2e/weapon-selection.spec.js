@@ -291,13 +291,28 @@ test.describe('Weapon selection smoke', () => {
       { timeout: 5_000 },
     );
 
-    const hitRows = await getInteractiveRowsHitAtWorldPoint(page, center.x, center.y);
-    expect(
-      hitRows.hitCount,
-      `Expected pointer to overlap spawned equip rows; got [${hitRows.hitLabels.join(', ')}]`,
-    ).toBeGreaterThan(0);
+    // Release on a spawned, not-equipped weapon row. Whether the Equip button's own
+    // centre happens to fall on a row depends on the menu's pixel layout (after the
+    // equipped-first order of #77 and later text changes it falls in the gap between
+    // two rows), so aim at a row instead of relying on that coincidence.
+    const release = await page.evaluate(() => {
+      const battle = window.__emblemRogueGame.scene.getScene('Battle');
+      const row = (battle.actionMenu || []).find(
+        (o) =>
+          o?.type === 'Text' &&
+          o.input?.enabled &&
+          o.text !== 'Back' &&
+          !String(o.text).startsWith('E '),
+      );
+      if (!row) return null;
+      const b = row.getBounds();
+      return { x: b.centerX, y: b.centerY, label: String(row.text).trim() };
+    });
+    expect(release, 'No unequipped weapon row spawned by Equip').not.toBeNull();
+    const hitRows = await getInteractiveRowsHitAtWorldPoint(page, release.x, release.y);
+    expect(hitRows.hitLabels.map((label) => label.trim())).toEqual([release.label]);
 
-    await dispatchCanvasMouseEvent(page, 'mouseup', center.x, center.y);
+    await dispatchCanvasMouseEvent(page, 'mouseup', release.x, release.y);
 
     const result = await page.evaluate(() => {
       const battle = window.__emblemRogueGame.scene.getScene('Battle');
@@ -312,6 +327,18 @@ test.describe('Weapon selection smoke', () => {
     expect(result.battleState).toBe('UNIT_ACTION_MENU');
     expect(result.inEquipMenu).toBe(true);
     expect(result.weaponName).toBe(originalWeapon);
+
+    // The row the release landed on is live: a press on it equips that weapon.
+    await dispatchCanvasMouseEvent(page, 'mousedown', release.x, release.y);
+    await dispatchCanvasMouseEvent(page, 'mouseup', release.x, release.y);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const battle = window.__emblemRogueGame.scene.getScene('Battle');
+          return battle.playerUnits.find((u) => !u.hasMoved)?.weapon?.name || null;
+        }),
+      )
+      .toBe(release.label.replace(/\*$/, ''));
   });
 
   test('Attack real click enters target selection without picking a target on release', async ({

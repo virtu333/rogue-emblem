@@ -244,6 +244,12 @@ test('a recruit battle opens with a non-blocking recruit note, once per slot (Fu
   );
   await expect(recruitNote).toContainText('Move a Lord next to them and choose Talk');
   await expect(recruitNote).toContainText('before enemies reach them');
+  // Once read (its reading time on screen), a note steps aside on its own after twice
+  // that time unless a pointer rests on it (GuidanceNote). Rest the mouse on it (its
+  // plate is click-through, so on its button), as a reader would, so the steps below
+  // cannot outlast it however slowly they run. The touch tap on the map never moves
+  // the mouse: the canvas cancels touch-to-mouse events.
+  await recruitNote.getByRole('button', { name: 'Got it' }).hover();
   await expectNoDialog(page);
   await expect(recruitNote).toBeVisible();
   // Non-blocking: a lord can be selected while the note is up.
