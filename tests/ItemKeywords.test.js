@@ -117,10 +117,10 @@ describe('base line', () => {
   it('says what the item is', () => {
     expect(itemBaseLine(weapon('Killing Edge'))).toBe('Silver Sword');
     expect(itemBaseLine(weapon('Swordreaver'))).toBe('Steel Lance');
-    expect(itemBaseLine(weapon('Gemini'))).toBe('Relic Sword');
+    expect(itemBaseLine(weapon('Gemini'))).toBe('Legend Sword');
     expect(itemBaseLine(weapon('Sunder Bow'))).toBe('Rare Bow');
     expect(itemBaseLine(weapon('Bolganone'))).toBe('Tome');
-    expect(itemBaseLine(weapon('Luce'))).toBe('Relic Light Tome');
+    expect(itemBaseLine(weapon('Luce'))).toBe('Legend Light Tome');
     expect(itemBaseLine(weapon('Mend'))).toBe('Staff');
   });
 

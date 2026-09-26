@@ -242,7 +242,7 @@ const STATIC_HELP_TABS = [
           { text: 'Uses MAG: a magic sword (MAG vs RES).', color: CYAN },
           { text: '+5 DEF (etc.): bonus while equipped.' },
           { text: 'The line above says what it is: Silver', color: GRAY },
-          { text: 'Lance, Relic Sword (one of a kind).', color: GRAY },
+          { text: 'Lance, Legend Sword (one of a kind).', color: GRAY },
         ],
       },
       {

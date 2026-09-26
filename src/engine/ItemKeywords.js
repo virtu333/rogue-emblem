@@ -1,6 +1,6 @@
 // Item keywords: the short tags an item card shows beside its name ("Crit",
 // "Strikes twice", "Beats Axes", "x3 vs Armored"), plus the base line that says
-// what the item is ("Silver Lance", "Relic Sword"; a relic says so there, not in a
+// what the item is ("Silver Lance", "Legend Sword"; a legend says so there, not in a
 // tag). Pure.
 //
 // Names carry flavour; keywords carry the rules. Every keyword is read from the
@@ -143,13 +143,13 @@ export function itemKeywords(item) {
 }
 
 /**
- * What the item is, in plain words: "Silver Lance", "Relic Sword", "Light Tome".
+ * What the item is, in plain words: "Silver Lance", "Legend Sword", "Light Tome".
  * Null for anything that isn't a combat weapon or staff.
  */
 export function itemBaseLine(item) {
   const noun = TYPE_NOUN[item?.type];
   if (!noun) return null;
-  if (item.tier === 'Legend') return `Relic ${noun}`;
+  if (item.tier === 'Legend') return `Legend ${noun}`;
   if (item.tier === 'Rare') return `Rare ${noun}`;
   if (TIER_WORDS.has(item.tier) && ['Sword', 'Lance', 'Axe', 'Bow'].includes(item.type))
     return `${item.tier} ${noun}`;

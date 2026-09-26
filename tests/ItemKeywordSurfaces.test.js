@@ -150,7 +150,7 @@ describe('compendium', () => {
     const byName = (name) => entries.find((e) => e.name === name);
     expect(byName('Killing Edge').summary).toBe('Silver Sword · Crit 30');
     expect(byName('Swordreaver').summary).toBe('Steel Lance · Beats Axes');
-    expect(byName('Gemini').summary).toBe('Relic Sword · Strikes twice');
+    expect(byName('Gemini').summary).toBe('Legend Sword · Strikes twice');
     expect(byName('Iron Sword').summary).toBe('Iron Sword');
     expect(byName('Swordreaver').item.name).toBe('Swordreaver');
   });

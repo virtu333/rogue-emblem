@@ -8,7 +8,7 @@ names do.
 
 A weapon card says two things beside the name:
 
-- **What it is:** the base line. `Silver Lance`, `Steel Axe`, `Relic Sword`, `Rare Bow`,
+- **What it is:** the base line. `Silver Lance`, `Steel Axe`, `Legend Sword`, `Rare Bow`,
   `Tome`, `Light Tome`, `Staff`. It is left out when the name already says it
   (`Iron Sword +2`, `Vampiric Steel Axe`).
 - **What it does:** one tag per rule. `Crit 30`, `Strikes twice`, `Beats Axes`,
@@ -17,8 +17,8 @@ A weapon card says two things beside the name:
   `Alone: +4 STR, +4 SPD`.
 
 Names carry flavour; tags carry rules. This is the Diablo and Slay the Spire split.
-Relics get their proper names (the lore keeps proper nouns scarce, so a name marks
-something rare), and the base line says `Relic` instead of a tag.
+Legend weapons get their proper names (the lore keeps proper nouns scarce, so a name marks
+something rare), and the base line says `Legend` instead of a tag.
 
 ## Where it lives
 
