@@ -119,7 +119,7 @@ def _legato(legato_path, accent_path=None, accent_where=None, transition='tuned'
             parts.append(sfzlab.with_opcodes(leg, 'group', {
                 'lovel': lo, 'hivel': hi, 'ampeg_attack': att, 'ampeg_start': LEG_START,
                 'pitcheg_attack': 0, 'pitcheg_hold': 0.015, 'pitcheg_sustain': 0,
-                'pitcheg_decay': glide, 'pitcheg_depth': 1,
+                'pitcheg_decay': glide, 'pitcheg_depth': 0,
                 f'pitcheg_depth_oncc{SLIDE_UP_CC}': 1200,
                 f'pitcheg_depth_oncc{SLIDE_DOWN_CC}': -1200, **cc}))
     if accent_path:
