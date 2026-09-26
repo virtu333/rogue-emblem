@@ -82,6 +82,7 @@ import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
 import { unitTemperament } from './unitVoiceDisplay.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { LEVEL_UP_CUE_WAIT_MS, playCue } from './ceremonyMusic.js';
+import { portraitListLayout } from './portraitListLayout.js';
 
 // Movement between pointerdown and click that still counts as a tap, for touch
 // and pen. Mice hold a line far tighter, so they keep the original 10px.
@@ -89,6 +90,18 @@ const DRAG_SLOP_TOUCH = 24;
 
 export function canShowMobileRoster() {
   return hasDOMHost();
+}
+// Scroll the portrait unit strip just enough to show the selected card whole.
+function revealInStrip(strip, card) {
+  if (!card) return;
+  const fade = 28; // the strip's right padding, under its fade-out edge
+  const box = strip.getBoundingClientRect();
+  const rect = card.getBoundingClientRect();
+  const left = rect.left - box.left - strip.clientLeft + strip.scrollLeft;
+  const right = left + rect.width;
+  if (left < strip.scrollLeft) strip.scrollLeft = left;
+  else if (right > strip.scrollLeft + strip.clientWidth - fade)
+    strip.scrollLeft = right - strip.clientWidth + fade;
 }
 function el(tag, text, cls) {
   const node = document.createElement(tag);
@@ -227,6 +240,8 @@ export class MobileRosterSheet {
   render(message = '') {
     if (this.destroyed) return;
     const oldScroll = this.root.querySelector('.mr-content')?.scrollTop || 0;
+    // Upright, the unit list is a sideways strip; keep its position across renders.
+    const oldStrip = this.root.querySelector('.mr-units')?.scrollLeft || 0;
     const focusKey = document.activeElement?.dataset?.focusKey;
     this.root.replaceChildren();
     const head = el('header');
@@ -337,6 +352,8 @@ export class MobileRosterSheet {
       b.dataset.focusKey = String(i);
     });
     body.scrollTop = oldScroll;
+    nav.scrollLeft = oldStrip;
+    if (portraitListLayout()) revealInStrip(nav, nav.querySelector('[aria-pressed="true"]'));
     if (focusKey)
       (this.root.querySelector(`[data-focus-key="${focusKey}"]`) || this.root).focus({
         preventScroll: true,

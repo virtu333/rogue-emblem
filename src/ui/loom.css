@@ -89,6 +89,19 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+/* Upright phones (portrait mode, html.portrait-ui): the act title keeps its whole
+   line ("Act II · Old Kingdom Roads", not "Act II · Old K…"); the Eclipse, gold and
+   difficulty move under it, right-aligned, when they no longer fit beside it. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-loom-screen .re-loom-header {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-heading {
+    flex: 1 0 auto;
+    max-width: 100%;
+  }
+}
 
 /* ───────── Body: loom + side pane (the pane stays a column at every width) ───────── */
 .re-loom-screen .re-node-layout {
