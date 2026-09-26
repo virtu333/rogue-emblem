@@ -9,7 +9,7 @@ test.setTimeout(90000);
 test.beforeEach(async ({ page }) => {
   page.setDefaultTimeout(10000);
   // Concurrent source edits must not make Vite refresh an in-progress save test.
-  await page.routeWebSocket(/^ws:\/\/(?:127\.0\.0\.1|localhost):3000/, (socket) => socket.close());
+  await page.routeWebSocket(/^ws:\/\/(?:127\.0\.0\.1|localhost):\d+/, (socket) => socket.close());
 });
 
 // Fixtures attach only this test's isolated browser profile to a real slot.
