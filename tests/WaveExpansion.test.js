@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import {
   getWeaponTriangleBonus,
@@ -502,7 +502,21 @@ describe('Random legendary in RunManager', () => {
 });
 
 describe('Random legendary in loot', () => {
+  // Loot rolls on Math.random. Unseeded, 500 draws missed the legendary about once
+  // in 300 runs (a flaky red CI); a fixed stream makes the outcome the same every run.
+  let restoreRandom = null;
+  afterEach(() => restoreRandom?.());
+
   it('can appear in act3 loot choices', () => {
+    let seed = 0x5eed1e57;
+    const spy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (seed + 0x6d2b79f5) >>> 0;
+      let t = seed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    });
+    restoreRandom = () => spy.mockRestore();
     const legend = generateRandomLegendary(data.weapons);
     let found = false;
     for (let i = 0; i < 500; i++) {

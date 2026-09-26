@@ -65,9 +65,9 @@ describe('WeaponArt visibility helpers', () => {
     expect(unlocked.sourceLabel).toBe('Act');
     expect(byAct.label).toBe('Unlocks in Act 3');
     expect(byAct.sourceLabel).toBe('Act');
-    expect(prof.label).toBe('Requires Prof');
+    expect(prof.label).toBe('Needs proficiency');
     expect(prof.sourceLabel).toBe('Rank');
-    expect(mast.label).toBe('Requires Mast');
+    expect(mast.label).toBe('Needs Master rank');
     expect(mast.sourceLabel).toBe('Rank');
     expect(invalid.label).toBe('Invalid unlock act');
     expect(invalid.sourceLabel).toBe('Data');
