@@ -25,6 +25,12 @@ const TESTFLIGHT = {
   READY_FOR_BETA_TESTING: 'ready to test',
   IN_BETA_TESTING: 'in testing',
   EXPIRED: 'expired',
+  // External testers (public link and external groups) only.
+  READY_FOR_BETA_SUBMISSION: 'not in an external group yet',
+  WAITING_FOR_BETA_REVIEW: 'waiting for beta review',
+  IN_BETA_REVIEW: 'in beta review',
+  BETA_REJECTED: 'beta review rejected',
+  BETA_APPROVED: 'beta review approved',
 };
 
 /** Builds from a `/builds?include=preReleaseVersion,buildBetaDetail` response, newest first. */
@@ -47,6 +53,7 @@ export function buildRows(response) {
         processing: a.processingState || '',
         expired: Boolean(a.expired),
         internal: related(build, 'buildBetaDetail').internalBuildState || '',
+        external: related(build, 'buildBetaDetail').externalBuildState || '',
       };
     })
     .sort((x, y) => String(y.uploaded).localeCompare(String(x.uploaded)));
@@ -95,18 +102,24 @@ export function statusMarkdown({ appName, rows, uploads = null, focus = null }) 
     else
       lines.push(
         `Build ${focus} (version ${row.version}): ${label(PROCESSING, row.processing)}` +
-          (row.internal ? `; TestFlight: ${label(TESTFLIGHT, row.internal)}` : '') +
+          (row.internal ? `; internal testers: ${label(TESTFLIGHT, row.internal)}` : '') +
+          (row.external ? `; external testers: ${label(TESTFLIGHT, row.external)}` : '') +
           '.',
         '',
       );
   }
   if (rows.length) {
-    lines.push('| Build | Version | Uploaded | Apple processing | TestFlight |');
-    lines.push('| --- | --- | --- | --- | --- |');
+    lines.push(
+      '| Build | Version | Uploaded | Apple processing | Internal testers | External testers |',
+    );
+    lines.push('| --- | --- | --- | --- | --- | --- |');
     for (const r of rows)
       lines.push(
         `| ${cell(r.build)} | ${cell(r.version)}${r.platform && r.platform !== 'IOS' ? ` ${cell(r.platform)}` : ''} | ${when(r.uploaded)} | ` +
-          `${label(PROCESSING, r.processing)} | ${r.expired ? 'expired' : label(TESTFLIGHT, r.internal)} |`,
+          `${label(PROCESSING, r.processing)} | ` +
+          (r.expired
+            ? 'expired | expired |'
+            : `${label(TESTFLIGHT, r.internal)} | ${label(TESTFLIGHT, r.external)} |`),
       );
   } else lines.push('No builds yet.');
   if (uploads?.length) {
@@ -125,7 +138,7 @@ export function statusMarkdown({ appName, rows, uploads = null, focus = null }) 
 async function fetchRows(appId, token, limit) {
   const fields =
     'fields[builds]=version,uploadedDate,processingState,expired,preReleaseVersion,buildBetaDetail' +
-    '&fields[preReleaseVersions]=version,platform&fields[buildBetaDetails]=internalBuildState';
+    '&fields[preReleaseVersions]=version,platform&fields[buildBetaDetails]=internalBuildState,externalBuildState';
   const res = await api(
     `/builds?filter[app]=${appId}&${ALL_PROCESSING_STATES}&sort=-uploadedDate&limit=${limit}` +
       `&include=preReleaseVersion,buildBetaDetail&${fields}`,

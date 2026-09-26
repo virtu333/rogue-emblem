@@ -21,7 +21,11 @@ const response = {
   included: [
     { type: 'preReleaseVersions', id: 'v1', attributes: { version: '1.0', platform: 'IOS' } },
     { type: 'preReleaseVersions', id: 'v010', attributes: { version: '0.1.0', platform: 'IOS' } },
-    { type: 'buildBetaDetails', id: 'd21', attributes: { internalBuildState: 'IN_BETA_TESTING' } },
+    {
+      type: 'buildBetaDetails',
+      id: 'd21',
+      attributes: { internalBuildState: 'IN_BETA_TESTING', externalBuildState: 'IN_BETA_TESTING' },
+    },
     {
       type: 'buildBetaDetails',
       id: 'd22',
@@ -43,7 +47,30 @@ describe('App Store Connect build status', () => {
       version: '1.0',
       processing: 'VALID',
       internal: 'IN_BETA_TESTING',
+      external: 'IN_BETA_TESTING',
     });
+  });
+
+  it('shows a processed build that no external group has yet', () => {
+    const [row] = buildRows({
+      data: [build('b22', '22', '2026-09-26T02:47:25Z', 'VALID', 'v', 'd')],
+      included: [
+        { type: 'preReleaseVersions', id: 'v', attributes: { version: '0.1.0', platform: 'IOS' } },
+        {
+          type: 'buildBetaDetails',
+          id: 'd',
+          attributes: {
+            internalBuildState: 'READY_FOR_BETA_TESTING',
+            externalBuildState: 'READY_FOR_BETA_SUBMISSION',
+          },
+        },
+      ],
+    });
+    expect(statusMarkdown({ appName: 'Rogue Dawn', rows: [row], focus: 22 })).toContain(
+      'Build 22 (version 0.1.0): processed (`VALID`); internal testers: ready to test ' +
+        '(`READY_FOR_BETA_TESTING`); external testers: not in an external group yet ' +
+        '(`READY_FOR_BETA_SUBMISSION`).',
+    );
   });
 
   it('tolerates missing relationships and an empty response', () => {
@@ -107,10 +134,10 @@ describe('App Store Connect build status', () => {
     });
     expect(md).toContain('### App Store Connect: Rogue Dawn');
     expect(md).toContain(
-      'Build 22 (version 0.1.0): rejected by Apple (`INVALID`); TestFlight: processing error',
+      'Build 22 (version 0.1.0): rejected by Apple (`INVALID`); internal testers: processing error',
     );
     expect(md).toContain(
-      '| 21 | 1.0 | 2026-09-20 17:00 UTC | processed (`VALID`) | in testing (`IN_BETA_TESTING`) |',
+      '| 21 | 1.0 | 2026-09-20 17:00 UTC | processed (`VALID`) | in testing (`IN_BETA_TESTING`) | in testing (`IN_BETA_TESTING`) |',
     );
     expect(md).toContain('  - Error: ITMS-1: Bad | pipe');
   });
