@@ -181,6 +181,58 @@ test('battle Master Seal: path chooser, then the rite over the map; gains once',
   expect(errors).toEqual([]);
 });
 
+test('path chooser at 667×375: class names in full, a tall card scrolls instead of squashing', async ({
+  page,
+}) => {
+  const errors = collect(page);
+  await battle(page);
+  // A Knight's paths (General, Great Knight): the fullest real cards (seven
+  // bonuses, up to three ranks, two skills, a growth/move/grant note) on the
+  // narrowest frame, with a deed's Oath (Giantslayer · Lethality) on each.
+  await page.evaluate(async () => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    const u = s.playerUnits.find((x) => x.name === 'Sera');
+    Object.assign(u, { name: 'Benedetta', isLord: false, className: 'Knight', tier: 'base' });
+    Object.assign(u, { level: 10, proficiencies: [{ type: 'Lance', rank: 'Prof' }], skills: [] });
+    const deeds = await import('/src/engine/DeedSystem.js');
+    u._battleDeeds = { v: 1, maxKillLevelGap: 6 };
+    deeds.commitBattleDeeds([u], s.gameData.deeds, { battleKey: 'chooser' });
+    const targets = s.gameData.classes.filter((c) => c.promotesFrom === 'Knight');
+    const { PromotionChoicePanel } = await import('/src/ui/PromotionChoicePanel.js');
+    s.battleState = 'COMBAT_RESOLVING';
+    window.__choice = new PromotionChoicePanel(s, u, targets, s.gameData.skills).show();
+  });
+  const chooser = page.getByRole('dialog', { name: 'Choose promotion', exact: true });
+  await expect(chooser.locator('.gr-path')).toHaveCount(2);
+  const cards = await chooser.locator('.gr-path').evaluateAll((all) =>
+    all.map((card) => {
+      const name = card.querySelector('.gr-path-title strong');
+      const oath = card.querySelector('.gr-path-oath');
+      return {
+        path: card.dataset.path,
+        name: name.textContent,
+        nameFits: name.scrollWidth <= name.clientWidth + 1,
+        oathInFull: Boolean(oath) && oath.scrollHeight <= oath.clientHeight + 1,
+        // The whole card is laid out (a squashed card centres its content,
+        // pushing the class name above the scroll area's reach).
+        squashed: card.scrollHeight > card.clientHeight + 1,
+      };
+    }),
+  );
+  const fits = { nameFits: true, oathInFull: true, squashed: false };
+  expect(cards).toEqual([
+    { path: 'General', name: 'General', ...fits },
+    { path: 'Great Knight', name: 'Great Knight', ...fits },
+  ]);
+  // Scrolled to the end, the last card's footnote is reachable too.
+  const last = chooser.locator('.gr-path').last().locator('.gr-path-note');
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await chooser.getByRole('button', { name: 'Cancel', exact: true }).tap();
+  await expect(chooser).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('refresh mid-rite (battle seal): promotion and seal kept exactly once, rite not replayed', async ({
   page,
 }) => {
