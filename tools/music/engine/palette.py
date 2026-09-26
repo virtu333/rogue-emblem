@@ -71,19 +71,27 @@ def _plain_one(path, **kw):
     return dict(perform='plain', streams={'main': _strm(('plain', path), **kw)})
 
 
-def _chorus(path, darken=None):
+def _chorus(path, darken=None, female=None, male=None):
     """A choir: chords and pads play the chorus program (velocity = attack
-    speed, from note length); a sung line (one note at a time) goes through
-    the performer on a one-voice copy, so notes hand over instead of smearing."""
+    speed, from note length; low notes men, high notes women, as the library
+    splits them). A sung line (one note at a time) goes through the
+    performer on a one-voice copy of ONE section (women if the line lies at
+    G4 or above, else men), so it neither smears nor changes choir mid-phrase.
+    female / male: separate programs (VPO3); otherwise the mixed program's
+    own samples are split by name (SSO4)."""
     from .labrender import CHORUS_ATTACK
+    f_spec = ('chorus', female, darken, True) if female else ('chorus', path, darken, True, 'female')
+    m_spec = ('chorus', male, darken, True) if male else ('chorus', path, darken, True, 'male')
+    line = dict(cal_vel=80, mono=True, attack=CHORUS_ATTACK, legato_cc=True)
     return dict(perform='auto', vel_from_length=True, art_map={'default': 'main'},
+                line_program={'split': 67, 'hi': 'legato_f', 'lo': 'legato_m'},
                 streams={
                     'main': _strm(('chorus', path, darken, False), cal_vel=80,
                                   attack=CHORUS_ATTACK),
-                    'legato': _strm(('chorus', path, darken, True), cal_vel=80, mono=True,
-                                    attack=CHORUS_ATTACK),
-                    'leg': dict(program_of='legato'),
-                    'first': dict(program_of='legato'),
+                    'legato_f': _strm(f_spec, **line),
+                    'legato_m': _strm(m_spec, **line),
+                    'leg': dict(program_of='legato_f'),
+                    'first': dict(program_of='legato_f'),
                 })
 
 
@@ -232,7 +240,9 @@ CANDIDATES = {
         'vpo_mixed': dict(label='Virtual Playing Orchestra 3 choir (mixed)',
                           what='VPO3 choir-MIXED-PERF: the SSO 1.0 chorus samples, re-looped, with '
                                'random pitch/amp/timing per note, CC1 dynamics',
-                          lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'))),
+                          lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'), None,
+                                      _p('vpo', 'Vocals', 'choir-FEMALE-PERF.sfz'),
+                                      _p('vpo', 'Vocals', 'choir-MALE-PERF.sfz'))),
     },
     'oohs': {
         'sso_mixed_dark': dict(label='Sonatina 4 Mixed Chorus, darkened',
@@ -242,7 +252,9 @@ CANDIDATES = {
                                            1400)),
         'vpo_mixed_dark': dict(label='Virtual Playing Orchestra 3 choir, darkened',
                                what='VPO3 choir-MIXED-PERF through a 1.4 kHz low-pass',
-                               lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'), 1400)),
+                               lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'), 1400,
+                                           _p('vpo', 'Vocals', 'choir-FEMALE-PERF.sfz'),
+                                           _p('vpo', 'Vocals', 'choir-MALE-PERF.sfz'))),
     },
 }
 

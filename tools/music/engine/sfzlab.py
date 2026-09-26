@@ -186,6 +186,22 @@ def region_keys(ops) -> tuple[int, int, int]:
     return lo, hi, kc
 
 
+_ATTACK_DB = {}
+
+
+def _attack_db(path: str, offset: int, seconds: float = 0.15) -> float:
+    """Level (dB RMS) of the first `seconds` of a sample after its offset."""
+    key = (path, offset)
+    if key not in _ATTACK_DB:
+        import numpy as np
+        import soundfile as sf
+        x, sr = sf.read(path, dtype='float32', always_2d=True, start=offset,
+                        frames=int(seconds * 48000))
+        m = x.mean(axis=1).astype(np.float64)
+        _ATTACK_DB[key] = float(20 * np.log10(np.sqrt(np.mean(m ** 2)) + 1e-9)) if len(m) else -120.0
+    return _ATTACK_DB[key]
+
+
 def round_robin_by_cc(prog, cc: int = 20, shift: int = 1):
     """Two round robins selected by a CC (0-63: the library's own sample,
     64-127: the neighbouring sample `shift` semitones up, played down to pitch).
@@ -215,6 +231,29 @@ def round_robin_by_cc(prog, cc: int = 20, shift: int = 1):
         b += [('lokey', str(lo - shift)), ('hikey', str(hi - shift)), ('pitch_keycenter', str(kc)),
               ('locc%d' % cc, '64'), ('hicc%d' % cc, '127')]
         shifted.append((list(cur_ctx), (h, b), (lo, hi, ops)))
+    # level-match each borrowed recording to the notes it stands in for, so the
+    # alternation varies the stroke, not the loudness (neighbouring samples can
+    # differ by several dB even after the library's own region volumes)
+    originals = [ops for h, ops in prog if h == 'region' and get(ops, 'sample')]
+
+    def vel_band(ops):
+        return get(ops, 'lovel', '0'), get(ops, 'hivel', '127')
+
+    for _, (h, b), (lo, hi, ops) in shifted:
+        if not get(ops, 'sample'):
+            continue
+        want = []
+        for k in range(lo - shift, hi - shift + 1):
+            for o in originals:
+                a0, a1, _ = region_keys(o)
+                if a0 <= k <= a1 and vel_band(o) == vel_band(ops):
+                    want.append(_attack_db(get(o, 'sample'), int(get(o, 'offset', '0')))
+                                + float(get(o, 'volume', '0')))
+                    break
+        if want:
+            have = _attack_db(get(ops, 'sample'), int(get(ops, 'offset', '0'))) + \
+                float(get(ops, 'volume', '0'))
+            set_op(b, 'volume', round(float(get(ops, 'volume', '0')) + sum(want) / len(want) - have, 2))
     # keys at the top of the range have no shifted neighbour: reuse the original
     covered = set()
     for _, (h, b), (lo, hi, _) in shifted:
@@ -295,6 +334,40 @@ def sustain_offsets(prog, level=0.8, max_s=0.6, min_frames=0):
             cache[path] = min(cut, int(max_s * sr))
         cur = int(get(ops, 'offset', '0'))
         set_op(ops, 'offset', max(cur, cache[path], min_frames))
+    return prog
+
+
+def keep_regions(prog, pred):
+    """Drop the regions whose effective opcodes fail `pred` (headers stay)."""
+    out, ctx = [], {'global': [], 'master': [], 'group': []}
+    for h, ops in copy.deepcopy(prog):
+        if h in ('global', 'master', 'group'):
+            ctx[h] = ops
+        if h == 'region':
+            eff = {}
+            for layer in (ctx['global'], ctx['master'], ctx['group'], ops):
+                eff.update(dict(layer))
+            if not pred(eff):
+                continue
+        out.append((h, ops))
+    return out
+
+
+def extend_range(prog, lo=0, hi=127):
+    """Stretch the lowest and highest regions to cover the whole keyboard."""
+    prog = copy.deepcopy(prog)
+    regs = [ops for h, ops in prog if h == 'region' and get(ops, 'sample')]
+    if not regs:
+        return prog
+    keys = [region_keys(ops) for ops in regs]
+    bottom = min(k[0] for k in keys)
+    top = max(k[1] for k in keys)
+    for ops, (a, b, kc) in zip(regs, keys):
+        if a == bottom or b == top:
+            ops[:] = [(k, v) for k, v in ops if k != 'key']
+            set_op(ops, 'pitch_keycenter', kc)
+            set_op(ops, 'lokey', lo if a == bottom else a)
+            set_op(ops, 'hikey', hi if b == top else b)
     return prog
 
 

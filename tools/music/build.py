@@ -29,7 +29,9 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from engine import palette  # noqa: E402
 from engine.form import check_form  # noqa: E402
+from engine.instruments import INSTRUMENTS  # noqa: E402
 from engine.render import Renderer  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
@@ -218,7 +220,16 @@ def main():
     ap.add_argument('--preview', action='store_true')
     ap.add_argument('--no-out', action='store_true', help='skip writing game assets')
     ap.add_argument('--variants', nargs='*')
+    ap.add_argument('--palette', help='sound-lab palette, e.g. lab:choir (see engine/palette.py)')
     args = ap.parse_args()
+    if args.palette is not None:
+        palette.apply(args.palette, INSTRUMENTS)
+    if palette.active():
+        # a lab render is an audition: it never touches the game's assets or loop tables
+        global OUT, STINGER_OUT, PREVIEW
+        lab_out = os.path.join(palette.lab_dir(), 'out')
+        OUT, STINGER_OUT, PREVIEW = lab_out, lab_out, os.path.join(lab_out, 'preview')
+        print(palette.describe(), '-> writing to', lab_out)
 
     table = load_json(LOOPS_JSON)
     names = list_scores() if args.all else args.scores
@@ -230,7 +241,7 @@ def main():
         chosen = args.stingers or list_modules('stingers')
         build_stingers(chosen, args, music_tonics(table), stingers)
 
-    if not args.no_out:
+    if not args.no_out and not palette.active():
         save_json(LOOPS_JSON, table)
         write_loops_js(table)
         # every keyed stinger must cover every key the music uses

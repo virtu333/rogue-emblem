@@ -9,8 +9,9 @@ phrase), deterministically, and hands the renderer a performance:
   * the articulation (stream) of every note:
       leg    slurred: the legato program's transition from the previous note
       first  a new bow inside the legato program (phrase start, re-bow after
-             a rest, a repeated pitch); its velocity sets the attack (a soft
-             bow-in, or a marcato bite from the accent layer)
+             a rest, a repeated pitch); its velocity sets the attack: a
+             marcato bite from the accent layer on accents and on phrase
+             starts at mf and above (stronger at f), a soft bow-in at p/mp
       spic   short detached notes (bounced bow)
       stac   detached notes a little longer than a spiccato
       pizz / trem / chord  when the score asks for them, or double stops
@@ -235,9 +236,11 @@ def perform_line(score, evs, seed, arts=()) -> list[Played]:
                 elif n['accent'] == 1:
                     vel = 108
                 elif e.vel >= 0.74 and is_first:
-                    vel = 96                          # a forte entry bites a little
+                    vel = 100                         # a forte phrase start: marcato
+                elif e.vel >= 0.56 and is_first:
+                    vel = 80                          # mf phrase start: a light marcato
                 elif e.vel >= 0.55:
-                    vel = 64                          # clean, no accent layer
+                    vel = 64                          # a clean new bow, no accent layer
                 else:
                     vel = 36                          # a soft bow-in
                 if repeated and not n['accent']:

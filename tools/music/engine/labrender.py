@@ -155,20 +155,42 @@ def darken(prog, hz):
 CHORUS_ATTACK = (0.5, -0.42)   # attack = a0 + a_vel * velocity/127 (0.08 s at 127)
 
 
-def _chorus(path, darken_hz=None, mono=False):
+# a sung line: each note lets go as fast as the next arrives (CC20 bands, as for the violin),
+# 2.5x the incoming attack (CHORUS_ATTACK at the performer's leg velocities 28 / 72 / 112)
+CHORUS_RELEASE = [(0, 42, 1.0), (43, 84, 0.65), (85, 127, 0.33)]
+
+
+def _chorus(path, darken_hz=None, mono=False, voice=None, release=0.6):
     """A chorus program with a velocity-controlled attack (the libraries' own
-    runs 0.2-0.8 s: a melody at battle tempo speaks late and blurs) and,
-    for a sung line, one voice at a time: each note takes over from the last
-    with a short fade instead of the last one's 1.25 s release smearing under it."""
+    run 0.2-0.8 s: a melody at battle tempo speaks late and blurs) and a
+    shorter release (1.25 s smeared every chord change into the next).
+
+    mono: one voice at a time for a sung line; each note hands over to the
+    next with a crossfade matched to the next note's attack (CC20 bands),
+    instead of the last one's release smearing under it.
+    voice: 'female' or 'male' keeps one section's samples over the whole
+    keyboard. SSO's 'Mixed Chorus' is a split keyboard (men up to F#4, women
+    from G4), so a melody crossing G4 changed choir mid-phrase."""
     prog = sfzlab.load(path)
+    if voice:
+        prog = sfzlab.keep_regions(prog, lambda r: f'-{voice}-' in os.path.basename(r.get('sample', '')))
+        prog = sfzlab.extend_range(prog)
     if darken_hz:
         # there is no 'ooh' in these libraries: the 'ah' with its brightness taken off
         prog = darken(prog, darken_hz)
     a0, av = CHORUS_ATTACK
-    ops = {'ampeg_attack': a0, 'ampeg_vel2attack': av}
-    if mono:
-        ops.update({'group': 1, 'off_by': 1, 'off_mode': 'time', 'off_time': 0.3})
-    return sfzlab.with_opcodes(prog, 'group', ops)
+    ops = {'ampeg_attack': a0, 'ampeg_vel2attack': av, 'ampeg_release': release}
+    if not mono:
+        return sfzlab.with_opcodes(prog, 'group', ops)
+    ops.update({'group': 1, 'off_by': 1, 'off_mode': 'time'})
+    parts = []
+    for clo, chi, off in CHORUS_RELEASE:
+        parts.append(sfzlab.with_opcodes(prog, 'group', {
+            **ops, f'locc{LEG_CC}': clo, f'hicc{LEG_CC}': chi, 'off_time': off}))
+    out = list(parts[0])
+    for p in parts[1:]:
+        out += [b for b in p if b[0] != 'control']
+    return out
 
 
 PROGRAM_BUILDERS = {
@@ -352,10 +374,18 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
         def lane_fn(t, _lane=lane):
             i = np.clip((np.asarray(t) * SR).astype(np.int64), 0, len(_lane) - 1)
             return 20 * 1.3 * np.log10(np.maximum(_lane[i], 1e-3))
+    # a sung line keeps one section of the choir (by where the line lies)
+    line_prog = None
+    if mode == 'line' and lab.get('line_program'):
+        lp = lab['line_program']
+        keys = sorted(e.key for e in events)
+        line_prog = lp['hi'] if keys[len(keys) // 2] >= lp['split'] else lp['lo']
     # stream name -> the program it plays through (leg and first share one)
     by_prog = {}
     for p in played:
         prog_name = streams[p.stream].get('program_of', p.stream) if p.stream in streams else p.stream
+        if line_prog and p.stream in ('leg', 'first'):
+            prog_name = line_prog
         by_prog.setdefault(prog_name, []).append(p)
     warn = []
     for sname, ps in by_prog.items():
