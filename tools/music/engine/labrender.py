@@ -365,6 +365,12 @@ def render(inst, events, n_frames, seed, score=None, lane=None, calibrating=Fals
     if mode == 'line':
         played = perform.perform_line(score, events, seed, arts=tuple(lab.get('line_arts', ())),
                                       shaping=0.5 if lane is not None else 1.0)
+        if lab.get('rebow'):
+            # the performer's phrasing and short-note choices, but every long note
+            # on its own bow from the sustain program (no crossfaded slurs)
+            for p in played:
+                if p.stream in ('leg', 'first'):
+                    p.stream = 'sus'
         for p in played:
             if p.stream not in streams:
                 p.stream = amap.get(p.stream, 'chord' if 'chord' in streams else next(iter(streams)))

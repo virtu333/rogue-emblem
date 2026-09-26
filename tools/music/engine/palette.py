@@ -217,6 +217,15 @@ CANDIDATES = {
                  'layer on new bows), spiccato with an alternate round robin, staccato, '
                  'articulation state machine, phrase dynamics on CC1, humanised entrances',
             lab=_solo_violin_sso()),
+        'sso_rebow': dict(
+            label='Sonatina 4 solo violin, performed, every note re-bowed',
+            what='The performer (phrase dynamics, humanised timing, spiccato/staccato '
+                 'choices) but no slurs: every long note starts from its own recorded bow '
+                 'attack on the Sustain program, overlapping the last one\'s release',
+            lab=dict(_solo_violin_sso(), rebow=True, streams={
+                **_solo_violin_sso()['streams'],
+                'sus': _strm(('plain', _p('sso', 'Strings - Performance',
+                                          'Violin Solo 2 Sustain.sfz')))})),
         'sso_plain': dict(
             label='Sonatina 4 solo violin, unperformed',
             what='SSO4 Solo Violin 2 Sustain, every note as written, written dynamic on CC1, '
@@ -349,6 +358,7 @@ CANDIDATES['accordion'] = {
 # instrument-level overrides a candidate may carry (on top of the original's seat)
 OVERRIDES = {
     ('solo_violin', 'sso'): dict(humanize_ms=0, vel_jitter=0.02),
+    ('solo_violin', 'sso_rebow'): dict(humanize_ms=0, vel_jitter=0.02),
     ('solo_violin', 'sso_plain'): dict(humanize_ms=6),
     ('solo_violin', 'vpo'): dict(humanize_ms=6),
 }
