@@ -68,7 +68,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
+├── tests/                 # Vitest unit tests + harness/ + sim/, Playwright e2e/ (which CI lanes run which: docs/specs/compression-plan-2026-09-25.md)
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 49 original music files + 141 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)

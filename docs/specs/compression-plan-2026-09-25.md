@@ -10,7 +10,7 @@ The goal is **fewer ways for code to share and repair mutable state**, not fewer
 
 | # | Change | What disappears | Precondition |
 |---|---|---|---|
-| 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (branch `claude/e2e-lane-hygiene`) | Specs that rot because nothing runs them | none |
+| 0 | Test hygiene: fix stale browser specs, add a mechanical CI lane check, run harness/sim tests in CI (not started) | Specs that rot because nothing runs them | none |
 | 1 | One definition of the resolved-action continuation | Duplicate validation of the same shape | none |
 | 2 | Read-only attack forecast (equipment) | `WeaponPreviewSession.js` and the equip/restore round trip | characterisation tests first |
 | 3 | Explicit gameplay RNG, one complete path at a time | The global `Math.random` install and presentation shielding wrappers | #2 settled |
@@ -112,12 +112,12 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
 - Keep legacy-v1 behaviour behind an explicit compatibility policy.
 - Lint-ban ambient randomness in each path once it is migrated.
 
-**Acceptance test pattern:** identical saved state plus identical commands must give an identical domain state and RNG cursor, across animation speed, reduced motion, history viewing, forecast opening and presentation switches. `tests/e2e/portrait-battle.spec.js` ("does not change how the battle plays out") is a working example of this differential test through the real resume path.
+**Acceptance test pattern:** identical saved state plus identical commands must give an identical domain state and RNG cursor, across animation speed, reduced motion, history viewing, forecast opening and presentation switches. `tests/e2e/portrait-battle.spec.js` ("does not change how the battle plays out"; in PR #99, not yet merged) is a working example of this differential test through the real resume path.
 
 ## Verification audit
 
-**CI lanes** (only one workflow, `ci.yml`, running on push/PR to `main`):
-- 60 of 99 `tests/e2e` specs were in no lane.
+**CI lanes** (`ci.yml` is the only workflow that runs tests, on push/PR to `main`; `testflight.yml` only builds the iOS app):
+- 60 of 99 `tests/e2e` specs were in no lane (66 of 105 on 2026-09-26).
 - 7 of 10 `tests/harness/*.test.js` files and 6 of 8 `tests/sim/*.test.js` files never ran. `npm run test:e2e`, `test:harness` and `test:sim` exist but CI does not call them.
 - The 8 browser failures seen locally were all stale or racy tests in unrun specs:
   - #78 changed the command rail;
@@ -125,7 +125,7 @@ Battle execution installs the battle RNG as global `Math.random`. `src/utils/pre
   - #77 made attacks target-first;
   - #67 moved the Title to the DOM;
   - a gamepad `tap()` races the 250 ms auto-repeat under load.
-- Step 0 fixes these and adds `check:e2e-lanes`.
+- Step 0 fixes these and adds a `check:e2e-lanes` script (not written yet).
 
 **What the headless harness proves:** `HeadlessBattle` calls real engine modules (combat, AI, skills, loot and so on) but mirrors `BattleScene`'s state machine, with `CANTO_DISABLED = true`. It has no async presentation and no checkpoint/resume. A green harness run proves engine resolution for the scenarios it exercises. It does not prove the production action lifecycle; the Journey tests and e2e cover that.
 
@@ -192,4 +192,4 @@ So a blanket "delete low-signal tests" pass is not safe.
 - Derive expected values independently (hand-computed fixtures), never by re-running the code under test.
 - Before a refactor, pin today's behaviour with characterisation tests that must pass before and after. A bug fix gets a test that fails before the fix.
 - Prove a new test can fail: plant the bug once and watch it fail.
-- Every e2e spec belongs to a CI lane or is listed with a reason (`npm run check:e2e-lanes`).
+- Every e2e spec belongs to a CI lane or is listed with a reason (step 0 adds `npm run check:e2e-lanes` to enforce it).
