@@ -8,7 +8,7 @@
 // boundary the controller saves the battle exactly as it stands (same RNG position,
 // no reseed) and re-opens it through the existing Resume battle path in the other
 // orientation — the same restore a refresh performs, so no outcome can change.
-// Deployment and the post-battle flow stay landscape (the rotate prompt returns).
+// Once the battle is decided the board stays as it is through the rewards.
 //
 // Rules and saves are untouched: the board turn is Grid presentation only.
 
@@ -111,12 +111,13 @@ export class PortraitBattleController {
     return this;
   }
 
+  // The classes stay through the battle's end: in portrait mode the rewards, and the
+  // map behind them ("View map"), stay upright. destroy() clears them with the scene.
   _applyClasses() {
     const root = docRoot();
     if (!root) return;
-    const live = !this.ended;
-    root.classList.toggle(PORTRAIT_BATTLE_CLASS, live && this.rotated);
-    root.classList.toggle(PORTRAIT_CAPABLE_CLASS, live && this.capable);
+    root.classList.toggle(PORTRAIT_BATTLE_CLASS, this.rotated);
+    root.classList.toggle(PORTRAIT_CAPABLE_CLASS, this.capable);
   }
 
   /** The presentation the phone asks for right now differs from the one on screen. */
@@ -169,7 +170,7 @@ export class PortraitBattleController {
     if (this.switching) return;
     const over = this.scene.battleState === 'BATTLE_END';
     if (over !== this.ended) {
-      // Rewards hand the phone back to landscape; a rewind out of a defeat returns it.
+      // A decided battle stops following the phone; a rewind out of a defeat resumes it.
       if (over) this.onBattleEnd();
       else this._reopen();
       return;
@@ -257,13 +258,12 @@ export class PortraitBattleController {
     this._showNotice('The board keeps its orientation for this battle.');
   }
 
-  /** Rewards, promotions and the route stay landscape: hand the phone back. */
+  /** The battle is decided: stop following the phone (no switch over the rewards). */
   onBattleEnd() {
     if (this.ended) return;
     this.ended = true;
     this.pending = false;
     this._showNotice(null);
-    this._applyClasses();
   }
 
   // A quiet line over the top of the map. Each message shows once for a few seconds

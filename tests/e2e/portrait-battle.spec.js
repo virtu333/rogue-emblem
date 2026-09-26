@@ -568,3 +568,71 @@ test('turning the phone mid-battle does not change how the battle plays out', as
   for (let i = 0; i < control.states.length; i++)
     expect(turned.states[i], `after ${i} enemy phases`).toEqual(control.states[i]);
 });
+
+test('an upright battle stays upright through its rewards', async ({ page }) => {
+  await bootBattle(page);
+  await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').onVictory());
+  const rewards = page.getByRole('dialog', { name: 'Battle rewards', exact: true });
+  await expect(rewards).toBeVisible({ timeout: 15_000 });
+  const info = await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    const html = document.documentElement.classList;
+    return {
+      rotation: b.grid.board.rotation,
+      upright: html.contains('portrait-battle'),
+      capable: html.contains('portrait-battle-capable'),
+      tallCanvas: b.scale.height > b.scale.width,
+      prompt: getComputedStyle(document.getElementById('rotate-prompt')).display,
+    };
+  });
+  expect(info).toEqual({
+    rotation: 'ccw',
+    upright: true,
+    capable: true,
+    tallCanvas: true,
+    prompt: 'none',
+  });
+});
+
+test('rewind previews draw the board the way the upright battle does', async ({ page }) => {
+  await bootBattle(page);
+  await page.evaluate(() => {
+    const b = window.__emblemRogueGame.scene.getScene('Battle');
+    b.runManager.visionChargesRemaining = 3;
+    const u = b.playerUnits.find((x) => !x.hasActed);
+    b.selectUnit(u);
+    b.showActionMenu(u);
+  });
+  const hud = page.getByRole('complementary', { name: 'Battle commands' });
+  await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
+  await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE');
+  await hud.getByRole('button', { name: 'Rewind', exact: true }).tap();
+  await expect(page.getByRole('dialog', { name: 'Rewind', exact: true })).toBeVisible();
+  // The preview's history scene draws each unit at its turned display cell.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const game = window.__emblemRogueGame;
+        const history = game.scene.scenes.find((s) =>
+          s.sys.settings.key.startsWith('BattleHistory-'),
+        );
+        return history?.renderer?.units?.size || 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  const drawn = await page.evaluate(() => {
+    const game = window.__emblemRogueGame;
+    const b = game.scene.getScene('Battle');
+    const history = game.scene.scenes.find((s) => s.sys.settings.key.startsWith('BattleHistory-'));
+    return b.playerUnits.map((u) => {
+      const d = b.grid.board.toDisplay(u.col, u.row);
+      const group = history.renderer.units.get(u.battleEntityId);
+      return {
+        expected: [(d.col + 0.5) * 32, (d.row + 0.5) * 32],
+        drawn: group ? [group.x, group.y] : null,
+      };
+    });
+  });
+  expect(drawn.length).toBeGreaterThan(0);
+  for (const unit of drawn) expect(unit.drawn).toEqual(unit.expected);
+});
