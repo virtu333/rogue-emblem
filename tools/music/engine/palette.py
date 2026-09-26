@@ -1,0 +1,433 @@
+"""The sound lab's alternative palette: other libraries, chosen at render time.
+
+Off by default. Selecting it swaps entries of the instrument registry for
+lab instruments (kind 'lab', rendered by labrender through sfizz) and
+leaves every other part exactly as it is.
+
+  MUSIC_PALETTE=lab                          every instrument's first candidate
+  MUSIC_PALETTE=lab:choir,solo_violin        just those, first candidate each
+  MUSIC_PALETTE=lab:choir=vpo_mixed          a named candidate
+  MUSIC_PALETTE=lab:@strings                 a named group (see GROUPS)
+  build.py / solo.py  --palette <same syntax>
+
+`python3 tools/music/solo.py --list-palette` prints the candidates.
+
+A lab instrument keeps the original's seat (pan, width, depth, bus, range,
+reference key), so mixing, role levelling, reverb and the master chain treat
+it exactly like the part it replaces: only the sound source changes.
+"""
+
+from __future__ import annotations
+
+import copy
+import hashlib
+import os
+
+LAB_VERSION = 1   # bump when the performer or the lab renderer changes what a stem sounds like
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+_ORIG: dict | None = None
+_ACTIVE: dict = {}
+
+
+def lab_dir() -> str:
+    return os.environ.get('MUSIC_LAB_DIR', os.path.join(ROOT, 'References', 'music-lab'))
+
+
+def cache_dir() -> str:
+    return os.path.join(lab_dir(), 'cache')
+
+
+# ------------------------------------------------------------------ helpers
+def _p(lib, *parts):
+    from . import labrender as L
+    return {'sso': L.sso, 'vpo': L.vpo, 'vcsl': L.vcsl}[lib](*parts)
+
+
+def _strm(prog, **kw):
+    return dict(prog=prog, **kw)
+
+
+SHORT = dict(short=True, dyn_cc=0, cal_vel=91)
+
+
+# ------------------------------------------------------------------ candidates
+def _solo_violin_sso(transition='tuned'):
+    SP = 'Strings - Performance'
+    return dict(perform='line', streams={
+        'legato': _strm(('violin2_legato', transition), mono=True, cal_vel=64,
+                        legato_cc=transition != 'library'),
+        'leg': dict(program_of='legato'),
+        'first': dict(program_of='legato'),
+        'spic': _strm(('rr', _p('sso', SP, 'Violin Solo 2 Spiccato.sfz')), **SHORT),
+        'stac': _strm(('plain', _p('sso', SP, 'Violin Solo 2 Staccato.sfz')), **SHORT),
+        'pizz': _strm(('plain', _p('sso', SP, 'Violin Solo 2 Pizzicato.sfz')), **SHORT),
+        'trem': _strm(('plain', _p('sso', SP, 'Violin Solo 2 Tremolo.sfz'))),
+        'chord': _strm(('plain', _p('sso', SP, 'Violin Solo 2 Sustain.sfz'))),
+    })
+
+
+def _plain_one(path, **kw):
+    return dict(perform='plain', streams={'main': _strm(('plain', path), **kw)})
+
+
+def _chorus(path, darken=None):
+    """A choir: chords and pads play the chorus program (velocity = attack
+    speed, from note length); a sung line (one note at a time) goes through
+    the performer on a one-voice copy, so notes hand over instead of smearing."""
+    from .labrender import CHORUS_ATTACK
+    return dict(perform='auto', vel_from_length=True, art_map={'default': 'main'},
+                streams={
+                    'main': _strm(('chorus', path, darken, False), cal_vel=80,
+                                  attack=CHORUS_ATTACK),
+                    'legato': _strm(('chorus', path, darken, True), cal_vel=80, mono=True,
+                                    attack=CHORUS_ATTACK),
+                    'leg': dict(program_of='legato'),
+                    'first': dict(program_of='legato'),
+                })
+
+
+SSO_SEC = {'violins': '1st Violins', 'violins2': '2nd Violins', 'violas': 'Violas',
+           'celli': 'Celli', 'basses': 'Basses'}
+VPO_SEC = {'violins': '1st-violin', 'violins2': '2nd-violin', 'violas': 'viola',
+           'celli': 'cello', 'basses': 'bass'}
+
+
+def _sso_section(inst):
+    """SSO4 string section: a line is performed through the rebuilt legato
+    program; pads and divisi play the sustain program. CC21 (the library's
+    vibrato LFO: its section samples are recorded without vibrato) is set
+    to a moderate depth."""
+    SP = 'Strings - Performance'
+    n = SSO_SEC[inst]
+    vib = {21: 56}
+    sus = _strm(('plain', _p('sso', SP, f'{n} Sustain.sfz')), cc=vib)
+    return dict(perform='auto', art_map={'default': 'chord', 'sus': 'chord', 'vib': 'chord',
+                                          'soft': 'soft', 'spic': 'spic', 'stac': 'stac',
+                                          'pizz': 'pizz', 'trem': 'trem', 'first': 'chord',
+                                          'leg': 'chord'},
+                streams={
+                    'legato': _strm(('legato', _p('sso', SP, f'{n} Legato.sfz'),
+                                     _p('sso', SP, f'{n} Marcato.sfz'),
+                                     (('group_volume', '-20'),), 'tuned', 0.16),
+                                    mono=True, cal_vel=64, legato_cc=True, cc=vib),
+                    'leg': dict(program_of='legato'),
+                    'first': dict(program_of='legato'),
+                    'chord': sus,
+                    'soft': dict(sus, db_offset=-3.0, cc={21: 40}),
+                    'spic': _strm(('plain', _p('sso', SP, f'{n} Staccato.sfz')), **SHORT),
+                    'stac': _strm(('plain', _p('sso', SP, f'{n} Staccato.sfz')), **SHORT),
+                    'pizz': _strm(('plain', _p('sso', SP, f'{n} Pizzicato.sfz')), **SHORT),
+                    'trem': _strm(('plain', _p('sso', SP, f'{n} Tremolo.sfz'))),
+                })
+
+
+def _vpo_section(inst):
+    n = VPO_SEC[inst]
+    main = _strm(('plain', _p('vpo', 'Strings', f'{n}-SEC-PERF.sfz')))
+    return dict(perform='plain', art_map={'default': 'main', 'sus': 'main', 'vib': 'main',
+                                          'soft': 'soft', 'spic': 'stac', 'stac': 'stac',
+                                          'pizz': 'pizz', 'trem': 'trem'},
+                streams={
+                    'main': main,
+                    'soft': dict(main, db_offset=-3.0),
+                    'stac': _strm(('plain', _p('vpo', 'Strings', f'{n}-SEC-PERF-staccato.sfz')),
+                                  **SHORT),
+                    'pizz': _strm(('plain', _p('vpo', 'Strings', f'{n}-SEC-PERF-pizzicato.sfz')),
+                                  **SHORT),
+                    'trem': _strm(('plain', _p('vpo', 'Strings', f'{n}-SEC-PERF-tremolo.sfz'))),
+                })
+
+
+SSO_BRASS = {'horns': 'Horns', 'trumpets': 'Trumpets', 'trombones': 'Trombones', 'tuba': 'Tuba'}
+VPO_BRASS = {'horns': 'french-horn', 'trumpets': 'trumpet', 'trombones': 'trombone'}
+
+
+def _sso_brass(inst):
+    """SSO4 brass section: sustain (its dynamic layers crossfaded on CC1) and
+    staccato; no mutes in the library, so muted notes are the sustain through
+    a low-pass (said plainly in the label)."""
+    BP = 'Brass - Performance'
+    n = SSO_BRASS[inst]
+    sus = _strm(('plain', _p('sso', BP, f'{n} Sustain.sfz')))
+    return dict(perform='plain', art_map={'default': 'sus', 'vib': 'sus', 'stac': 'stac',
+                                          'mute': 'mute'},
+                streams={
+                    'sus': sus,
+                    'stac': _strm(('plain', _p('sso', BP, f'{n} Staccato.sfz')), **SHORT),
+                    'mute': _strm(('dark', _p('sso', BP, f'{n} Sustain.sfz'), 1500)),
+                })
+
+
+def _vpo_brass(inst):
+    n = VPO_BRASS[inst]
+    main = _strm(('plain', _p('vpo', 'Brass', f'{n}-SEC-PERF.sfz')))
+    return dict(perform='plain', art_map={'default': 'main', 'vib': 'main', 'stac': 'stac',
+                                          'mute': 'main'},
+                streams={
+                    'main': main,
+                    'stac': _strm(('plain', _p('vpo', 'Brass', f'{n}-SEC-PERF-staccato.sfz')),
+                                  **SHORT),
+                })
+
+
+SSO_WINDS = {'flute': 'Flute Solo 1', 'oboe': 'Oboe Solo', 'clarinet': 'Clarinet Solo',
+             'bassoon': 'Bassoon Solo', 'piccolo': 'Piccolo Solo'}
+
+
+def _sso_wind(inst):
+    """SSO4 solo woodwind: a line through the rebuilt legato program with the
+    performer (a breath where the phrase has a rest), held chords on the
+    looped-decay sustain, staccato."""
+    WP = 'Woodwinds - Performance'
+    n = SSO_WINDS[inst]
+    sus = _strm(('plain', _p('sso', WP, f'{n} Sustain (looped, decay).sfz')))
+    stac = _strm(('plain', _p('sso', WP, f'{n} Staccato.sfz')), **SHORT)
+    return dict(perform='auto', art_map={'default': 'chord', 'nv': 'chord', 'stac': 'stac',
+                                          'first': 'chord', 'leg': 'chord'},
+                streams={
+                    'legato': _strm(('legato', _p('sso', WP, f'{n} Legato.sfz'), None, None,
+                                     'tuned', 0.05), mono=True, cal_vel=64, legato_cc=True),
+                    'leg': dict(program_of='legato'),
+                    'first': dict(program_of='legato'),
+                    'chord': sus,
+                    'spic': stac,
+                    'stac': stac,
+                })
+
+
+def _drum(path, key, **kw):
+    return dict(perform='plain', streams={'main': _strm(('plain', path), fixed_key=key,
+                                                        **{**SHORT, **kw})})
+
+
+CANDIDATES = {
+    'solo_violin': {
+        'sso': dict(
+            label='Sonatina 4 solo violin, performed',
+            what='SSO4 Solo Violin 2 (legato program rebuilt: 3 transition speeds, marcato accent '
+                 'layer on new bows), spiccato with an alternate round robin, staccato, '
+                 'articulation state machine, phrase dynamics on CC1, humanised entrances',
+            lab=_solo_violin_sso()),
+        'sso_plain': dict(
+            label='Sonatina 4 solo violin, unperformed',
+            what='SSO4 Solo Violin 2 Sustain, every note as written, written dynamic on CC1, '
+                 'no state machine',
+            lab=_plain_one(_p('sso', 'Strings - Performance', 'Violin Solo 2 Sustain.sfz'))),
+        'vpo': dict(
+            label='Virtual Playing Orchestra 3 solo violin (PERF)',
+            what='VPO3 1st-violin-SOLO-PERF (No Budget Orchestra samples), written dynamic on CC1, '
+                 'velocity per note, no state machine',
+            lab=dict(_plain_one(_p('vpo', 'Strings', '1st-violin-SOLO-PERF.sfz')))),
+    },
+    'choir': {
+        'sso_mixed': dict(label='Sonatina 4 Mixed Chorus',
+                          what="SSO4 'Mixed Chorus' (Performance): 'ah', CC1 dynamics with its "
+                               'bright/dark crossfade, velocity = attack speed from note length',
+                          lab=_chorus(_p('sso', 'Chorus - Performance', 'Mixed Chorus.sfz'))),
+        'sso_large': dict(label='Sonatina 4 Large Chorus',
+                          what="SSO4 'Large Chorus' (Performance): the same 'ah' samples doubled "
+                               'across neighbouring keys and panned, wider and thicker',
+                          lab=_chorus(_p('sso', 'Chorus - Performance', 'Large Chorus.sfz'))),
+        'vpo_mixed': dict(label='Virtual Playing Orchestra 3 choir (mixed)',
+                          what='VPO3 choir-MIXED-PERF: the SSO 1.0 chorus samples, re-looped, with '
+                               'random pitch/amp/timing per note, CC1 dynamics',
+                          lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'))),
+    },
+    'oohs': {
+        'sso_mixed_dark': dict(label='Sonatina 4 Mixed Chorus, darkened',
+                               what="SSO4 'Mixed Chorus' through a 1.4 kHz low-pass: no library has "
+                                    "an 'ooh', so this is the 'ah' with its brightness off",
+                               lab=_chorus(_p('sso', 'Chorus - Performance', 'Mixed Chorus.sfz'),
+                                           1400)),
+        'vpo_mixed_dark': dict(label='Virtual Playing Orchestra 3 choir, darkened',
+                               what='VPO3 choir-MIXED-PERF through a 1.4 kHz low-pass',
+                               lab=_chorus(_p('vpo', 'Vocals', 'choir-MIXED-PERF.sfz'), 1400)),
+    },
+}
+
+for _inst in SSO_SEC:
+    CANDIDATES[_inst] = {
+        'sso': dict(label=f'Sonatina 4 {SSO_SEC[_inst]}',
+                    what=f'SSO4 {SSO_SEC[_inst]} (Performance): lines through the rebuilt legato '
+                         'program with the performer, pads on Sustain, CC1 dynamics, CC21 '
+                         'vibrato 56, Staccato (2 round robins), Pizzicato, Tremolo',
+                    lab=_sso_section(_inst)),
+        'vpo': dict(label=f'Virtual Playing Orchestra 3 {VPO_SEC[_inst]} section (PERF)',
+                    what=f'VPO3 {VPO_SEC[_inst]}-SEC-PERF (+ staccato, pizzicato, tremolo '
+                         'programs), CC1 dynamics, no performer',
+                    lab=_vpo_section(_inst)),
+    }
+for _inst in SSO_BRASS:
+    CANDIDATES[_inst] = {
+        'sso': dict(label=f'Sonatina 4 {SSO_BRASS[_inst]}',
+                    what=f'SSO4 {SSO_BRASS[_inst]} Sustain (dynamic layers crossfaded on CC1) and '
+                         'Staccato; no mutes in the library (muted notes: sustain through a '
+                         '1.5 kHz low-pass); no performer',
+                    lab=_sso_brass(_inst)),
+    }
+    if _inst in VPO_BRASS:
+        CANDIDATES[_inst]['vpo'] = dict(
+            label=f'Virtual Playing Orchestra 3 {VPO_BRASS[_inst]} section (PERF)',
+            what=f'VPO3 {VPO_BRASS[_inst]}-SEC-PERF (+ staccato), CC1 dynamics; muted notes '
+                 'play open; no performer',
+            lab=_vpo_brass(_inst))
+
+for _inst in SSO_WINDS:
+    CANDIDATES[_inst] = {
+        'sso': dict(label=f'Sonatina 4 {SSO_WINDS[_inst]}',
+                    what=f'SSO4 {SSO_WINDS[_inst]} (Performance): lines through the rebuilt '
+                         'legato program with the performer, chords on Sustain (looped, decay), '
+                         'Staccato, CC1 dynamics',
+                    lab=_sso_wind(_inst)),
+    }
+
+CANDIDATES['celesta'] = {
+    'sso': dict(label='Sonatina 4 Celeste',
+                what='SSO4 Percussion/Celeste (hard and soft layers by velocity), release '
+                     'held by its CC64 ring control at 40',
+                lab=dict(perform='plain', streams={'main': _strm(
+                    ('plain', _p('sso', 'Percussion', 'Celeste.sfz')), cc={64: 40}, **SHORT)})),
+}
+_MEMB = ('Membranophones', 'Struck Membranophones')
+CANDIDATES['taiko'] = {
+    'vcsl_bd_muted': dict(label='VCSL bass drum, muted hits',
+                          what="VCSL 'Bass Drum 3 - Legacy', muted hits (key 61): 7 velocity "
+                               'layers with round robins; every written pitch plays the one drum',
+                          lab=_drum(_p('vcsl', *_MEMB, 'Bass Drum 3 - Legacy.sfz'), 61)),
+    'vcsl_bd_open': dict(label='VCSL bass drum, open hits',
+                         what="VCSL 'Bass Drum 3 - Legacy', open hits (key 60): 7 velocity "
+                              'layers with round robins, long ring',
+                         lab=_drum(_p('vcsl', *_MEMB, 'Bass Drum 3 - Legacy.sfz'), 60)),
+    'vcsl_frame': dict(label='VCSL frame drum, large',
+                       what="VCSL 'Frame Drum', large drum hits (key 61): 2 velocity layers, "
+                            '2 round robins',
+                       lab=_drum(_p('vcsl', *_MEMB, 'Frame Drum.sfz'), 61)),
+}
+
+# folk colour (a sketch for the village / caravan world)
+_ZITH = ('Chordophones', 'Zithers')
+_DOUM, _TEK, _KA, _SLAP = 60, 61, 62, 63
+CANDIDATES['kit'] = {
+    'darbuka': dict(label='VCSL darbuka as the hand drums',
+                    what="VCSL 'Darbuka' (2 round robins per stroke): kit toms and kick -> doum, "
+                         'snare, rim and stick -> tek, hi-hat -> ka, high tom -> slap; cymbals '
+                         'and shakers left out',
+                    lab=dict(perform='plain', streams={'main': _strm(
+                        ('plain', _p('vcsl', *_MEMB, 'Darbuka.sfz')),
+                        key_map={36: _DOUM, 35: _DOUM, 41: _DOUM, 43: _DOUM, 45: _DOUM,
+                                 48: _SLAP, 38: _TEK, 39: _TEK, 40: _TEK, 37: _TEK, 88: _TEK,
+                                 95: _TEK, 96: _TEK, 93: _TEK, 42: _KA, 44: _KA},
+                        **SHORT)})),
+}
+CANDIDATES['accordion'] = {
+    'psaltery': dict(label='VCSL bowed psaltery',
+                     what="VCSL 'Psaltery, Bowed and Plucked - LongBow' (range G4-G6: lower notes "
+                          'move up an octave), written dynamic as velocity',
+                     lab=_plain_one(_p('vcsl', *_ZITH, 'Psaltery, Bowed and Plucked - LongBow.sfz'),
+                                    **{**SHORT, 'short': False})),
+    'dan_tranh': dict(label='VCSL dan tranh (plucked zither)',
+                      what="VCSL 'Dan Tranh - Vibrato' (plucked, with a bent vibrato), written "
+                           'dynamic as velocity',
+                      lab=_plain_one(_p('vcsl', *_ZITH, 'Dan Tranh - Vibrato.sfz'), **SHORT)),
+}
+
+# instrument-level overrides a candidate may carry (on top of the original's seat)
+OVERRIDES = {
+    ('solo_violin', 'sso'): dict(humanize_ms=0, vel_jitter=0.02),
+    ('solo_violin', 'sso_plain'): dict(humanize_ms=6),
+    ('solo_violin', 'vpo'): dict(humanize_ms=6),
+}
+
+GROUPS = {}
+
+
+def candidates():
+    return {k: list(v) for k, v in CANDIDATES.items()}
+
+
+# ------------------------------------------------------------------ selection
+def parse(spec: str | None) -> dict:
+    """'lab:choir=vpo_mixed,solo_violin' -> {'choir': 'vpo_mixed', 'solo_violin': 'sso'}."""
+    spec = (spec or '').strip()
+    if not spec or spec in ('default', 'off', 'none'):
+        return {}
+    if spec == 'lab':
+        return {inst: next(iter(c)) for inst, c in CANDIDATES.items()}
+    if spec.startswith('lab:'):
+        spec = spec[4:]
+    out = {}
+    for tok in [t.strip() for t in spec.split(',') if t.strip()]:
+        if tok.startswith('@'):
+            out.update(parse(GROUPS[tok[1:]]))
+            continue
+        inst, _, cand = tok.partition('=')
+        if inst not in CANDIDATES:
+            raise SystemExit(f'palette: no lab candidates for {inst!r} (have {sorted(CANDIDATES)})')
+        cand = cand or next(iter(CANDIDATES[inst]))
+        if cand not in CANDIDATES[inst]:
+            raise SystemExit(f'palette: {inst} has no candidate {cand!r} '
+                             f'(have {sorted(CANDIDATES[inst])})')
+        out[inst] = cand
+    return out
+
+
+def build(inst_name: str, cand: str, orig: dict) -> dict:
+    c = CANDIDATES[inst_name][cand]
+    keep = ('range', 'pan', 'width', 'depth', 'ref_key', 'bus', 'humanize_ms', 'fixed_pitch',
+            'keys', 'room', 'duck', 'hpf', 'vel_jitter')
+    inst = {k: copy.deepcopy(orig[k]) for k in keep if k in orig}
+    inst.update(kind='lab', lab=copy.deepcopy(c['lab']), expr_cc=True,
+                lab_id=f'{inst_name}={cand}', label=c['label'])
+    if c['lab'].get('perform') in ('line', 'auto'):
+        # the performer shapes dynamics itself; random velocity would only blur its choices
+        inst['vel_jitter'] = 0.02
+    inst.update(copy.deepcopy(OVERRIDES.get((inst_name, cand), {})))
+    inst.update(copy.deepcopy(c.get('inst', {})))
+    return inst
+
+
+def apply(spec, instruments: dict) -> dict:
+    """Select a palette (restoring the default first). Returns {inst: candidate}."""
+    global _ORIG, _ACTIVE
+    if _ORIG is None:
+        _ORIG = copy.deepcopy(instruments)
+    for k in list(instruments):
+        if k not in _ORIG:
+            del instruments[k]
+    for k, v in _ORIG.items():
+        instruments[k] = copy.deepcopy(v)
+    chosen = parse(spec) if isinstance(spec, str) or spec is None else dict(spec)
+    for inst_name, cand in chosen.items():
+        instruments[inst_name] = build(inst_name, cand, _ORIG[inst_name])
+    _ACTIVE = chosen
+    return chosen
+
+
+def active() -> dict:
+    return dict(_ACTIVE)
+
+
+def describe() -> str:
+    if not _ACTIVE:
+        return 'palette: default'
+    return 'palette: lab ' + ', '.join(f'{k}={v}' for k, v in sorted(_ACTIVE.items()))
+
+
+_CODE_HASH = None
+
+
+def cache_token(inst: dict) -> str:
+    """Identity of a lab stem: the candidate, its generated programs (content
+    hashed) and the lab code itself, so an edit to the performer re-renders."""
+    global _CODE_HASH
+    from . import labrender
+    if _CODE_HASH is None:
+        here = os.path.dirname(__file__)
+        _CODE_HASH = hashlib.sha1(b''.join(
+            open(os.path.join(here, f), 'rb').read()
+            for f in ('perform.py', 'labrender.py', 'sfzlab.py'))).hexdigest()
+    progs = sorted(labrender.program(st['prog'])[0]
+                   for st in inst['lab']['streams'].values() if 'prog' in st)
+    return hashlib.sha1(repr((LAB_VERSION, _CODE_HASH, inst.get('lab_id'), inst.get('lab'),
+                              progs)).encode()).hexdigest()
