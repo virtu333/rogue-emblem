@@ -28,17 +28,22 @@ each thread's shape is canon. The difficulty taglines already say so.
 
 - **Normal, "The road as it was walked."** The first thread Sera ever found. At
   the end of Act III the warband reaches the Hallow and goes **down through
-  the Glass**. The far side of the Glass is the Sanctum under the Seat
-  ([Cosmology](01-cosmology.md#the-hallow-and-the-hearth)), so they never cross
-  the capital, and they meet the Lieutenant where he has always lived. His
-  epithet is literal. Killing him blinds the empire; the Sleeper still stirs.
+  the Glass**. The far side of the Glass is a landing on the old kings' stair
+  under the Seat ([Cosmology](01-cosmology.md#the-hallow-and-the-hearth)), so
+  they never cross the capital. They come out on the landing, where Hagen has
+  set up shop, and walk the last flights down to the Sanctum, where the
+  Lieutenant has lived since S 25. His epithet is literal. Every shipped
+  final-act line about the stair, the steps, the landing and the last door is
+  true on this route. Killing him blinds the empire; the Sleeper still stirs.
   "Something deeper still stirs."
 - **Hard, "The empire answers in kind."** Threads where the Emperor sees the
   warband coming. When the Lieutenant's champions fall (the Act III boss), the
   Emperor **spends his own seer** to complete the Great Feeding before the
   warband can reach the Glass. The Lieutenant is "gone". Kira's line is exact:
-  "Then the emperor has moved ahead of his own seer." The ritual is completed
-  and the warband must go to the Seat overland (Act IV). The Emperor tells them
+  "Then the emperor has moved ahead of his own seer." The ritual is completed.
+  A sated Sleeper stops breathing at the Hallow: the Glass goes hard, black
+  and cold, and nobody can go through it. The warband must go to the Seat
+  overland (Act IV). The Emperor tells them
   they killed his seer ("You think you've won something by killing my
   seer?"). It is the lie he needs. Killing him breaks the ritual, "mostly":
   the Sleeper is overfed and his hand is off the leash.
@@ -48,11 +53,12 @@ each thread's shape is canon. The difficulty taglines already say so.
   Sanctum, and past it into the Deep.
 
 **Edits.**
-1. Add a `difficulty: "lunatic"` variant to `actTransitions.act4_to_finalBoss`
-   that uses the unused `finalBoss_to_secretAct` text ("Wait - the ground is
-   shaking. The ritual fed it too much. It's waking up. We have to go down
-   there. Now.") in place of the stronghold line. Variants are matched top-down
-   and `difficulty` is already a known when-key.
+1. Replace the stronghold line in `actTransitions.act4_to_finalBoss` with the
+   unused `finalBoss_to_secretAct` text ("Wait - the ground is shaking. The
+   ritual fed it too much. It's waking up. We have to go down there. Now.").
+   Only Lunatic ever plays this transition (Hard ends at Act IV; Normal has no
+   Act IV), so editing `base` and its commander variants is enough; no
+   difficulty variant is needed.
 2. Optionally add a Normal-only variant to `act3_to_finalBoss_normal` that
    mentions the Glass, e.g. Sera: *"The Glass. He's on the other side of it. He
    always has been."*
@@ -79,7 +85,9 @@ heartland"; `ACT_CONFIG` has a third set of names.
   and the Dry Country lie past it, and because to the seers it is the edge
   of the Deep.
 - **The Imperial Seat** (the final act) is the palace and what lies beneath it.
-- `ACT_CONFIG` names are internal and never shown; leave them.
+- `ACT_CONFIG` names show only in the canvas (no-DOM) node map title and the
+  campaign map overlay. Leave them, or align them with `regions.json` when that
+  UI is next touched.
 
 **Edit.** In `tools/music/SCORE.md` and the Ashfall score docstring, "Night on
 the Empire's heartland" would read better as "Night on the Hearth". Cosmetic
@@ -105,7 +113,8 @@ crest "older than the empire").
 on the Unsworn Night (S 0) and has held it for 34 years. The Marches held out
 as the Border Crown until the Second Push (S 28–30), six years ago. The border
 is the empire's "now"; the empire is decades old. The Iron Captain and Voss
-have both been on the border twenty years, as sworn brothers, on different
+have both been on the border twenty years (they walked west together in
+S 14 to get out of the Roll), as sworn brothers, on different
 sides for the last six. See [02](02-chronicle.md#master-timeline).
 
 ---
@@ -124,6 +133,11 @@ sides for the last six. See [02](02-chronicle.md#master-timeline).
 | **Kira's schooling: "academy" (GDD) vs "war colleges" (dialogue).** | The war colleges, specifically the Ford College. The academy is the mages'. | Update GDD §2.5. |
 | **Voss "I brought an axe" before promotion.** | He carries a woodsman's axe for doors and has since Birchwick. Promotion makes it his weapon. | None. |
 | **Rowan's farewell reads like a flier's** ("The sky was beautiful from up there. Keep looking up."). | A slip. Astrid's line. | Replace with a Rowan line. Canon suggestion: *"Her name's Bess. Say it to her. Somebody should."* The one time he says his mare's name aloud ([05](05-dramatis-personae.md#rowan--the-blessed-lance)). |
+| **Is Rowan's lance-master alive?** Rowan jokes about him as living. | Alive, in his paddock, and nameless: he spent his name into the lance. | None. |
+| **"Her dam was my family's"** (Cavalier recruit line). | A generic Cavalier line, not Rowan's. Any Cavalier may say it. | None. |
+| **Edric's reply to the Knight Commander is mild** ("Your soldiers deserve better orders") for the man who led the Push that burned his home. | Leofric offered Wendhall terms; the burning came from the court circle's sealed orders, brought by the Dark Rider that evening. Edric blames the orders. | None. |
+| **Edric's promotion: "The crown the old kingdom lost. I'll try very hard not to lose it again."** | *It* is what the crown was for, the debt and the people, not the crown. He will not wear one. | None. |
+| **Cael: "a gate that fell years ago"**, yet the bible's gate still stands. | The hall fell. The gate, strictly, did not, and he is precise about it. | None. |
 | **Edric: "Power stolen from a sleeping god. We're here to return it."** Clashes with "the liturgy has no name for it". | Keep. The power the Emperor stole is the Dawn's, fed to him one name at a time. The Dawn sleeps in every name. Edric is more right than he knows. | None. |
 | **Edric to the Entity: "we end the cycle here."** | Sera has told him about the threads. He is the one person she tells. | None. |
 | **The act2→act3 sacred-ground line is Edric in base and early variants, Sera in the commander defaults.** | Either works; `DialogueCast` recasts anyway. | Low priority: pick one speaker for consistency. |
@@ -159,6 +173,13 @@ sides for the last six. See [02](02-chronicle.md#master-timeline).
 | **What the loop is: Sera discarding futures (GDD) or a literal time loop with a keeper (Chronophage spec).** | Sera walks threads of one year. Cut threads fall into the Sleeper, which keeps them; that is why memory leaks. There is no separate keeper. Sera keeps the loom and the Sleeper keeps the scraps. The Chronophage concept is retired; its best idea, "the cycle has a keeper", survives as Hagen, who has walked more threads than Sera. |
 | **The Lunatic win says "The cycle is broken", but the next runStart says "the wound beneath is not closed".** | "A single thread holds nothing. A cloth holds." ([01](01-cosmology.md#why-winning-does-not-end-it)). Later threads thicken the weave. **Edit:** a `lastRunDifficulty` when-key (the last run's difficulty is already stored in `storyFlags.lastRun`) would let runStart say so after a Lunatic win. |
 | **Hagen's loop-awareness exceeds "faint and rare".** | Hagen is the stated exception. He drowned in the Glass twice. |
+| **The Entity's class lore says "the thing beneath the stillness"; the bible says it *is* the Stillness.** | Two words. Lower-case *the stillness* is the hush over the fens and the Deep; the Sleeper lies beneath it. The liturgy's capitalized Stillness is the Sleeper. ([01](01-cosmology.md#the-stillness)) |
+| **Zombies promote to Revenants.** | One kind at two ages: the fed dead rise as zombies, and the ones the fens keep long enough rebuild a shape from the living's names and stop shambling. ([06](06-bestiary-and-relics.md#zombies-and-revenants)) |
+| **Dragons "slept below the sacred ground", yet they are its standing stones.** | Both: their bodies are in the ground, and the stones are their spines. |
+| **Bolting: "One remains", yet Lunatic's imperial casters carry it.** | The original sits in the court circle's vault; its scribes copy from it for siege-casters. |
+| **Doomblade: the name was spent, yet the item is called Doomblade.** | The name survives in one chronicle entry, written before O 601. Read aloud, it sounds like nothing. |
+| **The Lieutenant has no name; Sera still sees nameless bosses' futures, and the score says "she sees his future too".** | A nameless person has no thread *of their own*: they appear in other people's threads and cannot see their own. Sera can see them there. Given back his name, the Lieutenant has a thread for the first time, which is what the violin coda is. |
+| **Runs can start without Edric or Sera.** | The thread is cut when the **commander** falls. Sera weaves from the fire when she does not march; `DialogueCast` already recasts her lines. |
 | **The Eclipse vs the Entity (the score keeps them apart).** | The Eclipse is the court circle's feeding, human work with a human bell. The Entity is what is being fed. |
 | **Real-world relic names** (Excalibur, Gae Bolg, Ragnarok, Delphi, Luce...). | Old Tongue words that sound like other-world myth by coincidence. Don't rename them. Give them in-world glosses when lore needs one ([06](06-bestiary-and-relics.md)). |
 | **Chronophage, Temple of Fate, Throne of Corruption, Temporal Guardian** (older GDD names). | Retired. The Sanctum is the throne; the Hallow is the temple. |
@@ -188,3 +209,4 @@ sides for the last six. See [02](02-chronicle.md#master-timeline).
 | 6 | GDD §2.2 and §2.5 notes (Lieutenant "he"; Kira's college) | `docs/gdd/gdd_difficulty_narrative_v2.md` | S | Low |
 | 7 | One speaker for the act2→act3 sacred-ground line | `data/dialogue.json` | S | Low |
 | 8 | "Night on the Hearth" in the Ashfall note | `tools/music/SCORE.md` | S | Low |
+| 9 | Swap the Act IV curfew line so the newer notice is the earlier curfew: *"Posted on the gate: CURFEW AT NOON. Beneath it, older and faded: CURFEW AT DUSK."* | `data/dialogue.json` `nodeFlavor.battle.act4` | S | Medium: as shipped the curfew moves later, against the canon that it creeps earlier |

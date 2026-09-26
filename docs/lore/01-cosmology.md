@@ -13,8 +13,14 @@ liturgy's first page puts it in five words: **"Before her, nothing came next."**
 That condition was not empty. It had weight and extent. It was, and it still
 is, **the Stillness**: the world as it is when nothing happens to it. It lies
 beneath the land the way bedrock lies beneath soil. It is not a creature,
-though it behaves like one when disturbed, and it is not a god, though Edric
-calls it one.
+though it behaves like one when disturbed, and it is not a god, though
+frightened people call it one.
+
+A note on words: in common speech *the stillness*, lower case, means the hush
+that lies over the fens and the Deep, the silence you can hear. The Sleeper
+lies beneath that hush. The Entity's class lore, "the thing beneath the
+stillness", uses the word that way. The liturgy's **Stillness** is the thing
+itself.
 
 It is known by several names, none of which it has:
 
@@ -49,7 +55,7 @@ Something answered the Stillness, and the answer was the first morning.
 
 The faith calls her **the Dawn**. Seers call her **the Weaver**. Old wives say
 **Our Lady of the Answer**, and the empire's clerks, when they must, say
-**the Hollow**. Her name is the one thing this bible does not write down. It
+**the Spent**. Her name is the one thing this bible does not write down. It
 cannot be written. See [the Root](#music-is-canon).
 
 She did three things, and the liturgy's First Pages are about them:
@@ -81,28 +87,35 @@ The Dawn could not fight the Stillness. It was the ground her cloth lay on;
 you cannot fight the floor. She did the only thing a name can do against
 something that has none. **She spent it.**
 
-She broke her name into more pieces than there are stars and let them fall.
-Folk memory calls that night **the Starfall**, "the night the stars came
-down", and the bow called **Starfall** was strung by moonlight while it
-happened. The largest piece struck the lowland where the fens are now. It
-left a crater that filled with black, perfectly still water: **the Glass**.
-The dragons, her first-named, lay down in a ring around it to hold the
-breach closed with their bodies and their dreams. Over ages they became the
-standing stones of **the Hallow**, the sacred ground.
+*Spent* is the liturgy's word, and it means what it says: paid out, the way
+a coin is. She knelt in the lowland where the fens are now, said her name
+one last time, and paid it into the world, all of it, down to the last
+syllable. Where she knelt the ground gave way and filled with black,
+perfectly still water: **the Glass**. The dragons, her first-named, lay down
+in a ring around it to hold the place closed with their bodies and their
+dreams. Over ages they became the standing stones of **the Hallow**, the
+sacred ground.
 
-The next morning the sun rose **hollow**: a black disc with a thin gold ring.
-It has risen that way ever since.
+That night the stars came down, or seemed to. Folk memory calls it **the
+Starfall**, and the bow called **Starfall** was strung by its light. The
+liturgy says the falling lights were her change.
+
+The next morning the sun rose **hollow**: a black disc with a thin gold
+corona. It has risen that way ever since.
 
 What the Dawn bought with her name is the central fact of the world:
 
-> **Every name anyone has ever carried is a splinter of hers.**
+> **Every name anyone has carried since is part of her change.**
 
-The pieces did not stay in the sky. They settled on everything and everyone
-that would ever be named. A child named at a roadside shrine receives a
-splinter. A river that people keep calling by its name keeps its splinter.
-While the world is full of names that are held, spoken and remembered, it is
-full of *after*, and the Stillness sleeps beneath it. The Dawn is not gone.
-She is asleep in every name.
+A spent coin does not vanish. It goes into other hands. Her name went into
+everything and everyone that would ever be named: a child named at a
+roadside shrine is given a little of it, and a river that people keep
+calling by its name keeps its share. While the world is full of names that
+are held, spoken and remembered, it is full of *after*, and the Stillness
+sleeps beneath it. The Dawn is not gone. She is asleep in every name.
+
+The pun is the seers', and they meant it: the Sleeper is the world with no
+change in it, and the Dawn's change is what keeps the world moving.
 
 That makes **two sleepers**: the one below, the Stillness, and the one within,
 the Dawn, scattered through everyone. The whole history of the world is a
@@ -121,9 +134,12 @@ shipped text reads the way it does, and they should decide new text.
 
 ### What a name is
 
-A name is a splinter of the Dawn, held by a person or a thing. It gives its
+A name is a piece of the Dawn's change, held by a person or a thing. It gives its
 holder a shape to return to and a thread in the weave, a future. It shines.
 The Hollow Sun's corona is made of every name still held, seen from far off.
+Border folk call the corona **the rim**; older books call it **the sun's
+crown**, which is what *corona* means in the scholars' tongue, and why the
+old kings wore gold.
 
 ### How names are kept
 
@@ -231,8 +247,8 @@ nearest the surface. Both were holy before the empire; both are held by the
 empire now.
 
 **The Hallow: its breath.** In the lowland fens, the ring of standing stones
-around the Glass. The Glass is the crater where the Dawn's largest splinter
-fell, a black mere so still it is a mirror. Where the Sleeper *breathes*, the
+around the Glass. The Glass is the mere that opened where the Dawn knelt to
+spend her name, black and so still it is a mirror. Where the Sleeper *breathes*, the
 fens rise and fall with it: "something big breathes under the fen. The water
 rises when it does." The stones are the dragons who lay down to hold the
 breach, grown over with ages. The seer order kept the Hallow.
@@ -241,14 +257,21 @@ breach, grown over with ages. The seer order kept the Hallow.
 year. The old kings found a hall in its roots, the **Hearthstone**, where the
 stone beats. "Below the capital the stone is warm, and the warmth has a
 pulse." The kings kept the Hearth; each went down once, at his crowning.
-The empire built **the Seat** on the mountain's shoulder, directly above it.
+A stone hold guarded the coronation stair. The Marshal commanded its
+garrison on the Unsworn Night and took it; the empire built **the Seat**
+around it, on the mountain's shoulder, directly above the Hearthstone.
 
-**Between them runs the Sleeper's body**, under the fens, the grain
-provinces and the uplands. The **far side of the Glass** is the Hearthstone.
-Anyone who goes down through the Glass and survives comes up in the Deep,
-beneath the Seat. This is how Normal's thread reaches the Lieutenant without
-crossing the capital ([08 § Routes](08-reconciliation.md#the-three-routes)),
-and it is where the Lieutenant's epithet comes from.
+**Between them runs the Sleeper's body**, under the fens and the Hearth's
+foothills. The two openings meet underground. The **far side of the Glass**
+is a landing on the old kings' coronation stair, partway down the mountain's
+roots, a few flights above the Hearthstone. Anyone who goes down through the
+Glass and survives comes up on that landing, beneath the Seat. This is how
+Normal's thread reaches the Lieutenant without crossing the capital
+([08 § Routes](08-reconciliation.md#the-three-routes)). It is also where the
+Lieutenant's epithet comes from, and why the shipped final-act lines about
+the stair are true on every route: Normal comes onto the stair at the
+landing, and Lunatic comes down it from the palace. Both walk the last
+flights to the Sanctum.
 
 From high enough, the rivers, fens and uplands of the realm trace the outline
 of something curled up asleep. The sky legions knew this. It was on their
@@ -261,7 +284,7 @@ charts, and it is one reason the empire disbanded them **(II)**.
 ### The Thread
 
 When the Dawn spent her name, one thing of hers was not spent: her **sight**
-along the weave. It fell with the largest splinter into the Glass. The first
+along the weave. It stayed where she knelt, in the Glass. The first
 seers found it there. They called it **the Thread**. It is held by one seer at
 a time and passes on when the holder dies. The seer order existed to keep it.
 
@@ -271,8 +294,9 @@ it frays and choose another. Sera holds it now. She is the last.
 
 ### Why runs repeat
 
-A run is **one thread of the March of the year 34 of the Seat**. Sera walks
-it with the warband. If Edric falls, the thread is cut. A cut thread does not
+A run is **one thread of the March of the year 34 of the Seat**. Sera weaves
+it, from inside the warband or, when she does not march, from the fire. If the
+commander falls, the thread is cut. A cut thread does not
 simply end. It falls into the Stillness, which keeps everything, and Sera
 begins again from the one fixed point her sight can always return to: **the
 night before the March**, at the fire by the Ford. That fire is home base. It
@@ -345,7 +369,7 @@ Around those three:
 
 **Why "the light" feels impersonal.** Holy knights say the blessing is a
 formality and the mending works anyway. They are right: light works because a
-splinter of the Dawn is in the healer and the healed alike. It needs no priest.
+piece of the Dawn's change is in the healer and the healed alike. It needs no priest.
 It needs two names.
 
 ---
@@ -360,9 +384,10 @@ lose their *after*:
 - Colour drains, because colour is how a name looks from outside. Act III is
   *Bleached*.
 - The dead forget to stay down. A body whose name was **fed** has nothing to
-  call it home. A body whose name is still **written in the Roll** keeps
-  obeying the Roll. Those are revenants: dead levy men still on the muster.
-  Fen-village rule: "burn the dead, or give them to the light."
+  call it home, so it gets up and wanders: a zombie. Kept long enough in the
+  fens, a zombie starts taking the names of the living in small pieces to
+  rebuild a shape, and stops shambling: a revenant. Fen-village rule: "burn
+  the dead, or give them to the light."
 - The woken dragons forget which order they lay down in. "The ritual is
   waking them in the wrong order."
 - Light goes wrong when it has nothing left to call on: Bleached Rite's
@@ -380,7 +405,7 @@ The Art Bible's palette is diegetic. It is how names look.
 | Colour | Canon |
 |---|---|
 | **Ember gold** — you | Names held and spoken. Your units carry light at night because they have names. The Hollow Sun's corona is the same gold. |
-| **Blood crimson** — the empire | The Roll's red ink. Everything written into the Roll, from the levy to its officers, wears it. "Enemies carry no light of their own": their names are on paper in the Seat, not in them. |
+| **Blood crimson** — the empire | The Roll's red ink. (Cael's crimson scarf is older: it is the red of the Border Crown's gate guard, which the empire took for its ink later. "It was ours first.") Everything written into the Roll, from the levy to its officers, wears it. "Enemies carry no light of their own": their names are on paper in the Seat, not in them. |
 | **Verdigris** — allies | Copper left out in weather. The colour of names kept by others: villages, shrines, strangers you rescue. "A copper and a name." |
 | **Unlight violet** — corruption | What the Sleeper has swallowed. Colour draining toward it. |
 | **Steel blue** — the player's rank and file | Names under arms: held, but tested. |
@@ -399,9 +424,9 @@ The score is built around one withheld note. In canon, that note is her name.
 | **The Thread** (A–D–E–A) | Sera's sight reaching for the Root, touching it in passing, never resting there. |
 | **The Hollow Sun** (climbs to C#, stops) | The world trying to say her name and stopping one note short. The church choir falls silent where the name would go because nobody can sing it. |
 | **The Old Kingdom** (open-fourths horn) | The horn blown at the Ford when the first king swore the Oath. It calls names to gather. |
-| **The Empire** (D–E♭–D–C, falling to B♭) | The Sleeper's hum set to marching. The Marshal heard the hum at the Hearthstone on the Unsworn Night, the Root with its semitone shadow, and the drill-masters built the imperial cadence on it **(II)**. Marching in step to it empties a soldier a little, day by day. It is a slow feeding. |
+| **The Empire** (D–E♭–D–C, falling to B♭) | The Sleeper's hum set to marching. The drills are the old kingdom's; the **cadence** is new. The Marshal heard the hum at the Hearthstone on the Unsworn Night, the Root with its semitone shadow, and his drill-masters set the old drills to it **(II)**. Marching in step to it empties a soldier a little, day by day. It is a slow feeding. |
 | **The Lieutenant** (the Thread falling, a tritone behind) | A thread seen from underneath, where every line runs backward into its ending. |
-| **Unlight** (hum on D and its shadow) | The Sleeper humming. It has swallowed so many splinters of the Dawn that it has begun to hum her note, with its own shadow beneath. It is trying to say the name it ate. |
+| **Unlight** (hum on D and its shadow) | The Sleeper humming. It has swallowed so much of the Dawn's change that it has begun to hum her note, with its own shadow beneath. It is trying to say the name it ate. |
 | **The Eclipse bell** | A human bell calling a name that does not answer. |
 | **Promotion resolves to D** | A promotion is a rite that adds to a name. For a moment the name is heavy enough to touch the Root. |
 | **The Last Light** (bells toll D) | The name said. |
@@ -414,12 +439,12 @@ Then **All of Us Across**, and the choir that Act I never had sings Ember Dusk.
 
 **The choir is the names coming back.** Wounding the Sleeper opens it, and
 everything it swallowed pours out: the levy, the conquered, the burned
-villages, the Lieutenant's name, Voss's wife, the old kingdom's own name,
+villages, the Lieutenant's name, the Tarn's lake-folk, the old kingdom's own name,
 thirty-four years of the Roll. They sing the song of the road you walked,
 because they are free and that is the first song they hear. The Sleeper's hum
 fades with its HP because the names are leaving it. The complete Thread
 arrives only when everyone sings it: the Dawn's name can only be said by all
-of her splinters at once. The phrase stops on the leading tone and is finished
+who carry her change, at once. The phrase stops on the leading tone and is finished
 by the Last Light, starting with the killing blow. For one chord the world
 says her name, and the Sleeper, emptied of what it stole and lulled by the
 one sound it was made to answer, sinks back into true sleep.
@@ -432,37 +457,54 @@ empire would call that a rogue dawn.
 
 ## Hidden canon (tier III)
 
-Facts that are true, that no one in the world knows whole, and that game
-text should never state. They exist so every hint the team writes points the
-same way.
+Facts that are true and that nobody in the world knows whole. They come in two
+kinds, and the difference is the rule for game text:
 
-1. **Every name is a splinter of the Dawn's.** The faith teaches that she
+- **Sealed** facts are never stated, by anyone, anywhere. Game text may only
+  point at them: a rhyme nobody believes, a bell, a juxtaposition. Players
+  assemble them or argue about them.
+- **Earned** facts may be stated once, in a specific moment the player has
+  earned (listed with each), and never in a common pool that can play on any
+  run.
+
+**Sealed**
+
+1. **Every name is part of the Dawn's change.** The faith teaches that she
    *spent* her name; it does not teach where it went. Learned seers suspected.
-   The Last Pages say so, in the part nobody reads aloud.
+   The Last Pages point at it and stop. The skipping rhyme ("Down to the
+   babies") carries it, and nobody who sings it believes it.
 2. **The Sleeper hums her note** because it has eaten so much of her.
-3. **The finale choir is the freed names.**
-4. **Sera is spending her own name to buy threads.** She was named
-   **Serafen** at the chapter-house. Each thread she re-weaves costs a little
-   more; "Sera" is what is left. Hagen, who has seen every thread, is the only
-   one who ever calls her by the whole of it. If the March succeeds she keeps
-   what remains. The Lunatic ending, where she can no longer see what comes
-   next, means she has spent her *sight*, not her name.
-5. **The Lieutenant was a boy called Tamlin**, a novice of the same
-   chapter-house, taken at seven and drowned in the Glass. His name is still
-   in the order's novice roll, which Sera carries. The fen shrine bells that
-   ring "twice, then silence, then twice" are ringing it.
-6. **The Emperor's name is gone.** He fed it first, as the price of the first
-   bargain. No record, no person and not this bible hold it.
-7. **The old kingdom's name is inside the Sleeper** and comes out with the
+3. **The finale choir is the freed names.** The music says it; no line may.
+4. **Sera is spending her own name to buy threads.** At the chapter-house she
+   was **Serafen**, "Sera" for short, like any novice. Each thread she
+   re-weaves takes a little of the long form. By now even she has trouble
+   remembering there was more, and "Sera" is all anyone knows. If the March
+   succeeds she keeps what remains.
+5. **The old kingdom's name is inside the Sleeper** and comes out with the
    choir. It is never written in any text. If the game ever shows it, it
    should be a gap: a line, a held breath, a bell.
-8. **Hagen has walked more threads than Sera.** He is always ahead because
-   he started earlier ([05](05-dramatis-personae.md#hagen)).
-9. **The Last King's crown lies in the Wend at the Ford.** The river runs slow
-   there. Nobody has looked, because the Iron Captain's order closed the
-   crossing.
-10. **The Dark Rider is a mantle.** The current rider is the fourth. The first
-    was the courier who carried the Last King's order to fall back and sold it.
+6. **Hagen has walked more threads than Sera.** He is always ahead because he
+   started earlier ([05](05-dramatis-personae.md#hagen)).
+7. **Cael's watchword is *ember*.** Never said in game.
+
+**Earned**
+
+8. **The Lieutenant was a boy called Tamlin**, a novice of the same
+   chapter-house, taken in the Taking. His name is still in the order's novice
+   roll, which Sera carries. The fen shrine bells that ring "Twice, then
+   silence. Then twice." are ringing it. *Earned by:* Sera present when he
+   falls ([09 § Names Returned](09-channeling.md#31--names-returned)).
+9. **The Dark Rider is a mantle, and the bag still holds the Gentle King's
+   order to fall back.** The first rider was the courier who took the Marshal's
+   money to sit on it; the current rider is his son. *Earned by:* killing the
+   Dark Rider ([09 § The Unopened Order](09-channeling.md#the-unopened-order)).
+10. **Hagen said Serafen.** *Earned by:* Sera in the army at Hagen's last-stair
+    shop on the final act ([09 § Hagen remembers](09-channeling.md#35--hagen-remembers)).
+
+Not hidden, for the record: the Emperor's namelessness is common knowledge
+(every officer gives up his name), and that he gave up his own first, before
+the kingdom's, is tier II. The crown going into the Wend at the Ford is a
+border ballad. What nobody knows is whether it is still there.
 
 ---
 

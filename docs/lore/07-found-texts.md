@@ -11,7 +11,8 @@ characters, single quotes for speech, no double quotes inside lore. The
 ## The Oath at the Ford
 
 Sworn in the river by the first king and the barrow-lords, O 1. Said at every
-coronation, every war-college graduation and every paladin's vow until S 2.
+coronation, every war-college graduation and every paladin's vow until S 2,
+and in the Marches until S 28.
 
 > *The strong serve the weak.*
 > *Every name is kept.*
@@ -50,7 +51,7 @@ Pages were for kings. The Last Pages were for the Keeper alone.
 > What is named may return. What is kept is not lost.
 
 > When the dark turned over, she had nothing left to give but her name,
-> and she gave it. Look up. The ring is what she kept.
+> and she paid it out. Look up. The rim is what is left.
 
 ### The Dawn-office
 
@@ -126,19 +127,23 @@ cut away. The sentence was not lost. It is finished in the finale.)*
 
 ### Curfew notice
 
-> NO LIGHT AFTER DUSK SAVE BY WARRANT. A LAMP UNWARRANTED IS A ROGUE LIGHT.
-> IT SHALL BE PUT OUT AND THE HOUSEHOLD ENTERED FOR THE LEVY.
+> NO LIGHT AFTER THE NOON BELL SAVE BY WARRANT. A LAMP UNWARRANTED IS A ROGUE
+> LIGHT. IT SHALL BE PUT OUT AND THE HOUSEHOLD ENTERED FOR THE LEVY.
 >
-> *(Beneath, older and faded: AFTER NOON.)*
+> *(Pasted over an older notice, whose last line still shows: AFTER DUSK.)*
 
-### Broadsheet, the Fourth Province, S 34
+*(The shipped Act IV line has the two notices the other way round. See
+[08 § Recommended edits](08-reconciliation.md#recommended-edits).)*
+
+### Broadsheet, nailed up at Oathford, S 34
 
 > A ROGUE DAWN IN THE WEST. The Seat warns all loyal households of a band of
 > rogues marching east under a lost banner and lit against the curfew.
 > Do not shelter them. Do not name them. Report all rogue light.
 
-*(This is where the warband's name comes from. Soldiers stole the phrase off
-a milestone the first week and have used it since.)*
+*(This is where the warband's name comes from. Someone pulled the sheet off
+the toll-house door the first week, and the soldiers have used the phrase
+since.)*
 
 ### Commission (the Master Seal)
 
@@ -167,9 +172,9 @@ The last is the only one he ever sent to the Blade Lord.
 ### A warden's ledger (Voss), first page
 
 > **Birchwick, autumn, S 28.**
-> Wenna, weaver. Corrie, her daughter and mine.
-> Old Tam, miller. Tam's boy. The Halloway sisters, both.
-> Ness Birchcutter. Hob the lame, who stayed because he could not run.
+> Nessa, weaver. Tilde, her daughter and mine.
+> Old Dunn, miller. Dunn's boy. The Birley sisters, both.
+> Garm Birchcutter. Wyle the lame, who stayed because he could not run.
 > *(forty-one more)*
 > Anders Carrow, captain. *(living)*
 
@@ -222,7 +227,7 @@ The last is the only one he ever sent to the Blade Lord.
 > Hollow sun, hollow sun, where did your name go?
 > Down to the babies, down to the snow.
 > Say it at morning and say it at night,
-> and the ring round the sun will keep its light.
+> and the rim round the sun will keep its light.
 
 *(Tier I folk rhyme carrying a tier III truth. Nobody who sings it believes
 it.)*
@@ -286,8 +291,11 @@ has no words. It means *still here*.
 
 ## Line bank
 
-New lines written to the canon and the style guide, ready for `data/`. Lengths
-are within the current limits. Each is tagged with its intended home.
+New lines written to the canon and the style guide. Lengths are within the
+current limits. Each is tagged with its intended home. Lines in plain pools
+(node, shop, church flavor) play on any run, so none of them may state tier
+III canon or assume a particular lord is present. Lines that need a condition
+are marked, and wait for the system named.
 
 ### nodeFlavor
 
@@ -317,8 +325,10 @@ are within the current limits. Each is tagged with its intended home.
 | act1 | 'Varen's line still works the Cut. Old Brannoc says hello. He doesn't, but he would.' |
 | act2 | 'The Roll can't find me. I've checked. Twice. Well. Once, and once the other way.' |
 | act3 | Hagen hums the Dawn-office as he poles. There's a note in it you've never heard. |
-| act4 | 'Wat? Drove the salt run. Good with mules. Don't tell him I told you. He won't remember.' |
-| finalBoss | 'Serafen. Still Sera, I see. Good. Keep some back, girl.' |
+| act4 | 'The capital's short of everything this season. Names especially. Not me, though.' |
+| finalBoss | 'Last stair, best prices. Well. Only prices.' |
+| *conditioned* | 'Wat? Drove the salt run. Good with mules.' Needs: Berserker King slain this run ([09 § 3.5](09-channeling.md#35--hagen-remembers)). |
+| *conditioned* | 'Serafen. Still Sera, I see. Good. Keep some back, girl.' Needs: Sera in the army, final act; tier III earned ([09 § 3.5](09-channeling.md#35--hagen-remembers)). |
 
 ### churchFlavor
 
@@ -328,9 +338,13 @@ are within the current limits. Each is tagged with its intended home.
 | revival.act3 | 'Say it with me. Your name. There. Now stay.' |
 | promotion.act2 | The new rank is written after the name, never over it. The chaplain insists. |
 | promotion.act4 | 'In the Seat they'd take your name for this. Here we add to it.' |
-| kindle | Lamp lit, book open, every name read aloud. The dark leans back an inch. |
+| *kindle (new pool; needs a consumer, [09 § 2.9](09-channeling.md#tier-2--small-engineering))* | Lamp lit, book open, every name read aloud. The dark leans back an inch. |
 
 ### Item lore (≤ 85 characters)
+
+There is one `lore` field per item. These are **replacement candidates**, to
+swap in where the current line is weaker, or to rotate in once a lore-variant
+field exists ([09 § 2.11](09-channeling.md#tier-2--small-engineering)).
 
 | Item | Line |
 |---|---|
@@ -346,11 +360,14 @@ are within the current limits. Each is tagged with its intended home.
 |---|---|
 | dejaVu | The shrine bells are ringing a name. I nearly know it. |
 | dejaVu | I've counted my own name before a battle. I don't remember starting. |
-| temperaments.devout | She's in all of us. I'll keep my piece of her polished. |
+| temperaments.devout | Say your name at morning, the rhyme goes. I never skip it. |
 | temperaments.grim | They wrote my name down in red once. I'm still here. |
 | classes.Paladin | Strength, shield, service. And the fourth line, out loud. |
 | classes.Sniper | No name on the roster. Fine. The arrow knows who sent it. |
 | classes.Bard | Another song past another checkpoint. Forty names in the chorus. |
 | classes.Wyvern Lord | She won't eat near the fens. The stones are dreaming badly. |
-| lords.Voss (Lv 20) | The Swallow. That was the wardens' word. The sun and the moon in one stroke. |
+| lords.Voss (levelUp milestone, Lv 20) | The Swallow. That was the wardens' word. The sun and the moon in one stroke. |
 | lords.Cael (promotion) | Relieved? No. Promoted. That's different. The gate's still mine. |
+
+Pool paths are families: pick the sub-pool (`levelUp.normal`, `fallen`,
+`promotion` and so on) when a line goes in.

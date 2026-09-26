@@ -98,8 +98,8 @@ decides how things are *written*; the bible decides what is *true*. Before
 writing lore, check the bible's facts; before inventing a fact, check it isn't
 already there. The ledger's additions, briefly:
 
-- **Names are the world's substance.** Every name is a splinter of the
-  goddess's spent name (never state this; it is hidden canon). Names are kept
+- **Names are the world's substance.** Every name is part of the
+  goddess's spent name, her *change* (never state this; it is hidden canon). Names are kept
   by shrines, ledgers, iron, songs and soldiers' nicknames; spent by their
   holders; **fed** to the Sleeper by the empire. The world's scarcity of proper
   nouns is deliberate and diegetic: keep it.

@@ -33,21 +33,20 @@ and the chroniclers admit it.
 | O 598–601 | **The Grey Winter.** Three winters in one; the Grey Cough; a third of the kingdom's names lost. Hagen falls through the ice of the Glass (O 599). |
 | O 601 | The Gentle King goes down to the Hearthstone a second time and spends the Doomblade's name and his dead. The winter breaks. |
 | O 603 | The Lord Marshal and the young mage Vantrell read a stolen copy of the Middle Pages. |
-| O 610 | The Glass rises; the stones of the Hallow lean. The seers call a **Great Vigil**. The Marshal proposes feeding the condemned and is sent to guard the Hearth. |
-| **O 612 · S 0** | **The Unsworn Night.** The Marshal feeds the kingdom's name and his own. Every oath sworn by it breaks. The Seat is proclaimed. |
-| S 0 | **The Nine Days.** Siege of the old capital. The east gate holds nine days; Bertil Stane holds the breach; the fall-back order is sold. The Last King dies at the Ford; the crown goes into the Wend. |
+| O 611 | The Glass rises; the stones of the Hallow lean. The seers call a **Great Vigil** for midwinter. The Marshal proposes feeding the condemned and is sent to guard the Hearth. |
+| **O 612 · S 0** | **The Unsworn Night**, midwinter. The Marshal feeds his own name, then the kingdom's. Every oath sworn by it breaks. The Seat is proclaimed. |
+| S 0 | **The Nine Days.** Siege of the old capital. The east gate holds nine days; Bertil Stane holds the breach; the fall-back order is never delivered. The Last King dies at the Ford; the crown goes into the Wend. |
 | S 2 | **The Edict of the Roll.** Registration, red ink, numbered provinces, curfew. The free war colleges closed. **The Border Crown** under Wystan the Uncrowned at Wendhall. |
 | S 3–19 | **The Standard Wars.** The Saltmarch, the Tarn and the Dry Country taken and renumbered. |
-| S 5 | **The High Commission** of tame seers. |
+| S 5 | **The High Commission** of tame seers; the sky legions are made its escorts. |
 | S 9 | **The Defacing.** Statues' faces chipped, shrine books seized. The bishops go to the Seat. |
-| S 12 | **The Taking.** The circle raids the chapter-house at the Glass. Tamlin, aged seven, comes back from the far side. Hagen drowns a second time. |
+| S 12 | **The Taking.** The circle takes the chapter-house's novices to the Glass. One, Tamlin, comes back from the far side. Hagen drowns a second time. |
 | S 13 | **The academy burns.** Its library goes to the court circle. |
-| S 15 | The Knight Commander's *Doctrine of Lances*. Wat of the carts is crowned Berserker King. |
-| S 16 | Tamlin's first prophecy for the Emperor. He is named **the Lieutenant**. |
-| S 18 | The Blade Lord is made the Lieutenant's sword, then his pupil. |
-| S 21 | The High Commission is disbanded. |
-| S 25 | **The Great Feeding** begins. |
-| S 28 | **The Second Push.** The border clans break the Old Treaties. The Ford surrenders on terms; Anders Carrow gives his name to the Roll. **The border burns.** Wendhall falls; Wystan dies. |
+| S 15 | The Knight Commander's *Doctrine of Lances*. The Berserker King is crowned. |
+| S 16 | Tamlin's first prophecy for the Emperor. He is named **the Lieutenant**, and the Blade Lord is made his sword, then his pupil. |
+| S 21 | The High Commission is disbanded. Legion remnants fly west to the Border Crown. |
+| S 25 | **The Great Feeding** begins. The Lieutenant moves below, to the far side of the Glass. |
+| S 28 | **The Second Push.** The border clans break the Old Treaties and open the hill roads. The Ford surrenders on terms; Anders Carrow gives his name to the Roll. **The border burns.** Wendhall falls; Wystan dies. The Ford College closes. |
 | S 29 | The Glass rises black. The first dragon wakes. Sera, fifteen, sees the Thread. |
 | S 30 | The chapter-house falls. Sera walks west with the Last Pages. The Marches declared pacified. |
 | S 31–33 | **The Hiding.** Sera finds Edric at the Ford. The lords gather. |
@@ -74,11 +73,11 @@ Then the Sleeper turned over. The First Pages do not say why. The storms of
 that turning are remembered in every people's stories. So is the night that
 followed, when the stars came down.
 
-The Dawn broke her name to hold the world together, and the pieces fell.
-Fenfolk say the biggest fell in the lowland, made the Glass and was never
-seen again. Hill folk say pieces landed in every cradle. Peak clans say the
-dragons caught what they could and lay down around the rest. The liturgy says
-all three are true.
+The Dawn spent her name to hold the world together. Fenfolk say she knelt in
+the lowland to do it and the ground opened where she knelt, which is the
+Glass. Hill folk say the falling lights were her change, and every cradle got
+a coin. Peak clans say the dragons lay down around the place so nothing could
+dig it up. The liturgy says all three are true.
 
 The morning after, the sun rose with a black heart. It has done so ever
 since. The Long Dusk had begun.
@@ -91,7 +90,7 @@ Ages pass unrecorded. What the chroniclers can reconstruct:
   to fish it. Some of their children could see things in it that had not
   happened yet. Those children became the **first seers**. What they saw
   through was the Dawn's unspent sight, which had fallen into the Glass with
-  the largest splinter. They called it **the Thread**. The first chapter-house
+  the place she knelt. They called it **the Thread**. The first chapter-house
   was a reed hall at the water's edge. The **First Pages** of the liturgy
   were their teaching: the Naming. Every child must be named aloud, and every
   name must be kept.
@@ -201,7 +200,7 @@ copied for the **Vigil of Lamps**, the rite a chapel's Kindle still performs.
 
 Varen was a quarry-smith's son at **the Cut**, the grey-stone quarries of the
 border where the Hallow's stones were once cut to repair the ring. He took
-the smith-saints' vow at twenty and spent fifty years making plain iron
+the smith-saints' vow at twenty and spent nearly fifty years making plain iron
 honest. He struck **VAREN** on the forte of every blade, beside the guard,
 where a hand would feel it.
 
@@ -262,7 +261,7 @@ took any name, not only a king's, and a name given to it unwillingly gave
 power back to whoever gave it. The Oath's fourth line (*what wakes it is not
 suffered*) had been written against exactly this.
 
-**The Great Vigil (O 610).** The Glass rose that autumn and the stones of the
+**The Great Vigil (O 611).** The Glass rose that autumn and the stones of the
 Hallow leaned. The seers asked the king to call a **Great Vigil**: on one night
 at midwinter, every subject in the kingdom would speak their own name aloud at
 a shrine, all together, as the First Pages said. It was the oldest rite and
@@ -280,9 +279,10 @@ It did the opposite.
 On the night before the Great Vigil, the Marshal took Vantrell and eleven
 mages down the Hearth stair with a list.
 
-On it were the names of the condemned from every gaol he could reach. At the
-bottom, in the Marshal's own hand, was **the kingdom's name**, and under it
-his own. The circle read them into the dark around the Hearthstone. The
+At the top, in the Marshal's own hand, was **his own name**: the price of the
+door, paid first. Under it was **the kingdom's name**, and under that the
+names of the condemned from every gaol he could reach. The circle read them
+into the dark around the Hearthstone. The
 chronicle, written later by people who were not there, says the Sleeper's hum
 rose until the stair shook, and that the Marshal knelt and listened to it for
 a long time.
@@ -296,13 +296,16 @@ the morning it should have, nobody could say the name they were meant to be
 keeping.
 
 The Marshal's regiments did not break, because he had spent ten years drilling
-them. They marched in step up the Hearth road and took the palace-fortress on
-the mountain before dawn. At noon he stood on its wall with no name and said
-that he was **the Emperor** and this was **the Empire**, a word for a thing
-and not the name of one. **The Imperial Seat** dates from that hour.
+them. By dawn they held the **Hearth hold**, the old kings' fortress over the
+coronation stair, and the road below it. At noon he stood on its wall with no
+name and said that he was **the Emperor** and this was **the Empire**, a word
+for a thing and not the name of one. **The Imperial Seat** dates from that
+hour; the palace was built around the hold in the years after.
 
-What his soldiers had instead of an oath was **drill**: the half-step cadence
-the drill-masters took from the sound in the Hearth, D and its shadow.
+What his soldiers had instead of an oath was **drill**. The drills themselves
+were the old kingdom's, the same forms the war colleges had always taught.
+What was new was the **cadence** the drill-masters set them to, taken from the
+sound in the Hearth: D and its shadow.
 (*"The empire kept the drills and dropped the oaths."*)
 
 ## The Nine Days (S 0)
@@ -320,11 +323,12 @@ nine days to take it.
   Two opened the north wall. A young royal knight, **Bertil Stane**, held the
   breach with forty men.
 - **The order.** On the eighth day the king sent the order to fall back to
-  the river. His courier, **Jory Tamm**, took it to the Marshal's camp
-  instead and sold it. Bertil Stane held the breach for a day and a half after
-  the rest of the city was lost, "until the order to fall back rotted unread
-  in a courier's bag." The empire took him alive, admired him, and made his
-  stand its doctrine. He is **the Iron Wall**. Jory Tamm was paid and given
+  the river. His courier, **Jory Rusk**, rode to the Marshal's camp first and
+  was paid to be late. He never delivered it, and he never threw it away: the
+  sealed order stayed in his bag. Bertil Stane held the breach for a day and
+  a half after the rest of the city was lost, "until the order to fall back
+  rotted unread in a courier's bag." The empire took him alive, admired him,
+  and made his stand its doctrine. He is **the Iron Wall**. Jory Rusk was given
   a black horse and the court circle's orders to carry. He was the first
   **Dark Rider**.
 - **The river.** On the ninth night the Gentle King went down the Wend by boat
@@ -357,10 +361,10 @@ Edict also:
   officer is his rank. It is written in the Roll above his old name, which
   is struck through in red: *"Struck from the empire's roll of officers."*
   Every boss the warband faces is a title for this reason.
-- **Imposed the curfew.** No lamp may burn after dusk except by warrant.
-  A lamp lit without one is a **rogue light**. As the corona dimmed the
-  curfew crept earlier: *CURFEW AT DUSK. Beneath it, older and faded: CURFEW
-  AT NOON.*
+- **Imposed the curfew.** No lamp may burn after the dusk bell except by
+  warrant. A lamp lit without one is a **rogue light**. As the corona dimmed,
+  the curfew crept earlier: in the capital, the newest notices say *CURFEW AT
+  NOON* over older ones that said *DUSK*.
 - **Closed the free war colleges.** One remained, the **Imperial War College**
   at the Seat, teaching doctrine without the Oath. Its graduates still say
   "the war colleges" as if there were more than one.
@@ -421,15 +425,16 @@ hedge-seers who scried in shards of black glass from the Hearth caldera and
 saw very little. The circle wanted the Thread.
 
 In S 12 the court circle came to the chapter-house at the Glass with the
-levy behind it. It took the novices and drowned them in the Glass one at a
-time, meaning to send a seer down to the far side and bring back sight from
-underneath. All of them died but one: **Tamlin**, aged seven. He came up
-without his name and with his eyes open, and he could see every future that
-ended.
+levy behind it and took the novices down to the water, meaning to send a
+seer through to the far side and bring back sight from underneath. None of
+them came home but one. **Tamlin** came back without his name and with his
+eyes open, and he could see every future that ended. The chroniclers who
+know more than that do not write it down.
 
-The chapter-house's carter tried to pull a child out of the water and went
-under too. It was **Hagen**, drowning for the second time. He came up the
-next morning on the far bank and has been ahead of everyone since.
+The chapter-house's carter went into the water after them. It was **Hagen**,
+drowning for the second time. He came up on the far side, on a landing of the
+stair under the Hearth, with a small boy by the collar, and walked out of the
+mountain two days later. He has been ahead of everyone since.
 
 The court circle's records list Tamlin as "the first success" and "the first
 casualty". Both are true.
@@ -444,50 +449,63 @@ casualty". Both are true.
   doctrine the Imperial War College still teaches. He is **the Knight
   Commander**.
 - **S 15. The Berserker King.** **Wat**, a Grey Winter orphan who drove carts
-  on the Roads, has spent ten years teaching deserters to forget their names
+  on the Roads and was pressed into the Marshal's baggage train at the Nine
+  Days, has spent ten years teaching deserters to forget their names
   in battle so that they cannot be afraid. He calls it **the red**. His
   school's pupils crown him at the fens' edge by an acclaim nobody dares
   withhold.
-- **S 16. The Lieutenant.** Tamlin, eleven, warns the Emperor of a plot
-  nobody else had seen. The plotters are fed. The Emperor names him
-  **Lieutenant**, the one who stands in his place in sight.
-- **S 18. The Blade Lord.** **Tiernan Vale**, the dueling halls' seventh
-  *proof*, is assigned to guard and train the boy. Within two years the boy is
-  choosing the Blade Lord's duels, and Tiernan calls him *master*.
+- **S 16. The Lieutenant.** Tamlin, eleven, raised since the Taking in the
+  circle's keep on the fen causeway, warns the Emperor of a plot nobody else
+  had seen. The plotters are fed. The Emperor names him **Lieutenant**, the
+  one who stands in his place in sight. **Tiernan Vale**, the dueling halls'
+  seventh *proof*, is assigned to guard and train him. Within two years the
+  boy is choosing the Blade Lord's duels, and Tiernan calls him *master*.
 - **S 21.** The High Commission is disbanded, redundant beside the Lieutenant.
-  Its sky-legion escorts are left without orders. Some fly west.
+  Its sky-legion escorts are left without orders. Some fly west to the Border
+  Crown, which gives them the far pickets of the Marches.
 - **S 25. The Great Feeding.** The Archmage's reading of the Middle Pages
   promises that when the Sleeper has swallowed enough it will "turn toward
   the hand that fed it". The Emperor believes that when it turns, he will hold
   a world in which nothing comes next: an empire without an after, without
   rebellion and without end. To reach that sum the Seat needs the two
   largest reservoirs of names left. One is **the Hallow**, where the
-  dragons' first names lie. The other is **the Marches**.
+  dragons' first names lie. The other is **the Marches**. The Lieutenant
+  leaves the keep and goes below, to the landing on the far side of the Glass,
+  to watch the feeding from where it happens. He has lived there since.
 
 ---
 
 ## The Second Push (S 28 – 30)
 
+The Marches straddle the lower Wend. Wendhall stands on the north bank a
+day's ride upriver from the Ford; the Ford is the only crossing the Marches
+could hold, and the old kingdom's roads from the east all came along the
+north bank, under Wendhall's eye. The empire came the other way.
+
 - **Spring S 28.** The border clans break the Old Treaties. Their warchief,
-  **Skarde**, accepts the empire's new terms and raids the Marches from the
-  hills. Wendhall has to hold two fronts.
-- **Summer S 28. The Siege of the Ford.** The **Knight Commander** crosses the
-  Wend. The warden-captain at Oathford, **Anders Carrow**, holds the crossing
-  for eleven weeks waiting for relief from Wendhall that cannot come. When
+  **Skarde**, accepts the empire's new terms, opens the hill roads south of
+  the river to imperial columns, and raids the north bank from the hills.
+  Wendhall has to hold two fronts.
+- **Summer S 28. The Siege of the Ford.** The **Knight Commander** comes
+  through the hill country and arrives at the Ford from the south. The
+  warden-captain at Oathford, **Anders Carrow**, holds the crossing for
+  eleven weeks waiting for relief from Wendhall that cannot come. When
   his wardens are eating their boots, he surrenders on terms. His soldiers
   keep their lives and stay on the border, exempt from the levy. The price is
   his name, entered in the Roll that afternoon. He is made **Warden of the
   March**, the **Iron Captain**. His first order closes the crossing. He
   signs it with an iron stamp because he has nothing else to sign with.
-- **Autumn S 28. The border burns.** The Push reaches Wendhall. The gate is
-  held by a young sentinel named **Cael**, posted there three years earlier
-  by Wystan himself with orders to hold it until relieved. Wystan dies in his
-  hall. His son **Edric**, sixteen, is carried out the back with the banner
-  and the ember pot by the smith **Brannoc**. The warden village of
-  **Birchwick** burns the same week with the families of the wardens inside
+- **Autumn S 28. The border burns.** The Push crosses at the Ford and
+  reaches Wendhall. Its gate is held by a young sentinel named **Cael**, posted
+  there three years earlier by Wystan himself with orders to hold it until
+  relieved. The gate never opens; the lances come over the east wall. Wystan
+  dies in his hall. His son **Edric**, sixteen, is carried out the back with
+  the banner and the ember pot by the smith **Brannoc**. The warden village
+  of **Birchwick** burns the same week with the families of the wardens inside
   it. **Voss** comes home from patrol to his wife's and daughter's names and
-  nothing else. The Ford College closes the day before its Grandmaster board.
-  **Kira** is to have sat it.
+  nothing else. The Ford College closes the day before its Grandmaster
+  board, which **Kira** was to have sat. Its headmaster dies in the Push that
+  week.
 - **Winter S 28.** The gate of Wendhall is a gate to a burned hall. Cael holds
   it. He is still holding it five years later.
 
@@ -498,14 +516,14 @@ into the dark and the ring of stones begins to wake in the wrong order. The
 Glass goes black and rises into the reeds. The dead of the drowned villages
 stand up. The fens become the corruption's country.
 
-At the chapter-house a novice of fifteen named **Serafen** **(III)** looks into the
-Glass and sees the Thread: every road of the coming years at once, and on
+At the chapter-house a novice of fifteen, **Sera** (in the roll, **Serafen**
+**(III)**), looks into the Glass and sees the Thread: every road of the coming years at once, and on
 one of them a young man walking at the head of a column and counting the
 names behind him. At the same moment, on the far side of the Glass, the
 Lieutenant looks up and sees her seeing. They have been watching each other
 ever since, without ever having met.
 
-In S 30 the circle comes back. The last Keeper of the order graduates Serafen
+In S 30 the circle comes back. The last Keeper of the order graduates her
 early, a ceremony of one sentence, and gives her the **Last Pages** and the
 **novice roll** with Tamlin's name still in it. She is sent west to find "the
 one who counts". A sky lancer flying a picket nobody had ordered, **Astrid**,
@@ -515,7 +533,7 @@ The Seat declares the Marches pacified.
 
 ---
 
-## The Hiding (S 30 – 33)
+## The Hiding (S 28 – 33)
 
 Edric lives as a fugitive in the hills above the Ford with a banner he
 cannot fly. Sera finds him there in S 31 because she has already seen where

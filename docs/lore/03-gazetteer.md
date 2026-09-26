@@ -59,7 +59,8 @@ game: people here say which river, which ford and which smith.
   the crossing and a stone toll-house built on the old kingdom's toll stones.
   The warband's fire on the night before the March burns in a hollow on the
   hill above it. Home base is here.
-- **Wendhall.** The Uncrowned's hall on a bluff above the Ford, burned in
+- **Wendhall.** The Uncrowned's hall on a bluff on the north bank, a day's
+  ride upriver from the Ford, burned in
   S 28: four walls, a fallen roof and a great fireplace with nothing in it.
   Its gate is still standing. Cael held it for five years.
 - **The Cut.** The grey-stone quarries upriver, where the Hallow's stones were
@@ -152,7 +153,7 @@ the score gives them a signal, two notes and a leap, passed from hill to hill.
 | River Crossing | Toll-bridges on the middle Wend, "the bridge now belongs to whoever holds it". |
 | Forest Ambush | Old orchards gone wild over the royal roads. |
 | Corridor Siege / Great Hall / Castle Assault | Old-kingdom castles held by imperial garrisons. The score's **Stone That Remembers** plays here: "the stone remembers who built it." |
-| Castle Ruins | The old capital. |
+| Castle Ruins | In Act II, the old capital. Later acts: old-kingdom halls in the fens and on the Hearth. |
 | Mire Crossing | Where the fens have begun to creep west down the Wend. "The causeway is gone; only its stone markers rise above the marsh." |
 
 ### Who lives here
@@ -186,7 +187,8 @@ be kind". Choir voices enter the score here, "with the rite".
 - **The Lieutenant's Keep** (*Dark Champion Keep*). A castle on the causeway at
   the fen's edge that "commands the last road into the imperial heartland".
   It was a chapter-house guesthouse before S 12. The Lieutenant grew up in
-  it. His champions hold it for him.
+  it, and left it for the far side of the Glass when the Great Feeding began.
+  His champions hold it for him.
 - **Drowned villages.** Reed-islands whose names have faded with the water.
   Some still have one lit chimney.
 - **The Stillwater.** The open fen, flat and silent, where "the frogs have
@@ -199,7 +201,7 @@ be kind". Choir voices enter the score here, "with the rite".
   perfect mirror. The Wend rises from it. Its far side is the Deep.
 - **The chapter-house.** A reed-thatched hall on stilts at the water's edge,
   home of the seer order for longer than the kingdom existed. Burned in S 30.
-  Its bells still hang and still ring on their own: "twice, then silence. Then
+  Its bells still hang and still ring on their own: "Twice, then silence. Then
   twice."
 - **The berserk school.** A stockade at the fens' western edge where Wat's
   pupils learn the red, and where the ones who learn it too well are chained
@@ -292,8 +294,10 @@ had a throne cut there to sit on while they spent themselves. The ritual has
 worn channels into its floor. This is the **Eldritch Sanctum**: "The ritual
 has worn channels into stone that once held a throne."
 
-The Sanctum is also **the far side of the Glass**. Under the mountain, the
-Hearthstone and the Glass are two openings onto the same body.
+**The far side of the Glass** is a landing on this stair, a few flights above
+the Sanctum. Under the mountain, the Hearthstone and the Glass are two openings
+onto the same body, and whoever comes through the Glass comes up on the
+landing. The Lieutenant has lived there since S 25.
 
 - **The stair.** Carved, very old: *WE CAME THIS FAR ALSO.* Newer, in a seer's
   hand: *IT REMEMBERS YOU. BE QUICKER.* Newest, fresh: *NOT THIS TIME.*
@@ -303,10 +307,11 @@ Hearthstone and the Glass are two openings onto the same body.
 - **The Deep.** What lies past the Sanctum on Lunatic: the Sleeper itself,
   where the air does not move and time does not pass.
 
-The Lieutenant waits in the Sanctum because he has always lived on the far
-side of the Glass. On Normal the warband comes to him from below, through the
-Glass. On Lunatic it comes down the stair after the Emperor falls, and he is
-already gone ([08 § Routes](08-reconciliation.md#the-three-routes)).
+On Normal the warband comes through the Glass onto the landing and walks the
+last flights down to the Lieutenant in the Sanctum. On Lunatic it comes down
+the whole stair from the palace after the Emperor falls, and the Lieutenant is
+already gone. Every shipped line about the stair, the landing and the last
+door is true on both routes ([08 § Routes](08-reconciliation.md#the-three-routes)).
 
 **Music:** Every Future You Could Reach (the Lieutenant); · · · and All of Us
 Across (the Entity); The Loom: Unlight.

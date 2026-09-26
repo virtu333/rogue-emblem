@@ -39,12 +39,13 @@ Something answered the Stillness, and the answer was morning. The faith calls
 her **the Dawn**. She wove time over the Stillness like cloth over a sleeper
 and gave the first things their names. When the Sleeper turned over in its
 sleep the first time, she could not fight it, because it was the ground under
-everything. So she **spent her name**. She broke it into countless pieces and
-let them fall as the stars came down. Every name anyone has carried since is
-a splinter of hers. A world full of spoken names is a world with an *after*
-in it, and while it stays that way the Sleeper stays asleep. The sun has been
-hollow since that night, a black disc with a thin gold ring. The ring is made
-of every name still spoken.
+everything. So she **spent her name**, paid it out into the world the way
+you spend a coin, on the night folk remember as the Starfall. Every name
+anyone has carried since is part of her change. A world full of spoken names
+is a world with an *after* in it, and while it stays that way the Sleeper
+stays asleep. The sun has been hollow since that night, a black disc with a
+thin gold corona (border folk call it *the rim*). The corona is made of every
+name still spoken.
 
 The **old kingdom** was founded on that knowledge. Its first king swore the
 Oath at the Ford: *the strong serve the weak, for every name holds the
@@ -68,8 +69,8 @@ nothing comes after.
 sight along the weave of what could happen. **Edric**, last heir of the crown
 that went into the river at the Ford, counts every name behind his banner. The
 imperial curfew forbids light after dusk; clerks call any lamp lit against it
-a *rogue light*. The broadsheets called the warband that marched east from
-the border a **rogue dawn**. The warband kept the name.
+a *rogue light*. An imperial broadsheet posted in the Marches called the
+warband that marched east from the border a **rogue dawn**. The warband kept the name.
 
 Every run is a thread Sera weaves through one year of that March. When a
 thread is cut it falls into the Sleeper, which keeps it, and that is why the
@@ -86,12 +87,12 @@ that order, and rarely from the third.
 |---|---|---|
 | **I. Common** | Soldiers, merchants, villagers | Anywhere. Rumor, complaint, graffiti, shop tags |
 | **II. Learned** | Seers, the court circle, old wardens, chroniclers | Relic lore, boss lines, liturgy fragments, rare flavor |
-| **III. Hidden** | Nobody alive knows all of it | Never stated outright. Implied by juxtaposition, unlocked late, or left for players to assemble |
+| **III. Hidden** | Nobody alive knows all of it | *Sealed* facts: never stated, only pointed at. *Earned* facts: stated once, in a specific moment the player has earned, never in a common pool |
 
 Paragraphs are marked **(II)** or **(III)** where the tier matters; unmarked
 text is common knowledge. Tier III facts are listed together in
-[01-cosmology.md § Hidden canon](01-cosmology.md#hidden-canon-tier-iii) so the
-team can see them without spoiling itself elsewhere.
+[01-cosmology.md § Hidden canon](01-cosmology.md#hidden-canon-tier-iii), each
+marked sealed or earned, so the team can see them in one place.
 
 ## Rules that follow from the canon
 

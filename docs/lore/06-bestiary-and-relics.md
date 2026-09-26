@@ -12,9 +12,7 @@ came from; and the stories behind the objects already in the game.
 Most of what the warband kills. Farmhands, quarrymen, toll-keepers' sons,
 levied by province and entered in the Roll: *LEVY BY ORDER. AGAIN.* They
 march to the imperial cadence, and the longer they march to it the quieter
-they get. This is why enemy portraits come in four faces per class. Levy
-soldiers are not faceless because the art budget was small. They are losing
-their faces the way the Dawn's statues lost theirs.
+they get.
 
 - **They carry no light.** Their names are in the Roll in the Seat, not in
   them. At night your units glow and theirs do not.
@@ -75,24 +73,28 @@ the bell calls and "a few, then many, then nobody" answer.
 
 ### Zombies and revenants
 
-The fens' dead. There are two kinds, and fen villages tell them apart:
+The fens' dead: bodies whose names were **fed**, so that nothing calls them
+home. They are one kind at two ages, as the class chain says.
 
-- **Zombies** are bodies whose names were **fed**. Nothing calls them home, so
-  they get up and wander. "Burn the dead, or give them to the light." Light
-  works because it calls a name back. If there is no name to call, burn.
-- **Revenants** are bodies whose names are still **written in the Roll**, the
-  levy's dead. The Roll still lists them as on muster, so they keep marching
-  and they keep obeying. "It remembers the axe, the sword, and the hunger."
-  What fills behind their ribs when they wound you is your name, in small
-  pieces. The Emperor's last guardians are revenants in the stacked
-  standards of conquered realms.
+- **Zombies** are the newly risen. They get up and wander. "Burn the dead, or
+  give them to the light." Light works because it calls a name back; if there
+  is no name left to call, burn.
+- **Revenants** are zombies the fens have kept long enough. They have started
+  taking the living's names in small pieces to rebuild a shape of their own,
+  and they have stopped shambling. "It remembers the axe, the sword, and the
+  hunger." What fills behind their ribs when they wound you is your name. The
+  dead levy make the most orderly revenants: the drill is the last thing to
+  go. The Emperor's last guardians are revenants in the stacked standards of
+  conquered realms, fed first and fattened longest.
 
 "That one doesn't sleep. I've watched it not sleep."
 
 ### Dragons, "the woken"
 
 The Dawn's first-named. They lay down around the Glass on the night of the
-Starfall and became the ring of the Hallow. They dream the lullaby, and the
+Starfall with their bodies in the ground and their backs to the sky, and
+over the ages what shows above the earth became the ring of the Hallow. They
+"slept below the sacred ground"; the stones are their spines. They dream the lullaby, and the
 peak clans say their dreams hatch wyverns.
 
 Since S 29 the circle has been reading **their** names into the dark, the
@@ -183,8 +185,10 @@ ever answered.
 **Doomblade.** *"The chronicles name this lance once and never again."* The
 great lance of the old kingdom, whose **name the Gentle King spent** at the
 Hearthstone in O 601 to break the Grey Winter. The chronicle entry before
-that year names it. Every entry after says *the lance*. Nobody alive knows
-what it was called. It still hits like it remembers.
+that year names it. Every entry after says *the lance*. That one entry is the
+only place the name survives, which is how anyone knows to call it Doomblade.
+Smiths who read the word aloud say it sounds like nothing, as if it had been
+emptied. It still hits like it remembers.
 
 ### Axes
 
@@ -209,12 +213,12 @@ weapon triangle because it is only listening for her.
 
 **Brave Bow.** *"The chronicle has the arrow drawn once and loosed twice. The
 chronicler was there."* The only Legend weapon whose record was written by an
-eyewitness: the border chronicler Aldwyn of the Line, who also shot the bow.
+eyewitness: the border chronicler Osgar of the Line, who also shot the bow.
 
 **Starfall.** *"Strung the night the stars came down, it aims as if it
 remembers where they fell."* Strung on the night of the Spending by a fenfolk
 hunter who looked up. Older than the Oath, older than the barrows. Its range
-is long because it is still aiming at the splinters of her name.
+is long because it is still aiming at where her change fell.
 
 **Doublebow.** *"The watchtower hermit who strung it left one line behind:
 company spoils the aim."* A warden who asked for the loneliest tower on the
@@ -230,8 +234,10 @@ element "a seer's wind".
 
 **Bolting.** *"Three copies were written for the siege of the capital. One
 remains. Stand back."* Written by the court circle for the Nine Days. Two
-copies opened the Breach. The third was never used and was stolen from the
-circle's camp by a partisan in S 1.
+copies opened the Breach. The third was never used and sits in the court
+circle's vault, where its scribes copy from it for imperial siege-casters.
+The copies are worse, and hotter. Any Bolting the warband picks up is one of
+them, or it is the one.
 
 **Luce.** *"Written to end one thing under the sacred ground. The page says so.
 The rest is ash."* The most dangerous book in the world, and the saddest.
@@ -267,9 +273,9 @@ things.
 | Object | Shipped lore | Behind it |
 |---|---|---|
 | **Goddess Icon** | "Thumbed blank by the dying. The goddess's name was not forgotten; it was spent." | Every soldier's pendant of the Hollow Sun. The dying thumb it for the name they cannot say. Thumbed blank, it looks like her statues. |
-| **Forest Charm** | "Plaited by a warden's daughter from birch and hair. The trees know her knot." | **Corrie's**, Voss's daughter, from Birchwick. She made dozens. Voss does not know any survived **(II)**. |
-| **Mentor's Band** | "Old Hessa taught forty recruits in it. Thirty-one lived. She called it a good year." | The drill-mistress of the western Line. She trained Voss, Carrow and Corrie. |
-| **Phalanx Band** | "Issued in pairs. If you find one alone, don't ask the quartermaster why." | Old-kingdom household knights wore paired bands with their shield-brothers. The one the warband finds is Rowan's lance-master's. **Its pair is on the Knight Commander's arm (II).** |
+| **Forest Charm** | "Plaited by a warden's daughter from birch and hair. The trees know her knot." | **Tilde's**, Voss's daughter, from Birchwick. She made dozens and gave them away. Voss does not know any survived **(II)**. |
+| **Mentor's Band** | "Old Hessa taught forty recruits in it. Thirty-one lived. She called it a good year." | The drill-mistress of the western Line. She trained Voss, Carrow and Tilde. |
+| **Phalanx Band** | "Issued in pairs. If you find one alone, don't ask the quartermaster why." | Old-kingdom household knights wore paired bands with their shield-brothers. Most singles are the survivor's half. **Rowan's lance-master sold his in a lean year; its pair is on the Knight Commander's arm (II).** |
 | **Phoenix Brooch** | "His wife pinned it on him at the gate. Twice he fell, and twice it heard her." | Revival by name: she said his name into it when she pinned it. It works as long as she is alive to have meant it. |
 | **Barrier Ring** | "Inside the band, in a child's letters: NO FIRE ON PAPA." | A child's name-ward. It works, a little, because a child meant it completely. |
 | **Soothing Stone** | "A river stone his mother warmed for his cot. It never quite cooled again." | A stone from the Wend. It was warmed at a hearth lit from the Hearth, so it holds a coal of the old kingdom's fire. |
@@ -277,7 +283,8 @@ things.
 | **Moontide Amulet** | "Tide-silver. Some nights it sings, some it sulks." | From the Saltmarch, before its lighthouses went dark. Coastal silver keeps time with the tide. |
 | **Delphi Shield** | "Sky legion issue." | *Delphi* is the legions' old word for the high air above the pickets, where the corona is near. |
 | **Mercury Sandals** | "Winged heels out of an old myth." | The myth is the Morning: the Dawn's messengers ran on air before the pegasi drew her. These are a forgery of those, and they work anyway. |
-| **Seraph Robe** / **Angelic Robe** | "Temple sisters sewed it for a son they never had." | Sewn with names worked into the hem, all the children the sisters named at the shrine. It fits whoever needs it. |
+| **Seraph Robe** | "Temple sisters sewed it for a son they never had. It fits whoever needs it." | Sewn with names worked into the hem, all the children the sisters named at the shrine. |
+| **Angelic Robe** | "Temple linen, blessed once and holding it still. Wear it under the mail." | Blessed once, by name, and the linen hasn't forgotten the name. |
 | **Wrath Band** | "The berserk school's leash, worn backward." | Wat's graduates are chained at night. The band is that chain, and it loosens when you bleed. |
 | **Counter Seal** / **Duelist's Glove** | "ONE AT A TIME, GENTLEMEN." | Dueling-hall rules. In the old kingdom a duel settled a name; in the empire it settles a wager. |
 | **Bounty Hunter's Mark** | "The guild pays; the guild never asks whose." | Hunters' guild brand. Some of the heads it paid for were on the Roll's collection lists. |

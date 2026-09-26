@@ -169,7 +169,7 @@ Thread; that is the seers. The temple's work is to **keep names**:
   books when the clerks came and still name children in the old way. "The
   shrines stand empty, but the grace does not."
 
-**Iconography.** The Hollow Sun: a black disc with a thin gold ring. Statues of
+**Iconography.** The Hollow Sun: a black disc with a thin gold rim. Statues of
 the Dawn with the face chipped away. A lamp. A cupped hand.
 
 ---
@@ -191,7 +191,7 @@ of the Last Pages**.
 
 The Last Pages end mid-sentence in every copy ever made. "The seers' notes
 end mid-sentence here." The sentence breaks off because the rest of it is
-sung, and cannot be sung by one voice ([07](07-found-texts.md#the-last-pages)).
+sung, and cannot be sung by one voice ([07](07-found-texts.md#the-last-pages-the-waking)).
 
 **Its fate.** Raided in S 12 (the Taking), burned in S 30. Sera is the last
 seer. The order's **lay students** carried the light into the villages and
@@ -243,8 +243,9 @@ works anyway. They give pilgrims a discount. Varen's line still works the Cut.
   the *Doctrine of Lances* without the Oath. Board notation on an
   eight-rank board; the Warp staff was banned there because "marching is
   doctrine, not a suggestion". Grandmasters beat the headmaster.
-- **The academy.** Old-kingdom school of the Old Tongue in the old capital,
-  moved after the Nine Days and burned in S 13. Its graduates are Mages and
+- **The academy.** Old-kingdom school of the Old Tongue in the old capital.
+  It survived the Nine Days in a wing of the city the fire missed, taught
+  under imperial license for thirteen years, and burned in S 13. Its graduates are Mages and
   Sages; its expelled are Warlocks. "Expelled for reading past chapter nine."
 - **The dueling halls.** In the old kingdom they judged disputes over names:
   inheritances, titles, marriages. The empire kept them as spectacle and
@@ -271,8 +272,10 @@ once drew the morning, and they choose their riders ("She chose me over a
 captain's heir."). The legions flew pickets over the valley and kept its maps.
 From their altitude they knew the realm's outline was a sleeper's
 ([Cosmology](01-cosmology.md#the-hallow-and-the-hearth)). That is why the
-empire first folded them into the High Commission and then disbanded them,
-and why a few of their charts are the most dangerous documents in the realm.
+empire folded them into the High Commission as escorts in S 5, and why, when
+the Commission was dissolved in S 21, nobody reissued their orders. Some of the
+remnants flew west and kept pickets for the Border Crown until S 28. A few of
+their charts are the most dangerous documents in the realm.
 
 **Seraph Knights**: "a few sky lancers flew high enough that the light took
 notice." Up there the corona is close.
