@@ -99,4 +99,13 @@ describe('phone forecast: the planned weapon', () => {
     expect(byClass(node, 'mb-step-name').map((n) => n.textContent)).toEqual(['Iron Sword']);
     expect(byClass(node, 're-equipped-badge')).toHaveLength(1);
   });
+
+  // Owner decision (#123 follow-up): the forecast says a confirm will switch weapons.
+  it('a plan other than the equipped weapon says confirming equips it; the equipped one does not', () => {
+    const notices = (weapon) =>
+      byClass(side({ validWeapons: [iron, steel], weapon }), 'mb-notice').map((n) => n.textContent);
+    expect(notices(steel)[0]).toBe('Confirming equips Steel Sword');
+    expect(notices(iron)).not.toContain('Confirming equips Iron Sword');
+    expect(notices(iron).some((t) => t.startsWith('Confirming equips'))).toBe(false);
+  });
 });

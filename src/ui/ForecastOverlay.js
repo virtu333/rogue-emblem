@@ -105,7 +105,10 @@ export class ForecastOverlay {
       ? scene._getWeaponArtHpAfterCost(attacker, weaponArt)
       : forecast.attacker.hp;
     const notes = [true, false].map((attacking) =>
-      forecastNotes(forecast, attacking, afterCost).map((text) =>
+      forecastNotes(forecast, attacking, afterCost, {
+        planned: weapon,
+        equipped: equippedWeapon,
+      }).map((text) =>
         applyTextResolution(
           scene.add.text(0, 0, text, {
             fontFamily: 'Arial',

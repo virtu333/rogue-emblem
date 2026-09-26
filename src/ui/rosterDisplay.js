@@ -43,6 +43,15 @@ export const MASTERY_HELP = [
   },
 ];
 
+/**
+ * A weapon rank requirement in plain words: "Needs Sword proficiency",
+ * "Needs Sword Master rank" (no type: "Needs proficiency" / "Needs Master rank").
+ */
+export function rankRequirementText(type, rank) {
+  const subject = type ? `${type} ` : '';
+  return rank === 'Mast' ? `Needs ${subject}Master rank` : `Needs ${subject}proficiency`;
+}
+
 export function proficiencyLabel(proficiency) {
   return `${proficiency.type}: ${{ Prof: 'Proficient', Mast: 'Master' }[proficiency.rank] || proficiency.rank || 'Proficient'}`;
 }
