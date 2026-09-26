@@ -34,6 +34,7 @@ import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 import { registerSW } from 'virtual:pwa-register';
 import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
 import { throttledRead } from './utils/throttledRead.js';
+import { applyPortraitQuery, syncRotatePromptCopy } from './utils/portraitBattle.js';
 import { installSaveLifecycle } from './utils/saveLifecycle.js';
 import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
 import { GAME_TITLE } from './utils/gameIdentity.js';
@@ -45,6 +46,9 @@ const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
+// `?portrait=1|0` opts this device in or out of portrait battles (beta).
+applyPortraitQuery();
+syncRotatePromptCopy();
 if (startupFlags.isMobile) document.documentElement.classList.add('touch-ui');
 // Desktop only (the Mac playtest report): Press Start 2P on whole device pixels
 // (Retina, browser zoom), and smooth downsampling for supersampled canvas text.
