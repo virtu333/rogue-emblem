@@ -136,9 +136,10 @@ export class NodeMapMenu {
       ? document.activeElement.dataset.node
       : null;
     // Preserve browsing position across selection, services and redraws of the same
-    // act; a new act's loom anchors on its first choices.
+    // act (even if the loom turned upright meanwhile); a new act's loom anchors on its
+    // first choices.
     const sameMap = this._nodeMap === rm.nodeMap;
-    const scroll = sameMap ? (this.routeGraph?.scrollLeft ?? null) : null;
+    const scroll = sameMap ? (this.routeGraph?.scrollPosition ?? null) : null;
     this._nodeMap = rm.nodeMap;
     this.routeGraph?.destroy();
     this.root.replaceChildren();
@@ -190,12 +191,6 @@ export class NodeMapMenu {
     const frame = element('div', null, 're-loom-frame');
     frame.setAttribute('aria-hidden', 'true');
     wrap.append(this.scroll, frame);
-    const updateHints = () => {
-      const el = this.scroll;
-      wrap.classList.toggle('more-left', el.scrollLeft > 2);
-      wrap.classList.toggle('more-right', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
-    };
-    this.scroll.addEventListener('scroll', updateHints, { passive: true });
 
     // Pane order (README): Menu/Roster, inspect card, Travel, lord chips.
     const side = element('aside', null, 're-node-side');
@@ -254,9 +249,9 @@ export class NodeMapMenu {
       this.root.append(this._toast);
 
     this._renderSelection();
-    this.routeGraph.mount(this.scroll, { scrollLeft: scroll ?? null });
+    // The route owns the edge cues (more-left/right, or more-up/down upright).
+    this.routeGraph.mount(this.scroll, { position: scroll, cues: wrap });
     this.routeGraph.setActive(!this.root.hidden);
-    updateHints();
     if (focus)
       [...this.root.querySelectorAll('[data-node]')]
         .find((b) => b.dataset.node === focus)

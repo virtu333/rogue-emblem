@@ -876,6 +876,112 @@ html:not(.touch-ui):not(.mobile-preview) .re-loom-card {
   }
 }
 
+/* ───────── Upright phones: the vertical loom over a bottom sheet ─────────
+   Keyed to html.portrait-ui (set by the portrait shell on an upright phone) and the
+   portrait orientation; without both, nothing here applies. RouteGraph reads
+   --re-loom-axis and lays the act out bottom (row I, where the party enters) to top
+   (the Hollow Sun). The pane becomes a sheet under the loom: the inspect card, Travel
+   within thumb reach, then Menu/Roster and the lord chips on one row. */
+@media (orientation: portrait) {
+  html.portrait-ui .re-loom-screen {
+    --re-loom-axis: vertical;
+  }
+  html.portrait-ui .re-loom-screen .re-node-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  /* Upright, a choice's label rides above its medal (the way the party travels), so
+     it never sits on the party's own knot or the gold threads coming up to it. */
+  html.portrait-ui .re-loom--vertical .re-loom-label {
+    top: auto;
+    bottom: calc(50% + var(--medal, 40px) / 2 + 7px);
+  }
+  html.portrait-ui .re-loom-screen .re-node-scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+  /* The beams lie across the loom: gilt at the foot where the thread enters. */
+  html.portrait-ui .re-loom-frame {
+    box-shadow:
+      inset 0 0 0 1px var(--re-raised),
+      inset 0 -2px 0 0 var(--re-gilt-haze),
+      inset 0 2px 0 0 var(--re-shade-deep),
+      inset 0 0 24px var(--re-shade-deep);
+  }
+  html.portrait-ui .re-loom-frame::before,
+  html.portrait-ui .re-loom-frame::after {
+    top: auto;
+    bottom: auto;
+    left: 1px;
+    right: 1px;
+    width: auto;
+    height: 22px;
+  }
+  html.portrait-ui .re-loom-frame::before {
+    top: 1px;
+    background: linear-gradient(180deg, var(--re-void), transparent);
+  }
+  html.portrait-ui .re-loom-frame::after {
+    bottom: 1px;
+    background: linear-gradient(0deg, var(--re-void), transparent);
+  }
+  html.portrait-ui .re-loom-wrap.more-up .re-loom-frame::before,
+  html.portrait-ui .re-loom-wrap.more-down .re-loom-frame::after {
+    opacity: 0.85;
+  }
+
+  /* The sheet. */
+  html.portrait-ui .re-loom-screen .re-node-side {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      'card card card card'
+      'travel travel travel travel'
+      'actions actions party party';
+    gap: 6px;
+    margin: 0 -4px;
+    padding: 8px 4px 0;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(180deg, var(--re-raised-haze), transparent 40px);
+    box-shadow: inset 0 1px 0 0 var(--re-raised);
+  }
+  html.portrait-ui .re-loom-screen .re-node-actions {
+    grid-area: actions;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-card {
+    grid-area: card;
+    /* A fixed height: selecting a knot must not resize the loom above it. */
+    flex: none;
+    height: 128px;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-travel {
+    grid-area: travel;
+    min-height: 48px;
+  }
+  html.portrait-ui .re-loom-screen .re-loom-party {
+    grid-area: party;
+  }
+  /* The Eclipse's fall line reads at the head of the loom, not over the sheet's
+     buttons, and wraps instead of clipping on a narrow phone. */
+  html.portrait-ui .re-loom-screen .re-eclipse-toast {
+    top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+    bottom: auto;
+    width: max-content;
+    max-width: calc(100% - 32px);
+    white-space: normal;
+  }
+  /* Campaign Map (read-only): the card and its note. */
+  html.portrait-ui .re-campaign-map .re-node-side.re-campaign-side {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'card';
+  }
+  html.portrait-ui .re-campaign-map .re-campaign-side .re-loom-card {
+    height: 150px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .re-loom-medal,
   .re-loom-medal .re-node-art,
