@@ -68,7 +68,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
+├── tests/                 # Vitest unit tests + harness/ + sim/, Playwright e2e/ (which CI lanes run which: docs/specs/compression-plan-2026-09-25.md)
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 76 original music files + 142 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -158,8 +158,15 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 4143 tests across 218 files (Jun 10 2026). Covers all engine systems.
-- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
+- **Coverage is measured, not counted.** A fault-injection pilot (Sep 2026) found about half of realistic injected bugs survive the whole unit suite. Gaps, rules and the delete/rewrite procedure: `docs/specs/compression-plan-2026-09-25.md`.
+- **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity. `tests/harness/HeadlessBattle` mirrors the scene's state machine (Canto off, no async presentation, no resume), so a green harness run does not prove the production action lifecycle.
+- **Writing tests:**
+  - List the realistic ways a change can fail first; each test should catch one of them.
+  - Assert outcomes (player-visible or persisted state, RNG cursor), not internal call order.
+  - Derive expected values independently, never by re-running the code under test.
+  - Before a refactor, pin current behaviour with tests that pass before and after; a bug fix gets a test that fails before it.
+  - Prove a new test can fail by planting the bug once.
+  - Every `tests/e2e` spec must belong to a CI lane or have a stated exclusion.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
 ## Balance Simulations
