@@ -26,14 +26,13 @@ the music in marketing.
 
 | Library | Author | Licence | Plays |
 |---|---|---|---|
-| [Sonatina Symphonic Orchestra](https://github.com/peastman/sso) (SSO 4) | Mattias Westlund and contributors | [CC Sampling Plus 1.0](https://creativecommons.org/licenses/sampling+/1.0/) | solo violin, oboe, celesta, the choir's "oohs" |
-| [Virtual Playing Orchestra 3](http://virtualplaying.com/virtual-playing-orchestra/) | Paul Battersby | GPL-3.0 (its SFZ programs); samples as below | string sections, horns, trumpets, trombones |
-| - Sonatina Symphonic Orchestra 1.0 samples | Mattias Westlund | CC Sampling Plus 1.0 | 1st and 2nd violins, basses |
-| - Mattias Westlund additional samples | Mattias Westlund | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | violas, horns |
-| - No Budget Orchestra 1 and 2 | Jeff Glatt | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | celli, trumpets, trombones |
-| [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) | Versilian Studios | CC0 | woodwinds (except the oboe), tuba, muted brass, harp, organ, pitched and orchestral percussion, timpani |
+| [Sonatina Symphonic Orchestra](https://github.com/peastman/sso) (SSO 4) | Mattias Westlund and contributors | [CC Sampling Plus 1.0](https://creativecommons.org/licenses/sampling+/1.0/) | string sections, solo violin, oboe, celesta, the choir and its "oohs" |
+| [Virtual Playing Orchestra 3](http://virtualplaying.com/virtual-playing-orchestra/) | Paul Battersby | GPL-3.0 (its SFZ programs); samples as below | horns, trumpets, trombones |
+| - Mattias Westlund additional samples | Mattias Westlund | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) | horns |
+| - No Budget Orchestra 2 | Jeff Glatt | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | trumpets, trombones |
+| [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) | Versilian Studios | CC0 | woodwinds (except the oboe), tuba, muted brass, harp, organ, pitched and orchestral percussion, timpani; the Emperor's theme's strings and brass; the village's fiddle |
 | [Versilian Community Sample Library](https://github.com/sgossner/VCSL) | Versilian Studios | CC0 | the colosseum's frame drum |
-| [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) | S. Christian Collins | free for commercial music | choir, taiko, accordion, nylon guitar |
+| [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS) | S. Christian Collins | free for commercial music | taiko, accordion, nylon guitar; the Emperor's theme's choir |
 | [Virtuosity Drums](https://github.com/sfzinstruments/virtuosity_drums) | Versilian Studios | CC0 | drum kit |
 | [Karoryfer Growlybass](https://github.com/sfzinstruments/karoryfer.growlybass) | Karoryfer Samples | CC0 | bass guitar |
 | [Splendid Grand Piano](https://github.com/sfzinstruments/SplendidGrandPiano) | AKAI (via sfzinstruments) | public domain | piano |

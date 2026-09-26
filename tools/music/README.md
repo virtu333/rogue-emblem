@@ -111,11 +111,12 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
 `engine/palette.py` decides, at render time, which sample library plays each instrument.
 The registry in `engine/instruments.py` is the legacy palette (VSCO 2 CE, GeneralUser GS,
 the sfizz kits). The game ships the **house palette** (`HOUSE`): the sound lab's verdicts
-from a blind A/B. It uses Sonatina Symphonic Orchestra 4 for the solo violin, oboe,
-celesta and the choir's "oohs", Virtual Playing Orchestra 3 for the string sections and
-the horns, trumpets and trombones, and the legacy instruments for everything else. A score
-can change an instrument for itself (`s.palette = {'taiko': 'vcsl_frame'}` in the
-colosseum). Credits and licences: `docs/music-credits.md` (the soundtrack is CC BY-SA 4.0).
+from two rounds of blind A/B. It uses Sonatina Symphonic Orchestra 4 for the string
+sections, the solo violin, oboe, celesta and the choir (and its "oohs"), Virtual Playing
+Orchestra 3 for the horns, trumpets and trombones, and the legacy instruments for
+everything else. A score can change an instrument for itself (`s.palette = {'taiko':
+'vcsl_frame'}` in the colosseum; the Emperor's theme keeps the legacy strings, brass and
+choir, the village its legacy fiddle, the Act III map an unshaped violin). Credits and licences: `docs/music-credits.md` (the soundtrack is CC BY-SA 4.0).
 
 ```bash
 python3 tools/music/solo.py --list-palette                       # the candidates
@@ -149,18 +150,18 @@ MUSIC_PALETTE=lab:choir=sso_mixed python3 tools/music/build.py battle_act3   # a
   saves CPU on a shared machine.
 - The lab's own programs always load their samples into memory (see `sfzrender.py` above).
 - Licences: the legacy set is CC0 / free for commercial music. SSO4 is CC Sampling Plus
-  (attribution; no advertising anything but the music), and VPO3's viola, cello and brass
-  carry CC BY-SA sources. Read `docs/music-credits.md` before adopting another candidate.
+  (attribution; no advertising anything but the music), and VPO3's brass carries CC BY-SA
+  sources. Read `docs/music-credits.md` before adopting another candidate.
 
 ## Libraries (all free for commercial music; see `docs/music-credits.md`)
 
 | Library | License | Used for |
 |---|---|---|
-| Sonatina Symphonic Orchestra 4 (Mattias Westlund and contributors) | CC Sampling Plus 1.0 | solo violin, oboe, celesta, oohs |
-| Virtual Playing Orchestra 3 (Paul Battersby; samples by Jeff Glatt, Mattias Westlund) | CC BY-SA / Sampling Plus samples | string sections, horns, trumpets, trombones |
+| Sonatina Symphonic Orchestra 4 (Mattias Westlund and contributors) | CC Sampling Plus 1.0 | string sections, solo violin, oboe, celesta, choir, oohs |
+| Virtual Playing Orchestra 3 (Paul Battersby; samples by Jeff Glatt, Mattias Westlund) | CC BY-SA samples | horns, trumpets, trombones |
 | VCSL (Versilian Studios) | CC0 | the colosseum's frame drum |
 | VSCO-2 Community Edition (Versilian Studios) | CC0 | the rest of the orchestra |
 | Virtuosity Drums | CC0 | drum kit |
 | Karoryfer Growlybass | CC0 | bass guitar |
 | Splendid Grand Piano (AKAI) | Public domain | piano |
-| GeneralUser GS (S. Christian Collins) | Free for commercial music | choir, taiko, nylon guitar, accordion |
+| GeneralUser GS (S. Christian Collins) | Free for commercial music | taiko, nylon guitar, accordion; the Emperor's choir |

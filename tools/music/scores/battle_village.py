@@ -101,6 +101,9 @@ def build():
     s = Score('battle_village', tonic='A', bpm=172, meter=(3, 4), intro_bars=4, loop_bars=64,
               title='Bells Over the Village', seed=149)
     s.reverb = dict(rt60=2.0, predelay_ms=20, wet_db=-1.0)
+    # the village fiddler keeps the legacy violin: its phrasing, more pronounced
+    # and shaped, fits the call (the sound lab's pick for this track)
+    s.palette = {'solo_violin': 'legacy'}
     s.master = dict(lufs=-14.0, glue_ratio=1.5)
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
 

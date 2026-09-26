@@ -135,15 +135,16 @@ def _sso_section(inst):
     n = SSO_SEC[inst]
     vib = {21: 56}
     sus = _strm(('plain', _p('sso', SP, f'{n} Sustain.sfz')), cc=vib)
-    return dict(perform='auto', art_map={'default': 'chord', 'sus': 'chord', 'vib': 'chord',
-                                          'soft': 'soft', 'spic': 'spic', 'stac': 'stac',
-                                          'pizz': 'pizz', 'trem': 'trem', 'first': 'chord',
-                                          'leg': 'chord'},
+    # lines in the performer's clean style, no finger slides (as the solo violin)
+    return dict(perform='auto', style='clean',
+                art_map={'default': 'chord', 'sus': 'chord', 'vib': 'chord',
+                         'soft': 'soft', 'spic': 'spic', 'stac': 'stac',
+                         'pizz': 'pizz', 'trem': 'trem', 'first': 'chord', 'leg': 'chord'},
                 streams={
                     'legato': _strm(('legato', _p('sso', SP, f'{n} Legato.sfz'),
                                      _p('sso', SP, f'{n} Marcato.sfz'),
                                      (('group_volume', '-20'),), 'tuned', 0.16),
-                                    mono=True, cal_vel=64, legato_cc=True, slide=True, cc=vib),
+                                    mono=True, cal_vel=64, legato_cc=True, slide=False, cc=vib),
                     'leg': dict(program_of='legato'),
                     'first': dict(program_of='legato'),
                     'chord': sus,
@@ -304,7 +305,7 @@ for _inst in SSO_SEC:
     CANDIDATES[_inst] = {
         'sso': dict(label=f'Sonatina 4 {SSO_SEC[_inst]}',
                     what=f'SSO4 {SSO_SEC[_inst]} (Performance): lines through the rebuilt legato '
-                         'program with the performer, pads on Sustain, CC1 dynamics, CC21 '
+                         'program with the performer (clean style, no slides), pads on Sustain, CC1 dynamics, CC21 '
                          'vibrato 56, Staccato (2 round robins), Pizzicato, Tremolo',
                     lab=_sso_section(_inst)),
         'vpo': dict(label=f'Virtual Playing Orchestra 3 {VPO_SEC[_inst]} section (PERF)',
@@ -389,25 +390,28 @@ CANDIDATES['accordion'] = {
 }
 
 # ------------------------------------------------------------------ the house palette
-# What the game ships: the sound lab's verdicts (a blind A/B, September 2026).
-#   solo violin  Sonatina 4 over VSCO in every test; the player's note changes kept
-#                clean (the listener, a violinist, heard the full performer's bow
-#                changes as too obvious). VPO3's solo violin is not a candidate to ship:
-#                its samples' licence may be non-commercial.
-#   oohs         Sonatina 4 Mixed Chorus, darkened: the Act III map with it was the pick
-#   strings      VPO3 sections: crisper eighth notes than VSCO or Sonatina
+# What the game ships: the sound lab's verdicts (blind A/B, two rounds, September 2026).
+#   solo violin  Sonatina 4 over VSCO in every test, played in the performer's clean
+#                style (the listener, a violinist, heard the full performer's bow changes
+#                as too obvious). VPO3's solo violin is not a candidate to ship: its
+#                samples' licence may be non-commercial.
+#   strings      Sonatina 4 sections: the full-mix pick over VPO3 and VSCO (round 2)
+#   choir, oohs  Sonatina 4 Mixed Chorus (the oohs darkened): the full-mix pick twice,
+#                though the GeneralUser choir sounded more real heard alone
 #   brass        VPO3 horns, trumpets, trombones (VSCO sounded synthetic, Sonatina
 #                muddy); the tuba stays VSCO (VPO3 has no section tuba)
 #   oboe, celesta  Sonatina 4
-#   kept         choir (GeneralUser GS sounded the more real sung line exposed), taiko
-#                (GeneralUser GS on the volcano; the colosseum takes the VCSL frame
-#                drum, see its score), the rest of the woodwinds (not auditioned)
-# Licences: Sonatina 4 is CC Sampling Plus 1.0 and VPO3's strings and brass carry
-# CC BY-SA sources; both need the credit in docs/music-credits.md.
+#   kept         taiko (GeneralUser GS on the volcano), the rest of the woodwinds
+# Scores that keep something for themselves (Score.palette): the Emperor's theme
+# (legacy strings, brass and choir), the village (legacy fiddle), the Act III map
+# (the unshaped violin), the colosseum (VCSL frame drum).
+# Licences: Sonatina 4 is CC Sampling Plus 1.0 and VPO3's brass carries CC BY-SA
+# sources; both need the credit in docs/music-credits.md.
 HOUSE = {
     'solo_violin': 'sso_clean',
+    'choir': 'sso_mixed',
     'oohs': 'sso_mixed_dark',
-    'violins': 'vpo', 'violins2': 'vpo', 'violas': 'vpo', 'celli': 'vpo', 'basses': 'vpo',
+    'violins': 'sso', 'violins2': 'sso', 'violas': 'sso', 'celli': 'sso', 'basses': 'sso',
     'horns': 'vpo', 'trumpets': 'vpo', 'trombones': 'vpo',
     'oboe': 'sso',
     'celesta': 'sso',

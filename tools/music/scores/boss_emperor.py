@@ -43,6 +43,10 @@ def build():
     s = Score('boss_emperor', tonic='Bb', bpm=120, intro_bars=4, loop_bars=36,
               title='Human, Powerful, and Wrong', seed=103)
     s.reverb = dict(rt60=3.0, predelay_ms=32, wet_db=0.5)
+    # the Emperor keeps the legacy strings, brass and choir: in the full chorale
+    # a listener preferred them to the new libraries (the sound lab, round 2)
+    s.palette = {k: 'legacy' for k in ('violins', 'violins2', 'violas', 'celli', 'basses',
+                                       'horns', 'trumpets', 'trombones', 'choir')}
     s.master = dict(lufs=-13.5, glue_ratio=1.6)
     b = Battle(s, full_lufs=-13.5, adaptive=False)
     b.section('intro', 1, chart('Bbm Bbm Cb F')).section('A', 5, CH_A).section('B', 13, CH_B)

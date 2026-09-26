@@ -205,10 +205,13 @@ class Kit:
     OPTS = {
         'kick': dict(role='kick', eq=[('peak', 60, 0.9, 3.0), ('peak', 380, 1.0, -4.0),
                                       ('peak', 3800, 1.0, 3.5)], duckable=False),
+        # (no lift on the crack: the snare read as too snappy)
         'snare': dict(role='snare', eq=[('peak', 200, 1.0, 2.0), ('peak', 900, 1.0, -2.0),
-                                        ('peak', 5000, 0.8, 2.0)]),
+                                        ('peak', 4500, 0.9, -1.0)]),
         'toms': dict(role='toms', eq=[('peak', 400, 1.0, -3.0), ('peak', 4000, 1.0, 2.0)]),
-        'cym': dict(role='cym', hpf=280, eq=[('highshelf', 9000, 0.7, -2.5)]),
+        # (the cymbals read as tinny: less of their 3-6 kHz ring and their air)
+        'cym': dict(role='cym', hpf=280, eq=[('peak', 4200, 0.8, -3.0),
+                                             ('highshelf', 8000, 0.7, -4.0)]),
     }
 
     def __init__(self, score, prefix='kit', inst='kit', gains=None):

@@ -444,7 +444,7 @@ def build():
     b.kit = Kit(s, 'kit', gains={'kick': 0.5, 'snare': 1.0})
     # the snare speaks three times a bar at 176: its crack, not its body
     s.parts['kit_snare'].opts['eq'] = [('peak', 220, 1.0, -3.0), ('peak', 900, 1.0, -2.0),
-                                       ('peak', 5000, 0.8, 3.0)]
+                                       ('peak', 4500, 0.9, -1.0)]
     b.full_only.update(b.kit.names())
     # the toms gather with the ostinato (13-20), rising with it; T1's first
     # phrase (5-12) stays the clarinet's alone

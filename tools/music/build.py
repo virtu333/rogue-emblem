@@ -221,6 +221,22 @@ def build_stingers(names, args, tonics, stingers):
                 stingers[name]['handoff'] = round(score.seconds(score.bar(bars + 1)), 6)
 
 
+def _tables_lock():
+    import contextlib
+    import fcntl
+
+    @contextlib.contextmanager
+    def lock():
+        import tempfile
+        with open(os.path.join(tempfile.gettempdir(), 'rogue-dawn-music-tables.lock'), 'w') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    return lock()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('scores', nargs='*')
@@ -255,24 +271,40 @@ def main():
     names = list_scores() if args.all else args.scores
     build_scores(names, args, table)
     refresh_tonics(table)
+    built_keys = [k for k, v in table.items() if v.get('score') in names]
 
     stingers = load_json(STINGERS_JSON)
+    built_stingers = []
     if args.stingers is not None:
         chosen = args.stingers or list_modules('stingers')
         build_stingers(chosen, args, music_tonics(table), stingers)
+        built_stingers = list(chosen)
 
     if not args.no_out and not audition:
-        save_json(LOOPS_JSON, table)
-        write_loops_js(table)
-        # every keyed stinger must cover every key the music uses
-        missing = {n: sorted(set(music_tonics(table)) - set(e['tonics']))
-                   for n, e in stingers.items() if e['keyed']}
-        missing = {n: m for n, m in missing.items() if m}
-        if missing:
-            print(f'WARNING: keyed stingers missing tonics (re-render them): {missing}')
-        save_json(STINGERS_JSON, stingers)
-        write_stingers_js(stingers)
-        prettier(LOOPS_JSON, LOOPS_JS, STINGERS_JSON, STINGERS_JS)
+        # builds may run side by side (disjoint scores): each merges only what it
+        # rendered into the tables as they are now, under a lock
+        with _tables_lock():
+            fresh = load_json(LOOPS_JSON)
+            fresh.update({k: table[k] for k in built_keys})
+            table = fresh
+            fresh = load_json(STINGERS_JSON)
+            fresh.update({n: stingers[n] for n in built_stingers})
+            stingers = fresh
+            _save_tables(table, stingers)
+
+
+def _save_tables(table, stingers):
+    save_json(LOOPS_JSON, table)
+    write_loops_js(table)
+    # every keyed stinger must cover every key the music uses
+    missing = {n: sorted(set(music_tonics(table)) - set(e['tonics']))
+               for n, e in stingers.items() if e['keyed']}
+    missing = {n: m for n, m in missing.items() if m}
+    if missing:
+        print(f'WARNING: keyed stingers missing tonics (re-render them): {missing}')
+    save_json(STINGERS_JSON, stingers)
+    write_stingers_js(stingers)
+    prettier(LOOPS_JSON, LOOPS_JS, STINGERS_JSON, STINGERS_JS)
 
 
 if __name__ == '__main__':

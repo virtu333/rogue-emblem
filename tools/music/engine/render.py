@@ -647,7 +647,8 @@ class Renderer:
             d = buses['drums']
             crush = dsp.compress(d, thresh_db=-24, ratio=5, attack_ms=3, release_ms=120,
                                  makeup_db=8)
-            buses['drums'] = d * 0.75 + crush * 0.45
+            # (less of the crushed copy than before: it made every hit snap)
+            buses['drums'] = d * 0.8 + crush * 0.3
         for bname, cfg in master.get('bus', {}).items():
             if bname in buses and cfg.get('eq'):
                 buses[bname] = dsp.eq(buses[bname], cfg['eq'])
@@ -763,12 +764,15 @@ class Renderer:
         return info
 
 
-# level (dBFS RMS while playing) each role is brought to before the mix
+# level (dBFS RMS while playing) each role is brought to before the mix. The
+# percussion sits back: a listener heard snares, cymbals and quick sharp hits
+# dominate most pieces (the sound lab, round 2), so the snare, the cymbals and the
+# orchestral drums came down 2-3 dB, the kick, toms and accents 1 dB
 ROLE_TARGETS = {
     'lead': -18.0, 'lead2': -21.0, 'counter': -21.0, 'section': -22.0, 'ostinato': -23.0,
-    'pad': -25.0, 'bass': -21.0, 'low': -24.0, 'drums': -19.5, 'timp': -24.0,
-    'accent': -26.0, 'choir': -24.0, 'keys': -22.5, 'fx': -28.0, 'sub': -25.0,
-    'kick': -20.5, 'snare': -21.5, 'toms': -24.0, 'cym': -27.5,
+    'pad': -25.0, 'bass': -21.0, 'low': -24.0, 'drums': -21.5, 'timp': -24.0,
+    'accent': -27.0, 'choir': -24.0, 'keys': -22.5, 'fx': -28.0, 'sub': -25.0,
+    'kick': -21.5, 'snare': -24.5, 'toms': -25.0, 'cym': -30.5,
 }
 LIFE_BY_ROLE = {'lead': 1.0, 'lead2': 1.2, 'counter': 1.4, 'section': 1.4, 'pad': 2.0,
                 'choir': 2.0, 'low': 1.2}
