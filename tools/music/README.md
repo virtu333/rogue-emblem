@@ -69,6 +69,47 @@ that play through the loop jump, so you can listen to the seam.
   hall and a drum room, kick sidechain, lead ducking, master glue, loudness and a
   true-peak limiter, and loop export with a seam check.
 
+## Sound lab (alternative palette, off by default)
+
+`engine/palette.py` can swap instruments at render time for candidates from other free
+libraries (Sonatina Symphonic Orchestra 4, Virtual Playing Orchestra 3, VCSL). Nothing
+changes unless you ask for it: with the switch off, every stem, cache key and mix renders
+bit-identically.
+
+```bash
+python3 tools/music/solo.py --list-palette                       # the candidates
+python3 tools/music/solo.py title solo --bars 5 13 --out a.mp3   # an excerpt, current palette
+python3 tools/music/solo.py title solo --bars 5 13 --palette lab:solo_violin=sso --why --out b.mp3
+python3 tools/music/solo.py boss_emperor '*' --variant full --bars 5 17 \
+    --palette lab:choir=sso_mixed,horns,trumpets,trombones,tuba --bitrate 192 --out c.mp3
+MUSIC_PALETTE=lab:choir python3 tools/music/build.py battle_act3   # writes to References/music-lab/out
+```
+
+- Syntax: `lab` (every first candidate), `lab:choir,solo_violin` (first candidate of
+  each), or `lab:choir=vpo_mixed` (a named candidate).
+- Lab instruments are `kind: 'lab'` (`engine/labrender.py`). Each one plays one or more
+  SFZ programs through `sfizz_render`. The programs are flattened and tweaked copies of the
+  library's own (`engine/sfzlab.py`), written to `References/music-lab/sfz/`. Dynamics and
+  the part's expression lane go to the program's CC1. Each stream is calibrated like the
+  default palette (an mf note at -20 dBFS). A lab instrument keeps the seat of the part it
+  replaces (pan, depth, bus, role levelling), so only the sound source changes.
+- `engine/perform.py` is the performer: an articulation state machine for solo lines
+  (legato, new bows, spiccato/staccato, round robins on repeats, phrase dynamics,
+  humanised entrances). `--why` prints its decision for each note.
+- `--bars A B` renders bars A to B-1 as a one-shot excerpt (`engine/excerpt.py`). This
+  saves CPU on a shared machine. Lab renders keep their own stem cache
+  (`References/music-lab/cache`, or `MUSIC_CACHE`).
+- A build with a lab palette never writes game assets or the loop tables.
+- `MUSIC_SFIZZ_RAM=1` (off by default) renders the sfizz instruments (kit, bass guitar,
+  grand piano) from a copy of their program with the needed samples held in memory. By
+  default, `sfizz_render` streams sample data from a thread it does not reliably wait for.
+  On a busy machine, notes longer than about 0.19 s can then fall silent part-way. The
+  in-memory render is bit-identical to a clean streamed render. The lab's own programs
+  always load their samples into memory.
+- Licences differ from the default palette's CC0 set. Read the licence notes before
+  shipping anything rendered with a lab candidate. VPO3's brass, viola and cello sections
+  carry CC BY-SA sources, and SSO4 is CC Sampling Plus (attribution, no advertising).
+
 ## Libraries (all free for commercial music)
 
 | Library | License | Used for |

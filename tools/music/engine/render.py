@@ -28,7 +28,7 @@ from dataclasses import asdict
 import numpy as np
 import soundfile as sf
 
-from . import dsp
+from . import dsp, palette
 from .dsp import SR
 from .instruments import INSTRUMENTS
 from .sampler import NoteEvent, SfzVoicer
@@ -39,6 +39,14 @@ from .synth import VOICES
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 CACHE = os.path.join(ROOT, 'References', 'music-cache')
+
+
+def cache_dir() -> str:
+    """Stem cache: MUSIC_CACHE if set; a lab palette keeps its own, so lab
+    renders never evict the default palette's stems."""
+    if os.environ.get('MUSIC_CACHE'):
+        return os.environ['MUSIC_CACHE']
+    return palette.cache_dir() if palette.active() else CACHE
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
 ENGINE_VERSION = 9  # bump to invalidate stem caches
 
@@ -70,10 +78,12 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     global _CALIB
     if _CALIB is None:
         _CALIB = _load_calib()
+    inst = INSTRUMENTS[inst_name]
+    if inst['kind'] == 'lab':
+        return 0.0   # lab streams are levelled by their own calibration (labrender)
     key = f'{inst_name}:{art}'
     if key in _CALIB:
         return _CALIB[key]
-    inst = INSTRUMENTS[inst_name]
     n = int(3.0 * SR)
     ev = [NoteEvent(t=0.1, dur=1.5, key=inst['ref_key'], vel=0.62, art=art)]
     buf = _render_raw(inst_name, inst, ev, n, seed=1, calibrating=True)
@@ -133,7 +143,7 @@ def _voicer(inst_name, art_name, art):
 
 
 def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibrating=False,
-                sustain_pedal=False, key_cents=None):
+                sustain_pedal=False, key_cents=None, score=None, lane=None):
     """Events -> stereo buffer, no calibration/mix processing. `key_cents` (SoundFont
     parts only, opt-in per part) maps a key to a tuning correction in cents."""
     out = np.zeros((n_frames, 2), np.float32)
@@ -164,6 +174,10 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
         fn = VOICES[inst['voice']]
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
         out = fn(evs, n_frames, np.random.default_rng(seed), **inst.get('params', {}))
+    elif kind == 'lab':
+        from . import labrender
+        out = labrender.render(inst, events, n_frames, seed, score=score, lane=lane,
+                               calibrating=calibrating)
     else:
         raise ValueError(kind)
     return out
@@ -196,11 +210,12 @@ class Renderer:
         self.loop_end_f = self.loop_start_f + self.P_f
         self.file_f = self.loop_end_f + int(EXTRA * SR)
         self.n_f = self.file_f + int(TAIL * SR)
-        os.makedirs(CACHE, exist_ok=True)
+        self.cache = cache_dir()
+        os.makedirs(self.cache, exist_ok=True)
         # bound the disk: stems of other scores are dropped
-        for f in os.listdir(CACHE):
+        for f in os.listdir(self.cache):
             if not f.startswith(f'{score.name}__'):
-                os.remove(os.path.join(CACHE, f))
+                os.remove(os.path.join(self.cache, f))
 
     def log(self, *a):
         if self.verbose:
@@ -249,6 +264,10 @@ class Renderer:
             ev.rearticulate = n.rearticulate
             ev.in_loop = n.start >= self.I_b - 1e-9
             ev.beat_start, ev.beat_end = n.start, n.start + n.dur
+            if inst['kind'] == 'lab':
+                # what the lab palette's performer reads (not part of the note's identity
+                # for the default palette, so its cache keys do not change)
+                ev.accent, ev.staccato = n.accent, n.staccato
             evs.append(ev)
         # legato flags (sustain arts of legato instruments, monophonic lines)
         if inst['kind'] == 'sfz' and part.opts.get('legato', True):
@@ -313,8 +332,11 @@ class Renderer:
                   self.n_f, self.P_f,
                   self.I_f, seed, part.opts.get('pedal', False))
                + (((sorted(part.opts['key_cents'].items()),) if part.opts.get('key_cents')
-                   else ())))
-        path = os.path.join(CACHE, f'{s.name}__{part.name}__{key}.npy')
+                   else ()))
+               + (() if inst['kind'] != 'lab' else (
+                   palette.cache_token(inst), part.expr_points, self.I_b, self.P_b,
+                   [(e.accent, e.staccato) for e in intro + loop])))
+        path = os.path.join(self.cache, f'{s.name}__{part.name}__{key}.npy')
         if os.path.exists(path):
             return np.load(path).astype(np.float32)
         self.log(f'  render {part.name:14s} ({part.inst}, {len(intro)}+{len(loop)} notes)')
@@ -328,11 +350,15 @@ class Renderer:
                 groups.setdefault((tag, a), []).append(e)
         loop_len = self.I_f + self.P_f + int(TAIL * SR) + int(self.M_s * SR) + int(2 * SR)
         loop_len = min(loop_len, self.n_f)
+        lab = {}
+        if inst['kind'] == 'lab':
+            lab = dict(score=s, lane=self._lane(part.expr_points, self.n_f)
+                       if part.expr_points else None)
         for (tag, a), evs in groups.items():
             g = dsp.undb(calibration_db(part.inst, a))
             buf = _render_raw(part.inst, inst, evs, loop_len if tag == 'loop' else self.n_f,
                               seed=_seed(seed, tag, a), sustain_pedal=pedal,
-                              key_cents=part.opts.get('key_cents')) * g
+                              key_cents=part.opts.get('key_cents'), **lab) * g
             if tag == 'intro':
                 out += buf
             else:
@@ -345,9 +371,9 @@ class Renderer:
                     out[sh:sh + m] += buf[:m]
         # keep one cached version per part (the cache is only an iteration aid)
         prefix = f'{s.name}__{part.name}__'
-        for f in os.listdir(CACHE):
+        for f in os.listdir(self.cache):
             if f.startswith(prefix) and f != os.path.basename(path):
-                os.remove(os.path.join(CACHE, f))
+                os.remove(os.path.join(self.cache, f))
         np.save(path, out.astype(np.float16))
         return out
 
@@ -357,7 +383,8 @@ class Renderer:
         inst = INSTRUMENTS[part.inst]
         x = dry
         hpf = part.opts.get('hpf', inst.get('hpf', HPF_BY_BUS.get(inst.get('bus'), 30)))
-        if part.expr_points:
+        if part.expr_points and not inst.get('expr_cc'):
+            # (a lab instrument has already played the lane as its dynamics CC)
             lane = self._lane(part.expr_points, len(x))
             if inst.get('expr_tone') or part.opts.get('expr_tone'):
                 x = dsp.dynamic_tone(x, lane, amount=part.opts.get('tone_amount', 0.6))
