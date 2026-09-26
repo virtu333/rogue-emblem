@@ -68,6 +68,12 @@ export function isFragileUnit(unit) {
 
 const enemies = (n) => `${n} ${n === 1 ? 'enemy' : 'enemies'}`;
 
+/** "Garrick (Cavalier)" / "Garrick" / "The green unit": who the recruit note names. */
+function recruitWho(npc) {
+  if (!npc?.name) return 'The green unit';
+  return npc.className ? `${npc.name} (${npc.className})` : npc.name;
+}
+
 /** Copy for each note. `touch` picks the tap / key wording. */
 export function guidanceText(id, context = {}) {
   const { unit, commander, count = 0, touch = true, npc } = context;
@@ -91,7 +97,7 @@ export function guidanceText(id, context = {}) {
     case 'guide_commander_low_hp':
       return `${lord} is badly hurt. If ${lord} falls, the run ends. Pull back, heal with a staff, or use a Vulnerary from Item.`;
     case 'guide_recruit_on_map':
-      return `The green unit${npc?.name ? `, ${npc.name},` : ''} can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
+      return `${recruitWho(npc)} under the gold banner can join you. Move a Lord next to them and choose Talk before enemies reach them.`;
     case 'guide_convoy':
       return `Convoy is your army’s shared storage between battles. Units fight only with what they carry (${INVENTORY_MAX} weapons, ${CONSUMABLE_MAX} items). Store puts a carried item away; Withdraw hands it to the chosen unit.`;
     default:

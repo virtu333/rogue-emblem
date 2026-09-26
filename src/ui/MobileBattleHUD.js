@@ -68,6 +68,19 @@ function el(tag, className, text) {
   return node;
 }
 
+/**
+ * The action-menu command pinned in the fixed dock beside Danger, so it never needs a
+ * scroll: Wait, the most common command (playtest 4: a six-command menu pushed it below
+ * the fold at 844×390). Only the unit's own action menu pins it; submenus, the
+ * end-turn prompt and every other state keep the dock as it was. The command keeps its
+ * place in the menu's focus order (last, as on the desktop canvas menu), which is also
+ * where the dock sits: below the scrolling list.
+ */
+export function pinnedRailCommand(menu, { state, submenu = false, endTurnPending = false } = {}) {
+  if (state !== 'UNIT_ACTION_MENU' || submenu || endTurnPending || !menu?.items) return null;
+  return menu.items.find((item) => item?.label === 'Wait') || null;
+}
+
 // A view over BattleScene's existing actions. Combat calculations and move rules
 // remain in the scene/engine; this layer only owns DOM presentation and gestures.
 export class MobileBattleHUD {
@@ -790,7 +803,14 @@ export class MobileBattleHUD {
       }
     }
     const expanded = this.body.querySelector('.mb-battle-info')?.open || false;
-    const restoreMenuFocus = this.body.contains(document.activeElement);
+    const restoreMenuFocus =
+      this.body.contains(document.activeElement) ||
+      Boolean(this.menu?.items?.some((item) => item.domButton === document.activeElement));
+    const pinned = pinnedRailCommand(this.menu, {
+      state,
+      submenu: Boolean(s.inEquipMenu),
+      endTurnPending: Boolean(this.endTurnPending),
+    });
     // A new menu or state starts at the top (its primary action first); a
     // re-render of the same menu keeps the player's scroll position.
     const scrollKey = [
@@ -803,7 +823,7 @@ export class MobileBattleHUD {
     this._scrollKey = scrollKey;
     this.root.classList.toggle('has-unit', Boolean(unit));
     this.root.classList.toggle('in-menu', state === 'UNIT_ACTION_MENU' && Boolean(this.menu));
-    this.syncDock(state);
+    this.syncDock(state, pinned);
     queueMicrotask(() => {
       if (!this.body.isConnected) return;
       this.body.scrollTop = keepScroll;
@@ -955,41 +975,8 @@ export class MobileBattleHUD {
         this.body.append(el('p', 'mb-detail', 'Tap a blue tile to move.'));
       }
       const list = el('div', s.inEquipMenu ? 'mb-actions mb-submenu' : 'mb-actions');
-      for (const item of menu.items) {
-        // Canvas rows prefix the equipped weapon with "E "; show the badge instead.
-        const equippedRow =
-          Boolean(item.item) &&
-          item.item === menu.unit?.weapon &&
-          item.label.startsWith(EQUIPPED_MARKER);
-        const button = this.button(
-          equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
-          () => {
-            if (
-              this.menu !== menu ||
-              s.actionMenu !== menu.objects ||
-              s.selectedUnit !== menu.unit ||
-              s.battleState !== 'UNIT_ACTION_MENU' ||
-              item.disabled
-            )
-              return;
-            item.onActivate();
-          },
-          item.label === 'Attack' && !item.disabled ? 'mb-primary' : '',
-        );
-        if (equippedRow) button.append(equippedBadgeElement());
-        const description = item.description || battleItemSummary(item.item, menu.unit);
-        if (description) button.append(el('small', 'mb-item-summary', description));
-        button.disabled = item.disabled;
-        item.domButton = button;
-        button.addEventListener('focus', () => {
-          const index = s._menuFocus?.items.indexOf(item);
-          if (index >= 0) s._menuFocus.index = index;
-          for (const entry of menu.items) {
-            entry.domButton?.classList.toggle('mb-menu-focused', entry === item);
-          }
-        });
-        list.append(button);
-      }
+      // The pinned command (Wait) was built into the dock by syncDock.
+      for (const item of menu.items) if (item !== pinned) list.append(this.menuButton(menu, item));
       this.body.append(list);
       if (s._escapeController)
         this.body.append(
@@ -1150,15 +1137,65 @@ export class MobileBattleHUD {
     place(this.fadeBottom, below, body.offsetTop + body.clientHeight - 22);
   }
 
-  /** The fixed dock: Danger whenever a turn is being planned. */
-  syncDock(state) {
+  /** One action-menu command as a rail button (the list and the dock share it). */
+  menuButton(menu, item, className = '') {
+    const s = this.scene;
+    // Canvas rows prefix the equipped weapon with "E "; show the badge instead.
+    const equippedRow =
+      Boolean(item.item) &&
+      item.item === menu.unit?.weapon &&
+      item.label.startsWith(EQUIPPED_MARKER);
+    const button = this.button(
+      equippedRow ? item.label.slice(EQUIPPED_MARKER.length) : item.label,
+      () => {
+        if (
+          this.menu !== menu ||
+          s.actionMenu !== menu.objects ||
+          s.selectedUnit !== menu.unit ||
+          s.battleState !== 'UNIT_ACTION_MENU' ||
+          item.disabled
+        )
+          return;
+        item.onActivate();
+      },
+      [item.label === 'Attack' && !item.disabled ? 'mb-primary' : '', className]
+        .filter(Boolean)
+        .join(' '),
+    );
+    if (equippedRow) button.append(equippedBadgeElement());
+    const description = item.description || battleItemSummary(item.item, menu.unit);
+    if (description) button.append(el('small', 'mb-item-summary', description));
+    button.disabled = item.disabled;
+    item.domButton = button;
+    button.addEventListener('focus', () => {
+      const index = s._menuFocus?.items.indexOf(item);
+      if (index >= 0) s._menuFocus.index = index;
+      for (const entry of menu.items) {
+        entry.domButton?.classList.toggle('mb-menu-focused', entry === item);
+      }
+    });
+    return button;
+  }
+
+  /**
+   * The fixed dock: Danger whenever a turn is being planned. In a unit's action menu
+   * the pinned command (Wait) shares the row with a compact Danger, so the dock stays
+   * one row high and the scroll region keeps its height.
+   */
+  syncDock(state, pinned = null) {
     const s = this.scene;
     const planning =
       ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU'].includes(state) &&
       s.turnManager?.currentPhase !== 'enemy';
     this.dock.replaceChildren();
     this.dock.hidden = !planning;
-    if (planning) this.dock.append(this.dangerToggle({ viaEvent: state !== 'UNIT_ACTION_MENU' }));
+    const pin = planning && pinned && this.menu ? pinned : null;
+    this.dock.classList.toggle('has-pinned', Boolean(pin));
+    if (!planning) return;
+    if (pin) this.dock.append(this.menuButton(this.menu, pin, 'mb-pinned-command'));
+    this.dock.append(
+      this.dangerToggle({ compact: Boolean(pin), viaEvent: state !== 'UNIT_ACTION_MENU' }),
+    );
   }
 
   dangerToggle({ compact = false, viaEvent = false } = {}) {
@@ -1186,9 +1223,10 @@ export class MobileBattleHUD {
       const exposed = (s.playerUnits || []).filter(
         (u) => u.currentHP > 0 && tiles.has(`${u.col},${u.row}`),
       ).length;
-      state = `${exposed ? `${exposed} in reach` : 'None in reach'} · ${pinned ? 'hold to unpin' : 'hold to pin'}`;
-    } else state = 'Enemy reach · hold to pin';
-    if (compact) state = pinned ? 'Pinned' : shown ? 'Shown' : 'Hold to pin';
+      const reach = exposed ? `${exposed} in reach` : 'None in reach';
+      // Half a dock row (beside the pinned Wait): the reading, without the gesture.
+      state = compact ? reach : `${reach} · ${pinned ? 'hold to unpin' : 'hold to pin'}`;
+    } else state = compact ? 'Hold to pin' : 'Enemy reach · hold to pin';
     text.append(el('small', 'mb-hold-cue', state));
     button.append(swatch, text);
     return button;

@@ -1917,7 +1917,8 @@ export class BattleScene extends Phaser.Scene {
       this._atmosphere?.destroy();
       this._atmosphere = new AtmosphereController(this).create();
 
-      if (this.mobileCameraEnabled) {
+      // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
+      if (this.mobileCameraEnabled && !(this.npcUnits?.length > 0)) {
         const hints = this.registry.get('hints');
         if (hints && !hints.hasSeen('battle_mobile_camera')) {
           showContextualHint(
@@ -9447,6 +9448,10 @@ export class BattleScene extends Phaser.Scene {
               async () => {
                 if (!isSceneActiveForAsync() || this.battleState !== 'PLAYER_IDLE') return;
                 const objective = this.battleParams.objective;
+                // A recruit battle opens without a lesson dialog: the Guidance field
+                // note (guide_recruit_on_map) names the recruit, never blocks, and
+                // honours Guidance Off. Other first-battle lessons wait for a later fight.
+                if (this.npcUnits.length > 0) return;
                 if (objective === 'seize')
                   showContextualHint(
                     this,
@@ -9458,12 +9463,6 @@ export class BattleScene extends Phaser.Scene {
                     this,
                     'battle_escape',
                     'Escape: bring your Lords to the green exits. The surviving army retreats when the last Lord leaves.',
-                  );
-                else if (this.npcUnits.length > 0)
-                  showContextualHint(
-                    this,
-                    'battle_recruit',
-                    'Move a Lord beside the green recruit and choose Talk.',
                   );
                 else
                   showContextualHint(

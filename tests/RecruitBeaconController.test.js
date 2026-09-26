@@ -1,16 +1,33 @@
 // RecruitBeaconController: the recruit battle's banner follows scene.npcUnits and is
-// pure rendering (docs/specs/strategy-layer.md).
-import { describe, it, expect, vi } from 'vitest';
+// pure rendering (docs/specs/strategy-layer.md). It never opens a dialog: the recruit is
+// introduced by the Guidance field note guide_recruit_on_map (tests/Guidance.test.js).
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../src/ui/HintDisplay.js', () => ({ showMinorHint: vi.fn(() => Promise.resolve()) }));
+vi.mock('../src/ui/HintDisplay.js', () => ({
+  showMinorHint: vi.fn(() => Promise.resolve()),
+  showImportantHint: vi.fn(() => Promise.resolve(true)),
+  showContextualHint: vi.fn(() => false),
+}));
 
+import * as RecruitBeacon from '../src/ui/RecruitBeaconController.js';
 import {
   RecruitBeaconController,
   RECRUIT_BEACON_DEPTH,
   recruitObjectiveLine,
-  recruitIntroHint,
 } from '../src/ui/RecruitBeaconController.js';
-import { showMinorHint } from '../src/ui/HintDisplay.js';
+import { showContextualHint, showImportantHint, showMinorHint } from '../src/ui/HintDisplay.js';
+
+beforeEach(() => {
+  showMinorHint.mockClear();
+  showImportantHint.mockClear();
+  showContextualHint.mockClear();
+});
+
+const noHints = () => {
+  expect(showMinorHint).not.toHaveBeenCalled();
+  expect(showImportantHint).not.toHaveBeenCalled();
+  expect(showContextualHint).not.toHaveBeenCalled();
+};
 
 function displayObject(kind) {
   const obj = { kind, destroyed: false, depth: 0, name: '' };
@@ -56,7 +73,7 @@ const npc = (over = {}) => ({
 });
 
 describe('RecruitBeaconController', () => {
-  it('marks the recruit, names them in the objective and tells the player once', () => {
+  it('marks the recruit and names them in the objective, without opening a dialog', () => {
     const recruit = npc();
     const scene = makeScene([recruit]);
     const beacon = new RecruitBeaconController(scene);
@@ -68,8 +85,28 @@ describe('RecruitBeaconController', () => {
     expect(scene.add.text.mock.calls[0][2]).toBe('RECRUIT');
     expect(scene.updateObjectiveText).toHaveBeenCalledTimes(1);
     expect(beacon.getObjectiveSuffix()).toBe('Recruit: reach Garrick with a lord · Talk');
-    expect(showMinorHint).toHaveBeenCalledWith(scene, recruitIntroHint(recruit));
     expect(scene.tweens.add).toHaveBeenCalledTimes(1);
+    // Playtest 4: the old intro note was a >12-word minor hint, i.e. a modal "Field
+    // notes" dialog at the start of every recruit battle, even with helpers off.
+    noHints();
+    expect(RecruitBeacon.recruitIntroHint).toBeUndefined();
+  });
+
+  it('opens no dialog in any recruit battle: fresh, resumed, tutorial or repeated', () => {
+    for (const setup of [
+      () => {},
+      (s) => (s._resumeCheckpoint = {}),
+      (s) => (s.battleParams.tutorialMode = true),
+    ]) {
+      const scene = makeScene([npc()]);
+      setup(scene);
+      const beacon = new RecruitBeaconController(scene);
+      beacon.create();
+      beacon.sync();
+      beacon.destroy();
+      new RecruitBeaconController(scene).create(); // the next recruit battle
+    }
+    noHints();
   });
 
   it('follows the recruit and clears the moment they join or fall', () => {
@@ -91,12 +128,10 @@ describe('RecruitBeaconController', () => {
     expect(beacon.getObjectiveSuffix()).toBeNull();
   });
 
-  it('is silent on a resumed battle and draws nothing without a recruit', () => {
-    showMinorHint.mockClear();
+  it('still marks a resumed battle and draws nothing without a recruit', () => {
     const resumed = makeScene([npc()]);
     resumed._resumeCheckpoint = {};
     new RecruitBeaconController(resumed).create();
-    expect(showMinorHint).not.toHaveBeenCalled();
     expect(resumed.made.length).toBeGreaterThan(0);
 
     const empty = makeScene([]);
@@ -115,10 +150,10 @@ describe('RecruitBeaconController', () => {
     expect(scene.tweens.add).not.toHaveBeenCalled();
   });
 
-  it('builds the objective and hint lines from the recruit', () => {
+  it('builds the objective line from the recruit', () => {
     expect(recruitObjectiveLine(null)).toBeNull();
-    expect(recruitIntroHint(npc({ name: 'Ada', className: 'Mage' }))).toMatch(
-      /^Ada \(Mage\) holds out under the gold banner\./,
+    expect(recruitObjectiveLine(npc({ name: 'Ada' }))).toBe(
+      'Recruit: reach Ada with a lord · Talk',
     );
   });
 });

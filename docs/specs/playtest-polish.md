@@ -81,6 +81,63 @@ Pointer-only and ≥ 1100 px wide: the side pane is `clamp(204px, 18vw, 300px)` 
 fallback keep 184/204 px and the old sizes. Checked at 640×480, 1280×800, 1676×858 and
 1920×1080: no element leaves the pane, no page or card horizontal scroll.
 
+## Playtest 4 (phone, before TestFlight)
+
+Captures: [`art-direction/ux-polish/playtest-4/`](../art-direction/ux-polish/playtest-4/README.md).
+
+### Recruit battles open without a dialog
+
+"The recruit-battle intro note blocks play as a modal at the start of every recruit
+battle, even with contextual helpers turned off." `RecruitBeaconController.create()`
+called `showMinorHint(scene, recruitIntroHint(npc))` for every recruit battle that was not
+a resume or tutorial, with no once-per-slot id and no Guidance check; at 20 words
+`hintReadingPolicy` sends a minor hint through `showImportantHint`, a modal. Now:
+
+- The beacon only draws the banner/halo and names the recruit in the objective line; it
+  opens nothing.
+- The Guidance note `guide_recruit_on_map` carries the recruit-specific copy: "Garrick
+  (Cavalier) under the gold banner can join you. Move a Lord next to them and choose Talk
+  before enemies reach them." (was "The green unit, Garrick, can join you. Move a Lord next
+  to them and choose Talk before enemies reach them."). Non-blocking, once per save slot,
+  Full and Light, never Off (legacy `hints: false` loads as Off). It may name a recruit the
+  fog hides, since the banner shows through fog.
+- The `battle_recruit` toast ("Move a Lord beside the green recruit and choose Talk.") is
+  retired (the note says the same). A recruit battle also skips the other start-of-battle
+  lessons that render as dialogs (the pinch-zoom lesson and the turn-1 par / Rewind
+  lessons, each over 12 words); they wait for the next battle. Tutorial battles are
+  unchanged (no recruit, no Guidance notes).
+
+### Wait is always in view on the phone rail
+
+"On phones, Wait now sits below the fold in a six-command menu." With Guidance Full a unit
+with no target keeps a greyed Attack row, so a Dancer reads Attack / Shove / Pull / Trade /
+Swap / Wait, and at 844×390 the scroll region shows two and a half rows (one at 568×320).
+
+Options weighed: moving Wait second would fit but reorders the list against the canvas menu
+and the keyboard/gamepad order (arrow keys would jump back up to it); compacting the greyed
+Attack row saves at most one row and still loses Wait in a seven-command menu. Chosen:
+**Wait is pinned in the fixed dock** (`pinnedRailCommand`, `MobileBattleHUD.syncDock`),
+sharing Danger's row, so the dock stays one row and the scroll region keeps its height:
+
+- Only the unit's own action menu pins it (any length, so it never moves between menus);
+  equip/staff/art/ability pickers, the end-turn prompt and other states keep the dock as
+  before (full-width Danger).
+- Danger turns compact beside it: swatch, "Danger", and "Hold to pin" / "N in reach";
+  same name, pressed state, tap and hold-to-pin.
+- The list keeps the canvas order with the primary action first, the greyed Attack and its
+  reason, and "more ▾" for whatever still overflows.
+- Wait stays last in `_menuFocus` (the canvas menu is unchanged), which is where the dock
+  sits visually: Arrow Down from the last list command lands on Wait, then wraps. It is the
+  same menu item (`item.domButton`), so focus, `mb-menu-focused`, activation guards and the
+  accessible name "Wait" are unchanged. Focus on Wait survives re-renders.
+- The #93 "Choose a tile" / Cancel rail (UNIT_SELECTED) and the tutorial coach targets
+  (Attack, End turn) are untouched.
+
+Tests: `tests/MobileBattleRailPin.test.js`, `tests/e2e/mobile-battle-hud.spec.js` (six
+commands at 844×390, 667×375 and 568×320: Wait on screen with no scroll, others reachable,
+arrow order, tap), `tests/e2e/guidance-notes.spec.js` and `strategy-layer.spec.js` (recruit
+battle: no dialog; note on Full/Light, none on Off or legacy helpers-off; once per slot).
+
 ## Triangle forecast note (verification)
 
 The desktop read "Triangle advantage · −1 damage · +10 Hit". `triangleText` derives the

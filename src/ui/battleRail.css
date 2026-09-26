@@ -225,6 +225,23 @@
   min-height: var(--re-tap);
   padding: 4px 10px 4px 8px;
 }
+/* In a unit's action menu Wait is pinned here beside a compact Danger (playtest 4): one
+   row, so the scroll region above keeps its height and Wait never needs a scroll. */
+.mobile-battle-hud .mb-dock.has-pinned {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.battlefield-lab .mobile-battle-hud .mb-dock .mb-pinned-command {
+  padding-inline: 4px;
+  text-align: center;
+}
+.battlefield-lab .mobile-battle-hud .mb-dock .mb-danger-toggle.is-compact {
+  padding-inline: 6px;
+  gap: 6px;
+}
+.mobile-battle-hud .mb-dock .mb-danger-toggle.is-compact .mb-danger-text strong {
+  font-size: 13px;
+}
 
 /* ── Compact header while a unit is selected or inspected ─────────────────── */
 .battlefield-lab .mobile-battle-hud.has-unit .mb-terrain {

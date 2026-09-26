@@ -196,9 +196,19 @@ change.
 with a pixel `RECRUIT` label above the recruit and a slow verdigris halo on their tile,
 above the fog layer, from turn 1. It re-derives everything from `scene.npcUnits`, so
 Talk, a death, a rewind or a resume need no special cases. The objective panel names the
-recruit ("Recruit: reach Garrick with a lord · Talk") and a one-time field note says
-"Garrick (Cavalier) holds out under the gold banner. Reach them with a lord and choose
-Talk before the hunters do." It replaces the fog-only "?" marker.
+recruit ("Recruit: reach Garrick with a lord · Talk"). It replaces the fog-only "?" marker.
+
+The recruit is introduced by the Guidance field note `guide_recruit_on_map`
+(docs/specs/threat-and-onboarding.md): "Garrick (Cavalier) under the gold banner can join
+you. Move a Lord next to them and choose Talk before enemies reach them." It is
+non-blocking, once per save slot, shown on Full and Light and never on Off (legacy
+`hints: false` is Off), and it may name a recruit the fog hides because the banner already
+shows where they stand. The beacon itself opens nothing. (Until playtest 4 the beacon
+raised its own intro note, "Garrick (Cavalier) holds out under the gold banner. Reach them
+with a lord and choose Talk before the hunters do.", through `showMinorHint`; at 20 words
+it took the modal "Field notes" path, so it blocked the start of every recruit battle
+whatever the helper setting.) A recruit battle also skips the start-of-battle lessons that
+render as dialogs (pinch-zoom, par, Rewind); they wait for the next battle.
 
 ### 3b. A recruit's name is promised, and units are told apart by identity
 
