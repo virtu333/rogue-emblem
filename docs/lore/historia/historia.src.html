@@ -1,0 +1,1016 @@
+<title>Rogue Dawn Historia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Cinzel:wght@500;600;700;900&family=Homemade+Apple&family=Press+Start+2P&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --ink-0:#09070d; --ink-1:#100d16; --ink-2:#17131f; --ink-3:#211c2c; --rule:#352e42; --rule-soft:#241f2f;
+  --bone:#e8dcc5; --bone-2:#cbbda6; --dim:#9d917f; --faint:#6e6576;
+  --ember:#dca044; --ember-hi:#f3cb6c; --ember-lo:#80461f;
+  --blood:#b3303b; --blood-hi:#e0574c; --blood-lo:#44111c;
+  --verd:#6f9e79; --unlight:#9a5cc4; --unlight-lo:#2c1645; --steel:#77a5c6; --teal:#3f9189; --cream:#efe4cc;
+  --display:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --body:'Alegreya', Georgia, 'Times New Roman', serif;
+  --pixel:'Press Start 2P', ui-monospace, 'Courier New', monospace;
+  --hand:'Homemade Apple', 'Segoe Script', cursive;
+  --measure:66ch;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
+body{margin:0;background:var(--ink-0);color:var(--bone);font-family:var(--body);font-size:18px;line-height:1.62;
+  background-image:radial-gradient(ellipse 120% 60% at 50% -10%, #1d1426 0%, transparent 60%);}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:clamp(16px,4vw,48px)}
+a{color:var(--ember-hi);text-decoration-color:rgba(220,160,68,.4);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--ember-hi);outline-offset:3px;border-radius:2px}
+p{margin:0 0 1em;max-width:var(--measure)}
+em{color:var(--bone)}
+strong{color:var(--cream);font-weight:700}
+h1,h2,h3,h4{font-family:var(--display);font-weight:600;letter-spacing:.04em;color:var(--cream);text-wrap:balance;margin:0}
+.px{font-family:var(--pixel);font-size:9px;letter-spacing:.12em;line-height:1.8;text-transform:uppercase}
+.q{font-style:italic;color:var(--bone-2)}
+.q::before{content:"\201C"} .q::after{content:"\201D"}
+.src{font-family:var(--pixel);font-size:8px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:.35em}
+
+/* ——— tier tags ——— */
+.tag{display:inline-block;font-family:var(--pixel);font-size:7px;letter-spacing:.14em;padding:4px 6px 3px;border:1px solid;vertical-align:.3em;margin-left:.4em;line-height:1}
+.tag.l{color:var(--steel);border-color:rgba(119,165,198,.5)}
+.tag.s{color:var(--blood-hi);border-color:rgba(224,87,76,.5)}
+.tag.e{color:var(--ember);border-color:rgba(220,160,68,.5)}
+
+/* ——— nav ——— */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(9,7,13,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule-soft)}
+.nav .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:10px}
+.nav .wrap::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;font-family:var(--display);font-size:13px;letter-spacing:.08em;color:var(--dim);text-decoration:none;padding:6px 10px;border:1px solid transparent;white-space:nowrap}
+.nav a:hover{color:var(--ember-hi);border-color:var(--rule)}
+.nav a b{font-weight:700;color:var(--ember);margin-right:6px}
+
+/* ——— hero ——— */
+.hero{position:relative;padding-block:clamp(40px,7vw,90px) clamp(28px,5vw,60px);text-align:center;overflow:hidden}
+.hero svg.sun{width:min(460px,86vw);height:auto;display:block;margin:0 auto -8px;-webkit-mask-image:radial-gradient(ellipse 62% 72% at 50% 56%,#000 58%,transparent 100%);mask-image:radial-gradient(ellipse 62% 72% at 50% 56%,#000 58%,transparent 100%)}
+.corona{transform-origin:200px 170px;animation:breathe 9s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.025)}}
+.hero .kicker{color:var(--ember);margin-bottom:14px}
+.hero h1{font-size:clamp(46px,9vw,108px);font-weight:900;letter-spacing:.14em;line-height:1;background:linear-gradient(180deg,#fff0bd 0%,#dca044 55%,#80461f 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{font-family:var(--display);font-size:clamp(15px,2.2vw,20px);letter-spacing:.3em;color:var(--bone-2);margin-top:14px;text-transform:uppercase}
+.hairline{display:flex;align-items:center;gap:12px;justify-content:center;margin:26px auto;max-width:420px;color:var(--ember)}
+.hairline::before,.hairline::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--ember))}
+.hairline::after{background:linear-gradient(90deg,var(--ember),transparent)}
+.hairline span{width:7px;height:7px;transform:rotate(45deg);background:var(--ember)}
+.epigraph{font-size:clamp(19px,2.4vw,24px);font-style:italic;color:var(--bone);max-width:36ch;margin:0 auto}
+.epigraph cite{display:block;font-style:normal;margin-top:10px}
+
+/* ——— contents ——— */
+.contents{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin-block:24px 8px}
+.contents a{display:grid;grid-template-columns:56px 1fr;gap:4px 12px;padding:16px 12px;text-decoration:none;border-bottom:1px solid var(--rule-soft);color:var(--bone)}
+.contents a:hover{background:var(--ink-1)}
+.contents .num{grid-row:span 2;font-family:var(--display);font-size:28px;color:var(--ember);line-height:1;text-align:right;padding-top:2px}
+.contents .t{font-family:var(--display);font-size:17px;letter-spacing:.06em;color:var(--cream)}
+.contents .d{font-size:15px;color:var(--dim);line-height:1.4}
+
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:18px;margin-block:30px 10px}
+.howto div{border-left:1px solid var(--rule);padding-left:14px;font-size:16px;color:var(--bone-2)}
+.howto div p{margin:6px 0 0}
+
+/* ——— chapter plates (generated, PC-98 treated) ——— */
+.plate-art{margin:0 0 38px;position:relative}
+.plate-art img{display:block;width:100%;height:auto;aspect-ratio:640/272;image-rendering:pixelated;border:1px solid var(--rule)}
+.plate-art figcaption{font-style:italic;font-size:15px;color:var(--dim);margin-top:10px;max-width:70ch}
+.plate-art figcaption::before{content:"Plate · ";font-style:normal;font-family:var(--pixel);font-size:7px;letter-spacing:.14em;color:var(--ember)}
+
+/* ——— chapters ——— */
+.chapter{padding-block:clamp(56px,8vw,110px) 0}
+.ch-head{display:grid;grid-template-columns:auto 1fr;gap:6px 22px;align-items:end;border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:34px}
+.ch-num{grid-row:span 2;font-family:var(--display);font-weight:900;font-size:clamp(64px,11vw,128px);line-height:.8;color:transparent;-webkit-text-stroke:1px var(--ember);opacity:.9}
+.ch-head .px{color:var(--ember)}
+.ch-head h2{font-size:clamp(28px,4.4vw,48px);letter-spacing:.08em}
+.lede{font-size:clamp(19px,2.2vw,22px);color:var(--bone);max-width:60ch;margin-bottom:34px}
+.sect{margin-block:44px}
+.sect h3{font-size:clamp(20px,2.6vw,26px);margin-bottom:14px;display:flex;align-items:baseline;gap:12px}
+.sect h3 .px{color:var(--faint);font-size:8px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:28px 44px}
+.pull{border-left:2px solid var(--ember);padding:4px 0 4px 18px;margin:22px 0;font-size:clamp(20px,2.4vw,24px);color:var(--cream);font-style:italic;max-width:48ch}
+
+/* names table */
+.ledger{width:100%;border-collapse:collapse;font-size:16px}
+.tbl{overflow-x:auto}
+.ledger th{font-family:var(--pixel);font-size:8px;letter-spacing:.12em;color:var(--dim);font-weight:400;text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule)}
+.ledger td{padding:12px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+.ledger td:first-child{font-family:var(--display);color:var(--cream);white-space:nowrap}
+
+/* verbs */
+.verbs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:1px;background:var(--rule-soft);border:1px solid var(--rule-soft)}
+.verbs div{background:var(--ink-1);padding:18px}
+.verbs h4{font-size:15px;letter-spacing:.14em;margin-bottom:6px}
+.verbs p{font-size:16px;color:var(--bone-2);margin:0}
+.v-keep h4{color:var(--ember-hi)} .v-spend h4{color:var(--steel)} .v-feed h4{color:var(--blood-hi)} .v-unmake h4{color:var(--unlight)}
+
+/* eclipse strip */
+.eclipse{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:22px 0 8px;max-width:720px}
+.eclipse figure{margin:0;text-align:center}
+.eclipse svg{width:100%;max-width:96px;height:auto}
+.eclipse figcaption{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--bone-2)}
+.eclipse figcaption small{display:block;font-family:var(--pixel);font-size:7px;color:var(--faint);margin-top:4px}
+
+/* swatches */
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px}
+.sw{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;font-size:15px;color:var(--bone-2);line-height:1.45}
+.sw i{width:44px;height:44px;display:block;border:1px solid rgba(255,255,255,.08)}
+.sw b{display:block;font-family:var(--display);color:var(--cream);font-weight:600;letter-spacing:.05em;font-size:15px}
+
+/* motifs */
+.motifs{display:grid;gap:0;border-top:1px solid var(--rule-soft)}
+.motif{display:grid;grid-template-columns:minmax(120px,190px) minmax(90px,130px) 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--rule-soft);align-items:baseline}
+.motif .nm{font-family:var(--display);color:var(--cream)}
+.motif .nt{font-family:var(--pixel);font-size:8px;color:var(--ember)}
+.motif p{margin:0;font-size:16px;color:var(--bone-2)}
+@media (max-width:640px){.motif{grid-template-columns:1fr}}
+
+/* timeline */
+.era{margin-top:48px}
+.era-h{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.era-h h3{font-size:clamp(18px,2.2vw,22px);letter-spacing:.14em;text-transform:uppercase;color:var(--ember)}
+.era-h::after{content:"";flex:1;height:1px;background:var(--rule)}
+.tl{position:relative;padding-left:34px;margin-left:8px}
+.tl::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--ember-hi),var(--ember) 40%,var(--ember-lo));box-shadow:0 0 10px rgba(220,160,68,.35)}
+.ev{position:relative;display:grid;grid-template-columns:minmax(96px,150px) 1fr;gap:4px 22px;padding:14px 0}
+.ev::before{content:"";position:absolute;left:-31px;top:21px;width:9px;height:9px;border:2px solid var(--ember);background:var(--ink-0);transform:rotate(45deg)}
+.ev.big::before{background:var(--ember);box-shadow:0 0 12px var(--ember)}
+.ev.cut::before{border-color:var(--blood-hi);background:var(--blood-lo)}
+.ev .dt{font-family:var(--pixel);font-size:9px;color:var(--ember-hi);padding-top:6px;line-height:1.7}
+.ev .dt small{display:block;color:var(--faint);font-size:7px}
+.ev h4{font-size:18px;letter-spacing:.05em;margin-bottom:4px}
+.ev p{margin:0;font-size:16.5px;color:var(--bone-2)}
+@media (max-width:560px){.ev{grid-template-columns:1fr}.ev .dt{padding-top:0}}
+
+/* map */
+.mapbox{position:relative;border:1px solid var(--rule);background:#0d0b12;margin-bottom:10px}
+.mapbox svg{display:block;width:100%;height:auto}
+.maptools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.btn{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink-0);background:var(--ember);border:0;padding:10px 16px;cursor:pointer;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.btn:hover{background:var(--ember-hi)}
+.btn.ghost{background:transparent;color:var(--ember-hi);border:1px solid var(--ember);clip-path:none}
+.btn.ghost:hover{background:rgba(220,160,68,.12)}
+.sleeper{opacity:0;transition:opacity 1.6s ease}
+.mapbox.pickets .sleeper{opacity:1}
+.mapbox.pickets .labels-minor{opacity:.35;transition:opacity 1.2s}
+.gradient-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin:24px 0 8px}
+.gradient-bar div{padding:10px 10px 12px;background:var(--ink-1);border-top:3px solid}
+.gradient-bar b{display:block;font-family:var(--display);font-size:14px;color:var(--cream);letter-spacing:.05em}
+.gradient-bar span{font-size:14px;color:var(--dim);line-height:1.35;display:block;margin-top:4px}
+@media (max-width:700px){.gradient-bar{grid-template-columns:1fr 1fr}}
+
+/* acts */
+.acts{display:grid;gap:22px}
+.act{display:grid;grid-template-columns:minmax(200px,280px) 1fr;border:1px solid var(--rule-soft);background:var(--ink-1)}
+.act .plate{position:relative;padding:22px;min-height:220px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.act .plate .px{color:rgba(255,255,255,.75)}
+.act .plate h3{font-size:24px;letter-spacing:.08em;color:#fff7e6;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.act .plate .grade{font-family:var(--display);font-style:italic;font-size:15px;color:rgba(255,240,210,.85)}
+.act .body{padding:22px 26px}
+.act .body p{font-size:16.5px;color:var(--bone-2)}
+.act dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:14px 0 0;font-size:15px}
+.act dt{font-family:var(--pixel);font-size:7px;color:var(--faint);padding-top:5px;letter-spacing:.12em}
+.act dd{margin:0;color:var(--bone-2)}
+@media (max-width:720px){.act{grid-template-columns:1fr}.act .plate{min-height:140px}}
+
+/* powers */
+.powers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.power{border:1px solid var(--rule-soft);background:var(--ink-1);padding:20px 22px;display:flex;flex-direction:column;gap:8px}
+.power h4{font-size:18px}
+.power .motto{font-style:italic;color:var(--dim);font-size:15px}
+.power p{margin:0;font-size:16px;color:var(--bone-2)}
+.chip{align-self:flex-start;font-family:var(--pixel);font-size:7px;letter-spacing:.14em;padding:5px 7px 4px;border:1px solid}
+.chip.keep{color:var(--ember-hi);border-color:rgba(243,203,108,.5)}
+.chip.spend{color:var(--steel);border-color:rgba(119,165,198,.5)}
+.chip.feed{color:var(--blood-hi);border-color:rgba(224,87,76,.5)}
+
+/* people */
+.people{display:grid;gap:26px}
+.person{display:grid;grid-template-columns:192px 1fr;gap:26px;padding:26px;border:1px solid var(--rule-soft);background:linear-gradient(90deg,var(--ink-1),var(--ink-0))}
+.portrait{position:relative;width:192px;align-self:start;display:grid;gap:14px}
+.portrait img{width:192px;height:192px;image-rendering:pixelated;display:block;border:1px solid var(--rule)}
+.promo{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}
+.promo .fig{width:96px;height:96px;background-size:96px 96px;image-rendering:pixelated;border:1px solid var(--rule)}
+.promo .fig img{width:96px;height:96px;border:0}
+.promo span{font-family:var(--pixel);font-size:7px;letter-spacing:.12em;color:var(--dim);line-height:1.9}
+.portrait::after{content:"";position:absolute;left:-6px;top:-6px;width:204px;height:204px;border:1px solid rgba(220,160,68,.35);pointer-events:none}
+.person.foe .portrait::after{border-color:rgba(224,87,76,.35)}
+.person .meta{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin-bottom:6px}
+.person h3{font-size:clamp(24px,3vw,32px);letter-spacing:.06em}
+.person .cls{font-family:var(--pixel);font-size:8px;color:var(--dim)}
+.person .epi{font-family:var(--display);font-style:italic;color:var(--blood-hi);font-size:16px;margin:-2px 0 10px}
+.person p{font-size:16.5px;color:var(--bone-2)}
+.person .said{border-left:1px solid var(--ember);padding-left:12px;margin:14px 0;font-style:italic;color:var(--bone);font-size:16.5px;max-width:60ch}
+.person .secret{font-size:15.5px;color:var(--bone-2);background:rgba(119,165,198,.06);border:1px solid rgba(119,165,198,.18);padding:10px 14px;max-width:62ch}
+@media (max-width:640px){.person{grid-template-columns:1fr;padding:18px}}
+
+/* name return */
+.namebox{margin-top:16px;border-top:1px dashed var(--rule);padding-top:14px;display:grid;gap:10px}
+.namebox .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.namebox .lbl{font-family:var(--pixel);font-size:8px;color:var(--faint);letter-spacing:.12em}
+.namebox .nm{font-family:var(--display);font-size:22px;letter-spacing:.2em;color:var(--faint)}
+.namebox.open .nm{color:var(--ember-hi);text-shadow:0 0 16px rgba(243,203,108,.45)}
+.namebox .ret{display:none;font-style:italic;color:var(--bone);font-size:16px;max-width:60ch}
+.namebox.open .ret{display:block;animation:rise .9s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.namebox .how{font-size:14px;color:var(--dim)}
+
+/* bestiary */
+.beasts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px}
+.beast{display:grid;grid-template-columns:96px 1fr;gap:16px;padding:18px;border:1px solid var(--rule-soft);background:var(--ink-1)}
+.beast img{width:96px;height:96px;image-rendering:pixelated;border:1px solid var(--rule)}
+.beast .noimg{width:88px;height:88px;border:1px solid var(--rule);display:grid;place-items:center;font-family:var(--display);color:var(--unlight);font-size:26px;letter-spacing:.2em;background:radial-gradient(circle,var(--unlight-lo),#07050b 70%)}
+.beast h4{font-size:17px;margin-bottom:4px}
+.beast p{margin:0;font-size:15.5px;color:var(--bone-2)}
+
+/* relics */
+.relics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:0 36px}
+.relic{padding:16px 0;border-bottom:1px solid var(--rule-soft)}
+.relic h4{font-size:17px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.relic h4 .px{color:var(--faint);font-size:7px}
+.relic .q{font-size:15.5px;display:block;margin:4px 0 6px}
+.relic p{margin:0;font-size:15.5px;color:var(--bone-2)}
+
+/* documents */
+.docs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:26px;align-items:start}
+.doc{position:relative;padding:26px 26px 22px;font-size:16.5px}
+.doc .dh{font-family:var(--pixel);font-size:8px;letter-spacing:.14em;margin-bottom:14px;display:block}
+.doc p{margin:0 0 .6em}
+.doc.vellum{background:linear-gradient(160deg,#efe2c6,#d9c7a2);color:#2a1d10;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.doc.vellum .dh{color:#7a4b1c}
+.doc.vellum em{color:#2a1d10}
+.doc.vellum .oath{font-family:var(--display);font-size:clamp(17px,2vw,20px);line-height:1.55;font-weight:600;letter-spacing:.03em}
+.doc.vellum .oath span{display:block}
+.doc.vellum .oath .struck{color:#8b2a22}
+.doc.edict{background:#1a0f12;border:1px solid var(--blood);color:var(--bone)}
+.doc.edict .dh{color:var(--blood-hi)}
+.doc.edict .caps{font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;font-size:15px;line-height:1.6}
+.stamp{position:absolute;right:18px;top:16px;width:58px;height:58px;border-radius:50%;border:2px solid var(--blood-hi);display:grid;place-items:center;transform:rotate(-12deg);opacity:.8}
+.stamp::after{content:"";width:26px;height:26px;border-radius:50%;border:2px solid var(--blood-hi)}
+.doc.page{background:var(--ink-2);border:1px solid var(--rule)}
+.doc.page .dh{color:var(--ember)}
+.doc.page .marg{font-family:var(--hand);font-size:13px;color:var(--blood-hi);display:block;margin:-2px 0 10px 18px;line-height:1.9;transform:rotate(-1deg)}
+.doc.page .cut{color:var(--dim)}
+.doc.page .cut::after{content:"";display:inline-block;width:40%;border-bottom:1px dashed var(--faint);margin-left:6px}
+.doc.ledgerdoc{background:#171a14;border:1px solid #2d3a2a;color:#d7dcc8}
+.doc.ledgerdoc .dh{color:var(--verd)}
+.doc.ledgerdoc .hand{font-family:var(--hand);font-size:14px;line-height:2.1}
+.doc.ledgerdoc .living{color:var(--dim)}
+.doc.verse{border-left:2px solid var(--ember);padding-left:22px}
+.doc.verse .dh{color:var(--ember)}
+.doc.verse p{font-style:italic;color:var(--bone)}
+.doc.plain{background:var(--ink-1);border:1px solid var(--rule-soft)}
+.doc.plain .dh{color:var(--dim)}
+.doc .note{font-size:14px;color:var(--dim);font-style:normal;margin-top:10px}
+.doc.vellum .note{color:#6b5638}
+.graffiti{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:14px}
+.graffiti div{border:1px solid var(--rule-soft);padding:14px;background:#0e0c11}
+.graffiti b{display:block;font-family:var(--display);letter-spacing:.12em;color:var(--cream);font-size:15px}
+.graffiti span{font-family:var(--pixel);font-size:7px;color:var(--faint);letter-spacing:.1em}
+
+/* seals */
+.seals{display:grid;gap:14px}
+.seal{border:1px solid var(--rule-soft);background:var(--ink-1)}
+.seal button{all:unset;cursor:pointer;display:grid;grid-template-columns:54px 1fr auto;gap:16px;align-items:center;padding:16px 18px;width:100%;box-sizing:border-box}
+.seal button:focus-visible{outline:2px solid var(--ember-hi);outline-offset:-2px}
+.wax{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e0574c,#8e1f2a 60%,#4d0f18);box-shadow:inset 0 -3px 6px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.5);display:grid;place-items:center;transition:transform .5s}
+.wax::after{content:"";width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,220,200,.45)}
+.seal .st{font-family:var(--display);font-size:17px;color:var(--cream);letter-spacing:.04em}
+.seal .kind{font-family:var(--pixel);font-size:7px;color:var(--faint)}
+.seal .body{display:none;padding:0 22px 20px 88px;color:var(--bone-2);font-size:16.5px}
+.seal.open .body{display:block;animation:rise .8s ease both}
+.seal.open .wax{transform:rotate(25deg) scale(.9);filter:grayscale(.4) brightness(.8)}
+@media (max-width:560px){.seal .body{padding-left:22px}}
+
+.colophon{margin-top:110px;padding-block:40px 70px;border-top:1px solid var(--rule);text-align:center;color:var(--dim);font-size:15px}
+.colophon p{margin:0 auto 8px}
+.colophon code{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--bone-2)}
+</style>
+
+<nav class="nav" aria-label="Chapters"><div class="wrap">
+  <a href="#world"><b>I</b>The World</a>
+  <a href="#chronicle"><b>II</b>Chronicle</a>
+  <a href="#realm"><b>III</b>The Realm</a>
+  <a href="#powers"><b>IV</b>Powers</a>
+  <a href="#march"><b>V</b>The March</a>
+  <a href="#titled"><b>VI</b>The Titled</a>
+  <a href="#bestiary"><b>VII</b>Bestiary &amp; Relics</a>
+  <a href="#texts"><b>VIII</b>Found Texts</a>
+  <a href="#sealed"><b>IX</b>Sealed</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <svg class="sun" viewBox="0 0 400 300" role="img" aria-label="The Hollow Sun: a black disc with a thin gold corona over a ruined keep, gold threads falling to a lone figure">
+    <defs>
+      <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#f3cb6c" stop-opacity=".0"/>
+        <stop offset=".52" stop-color="#f3cb6c" stop-opacity=".0"/>
+        <stop offset=".6" stop-color="#fff0bd" stop-opacity=".95"/>
+        <stop offset=".68" stop-color="#dca044" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#80461f" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1d1426" stop-opacity="0"/>
+        <stop offset=".75" stop-color="#3a1b24" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#09070d" stop-opacity="1"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="300" fill="url(#sky)"/>
+    <g class="corona"><circle cx="200" cy="170" r="118" fill="url(#glow)"/></g>
+    <circle cx="200" cy="170" r="64" fill="#07060b"/>
+    <circle cx="246" cy="124" r="3.2" fill="#fff0bd"/>
+    <g stroke="#f3cb6c" stroke-width=".9" fill="none" opacity=".75">
+      <path d="M246 124 C 262 190, 250 230, 214 262"/>
+      <path d="M246 124 C 238 186, 230 226, 214 262"/>
+      <path d="M246 124 C 286 170, 262 232, 214 262"/>
+      <path d="M246 124 C 300 150, 330 200, 318 244" stroke-dasharray="2 3" opacity=".6"/>
+    </g>
+    <path d="M0 262 L60 250 L78 222 L84 222 L84 206 L98 206 L98 196 L108 196 L112 226 L126 232 L150 244 L190 262 L214 256 L240 268 L400 262 L400 300 L0 300 Z" fill="#0b0910"/>
+    <path d="M76 206 L76 176 L82 170 L90 180 L90 206 Z" fill="#0b0910"/>
+    <path d="M211 262 L213 244 L216 240 L219 244 L221 262 Z" fill="#0b0910"/>
+    <path d="M205 262 L208 236 L210 262 Z" fill="#0b0910"/>
+    <line x1="203" y1="238" x2="214" y2="262" stroke="#0b0910" stroke-width="2"/>
+  </svg>
+  <div class="px kicker">Rogue Dawn · the world bible</div>
+  <h1>HISTORIA</h1>
+  <div class="sub">The Hollow Sun and what lies beneath it</div>
+  <div class="hairline" aria-hidden="true"><span></span></div>
+  <p class="epigraph">The goddess's name was not forgotten; it was spent.<cite class="px" style="color:var(--faint)">Goddess Icon · item lore</cite></p>
+
+  <div class="contents" style="text-align:left">
+    <a href="#world"><span class="num">I</span><span class="t">The World</span><span class="d">The Stillness, the Dawn, and the physics of names</span></a>
+    <a href="#chronicle"><span class="num">II</span><span class="t">The Chronicle</span><span class="d">From the Starfall to the night before the March</span></a>
+    <a href="#realm"><span class="num">III</span><span class="t">The Realm</span><span class="d">The land, west to east, and what it looks like from the far pickets</span></a>
+    <a href="#powers"><span class="num">IV</span><span class="t">Powers</span><span class="d">Who keeps names, who spends them, who feeds them</span></a>
+    <a href="#march"><span class="num">V</span><span class="t">The March</span><span class="d">The seven lords, before they were lords</span></a>
+    <a href="#titled"><span class="num">VI</span><span class="t">The Titled</span><span class="d">Every boss, and the name under the title</span></a>
+    <a href="#bestiary"><span class="num">VII</span><span class="t">Bestiary &amp; Relics</span><span class="d">What you fight, and where the legendary arms came from</span></a>
+    <a href="#texts"><span class="num">VIII</span><span class="t">Found Texts</span><span class="d">The Oath, the liturgy, edicts, rhymes and a warden's ledger</span></a>
+    <a href="#sealed"><span class="num">IX</span><span class="t">Sealed</span><span class="d">What nobody in the world knows whole</span></a>
+  </div>
+
+  <div class="howto" style="text-align:left">
+    <div><span class="px" style="color:var(--bone)">Common</span><p>Unmarked text is what soldiers, merchants and villagers know.</p></div>
+    <div><span class="tag l" style="margin:0">LEARNED</span><p>Known to seers, the court circle, old wardens and chroniclers. Appears in relic lore and rare lines.</p></div>
+    <div><span class="tag s" style="margin:0">SEALED</span><p>True, and never stated in the game. Behind a seal in chapter IX. Break them if you want the whole picture.</p></div>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<!-- ═══════════ I · THE WORLD ═══════════ -->
+<section class="chapter" id="world">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">I</div><div class="px">Chapter one</div><h2>The World</h2></div>
+<figure class="plate-art"><img src="{{ASSET:docs/lore/historia/art/spending.png}}" alt="The Spending, as the fen painters tell it: she kneels, the Glass opens, the dragons lie down, and her change falls from the sky."><figcaption>The Spending, as the fen painters tell it: she kneels, the Glass opens, the dragons lie down, and her change falls from the sky.</figcaption></figure>
+  <p class="lede">Before anything happened there was a stillness with no <em>after</em> in it. It is still there, under the land. Everything in this book is about what has been done, for thousands of years, to keep it asleep.</p>
+
+  <div class="cols">
+    <div class="sect" style="margin-top:0">
+      <h3>The Stillness</h3>
+      <p>The liturgy's first page: <span class="q">Before her, nothing came next.</span> That condition had weight and extent. It is the world as it is when nothing happens to it, and it lies beneath the land the way bedrock lies beneath soil. It is not a creature and not a god. When it stirs, the world near it loses its <em>after</em>: water stops flowing, the dead stop staying down, futures stop branching. People call that the corruption.</p>
+      <p>Common folk call it <strong>the Sleeper</strong>. The court circle's clerks call it <strong>the Entity</strong>. The liturgy leaves a blank where its name would go, because nobody knows what naming it would do.</p>
+    </div>
+    <div class="sect" style="margin-top:0">
+      <h3>The Dawn</h3>
+      <p>Something answered the Stillness, and the answer was the first morning. The faith calls her <strong>the Dawn</strong>; seers call her <strong>the Weaver</strong>; imperial clerks, when they must, say <strong>the Spent</strong>.</p>
+      <p>She laid time over the Stillness like weft across warp, so that one thing could follow another. She named the dragons first, then fire and wind and thunder, then rivers and people. Her words are the Old Tongue. A mage saying the fire-word, or a dragon breathing, is speaking it.</p>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>The Spending</h3>
+    <div class="cols">
+      <div>
+        <p>The Sleeper turned over for the first time. The cloth tore, mountains opened, and new-named things began to forget themselves. She could not fight the ground her cloth lay on, so she did the one thing a name can do against something that has none. She <strong>spent</strong> it.</p>
+        <p>She knelt in the lowland where the fens are now and paid her name out into the world, down to the last syllable. The ground opened where she knelt and filled with black, perfectly still water: <strong>the Glass</strong>. Her first-named, the dragons, lay down around it, and over the ages their spines became the standing stones of <strong>the Hallow</strong>. That night the stars seemed to fall. Folk remember it as <strong>the Starfall</strong>. The next morning the sun rose hollow.</p>
+      </div>
+      <div>
+        <p class="pull">Every name anyone has carried since is part of her change.</p>
+        <p>A spent coin does not vanish; it goes into other hands. A child named at a roadside shrine is given a little of it. A river that people keep calling by its name keeps its share. While the world is full of names that are held and spoken, it is full of <em>after</em>, and the Sleeper stays asleep. The seers enjoyed the pun: the Sleeper is the world with no change in it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Names <span class="px">the physics of the world</span></h3>
+    <p>This is why the game has so few proper nouns. It is a world running out of names. The old kingdom is "the old kingdom" because its name was spent. Every boss is only a title because imperial officers surrender their names on commission. Proper names grow commoner the farther you are from the Sleeper: the border still names its rivers, and the Seat names nothing.</p>
+    <div class="verbs" style="margin-top:18px">
+      <div class="v-keep"><h4>Kept</h4><p>Held, spoken, remembered. Shrines keep children's names for a copper. Wardens keep ledgers of the dead. Smiths strike names into iron. Soldiers give each other epithets, and an epithet makes a name heavier and harder to take.</p></div>
+      <div class="v-spend"><h4>Spent</h4><p>Given up by its holder, to buy something. The Dawn bought sleep. The old kings bought quiet at the Hearthstone. The berserk school's pupils buy fearlessness, and forget themselves.</p></div>
+      <div class="v-feed"><h4>Fed</h4><p>Taken from someone else and given to the Sleeper. It gives power back to whoever feeds it. This is the empire's whole art, and the one thing the Oath at the Ford forbade.</p></div>
+      <div class="v-unmake"><h4>Unmade</h4><p>Thinned by the Sleeper's nearness. Prayer boards go blank; mile markers wear smooth; the seers' notes stop mid-sentence.</p></div>
+    </div>
+    <p style="margin-top:18px">An <strong>oath</strong> is sworn <em>by</em> a name. If the name goes, the oath breaks. That is what happened on the Unsworn Night, and it is why the empire runs on drill: <span class="q">The empire kept the drills and dropped the oaths.</span></p>
+  </div>
+
+  <div class="sect">
+    <h3>The Hollow Sun and the Eclipse</h3>
+    <div class="cols">
+      <div>
+        <p>The sun has been hollow since the Starfall: a black disc where her name used to shine, and a thin gold corona. The corona is the light of every name still held, seen from far away. Border folk call it <strong>the rim</strong>; old books call it <strong>the sun's crown</strong>, which is why the kings wore gold.</p>
+        <p>When names thin, the corona thins. The land has lived in a long dusk since the empire began feeding it. Only the Hearth and the Deep have true night.</p>
+      </div>
+      <div>
+        <p><strong>The Eclipse</strong>, the ink disc crossing the sun during a run, is the court circle at work <span class="tag l">LEARNED</span>. While the warband is in the field, cantors at the Hearthstone read names from the imperial Roll into the dark, around the clock. The disc is the Roll's ink. An officer's name flares back into the corona when he dies. Kindling a chapel is the Vigil of Lamps: a lamp lit and a book of names read aloud.</p>
+      </div>
+    </div>
+    <div class="eclipse" aria-label="The five phases of the Eclipse">
+      <figure><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#f3cb6c" stroke-width="5" opacity=".9"/><circle cx="50" cy="50" r="33" fill="#07060b"/><circle cx="118" cy="50" r="36" fill="#1a1622"/></svg><figcaption>Pale<small>0–24</small></figcaption></figure>
+      <figure><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#f3cb6c" stroke-width="5" opacity=".9"/><circle cx="50" cy="50" r="33" fill="#07060b"/><circle cx="96" cy="50" r="36" fill="#1a1622"/></svg><figcaption>Waning<small>25–49</small></figcaption></figure>
+      <figure><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#dca044" stroke-width="4" opacity=".8"/><circle cx="50" cy="50" r="33" fill="#07060b"/><circle cx="76" cy="50" r="38" fill="#1a1622"/></svg><figcaption>Umbral<small>50–74</small></figcaption></figure>
+      <figure><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#b3702c" stroke-width="3" opacity=".7"/><circle cx="50" cy="50" r="33" fill="#07060b"/><circle cx="60" cy="50" r="40" fill="#1a1622"/></svg><figcaption>Totality<small>75–99</small></figcaption></figure>
+      <figure><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="#4a2270" stroke-width="2"/><circle cx="50" cy="50" r="42" fill="#1a1622"/></svg><figcaption>Hollow<small>100</small></figcaption></figure>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>The Hallow and the Hearth</h3>
+    <div class="cols">
+      <div><p>The Sleeper is vast, and the whole old kingdom lies on it. It comes nearest the surface in two places. At <strong>the Hallow</strong>, in the fens, it breathes: the water rises and falls with it. Under <strong>the Hearth</strong>, a mountain to the east whose stone is warm all year, its heart beats. The old kings found a hall there, the <strong>Hearthstone</strong>, and each went down once, at his crowning, to spend his name.</p></div>
+      <div><p>The two openings meet underground. Whoever goes down through the Glass and lives comes up on a landing of the old kings' coronation stair, beneath the mountain <span class="tag l">LEARNED</span>. The Lieutenant lives there. From high enough, only the sky legions ever flew that high, the rivers, fens and ridges draw the outline of something asleep on its side. The empire disbanded the legions and kept their charts.</p></div>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>The Thread</h3>
+    <div class="cols">
+      <div><p>One thing of hers was not spent: her <strong>sight</strong> along the weave. It stayed where she knelt, in the Glass. The first seers found it and called it <strong>the Thread</strong>. One seer holds it at a time. Sera holds it now, and she is the last.</p>
+      <p>A run is one thread of the March of the year 34 of the Seat. If the commander falls, the thread is cut, and Sera begins again from the one point her sight can always reach: the night before the March, at the fire by the Ford. That fire is home base. It burns from the last ember of the old kings' Hearth.</p></div>
+      <div><p>A cut thread falls into the Sleeper, which keeps everything. Its memories seep upward, and they seep most into the people nearest it:</p>
+      <table class="ledger"><tbody>
+        <tr><td>Soldiers</td><td>Déjà vu, rarely. <span class="q">Why do I always remember the crow?</span></td></tr>
+        <tr><td>Border bosses</td><td>Dreams. <span class="q">From a dream where I died.</span></td></tr>
+        <tr><td>Imperial officers</td><td>Nightmares they call faith, or, for the Archmage, data.</td></tr>
+        <tr><td>The Lieutenant</td><td>Every cut thread, from underneath.</td></tr>
+        <tr><td>Hagen</td><td>Everything. He finds it good for business.</td></tr>
+      </tbody></table>
+      <p style="margin-top:12px">One thread that holds does not hold the Sleeper. A cloth does. Every victory Sera weaves is a thread laid into it.</p></div>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Magic <span class="px">three things done to names</span></h3>
+    <div class="verbs">
+      <div class="v-spend"><h4>Anima says</h4><p>Speak fire's Old Tongue name and fire remembers it is fire, here. Learned at the academy. <span class="q">Read the words aloud and the fire follows.</span></p></div>
+      <div class="v-keep"><h4>Light calls</h4><p>Healing reminds a body of its own shape. Revival reads a dying soldier's name back from the parish book until it holds. <span class="q">Breathe. Now remember who you are.</span></p></div>
+      <div class="v-feed"><h4>Dark unsays</h4><p>Takes a piece of someone's name and keeps it. Taught by the court circle from the stolen Middle Pages.</p></div>
+    </div>
+    <p style="margin-top:16px">Weapon arts cost blood because blood carries a name the way ink carries a word: an art spends a little of the wielder for a moment of more.</p>
+  </div>
+
+  <div class="sect">
+    <h3>Colour is canon</h3>
+    <p>The game's palette shows how names look.</p>
+    <div class="swatches">
+      <div class="sw"><i style="background:#dca044"></i><div><b>Ember gold</b>Names held and spoken. Your units carry light at night because they have names.</div></div>
+      <div class="sw"><i style="background:#9e2632"></i><div><b>Blood crimson</b>The Roll's red ink. Enemies carry no light: their names are on paper in the Seat.</div></div>
+      <div class="sw"><i style="background:#4d8b66"></i><div><b>Verdigris</b>Copper left out in weather. Names kept by others: villages, shrines, strangers.</div></div>
+      <div class="sw"><i style="background:#763aa0"></i><div><b>Unlight</b>What the Sleeper has swallowed. Colour draining toward it.</div></div>
+      <div class="sw"><i style="background:#3f9189"></i><div><b>Teal</b>The old kingdom's colour before the crimson. Only its heir wears it.</div></div>
+      <div class="sw"><i style="background:#efe4cc"></i><div><b>Cream</b>The seers' undyed habit, so as not to be mistaken for a name.</div></div>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Music is canon</h3>
+    <p>The whole score is in D and almost never lands on it. D is as close as sound gets to her name.</p>
+    <div class="motifs">
+      <div class="motif"><span class="nm">The Root</span><span class="nt">D</span><p>Her name. Only promotion and the run's final victory resolve to it.</p></div>
+      <div class="motif"><span class="nm">The Thread</span><span class="nt">A · D · E · A</span><p>Sera's sight reaching for the Root, touching it, never resting.</p></div>
+      <div class="motif"><span class="nm">The Hollow Sun</span><span class="nt">climbs to C♯</span><p>The world trying to say her name and stopping one note short. The church choir falls silent where it would go.</p></div>
+      <div class="motif"><span class="nm">The Old Kingdom</span><span class="nt">open fourths</span><p>The horn blown at the Ford when the first king swore the Oath.</p></div>
+      <div class="motif"><span class="nm">The Empire</span><span class="nt">D · E♭ · D · C</span><p>The Sleeper's hum, set to marching. The drills are the old kingdom's; the cadence was taken from the sound in the Hearth.</p></div>
+      <div class="motif"><span class="nm">Unlight</span><span class="nt">D and its shadow</span><p>The Sleeper humming. It has swallowed so much of her that it hums her note.</p></div>
+      <div class="motif"><span class="nm">The Last Light</span><span class="nt">bells on D</span><p>The name, said.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ II · CHRONICLE ═══════════ -->
+<section class="chapter" id="chronicle">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">II</div><div class="px">Chapter two</div><h2>The Chronicle</h2></div>
+<figure class="plate-art"><img src="{{ASSET:docs/lore/historia/art/ford.png}}" alt="The Oath at the Ford, O 1. A barrow-lord blows a horn in the river and asks the others to swear instead of fight."><figcaption>The Oath at the Ford, O 1. A barrow-lord blows a horn in the river and asks the others to swear instead of fight.</figcaption></figure>
+  <p class="lede">The border counts years <strong>of the Oath</strong> (O), from the swearing at the Ford. The empire counts <strong>of the Seat</strong> (S), from the Unsworn Night. S 0 is O 612. The March is S 34.</p>
+
+  <div class="era"><div class="era-h"><h3>Before the chronicles</h3></div>
+  <div class="tl">
+    <div class="ev"><div class="dt">—</div><div><h4>The Stillness</h4><p>Nothing comes next.</p></div></div>
+    <div class="ev"><div class="dt">—</div><div><h4>The Morning</h4><p>The Dawn answers. Time is woven; the dragons, the elements and the world are named.</p></div></div>
+    <div class="ev big"><div class="dt">—</div><div><h4>The Starfall</h4><p>The Sleeper turns. The Dawn spends her name, the Glass opens where she knelt, and the dragons lie down as the Hallow. The sun rises hollow.</p></div></div>
+    <div class="ev"><div class="dt">before O 1</div><div><h4>The Long Dusk</h4><p>Fenfolk children find they can see things in the Glass that have not happened yet: the first seers. Barrow kings rule the Wend. Hill clans in the south-west, peak clans in the north-east, where wyverns hatch from what the dragons dream.</p></div></div>
+  </div></div>
+
+  <div class="era"><div class="era-h"><h3>The Old Kingdom</h3></div>
+  <div class="tl">
+    <div class="ev big"><div class="dt">O 1</div><div><h4>The Oath at the Ford</h4><p>A barrow-lord blows a horn in the river and asks the others to swear instead of fight. He leads them to the warm mountain, goes down to the Hearthstone alone and spends his name there. He comes out the first king. None after him have a name either.</p></div></div>
+    <div class="ev"><div class="dt">O 43</div><div><h4>The Old Treaties</h4><p>Peace with the hill clans, which holds six hundred years.</p></div></div>
+    <div class="ev"><div class="dt">O c.150 · c.200 · 263</div><div><h4>Legions, colleges, academy</h4><p>A pegasus comes down at the Hallow and chooses a reed-cutter's daughter: the sky legions. The war colleges teach officers on an eight-rank board. The academy teaches the Old Tongue as grammar.</p></div></div>
+    <div class="ev"><div class="dt">O 331–338</div><div><h4>The Twins' War</h4><p>Princes Rhun and Rhodri each insist on being the one to pay the crown's debt. One sword, Gemini, is forged for them to share. It ends on the bridge of the old capital with one stroke: <span class="q">Two men fell.</span> Their sister goes down with a lamp and becomes the Lantern Queen.</p></div></div>
+    <div class="ev"><div class="dt">O 404–471</div><div><h4>Varen of the Cut</h4><p>A smith-saint strikes VAREN by the guard of every blade. Over his forge door: A MARK FOR EVERY MAKER. His line still works the quarries two centuries later.</p></div></div>
+    <div class="ev"><div class="dt">O 519</div><div><h4>The Storm-Year</h4><p>The Hearth breaks open. The peak clans come down with Stormbreaker and hold the passes for the king, the only time they ever fly for a banner. The seers note, for the first time, that the corona has thinned.</p></div></div>
+  </div></div>
+
+  <div class="era"><div class="era-h"><h3>The Waning</h3></div>
+  <div class="tl">
+    <div class="ev cut"><div class="dt">O 598–601</div><div><h4>The Grey Winter</h4><p>Three winters in one, and the Grey Cough. A third of the kingdom's names lost. Shrine bells ring on their own. The Glass freezes, and a fen carter's boy named Hagen falls through the ice and comes back three days later, talking about customers.</p></div></div>
+    <div class="ev"><div class="dt">O 601</div><div><h4>The second descent</h4><p>The Gentle King goes down to the Hearthstone again, which no king had done, and spends the names of his house's dead and of the kingdom's great lance. The chronicle names it once and never again.</p></div></div>
+    <div class="ev"><div class="dt">O 603</div><div><h4>The Middle Pages, stolen</h4><p>A young mage named Vantrell brings the Lord Marshal a stolen copy of the rites of the Hearthstone, read against the grain: the Sleeper takes <em>any</em> name, and a name given unwillingly pays power back.</p></div></div>
+    <div class="ev"><div class="dt">O 611</div><div><h4>The Great Vigil called</h4><p>The Glass rises; the stones lean. The seers call a Vigil for midwinter: every subject to speak their own name aloud at once. The Marshal argues for feeding the condemned instead and is sent to guard the Hearth.</p></div></div>
+  </div></div>
+
+<figure class="plate-art"><img src="{{ASSET:docs/lore/historia/art/unsworn.png}}" alt="The Unsworn Night, O 612. Twelve mages read a list into the dark around the Hearthstone. The Marshal kneels and listens."><figcaption>The Unsworn Night, O 612. Twelve mages read a list into the dark around the Hearthstone. The Marshal kneels and listens.</figcaption></figure>
+  <div class="era"><div class="era-h"><h3>The Seat</h3></div>
+  <div class="tl">
+    <div class="ev big cut"><div class="dt">O 612<small>S 0</small></div><div><h4>The Unsworn Night</h4><p>The night before the Vigil, the Marshal goes down the Hearth stair with twelve mages and a list: his own name first, then the kingdom's, then the condemned. At midnight every oath sworn by the kingdom's name breaks at once. His regiments hold, because they are drilled. At noon he says he is the Emperor.</p></div></div>
+    <div class="ev cut"><div class="dt">S 0</div><div><h4>The Nine Days</h4><p>The siege of the old capital. The east gate holds nine days. A young knight, Bertil Stane, holds the Breach with forty men, waiting for an order to fall back that the courier was paid to be late with. The Gentle King dies in the river at the Ford, and the crown goes into the water.</p></div></div>
+    <div class="ev"><div class="dt">S 2</div><div><h4>The Edict of the Roll</h4><p>Every subject registered in red ink. Provinces numbered. Officers surrender their names on commission. Curfew; any lamp without a warrant is a <em>rogue light</em>. In the west, the Uncrowned holds the Marches as the Border Crown.</p></div></div>
+    <div class="ev"><div class="dt">S 3–19</div><div><h4>The Standard Wars</h4><p>The Saltmarch, the Tarn and the Dry Country are taken and renumbered. Their names are fed; their standards hang in the Seat.</p></div></div>
+    <div class="ev"><div class="dt">S 9</div><div><h4>The Defacing</h4><p>Shrine books seized. The Dawn's statues have their faces chipped away. The temple becomes two temples.</p></div></div>
+    <div class="ev cut"><div class="dt">S 12</div><div><h4>The Taking</h4><p>The court circle takes the seer novices to the Glass. One comes home, with no name and eyes that see every ending. Hagen goes into the water after them and drowns for the second time.</p></div></div>
+    <div class="ev"><div class="dt">S 13 · 15 · 16</div><div><h4>The Seat's rise</h4><p>The academy burns. The Knight Commander writes the <em>Doctrine of Lances</em>. The Berserker King is crowned by an acclaim nobody dares withhold. An eleven-year-old boy is named the Emperor's Lieutenant, and a perfect duelist is assigned to guard him.</p></div></div>
+    <div class="ev big cut"><div class="dt">S 25</div><div><h4>The Great Feeding</h4><p>The Archmage promises that when the Sleeper has swallowed enough, it will turn toward the hand that fed it. The Emperor wants a world where nothing comes next. He needs two last reservoirs of names: the dragons of the Hallow, and the Marches.</p></div></div>
+  </div></div>
+
+  <div class="era"><div class="era-h"><h3>The March</h3></div>
+  <div class="tl">
+    <div class="ev cut"><div class="dt">S 28</div><div><h4>The Second Push</h4><p>The hill clans break the Old Treaties and open the hill roads. The warden-captain at the Ford holds eleven weeks and surrenders on terms, paying with his name. The border burns. Wendhall falls, its gate still shut.</p></div></div>
+    <div class="ev"><div class="dt">S 29–30</div><div><h4>The Glass rises black</h4><p>The first dragon wakes in the wrong order. A fifteen-year-old novice looks into the Glass and sees every road of the next five years, and on one of them a young man counting the names behind him. On the far side, the Lieutenant sees her seeing.</p></div></div>
+    <div class="ev"><div class="dt">S 28–33</div><div><h4>The Hiding</h4><p>Sera finds Edric in the hills. Voss, Kira, Rowan, Astrid and, last, Cael, still at his gate.</p></div></div>
+    <div class="ev big"><div class="dt">S 34</div><div><h4>The night before</h4><p>They sit around the ember, rekindled in a fire pit above the Ford, and Sera tells them she can see a path: fragmented, but there. Every run begins here.</p></div></div>
+  </div></div>
+</section>
+
+<!-- ═══════════ III · REALM ═══════════ -->
+<section class="chapter" id="realm">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">III</div><div class="px">Chapter three</div><h2>The Realm</h2></div>
+  <p class="lede">The Wend rises from the Glass and runs west, through the fens and the grain country, past the Ford and out of the realm. The March goes east, upstream. Soldiers call it walking the river back to where it's dirty.</p>
+
+  <div class="maptools">
+    <span class="px" style="color:var(--dim)">The realm, west to east</span>
+    <button class="btn ghost" id="pickets" type="button" aria-pressed="false">View from the far pickets</button>
+  </div>
+  <div class="mapbox" id="mapbox">
+    <svg viewBox="0 0 1000 540" role="img" aria-label="Map of the realm: the Border Marches in the west, the Old Kingdom Roads, the fens and the Hallow, the Hearth and the Seat in the east">
+      <defs>
+        <pattern id="reeds" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M2 10 L3 4 M6 10 L7 5" stroke="#4d6f5a" stroke-width="1" opacity=".55"/></pattern>
+        <radialGradient id="heart" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#a863cc" stop-opacity=".9"/><stop offset="1" stop-color="#a863cc" stop-opacity="0"/></radialGradient>
+        <filter id="blur"><feGaussianBlur stdDeviation="14"/></filter>
+      </defs>
+      <rect width="1000" height="540" fill="#0e0b13"/>
+      <!-- act bands -->
+      <g font-family="Press Start 2P, monospace" font-size="9" fill="#6e6576" letter-spacing="1">
+        <rect x="0" y="0" width="270" height="540" fill="#1a1512" opacity=".5"/>
+        <rect x="270" y="0" width="300" height="540" fill="#141620" opacity=".5"/>
+        <rect x="570" y="0" width="240" height="540" fill="#161a17" opacity=".6"/>
+        <rect x="810" y="0" width="190" height="540" fill="#1a1216" opacity=".6"/>
+        <text x="16" y="524">I · BORDER MARCHES</text>
+        <text x="286" y="524">II · OLD KINGDOM ROADS</text>
+        <text x="586" y="524">III · THE FENS</text>
+        <text x="822" y="524">IV · HEARTH</text>
+      </g>
+      <!-- fens -->
+      <path d="M600 250 C 640 215, 720 220, 770 245 C 820 270, 820 330, 780 352 C 730 380, 660 372, 620 340 C 590 318, 580 280, 600 250 Z" fill="url(#reeds)" stroke="#3b5646" stroke-width="1"/>
+      <!-- hearth mountains -->
+      <g fill="none" stroke="#8a5a3a" stroke-width="1.4">
+        <path d="M820 300 L850 250 L872 282 L900 220 L932 276 L958 238 L990 300"/>
+        <path d="M840 360 L866 318 L884 344 L910 300 L940 350"/>
+        <path d="M860 170 L884 130 L904 160 L930 118 L956 168" stroke="#6f8aa6"/>
+        <path d="M880 100 L900 72 L918 98 L940 64 L966 104" stroke="#6f8aa6"/>
+      </g>
+      <circle cx="905" cy="262" r="14" fill="none" stroke="#e0574c" stroke-width="1.2" stroke-dasharray="2 3"/>
+      <!-- river Wend -->
+      <path d="M770 300 C 720 296, 690 290, 640 300 C 600 308, 585 292, 560 290 C 500 286, 470 270, 420 276 C 360 284, 330 262, 280 266 C 230 270, 210 250, 170 256 C 130 262, 110 272, 70 270 C 40 268, 20 262, 0 264" fill="none" stroke="#4574a0" stroke-width="3" stroke-linecap="round"/>
+      <!-- roads -->
+      <path d="M150 238 L 300 244 L 420 250 L 560 262" fill="none" stroke="#6e6576" stroke-width="1" stroke-dasharray="4 4"/>
+      <!-- hallow -->
+      <g fill="#cbbda6">
+        <circle cx="770" cy="300" r="12" fill="#07060b" stroke="#f3cb6c" stroke-width="1"/>
+        <g><rect x="767" y="278" width="5" height="7"/><rect x="786" y="288" width="5" height="7"/><rect x="788" y="306" width="5" height="7"/><rect x="772" y="318" width="5" height="7"/><rect x="752" y="312" width="5" height="7"/><rect x="749" y="292" width="5" height="7"/></g>
+      </g>
+      <!-- sleeper overlay -->
+      <g class="sleeper" aria-hidden="true">
+        <path d="M770 300 C 700 250, 640 190, 700 140 C 760 95, 880 110, 930 170 C 980 240, 960 360, 880 410 C 800 455, 690 440, 640 390 C 610 360, 640 330, 690 336" fill="none" stroke="#a863cc" stroke-width="46" stroke-linecap="round" opacity=".22" filter="url(#blur)"/>
+        <path d="M770 300 C 700 250, 640 190, 700 140 C 760 95, 880 110, 930 170 C 980 240, 960 360, 880 410 C 800 455, 690 440, 640 390 C 610 360, 640 330, 690 336" fill="none" stroke="#a863cc" stroke-width="1.2" stroke-dasharray="3 6" opacity=".8"/>
+        <circle cx="905" cy="262" r="46" fill="url(#heart)"/>
+        <text x="596" y="112" font-family="Cinzel, serif" font-size="14" fill="#dcaaf0" letter-spacing="2">SOMETHING ASLEEP ON ITS SIDE</text>
+        <text x="742" y="352" font-family="Press Start 2P, monospace" font-size="7" fill="#dcaaf0">its breath</text>
+        <text x="862" y="316" font-family="Press Start 2P, monospace" font-size="7" fill="#dcaaf0">its heart</text>
+      </g>
+      <!-- labels -->
+      <g font-family="Cinzel, serif" fill="#e8dcc5">
+        <circle cx="92" cy="268" r="4" fill="#f3cb6c"/><text x="60" y="296" font-size="14" letter-spacing="1">Oathford</text>
+        <circle cx="168" cy="248" r="3" fill="#e8dcc5"/><text x="140" y="236" font-size="12">Wendhall</text>
+        <circle cx="236" cy="234" r="3" fill="#e8dcc5"/><text x="222" y="222" font-size="12">the Cut</text>
+        <circle cx="596" cy="290" r="4" fill="none" stroke="#e8dcc5"/><text x="540" y="324" font-size="12">old capital</text>
+        <text x="740" y="270" font-size="14" fill="#f3cb6c" letter-spacing="1">the Hallow</text>
+        <text x="876" y="206" font-size="14" letter-spacing="1">the Seat</text>
+        <path d="M905 216 L912 230 L898 230 Z" fill="#e0574c"/>
+      </g>
+      <g class="labels-minor" font-family="Alegreya, serif" font-style="italic" fill="#9d917f" font-size="13">
+        <circle cx="132" cy="310" r="2.5" fill="#9d917f"/><text x="104" y="330">Birchwick</text>
+        <text x="60" y="440">hill clans</text>
+        <text x="880" y="44">peak clans</text>
+        <text x="380" y="70">the Tarn · 13th</text>
+        <text x="400" y="470">the Saltmarch · 10th–12th</text>
+        <text x="330" y="232">grain provinces, 1st–9th</text>
+        <text x="648" y="400">the Stillwater</text>
+        <text x="900" y="400">Dry Country →</text>
+        <text x="306" y="300">the Wend</text>
+      </g>
+    </svg>
+  </div>
+  <p style="font-size:15px;color:var(--dim)">Seen from high enough, the fens, the river and the ridges trace something curled up asleep, with the Glass at its mouth and the Hearth at its heart.</p>
+
+  <div class="gradient-bar" aria-label="The name gradient">
+    <div style="border-color:#dca044"><b>Act I</b><span>Everything named: rivers, fords, smiths, people.</span></div>
+    <div style="border-color:#77a5c6"><b>Act II</b><span>Provinces numbered. Old names spoken in private.</span></div>
+    <div style="border-color:#6f9e79"><b>Act III</b><span>Words fading off boards. "The drowned village."</span></div>
+    <div style="border-color:#b3303b"><b>Act IV</b><span>Nothing named. The heraldry office is ash.</span></div>
+    <div style="border-color:#763aa0"><b>The Deep</b><span>Nothing has ever been named.</span></div>
+  </div>
+  <p style="font-size:15px;color:var(--dim)">The name gradient. The world gets darker as the March goes east because it gets more nameless, and it gets more nameless because it is nearer the thing that eats names.</p>
+
+  <div class="acts" style="margin-top:34px">
+    <article class="act">
+      <div class="plate" style="background:linear-gradient(0deg,rgba(9,7,13,.97) 0%,rgba(9,7,13,.8) 42%,rgba(9,7,13,.05) 85%),url({{ASSET:docs/lore/historia/art/night_before.png}}) center/cover;image-rendering:pixelated"><div class="px">Act I · Ember Dusk</div><h3>Border Marches</h3><div class="grade">the March, to the empire</div></div>
+      <div class="body"><p>Hill, quarry and farm country on the lower Wend: the last part of the old kingdom to keep the Oath, and it burned for it six years ago. The Iron Captain holds the crossing. Hagen's cart comes through every week.</p>
+      <dl><dt>PLACES</dt><dd>Oathford, where the river runs slow; burned Wendhall with its gate still shut; the Cut and Varen's forge; Birchwick; the barrows</dd><dt>MUSIC</dt><dd>Ember Dusk, Border Marches, Open Ground, The Oath at the Ford. No choir: Act I stays human-sized.</dd></dl></div>
+    </article>
+    <article class="act">
+      <div class="plate" style="background:linear-gradient(170deg,#2c4c77,#101a2e 75%)"><div class="px">Act II · Iron Rain</div><h3>Old Kingdom Roads</h3><div class="grade">the First to the Ninth Provinces</div></div>
+      <div class="body"><p>The empire's pantry. <span class="q">The old kingdom's roads run straight and true. The tolls are the empire's.</span> Partisans scratch the numbers off milestones and pass a two-note signal from hill to hill.</p>
+      <dl><dt>PLACES</dt><dd>Toll-houses, remount studs, hill forts, dueling halls; the Dark Rider's crossroads; the old capital, ruined since the Nine Days, the Breach still open in its north wall</dd><dt>MUSIC</dt><dd>Iron Rain, Steel and Thread, Old Kingdom Roads, Stone That Remembers</dd></dl></div>
+    </article>
+    <article class="act">
+      <div class="plate" style="background:linear-gradient(0deg,rgba(9,7,13,.97) 0%,rgba(9,7,13,.8) 42%,rgba(9,7,13,.05) 85%),url({{ASSET:docs/lore/historia/art/hallow.png}}) center/cover;image-rendering:pixelated"><div class="px">Act III · Bleached Rite</div><h3>Imperial Heartland</h3><div class="grade">the fens and the Hallow</div></div>
+      <div class="body"><p>Crown land, closed since S 25: the old kingdom's heart, where the circle has been feeding the dragons' names into the dark. Black still water, bleached reeds, the dead standing up, light too bright to be kind.</p>
+      <dl><dt>PLACES</dt><dd>The sunken causeways; the Lieutenant's keep; drowned villages with one lit chimney; the chapter-house bells, which ring on their own; the Hallow and the Glass</dd><dt>MUSIC</dt><dd>Bleached Rite, Against the Rite, Petals on the Fen, The Mire. Voices enter the score here, with the rite.</dd></dl></div>
+    </article>
+    <article class="act">
+      <div class="plate" style="background:linear-gradient(0deg,rgba(9,7,13,.97) 0%,rgba(9,7,13,.8) 42%,rgba(9,7,13,.05) 85%),url({{ASSET:docs/lore/historia/art/hearth.png}}) center/cover;image-rendering:pixelated"><div class="px">Act IV · Ashfall</div><h3>Ashen Frontier</h3><div class="grade">the Hearth and the capital</div></div>
+      <div class="body"><p>A warm mountain, smoking since S 29, with the capital spilled down its shoulder and frozen passes behind. Ash falls like snow. The curfew has crept from dusk to noon. The streets are <span class="q">swept clean. Nobody is left to dirty them.</span></p>
+      <dl><dt>PLACES</dt><dd>The palace and its open throne-room doors; the cathedral with no roof and one priest; the Caldera; Eruption Point; the glacier bastions of the passes</dd><dt>MUSIC</dt><dd>Ashfall, Ember Dusk in Ash, Rime, Caldera</dd></dl></div>
+    </article>
+    <article class="act">
+      <div class="plate" style="background:radial-gradient(circle at 70% 30%,#4a2270,#0b0612 70%)"><div class="px">Final · The Throne · The Deep</div><h3>The Imperial Seat</h3><div class="grade">and what lies beneath it</div></div>
+      <div class="body"><p>Under the palace the old kings' coronation stair goes down into the mountain's roots. The far side of the Glass opens onto a landing partway down. At the bottom is the Hearthstone, where the ritual has worn channels into <span class="q">stone that once held a throne.</span></p>
+      <dl><dt>CARVED</dt><dd>WE CAME THIS FAR ALSO · IT REMEMBERS YOU. BE QUICKER. · WHAT SLEEPS HERE WAS NOT MEANT TO BE FED.</dd><dt>MUSIC</dt><dd>Every Future You Could Reach; · · ·; All of Us Across</dd></dl></div>
+    </article>
+  </div>
+</section>
+
+<!-- ═══════════ IV · POWERS ═══════════ -->
+<section class="chapter" id="powers">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">IV</div><div class="px">Chapter four</div><h2>Powers</h2></div>
+  <p class="lede">Everyone who holds power here does one thing to names. Know which, and the faction writes itself.</p>
+  <div class="powers">
+    <div class="power"><span class="chip feed">FEEDS</span><h4>The Empire</h4><div class="motto">What is, remains.</div><p>The old kingdom's own people and three conquered neighbors, ruled from the Seat by a man with no name through a register of everyone else's. The Roll, the levy, the curfew, numbered provinces, and a drill cadence that empties soldiers a little each year. Not a hive of villains: a tired country that got used to something.</p></div>
+    <div class="power"><span class="chip feed">FEEDS</span><h4>The Court Circle</h4><div class="motto">Every name is a sum.</div><p>The mages who went down the stair on the Unsworn Night. Twelve at a time in a circle around the Hearthstone, reading the Roll into the dark. They hold the stolen Middle Pages, study the loop as "rifts", and still believe the Sleeper can be steered.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Old Kingdom</h4><div class="motto">The strong serve the weak.</div><p>Six hundred years of nameless kings, founded on the Oath at the Ford: every name holds the dark down equally, and the crown is a debt the king pays first. Its name was spent. What survives is its roads, its horn call, its teal, an ember from its hearth, and its heir.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Temple of the Dawn</h4><div class="motto">Once more, and then once more after that.</div><p>Shrines name children and keep the names. Parishes keep the book of returns. Since the Defacing it is two temples: bishops in the Seat blessing the levy, and village chaplains and fen priests who hid their books.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Seer Order</h4><div class="motto">Hold on to the thread.</div><p>Keepers of the Thread and the Hallow, fenfolk in cream, older than the kingdom. The Last Pages of the liturgy, <span class="q">what sleeps below, what wakes it, and the thread by which the world is pulled back</span>, were theirs. Raided in S 12, burned in S 30. Sera is what is left.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>Border Wardens</h4><div class="motto">Still standing.</div><p>Rangers sworn to the Line, not to any name, so their oath survived the Unsworn Night and the Marches held for twenty-six more years. Every warden keeps two ledgers: patrol routes, and the dead. Writing a name in the second keeps it out of the dark.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>Smith-saints</h4><div class="motto">A mark for every maker.</div><p>Iron-sworn smiths who strike names into blades, because iron does not forget. They cursed the Blood Forge, which quenches an edge in the smith's own name. It works anyway.</p></div>
+    <div class="power"><span class="chip spend">SPENDS</span><h4>The Berserk School</h4><div class="motto">Forget, and fear goes with it.</div><p>Wat's school at the fens' edge teaches the red: forget your name in battle and you cannot be afraid. The best pupils never quite remember again, and are chained at night. The corruption finds nothing in them to change.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Sky Legions</h4><div class="motto">The mount picks the rider.</div><p>Pegasi are held to be the Dawn's horses, and they choose their riders. From their pickets the legions learned the shape of the land. The empire folded them into a courier service and never reissued their orders.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Clans</h4><div class="motto">We were here first.</div><p>Two peoples. The hill clans keep their dead in blood-song, and broke the Old Treaties in S 28. The peak clans ride wyverns, crown no kings, settle disputes by a wyvern lord's shadow, and voted to stay out of this war. Some riders lost the vote and came anyway.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>Guilds and Troupes</h4><div class="motto">Checkpoints cannot tax a song.</div><p>A guild-contracted sellsword is under contract, not under the Roll, which is the only legal way to keep your name out of it. Bards smuggle the old songs, and the names in them, past every gate.</p></div>
+    <div class="power"><span class="chip keep">KEEPS</span><h4>The Partisans</h4><div class="motto">Still here.</div><p>No leader, so nobody to feed. Numbers scratched off milestones, a two-note whistle from the next hill, a cellar door that opens on the third knock.</p></div>
+  </div>
+</section>
+
+<!-- ═══════════ V · THE MARCH ═══════════ -->
+<section class="chapter" id="march">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">V</div><div class="px">Chapter five</div><h2>The March</h2></div>
+  <p class="lede">Seven lords, and what happened to each of them before the night by the Ford. Ages as of S 34.</p>
+  <div class="people">
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_edric.png}}" alt="Edric"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_edric_promoted.png}}" alt="Edric as Great Lord"></div><span>Promoted<br>Great Lord</span></div></div><div>
+      <div class="meta"><h3>Edric</h3><span class="cls">Lord → Great Lord · 22</span></div>
+      <p>Grandson of the last king. Raised at Wendhall, a border hall that was also a court in exile, by a father who refused a crown so he could keep his name. Border custom made him learn every name in the hall by heart. At sixteen he was carried out the back as it burned, with the banner and an ember pot. Two hundred and twelve people died there. He knows all their names. That is the counting.</p>
+      <p class="said">I'll never be the finest blade here. I only need to be the one that stays.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>He does not want the crown, and not from modesty. In the old way, a king spends his name. He is afraid of becoming a man with no name, like the one on the throne.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_sera.png}}" alt="Sera"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_sera_promoted.png}}" alt="Sera as Light Priestess"></div><span>Promoted<br>Light Priestess</span></div></div><div>
+      <div class="meta"><h3>Sera</h3><span class="cls">Light Sage → Light Priestess · 20</span></div>
+      <p>A fen child given to the chapter-house at four, raised in an order already gutted by the Taking. At fifteen she looked into the Glass and saw every road of the next five years, and on one a young man at the head of a column, counting. The last Keeper graduated her in one sentence and sent her west with the Last Pages and the novice roll. A sky lancer carried her out of the fens.</p>
+      <p class="said">What sleeps, and what wakes it. I swore to both. I hope I'm strong enough.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>She has walked this March more times than she will say, and she remembers every one. The Lieutenant has watched her since the moment she first saw the Thread. She grew up reading his name.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_kira.png}}" alt="Kira"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_kira_promoted.png}}" alt="Kira as Grandmaster"></div><span>Promoted<br>Grandmaster</span></div></div><div>
+      <div class="meta"><h3>Kira</h3><span class="cls">Tactician → Grandmaster · 24</span></div>
+      <p>A toll-keeper's daughter who counted carts before she could read, smuggled west at twelve to the last free war college at the Ford. Her Grandmaster board was set for the morning after the college closed. She took a cart of captured imperial ledgers into the hills and proved, with arithmetic, that names are leaving the Roll faster than the dead can explain.</p>
+      <p class="said">Something deeper... so the real game has more moves left. Good. I hate endings.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>She has extrapolated the feeding. It reaches its sum at midwinter, this year. She knows the date.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_voss.png}}" alt="Voss"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_voss_promoted.png}}" alt="Voss as Vanguard"></div><span>Promoted<br>Vanguard</span></div></div><div>
+      <div class="meta"><h3>Voss</h3><span class="cls">Ranger → Vanguard · 44</span></div>
+      <p>A tenant farmer's son from the Third Province who walked west at twenty-four with his friend Anders Carrow, to the one place the Roll could not reach, and swore to the Line. Twenty years a warden. He came home from patrol in S 28 to Birchwick burned, and to his wife's and daughter's names and nothing else. He has kept the ledger of the dead since.</p>
+      <p class="said">I keep a ledger of the dead. Tonight the page stays blank. Move!</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>Carrow surrendered the Ford and gave his name to the Roll, the thing they had walked west to escape. He commands the border now as the Iron Captain. Voss has written his name in the ledger of the dead anyway.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_rowan.png}}" alt="Rowan"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_rowan_promoted.png}}" alt="Rowan as Holy Knight"></div><span>Promoted<br>Holy Knight</span></div></div><div>
+      <div class="meta"><h3>Rowan</h3><span class="cls">Chevalier → Holy Knight · 26</span></div>
+      <p>Six generations of his family bred cavalry horses in the Sixth Province. An old knight with a paddock and no name taught him the lance, and the whole Oath, fourth line and all. When a remount inspection took his sister for the levy, he took nine deserters and her gray mare and rode for the border.</p>
+      <p class="said">My lance is blessed. My aim? That's all me.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>No chaplain blessed the lance. His teacher spent his own name into it, the old way. The mare is called Bess. Rowan only ever whispers it.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_astrid.png}}" alt="Astrid"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_astrid_promoted.png}}" alt="Astrid as Seraph Knight"></div><span>Promoted<br>Seraph Knight</span></div></div><div>
+      <div class="meta"><h3>Astrid</h3><span class="cls">Sky Lancer → Seraph Knight · 23</span></div>
+      <p>Born among the wyvern-riding peak clans, where a pegasus choosing a child is a scandal. She joined what was left of the sky legions at fourteen and was sent to fly the far pickets of the Marches, alone. After S 28 there was nobody to report to. She kept flying. Then she saw a girl in cream walking the causeway with riders behind her, and landed.</p>
+      <p class="said">The sky legions called me hopeless in formation. They were right. Look at me now.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>The legions' old charts are in her saddlebag. From the far pickets she has seen the shape the land makes.</p>
+    </div></article>
+    <article class="person"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/lord_cael.png}}" alt="Cael"><div class="promo"><div class="fig" style="background-image:url({{ASSET:assets/portraits/pc98/plates/ember-96.png}})"><img src="{{ASSET:assets/portraits/pc98/96/lord_cael_promoted.png}}" alt="Cael as Champion"></div><span>Promoted<br>Champion</span></div></div><div>
+      <div class="meta"><h3>Cael</h3><span class="cls">Sentinel → Champion · 27</span></div>
+      <p>A quarryman's son too big for the quarry. Edric's father posted him to Wendhall's gate himself: hold it until relieved. The hall burned; the gate did not open. He lived in the gatehouse for five years and repaired the gate twice. The crimson scarf is the old gate guard's red, older than the empire's.</p>
+      <p class="said">They posted me at a gate that fell years ago. The order still stands. So do I.</p>
+      <p class="secret"><span class="tag l" style="margin:0 8px 0 0">LEARNED</span>An order sworn by a king who kept his name still holds. Only the heir can relieve him, with the right words and the watchword. Edric doesn't know the watchword. Cael has no plans to tell him.</p>
+    </div></article>
+  </div>
+</section>
+
+<!-- ═══════════ VI · THE TITLED ═══════════ -->
+<section class="chapter" id="titled">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">VI</div><div class="px">Chapter six</div><h2>The Titled</h2></div>
+  <p class="lede">Imperial officers surrender their names to the Roll on commission and answer to rank. Every boss is a title for this reason. Under each title was a person. Some names come back when they fall. Some come back only one way.</p>
+  <div class="people">
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_iron_captain.png}}" alt="The Iron Captain"></div><div>
+      <div class="meta"><h3>Iron Captain</h3><span class="cls">Act I · Cavalier</span></div>
+      <div class="epi">Warden of the Unrelieved Line</div>
+      <p>Voss's sworn brother. He held the Ford eleven weeks waiting for relief that never came, then surrendered on terms: his wardens would live, stay on the border and be exempt from the levy. The price was his name. He eats with his troops, mends his own banner, and signs his orders with an iron stamp. His music keeps returning to D: duty, not ambition.</p>
+      <div class="namebox" data-name="nm-captain"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="ANDERS CARROW"></span>Captain of wardens at Oathford. He held the Ford eleven weeks. Relief never came.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_warchief.png}}" alt="The Warchief"></div><div>
+      <div class="meta"><h3>Warchief</h3><span class="cls">Act I · Fighter</span></div>
+      <div class="epi">Breaker of the Old Treaties</div>
+      <p>Not on the Roll at all. A hill-clan warchief lays his name down for the length of a war. He broke six hundred years of treaty on the reasoning that an oath sworn with a kingdom whose name is spent is sworn with no one. He despises the empire, despises the old kingdom for losing its name, and likes a fight better than either.</p>
+      <div class="namebox" data-name="nm-warchief"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Listen to the hills</button></div>
+        <div class="ret"><span class="nm-real" data-v="SKARDE"></span>Not the Roll's to give back. His clan sings it from the ridge the night he falls.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_knight_commander.png}}" alt="The Knight Commander"></div><div>
+      <div class="meta"><h3>Knight Commander</h3><span class="cls">Act II · Paladin</span></div>
+      <div class="epi">First Lance of the Second Push</div>
+      <p>A household knight of the last king who woke unsworn on the Unsworn Night and felt nothing at all, until the Marshal gave him an order. He has called the relief of it faith ever since. He wrote the <em>Doctrine of Lances</em> and has read the casualty tables it cost. He offered Wendhall terms; the circle's sealed orders burned it anyway. He kept the gold trim of his old livery.</p>
+      <div class="namebox" data-name="nm-kc"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="LEOFRIC"></span>Household knight to the Gentle King. He knew the fourth line. He hummed it.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_archmage.png}}" alt="The Archmage"></div><div>
+      <div class="meta"><h3>Archmage</h3><span class="cls">Act II · Sage</span></div>
+      <div class="epi">Keeper of the Middle Pages</div>
+      <p>At twenty he stole the rites of the Hearthstone and read them against the grain. He led the circle down the stair on the Unsworn Night and burned the academy to take its library. He is curious, not cruel. He keeps a notebook of the warband's failed threads, rewrites it from dreams every time the thread resets, and cannot explain why it is always accurate.</p>
+      <div class="namebox" data-name="nm-archmage"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="CYPRIAN VANTRELL"></span>Of the academy. He read the Middle Pages against the grain, and was right, and it did not help.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_dark_rider.png}}" alt="The Dark Rider"></div><div>
+      <div class="meta"><h3>Dark Rider</h3><span class="cls">Act II · Dark Knight</span></div>
+      <div class="epi">Bearer of the Sealed Orders</div>
+      <p>A mantle, not a man. The court circle's sealed orders are lists of names to be read next, and one courier on a black horse carries them between the ritual sites. The roads empty ahead of him. He hears the Sleeper through the lists and calls it the dark. It tells him a rider falls at this crossroads. It has told him that on every thread.</p>
+      <div class="namebox" data-name="nm-rider"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="PIERS RUSK"></span>Son of the courier who sat on a king's order. He carried the bag twenty-three years and never opened it.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_blade_lord.png}}" alt="The Blade Lord"></div><div>
+      <div class="meta"><h3>Blade Lord</h3><span class="cls">Act III · Swordmaster</span></div>
+      <div class="epi">Proof of the Dueling Halls</div>
+      <p>The halls' seventh proof, their standard of perfect form. Assigned to guard and train an eleven-year-old Lieutenant, he found within two years that the boy was choosing his duels, sealing every future where he lost. He has never been touched in formal combat. He calls the boy master. The fens keep no forms.</p>
+      <div class="namebox" data-name="nm-blade"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="TIERNAN VALE"></span>Seventh proof of the halls. Never touched in formal combat. It comes back with the apology.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_iron_wall.png}}" alt="The Iron Wall"></div><div>
+      <div class="meta"><h3>Iron Wall</h3><span class="cls">Act III · General</span></div>
+      <div class="epi">Holder of the Breach</div>
+      <p>A royal knight of twenty-two who held the Breach of the old capital with forty men for a day and a half after the city fell, because the order to fall back never came. The Marshal took him alive and gave him the empire's walls. Unsworn, with nothing left to be loyal to but the holding, he took them.</p>
+      <div class="namebox" data-name="nm-wall"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret"><span class="nm-real" data-v="BERTIL STANE"></span>Of the Gentle King's household. He held the Breach a day and a half past the order to leave. The order has arrived.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_berserker_king.png}}" alt="The Berserker King"></div><div>
+      <div class="meta"><h3>Berserker King</h3><span class="cls">Act III · Berserker</span></div>
+      <div class="epi">Crowned by Frightened Acclaim</div>
+      <p>A carter's boy put into the storming party at the Breach. Everyone around him died, and he forgot his own name in a red fog and found he could no longer be afraid. He taught deserters to do it on purpose, and they crowned him. The corruption changed nothing in him. There was nothing left to take.</p>
+      <div class="namebox" data-name="nm-berserker"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Ask the merchant</button></div>
+        <div class="ret"><span class="nm-real" data-v="WAT"></span>The Roll never had it; he threw it away. Only Hagen remembers: <span class="q">Wat. Drove the salt run. Good with mules.</span></div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_the_emperor.png}}" alt="The Emperor"></div><div>
+      <div class="meta"><h3>The Emperor</h3><span class="cls">Act IV · General</span></div>
+      <div class="epi">Who Sold the Empire's Future</div>
+      <p>The Grey Winter's hero, a miller's son who moved grain through snow for three years and watched the dead go into the chaplains' books by the thousand. He decided the Oath was a luxury. He has held the dark back for thirty-four years, which is true, and made it heavier every day of them. He wears gold, the player's colour, because he has hoarded names. Human, powerful, and wrong.</p>
+      <div class="namebox" data-name="nm-emperor" data-never="1"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret">Nothing comes back. He fed it first, on the Unsworn Night, before the kingdom's. It is at the bottom.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_the_lieutenant.png}}" alt="The Lieutenant"></div><div>
+      <div class="meta"><h3>The Lieutenant</h3><span class="cls">Final (Normal) · Hero</span></div>
+      <div class="epi">From the Far Side of the Glass</div>
+      <p>Taken young from the seers' chapter-house and sent through the Glass. He came home with no name and eyes that see every future that ends. A person with no name has no thread of their own, so he cannot see where he is going, only where everyone else stops. He seals paths the way a man shuts doors in a burning house. He believes he has been saving the empire from its own futures for eighteen years, and he is so tired.</p>
+      <div class="namebox" data-name="nm-lieutenant" data-seal="1"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Only Sera can say it</button></div>
+        <div class="ret"><span class="nm-real" data-v="TAMLIN"></span>Novice of the chapter-house at the Glass. Still in the roll. The end of his boss theme, a solo violin playing his line with no shadow, is her saying it.</div></div>
+    </div></article>
+    <article class="person foe"><div class="portrait"><img src="{{ASSET:assets/portraits/pc98/baked/boss_the_entity.png}}" alt="The Entity"></div><div>
+      <div class="meta"><h3>· · ·</h3><span class="cls">Final (Lunatic) · the Sleeper</span></div>
+      <div class="epi" style="color:var(--unlight)">no epithet</div>
+      <p>The Stillness itself, overfed. It does not hate. Its body in the Deep is a texture of eyes: it sees with what it has swallowed. It has no voice, and it has begun to hum. When it is first wounded, the hum stops for the first time in the whole score.</p>
+      <div class="namebox" data-name="nm-entity" data-never="1"><div class="row"><span class="lbl">NAME</span><span class="nm">———</span><button class="btn" type="button">Return the name</button></div>
+        <div class="ret">Nobody ever gave it one. It is the only thing in the world that could be <em>given</em> a name, and nobody knows what would happen.</div></div>
+    </div></article>
+  </div>
+</section>
+
+<!-- ═══════════ VII · BESTIARY & RELICS ═══════════ -->
+<section class="chapter" id="bestiary">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">VII</div><div class="px">Chapter seven</div><h2>Bestiary &amp; Relics</h2></div>
+  <p class="lede">What the warband fights and why it is like that, and the history behind the arms that turn up in the loot.</p>
+  <div class="beasts">
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_fighter.png}}" alt=""><div><h4>The levy</h4><p>Farmhands and quarrymen entered in the Roll: <em>LEVY BY ORDER. AGAIN.</em> They march to the imperial cadence and get quieter every year. They carry no light. A deserter who turns his uniform inside out and is called by name starts to glow again.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_paladin.png}}" alt=""><div><h4>Officers and affixes</h4><p>Rank comes with gifts from the circle: pieces of other people's names read into an officer so he is more than one man. Wounds closing on someone else's shape. A ward bought with a village. Where affixes show, the Lieutenant has tampered with the weave.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_hunter.png}}" alt=""><div><h4>Hunters and the unrolled</h4><p>Hunters close on anyone whose name has got loud enough to collect. Village raiders are the unrolled: survivors of a fed village who came home to houses nobody remembers, and now take from villages that still have names.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_zombie.png}}" alt=""><div><h4>Zombies</h4><p>The fens' dead, whose names were fed. Nothing calls them home, so they wander. <span class="q">Burn the dead, or give them to the light.</span> Light works by calling a name back; if there is none, burn.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_revenant.png}}" alt=""><div><h4>Revenants</h4><p>Zombies the fens have kept long enough. They rebuild a shape from the names of the living, a little at a time, and stop shambling. What fills behind their ribs when they wound you is your name.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_dragon.png}}" alt=""><div><h4>Dragons, the woken</h4><p>The Dawn's first-named, asleep as the stones of the Hallow. The circle is reading their names into the dark, and each wakes without one, in the wrong order. They go for the warband because named things smell like what they lost. Their breath is the Old Tongue.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_dragon_lord.png}}" alt=""><div><h4>The Dragon Lord</h4><p>The first thing the Dawn ever named. <span class="q">It regards the war the way a mountain regards weather.</span> Not the warband's enemy. In the way.</p></div></div>
+    <div class="beast"><img src="{{ASSET:assets/portraits/pc98/baked/enemy_wyvern_rider.png}}" alt=""><div><h4>Wyverns</h4><p>Hatched in the peak clans' nests in winters when the Hallow's stones stir, from what the dragons dream. Near the fens they won't eat: they can smell the dreams they came from going wrong.</p></div></div>
+  </div>
+
+  <div class="sect">
+    <h3>Legendary arms</h3>
+    <div class="relics">
+      <div class="relic"><h4>Brave Lance <span class="px">O 1</span></h4><span class="q">At the ford, the chronicle says, each rider struck twice and the river ran slow.</span><p>The first king's champion, in the river on the day of the Oath. The oldest weapon in the chronicle.</p></div>
+      <div class="relic"><h4>Starfall <span class="px">the Starfall</span></h4><span class="q">Strung the night the stars came down, it aims as if it remembers where they fell.</span><p>Strung by a fen hunter who looked up while the Dawn's change fell. Older than the barrows.</p></div>
+      <div class="relic"><h4>Brave Axe <span class="px">the Long Dusk</span></h4><span class="q">Dug from a barrow holding one king and two sets of armor. It swings for both.</span><p>Border folk say the barrow king's shield-brother went into the mound with him.</p></div>
+      <div class="relic"><h4>Gemini <span class="px">O 331</span></h4><span class="q">Forged for twin princes who would share nothing, it learned to strike for both.</span><p>Their mother's one sword for Rhun and Rhodri. It never learned which brother it belonged to.</p></div>
+      <div class="relic"><h4>Brave Sword <span class="px">O 338</span></h4><span class="q">The chronicle credits its champion with one stroke at the bridge. Two men fell.</span><p>The end of the Twins' War. The champion asked the chronicle to leave his name out.</p></div>
+      <div class="relic"><h4>Stormbreaker <span class="px">O 519</span></h4><span class="q">Borne down the clan peaks in the storm-year. Weather has walked around it since.</span><p>Pledged to the king by the peak clans, lost at the Nine Days. The clans would like it back.</p></div>
+      <div class="relic"><h4>Luce <span class="px">O 519</span></h4><span class="q">Written to end one thing under the sacred ground. The page says so. The rest is ash.</span><p>A seer's attempt to give the Sleeper a name, and with it an ending. She burned before she finished. What would a finished Luce do?</p></div>
+      <div class="relic"><h4>Doomblade <span class="px">O 601</span></h4><span class="q">The chronicles name this lance once and never again.</span><p>The Gentle King spent its name to break the Grey Winter. One entry survives. Read aloud, the word sounds like nothing.</p></div>
+      <div class="relic"><h4>Ragnarok <span class="px">S 0</span></h4><span class="q">It held the gate when every wall behind it fell, and held it through the night.</span><p>Cenwyn, the queen's gate-warden, on the ninth night at the old capital's east gate. It has belonged to people who hold doors ever since.</p></div>
+      <div class="relic"><h4>Bolting <span class="px">S 0</span></h4><span class="q">Three copies were written for the siege of the capital. One remains. Stand back.</span><p>Two copies opened the Breach. The third sits in the circle's vault, and its scribes copy from it, badly and hot.</p></div>
+      <div class="relic"><h4>Excalibur <span class="px">S 13</span></h4><span class="q">Wind, written down.</span><p>The Old Tongue name of wind, whole. The only copy left the burning academy under a student's shirt.</p></div>
+      <div class="relic"><h4>Gae Bolg <span class="px">O c.400</span></h4><span class="q">Named for a hero who never started a fight, and never lost one.</span><p>A warden who took the dueling halls' first rule, never strike first, as a creed for a whole life. In the Old Tongue: the answer that comes back.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ VIII · FOUND TEXTS ═══════════ -->
+<section class="chapter" id="texts">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">VIII</div><div class="px">Chapter eight</div><h2>Found Texts</h2></div>
+  <p class="lede">Documents from inside the world.</p>
+  <div class="docs">
+    <div class="doc vellum">
+      <span class="dh">The Oath at the Ford · O 1</span>
+      <p class="oath"><span>The strong serve the weak.</span><span>Every name is kept.</span><span>The crown is a debt, and the king pays first.</span><span>What sleeps is not woken, and what wakes it is not suffered.</span></p>
+      <p class="note">Sworn in the river by the first king and the barrow-lords.</p>
+    </div>
+    <div class="doc vellum">
+      <span class="dh">The paladin oath</span>
+      <p class="oath"><span>I am strength to the line.</span><span>I am shield to the banner.</span><span>I am service to the crown.</span><span class="struck"><s>The strong serve the weak.</s></span></p>
+      <p class="note">The Edict of the Roll struck the fourth line in S 2. Paladins say three lines and hum the fourth.</p>
+    </div>
+    <div class="doc page">
+      <span class="dh">The First Pages · the Naming</span>
+      <p><em>Before her, nothing came next. She asked the dark a question, and the dark had no answer, so she was the answer, and the answer was morning.</em></p>
+      <p><em>Name the child aloud, that the child may be called back.</em></p>
+      <p><em>What is named may return. What is kept is not lost.</em></p>
+    </div>
+    <div class="doc page">
+      <span class="dh">The Middle Pages · with the Archmage's notes</span>
+      <p><em>Lay the name upon the stone as a mother lays a cloth upon a sleeper. Do not throw it.</em></p>
+      <span class="marg">Why not? — V.</span>
+      <p><em>It will take what is laid.</em></p>
+      <span class="marg">Any name? — V. &nbsp; Any name. Tested. — V.</span>
+      <p><em>What sleeps is not woken.</em></p>
+      <span class="marg">Unless it is steered. — V., O 603 &nbsp;·&nbsp; It can still be steered. — V., S 30 &nbsp;·&nbsp; It can still be — V., S 34</span>
+    </div>
+    <div class="doc page">
+      <span class="dh">The Last Pages · the Waking</span>
+      <p><em>What sleeps below does not hate. It is only before.</em></p>
+      <p><em>It cannot be fought by one, nor sung down by one.</em></p>
+      <p><em>The thread by which the world is pulled back is not held by the seer. The seer holds only the end of it.</em></p>
+      <p class="cut"><em>And when all her names are said at once, not by one mouth but by</em></p>
+      <p class="note">Every copy ever made ends here. The rest of the leaf is blank.</p>
+    </div>
+    <div class="doc edict">
+      <span class="stamp" aria-hidden="true"></span>
+      <span class="dh">The Edict of the Roll · S 2</span>
+      <p class="caps">By the Seat. Every soul within the Empire shall be entered in the Roll, and the name so entered is held in trust for the Seat. A name not entered is not held. A soul not held is not protected.</p>
+      <p class="caps">Officers of the Seat shall surrender name upon commission and be known by rank.</p>
+      <p class="caps" style="color:var(--blood-hi)">What is, remains.</p>
+    </div>
+    <div class="doc edict">
+      <span class="dh">Broadsheet · nailed up at Oathford · S 34</span>
+      <p class="caps">A rogue dawn in the west. The Seat warns all loyal households of a band of rogues marching east under a lost banner and lit against the curfew. Do not shelter them. Do not name them. Report all rogue light.</p>
+      <p class="note">Someone pulled it off the toll-house door the first week. The warband has called itself that since.</p>
+    </div>
+    <div class="doc ledgerdoc">
+      <span class="dh">A warden's ledger · first page</span>
+      <div class="hand">
+        Birchwick, autumn, S 28.<br>
+        Nessa, weaver. Tilde, her daughter and mine.<br>
+        Old Dunn, miller. Dunn's boy. The Birley sisters, both.<br>
+        Garm Birchcutter. Wyle the lame, who stayed because he could not run.<br>
+        <span style="color:var(--faint)">(forty-one more)</span><br>
+        <span class="living">Anders Carrow, captain. (living)</span>
+      </div>
+    </div>
+    <div class="doc verse">
+      <span class="dh">Counting rhyme · the Marches</span>
+      <p>One for the river and two for the ford,<br>three for the smith who marked the sword,<br>four for the shrine and the copper you paid,<br>five for your name, so it won't be mislaid.</p>
+    </div>
+    <div class="doc verse">
+      <span class="dh">Skipping rhyme · everywhere</span>
+      <p>Hollow sun, hollow sun, where did your name go?<br>Down to the babies, down to the snow.<br>Say it at morning and say it at night,<br>and the rim round the sun will keep its light.</p>
+      <p class="note" style="font-style:normal">Nobody who sings it believes it.</p>
+    </div>
+    <div class="doc verse">
+      <span class="dh">The Crown in the Wend · border ballad</span>
+      <p>The king came down on the ninth night's water,<br>the arrow in his side and his son beside;<br>he asked to be laid where the first king swore it,<br>and the Wend ran slow, and the Wend ran wide.</p>
+      <p>The crown went down where the gravel's golden,<br>and nobody's found it, though plenty have tried,<br>for the river keeps what the river's holding,<br>and the Wend runs slow, and the Wend runs wide.</p>
+    </div>
+    <div class="doc plain">
+      <span class="dh">The imperial drill chant · sung on D and E♭</span>
+      <p style="font-family:var(--display);letter-spacing:.08em">Left, and the line. Right, and the line.<br>What is, remains. What is, remains.</p>
+      <p class="note">After enough years, recruits stop hearing the words.</p>
+    </div>
+    <div class="doc plain">
+      <span class="dh">Dueling-hall rules</span>
+      <p>1. Never strike first.<br>2. Never refuse a challenge.<br>3. One at a time, gentlemen.<br>4. One glove thrown, one opponent, no seconds, no help.<br><s style="color:var(--faint)">5. The loser's name is the winner's to say or to keep.</s></p>
+    </div>
+    <div class="doc plain">
+      <span class="dh">Sky-legion picket orders</span>
+      <p>Fly alone. Keep your distance.<br>Report what the ground can't see.<br>If from the height you see the shape, say nothing, and come down slowly.</p>
+    </div>
+    <div class="doc plain">
+      <span class="dh">The Lieutenant's letters</span>
+      <p style="font-family:var(--display);letter-spacing:.2em;font-size:19px">HOLD. · WAIT. · NOT YET. · NOW. · DON'T.</p>
+      <p class="note">Every letter he sends is one word long. The last is the only one he ever sent to the Blade Lord.</p>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Carved and scratched</h3>
+    <div class="graffiti">
+      <div><b>HOLD UNTIL RELIEVED.</b><span>Wendhall gate, inside. Under it, recently: STILL HERE.</span></div>
+      <div><b>CROSSING CLOSED BY ORDER OF THE MARCH.</b><span>Oathford. An iron stamp, a hollow circle, no signature.</span></div>
+      <div><b>NOT YOURS.</b><span>A milestone, Fourth Province, the number scratched out</span></div>
+      <div><b>FORTY.</b><span>The old capital, the Breach</span></div>
+      <div><b>THEY BLEED. PASS IT ON.</b><span>A barricade in the capital</span></div>
+      <div><b>WE CAME THIS FAR ALSO.</b><span>The stair, very old. Older than the Oath, say the masons.</span></div>
+      <div><b>IT REMEMBERS YOU. BE QUICKER.</b><span>The stair, in a seer's hand</span></div>
+      <div><b>WHAT SLEEPS HERE WAS NOT MEANT TO BE FED.</b><span>Above the last door</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ IX · SEALED ═══════════ -->
+<section class="chapter" id="sealed">
+  <div class="ch-head"><div class="ch-num" aria-hidden="true">IX</div><div class="px">Chapter nine</div><h2>Sealed</h2></div>
+  <p class="lede">True, and never said in the game. The game only points at these: a rhyme nobody believes, a bell, a violin. Break a seal to read it.</p>
+  <div class="seals">
+    <div class="seal" data-seal="s-change"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">Where her name went</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>Every name anyone carries is part of the Dawn's change. She is not gone; she is asleep in every name. That makes two sleepers: the Stillness below and the Dawn within. When names thin, the one below stirs. When names are said together, the one within begins to wake. Edric's <span class="q">Power stolen from a sleeping god</span> is truer than he knows: the Emperor has been feeding on her, one name at a time.</p></div></div>
+    <div class="seal" data-seal="s-hum"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">Why the Sleeper hums</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>It has swallowed so much of her that it has begun to hum her note, D, with its own shadow beneath. It is trying to say the name it ate. The empire's drill is the same interval, set to marching.</p></div></div>
+    <div class="seal" data-seal="s-choir"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">Who sings in the finale</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>Wounding the Sleeper opens it, and everything it swallowed pours out: the levy, the conquered provinces, the burned villages, the Lieutenant's name, the old kingdom's own name, thirty-four years of the Roll. The choir Act I never had is them. They sing Ember Dusk, the song of the road you walked, because it is the first thing they hear. The complete Thread arrives only when everyone sings it: her name can only be said by everyone who carries her change, at once. For one chord the world says it, and the Sleeper, emptied, sinks back into true sleep. A dawn with no god behind it. The empire would call it a rogue dawn.</p></div></div>
+    <div class="seal" data-seal="s-sera"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">What each thread costs Sera</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>Every thread she re-weaves costs her some of her own name. At the chapter-house she was Serafen in the roll and Sera to everyone. The long form went first; by now even she struggles to remember there was more. She has told nobody. What she fears is not dying. It is finishing the March as someone nobody can call. Hagen remembers the long form. The one time he says it, it frightens her.</p></div></div>
+    <div class="seal" data-seal="s-hagen"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">Why Hagen is always ahead</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>He drowned in the Glass twice and came back both times. He walks threads sideways, and he has walked more of them than Sera. The second time, in S 12, he came up on the landing under the Hearth with a small boy by the collar. The circle's records credit themselves with the Lieutenant. Hagen brought him back. He hums the Dawn-office off-key because he is humming the note that isn't in it.</p></div></div>
+    <div class="seal" data-seal="s-bells"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">What the fen bells ring</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p><span class="q">The shrine bells ring on their own out here. Twice, then silence. Then twice.</span> The chapter-house bells are ringing a two-syllable name, calling home the one novice who came back without it: Tam-lin. He has never let himself hear them.</p></div></div>
+    <div class="seal" data-seal="s-order"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">What is in the Dark Rider's bag</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>The Gentle King's order to fall back, sealed with a crown, never delivered. The first rider was paid to be late with it and never threw it away. His son has carried it since. It is the order the Iron Wall has been waiting for since the Breach.</p></div></div>
+    <div class="seal" data-seal="s-ember"><button type="button" aria-expanded="false"><span class="wax"></span><span><span class="kind px">Sealed</span><br><span class="st">Cael's watchword</span></span><span class="px" style="color:var(--faint)">break</span></button>
+      <div class="body"><p>It is the word for what Edric carried out of the burning hall in a clay pot, the fire the warband sits around every night before the March. Cael will not say it. Neither will this book.</p></div></div>
+  </div>
+</section>
+
+<footer class="colophon">
+  <div class="hairline" aria-hidden="true"><span></span></div>
+  <p>Compiled from the world bible in <code>docs/lore/</code>, itself built on every line of lore, dialogue, art direction and score already in the game.</p>
+  <p class="px" style="color:var(--faint)">Year 34 of the Seat · 646 of the Oath</p>
+</footer>
+</main>
+
+<script>
+(function(){
+  var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  // far pickets
+  var box=document.getElementById('mapbox'),pb=document.getElementById('pickets');
+  if(pb&&box){pb.addEventListener('click',function(){var on=box.classList.toggle('pickets');pb.setAttribute('aria-pressed',on?'true':'false');pb.textContent=on?'Come down slowly':'View from the far pickets';});}
+  // names returned
+  document.querySelectorAll('.namebox').forEach(function(nb){
+    var key='historia:'+nb.dataset.name, btn=nb.querySelector('button'), nm=nb.querySelector('.nm'), real=nb.querySelector('.nm-real');
+    function open(){nb.classList.add('open'); if(real){nm.textContent=real.dataset.v;} else {nm.textContent='———';} btn.hidden=true;}
+    if(store.get(key)==='1') open();
+    btn.addEventListener('click',function(){open();store.set(key,'1');});
+  });
+  // seals
+  document.querySelectorAll('.seal').forEach(function(s){
+    var key='historia:'+s.dataset.seal, b=s.querySelector('button');
+    function set(on){s.classList.toggle('open',on);b.setAttribute('aria-expanded',on?'true':'false');b.lastElementChild.textContent=on?'broken':'break';}
+    if(store.get(key)==='1') set(true);
+    b.addEventListener('click',function(){var on=!s.classList.contains('open');set(on);store.set(key,on?'1':'0');});
+  });
+})();
+</script>
