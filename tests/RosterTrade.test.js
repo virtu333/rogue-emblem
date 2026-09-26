@@ -162,7 +162,7 @@ function makeUnit({ name, type, inventory, weapon }) {
 describe('Roster trade weapon gating', () => {
   it('allows trading equipped last weapon between one-weapon units', () => {
     const { overlay, scene } = makeOverlay();
-    const elfire = makeWeapon('Elfire', 'Tome');
+    const elfire = makeWeapon('Wildfire', 'Tome');
     const fire = makeWeapon('Fire', 'Tome');
     const unitA = makeUnit({ name: 'Iris', type: 'Tome', inventory: [elfire], weapon: elfire });
     const unitB = makeUnit({ name: 'Mora', type: 'Tome', inventory: [fire], weapon: fire });
@@ -178,7 +178,7 @@ describe('Roster trade weapon gating', () => {
     expect(unitA.inventory).toHaveLength(0);
     expect(unitA.weapon).toBeNull();
     expect(unitB.inventory.map((item) => item.name)).toEqual(
-      expect.arrayContaining(['Fire', 'Elfire']),
+      expect.arrayContaining(['Fire', 'Wildfire']),
     );
   });
 

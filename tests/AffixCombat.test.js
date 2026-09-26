@@ -19,7 +19,7 @@ describe('Affix Combat Interactions', () => {
 
   const weapon = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1' };
   const braveWeapon = {
-    name: 'Brave Sword',
+    name: 'Oathblade',
     type: 'Sword',
     might: 5,
     hit: 90,
@@ -215,7 +215,7 @@ describe('B3 — Teleport affix: once per combat + full escape', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
     const braveWeapon = {
-      name: 'Brave Sword',
+      name: 'Oathblade',
       type: 'Sword',
       might: 5,
       hit: 90,
@@ -273,7 +273,7 @@ describe('B3 — Teleport affix: once per combat + full escape', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
     const poisonSword = {
-      name: 'Venin Blade',
+      name: 'Adder Blade',
       type: 'Sword',
       might: 5,
       hit: 90,

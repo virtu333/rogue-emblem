@@ -75,7 +75,7 @@ describe('Shop item detail formatting', () => {
       {
         type: 'weapon',
         item: {
-          name: 'Venin Blade',
+          name: 'Adder Blade',
           might: 8,
           hit: 90,
           crit: 0,

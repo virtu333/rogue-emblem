@@ -56,7 +56,7 @@
     "price": 2000
   },
   {
-    "name": "Killing Edge",
+    "name": "Keen Sword",
     "lore": "Provincial surgeons call it the Short Shift. They don't mean their own work.",
     "type": "Sword",
     "tier": "Silver",
@@ -70,8 +70,8 @@
     "price": 2300
   },
   {
-    "name": "Wo Dao",
-    "lore": "Curved and single-edged, with a wave in the steel no inland smith can copy.",
+    "name": "Jian",
+    "lore": "Straight and double-edged, a red tassel at the pommel. It came up the river trade.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -84,8 +84,8 @@
     "price": 1300
   },
   {
-    "name": "Wind Sword",
-    "lore": "Throw it at the second rank, soldier. Then go fetch it. Yes, through the first.",
+    "name": "Gust Blade",
+    "lore": "Swing at the second rank, soldier. The wind it cuts loose gets there before you.",
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -94,12 +94,12 @@
     "crit": 0,
     "weight": 7,
     "range": "1-2",
-    "special": "Throwable, lower stats",
+    "special": "Wind gust at range, lower stats",
     "price": 1200
   },
   {
-    "name": "Tempest Blade",
-    "lore": "Hums like a kettle in flight. Its owners have stopped apologizing for the noise.",
+    "name": "Gale Blade",
+    "lore": "Every swing throws a gale. Its owners have stopped apologizing for the noise.",
     "type": "Sword",
     "tier": "Silver",
     "rankRequired": "Prof",
@@ -108,11 +108,11 @@
     "crit": 0,
     "weight": 8,
     "range": "1-2",
-    "special": "Throwable, lower stats",
+    "special": "Wind gust at range, lower stats",
     "price": 2200
   },
   {
-    "name": "Lancereaver",
+    "name": "Lancehook",
     "lore": "Catch the lance on the crossguard. Walk up it. Say good morning.",
     "type": "Sword",
     "tier": "Steel",
@@ -126,7 +126,7 @@
     "price": 1300
   },
   {
-    "name": "Brave Sword",
+    "name": "Oathblade",
     "lore": "The chronicle credits its champion with one stroke at the bridge. Two men fell.",
     "type": "Sword",
     "tier": "Legend",
@@ -146,7 +146,7 @@
     "price": 0
   },
   {
-    "name": "Levin Sword",
+    "name": "Thunderbrand",
     "lore": "A storm lives where the fuller should be. Sheathed, it still lifts your hair.",
     "type": "Sword",
     "tier": "Silver",
@@ -160,7 +160,7 @@
     "price": 2200
   },
   {
-    "name": "Gemini",
+    "name": "Twinsworn",
     "lore": "Forged for twin princes who would share nothing, it learned to strike for both.",
     "type": "Sword",
     "tier": "Legend",
@@ -236,8 +236,8 @@
     "price": 700
   },
   {
-    "name": "Swordreaver",
-    "lore": "'Swords beat lances, everyone knows.' 'This lance was never told.'",
+    "name": "Axehook",
+    "lore": "Hook the axe by its beard and pull. Axemen on the border spit at the sight of it.",
     "type": "Lance",
     "tier": "Steel",
     "rankRequired": "Prof",
@@ -250,7 +250,7 @@
     "price": 1300
   },
   {
-    "name": "Brave Lance",
+    "name": "Oathlance",
     "lore": "At the ford, the chronicle says, each rider struck twice and the river ran slow.",
     "type": "Lance",
     "tier": "Legend",
@@ -352,7 +352,7 @@
     "price": 2000
   },
   {
-    "name": "Short Axe",
+    "name": "Hatchet",
     "lore": "'Did you throw your axe again?' 'Threw it well. Fetching it's the hard part.'",
     "type": "Axe",
     "tier": "Steel",
@@ -366,7 +366,7 @@
     "price": 1000
   },
   {
-    "name": "Killer Axe",
+    "name": "Keen Axe",
     "lore": "Its bit is ground well past regulation. So, usually, is whoever carries it.",
     "type": "Axe",
     "tier": "Silver",
@@ -394,7 +394,7 @@
     "price": 1300
   },
   {
-    "name": "Axereaver",
+    "name": "Bladehook",
     "lore": "Burned into the haft: YES, THE WRONG WAY ROUND. ON PURPOSE.",
     "type": "Axe",
     "tier": "Steel",
@@ -408,7 +408,7 @@
     "price": 1300
   },
   {
-    "name": "Brave Axe",
+    "name": "Oathaxe",
     "lore": "Dug from a barrow holding one king and two sets of armor. It swings for both.",
     "type": "Axe",
     "tier": "Legend",
@@ -428,8 +428,8 @@
     "price": 0
   },
   {
-    "name": "Stormbreaker",
-    "lore": "Borne down the clan peaks in the storm-year. Weather has walked around it since.",
+    "name": "Tidebreaker",
+    "lore": "It held the clan pass when the empire came up like a tide. The tide went back.",
     "type": "Axe",
     "tier": "Legend",
     "rankRequired": "Mast",
@@ -510,7 +510,7 @@
     "price": 2000
   },
   {
-    "name": "Killer Bow",
+    "name": "Keen Bow",
     "lore": "Border wardens say it only strings for someone who has already decided.",
     "type": "Bow",
     "tier": "Silver",
@@ -538,7 +538,7 @@
     "price": 1200
   },
   {
-    "name": "Brave Bow",
+    "name": "Oathbow",
     "lore": "The chronicle has the arrow drawn once and loosed twice. The chronicler was there.",
     "type": "Bow",
     "tier": "Legend",
@@ -592,7 +592,7 @@
     "price": 700
   },
   {
-    "name": "Elfire",
+    "name": "Wildfire",
     "lore": "Second-year text. No kindling required; students are asked to stop bringing it.",
     "type": "Tome",
     "tier": "Steel",
@@ -606,7 +606,7 @@
     "price": 1200
   },
   {
-    "name": "Bolganone",
+    "name": "Conflagration",
     "lore": "Do not read aloud indoors. Do not read aloud outdoors near anything you like.",
     "type": "Tome",
     "tier": "Silver",
@@ -634,7 +634,7 @@
     "price": 2300
   },
   {
-    "name": "Excalibur",
+    "name": "Firstwind",
     "lore": "Wind, written down. Fliers who hear the page turn have already begun to fall.",
     "type": "Tome",
     "tier": "Legend",
@@ -654,7 +654,7 @@
     "price": 0
   },
   {
-    "name": "Bolting",
+    "name": "Breachbolt",
     "lore": "Three copies were written for the siege of the capital. One remains. Stand back.",
     "type": "Tome",
     "tier": "Legend",
@@ -676,7 +676,7 @@
     "price": 0
   },
   {
-    "name": "Lightning",
+    "name": "Glimmer",
     "lore": "The one prayer taught to soldiers, because it is short and it answers.",
     "type": "Light",
     "tier": "Iron",
@@ -690,7 +690,7 @@
     "price": 700
   },
   {
-    "name": "Shine",
+    "name": "Brilliance",
     "lore": "Issued with a cloth for the eyes. Soldiers use the cloth for everything else.",
     "type": "Light",
     "tier": "Steel",
@@ -704,7 +704,7 @@
     "price": 1200
   },
   {
-    "name": "Aura",
+    "name": "Crownlight",
     "lore": "The full recitation. The rubric advises a chair, a witness, and no second try.",
     "type": "Light",
     "tier": "Silver",
@@ -732,7 +732,7 @@
     "price": 2300
   },
   {
-    "name": "Luce",
+    "name": "Endword",
     "lore": "Written to end one thing under the sacred ground. The page says so. The rest is ash.",
     "type": "Light",
     "tier": "Legend",
@@ -953,7 +953,7 @@
     "price": 5000
   },
   {
-    "name": "Armorslayer",
+    "name": "Mailbane",
     "lore": "Knights, lad. Only knights. Anybody else, use your other sword.",
     "type": "Sword",
     "tier": "Steel",
@@ -967,7 +967,7 @@
     "price": 1300
   },
   {
-    "name": "Horseslayer",
+    "name": "Horsebane",
     "lore": "Long haft, low point: the mount goes down before the rider knows the fight began.",
     "type": "Lance",
     "tier": "Steel",
@@ -981,7 +981,7 @@
     "price": 1300
   },
   {
-    "name": "Killer Lance",
+    "name": "Keen Lance",
     "lore": "Below the helm, above the gorget. One thumb's width. Practice on bread.",
     "type": "Lance",
     "tier": "Silver",
@@ -1071,7 +1071,7 @@
     "price": 0
   },
   {
-    "name": "Soulreaver",
+    "name": "Namethief",
     "lore": "Its bearers never tire in battle. They never sleep well after, either.",
     "type": "Sword",
     "tier": "Legend",
@@ -1091,7 +1091,7 @@
     "price": 0
   },
   {
-    "name": "Venin Blade",
+    "name": "Adder Blade",
     "lore": "Do not lick the blade. Do not ask how we know. Wounds fester after the fight.",
     "type": "Sword",
     "tier": "Silver",
@@ -1105,7 +1105,7 @@
     "price": 1800
   },
   {
-    "name": "Venin Bow",
+    "name": "Adder Bow",
     "lore": "Heads dipped in bog-tar from the fens. You smell it before you feel it.",
     "type": "Bow",
     "tier": "Rare",
@@ -1888,7 +1888,7 @@
     "price": 2200
   },
   {
-    "name": "Doublebow",
+    "name": "Hermit's Bow",
     "lore": "The watchtower hermit who strung it left one line behind: company spoils the aim.",
     "type": "Bow",
     "tier": "Legend",

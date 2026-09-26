@@ -278,7 +278,7 @@ export function getEffectivenessMultiplier(weapon, defender) {
   // Light magic is effective against undead (zombie) classes
   if (weapon?.type === 'Light' && ZOMBIE_CLASSES.has(defender.className)) return 3;
   if (!weapon?.special) return 1;
-  // Class-based effectiveness: "Effective vs dark enemies" (e.g. Luce)
+  // Class-based effectiveness: "Effective vs dark enemies" (e.g. Endword)
   if (/Effective vs dark/i.test(weapon.special) && DARK_CLASSES.has(defender.className)) return 3;
   const match = weapon.special.match(/Effective vs ([^()]+)\s*\((\d+)x\)/i);
   if (!match) return 1;
@@ -305,7 +305,7 @@ export function getWeaponStatBonuses(weapon) {
 
 /**
  * Evaluate position-dependent weapon bonuses
- * (e.g. Doublebow: "+4 STR, +4 SPD if no adjacent allies").
+ * (e.g. Hermit's Bow: "+4 STR, +4 SPD if no adjacent allies").
  * Returns { atkBonus, spdBonus } to merge into combat mods.
  */
 export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
@@ -480,7 +480,7 @@ export function spendStaffUse(staff) {
   staff._usesSpent = (staff._usesSpent || 0) + 1;
 }
 
-// --- Per-battle weapon uses (e.g. Bolting) ---
+// --- Per-battle weapon uses (e.g. Breachbolt) ---
 
 /** Total max uses for a per-battle-use weapon given the user's MAG. */
 export function getPerBattleMaxUses(weapon, unit) {
@@ -742,7 +742,7 @@ export function canCounter(defender, defenderWeapon, distance) {
  * poison). Descriptive specials ("Lightest magic", "Throwable, lower stats") and
  * specials already folded into damage/hit/count (effectiveness, brave, reavers,
  * Sunder, "+N stat when equipped", Gae Bolg) keep the HP projection — the
- * blanket `!weapon.special` rule hid it for Lightning (playtest #23).
+ * blanket `!weapon.special` rule hid it for Glimmer, then called Lightning (playtest #23).
  */
 export function weaponSpecialChangesExchangeHp(weapon) {
   const special = typeof weapon?.special === 'string' ? weapon.special : '';
@@ -863,7 +863,7 @@ export function getCombatForecast(
       ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
       : { hit: 0, damage: 0 };
 
-  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES)
+  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Tidebreaker +5 DEF +5 RES)
   // Pick the relevant defensive bonus based on incoming weapon type
   const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
@@ -1363,7 +1363,7 @@ export function resolveCombat(
     defWeapon ? getImbueCombatMods(defWeapon, skillCtx?.imbuesData) : null,
   );
 
-  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES) — combat-time mods only
+  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Tidebreaker +5 DEF +5 RES) — combat-time mods only
   // Pick the relevant defensive bonus based on incoming weapon type
   const atkWeaponBonuses = getWeaponStatBonuses(atkWeapon);
   const defWeaponBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];

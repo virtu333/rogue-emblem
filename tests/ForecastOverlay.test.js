@@ -192,7 +192,7 @@ describe('ForecastOverlay', () => {
     it('shows EFFECTIVE! banner when weapon has effectiveness', () => {
       const attacker = makeUnit({
         weapon: {
-          name: 'Armorslayer',
+          name: 'Mailbane',
           type: 'Sword',
           might: 8,
           hit: 80,

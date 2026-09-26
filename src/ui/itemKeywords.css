@@ -1,0 +1,61 @@
+/* Keyword row under an item's name (itemKeywordChips.js). */
+.re-item-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 4px 0 0;
+  min-width: 0;
+}
+.re-item-base {
+  font: 600 11px/1.2 var(--re-body);
+  letter-spacing: 0.04em;
+  color: var(--re-parchment-dim);
+}
+.re-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.re-item-tag {
+  font: 700 10px/1 var(--re-body);
+  letter-spacing: 0.03em;
+  padding: 3px 5px;
+  border-radius: 2px;
+  color: var(--re-muted);
+  background: var(--re-sunken);
+  box-shadow: inset 0 0 0 1px var(--re-line-soft);
+  white-space: nowrap;
+}
+.re-item-tag.is-crit {
+  color: var(--re-bad);
+  box-shadow: inset 0 0 0 1px var(--re-blood-deep);
+}
+.re-item-tag.is-twice {
+  color: var(--re-info);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}
+.re-item-tag.is-reverse {
+  color: var(--re-rarity-epic);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}
+.re-item-tag.is-effective {
+  color: var(--re-warn);
+  box-shadow: inset 0 0 0 1px var(--re-ember-deep);
+}
+.re-item-tag.is-magic {
+  color: var(--re-accent-text);
+  box-shadow: inset 0 0 0 1px var(--re-ember-deep);
+}
+.re-item-tag.is-poison {
+  color: var(--re-good);
+  box-shadow: inset 0 0 0 1px var(--re-verdigris-deep);
+}
+.re-item-tag.is-thrown {
+  color: var(--re-parchment-dim);
+  box-shadow: inset 0 0 0 1px var(--re-line);
+}

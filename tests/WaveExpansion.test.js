@@ -61,20 +61,20 @@ beforeAll(() => {
 // ─── Wave 2: Combat Engine Extensions ───
 
 describe('Reaver weapons', () => {
-  it('Lancereaver reverses sword vs lance triangle', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook reverses sword vs lance triangle', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
     // Normally sword has advantage vs axe and disadvantage vs lance
-    // Lancereaver (sword) should swap: advantage vs lance
+    // Lancehook (sword) should swap: advantage vs lance
     const bonus = getWeaponTriangleBonus(lancereaver, ironLance, 'Prof');
     expect(bonus.hit).toBeGreaterThan(0);
     expect(bonus.damage).toBeGreaterThan(0);
   });
 
-  it('Swordreaver reverses lance vs axe triangle', () => {
-    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+  it('Axehook reverses lance vs axe triangle', () => {
+    const swordreaver = data.weapons.find((w) => w.name === 'Axehook');
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
-    // Normally Lance loses to Axe (Axe>Lance). Swordreaver (Lance) reverses → beats Axe
+    // Normally Lance loses to Axe (Axe>Lance). Axehook (Lance) reverses → beats Axe
     // Actually: Axe>Lance, so Lance is disadvantaged vs Axe.
     // With reaver: disadvantage swaps to advantage
     const bonus = getWeaponTriangleBonus(swordreaver, ironAxe, 'Prof');
@@ -82,10 +82,10 @@ describe('Reaver weapons', () => {
     expect(bonus.damage).toBeGreaterThan(0);
   });
 
-  it('Axereaver reverses axe vs sword triangle', () => {
-    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
+  it('Bladehook reverses axe vs sword triangle', () => {
+    const axereaver = data.weapons.find((w) => w.name === 'Bladehook');
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
-    // Normally Axe loses to Sword (Sword>Axe). Axereaver reverses → beats Sword
+    // Normally Axe loses to Sword (Sword>Axe). Bladehook reverses → beats Sword
     const bonus = getWeaponTriangleBonus(axereaver, ironSword, 'Prof');
     expect(bonus.hit).toBeGreaterThan(0);
     expect(bonus.damage).toBeGreaterThan(0);
@@ -93,8 +93,8 @@ describe('Reaver weapons', () => {
 });
 
 describe('Reaver opponent reversal', () => {
-  it('Lancereaver attacker gets disadvantage vs Iron Axe (normal advantage flipped)', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook attacker gets disadvantage vs Iron Axe (normal advantage flipped)', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     // Sword normally beats Axe → reaver flips to disadvantage
     const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Prof');
@@ -102,8 +102,8 @@ describe('Reaver opponent reversal', () => {
     expect(bonus.damage).toBe(-1);
   });
 
-  it('Swordreaver attacker gets disadvantage vs Iron Sword (normal advantage flipped)', () => {
-    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+  it('Axehook attacker gets disadvantage vs Iron Sword (normal advantage flipped)', () => {
+    const swordreaver = data.weapons.find((w) => w.name === 'Axehook');
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     // Lance normally beats Sword → reaver flips to disadvantage
     const bonus = getWeaponTriangleBonus(swordreaver, ironSword, 'Prof');
@@ -111,51 +111,51 @@ describe('Reaver opponent reversal', () => {
     expect(bonus.damage).toBe(-1);
   });
 
-  it('Lancereaver vs Iron Sword is neutral (same effective type)', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook vs Iron Sword is neutral (same effective type)', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     const bonus = getWeaponTriangleBonus(lancereaver, ironSword, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
-  it('Lancereaver vs Iron Bow is neutral (non-triangle type)', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook vs Iron Bow is neutral (non-triangle type)', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironBow = data.weapons.find((w) => w.name === 'Iron Bow');
     const bonus = getWeaponTriangleBonus(lancereaver, ironBow, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
-  it('Axereaver vs Iron Axe is neutral (same type)', () => {
-    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
+  it('Bladehook vs Iron Axe is neutral (same type)', () => {
+    const axereaver = data.weapons.find((w) => w.name === 'Bladehook');
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     const bonus = getWeaponTriangleBonus(axereaver, ironAxe, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
-  it('Lancereaver vs Iron Lance at Mastery gets mastery advantage', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook vs Iron Lance at Mastery gets mastery advantage', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
     const bonus = getWeaponTriangleBonus(lancereaver, ironLance, 'Mast');
     expect(bonus.hit).toBe(15);
     expect(bonus.damage).toBe(2);
   });
 
-  it('Lancereaver vs Iron Axe at Mastery gets mastery disadvantage', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+  it('Lancehook vs Iron Axe at Mastery gets mastery disadvantage', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Mast');
     expect(bonus.hit).toBe(-5);
     expect(bonus.damage).toBe(-1);
   });
 
-  it('double-reaver cancels out (Lancereaver vs Swordreaver = normal triangle)', () => {
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
-    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+  it('double-reaver cancels out (Lancehook vs Axehook = normal triangle)', () => {
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
+    const swordreaver = data.weapons.find((w) => w.name === 'Axehook');
     // Both are reavers → XOR=false → normal triangle applies
-    // Lancereaver is Sword type, Swordreaver is Lance type
+    // Lancehook is Sword type, Axehook is Lance type
     // Sword vs Lance = disadvantage for Sword
     const bonus = getWeaponTriangleBonus(lancereaver, swordreaver, 'Prof');
     expect(bonus.hit).toBe(-10);
@@ -175,8 +175,8 @@ describe('Triangle ignore', () => {
 });
 
 describe('Weapon stat bonuses (array)', () => {
-  it('returns array for Stormbreaker with DEF+RES', () => {
-    const storm = data.weapons.find((w) => w.name === 'Stormbreaker');
+  it('returns array for Tidebreaker with DEF+RES', () => {
+    const storm = data.weapons.find((w) => w.name === 'Tidebreaker');
     const bonuses = getWeaponStatBonuses(storm);
     expect(Array.isArray(bonuses)).toBe(true);
     expect(bonuses.length).toBe(2);
@@ -199,9 +199,9 @@ describe('Weapon stat bonuses (array)', () => {
   });
 });
 
-describe('Magic sword (Levin Sword)', () => {
-  it('usesMagic returns true for Levin Sword', () => {
-    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
+describe('Magic sword (Thunderbrand)', () => {
+  it('usesMagic returns true for Thunderbrand', () => {
+    const levin = data.weapons.find((w) => w.name === 'Thunderbrand');
     expect(usesMagic(levin)).toBe(true);
   });
 
@@ -210,16 +210,16 @@ describe('Magic sword (Levin Sword)', () => {
     expect(usesMagic(iron)).toBe(false);
   });
 
-  it('Levin Sword uses MAG for attack', () => {
-    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
+  it('Thunderbrand uses MAG for attack', () => {
+    const levin = data.weapons.find((w) => w.name === 'Thunderbrand');
     const unit = makeUnit({ stats: { ...makeUnit().stats, STR: 5, MAG: 15 } });
     const atk = calculateAttack(unit, levin);
     // Should use MAG (15) not STR (5)
     expect(atk).toBe(15 + levin.might);
   });
 
-  it('Levin Sword targets RES for defense', () => {
-    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
+  it('Thunderbrand targets RES for defense', () => {
+    const levin = data.weapons.find((w) => w.name === 'Thunderbrand');
     const defender = makeUnit({ stats: { ...makeUnit().stats, DEF: 10, RES: 2 } });
     const def = calculateDefense(defender, levin);
     // Should use RES (2) not DEF (10)
@@ -227,17 +227,17 @@ describe('Magic sword (Levin Sword)', () => {
   });
 });
 
-// ─── Wave 3: Bolting Per-Battle Uses ───
+// ─── Wave 3: Breachbolt Per-Battle Uses ───
 
-describe('Per-battle weapon uses (Bolting)', () => {
-  it('Bolting has perBattleUses flag', () => {
-    const bolting = data.weapons.find((w) => w.name === 'Bolting');
+describe('Per-battle weapon uses (Breachbolt)', () => {
+  it('Breachbolt has perBattleUses flag', () => {
+    const bolting = data.weapons.find((w) => w.name === 'Breachbolt');
     expect(bolting.perBattleUses).toBe(true);
     expect(bolting.uses).toBe(1);
   });
 
   it('getPerBattleMaxUses includes MAG bonus', () => {
-    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Bolting'));
+    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
     const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 14 } });
     const maxUses = getPerBattleMaxUses(bolting, unit);
     // Base 1 + bonuses at MAG 8 (+1) and MAG 14 (+1) = 3
@@ -245,7 +245,7 @@ describe('Per-battle weapon uses (Bolting)', () => {
   });
 
   it('spendPerBattleUse tracks usage', () => {
-    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Bolting'));
+    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
     const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 5 } });
     expect(getPerBattleRemainingUses(bolting, unit)).toBe(1);
     spendPerBattleUse(bolting);
@@ -737,26 +737,19 @@ describe('Sword hit +5 applied', () => {
 });
 
 describe('Brave weapon weight increase', () => {
-  it('Brave Sword weight is 8', () => {
-    const w = data.weapons.find((w) => w.name === 'Brave Sword');
+  it('Oathblade weight is 8', () => {
+    const w = data.weapons.find((w) => w.name === 'Oathblade');
     expect(w.weight).toBe(8);
   });
 
-  it('Brave Lance weight is 11', () => {
-    const w = data.weapons.find((w) => w.name === 'Brave Lance');
+  it('Oathlance weight is 11', () => {
+    const w = data.weapons.find((w) => w.name === 'Oathlance');
     expect(w.weight).toBe(11);
   });
 });
 
 describe('New standard weapons exist', () => {
-  const expected = [
-    'Wo Dao',
-    'Wind Sword',
-    'Tempest Blade',
-    'Short Axe',
-    'Killer Axe',
-    'Killer Bow',
-  ];
+  const expected = ['Jian', 'Gust Blade', 'Gale Blade', 'Hatchet', 'Keen Axe', 'Keen Bow'];
   for (const name of expected) {
     it(`${name} exists in weapons data`, () => {
       expect(data.weapons.find((w) => w.name === name)).toBeTruthy();
@@ -771,18 +764,18 @@ describe('Renamed weapons', () => {
     expect(w.might).toBe(14);
   });
 
-  it('Soulreaver exists', () => {
-    expect(data.weapons.find((w) => w.name === 'Soulreaver')).toBeTruthy();
+  it('Namethief exists', () => {
+    expect(data.weapons.find((w) => w.name === 'Namethief')).toBeTruthy();
   });
 
-  it('Venin Blade exists with might 8', () => {
-    const w = data.weapons.find((w) => w.name === 'Venin Blade');
+  it('Adder Blade exists with might 8', () => {
+    const w = data.weapons.find((w) => w.name === 'Adder Blade');
     expect(w).toBeTruthy();
     expect(w.might).toBe(8);
   });
 
-  it('Venin Bow exists with poison special', () => {
-    const w = data.weapons.find((w) => w.name === 'Venin Bow');
+  it('Adder Bow exists with poison special', () => {
+    const w = data.weapons.find((w) => w.name === 'Adder Bow');
     expect(w).toBeTruthy();
     expect(w.type).toBe('Bow');
     expect(w.special).toBe('Poison: target loses 5 HP after combat');

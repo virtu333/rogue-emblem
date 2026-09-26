@@ -73,11 +73,11 @@ async function nodeMap(page, base, preset = 'weapon_arts') {
 /** A spread of families with the longest names, for the shop and the icon audit. */
 export const STUDY_STOCK = [
   'Silver Sword',
-  'Killer Lance',
+  'Keen Lance',
   'Hand Axe',
   'Longbow',
-  'Bolganone',
-  'Shine',
+  'Conflagration',
+  'Brilliance',
   'Physic',
   'Vulnerary',
   'Master Seal',
@@ -263,7 +263,7 @@ export const SCREENS = {
   },
   async 'rewards-mixed'(page, base) {
     await battleRewards(page, base, [
-      'Killer Lance',
+      'Keen Lance',
       "Gambler's Coin",
       'Silver Whetstone',
       'Energy Drop',

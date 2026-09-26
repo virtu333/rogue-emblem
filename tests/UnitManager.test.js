@@ -482,7 +482,7 @@ describe('canPromote', () => {
     const unit = createEnemyUnit(knight, 10, data.weapons);
     promoteUnit(unit, general, general.promotionBonuses);
 
-    const braveAxe = structuredClone(data.weapons.find((w) => w.name === 'Brave Axe'));
+    const braveAxe = structuredClone(data.weapons.find((w) => w.name === 'Oathaxe'));
     unit.inventory.push(braveAxe);
 
     expect(canEquip(unit, braveAxe)).toBe(true);
@@ -731,15 +731,15 @@ describe('hasStaff / getStaffWeapon proficiency', () => {
 describe('grantLethalArmoryWeapon', () => {
   const weaponPool = [
     { name: 'Steel Sword', type: 'Sword', tier: 'Steel', rankRequired: 'Prof' },
-    { name: 'Killing Edge', type: 'Sword', tier: 'Killer', rankRequired: 'Prof' },
+    { name: 'Keen Sword', type: 'Sword', tier: 'Killer', rankRequired: 'Prof' },
     { name: 'Silver Sword', type: 'Sword', tier: 'Silver', rankRequired: 'Mast' },
     { name: 'Steel Bow', type: 'Bow', tier: 'Steel', rankRequired: 'Prof' },
-    { name: 'Killer Bow', type: 'Bow', tier: 'Killer', rankRequired: 'Prof' },
+    { name: 'Keen Bow', type: 'Bow', tier: 'Killer', rankRequired: 'Prof' },
     { name: 'Silver Bow', type: 'Bow', tier: 'Silver', rankRequired: 'Mast' },
-    { name: 'Elfire', type: 'Tome', tier: 'Steel', rankRequired: 'Prof' },
-    { name: 'Bolganone', type: 'Tome', tier: 'Silver', rankRequired: 'Mast' },
-    { name: 'Shine', type: 'Light', tier: 'Steel', rankRequired: 'Prof' },
-    { name: 'Aura', type: 'Light', tier: 'Silver', rankRequired: 'Mast' },
+    { name: 'Wildfire', type: 'Tome', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Conflagration', type: 'Tome', tier: 'Silver', rankRequired: 'Mast' },
+    { name: 'Brilliance', type: 'Light', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Crownlight', type: 'Light', tier: 'Silver', rankRequired: 'Mast' },
   ];
 
   it('grants only Steel on tier 1', () => {
@@ -775,7 +775,7 @@ describe('grantLethalArmoryWeapon', () => {
       const granted = grantLethalArmoryWeapon(unit, weaponPool, 2);
       expect(granted).toBe(true);
       expect(unit.weapon.type).toBe('Sword');
-      expect(unit.weapon.name).toBe('Killing Edge');
+      expect(unit.weapon.name).toBe('Keen Sword');
     } finally {
       killSpy.mockRestore();
     }
@@ -785,14 +785,14 @@ describe('grantLethalArmoryWeapon', () => {
     const tomeUnit = {
       isLord: false,
       proficiencies: [{ type: 'Tome', rank: 'Prof' }],
-      inventory: [{ name: 'Elfire', type: 'Tome', rankRequired: 'Prof' }],
-      weapon: { name: 'Elfire', type: 'Tome', rankRequired: 'Prof' },
+      inventory: [{ name: 'Wildfire', type: 'Tome', rankRequired: 'Prof' }],
+      weapon: { name: 'Wildfire', type: 'Tome', rankRequired: 'Prof' },
     };
     const tier2TomeSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99); // Tier 2 killer branch; Tome has no killer so fallback to steel
     try {
       const granted = grantLethalArmoryWeapon(tomeUnit, weaponPool, 2);
       expect(granted).toBe(true);
-      expect(tomeUnit.weapon.name).toBe('Elfire');
+      expect(tomeUnit.weapon.name).toBe('Wildfire');
       expect(tomeUnit.inventory).toHaveLength(2);
     } finally {
       tier2TomeSpy.mockRestore();
@@ -803,12 +803,12 @@ describe('grantLethalArmoryWeapon', () => {
       const unit = {
         isLord: false,
         proficiencies: [{ type: 'Light', rank: 'Mast' }],
-        inventory: [{ name: 'Shine', type: 'Light', rankRequired: 'Prof' }],
-        weapon: { name: 'Shine', type: 'Light', rankRequired: 'Prof' },
+        inventory: [{ name: 'Brilliance', type: 'Light', rankRequired: 'Prof' }],
+        weapon: { name: 'Brilliance', type: 'Light', rankRequired: 'Prof' },
       };
       const granted = grantLethalArmoryWeapon(unit, weaponPool, 3);
       expect(granted).toBe(true);
-      expect(unit.weapon.name).toBe('Aura');
+      expect(unit.weapon.name).toBe('Crownlight');
       expect(unit.inventory).toHaveLength(2);
     } finally {
       tier3Spy.mockRestore();
@@ -1534,7 +1534,7 @@ describe('grantSecondaryWeapons', () => {
     { name: 'Steel Sword', type: 'Sword', tier: 'Steel' },
     { name: 'Steel Lance', type: 'Lance', tier: 'Steel' },
     { name: 'Steel Axe', type: 'Axe', tier: 'Steel' },
-    { name: 'Lightning', type: 'Light', tier: 'Iron', special: 'Lightest magic' },
+    { name: 'Glimmer', type: 'Light', tier: 'Iron', special: 'Lightest magic' },
     { name: 'Heal', type: 'Staff', tier: 'Iron' },
   ];
 

@@ -734,7 +734,7 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
 
 describe('equip menu overflow', () => {
   const wpn3 = { name: 'Silver Sword', type: 'Sword' };
-  const wpn4 = { name: 'Killing Edge', type: 'Sword' };
+  const wpn4 = { name: 'Keen Sword', type: 'Sword' };
   const overflowWeapons = [equipped, secondary, wpn3, wpn4];
 
   function makeOverflowScene() {

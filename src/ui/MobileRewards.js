@@ -28,6 +28,8 @@ import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
 import { itemIcon, itemHero } from './itemIcons.js';
+import { itemKeywordRow } from './itemKeywordChips.js';
+import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -236,8 +238,16 @@ export class MobileRewards {
       // The tooltip may open with the item's own name: the card already shows it.
       const text = String(describe(c) || '').split('\n');
       if (c.item?.name && text[0]?.trim() === c.item.name) text.shift();
-      for (const line of text) if (line.trim()) lines.append(node('p', line));
-      plate.append(top, node('strong', label(c), 'ch-reward-name'), lines);
+      // The keyword row states the type and the special; the lines don't repeat them.
+      const keys = c.item ? itemKeywordRow(c.item) : null;
+      const said = new Set();
+      if (keys && itemBaseLineFor(c.item) !== null) said.add(c.item.type);
+      if (c.item && itemKeywords(c.item).length) said.add(c.item.special);
+      for (const line of text)
+        if (line.trim() && !said.has(line.trim())) lines.append(node('p', line));
+      plate.append(top, node('strong', label(c), 'ch-reward-name'));
+      if (keys) plate.append(keys);
+      plate.append(lines);
       const whom = rewardForWhom(c, scene.runManager);
       if (whom) {
         const forWhom = node('span', null, `ch-forwhom is-${whom.tone || 'muted'}`);

@@ -1657,7 +1657,7 @@
     },
     {
       "id": "legend_gemini_tempest",
-      "name": "Gemini Tempest",
+      "name": "Twinsworn Tempest",
       "weaponType": "Sword",
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
@@ -1666,12 +1666,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Gemini's own flurry, honed for its twin edges.",
+      "description": "Twinsworn's own flurry, honed for its twin edges.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Gemini"
+        "Twinsworn"
       ],
       "combatMods": {
         "atkBonus": 7,
@@ -1680,7 +1680,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Gemini Tempest"
+            "name": "Twinsworn Tempest"
           }
         ]
       }
@@ -1696,13 +1696,13 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Starfall and Doublebow answer in a burst of arrows.",
+      "description": "Starfall and Hermit's Bow answer in a burst of arrows.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
         "Starfall",
-        "Doublebow"
+        "Hermit's Bow"
       ],
       "combatMods": {
         "atkBonus": 5,
@@ -1727,12 +1727,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Replaces the normal Brave Sword attack with 3 strikes at 60% damage each, with +8 Attack, +10 Hit and +10 Crit. No Speed follow-up; enemies can still counterattack. After landing a hit, retreat 1 tile if space permits. Costs 8 HP upfront (before cost reductions); no additional HP penalty after combat.",
+      "description": "Replaces the normal Oathblade attack with 3 strikes at 60% damage each, with +8 Attack, +10 Hit and +10 Crit. No Speed follow-up; enemies can still counterattack. After landing a hit, retreat 1 tile if space permits. Costs 8 HP upfront (before cost reductions); no additional HP penalty after combat.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Brave Sword"
+        "Oathblade"
       ],
       "effects": {
         "afterCombat": [
@@ -1770,12 +1770,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Brave Lance strikes twice and drives clean through.",
+      "description": "Oathlance strikes twice and drives clean through.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Brave Lance"
+        "Oathlance"
       ],
       "effects": {
         "afterCombat": [
@@ -1812,12 +1812,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Brave Axe's triple storm buffs allies and drops you to 5 HP.",
+      "description": "Oathaxe's triple storm buffs allies and drops you to 5 HP.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Brave Axe"
+        "Oathaxe"
       ],
       "effects": {
         "afterCombat": [
@@ -1868,12 +1868,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Brave Bow rains twice, catching foes beside the mark.",
+      "description": "Oathbow rains twice, catching foes beside the mark.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Brave Bow"
+        "Oathbow"
       ],
       "effects": {
         "aoeSplash": {
@@ -1954,12 +1954,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Soulreaver feeds; 150% of the wound comes back as HP.",
+      "description": "Namethief feeds; 150% of the wound comes back as HP.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Soulreaver"
+        "Namethief"
       ],
       "combatMods": {
         "drainPercent": 1.5,
@@ -2072,12 +2072,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Stormbreaker splits the ground: huge power, wide splash.",
+      "description": "Tidebreaker splits the ground: huge power, wide splash.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Stormbreaker"
+        "Tidebreaker"
       ],
       "effects": {
         "aoeSplash": {
@@ -2154,12 +2154,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Excalibur's gale tears fliers down and spreads outward.",
+      "description": "Firstwind's gale tears fliers down and spreads outward.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Excalibur"
+        "Firstwind"
       ],
       "effects": {
         "aoeSplash": {
@@ -2201,12 +2201,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Bolting calls thunder down across two tiles.",
+      "description": "Breachbolt calls thunder down across two tiles.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Bolting"
+        "Breachbolt"
       ],
       "effects": {
         "aoeSplash": {
@@ -2242,12 +2242,12 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Luce's light ignores RES and burns dark things away.",
+      "description": "Endword's light ignores RES and burns dark things away.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Luce"
+        "Endword"
       ],
       "combatMods": {
         "atkBonus": 10,

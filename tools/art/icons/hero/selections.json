@@ -26,58 +26,61 @@
       "hash": "0a8a3442df288c9b",
       "note": "Re-prompted: the first take striped the blade red and gold."
     },
-    "killing-edge": {
+    "keen-sword": {
       "approved": true,
       "source": "killing-edge-pro-t2",
       "model": "gemini-3-pro-image",
       "hash": "e42344f1c18ddf6a",
       "note": "Rerolled 2026-09-26: a katana made for killing strokes (owner direction)."
     },
-    "wo-dao": {
+    "jian": {
       "approved": true,
-      "source": "wo-dao-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "5bd45a5ec437eb5b"
+      "source": "jian-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "a89f9db9ca7c004e",
+      "note": "Rerolled 2026-09-26 for the rename (Wo Dao -> Jian): a straight double-edged jian with a red tassel."
     },
-    "wind-sword": {
+    "gust-blade": {
       "approved": true,
-      "source": "wind-sword-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "cca5cad6105abbb9"
+      "source": "gust-blade-pro-t2",
+      "model": "gemini-3-pro-image",
+      "hash": "801a0e5518e06e1c",
+      "note": "Rerolled 2026-09-26 for the rename (Wind Sword -> Gust Blade): a sword that throws a gust, not a thrown blade (owner note)."
     },
-    "tempest-blade": {
+    "gale-blade": {
       "approved": true,
       "source": "tempest-blade-pro-t2",
       "model": "gemini-3-pro-image",
       "hash": "f4e689a4d4abe769",
       "note": "Rerolled 2026-09-26: a blade swept like a gust, wind ribbons (owner direction)."
     },
-    "lancereaver": {
+    "lancehook": {
       "approved": true,
-      "source": "lancereaver-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "8cbbcf951ebeea53"
+      "source": "lancehook-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "85e2e9d327ef1c72",
+      "note": "Rerolled 2026-09-26 for the rename (Lancereaver -> Lancehook): a hooked quillon that traps a haft."
     },
-    "brave-sword": {
+    "oathblade": {
       "approved": true,
       "source": "brave-sword-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "e5ffd1ea5e86c117"
     },
-    "levin-sword": {
+    "thunderbrand": {
       "approved": true,
       "source": "levin-sword-pro-t2",
       "model": "gemini-3-pro-image",
       "hash": "80b17c0cf5d5aa67",
       "note": "Rerolled 2026-09-26: a lightning-bolt blade (owner direction)."
     },
-    "gemini": {
+    "twinsworn": {
       "approved": true,
       "source": "gemini-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "5f9a4e9537a7cdd3"
     },
-    "armorslayer": {
+    "mailbane": {
       "approved": true,
       "source": "armorslayer-pro-t1",
       "model": "gemini-3-pro-image",
@@ -91,13 +94,13 @@
       "hash": "b0867658b8bdb4c7",
       "note": "Rerolled 2026-09-26: a Norse sword, knotwork guard, lobed pommel (owner direction)."
     },
-    "soulreaver": {
+    "namethief": {
       "approved": true,
       "source": "soulreaver-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "4889a3b30445dc4f"
     },
-    "venin-blade": {
+    "adder-blade": {
       "approved": true,
       "source": "venin-blade-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -139,13 +142,14 @@
       "model": "gemini-3.1-flash-image",
       "hash": "ad8e15190d3988b0"
     },
-    "swordreaver": {
+    "axehook": {
       "approved": true,
-      "source": "swordreaver-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "cca44398dab63ab7"
+      "source": "axehook-pro-t1",
+      "model": "gemini-3-pro-image",
+      "hash": "615300eb850eb1f2",
+      "note": "Rerolled 2026-09-26 for the rename (Swordreaver -> Axehook): a bill hook for catching axes."
     },
-    "brave-lance": {
+    "oathlance": {
       "approved": true,
       "source": "brave-lance-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -163,13 +167,13 @@
       "model": "gemini-3.1-flash-image",
       "hash": "7f26bb192a787568"
     },
-    "horseslayer": {
+    "horsebane": {
       "approved": true,
       "source": "horseslayer-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "25e0005b7382b9cd"
     },
-    "killer-lance": {
+    "keen-lance": {
       "approved": true,
       "source": "killer-lance-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -212,13 +216,13 @@
       "model": "gemini-3.1-flash-image",
       "hash": "492a9c53c072bed9"
     },
-    "short-axe": {
+    "hatchet": {
       "approved": true,
       "source": "short-axe-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "bf8cd552386de81b"
     },
-    "killer-axe": {
+    "keen-axe": {
       "approved": true,
       "source": "killer-axe-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -230,24 +234,25 @@
       "model": "gemini-3.1-flash-image",
       "hash": "95c1408a2e8e0641"
     },
-    "axereaver": {
+    "bladehook": {
       "approved": true,
       "source": "axereaver-pro-t2",
       "model": "gemini-3-pro-image",
       "hash": "056d73c8689bb8a0",
       "note": "Rerolled 2026-09-26: an unorthodox, nimble sword-catcher with a hooked butt (owner direction)."
     },
-    "brave-axe": {
+    "oathaxe": {
       "approved": true,
       "source": "brave-axe-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "e20ad4982e509551"
     },
-    "stormbreaker": {
+    "tidebreaker": {
       "approved": true,
-      "source": "stormbreaker-flash-t1",
-      "model": "gemini-3.1-flash-image",
-      "hash": "097425ceafcc1e1e"
+      "source": "tidebreaker-pro-t3",
+      "model": "gemini-3-pro-image",
+      "hash": "66d2a4cdbb6d6545",
+      "note": "Rerolled 2026-09-26 for the rename (Stormbreaker -> Tidebreaker): a breaking-wave back."
     },
     "ruin": {
       "approved": true,
@@ -293,7 +298,7 @@
       "model": "gemini-3.1-flash-image",
       "hash": "a7ecabc8f459bb1b"
     },
-    "killer-bow": {
+    "keen-bow": {
       "approved": true,
       "source": "killer-bow-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -306,7 +311,7 @@
       "hash": "473d73afde2a7c49",
       "note": "Take 2 is the clearer silhouette; bows stay thin by nature."
     },
-    "brave-bow": {
+    "oathbow": {
       "approved": true,
       "source": "brave-bow-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -318,7 +323,7 @@
       "model": "gemini-3.1-flash-image",
       "hash": "f80b3578b8106a2b"
     },
-    "venin-bow": {
+    "adder-bow": {
       "approved": true,
       "source": "venin-bow-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -342,7 +347,7 @@
       "model": "gemini-3.1-flash-image",
       "hash": "dc051e68e4ec9285"
     },
-    "doublebow": {
+    "hermits-bow": {
       "approved": true,
       "source": "doublebow-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -354,13 +359,13 @@
       "model": "gemini-3.1-flash-image",
       "hash": "43c0f88dec3af628"
     },
-    "elfire": {
+    "wildfire": {
       "approved": true,
       "source": "elfire-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "d49cb435ff9c535d"
     },
-    "bolganone": {
+    "conflagration": {
       "approved": true,
       "source": "bolganone-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -372,13 +377,13 @@
       "model": "gemini-3.1-flash-image",
       "hash": "95750b3c8a0e4925"
     },
-    "excalibur": {
+    "firstwind": {
       "approved": true,
       "source": "excalibur-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "2fe338c03db2998f"
     },
-    "bolting": {
+    "breachbolt": {
       "approved": true,
       "source": "bolting-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -390,19 +395,19 @@
       "model": "gemini-3.1-flash-image",
       "hash": "aec82255870a6a18"
     },
-    "lightning": {
+    "glimmer": {
       "approved": true,
       "source": "lightning-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "efe9396f4d8d9e5d"
     },
-    "shine": {
+    "brilliance": {
       "approved": true,
       "source": "shine-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "858936d7bc75b8e0"
     },
-    "aura": {
+    "crownlight": {
       "approved": true,
       "source": "aura-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -415,7 +420,7 @@
       "hash": "b7869214f525fd69",
       "note": "Re-prompted: a sunburst instead of a star that read as an emblem."
     },
-    "luce": {
+    "endword": {
       "approved": true,
       "source": "luce-flash-t1",
       "model": "gemini-3.1-flash-image",
@@ -815,15 +820,15 @@
       "model": "gemini-3.1-flash-image",
       "hash": "2e5f6410338cf62b"
     },
-    "sundering-imbuing-stone": {
+    "armorbane-imbuing-stone": {
       "approved": true,
-      "source": "sundering-imbuing-stone-flash-t1",
+      "source": "armorbane-imbuing-stone-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "cae800bbbb52f716"
     },
-    "keen-imbuing-stone": {
+    "cruel-imbuing-stone": {
       "approved": true,
-      "source": "keen-imbuing-stone-flash-t1",
+      "source": "cruel-imbuing-stone-flash-t1",
       "model": "gemini-3.1-flash-image",
       "hash": "6c9da7c28219e828"
     },

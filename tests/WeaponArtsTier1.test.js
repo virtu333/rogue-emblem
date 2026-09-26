@@ -248,13 +248,13 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(gaeBolg.weaponArtIds).toContain('legend_blood_lance');
     });
 
-    it('specific binding: Stormbreaker → Cataclysm', () => {
-      const stormbreaker = gameData.weapons.find((w) => w.name === 'Stormbreaker');
+    it('specific binding: Tidebreaker → Cataclysm', () => {
+      const stormbreaker = gameData.weapons.find((w) => w.name === 'Tidebreaker');
       expect(stormbreaker.weaponArtIds).toContain('legend_cataclysm');
     });
 
-    it('Doublebow is bound while Fortify remains unbound', () => {
-      const doublebow = gameData.weapons.find((w) => w.name === 'Doublebow');
+    it("Hermit's Bow is bound while Fortify remains unbound", () => {
+      const doublebow = gameData.weapons.find((w) => w.name === "Hermit's Bow");
       const fortify = gameData.weapons.find((w) => w.name === 'Fortify');
       expect(doublebow.weaponArtIds).toContain('legend_starfall_volley');
       expect(fortify.weaponArtIds).toBeUndefined();
@@ -273,7 +273,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('forged legendary art gate fix', () => {
     it('canUseWeaponArt still works after forging a legendary weapon', () => {
-      const gemini = structuredClone(gameData.weapons.find((w) => w.name === 'Gemini'));
+      const gemini = structuredClone(gameData.weapons.find((w) => w.name === 'Twinsworn'));
       const art = artById.get('legend_gemini_tempest');
       const unit = {
         faction: 'player',
@@ -289,7 +289,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       // Apply forge (sets _baseName)
       applyForge(gemini, 'might', gameData.weapons);
       expect(gemini.name).toContain('+');
-      expect(gemini._baseName).toBe('Gemini');
+      expect(gemini._baseName).toBe('Twinsworn');
 
       // After forge: should still work
       const afterForge = canUseWeaponArt(unit, gemini, art, { actorFaction: 'player' });
@@ -350,7 +350,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   describe('legendary gate with multiple identifiers', () => {
     it('passes when name matches but id does not', () => {
       const art = artById.get('legend_gemini_tempest');
-      const weapon = { id: 'runtime_weapon_42', name: 'Gemini', type: 'Sword' };
+      const weapon = { id: 'runtime_weapon_42', name: 'Twinsworn', type: 'Sword' };
       const unit = {
         faction: 'player',
         currentHP: 30,

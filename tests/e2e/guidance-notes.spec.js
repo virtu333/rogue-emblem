@@ -285,6 +285,9 @@ test('a recruit battle opens with a non-blocking recruit note, once per slot (Fu
 test('Light still names the recruit; Off and legacy helpers-off show nothing', async ({
   browser,
 }) => {
+  // Three contexts each boot a battle (up to 30 s apiece) and wait out the turn-1
+  // lesson delay: the default 30 s budget covers one boot, not three.
+  test.setTimeout(120_000);
   for (const [settings, shown] of [
     [{ hints: true, guidance: 'light' }, true],
     [{ hints: false, guidance: 'off' }, false],

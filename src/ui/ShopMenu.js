@@ -2,6 +2,8 @@ import { shopRequirementLabel, forgeImpactLine } from './itemDecisionText.js';
 import { equipmentComparison } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { equippedBadgeElement } from './equippedBadge.js';
+import { itemKeywordRow, itemKeywordText } from './itemKeywordChips.js';
+import { itemBaseLine } from '../engine/ItemKeywords.js';
 import { saveServiceRun } from './serviceSave.js';
 import { MenuSurface, element as el, button } from './MenuSurface.js';
 import { ChoicePicker } from './ChoicePicker.js';
@@ -184,7 +186,9 @@ export class ShopMenu {
       b.setAttribute('aria-pressed', String(row.item === this.selected));
       const sub =
         this.scene.activeShopTab === 'buy'
-          ? `${row.entry.price} G · ${row.item.type}`
+          ? [`${row.entry.price} G`, row.item.type, itemKeywordText(row.item)]
+              .filter(Boolean)
+              .join(' · ')
           : this.scene.activeShopTab === 'sell'
             ? `${row.owner} · +${getSellPrice(row.item)} G`
             : `${row.owner} · Forge ${row.item._forgeLevel || 0}`;
@@ -257,9 +261,12 @@ export class ShopMenu {
     // The item, large: its painting (or pixel icon at 2x) beside the name and its kind.
     const head = el('div', null, 'shop-hero');
     const title = el('div', null, 'shop-hero-title');
-    const kicker = [item.tier, item.type].filter(Boolean).join(' · ');
+    // What it is ("Silver Lance", "Legend Sword"), then its rules as tags.
+    const kicker = itemBaseLine(item) || [item.tier, item.type].filter(Boolean).join(' · ');
     if (kicker) title.append(el('p', kicker, 'shop-kicker'));
     title.append(el('h3', item.name));
+    const keys = itemKeywordRow(item, { baseLine: false, make: (tag) => el(tag) });
+    if (keys) title.append(keys);
     const requirement = shopRequirementLabel(item);
     if (requirement) title.append(el('p', requirement, 'shop-meta'));
     head.append(itemHero(item, { size: 96 }), title);

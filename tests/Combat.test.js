@@ -138,36 +138,36 @@ describe('Weapon triangle', () => {
     expect(bonus.hit).toBeGreaterThan(0);
   });
 
-  it('non-reaver gets disadvantage vs opponent Lancereaver', () => {
+  it('non-reaver gets disadvantage vs opponent Lancehook', () => {
     const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     // Lance normally beats Sword → reaver on defender flips to disadvantage for lance
     const bonus = getWeaponTriangleBonus(ironLance, lancereaver);
     expect(bonus.hit).toBe(-10);
     expect(bonus.damage).toBe(-1);
   });
 
-  it('non-reaver gets disadvantage vs opponent Swordreaver', () => {
+  it('non-reaver gets disadvantage vs opponent Axehook', () => {
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
-    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+    const swordreaver = data.weapons.find((w) => w.name === 'Axehook');
     // Axe normally beats Lance → reaver on defender flips to disadvantage for axe
     const bonus = getWeaponTriangleBonus(ironAxe, swordreaver);
     expect(bonus.hit).toBe(-10);
     expect(bonus.damage).toBe(-1);
   });
 
-  it('non-reaver gets disadvantage vs opponent Axereaver', () => {
+  it('non-reaver gets disadvantage vs opponent Bladehook', () => {
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
-    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
+    const axereaver = data.weapons.find((w) => w.name === 'Bladehook');
     // Sword normally beats Axe → reaver on defender flips to disadvantage for sword
     const bonus = getWeaponTriangleBonus(ironSword, axereaver);
     expect(bonus.hit).toBe(-10);
     expect(bonus.damage).toBe(-1);
   });
 
-  it('non-reaver gets advantage vs opponent Lancereaver when normally disadvantaged', () => {
+  it('non-reaver gets advantage vs opponent Lancehook when normally disadvantaged', () => {
     const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
-    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancehook');
     const bonus = getWeaponTriangleBonus(ironAxe, lancereaver);
     expect(bonus.hit).toBe(10);
     expect(bonus.damage).toBe(1);
@@ -743,9 +743,9 @@ describe('Combat resolution', () => {
   });
 
   it('returns poisonEffects array with both entries when both sides have poison', () => {
-    const veninEdge = data.weapons.find((w) => w.name === 'Venin Blade');
+    const veninEdge = data.weapons.find((w) => w.name === 'Adder Blade');
     expect(veninEdge).toBeTruthy();
-    // Both combatants have Venin Blade — both survive so both poisons apply
+    // Both combatants have Adder Blade — both survive so both poisons apply
     const attacker = makeUnit({
       stats: { HP: 50, STR: 5, MAG: 0, SKL: 10, SPD: 10, DEF: 20, RES: 20, LCK: 5 },
       currentHP: 50,
@@ -821,8 +821,8 @@ describe('Combat resolution', () => {
     }
   });
 
-  it('applies poison when attacking with Venin Bow', () => {
-    const veninBow = data.weapons.find((weapon) => weapon.name === 'Venin Bow');
+  it('applies poison when attacking with Adder Bow', () => {
+    const veninBow = data.weapons.find((weapon) => weapon.name === 'Adder Bow');
     expect(veninBow).toBeTruthy();
 
     const attacker = makeUnit({
@@ -1525,7 +1525,7 @@ describe('Weight mechanic', () => {
 
   it('getCombatForecast shows weight impact on doubling', () => {
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
-    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe');
+    const braveAxe = data.weapons.find((w) => w.name === 'Oathaxe');
     const fastUnit = makeUnit({
       stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 },
       currentHP: 30,
@@ -1540,7 +1540,7 @@ describe('Weight mechanic', () => {
     let forecast = getCombatForecast(fastUnit, ironSword, slowUnit, ironSword, 1, null, null);
     expect(forecast.attacker.doubles).toBe(true);
 
-    // Brave Axe weight 11: effective 10 each
+    // Oathaxe weight 11: effective 10 each
     // SPD: 10 vs 5 → diff = 5 → doubles
     forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
     expect(forecast.attacker.doubles).toBe(true);
@@ -1553,7 +1553,7 @@ describe('Weight mechanic', () => {
 
   it('resolveCombat applies weight penalties to both combatants', () => {
     const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
-    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe');
+    const braveAxe = data.weapons.find((w) => w.name === 'Oathaxe');
     const fastUnit = makeUnit({
       stats: { ...makeUnit().stats, SPD: 20, STR: 15, HP: 40 },
       currentHP: 40,
@@ -1569,7 +1569,7 @@ describe('Weight mechanic', () => {
     const fastUnitStrikes = result.events.filter((e) => e.attacker === fastUnit.name).length;
     expect(fastUnitStrikes).toBeGreaterThan(1); // Should double
 
-    // Both with Brave Axe (weight 11, 3 reduction = 8 eff)
+    // Both with Oathaxe (weight 11, 3 reduction = 8 eff)
     // SPD 12 vs 7 → diff = 5 → doubles
     result = resolveCombat(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
     const fastUnitStrikesAxe = result.events.filter((e) => e.attacker === fastUnit.name).length;
@@ -1577,7 +1577,7 @@ describe('Weight mechanic', () => {
   });
 
   it('weight penalty stacks with skill SPD bonuses', () => {
-    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe'); // weight 11
+    const braveAxe = data.weapons.find((w) => w.name === 'Oathaxe'); // weight 11
     const fastUnit = makeUnit({
       stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 },
       currentHP: 30,
@@ -2481,7 +2481,7 @@ describe('Entity crit resistance', () => {
     const attacker = makeUnit({
       stats: { HP: 30, STR: 15, MAG: 0, SKL: 30, SPD: 10, DEF: 8, RES: 6, LCK: 0 },
       weapon:
-        data.weapons.find((w) => w.name === 'Killing Edge') ||
+        data.weapons.find((w) => w.name === 'Keen Sword') ||
         data.weapons.find((w) => w.name === 'Iron Sword'),
     });
     const entity = makeEntityDefender();

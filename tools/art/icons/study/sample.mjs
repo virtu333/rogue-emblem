@@ -46,11 +46,11 @@ export const SAMPLE = [
       'a legendary broadsword with a gilded guard and a glowing ember-gold core line down the blade',
   },
   {
-    name: 'Killer Lance',
+    name: 'Keen Lance',
     cat: 'Weapon',
     tier: 'Silver',
     plaque: 'weapon',
-    spec: G.weaponSpec(W('Killer Lance')),
+    spec: G.weaponSpec(W('Keen Lance')),
     prompt: 'a barbed silver lance head on a dark wooden shaft with a crimson tassel',
   },
   {
@@ -70,19 +70,19 @@ export const SAMPLE = [
     prompt: 'a tall dark wooden longbow with a steel-blue grip binding',
   },
   {
-    name: 'Bolganone',
+    name: 'Conflagration',
     cat: 'Tome',
     tier: 'Silver',
     plaque: 'weapon',
-    spec: G.weaponSpec(W('Bolganone')),
+    spec: G.weaponSpec(W('Conflagration')),
     prompt: 'a crimson fire magic tome with a flame emblem on the cover and silver corner fittings',
   },
   {
-    name: 'Shine',
+    name: 'Brilliance',
     cat: 'Light',
     tier: 'Steel',
     plaque: 'weapon',
-    spec: G.weaponSpec(W('Shine')),
+    spec: G.weaponSpec(W('Brilliance')),
     prompt: 'a pale ivory light-magic tome with a gold four-pointed star on the cover',
   },
   {

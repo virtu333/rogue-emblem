@@ -240,8 +240,8 @@ describe('TutorialBattle', () => {
     it('Sera carries Lightning (equipped) plus the Heal staff', () => {
       expect(sera.name).toBe('Sera');
       expect(sera.inventory).toHaveLength(2);
-      expect(sera.inventory.map((w) => w.name)).toEqual(['Lightning', 'Heal']);
-      expect(sera.weapon.name).toBe('Lightning');
+      expect(sera.inventory.map((w) => w.name)).toEqual(['Glimmer', 'Heal']);
+      expect(sera.weapon.name).toBe('Glimmer');
       expect(sera.weapon.type).toBe('Light');
     });
 

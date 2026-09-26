@@ -16,7 +16,7 @@ function makeLegendarySwordUnit() {
     faction: 'player',
     currentHP: 20,
     stats: { HP: 24 },
-    weapon: { type: 'Sword', name: 'Gemini' },
+    weapon: { type: 'Sword', name: 'Twinsworn' },
     proficiencies: [{ type: 'Sword', rank: 'Mast' }],
   };
 }

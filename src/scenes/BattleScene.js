@@ -3088,12 +3088,13 @@ export class BattleScene extends Phaser.Scene {
         return 'sfx_bow';
       case 'Staff':
         return 'sfx_heal';
-      case 'Tome':
-        if (weapon.name.includes('Fire') || weapon.name.includes('Bolganone')) return 'sfx_fire';
-        if (weapon.name.includes('Thunder') || weapon.name.includes('Lightning'))
-          return 'sfx_thunder';
-        if (weapon.name.includes('Excalibur')) return 'sfx_ice';
+      case 'Tome': {
+        // The element is in the tome's name (Fire, Wildfire, Breachbolt, Firstwind).
+        const name = String(weapon.name || '').toLowerCase();
+        if (/thunder|bolt/.test(name)) return 'sfx_thunder';
+        if (/wind|gust|vortex/.test(name)) return 'sfx_ice';
         return 'sfx_fire';
+      }
       case 'Light':
         return 'sfx_light';
       case 'Breath':

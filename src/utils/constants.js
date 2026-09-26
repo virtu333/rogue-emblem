@@ -291,8 +291,8 @@ export const SUNDER_WEAPON_BY_TYPE = {
 export const SUNDER_ELIGIBLE_PROFS = new Set(['Swords', 'Lances', 'Axes', 'Bows']);
 // Poison weapons (enemy-only variants)
 export const POISON_WEAPON_BY_TYPE = {
-  Sword: 'Venin Blade',
-  Bow: 'Venin Bow',
+  Sword: 'Adder Blade',
+  Bow: 'Adder Bow',
 };
 // Proficiency prefixes that have poison variants (used to gate poison rolls)
 export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
@@ -300,7 +300,7 @@ export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 // Difficulty-gated enemy classes (Hard/Lunatic only)
 export const DIFFICULTY_GATED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
-// Classes that count as "dark" for Luce / Divine Flare effectiveness
+// Classes that count as "dark" for Endword / Divine Flare effectiveness
 export const DARK_CLASSES = new Set([
   'Dark Knight',
   'Warlock',
@@ -320,9 +320,9 @@ export function filterClassPoolByDifficulty(classPool, difficultyMode) {
 // signature weapon of their primary proficiency (tier 2 adds the silver weapon).
 export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
   Sword: 'Rapier',
-  Lance: 'Horseslayer',
+  Lance: 'Horsebane',
   Axe: 'Hammer',
-  Bow: 'Killer Bow',
+  Bow: 'Keen Bow',
   Tome: 'Witchfire',
   Light: 'Sunflare',
 };

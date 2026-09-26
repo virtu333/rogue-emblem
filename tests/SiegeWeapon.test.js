@@ -32,7 +32,7 @@ const siegeWeaponConfig = {
   act4: 0.99,
   finalBoss: 0.99,
   maxPerBattle: 1,
-  weaponName: 'Bolting',
+  weaponName: 'Breachbolt',
 };
 
 describe('siege weapon spawn assignment (T5)', () => {
@@ -109,7 +109,7 @@ describe('siege weapon spawn assignment (T5)', () => {
       );
       const withSiege = config.enemySpawns.filter((s) => s.siegeWeapon);
       for (const s of withSiege) {
-        expect(s.siegeWeapon).toBe('Bolting');
+        expect(s.siegeWeapon).toBe('Breachbolt');
         found = true;
       }
       if (found) break;
