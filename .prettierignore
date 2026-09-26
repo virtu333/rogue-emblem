@@ -14,3 +14,5 @@ ios/App/App/public/
 ios/App/App/capacitor.config.json
 # Reference-only art explorations (generated review scripts, not app code).
 docs/art/
+# Generated measurement tables (tools/music/engine/onsets.py writes one entry per line)
+tools/music/onsets.json

@@ -17,6 +17,7 @@ import numpy as np
 import soundfile as sf
 
 from .dsp import SR
+from .sf2render import untangle
 
 PPQ = 960
 TPS = PPQ * 2  # ticks per second at 120 BPM
@@ -100,7 +101,7 @@ def _render(sfz, events, n_frames, cc, cc_events, polyphony, td) -> np.ndarray:
         msgs.append((0, 0, mido.Message('control_change', control=int(k), value=int(v))))
     for t, c, v in (cc_events or []):
         msgs.append((_t(t), 1, mido.Message('control_change', control=int(c), value=int(v))))
-    for t, dur, key, vel in events:
+    for t, dur, key, vel in untangle(events):
         v = int(np.clip(round(vel * 126) + 1, 1, 127))
         msgs.append((_t(t), 3, mido.Message('note_on', note=int(key), velocity=v)))
         msgs.append((_t(t + max(dur, 0.01)), 2, mido.Message('note_off', note=int(key), velocity=0)))

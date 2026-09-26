@@ -30,7 +30,7 @@ from dataclasses import asdict
 import numpy as np
 import soundfile as sf
 
-from . import dsp, palette, tuning
+from . import dsp, onsets, palette, tuning
 from .dsp import SR
 from .instruments import INSTRUMENTS
 from .sampler import NoteEvent, SfzVoicer
@@ -77,7 +77,7 @@ def prune_cache(max_age_days: float, directory: str | None = None) -> tuple[int,
 
 
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
-ENGINE_VERSION = 11  # bump to invalidate stem caches
+ENGINE_VERSION = 12  # bump to invalidate stem caches
 
 M_MIN = 4.0
 EXTRA = 0.6
@@ -133,38 +133,7 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     return _CALIB[key]
 
 
-def onset_pre(inst_name: str, art_name: str) -> float:
-    """Seconds to start a note early so its perceived onset (the envelope
-    reaching half its early peak) lands on the beat. Measured once per
-    articulation over several pitches and two dynamics, then cached."""
-    global _CALIB
-    if _CALIB is None:
-        _CALIB = _load_calib()
-    key = f'pre|{inst_name}:{art_name}'
-    if key in _CALIB:
-        return _CALIB[key]
-    inst = INSTRUMENTS[inst_name]
-    art = inst['arts'][art_name]
-    v = _voicer(inst_name, art_name, art)
-    lo, hi = inst['range']
-    keys = [inst['ref_key']] if inst.get('fixed_pitch') else \
-        [int(k) for k in np.linspace(lo + 3, hi - 5, 4)]
-    ds = []
-    for k in keys:
-        for vel in (0.55, 0.8):
-            out = np.zeros((int(2 * SR), 2), np.float32)
-            v.rng = np.random.default_rng(1)
-            v.render(NoteEvent(t=0.5, dur=1.0, key=k, vel=vel, art=art_name), out)
-            e = np.sqrt(np.convolve(out.mean(axis=1).astype(np.float64) ** 2,
-                                    np.ones(441) / 441, 'same'))
-            seg = e[int(0.5 * SR):int(1.1 * SR)]
-            if seg.max() <= 0:
-                continue
-            ds.append(np.nonzero(seg >= 0.5 * seg.max())[0][0] / SR)
-    pre = float(min(np.median(ds) if ds else 0.0, 0.15))
-    _CALIB[key] = round(pre, 4)
-    _save_calib()
-    return _CALIB[key]
+# onset pre-roll (how early each note starts) lives in engine/onsets.py
 
 
 # ------------------------------------------------------------------ raw rendering
@@ -209,17 +178,26 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
                 v.rng = np.random.default_rng(_seed(seed, round(ev.t, 4), ev.key))
                 v._rr = {}
                 v.render(ev, out)
-    elif kind == 'sf2':
-        evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
-        cc = {64: 127} if sustain_pedal else None
-        out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames,
-                         channel=inst.get('channel', 0), cc=cc,
-                         key_tuning=sf2_key_tuning(inst, key_cents))
-    elif kind == 'sfizz':
+    elif kind in ('sf2', 'sfizz'):
+        # MIDI renderers cannot start a note before 0: a note pulled early by its
+        # onset pre-roll is rendered after a lead-in that is then cut off, so it
+        # enters mid-attack exactly as the sampler crops it (with a 2 ms fade)
+        lead = int(math.ceil(max([0.0] + [-ev.t for ev in events]) * SR))
+        sh = lead / SR
         # `transpose`: a program mapped away from sounding pitch (the Growlybass)
-        tr = inst.get('transpose', 0)
-        evs = [(ev.t, ev.dur, ev.key + tr, ev.vel) for ev in events]
-        out = render_sfz(inst['sfz'], evs, n_frames, cc=inst.get('cc'))
+        tr = inst.get('transpose', 0) if kind == 'sfizz' else 0
+        evs = [(ev.t + sh, ev.dur, ev.key + tr, ev.vel) for ev in events]
+        if kind == 'sf2':
+            cc = {64: 127} if sustain_pedal else None
+            out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames + lead,
+                             channel=inst.get('channel', 0), cc=cc,
+                             key_tuning=sf2_key_tuning(inst, key_cents))
+        else:
+            out = render_sfz(inst['sfz'], evs, n_frames + lead, cc=inst.get('cc'))
+        if lead:
+            out = out[lead:].copy()
+            f = min(len(out), int(0.002 * SR))
+            out[:f] *= np.linspace(0, 1, f, dtype=np.float32)[:, None]
     elif kind == 'synth':
         fn = VOICES[inst['voice']]
         evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
@@ -301,15 +279,12 @@ class Renderer:
             if art == 'default':
                 art = part.opts.get('art', 'default')
             art_def = inst['arts'].get(art, inst['arts']['default']) if inst['kind'] == 'sfz' else {}
-            pre = art_def.get('pre')
-            if pre is None and inst['kind'] == 'sfz':
-                art_key = art if art in inst['arts'] else 'default'
-                pre = onset_pre(part.inst, art_key)
-            pre = pre or 0.0
+            art_key = art if inst['kind'] == 'sfz' and art in inst['arts'] else 'default'
             jitter = float(np.clip(rng.normal(0, hum / 2), -hum, hum)) if hum > 0 else 0.0
             vj = part.opts.get('vel_jitter', inst.get('vel_jitter', 0.06))
             vel = float(np.clip(n.vel + rng.normal(0, vj), 0.02, 1.0))
-            ev = NoteEvent(t=t0 - pre + jitter, dur=max(0.02, t1 - t0), key=pitch, vel=vel, art=art)
+            ev = NoteEvent(t=t0 + jitter, dur=max(0.02, t1 - t0), key=pitch, vel=vel, art=art)
+            ev.pre_of = (art_def.get('pre'), art_key)   # the onset pre-roll, applied below
             ev.rearticulate = n.rearticulate
             ev.in_loop = n.start >= self.I_b - 1e-9
             ev.beat_start, ev.beat_end = n.start, n.start + n.dur
@@ -321,6 +296,19 @@ class Renderer:
         # legato flags (sustain arts of legato instruments, monophonic lines)
         if inst['kind'] == 'sfz' and part.opts.get('legato', True):
             self._legato(evs, inst, part)
+        # onset pre-roll: every sampled note starts early by the time it takes to
+        # speak, for its key and velocity; a slurred note by the time it takes
+        # to take over from the one before it (engine/onsets.py)
+        if onsets.compensates(inst):
+            for e in evs:
+                fixed, art_key = e.pre_of
+                e.t -= fixed if fixed is not None else \
+                    onsets.pre(part.inst, art_key, e.key, e.vel, legato=e.legato_in)
+            # a slur is one crossfade: the old note fades out as the new one fades in
+            for e in evs:
+                nxt = getattr(e, 'slur_to', None)
+                if nxt and e.legato_out and nxt[0].legato_in:
+                    e.dur = max(0.02, nxt[0].t + nxt[1] - e.t)
         intro = [e for e in evs if not e.in_loop]
         loop = [e for e in evs if e.in_loop]
         return intro, loop
@@ -346,6 +334,9 @@ class Renderer:
                 a.legato_out = True
                 b.legato_in = True
                 b.prev_key = a.key
+                # the note it slurs into, and the seconds to add to its time (the
+                # loop's wrap: b is heard a loop later)
+                a.slur_to = (b, self.P_s if wrap else 0.0)
 
         def chain(lst):
             for a, b in zip(lst, lst[1:]):

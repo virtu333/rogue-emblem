@@ -50,6 +50,7 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
 | `build.py` | Render scores and export game-ready loops |
 | `lint.py <score> [--variant v]` | Symbolic check: sustained semitone clashes between parts, for catching typos and wrong octaves |
 | `pitchcheck.py <file.mp3>` | The strongest pitch classes per window of a rendered file: is the cue in the key it should be? |
+| `onsetcheck.py [insts…] [--legato] [--measure]` | How late or early notes speak through the engine, per key and dynamic (after onset compensation, 0 is on the beat); `--measure` fills `onsets.json` |
 | `tunecheck.py [insts…] [--write] [--verify]` | Measure the tuning of every sample the palette can reach and write the correction table `tuning.json` (see below) |
 | `analyze.py <score> [--png]` | Per-part levels in each mix variant, tonal balance, width, spectrogram |
 | `solo.py <score> <parts…>` | Audition a subset of parts |
@@ -87,6 +88,18 @@ its own parts and never deletes another score's. Nothing else is evicted unless 
   alone, and so is any reading the meter cannot trust (drums, bells and the piano are
   not measured at all). The glockenspiel's samples sound an octave above their keys and
   are all sharp: each one is corrected.
+- `onsets.py`: onset compensation. A sampled note starts early by the time it takes to
+  speak (its envelope coming within 10 dB of its early peak), so what is heard lands on
+  the beat. That time depends on the key and the velocity (the GeneralUser choir speaks
+  far later at pp than at f; a soft solo-violin bow bites later than a hard one), so
+  it is measured per articulation over every key and a grid of velocities (every MIDI
+  velocity for a SoundFont), and looked up per note. A slurred note is pulled early by
+  the time it takes to take over from the note before it, and the old note's fade is
+  lined up with the new note's start. Tables live in `onsets.json` with a signature of
+  the articulation, preset or program they were measured on; a changed instrument is
+  measured again at its next render (or with `onsetcheck.py --measure`). SoundFont and
+  sfizz notes pulled before 0 are rendered after a lead-in that is then cut, the way the
+  sampler crops them.
 - `synth.py`: sub, the thread shimmer, the Entity's drone, risers, booms.
 - `render.py`: per-part rendering with auto-calibrated levels and onset pre-roll, role
   leveling, expression lanes, loop-periodic performance drift, sends to a synthetic

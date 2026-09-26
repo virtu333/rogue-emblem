@@ -25,6 +25,25 @@ def _ticks(sec: float) -> int:
     return int(round(max(0.0, sec) * TICKS_PER_SEC))
 
 
+def untangle(events):
+    """(t, dur, key, vel) events with a key re-struck while its previous note
+    still holds: the earlier note is released at the new note-on. Otherwise its
+    note-off, arriving later, would end both (a MIDI note-off releases every
+    voice of its key), which onset pre-roll makes likely: a softer repeat
+    starts earlier than a louder one."""
+    events = list(events)
+    last = {}
+    for i in sorted(range(len(events)), key=lambda i: events[i][0]):
+        t, dur, key, vel = events[i]
+        j = last.get(key)
+        if j is not None:
+            tj, dj, kj, vj = events[j]
+            if t < tj + dj and t > tj:
+                events[j] = (tj, t - tj, kj, vj)
+        last[key] = i
+    return events
+
+
 def key_tuning_messages(key_tuning: dict, channel: int = 0, tuning_program: int = 0):
     """MIDI Tuning Standard: a single-note tuning change (real time) moving each
     listed key by its cents, then RPN 4 / RPN 3 selecting that tuning on the
@@ -94,7 +113,7 @@ def render_sf2(font: str, bank: int, program: int, events, n_frames: int,
     else:
         msgs.append((0, 3, mido.Message('control_change', channel=channel, control=11, value=127)))
     end_t = 0.0
-    for t, dur, key, vel in events:
+    for t, dur, key, vel in untangle(events):
         v = int(np.clip(round(vel * 126) + 1, 1, 127))
         on, off = _ticks(t), _ticks(t + max(dur, 0.01))
         msgs.append((on, 5, mido.Message('note_on', channel=channel, note=int(key), velocity=v)))
