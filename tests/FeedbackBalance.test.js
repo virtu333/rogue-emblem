@@ -43,7 +43,7 @@ describe('playtester balance contracts', () => {
         expect(new Set(choices.map((c) => c.item?.name))).toHaveLength(3);
         for (const c of choices) {
           expect(c.item).toBeTruthy();
-          expect(c.item.name).not.toMatch(/Vulnerary|^Steel |Armorslayer/);
+          expect(c.item.name).not.toMatch(/Vulnerary|^Steel |Mailbane/);
           seen.add(c.type);
         }
       });

@@ -226,16 +226,16 @@ function createRunPreset(gameData, meta, config) {
           rank: 'Mast',
         }));
       }
-      const soulreaver = (gameData?.weapons || []).find((weapon) => weapon?.name === 'Soulreaver');
+      const soulreaver = (gameData?.weapons || []).find((weapon) => weapon?.name === 'Namethief');
       if (
         soulreaver &&
         Array.isArray(commander.inventory) &&
-        !commander.inventory.some((weapon) => weapon?.name === 'Soulreaver')
+        !commander.inventory.some((weapon) => weapon?.name === 'Namethief')
       ) {
         commander.inventory.push(structuredClone(soulreaver));
       }
       const equippedSoulreaver = Array.isArray(commander.inventory)
-        ? commander.inventory.find((weapon) => weapon?.name === 'Soulreaver')
+        ? commander.inventory.find((weapon) => weapon?.name === 'Namethief')
         : null;
       if (equippedSoulreaver) {
         commander.weapon = equippedSoulreaver;
@@ -264,7 +264,7 @@ function createRunPreset(gameData, meta, config) {
       { type: 'Light', rank: 'Prof' },
       { type: 'Staff', rank: 'Mast' },
     ];
-    sera.inventory = ['Lightning', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map(item);
+    sera.inventory = ['Glimmer', 'Heal', 'Restore', 'Rescue Staff', 'Warp Staff'].map(item);
     sera.weapon = sera.inventory[0];
     for (const [name, className, skills] of [
       ['Utility', 'Mage', ['blink', 'rally_cry_skill', 'healing_circle', 'ensnare']],

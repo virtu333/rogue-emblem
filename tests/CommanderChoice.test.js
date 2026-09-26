@@ -225,7 +225,7 @@ describe('createInitialRoster with chosen lords', () => {
     const [sera, edric] = roster;
     expect(sera.name).toBe('Sera');
     expect(sera.isCommander).toBe(true);
-    expect(findWeapon(sera, 'Shine')).toBeTruthy(); // Steel-tier Light
+    expect(findWeapon(sera, 'Brilliance')).toBeTruthy(); // Steel-tier Light
     expect(findWeapon(sera, 'Heal')).toBeTruthy();
     expect(sera.accessory?.name).toBe('Goddess Icon');
     expect(sera.consumables.filter((c) => c.name === 'Vulnerary')).toHaveLength(2);
@@ -241,7 +241,7 @@ describe('createInitialRoster with chosen lords', () => {
     });
     const [kira] = rm.createInitialRoster();
     expect(findWeapon(kira, 'Witchfire')).toBeTruthy();
-    expect(findWeapon(kira, 'Elfire')).toBeFalsy(); // Steel slot replaced
+    expect(findWeapon(kira, 'Wildfire')).toBeFalsy(); // Steel slot replaced
   });
 
   it('Deadly Arsenal tier 2 adds and equips the silver weapon', () => {
@@ -250,7 +250,7 @@ describe('createInitialRoster with chosen lords', () => {
       deadlyArsenalTier: 2,
     });
     const [rowan] = rm.createInitialRoster();
-    expect(findWeapon(rowan, 'Horseslayer')).toBeTruthy(); // lance signature
+    expect(findWeapon(rowan, 'Horsebane')).toBeTruthy(); // lance signature
     expect(findWeapon(rowan, 'Steel Lance')).toBeFalsy();
     expect(findWeapon(rowan, 'Silver Lance')).toBeTruthy();
     expect(rowan.weapon?.name).toBe('Silver Lance');
@@ -324,7 +324,7 @@ describe('signature weapons and pools', () => {
     }
   });
 
-  it('enters act2+ loot/shop pools alongside Killing Edge', () => {
+  it('enters act2+ loot/shop pools alongside Keen Sword', () => {
     for (const act of ['act2', 'act3', 'act4']) {
       expect(gameData.lootTables[act].weapons).toContain('Witchfire');
       expect(gameData.lootTables[act].weapons).toContain('Sunflare');

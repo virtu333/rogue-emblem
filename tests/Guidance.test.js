@@ -134,7 +134,7 @@ function guidanceScene(overrides = {}) {
       { type: 'Light', rank: 'Prof' },
       { type: 'Staff', rank: 'Prof' },
     ],
-    inventory: [{ name: 'Lightning', type: 'Light', range: '1-2', rankRequired: 'Prof' }],
+    inventory: [{ name: 'Glimmer', type: 'Light', range: '1-2', rankRequired: 'Prof' }],
   };
   const edric = {
     name: 'Edric',

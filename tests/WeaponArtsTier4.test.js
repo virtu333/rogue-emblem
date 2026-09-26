@@ -176,7 +176,7 @@ describe('Tier 4 multiHit combat resolution', () => {
   });
 
   it('multiHit replaces brave strike count and does not stack to 6+', () => {
-    const braveSword = data.weapons.find((w) => w.name === 'Brave Sword');
+    const braveSword = data.weapons.find((w) => w.name === 'Oathblade');
     const attacker = makeUnit({
       name: 'Atk',
       weapon: braveSword,
@@ -354,7 +354,7 @@ describe('Tier 4 drainPercent combat resolution', () => {
       name: 'Atk',
       currentHP: 8,
       stats: { HP: 40, STR: 16, MAG: 0, SKL: 8, SPD: 10, DEF: 6, RES: 3, LCK: 5 },
-      weapon: data.weapons.find((w) => w.name === 'Soulreaver'),
+      weapon: data.weapons.find((w) => w.name === 'Namethief'),
     });
     const defender = makeUnit({
       name: 'Def',
@@ -382,7 +382,7 @@ describe('Tier 4 drainPercent combat resolution', () => {
       name: 'Atk',
       currentHP: 8,
       stats: { HP: 40, STR: 20, MAG: 0, SKL: 8, SPD: 10, DEF: 6, RES: 3, LCK: 5 },
-      weapon: data.weapons.find((w) => w.name === 'Soulreaver'),
+      weapon: data.weapons.find((w) => w.name === 'Namethief'),
     });
     const defender = makeUnit({
       name: 'Def',
@@ -410,7 +410,7 @@ describe('Tier 4 drainPercent combat resolution', () => {
       name: 'Atk',
       currentHP: 8,
       stats: { HP: 40, STR: 18, MAG: 0, SKL: 8, SPD: 10, DEF: 6, RES: 3, LCK: 5 },
-      weapon: data.weapons.find((w) => w.name === 'Soulreaver'),
+      weapon: data.weapons.find((w) => w.name === 'Namethief'),
     });
     const defender = makeUnit({
       name: 'Def',
@@ -450,7 +450,7 @@ describe('Tier 4 drainPercent combat resolution', () => {
       name: 'Atk',
       currentHP: 8,
       stats: { HP: 40, STR: 18, MAG: 0, SKL: 8, SPD: 10, DEF: 6, RES: 3, LCK: 5 },
-      weapon: data.weapons.find((w) => w.name === 'Soulreaver'),
+      weapon: data.weapons.find((w) => w.name === 'Namethief'),
     });
     const defender = makeUnit({
       name: 'Def',

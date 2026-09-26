@@ -19,8 +19,8 @@
     },
     {
       "id": "armorbane",
-      "name": "Sundering",
-      "adjective": "Sundering",
+      "name": "Armorbane",
+      "adjective": "Armorbane",
       "description": "Deals 2x effective damage to Armored foes",
       "lore": "Siege-smiths swear by it: plate is only a door nobody has knocked on yet.",
       "weight": 10,
@@ -29,15 +29,15 @@
         "combatMods": { "effectiveness": { "moveTypes": ["Armored"], "multiplier": 2 } }
       },
       "stone": {
-        "name": "Sundering Imbuing Stone",
+        "name": "Armorbane Imbuing Stone",
         "price": 1000,
         "lore": "Chipped off a fortress gate that lost. Price includes the story."
       }
     },
     {
       "id": "keen",
-      "name": "Keen",
-      "adjective": "Keen",
+      "name": "Cruel",
+      "adjective": "Cruel",
       "description": "+10 Crit, +5 Hit",
       "lore": "The edge hums near a gap in armor, like a dowsing rod near water.",
       "weight": 10,
@@ -46,7 +46,7 @@
         "combatMods": { "critBonus": 10, "hitBonus": 5 }
       },
       "stone": {
-        "name": "Keen Imbuing Stone",
+        "name": "Cruel Imbuing Stone",
         "price": 1000,
         "lore": "Hold it by the rim. It already knows where your fingers are soft."
       }

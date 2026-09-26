@@ -138,10 +138,10 @@ All through `tools/art/gen/geminiImage.mjs` (provenance in each raw folder's
 
 ### Rerolls and alignment (2026-09-26)
 
-- **Owner rerolls (Pro model, 4 takes each):** Killing Edge (a katana for killing strokes),
-  Tempest Blade (a wind-swept blade), Levin Sword (a lightning-bolt blade), Armorslayer (a
+- **Owner rerolls (Pro model, 4 takes each):** Keen Sword (a katana for killing strokes),
+  Gale Blade (a wind-swept blade), Thunderbrand (a lightning-bolt blade), Mailbane (a
   curved falchion with a needle point), Ragnarok (a Norse sword), Short Spear (throwing
-  loop and fletching), Axereaver (a nimble sword-catcher), Angelic Robe and Seraph Robe
+  loop and fletching), Bladehook (a nimble sword-catcher), Angelic Robe and Seraph Robe
   (white and gold, winged). The robe prompt asks for no glow: a halo keys out as a peach
   fringe. `treat.mjs --publish --only ids` republishes just the rerolled picks.
 - **Icons match their paintings.** The grammar drew one template per weapon type, so the

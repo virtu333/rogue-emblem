@@ -37,6 +37,7 @@ export const KEYWORDS = {
   poison: { tone: 'poison', label: 'Poison' },
   drain: { tone: 'poison', label: 'Drains HP' },
   thrown: { tone: 'thrown', label: 'Thrown' },
+  gust: { tone: 'thrown', label: 'Wind gust' },
   closeBow: { tone: 'thrown', label: 'Close range' },
   longRange: { tone: 'thrown', label: 'Long range' },
   noDisadvantage: { tone: 'reverse', label: 'No triangle penalty' },
@@ -121,6 +122,8 @@ export function itemKeywords(item) {
     add('poison', `Poison ${poison[1]}`, `The target loses ${poison[1]} HP after combat.`);
   if (/Drains HP/i.test(special)) add('drain', 'Drains HP', 'Heals the wielder for damage dealt.');
   if (special.includes('Throwable')) add('thrown', 'Thrown', `Attacks at range ${item.range}.`);
+  if (special.includes('Wind gust'))
+    add('gust', 'Wind gust', `Swings loose a gust of wind that strikes at range ${item.range}.`);
   if (special.includes('Close-range bow'))
     add('closeBow', 'Close range', `A bow that also shoots adjacent foes (range ${item.range}).`);
   if (special.includes('Extended range'))

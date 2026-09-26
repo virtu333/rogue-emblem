@@ -61,7 +61,7 @@ describe('battleItemBrief (one line per menu row; the rest on a long press)', ()
   it('shows crit only when the weapon has some, and no ✦ without an effect', () => {
     expect(
       battleItemBrief({
-        name: 'Killing Edge',
+        name: 'Keen Sword',
         type: 'Sword',
         might: 9,
         hit: 75,

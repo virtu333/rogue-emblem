@@ -84,7 +84,7 @@ afterEach(() => {
 
 describe('keyword row', () => {
   it('draws the base line and one tag per rule, each with its full rule', () => {
-    const row = itemKeywordRow(weapon('Swordreaver'));
+    const row = itemKeywordRow(weapon('Axehook'));
     const all = row._descendants();
     expect(all.find((n) => n.classList?.contains('re-item-base')).textContent).toBe('Steel Lance');
     const tag = all.find((n) => n.classList?.contains('re-item-tag'));
@@ -101,9 +101,9 @@ describe('keyword row', () => {
 
 describe('roster sheet', () => {
   it('a weapon card says what it is and its rule, and states the special once', () => {
-    const sheet = rosterSheet([weapon('Swordreaver'), weapon('Iron Lance')]);
+    const sheet = rosterSheet([weapon('Axehook'), weapon('Iron Lance')]);
     const cards = sheet.root.querySelectorAll('.mr-item-card').map(keysOf);
-    const reaver = cards.find((c) => c.title.startsWith('Swordreaver'));
+    const reaver = cards.find((c) => c.title.startsWith('Axehook'));
     expect(reaver.base).toBe('Steel Lance');
     expect(reaver.tags).toEqual(['Beats Axes']);
     expect(reaver.paragraphs.some((p) => p.includes('Reverses weapon triangle'))).toBe(false);
@@ -148,11 +148,11 @@ describe('compendium', () => {
   it('weapons list as what they are and their rules, and keep the item for the detail', () => {
     const entries = compendiumEntries(view(), tab('weapons'), 0);
     const byName = (name) => entries.find((e) => e.name === name);
-    expect(byName('Killing Edge').summary).toBe('Silver Sword · Crit 30');
-    expect(byName('Swordreaver').summary).toBe('Steel Lance · Beats Axes');
-    expect(byName('Gemini').summary).toBe('Relic Sword · Strikes twice');
+    expect(byName('Keen Sword').summary).toBe('Silver Sword · Crit 30');
+    expect(byName('Axehook').summary).toBe('Steel Lance · Beats Axes');
+    expect(byName('Twinsworn').summary).toBe('Relic Sword · Strikes twice');
     expect(byName('Iron Sword').summary).toBe('Iron Sword');
-    expect(byName('Swordreaver').item.name).toBe('Swordreaver');
+    expect(byName('Axehook').item.name).toBe('Axehook');
   });
 
   it('other tabs keep their summaries', () => {

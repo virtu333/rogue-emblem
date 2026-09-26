@@ -133,9 +133,9 @@ describe('ImbueSystem — applyImbue name composition', () => {
     const weapon = makeWeapon();
     applyForge(weapon, 'might');
     applyImbue(weapon, getImbue('keen'));
-    expect(weapon.name).toBe('Keen Iron Sword +1');
+    expect(weapon.name).toBe('Cruel Iron Sword +1');
     deforgeWeapon(weapon);
-    expect(weapon.name).toBe('Keen Iron Sword');
+    expect(weapon.name).toBe('Cruel Iron Sword');
     expect(weapon._imbueId).toBe('keen');
   });
 
@@ -250,8 +250,8 @@ describe('ImbueSystem — imbuing stones', () => {
     expect(stones).toHaveLength(7);
     expect(stones.map((s) => s.name)).toEqual([
       'Vampiric Imbuing Stone',
-      'Sundering Imbuing Stone',
-      'Keen Imbuing Stone',
+      'Armorbane Imbuing Stone',
+      'Cruel Imbuing Stone',
       'Venomous Imbuing Stone',
       'Binding Imbuing Stone',
       'Warded Imbuing Stone',
@@ -285,7 +285,7 @@ describe('ImbueSystem — imbuing stones', () => {
 
   it('getImbueStoneDetailText produces card/tooltip text', () => {
     const stones = getImbueStoneItems(imbuesData);
-    const keenStone = stones.find((s) => s.name === 'Keen Imbuing Stone');
+    const keenStone = stones.find((s) => s.name === 'Cruel Imbuing Stone');
     const prismatic = stones.find((s) => s.name === 'Prismatic Stone');
     expect(getImbueStoneDetailText(keenStone, imbuesData)).toBe('Imbue: +10 Crit, +5 Hit');
     expect(getImbueStoneDetailText(prismatic, imbuesData)).toBe('Imbue: choose a blessing');

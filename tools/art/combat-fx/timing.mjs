@@ -64,10 +64,10 @@ const cases = [
   ['Iron Bow', 2, 'crit'],
   ['Longbow', 3, 'hit'],
   ['Fire', 2, 'hit'],
-  ['Bolting', 5, 'hit'],
+  ['Breachbolt', 5, 'hit'],
   ['Iron Axe', 1, 'hit'],
-  ['Excalibur', 2, 'hit'],
-  ['Shine', 2, 'hit'],
+  ['Firstwind', 2, 'hit'],
+  ['Brilliance', 2, 'hit'],
   ['Twisting Vortex', 2, 'hit'],
   ['Fire Breath', 1, 'hit'],
 ];

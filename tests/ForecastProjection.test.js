@@ -43,7 +43,7 @@ const forecast = (a, d, distance = 1) =>
 
 describe('forecast HP projection keeps descriptive specials and static accessories', () => {
   it('projects a lethal Lightning exchange (8 damage vs 8 HP)', () => {
-    const a = unit('A', catalogWeapon('Lightning'));
+    const a = unit('A', catalogWeapon('Glimmer'));
     const d = unit('D');
     a.stats.MAG = 20;
     a.stats.SKL = 100;
@@ -73,14 +73,14 @@ describe('forecast HP projection keeps descriptive specials and static accessori
     expect(forecastProjection(forecast(a, unit('D')))).toBeNull();
   });
 
-  it.each(['Soulreaver', 'Venin Blade'])('omits it when the attacker wields %s', (name) => {
+  it.each(['Namethief', 'Adder Blade'])('omits it when the attacker wields %s', (name) => {
     const a = unit('A', catalogWeapon(name));
     expect(forecastProjection(forecast(a, unit('D')))).toBeNull();
   });
 
   it('a defender poison weapon only matters when it can counter', () => {
     const archer = unit('A', catalogWeapon('Iron Bow'));
-    const d = unit('D', catalogWeapon('Venin Blade'));
+    const d = unit('D', catalogWeapon('Adder Blade'));
     const ranged = forecast(archer, d, 2);
     expect(ranged.defender.canCounter).toBe(false);
     expect(forecastProjection(ranged)).not.toBeNull();

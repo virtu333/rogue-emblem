@@ -38,7 +38,7 @@ function special(w) {
   const s = `${w.special || ''} ${w.name}`.toLowerCase();
   return {
     crit: /critical|killer|killing/.test(s),
-    throw: /throwable/.test(s),
+    throw: /throwable|wind gust/.test(s),
     brave: /attacks twice/.test(s),
     reaver: /reverses weapon triangle/.test(s),
     effective: /effective vs|slayer/.test(s),
@@ -53,23 +53,28 @@ function special(w) {
 
 /** Swords whose painting has its own shape: the icon draws the same silhouette. */
 const SWORD_BY_NAME = {
-  'Killing Edge': { variant: 'katana', temper: 'blood', tassel: 'blood', grip: 'cord' },
-  'Wo Dao': { variant: 'curved' },
-  'Tempest Blade': { variant: 'gust', wind: 'sky', gem: 'sky' },
-  'Levin Sword': { variant: 'bolt', gem: 'sky' },
-  Armorslayer: { variant: 'falchion' },
+  'Keen Sword': { variant: 'katana', temper: 'blood', tassel: 'blood', grip: 'cord' },
+  Jian: { variant: 'jian', tassel: 'blood' },
+  'Gust Blade': { variant: 'gust', wind: 'sky' },
+  'Gale Blade': { variant: 'gust', wind: 'sky', gem: 'sky' },
+  Lancehook: { variant: 'hook' },
+  Thunderbrand: { variant: 'bolt', gem: 'sky' },
+  Mailbane: { variant: 'falchion' },
   Ragnarok: { variant: 'viking' },
-  Gemini: { variant: 'twin' },
+  Twinsworn: { variant: 'twin' },
 };
 
 const LANCE_BY_NAME = {
   'Short Spear': { variant: 'throwing' },
   Doomblade: { variant: 'glaive', head: 'blackened', tassel: null },
   'Gae Bolg': { variant: 'barbs', head: 'blood', tassel: null },
+  Axehook: { variant: 'hook' },
 };
 
 const AXE_BY_NAME = {
-  Axereaver: { variant: 'hook' },
+  Bladehook: { variant: 'hook' },
+  // Blue-grey steel like its painting, not the white legend metal.
+  Tidebreaker: { head: 'steel', gem: 'sky' },
 };
 
 function accentFor(sp, tier) {
@@ -85,11 +90,11 @@ function accentFor(sp, tier) {
 
 const TOME_ELEMENT = {
   Fire: 'fire',
-  Elfire: 'fire',
-  Bolganone: 'fire',
+  Wildfire: 'fire',
+  Conflagration: 'fire',
   Witchfire: 'fire',
-  Excalibur: 'wind',
-  Bolting: 'thunder',
+  Firstwind: 'wind',
+  Breachbolt: 'thunder',
   'Twisting Vortex': 'dark',
 };
 const ELEMENT_COVER = {
@@ -153,7 +158,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
       const variant =
         named.variant ||
         (/rapier/i.test(w.name) ? 'rapier' : sp.throw ? 'short' : sp.reaver ? 'serrated' : 'broad');
-      // Drain blades are black steel, legend or not (Soulreaver, the Eldritch Grasp).
+      // Drain blades are black steel, legend or not (Namethief, the Eldritch Grasp).
       const blade = sp.drain ? 'blackened' : t.metal;
       return D.sword({
         blade,
@@ -221,7 +226,7 @@ export function weaponSpec(w, ctx = grammarContext()) {
                   : 'wood',
         fit: acc || t.fit,
         size: sp.long ? 1.12 : sp.short ? 0.82 : 1,
-        recurve: sp.short || sp.brave || /double/i.test(w.name),
+        recurve: sp.short || sp.brave || /hermit/i.test(w.name),
       });
     case 'Tome':
       return tomeSpec(TOME_ELEMENT[w.name] || 'fire', t.fit);

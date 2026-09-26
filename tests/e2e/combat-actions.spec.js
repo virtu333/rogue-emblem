@@ -144,7 +144,7 @@ test('Heal restores HP and re-equips combat weapon', async ({ page }) => {
   await hud.getByRole('button', { name: /^Heal / }).tap();
   await tapTile(page, 2, 4);
   await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
-  expect((await unit(page, 'Sera')).weapon).toBe('Lightning');
+  expect((await unit(page, 'Sera')).weapon).toBe('Glimmer');
   expect((await unit(page, 'Patient')).hp).toBeGreaterThan(10);
   expect(errors).toEqual([]);
 });
@@ -181,7 +181,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
       col: dest.col,
       row: dest.row,
     });
-    expect((await unit(page, 'Sera')).weapon).toBe('Lightning');
+    expect((await unit(page, 'Sera')).weapon).toBe('Glimmer');
     expect(
       await page.evaluate(
         (name) =>
@@ -237,9 +237,9 @@ for (const staff of ['Heal', 'Warp Staff', 'Rescue Staff']) {
     await hud.getByRole('button', { name: new RegExp(`^${staff} `) }).tap();
     expect((await unit(page, 'Sera')).weapon).toBe(staff);
     await page.keyboard.press('Escape');
-    expect((await unit(page, 'Sera')).weapon).toBe('Lightning');
+    expect((await unit(page, 'Sera')).weapon).toBe('Glimmer');
     await hud.getByRole('button', { name: 'Wait', exact: true }).tap();
-    expect((await unit(page, 'Sera')).weapon).toBe('Lightning');
+    expect((await unit(page, 'Sera')).weapon).toBe('Glimmer');
     expect(errors).toEqual([]);
   });
 }

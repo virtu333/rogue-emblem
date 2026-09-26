@@ -6,7 +6,7 @@
 // Characterisation (pinned on main before the change, unchanged after):
 //   - the confirmed attack's committed state and resolution after a long
 //     open → cycle → switch target → switch back → cycle → confirm sequence;
-//   - Doublebow / _grantedSkill forecast parity with truly equipping;
+//   - Hermit's Bow / _grantedSkill forecast parity with truly equipping;
 //   - a weapon art on a non-equipped duplicate weapon without uids;
 //   - the legacy-v1 Gambler Math.random draw count.
 // Contract (new): every preview interaction leaves equipment and bag order
@@ -345,11 +345,11 @@ describe('characterisation: forecast parity with truly equipping', () => {
     return renders.at(-1).forecast;
   }
 
-  it('Doublebow (+4 STR/SPD with no adjacent ally) shows its conditional bonus when cycled to', async () => {
-    const bag = () => [item('Iron Bow', 'bow'), item('Doublebow', 'dbow')];
-    const cycled = await cycledForecast(bag(), 'Doublebow');
-    const equipped = await equippedForecast(bag(), 'Doublebow');
-    // 7 STR + 11 Mt + 4 (Doublebow, alone) - 5 DEF = 17 against the Archer.
+  it("Hermit's Bow (+4 STR/SPD with no adjacent ally) shows its conditional bonus when cycled to", async () => {
+    const bag = () => [item('Iron Bow', 'bow'), item("Hermit's Bow", 'dbow')];
+    const cycled = await cycledForecast(bag(), "Hermit's Bow");
+    const equipped = await equippedForecast(bag(), "Hermit's Bow");
+    // 7 STR + 11 Mt + 4 (Hermit's Bow, alone) - 5 DEF = 17 against the Archer.
     expect(cycled.attacker.damage).toBe(17);
     expect(cycled).toEqual(equipped);
   });

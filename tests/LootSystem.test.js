@@ -1006,9 +1006,9 @@ describe('LootSystem', () => {
       expect(pool).toContain('Steel Lance');
       expect(pool).toContain('Steel Axe');
       expect(pool).toContain('Steel Bow');
-      expect(pool).not.toContain('Wo Dao');
-      expect(pool).toContain('Lancereaver');
-      expect(pool).toContain('Wind Sword');
+      expect(pool).not.toContain('Jian');
+      expect(pool).toContain('Lancehook');
+      expect(pool).toContain('Gust Blade');
     });
 
     it('act1 healing/promotion pools are split correctly', () => {
@@ -1038,13 +1038,13 @@ describe('LootSystem', () => {
 
     it('act2 weapon pool has killers and advanced weapons', () => {
       const pool = gameData.lootTables.act2.weapons;
-      expect(pool).toContain('Killing Edge');
-      expect(pool).toContain('Killer Lance');
+      expect(pool).toContain('Keen Sword');
+      expect(pool).toContain('Keen Lance');
       expect(pool).toContain('Hammer');
       expect(pool).toContain('Spear');
       expect(pool).toContain('Physic');
-      expect(pool).toContain('Bolganone');
-      expect(pool).toContain('Aura');
+      expect(pool).toContain('Conflagration');
+      expect(pool).toContain('Crownlight');
     });
 
     it('act2/act3 weapon-art split pools include advanced weapon-art scrolls', () => {
@@ -1640,7 +1640,7 @@ describe('LootSystem', () => {
       };
       const customTables = {
         act2: {
-          weapons: ['Elfire', 'Shine'],
+          weapons: ['Wildfire', 'Brilliance'],
           healing: ['Vulnerary'],
           statBooster: [],
           promotion: [],
@@ -1667,7 +1667,7 @@ describe('LootSystem', () => {
 
       const tomeChoices = generateLootChoices(
         'act2',
-        { act2: { ...customTables.act2, weapons: ['Elfire'] } },
+        { act2: { ...customTables.act2, weapons: ['Wildfire'] } },
         gameData.weapons,
         gameData.consumables,
         1,
@@ -1680,13 +1680,13 @@ describe('LootSystem', () => {
         false,
         { steelArms: true, weaponArtCatalog: [customArt] },
       );
-      const elfire = tomeChoices.find((choice) => choice.item?.name === 'Elfire')?.item;
+      const elfire = tomeChoices.find((choice) => choice.item?.name === 'Wildfire')?.item;
       expect(elfire?.weaponArtId).toBe('magic_test_art');
       expect(elfire?.weaponArtSource).toBe('meta_innate');
 
       const lightChoices = generateLootChoices(
         'act2',
-        { act2: { ...customTables.act2, weapons: ['Shine'] } },
+        { act2: { ...customTables.act2, weapons: ['Brilliance'] } },
         gameData.weapons,
         gameData.consumables,
         1,
@@ -1699,7 +1699,7 @@ describe('LootSystem', () => {
         false,
         { steelArms: true, weaponArtCatalog: [customArt] },
       );
-      const shine = lightChoices.find((choice) => choice.item?.name === 'Shine')?.item;
+      const shine = lightChoices.find((choice) => choice.item?.name === 'Brilliance')?.item;
       expect(shine?.weaponArtId).toBe('magic_test_art');
       expect(shine?.weaponArtSource).toBe('meta_innate');
       vi.restoreAllMocks();

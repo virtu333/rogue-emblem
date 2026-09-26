@@ -1,4 +1,5 @@
 import { validateBattleState } from './BattleStateSnapshot.js';
+import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { hydrateBattleTimeline } from './BattleTimeline.js';
 import { pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
@@ -4170,6 +4171,7 @@ export class RunManager {
       battleInProgress: this.battleInProgress || null,
       lastBattleReport: this.lastBattleReport || null,
       eclipse: this.eclipse || createEclipseState(),
+      itemNamesRevision: ITEM_NAMES_REVISION,
     };
   }
 
@@ -4402,6 +4404,9 @@ export class RunManager {
 
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
+    // Items renamed since this save was written get their new names everywhere in
+    // it (units, convoy, shops, rewards, battle checkpoint and rewind timeline).
+    migrateSavedItemNames(saved, gameData);
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.legendaryLordChance = Math.min(0.15, Math.max(0, Number(saved.legendaryLordChance) || 0));
     rm.lastDeployment = normalizeDeploymentNames(saved.lastDeployment);

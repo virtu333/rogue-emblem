@@ -58,7 +58,7 @@ describe('AttackOptions — usable weapons', () => {
   it('silence removes magic; an exhausted per-battle weapon cannot attack', () => {
     const sword = w('Iron Sword');
     const fire = w('Fire');
-    const bolting = w('Bolting');
+    const bolting = w('Breachbolt');
     const u = unit([fire, sword, bolting], {
       proficiencies: [
         { type: 'Sword', rank: 'Prof' },

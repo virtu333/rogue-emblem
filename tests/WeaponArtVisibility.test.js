@@ -129,7 +129,7 @@ describe('WeaponArt visibility helpers', () => {
     const arts = [
       makeArt({ id: 'explicit_art', name: 'Explicit Art' }),
       makeArt({ id: 'legacy_art', name: 'Legacy Art' }),
-      makeArt({ id: 'legend_art', name: 'Legend Art', legendaryWeaponIds: ['Gemini'] }),
+      makeArt({ id: 'legend_art', name: 'Legend Art', legendaryWeaponIds: ['Twinsworn'] }),
     ];
 
     expect(
@@ -138,7 +138,7 @@ describe('WeaponArt visibility helpers', () => {
     expect(resolveWeaponArtIds({ name: 'Iron Sword', weaponArtId: 'legacy_art' }, arts)).toEqual([
       'legacy_art',
     ]);
-    expect(resolveWeaponArtIds({ name: 'Gemini' }, arts)).toEqual(['legend_art']);
+    expect(resolveWeaponArtIds({ name: 'Twinsworn' }, arts)).toEqual(['legend_art']);
   });
 
   it('resolveWeaponArtIds fails closed for unresolved IDs when catalog is provided', () => {

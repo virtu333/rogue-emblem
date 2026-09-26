@@ -151,7 +151,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
   },
   "legendaryWeapons": [
     {
-      "name": "Brave Axe",
+      "name": "Oathaxe",
       "type": "Axe",
       "rankRequired": "Mast",
       "range": "1",
@@ -165,25 +165,25 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "Ignores weapon triangle disadvantage"
     },
     {
-      "name": "Stormbreaker",
+      "name": "Tidebreaker",
       "type": "Axe",
       "rankRequired": "Mast",
       "range": "1",
       "special": "+5 DEF, +5 RES when equipped"
     },
     {
-      "name": "Brave Bow",
-      "type": "Bow",
-      "rankRequired": "Mast",
-      "range": "2",
-      "special": "Attacks twice consecutively"
-    },
-    {
-      "name": "Doublebow",
+      "name": "Hermit's Bow",
       "type": "Bow",
       "rankRequired": "Mast",
       "range": "1-2",
       "special": "+4 STR, +4 SPD if no adjacent allies"
+    },
+    {
+      "name": "Oathbow",
+      "type": "Bow",
+      "rankRequired": "Mast",
+      "range": "2",
+      "special": "Attacks twice consecutively"
     },
     {
       "name": "Starfall",
@@ -191,13 +191,6 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "rankRequired": "Mast",
       "range": "2-3",
       "special": "Extended range"
-    },
-    {
-      "name": "Brave Lance",
-      "type": "Lance",
-      "rankRequired": "Mast",
-      "range": "1",
-      "special": "Attacks twice consecutively"
     },
     {
       "name": "Doomblade",
@@ -214,7 +207,14 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "+5 STR when counterattacking"
     },
     {
-      "name": "Luce",
+      "name": "Oathlance",
+      "type": "Lance",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Endword",
       "type": "Light",
       "rankRequired": "Mast",
       "range": "1-2",
@@ -235,13 +235,6 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "Sends an adjacent ally across the field"
     },
     {
-      "name": "Brave Sword",
-      "type": "Sword",
-      "rankRequired": "Mast",
-      "range": "1",
-      "special": "Attacks twice consecutively"
-    },
-    {
       "name": "Eldritch Grasp",
       "type": "Sword",
       "rankRequired": "Mast",
@@ -249,7 +242,14 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": ""
     },
     {
-      "name": "Gemini",
+      "name": "Namethief",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Drains HP equal to damage dealt"
+    },
+    {
+      "name": "Oathblade",
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1",
@@ -263,21 +263,21 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "+5 DEF when equipped"
     },
     {
-      "name": "Soulreaver",
+      "name": "Twinsworn",
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1",
-      "special": "Drains HP equal to damage dealt"
+      "special": "Attacks twice consecutively"
     },
     {
-      "name": "Bolting",
+      "name": "Breachbolt",
       "type": "Tome",
       "rankRequired": "Mast",
       "range": "3-10",
       "special": "Siege magic"
     },
     {
-      "name": "Excalibur",
+      "name": "Firstwind",
       "type": "Tome",
       "rankRequired": "Mast",
       "range": "1-2",

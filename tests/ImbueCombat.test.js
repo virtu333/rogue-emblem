@@ -90,7 +90,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
     expect(keenForecast.attacker.crit).toBe(Math.min(100, plainForecast.attacker.crit + 10));
     expect(keenForecast.attacker.hit).toBe(Math.min(100, plainForecast.attacker.hit + 5));
     // Imbue surfaces as an activation for the forecast UI
-    expect(keenForecast.attacker.skills).toContainEqual({ id: 'imbue_keen', name: 'Keen' });
+    expect(keenForecast.attacker.skills).toContainEqual({ id: 'imbue_keen', name: 'Cruel' });
     // Defender numbers untouched
     expect(keenForecast.defender.damage).toBe(plainForecast.defender.damage);
   });
@@ -107,7 +107,7 @@ describe('Imbue combat mods — forecast/resolution parity', () => {
       plain,
       baseSkillCtx,
     );
-    expect(forecast.defender.skills).toContainEqual({ id: 'imbue_keen', name: 'Keen' });
+    expect(forecast.defender.skills).toContainEqual({ id: 'imbue_keen', name: 'Cruel' });
   });
 
   it('warded: +2 DEF/RES reduces damage taken both attacking and defending', () => {

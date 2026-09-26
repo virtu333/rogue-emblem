@@ -101,13 +101,13 @@ export const FX_FAMILIES = Object.freeze({
  */
 export const WEAPON_FX_RULES = Object.freeze({
   byName: {
-    Excalibur: 'wind',
-    Bolting: 'thunder',
+    Firstwind: 'wind',
+    Breachbolt: 'thunder',
     'Twisting Vortex': 'dark',
     'Eldritch Grasp': 'dark',
-    'Levin Sword': { melee: 'sword', ranged: 'thunder' },
-    'Wind Sword': { melee: 'sword', ranged: 'wind' },
-    'Tempest Blade': { melee: 'sword', ranged: 'wind' },
+    Thunderbrand: { melee: 'sword', ranged: 'thunder' },
+    'Gust Blade': { melee: 'sword', ranged: 'wind' },
+    'Gale Blade': { melee: 'sword', ranged: 'wind' },
     'Fire Breath': 'breath',
     'Toxic Breath': 'breathToxic',
     'Ancient Breath': 'breathAncient',

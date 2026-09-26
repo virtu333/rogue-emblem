@@ -4,7 +4,7 @@ import { HealController } from '../src/ui/HealController.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
 function setup() {
-  const tome = structuredClone(data.weapons.find((w) => w.name === 'Lightning'));
+  const tome = structuredClone(data.weapons.find((w) => w.name === 'Glimmer'));
   const staff = structuredClone(data.weapons.find((w) => w.name === 'Heal'));
   const unit = {
     name: 'Sera',

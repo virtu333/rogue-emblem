@@ -32,13 +32,13 @@ describe('combat FX family mapping (one table, data-driven)', () => {
   });
 
   it('derives tome elements from weapon names and lore', () => {
-    for (const name of ['Fire', 'Elfire', 'Bolganone', 'Witchfire'])
+    for (const name of ['Fire', 'Wildfire', 'Conflagration', 'Witchfire'])
       expect(fxFamilyIdForWeapon(byName(name))).toBe('fire');
-    expect(fxFamilyIdForWeapon(byName('Excalibur'))).toBe('wind');
-    expect(fxFamilyIdForWeapon(byName('Bolting'), { distance: 5 })).toBe('thunder');
+    expect(fxFamilyIdForWeapon(byName('Firstwind'))).toBe('wind');
+    expect(fxFamilyIdForWeapon(byName('Breachbolt'), { distance: 5 })).toBe('thunder');
     expect(fxFamilyIdForWeapon(byName('Twisting Vortex'))).toBe('dark');
     // Light tomes stay holy light even when the name says lightning.
-    for (const name of ['Lightning', 'Shine', 'Aura', 'Sunflare', 'Luce'])
+    for (const name of ['Glimmer', 'Brilliance', 'Crownlight', 'Sunflare', 'Endword'])
       expect(fxFamilyIdForWeapon(byName(name))).toBe('light');
     // An unknown tome falls back through lore, then the type default.
     expect(fxFamilyIdForWeapon({ type: 'Tome', name: 'Gale Page', lore: '' })).toBe('wind');
@@ -53,9 +53,9 @@ describe('combat FX family mapping (one table, data-driven)', () => {
     expect(fxFamilyIdForWeapon(byName('Hand Axe'), { distance: 2 })).toBe('thrownAxe');
     expect(fxFamilyIdForWeapon(byName('Hand Axe'), { distance: 1 })).toBe('axe');
     expect(fxFamilyIdForWeapon(byName('Javelin'), { distance: 2 })).toBe('thrownLance');
-    expect(fxFamilyIdForWeapon(byName('Levin Sword'), { distance: 2 })).toBe('thunder');
-    expect(fxFamilyIdForWeapon(byName('Levin Sword'), { distance: 1 })).toBe('sword');
-    expect(fxFamilyIdForWeapon(byName('Wind Sword'), { distance: 2 })).toBe('wind');
+    expect(fxFamilyIdForWeapon(byName('Thunderbrand'), { distance: 2 })).toBe('thunder');
+    expect(fxFamilyIdForWeapon(byName('Thunderbrand'), { distance: 1 })).toBe('sword');
+    expect(fxFamilyIdForWeapon(byName('Gust Blade'), { distance: 2 })).toBe('wind');
     expect(fxFamilyIdForWeapon(byName('Ragnarok'), { distance: 2 })).toBe('bladeWave');
     expect(fxFamilyIdForWeapon(byName('Iron Bow'), { distance: 2 })).toBe('bow');
     expect(fxFamilyIdForWeapon(byName('Fire Breath'))).toBe('breath');

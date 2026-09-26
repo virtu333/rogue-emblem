@@ -176,14 +176,14 @@ describe('Imbue serialization round trip', () => {
     const unit = makeUnit();
     applyForge(unit.weapon, 'might');
     applyImbue(unit.weapon, getImbueById(imbuesData, 'keen'));
-    expect(unit.weapon.name).toBe('Keen Iron Sword +1');
+    expect(unit.weapon.name).toBe('Cruel Iron Sword +1');
 
     const restored = JSON.parse(JSON.stringify(serializeUnit(unit)));
     relinkWeapon(restored);
 
     expect(restored.weapon._imbueId).toBe('keen');
     expect(restored.weapon._forgeLevel).toBe(1);
-    expect(restored.weapon._baseName).toBe('Keen Iron Sword');
-    expect(restored.weapon.name).toBe('Keen Iron Sword +1');
+    expect(restored.weapon._baseName).toBe('Cruel Iron Sword');
+    expect(restored.weapon.name).toBe('Cruel Iron Sword +1');
   });
 });

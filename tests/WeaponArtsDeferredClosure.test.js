@@ -557,7 +557,7 @@ describe('deferred closure: combat math', () => {
   });
 
   it('ignoreRES zeroes the defender RES for a magical art strike', () => {
-    const luce = gameData.weapons.find((w) => w.name === 'Luce');
+    const luce = gameData.weapons.find((w) => w.name === 'Endword');
     const artMods = getWeaponArtCombatMods(artById.get('legend_divine_flare'));
     const plain = forecastWith(luce, null, { weaponArt: true, atkBonus: artMods.atkBonus });
     const pierced = forecastWith(luce, null, artMods);
@@ -565,18 +565,18 @@ describe('deferred closure: combat math', () => {
     expect(pierced.attacker.damage).toBe(plain.attacker.damage + 8);
   });
 
-  it('Divine Flare art + Luce weapon effectiveness stack to the 5x cap vs dark classes', () => {
-    const luce = gameData.weapons.find((w) => w.name === 'Luce');
+  it('Divine Flare art + Endword weapon effectiveness stack to the 5x cap vs dark classes', () => {
+    const luce = gameData.weapons.find((w) => w.name === 'Endword');
     const artMods = getWeaponArtCombatMods(artById.get('legend_divine_flare'));
     const vsKnight = forecastWith(luce, null, artMods, { className: 'General' });
     const vsWarlock = forecastWith(luce, null, artMods, { className: 'Warlock' });
     // Weapon 3x and art 3x both match dark targets; combined multiplier caps at
-    // 5x, multiplying Luce's 14 might: (5 - 1) * 14 = +56 damage
+    // 5x, multiplying Endword's 14 might: (5 - 1) * 14 = +56 damage
     expect(vsWarlock.attacker.damage).toBe(vsKnight.attacker.damage + 56);
   });
 
-  it("Luce's weapon special alone is effective vs dark classes (no art needed)", () => {
-    const luce = gameData.weapons.find((w) => w.name === 'Luce');
+  it("Endword's weapon special alone is effective vs dark classes (no art needed)", () => {
+    const luce = gameData.weapons.find((w) => w.name === 'Endword');
     expect(getEffectivenessMultiplier(luce, makeUnit({ className: 'Warlock' }))).toBe(3);
     expect(getEffectivenessMultiplier(luce, makeUnit({ className: 'Dragon Lord' }))).toBe(3);
     expect(getEffectivenessMultiplier(luce, makeUnit({ className: 'General' }))).toBe(1);
