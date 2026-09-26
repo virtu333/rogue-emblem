@@ -117,7 +117,9 @@ test('equip rows show a one-line brief; a long press opens the full stats withou
   const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
   const pointer = { pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, ...at };
   await row.dispatchEvent('pointerdown', pointer);
-  await page.waitForTimeout(700);
+  // Release once the hold has fired (it marks the hint learned), not after a fixed
+  // sleep: under load the hold timer can fire late, and an early release is a tap.
+  await page.waitForFunction(() => localStorage.getItem('emblem_rogue_tip_hold_item') === '1');
   await row.dispatchEvent('pointerup', pointer);
   await row.dispatchEvent('click', { detail: 1, ...at });
   const open = hud.getByRole('button', { name: /^Hand Axe/ });
