@@ -418,9 +418,8 @@
   margin-top: calc(4px * var(--ce-scale));
   font: italic 600 calc(12px * var(--ce-scale)) / 1.2 var(--re-body);
   color: var(--ce-gold-4);
+  /* fitText shrinks it a little, then lets it wrap (never an ellipsis). */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────────────────────── Roster */

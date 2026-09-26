@@ -767,9 +767,8 @@
   font: var(--ce-pf-8, calc(8px * var(--ce-scale))) / 1.4 var(--re-pixel);
   letter-spacing: 2px;
   color: var(--ce-bone);
+  /* fitText shrinks it along the pixel grid, then lets it wrap. */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ─────────────────────────────────────────────── Act title and run end */

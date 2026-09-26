@@ -359,6 +359,45 @@ test.describe('battle notices on a small phone', () => {
     for (let i = 1; i < boxes.length; i++)
       expect(boxes[i].top, `notice ${i}`).toBeGreaterThanOrEqual(boxes[i - 1].bottom);
   });
+
+  test('a boss crit cut-in names the boss and the weapon in full beside the portrait', async ({
+    page,
+  }) => {
+    await quietSettings(page);
+    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+    await waitForScene(page, 'Battle');
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+    );
+    await page.evaluate(async () => {
+      const s = window.__emblemRogueGame.scene.getScene('Battle');
+      const enemy = s.enemyUnits[0];
+      // Hold the strip in view while it is measured (same path, longer hold).
+      const delay = s._awaitSceneDelay;
+      s._awaitSceneDelay = (ms, opts) =>
+        delay.call(s, opts?.label === 'proc_cutin_hold' ? 5000 : ms, opts);
+      const { ProcBannerController } = await import('/src/ui/ProcBannerController.js');
+      void new ProcBannerController(s).showCutIn({
+        unit: enemy,
+        unitName: 'Knight Commander',
+        weaponName: 'Twisting Vortex',
+        label: 'CRITICAL HIT',
+        category: 'offense',
+        side: 'right',
+      });
+    });
+    const small = page.locator('.ce-cutin-small');
+    await expect(small).toHaveText('KNIGHT COMMANDER · TWISTING VORTEX');
+    await page.waitForFunction(
+      () => Number(document.querySelector('.ce-cutin-layer')?.style.getPropertyValue('--ce-in')) === 1, // prettier-ignore
+    );
+    const fit = await small.evaluate((n) => ({
+      fits: n.scrollWidth <= n.clientWidth + 1,
+      ellipsis: getComputedStyle(n).textOverflow === 'ellipsis',
+      clipped: getComputedStyle(n).overflowX !== 'visible',
+    }));
+    expect(fit).toEqual({ fits: true, ellipsis: false, clipped: false });
+  });
 });
 
 test.describe('desktop', () => {

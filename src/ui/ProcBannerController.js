@@ -307,14 +307,20 @@ export class ProcBannerController {
     const word = el('div', 'ce-cutin-word');
     const big = el('div', 'ce-cutin-big', content.word);
     word.append(big);
-    if (content.small) word.append(el('div', 'ce-cutin-small', content.small));
-    if (content.epithet) {
-      word.append(el('div', 'ce-cutin-epithet', content.epithet));
+    const small = content.small ? el('div', 'ce-cutin-small', content.small) : null;
+    if (small) word.append(small);
+    const epithet = content.epithet ? el('div', 'ce-cutin-epithet', content.epithet) : null;
+    if (epithet) {
+      word.append(epithet);
       band.classList.add('has-epithet');
     }
     band.append(word);
     root.append(el('div', 'ce-cutin-flash'), band);
     layer.addFitter(() => fitText(big, { min: 16 }));
+    // "NAME · WEAPON" and the epithet read in full beside a portrait on a
+    // phone map: they shrink a step, then wrap (never an ellipsis).
+    if (small) layer.addFitter(() => fitText(small, { min: 6 }));
+    if (epithet) layer.addFitter(() => fitText(epithet, { min: 10 }));
 
     const motion = { in: staticPresentation ? 1 : 0, out: 0 };
     const paint = () => {
