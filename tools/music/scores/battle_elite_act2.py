@@ -27,7 +27,9 @@ key of its own, the whole texture moving with it), and the tag takes it
 to D-flat once more before the break brings it home. In A it keeps the
 stab cycle: two bars from each landing, then a bar's rest into which the
 pickup stab strikes (the machine stops, the line stamps, it starts
-again). That grouping is this piece's own.
+again). That grouping is this piece's own. The shudder's F-G-flat-F is the
+Empire's own sound (in the lore the drill is the root with its semitone
+shadow), so it is shared with Iron Rain's riff on purpose.
 
 The song is the identity a player takes away. Each of its four three-bar
 phrases is the stab's own gesture: after the pickup stab two eighths on
