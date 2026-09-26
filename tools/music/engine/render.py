@@ -77,7 +77,7 @@ def prune_cache(max_age_days: float, directory: str | None = None) -> tuple[int,
 
 
 CALIB_PATH = os.path.join(os.path.dirname(__file__), '..', 'calibration.json')
-ENGINE_VERSION = 9  # bump to invalidate stem caches
+ENGINE_VERSION = 10  # bump to invalidate stem caches
 
 M_MIN = 4.0
 EXTRA = 0.6
@@ -97,6 +97,14 @@ def _load_calib():
     if os.path.exists(CALIB_PATH):
         return json.load(open(CALIB_PATH))
     return {}
+
+
+def _save_calib():
+    # the repo's JSON style (prettier): two-space indent, final newline
+    tmp = f'{CALIB_PATH}.{os.getpid()}.tmp'
+    with open(tmp, 'w') as f:
+        f.write(json.dumps(_CALIB, indent=2, sort_keys=True) + '\n')
+    os.replace(tmp, CALIB_PATH)
 
 
 _CALIB = None
@@ -121,7 +129,7 @@ def calibration_db(inst_name: str, art: str = 'default') -> float:
     rms = math.sqrt(float(np.mean(win.astype(np.float64) ** 2)) + 1e-12)
     g = -20.0 - dsp.db(rms)
     _CALIB[key] = round(g, 2)
-    json.dump(_CALIB, open(CALIB_PATH, 'w'), indent=1, sort_keys=True)
+    _save_calib()
     return _CALIB[key]
 
 
@@ -155,7 +163,7 @@ def onset_pre(inst_name: str, art_name: str) -> float:
             ds.append(np.nonzero(seg >= 0.5 * seg.max())[0][0] / SR)
     pre = float(min(np.median(ds) if ds else 0.0, 0.15))
     _CALIB[key] = round(pre, 4)
-    json.dump(_CALIB, open(CALIB_PATH, 'w'), indent=1, sort_keys=True)
+    _save_calib()
     return _CALIB[key]
 
 
@@ -197,7 +205,9 @@ def _render_raw(inst_name, inst, events: list[NoteEvent], n_frames, seed, calibr
         out = render_sf2(inst['font'], inst['bank'], inst['program'], evs, n_frames,
                          channel=inst.get('channel', 0), cc=cc, cents=cents)
     elif kind == 'sfizz':
-        evs = [(ev.t, ev.dur, ev.key, ev.vel) for ev in events]
+        # `transpose`: a program mapped away from sounding pitch (the Growlybass)
+        tr = inst.get('transpose', 0)
+        evs = [(ev.t, ev.dur, ev.key + tr, ev.vel) for ev in events]
         out = render_sfz(inst['sfz'], evs, n_frames, cc=inst.get('cc'))
     elif kind == 'synth':
         fn = VOICES[inst['voice']]
@@ -361,6 +371,8 @@ class Renderer:
                   self.I_f, seed, part.opts.get('pedal', False))
                + (((sorted(part.opts['key_cents'].items()),) if part.opts.get('key_cents')
                    else ()))
+               + (((inst['sfz'], inst.get('cc'), inst.get('transpose', 0)),)
+                  if inst['kind'] == 'sfizz' else ())
                + (() if inst['kind'] != 'lab' else (
                    palette.cache_token(inst), part.expr_points, self.I_b, self.P_b,
                    [(e.accent, e.staccato) for e in intro + loop])))

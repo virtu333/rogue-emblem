@@ -199,7 +199,12 @@ INSTRUMENTS = {
     'kit': dict(kind='sfizz', sfz=os.path.join(LIBS, 'virtuosity_drums', 'Programs', '02-full-kit.sfz'),
                 range=(0, 127), pan=0.0, width=1.0, depth=0.15, ref_key=38, bus='drums',
                 humanize_ms=4, fixed_pitch=True, keys=VDRUM_KEYS, hpf=0),
+    # Growlybass maps its samples an octave above sounding pitch (bass-clef
+    # convention: its key 40 plays E1, 41 Hz). `transpose` plays key k from the
+    # program's key k + 12, so a written E1 (28) sounds E1 from the low-E sample
+    # like every other instrument here (the program's keys 33-84 cover 21-72)
     'rbass': dict(kind='sfizz', room=True, duck='kit_kick', sfz=os.path.join(LIBS, 'karoryfer.growlybass', 'growlybass_dirty.sfz'),
+                  transpose=12,
                   range=(28, 67), pan=0.0, width=0.0, depth=0.05, ref_key=40, bus='rhythm',
                   humanize_ms=5, hpf=35,
                   comp=dict(thresh_db=-26, ratio=4, attack_ms=6, release_ms=110, makeup_db=6),
