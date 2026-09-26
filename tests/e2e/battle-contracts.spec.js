@@ -91,6 +91,7 @@ for (const mobile of [true, false]) {
     test('committed trade survives submenu Back, reselection and another Back', async ({
       page,
     }, testInfo) => {
+      test.slow(); // boot, two trades and three Backs; over 30 s on a slow runner
       const errors = await boot(page, mobile);
       await page.evaluate(() => {
         const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -215,6 +216,7 @@ test.describe('phone Canto and rewind contracts', () => {
   test('Vision preserves resolved turn-start healing and does not heal twice', async ({
     page,
   }, testInfo) => {
+    test.slow(); // plays an enemy phase and a Vision rewind
     const errors = await boot(page, true);
     // Rewind now commits an exact saved branch; give this dev fixture a real slot.
     await page.evaluate(async () => {

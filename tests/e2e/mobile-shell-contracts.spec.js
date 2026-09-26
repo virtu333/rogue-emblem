@@ -218,6 +218,7 @@ test('one-finger camera drag after selecting a unit pans without committing a mo
 });
 
 test('late phone resize reconciles the map; decorative auth canvas is gone', async ({ page }) => {
+  test.slow(); // the 15 s wait is the scenario; boot and three resizes come on top
   await boot(page);
   await page.waitForTimeout(15000);
   for (const viewport of [
